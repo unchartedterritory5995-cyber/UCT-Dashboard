@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext'
 import UIcon from './ui/UIcon'
 import { NAV_GROUPS } from './navGroups'
 import { FREE_PAGES } from '../constants/freePages'
+import { useTerminalNavPath } from '../pages/terminal/TerminalRoutes'
+import { TERMINAL_PATH } from '../pages/terminal/terminalGate'
 import styles from './NavBar.module.css'
 import uctLogo from './intro/assets/compass-mark.png'
 
@@ -24,6 +26,8 @@ export const NAV_ITEMS = [
   // and an admitted member's old `/calendar` links still redirect into the shell
   // (`CalendarRoute`), so the entry stays lit on `/calendar` too. The route's measurement
   // (viewportLockedRoutes.test.js) is docs/notebook/proof/f5-r2-routes/routes-nav-terminal-*.json.
+  // V19: a member who ticked "keep classic calendar" gets this entry pointed at `/calendar`
+  // instead (`useTerminalNavPath`, applied in renderItem); `to` here stays the declared route.
   { to: '/terminal',     label: 'UCT Terminal',  icon: 'calendar', alsoActive: ['/calendar'] },
   { to: '/charts',       label: 'Charts',        icon: 'equity' },
   { to: '/morning-wire', label: 'Morning Wire',  icon: 'wire' },
@@ -54,10 +58,12 @@ const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 // shell at `/terminal`) stays lit there. Read off `window.location` inside NavLink's own
 // className callback, which re-runs on every route change, rather than adding a
 // `useLocation` import that every router-mocking NavBar test would have to grow.
+// `item.to` is checked here too: a member who keeps the classic calendar has the entry
+// pointed at `/calendar` (V19, `useTerminalNavPath`), and must still see it lit on `/terminal`.
 function alsoActive(item) {
   if (!item.alsoActive || typeof window === 'undefined') return false
   const p = window.location.pathname || ''
-  return item.alsoActive.some((r) => p === r || p.startsWith(`${r}/`))
+  return [item.to, ...item.alsoActive].some((r) => p === r || p.startsWith(`${r}/`))
 }
 
 // Bucket NAV_ITEMS under the shared taxonomy's groups (./navGroups.js) —
@@ -84,6 +90,8 @@ export default function NavBar({ onOpenPalette }) {
   const { user, isPaid, plan } = useAuth()
   const isAdmin = user?.role === 'admin'
   const showAll = isPaid  // admin + pro/premium/lifetime (AuthContext single source)
+  // V19: the UCT Terminal entry honours "keep classic calendar" (TerminalRoutes.jsx).
+  const terminalNavPath = useTerminalNavPath()
 
   // Account-card plan label (mirrors MoreSheet's identity header).
   const planLabel = isAdmin
@@ -147,7 +155,7 @@ export default function NavBar({ onOpenPalette }) {
     return (
       <NavLink
         key={item.to}
-        to={item.to}
+        to={item.to === TERMINAL_PATH ? terminalNavPath : item.to}
         className={({ isActive }) =>
           [styles.item, (isActive || alsoActive(item)) ? styles.active : ''].filter(Boolean).join(' ')
         }

@@ -10,7 +10,7 @@
 // exact path BEFORE this element renders, so the acquisition redirect (row E2) is untouched.
 import { Navigate, useLocation } from 'react-router-dom'
 import usePreferences from '../../hooks/usePreferences'
-import useTerminalNext, { calendarIntoShell, shellOutToCalendar } from './terminalGate'
+import useTerminalNext, { LEGACY_CALENDAR_PATH, TERMINAL_PATH, calendarIntoShell, shellOutToCalendar } from './terminalGate'
 // `boardPrefs`, never `boardModel` / `useTerminalLayout`: this file is in App.jsx's static graph, and
 // those two pull the whole function registry into the app entry chunk (lane w9-10).
 import { TERMINAL_BOARDS_PREF, isGuardedStatus, readKeepCalendar } from './boardPrefs'
@@ -46,6 +46,21 @@ export function CalendarRoute({ children }) {
   }
   if (keepCalendar) return children
   return <Navigate to={calendarIntoShell(search, hash)} replace />
+}
+
+/** V19: where the menu's "UCT Terminal" entry (sidebar + mobile More sheet) points.
+ *  The entry graduated to `/terminal` (c941080f0), which went round `CalendarRoute`, so a
+ *  member who ticked "keep classic calendar" clicked it and got the shell anyway. A member
+ *  whose READABLE preference says keep now gets `/calendar` (the classic page, via
+ *  `CalendarRoute`, which also keeps a deep link's query string); everyone else — and anyone
+ *  while the preference loads — gets `/terminal` exactly as before. A closed shell already
+ *  sends `/terminal` to `/calendar`, so this never widens what a member reaches, and
+ *  `/terminal` itself stays open to a keeper, as the setting says. */
+export function useTerminalNavPath() {
+  const open = useTerminalNext()
+  const { prefs, loading } = usePreferences(open)
+  if (!open || loading) return TERMINAL_PATH
+  return readKeepCalendar(prefs?.[TERMINAL_BOARDS_PREF]).keepCalendar ? LEGACY_CALENDAR_PATH : TERMINAL_PATH
 }
 
 /** `/terminal` and `/terminal/calendar`: the shell, or — when closed — `/calendar`. */

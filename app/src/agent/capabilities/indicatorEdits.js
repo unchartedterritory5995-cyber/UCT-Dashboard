@@ -251,6 +251,8 @@ export const indicatorEditsKind = {
   },
   // `confirmIndicatorMutation` already verified the read-back inside commit.
   landed: () => true,
+  // commit() above already persisted and read back the change: the runtime adds no second board write
+  persistsInCommit: true,
   // Undo exists only when the interface minted a token on confirmation — held as returned.
   undoPatch: (item) => (item.undoData ? { undo: item.undoData } : null),
   // Staleness is the interface's (pins re-checked at apply / undo), not a whole-settings hash:

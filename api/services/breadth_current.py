@@ -108,11 +108,43 @@ def _label(status: str, session: str, observed: Optional[datetime]) -> str:
     return f"Finalized close · {day}"
 
 
+def row_observation(payload: Optional[dict], row: dict, now: datetime) -> dict:
+    """THE freshness rule for one live-payload row — shared by the Agent contract (`choose`)
+    and the member charts (`breadth_live_universes.append_library_bars`), so the two can never
+    disagree about whether a reading is live.
+
+    A `final` row is a completed session measured from its closing bars: provisional, observed
+    at that session's close, never "stale". Today's row is observed at the VENDOR's snapshot
+    time (`data_as_of`), never UCT's compute time: it is a provisional close once that data
+    time has reached the close, else intraday — and an intraday row is `fresh` only when its
+    market data is <= FRESH_MAX_S old. No data time => unknown => not fresh."""
+    from api.services import session_calendar as sc
+    d = row.get("date")
+    close = sc.close_time(date.fromisoformat(d)) if d else None
+    if row.get("final"):
+        observed, basis, completed = close, "session_close", True
+    else:
+        # only the VENDOR's data time says whether the row saw the close — a delayed feed
+        # computed at 16:05 still holds data from before 16:00
+        observed = _parse((payload or {}).get("data_as_of"))
+        basis = "vendor_snapshot" if observed else "unknown"
+        completed = bool(close and observed and observed >= close)
+    age = (now - observed).total_seconds() if observed else None
+    status = "provisional" if completed else "intraday"
+    fresh, reason = True, None
+    if status == "intraday":
+        if observed is None:
+            fresh, reason = False, "market-data observation time unavailable"
+        elif age > FRESH_MAX_S:
+            fresh, reason = False, f"market data is {round(age)}s old (feed delayed or snapshot stale)"
+    return {"session": d, "status": status, "observed": observed, "basis": basis,
+            "age_s": age, "fresh": fresh, "reason": reason}
+
+
 def choose(universe: str, metric: str, now: datetime, payload: Optional[dict],
            finalized: dict) -> dict:
     """Pure decision. `payload` = the live-universes payload (or None); `finalized` =
     `{date: value}` canonical for this universe + measure."""
-    from api.services import session_calendar as sc
     want, market_open = expected_session(now)
     out = {"universe": universe, "metric": metric, "expected_session": want,
            "market_open": market_open, "accuracy_tier": accuracy_tier(metric)}
@@ -122,7 +154,6 @@ def choose(universe: str, metric: str, now: datetime, payload: Optional[dict],
     p = payload or {}
     u = (p.get("universes") or {}).get(universe) or {}
     computed = _parse(p.get("as_of"))           # when UCT computed the payload
-    data_obs = _parse(p.get("data_as_of"))      # when the market data was observed (vendor)
     observed, basis = None, None
     if metric in FINALIZED_ONLY:
         reasons.append("no live reading exists for this measure")
@@ -139,18 +170,9 @@ def choose(universe: str, metric: str, now: datetime, payload: Optional[dict],
             v = _finite((r.get("metrics") or {}).get(metric))
             if v is None:
                 continue
-            d = r.get("date")
-            close = sc.close_time(date.fromisoformat(d)) if d else None
-            if r.get("final"):
-                # a completed session measured from its closing bars: observed at its close
-                observed, basis, completed = close, "session_close", True
-            else:
-                # today's row: only the VENDOR's data time says whether it saw the close —
-                # a delayed feed computed at 16:05 still holds data from before 16:00
-                observed, basis = data_obs, ("vendor_snapshot" if data_obs else "unknown")
-                completed = bool(close and data_obs and data_obs >= close)
-            live = {"session": d, "value": v,
-                    "status": "provisional" if completed else "intraday"}
+            obs = row_observation(p, r, now)
+            observed, basis = obs["observed"], obs["basis"]
+            live = {"session": obs["session"], "value": v, "status": obs["status"], "obs": obs}
             break
         if live is None:
             reasons.append(f"live {universe} has no {metric} reading")
@@ -180,15 +202,11 @@ def choose(universe: str, metric: str, now: datetime, payload: Optional[dict],
                finalized_session=fin["session"] if fin else None,
                population_drift=u.get("population_drift") if is_live else None)
     current = pick["session"] == want
-    if current and pick["status"] == "intraday":
+    if current and pick["status"] == "intraday" and not pick["obs"]["fresh"]:
         # ⛔ freshness is the age of the MARKET DATA, never of the computation: a payload
         # recomputed seconds ago over a delayed or frozen snapshot is not "now"
-        if observed is None:
-            current = False
-            reasons.append("market-data observation time unavailable")
-        elif age > FRESH_MAX_S:
-            current = False
-            reasons.append(f"market data is {round(age)}s old (feed delayed or snapshot stale)")
+        current = False
+        reasons.append(pick["obs"]["reason"])
     if current and market_open and pick["status"] != "intraday":
         current = False                      # a close while the session trades is not "now"
     if not current and pick["session"] != want:

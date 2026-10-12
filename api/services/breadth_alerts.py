@@ -94,6 +94,31 @@ def send(key: str, title: str, lines: list, post: Optional[Callable] = None,
         return {"sent": ok, "reason": None if ok else f"http {getattr(r, 'status_code', '?')}"}
 
 
+def resolve(key: str, title: str, lines: list, post: Optional[Callable] = None) -> dict:
+    """The condition behind `key` is over: if it ALERTED, post one resolution and forget the
+    key (a recurrence then alerts at once); if it never alerted, do nothing. A failed post
+    keeps the key so the next healthy check retries the resolution. Never raises."""
+    with _lock:
+        if not _load().get(key):
+            return {"sent": False, "reason": "not alerted"}
+    url = webhook()
+    if not url:
+        return {"sent": False, "reason": "no webhook"}
+    body = "\n".join([f"✅ **{title}**", *[f"• {ln}" for ln in lines][:15]])[:1900]
+    try:
+        if post is None:
+            import requests
+            post = requests.post
+        r = post(url, json={"content": body, "allowed_mentions": {"parse": []}}, timeout=10)
+        ok = 200 <= int(getattr(r, "status_code", 0)) < 300
+    except Exception as e:                         # noqa: BLE001
+        _log.warning("[breadth-alerts] resolve post failed: %s", e)
+        return {"sent": False, "reason": f"post failed: {type(e).__name__}"}
+    if ok:
+        clear(key)
+    return {"sent": ok, "reason": None if ok else f"http {getattr(r, 'status_code', '?')}"}
+
+
 def clear(key: str) -> None:
     """Forget a key once its condition is resolved, so a recurrence alerts at once."""
     with _lock:

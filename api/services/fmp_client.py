@@ -473,6 +473,45 @@ def search_insider_purchases(page: int, limit: int = 100, *, timeout: Optional[i
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
+# ── Congressional trades (COV-12 / FT-067, owner approval 2026-10-12) ───────
+# STOCK Act periodic transaction reports as FMP serves them, one endpoint per
+# chamber (`/stable/senate-trades`, `/stable/house-trades`), plus each chamber's
+# market-wide newest-disclosures feed (`/stable/senate-latest`,
+# `/stable/house-latest`). Read only through `congress_trades.py`.
+#
+# data_class "congress" has NO licensing-register row yet, so it stamps "U"
+# (see the `("fmp", "ipo")` comment in provider_licensing_class.py): unknown,
+# never inferred from a neighbour.
+
+def get_senate_trades(ticker: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """One symbol's Senate disclosures (`/stable/senate-trades?symbol=`)."""
+    return _fetch("/stable/senate-trades", {"symbol": ticker.upper()},
+                   source_activity="fmp_client.get_senate_trades", data_class="congress",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
+def get_house_trades(ticker: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """One symbol's House disclosures (`/stable/house-trades?symbol=`)."""
+    return _fetch("/stable/house-trades", {"symbol": ticker.upper()},
+                   source_activity="fmp_client.get_house_trades", data_class="congress",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
+def get_senate_latest(page: int = 0, limit: int = 100, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """The newest Senate disclosures across every symbol (`/stable/senate-latest`).
+    Market-wide, so it takes no ticker (like `search_insider_purchases`)."""
+    return _fetch("/stable/senate-latest", {"page": int(page), "limit": int(limit)},
+                   source_activity="fmp_client.get_senate_latest", data_class="congress",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
+def get_house_latest(page: int = 0, limit: int = 100, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """The newest House disclosures across every symbol (`/stable/house-latest`)."""
+    return _fetch("/stable/house-latest", {"page": int(page), "limit": int(limit)},
+                   source_activity="fmp_client.get_house_latest", data_class="congress",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
 def get_shares_float(ticker: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """Float + shares-outstanding — added for the Ownership tab's D1
     migration (2026-09-03). Share counts move slowly (a company action, not

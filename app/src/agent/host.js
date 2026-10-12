@@ -120,6 +120,11 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
       const e = entries().find(x => x.ref === ref)
       return e?.api.agent.openCreateIndicator ? e.api.agent.openCreateIndicator(opts) : null
     },
+    // ⭐ INDICATORS ⇄ AGENT: one of the existing builder's doors (formula | pine | library | image) on this chart
+    openIndicatorDoor: (ref, door) => {
+      const e = entries().find(x => x.ref === ref)
+      try { return !!e?.api.agent.openIndicatorDoor?.(door) } catch { return false }
+    },
     // The Time Navigator's jump on this chart (a view; see ChartWidget's adapter).
     goTo: (ref, ms) => {
       const e = entries().find(x => x.ref === ref)
@@ -365,8 +370,11 @@ export function buildBoardSync({ readServer, localLayout, localEpoch, settleMs =
 }
 
 const PREFS_URL = '/api/auth/preferences'
+// ⭐ LATENCY: only the two keys this check compares (the server reads them exactly as for the full
+// blob — same store, same document head); the rest of the member's preferences stay off the wire.
+const BOARD_KEYS_URL = `${PREFS_URL}?keys=charts_workspace_layout,charts_active_template`
 async function readServerBoard() {
-  const r = await fetch(PREFS_URL, { credentials: 'include', cache: 'no-store' })
+  const r = await fetch(BOARD_KEYS_URL, { credentials: 'include', cache: 'no-store' })
   if (!r.ok) return null
   const p = await r.json()
   let layout = null

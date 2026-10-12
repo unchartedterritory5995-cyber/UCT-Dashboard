@@ -150,11 +150,34 @@ def _within_cooldown(ba: dict, cooldown_seconds: float) -> bool:
     return (datetime.now(timezone.utc) - last).total_seconds() < cooldown_seconds
 
 
+def _do_sync_in_own_loop(user_id: str, broker_account_id: str, full: bool) -> dict[str, Any]:
+    """Run one account's sync to completion on a PRIVATE event loop, in the
+    calling (worker) thread. Exactly the execution model the scheduled syncs
+    already use (`run_due_sync_blocking` & co. = asyncio.run in a scheduler
+    thread)."""
+    return asyncio.run(_do_sync(user_id, broker_account_id, full=full))
+
+
 async def sync_account(user_id: str, broker_account_id: str, *,
-                       full: bool = False, cooldown_seconds: float = 0.0) -> dict[str, Any]:
+                       full: bool = False, cooldown_seconds: float = 0.0,
+                       off_loop: bool = False) -> dict[str, Any]:
     """Sync one account. Serialized per account via an asyncio lock. When
     `cooldown_seconds` is set and the account synced that recently, skip the
-    live pull and return the cached state (debounces on-open/repeated /sync)."""
+    live pull and return the cached state (debounces on-open/repeated /sync).
+
+    `off_loop=True` runs `_do_sync` in a worker thread on its own event loop
+    instead of on the caller's loop. ⛔ Every caller ON THE WEB POD'S REQUEST
+    LOOP must pass it (the /sync route, the webhook worker): `_do_sync` awaits
+    only the SnapTrade calls, and everything between them — storing and
+    healing the activity ledger, the FIFO reconstruct over the WHOLE ledger,
+    cash-flow reconcile (which can fetch daily bars synchronously), balances,
+    option reconcile, mirror check, dedup scan — is synchronous. On the shared
+    uvicorn loop that froze EVERY member's request for the length of the sync:
+    measured 2026-10-12 on production, a journal open's background sync of a
+    1,829-activity account held the loop 10.2 s (boot-probe loop-lag=10243ms)
+    and stalled 31 unrelated requests (401s, /api/auth/me, chart reads) to
+    ~12 s; the 19:00Z one stalled 24 requests to 22-30 s. The per-account lock
+    stays on the CALLER's loop either way."""
     if cooldown_seconds and not full:
         ba = connections.get_broker_account(user_id, broker_account_id)
         if ba and _within_cooldown(ba, cooldown_seconds):
@@ -163,6 +186,9 @@ async def sync_account(user_id: str, broker_account_id: str, *,
         attempts = 1 + len(_LOCKED_RETRY_DELAYS)
         for attempt in range(attempts):
             try:
+                if off_loop:
+                    return await asyncio.to_thread(
+                        _do_sync_in_own_loop, user_id, broker_account_id, full)
                 return await _do_sync(user_id, broker_account_id, full=full)
             except sqlite3.OperationalError as e:
                 if "locked" not in str(e).lower() or attempt == attempts - 1:
@@ -172,9 +198,12 @@ async def sync_account(user_id: str, broker_account_id: str, *,
 
 
 async def sync_all_for_user(user_id: str, *, full: bool = False,
-                            cooldown_seconds: float = 0.0) -> dict[str, Any]:
+                            cooldown_seconds: float = 0.0,
+                            off_loop: bool = False) -> dict[str, Any]:
     """Sync every sync-enabled account for a user. One failing account never
-    blocks the others. Returns per-account results keyed by broker_account_id."""
+    blocks the others. Returns per-account results keyed by broker_account_id.
+    `off_loop` is passed to `sync_account` — see there; request-loop callers
+    must set it."""
     results: dict[str, Any] = {}
     for ba in connections.list_broker_accounts(user_id):
         if not ba["syncEnabled"]:
@@ -190,7 +219,8 @@ async def sync_all_for_user(user_id: str, *, full: bool = False,
             continue
         try:
             results[ba["id"]] = await sync_account(
-                user_id, ba["id"], full=full, cooldown_seconds=cooldown_seconds)
+                user_id, ba["id"], full=full, cooldown_seconds=cooldown_seconds,
+                off_loop=off_loop)
         except Exception as e:  # noqa: BLE001 — isolate per-account failures
             results[ba["id"]] = {"error": str(e)}
     return results

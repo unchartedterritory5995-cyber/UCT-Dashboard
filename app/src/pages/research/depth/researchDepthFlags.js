@@ -16,6 +16,7 @@ export const RESEARCH_DEPTH_KEYS = [
   'ftd_dataset_enabled',
   'mention_series_enabled',
   'broker_estimates_enabled',
+  'congress_trades_enabled',
 ]
 
 // Lane R Depth panels the /terminal shell does not yet reach by a function code

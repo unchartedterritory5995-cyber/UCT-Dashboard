@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { vi } from 'vitest'
 
 let mockPlan = 'pro'
@@ -13,6 +13,9 @@ vi.mock('../../context/AuthContext', () => ({
   }),
 }))
 vi.mock('swr', () => ({ default: () => ({ data: null }) }))
+// V19: the UCT Terminal entry's target comes from useTerminalNavPath (unit-tested beside it).
+let mockTerminalNavPath = '/terminal'
+vi.mock('../../pages/terminal/TerminalRoutes', () => ({ useTerminalNavPath: () => mockTerminalNavPath }))
 
 import MoreSheet from './MoreSheet'
 
@@ -24,7 +27,7 @@ function renderSheet(props = {}) {
   )
 }
 
-beforeEach(() => { mockPlan = 'pro'; mockRole = null })
+beforeEach(() => { mockPlan = 'pro'; mockRole = null; mockTerminalNavPath = '/terminal' })
 
 test('renders the full directory for a paid user', () => {
   renderSheet()
@@ -73,4 +76,28 @@ test('renders nothing when closed', () => {
 test('Flow Scoreboard is reachable from the mobile More menu too, not only the desktop nav', () => {
   renderSheet()
   expect(screen.getByText('Flow Record')).toBeInTheDocument()
+})
+
+// V19: "keep classic calendar" must reach the phone menu's UCT Terminal entry too.
+function renderSheetAndWatch() {
+  function Where() { return <span data-testid="where">{useLocation().pathname}</span> }
+  render(
+    <MemoryRouter initialEntries={['/dashboard']}>
+      <MoreSheet open onClose={vi.fn()} />
+      <Routes><Route path="*" element={<Where />} /></Routes>
+    </MemoryRouter>,
+  )
+}
+
+test('V19: UCT Terminal opens the classic calendar for a member who kept it', () => {
+  mockTerminalNavPath = '/calendar'
+  renderSheetAndWatch()
+  fireEvent.click(screen.getByText('UCT Terminal'))
+  expect(screen.getByTestId('where').textContent).toBe('/calendar')
+})
+
+test('V19: UCT Terminal opens the terminal for everyone else', () => {
+  renderSheetAndWatch()
+  fireEvent.click(screen.getByText('UCT Terminal'))
+  expect(screen.getByTestId('where').textContent).toBe('/terminal')
 })

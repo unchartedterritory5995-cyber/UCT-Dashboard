@@ -91,6 +91,16 @@ therefore never be presented as "now", however recently it was recomputed.
 - The REST snapshot uses the same key. The `compute_lag_s` of the first deployed payloads is
   the direct confirmation. Owner sign-off on the plan's display entitlements is still required.
 
+**Charts use the same rule (2026-10-12).** `breadth_current.row_observation()` is the single
+freshness rule. It is used by `reading()` and by the US/NYSE/Nasdaq chart path
+(`breadth_live_universes.append_library_bars`).
+
+- A stale, carried or unstamped intraday row is **not drawn** as today's bar. The chart ends at
+  the newest completed session.
+- The bars response carries `live: {live: drawn|withheld|none, status, observed_at, reason}`.
+- Finalized and provisional completed sessions are unchanged.
+- The chart and the Agent therefore agree on whether something is live, by construction.
+
 ## Rules the Agent applies
 
 1. **Present-tense questions** ("now", "currently", "today", unqualified): call `reading()`.

@@ -5266,6 +5266,10 @@ export default function StockChart({
         const no = { ok: false, reason: 'unavailable', prefilled: false, draft: false, editing: false }
         try { return toolbarRef.current?.openCreateIndicatorFor?.(opts) ?? no } catch { return no }
       },
+      // ⭐ INDICATORS ⇄ AGENT — the builder's doors (Formula / Import / Library / Screenshot)
+      openIndicatorDoor: (door) => {
+        try { return !!toolbarRef.current?.openIndicatorDoor?.(door) } catch { return false }
+      },
       // ⭐ PHASE 4 — the definition's own doors, for Chart Settings → Indicators and
       // the "Your indicators" list (siblings of this chart, so a CALL, not a mount).
       openFormulaEditor: (opts = null) => {
