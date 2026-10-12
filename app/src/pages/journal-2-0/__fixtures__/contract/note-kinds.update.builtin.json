@@ -1,0 +1,14 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "PUT /api/j2/note-kinds/thesis",
+    "path": "/api/j2/note-kinds/thesis",
+    "requestBody": {
+      "name": "x"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "Built-in kinds can't be changed. Make your own kind instead."
+  }
+}

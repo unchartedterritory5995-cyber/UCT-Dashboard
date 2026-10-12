@@ -1,0 +1,32 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/journal-styles/preview",
+    "path": "/api/j2/journal-styles/preview",
+    "requestBody": {
+      "style": {
+        "blocks": [],
+        "kindId": "thesis",
+        "name": "Draft"
+      },
+      "ticker": "crwd"
+    },
+    "status": 200
+  },
+  "body": {
+    "bodyJson": {
+      "content": [
+        {
+          "type": "paragraph"
+        }
+      ],
+      "type": "doc"
+    },
+    "properties": {
+      "builtin:note_kind": "thesis"
+    },
+    "skipped": [],
+    "ticker": "CRWD",
+    "tickerSource": "asked"
+  }
+}

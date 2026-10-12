@@ -1,0 +1,75 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/journal-styles",
+    "path": "/api/j2/journal-styles",
+    "requestBody": {
+      "fromNoteId": "4e400b8ccaae4430a47ecf80887bdf6a",
+      "kindId": "trade_plan",
+      "name": "From my note"
+    },
+    "status": 200
+  },
+  "body": {
+    "style": {
+      "blocks": [
+        {
+          "block": "chart",
+          "enabled": true,
+          "settings": {
+            "tf": "D"
+          }
+        }
+      ],
+      "builtin": false,
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "deletedAt": null,
+      "hasOutline": true,
+      "id": "f3a2b5c0ec4e4369b9d27c35004fa4cc",
+      "isDefault": false,
+      "kindId": "trade_plan",
+      "name": "From my note",
+      "outlineBodyJson": {
+        "content": [
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "Setup",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "{{block:chart}}",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
+                "text": "My words",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          }
+        ],
+        "type": "doc"
+      },
+      "outlineTemplateId": null,
+      "properties": {},
+      "sourceGalleryId": null,
+      "sourceVersion": null,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "version": 1
+    }
+  }
+}

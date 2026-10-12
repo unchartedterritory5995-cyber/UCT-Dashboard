@@ -324,7 +324,10 @@ def apply_mapping(user_id: str, exclude_note_ids: Any = (), conn: sqlite3.Connec
     """Set Kind of note from Research Type on every unmapped note not in `exclude_note_ids` (the
     client excludes notes holding unsent offline work). Each write goes through notes.update_note
     and moves that note's revision; the caller lands every returned {id, updatedAt}.
-    A LOCKED note is never written to: it is appended to `skipped_out` as {id, reason: "locked"}."""
+    A LOCKED note is never written to: it is appended to `skipped_out` as {id, reason: "locked"}.
+    ⛔ Never a failure mid-loop (review M6): a note that became locked, or changed, between the read
+    above and its own write is skipped as {id, reason: "locked"|"changed"} and the loop goes on, so
+    every note already written is still returned for the client to land."""
     from api.services.journal_two import notes as notes_service
     skip = {x for x in (exclude_note_ids or []) if isinstance(x, str)}
     owned = conn is None
@@ -347,7 +350,13 @@ def apply_mapping(user_id: str, exclude_note_ids: Any = (), conn: sqlite3.Connec
         done = []
         for nid, rt in pending:
             kind_id = RESEARCH_TYPE_TO_KIND[rt] or sector["id"]
-            n = notes_service.update_note(user_id, nid, {"properties": {NOTE_KIND_PROPERTY: kind_id}}, conn=conn)
+            try:
+                n = notes_service.update_note(user_id, nid, {"properties": {NOTE_KIND_PROPERTY: kind_id}}, conn=conn)
+            except (notes_service.NoteLockedError, notes_service.NoteConflictError) as e:
+                if skipped_out is not None:
+                    reason = "locked" if isinstance(e, notes_service.NoteLockedError) else "changed"
+                    skipped_out.append({"id": nid, "reason": reason})
+                continue
             if n is not None:
                 done.append({"id": n["id"], "updatedAt": n["updatedAt"]})
         return done

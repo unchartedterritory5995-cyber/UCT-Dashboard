@@ -1,0 +1,106 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/notes/3f852852cd854488b72ffac1c3f104b6/apply-style-update",
+    "note": "One write: the chart after the first heading, the member's words untouched, the stamp moved.",
+    "path": "/api/j2/notes/3f852852cd854488b72ffac1c3f104b6/apply-style-update",
+    "requestBody": {
+      "baseUpdatedAt": "2026-10-05T14:30:00+00:00"
+    },
+    "status": 200
+  },
+  "body": {
+    "note": {
+      "accountId": null,
+      "archivedAt": null,
+      "bodyJson": {
+        "content": [
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "The setup",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "attrs": {
+              "annotations": [],
+              "caption": null,
+              "capturedAt": "2026-10-05T14:30:00Z",
+              "embedId": "d4acda978d844b9ebe18d62a1fd54a72",
+              "fallback": null,
+              "layout": {
+                "height": null,
+                "width": "full"
+              },
+              "mode": "snapshot",
+              "params": {
+                "symbol": "MSFT",
+                "tf": "D",
+                "to": 1791210600
+              },
+              "v": 1,
+              "widgetId": "chart"
+            },
+            "type": "widgetEmbed"
+          },
+          {
+            "content": [
+              {
+                "text": "My words",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          }
+        ],
+        "type": "doc"
+      },
+      "bodyPlain": "The setup [widget] My words",
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "dailyDate": null,
+      "deletedAt": null,
+      "firstImageUrl": null,
+      "folderId": null,
+      "heroImageUrl": null,
+      "id": "3f852852cd854488b72ffac1c3f104b6",
+      "kindId": "trade_plan",
+      "locked": false,
+      "propertiesJson": {
+        "builtin:note_kind": "trade_plan"
+      },
+      "styleId": "builtin:trade_plan",
+      "styleVersion": 1,
+      "subtitle": null,
+      "tags": [],
+      "ticker": "MSFT",
+      "title": "MSFT plan",
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "userId": "contract-styles"
+    },
+    "plan": {
+      "add": [
+        {
+          "block": "chart",
+          "label": null
+        }
+      ],
+      "fromVersion": 1,
+      "insertsOutline": false,
+      "locked": false,
+      "missingBlocks": true,
+      "skipped": [],
+      "styleId": "builtin:trade_plan",
+      "styleName": "Trade plan",
+      "switching": false,
+      "toVersion": 1,
+      "upToDate": false,
+      "versionCurrent": true
+    }
+  }
+}

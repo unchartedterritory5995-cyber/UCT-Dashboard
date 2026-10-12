@@ -77,6 +77,8 @@ FLAGS = (
     # The onboarding router (the sample notebook's add / status / remove, and the tour rows).
     # Here since fin-data2 round 2: lane FE2 words the removal's kept-folder sentence.
     "NOTEBOOK_ONBOARDING_ENABLED",
+    # Notebook P1: journal styles and kinds of note (api/routers/notebook_journal_styles.py).
+    "NOTEBOOK_JOURNAL_STYLES_ENABLED",
 )
 
 
@@ -279,7 +281,8 @@ def build_app() -> Any:
     generator, the sweeps and the pytest's coverage rail all read it from here."""
     from fastapi import FastAPI
     from api.routers import (notebook_chart_alerts, notebook_earnings_prep, notebook_entry_context,
-                             notebook_fingerprint, notebook_onboarding, notebook_plan_grades, notebook_playbook,
+                             notebook_fingerprint, notebook_journal_styles, notebook_onboarding,
+                             notebook_plan_grades, notebook_playbook,
                              notebook_research_capture, notebook_review_drafts, notebook_setups_board,
                              notebook_template_gallery, notebook_thesis_chips, notebook_visual_playbook)
     app = FastAPI()
@@ -289,7 +292,7 @@ def build_app() -> Any:
               notebook_earnings_prep.router, notebook_entry_context.router,
               notebook_chart_alerts.router, notebook_research_capture.transcripts_router,
               notebook_research_capture.passed_router, notebook_template_gallery.router,
-              notebook_fingerprint.router, notebook_onboarding.router):
+              notebook_fingerprint.router, notebook_onboarding.router, notebook_journal_styles.router):
         app.include_router(r)
     return app
 
@@ -417,14 +420,16 @@ class World:
             self.app.dependency_overrides[authmw.require_paid] = lambda: dict(user)
 
     def record(self, name: str, method: str, path: str, *, case: str, expect: int,
-               json_body: Any = None, content: bytes | None = None, note: str = "") -> Any:
-        """Call the endpoint, check the status is the one this case is about, keep the answer."""
+               json_body: Any = None, content: bytes | None = None, note: str = "", client: Any = None) -> Any:
+        """Call the endpoint, check the status is the one this case is about, keep the answer.
+        `client` answers through another app (journal_two's create door, deliberately not in
+        `build_app()`: its routes are not gated by these flags, so they belong in neither sweep)."""
         kwargs: dict[str, Any] = {}
         if json_body is not None:
             kwargs["json"] = json_body
         if content is not None:
             kwargs["content"] = content
-        res = self.client.request(method, path, **kwargs)
+        res = (client or self.client).request(method, path, **kwargs)
         if res.status_code != expect:
             raise AssertionError(f"{name}: {method} {path} answered {res.status_code}, wanted {expect}: "
                                  f"{res.text[:400]}")
@@ -1637,6 +1642,144 @@ def sample_notebook(w: World) -> None:
     finally:
         w.p.setenv("NOTEBOOK_GETTING_STARTED_ENABLED", None)
         w.as_user(MEMBER)
+
+
+@builder
+def journal_styles(w: World) -> None:
+    """Journal styles (Notebook P1): styles, kinds, preview, the mapping offer, and "Update layout"
+    (the plan and the one compare-and-set write)."""
+    from api.services.journal_two import notes as notes_service
+    who = w.member("styles", "Sam Styles")
+    empty = w.member("styles-empty", "Erin Empty")
+    base, kinds, notes = "/api/j2/journal-styles", "/api/j2/note-kinds", "/api/j2/notes"
+    trade_plan_stamp = ("builtin:trade_plan", 1, "trade_plan")
+    c = w.conn()
+    try:
+        notes_service.create_note(who, {"title": "NVDA plan", "ticker": "NVDA"}, c)
+        notes_service.create_note(who, {"title": "Old earnings note"}, c,
+                                  properties={"builtin:research_type": "earnings_play"})
+        held = notes_service.create_note(who, {"title": "Locked earnings note"}, c,
+                                         properties={"builtin:research_type": "earnings_play"})
+        src = notes_service.create_note(who, {"title": "Setup to save", "ticker": "AMD", "bodyJson": doc(
+            {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Setup"}]},
+            chart_block("AMD", [], embed_id="emb-styles-1"), para("My words"))}, c)
+        styled = notes_service.create_note(who, {"title": "MSFT plan", "ticker": "MSFT", "bodyJson": doc(
+            {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "The setup"}]},
+            para("My words"))}, c, properties={"builtin:note_kind": "trade_plan"}, style_stamp=trade_plan_stamp)
+        locked = notes_service.create_note(who, {"title": "Locked plan", "ticker": "MSFT"}, c,
+                                           style_stamp=trade_plan_stamp)
+        c.execute("UPDATE j2_notes SET locked = 1 WHERE id IN (?, ?)", (held["id"], locked["id"]))
+        c.commit()
+    finally:
+        c.close()
+    w.as_user(empty)
+    w.record("journal-styles.list.empty", "GET", base, case="empty", expect=200,
+             note="A member with no styles of their own: the eight built-in styles and kinds.")
+    w.as_user(who)
+    made = w.record("journal-styles.create", "POST", base, case="success", expect=200, json_body={
+        "name": "My trade plan", "kindId": "trade_plan",
+        "outlineBodyJson": doc({"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Setup"}]},
+                               para("{{block:chart}}"), para("Entry:")),
+        "blocks": [{"block": "chart", "enabled": True, "settings": {"tf": "W"}}],
+        "properties": {"builtin:confidence": "high"}})
+    sid = made["style"]["id"]
+    w.record("journal-styles.create.bad-kind", "POST", base, case="error", expect=400,
+             json_body={"name": "x", "kindId": "nope"})
+    w.record("journal-styles.create.from-note", "POST", base, case="success", expect=200,
+             json_body={"fromNoteId": src["id"], "name": "From my note", "kindId": "trade_plan"})
+    # Recorded AFTER two member styles exist, so the client tests that load it see a kind with
+    # built-in AND own styles (KindSection's "Choose another style", journalStyles.stylesOfKind).
+    w.record("journal-styles.list", "GET", base, case="success", expect=200,
+             note="Built-in styles plus two of the member's own Trade plan styles; no member default yet.")
+    w.record("journal-styles.get", "GET", f"{base}/{sid}", case="success", expect=200)
+    w.record("journal-styles.get.builtin", "GET", f"{base}/builtin:thesis", case="success", expect=200)
+    w.record("journal-styles.get.not-found", "GET", f"{base}/nope", case="error", expect=404)
+    w.record("journal-styles.update", "PUT", f"{base}/{sid}", case="success", expect=200,
+             json_body={"blocks": [{"block": "chart", "enabled": False, "settings": {"tf": "W"}}]})
+    w.record("journal-styles.update.builtin", "PUT", f"{base}/builtin:thesis", case="error", expect=400,
+             json_body={"name": "x"})
+    w.record("journal-styles.update.unknown-block", "PUT", f"{base}/{sid}", case="success", expect=200,
+             json_body={"blocks": [{"block": "futureBlock", "enabled": True, "settings": {"a": 1}}]},
+             note="A block from a newer version is kept verbatim.")
+    w.record("journal-styles.preview", "POST", f"{base}/preview", case="success", expect=200,
+             json_body={"styleId": "builtin:trade_plan"}, note="No ticker asked: the member's latest note's.")
+    w.record("journal-styles.preview.draft", "POST", f"{base}/preview", case="success", expect=200,
+             json_body={"style": {"name": "Draft", "kindId": "thesis", "blocks": []}, "ticker": "crwd"})
+    w.record("journal-styles.preview.not-found", "POST", f"{base}/preview", case="error", expect=404,
+             json_body={"styleId": "nope"})
+    w.record("journal-styles.default", "POST", f"{base}/{sid}/default", case="success", expect=200)
+    w.record("journal-styles.default.builtin", "POST", f"{base}/builtin:trade_plan/default", case="success",
+             expect=200, note="Making a built-in the default clears the member's own default.")
+    w.record("journal-styles.delete", "DELETE", f"{base}/{sid}", case="success", expect=200)
+    w.record("journal-styles.restore", "POST", f"{base}/{sid}/restore", case="success", expect=200)
+    w.record("note-kinds.list", "GET", kinds, case="success", expect=200)
+    kind = w.record("note-kinds.create", "POST", kinds, case="success", expect=200,
+                    json_body={"name": "Gap and go", "icon": "bolt"})
+    kid = kind["kind"]["id"]
+    w.record("note-kinds.create.duplicate", "POST", kinds, case="error", expect=400, json_body={"name": "trade plan"})
+    w.record("note-kinds.update", "PUT", f"{kinds}/{kid}", case="success", expect=200, json_body={"name": "Gap & go"})
+    w.record("note-kinds.update.builtin", "PUT", f"{kinds}/thesis", case="error", expect=400, json_body={"name": "x"})
+    w.client.post(base, json={"name": "Uses the kind", "kindId": kid})
+    w.record("note-kinds.delete.in-use", "DELETE", f"{kinds}/{kid}", case="error", expect=409)
+    spare = w.client.post(kinds, json={"name": "Spare"}).json()["kind"]["id"]
+    gone = w.client.post(base, json={"name": "Deleted with its kind", "kindId": spare}).json()["style"]["id"]
+    w.client.delete(f"{base}/{gone}")
+    w.record("note-kinds.delete", "DELETE", f"{kinds}/{spare}", case="success", expect=200,
+             note="The kind's one soft-deleted style goes with it, and the answer counts it.")
+    w.record("note-kinds.delete.not-found", "DELETE", f"{kinds}/{spare}", case="error", expect=404)
+    w.record("note-kinds.mapping-offer", "GET", f"{kinds}/mapping-offer", case="success", expect=200)
+    w.record("note-kinds.mapping-offer.apply", "POST", f"{kinds}/mapping-offer", case="success", expect=200,
+             json_body={"excludeNoteIds": []},
+             note="One note mapped (its revision returned to be landed); the locked one is skipped and named.")
+    w.record("notes.style-update-plan", "GET", f"{notes}/{styled['id']}/style-update-plan", case="success",
+             expect=200, note="A Trade plan note with no chart yet: the update would add the chart block.")
+    w.record("notes.style-update-plan.switch", "GET",
+             f"{notes}/{styled['id']}/style-update-plan?styleId=builtin:thesis", case="success", expect=200,
+             note="Switching a note that has text to another style: blocks added, nothing removed.")
+    w.record("notes.style-update-plan.not-found", "GET", f"{notes}/nope/style-update-plan", case="error", expect=404)
+    w.record("notes.style-update-plan.locked", "GET", f"{notes}/{locked['id']}/style-update-plan", case="success",
+             expect=200, note="A locked note's plan says so (locked: true); the client hides the offer.")
+    w.record("notes.apply-style-update.stale", "POST", f"{notes}/{styled['id']}/apply-style-update", case="error",
+             expect=409, json_body={"baseUpdatedAt": "2026-01-01T00:00:00+00:00"},
+             note="The member's base is not the note's revision: nothing is written.")
+    w.record("notes.apply-style-update.no-base", "POST", f"{notes}/{styled['id']}/apply-style-update", case="error",
+             expect=400, json_body={},
+             note="baseUpdatedAt is required (the revision the member is looking at): nothing is written.")
+    w.record("notes.apply-style-update.locked", "POST", f"{notes}/{locked['id']}/apply-style-update", case="error",
+             expect=423, json_body={"baseUpdatedAt": locked["updatedAt"]})
+    w.record("notes.apply-style-update", "POST", f"{notes}/{styled['id']}/apply-style-update", case="success",
+             expect=200, json_body={"baseUpdatedAt": styled["updatedAt"]},
+             note="One write: the chart after the first heading, the member's words untouched, the stamp moved.")
+    w.record("notes.style-update-plan.up-to-date", "GET", f"{notes}/{styled['id']}/style-update-plan",
+             case="success", expect=200)
+    w.as_user(who, FREE)
+    w.record("journal-styles.list.free-plan", "GET", base, case="error", expect=402)
+
+    # Styled create (Task 9) rides journal_two's own POST /api/j2/notes, through a second app that
+    # shares this one's session overrides. journal_two is NOT in build_app(): its routes are not
+    # gated by these flags, so they belong in neither sweep.
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import journal_two
+    notes_app = FastAPI()
+    notes_app.include_router(journal_two.router)
+    notes_app.dependency_overrides = w.app.dependency_overrides      # the same session as the main app
+    notes_client = TestClient(notes_app)
+    w.as_user(who)
+    w.record("notes.create.kind", "POST", notes, case="success", expect=200, client=notes_client,
+             json_body={"kindId": "trade_plan", "ticker": "NVDA"},
+             note="A kind's default style (here the built-in): body, properties and stamp in one insert.")
+    w.record("notes.create.styled", "POST", notes, case="success", expect=200, client=notes_client,
+             json_body={"styleId": "builtin:thesis", "title": "Thesis"},
+             note="No ticker: the chart block is left out and an instruction stands where it was.")
+    w.record("notes.create.styled.not-found", "POST", notes, case="error", expect=404,
+             client=notes_client, json_body={"styleId": "nope"})
+    w.record("notes.create.kind.unknown", "POST", notes, case="error", expect=400,
+             client=notes_client, json_body={"kindId": "nope"})
+    w.as_user(who, FREE)
+    w.record("notes.create.styled.free-plan", "POST", notes, case="error", expect=402,
+             client=notes_client, json_body={"kindId": "thesis"})
+    w.as_user(MEMBER)
 
 
 @builder

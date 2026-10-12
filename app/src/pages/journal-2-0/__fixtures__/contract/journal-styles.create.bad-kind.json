@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/journal-styles",
+    "path": "/api/j2/journal-styles",
+    "requestBody": {
+      "kindId": "nope",
+      "name": "x"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "Choose a kind of note for this style."
+  }
+}

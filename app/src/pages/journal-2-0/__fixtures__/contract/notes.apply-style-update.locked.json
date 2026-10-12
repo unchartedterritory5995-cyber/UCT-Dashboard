@@ -1,0 +1,14 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/notes/e078fa8fb967498b9955f3206f2469e6/apply-style-update",
+    "path": "/api/j2/notes/e078fa8fb967498b9955f3206f2469e6/apply-style-update",
+    "requestBody": {
+      "baseUpdatedAt": "2026-10-05T14:30:00+00:00"
+    },
+    "status": 423
+  },
+  "body": {
+    "detail": "This note is locked — unlock it in the Notebook first"
+  }
+}

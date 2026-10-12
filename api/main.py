@@ -115,6 +115,9 @@ from api.routers import notebook_onboarding as notebook_onboarding_router
 # Wave 12 lane 12A: the community template gallery (/api/j2/template-gallery/*), dark
 # behind NOTEBOOK_TEMPLATE_GALLERY_ENABLED; mounted with the other Notebook routers.
 from api.routers import notebook_template_gallery as notebook_template_gallery_router
+# Notebook P1: journal styles + kinds of note (/api/j2/journal-styles, /api/j2/note-kinds, and two
+# /api/j2/notes/{id}/... "Update layout" routes), dark behind NOTEBOOK_JOURNAL_STYLES_ENABLED, paid.
+from api.routers import notebook_journal_styles as notebook_journal_styles_router
 
 # Wave 13 lane 13I-1: the technical fingerprint + chart-block index
 # (/api/j2/notebook-fingerprint/*), dark behind NOTEBOOK_TA_FINGERPRINT_ENABLED.
@@ -9640,6 +9643,10 @@ app.include_router(notebook_onboarding_router.router)
 # Wave 12 lane 12A: outside /api/j2/notes/... and /api/j2/note-templates/..., so mount
 # order against journal_two does not matter (tests/test_main_router_order.py).
 app.include_router(notebook_template_gallery_router.router)
+# Notebook P1: its two /api/j2/notes/{note_id}/<word> routes have one more segment than any
+# journal_two /notes/{note_id} route, so mount order does not matter
+# (tests/test_notebook_journal_styles_router.py walks the real app for a shadow).
+app.include_router(notebook_journal_styles_router.router)
 
 # Wave 13 lane 13I-1 (router-level 404 while NOTEBOOK_TA_FINGERPRINT_ENABLED is off).
 app.include_router(notebook_fingerprint_router.router)

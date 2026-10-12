@@ -715,6 +715,43 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
             conn.close()
 
 
+def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | None = None) -> tuple[dict, list]:
+    """A note made from a style (`styleId`, which wins) or from a kind's default style (`kindId`),
+    composed here and written in ONE insert: body, property values and the style stamp, so there is
+    no follow-up write and no second revision. Returns `(note, skipped)`. Behind journal_two's
+    `POST /api/j2/notes` (spec P1.3: never a second way to make a note); the caller has already
+    checked the switch and the plan.
+
+    Raises StyleNotFound (no such live style for this member), StyleValidationError (a bad
+    styleId, an unknown kind) and notes.NoteValidationError (the title, ticker, folder...)."""
+    from api.services.journal_two import notes as notes_service
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        style_id, kind_id = payload.get("styleId"), payload.get("kindId")
+        if style_id is not None:
+            if not isinstance(style_id, str) or not style_id.strip():
+                raise StyleValidationError("styleId must be text")
+            style = get_style(user_id, style_id.strip(), conn)
+            if style is None:
+                raise StyleNotFound(style_id)
+        else:
+            if _nk().get_kind(user_id, kind_id, conn) is None:
+                raise StyleValidationError("Choose a kind of note.")
+            style = default_style_for_kind(user_id, kind_id, conn)
+        ticker = notes_service._validate_ticker(payload.get("ticker"))
+        composed = compose(user_id, style, ticker=ticker, conn=conn)
+        base = {k: payload[k] for k in ("title", "subtitle", "tags", "ticker", "folderId") if k in payload}
+        base["bodyJson"] = composed["bodyJson"]
+        note = notes_service.create_note(
+            user_id, base, conn, properties=composed["properties"],
+            style_stamp=(composed["styleId"], composed["styleVersion"], composed["kindId"]))
+        return note, composed["skipped"]
+    finally:
+        if owned:
+            conn.close()
+
+
 def latest_ticker(user_id: str, conn: sqlite3.Connection) -> str | None:
     r = conn.execute("SELECT ticker FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL AND ticker IS NOT NULL"
                      " AND ticker != '' ORDER BY updated_at DESC, rowid DESC LIMIT 1", (user_id,)).fetchone()

@@ -1,0 +1,302 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/journal-styles",
+    "note": "Built-in styles plus two of the member's own Trade plan styles; no member default yet.",
+    "path": "/api/j2/journal-styles",
+    "status": 200
+  },
+  "body": {
+    "blockKinds": [
+      "chart"
+    ],
+    "kinds": [
+      {
+        "builtin": true,
+        "icon": "chart",
+        "id": "trade_plan",
+        "name": "Trade plan",
+        "sortOrder": 0
+      },
+      {
+        "builtin": true,
+        "icon": "sun",
+        "id": "daily_prep",
+        "name": "Daily prep",
+        "sortOrder": 1
+      },
+      {
+        "builtin": true,
+        "icon": "calendar",
+        "id": "weekend_prep",
+        "name": "Weekend prep",
+        "sortOrder": 2
+      },
+      {
+        "builtin": true,
+        "icon": "earnings",
+        "id": "earnings",
+        "name": "Earnings",
+        "sortOrder": 3
+      },
+      {
+        "builtin": true,
+        "icon": "check",
+        "id": "post_trade_review",
+        "name": "Post-trade review",
+        "sortOrder": 4
+      },
+      {
+        "builtin": true,
+        "icon": "refresh",
+        "id": "weekly_review",
+        "name": "Weekly review",
+        "sortOrder": 5
+      },
+      {
+        "builtin": true,
+        "icon": "book",
+        "id": "thesis",
+        "name": "Thesis",
+        "sortOrder": 6
+      },
+      {
+        "builtin": true,
+        "icon": "eye",
+        "id": "watchlist_note",
+        "name": "Watchlist note",
+        "sortOrder": 7
+      }
+    ],
+    "styles": [
+      {
+        "blocks": [
+          {
+            "block": "chart",
+            "enabled": true,
+            "settings": {
+              "tf": "D"
+            }
+          }
+        ],
+        "builtin": true,
+        "createdAt": null,
+        "deletedAt": null,
+        "hasOutline": true,
+        "id": "builtin:trade_plan",
+        "isDefault": true,
+        "kindId": "trade_plan",
+        "name": "Trade plan",
+        "outlineTemplateId": null,
+        "properties": {},
+        "sourceGalleryId": null,
+        "sourceVersion": null,
+        "updatedAt": null,
+        "version": 1
+      },
+      {
+        "blocks": [],
+        "builtin": true,
+        "createdAt": null,
+        "deletedAt": null,
+        "hasOutline": true,
+        "id": "builtin:daily_prep",
+        "isDefault": true,
+        "kindId": "daily_prep",
+        "name": "Daily prep",
+        "outlineTemplateId": null,
+        "properties": {},
+        "sourceGalleryId": null,
+        "sourceVersion": null,
+        "updatedAt": null,
+        "version": 1
+      },
+      {
+        "blocks": [],
+        "builtin": true,
+        "createdAt": null,
+        "deletedAt": null,
+        "hasOutline": true,
+        "id": "builtin:weekend_prep",
+        "isDefault": true,
+        "kindId": "weekend_prep",
+        "name": "Weekend prep",
+        "outlineTemplateId": null,
+        "properties": {},
+        "sourceGalleryId": null,
+        "sourceVersion": null,
+        "updatedAt": null,
+        "version": 1
+      },
+      {
+        "blocks": [
+          {
+            "block": "chart",
+            "enabled": true,
+            "settings": {
+              "tf": "D"
+            }
+          }
+        ],
+        "builtin": true,
+        "createdAt": null,
+        "deletedAt": null,
+        "hasOutline": true,
+        "id": "builtin:earnings",
+        "isDefault": true,
+        "kindId": "earnings",
+        "name": "Earnings",
+        "outlineTemplateId": null,
+        "properties": {},
+        "sourceGalleryId": null,
+        "sourceVersion": null,
+        "updatedAt": null,
+        "version": 1
+      },
+      {
+        "blocks": [
+          {
+            "block": "chart",
+            "enabled": true,
+            "settings": {
+              "tf": "D"
+            }
+          }
+        ],
+        "builtin": true,
+        "createdAt": null,
+        "deletedAt": null,
+        "hasOutline": true,
+        "id": "builtin:post_trade_review",
+        "isDefault": true,
+        "kindId": "post_trade_review",
+        "name": "Post-trade review",
+        "outlineTemplateId": null,
+        "properties": {},
+        "sourceGalleryId": null,
+        "sourceVersion": null,
+        "updatedAt": null,
+        "version": 1
+      },
+      {
+        "blocks": [],
+        "builtin": true,
+        "createdAt": null,
+        "deletedAt": null,
+        "hasOutline": true,
+        "id": "builtin:weekly_review",
+        "isDefault": true,
+        "kindId": "weekly_review",
+        "name": "Weekly review",
+        "outlineTemplateId": null,
+        "properties": {},
+        "sourceGalleryId": null,
+        "sourceVersion": null,
+        "updatedAt": null,
+        "version": 1
+      },
+      {
+        "blocks": [
+          {
+            "block": "chart",
+            "enabled": true,
+            "settings": {
+              "tf": "W"
+            }
+          }
+        ],
+        "builtin": true,
+        "createdAt": null,
+        "deletedAt": null,
+        "hasOutline": true,
+        "id": "builtin:thesis",
+        "isDefault": true,
+        "kindId": "thesis",
+        "name": "Thesis",
+        "outlineTemplateId": null,
+        "properties": {},
+        "sourceGalleryId": null,
+        "sourceVersion": null,
+        "updatedAt": null,
+        "version": 1
+      },
+      {
+        "blocks": [
+          {
+            "block": "chart",
+            "enabled": true,
+            "settings": {
+              "tf": "D"
+            }
+          }
+        ],
+        "builtin": true,
+        "createdAt": null,
+        "deletedAt": null,
+        "hasOutline": true,
+        "id": "builtin:watchlist_note",
+        "isDefault": true,
+        "kindId": "watchlist_note",
+        "name": "Watchlist note",
+        "outlineTemplateId": null,
+        "properties": {},
+        "sourceGalleryId": null,
+        "sourceVersion": null,
+        "updatedAt": null,
+        "version": 1
+      },
+      {
+        "blocks": [
+          {
+            "block": "chart",
+            "enabled": true,
+            "settings": {
+              "tf": "W"
+            }
+          }
+        ],
+        "builtin": false,
+        "createdAt": "2026-10-05T14:30:00+00:00",
+        "deletedAt": null,
+        "hasOutline": true,
+        "id": "7127b4c313d24ae7895d46bb03a414b5",
+        "isDefault": false,
+        "kindId": "trade_plan",
+        "name": "My trade plan",
+        "outlineTemplateId": null,
+        "properties": {
+          "builtin:confidence": "high"
+        },
+        "sourceGalleryId": null,
+        "sourceVersion": null,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "version": 1
+      },
+      {
+        "blocks": [
+          {
+            "block": "chart",
+            "enabled": true,
+            "settings": {
+              "tf": "D"
+            }
+          }
+        ],
+        "builtin": false,
+        "createdAt": "2026-10-05T14:30:00+00:00",
+        "deletedAt": null,
+        "hasOutline": true,
+        "id": "f3a2b5c0ec4e4369b9d27c35004fa4cc",
+        "isDefault": false,
+        "kindId": "trade_plan",
+        "name": "From my note",
+        "outlineTemplateId": null,
+        "properties": {},
+        "sourceGalleryId": null,
+        "sourceVersion": null,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "version": 1
+      }
+    ]
+  }
+}

@@ -103,28 +103,124 @@ function reachingFunctions(seed) {
   return all
 }
 
-/** ② THE ROUTER DECIDES which routes reach them. */
-function advancingRoutes(advancing) {
-  const src = readFileSync(join(API, 'routers', 'journal_two.py'), 'utf8')
-  const marks = []
-  const re = /@router\.(get|post|put|patch|delete)\("([^"]+)"/g
-  let m = re.exec(src)
-  while (m) { marks.push([m.index, m[1].toUpperCase(), m[2]]); m = re.exec(src) }
-  const out = []
-  for (let i = 0; i < marks.length; i += 1) {
-    const [pos, method, path] = marks[i]
-    if (method === 'GET') continue
-    const body = src.slice(pos, i + 1 < marks.length ? marks[i + 1][0] : src.length)
-    for (const a of advancing) {
-      // ⛔ NOT THE HANDLER'S OWN NAME. `POST /trades/import/confirm` is served
-      // by a function literally called `import_confirm` — a different one, in a
-      // different module, for trades — and a bare name match called the trades
-      // CSV importer a Notebook door. The CALL is what counts, never the `def`.
-      if (new RegExp(`(?<!def )\\b${a}\\(`).test(body)) { out.push(`${method} /api/j2${path.replace(/\{[^}]+\}/g, '*')}`); break }
+/**
+ * ② THE ROUTERS DECIDE which routes reach them — EVERY router declaring an `/api/j2` prefix, not only
+ * journal_two.py, and through the service modules that delegate to `notes.py`.
+ *
+ * ⚰️ WHY IT IS WIDE (Notebook P1, lane A3, ruling R5 step 5). Until P1 this read `journal_two.py`
+ * alone, so a door served by any other router was invisible to every client rail: "Update layout"
+ * (`POST /notes/{id}/apply-style-update`, notebook_journal_styles.py -> journal_styles.apply_style_update
+ * -> update_note) and the kind mapping offer were NAMED by hand in a `STYLE_DOOR_STOPGAP` instead, and
+ * a settle deleted from a client of any such route reddened nothing general.
+ *
+ * THE DERIVATION, all read from the source:
+ *   · a SERVICE function (any module under api/services/journal_two/, notes.py included) is advancing
+ *     when its body CALLS an advancing name of its OWN module (`update_note(` inside notes.py), CALLS a
+ *     function it imported by name from a module where that name is advancing, or names `alias.fn`
+ *     (called OR passed, e.g. `run_in_threadpool(svc.ingest, ...)`) where `alias` is an imported
+ *     journal_two module and `fn` is advancing THERE. Iterated to a fixpoint, seeded by ①'s SQL set.
+ *   · a ROUTE is a door when its handler (the text from its decorator to the next decorator in the
+ *     file) reaches an advancing function by the same three rules, from a router-variable whose
+ *     `APIRouter(prefix="/api/j2...")` is declared in that file. GET routes are never doors.
+ * ⛔ MODULE-QUALIFIED ON PURPOSE. A bare-name walk across modules was measured first and swept in ~100
+ * functions through generic names (`_run`, `fetch`, `remove`): a name only counts in the module that
+ * defines it, or through an import that names that module.
+ * ⛔ NOT THE HANDLER'S OWN NAME. `POST /trades/import/confirm` is served by a function literally called
+ * `import_confirm` (a different one, for trades): the `def` line is never a call, and a name only counts
+ * through the module it resolves to.
+ * ⚠️ LIMITS, stated: a call reached only through an attribute chain deeper than `alias.fn`, a service
+ * module outside api/services/journal_two/, or a handler defined away from its decorator is not seen.
+ */
+const J2_SERVICES = join(API, 'services', 'journal_two')
+const NOTES_MOD = 'api.services.journal_two.notes'
+const pyModOf = (p) => rel(p).replace(/\.py$/, '').split('/').join('.')
+
+/** {local name: {pkg, name}} for every `from api.services.journal_two[...] import ...` in a file. */
+function j2ImportsOf(src) {
+  const out = {}
+  for (const m of src.matchAll(/^[ \t]*from (api\.services\.journal_two(?:\.\w+)*) import (\([^)]*\)|[^\n]+)/gm)) {
+    for (const part of m[2].replace(/[()]/g, '').split(',')) {
+      const t = part.split('#')[0].trim()
+      if (!t) continue
+      const [name, as] = t.split(/\s+as\s+/)
+      out[as || name] = { pkg: m[1], name }
     }
   }
-  return new Set(out)
+  return out
 }
+
+function pyModules(dir) {
+  return walk(dir).filter((p) => p.endsWith('.py') && !isTest(p)).map((p) => {
+    const src = readFileSync(p, 'utf8')
+    return { p, mod: pyModOf(p), src, imports: j2ImportsOf(src), fns: pyFunctions(src) }
+  })
+}
+
+/** The advancing functions per service module: Map(mod -> Set(fn)), seeded by ①'s notes.py set. */
+function advancingByModule(advancing, services = pyModules(J2_SERVICES)) {
+  const mods = new Set(services.map((f) => f.mod))
+  const adv = new Map([[NOTES_MOD, new Set(advancing)]])
+  const reach = advancingReach(adv, mods)
+  let grew = true
+  while (grew) {
+    grew = false
+    for (const f of services) {
+      for (const [name, body] of f.fns) {
+        if (adv.get(f.mod)?.has(name) || !reach(f, body)) continue
+        if (!adv.has(f.mod)) adv.set(f.mod, new Set())
+        adv.get(f.mod).add(name)
+        grew = true
+      }
+    }
+  }
+  return adv
+}
+
+/** (file, text) -> the qualified advancing function the text reaches, or null. */
+function advancingReach(adv, mods) {
+  const resolve = (f, local) => {
+    const imp = f.imports[local]
+    if (!imp) return null
+    return mods.has(`${imp.pkg}.${imp.name}`) ? { mod: `${imp.pkg}.${imp.name}` } : { mod: imp.pkg, fn: imp.name }
+  }
+  return (f, text) => {
+    const body = text.replace(/^[^\n]*\n/, '')                         // never the def / decorator line itself
+    for (const m of body.matchAll(/(?<![\w.])(\w+)\.(\w+)\b/g)) {      // alias.fn, called or passed
+      const r = resolve(f, m[1])
+      if (r && !r.fn && adv.get(r.mod)?.has(m[2])) return `${r.mod}.${m[2]}`
+    }
+    for (const m of body.matchAll(/(?<![\w.])(\w+)\(/g)) {             // a bare name, called
+      if (adv.get(f.mod)?.has(m[1])) return `${f.mod}.${m[1]}`
+      const r = resolve(f, m[1])
+      if (r?.fn && adv.get(r.mod)?.has(r.fn)) return `${r.mod}.${r.fn}`
+    }
+    return null
+  }
+}
+
+/** Every door route as `{key, file, via}`: `key` is `METHOD /api/j2/...` with params as `*`. */
+function advancingRouteRows(advancing) {
+  const services = pyModules(J2_SERVICES)
+  const adv = advancingByModule(advancing, services)
+  const reach = advancingReach(adv, new Set(services.map((f) => f.mod)))
+  const rows = []
+  for (const f of pyModules(join(API, 'routers'))) {
+    const prefixes = {}
+    for (const m of f.src.matchAll(/^(\w+)\s*=\s*APIRouter\(\s*prefix\s*=\s*"([^"]*)"/gms)) prefixes[m[1]] = m[2]
+    const marks = [...f.src.matchAll(/@(\w+)\.(get|post|put|patch|delete)\(\s*"([^"]*)"/g)]
+      .map((m) => [m.index, m[1], m[2].toUpperCase(), m[3]])
+    for (let i = 0; i < marks.length; i += 1) {
+      const [pos, rv, method, path] = marks[i]
+      const pre = prefixes[rv]
+      if (pre === undefined || !pre.startsWith('/api/j2') || method === 'GET') continue
+      const via = reach(f, f.src.slice(pos, i + 1 < marks.length ? marks[i + 1][0] : f.src.length))
+      if (via) rows.push({ key: `${method} ${(pre + path).replace(/\{[^}]+\}/g, '*')}`, file: rel(f.p), via })
+    }
+  }
+  return rows
+}
+
+const advancingRoutes = (advancing) => new Set(advancingRouteRows(advancing).map((r) => r.key))
 
 const shapeOfUrl = (u) => u.replace(/\$\{[^}]*\}/g, '*').replace(/\?.*$/, '')
 
@@ -173,6 +269,30 @@ const SITE_EXCEPTIONS = {
     'this IS the outbox drain\'s own send. Its revision is settled by `settleSent` inside `drainOutbox`, in the '
     + 'same transaction that clears the entry — calling settleNoteWrite here would be a second authority over '
     + 'one value. To close it the drain would have to stop settling its own sends, which is the wrong direction.',
+  // ── Found by widening rail ② to every /api/j2 router (Notebook P1, lane A3). Each route below is
+  // DERIVED as a door (its handler reaches a note writer); none returns a revision a tab can be holding.
+  'app/src/pages/journal-2-0/components/notebook/onboarding/sampleNotebook.js:POST /api/j2/onboarding/sample-notebook':
+    'adding the sample notebook seeds NEW notes (sample_notebook.seed -> import_confirm, then update_note and an excerpt '
+    + 'append on those fresh ids inside the same call): no tab can hold a note that did not exist, and the answer is '
+    + '{folderId, welcomeNoteId}, which the welcome note\'s first open fetches. To close it the route would have to '
+    + 'return every seeded {id, updatedAt} and this helper land them with settleNoteWrites -- harmless, never needed.',
+  'app/src/pages/journal-2-0/components/notebook/onboarding/sampleNotebook.js:DELETE /api/j2/onboarding/sample-notebook':
+    'removal TRASHES only the recorded sample ids through delete_note, which sets deleted_at and does NOT move '
+    + 'updated_at. A note trashed under queued words would meet its next save as a 404 and be stranded as BLOCKED in '
+    + 'the Trash, so the one door, ResearchHome "Remove it", first runs the bulk trash pre-check (precheckNoteBatch, '
+    + 'op trash) over the sample notes still out of Trash and holds the whole removal back for any holding unsent '
+    + 'words. delete_folder DOES advance updated_at, but it runs only on sample-made folders holding none of the '
+    + 'member\'s notes, after the sample notes are trashed, so it moves only already-trashed sample notes. To close it '
+    + 'the route would have to report each revision the folder cascade moved.',
+  'app/src/pages/journal-2-0/hooks/useNoteConnectors.js:POST /api/j2/notes/connectors/*/connect':
+    'connecting a Roam/Craft/Notion/Dropbox/Obsidian source starts a background sync (note_connectors engine.sync_source) '
+    + 'that writes notes as a GENUINE second writer: a fork against it is the correct answer (rail ② and ⑥\'s engine row), '
+    + 'and the answer carries no per-note revisions. To close it the sync would have to stream every revision it wrote '
+    + 'back to the tab that asked, which would make a background writer pretend to be this tab.',
+  'app/src/pages/journal-2-0/hooks/useNoteConnectors.js:POST /api/j2/notes/connectors/sources/*/sync':
+    'a manual "Sync now" on a connected source runs the same background second writer (engine.sync_source): imported '
+    + 'notes and conflict copies, never this tab\'s own write, so a fork against it is correct and the answer carries '
+    + 'counts, not revisions. To close it the sync would have to return every revision it wrote, as above.',
 }
 
 /**
@@ -278,6 +398,24 @@ function variableUrlWrites() {
   return out
 }
 
+/** Every client write site any of rails ③, ④ and ④b sees, as `{file, keys, settles}`. */
+function allClientWriteSites() {
+  const out = clientWrites().map((w) => ({ file: w.file, keys: [w.key], settles: w.settles }))
+  for (const w of variableUrlWrites()) {
+    out.push({ file: w.file, keys: [w.shape, w.bare].filter(Boolean).map((s) => `${w.method} ${s}`), settles: w.settles })
+  }
+  for (const s of forwardedProblems(noteTouchingSources(), new Set()).sites) {
+    out.push({ file: s.file, keys: s.keys, settles: s.settles })
+  }
+  return out
+}
+
+/** SITE_EXCEPTIONS keys with no current UNSETTLED write site behind them (pure, so a control can plant one). */
+function staleSiteExceptions(exceptions, sites) {
+  const live = new Set(sites.filter((s) => !s.settles).flatMap((s) => s.keys.map((k) => `${s.file}:${k}`)))
+  return Object.keys(exceptions).filter((k) => !live.has(k))
+}
+
 /**
  * ⑤'s ledger of SERVER-side doors outside journal_two.py -- the rows rail ⑤ pins and
  * the census ⑥ classifies. Hoisted unchanged from inside rail ⑤ (wave 10, 10C).
@@ -316,10 +454,12 @@ const SERVER_LEDGER = {
     + 'its notes are trashed by sample_notebook.py\'s own pre-checked removal (their ids are recorded with the sample\'s), '
     + 'and its own remove() touches only non-note rows (a passed setup, an insight; a trade or entry context only '
     + 'for a preference recorded by the earlier version -- no trade is seeded)',
-  // Notebook P1 (journal styles, lane A2 Task 10): "Update layout to vN". Task 9 (create_styled_note, a
-  // create_note for a NEW note behind journal_two's POST /api/j2/notes {styleId|kindId}) extends this row.
+  // Notebook P1 (journal styles): "Update layout to vN" (lane A2 Task 10) and styled create (lane A3 Task 9).
   'api/services/journal_two/journal_styles.py':
-    'apply_style_update: ONE update_note(expected_updated_at, style_stamp) under BEGIN IMMEDIATE behind '
+    'create_styled_note: ONE create_note (body, property values and the style stamp in the same insert) for a NEW '
+    + 'note nobody holds yet, behind journal_two\'s POST /api/j2/notes {styleId|kindId}; no follow-up write, so no '
+    + 'revision to land beyond the create the client already opens (createNoteViaApi). '
+    + 'apply_style_update: ONE update_note(expected_updated_at, style_stamp) under BEGIN IMMEDIATE behind '
     + 'POST /api/j2/notes/{id}/apply-style-update (Task 8\'s router; the dry run is a separate read, '
     + 'GET /api/j2/notes/{id}/style-update-plan -> plan_style_update, which writes nothing). 423 on a locked note '
     + '(notes._refuse_if_locked); the compare-and-set is ALWAYS against the revision the call read the body at, and a '
@@ -570,12 +710,64 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
     ]) expect(doors, `${key} does not advance updated_at and must not be treated as a door`).not.toContain(key)
   })
 
+  it('⭐ CONTROL — rail ② reads routers OUTSIDE journal_two.py, through module-qualified service delegation', () => {
+    const rows = advancingRouteRows(advancing)
+    const find = (k) => rows.find((r) => r.key === k)
+    expect(find('POST /api/j2/notes/*/apply-style-update')).toEqual({ key: 'POST /api/j2/notes/*/apply-style-update',
+      file: 'api/routers/notebook_journal_styles.py', via: 'api.services.journal_two.journal_styles.apply_style_update' })
+    expect(find('POST /api/j2/note-kinds/mapping-offer')).toEqual({ key: 'POST /api/j2/note-kinds/mapping-offer',
+      file: 'api/routers/notebook_journal_styles.py', via: 'api.services.journal_two.note_kinds.apply_mapping' })
+    expect(find('PUT /api/j2/notes/*')?.file, 'journal_two.py\'s own doors are still derived').toBe('api/routers/journal_two.py')
+    // the dry-run plan reaches the writer's MODULE but not a writer, and is a GET: never a door
+    expect(find('GET /api/j2/notes/*/style-update-plan')).toBeUndefined()
+    // planted modules: a name counts only through the module that defines it, or an import naming that module
+    const mk = (mod, src) => ({ p: mod, mod, src, imports: j2ImportsOf(src), fns: pyFunctions(src) })
+    const A = 'api.services.journal_two.a'
+    const B = 'api.services.journal_two.b'
+    const C = 'api.services.journal_two.c'
+    const adv = advancingByModule(new Set(['update_note']), [
+      mk(NOTES_MOD, 'def update_note(n):\n    pass\n'),
+      mk(A, 'from api.services.journal_two import notes as ns\n'
+        + 'def go(n):\n    return ns.update_note(n)\n'
+        + 'def passes(n):\n    return run_in_threadpool(ns.update_note, n)\n'
+        + 'def quiet(n):\n    return ns.get_note(n)\n'),
+      mk(B, 'def update_note(n):\n    pass\n'                 // a DIFFERENT update_note, local to b
+        + 'def bare(n):\n    return update_note(n)\n'
+        + 'def other(n):\n    return helper.go(n)\n'),          // `helper` is no imported journal_two module
+      mk(C, 'from api.services.journal_two.a import go\ndef via_import(n):\n    return go(n)\n'),
+    ])
+    expect([...adv.get(A)].sort()).toEqual(['go', 'passes'])
+    expect(adv.has(B), 'a same-named local function, or an unknown alias, is not a door').toBe(false)
+    expect([...adv.get(C)]).toEqual(['via_import'])
+  })
+
   it('⭐ every named exception says why it cannot land, and what would close it', () => {
     for (const [key, why] of Object.entries({ ...ROUTE_EXCEPTIONS, ...SITE_EXCEPTIONS })) {
       expect(why.length, `${key} needs a real reason, not a label`).toBeGreaterThan(80)
       expect(why, `${key} must say what would close it`).toMatch(/would have to|To close it/)
     }
   })
+
+  // ⛔ Review M4 (lane A3 round 2): an exception that no longer excuses a real site is not harmless --
+  // it waits to excuse the NEXT unsettled write that lands under the same `file:key` (the history of
+  // the delete_folder exception above). Every SITE_EXCEPTIONS key must still name a CURRENT client
+  // write site that does not settle, seen by any of rails ③, ④ or ④b.
+  it('⛔ every SITE_EXCEPTIONS entry still names a current, unsettled client write site', () => {
+    expect(staleSiteExceptions(SITE_EXCEPTIONS, allClientWriteSites())).toEqual([])
+  }, 60_000)
+
+  it('⭐ CONTROL — a stale exception (no such site, or a site that now settles) is reported', () => {
+    const sites = [
+      { file: 'a.js', keys: ['POST /api/j2/notes/*/x'], settles: false },
+      { file: 'b.js', keys: ['POST /api/j2/notes/*/y'], settles: true },
+    ]
+    const exceptions = { 'a.js:POST /api/j2/notes/*/x': 'live', 'b.js:POST /api/j2/notes/*/y': 'settles now',
+      'c.js:POST /api/j2/notes/*/z': 'gone' }
+    expect(staleSiteExceptions(exceptions, sites)).toEqual(['b.js:POST /api/j2/notes/*/y', 'c.js:POST /api/j2/notes/*/z'])
+    // and the real gatherer sees the real exceptions' sites at all (non-vacuity)
+    const keys = new Set(allClientWriteSites().flatMap((s) => s.keys.map((k) => `${s.file}:${k}`)))
+    expect(keys).toContain('app/src/pages/journal-2-0/lib/offline/useOutboxDrain.js:PUT /api/j2/notes/*')
+  }, 60_000)
 })
 
 /**
@@ -603,11 +795,10 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
  *     of the next scanned site, whichever comes first. The next `fetch(` is the wrong boundary here:
  *     a helper holds the file's only `fetch(`, so every call would borrow the next door's settle.
  *
- * ⛔ WHICH ROUTES ARE DOORS. Rails ② and ③ derive routes from `journal_two.py` alone. The routes this
- * file's two note-moving calls reach live in `notebook_journal_styles.py`, so they cannot be derived
- * today and `STYLE_DOOR_STOPGAP` NAMES them. It is a stopgap, not an authority: each entry must match
- * a real client site (a stale one fails), and widening rail ② to derive these routes (I-1 step 5) is
- * owed before the P1 exit bar — then this list is deleted.
+ * ⛔ WHICH ROUTES ARE DOORS: rail ②'s derivation, and nothing else. The routes this file's two
+ * note-moving calls reach live in `notebook_journal_styles.py`; until rail ② read every /api/j2 router
+ * (Notebook P1 lane A3, I-1 step 5) a `STYLE_DOOR_STOPGAP` named them by hand. It is DELETED: the
+ * derivation finds both, and the control below asserts it does.
  *
  * ⛔ THE RAIL'S LIMITS, stated so nobody reads silence as coverage:
  *   · THE SCAN RULE: a non-test `.js`/`.jsx` file under `app/src/pages/journal-2-0/` whose SOURCE CONTAINS
@@ -652,16 +843,6 @@ function astWalk(node, visit, stack = []) {
     else astWalk(v, visit, stack)
   }
   stack.pop()
-}
-
-const STYLE_DOOR_STOPGAP = {
-  'POST /api/j2/notes/*/apply-style-update':
-    'Update layout (Task 10): one compare-and-set write on a note; the route lives in notebook_journal_styles.py, '
-    + 'which rail ② does not read. To close it, rail ② would have to derive routes from every router declaring the '
-    + '/api/j2 prefix and follow service delegation into update_note.',
-  'POST /api/j2/note-kinds/mapping-offer':
-    'The kind mapping offer (Task 4): update_note on many notes via note_kinds.apply_mapping, answered with '
-    + '[{id, updatedAt}]. Same router, same reason. To close it, rail ② would have to derive it as above.',
 }
 
 /** The names a function declares as parameters (plain, defaulted, rest, destructured). */
@@ -990,7 +1171,7 @@ function scanSites(file, src) {
  *   UNSETTLED         — a write to a door route that never lands its revision.
  * ⛔ UNSETTLED is judged on EVERY resolved site, direct fetches included. An earlier version skipped any
  * direct fetch with a literal `method: 'POST'` on the theory that rails ③/④ had judged it; they key on
- * rail ②'s door set, so they judged neither the stopgap routes nor any door reached by a computed URL.
+ * rail ②'s door set, so they judged neither the then hand-listed style routes nor any door reached by a computed URL.
  * Double-judging a site they also judge is harmless: the two agree on every door site in the tree.
  */
 function forwardedProblems(files, doorKeys, exceptions = { ...ROUTE_EXCEPTIONS, ...SITE_EXCEPTIONS }) {
@@ -1040,7 +1221,9 @@ const NOTES_HOOK_FILE = 'app/src/pages/journal-2-0/hooks/useJ2Notes.js'
 
 describe('⛔⛔ ④b — helper-forwarded and dynamic-method writes are SEEN, resolved, and checked', () => {
   const doors = () => advancingRoutes(reachingFunctions(sqlAdvancingFunctions()))
-  const doorKeys = () => new Set([...doors(), ...Object.keys(STYLE_DOOR_STOPGAP)])
+  // ONE authority: rail ②'s derivation (the hand-kept STYLE_DOOR_STOPGAP is deleted, lane A3).
+  const doorKeys = () => doors()
+  const STYLE_DOORS = ['POST /api/j2/notes/*/apply-style-update', 'POST /api/j2/note-kinds/mapping-offer']
   // CRLF-normalised: a Windows checkout with core.autocrlf writes the file with CRLF, and the controls
   // below delete exact `\n`-terminated lines (found on the integration merge, where it read "could not find").
   const styles = () => readFileSync(join(REPO, ...JOURNAL_STYLES_FILE.split('/')), 'utf8').replace(/\r\n/g, '\n')
@@ -1065,13 +1248,22 @@ describe('⛔⛔ ④b — helper-forwarded and dynamic-method writes are SEEN, r
     // …and the dry-run plan is a GET, not a write at all
     const plan = sites.find((s) => s.fnName === 'planStyleUpdate')
     expect(plan?.keys).toEqual(['GET /api/j2/notes/*/style-update-plan'])
-    // the stopgap names are matched by real sites (a stale entry fails here)
+    // both routes are DERIVED by rail ② (no hand list), and each matches a real client site
     const seenKeys = new Set(sites.flatMap((s) => s.keys))
-    for (const k of Object.keys(STYLE_DOOR_STOPGAP)) {
+    for (const k of STYLE_DOORS) {
       expect(seenKeys.has(k), `${k} matches no client site`).toBe(true)
-      // …and the stopgap is deleted the moment rail ② derives the route itself: two authorities otherwise
-      expect(doors().has(k), `rail ② now derives ${k}: DELETE its STYLE_DOOR_STOPGAP entry`).toBe(false)
+      expect(doors().has(k), `rail ② no longer derives ${k} as a door`).toBe(true)
     }
+  })
+
+  it('⭐ the GENERAL check (not only the control above) goes RED when journalStyles.js loses a settle', () => {
+    // The whole note-touching tree, as the general check reads it, with ONE settle deleted in memory.
+    const files = noteTouchingSources()
+    const src = styles()
+    const noApply = src.replace('  await settleNoteWrite(out.note.id, out.note, accountId)\n', '')
+    expect(noApply, 'the control could not find the line it deletes').not.toBe(src)
+    const red = forwardedProblems({ ...files, [JOURNAL_STYLES_FILE]: noApply }, doorKeys()).problems
+    expect(red).toEqual([expect.stringMatching(/^UNSETTLED: .*journalStyles\.js:\d+ \(applyStyleUpdate\) — POST \/api\/j2\/notes\/\*\/apply-style-update$/)])
   })
 
   it('⭐ CONTROL — an in-memory copy of journalStyles.js with a settle deleted makes the rail go RED, and says where', () => {
@@ -1129,14 +1321,14 @@ describe('⛔⛔ ④b — helper-forwarded and dynamic-method writes are SEEN, r
   })
 
   // ── I-A: every direct fetch is judged, not only the ones with a non-literal shape ──────────────
-  it('⭐ CONTROL — a DIRECT fetch to a stopgap door with no settle is RED, and settled it is clean', () => {
+  it('⭐ CONTROL — a DIRECT fetch to a derived style door with no settle is RED, and settled it is clean', () => {
     const bad = [
       'export async function go(id) {',
       '  const r = await fetch(`/api/j2/notes/${id}/apply-style-update`, { method: \'POST\' })',
       '  return r.json()',
       '}',
     ].join('\n')
-    const stop = new Set(Object.keys(STYLE_DOOR_STOPGAP))
+    const stop = doorKeys()
     expect(forwardedProblems({ 'planted.js': bad }, stop).problems)
       .toEqual(['UNSETTLED: planted.js:2 (go) — POST /api/j2/notes/*/apply-style-update'])
     const good = bad.replace('  return r.json()', '  const b = await r.json()\n  await settleNoteWrite(id, b.note)\n  return b')
@@ -1437,6 +1629,95 @@ const DOOR_CLASSIFICATION = {
       + 'lands (settleNoteWrites) -- metadata, rebased, never forked (see ④\'s control).',
     evidence: ['app/src/pages/journal-2-0/hooks/useJ2NoteFolders.js'],
   },
+  // ── door routes OUTSIDE journal_two.py (derived since rail ② reads every /api/j2 router, lane A3) ──
+  'POST /api/j2/notes/*/apply-style-update': {
+    class: FORK,
+    why: 'Update layout: journal_styles.apply_style_update inserts missing blocks after the first heading in ONE '
+      + 'compare-and-set (BEGIN IMMEDIATE, against the revision the call read; a stale baseUpdatedAt is a 409 that writes '
+      + 'nothing; 423 on a locked note). Not a tail append, so another tab holding unsent words forks; journalStyles.js '
+      + 'lands the returned note (settleNoteWrite) on this tab.',
+    evidence: ['tests/test_journal_styles_update.py', 'tests/test_notebook_journal_styles_router.py',
+      'app/src/pages/journal-2-0/lib/journalStyles.test.js'],
+  },
+  'POST /api/j2/note-kinds/mapping-offer': {
+    class: NONE,
+    why: 'note_kinds.apply_mapping writes only builtin:note_kind (update_note properties patch) on the notes the member '
+      + 'confirmed, skipping locked ones and any excluded for unsent words; metadata, so another tab rebases '
+      + '(METADATA_ONLY), and journalStyles.js lands every returned revision (settleNoteWrites).',
+    evidence: ['tests/test_note_kinds.py', 'tests/test_notebook_journal_styles_router.py'],
+  },
+  'POST /api/j2/ai-actions/*/apply': {
+    class: FORK,
+    why: 'applies a member-reviewed AI change set through the member\'s own writers, each a compare-and-set on the '
+      + 'revision reviewed; metadata rebases, an appended text block is not a SERVER_APPENDED_TYPE so another tab forks. '
+      + 'The client lands every returned revision (settleNoteWrites). Same row as SERVER_LEDGER ai_actions.py.',
+    evidence: ['tests/test_notebook_ai_actions.py'],
+  },
+  'POST /api/j2/ai-actions/*/undo': {
+    class: FORK,
+    why: 'undoes an applied AI change set through the same writers (compare-and-set each; a note the set created goes '
+      + 'to Trash); a body change forks another tab holding unsent words, never clobbers. The client lands every '
+      + 'returned revision (settleNoteWrites).',
+    evidence: ['tests/test_notebook_ai_actions.py'],
+  },
+  'POST /api/j2/research-capture/transcripts/save': {
+    class: NONE,
+    why: 'transcript_capture.save_passage appends ONE documentExcerpt block (append_document_excerpt), a '
+      + 'SERVER_APPENDED_TYPE merged by the reconcile\'s APPEND_ONLY branch, never forked; read and rewritten inside '
+      + 'BEGIN IMMEDIATE; researchCapture.js lands the returned revision.',
+    evidence: ['tests/test_notebook_transcript_capture.py', 'tests/test_notes_cas_is_atomic.py'],
+  },
+  'POST /api/j2/personal/notes/*/append': {
+    class: FORK,
+    why: 'the personal API (a Shortcut or script, no tab) appends paragraphs through note_personal_api.append_nodes: '
+      + 'update_note(expected_updated_at) under BEGIN IMMEDIATE, 423 on a locked note; paragraphs are not a '
+      + 'SERVER_APPENDED_TYPE, so a tab holding unsent words forks (D-G1(b)).',
+    evidence: ['tests/test_notebook_personal_api.py'],
+  },
+  'POST /api/j2/personal/daily/append': {
+    class: FORK,
+    why: 'the personal API\'s append-to-daily: creates the day\'s note if missing (nobody holds it) and appends '
+      + 'paragraphs through append_nodes; a tab holding that day\'s note dirty forks -- a conflicted copy, never a clobber.',
+    evidence: ['tests/test_notebook_personal_api.py', 'tests/test_journal_two_daily_note_router.py'],
+  },
+  'POST /api/j2/inbound-email': {
+    class: FORK,
+    why: 'the mail webhook (no tab): inbound_email.ingest creates a NEW note per email and appends its attachment nodes '
+      + 'to that same note through append_nodes seconds later; only a tab that opened the brand-new note in between '
+      + 'could hold words, and it would fork.',
+    evidence: ['tests/test_notebook_inbound_email.py'],
+  },
+  'POST /api/j2/onboarding/sample-notebook': {
+    class: NONE,
+    why: 'seeds NEW sample notes (import_confirm) and then writes only those fresh ids inside the same call (a property, '
+      + 'an excerpt); nobody can hold a note that did not exist, so nothing an editor holds is contradicted.',
+    evidence: ['tests/test_sample_notebook.py', 'tests/test_sample_notebook_examples.py'],
+  },
+  'DELETE /api/j2/onboarding/sample-notebook': {
+    class: NONE,
+    why: 'trashes only the recorded sample ids after the client\'s bulk pre-check refuses any holding unsent words, and '
+      + 'removes only sample folders holding none of the member\'s notes; a later save to a trashed note reads 404 '
+      + 'and the words stay queued.',
+    evidence: ['tests/test_sample_notebook.py'],
+  },
+  'POST /api/j2/notes/connectors/*/connect': {
+    class: FORK,
+    why: 'connecting a source starts the connector engine\'s background sync, a GENUINE second writer (Roam/Notion/'
+      + 'Craft/Dropbox/Obsidian): a fork against it is the correct answer; two of its writers preserve updated_at.',
+    evidence: ['api/services/journal_two/test_note_connectors_engine.py', 'tests/test_note_sync_router.py'],
+  },
+  'POST /api/j2/notes/connectors/obsidian/redeem': {
+    class: FORK,
+    why: 'the Obsidian plugin redeems its connect code and the source\'s first sync runs (engine.sync_source), the same '
+      + 'genuine second writer as any connector: a tab holding unsent words forks against it, never clobbers.',
+    evidence: ['api/services/journal_two/test_note_connectors_engine.py', 'tests/test_note_sync_router.py'],
+  },
+  'POST /api/j2/notes/connectors/sources/*/sync': {
+    class: FORK,
+    why: 'a manual "Sync now" runs the connector engine\'s sync for one source: the genuine second writer again, so a '
+      + 'fork is the correct answer; nothing this tab wrote is overwritten.',
+    evidence: ['api/services/journal_two/test_note_connectors_engine.py', 'tests/test_note_sync_router.py'],
+  },
   // ── server-side doors with NO client (rail ⑤'s ledger + rail ②'s engine) ──────
   'api/routers/notebook_personal_api.py': {
     class: FORK,
@@ -1484,7 +1765,8 @@ const DOOR_CLASSIFICATION = {
   },
   'api/services/journal_two/journal_styles.py': {
     class: FORK,
-    why: 'apply_style_update inserts missing blocks AFTER THE FIRST HEADING (or, switching an empty note, the style\'s '
+    why: 'create_styled_note makes a NEW note in one insert (nobody can hold it yet: none). '
+      + 'apply_style_update inserts missing blocks AFTER THE FIRST HEADING (or, switching an empty note, the style\'s '
       + 'outline, which may carry an instruction paragraph): not a tail append of server-appended types, so '
       + 'appendedServerNodes (positional, tail only) cannot prove APPEND_ONLY and a tab holding unsent words 409s into '
       + 'a BODY_REWRITE and forks -- both survive. A kind-only switch leaves the body byte-identical (METADATA_ONLY, '
@@ -1492,7 +1774,7 @@ const DOOR_CLASSIFICATION = {
       + 'IMMEDIATE, always against the revision the call read (tests/test_journal_styles_update.py, the '
       + 'read-then-type race and the early-conflict rail).',
     evidence: ['tests/test_journal_styles_update.py', 'app/src/pages/journal-2-0/lib/offline/ownerReconcile.test.js',
-      'tests/test_notes_cas_is_atomic.py'],
+      'tests/test_notes_cas_is_atomic.py', 'tests/test_journal_styles_create.py'],
   },
   'api/services/journal_two/note_kinds.py': {
     class: NONE,
