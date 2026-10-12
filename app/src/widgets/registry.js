@@ -499,10 +499,17 @@ const PANEL_MANIFESTS = {
       { key: 'readings', type: 'json' },
       { key: 'wireDate', type: 'string' },       // the wire run the readings came from
       { key: 'updated', type: 'string' },        // ET clock at capture
+      // Notebook P2a (IR-S6, IR-S11): which rows a note's stamp shows, and the stamp a note gained
+      // after it was written (nothing was captured, by rule). ⛔ The options are journalBlocks.js's
+      // marketcontext `fields` (S20, railed by registry.test.js).
+      { key: 'fields', type: 'enum', options: ['all', 'regime', 'indexes'], default: 'all' },
+      { key: 'uncaptured', type: 'boolean' },
     ],
     plainText: (p) => {
+      if (p?.uncaptured === true) return '[market context: not captured]'
       const r = (p?.readings && typeof p.readings === 'object') ? p.readings : {}
       const bits = []
+      if (typeof r.regime?.value === 'string' && r.regime.value) bits.push(`regime ${r.regime.value}`)
       if (r.marketPhase) bits.push(String(r.marketPhase))
       if (r.exposureScore != null) bits.push(`exposure ${r.exposureScore}`)
       if (r.breadthScore != null) bits.push(`breadth ${r.breadthScore}`)
@@ -516,8 +523,10 @@ const PANEL_MANIFESTS = {
     // DIFFERENT store — the 4:15 collector's row — whose breadth number is not
     // the wire's. Re-fetching from it would answer a similar question with a
     // different answer and call it the same reading, which is worse than
-    // showing the archive.) The frozen readings are the only record.
-    reconstructable: (p) => !!(p?.readings && typeof p.readings === 'object' && !Array.isArray(p.readings)),
+    // showing the archive.) The frozen readings are the only record. An uncaptured stamp renders
+    // its sentence from params alone, never a re-fetch.
+    reconstructable: (p) => p?.uncaptured === true
+      || !!(p?.readings && typeof p.readings === 'object' && !Array.isArray(p.readings)),
     liveCapable: false,
   },
   aisearch: {

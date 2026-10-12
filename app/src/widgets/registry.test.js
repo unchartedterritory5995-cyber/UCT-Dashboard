@@ -694,6 +694,33 @@ describe('widget registry — journal embed bindings', () => {
       }
     }
   })
+
+  it('S20 (Task 9): the marketcontext manifest\'s `fields` enum IS the catalog\'s — a third home of the options, railed', () => {
+    const kind = BLOCK_KINDS.find(k => k.id === 'marketcontext')
+    const s = kind?.settings.find(x => x.key === 'fields')
+    expect(s, 'journalBlocks carries a marketcontext fields setting').toBeTruthy()          // non-vacuity
+    const f = WIDGET_REGISTRY.marketcontext.paramsSchema.find(x => x.key === 'fields')
+    expect(f, 'marketcontext.paramsSchema declares fields').toBeTruthy()
+    expect(f.type).toBe('enum')
+    expect(f.options).toEqual([...s.options])
+    expect(f.default).toBe(s.default)
+  })
+
+  it('P2a: an uncaptured market context stamp is still a reconstructable embed, and its plain text says so', () => {
+    expect(isReconstructable('marketcontext', { uncaptured: true, fields: 'all' })).toBe(true)
+    expect(paramsPlainText('marketcontext', { uncaptured: true })).toBe('[market context: not captured]')
+    expect(paramsPlainText('marketcontext', { readings: { regime: { value: 'red' }, exposureScore: 10 } }))
+      .toBe('[market context: regime red · exposure 10]')
+  })
+
+  it('P2a: only a literal `uncaptured: true` makes a readings-less stamp reconstructable', () => {
+    expect(isReconstructable('marketcontext', { uncaptured: false })).toBe(false)
+    expect(isReconstructable('marketcontext', { uncaptured: 'true' })).toBe(false)
+    expect(paramsPlainText('marketcontext', { uncaptured: 'true' })).toBe('[market context: no readings]')
+    expect(validateParams('marketcontext', { uncaptured: true, fields: 'all' }).ok).toBe(true)
+    expect(validateParams('marketcontext', { fields: 'everything' }).ok).toBe(false)
+    expect(normalizeParams('marketcontext', {}).fields).toBe('all')
+  })
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
