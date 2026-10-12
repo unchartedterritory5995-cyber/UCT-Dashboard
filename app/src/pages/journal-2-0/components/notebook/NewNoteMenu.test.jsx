@@ -117,3 +117,32 @@ describe('NewNoteCaret: the caret alone (the notes list)', () => {
     expect(outer).toHaveBeenCalledTimes(1)   // the keys the menu does not need still bubble
   })
 })
+
+// Fix round 1 (review M1, M2). The open menu keeps Left/Right/Home/End to itself in BOTH forms:
+// Home's split button too (nothing around it roves, but a window-level Left/Right, such as the video
+// seek shortcuts, no longer sees them while a menu item holds focus). Home/End move to the first or
+// last item and do not scroll the page.
+describe('the open menu keeps Left/Right/Home/End (both forms)', () => {
+  it('Home\'s form: Left/Right do not escape the open menu', () => {
+    const outer = vi.fn()
+    render(<div onKeyDown={outer}><NewNoteMenu onBlank={vi.fn()} onFromOutline={vi.fn()} onToday={vi.fn()} /></div>)
+    fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
+    const [first] = screen.getAllByRole('menuitem')
+    fireEvent.keyDown(first, { key: 'ArrowLeft' })
+    fireEvent.keyDown(first, { key: 'ArrowRight' })
+    expect(outer).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(first)
+    expect(screen.getByRole('menu')).toBeTruthy()
+  })
+  it.each([['Home\'s form', (p) => <NewNoteMenu onBlank={vi.fn()} {...p} />], ['the list form', (p) => <NewNoteCaret {...p} />]])(
+    '%s: Home and End focus the first and last item, and the page does not scroll', (_n, mount) => {
+      render(mount({ onFromOutline: vi.fn(), onFromStyle: vi.fn(), onToday: vi.fn() }))
+      fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
+      const items = screen.getAllByRole('menuitem')
+      expect(fireEvent.keyDown(items[0], { key: 'End' })).toBe(false)   // false = default prevented
+      expect(document.activeElement).toBe(items[items.length - 1])
+      expect(fireEvent.keyDown(items[items.length - 1], { key: 'Home' })).toBe(false)
+      expect(document.activeElement).toBe(items[0])
+    },
+  )
+})

@@ -44,9 +44,15 @@ function CaretMenu({ caretClass, onFromOutline, onFromStyle, onVoice = null, onT
     if (e.key === 'Escape') { e.preventDefault(); close() }
     else if (e.key === 'ArrowDown') { e.preventDefault(); list[(i + 1) % list.length]?.focus() }
     else if (e.key === 'ArrowUp') { e.preventDefault(); list[(i - 1 + list.length) % list.length]?.focus() }
-    // The list's caret sits in a role="toolbar" whose Left/Right/Home/End rove its controls; from an
-    // open menu they would move focus out and leave the menu hanging open.
-    else if (/^(Arrow[LR]|Home|End)/.test(e.key)) e.stopPropagation()
+    // An open menu keeps Left/Right/Home/End to itself, in BOTH forms. The list's caret sits in a
+    // role="toolbar" whose Left/Right/Home/End rove its controls (they would move focus out and leave the
+    // menu hanging open); on Home nothing roves, but a window-level Left/Right (the video seek shortcuts)
+    // no longer sees them while an item holds focus. Home/End go to the first/last item, not the page.
+    else if (/^(Arrow[LR]|Home|End)/.test(e.key)) {
+      e.stopPropagation()
+      // Home/End (not 'Arrow…'): the first/last item. 'End' sorts before 'F', 'Home' after it.
+      if (e.key[0] > 'A') { e.preventDefault(); list.at(e.key < 'F' ? -1 : 0).focus() }
+    }
   }
   // Focus goes back to the caret BEFORE the item runs: the menu (and the item holding focus) is gone
   // on the next render, and what the item opens (the New-note sheet, the voice dialog) returns focus
@@ -80,14 +86,13 @@ function CaretMenu({ caretClass, onFromOutline, onFromStyle, onVoice = null, onT
 }
 
 // The notes list's form: the caret alone, sized like the list's `btn-sm` "+ New note". No tour
-// anchor on the wrapper: "new-note-home" is Home's, and the voice tour starts there. ⛔ The wrapper
-// is a SPAN on purpose: NewNoteMenu.module.css tells this form from Home's (a div) by `span.split`
-// (a class of its own cost the Notebook's first open ~30 B).
+// anchor on the wrapper: "new-note-home" is Home's, and the voice tour starts there. Its CSS (touch
+// floor, phone placement) is keyed on `.listCaret`, railed by NewNoteMenu.listCaret.css.test.js.
 export function NewNoteCaret(doors) {
   return (
-    <span className={styles.split}>
+    <div className={styles.listCaret}>
       <CaretMenu caretClass="btn btn-primary btn-sm" {...doors} />
-    </span>
+    </div>
   )
 }
 
