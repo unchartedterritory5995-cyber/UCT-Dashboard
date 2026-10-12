@@ -378,7 +378,7 @@ describe('WidgetEmbedView fallback rendering', () => {
     expect(screen.getByText('[mystery]')).toBeTruthy()
     // P1.7(b): the card names the cause and offers the fix; the node is never touched.
     expect(screen.getByText(UNKNOWN_BLOCK_SENTENCE)).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Reload' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Reload/ })).toBeTruthy()
   })
   // ⛔ Wave 8 final review, M-10: a stranger on a share link or a published page never reads
   // the author's "snapshot image not captured yet"; the widget's own caption stands in. The

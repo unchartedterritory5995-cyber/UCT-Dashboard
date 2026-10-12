@@ -154,10 +154,13 @@ function PlaceholderChip({ attrs, reason, shareView = false }) {
   }
   if (reason === 'unknown-widget') {
     return (
-      <div className={styles.placeholder} {...RENDER_UNAVAILABLE}>
+      <div className={`${styles.placeholder} ${styles.placeholderUnknown}`} {...RENDER_UNAVAILABLE}>
         <span className={styles.placeholderLine}>{attrs.searchText || 'A block from a newer version of the app'}</span>
         <span className={styles.placeholderWhy}>{UNKNOWN_BLOCK_SENTENCE}</span>
+        {/* Several unknown blocks on one page would give several identical "Reload" buttons;
+            the name says which block it is for and still STARTS with the visible word. */}
         <button type="button" className={`btn btn-ghost ${styles.placeholderReload}`}
+          aria-label={attrs.searchText ? `Reload to see ${attrs.searchText}` : undefined}
           onClick={() => window.location.reload()}>
           Reload
         </button>
