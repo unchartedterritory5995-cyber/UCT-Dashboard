@@ -64,6 +64,16 @@ export const IMPORT_ALLOW = {
   'app/src/utils/lazyWithRetry': "isChunkLoadError: the app's own stale-chunk predicate; no data, no writes",
 }
 
+/**
+ * N-4 (R-T6-4): modules a block file may take only NAMED exports from. `utils/lazyWithRetry`'s default
+ * export reloads the page on a stale chunk, which lib/lazyChunk.js rules out for a leaf view ("NEVER A
+ * PAGE RELOAD"); a block gets the predicate and nothing else. A default, a namespace, an `import()`,
+ * a re-export or any other name fails by name.
+ */
+export const IMPORT_NAMES = {
+  'app/src/utils/lazyWithRetry': ['isChunkLoadError'],
+}
+
 const HELPER_METHOD = { jsonPost: 'POST', jsonPut: 'PUT', jsonPatch: 'PATCH', jsonDelete: 'DELETE' }
 const WRITE_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE']
 const BANNED_IMPORT = /(^|\/)lib\/offline(\/|$)|journalStyles(\.js)?$/
@@ -88,13 +98,21 @@ function methodOf(opts) {
 // No '?' (the reading of a URL that could not be read), no regex metacharacter, no query string.
 const LITERAL_URL = /^\/api\/(?:[A-Za-z0-9_.-]|\{\}|\/)+$/
 const NOTE_URL = /^\/api\/j2\/notes(\/|$)/
+// N-2 (R-T6-4): a template must not step around NOTE_URL (dot segments, empty segments) and must not
+// open with a hole: `{}` stands for a whole path tail, so `/api/j2/{}` is `/api/j2/notes/1` at run time.
+const DOT_OR_EMPTY = /\.\.|\/\/|\/\.(\/|$)/
+const OPENS_WITH_HOLE = /^\/api\/(j2\/)?\{\}/
 
 /** Every reason a write exception is refused ([] when it may exempt its own call). */
 export function exceptionProblems(e) {
   const out = []
   if (!WRITE_METHODS.includes(e?.method)) out.push(`${e?.method} is not a write method`)
   if (typeof e?.url !== 'string' || !LITERAL_URL.test(e.url)) out.push(`${JSON.stringify(e?.url)} is not a literal URL template`)
-  else if (NOTE_URL.test(e.url)) out.push(`${e.url} is a note URL`)
+  else {
+    if (DOT_OR_EMPTY.test(e.url)) out.push(`${JSON.stringify(e.url)} has a dot segment or an empty segment`)
+    if (OPENS_WITH_HOLE.test(e.url)) out.push(`${e.url} opens with {} (a whole path)`)
+    if (NOTE_URL.test(e.url) || NOTE_URL.test(posix.normalize(e.url))) out.push(`${e.url} is a note URL`)
+  }
   if (String(e?.why || '').length <= 20) out.push('the reason is missing or too short')
   return out
 }
@@ -106,7 +124,8 @@ function exempt(exceptions, file, method, url) {
 // M-2 (fix round 1): the names that ARE a request. Each is decided only as the direct callee of a
 // call (fetch, sendBeacon, the helpers) or of `new` (XMLHttpRequest, Request); any other reference
 // (an alias, `.call` / `.apply`, a destructuring) cannot be decided statically and fails closed.
-const DOOR_NAMES = new Set(['fetch', 'sendBeacon', 'XMLHttpRequest', 'Request', ...Object.keys(HELPER_METHOD)])
+// N-3 (R-T6-4): WebSocket joins them (a socket can send), judged at `new` like XMLHttpRequest.
+const DOOR_NAMES = new Set(['fetch', 'sendBeacon', 'XMLHttpRequest', 'Request', 'WebSocket', ...Object.keys(HELPER_METHOD)])
 const GLOBAL_OBJECTS = new Set(['window', 'globalThis', 'self'])
 
 /** The name an Identifier or a member access reaches (`a.fetch`, `a['fetch']`), else undefined. */
@@ -168,14 +187,75 @@ function walk(n, fn, parent = null) {
 
 const parse = (src) => P.parse(src, { ecmaVersion: 'latest', sourceType: 'module' })
 
-export function problemsIn(file, src, exceptions = WRITE_EXCEPTIONS, allow = IMPORT_ALLOW) {
+/** N-3: names PROVABLY a local object or array: bound exactly once in the file, by a `const` whose
+ *  initialiser is an object or array literal (never a parameter, never re-bound anywhere). A computed
+ *  call on anything else (`w[k](...)`) cannot be decided statically and fails closed. */
+function literalLocals(ast) {
+  const bindings = new Map()                       // name -> [isLiteralConst, ...]
+  const bind = (name, literal) => bindings.set(name, [...(bindings.get(name) || []), literal])
+  const patternNames = (p, fn) => walk(p, (x, parent) => {
+    if (x.type === 'Identifier' && !(parent?.type === 'Property' && parent.key === x && parent.value !== x)
+        && !(parent?.type === 'MemberExpression' && parent.property === x)) fn(x.name)
+  })
+  walk(ast, (n, parent) => {
+    if (n.type === 'VariableDeclarator') {
+      if (n.id.type === 'Identifier') {
+        bind(n.id.name, parent?.kind === 'const' && ['ObjectExpression', 'ArrayExpression'].includes(n.init?.type))
+      } else patternNames(n.id, (name) => bind(name, false))
+    }
+    if (/Function/.test(n.type)) {
+      if (n.id) bind(n.id.name, false)
+      for (const p of n.params) patternNames(p, (name) => bind(name, false))
+    }
+    if (n.type === 'CatchClause' && n.param) patternNames(n.param, (name) => bind(name, false))
+    if (/^Class/.test(n.type) && n.id) bind(n.id.name, false)
+  })
+  return new Set([...bindings].filter(([, b]) => b.length === 1 && b[0]).map(([name]) => name))
+}
+
+/** N-3: a global object (window / globalThis / self) used as a VALUE (an alias, an argument) rather than
+ *  as the object of a member access, which the member rules judge. `typeof window` is a test, not a use. */
+function isLooseGlobalReference(n, parent) {
+  if (parent?.type === 'MemberExpression' && parent.object === n) return false
+  if (parent?.type === 'UnaryExpression' && parent.operator === 'typeof') return false
+  if (parent?.type === 'CallExpression' && parent.callee === n) return true
+  return isLooseDoorReference(n, parent)
+}
+
+/** N-4: the names an import / re-export of a name-limited module takes that it may not. */
+function forbiddenNames(n, allowed) {
+  if (n.type === 'ImportExpression') return ['import()']
+  if (n.type === 'ExportAllDeclaration') return ['*']
+  const out = []
+  for (const s of n.specifiers || []) {
+    const name = s.type === 'ImportDefaultSpecifier' ? 'default'
+      : s.type === 'ImportNamespaceSpecifier' ? '*'
+        : s.type === 'ImportSpecifier' ? (s.imported.name ?? s.imported.value)
+          : (s.local.name ?? s.local.value)                                   // ExportSpecifier: the source's name
+    if (!allowed.includes(name)) out.push(name)
+  }
+  return out
+}
+
+export function problemsIn(file, src, exceptions = WRITE_EXCEPTIONS, allow = IMPORT_ALLOW, names = IMPORT_NAMES) {
   const out = []
   const write = (method, url) => { if (!exempt(exceptions, file, method, url)) out.push(`WRITE ${file}: ${method} ${url}`) }
   const imported = (node) => { const p = importProblem(file, specOf(node), allow); if (p) out.push(p) }
-  walk(parse(src), (n, parent) => {
+  const ast = parse(src)
+  const locals = literalLocals(ast)
+  walk(ast, (n, parent) => {
     if (n.type === 'ImportDeclaration' || n.type === 'ExportAllDeclaration'
         || (n.type === 'ExportNamedDeclaration' && n.source)) imported(n.source)
     if (n.type === 'ImportExpression') imported(n.source)
+    // N-4: a name-limited module gives only its named exports
+    if (['ImportDeclaration', 'ExportAllDeclaration', 'ExportNamedDeclaration', 'ImportExpression'].includes(n.type) && n.source) {
+      const spec = specOf(n.source)
+      const limited = spec != null ? names[moduleIdOf(file, spec)] : null
+      if (limited) for (const name of forbiddenNames(n, limited)) out.push(`NAMES ${file}: ${spec} (${name})`)
+    }
+    // N-3: an alias of a global object
+    if (n.type === 'Identifier' && GLOBAL_OBJECTS.has(n.name) && isLooseGlobalReference(n, parent)) out.push(`REF ${file}: ${n.name}`)
+    if (n.type === 'NewExpression' && nameOf(n.callee) === 'WebSocket') out.push(`SOCKET ${file}`)
     // M-2: a door reached any way but as the direct callee
     if ((n.type === 'Identifier' || n.type === 'MemberExpression') && DOOR_NAMES.has(nameOf(n))
         && isLooseDoorReference(n, parent)) out.push(`REF ${file}: ${nameOf(n)}`)
@@ -193,10 +273,25 @@ export function problemsIn(file, src, exceptions = WRITE_EXCEPTIONS, allow = IMP
     }
     if (n.type === 'CallExpression') {
       const callee = nameOf(n.callee)
+      const c = n.callee
+      // N-3: a computed call (`x[k](...)`) on anything not provably a local literal could be any function,
+      // a global's fetch included. (A global object's own `window[k]` is already reported above.)
+      if (c.type === 'MemberExpression' && c.computed && c.property?.type !== 'Literal'
+          && !GLOBAL_OBJECTS.has(c.object?.name) && !(c.object?.type === 'Identifier' && locals.has(c.object.name))) {
+        out.push(`REF ${file}: ${c.object?.type === 'Identifier' ? c.object.name : '?'}[?]()`)
+      }
       if (callee === 'updateAttributes' && !file.endsWith('/useBlockParams.js')) out.push(`UPDATE ${file}`)
       if (callee === 'fetch') {
-        const method = methodOf(n.arguments[1])
-        if (method !== 'GET') write(method, urlOf(n.arguments[0]))
+        const [u, init] = n.arguments
+        if (!init) {
+          // N-3: one argument that is not a URL written here could be a Request built elsewhere
+          const decided = u?.type === 'Literal' || u?.type === 'TemplateLiteral'
+            || (u?.type === 'NewExpression' && nameOf(u.callee) === 'Request')          // judged at its `new`
+          if (!decided) write('?', '?')
+        } else {
+          const method = methodOf(init)
+          if (method !== 'GET') write(method, urlOf(u))
+        }
       }
       if (callee === 'sendBeacon') write('POST', urlOf(n.arguments[0]))
       if (HELPER_METHOD[callee]) write(HELPER_METHOD[callee], urlOf(n.arguments[0]))
@@ -328,7 +423,8 @@ describe('⛔⛔ no block owns a second write door', () => {
     expect(problemsIn(f, "fetch.apply(null, ['/api/j2/notes/1', { method: 'PUT' }])")).toEqual([`REF ${f}: fetch`])
     expect(problemsIn(f, "const g = fetch; g('/api/j2/notes/1', { method: 'PUT' })")).toEqual([`REF ${f}: fetch`])
     expect(problemsIn(f, "const g = window.fetch")).toEqual([`REF ${f}: fetch`])
-    expect(problemsIn(f, "const { fetch: g } = globalThis")).toEqual([`REF ${f}: fetch`])
+    // (since N-3 the destructured global is itself a loose global reference, reported beside the door)
+    expect(problemsIn(f, "const { fetch: g } = globalThis")).toEqual([`REF ${f}: fetch`, `REF ${f}: globalThis`])
     expect(problemsIn(f, 'const s = navigator.sendBeacon')).toEqual([`REF ${f}: sendBeacon`])
     expect(problemsIn(f, 'const X = XMLHttpRequest')).toEqual([`REF ${f}: XMLHttpRequest`])
     expect(problemsIn(f, "window[name]('/api/j2/notes/1')")).toEqual([`REF ${f}: window[?]`])
@@ -366,6 +462,65 @@ describe('⛔⛔ no block owns a second write door', () => {
     // and a broad entry exempts NOTHING, even when a test hands it straight to problemsIn
     const broad = { [f]: [{ method: 'PUT', url: '?', why }] }
     expect(problemsIn(f, "fetch(u, { method: 'PUT' })", broad)).toEqual([`WRITE ${f}: PUT ?`])
+  })
+  it('CONTROL — N-2: a literal template that is broad, or that steps around the note refusal, is refused', () => {
+    const why = 'a reason long enough to be a reason'
+    for (const url of ['/api/{}', '/api/j2/{}', '/api/j2/{}/adherence', '/api//j2/notes/{}', '/api/j2/x/../notes/{}',
+      '/api/j2/./notes/{}', '/api/j2/trades//{}', '/api/j2/trades/{}/..']) {
+      expect(exceptionProblems({ method: 'PUT', url, why }), url).not.toEqual([])
+    }
+    expect(exceptionProblems({ method: 'PUT', url: '/api/j2/x/../notes/{}', why }))
+      .toEqual(['"/api/j2/x/../notes/{}" has a dot segment or an empty segment', '/api/j2/x/../notes/{} is a note URL'])
+    expect(exceptionProblems({ method: 'PUT', url: '/api/j2/{}', why })).toEqual(['/api/j2/{} opens with {} (a whole path)'])
+    // control: a narrow template still passes
+    expect(exceptionProblems({ method: 'PUT', url: '/api/j2/trades/{}/adherence', why })).toEqual([])
+  })
+  it('CONTROL — N-3: an aliased or passed-in global, a one-argument fetch of a non-literal and a WebSocket fail closed', () => {
+    const f = 'app/src/pages/journal-2-0/components/notebook/blocks/X.jsx'
+    expect(problemsIn(f, "const w = window; w[k]('/api/j2/notes/1', { method: 'PUT' })"))
+      .toEqual([`REF ${f}: window`, `REF ${f}: w[?]()`])
+    expect(problemsIn(f, 'const g = globalThis')).toEqual([`REF ${f}: globalThis`])
+    expect(problemsIn(f, "const run = (w, k) => w[k]('/api/j2/notes/1', { method: 'PUT' })")).toEqual([`REF ${f}: w[?]()`])
+    expect(problemsIn(f, 'const run = (o, k) => o?.[k]()')).toEqual([`REF ${f}: o[?]()`])
+    expect(problemsIn(f, 'fetch(req)')).toEqual([`WRITE ${f}: ? ?`])
+    expect(problemsIn(f, 'fetch(props.request)')).toEqual([`WRITE ${f}: ? ?`])
+    expect(problemsIn(f, "new WebSocket('wss://x')")).toEqual([`SOCKET ${f}`])
+    expect(problemsIn(f, 'const S = WebSocket')).toEqual([`REF ${f}: WebSocket`])
+    // provably local, and reads, stay clean
+    expect(problemsIn(f, "const H = { a: () => 1 }; const run = (k) => H[k]()")).toEqual([])
+    expect(problemsIn(f, "const L = [() => 1]; L[i]()")).toEqual([])
+    expect(problemsIn(f, "fetch('/api/j2/regime')")).toEqual([])
+    expect(problemsIn(f, 'fetch(`/api/j2/trades/${id}`)')).toEqual([])
+    expect(problemsIn(f, 'window.location.reload()')).toEqual([])
+    expect(problemsIn(f, "const n = window.navigator.onLine; const v = window['innerWidth']")).toEqual([])
+    // the near-names a real body uses are not doors
+    expect(problemsIn(f, [
+      'const { refetch, isFetching, fetchedAt } = q',
+      'refetch()',
+      'const t = row.fetchedAt; const busy = params.isFetching; const r = q.refetch',
+    ].join('\n'))).toEqual([])
+    // commented forms are never matches
+    expect(problemsIn(f, [
+      "// const w = window; w[k]('/api/j2/notes/1', { method: 'PUT' })",
+      '/* fetch(req) */',
+      "// new WebSocket('wss://x')",
+      'const k = 1',
+    ].join('\n'))).toEqual([])
+  })
+  it('CONTROL — N-4: utils/lazyWithRetry gives a block file ONLY the named isChunkLoadError', () => {
+    const f = 'app/src/pages/journal-2-0/components/notebook/blocks/X.jsx'
+    const m = '../../../../../utils/lazyWithRetry'
+    expect(problemsIn(f, `import { isChunkLoadError } from '${m}'`)).toEqual([])
+    expect(problemsIn(f, `import { isChunkLoadError as isChunk } from '${m}'`)).toEqual([])
+    expect(problemsIn(f, `import lazyWithRetry from '${m}'`)).toEqual([`NAMES ${f}: ${m} (default)`])
+    expect(problemsIn(f, `import lazyWithRetry, { isChunkLoadError } from '${m}'`)).toEqual([`NAMES ${f}: ${m} (default)`])
+    expect(problemsIn(f, `import { isChunkLoadError, RELOAD_FLAG } from '${m}'`)).toEqual([`NAMES ${f}: ${m} (RELOAD_FLAG)`])
+    expect(problemsIn(f, `import * as L from '${m}'`)).toEqual([`NAMES ${f}: ${m} (*)`])
+    expect(problemsIn(f, `const L = () => import('${m}')`)).toEqual([`NAMES ${f}: ${m} (import())`])
+    expect(problemsIn(f, `export { default } from '${m}'`)).toEqual([`NAMES ${f}: ${m} (default)`])
+    expect(problemsIn(f, `// import lazyWithRetry from '${m}'\nconst k = 1`)).toEqual([])
+    // every name-limited module is also an allow-listed one
+    for (const id of Object.keys(IMPORT_NAMES)) expect(Object.hasOwn(IMPORT_ALLOW, id), id).toBe(true)
   })
   it('CONTROL — an exception is method+URL, never the whole file (IR-I b)', () => {
     const f = 'app/src/pages/journal-2-0/lib/blocks/Y.js'

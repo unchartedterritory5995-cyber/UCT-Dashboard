@@ -73,6 +73,42 @@ describe('BlockNodeView — escalation to Reload (R-T6-3)', () => {
     })
   })
 
+  it('N-5: offline (navigator.onLine === false) a repeated chunk failure keeps "Try again", never Reload', async () => {
+    const importer = vi.fn(() => Promise.reject(chunkError()))
+    const desc = Object.getOwnPropertyDescriptor(window.navigator, 'onLine')
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, get: () => false })
+    try {
+      await withImporter(importer, async () => {
+        render(<BlockNodeView node={node('positionSizing')} editor={editor()} updateAttributes={() => {}} />)
+        expect(await screen.findByText(BLOCK_ERROR_SENTENCE)).toBeTruthy()
+        await tryAgain()
+        await vi.waitFor(() => expect(importer.mock.calls.length).toBeGreaterThanOrEqual(4), { timeout: 3000 })  // the retry ran and failed
+        expect(await screen.findByRole('button', { name: 'Try again' })).toBeTruthy()
+        expect(screen.queryByRole('button', { name: /^Reload/ })).toBeNull()
+      })
+    } finally {
+      if (desc) Object.defineProperty(window.navigator, 'onLine', desc)
+      else delete window.navigator.onLine
+    }
+  })
+
+  it('N-5: a body that LOADED resets the escalation: a much later chunk error starts at "Try again" again', async () => {
+    let calls = 0
+    const Body = ({ params }) => { if (params.boom) throw chunkError(); return <p>sizing body</p> }
+    const importer = vi.fn(() => (++calls <= 2 ? Promise.reject(chunkError()) : Promise.resolve({ default: Body })))
+    await withImporter(importer, async () => {
+      const { rerender } = render(<BlockNodeView node={node('positionSizing')} editor={editor()} updateAttributes={() => {}} />)
+      expect(await screen.findByText(BLOCK_ERROR_SENTENCE)).toBeTruthy()
+      await tryAgain()
+      expect(await screen.findByText('sizing body')).toBeTruthy()                  // the retry loaded the body
+      // later: something inside the loaded body fails to load (a nested chunk, say)
+      rerender(<BlockNodeView node={node('positionSizing', { boom: true })} editor={editor()} updateAttributes={() => {}} />)
+      expect(await screen.findByText(BLOCK_ERROR_SENTENCE)).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy()
+      expect(screen.queryByRole('button', { name: /^Reload/ })).toBeNull()
+    })
+  })
+
   it('a render (non-chunk) error keeps "Try again" only, even after a retry fails again', async () => {
     const importer = vi.fn(() => Promise.resolve({ default: () => { throw new Error('a bug in the body') } }))
     await withImporter(importer, async () => {
