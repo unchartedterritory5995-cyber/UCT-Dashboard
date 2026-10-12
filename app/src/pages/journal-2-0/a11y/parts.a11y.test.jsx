@@ -103,6 +103,16 @@ describe('custom node views inside a note', () => {
 
 const embed = (widgetId, params) => ({ ...buildWidgetEmbedAttrs(widgetId, params, { capturedAt: CAPTURED }) })
 const ROWS = [{ sym: 'NVDA', price: 142.8, chgPct: 3.2, note: 'leader' }, { sym: 'AMD', price: 160.1, chgPct: -1.1 }]
+// Notebook P2a (Task 9): a full market context stamp, so the recipe renders the
+// sourced rows — a value with its source line, and two missing sentences.
+const STAMP = {
+  marketPhase: 'Uptrend', exposureScore: 32, exposureDelta: -4, breadthScore: 47.6, distributionDays: 3,
+  pctAbove50: 41.3, pctAbove200: 55, powerTrend: null,
+  regime: { value: 'orange', source: 'UCT Exposure Rating', asOf: '2026-10-13', missing: null },
+  spy: { value: { price: 600.5, changePct: -0.42, closed: false }, source: 'live price', asOf: '2026-10-13T17:26:00Z', missing: null },
+  qqq: { value: null, source: null, asOf: null, missing: 'No QQQ quote could be read just now.' },
+  vix: { value: null, source: null, asOf: null, missing: 'VIX unavailable' },
+}
 
 const EMBEDS = [
   ['embed-ai-search', AiSearchEmbed, embed('aisearch', { thread: [{ role: 'user', text: 'What is leading?' }, { role: 'assistant', text: 'Semis are leading.' }] })],
@@ -112,7 +122,7 @@ const EMBEDS = [
   ['embed-chart', ChartEmbed, embed('chart', { symbol: 'NVDA', tf: 'D', to: 1758200000 })],
   ['embed-fundamentals', FundamentalsEmbed, embed('fundamentals', { symbol: 'NVDA', data: null })],
   ['embed-indexes', IndexesEmbed, embed('indexes', { rows: [{ sym: 'SPY', price: 560, chgPct: 0.4 }] })],
-  ['embed-market-context', MarketContextEmbed, embed('marketcontext', { readings: {} })],
+  ['embed-market-context', MarketContextEmbed, embed('marketcontext', { readings: STAMP, fields: 'all' })],
   ['embed-news', NewsEmbed, embed('news', { symbol: 'NVDA', events: [] })],
   ['embed-scanner', ScannerEmbed, embed('scanner', { scanName: 'Pullback MA', rows: ROWS })],
   ['embed-themes', ThemesEmbed, embed('themes', { period: '1w', rows: [{ label: 'Semis', chgPct: 4.1 }] })],

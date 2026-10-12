@@ -183,6 +183,48 @@ describe('FinancialFactView', () => {
     expect(screen.queryByText(/^Source:/)).toBeNull()
   })
 
+  describe('P2a price stamps: the price says what it is, and when (the server worded both)', () => {
+    const stamp = (extra) => ({
+      id: 'f1', ticker: 'NVDA', factType: 'price', factLabel: 'Price', value: 601.25, unit: 'usd_per_share',
+      temporalMode: 'live_and_snapshot', observedAt: '2026-10-13T23:05:00Z', current: 601.25, caption: null, ...extra,
+    })
+    const show = (fact) => {
+      hookResult = { facts: [fact], isLoading: false, refresh: vi.fn() }
+      render(<FinancialFactView node={nodeFor('f1')} editor={editorWith('n1')} deleteNode={vi.fn()} />)
+    }
+
+    it("the server's words ride the Captured line: when it was captured, then what the price IS and when", () => {
+      show(stamp({ sourceRef: 'last close', sourceAsOf: '2026-10-09T20:00:00Z',
+        asOfLabel: 'Last close, Oct 9, 2026, 4:00 PM ET' }))
+      expect(screen.getByText(/^Captured .+ · Last close, Oct 9, 2026, 4:00 PM ET$/)).toBeTruthy()
+      expect(screen.queryByText('As of')).toBeNull()                    // no row of its own (review G)
+    })
+
+    it('a live price, worded the same way', () => {
+      show(stamp({ asOfLabel: 'Live price, Oct 13, 2026, 1:26 PM ET' }))
+      expect(screen.getByText(/^Captured .+ · Live price, Oct 13, 2026, 1:26 PM ET$/)).toBeTruthy()
+    })
+
+    it('a /price capture with no label (every fact before P2a): the Captured line alone', () => {
+      show(stamp({ sourceRef: null, sourceAsOf: null, asOfLabel: null }))
+      expect(screen.getByText(/^Captured [^·]+$/)).toBeTruthy()
+    })
+
+    it('a price whose change cannot be read says so in the Current line, never 0.00% (review H)', () => {
+      show(stamp({ current: null }))
+      expect(screen.getByText("Couldn't refresh · change unavailable")).toBeTruthy()
+      expect(screen.queryByText('Change')).toBeNull()
+      expect(screen.queryByText(/0\.00%/)).toBeNull()
+    })
+
+    it('CONTROL: a change that can be read is a Change row, and no unavailable sentence', () => {
+      show(stamp({ current: 602.25 }))
+      expect(screen.getByText('Change')).toBeTruthy()
+      expect(screen.getByText(/\+\$1\.00/)).toBeTruthy()
+      expect(screen.queryByText(/change unavailable/)).toBeNull()
+    })
+  })
+
   it('the remove button calls deleteNode', () => {
     const deleteNode = vi.fn()
     hookResult = {

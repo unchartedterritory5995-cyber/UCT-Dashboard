@@ -53,6 +53,10 @@ export const WRITE_EXCEPTIONS = {
     { method: 'PUT', url: '/api/j2/trades/{}/adherence',
       why: "Log Trade ticks for a CLOSED trade, to that trade's adherence record; never a note." },
   ],
+  'app/src/pages/journal-2-0/lib/blocks/priceStampsRun.js': [
+    { method: 'POST', url: '/api/j2/trader-blocks/price-stamp',
+      why: 'Task 10, the price stamp: creates ONE j2_fact_observations row (the price, its source and its as-of) and never advances the note; the stamp node lands through an editor transaction (spec §P2 item 4).' },
+  ],
 }
 
 /**
@@ -80,6 +84,11 @@ export const IMPORT_ALLOW = {
   // the save / create / dismiss writes those hooks carry never reach a block file. It fetches nothing
   // itself and is not a network module of its own.
   'app/src/pages/journal-2-0/hooks/useChecklistSources': 'the checklist read seam: setups, setupRules and before-entry rules as data only; no write function is returned',
+  // Task 10 (price stamps): the block body holds a ProseMirror plugin, and the run closes the stamp's history.
+  '@tiptap/pm/state': 'Plugin and PluginKey: the stamp plugin the block registers, and its pending positions; no network',
+  '@tiptap/pm/history': 'closeHistory, so a stamp is its own undo step; no network',
+  'app/src/pages/journal-2-0/lib/journalStylesFlag': 'journalStylesEnabled, the latched S24 switch the stamp and its body obey; reads no network',
+  'app/src/lib/tickerResolver': "resolveCashtags, the line's $TICKER (a parser over a bundled JSON); no network",
 }
 
 /**
@@ -789,6 +798,16 @@ describe('⛔⛔ no block owns a second write door', () => {
     expect(seamProblems(f, seam(CLEAN, "import useJournalRules from './useJournalRules'"), rule))
       .toEqual([`UNLISTED ${f}: ./useJournalRules`])
     expect(seamProblems(f, seam(CLEAN, '// const { save } = useJ2Settings()'), rule)).toEqual([])
+  })
+  it("CONTROL — Task 10's write: the /price capture's note URL is refused, its own route is exempt and nothing else", () => {
+    const why = 'a reason long enough to be a reason'
+    expect(exceptionProblems({ method: 'POST', url: '/api/j2/notes/{}/facts', why })).toEqual(['/api/j2/notes/{}/facts is a note URL'])
+    const f = 'app/src/pages/journal-2-0/lib/blocks/priceStampsRun.js'
+    expect(problemsIn(f, "fetch('/api/j2/trader-blocks/price-stamp', { method: 'POST' })")).toEqual([])
+    expect(problemsIn(f, "fetch('/api/j2/trader-blocks/price-stamp', { method: 'PUT' })")).toEqual([`WRITE ${f}: PUT /api/j2/trader-blocks/price-stamp`])
+    expect(problemsIn(f, "fetch(`/api/j2/notes/${id}/facts`, { method: 'POST' })")).toEqual([`WRITE ${f}: POST /api/j2/notes/{}/facts`])
+    const g = 'app/src/pages/journal-2-0/lib/blocks/priceStamps.js'                     // the exception is per FILE
+    expect(problemsIn(g, "fetch('/api/j2/trader-blocks/price-stamp', { method: 'POST' })")).toEqual([`WRITE ${g}: POST /api/j2/trader-blocks/price-stamp`])
   })
   it('CONTROL — an exception is method+URL, never the whole file (IR-I b)', () => {
     const f = 'app/src/pages/journal-2-0/lib/blocks/Y.js'

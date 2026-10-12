@@ -16,11 +16,15 @@ import { embedAutoCaption } from '../../lib/widgetEmbedCore'
 export default function MarketContextEmbed({ attrs, height = 320 }) {
   const params = attrs?.params || {}
   const value = useMemo(() => frozenWorkspaceValue(), [])
+  // Notebook P2a: `fields` is the stamp's preset; `uncaptured` a stamp a note gained after it
+  // was written (IR-S11) — it renders its sentence, never a re-fetch.
   const frozen = useMemo(() => ({
     readings: (params.readings && typeof params.readings === 'object') ? params.readings : null,
     wireDate: params.wireDate || null,
     updated: params.updated || null,
-  }), [params.readings, params.wireDate, params.updated])
+    fields: params.fields || 'all',
+    uncaptured: params.uncaptured === true,
+  }), [params.readings, params.wireDate, params.updated, params.fields, params.uncaptured])
   return (
     // Wave 8 (8A): a figure named by the embed's own caption -- the same
     // words its archived image uses for alt (embedAutoCaption).

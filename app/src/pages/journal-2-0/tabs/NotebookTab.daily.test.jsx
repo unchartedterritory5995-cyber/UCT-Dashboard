@@ -77,7 +77,8 @@ describe('Today', () => {
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: /Today/ }))
     expect(await screen.findByRole('alert')).toHaveTextContent("Your daily template no longer exists, so today's note started blank.")
-    expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'day1')
+    // WAITED for, never sampled: the open lands in a router transition, after the alert's commit.
+    await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'day1'))
   })
 
   it('a refusal says nothing was created', async () => {

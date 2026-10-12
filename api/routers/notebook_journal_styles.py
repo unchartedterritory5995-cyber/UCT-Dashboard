@@ -12,6 +12,10 @@ fixtures `journal-styles.*` and `note-kinds.*`, tools/notebook_contract_fixtures
   POST   /api/j2/journal-styles/{style_id}/default      make it its kind's default
   GET    /api/j2/trader-blocks/market-context           the readings a market context stamp freezes (P2a)
   PUT    /api/j2/trader-blocks/positions/{position_id}/pre-entry  Log Trade's ticks for an open position (P2a)
+  POST   /api/j2/trader-blocks/price-stamp              one price fact row for a stamped line ({noteId,
+                                                        ticker}): live price, or last close dated by its
+                                                        session; 404 unless the caller's live note, 409
+                                                        when no price could be read (P2a)
   GET    /api/j2/note-kinds                             built-in and member kinds
   POST   /api/j2/note-kinds                             a member kind
   PUT    /api/j2/note-kinds/{kind_id}                   rename / icon / order
@@ -42,6 +46,7 @@ The rules (the template gallery router's):
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -212,6 +217,65 @@ def trader_pre_entry(position_id: str, body: dict = Depends(paid_body),
         return _found(trader_blocks.save_pre_entry(user["id"], position_id, setup, checked, total))
     except trader_blocks.PositionHasExit:
         raise HTTPException(status_code=409, detail=trader_blocks.PRE_ENTRY_EXITED_SENTENCE)
+
+
+# A symbol as the stamp's client canonicalises it (lib/tickerResolver.js canonical: upper case, a class
+# share in the hyphen form), or the note's own ticker word.
+_STAMP_SYMBOL = re.compile(r"^[A-Z]{1,5}(?:-[A-Z])?$")
+
+
+def _owns_live_note(user_id: str, note_id: str, conn=None) -> bool:
+    """The caller's own, live note? One row (ai_actions._note_state's shape). On `conn` when given, so the
+    stamp's write can ask it inside its own transaction (N-6)."""
+    from api.services.auth_db import get_connection
+    own = conn is None
+    conn = conn or get_connection()
+    try:
+        return conn.execute("SELECT 1 FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+                            (note_id, user_id)).fetchone() is not None
+    finally:
+        if own:
+            conn.close()
+
+
+@router.post("/trader-blocks/price-stamp")
+def trader_price_stamp(body: dict = Depends(paid_body), user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """P2a Task 10 (spec §P2 item 4): the price stamp's ONE write, a j2_fact_observations row. It never
+    writes the note: the client places the financialFact node through an editor transaction. Not a
+    `/notes/...` URL on purpose: lib/blocks/blockDoors.test.js refuses a block exception on a note URL.
+    The price carries its own source and as-of (trader_blocks.price_stamp_quote); the capture time is
+    `observedAt`, never the as-of of a close."""
+    from datetime import datetime, timezone
+    from api.services.journal_two import note_facts, trader_blocks
+    note_id, sym = body.get("noteId"), body.get("ticker")
+    if not isinstance(note_id, str) or not note_id.strip():
+        raise HTTPException(status_code=400, detail="noteId must be text")
+    sym = sym.strip().upper() if isinstance(sym, str) else ""
+    if not _STAMP_SYMBOL.match(sym):
+        raise HTTPException(status_code=400, detail="ticker must be a symbol")
+    # R-T10-1 / review I-1: the caller's own, live note, or nothing is read or written. A one-row probe
+    # (ai_actions._note_state's shape), never notes.get_note (it parses the body and can backfill a column).
+    if not _owns_live_note(user["id"], note_id):
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    q = trader_blocks.price_stamp_quote(sym, now=datetime.now(timezone.utc))
+    if q is None:
+        raise HTTPException(status_code=409, detail=f"No {sym} price could be read just now.")
+    # N-6: the vendor read can take seconds, so the note is asked again INSIDE the write: the same
+    # connection, one IMMEDIATE transaction holding the check and the insert (create_fact_observation
+    # commits it). A note trashed during the read gets 404 and no row.
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        if not _owns_live_note(user["id"], note_id, conn):
+            conn.rollback()
+            raise HTTPException(status_code=404, detail=NOT_FOUND)
+        fact = note_facts.create_fact_observation(
+            user["id"], note_id, ticker=sym, fact_type="price", value=q["price"],
+            source_as_of=q["asOf"], source_ref=q["source"], conn=conn)
+    finally:
+        conn.close()
+    return {"fact": fact}
 
 
 # ── kinds ────────────────────────────────────────────────────────────────────────────

@@ -1,8 +1,8 @@
 // app/src/pages/journal-2-0/a11y/traderBlocks.a11y.test.jsx
 //
 // Notebook P2a: the trader block platform through 8A's axe harness. One recipe renders BlockNodeView
-// with each of the three block ids (the stub bodies until Tasks 7, 10 and 11 replace them, each with its
-// own recipe in this file's siblings); a second renders the REAL BlockNodeView with one body that throws,
+// with each of the three block ids (their REAL bodies since M2; each body's own states have a recipe in
+// this file's siblings); a second renders the REAL BlockNodeView with one body that throws,
 // so the whole composition (the named group, its Remove button, then the error state with "Try again")
 // is audited -- not a hand-built frame. An empty screen cannot pass as a clean one in either.
 import { render, screen, within } from '@testing-library/react'
@@ -37,18 +37,14 @@ axeSurface('trader-block-platform', async () => {
   }
   // Every body painted (an unloaded chunk would read as a clean, empty block), each inside its OWN
   // named group. Each body is its own lazy chunk behind its own Suspense, so they commit at different
-  // ticks: wait per group, THEN count. (A findAll resolves on the FIRST match, so a count read from it
-  // is a sample; R-T7-2 I-1 reproduced that red with one chunk 300 ms late.)
-  // Task 10: delete your block's name from STUB_GROUPS when you replace its stub.
-  const STUB_GROUPS = ['Price stamps']
-  for (const name of STUB_GROUPS) {
-    expect(await within(screen.getByRole('group', { name })).findByText('This block is being built.')).toBeTruthy()
-  }
-  expect(screen.getAllByText('This block is being built.')).toHaveLength(STUB_GROUPS.length)
-  const checklist = screen.getByRole('group', { name: 'Pre-entry checklist' })
-  expect(await within(checklist).findByText(/You have no setups yet/)).toBeTruthy()
-  // Task 11 replaced the sizing stub: its body proves it painted by its own named input, waited for in its group.
-  expect(await within(screen.getByRole('group', { name: 'Position sizing' })).findByRole('spinbutton', { name: 'Entry' })).toBeTruthy()
+  // ticks: wait PER GROUP for that body's own control or sentence. (A findAll resolves on the FIRST
+  // match, so a count read from it is a sample; R-T7-2 I-1 reproduced that red with one chunk 300 ms late.)
+  // M2: Tasks 7, 10 and 11 replaced every stub, so no body may still say the stub sentence.
+  const group = (name) => within(screen.getByRole('group', { name }))
+  expect(await group('Pre-entry checklist').findByText(/You have no setups yet/)).toBeTruthy()
+  expect(await group('Price stamps').findByRole('switch', { name: 'Stamp prices as I write' })).toBeTruthy()
+  expect(await group('Position sizing').findByRole('spinbutton', { name: 'Entry' })).toBeTruthy()
+  expect(screen.queryByText('This block is being built.')).toBeNull()
 })
 
 axeSurface('trader-block-platform:error', async () => {
