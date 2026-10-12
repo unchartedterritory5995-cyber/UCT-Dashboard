@@ -18,6 +18,7 @@
       "insertsOutline": false,
       "locked": true,
       "missingBlocks": true,
+      "mode": "update",
       "skipped": [],
       "styleId": "builtin:trade_plan",
       "styleName": "Trade plan",

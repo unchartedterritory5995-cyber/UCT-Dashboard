@@ -18,6 +18,7 @@
       "insertsOutline": false,
       "locked": false,
       "missingBlocks": true,
+      "mode": "update",
       "skipped": [],
       "styleId": "builtin:thesis",
       "styleName": "Thesis",

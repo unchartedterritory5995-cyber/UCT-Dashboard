@@ -42,7 +42,8 @@ def test_the_client_block_catalog_equals_the_server_catalog():
     from api.services.journal_two import journal_styles as js
     client = _client_blocks()
     assert client                                                        # non-vacuity
-    shape = lambda kinds: [(k["id"], [(s["key"], list(s["options"]), s["default"]) for s in k["settings"]])
+    shape = lambda kinds: [(k["id"], k.get("search"),
+                            [(s["key"], list(s["options"]), s["default"]) for s in k["settings"]])
                            for k in kinds]
     assert shape(client) == shape(js.BLOCK_KINDS)
 

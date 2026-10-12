@@ -8,7 +8,10 @@
   },
   "body": {
     "blockKinds": [
-      "chart"
+      "chart",
+      "preEntryChecklist",
+      "priceStamps",
+      "positionSizing"
     ],
     "kinds": [
       {

@@ -50,6 +50,14 @@ BUILTIN_PREFIX = "builtin:"
 # options, defaults). A block id IS a widget id. P2 adds a row here, the client row, and a builder.
 BLOCK_KINDS: tuple[dict, ...] = (
     {"id": "chart", "settings": ({"key": "tf", "options": ("D", "W", "60", "15", "5"), "default": "D"},)},
+    # P2 Tier 1 (part a). `search` is the node's searchText, set by the builder and by the client insert.
+    {"id": "preEntryChecklist", "search": "[pre-entry checklist]", "settings": (
+        {"key": "includeRules", "options": ("yes", "no"), "default": "yes"},
+        {"key": "requireAll", "options": ("no", "yes"), "default": "no"})},
+    {"id": "priceStamps", "search": "[price stamps]", "settings": (
+        {"key": "on", "options": ("no", "yes"), "default": "no"},)},
+    {"id": "positionSizing", "search": "[position sizing]", "settings": (
+        {"key": "grade", "options": ("A", "A+", "B"), "default": "A"},)},
 )
 KNOWN_BLOCKS = frozenset(k["id"] for k in BLOCK_KINDS)
 _BLOCK_BY_ID = {k["id"]: k for k in BLOCK_KINDS}
@@ -644,7 +652,15 @@ def _build_chart(block: dict, ctx: dict) -> tuple[dict | None, str | None]:
 
 
 #: block id -> builder. ⛔ Every id in BLOCK_KINDS has a builder (railed); P2 adds both together.
-BLOCK_BUILDERS: dict[str, Callable[[dict, dict], tuple[dict | None, str | None]]] = {"chart": _build_chart}
+from api.services.journal_two import trader_blocks as _tb  # noqa: E402 -- after BLOCK_KINDS, no cycle
+BLOCK_BUILDERS: dict[str, Callable[[dict, dict], tuple[dict | None, str | None]]] = {
+    "chart": _build_chart, **_tb.BUILDERS}
+
+#: A builder's `ctx["mode"]` (IR-S11, integrator ruling R-RC-1): "create" when it serves a NEW note
+#: (a market context captures), "update" when it offers a block to a note already written (it
+#: arrives uncaptured). An EMPTY note switched to a style is create-equivalent. Every caller of
+#: `compose` passes the mode it means, and the update dry run reports the mode the write will use.
+BUILD_MODES = ("create", "update")
 
 
 def _plain(node: Any) -> str:
@@ -689,11 +705,14 @@ def _outline_doc(user_id: str, style: dict, conn: sqlite3.Connection) -> dict:
 
 
 def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Connection | None,
-            now: datetime | None = None) -> dict:
+            now: datetime | None = None, mode: str = "create") -> dict:
+    if mode not in BUILD_MODES:
+        raise ValueError(f"unknown build mode {mode!r}")
     owned = conn is None
     conn = conn or get_connection()
     try:
-        ctx = {"ticker": ticker, "now": now or datetime.now(timezone.utc)}
+        ctx = {"ticker": ticker, "now": now or datetime.now(timezone.utc), "memo": {}, "mode": mode,
+               "user_id": user_id}
         doc = _outline_doc(user_id, style, conn)
         enabled: dict[str, dict] = {}
         disabled: set[str] = set()
@@ -790,7 +809,7 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
                 raise StyleValidationError("Choose a kind of note.")
             style = default_style_for_kind(user_id, kind_id, conn)
         ticker = notes_service._validate_ticker(payload.get("ticker"))
-        composed = compose(user_id, style, ticker=ticker, conn=conn)
+        composed = compose(user_id, style, ticker=ticker, conn=conn, mode="create")
         base = {k: payload[k] for k in ("title", "subtitle", "tags", "ticker", "folderId") if k in payload}
         base["bodyJson"] = composed["bodyJson"]
         note = notes_service.create_note(
@@ -837,9 +856,11 @@ def preview(user_id: str, payload: Any, conn: sqlite3.Connection | None = None) 
         except notes_service.NoteValidationError as e:
             raise StyleValidationError(str(e)) from e
         ticker = asked or latest_ticker(user_id, conn)
-        out = compose(user_id, style, ticker=ticker, conn=conn)
+        # The live preview shows a NEW note made from the style, so it composes as a create does.
+        out = compose(user_id, style, ticker=ticker, conn=conn, mode="create")
         return {"bodyJson": out["bodyJson"], "properties": out["properties"], "skipped": out["skipped"],
-                "ticker": ticker, "tickerSource": "asked" if asked else ("latest-note" if ticker else None)}
+                "ticker": ticker, "tickerSource": "asked" if asked else ("latest-note" if ticker else None),
+                "mode": "create"}
     finally:
         if owned:
             conn.close()
@@ -917,7 +938,13 @@ def _plan(user_id: str, row: sqlite3.Row, body: dict, style_id: str | None, conn
     switching = target_id != row["style_id"]
     content = body.get("content") or []
     have = _present(content)
-    ctx = {"ticker": row["ticker"], "now": datetime.now(timezone.utc)}
+    inserts_outline = switching and _is_empty(content)
+    # R-RC-1: an empty note switched to a style is written as a create (its outline is composed
+    # fresh, and a market context captures); anything else is an update (blocks arrive uncaptured).
+    # The plan's builders run in the mode the write will use, and the plan says which.
+    mode = "create" if inserts_outline else "update"
+    ctx = {"ticker": row["ticker"], "now": datetime.now(timezone.utc), "memo": {}, "mode": mode,
+           "user_id": user_id}
     built, skipped = [], []
     for b in style["blocks"]:
         if not b.get("enabled") or b["block"] in have:
@@ -934,7 +961,7 @@ def _plan(user_id: str, row: sqlite3.Row, body: dict, style_id: str | None, conn
     version_current = not switching and row["style_version"] == style["version"]
     plan = {"styleId": style["id"], "styleName": style["name"],
             "fromVersion": None if switching else row["style_version"], "toVersion": style["version"],
-            "switching": switching, "insertsOutline": switching and _is_empty(content),
+            "switching": switching, "insertsOutline": inserts_outline, "mode": mode,
             "add": [{"block": b["block"], "label": None} for b, _ in built], "skipped": skipped,
             # Review M-4: two separate facts. `versionCurrent` = the note records the style's current
             # version; `missingBlocks` = the update would add at least one block. `upToDate` is both.
@@ -994,7 +1021,8 @@ def apply_style_update(user_id: str, note_id: str, *, style_id: str | None = Non
             return notes_service.get_note(user_id, note_id, conn=conn), plan
         patch: dict[str, Any] = {}
         if plan["insertsOutline"]:
-            patch["bodyJson"] = compose(user_id, style, ticker=row["ticker"], conn=conn)["bodyJson"]
+            patch["bodyJson"] = compose(user_id, style, ticker=row["ticker"], conn=conn,
+                                        mode=plan["mode"])["bodyJson"]
         elif built:
             new = copy.deepcopy(body)
             i = _after_first_heading(new["content"])

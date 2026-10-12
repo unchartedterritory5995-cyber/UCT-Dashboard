@@ -397,6 +397,11 @@ GATE_READ_PATHS = (
     "docs/agent/ROADMAP.md",
     "tests/test_notebook_ai_actions.py",
     "tools/terminal_parity_matrix.mjs",
+    # ⛔ Notebook P2a: read by app/src/pages/journal-2-0/lib/offline/doorEnumeration.test.js rail ②,
+    # which walks every api/services/journal_two/ module for note-advancing calls. Exact path.
+    # (The read-set rail does not name it: rail ② builds the directory with join(), which the
+    # literal scan cannot see. Read from the test's own pyModules(J2_SERVICES) walk instead.)
+    "api/services/journal_two/trader_blocks.py",
     # generators the rails execute, and the artifacts they byte-compare
     "tools/hub_surface_matrix.mjs",
     "tools/chart_parity_cases.json",

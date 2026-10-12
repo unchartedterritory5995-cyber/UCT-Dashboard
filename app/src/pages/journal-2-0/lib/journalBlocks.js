@@ -1,13 +1,40 @@
-// The blocks a journal style can switch on (spec P1.1/P1.2). A block id IS a widget id: a block
-// is a widgetEmbed node with that widgetId (docs/notebook/p1-verify-before-building.md §a). P1 can
-// build one block, the chart; P2 adds rows here AND in journal_styles.BLOCK_KINDS (with a builder).
-// ⛔ ONE FACT IN TWO FILES, pinned by tests/test_journal_styles_store.py through Node. NO IMPORTS.
+// The blocks a journal style can switch on (spec P1.1/P1.2, P2). A block id IS a widget id: a block
+// is a widgetEmbed node with that widgetId (docs/notebook/p1-verify-before-building.md §a). P2 adds
+// rows here AND in journal_styles.BLOCK_KINDS (with a builder).
+// ⛔ ONE FACT IN TWO FILES, pinned by tests/test_journal_styles_store.py through Node (ids, `search`,
+// settings keys, options, defaults). Labels and optionLabels are the client's own words. NO IMPORTS.
+const YES_NO = Object.freeze({ yes: 'Yes', no: 'No' })
 export const BLOCK_KINDS = Object.freeze([
   Object.freeze({
     id: 'chart',
     label: 'Chart of the note’s ticker',
     settings: Object.freeze([
       Object.freeze({ key: 'tf', label: 'Timeframe', options: Object.freeze(['D', 'W', '60', '15', '5']), default: 'D' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'preEntryChecklist',
+    label: 'Pre-entry checklist',
+    search: '[pre-entry checklist]',
+    settings: Object.freeze([
+      Object.freeze({ key: 'includeRules', label: 'Include my before-entry rules', options: Object.freeze(['yes', 'no']), default: 'yes', optionLabels: YES_NO }),
+      Object.freeze({ key: 'requireAll', label: 'Warn until every item is ticked', options: Object.freeze(['no', 'yes']), default: 'no', optionLabels: YES_NO }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'priceStamps',
+    label: 'Price stamps',
+    search: '[price stamps]',
+    settings: Object.freeze([
+      Object.freeze({ key: 'on', label: 'Stamp prices as I write', options: Object.freeze(['no', 'yes']), default: 'no', optionLabels: YES_NO }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'positionSizing',
+    label: 'Position sizing',
+    search: '[position sizing]',
+    settings: Object.freeze([
+      Object.freeze({ key: 'grade', label: 'Setup grade', options: Object.freeze(['A', 'A+', 'B']), default: 'A' }),
     ]),
   }),
 ])
@@ -19,4 +46,14 @@ export const tfWord = (tf) => TF_WORDS[tf] || String(tf)
 export function blockLabel(id) {
   const k = BLOCK_KINDS.find((b) => b.id === id)
   return k ? k.label : `A block from a newer version (${id})`
+}
+
+/** The node's searchText for a block id (the server builder writes the same line). */
+export function blockSearch(id) {
+  return BLOCK_KINDS.find((b) => b.id === id)?.search || null
+}
+
+/** The word a style setting's option shows in the editor. */
+export function optionWord(setting, option) {
+  return setting?.optionLabels?.[option] ?? tfWord(option)
 }

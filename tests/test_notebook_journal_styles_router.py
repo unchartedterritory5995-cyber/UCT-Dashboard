@@ -78,7 +78,9 @@ def test_signed_out_is_401_and_free_is_402(client):
 def test_list_create_get_update_default_delete_restore(client):
     _as(client)
     listing = client.get("/api/j2/journal-styles").json()
-    assert listing["blockKinds"] == ["chart"] and len(listing["kinds"]) == 8
+    # P2a Task 1A adds the three trader blocks to the catalog, in catalog order.
+    assert listing["blockKinds"] == ["chart", "preEntryChecklist", "priceStamps", "positionSizing"]
+    assert len(listing["kinds"]) == 8
     s = client.post("/api/j2/journal-styles", json={"name": "Mine", "kindId": "trade_plan",
                     "blocks": [{"block": "chart", "enabled": True, "settings": {"tf": "D"}}]}).json()["style"]
     assert client.get(f"/api/j2/journal-styles/{s['id']}").json()["style"]["name"] == "Mine"

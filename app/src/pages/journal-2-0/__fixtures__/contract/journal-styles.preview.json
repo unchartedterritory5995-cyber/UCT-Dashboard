@@ -118,6 +118,7 @@
       ],
       "type": "doc"
     },
+    "mode": "create",
     "properties": {
       "builtin:note_kind": "trade_plan"
     },
