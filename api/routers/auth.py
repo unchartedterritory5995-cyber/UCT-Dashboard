@@ -259,6 +259,10 @@ NOTEBOOK_FLAGS = {
     # `compass_notes_tool_enabled` lets the client name it ONLY while it is on. The tool's own gate
     # (coach_chat_tools.notes_tool_enabled) reads through `flag_on` too: one variable, one parse.
     "COMPASS_NOTES_TOOL_ENABLED": False,  # enablement — unset means OFF (Compass reads notes, text chat)
+    # Notebook P1 (journal styles): kinds of note, journal styles, the manager, /style and the
+    # update-layout action. The router's gate (journal_styles.enabled) reads it through flag_on per
+    # request; the payload key is `notebook_journal_styles_enabled`. Gates CREATING, never rendering.
+    "NOTEBOOK_JOURNAL_STYLES_ENABLED": False,  # enablement — unset means OFF (journal styles, P1)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
