@@ -1,4 +1,8 @@
+import { useContext } from 'react'
 import useOwnership from '../hooks/useOwnership'
+import { AuthContext } from '../../../context/AuthContext'
+import CongressTradesPanel from '../depth/CongressTradesPanel'
+import { DepthStackContext } from '../depth/depthChrome'
 import { SeriesChart } from '../../../components/research-kit'
 import Provenance from '../../../components/provenance/Provenance'
 import FreshnessBadge from '../../../components/provenance/FreshnessBadge'
@@ -201,6 +205,10 @@ export function ThirteenFListLine({ block, sym }) {
 export default function OwnershipTab({ sym }) {
   const { data, isLoading, error, paywalled, mutate } = useOwnership(sym)
   const session = useMarketOpen()
+  // COV-12: congressional trades sit beside insiders and 13F. Its own read and its own gate
+  // (`researchDepth.congress_trades_enabled`, absent unless CONGRESS_TRADES_ENABLED is set), read
+  // off the context directly so the tab still renders where no AuthProvider is mounted.
+  const congressOn = useContext(AuthContext)?.researchDepth?.congress_trades_enabled === true
   const edgarPending = !error && data?.insider_source?.state === 'pending'
   const { exhausted: reaskExhausted, retry: reaskRetry } = usePendingReask(edgarPending, mutate, sym)
 
@@ -407,6 +415,14 @@ export default function OwnershipTab({ sym }) {
             ))}
           </div>
         </section>
+      )}
+
+      {/* Stacked, like a DPTH panel: its own card and title, and it never claims the OWN
+          panel header's source line (that belongs to ownership). */}
+      {congressOn && (
+        <DepthStackContext.Provider value={true}>
+          <CongressTradesPanel sym={o.sym || sym} />
+        </DepthStackContext.Provider>
       )}
 
       {empty && <div className={styles.fnote}>Ownership data is unavailable for this ticker.</div>}

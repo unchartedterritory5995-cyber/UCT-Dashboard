@@ -62,6 +62,9 @@ export const PANEL_IMPORTERS = {
   EarningsReaction: () => import('../research/depth/EarningsReactionPanel'),
   Ftd: () => import('../research/depth/FtdPanel'),
   MentionSeries: () => import('../research/depth/MentionSeriesPanel'),
+  // COV-12 congressional trades: the Depth panel for a ticker, a terminal-native list without one
+  CongressTrades: () => import('../research/depth/CongressTradesPanel'),
+  CongressLatest: () => import('./panels/CongressLatestPanel'),
   OptionsChain: () => import('../research/tabs/OptionsChainTab'),
   IvHistory: () => import('../research/tabs/IvHistoryPanel'),
   Backtest: () => import('../research/tabs/BacktestPanel'),

@@ -5,6 +5,7 @@ import EventsPanel from './EventsPanel'
 import FtdPanel from './FtdPanel'
 import MentionSeriesPanel from './MentionSeriesPanel'
 import BrokerEstimatesPanel from './BrokerEstimatesPanel'
+import CongressTradesPanel from './CongressTradesPanel'
 import NewsDeskPanel from './NewsDeskPanel'
 import { NEWS_DESK_KEYS } from './researchDepthFlags'
 import CallReplayPanel from './CallReplayPanel'
@@ -31,6 +32,7 @@ export const DEPTH_PANELS = [
   ['ftd_dataset_enabled', FtdPanel],
   ['mention_series_enabled', MentionSeriesPanel],
   ['filing_search_enabled', FilingSearchPanel],
+  ['congress_trades_enabled', CongressTradesPanel],
 ]
 
 export default function DepthTab({ sym, flags, focus = null }) {
@@ -50,7 +52,7 @@ export default function DepthTab({ sym, flags, focus = null }) {
       <div className={styles.depth} data-testid="research-depth">
         <PanelState kind="locked" testId="depth-none-on" title="No depth panel is switched on yet.">
           Depth stacks the deeper research panels (earnings reactions, events, broker estimates,
-          fails-to-deliver, mentions, filing search, the news desk and call replay). Each one is
+          fails-to-deliver, mentions, filing search, congressional trades, the news desk and call replay). Each one is
           switched on separately, and none is on for this account yet, so there is nothing to show
           for {String(sym || '').toUpperCase() || 'this ticker'}. That is not a failed read.
         </PanelState>

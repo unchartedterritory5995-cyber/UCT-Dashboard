@@ -9858,6 +9858,8 @@ from api.routers import research_cov as research_cov_router  # noqa: E402  (COV-
 app.include_router(research_cov_router.router)
 from api.routers import research_depth as research_depth_router  # noqa: E402  (lane gaps-research, dark per surface)
 app.include_router(research_depth_router.router)
+from api.routers import congress_trades as congress_trades_router  # noqa: E402  (COV-12/FT-067, dark)
+app.include_router(congress_trades_router.router)
 from api.routers import news_depth as news_depth_router  # noqa: E402  (Lane R D-6/7/8, dark per surface)
 app.include_router(news_depth_router.router)
 from api.routers import research_notices as research_notices_router  # noqa: E402  (lane R D-11/D-12, dark per surface)

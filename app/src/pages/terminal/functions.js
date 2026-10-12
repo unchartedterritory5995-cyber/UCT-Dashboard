@@ -156,6 +156,11 @@ export const FUNCTIONS = [
     ticker: { panel: 'Ftd', section: 'depth', flag: `${DEPTH}.ftd_dataset_enabled` } },
   { code: 'ATTN', label: 'Room attention (mentions)', group: 'Research depth',
     ticker: { panel: 'MentionSeries', section: 'depth', flag: `${DEPTH}.mention_series_enabled` } },
+  // COV-12 / FT-067: STOCK Act disclosures from FMP. `NVDA CONG` = both chambers for the name (also
+  // shown on OWN beside insiders and 13F); bare `CONG` = the newest disclosures market-wide.
+  { code: 'CONG', label: 'Congressional trades (Senate and House disclosures)', group: 'Research depth',
+    ticker: { panel: 'CongressTrades', section: 'depth', flag: `${DEPTH}.congress_trades_enabled` },
+    market: { panel: 'CongressLatest', flag: `${DEPTH}.congress_trades_enabled` } },
 
   // ── options ──
   { code: 'OMON', label: 'Option chain', group: 'Options',
@@ -529,6 +534,8 @@ const FUNCTION_WORDS = {
   ERX: { keywords: ['earnings reaction'] },
   FTD: { keywords: ['fails to deliver'] },
   ATTN: { keywords: ['mentions', 'attention'] },
+  CONG: { keywords: ['congress', 'congressional trades', 'senate', 'house', 'politicians', 'stock act'],
+    note: 'Says so if this read is switched off.' },
   OMON: { keywords: ['options chain', 'options'] },
   OVS: { keywords: ['vol surface', 'skew'] },
   IVH: { keywords: ['iv', 'implied volatility'] },
