@@ -7,7 +7,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
 import { getCapability, manifestFor } from './capabilities'
 import { breadthHistoryFast, HISTORY_OPS, HISTORY_FINDS } from './capabilities/breadthHistory'
-import { rememberBreadthSubject, _resetBreadthSubject, _resetBreadthDates, BREADTH_METRICS } from './capabilities/breadth'
+import { rememberBreadthSubject, _resetBreadthSubject, _resetBreadthDates, BREADTH_METRICS, breadthFast } from './capabilities/breadth'
 import { selectGroups } from './routing'
 import { makeBoard } from './__fixtures__/board'
 
@@ -75,6 +75,21 @@ describe('deterministic wording (no model call)', () => {
     }
     // a bare follow-up rides on the last action
     expect(selectGroups('When was the last time that was below 10%?', { recentActions: ['breadth.show'] }).priority).toContain('breadth')
+  })
+})
+
+describe('lowest / highest in a year → breadth.show series (MI\'s own range summary)', () => {
+  it.each([
+    ['What was the lowest NYSE:A200 reading in 2022?', 'nyse', 'pct_above_200sma', '2022'],
+    ['highest us 200sma in 2020', 'us', 'pct_above_200sma', '2020'],
+    ['lowest nasdaq a50 in 2022', 'nasdaq', 'pct_above_50sma', '2022'],
+  ])('%s', (q, universe, metric, y) => {
+    expect(breadthFast(q)).toEqual({ mode: 'series', universe, metrics: [metric], date: null, compare_date: null,
+      start: `${y}-01-01`, end: `${y}-12-31`, basis: null })
+  })
+  it('a named period that is not a calendar year is the model\'s (it asks for the dates)', () => {
+    expect(breadthFast('What was the highest reading for US:A200 during the 2022 bear market?')).toBeNull()
+    expect(breadthHistoryFast('What was the highest reading for US:A200 during the 2022 bear market?')).toBeNull()
   })
 })
 

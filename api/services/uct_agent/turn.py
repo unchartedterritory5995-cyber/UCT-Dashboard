@@ -548,7 +548,9 @@ BREADTH_RULE = ("MARKET BREADTH (% of US / NYSE / Nasdaq stocks above a moving a
                 "plan breadth.show. HISTORY (when it was last / first below or above a level, crossings, how many "
                 "times, episodes, how long they lasted — including a follow-up about \"that\" reading): plan "
                 "breadth.history. Never research breadth, never answer it from memory, never say UCT lacks historical "
-                "breadth or NYSE / Nasdaq breadth, and never tell the member to scroll a chart.")
+                "breadth or NYSE / Nasdaq breadth, and never tell the member to scroll a chart. Lowest / highest in a "
+                "period: breadth.show mode series. A named period you cannot turn into dates with certainty (\"the "
+                "2022 bear market\"): ask for its start and end dates (disposition clarify) — never guess them.")
 #: The MEMBER's words ask a breadth question (mirrors app/src/agent/routing.js `breadth`; words only).
 _BREADTH_Q = re.compile(
     r"\bbreadth\b"

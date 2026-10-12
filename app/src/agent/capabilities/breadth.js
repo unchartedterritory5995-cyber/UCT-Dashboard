@@ -143,11 +143,24 @@ const uniOf = (...ws) => {
   const w = ws.find(Boolean)
   return !w || w === 'u.s.' ? 'us' : w
 }
+// "What was the lowest NYSE:A200 reading in 2022?" / "highest US 200sma in 2020" → series over that
+// calendar year (MI's own range summary: low / high with their dates). A named PERIOD that is not a
+// year ("the 2022 bear market") is left to the model, which asks for the dates it cannot resolve.
+const LOWHIGH_RE = new RegExp(`^(?:what (?:was|is|were) )?(?:the )?(lowest|highest|low|high|minimum|maximum|min|max) (?:reading |value |level )?(?:(?:for|of|on) )?(?:the )?(?:${UNI_WORD}\\s*:?\\s*)?(?:a(\\d+)|(\\d+)[\\s-]*(?:day|d)?[\\s-]*(?:sma|dma|ma|moving average))(?: reading)?(?: (?:on|for) the ${UNI_WORD})? (?:in|during) (\\d{4})$`)
 const SAME_SHOW_RE = new RegExp(`^(?:and )?(?:the )?same (?:thing |question )?(?:for|on) (?:the )?${UNI_WORD}(?: stocks)?$`)
 export function breadthFast(raw) {
   const t = String(raw || '').toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/[?.!]+$/g, '').replace(/\s+/g, ' ').trim()
   if (!t || t.length > 120) return null
   // "same thing for Nasdaq" after a READING: the same request, one universe changed (a search → breadth.history)
+  const lh = LOWHIGH_RE.exec(t)
+  if (lh) {
+    const n = Number(lh[3] || lh[4]), y = Number(lh[6])
+    if (!SMA_PERIODS.has(n) || !(y >= 1990 && y <= 2100)) return null
+    const thisYear = Number(String(dates.today_et || new Date().toISOString()).slice(0, 4))
+    if (y > thisYear) return null
+    return { mode: 'series', universe: uniOf(lh[2], lh[5]), metrics: [`pct_above_${n}sma`], date: null, compare_date: null,
+      start: `${y}-01-01`, end: y === thisYear ? null : `${y}-12-31`, basis: null }
+  }
   const same = SAME_SHOW_RE.exec(t)
   if (same) return subject?.kind === 'show' && subject.show ? { ...subject.show, universe: uniOf(same[1]) } : null
   const base = { date: null, compare_date: null, start: null, end: null }
