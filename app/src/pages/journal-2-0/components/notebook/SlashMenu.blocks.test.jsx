@@ -5,11 +5,19 @@
 // ⛔ R-RC-4: the typed "/market context" leaves the note BEFORE the read is awaited, so a slow read
 // can never leave the command text behind.
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import { createElement } from 'react'
+import { render, cleanup, waitFor, act } from '@testing-library/react'
 import { Editor } from '@tiptap/core'
+import { EditorContent } from '@tiptap/react'
 import { ITEMS, blockItemsAvailable, groupedSlashItems, blockItemGroup, rankedBlockItems } from './SlashMenu'
 import { BLOCK_KINDS } from '../../lib/journalBlocks'
 import { buildExtensions } from '../../lib/tiptap'
+import { normalizeParams } from '../../../../widgets/registry'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
+
+// jsdom has no Range geometry; the slash popup positions itself off the caret (dateSuggest.test.js).
+if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
+if (!Range.prototype.getBoundingClientRect) Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
 
 const ON = () => latchNotebookFlags({ notebook_journal_styles_enabled: true })
 const BLOCK_IDS = ['preEntryChecklist', 'priceStamps', 'positionSizing']
@@ -65,21 +73,16 @@ describe('P2a slash items', () => {
     expect(rankedBlockItems(here, 'block').map((i) => i.title)).toEqual(expect.arrayContaining(titles))
   })
 
-  it('Price stamps inserts the priceStamps kind with { on: "no" }', () => {
-    ON()
-    const chain = chainOf()
-    itemTitled('Price stamps').command({ editor: { chain: () => chain }, range: { from: 1, to: 2 } })
-    expect(chain.insertWidgetEmbed).toHaveBeenCalledWith('priceStamps', { on: 'no' })
-  })
-
-  it('each block item inserts its own kind with the catalog defaults, after deleting the typed command', () => {
+  it('each block item inserts its own kind, after deleting the typed command', () => {
+    // Cut A: no params are passed -- buildWidgetEmbedAttrs -> normalizeParams fills the registry
+    // defaults. The STORED node's params are the defaults rail ("...in a real editor" below).
     ON()
     for (const id of BLOCK_IDS) {
       const log = []
       const chain = chainOf(log)
       itemTitled(label(id)).command({ editor: { chain: () => chain }, range: { from: 3, to: 9 } })
       expect(chain.insertWidgetEmbed, id).toHaveBeenCalledTimes(1)
-      expect(chain.insertWidgetEmbed, id).toHaveBeenCalledWith(id, catalogDefaults(id))
+      expect(chain.insertWidgetEmbed, id).toHaveBeenCalledWith(id)
       const del = log.findIndex(([n]) => n === 'deleteRange')
       const ins = log.findIndex(([n]) => n === 'insertWidgetEmbed')
       expect(log[del], id).toEqual(['deleteRange', { from: 3, to: 9 }])
@@ -94,7 +97,13 @@ describe('P2a slash items', () => {
     const chain = chainOf()
     await itemTitled('Market context').command({ editor: { chain: () => chain }, range: { from: 1, to: 2 } })
     expect(globalThis.fetch).toHaveBeenCalledWith(MC, expect.objectContaining({ credentials: 'include' }))
-    expect(chain.insertWidgetEmbed).toHaveBeenCalledWith('marketcontext', { ...params, fields: 'all' })
+    // Cut B: what was read goes in as read; `fields: 'all'` is the registry default (next case).
+    expect(chain.insertWidgetEmbed).toHaveBeenCalledWith('marketcontext', params)
+  })
+
+  it('the registry fills a stamp\'s `fields` with "all" when the read carries none (why cut B is safe)', () => {
+    expect(normalizeParams('marketcontext', {}).fields).toBe('all')
+    expect(normalizeParams('marketcontext', { readings: {}, wireDate: 'x', updated: 'y' }).fields).toBe('all')
   })
 
   it('Market context: a failed read inserts nothing, and a thrown read inserts nothing', async () => {
@@ -164,7 +173,37 @@ describe('P2a slash items in a real editor', () => {
     expect(editor.state.doc.textContent).toBe('Plan ')
   })
 
-  it('a block item lands its node, with the catalog defaults, where the command was typed', () => {
+  // The read can outlive the editor (the member left the note). Two shapes: the view is gone but the
+  // editor object (and its storage, so `notify`) survives -- tiptap's unmount() -- and a full destroy().
+  it('a failed read that outlives the editor\'s view tells nobody (the note is gone)', async () => {
+    ON()
+    let release
+    globalThis.fetch = vi.fn(() => new Promise((r) => { release = r }))
+    const range = typed('/market context')
+    const notify = vi.fn()
+    editor.storage.uctJournalWidgets = { ...(editor.storage.uctJournalWidgets || {}), notify }
+    const done = itemTitled('Market context').command({ editor, range })
+    editor.unmount()
+    expect(editor.isDestroyed).toBe(true)
+    expect(editor.storage.uctJournalWidgets.notify).toBe(notify)   // non-vacuity: notify is still reachable
+    release({ ok: false, status: 503 })
+    await done
+    expect(notify).not.toHaveBeenCalled()
+  })
+
+  it('a good read that outlives the editor stamps nothing and does not throw', async () => {
+    ON()
+    let release
+    globalThis.fetch = vi.fn(() => new Promise((r) => { release = r }))
+    const range = typed('/market context')
+    const done = itemTitled('Market context').command({ editor, range })
+    editor.destroy()
+    release({ ok: true, json: async () => ({ readings: {}, wireDate: null, updated: '9:41 AM ET' }) })
+    await expect(done).resolves.toBeUndefined()
+    editor = null
+  })
+
+  it('a block item lands its node, with the catalog defaults, where the command was typed (the defaults rail)', () => {
     ON()
     for (const id of BLOCK_IDS) {
       const range = typed(`/${label(id).toLowerCase()}`)
@@ -175,5 +214,66 @@ describe('P2a slash items in a real editor', () => {
       expect(editor.state.doc.textContent, id).toBe('Plan ')
       editor.destroy(); editor = null
     }
+  })
+})
+
+// ⛔ R-T12-1: a command a member names in full (`/price`) answers ahead of a block whose title merely
+// starts with the same word ("Price stamps"). Driven the way a member drives it: the REAL slash
+// extension on the REAL roster, the menu as rendered, Enter on the top row.
+describe('R-T12-1: a named command outranks a block title (the rendered menu)', () => {
+  let ed
+  afterEach(() => { cleanup(); ed?.destroy(); ed = null })
+  const pressKey = (k) => ed.view.someProp('handleKeyDown', (f) => f(ed.view, new KeyboardEvent('keydown', { key: k })))
+  const rows = () => [...document.querySelectorAll('#uct-slash-menu [role="option"]')]
+    .map((o) => o.firstElementChild.textContent)
+
+  /** Mount the editor with "Plan " typed, then type the slash text; resolves once the menu shows. */
+  async function typeSlash(text) {
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    ed = new Editor({ element: el, extensions: buildExtensions(),
+      content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Plan ' }] }] } })
+    render(createElement(EditorContent, { editor: ed }))
+    ed.commands.focus('end', { scrollIntoView: false })
+    await act(async () => { ed.commands.insertContent(text) })
+    await waitFor(() => expect(rows().length).toBeGreaterThan(0))
+    return rows()
+  }
+
+  it('/price + Enter picks the Price command, not Price stamps', async () => {
+    ON()
+    const shown = await typeSlash('/price')
+    expect(shown[0]).toBe('Price')
+    expect(shown).toContain('Price stamps')       // the block is still offered, just below the command
+    await act(async () => { pressKey('Enter') })
+    expect(ed.state.doc.textContent).toBe('Plan /price ')   // the Price hint completes the command
+    expect(ed.getJSON().content.some((n) => n.type === 'widgetEmbed')).toBe(false)
+  })
+
+  it('/price with a trailing space still puts Price first', async () => {
+    ON()
+    const shown = await typeSlash('/price ')
+    expect(shown[0]).toBe('Price')
+    expect(shown.indexOf('Price')).toBeLessThan(shown.indexOf('Price stamps'))
+  })
+
+  it('/price st ranks the "Price — ST" capture first (ST is a real ticker)', async () => {
+    ON()
+    const shown = await typeSlash('/price st')
+    expect(shown[0]).toBe('Price — ST')
+    expect(shown).toContain('Price stamps')
+  })
+
+  it('control: /pric (no command named yet) still offers Price stamps first', async () => {
+    ON()
+    const shown = await typeSlash('/pric')
+    expect(shown[0]).toBe('Price stamps')
+    expect(shown).toContain('Price')
+  })
+
+  it('control: /pre still offers the Pre-entry checklist first', async () => {
+    ON()
+    const shown = await typeSlash('/pre')
+    expect(shown[0]).toBe('Pre-entry checklist')
   })
 })

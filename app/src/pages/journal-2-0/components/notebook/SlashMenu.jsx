@@ -31,14 +31,14 @@ import styles from './SlashMenu.module.css'
 // Notebook P2a: a trader block (and the market context stamp) in the Trading group, dark behind the
 // switch (R-P2-1). Words and defaults are the registry's, already first-open; registry.test.js S20
 // pins them to journalBlocks.js, which is NOT first-open (SlashMenu.blocks.test.jsx proves agreement).
+// No params: buildWidgetEmbedAttrs -> normalizeParams fills every registry default.
 const traderItem = (id, more) => ({
   title: WIDGET_REGISTRY[id].labels.menu,
   description: 'A trader block',
   keywords: ['block', 'trading'],
   available: journalStylesEnabled,
   trading: true,
-  command: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertWidgetEmbed(id, Object.fromEntries(
-    WIDGET_REGISTRY[id].paramsSchema.filter((f) => f.type === 'enum' && f.default).map((f) => [f.key, f.default]))).run(),
+  command: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertWidgetEmbed(id).run(),
   ...more,
 })
 
@@ -296,16 +296,23 @@ export const ITEMS = [
   traderItem('marketcontext', {
     // R-P2-8: a member's own stamp, captured NOW; it never sets builtin:regime_at_write. ⛔ R-RC-4:
     // the typed command leaves the note BEFORE the read is awaited (the /price rule). A failed read
-    // inserts nothing.
+    // inserts nothing and SAYS so in the note's toast (R-T12-2, the /vs pattern): the typed command
+    // is already gone, so silence read as the command having done nothing. `fields` is normalizeParams'.
     title: 'Market context',
     description: 'Stamp the market as it is right now',
     keywords: ['block', 'trading', 'regime'],
     command: async ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run()
+      let params
       try {
         const res = await fetch('/api/j2/trader-blocks/market-context', { credentials: 'include' })
-        if (res.ok) editor.chain().focus().insertWidgetEmbed('marketcontext', { ...(await res.json()), fields: 'all' }).run()
-      } catch { /* nothing was inserted; the member can retry */ }
+        params = res.ok && await res.json()
+      } catch { /* said below */ }
+      // The read can outlive the editor (the member left the note): nothing to stamp, nobody to tell.
+      if (editor.isDestroyed) return
+      if (params) editor.chain().focus().insertWidgetEmbed('marketcontext', params).run()
+      else editor.storage?.uctJournalWidgets?.notify?.(
+        'Market context could not be read just now, so nothing was added. Try /market context again.', 'error')
     },
   }),
 ]
@@ -405,6 +412,7 @@ export function factItems(query) {
   if (!rest) {
     return [{
       title: 'Price',
+      cmd: 'price',
       description: 'Type a symbol — e.g. /price NVDA',
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).insertContent('/price ').run()
@@ -416,6 +424,7 @@ export function factItems(query) {
   const symbol = symTokens[0].toUpperCase()
   return [{
     title: `Price — ${symbol}`,
+    cmd: 'price',
     description: 'Capture the current price as a financial fact',
     command: async ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run()
@@ -457,6 +466,7 @@ export function consensusFactItems(query) {
   if (!rest) {
     return [{
       title: 'Analyst Consensus',
+      cmd: 'consensus',
       description: 'Type a symbol — e.g. /consensus NVDA',
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).insertContent('/consensus ').run()
@@ -468,6 +478,7 @@ export function consensusFactItems(query) {
   const symbol = symTokens[0].toUpperCase()
   return [{
     title: `Analyst Consensus — ${symbol}`,
+    cmd: 'consensus',
     description: 'Capture the analyst price-target consensus as a financial fact',
     command: async ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run()
@@ -520,6 +531,7 @@ export function widgetItems(query) {
       const args = parseChartSlashArgs(rest)
       if (args) {
         out.push({
+          cmd: 'chart',
           title: `Chart — ${args.symbol} · ${tfText(args.tf)}${args.day ? ` @ ${fmtDayTitle(args.day)}` : ''}`,
           description: args.day
             ? 'Insert a chart anchored at that date'
@@ -543,6 +555,7 @@ export function widgetItems(query) {
         // NOTHING so Enter stays a newline and the prose survives.
         out.push({
           title: 'Chart',
+          cmd: 'chart',
           description: 'Type a symbol — e.g. /chart AMD 15m or /chart AMD D 3/13',
           command: ({ editor, range }) => {
             editor.chain().focus().deleteRange(range).insertContent('/chart ').run()
@@ -564,6 +577,7 @@ export function widgetItems(query) {
     const args = restAfterName ? parseMtfSlashArgs(restAfterName, { weekly: planOn }) : null
     if (args) {
       out.push({
+        cmd: 'mtf',
         title: `MTF stack — ${args.symbol} · ${args.tfs.map(tfText).join(' / ')}${args.day ? ` @ ${fmtDayTitle(args.day)}` : ''}`,
         description: args.day ? 'Three charts, top-down, anchored at that date' : 'Three frozen charts, top-down',
         command: ({ editor, range }) => {
@@ -577,6 +591,7 @@ export function widgetItems(query) {
     } else if (!restAfterName) {
       out.push({
         title: 'MTF stack',
+        cmd: 'mtf',
         description: planOn
           ? 'Type a symbol — e.g. /mtf AMD (D + 1h + 15m), /mtf AMD W (W + D + 1h); add a date to anchor'
           : 'Type a symbol — e.g. /mtf AMD (D + 1h + 15m; add a date to anchor)',
@@ -591,6 +606,7 @@ export function widgetItems(query) {
     if (args) {
       const tfSuffix = args.tf !== 'D' ? ` · ${tfText(args.tf)}` : ''
       out.push({
+        cmd: 'compare',
         title: `Before / after — ${args.symbol} @ ${fmtDayTitle(args.day)}${tfSuffix}`,
         description: `Two half-width ${args.tf === 'D' ? 'dailies' : `${tfText(args.tf)} charts`}: window ending that day vs now`,
         command: ({ editor, range }) => {
@@ -604,6 +620,7 @@ export function widgetItems(query) {
     } else if (!restAfterName) {
       out.push({
         title: 'Before / after',
+        cmd: 'compare',
         description: 'Type symbol + day — e.g. /compare AMD 3/13 (add 15m for intraday)',
         command: ({ editor, range }) => {
           editor.chain().focus().deleteRange(range).insertContent('/compare ').run()
@@ -627,6 +644,7 @@ function vsItems(rest) {
   if (!rest) {
     return [{
       title: 'Versus',
+      cmd: 'vs',
       description: 'Type a symbol — e.g. /vs AMD (beside SPY, QQQ, its sector or theme ETF)',
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).insertContent('/vs ').run()
@@ -639,6 +657,7 @@ function vsItems(rest) {
   const at = args.day ? ` @ ${fmtDayTitle(args.day)}` : ''
   const tfSuffix = args.tf !== 'D' ? ` · ${tfText(args.tf)}` : ''
   return benches.filter((b) => b !== args.symbol).map((bench) => ({
+    cmd: 'vs',
     title: `Versus — ${args.symbol} vs ${VS_KEYWORD_TITLE[bench] || bench}${at}${tfSuffix}`,
     description: 'Two half-width charts frozen at the same moment',
     command: async ({ editor, range }) => {
@@ -780,7 +799,13 @@ export const SlashMenuExtension = Extension.create({
           if (!q) return groupedSlashItems(here, [...widgets, ...factCaptures, ...consensusCaptures])
           // Widget/fact items match on their own tokenized rules (args after
           // the type name would defeat a plain substring filter).
-          return [...rankedBlockItems(here, q), ...widgets, ...factCaptures, ...consensusCaptures]
+          // ⛔ R-T12-1: a command the member has NAMED in full (`/price`, `/price st`) goes first --
+          // ahead of a block whose title merely starts with the word ("Price stamps"), or Enter
+          // inserts the block. A partial word (`/pri`) names nothing yet, so the blocks lead.
+          const captures = [...widgets, ...factCaptures, ...consensusCaptures]
+          const cmd = q.trim().split(/\s+/)[0]
+          return [...captures.filter((it) => it.cmd === cmd), ...rankedBlockItems(here, q),
+            ...captures.filter((it) => it.cmd !== cmd)]
         },
         render: () => {
           // One renderer object serves EVERY suggestion session, so all of

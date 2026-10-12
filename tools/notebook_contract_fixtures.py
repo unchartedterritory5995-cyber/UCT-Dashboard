@@ -1751,7 +1751,8 @@ def journal_styles(w: World) -> None:
              json_body={"excludeNoteIds": []},
              note="One note mapped (its revision returned to be landed); the locked one is skipped and named.")
     w.record("notes.style-update-plan", "GET", f"{notes}/{styled['id']}/style-update-plan", case="success",
-             expect=200, note="A Trade plan note with no chart yet: the update would add the chart block.")
+             expect=200, note="A Trade plan note made at v1 with none of its blocks yet: the update to v2 adds all four "
+                  "(chart, pre-entry checklist, position sizing, market context), uncaptured.")
     w.record("notes.style-update-plan.switch", "GET",
              f"{notes}/{styled['id']}/style-update-plan?styleId=builtin:thesis", case="success", expect=200,
              note="Switching a note that has text to another style: blocks added, nothing removed.")
