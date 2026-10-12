@@ -432,5 +432,41 @@
     ],
     "flag": "NOTEBOOK_TERMINAL_LINKS_ENABLED",
     "note": "Research Home, Learn, What your Notebook can do: the entry's label is a line of text in the Sheet (task 14b, ruling R16). Pasting a command is a behaviour, not a control, so the catalogue line is the door."
+  },
+  {
+    "feature": "Journal styles manager (P1)",
+    "audit_row": 54,
+    "path": "/journal/notebook?view=all",
+    "steps": [],
+    "target": {
+      "role": "button",
+      "name": "Styles"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    "note": "A P1 door, numbered after the 2026-10-11 audit's 53 rows."
+  },
+  {
+    "feature": "New note from a style (P1)",
+    "audit_row": 55,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "click": "button|More ways to start a note"
+      }
+    ],
+    "target": {
+      "role": "menuitem",
+      "name": "From a style"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    "note": "Research Home's New note caret."
   }
 ]

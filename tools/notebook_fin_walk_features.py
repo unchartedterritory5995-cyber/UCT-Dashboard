@@ -34,7 +34,7 @@ PW = "LocalTest2026!"
 SAMPLE_SYMS = ["AAPL", "MSFT", "NVDA", "GOOGL", "TSLA", "AMZN"]
 ORDER = ["firstrun", "sample", "examples", "checklist", "offer", "gallery", "formulas", "chartplan", "positions", "board1",
          "transcript", "passed", "child", "resurface", "thesischips", "board2", "trades", "grading", "earnings", "discipline",
-         "vplaybook", "playbook", "reviews", "nokey", "layout", "tours1280", "tours820", "tours390", "whysave", "discover", "remove"]
+         "vplaybook", "playbook", "reviews", "nokey", "layout", "tours1280", "tours820", "tours390", "whysave", "styles", "discover", "remove"]
 
 CHECKLIST_JS = """() => { const hd = [...document.querySelectorAll('h3')].find(e => e.textContent.trim() === 'Get started');
   if (!hd) return null; const card = hd.closest('section');
@@ -1962,6 +1962,106 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 pA.wait_for_timeout(600)
         finally:
             cA.close()
+
+    # ── Notebook P1: journal styles, at 1280 / 820 / 390 ──────────────────────────────────
+    def styles():
+        state = ctx.storage_state()
+
+        def at(vp):
+            if vp == "1280":
+                return pg, inst, None
+            c = C.new_ctx(browser, vp, storage=state)
+            return c.new_page(), C.Inst(c, cfg, vp), c
+
+        for vp in ("1280", "820", "390"):
+            p, i, c = at(vp)
+            try:
+                # The door is Research Home's New note caret -> "From a style" (spec P0.1/P1.4; plan Task 12).
+                # The notes list's "+ New note" is a bare blank create by design and opens no kind picker.
+                C.goto(p, base, "/journal/notebook", wait="main")
+                home_new = p.locator('[data-tour="new-note-home"]')
+                C.vis_loc(home_new.get_by_role("button", name="More ways to start a note", exact=True), 30000)
+                home_new.get_by_role("button", name="More ways to start a note", exact=True).first.click()
+                p.get_by_role("menuitem", name="From a style").first.click()
+                group = p.get_by_role("group", name="Start from a kind of note")
+                C.vis_loc(group, 15000)
+                # Measured BEFORE the press: creating the note closes the sheet and opens the note.
+                box = group.evaluate("g => { const b = g.querySelector('button'); const r = b.getBoundingClientRect(); return {h: r.height, w: r.width} }") if vp != "1280" else None
+                before = len(C.notes_list(ctx, base))
+                group.get_by_role("button", name="New Trade plan").click()
+                C.vis_loc(p.locator(".ProseMirror").first, 20000)
+                body = p.locator(".ProseMirror").first.inner_text()
+                after = len(C.notes_list(ctx, base))
+                ok = after == before + 1 and "The setup" in body and (vp == "1280" or (box and box["h"] >= 44))
+                C.step(p, i, "styles.new-from-kind", f"New note -> Trade plan makes a note in the Trade plan style ({vp})",
+                       "PASS" if ok else "FAIL", notes_before=before, notes_after=after, first_button=box)
+                C.goto(p, base, "/journal/notebook?styles=1", wait="main")
+                dlg = p.get_by_role("dialog", name="Journal styles")
+                C.vis_loc(dlg, 15000)
+                inside = dlg.evaluate("d => { const r = d.getBoundingClientRect(); return r.right <= innerWidth + 1 && r.left >= -1 }")
+                C.step(p, i, "styles.manager", f"Settings/deep link opens the Styles manager inside the viewport ({vp})",
+                       "PASS" if inside else "FAIL", inside=inside)
+            finally:
+                if c is not None:
+                    c.close()
+
+        # 1280 only: save as style, update layout, /style, and an unknown block's card
+        r = M.post(base + "/api/j2/notes", data={"title": "Walk source", "ticker": "NVDA", "kindId": "thesis"})
+        src = r.json()["note"]
+        C.goto(pg, base, f"/journal/notebook?note={src['id']}", wait=".ProseMirror")
+        pg.get_by_role("button", name="More note actions").first.click()
+        pg.get_by_role("button", name="Save this note's setup as a style").click()
+        pg.get_by_label("Style name").fill("Walk style")
+        pg.get_by_role("button", name="Save style").click()
+        saved = C.vis_loc(pg.get_by_text("Saved as the style “Walk style”."), 10000)
+        C.step(pg, inst, "styles.save-as-style", "More -> Save this note's setup as a style creates the style",
+               "PASS" if saved else "FAIL", saved=saved)
+        listing = M.get(base + "/api/j2/journal-styles").json()
+        mine = next((s for s in listing["styles"] if s["name"] == "Walk style"), None)
+        # The note is made from v+1 (chart OFF), so v+2 (chart ON) has a block to add. Made from v (chart already
+        # in it) the update would add nothing, and the product correctly offers no banner (spec P1.3: an update
+        # "only adds missing blocks"; the banner keys on missingBlocks) -- measured 2026-10-12, styleVersion stayed v.
+        n = None
+        if mine:
+            M.put(base + f"/api/j2/journal-styles/{mine['id']}", data={"blocks": [{"block": "chart", "enabled": False, "settings": {}}]})
+            n = M.post(base + "/api/j2/notes", data={"styleId": mine["id"], "ticker": "NVDA"}).json()["note"]
+            M.put(base + f"/api/j2/journal-styles/{mine['id']}", data={"blocks": [{"block": "chart", "enabled": True, "settings": {"tf": "W"}}]})
+        C.goto(pg, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
+        banner = C.vis_loc(pg.get_by_text(re.compile(r"Update layout to v\d+\?")), 15000)
+        if banner:
+            pg.get_by_role("button", name="Review update").click()
+            pg.get_by_role("button", name="Apply").click()
+            pg.wait_for_timeout(2500)
+        got = M.get(base + f"/api/j2/notes/{n['id']}").json()["note"]
+        conflicted = [x for x in C.notes_list(ctx, base) if "(conflicted copy)" in (x.get("title") or "")]
+        ok = banner and got.get("styleVersion") == (mine or {}).get("version", 0) + 2 and not conflicted
+        C.step(pg, inst, "styles.update-layout", "The banner's Review update -> Apply adds the block, stamps the version, forks nothing",
+               "PASS" if ok else "FAIL", style_version=got.get("styleVersion"), conflicted=len(conflicted))
+        ed = pg.locator(".ProseMirror").first
+        ed.click()
+        pg.keyboard.press("Control+End")
+        pg.keyboard.press("Enter")
+        pg.keyboard.type("/style", delay=40)
+        pg.keyboard.press("Enter")
+        chooser = C.vis_loc(pg.get_by_role("dialog", name=re.compile("Choose a journal style")), 10000)
+        C.step(pg, inst, "styles.slash-style", "/style opens the style chooser", "PASS" if chooser else "FAIL", opened=chooser)
+        future = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "x"}]},
+                  {"type": "widgetEmbed", "attrs": {"v": 1, "widgetId": "walkFutureBlock", "params": {"a": 1},
+                   "searchText": "[future block]"}}]}
+        fb = M.post(base + "/api/j2/notes", data={"title": "Future block", "bodyJson": future}).json()["note"]
+        C.goto(pg, base, f"/journal/notebook?note={fb['id']}", wait=".ProseMirror")
+        card = C.vis_loc(pg.get_by_text("This block needs a newer version of the app. Reload to see it."), 10000)
+        pg.wait_for_timeout(3000)
+        kept = any(x.get("attrs", {}).get("widgetId") == "walkFutureBlock"
+                   for x in M.get(base + f"/api/j2/notes/{fb['id']}").json()["note"]["bodyJson"]["content"])
+        C.step(pg, inst, "styles.unknown-block", "A block from a newer version shows the card and is still in the saved note",
+               "PASS" if card and kept else "FAIL", card=card, kept=kept)
+        want = {"styles.new-from-kind", "styles.manager", "styles.save-as-style", "styles.update-layout",
+                "styles.slash-style", "styles.unknown-block"}
+        seen = {s.get("feature") for s in C.REC["steps"] if s.get("config") == cfg}
+        C.step(None, inst, "styles.coverage", "every journal-styles feature left a row", "PASS" if want <= seen else "FAIL",
+               missing=sorted(want - seen), shot=False)
+    run("styles", styles)
 
     def discover():
         doors = (("new-note-home", d_new_note_home), ("phone-toolbar-inside", d_phone_toolbar),
