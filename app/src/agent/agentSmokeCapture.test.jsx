@@ -17,6 +17,8 @@ import AgentPanel from './AgentPanel'
 registerBuiltins()
 
 const OUT = globalThis.process?.env?.AGENT_SMOKE_OUT
+// a leading zero-width space defeats every instant phrase (written as a char code: no invisible source)
+const ZW = String.fromCharCode(0x200b)
 
 export const SMOKE = [
   { id: 'q1-breadth-value', say: 'What % of US stocks are above their 50-day?' },
@@ -80,14 +82,14 @@ it.skipIf(!OUT)('capture the smoke-test requests', async () => {
     const prior = q.history ? SMOKE.find(x => x.id === q.history) : null
     priorPlan = !!prior
     if (prior) {                                     // the earlier turn, in the SAME panel
-      fireEvent.change(box, { target: { value: `​${prior.say}` } })
+      fireEvent.change(box, { target: { value: `${ZW}${prior.say}` } })
       fireEvent.keyDown(box, { key: 'Enter' })
       await screen.findByText(/synthetic/, {}, { timeout: 6000 })
       await waitFor(() => expect(box.disabled).toBe(false), { timeout: 6000 })
     }
     const before = bodies.length
     // the MODEL's reading is what is measured: a leading zero-width space defeats every instant phrase
-    fireEvent.change(box, { target: { value: `​${q.say}` } })
+    fireEvent.change(box, { target: { value: `${ZW}${q.say}` } })
     fireEvent.keyDown(box, { key: 'Enter' })
     await waitFor(() => expect(bodies.length).toBeGreaterThan(before), { timeout: 6000 })
     const body = bodies[before]
