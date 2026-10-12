@@ -341,8 +341,22 @@ def _study(req: dict) -> dict:
     b_last = min(sr["rows"][-1][0] for sr in loaded)
     p_first, p_last = ps["first"], ps["last"]
 
+    def known_through(sr: dict) -> str:
+        """The last day a series' value is KNOWN. A released (as_of) value stays current after its last
+        publication until it goes stale — carried to the last stored price session, never past it. (The
+        future-invariance test caught the old rule ending a mixed study at the last release, so a study
+        run today silently dropped every session since the latest CPI print. Not look-ahead — a lost
+        tail.) _align still turns a stale value into a gap, so a lapse is never carried."""
+        last = sr["rows"][-1][0]
+        if sr["alignment"] != "as_of":
+            return last
+        stale = sr.get("max_staleness_days")
+        tail = p_last if stale is None else min(p_last, (_date.fromisoformat(last) + _td(days=stale)).isoformat())
+        return max(last, tail)
+    b_known = min(known_through(sr) for sr in loaded)
+
     ws = max(b_first, p_first, req["start"] or b_first)
-    we = min(b_last, req["end"] or b_last)
+    we = min(b_known, req["end"] or b_known)
     if ws > we:
         return _unavailable("no_overlap", f"{req['symbol']} price history ({p_first} to {p_last}) does not overlap "
                                           f"the condition series ({b_first} to {b_last}) in the requested window.",
@@ -473,7 +487,7 @@ def _study(req: dict) -> dict:
         "series_category": " + ".join(dict.fromkeys(c["series"]["category"] for c in req["conditions"])),
         "series_unit": spec["unit"], "series_domain": spec["domain"], "alignment": series["alignment"],
         "series_description": (series.get("source") or {}).get("universe_description"),
-        "coverage": {"series_first": b_first, "series_last": b_last,
+        "coverage": {"series_first": b_first, "series_last": b_last, "series_known_through": b_known,
                      "series_basis": series["coverage"].get("basis"),
                      "series_authority": series["coverage"].get("authority"),
                      "pit_profile": series.get("pit_profile"),

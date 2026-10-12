@@ -1,5 +1,10 @@
 """Deterministic member-facing text + table for an `event_study.run()` result.
 
+`answer()` → {status, text, table, lead, caveats}. `text` is the full answer (every horizon, every
+methodology note); `lead` is its first line (what was studied, how many events, which returns);
+`caveats` are the few warnings that must stay VISIBLE when a presentation layer collapses `text`
+into details (small sample, revised values, a possible unadjusted split, overlapping windows).
+
 Every sentence is built from the result; no model writes any of it. ⛔ LOCAL ONLY — the text carries
 licensed breadth and price values and is shown to the member only.
 """
@@ -63,7 +68,8 @@ def answer(res: Any) -> dict:
     """`{status, text, table}` — deterministic; never raises."""
     if not isinstance(res, dict) or res.get("status") != "ok":
         r = res if isinstance(res, dict) else {}
-        return {"status": r.get("status") or "unavailable", "text": _why(r), "table": None}
+        return {"status": r.get("status") or "unavailable", "text": _why(r), "table": None,
+                "lead": _why(r), "caveats": []}
     q, cov, c = res["request"], res["coverage"], res["counts"]
     conds = q.get("conditions") or [q["condition"]]
     ctext = " AND ".join(f"{c['series']['label']} {_OP_TEXT[c['op']]}"
@@ -109,4 +115,26 @@ def answer(res: Any) -> dict:
             {"key": "mean", "label": "Average"}, {"key": "median", "label": "Median"},
             {"key": "best", "label": "Best"}, {"key": "worst", "label": "Worst"},
             {"key": "baseline", "label": "All sessions"}]
-    return {"status": "ok", "text": "\n".join(lines), "table": {"columns": cols, "rows": rows}}
+    return {"status": "ok", "text": "\n".join(lines), "table": {"columns": cols, "rows": rows},
+            "lead": head, "caveats": caveats(res)}
+
+
+def caveats(res: dict) -> list[str]:
+    """The warnings that change how a result should be read — decided from the result's STRUCTURE
+    (counts, profiles), never by matching note text. Short; each is also said in full in `text`."""
+    from api.services.market_intel.event_study import SMALL_SAMPLE
+    q, c = res["request"], res["counts"]
+    out = []
+    if any(h.get("n", 0) < SMALL_SAMPLE for h in res["horizons"]):
+        out.append(f"Small sample: fewer than {SMALL_SAMPLE} completed outcomes in at least one window.")
+    profs = [d.get("pit_profile") or {} for d in (res.get("diagnostics") or {}).get("conditions") or []]
+    if any(p.get("L") or p.get("X") for p in profs):
+        out.append("Some condition values come from backfilled history and may include revisions "
+                   "that were not known at the time.")
+    if c.get("windows_spanning_suspect_jumps"):
+        out.append(f"{c['windows_spanning_suspect_jumps']} window(s) span a one-day move over 40% in "
+                   f"{q['symbol']} that may be an unadjusted split.")
+    if c.get("overlapping_events"):
+        out.append(f"{c['overlapping_events']} event(s) overlap an earlier event's window, so outcomes "
+                   "are not independent.")
+    return out
