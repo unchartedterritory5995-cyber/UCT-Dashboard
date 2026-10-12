@@ -19,6 +19,7 @@
 
 import { allCapabilityNames, getCapability } from './capabilities'
 import { lexiconFor, correctTypos, setBaseSources } from './nl/lexicon'
+import { chartQualifier } from './deixis'
 
 // Phase 1: "change MY chart to 15 minutes", "change the timeframe to daily", "switch to the 15 minute"
 // are the same obvious commands as "15 minute chart" — no model call.
@@ -117,14 +118,22 @@ const NORM_POS = { upper: 'top', lower: 'bottom' }
 
 const cut = (s, m) => (s.slice(0, m.index) + ' ' + s.slice(m.index + m[0].length)).replace(/\s+/g, ' ').trim()
 
-export function extractTarget(text) {
+export function extractTarget(text, host = null) {
   const s = String(text || '')
   const all = ALL_RE.exec(s)
   if (all) return { text: cut(s, all), target: { all: true } }
   const m = POS_RE.exec(s)
-  if (!m) return { text: s, target: null }
-  const word = (m[1] || m[2] || '').toLowerCase()
-  return { text: cut(s, m), target: { position: NORM_POS[word] || word } }
+  if (m) {
+    const word = (m[1] || m[2] || '').toLowerCase()
+    return { text: cut(s, m), target: { position: NORM_POS[word] || word } }
+  }
+  // NL (2026-10-12): "… to the AMD chart" / "… on the 5 minute chart" — a chart named by the symbol or
+  // timeframe a LIVE chart shows is lifted off the clause (so "add rsi" parses); the panel's target
+  // rule then resolves it from the member's own words (deixis.chartQualifier) — one chart → it,
+  // several (two NVDA charts) → the clicked one or "Which chart?". A word no chart shows is left in.
+  const q = host ? chartQualifier(s, host.charts?.list?.() || []) : null
+  if (q) return { text: cut(s, q.match), target: { qualifier: q.word } }
+  return { text: s, target: null }
 }
 
 /** Snapshots matching a position hint ("left" matches left, top-left, bottom-left). */
@@ -194,7 +203,7 @@ function fastParseExact(text, { host = null } = {}) {
   }
   const whole = matchWhole(text, host)
   if (whole) return { kind: 'ops', ops: [whole], target: null }
-  const { text: rest, target } = extractTarget(text)
+  const { text: rest, target } = extractTarget(text, host)
   const clauses = rest.split(/,|;|\band\b|\bthen\b|&/i).map(s => s.trim()).filter(Boolean)
   if (!clauses.length || clauses.length > 6) return null
   const ops = []

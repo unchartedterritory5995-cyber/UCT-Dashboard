@@ -169,6 +169,16 @@ test('HOVER is not selection: pointer over a chart, no click → asks which char
   expect(turns).toHaveLength(0)
 }, 45000)
 
+test('a chart NAMED by its symbol beats the selection: left clicked, "switch the amd chart to weekly" → the AMD chart', async () => {
+  mount()
+  await screen.findByTestId('chart-c-left')
+  await click('c-left')
+  await say('switch the amd chart to weekly')
+  await waitFor(() => expect(tfOf('c-right')).toBe('W'), { timeout: 15000 })
+  expect(tfOf('c-left')).toBe('D')
+  expect(turns).toHaveLength(0)
+}, 45000)
+
 test('an explicit position beats the selection: left selected, "switch the right chart to weekly" → right', async () => {
   mount()
   await screen.findByTestId('chart-c-left')

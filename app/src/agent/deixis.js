@@ -16,10 +16,51 @@ const IT = /\bit\b/i
 // "this NVDA chart" — a ticker between the pointer word and "chart" (never a position or ordinal word)
 const NAMED = /\b(?:this|that|the)\s+(?!(?:left|right|top|bottom|upper|lower|middle|center|centre|other|first|second|third|last|main|new|old|big|small|current|active|selected|focused|same|whole|entire)\s)([a-z]{1,6}(?:[.-][a-z]{1,2})?)\s+chart\b/i
 
+// NL (2026-10-12): "the 5 minute chart", "the daily chart" — a chart named by its TIMEFRAME
+const TF_NAMED = /\b(?:this|that|the)\s+(\d{1,3}\s*(?:m|min|mins|minute|minutes|h|hr|hour|hours)|1h|hourly|daily|weekly|monthly)\s+chart\b/i
+function tfOfWord(w) {
+  const s = String(w || '').toLowerCase().trim()
+  if (s === 'daily') return 'D'
+  if (s === 'weekly') return 'W'
+  if (s === 'monthly') return 'M'
+  if (s === 'hourly' || s === '1h') return '60'
+  const m = /^(\d{1,3})\s*(m|min|mins|minute|minutes|h|hr|hour|hours)$/.exec(s)
+  if (!m) return null
+  return /^h/.test(m[2]) ? String(Number(m[1]) * 60) : String(Number(m[1]))
+}
+
+/**
+ * "the AMD chart" / "the 5 minute chart" — a chart named by the SYMBOL or TIMEFRAME it shows right now.
+ * → { match, word, hits: [chart snapshots] } | null. Only live charts count: a word that names no
+ * chart on this board is not a qualifier (the fast path then leaves the sentence as it was).
+ */
+export function chartQualifier(text, charts = []) {
+  const s = String(text || '')
+  const tf = TF_NAMED.exec(s)
+  if (tf) {
+    const code = tfOfWord(tf[1])
+    const hits = charts.filter(c => String(c.tf) === code)
+    if (hits.length) return { match: withPrep(s, tf), word: tf[1], hits }
+  }
+  const nm = NAMED.exec(s)
+  if (nm) {
+    const sym = nm[1].toUpperCase()
+    const hits = charts.filter(c => String(c.symbol || '').toUpperCase() === sym)
+    if (hits.length) return { match: withPrep(s, nm), word: nm[1], hits }
+  }
+  return null
+}
+// widen a qualifier match to the preposition before it ("… to the AMD chart")
+function withPrep(s, m) {
+  const before = s.slice(0, m.index)
+  const p = /\s+(?:on|to|onto|in|from|off|for|of)\s*$/i.exec(before)
+  return p ? { index: p.index, 0: s.slice(p.index, m.index + m[0].length) } : { index: m.index, 0: m[0] }
+}
+
 /** Does the member's text point at one chart without naming it? */
 export function pointsAtChart(text, { chartOp = false } = {}) {
   const s = String(text || '')
-  return POINTS.test(s) || NAMED.test(s) || (chartOp && IT.test(s))
+  return POINTS.test(s) || NAMED.test(s) || TF_NAMED.test(s) || (chartOp && IT.test(s))
 }
 
 /** The chart ref behind a target of any chart-backed kind (chart itself, a chart's indicators…). */
@@ -51,12 +92,10 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
     return hit.length === 1 ? { ref: hit[0].c.ref, implicit: true } : null
   }
   if (candidates.length === 1) return { ref: candidates[0].ref }
-  // "this NVDA chart": a named symbol that exactly one chart shows
-  const named = NAMED.exec(String(text || ''))
-  if (named) {
-    const sym = named[1].toUpperCase()
-    const charts = host?.charts?.list?.() || []
-    const hits = backed.filter(b => charts.find(x => x.ref === b.chart)?.symbol === sym)
+  // "this NVDA chart" / "the 5 minute chart": the symbol or timeframe that exactly one chart shows
+  const q = chartQualifier(text, host?.charts?.list?.() || [])
+  if (q && q.hits.length === 1) {
+    const hits = backed.filter(b => b.chart === q.hits[0].ref)
     if (hits.length === 1) return { ref: hits[0].c.ref }
   }
   const sel = selectedChart(host)

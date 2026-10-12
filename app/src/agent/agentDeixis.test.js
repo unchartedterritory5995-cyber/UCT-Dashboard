@@ -109,3 +109,32 @@ describe('bare chart commands (no "this") on a multi-chart board', () => {
     expect(screenDeicticOps({ host, ops: [{ action: 'chart.setTimeframe', target: 'R', args: { timeframe: 'W' } }], text: 'switch the right chart to weekly', getTargetKind, getCapability })).toBeNull()
   })
 })
+
+// NL 2026-10-12: a chart named by the SYMBOL or TIMEFRAME it shows ("the AMD chart", "the 5 minute chart")
+import { chartQualifier } from './deixis'
+import { fastParse } from './fastPath'
+describe('chart qualifiers from live state', () => {
+  it('names a chart by its symbol or timeframe — only charts that exist count', () => {
+    const charts = [{ ref: 'L', symbol: 'NVDA', tf: 'D' }, { ref: 'R', symbol: 'AMD', tf: '5' }]
+    expect(chartQualifier('add rsi to the amd chart', charts).hits.map(c => c.ref)).toEqual(['R'])
+    expect(chartQualifier('add rsi to the 5 minute chart', charts).hits.map(c => c.ref)).toEqual(['R'])
+    expect(chartQualifier('add rsi to the daily chart', charts).hits.map(c => c.ref)).toEqual(['L'])
+    expect(chartQualifier('add rsi to the qqq chart', charts)).toBeNull()       // no QQQ chart: not a qualifier
+    expect(chartQualifier('add rsi to the left chart', charts)).toBeNull()      // a position (fastPath's own rule)
+  })
+  it('resolves to that chart, over the selection; two charts with the same symbol → no guess', () => {
+    const { host } = makeHost({ selected: 'L' })
+    const kind = chartKind()
+    expect(resolveDeictic({ host, kind, candidates: host.charts.list(), text: 'switch the amd chart to weekly', chartOp: true })).toEqual({ ref: 'R' })
+    const same = makeHost({ widgets: [['L', 0, 'NVDA'], ['R', 12, 'NVDA']] })
+    const r = resolveDeictic({ host: same.host, kind, candidates: same.host.charts.list(), text: 'switch the nvda chart to weekly', chartOp: true })
+    expect(r.ask).toBeTruthy()
+  })
+  it('the fast path lifts a LIVE qualifier off the clause; an unknown one leaves the sentence alone', () => {
+    const { host } = makeHost()
+    const f = fastParse('switch the amd chart to weekly', { host })
+    expect(f.ops.map(o => [o.action, o.args])).toEqual([['chart.setTimeframe', { timeframe: 'W' }]])
+    expect(f.target).toEqual({ qualifier: 'amd' })
+    expect(fastParse('switch the qqq chart to weekly', { host })).toBeNull()
+  })
+})
