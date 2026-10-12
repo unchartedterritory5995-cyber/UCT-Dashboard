@@ -48,11 +48,17 @@ export default function StyleHost({ note, ask, api }) {
   useEffect(() => {
     if (!settling) return undefined
     const started = Date.now()
+    let asking = false
     const t = setInterval(async () => {
-      if (apiRef.current.dirty().length && Date.now() - started < SETTLE_GIVE_UP_MS) return
+      const over = Date.now() - started >= SETTLE_GIVE_UP_MS
+      if (asking || (!over && apiRef.current.dirty().length)) return
+      asking = true
+      let refused = false
+      try { refused = (await apiRef.current.reread.current?.()) === false } catch { /* the next save reconciles as it always did */ }
+      asking = false
+      if (refused && !over) return                // the editor was not ready to take it: ask again on the next poll
       clearInterval(t)
       setSettling(false)
-      try { await apiRef.current.reread.current?.() } catch { /* the next save reconciles as it always did */ }
     }, SETTLE_POLL_MS)
     return () => clearInterval(t)
   }, [settling])

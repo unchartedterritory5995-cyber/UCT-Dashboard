@@ -13,7 +13,7 @@ export default function SaveStyleDoor({ note, onBeforeSave }) {
   const btnRef = useRef(null)
   return (
     <>
-      <button ref={btnRef} type="button" className={styles.btn} aria-expanded={open}
+      <button ref={btnRef} type="button" className={styles.btn} aria-expanded={open} autoFocus
         onClick={() => { setStatus(null); setOpen((v) => !v) }}
         title="Reuse this note's blocks, outline and property values as a journal style">
         <UIcon name="sliders" size={13} gold={false} />

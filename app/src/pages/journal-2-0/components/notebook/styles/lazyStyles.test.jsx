@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Suspense } from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import lazyChunk, { chunkRetry } from '../../../lib/lazyChunk'
 import { RELOAD_FLAG } from '../../../../../utils/lazyWithRetry'
 import { loadStyle } from './lazyStyles'
@@ -45,6 +45,21 @@ describe('loadStyle', () => {
     const load = vi.fn().mockRejectedValue(chromeError())
     chunkRetry.importUrl = vi.fn().mockResolvedValue({ SomethingElse: Piece })
     await expect(loadStyle('Piece', load)).rejects.toThrow(/Failed to fetch dynamically imported module/)
+  })
+
+  // Re-review 2, N-M6: the piece loads through lazyChunk, which retries too. Two layers of retry meant a THIRD
+  // fetch whose success was thrown away (the raw module has no `default`) before the page reloaded. One in-place
+  // retry in total, then the reload.
+  it('N-M6: a failed retry is not asked for again: one in-place retry, then the page reload', async () => {
+    const load = vi.fn().mockRejectedValue(chromeError())
+    chunkRetry.importUrl = vi.fn()
+      .mockRejectedValueOnce(chromeError())
+      .mockResolvedValue({ Piece })                       // a THIRD fetch would have succeeded, and been discarded
+    const Lazy = lazyChunk(() => loadStyle('Piece', load))
+    render(<Suspense fallback={<span>loading</span>}><Lazy /></Suspense>)
+    await waitFor(() => expect(window.location.reload).toHaveBeenCalledTimes(1), { timeout: 5000 })
+    expect(chunkRetry.importUrl).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('the piece rendered')).toBeNull()
   })
 
   it('a healthy load resolves the named piece as the default export, with one import', async () => {

@@ -174,6 +174,15 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
     }).then((ok) => { if (ok) { refocusRef.current = 'template'; setTemplateDraft(null) } })
   }
 
+  // The Save-as-style button: the same control before the press and while its chunk loads (busy, kept in place,
+  // still focused), then the lazy door takes over with focus in its form.
+  const styleBtn = (p) => (
+    <button type="button" className={styles.btn} aria-expanded={styleDoor} {...p}>
+      <UIcon name="sliders" size={13} gold={false} />
+      Save this note&apos;s setup as a style
+    </button>
+  )
+
   return (
     <span className={styles.group} role="group" aria-label="Organise this note">
       <button
@@ -230,13 +239,8 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
       {/* Notebook P1 (spec P1.4): "Save this note's setup as a style". Dark behind journalStylesEnabled(); the
           whole door (button, form, sentence) is a lazy chunk. */}
       {journalStylesEnabled() && (styleDoor
-        ? <Suspense fallback={null}><SaveStyleDoor note={note} onBeforeSave={onBeforeTemplate} /></Suspense>
-        : (
-          <button type="button" className={styles.btn} onClick={() => setStyleDoor(true)}>
-            <UIcon name="sliders" size={13} gold={false} />
-            Save this note&apos;s setup as a style
-          </button>
-        ))}
+        ? <Suspense fallback={styleBtn({ 'aria-busy': true, 'aria-disabled': true, autoFocus: true })}><SaveStyleDoor note={note} onBeforeSave={onBeforeTemplate} /></Suspense>
+        : styleBtn({ onClick: () => setStyleDoor(true) }))}
       {/* Wave 10 lane K2 (walk row S2-27): the door STAYS while its search is open -- a
           disclosure button (`aria-expanded`) with the search after it -- so Escape has a
           control to hand focus back to, and a screen reader hears what opened. The search is
