@@ -264,6 +264,23 @@ describe('R-T12-1: a named command outranks a block title (the rendered menu)', 
     expect(shown).toContain('Price stamps')
   })
 
+  // R-T12-4: a block's FULL title, typed as the menu shows it, names that block -- it outranks the
+  // command captures, or Enter runs "/price STAMPS" as a ticker capture and drops the member's text.
+  it('/price stamps + Enter inserts the Price stamps block, not a STAMPS ticker capture', async () => {
+    ON()
+    const shown = await typeSlash('/price stamps')
+    expect(shown[0]).toBe('Price stamps')
+    await act(async () => { pressKey('Enter') })
+    await waitFor(() => expect(ed.getJSON().content.some(
+      (n) => n.type === 'widgetEmbed' && n.attrs?.widgetId === 'priceStamps')).toBe(true))
+  })
+
+  it('control: /price st (a partial title) still leads with the "Price — ST" capture', async () => {
+    ON()
+    const shown = await typeSlash('/price st')
+    expect(shown[0]).toBe('Price — ST')
+  })
+
   it('control: /pric (no command named yet) still offers Price stamps first', async () => {
     ON()
     const shown = await typeSlash('/pric')

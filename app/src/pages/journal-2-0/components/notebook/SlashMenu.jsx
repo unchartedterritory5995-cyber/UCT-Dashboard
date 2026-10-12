@@ -802,10 +802,13 @@ export const SlashMenuExtension = Extension.create({
           // ⛔ R-T12-1: a command the member has NAMED in full (`/price`, `/price st`) goes first --
           // ahead of a block whose title merely starts with the word ("Price stamps"), or Enter
           // inserts the block. A partial word (`/pri`) names nothing yet, so the blocks lead.
+          // R-T12-4: but a block's FULL title ("/price stamps") names that block, and leads.
           const captures = [...widgets, ...factCaptures, ...consensusCaptures]
           const cmd = q.trim().split(/\s+/)[0]
-          return [...captures.filter((it) => it.cmd === cmd), ...rankedBlockItems(here, q),
-            ...captures.filter((it) => it.cmd !== cmd)]
+          const blocks = rankedBlockItems(here, q)
+          const exact = blocks.filter((it) => it.title.toLowerCase() === q.trim())
+          return [...exact, ...captures.filter((it) => it.cmd === cmd),
+            ...blocks.filter((it) => !exact.includes(it)), ...captures.filter((it) => it.cmd !== cmd)]
         },
         render: () => {
           // One renderer object serves EVERY suggestion session, so all of
