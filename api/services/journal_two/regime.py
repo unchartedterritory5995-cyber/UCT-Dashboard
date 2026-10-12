@@ -31,6 +31,41 @@ def classify_regime(score: float | None) -> str | None:
     return "red"
 
 
+def regime_words() -> dict[str, str]:
+    """The member-facing WORD for each regime id: the 50-89 tier's id is "amber" and its
+    word is "Yellow" (owner ruling O-8). The ids and every stored value stay as
+    classify_regime answers them; only what a member or a model reads changes.
+
+    ⛔ Derived, never restated: the words are the option labels of the board property
+    builtin:regime_at_write in note_properties.py, the same labels the client's one map
+    (app/src/pages/journal-2-0/lib/blocks/regimeWords.js) is railed against. Imported
+    lazily so this pure classifier module keeps no import-time dependency on it."""
+    from api.services.journal_two.note_properties import BUILTIN_PROPERTY_DEFS, REGIME_AT_WRITE
+    prop = next(d for d in BUILTIN_PROPERTY_DEFS if d["id"] == REGIME_AT_WRITE)
+    return {o["id"]: o["label"] for o in prop["options"]}
+
+
+def regime_id_for(value: Any) -> str | None:
+    """The regime id for a value a model or member may send, in either spelling and any
+    case: the id itself ("amber", "AMBER") or its word ("Yellow", "YELLOW"). None for
+    anything else, so a caller can keep its own handling of an unknown value."""
+    if not isinstance(value, str):
+        return None
+    v = value.strip().lower()
+    if not v:
+        return None
+    for rid, word in regime_words().items():
+        if v == rid or v == word.lower():
+            return rid
+    return None
+
+
+def regime_word(value: Any) -> str | None:
+    """The member-facing word for an id (or either spelling of one); None when unknown."""
+    rid = regime_id_for(value)
+    return regime_words()[rid] if rid else None
+
+
 def _read_exposure() -> dict | None:
     """Read the exposure block from the wire_data cache; None if missing.
 

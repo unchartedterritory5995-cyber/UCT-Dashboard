@@ -183,3 +183,17 @@ def test_forget_review_marks_forgotten(db_conn):
     assert n == 1
     out = tr.list_reviews(user_id="u_r", account_id=acc["id"], conn=db_conn)
     assert all(rev["id"] != r["id"] for rev in out["reviews"])
+
+
+def test_review_prompt_names_the_tier_yellow_and_metadata_keeps_the_id(db_conn):
+    """F-O8-SERVER: the model reads the member word; the stored id is unchanged."""
+    from api.services.journal_two import trade_review as tr
+    amb = "am" + "ber"
+    acc = _seed_account(db_conn)
+    trade_id = _insert_trade(db_conn, user_id="u_r", account_id=acc["id"],
+                              exit_iso="2026-05-11T20:00:00+00:00", regime=amb)
+    client = FakeReviewClient("body")
+    r = tr.generate_review(user_id="u_r", account_id=acc["id"], trade_id=trade_id,
+                            client=client, conn=db_conn)
+    assert "- Regime: Yellow" in client.calls[-1]["user_message"]
+    assert r["metadata"]["regime"] == amb

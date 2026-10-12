@@ -3101,13 +3101,13 @@ def _register_all() -> None:
     # P5-D: backtest-on-demand over the user's journal
     _vt.voice_tool(
         name="analyze_setup_in_period",
-        description="Backtest a setup over a date range. Filters closed trades by setup name (Bull Flag, Pullback, VCP, etc.) + optional regime label (GREEN/AMBER/ORANGE/RED) + date window. Returns trade count, win rate, avg R, profit factor, by-month breakdown. Call when the user asks 'how did X setup do in [period]', 'what's my win rate on Y this quarter', 'how do I perform in AMBER regime'.",
+        description="Backtest a setup over a date range. Filters closed trades by setup name (Bull Flag, Pullback, VCP, etc.) + optional regime label (GREEN/YELLOW/ORANGE/RED) + date window. Returns trade count, win rate, avg R, profit factor, by-month breakdown. Call when the user asks 'how did X setup do in [period]', 'what's my win rate on Y this quarter', 'how do I perform in a Yellow regime'.",
         parameters={
             "setup":      {"type": "string", "description": "Setup name to filter (e.g. 'Bull Flag'). Omit for all setups."},
             "days":       {"type": "integer", "description": "Relative lookback in days (e.g. 90 for last quarter). Use this OR start_date/end_date."},
             "start_date": {"type": "string",  "description": "ISO YYYY-MM-DD start. Used with end_date."},
             "end_date":   {"type": "string",  "description": "ISO YYYY-MM-DD end. Defaults to today."},
-            "regime":     {"type": "string",  "description": "Optional regime filter: GREEN, AMBER, ORANGE, or RED."},
+            "regime":     {"type": "string",  "description": "Optional regime filter: GREEN, YELLOW, ORANGE, or RED. The stored id `amber` is accepted as YELLOW."},
         },
         contexts=["global"],
         wants_user=True,

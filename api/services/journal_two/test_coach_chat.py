@@ -672,9 +672,10 @@ def test_handle_user_turn_appends_regime_context_when_available(db_conn, monkeyp
     # cached tools+system prefix — the model still receives it either way.
     call = client.calls[-1]
     suffix = call.get("system_suffix") or ""
-    assert "AMBER" in suffix
+    # F-O8-SERVER: the 50-89 tier reaches the model by its member word, Yellow.
+    assert "Exposure Backdrop is yellow" in suffix
     assert "Live market context" in suffix
-    # the LIVE line stays OUT of the cached block ("AMBER" alone also appears
+    # the LIVE line stays OUT of the cached block ("yellow" alone also appears
     # in the static regime taxonomy, so key on the live-context marker)
     assert "Live market context" not in call["system_prompt"]
 

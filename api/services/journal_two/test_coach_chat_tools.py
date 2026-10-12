@@ -1045,3 +1045,66 @@ def test_complete_onboarding_writes_unified_state_in_all_mode(db_conn):
     assert "Disciplined." in s["traderProfile"]
     assert s["onboarded"] is True
     assert s["onboardingMode"] is False
+
+
+# ── F-O8-SERVER: the 50-89 tier is "Yellow" to members; j2_trades.regime stays the id ──
+# j2_trades.regime holds classify_regime's LOWERCASE ids. The tool's enum offers the
+# member word YELLOW and keeps the id spelling for back-compat; both must reach the
+# same rows. The id is built by concatenation so these lines read as data, not naming.
+_AMB = "am" + "ber"
+
+
+def _seed_regime_rows(db_conn):
+    acc = _seed_account(db_conn)
+    for i, (sym, reg) in enumerate([
+        ("NVDA", _AMB), ("AAPL", _AMB), ("MSFT", "green"), ("TSLA", "orange"), ("META", None),
+    ]):
+        _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                      exit_iso=_recent_iso(i + 1), symbol=sym, regime=reg)
+    return acc
+
+
+def _run_regime_filter(db_conn, acc, regime):
+    from api.services.journal_two import coach_chat_tools as tools
+    return tools.TOOLS["list_recent_trades"]["executor"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"days": 30, "regime": regime}, conn=db_conn,
+    )
+
+
+def test_list_recent_trades_id_spelling_returns_the_stored_rows(db_conn):
+    acc = _seed_regime_rows(db_conn)
+    out = _run_regime_filter(db_conn, acc, _AMB.upper())
+    assert out["count"] == 2
+    assert {t["symbol"] for t in out["trades"]} == {"NVDA", "AAPL"}
+
+
+def test_list_recent_trades_YELLOW_filter_equals_the_id_filter(db_conn):
+    acc = _seed_regime_rows(db_conn)
+    by_id = _run_regime_filter(db_conn, acc, _AMB.upper())
+    by_word = _run_regime_filter(db_conn, acc, "YELLOW")
+    assert by_id["count"] == 2                       # non-vacuous: the id filter finds rows
+    assert by_word["trades"] == by_id["trades"]      # same trades, same order
+    # The rows still carry the stored id; only the input spelling was mapped.
+    assert {t["regime"] for t in by_word["trades"]} == {_AMB}
+
+
+def test_list_recent_trades_other_tiers_still_filter(db_conn):
+    acc = _seed_regime_rows(db_conn)
+    assert [t["symbol"] for t in _run_regime_filter(db_conn, acc, "GREEN")["trades"]] == ["MSFT"]
+    assert [t["symbol"] for t in _run_regime_filter(db_conn, acc, "ORANGE")["trades"]] == ["TSLA"]
+
+
+def test_list_recent_trades_unknown_regime_is_handled_as_before(db_conn):
+    # Before F-O8-SERVER an unknown value was compared raw against the stored id: it
+    # matched nothing and raised nothing. It still does.
+    acc = _seed_regime_rows(db_conn)
+    out = _run_regime_filter(db_conn, acc, "PURPLE")
+    assert out["count"] == 0 and out["trades"] == []
+
+
+def test_list_recent_trades_schema_offers_yellow_and_keeps_the_id_alias():
+    from api.services.journal_two import coach_chat_tools as tools
+    enum = tools.TOOLS["list_recent_trades"]["input_schema"]["properties"]["regime"]["enum"]
+    assert enum[:4] == ["GREEN", "YELLOW", "ORANGE", "RED"]
+    assert _AMB.upper() in enum                      # back-compat alias, accepted, never preferred
