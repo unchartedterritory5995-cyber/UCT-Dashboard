@@ -9,6 +9,7 @@ import { getCapability, manifestFor } from './capabilities'
 import { breadthHistoryFast, HISTORY_OPS, HISTORY_FINDS } from './capabilities/breadthHistory'
 import { rememberBreadthSubject, _resetBreadthSubject, _resetBreadthDates, BREADTH_METRICS, breadthFast } from './capabilities/breadth'
 import { selectGroups } from './routing'
+import { fastParse } from './fastPath'
 import { makeBoard } from './__fixtures__/board'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -67,6 +68,14 @@ describe('deterministic wording (no model call)', () => {
   ])('%s → the model', (q) => {
     rememberBreadthSubject({ kind: 'show', universe: 'us', metric: 'pct_above_200sma', show: SHOW_A200 })
     expect(breadthHistoryFast(q)).toBeNull()
+  })
+
+  it('a misspelled search is NEVER answered on a guessed reading (fastCorrect: false) — the model plans it', () => {
+    rememberBreadthSubject({ kind: 'show', universe: 'us', metric: 'pct_above_200sma', show: SHOW_A200 })
+    expect(fastParse('When was the last time that was below 10%?')?.ops?.[0]?.action).toBe('breadth.history')
+    for (const q of ['When was the last tiem that was below 10%?', 'when was the lsat time that was belwo 10%']) {
+      expect(fastParse(q)).toBeNull()
+    }
   })
 
   it('history wording routes to the breadth group even without breadth words', () => {
