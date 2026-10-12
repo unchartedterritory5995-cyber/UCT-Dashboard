@@ -60,7 +60,8 @@ def test_alert_coverage_server_half_and_parity(defs_db, real_bars):
         # tree, a requirement the alert lane refuses, nor an unclean verdict nobody acknowledged.
         row = user_definitions.get(user, def_id)
         stored_def = aus._gate_lane(aus._gate_definition(user, def_id, None))
-        for k, sv in server.items():
+        # (the per-plot tree resolver exists from this change on; a run against older code measures verdicts only)
+        for k, sv in (server.items() if hasattr(aus, "_plot_tree") else ()):
             if sv["status"] != "supported":
                 continue
             tree = aus._plot_tree(stored_def, k)

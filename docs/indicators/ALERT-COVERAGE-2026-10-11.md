@@ -32,7 +32,10 @@ carrying an alert? **Not pushed, not merged, not deployed.**
 | TC2000 PCF corpus | 50 | 0 | 0 | 50 | 50 | 50 |
 | **Total** | **167** | **74** | **14** | **597** | **419** | **537** |
 
-**+118 alertable plots, 0 lost**; invariant: 0 violations. *Not saveable through the member's door, each
+**+118 alertable plots, 0 lost**; invariant: 0 violations. ⚠️ CORRECTED at the release audit: 12 of the 118
+are the `mcclellan` fixture, a COPY of a corpus document — **106 unique plots** gained. Re-measured on the
+integration candidate against current master `d92fca5be9`: 0 lost, 106 unique gained (the two committed
+fixtures add 51 duplicate rows), invariant 0 violations. *Not saveable through the member's door, each
 refused BY NAME at save (not an alert matter): a plot measures `repaints` (5 — 4 fixtures, 1 Pine), a plot
 over the 2,048-node per-plot expansion ceiling (3 Pine), over the series-reference budget (2 Pine), over
 the lookback budget (2 Pine), over the 64 KB store cap (1 Pine), `resolve:window` (1 Pine).
@@ -110,7 +113,7 @@ surface that writes it (`user_definition_relint`).
   functions (`admit_user_definition`, `user_value_function`, `user_catalog`). The 6 deleted `api/` lines
   are those functions' gate calls, rewritten. ⇒ *"flow-worker stranded: ADDITIVE, safe; discharge by
   marker bump"* — marker bump only in a weekend/after-hours window; no ordering dependency.
-- **Behaviour change in production:** strictly MORE plots alertable (+118 on the measured shapes, 0 lost);
+- **Behaviour change in production:** strictly MORE plots alertable (106 unique on the measured shapes, 0 lost);
   every refusal that remains keeps its gate and sentence. Already-armed alerts are unaffected (nothing that
   passed before is refused now).
 - **Regression vs. clean master:** Python 3,317 passed / 15 failed, every failure a known master baseline
