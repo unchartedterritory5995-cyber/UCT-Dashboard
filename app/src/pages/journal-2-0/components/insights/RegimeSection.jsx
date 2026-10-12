@@ -19,6 +19,7 @@
 import { useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import ConfidenceStat from '../analytics/ConfidenceStat'
+import { regimeWord } from '../../lib/blocks/regimeWords'
 import styles from './RegimeSection.module.css'
 
 const CONF_MIN = 10
@@ -27,12 +28,15 @@ const CONF_MIN = 10
 // exposure backdrop. green = risk-on tailwind … red = hostile / risk-off. The
 // backend only ever emits these four keys in byRegime; anything else was folded
 // into unknownCount, so a row always resolves to one of these.
+// O8: the WORD is not here. It is lib/blocks/regimeWords.js's, by own key (amber is read as
+// Yellow); this table owns only the colour and the blurb.
 const REGIME_META = {
-  green: { label: 'Green', color: '#3cb868', blurb: 'Risk-on — broad-market tailwind at entry.' },
-  amber: { label: 'Amber', color: '#e0a83a', blurb: 'Mixed — proceed with size discipline.' },
-  orange: { label: 'Orange', color: '#e6822e', blurb: 'Defensive — breadth deteriorating.' },
-  red: { label: 'Red', color: '#e74c3c', blurb: 'Risk-off — hostile backdrop at entry.' },
+  green: { color: '#3cb868', blurb: 'Risk-on — broad-market tailwind at entry.' },
+  amber: { color: '#e0a83a', blurb: 'Mixed — proceed with size discipline.' },
+  orange: { color: '#e6822e', blurb: 'Defensive — breadth deteriorating.' },
+  red: { color: '#e74c3c', blurb: 'Risk-off — hostile backdrop at entry.' },
 }
+const metaFor = (id) => (Object.hasOwn(REGIME_META, id) ? REGIME_META[id] : null)
 
 // Match PlaybookSection's formatters so units read consistently across Insights.
 const fmtPct = (v) => `${(v * 100).toFixed(0)}%`
@@ -83,7 +87,7 @@ export default function RegimeSection({ analytics }) {
             {Object.entries(REGIME_META).map(([key, m]) => (
               <li key={key} className={styles.helpRow}>
                 <span className={styles.helpDot} style={{ background: m.color }} />
-                <span className={styles.helpLabel}>{m.label}</span>
+                <span className={styles.helpLabel}>{regimeWord(key)}</span>
                 <span className={styles.helpBlurb}>{m.blurb}</span>
               </li>
             ))}
@@ -120,11 +124,8 @@ export default function RegimeSection({ analytics }) {
 }
 
 function RegimeRow({ b }) {
-  const meta = REGIME_META[b.regime] || {
-    label: b.regime,
-    color: 'var(--text-muted)',
-    blurb: '',
-  }
+  const meta = metaFor(b.regime) || { color: 'var(--text-muted)', blurb: '' }
+  const label = regimeWord(b.regime) ?? 'Unknown'
   const n = b.tradeCount || 0
   const confident = n >= CONF_MIN
   const wr = typeof b.winRate === 'number' ? b.winRate : null
@@ -137,7 +138,7 @@ function RegimeRow({ b }) {
       <div className={styles.rowTop}>
         <div className={styles.rowLabel}>
           <span className={styles.dot} style={{ background: meta.color }} />
-          <span className={styles.name}>{meta.label}</span>
+          <span className={styles.name}>{label}</span>
         </div>
 
         <div className={styles.barTrack}>

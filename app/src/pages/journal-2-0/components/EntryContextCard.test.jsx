@@ -89,7 +89,7 @@ describe('a captured context', () => {
     mockFetch(() => contractResponse('entry-context.position.captured'))
     render(<EntryContextCard kind="position" id="ec-today" />)
     await screen.findByTestId('entry-context-card')
-    expect(field('regime').getByText('Amber')).toBeTruthy()
+    expect(field('regime').getByText('Yellow')).toBeTruthy()
     expect(field('exposure').getByText('73 / 150')).toBeTruthy()             // 72.5, rounded
     expect(field('breadth_pct_above_50').getByText('55.1%')).toBeTruthy()
     expect(field('rs_rank').getByText('91')).toBeTruthy()
@@ -139,6 +139,20 @@ describe('a captured context', () => {
     expect(field('rs_rank').getByText('77')).toBeTruthy()
   })
 
+  it('O8: a regime id the map does not hold reads "Unknown", never the raw id and never an inherited key', async () => {
+    on()
+    for (const bad of ['purple', 'constructor']) {
+      const body = contractBody('entry-context.position.captured')
+      body.context.fields.regime.value = bad
+      mockFetch(() => ({ ok: true, status: 200, json: async () => JSON.parse(JSON.stringify(body)) }))
+      const { unmount } = render(<EntryContextCard kind="position" id="ec-today" />)
+      await screen.findByTestId('entry-context-card')
+      expect(field('regime').getByText('Unknown'), bad).toBeTruthy()
+      expect(document.querySelector('[data-field="regime"]').textContent, bad).not.toMatch(/purple|constructor|undefined|Purple|Constructor/)
+      unmount()
+    }
+  })
+
   it('reaches the trade route for kind="trade" and reads the SAME context shape (the card stays after close)', async () => {
     on()
     const seen = []
@@ -146,7 +160,7 @@ describe('a captured context', () => {
     render(<EntryContextCard kind="trade" id="ec-trade" />)
     await screen.findByTestId('entry-context-card')
     expect(seen).toEqual([contract('entry-context.trade.captured')._contract.path])
-    expect(field('regime').getByText('Amber')).toBeTruthy()
+    expect(field('regime').getByText('Yellow')).toBeTruthy()
     // The closed trade reaches the row its position had: one context, by the same key.
     expect(contractBody('entry-context.trade.captured').key).toEqual(contractBody('entry-context.position.captured').key)
   })

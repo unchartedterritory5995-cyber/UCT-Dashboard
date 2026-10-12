@@ -202,18 +202,33 @@ describe('VisualPlaybookBody', () => {
     expect(screen.getByLabelText('Setup').value).toBe('')
   })
 
+  // O8: one word for the regime. The id stays `amber` on the wire and in the query; the member reads Yellow.
+  it('O8: an id the map does not hold is "not known" on a card and "Unknown" in the select, never the raw id (own-key lookup)', async () => {
+    const body = contractBody('visual-playbook.cards.with-regime')
+    body.regime.values = ['green', 'constructor', 'purple']
+    body.regime.facets = { green: 0, constructor: 2, purple: 1 }
+    body.cards[0].regime.value = 'constructor'
+    global.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => JSON.parse(JSON.stringify(body)) }))
+    renderBody()
+    const card = await cardFor('VPRG')
+    expect(card.textContent).toContain('Regime at entry: not known')
+    expect(card.textContent).not.toMatch(/constructor|function|undefined/)
+    const sel = screen.getByLabelText(/Market regime/)
+    expect([...sel.options].map((o) => o.textContent)).toEqual(['Any regime', 'Green (0)', 'Unknown (2)', 'Unknown (1)'])
+  })
+
   // ── wave 14 playbook fixes, item 1: the regime filter reads 13E ──────────
   it('with 13E on, the regime select is live, counted, and its choice reaches the server', async () => {
     serve('visual-playbook.cards.with-regime')
     const { regime } = contractBody('visual-playbook.cards.with-regime')
     expect(regime).toMatchObject({ available: true, facets: { green: 0, amber: 1, orange: 0, red: 0 }, unknown: 3 })
     renderBody()
-    expect((await cardFor('VPRG')).textContent).toContain('Regime at entry: Amber')
+    expect((await cardFor('VPRG')).textContent).toContain('Regime at entry: Yellow')
     // a chart whose trade has no frozen context says so, never a guessed regime
     expect((await cardFor('VPNV')).textContent).toContain('Regime at entry: not known')
     const sel = screen.getByLabelText(/Market regime/)
     expect(sel.disabled).toBe(false)
-    expect([...sel.options].map((o) => o.textContent)).toEqual(['Any regime', 'Green (0)', 'Amber (1)', 'Orange (0)', 'Red (0)'])
+    expect([...sel.options].map((o) => o.textContent)).toEqual(['Any regime', 'Green (0)', 'Yellow (1)', 'Orange (0)', 'Red (0)'])
     fireEvent.change(sel, { target: { value: 'amber' } })
     await waitFor(() => {
       expect(String(global.fetch.mock.calls.at(-1)[0])).toBe(`${BASE}?regime=amber`)

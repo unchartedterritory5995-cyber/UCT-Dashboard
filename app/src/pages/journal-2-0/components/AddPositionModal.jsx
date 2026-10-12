@@ -12,6 +12,7 @@
  */
 
 import { prefillStop } from '../lib/disciplineGuards'
+import { regimeWord } from '../lib/blocks/regimeWords'
 import { useState, useCallback, useId, useEffect } from 'react'
 import styles from './ModalShell.module.css'
 import bannerStyles from './AlertBanner.module.css'
@@ -684,7 +685,9 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
 
           {regimeMultActive && (
             <div className={bannerStyles.info} style={{ fontSize: 12 }}>
-              <UIcon name="patterns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Regime is <strong>{currentRegime.toUpperCase()}</strong>.
+              <UIcon name="patterns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{regimeWord(currentRegime)
+                ? <>Regime is <strong>{regimeWord(currentRegime).toUpperCase()}</strong>.</>
+                : 'Regime is not known.'}
               Default size scaled to <strong>{Math.round(regimeMult * 100)}%</strong>
               {regimeMult === 0 && ' — no size prefilled. Override by typing shares manually.'}
             </div>
