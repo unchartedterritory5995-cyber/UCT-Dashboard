@@ -37,12 +37,14 @@
  * lane K2 STAYS while the search is open (a disclosure button) -- never <body>.
  * Rail: NoteMenuActions.test.jsx ("keyboard" block).
  */
-import { useEffect, useId, useRef, useState } from 'react'
+import { Suspense, useEffect, useId, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { noteIsArchived, setNoteArchived } from '../../lib/noteArchive'
 import { noteIsLocked, setNoteLock } from '../../lib/lockedNote'
 import { saveNoteAsTemplate } from '../../lib/memberTemplates'
 import NoteSearchPicker from './NoteSearchPicker'
+import lazyChunk from '../../lib/lazyChunk'
+import { journalStylesEnabled } from '../../lib/journalStylesFlag'
 import styles from './NoteMenuActions.module.css'
 
 /**
@@ -70,6 +72,9 @@ import styles from './NoteMenuActions.module.css'
  *   editor has. Optional: without it (unit tests, no editor) the template is
  *   saved as before.
  */
+// Notebook P1: "Save this note's setup as a style" -- a lazy chunk, mounted only while the member has opened it
+// (and only offered while journal styles are on), so it costs nothing at first open.
+const SaveAsStyleForm = lazyChunk(() => import('./styles/SaveAsStyleForm'))
 const UNSENT_BEFORE_TEMPLATE = "Your latest edits haven't reached the server yet, so the template would miss them. Nothing was saved — try again in a moment."
 
 export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideExclude = [], onUnlock, onBeforeTemplate }) {
@@ -77,6 +82,8 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
   const [status, setStatus] = useState(null) // { message, tone }
   const [templateDraft, setTemplateDraft] = useState(null) // string while naming
   const [pickingBeside, setPickingBeside] = useState(false)
+  const [stylingOpen, setStylingOpen] = useState(false)   // the Save-as-style form is up
+  const styleBtnRef = useRef(null)
   // F4 / A2R-07: which door's button to hand focus back to once its inline form has closed.
   const templateBtnRef = useRef(null)
   const besideBtnRef = useRef(null)
@@ -219,6 +226,34 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
           <button type="submit" className={styles.btn} disabled={busy}>Save template</button>
           <button type="button" className={styles.btn} onClick={() => { refocusRef.current = 'template'; setTemplateDraft(null) }}>Cancel</button>
         </form>
+      )}
+      {/* Notebook P1 (spec P1.4): the note's blocks, outline and properties as a journal style. Dark behind
+          journalStylesEnabled(); the form is a lazy chunk and says its own sentences. */}
+      {journalStylesEnabled() && (
+        <button
+          ref={styleBtnRef}
+          type="button"
+          className={styles.btn}
+          onClick={() => { setStatus(null); setStylingOpen((v) => !v) }}
+          aria-expanded={stylingOpen}
+          title="Reuse this note's blocks, outline and property values as a journal style"
+        >
+          <UIcon name="sliders" size={13} gold={false} />
+          Save this note&apos;s setup as a style
+        </button>
+      )}
+      {stylingOpen && (
+        <Suspense fallback={null}>
+          <SaveAsStyleForm
+            note={note}
+            onBeforeSave={onBeforeTemplate}
+            onDone={(sentence, { failed } = {}) => {
+              setStylingOpen(false)
+              if (sentence) setStatus({ tone: failed ? 'error' : 'ok', message: sentence })
+              styleBtnRef.current?.focus()
+            }}
+          />
+        </Suspense>
       )}
       {/* Wave 10 lane K2 (walk row S2-27): the door STAYS while its search is open -- a
           disclosure button (`aria-expanded`) with the search after it -- so Escape has a

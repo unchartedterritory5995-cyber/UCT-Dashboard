@@ -130,6 +130,7 @@ import { pasteTerminalCommand } from '../../lib/terminalCommandPaste'
 import lazyChunk from '../../lib/lazyChunk'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { CANVAS_EVENT, extraBlockCount, isTradeCanvasDoc } from '../../lib/tradeCanvas'
+import { STYLE_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
 import { createTradeCanvasNote, tradeCanvasEnabled } from '../../lib/tradeCanvasCreate'
 import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
@@ -164,6 +165,12 @@ const TradeCanvasBoard = lazyChunk(() => import('./TradeCanvasBoard'))
 // Wave 13 lane 13D — "what you wrote then": a resurfacing insight opens the note with
 // `?resurfaceVersion=<id>`. LAZY: only that door ever renders it.
 const ResurfaceVersionSheet = lazyChunk(() => import('./ResurfaceVersionSheet'))
+// Notebook P1 (spec P1.3): the "Update layout" offer, its previewed sheet, and the /style chooser. LAZY, and
+// mounted only while journalStylesEnabled() -- a switch that is off never fetches them. One chunk holds the
+// sheet and the chooser (`StyleChooser` is a named export of StyleUpdateSheet).
+const StyleUpdateBanner = lazyChunk(() => import('./styles/StyleUpdateBanner'))
+const StyleUpdateSheet = lazyChunk(() => import('./styles/StyleUpdateSheet'))
+const StyleChooser = lazyChunk(() => import('./styles/StyleUpdateSheet').then((m) => ({ default: m.StyleChooser })))
 // The canvas's link-from-a-thesis offer, shown on the note the member picked:
 // "Add a link to <plan> at the end of this note?" -- nothing is written until
 // the member presses Add (an editor transaction on THIS note's own autosave).
@@ -949,6 +956,10 @@ export default function NoteEditorPage({
 
   // Wave C: version history / trust panel.
   const [historyOpen, setHistoryOpen] = useState(false)
+  // Notebook P1: the previewed "Update layout"/"Switch to a style" sheet (`{ styleId }`, null id = this
+  // note's own style) and the /style chooser that opens it.
+  const [styleSheet, setStyleSheet] = useState(null)
+  const [chooserOpen, setChooserOpen] = useState(false)
   // Restore is NOT reachable through the normal "note loaded" effects below
   // (both are gated on `[note?.id]` only -- a restore keeps the same note
   // id, so they never re-fire). This mirrors exactly what those effects
@@ -3626,6 +3637,8 @@ export default function NoteEditorPage({
     const onVoiceNote = () => openVoiceNote()
     // Wave 11 lane 11D: the slash menu's "Trade-plan canvas", same per-editor target.
     const onTradeCanvas = () => { createLinkedCanvas() }
+    // Notebook P1: the slash menu's "Journal style", same per-editor target.
+    const onStyle = () => { if (journalStylesEnabled()) setChooserOpen(true) }
     let dom = null
     const detach = () => {
       if (dom) {
@@ -3634,6 +3647,7 @@ export default function NoteEditorPage({
         dom.removeEventListener(WRITING_HELP_EVENT, onWritingHelp)
         dom.removeEventListener(VOICE_NOTE_EVENT, onVoiceNote)
         dom.removeEventListener(CANVAS_EVENT, onTradeCanvas)
+        dom.removeEventListener(STYLE_EVENT, onStyle)
       }
       dom = null
     }
@@ -3648,6 +3662,7 @@ export default function NoteEditorPage({
       dom.addEventListener(WRITING_HELP_EVENT, onWritingHelp)
       dom.addEventListener(VOICE_NOTE_EVENT, onVoiceNote)
       dom.addEventListener(CANVAS_EVENT, onTradeCanvas)
+      dom.addEventListener(STYLE_EVENT, onStyle)
     }
     attach()
     editor.on('mount', attach)
@@ -5029,6 +5044,13 @@ export default function NoteEditorPage({
         {/* The ticker's refusal is said OUTSIDE the details region, so collapsing the details
             never hides a write that did not land (wave 10 F7). */}
         <SaveFailed message={tickerFailure} onDismiss={() => setTickerFailure(null)} />
+        {/* Notebook P1: the previewed "Update layout" offer for a styled note (dark behind the switch;
+            the banner itself decides whether there is anything to offer). */}
+        {journalStylesEnabled() && note?.styleId && !locked && (
+          <Suspense fallback={null}>
+            <StyleUpdateBanner note={note} onOpen={() => setStyleSheet({ styleId: null })} />
+          </Suspense>
+        )}
         <div id={detailsRegionId} className={styles.detailsRegion} hidden={!detailsOpen}
           data-note-details="">
           {/* Wave 10 lane K2 (D-3): the tags sit with the note's other properties, under the
@@ -5208,6 +5230,31 @@ export default function NoteEditorPage({
         currentNote={note}
         onRestored={onVersionRestored}
       />
+      {chooserOpen && (
+        <Suspense fallback={null}>
+          <StyleChooser open onClose={() => setChooserOpen(false)}
+            onPick={(styleId) => { setChooserOpen(false); setStyleSheet({ styleId }) }} />
+        </Suspense>
+      )}
+      {styleSheet && (
+        <Suspense fallback={null}>
+          <StyleUpdateSheet
+            open
+            onClose={() => setStyleSheet(null)}
+            noteId={noteId}
+            styleId={styleSheet.styleId}
+            baseUpdatedAt={() => lastSavedRef.current?.updatedAt}
+            waitForSave={sendPendingEdits}
+            onApplied={(applied) => {
+              // The write landed (lane B settled its revision). The editor takes the server's copy the way a
+              // version restore does, and the note cache learns the new style stamp so the offer goes away.
+              adoptServerCopy(applied)
+              globalMutate(`/api/j2/notes/${applied.id}`, { note: applied }, false)
+              setStyleSheet(null)
+            }}
+          />
+        </Suspense>
+      )}
       {resurfaceVersionId && (
         <Suspense fallback={null}>
           <ResurfaceVersionSheet noteId={noteId} versionId={resurfaceVersionId} onClose={clearResurfaceParam} />

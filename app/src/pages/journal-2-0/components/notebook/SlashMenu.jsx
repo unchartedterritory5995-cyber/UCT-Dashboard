@@ -25,6 +25,7 @@ import { WRITING_HELP_EVENT } from '../../lib/writingHelp'
 import { VOICE_NOTE_EVENT } from '../../lib/voiceNote'
 import { CANVAS_EVENT } from '../../lib/tradeCanvas'
 import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCapture'
+import { STYLE_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
 import styles from './SlashMenu.module.css'
 
 // Exported for the rails (SlashMenu.items.test.jsx): the block entries a bare
@@ -263,6 +264,19 @@ export const ITEMS = [
       editor.view.dom.dispatchEvent(new CustomEvent(TRANSCRIPT_EVENT, { bubbles: true }))
     },
   },
+  {
+    // Notebook P1: /style -- switch this note to one of the member's journal styles, previewed first
+    // (adds missing blocks only, never removes or moves their text). Dark behind
+    // notebook_journal_styles_enabled; dispatched on this editor's own DOM root, like /canvas.
+    title: 'Journal style',
+    description: 'Switch this note to one of your journal styles, previewed first',
+    keywords: ['style', 'layout', 'preset', 'kind', 'outline'],
+    available: () => journalStylesEnabled(),
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      editor.view.dom.dispatchEvent(new CustomEvent(STYLE_EVENT, { bubbles: true }))
+    },
+  },
 ]
 
 // A bare `/` offers three groups, trading first: this is a trading notebook, and the chart, price
@@ -277,7 +291,7 @@ const BASICS = new Set([
   'Heading 1', 'Heading 2', 'Heading 3', 'Bullet list', 'Numbered list', 'Checklist', 'Due date', 'Quote',
   'Divider', 'Table', 'Callout', 'Toggle', 'Image',
 ])
-const TRADING_BLOCKS = new Set(['Trade-plan canvas', 'Transcript passage'])
+const TRADING_BLOCKS = new Set(['Trade-plan canvas', 'Transcript passage', 'Journal style'])
 
 /** Which group a block item belongs to. Widget and fact captures are always trading. */
 export function blockItemGroup(item) {
