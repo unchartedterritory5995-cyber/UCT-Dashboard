@@ -77,7 +77,7 @@ describe('layout.open', () => {
     expect(decideMode('apply', p)).toBe('apply')
     const res = await commitPlan(host, p)
     expect(res.ok).toBe(true)
-    expect(res.lines).toEqual(['Opened “Intraday Scan”'])
+    expect(res.lines).toEqual(['Opened “Intraday Scan” in place of “Agent Test”'])
     expect(host.layouts.snapshot().active.name).toBe('Intraday Scan')
     expect(state.widgets.map(w => w.id)).toEqual(['i-one', 'i-two'])
     const u = await undoEntry(host, res.undo)

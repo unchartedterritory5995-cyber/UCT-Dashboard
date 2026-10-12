@@ -412,6 +412,7 @@ A request with several steps is ONE plan: put every step in `ops`, in order, con
 
 TARGETING
 Every op has `target` = a `ref` from <workspace_context> (each action says which kind of target it acts on). If exactly one target of that kind exists, use it. To CHANGE, delete or overwrite one of several that the member did not identify (by name, symbol, position such as left / top-right, or "all of them"), use clarify — never guess which one to change. "All of them" means one op per target (and that is a propose).
+"This chart", "this stock", "here" and "it" (for a chart) mean the chart marked `selected: true` in <workspace_context> (the one the member last clicked), and the same chart in the other chart-based entries (match by its label); with several charts and none selected, clarify — for a question about "this stock" too.
 
 PLAN SIZE: at most 12 ops per request. If what they ask needs more, do not plan part of it: use disposition answer, say it is too many changes for one request and suggest splitting it (or use a bulk action below that covers it, such as widget.addCharts).
 

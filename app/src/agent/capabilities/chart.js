@@ -281,6 +281,8 @@ export function describeChart(snap, shortRef) {
     extendedHours: sessionOf(cs, snap.tf) === 'extended',
     scale: scaleOf(cs),
     linkedWidgets: snap.linkedCount || 0,
+    // the chart the member last clicked ("this chart" / "this stock"); omitted on every other chart
+    ...(snap.selected ? { selected: true } : {}),
   }
 }
 

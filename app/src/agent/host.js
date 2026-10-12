@@ -48,7 +48,7 @@ export function positionWord(w, all) {
   return distinct ? spanWord(w, all) : centreWord(w, all)
 }
 
-export function buildChartSource({ chartApiById, getWidgets }) {
+export function buildChartSource({ chartApiById, getWidgets, selectedChart = null }) {
   function entries() {
     const widgets = getWidgets() || []
     const byId = new Map(widgets.map(w => [w.id, w]))
@@ -65,6 +65,9 @@ export function buildChartSource({ chartApiById, getWidgets }) {
     }
     out.sort((a, b) => (a.w.y - b.w.y) || (a.w.x - b.w.x))
     const chartWidgets = out.map(e => e.w)
+    // the chart the member last CLICKED on this board (ChartsWorkspace; hover never counts)
+    let sel = null
+    try { sel = typeof selectedChart === 'function' ? selectedChart() : null } catch { sel = null }
     return out.map((e, i) => {
       const pos = positionWord(e.w, chartWidgets)
       const linkedCount = typeof e.r.groupKey === 'string' && !e.r.groupKey.startsWith('N')
@@ -77,6 +80,7 @@ export function buildChartSource({ chartApiById, getWidgets }) {
           ref: e.ref, label: `${name} (${e.r.symbol})`, position: pos || null,
           symbol: e.r.symbol, tf: e.r.tf, cs: e.r.cs, stored: e.r.stored,
           linkedCount, group: e.r.groupKey,
+          ...(sel != null && e.r.chartId === sel ? { selected: true } : {}),
           view: e.api.agent.view?.() || null,
           // the exact symbol string StockChart keys its drawings by (useChartDrawings(sym))
           drawSym: e.api.agent.drawSym?.() || e.r.symbol,
@@ -86,6 +90,8 @@ export function buildChartSource({ chartApiById, getWidgets }) {
   }
   return {
     list: () => entries().map(e => e.snap),
+    // "this chart": the selected chart's ref, only while it is still on the board (agent/deixis.js)
+    selected: () => entries().find(e => e.snap.selected)?.ref || null,
     read: (ref) => entries().find(e => e.ref === ref)?.snap || null,
     commit: (ref, patch) => {
       const e = entries().find(x => x.ref === ref)
@@ -218,6 +224,8 @@ export function buildLayoutSource(getLayouts) {
         pendingActive: L.pendingActive || null,
         unsaved: !!L.unsaved,
         arrangement: L.arrangement || '',
+        // this tab's previously open layouts, newest first (pages/charts/layoutTrail.js)
+        recent: (L.recent || []).map(e => ({ id: e.id, name: e.name, scope: e.scope || 'user' })),
       }
     },
     open: (entry) => getLayouts()?.open(entry),
@@ -433,7 +441,7 @@ export async function confirmDrawingsSynced(sym, store = drawingsStore, { timeou
   return { ok: false, reason: 'not-synced' }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, readServer = readServerBoard }) {
+export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, readServer = readServerBoard }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
     const a = layoutSource.snapshot().active
@@ -441,7 +449,7 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widg
   } : null
   return {
     ...(watchlists ? { watchlists: buildWatchlistSource({ ...watchlists, getWidgets }) } : {}),
-    charts: buildChartSource({ chartApiById, getWidgets }),
+    charts: buildChartSource({ chartApiById, getWidgets, selectedChart }),
     drawings: buildDrawingSource(buildChartSource({ chartApiById, getWidgets })),
     ...(widgetOps ? { widgets: buildWidgetSource({ widgetOps, getWidgets }) } : {}),
     ...(layoutSource ? {
