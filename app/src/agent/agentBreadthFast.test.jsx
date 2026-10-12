@@ -6,7 +6,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
 import { fastParse } from './fastPath'
-import { breadthFast, _resetBreadthDates } from './capabilities/breadth'
+import { breadthFast, _resetBreadthDates, UCT_UNIVERSE_ANSWER } from './capabilities/breadth'
+import { selectGroups } from './routing'
 import { makeBoard } from './__fixtures__/board'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -43,6 +44,38 @@ describe('the phrases: obvious wording only', () => {
 
   it('the fast path returns the registry op (whole message, no target guessing)', () => {
     expect(fastParse("How's breadth today?")).toEqual({ kind: 'ops', ops: [{ action: 'breadth.show', args: ARGS([]) }], target: null })
+  })
+})
+
+// ⭐ PRODUCTION BUG 2026-10-12: "what percent of nasdaq stocks above 50sma right now" missed the fast
+// path ("50sma" had no space), went to the model, and a forced WEB search answered "UCT's breadth data
+// covers the whole US market, not Nasdaq alone" with external links. Obvious wording is UCT's own data.
+describe('shorthand across the universes (the 2026-10-12 production wording)', () => {
+  it.each([
+    ['what percent of nasdaq stocks above 50sma right now', ARGS(['pct_above_50sma'], null, 'nasdaq')],
+    ['What percent of NASDAQ stocks are above the 50 SMA?', ARGS(['pct_above_50sma'], null, 'nasdaq')],
+    ['% of nasdaq stocks above the 50-day MA currently', ARGS(['pct_above_50sma'], null, 'nasdaq')],
+    ['what percentage of NYSE stocks are above their 200sma today', ARGS(['pct_above_200sma'], null, 'nyse')],
+    ['% of nyse stocks above 200 SMA', ARGS(['pct_above_200sma'], null, 'nyse')],
+    ['what percent of US stocks are above the 200-day MA right now', ARGS(['pct_above_200sma'], null, 'us')],
+    ['what % of u.s. stocks are above their 50dma', ARGS(['pct_above_50sma'], null, 'us')],
+    ['what percent of stocks above 20 day moving average', ARGS(['pct_above_20sma'], null, 'us')],
+    ['what percent of nasdaq stocks were above 50sma at the latest close', ARGS(['pct_above_50sma'], 'close', 'nasdaq')],
+    ['% of stocks above the 200 sma on the nasdaq', ARGS(['pct_above_200sma'], null, 'nasdaq')],
+    ['what percent of uct stocks above 50sma right now', ARGS(['pct_above_50sma'], null, 'uct')],
+    ["how's nyse breadth today", ARGS([], null, 'nyse')],
+  ])('%s', (q, args) => { expect(breadthFast(q)).toEqual(args) })
+
+  it.each([
+    'what percent of nasdaq 100 stocks above 50sma',                  // the Nasdaq-100 index is not the exchange universe
+    'what percent of nasdaq stocks above 50sma on friday',            // a weekday → the model plans the date
+    'what percent of nasdaq stocks above 30sma',                      // no such measure
+  ])('%s → the model', (q) => { expect(breadthFast(q)).toBeNull() })
+
+  it('wording the fast path does NOT take still routes the model to breadth (never the web)', () => {
+    for (const q of ['roughly how many nasdaq names sit above the 50 dma?', '% of nyse stocks above 200sma lately?', 'nasdaq stocks above 50sma?']) {
+      expect(selectGroups(q).priority).toContain('breadth')
+    }
   })
 })
 
@@ -90,6 +123,26 @@ describe('through the panel: no model call, the same local-only answer', () => {
     expect(row.outcomeData.actions).toEqual(['breadth.show'])
     // ⛔ the row the server replays to a model holds the request args, never the figure in its text
     expect(JSON.stringify(row.outcomeData.requests)).not.toMatch(/61\.2/)
+  })
+
+  it('THE production wording: Nasdaq, 50sma, right now → UCT breadth, no model call, no web', async () => {
+    const say = mount()
+    await say('what percent of nasdaq stocks above 50sma right now')
+    await screen.findByTestId('agent-result', {}, { timeout: 6000 })
+    expect(turns).toHaveLength(0)
+    expect(breadthBodies).toEqual([ARGS(['pct_above_50sma'], null, 'nasdaq')])
+    expect(document.body.textContent).not.toMatch(/whole US market|not Nasdaq alone/i)
+  })
+
+  it('UCT universe: an honest local answer (the Breadth page), no server read, no model, no invented value', async () => {
+    const say = mount()
+    await say('what percent of uct stocks above 50sma right now')
+    const card = await screen.findByTestId('agent-result', {}, { timeout: 6000 })
+    expect(card.textContent).toContain(UCT_UNIVERSE_ANSWER)
+    expect(screen.getByTestId('agent-open-link').getAttribute('href')).toBe('/breadth')
+    expect(turns).toHaveLength(0)
+    expect(breadthBodies).toHaveLength(0)
+    expect(card.textContent).not.toMatch(/\d+(\.\d+)?%/)
   })
 
   it('a mixed request still goes to the model (all-or-nothing)', async () => {
