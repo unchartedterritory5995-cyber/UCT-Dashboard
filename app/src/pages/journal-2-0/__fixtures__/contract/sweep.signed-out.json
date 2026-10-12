@@ -7,6 +7,18 @@
     "status": 401
   },
   "body": {
+    "DELETE /api/j2/journal-styles/{style_id}": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "DELETE /api/j2/note-kinds/{kind_id}": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "DELETE /api/j2/onboarding/sample-notebook": {
       "body": {
         "detail": "Not authenticated"
@@ -67,7 +79,31 @@
       },
       "status": 401
     },
+    "GET /api/j2/journal-styles": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "GET /api/j2/journal-styles/{style_id}": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "GET /api/j2/my-playbook": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "GET /api/j2/note-kinds": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "GET /api/j2/note-kinds/mapping-offer": {
       "body": {
         "detail": "Not authenticated"
       },
@@ -104,6 +140,12 @@
       "status": 401
     },
     "GET /api/j2/notebook-visual-playbook/trades/{trade_id}/before-after": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "GET /api/j2/notes/{note_id}/style-update-plan": {
       "body": {
         "detail": "Not authenticated"
       },
@@ -241,7 +283,49 @@
       },
       "status": 401
     },
+    "POST /api/j2/journal-styles": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/journal-styles/preview": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/journal-styles/{style_id}/default": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/journal-styles/{style_id}/restore": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/note-kinds": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/note-kinds/mapping-offer": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "POST /api/j2/notebook-fingerprint/blocks/{note_id}/{embed_key}/freeze": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/notes/{note_id}/apply-style-update": {
       "body": {
         "detail": "Not authenticated"
       },
@@ -296,6 +380,18 @@
       "status": 401
     },
     "PUT /api/j2/entry-context/why": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "PUT /api/j2/journal-styles/{style_id}": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "PUT /api/j2/note-kinds/{kind_id}": {
       "body": {
         "detail": "Not authenticated"
       },

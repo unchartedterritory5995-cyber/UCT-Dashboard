@@ -1,0 +1,123 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/journal-styles",
+    "path": "/api/j2/journal-styles",
+    "requestBody": {
+      "blocks": [
+        {
+          "block": "chart",
+          "enabled": true,
+          "settings": {
+            "tf": "W"
+          }
+        }
+      ],
+      "kindId": "trade_plan",
+      "name": "My trade plan",
+      "outlineBodyJson": {
+        "content": [
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "Setup",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "{{block:chart}}",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
+                "text": "Entry:",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          }
+        ],
+        "type": "doc"
+      },
+      "properties": {
+        "builtin:confidence": "high"
+      }
+    },
+    "status": 200
+  },
+  "body": {
+    "style": {
+      "blocks": [
+        {
+          "block": "chart",
+          "enabled": true,
+          "settings": {
+            "tf": "W"
+          }
+        }
+      ],
+      "builtin": false,
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "deletedAt": null,
+      "hasOutline": true,
+      "id": "7127b4c313d24ae7895d46bb03a414b5",
+      "isDefault": false,
+      "kindId": "trade_plan",
+      "name": "My trade plan",
+      "outlineBodyJson": {
+        "content": [
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "Setup",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "{{block:chart}}",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
+                "text": "Entry:",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          }
+        ],
+        "type": "doc"
+      },
+      "outlineTemplateId": null,
+      "properties": {
+        "builtin:confidence": "high"
+      },
+      "sourceGalleryId": null,
+      "sourceVersion": null,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "version": 1
+    }
+  }
+}
