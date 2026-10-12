@@ -296,7 +296,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [setConversationId])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null }) => {
+  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null }) => {
     // A follow-up step's refusal says what the earlier steps already did (`note`).
     const refusalPush = (text) => push({ role: 'refusal', text: note ? `${text} ${note}` : text })
     let allOps = opsIn
@@ -579,7 +579,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member, outcome: `${lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'applied-unsaved', actions, lines, reason: saved.reason }, telemetry: { path, disposition: 'apply', actions, voice, refused: true } })
         return
       }
-      push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: [...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
+      // a target UCT chose for the member (the chart they clicked) is NAMED on the receipt, so a bare
+      // "switch to weekly" on a board of several charts never leaves them guessing which one changed
+      push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: [...(onTarget ? [onTarget] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
       const next = [...(Array.isArray(res.followUps) ? res.followUps : []), ...landDeferred(deferred, res.created, pendingNames, suggested === 'approved')]
       if (next.length) return { followUps: next }
@@ -592,7 +594,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [host, push, record, capCtx])
 
   // Every execution is traced (agent/trace.js): phase timestamps, memory only.
-  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null }) => {
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null }) => {
     // ⛔ M3: with several indicator drafts open, a request on one the member has not selected is
     // never planned — they are shown the drafts and pick one (chooseTarget), nothing changes.
     // ARGUMENT RESOLUTION: a capability may turn the member's WORDS in an argument into a real
@@ -654,7 +656,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     traceStart(`${path}:${suggested || 'apply'}`)
     let out
     try {
-      out = await executeInner(opsIn, { path, mode: suggested, member, voice, approval, card })
+      out = await executeInner(opsIn, { path, mode: suggested, member, voice, approval, card, onTarget })
     } finally { traceEnd('done') }
     // ⭐ M3: the confirmed Save's chart adds — ONE execution per op, each planned, permission-checked,
     // persisted, confirmed and receipted on its own (a failure never undoes another chart or the Save)
@@ -872,9 +874,11 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         }
         // Context & Awareness 1B: "this chart / this stock / it" → the chart the member last CLICKED
         // (agent/deixis.js). No live selection → the question below, exactly as before.
+        let implicitTarget = null
         if (!fast.target?.position && candidates.length > 1) {
           const d = resolveDeictic({ host, kind, candidates, text, chartOp: true })
           if (d?.ref) candidates = candidates.filter(c => c.ref === d.ref)
+          if (d?.implicit && candidates.length === 1) implicitTarget = `On ${candidates[0].label || 'the chart you selected'} — the chart you last clicked.`
         }
         const unmatchedHint = fast.target?.position && charts.length > 1 && candidates === charts
         if (candidates.length > 1 || unmatchedHint) {
@@ -883,7 +887,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           record({ member: text, outcome: 'Asked which target.', outcomeData: { kind: 'clarify-target', actions: fast.ops.map(o => o?.action) }, telemetry: { path: 'fast', clarified: true, voice } })
           return
         }
-        return await execute(fast.ops.map(o => ({ ...o, target: candidates[0].ref })), { path: 'fast', mode: 'apply', member: text, voice })
+        return await execute(fast.ops.map(o => ({ ...o, target: candidates[0].ref })), { path: 'fast', mode: 'apply', member: text, voice, onTarget: implicitTarget })
       }
 
       // ⛔ F2b: "save it" with indicator drafts open but none selected — ask what to save (no model call)
