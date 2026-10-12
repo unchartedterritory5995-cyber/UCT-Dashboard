@@ -994,6 +994,10 @@ export default function ChartsWorkspace() {
   // Ref (not state) so hover crossings never re-render anything; each widget's
   // StockChart reads it through a hotkeysActive callback at keydown time.
   const activeChartRef = useRef(null)
+  // UCT Agent "this chart": the main board's chart the member last CLICKED (pointer-down anywhere in
+  // its cell — header, toolbar or canvas). Hover never sets it. { widgetId, layoutId } — persisted
+  // widget id (the Agent's chart identity); cleared on any layout switch (below).
+  const selectedChartRef = useRef(null)
   // widgetId → imperative chart API ({getComparison,setComparison,getPercentScale,
   // setPercentScale}). Each ChartWidget registers here on mount; the Compare
   // Symbols tool reads/writes the active chart's comparison overlays through it.
@@ -2655,6 +2659,8 @@ export default function ChartsWorkspace() {
     [prefs?.charts_active_template],
   )
   const dockActiveId = dockActiveTpl?.id ?? null
+  const dockActiveIdRef = useRef(null)
+  dockActiveIdRef.current = dockActiveId
 
   // Does the board differ from what is STORED for the open layout?
   //
@@ -2958,6 +2964,8 @@ export default function ChartsWorkspace() {
   // Dock or the Agent alike, so "switch back to the previous layout" has an answer.
   const layoutTrailRef = useRef({ last: null, trail: [] })
   const layoutTrail = observeActive(layoutTrailRef.current, dockActiveTpl)
+  // A chart selected on another layout is never "this chart" here (A → B → A included).
+  if (selectedChartRef.current && selectedChartRef.current.layoutId !== dockActiveId) selectedChartRef.current = null
   {
     const active = dockActiveTpl
     const known = active?.id != null && dockEntries.some(e => e.id === active.id)
@@ -3010,6 +3018,11 @@ export default function ChartsWorkspace() {
   const agentHost = useMemo(() => buildWorkspaceHost({
     chartApiById: chartApiByIdRef,
     getWidgets: () => agentWidgetsRef.current,
+    // the chart the member last clicked on THIS layout (its widget id), else null
+    selectedChart: () => {
+      const s = selectedChartRef.current
+      return s && s.layoutId === dockActiveIdRef.current ? s.widgetId : null
+    },
     widgetLabel: (t) => WIDGET_LABELS[t] || t,
     widgetOps: {
       layout: () => layoutRef.current,
@@ -3242,7 +3255,13 @@ export default function ChartsWorkspace() {
         // "dock the header to the bottom when another widget sits directly above"
         // seam-blend behavior was reverted at owner request 2026-08-20.)
         return (
-          <div key={w.id} data-widget-id={w.id}>
+          <div
+            key={w.id}
+            data-widget-id={w.id}
+            // main board charts only (a popped-out board's renderGrid passes no onPopOut): the
+            // UCT Agent's "this chart". Capture phase, so a chart that stops propagation still counts.
+            onPointerDownCapture={w.type === 'chart' && h.onPopOut ? () => { selectedChartRef.current = { widgetId: w.id, layoutId: dockActiveIdRef.current } } : undefined}
+          >
             <WidgetHost
               widget={w}
               headerAtBottom={false}
