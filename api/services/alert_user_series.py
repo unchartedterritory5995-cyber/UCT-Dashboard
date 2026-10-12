@@ -821,6 +821,73 @@ def _gate_requirements(row: Mapping[str, Any], def_id: str) -> None:
             "requirements", f"{def_id} {REFUSAL_FRAGMENTS['requirements']}: {why}")
 
 
+def _plot_tree(definition: Mapping[str, Any], plot_key: str) -> Any:
+    """The tree ONE plot evaluates — the same resolution `_make_value_fn` uses (its own tree on a
+    multi-tree document, `compute.ast` on a single-tree one); `None` for a v2 plot with no tree."""
+    from api.services import user_definitions                       # noqa: PLC0415
+    compute = definition.get("compute") or {}
+    trees = compute.get("trees")
+    if isinstance(trees, Mapping) and plot_key in trees:
+        return trees[plot_key]
+    if user_definitions.declares_v2(compute):
+        return None
+    return compute.get("ast")
+
+
+def _requirement_refusals(row: Mapping[str, Any], definition: Mapping[str, Any],
+                          def_id: str) -> dict:
+    """⭐ ALERT COVERAGE (2026-10-11) — THE REQUIREMENTS GATE, PER PLOT WHERE IT CAN BE ATTRIBUTED.
+
+    `requirements` is stamped per DEFINITION (`user_definitions.requirement_tags` walks every tree),
+    while the reason behind a tag is per TREE: a `cum`/`isfirst` (window_dependent) or an occurrence
+    `valuewhen` (occurrence_dependent) makes THAT plot's value depend on how much history was
+    fetched. Measured on the committed Pine corpus (`tests/test_alert_coverage_audit.py`):
+    `mcclellan-indicators` carries `window_dependent` from 2 of its 16 plots, and the whole-definition
+    refusal kept its 14 plain plots from alerting — the class UIE Phase 6 fixed for `hlines`.
+
+    Returns `{plot_key: AdmissionRefused}` for the data plots whose OWN tree carries a tag the alert
+    lane refuses; `{}` when nothing is refused. RAISES the unchanged whole-definition refusal when it
+    cannot attribute, in the SAFE direction:
+      * no data plot is clean (a single-tree document; every plot tagged), or
+      * the stored stamp does not REPRODUCE from the stored document (a stamp from another build,
+        or one this build cannot read) — the stored answer stays the authority.
+    A reproduced tag no plot tree carries (the script's drawings, `objects.trees`) refuses no plot.
+    `hlines` guides are presentation, never data (`presentation` refuses them on their own).
+    """
+    from api.services import user_definitions                       # noqa: PLC0415
+    # `_gate_requirements` stays THE stored-answer check (and the seam tests stub); only when it
+    # refuses is the refusal attributed per plot.
+    try:
+        _gate_requirements(row, def_id)
+        return {}
+    except AdmissionRefused as exc:
+        whole = exc
+    stored = set(row.get("requirements") or ())
+    # ⛔ THE STAMP MUST REPRODUCE from the document as stored before it is attributed: re-walking the
+    # stored definition must raise every stored tag. A stamp it does not reproduce (another build's,
+    # or one this build cannot read) stays the authority and refuses the whole definition.
+    # ⭐ A reproduced tag that NO plot tree carries is legitimately not an alert matter — measured on
+    # the corpus, it comes from `objects.trees` (the script's DRAWINGS, never an alert value) and once
+    # from `meta.runtimeErrors.stops`; the plots that alert evaluate only their own trees.
+    if not stored <= set(user_definitions.requirement_tags(definition)):
+        raise whole
+    data = [str(p.get("key")) for p in (definition.get("plots") or [])
+            if isinstance(p, Mapping) and p.get("key") and p.get("style") != "hlines"]
+    per: dict = {}
+    for key in data:
+        tree = _plot_tree(definition, key)
+        tags = user_definitions.requirement_tags({"compute": {"kind": "ast", "ast": tree}}) if tree is not None else []
+        r = user_definitions.consumer_refusal("alert", tags)
+        if r:
+            per[key] = AdmissionRefused(
+                "requirements",
+                f"{def_id}.{key} {REFUSAL_FRAGMENTS['requirements']}: {r} — this plot's own formula "
+                "needs it; the definition's other plots can still alert")
+    if not data or len(per) == len(data):
+        raise whole
+    return per
+
+
 def _gate_repaint(row: Mapping[str, Any], definition: Mapping[str, Any]) -> None:
     """⭐ THE BADGE IS A GATE, NOT A LABEL (spec §1.3).
 
@@ -871,6 +938,51 @@ def _ack_for(definition: Mapping[str, Any], plot_key: str) -> bool:
     if isinstance(ack, Mapping):
         return bool(ack.get(plot_key))
     return bool(ack)
+
+
+def _repaint_refusals(row: Mapping[str, Any], definition: Mapping[str, Any],
+                      def_id: str) -> dict:
+    """⭐ ALERT COVERAGE (2026-10-11) — THE REPAINT GATE, PER PLOT.
+
+    The verdict is stored PER PLOT (`row.repaint`, the linter's own measurement) and `_gate_repaint`
+    reads it per plot — then refused the WHOLE definition on the first unclean one. Measured on the
+    committed Pine corpus (`tests/test_alert_coverage_audit.py`): `cpr-with-mas-super-trend-vwap`
+    saves (its 14 `preview-repaints` plots acknowledged at save) and then no plot of its 53 could
+    alert, because the ALERT-arm acknowledgement (`meta.repaintAck`) has no surface that writes it —
+    so 39 clean plots were refused for 14 siblings (the class UIE Phase 6 fixed for `hlines`).
+
+    `_gate_repaint` stays THE check (and the seam tests stub); only when it refuses is the refusal
+    attributed: `{plot_key: AdmissionRefused}` for each data plot whose OWN verdict refuses it (the
+    same two sentences `_gate_repaint` raises, so the gate and its fragments are unchanged). RAISES
+    that whole refusal, unchanged, when no data plot is clean.
+    """
+    try:
+        _gate_repaint(row, definition)
+        return {}
+    except AdmissionRefused as exc:
+        whole = exc
+    verdicts = row.get("repaint") or {}
+    data = [str(p.get("key")) for p in (definition.get("plots") or [])
+            if isinstance(p, Mapping) and p.get("key") and p.get("style") != "hlines"]
+    per: dict = {}
+    for key in data:
+        mode = verdicts.get(key, REPAINT_CLEAN)
+        if mode == REPAINT_CLEAN or (mode == REPAINT_PREVIEW and _ack_for(definition, key)):
+            continue
+        if mode == REPAINT_PREVIEW:
+            per[key] = AdmissionRefused(
+                "repaint",
+                f"{row.get('def_id')}.{key} measures {mode!r} and {PREVIEW_ACK_FRAGMENT} — record one in "
+                f"meta.{REPAINT_ACK_KEY} for this version to arm it anyway; the definition's other "
+                "plots can still alert")
+        else:
+            per[key] = AdmissionRefused(
+                "repaint",
+                f"{REFUSAL_FRAGMENTS['repaint']}: {row.get('def_id')}.{key} measures {mode!r}; the "
+                "definition's other plots can still alert")
+    if not data or len(per) == len(data):
+        raise whole
+    return per
 
 
 def _gate_budget(definition: Mapping[str, Any], def_id: str) -> None:
@@ -1092,14 +1204,21 @@ def admit_user_definition(user_id: Any, def_id: str,
     """
     row = _gate_definition(user_id, def_id, version)
     definition = _gate_lane(row)
-    _gate_requirements(row, def_id)
-    _gate_repaint(row, definition)
+    # ⭐ ALERT COVERAGE (2026-10-11): per plot where the stamp can be attributed; raises the
+    # whole-definition refusal, as `_gate_requirements` always did, where it cannot.
+    req_refused = _requirement_refusals(row, definition, def_id)
+    # ⭐ ALERT COVERAGE: the repaint verdict is per plot — so is its refusal (whole when nothing is clean)
+    req_refused = {**_repaint_refusals(row, definition, def_id), **req_refused}
     _gate_budget(definition, def_id)
     report = _gate_cross_lane(definition, def_id, bars)
 
     addresses = []
     with _REGISTRY_LOCK:
         admissible, withheld = plot_admissions(def_id, definition)
+        if req_refused:
+            for key, exc in req_refused.items():
+                withheld.setdefault(f"{def_id}.{key}", exc)
+            admissible = [(a, fn) for a, fn in admissible if a not in withheld]
         for address, fn in admissible:
             USER_FUNCS[scoped_key(user_id, address)] = fn
             addresses.append(address)
@@ -1160,8 +1279,13 @@ def user_value_function(user_id: Any, address: str
     def_id, plot_key = split_user_address(address)
     row = _gate_definition(user_id, def_id, None)
     definition = _gate_lane(row)
-    _gate_requirements(row, def_id)
-    _gate_repaint(row, definition)
+    # ⭐ ALERT COVERAGE: the same per-plot requirements rule as admission — THIS plot's refusal only
+    refused = _requirement_refusals(row, definition, def_id).get(plot_key)
+    if refused is not None:
+        raise refused
+    refused = _repaint_refusals(row, definition, def_id).get(plot_key)
+    if refused is not None:
+        raise refused
     _gate_budget(definition, def_id)
     keys = {str(p.get("key")) if isinstance(p, dict) else str(p)
             for p in (definition.get("plots") or [])}
@@ -1380,7 +1504,9 @@ def user_catalog(user_id: Any) -> list[dict]:
         def_id = str(row.get("def_id"))
         try:
             definition = _gate_lane(row)
-            _gate_repaint(row, definition)
+            # ⭐ ALERT COVERAGE: a plot refused for its OWN repaint verdict is not offered; its
+            # clean siblings are (whole-definition refusal when none is clean, as before)
+            not_offered = set(_repaint_refusals(row, definition, def_id))
             _gate_budget(definition, def_id)
         except AdmissionRefused:
             continue
@@ -1402,7 +1528,7 @@ def user_catalog(user_id: Any) -> list[dict]:
             # (RULING K), because an unrailed correct behaviour is one refactor
             # away from being a wrong one.
             continue
-        pairs = _plots_of(definition)
+        pairs = [(plot, key) for plot, key in _plots_of(definition) if key not in not_offered]
         if not pairs:
             continue
         plots = [
