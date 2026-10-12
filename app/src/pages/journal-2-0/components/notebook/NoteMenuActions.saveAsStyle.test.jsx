@@ -151,6 +151,8 @@ describe('Save this note\'s setup as a style', () => {
     expect(createJournalStyle).not.toHaveBeenCalled()
   })
 
+  // Needs nothing from an earlier test (no lazy chunk has to be warm): the door is a plain button the moment the
+  // menu renders, so a removed gate shows it at once. Run alone: `-t "switch off"`.
   it('with the switch off the button is absent (and the list is never read)', () => {
     __resetNotebookFlags()
     renderMenu()

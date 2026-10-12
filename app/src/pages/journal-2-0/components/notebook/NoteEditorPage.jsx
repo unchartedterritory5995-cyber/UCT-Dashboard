@@ -130,7 +130,7 @@ import { pasteTerminalCommand } from '../../lib/terminalCommandPaste'
 import lazyChunk from '../../lib/lazyChunk'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { CANVAS_EVENT, extraBlockCount, isTradeCanvasDoc } from '../../lib/tradeCanvas'
-import { journalStylesEnabled } from '../../lib/journalStylesFlag'
+import { STYLE_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
 import { loadStyle } from './styles/lazyStyles'
 import { createTradeCanvasNote, tradeCanvasEnabled } from '../../lib/tradeCanvasCreate'
 import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
@@ -955,6 +955,9 @@ export default function NoteEditorPage({
 
   // Wave C: version history / trust panel.
   const [historyOpen, setHistoryOpen] = useState(false)
+  // Notebook P1: how many times /style was pressed in THIS editor. The style host is fetched on demand: a styled
+  // note (the banner check) or the first /style; it answers the count itself once it is there.
+  const [styleAsk, setStyleAsk] = useState(false)   // false, then the number of presses
   // Restore is NOT reachable through the normal "note loaded" effects below
   // (both are gated on `[note?.id]` only -- a restore keeps the same note
   // id, so they never re-fire). This mirrors exactly what those effects
@@ -3632,6 +3635,7 @@ export default function NoteEditorPage({
     const onVoiceNote = () => openVoiceNote()
     // Wave 11 lane 11D: the slash menu's "Trade-plan canvas", same per-editor target.
     const onTradeCanvas = () => { createLinkedCanvas() }
+    const onStyle = () => setStyleAsk((n) => n + 1)
     let dom = null
     const detach = () => {
       if (dom) {
@@ -3640,6 +3644,7 @@ export default function NoteEditorPage({
         dom.removeEventListener(WRITING_HELP_EVENT, onWritingHelp)
         dom.removeEventListener(VOICE_NOTE_EVENT, onVoiceNote)
         dom.removeEventListener(CANVAS_EVENT, onTradeCanvas)
+        dom.removeEventListener(STYLE_EVENT, onStyle)
       }
       dom = null
     }
@@ -3654,6 +3659,7 @@ export default function NoteEditorPage({
       dom.addEventListener(WRITING_HELP_EVENT, onWritingHelp)
       dom.addEventListener(VOICE_NOTE_EVENT, onVoiceNote)
       dom.addEventListener(CANVAS_EVENT, onTradeCanvas)
+      dom.addEventListener(STYLE_EVENT, onStyle)
     }
     attach()
     editor.on('mount', attach)
@@ -4083,11 +4089,11 @@ export default function NoteEditorPage({
     try {
       if (holdsUnsentWork(await unsentVerdict())) return false
       const fresh = (await refresh())?.note
-      if (!fresh || fresh.id !== noteId) return true
+      if (!fresh || fresh.id !== noteId) return
       if (!editorIsClean()) return false
       // Our baseline is older than the server's revision -- PARSED, never string-compared, and an
       // unparseable revision on either side is not newer (lib/offline/baseline.js).
-      if (!isSupersededBaseline(lastSavedRef.current.updatedAt, fresh.updatedAt)) return true
+      if (!isSupersededBaseline(lastSavedRef.current.updatedAt, fresh.updatedAt)) return
       const { from, to } = ed.state.selection
       adoptServerCopy(fresh)
       // The caret stays where the member left it (clamped into the new document), so the next
@@ -4097,10 +4103,8 @@ export default function NoteEditorPage({
         const $at = (p) => ed.state.doc.resolve(Math.max(0, Math.min(size, p)))
         ed.view.dispatch(ed.state.tr.setSelection(TextSelection.between($at(from), $at(to))))
       } catch { /* a caret that cannot be placed is left where the swap put it */ }
-      return true
     } catch {
       /* a failed re-read changes nothing: the next save reconciles exactly as it always did */
-      return true
     } finally {
       rereadInFlightRef.current = false
     }
@@ -5039,21 +5043,19 @@ export default function NoteEditorPage({
             never hides a write that did not land (wave 10 F7). */}
         <SaveFailed message={tickerFailure} onDismiss={() => setTickerFailure(null)} />
         {/* Notebook P1: the previewed "Update layout" offer, its sheet, /style and the confirmation (dark behind
-            the switch). What only this editor can do is handed over as `api`; the host does the rest, and
-            listens for the slash menu's /style on this editor itself. */}
-        {journalStylesEnabled() && (
+            the switch), fetched on demand: for a styled note, or once /style was pressed in this editor.
+            What only this editor can do is handed over as `api`; the host does the rest. */}
+        {journalStylesEnabled() && (note?.styleId || styleAsk) && (
           <Suspense fallback={null}>
             <StyleHost
               note={note}
-              noteId={noteId}
-              locked={locked}
+              ask={styleAsk}
               api={{
-                editor: editorRef,
                 last: lastSavedRef,
                 send: sendPendingEdits,
                 reread: rereadCleanNoteRef,
                 adopt: adoptServerCopy,
-                dirty: () => Boolean(unsentInEditor().length || saveTimerRef.current || retryTimerRef.current || saveInFlightRef.current),
+                dirty: unsentInEditor,
               }}
             />
           </Suspense>

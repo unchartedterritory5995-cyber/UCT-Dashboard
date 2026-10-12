@@ -259,7 +259,7 @@ describe('after Apply lands', () => {
     expect(matchers.some((fn) => fn('/api/j2/notes?sort=updated') === true && fn('/api/j2/notes/n5') === false)).toBe(true)
   })
 
-  it('M1: words typed while the write was on the wire are kept, the server copy is not swapped in over them', async () => {
+  it('N-M1: words typed while the write was on the wire are kept; it says the update landed, is not offered again, and re-reads once the words are saved', async () => {
     applyStyleUpdate.mockImplementation(async () => {
       const ed = editorOf()
       ed.commands.insertContentAt(ed.state.doc.content.size - 1, ' Typed during the write.')
@@ -270,10 +270,44 @@ describe('after Apply lands', () => {
     const dialog = await openSheet()
     await within(dialog).findByText('Will be added')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
-    expect(await within(dialog).findByText('Some words are still saving. Try again in a moment.')).toBeTruthy()
+    const said = await screen.findByText('The update was applied. Your newest words are still saving; the note will refresh when they land.')
+    expect(said.closest('[role="status"]')).toBeTruthy()
+    // the sheet is closed and the same update is not offered again (not on the sheet, not as the banner)
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Update layout' })).toBeNull())
+    expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Review update' })).toBeNull()
+    expect(applyStyleUpdate).toHaveBeenCalledTimes(1)
+    // the member's words stay; the server copy is not swapped in over them
     const json = JSON.stringify(editorOf().getJSON())
     expect(json).toContain('Typed during the write.')
     expect(json).not.toContain('Added by the update.')
+    // once the pending words have been saved the editor re-reads the note (so a clean editor takes the copy)
+    expect(refreshMock).not.toHaveBeenCalled()
+    await waitFor(() => expect(refreshMock).toHaveBeenCalled(), { timeout: 15000 })
+    expect(updateMock.mock.calls.some(([p]) => JSON.stringify(p.bodyJson || {}).includes('Typed during the write.'))).toBe(true)
+  })
+})
+
+// Re-review N-M3: two panes ("Open a note beside") each have an editor. /style in one opens THAT editor's
+// chooser, not the other's.
+describe('/style with two editors open', () => {
+  it('opens the chooser of the editor it was pressed in only', async () => {
+    NOTE = { ...baseNote(), id: 'n7' }
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <MemoryRouter>
+          <NoteEditorPage noteId="n7" onBack={vi.fn()} showBack />
+          <NoteEditorPage noteId="n8" onBack={vi.fn()} showBack />
+        </MemoryRouter>
+      </SWRConfig>,
+    )
+    await waitFor(() => { if (document.querySelectorAll('.ProseMirror').length !== 2 || ![...document.querySelectorAll('.ProseMirror')].every((el) => el.editor)) throw new Error('both editors not mounted') })
+    const [first] = document.querySelectorAll('.ProseMirror')
+    act(() => { first.editor.view.dom.dispatchEvent(new CustomEvent(STYLE_EVENT, { bubbles: true })) })
+    await screen.findByRole('dialog', { name: 'Choose a journal style' }, { timeout: 10000 })
+    await act(async () => { await vi.dynamicImportSettled() })
+    expect(screen.getAllByRole('dialog', { name: 'Choose a journal style' })).toHaveLength(1)
   })
 })
 

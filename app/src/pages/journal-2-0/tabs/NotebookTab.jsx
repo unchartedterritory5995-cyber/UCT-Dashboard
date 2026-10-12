@@ -125,7 +125,7 @@ function lazyDialog(load, label) {
 
 const NoteGraphView = lazyView(() => import('../components/notebook/NoteGraphView'), 'graph')
 // Notebook P1 (spec P1.4): the kind picker at the top of the New-note sheet. Lazy; gate off = never rendered.
-const KindSection = lazyView(() => loadStyle('KindSection'), 'kinds of note')
+const KindSection = lazyView(() => loadStyle('KindSection'), 'kinds')
 const NoteBoardView = lazyView(() => import('../components/notebook/NoteBoardView'), 'board')
 const NoteCalendarView = lazyView(() => import('../components/notebook/NoteCalendarView'), 'calendar')
 const NoteTimelineView = lazyView(() => import('../components/notebook/NoteTimelineView'), 'timeline')

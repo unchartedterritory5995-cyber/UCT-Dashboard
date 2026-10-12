@@ -126,7 +126,7 @@ function onGalleryKeyDown(e) {
 // Wave 6: `onPickMember` adds "Your templates" (the member's own, saved from
 // their notes) right after Blank — the templates a member made are the ones
 // they reach for first. Absent, the picker is exactly the built-in catalog.
-export default function TemplatePicker({ onPick, onPickMember, busy = false, autoFocusSearch = false, kindSection = null }) {
+export default function TemplatePicker({ onPick, onPickMember, busy = false, autoFocusSearch = false, kindSection }) {
   const navigate = useNavigate()
   // A picker can be on screen twice (the empty notebook and the New-note sheet),
   // so the label ids are per instance.

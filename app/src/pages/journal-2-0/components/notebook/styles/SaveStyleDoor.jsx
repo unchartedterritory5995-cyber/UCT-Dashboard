@@ -1,14 +1,14 @@
 // Notebook P1 (spec P1.4): the note menu's "Save this note's setup as a style" door -- the button, the
-// naming form and the sentence it leaves behind. It lives in the lazy styles chunk so the menu (in the
-// Notebook's first-open closure) carries one Suspense mount and nothing else; NoteMenuActions mounts it only
-// while journal styles are on. Same look as the menu's own buttons (it borrows their stylesheet).
+// naming form and the sentence it leaves behind. It lives in the lazy styles chunk; NoteMenuActions shows a
+// plain button while journal styles are on and mounts this only on that button's first press, replacing it
+// (the form is already open). Same look as the menu's own buttons (a copy of their rules).
 import { useRef, useState } from 'react'
 import UIcon from '../../../../../components/ui/UIcon'
 import SaveAsStyleForm from './SaveAsStyleForm'
-import styles from '../NoteMenuActions.module.css'
+import styles from './SaveStyleDoor.module.css'
 
 export default function SaveStyleDoor({ note, onBeforeSave }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)       // mounted by the menu's first press: the form is already open
   const [status, setStatus] = useState(null)   // { message, tone }
   const btnRef = useRef(null)
   return (

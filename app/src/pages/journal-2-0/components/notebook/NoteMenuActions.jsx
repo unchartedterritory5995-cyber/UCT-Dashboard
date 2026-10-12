@@ -73,7 +73,8 @@ import styles from './NoteMenuActions.module.css'
  *   editor has. Optional: without it (unit tests, no editor) the template is
  *   saved as before.
  */
-// Notebook P1: "Save this note's setup as a style" -- a lazy chunk, offered only while journal styles are on.
+// Notebook P1: "Save this note's setup as a style" -- offered only while journal styles are on. The first press
+// fetches the lazy door (button, form, sentence), which opens the form at once; nothing is fetched before.
 const SaveStyleDoor = lazyChunk(() => loadStyle('SaveStyleDoor'))
 const UNSENT_BEFORE_TEMPLATE = "Your latest edits haven't reached the server yet, so the template would miss them. Nothing was saved — try again in a moment."
 
@@ -82,6 +83,7 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
   const [status, setStatus] = useState(null) // { message, tone }
   const [templateDraft, setTemplateDraft] = useState(null) // string while naming
   const [pickingBeside, setPickingBeside] = useState(false)
+  const [styleDoor, setStyleDoor] = useState(false)   // Notebook P1: pressed once -> the lazy door takes over
   // F4 / A2R-07: which door's button to hand focus back to once its inline form has closed.
   const templateBtnRef = useRef(null)
   const besideBtnRef = useRef(null)
@@ -227,7 +229,14 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
       )}
       {/* Notebook P1 (spec P1.4): "Save this note's setup as a style". Dark behind journalStylesEnabled(); the
           whole door (button, form, sentence) is a lazy chunk. */}
-      {journalStylesEnabled() && <Suspense fallback={null}><SaveStyleDoor note={note} onBeforeSave={onBeforeTemplate} /></Suspense>}
+      {journalStylesEnabled() && (styleDoor
+        ? <Suspense fallback={null}><SaveStyleDoor note={note} onBeforeSave={onBeforeTemplate} /></Suspense>
+        : (
+          <button type="button" className={styles.btn} onClick={() => setStyleDoor(true)}>
+            <UIcon name="sliders" size={13} gold={false} />
+            Save this note&apos;s setup as a style
+          </button>
+        ))}
       {/* Wave 10 lane K2 (walk row S2-27): the door STAYS while its search is open -- a
           disclosure button (`aria-expanded`) with the search after it -- so Escape has a
           control to hand focus back to, and a screen reader hears what opened. The search is

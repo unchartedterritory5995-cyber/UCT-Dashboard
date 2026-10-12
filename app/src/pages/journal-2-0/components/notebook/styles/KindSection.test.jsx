@@ -74,7 +74,7 @@ describe('New note: pick a kind', () => {
     const { onCreate } = renderSection()
     fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
     fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Use this style' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Use this template' }))
     expect(onCreate).toHaveBeenCalledWith({ styleId: 's-mine' })
   })
 
@@ -84,7 +84,7 @@ describe('New note: pick a kind', () => {
     globalThis.fetch.mockImplementation(async () => ({ ok: false, status: 500, json: async () => ({ detail: 'boom' }) }))
     fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
     expect((await screen.findByRole('alert')).textContent).toContain('boom')
-    expect(screen.getByRole('button', { name: 'Use this style' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Use this template' })).toBeDisabled()
   })
 
   // Round 2, I2: with the switch on, a block the app KNOWS is described by its name; only a block this

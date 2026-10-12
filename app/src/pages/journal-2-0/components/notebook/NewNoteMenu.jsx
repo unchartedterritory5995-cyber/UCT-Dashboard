@@ -5,13 +5,14 @@ import { useRef, useState, useEffect } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './NewNoteMenu.module.css'
 
-export default function NewNoteMenu({ onBlank, onFromOutline, onFromStyle = null, onVoice = null, onToday = null }) {
+export default function NewNoteMenu({ onBlank, onFromOutline, onFromStyle, onVoice = null, onToday = null }) {
   const [open, setOpen] = useState(false)
   const caretRef = useRef(null)
   const menuRef = useRef(null)
   // ⛔ Tour anchors are LITERAL attributes in JSX (tourAnchors.test.js reads them by AST and
   // refuses an expression), so the voice item's anchor is written on its own element below,
-  // not carried through this list as data.
+  // not carried through this list as data. ("From a style" has no anchor: no tour points at it, and a
+  // branch of its own for one costs the Notebook's first open ~200 B.)
   const items = [
     { key: 'outline', label: 'From an outline', run: onFromOutline, icon: 'document' },
     onFromStyle && { key: 'style', label: 'From a style', run: onFromStyle, icon: 'sliders' },
@@ -58,12 +59,7 @@ export default function NewNoteMenu({ onBlank, onFromOutline, onFromStyle = null
       </button>
       {open && (
         <div ref={menuRef} className={styles.menu} role="menu" aria-label="Start a note" onKeyDown={onMenuKey}>
-          {items.map((it) => (it.key === 'style' ? (
-            <button key={it.key} type="button" role="menuitem" className={styles.item}
-              data-tour="new-note-style" onClick={run(it.run)}>
-              <UIcon name={it.icon} size={14} gold={false} /> {it.label}
-            </button>
-          ) : it.key === 'voice' ? (
+          {items.map((it) => (it.key === 'voice' ? (
             <button key={it.key} type="button" role="menuitem" className={styles.item}
               data-tour="new-note-voice" onClick={run(it.run)}>
               <UIcon name={it.icon} size={14} gold={false} /> {it.label}

@@ -342,7 +342,7 @@ export default function ResearchHome({
   onOpenNewNoteSheet = null,
   onStartVoiceNote = null,
   // Notebook P1: opens the same New-note sheet, whose top section is the kind picker. null = gate off.
-  onFromStyle = null,
+  onFromStyle,
   // P0.13 (search in place): true while the folders panel's search is open. Home's own search box
   // steps aside then, so a member sees ONE search box, not two.
   searchActive = false,

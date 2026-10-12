@@ -120,7 +120,7 @@ function DocBody({ body }) {
 // passes false and the sheet shows Close alone.
 export default function TemplatePreview({
   open, onClose, title, subtitle, body, onUse, busy = false, loading = false, loadError = null,
-  showUse = true, useLabel = 'Use this template',
+  showUse = true,
 }) {
   return (
     <Sheet open={open} onClose={onClose} title={title || 'Preview'} labelledByTitle variant="auto" maxWidth={640}>
@@ -142,7 +142,7 @@ export default function TemplatePreview({
               onClick={onUse}
               disabled={busy || loading || !!loadError}
             >
-              {useLabel}
+              Use this template
             </button>
           )}
         </div>

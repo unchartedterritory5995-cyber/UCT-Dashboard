@@ -13,10 +13,11 @@ import useJournalStyles from '../../../hooks/useJournalStyles'
 import { planStyleUpdate } from '../../../lib/journalStyles'
 import styles from './StyleUpdateBanner.module.css'
 
-export default function StyleUpdateBanner({ note, onOpen }) {
+export default function StyleUpdateBanner({ note, onOpen, hideUpTo = 0 }) {
   const { data } = useJournalStyles()
   const style = note?.styleId ? (data?.styles || []).find((s) => s.id === note.styleId) : null
-  const latest = style && Number(style.version) > Number(note.styleVersion) ? style.version : null
+  // `hideUpTo`: an update to this version already landed (the editor could not take it yet); never offer it twice.
+  const latest = style && Number(style.version) > Math.max(Number(note.styleVersion), hideUpTo) ? style.version : null
   // Keyed on the note and the two versions, not its revision: the plan is asked for once per offer,
   // not once per autosave. Apply recomputes it on the server from the body it reads.
   const { data: planned } = useSWR(
