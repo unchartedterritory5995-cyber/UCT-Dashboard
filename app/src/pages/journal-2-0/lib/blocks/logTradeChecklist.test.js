@@ -4,7 +4,7 @@
 // the preference's three values.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
-  LOG_TRADE_CHECKLIST_PREF, checklistMode, notSavedLine, saveTicks, saveTicksResult, softWarning, ticksToSave,
+  LOG_TRADE_CHECKLIST_PREF, SAVE_TIMEOUT_MS, checklistMode, notSavedLine, saveTicks, saveTicksResult, softWarning, ticksToSave,
 } from './logTradeChecklist'
 
 const ok = (body = {}) => ({ ok: true, status: 200, json: async () => body })
@@ -53,29 +53,72 @@ describe('saveTicksResult: why a save failed, in the words that came back', () =
   afterEach(() => { globalThis.fetch = saved })
   const args = { kind: 'position', id: 'p1', setup: 'VCP', checked: ['s1'], total: 2 }
 
-  it("409: the server's own sentence is the reason, word for word", async () => {
+  it("409: the server's own sentence is the reason, word for word, and it is not worth retrying", async () => {
     const detail = 'This trade is already closed or partly closed. Record its rules on the trade instead.'
     globalThis.fetch = vi.fn(async () => fail(409, { detail }))
-    expect(await saveTicksResult(args)).toEqual({ ok: false, reason: detail })
+    expect(await saveTicksResult(args)).toEqual({ ok: false, reason: detail, retryable: false })
   })
 
-  it('a detail with no closing stop gets one, and nothing else', async () => {
+  it('a detail with no closing punctuation gets a full stop; one that has any keeps it as sent (M-3)', async () => {
     globalThis.fetch = vi.fn(async () => fail(404, { detail: 'Not found' }))
-    expect(await saveTicksResult(args)).toEqual({ ok: false, reason: 'Not found.' })
+    expect(await saveTicksResult(args)).toEqual({ ok: false, reason: 'Not found.', retryable: false })
+    for (const detail of ['Gone!', 'Closed?', 'Said "no."', 'Closed (see the trade).', 'Wait…']) {
+      globalThis.fetch = vi.fn(async () => fail(404, { detail }))
+      expect((await saveTicksResult(args)).reason, detail).toBe(detail)
+    }
   })
 
   it('no detail: the status the server answered; no answer at all: that the request never arrived', async () => {
     globalThis.fetch = vi.fn(async () => fail(502, null))
-    expect(await saveTicksResult(args)).toEqual({ ok: false, reason: 'The server answered with status 502.' })
+    expect(await saveTicksResult(args)).toEqual({ ok: false, reason: 'The server answered with status 502.', retryable: true })
     globalThis.fetch = vi.fn(async () => ({ ok: false, status: 500, json: async () => { throw new SyntaxError('html') } }))
-    expect(await saveTicksResult(args)).toEqual({ ok: false, reason: 'The server answered with status 500.' })
+    expect(await saveTicksResult(args)).toEqual({ ok: false, reason: 'The server answered with status 500.', retryable: true })
     globalThis.fetch = vi.fn(async () => { throw new TypeError('Failed to fetch') })
-    expect(await saveTicksResult(args)).toEqual({ ok: false, reason: 'The request did not reach the server.' })
+    expect(await saveTicksResult(args)).toEqual({ ok: false, reason: 'The request did not reach the server.', retryable: true })
+  })
+
+  it('retryable is exactly "no answer, or a 5xx": a 4xx with a sentence is the answer', async () => {
+    for (const [status, retryable] of [[400, false], [402, false], [404, false], [409, false], [500, true], [503, true]]) {
+      globalThis.fetch = vi.fn(async () => fail(status, { detail: 'x' }))
+      expect((await saveTicksResult(args)).retryable, String(status)).toBe(retryable)
+    }
   })
 
   it('success is ok with no reason', async () => {
     globalThis.fetch = vi.fn(async () => ok({ tradeRef: 'pos:p1' }))
-    expect(await saveTicksResult(args)).toEqual({ ok: true, reason: null })
+    expect(await saveTicksResult(args)).toEqual({ ok: true, reason: null, retryable: false })
+  })
+
+  it('I-2: a write the server never answers gives up after 10 s, aborts, and says it did not arrive', async () => {
+    vi.useFakeTimers()
+    try {
+      let signal
+      globalThis.fetch = vi.fn((url, init) => { signal = init.signal; return new Promise(() => {}) })
+      let settled = null
+      saveTicksResult(args).then((r) => { settled = r })
+      await vi.advanceTimersByTimeAsync(SAVE_TIMEOUT_MS - 1)
+      expect(settled).toBeNull()
+      expect(signal.aborted).toBe(false)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(settled).toEqual({ ok: false, reason: 'The request did not reach the server.', retryable: true })
+      expect(signal.aborted).toBe(true)
+      expect(SAVE_TIMEOUT_MS).toBe(10000)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('I-2: an error body the server starts and never finishes is bounded by the same timer; its status stands', async () => {
+    vi.useFakeTimers()
+    try {
+      globalThis.fetch = vi.fn(async () => ({ ok: false, status: 503, json: () => new Promise(() => {}) }))
+      let settled = null
+      saveTicksResult(args).then((r) => { settled = r })
+      await vi.advanceTimersByTimeAsync(SAVE_TIMEOUT_MS)
+      expect(settled).toEqual({ ok: false, reason: 'The server answered with status 503.', retryable: true })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('notSavedLine says the trade is logged and the checklist is not, then why', () => {

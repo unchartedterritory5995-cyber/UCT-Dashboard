@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AddPositionModal from './AddPositionModal'
@@ -18,7 +18,10 @@ vi.mock('../../../hooks/usePreferences', async (orig) => ({
 vi.mock('../hooks/useChecklistSources', () => ({
   RETURN_KEYS: ['settings', 'settingsState', 'retrySettings', 'rules', 'rulesState'],
   default: () => ({
-    settings: { setups: ['Breakout', 'VCP'], setupRules: { VCP: [{ id: 's1', label: 'Volume dry-up' }] } },
+    settings: {
+      setups: ['Breakout', 'VCP'],
+      setupRules: { VCP: [{ id: 's1', label: 'Volume dry-up' }], Breakout: [{ id: 'b1', label: 'Pivot break' }] },
+    },
     settingsState: 'ready', retrySettings: () => {}, rules: [], rulesState: 'ready',
   }),
 }))
@@ -462,8 +465,15 @@ describe('AddPositionModal: the pre-entry checklist (P2a)', () => {
       : Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) }))))
   })
   afterEach(() => { vi.unstubAllGlobals() })
-  const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
   const puts = () => globalThis.fetch.mock.calls.filter(([, init]) => init?.method === 'PUT')
+  // M-1: the body is a lazy chunk. Load it before any case, so "absent" cannot mean "not loaded yet",
+  // and wait for it the way a present one is found: this throws if the checklist ever appears.
+  beforeAll(async () => { await import('./LogTradeChecklist') })
+  async function checklistNeverAppears(ms = 400) {
+    let appeared = false
+    try { await screen.findByRole('group', { name: 'Pre-entry checklist' }, { timeout: ms }); appeared = true } catch { /* not there */ }
+    if (appeared) throw new Error('the pre-entry checklist appeared')
+  }
 
   async function fillAndPickVcp(user) {
     await user.type(screen.getByPlaceholderText('e.g. NVDA'), 'nvda')
@@ -513,12 +523,12 @@ describe('AddPositionModal: the pre-entry checklist (P2a)', () => {
   it('P2a: no preEntryChecklist prop (another surface): no checklist and no tick write', async () => {
     const user = userEvent.setup()
     const onSave = vi.fn(async () => ({ id: 'NEW1' }))
-    render(<AddPositionModal settings={BASE_SETTINGS} onSave={onSave} onClose={vi.fn()} />)
+    const onClose = vi.fn()
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={onSave} onClose={onClose} />)
     await fillAndPickVcp(user)
-    await settle()
-    expect(screen.queryByRole('group', { name: 'Pre-entry checklist' })).toBeNull()
+    await checklistNeverAppears()
     await user.click(screen.getByRole('button', { name: 'Add Position' }))
-    await settle()
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
     expect(onSave).toHaveBeenCalledTimes(1)
     expect(puts()).toEqual([])
   })
@@ -527,14 +537,76 @@ describe('AddPositionModal: the pre-entry checklist (P2a)', () => {
     const user = userEvent.setup()
     p2a.styles = false
     const onSave = vi.fn(async () => ({ id: 'NEW1' }))
-    render(<AddPositionModal settings={BASE_SETTINGS} onSave={onSave} onClose={vi.fn()} preEntryChecklist />)
+    const onClose = vi.fn()
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={onSave} onClose={onClose} preEntryChecklist />)
     await fillAndPickVcp(user)
-    await settle()
-    expect(screen.queryByRole('group', { name: 'Pre-entry checklist' })).toBeNull()
+    await checklistNeverAppears()
     await user.click(screen.getByRole('button', { name: 'Add Position' }))
-    await settle()
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
     expect(onSave).toHaveBeenCalledTimes(1)
     expect(puts()).toEqual([])
+  })
+
+  it('P2a: CONTROL (M-1): the absence waiter sees a checklist that IS there', async () => {
+    const user = userEvent.setup()
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={vi.fn()} onClose={vi.fn()} preEntryChecklist />)
+    await fillAndPickVcp(user)
+    await expect(checklistNeverAppears()).rejects.toThrow('the pre-entry checklist appeared')
+  })
+
+  it('P2a I-1: ticks on VCP, then Breakout picked and left untouched: nothing is written for Breakout', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={vi.fn(async () => ({ id: 'NEW1' }))} onClose={onClose} preEntryChecklist />)
+    await fillAndPickVcp(user)
+    await user.click(within(await screen.findByRole('group', { name: 'Pre-entry checklist' })).getByRole('checkbox', { name: 'Volume dry-up' }))
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Setup' }), 'Breakout')
+    expect((await screen.findByRole('checkbox', { name: 'Pivot break' })).checked).toBe(false)
+    await user.click(screen.getByRole('button', { name: 'Add Position' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(puts()).toEqual([])
+  })
+
+  it("P2a I-1: ticks on VCP, Breakout, back to VCP: VCP's ticks are written", async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={vi.fn(async () => ({ id: 'NEW1' }))} onClose={onClose} preEntryChecklist />)
+    await fillAndPickVcp(user)
+    await user.click(within(await screen.findByRole('group', { name: 'Pre-entry checklist' })).getByRole('checkbox', { name: 'Volume dry-up' }))
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Setup' }), 'Breakout')
+    await screen.findByRole('checkbox', { name: 'Pivot break' })
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Setup' }), 'VCP')
+    expect((await screen.findByRole('checkbox', { name: 'Volume dry-up' })).checked).toBe(true)
+    await user.click(screen.getByRole('button', { name: 'Add Position' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(puts().map(([u, init]) => [u, JSON.parse(init.body)]))
+      .toEqual([[PRE_ENTRY, { setup: 'VCP', checkedRuleIds: ['s1'], totalRules: 1 }]])
+  })
+
+  it('P2a retry: no answer offers Try again; it re-sends the same ticks to the same position, and a success closes the dialog', async () => {
+    const user = userEvent.setup()
+    let failNext = true
+    globalThis.fetch.mockImplementation((url, init) => {
+      if (init?.method !== 'PUT') return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) })
+      if (failNext) { failNext = false; return Promise.reject(new TypeError('Failed to fetch')) }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) })
+    })
+    const onSave = vi.fn(async () => ({ id: 'NEW1' }))
+    const onClose = vi.fn()
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={onSave} onClose={onClose} preEntryChecklist />)
+    await fillAndPickVcp(user)
+    await user.click(within(await screen.findByRole('group', { name: 'Pre-entry checklist' })).getByRole('checkbox', { name: 'Volume dry-up' }))
+    await user.click(screen.getByRole('button', { name: 'Add Position' }))
+    expect((await screen.findByRole('alert')).textContent)
+      .toBe('Your trade is logged, but its pre-entry checklist was not saved. The request did not reach the server.')
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    const sent = puts().map(([u, init]) => [u, JSON.parse(init.body)])
+    expect(sent).toEqual([
+      [PRE_ENTRY, { setup: 'VCP', checkedRuleIds: ['s1'], totalRules: 1 }],
+      [PRE_ENTRY, { setup: 'VCP', checkedRuleIds: ['s1'], totalRules: 1 }],
+    ])
+    expect(onSave).toHaveBeenCalledTimes(1)
   })
 
   it('P2a: a create that failed writes no ticks', async () => {
@@ -565,6 +637,7 @@ describe('AddPositionModal: the pre-entry checklist (P2a)', () => {
     expect(onSave).toHaveBeenCalledTimes(1)
     expect(onClose).not.toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: 'Add Position' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()   // a 409's sentence stands
     await user.click(screen.getByRole('button', { name: 'Done' }))
     expect(onClose).toHaveBeenCalledTimes(1)
   })

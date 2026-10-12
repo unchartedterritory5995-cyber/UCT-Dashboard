@@ -26,39 +26,64 @@ export function ticksToSave({ ticked, itemIds }) {
 }
 
 const NO_ANSWER = 'The request did not reach the server.'
+/** R-T8-1 I-2: a tick write gives up after this long. The trade is already logged; the dialog must
+ *  never sit on "Saving…" for a request that is not coming back. */
+export const SAVE_TIMEOUT_MS = 10000
+const TIMED_OUT = Symbol('timed out')
+// A sentence the server ended with any closing mark keeps it as sent; only a bare one gets a stop (M-3).
+const ENDS_LIKE_A_SENTENCE = /[.!?…:;)\]"'\u201d\u2019]$/
+const statusLine = (status) => `The server answered with status ${status}.`
 
-/** Why a write failed: the server's own `detail` when it sent one (a closing stop added if it has
- *  none, nothing else), else the status it answered. */
+/** Why a write failed: the server's own `detail` when it sent one, else the status it answered. */
 async function failureReason(res) {
   let detail = null
   try {
     const body = await res.json()
     if (typeof body?.detail === 'string' && body.detail.trim()) detail = body.detail.trim()
   } catch { /* not JSON */ }
-  if (detail) return /[.!?]$/.test(detail) ? detail : `${detail}.`
-  return `The server answered with status ${res.status}.`
+  if (detail) return ENDS_LIKE_A_SENTENCE.test(detail) ? detail : `${detail}.`
+  return statusLine(res.status)
 }
 
-/** Write the ticks; never throws. `{ ok: true, reason: null }`, or `{ ok: false, reason }`. */
-export async function saveTicksResult({ kind, id, setup, checked, total }) {
+/** Write the ticks; never throws, never waits longer than `timeoutMs`.
+ *  `{ ok, reason, retryable }`: `retryable` is true only when another try could answer differently
+ *  (no answer, a timeout, a 5xx). A 4xx's sentence is the answer, so it is never offered again. */
+export async function saveTicksResult({ kind, id, setup, checked, total }, timeoutMs = SAVE_TIMEOUT_MS) {
+  if (kind !== 'position' && kind !== 'trade') {
+    return { ok: false, reason: 'There is no row to save the checklist under.', retryable: false }
+  }
   const body = JSON.stringify({ setup: setup || null, checkedRuleIds: checked, totalRules: total })
   const headers = { 'Content-Type': 'application/json' }
-  let res
+  const controller = new AbortController()
+  let timer
+  // The race, not the abort, decides: a fetch that ignores its signal still cannot hold the dialog.
+  const timedOut = new Promise((resolve) => {
+    timer = setTimeout(() => { controller.abort(); resolve(TIMED_OUT) }, timeoutMs)
+  })
   try {
-    if (kind === 'position') {
-      res = await fetch(`/api/j2/trader-blocks/positions/${encodeURIComponent(id)}/pre-entry`,
-        { method: 'PUT', credentials: 'include', headers, body })
-    } else if (kind === 'trade') {
-      res = await fetch(`/api/j2/trades/${encodeURIComponent(id)}/adherence`,
-        { method: 'PUT', credentials: 'include', headers, body })
-    } else {
-      return { ok: false, reason: 'There is no row to save the checklist under.' }
+    let res
+    try {
+      const sent = kind === 'position'
+        ? fetch(`/api/j2/trader-blocks/positions/${encodeURIComponent(id)}/pre-entry`,
+          { method: 'PUT', credentials: 'include', headers, body, signal: controller.signal })
+        : fetch(`/api/j2/trades/${encodeURIComponent(id)}/adherence`,
+          { method: 'PUT', credentials: 'include', headers, body, signal: controller.signal })
+      sent.catch(() => {})   // the abort's own rejection, once the race is already decided
+      res = await Promise.race([sent, timedOut])
+    } catch {
+      return { ok: false, reason: NO_ANSWER, retryable: true }
     }
-  } catch {
-    return { ok: false, reason: NO_ANSWER }
+    if (res === TIMED_OUT || !res) return { ok: false, reason: NO_ANSWER, retryable: true }
+    if (res.ok) return { ok: true, reason: null, retryable: false }
+    const reason = await Promise.race([failureReason(res), timedOut])
+    return {
+      ok: false,
+      reason: reason === TIMED_OUT ? statusLine(res.status) : reason,
+      retryable: res.status >= 500,
+    }
+  } finally {
+    clearTimeout(timer)
   }
-  if (res?.ok) return { ok: true, reason: null }
-  return { ok: false, reason: res ? await failureReason(res) : NO_ANSWER }
 }
 
 /** The plan's contract: true when stored, false otherwise; never throws. */

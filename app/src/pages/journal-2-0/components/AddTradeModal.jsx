@@ -26,14 +26,10 @@ import PreTradeVerdictCard from './PreTradeVerdictCard'
 import { useIsPaid } from '../../../context/AuthContext'
 import UIcon from '../../../components/ui/UIcon'
 import SecuritySymbolInput from './SecuritySymbolInput'
-import usePreferences from '../../../hooks/usePreferences'
-import { journalStylesEnabled } from '../lib/journalStylesFlag'
-import { checklistMode, notSavedLine, saveTicksResult, ticksToSave } from '../lib/blocks/logTradeChecklist'
+import useLogTradeChecklist from '../hooks/useLogTradeChecklist'
 import LogTradeChecklistSlot from './LogTradeChecklistSlot'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
-const NO_IDS = []
-const sameIds = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
 
 export default function AddTradeModal({ settings, onSave, onClose, accountName, accountId, preEntryChecklist = false }) {
   const titleId = useId()
@@ -68,18 +64,12 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
 
   // Notebook P2a (Task 8): the pre-entry checklist, a SOFT warning. Only the two Log Trade doors pass
   // `preEntryChecklist` (IR-S7: they resolve the row they create); the member's preference turns it
-  // on. `ticked` keeps every tick, other setups' included; only the ticks of the items on screen are
-  // sent, and only if the member touched the list (an untouched list is no answer, never "0 of N").
-  const askChecklist = !!preEntryChecklist && journalStylesEnabled()
-  const { prefs } = usePreferences(askChecklist)
-  const mode = checklistMode(prefs)
-  const checklistOn = askChecklist && mode.show
-  const [ticked, setTicked] = useState(NO_IDS)
-  const [touched, setTouched] = useState(false)
-  const [itemIds, setItemIds] = useState(NO_IDS)
-  const [checklistNotSaved, setChecklistNotSaved] = useState('')
-  const onTicks = useCallback((next) => { setTicked(next); setTouched(true) }, [])
-  const onItems = useCallback((ids) => setItemIds((prev) => (sameIds(prev, ids) ? prev : ids)), [])
+  // on. The hook owns the ticks and the one save after the row exists (R-T8-1: "touched" per setup
+  // list, a 10 s ceiling on the write, Try again for no answer / a timeout / a 5xx only).
+  const checklist = useLogTradeChecklist({ preEntryChecklist, kind: 'trade', setup: setupVal })
+  const retryChecklist = useCallback(async () => {
+    if (await checklist.retry()) onClose?.()
+  }, [checklist, onClose])
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
@@ -170,11 +160,7 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
       })
       // The trade is logged. Its ticks go under the id the server gave it, and a failure here never
       // undoes it: the dialog stays open to say so, with the log button gone so it cannot log twice.
-      if (checklistOn && touched && itemIds.length > 0 && created?.id != null) {
-        const { checked, total } = ticksToSave({ ticked, itemIds })
-        const saved = await saveTicksResult({ kind: 'trade', id: created.id, setup: setupVal.trim() || null, checked, total })
-        if (!saved.ok) { setChecklistNotSaved(notSavedLine(saved.reason)); return }
-      }
+      if (!(await checklist.saveFor(created, setupVal.trim() || null))) return
       onClose?.()
     } catch (e) {
       console.error('Failed to save trade:', e)
@@ -185,7 +171,7 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
   }, [
     validate, symbol, side, shares, entryPrice, entryDate, entryTime, exitPrice, exitDate,
     exitTime, originalStop, setupVal, notes, fees, selectedMistakes, selectedEmotions,
-    verdict, onSave, onClose, checklistOn, touched, itemIds, ticked,
+    verdict, onSave, onClose, checklist,
   ])
 
   // Pre-trade verdict run (paid-gated footer button). Snake_case payload — the
@@ -403,10 +389,7 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
             </label>
           </div>
 
-          {checklistOn && (
-            <LogTradeChecklistSlot setup={setupVal} requireAll={mode.requireAll}
-              checked={ticked} onChange={onTicks} onItems={onItems} />
-          )}
+          {checklist.on && <LogTradeChecklistSlot {...checklist.slotProps} />}
 
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Notes</span>
@@ -472,12 +455,17 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
             </div>
           )}
           {errorMsg && <div className={styles.errorBanner} role="alert">{errorMsg}</div>}
-          {checklistNotSaved && <div className={bannerStyles.alert} role="alert">{checklistNotSaved}</div>}
+          {checklist.notSaved && <div className={bannerStyles.alert} role="alert">{checklist.notSaved}</div>}
         </div>
 
         <div className={styles.footer} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-          {checklistNotSaved ? (
+          {checklist.notSaved ? (
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              {checklist.canRetry && (
+                <button type="button" className="btn btn-ghost" onClick={retryChecklist} disabled={checklist.retrying}>
+                  {checklist.retrying ? 'Trying again…' : 'Try again'}
+                </button>
+              )}
               <button type="button" className="btn btn-primary" onClick={onClose}>Done</button>
             </div>
           ) : (
