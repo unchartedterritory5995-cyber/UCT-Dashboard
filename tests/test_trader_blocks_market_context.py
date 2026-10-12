@@ -50,7 +50,7 @@ def sources(monkeypatch):
          "quotes": {"SPY": {"price": 600.5, "change_pct": -0.42, "observed_at": 1791912360, "market_closed": False}}}
     monkeypatch.setattr(tb, "_breadth", lambda: s["breadth"])
     monkeypatch.setattr(tb, "_regime_field", lambda memo: s["regime"])
-    monkeypatch.setattr(tb, "_quotes", lambda user_id, symbols: s["quotes"])
+    monkeypatch.setattr(tb, "_quotes", lambda user_id, symbols, now=None: s["quotes"])
     return s
 
 
@@ -115,10 +115,13 @@ def test_a_create_captures_and_an_update_does_not(sources, monkeypatch):
                                                                "mode": "create", "user_id": "u1"})
     assert reason is None and node["attrs"]["widgetId"] == "marketcontext"
     assert node["attrs"]["params"]["fields"] == "regime" and node["attrs"]["params"]["readings"]["regime"]["value"] == "orange"
+    assert node["attrs"]["capturedAt"] == "2026-10-13T17:26:00Z"
     monkeypatch.setattr(tb, "market_context_params", lambda *a, **k: pytest.fail("an update must read nothing"))
     node, _ = js.BLOCK_BUILDERS["marketcontext"](block, {"ticker": None, "now": NOW, "memo": {},
                                                           "mode": "update", "user_id": "u1"})
     assert node["attrs"]["params"] == {"uncaptured": True, "fields": "regime"}
+    # R-T3-2 I2: no capture date either; the client renders capturedAt as "captured <day>".
+    assert node["attrs"]["capturedAt"] is None
 
 
 def test_the_stamp_node_is_buildable(sources, db_path):
@@ -170,12 +173,12 @@ def held(monkeypatch):
             raise AssertionError(f"the composer reached {name}")
         return reached
 
-    ns = types.SimpleNamespace(calls=calls, real_get_breadth=engine.get_breadth,
-                               engine=engine, live_prices=live_prices, bars_sqlite=bars_sqlite)
+    ns = types.SimpleNamespace(calls=calls, engine=engine, live_prices=live_prices, bars_sqlite=bars_sqlite)
+    # engine.get_breadth stays REAL: a cold hold makes its Priority 3 import morning_wire_engine,
+    # which is the recording door below.
     monkeypatch.setattr(engine, "cache", TTLCache())                 # no breadth, no wire_data cached
     monkeypatch.setattr(engine, "_load_state", lambda: {})
     monkeypatch.setattr(engine, "_load_wire_data", lambda: None)
-    monkeypatch.setattr(engine, "get_breadth", door("engine.get_breadth on a cold hold (its next step is the live fetch)"))
     fake = types.ModuleType("morning_wire_engine")
     fake.fetch_breadth = door("morning_wire_engine.fetch_breadth")
     monkeypatch.setitem(sys.modules, "morning_wire_engine", fake)
@@ -210,12 +213,10 @@ def test_a_warm_quote_cache_and_a_held_daily_bar_are_read_and_nothing_else(held,
     lp, bs, eng = held.live_prices, held.bars_sqlite, held.engine
     lp.cache.set(lp._px_key("SPY"), {"price": 600.5, "change_pct": -0.42, "observed_at": 1791912360,
                                       "market_closed": False}, ttl=60)
-    # QQQ is not in the quote cache; its last two DAILY bars are held (ts YYYYMMDD; o, h, l, c, v).
-    monkeypatch.setattr(bs, "get_bars", lambda ticker, tf, n: [
-        (20261008, 470.0, 482.0, 469.0, 480.0, 1), (20261009, 481.0, 487.0, 479.0, 486.0, 1)]
-        if (ticker, tf) == ("QQQ", "D") else [])
+    # QQQ is not in the quote cache; its daily bars through the last completed session (Mon 10/12;
+    # NOW is Tue 10/13 13:26 ET) are held (ts YYYYMMDD; o, h, l, c, v).
+    _bars(monkeypatch, bs, [(20261009, 470.0, 482.0, 469.0, 480.0, 1), (20261012, 481.0, 487.0, 479.0, 486.0, 1)])
     # The wire's breadth is held in engine's cache: the real get_breadth answers from it.
-    monkeypatch.setattr(eng, "get_breadth", held.real_get_breadth)
     eng.cache.set("breadth", dict(BREADTH), ttl=60)
 
     r = _create()["readings"]
@@ -223,7 +224,7 @@ def test_a_warm_quote_cache_and_a_held_daily_bar_are_read_and_nothing_else(held,
     assert r["spy"] == {"value": {"price": 600.5, "changePct": -0.42, "closed": False},
                         "source": "live price", "asOf": "2026-10-13T17:26:00Z", "missing": None}
     assert r["qqq"] == {"value": {"price": 486.0, "changePct": 1.25, "closed": True},
-                        "source": "last close", "asOf": "2026-10-09T20:00:00Z", "missing": None}
+                        "source": "last close", "asOf": "2026-10-12T20:00:00Z", "missing": None}
     assert r["exposureScore"] == 32.0 and r["marketPhase"] == "Uptrend"
     assert r["regime"]["value"] == "orange" and r["regime"]["asOf"] == "2026-10-13"
     assert r["regime"]["missing"] is None
@@ -237,6 +238,75 @@ def test_a_closed_market_cache_row_is_dated_by_its_session_close(held):
     assert held.calls == []
     assert r["spy"]["value"] == {"price": 598.0, "changePct": 0.3, "closed": True}
     assert r["spy"]["asOf"] == "2026-10-08T20:00:00Z"
+    # R-T3-2 m2: a row read while the market is closed is a last close, never a "live price".
+    assert r["spy"]["source"] == "last close"
+
+
+def test_a_live_cache_row_with_no_observation_time_is_dated_by_the_capture(held):
+    """R-T3-2 m2: "sourced and dated, or a sentence". A live row the vendor did not time is dated by
+    the capture (its 15 s TTL bounds its age), never stored with both asOf and missing null."""
+    lp = held.live_prices
+    lp.cache.set(lp._px_key("SPY"), {"price": 600.5, "change_pct": -0.42, "observed_at": None,
+                                      "market_closed": False}, ttl=60)
+    r = _create()["readings"]
+    assert held.calls == []
+    assert r["spy"] == {"value": {"price": 600.5, "changePct": -0.42, "closed": False},
+                        "source": "live price", "asOf": "2026-10-13T17:26:00Z", "missing": None}
+
+
+# ── R-T3-2 I1: the "last close" is a SETTLED session's close, never today's forming bar ─────────────
+# NOW is Tue 2026-10-13 13:26 ET, mid-session: the last completed session is Mon 10/12.
+
+def _bars(monkeypatch, bs, rows):
+    """QQQ's held daily bars (oldest first, as bars_sqlite answers), whatever depth is asked."""
+    monkeypatch.setattr(bs, "get_bars", lambda ticker, tf, n: list(rows)[-n:] if (ticker, tf) == ("QQQ", "D") else [])
+
+
+def test_todays_forming_daily_bar_is_never_taken_as_a_close(held, monkeypatch):
+    _bars(monkeypatch, held.bars_sqlite, [(20261009, 0, 0, 0, 480.0, 1), (20261012, 0, 0, 0, 484.0, 1),
+                                          (20261013, 0, 0, 0, 999.0, 1)])
+    q = _create()["readings"]["qqq"]
+    assert held.calls == []
+    assert q["value"]["price"] == 484.0                     # Monday's close, not today's 999
+    assert q["asOf"] == "2026-10-12T20:00:00Z"
+    assert q["asOf"] <= "2026-10-13T17:26:00Z"              # never dated after the capture
+
+
+def test_yesterdays_settled_bar_is_the_last_close(held, monkeypatch):
+    _bars(monkeypatch, held.bars_sqlite, [(20261009, 0, 0, 0, 480.0, 1), (20261012, 0, 0, 0, 484.0, 1)])
+    q = _create()["readings"]["qqq"]
+    assert held.calls == []
+    assert q == {"value": {"price": 484.0, "changePct": 0.8333, "closed": True},
+                 "source": "last close", "asOf": "2026-10-12T20:00:00Z", "missing": None}
+
+
+def test_a_bar_older_than_the_last_completed_session_is_a_sentence_not_a_stale_close(held, monkeypatch):
+    _bars(monkeypatch, held.bars_sqlite, [(20261008, 0, 0, 0, 480.0, 1), (20261009, 0, 0, 0, 484.0, 1)])
+    q = _create()["readings"]["qqq"]
+    assert held.calls == []
+    assert q == {"value": None, "source": None, "asOf": None, "missing": "No QQQ quote could be read just now."}
+
+
+# ── R-T3-2 m1: engine.get_breadth(held_only=True), the ONE authority on "held" ─────────────────────
+
+def test_get_breadth_held_only_on_a_cold_engine_is_none_and_never_fetches(held):
+    assert held.engine.get_breadth(held_only=True) is None
+    assert held.calls == []
+
+
+def test_get_breadth_held_only_answers_a_held_wire(held, monkeypatch):
+    monkeypatch.setattr(held.engine, "_load_wire_data",
+                        lambda: {"date": "2026-10-13", "breadth": {"breadth_score": 47.56}, "exposure": {"score": 32.04}})
+    got = held.engine.get_breadth(held_only=True)
+    assert held.calls == []
+    assert got["breadth_score"] == 47.56 and got["exposure"]["score"] == 32.04 and got["wire_date"] == "2026-10-13"
+
+
+def test_get_breadth_default_is_unchanged_a_cold_engine_still_reaches_the_live_fetch(held):
+    """The default call keeps its Priority 3 (local dev): the held_only seam changed nothing else."""
+    got = held.engine.get_breadth()
+    assert held.calls == ["morning_wire_engine.fetch_breadth"]
+    assert isinstance(got, dict) and got["pct_above_50ma"] is None       # the except branch's payload
 
 
 def test_an_update_layout_on_a_written_note_lands_uncaptured_and_an_empty_switch_captures(

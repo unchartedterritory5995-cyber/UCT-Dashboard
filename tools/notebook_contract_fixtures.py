@@ -1768,7 +1768,7 @@ def journal_styles(w: World) -> None:
     w.p.setattr(trader_blocks, "_regime_field", lambda memo: {
         "value": "amber", "source": "journal_two.regime.get_current_regime", "asOf": TODAY,
         "missing": None, "detail": None})
-    w.p.setattr(trader_blocks, "_quotes", lambda user_id, symbols: {
+    w.p.setattr(trader_blocks, "_quotes", lambda user_id, symbols, now=None: {
         "SPY": {"price": 601.25, "change_pct": 0.42, "observed_at": int(FROZEN_NOW.timestamp()) - 60,
                 "market_closed": False},
         "QQQ": {"price": 486.0, "change_pct": 1.25, "market_closed": True, "source": "last close",

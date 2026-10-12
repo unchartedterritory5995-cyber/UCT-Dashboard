@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import math
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable
 
 #: The three P2a blocks (`block: true` in the client registry, bound in BLOCK_COMPONENTS). The market
@@ -86,6 +86,7 @@ _MISSING_SENTENCES = {
 }
 _VIX = {"value": None, "source": None, "asOf": None, "missing": "VIX unavailable"}   # IR-S5
 _INDEXES = (("spy", "SPY"), ("qqq", "QQQ"))
+_LAST_CLOSE_DEPTH = 3     # enough to find the last settled bar behind today's forming one
 
 
 def _num(v: Any) -> float | int | None:
@@ -119,32 +120,21 @@ def readings_from(breadth: dict) -> dict:
     }
 
 
-def _breadth_held() -> bool:
-    """True when engine.get_breadth answers from what this pod already holds (its cache, the state
-    file, the pushed wire), False when its next step would be the live fetch (R-W0-1)."""
-    from api.services import engine
-    if engine.cache.get("breadth"):
-        return True
-    if (engine._load_state() or {}).get("breadth_data"):
-        return True
-    wire = engine._load_wire_data()
-    return bool(wire and wire.get("breadth"))
-
-
 def _breadth() -> dict:
     """The wire's breadth payload (the source /charts' Market Context reads), or {} when the pod
-    holds none (never the live fetch)."""
-    if not _breadth_held():
-        return {}
+    holds none. engine.get_breadth(held_only=True) is the ONE authority on "held": it never goes on
+    to the live fetch (R-W0-1, R-T3-2 m1)."""
     from api.services import engine
-    payload = engine.get_breadth()
+    payload = engine.get_breadth(held_only=True)
     return payload if isinstance(payload, dict) else {}
 
 
 def _regime_field(memo: dict) -> dict:
     """The regime field as entry context reads it (entry_context._regime_fields: the wire only).
-    It reaches engine.get_breadth too, so a cold hold answers "not published" without asking."""
-    if not _breadth_held():
+    That path asks the DEFAULT engine.get_breadth, so it is entered only when a breadth is held
+    (the held read also warms engine's cache for it); a cold hold answers "not published"."""
+    from api.services import engine
+    if engine.get_breadth(held_only=True) is None:
         return {"missing": "wire_unavailable"}
     from api.services.journal_two import entry_context
     return entry_context._regime_fields(memo)[0]
@@ -159,38 +149,63 @@ def _bar_day(ts: Any) -> date | None:
         return None
 
 
-def _last_close(sym: str) -> dict | None:
-    """The last close of the newest HELD daily bar (bars_sqlite, local), as a quote row; None when
-    none is held. Its change is against the bar before it."""
+def _last_completed_session(now: datetime) -> date | None:
+    """The ET date of the newest session whose close is at or before `now` (the one session
+    authority, api/services/session_calendar.py); None when the calendar cannot say."""
+    from zoneinfo import ZoneInfo
+    from api.services import session_calendar
+    d = now.astimezone(ZoneInfo("America/New_York")).date()
+    for _ in range(15):
+        ct = session_calendar.close_time(d)
+        if ct is not None and ct <= now:
+            return d
+        d -= timedelta(days=1)
+    return None
+
+
+def _last_close(sym: str, now: datetime) -> dict | None:
+    """The close of the last COMPLETED session from a HELD daily bar (bars_sqlite, local), as a quote
+    row; None when none is held. R-T3-2 I1: a bar counts only once its session has closed (today's
+    bar is still forming mid-session, and the bar store re-fetches it), and the newest settled bar
+    must BE the last completed session: an older one is not "the last close", so it is a sentence.
+    Its change is against the bar before it."""
     from api.routers import live_prices
     from api.services import bars_sqlite
-    rows = bars_sqlite.get_bars(sym, "D", 2)
-    if not rows:
+    rows = bars_sqlite.get_bars(sym, "D", _LAST_CLOSE_DEPTH) or []
+    cutoff = now.timestamp()
+    settled = []
+    for i, row in enumerate(rows):
+        day = _bar_day(row[0])
+        closed_at = live_prices._session_close_epoch(day) if day is not None else None
+        if closed_at is not None and closed_at <= cutoff:
+            settled.append((i, day, closed_at))
+    if not settled:
         return None
-    last = rows[-1]
-    close = _num(last[4])
-    day = _bar_day(last[0])
-    if close is None or close <= 0 or day is None:
+    i, day, closed_at = settled[-1]
+    last_done = _last_completed_session(now)
+    if last_done is None or day < last_done:
         return None
-    prior = _num(rows[-2][4]) if len(rows) > 1 else None
-    closed_at = live_prices._session_close_epoch(day)
+    close = _num(rows[i][4])
+    if close is None or close <= 0:
+        return None
+    prior = _num(rows[i - 1][4]) if i > 0 else None
     return {"price": round(close, 2),
             "change_pct": round((close - prior) / prior * 100.0, 4) if prior else None,
-            "market_closed": True, "source": "last close",
-            "asOf": _epoch_iso(closed_at) if closed_at is not None else day.isoformat()}
+            "market_closed": True, "source": "last close", "asOf": _epoch_iso(closed_at)}
 
 
-def _quotes(user_id: str, symbols: tuple[str, ...]) -> dict:
+def _quotes(user_id: str, symbols: tuple[str, ...], now: datetime | None = None) -> dict:
     """SPY/QQQ for the stamp, CACHE-ONLY (R-W0-1): the live-price route's shared 15 s per-ticker
-    cache (the rows its own polls write), else the last close of a held daily bar, else absent.
-    `user_id` is part of the seam's shape; nothing here is per member."""
+    cache (the rows its own polls write), else the last completed session's close from a held daily
+    bar, else absent. `user_id` is part of the seam's shape; nothing here is per member."""
     from api.routers import live_prices
+    now = now or datetime.now(timezone.utc)
     out: dict = {}
     for sym in symbols:
         row = live_prices.cache.get(live_prices._px_key(sym))
         if not isinstance(row, dict):
             try:
-                row = _last_close(sym)
+                row = _last_close(sym, now)
             except Exception:  # noqa: BLE001 -- an unreadable bar store is an absent quote
                 row = None
         if isinstance(row, dict):
@@ -212,14 +227,17 @@ def _epoch_iso(v: Any) -> str | None:
     return None if n is None else _iso(datetime.fromtimestamp(float(n), tz=timezone.utc))
 
 
-def _index_field(sym: str, q: Any) -> dict:
+def _index_field(sym: str, q: Any, now: datetime) -> dict:
     if isinstance(q, dict) and _num(q.get("price")) is not None:
-        return {"value": {"price": q["price"], "changePct": _num(q.get("change_pct")),
-                          "closed": bool(q.get("market_closed"))},
-                "source": q.get("source") or "live price",
-                # A live row carries the vendor's observation epoch; a closed-market row the
-                # epoch of the session close it IS; a held bar its own date.
-                "asOf": q.get("asOf") or _epoch_iso(q.get("observed_at")) or _epoch_iso(q.get("session_close_at")),
+        closed = bool(q.get("market_closed"))
+        return {"value": {"price": q["price"], "changePct": _num(q.get("change_pct")), "closed": closed},
+                # R-T3-2 m2: a row read while the market is closed is a last close, never a live price.
+                "source": q.get("source") or ("last close" if closed else "live price"),
+                # A live row carries the vendor's observation epoch; a closed-market row the epoch of
+                # the session close it IS; a held bar its close. A row the vendor did not time is
+                # dated by the capture: the cache's 15 s TTL bounds its age (R-T3-2 m2).
+                "asOf": (q.get("asOf") or _epoch_iso(q.get("observed_at"))
+                         or _epoch_iso(q.get("session_close_at")) or _iso(now)),
                 "missing": None}
     return {"value": None, "source": None, "asOf": None, "missing": f"No {sym} quote could be read just now."}
 
@@ -243,12 +261,12 @@ def market_context_params(memo: dict, *, user_id: str, now: datetime) -> dict:
     except Exception:  # noqa: BLE001
         readings["regime"] = _sourced({"missing": "source_error"})
     try:
-        quotes = _quotes(user_id, tuple(sym for _, sym in _INDEXES))
+        quotes = _quotes(user_id, tuple(sym for _, sym in _INDEXES), now=now)
     except Exception:  # noqa: BLE001
         quotes = {}
     quotes = quotes if isinstance(quotes, dict) else {}
     for key, sym in _INDEXES:
-        readings[key] = _index_field(sym, quotes.get(sym))
+        readings[key] = _index_field(sym, quotes.get(sym), now)
     readings["vix"] = dict(_VIX)
     wire = breadth.get("wire_date")
     return {"readings": readings, "wireDate": wire if isinstance(wire, str) and wire else None,
@@ -261,13 +279,15 @@ def build_market_context(block: dict, ctx: dict):
     journal_styles._build_chart: the client derives an embed's searchText from its params."""
     fields = _settings(block).get("fields", "all")
     if ctx.get("mode") == "update":
-        params = {"uncaptured": True, "fields": fields}
+        # R-T3-2 I2: no capture date either (the client renders capturedAt as "captured <day>").
+        params, captured_at = {"uncaptured": True, "fields": fields}, None
     else:
         params = {**market_context_params(ctx.setdefault("memo", {}), user_id=ctx.get("user_id") or "",
                                           now=ctx["now"]), "fields": fields}
+        captured_at = _iso(ctx["now"])
     return {"type": "widgetEmbed", "attrs": {
         "v": 1, "widgetId": "marketcontext", "embedId": uuid.uuid4().hex, "mode": "snapshot", "params": params,
-        "capturedAt": _iso(ctx["now"]), "annotations": [], "caption": None,
+        "capturedAt": captured_at, "annotations": [], "caption": None,
         "layout": {"width": "full", "height": None}, "fallback": None,
     }}, None
 
