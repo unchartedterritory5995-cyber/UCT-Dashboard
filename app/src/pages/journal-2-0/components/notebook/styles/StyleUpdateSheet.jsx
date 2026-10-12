@@ -39,13 +39,16 @@ const sentenceFor = (e) => {
  * @param styleId  null = update to the note's own style's latest; a value = switch to that style (/style).
  * @param baseUpdatedAt  the revision the member is looking at: a string, or a getter called AFTER the save.
  * @param waitForSave  `() => Promise<boolean>`: the editor's sendPendingEdits (true = nothing left unsent).
- * @param onApplied  `(note) => void`: the editor adopts the returned note.
+ * @param refreshBase  `() => Promise<boolean>`: the editor's clean re-read of the note, so a 409 can move the base.
+ *   false = the editor holds unsent words and refused (nothing is adopted over them).
+ * @param onApplied  `(note, plan) => boolean`: the editor adopts the returned note; false = it could not (unsent words).
  */
-export default function StyleUpdateSheet({ open, onClose, noteId, styleId = null, baseUpdatedAt, waitForSave, onApplied }) {
+export default function StyleUpdateSheet({ open, onClose, noteId, styleId = null, baseUpdatedAt, waitForSave, refreshBase, onApplied }) {
   const [state, setState] = useState({ phase: 'loading' })   // loading | plan | error
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState(null)                  // a sentence under the plan
   const [round, setRound] = useState(0)                       // "Check again" bumps this
+  const [recheck, setRecheck] = useState(false)               // a 409 happened: the base needs a fresh read
 
   useEffect(() => {
     if (!open) return undefined
@@ -58,7 +61,14 @@ export default function StyleUpdateSheet({ open, onClose, noteId, styleId = null
     return () => { live = false }
   }, [open, noteId, styleId, round])
 
-  const checkAgain = useCallback(() => { setNotice(null); setRound((r) => r + 1) }, [])
+  // ⛔ A 409 means the base this sheet holds is old. Re-planning alone would offer an Apply that 409s
+  // again, so the editor re-reads first (it refuses while it holds unsent words, and then nothing moves).
+  const checkAgain = useCallback(async () => {
+    setNotice(null)
+    if (refreshBase && (await refreshBase()) === false) { setNotice(STILL_SAVING_SENTENCE); return }
+    setRecheck(false)
+    setRound((r) => r + 1)
+  }, [refreshBase])
 
   const apply = async () => {
     if (busy) return
@@ -68,8 +78,9 @@ export default function StyleUpdateSheet({ open, onClose, noteId, styleId = null
       if (waitForSave && (await waitForSave()) === false) { setNotice(STILL_SAVING_SENTENCE); return }
       const base = typeof baseUpdatedAt === 'function' ? baseUpdatedAt() : baseUpdatedAt
       const out = await applyStyleUpdate(noteId, { ...(styleId ? { styleId } : {}), baseUpdatedAt: base })
-      onApplied?.(out.note, out.plan)
+      if (onApplied?.(out.note, out.plan) === false) setNotice(STILL_SAVING_SENTENCE)
     } catch (e) {
+      if (e?.status === 409) setRecheck(true)
       setNotice(sentenceFor(e))
     } finally {
       setBusy(false)
@@ -80,14 +91,13 @@ export default function StyleUpdateSheet({ open, onClose, noteId, styleId = null
   const title = plan?.switching ? `Switch to ${plan.styleName}` : 'Update layout'
   // Nothing to do: the sheet says so and offers Close only.
   const nothing = plan && (plan.locked || (!plan.switching && plan.upToDate))
-  const stale = notice === STALE_SENTENCE
 
   return (
     <Sheet open={open} onClose={onClose} title={title} labelledByTitle variant="auto" maxWidth={520}
       footer={(
         <div className={styles.actions}>
           <button type="button" className={`btn btn-ghost ${styles.btn}`} onClick={onClose}>{nothing ? 'Close' : 'Cancel'}</button>
-          {stale && <button type="button" className={`btn btn-ghost ${styles.btn}`} onClick={checkAgain}>Check again</button>}
+          {recheck && <button type="button" className={`btn btn-ghost ${styles.btn}`} onClick={checkAgain}>Check again</button>}
           {plan && !nothing && (
             <button type="button" className={`btn btn-primary ${styles.btn}`} onClick={apply}
               disabled={busy || (!plan.add.length && !plan.switching)}>

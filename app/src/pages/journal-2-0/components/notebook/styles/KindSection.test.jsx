@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import { BUILTIN_NOTE_KINDS } from '../../../lib/noteKinds'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../../lib/offline/notebookFlags'
@@ -32,24 +32,23 @@ const ok = (body) => ({ ok: true, status: 200, json: async () => body })
 beforeEach(() => latchNotebookFlags({ notebook_journal_styles_enabled: true }))
 afterEach(() => { vi.restoreAllMocks(); __resetNotebookFlags() })
 
-function renderSection(props = {}) {
+function renderSection(props = {}, { list = listBody, preview = previewBody } = {}) {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) =>
-    ok(String(url).endsWith('/preview') ? previewBody : listBody))
-  const onKind = vi.fn()
-  const onStyle = vi.fn()
+    ok(String(url).endsWith('/preview') ? preview : list))
+  const onCreate = vi.fn()
   render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-    <KindSection onKind={onKind} onStyle={onStyle} busy={false} {...props} />
+    <KindSection onCreate={onCreate} busy={false} {...props} />
   </SWRConfig>)
-  return { onKind, onStyle }
+  return { onCreate }
 }
 
 describe('New note: pick a kind', () => {
   it('lists every kind and one press makes a note of that kind', async () => {
-    const { onKind } = renderSection()
+    const { onCreate } = renderSection()
     const group = await screen.findByRole('group', { name: 'Start from a kind of note' })
     expect(within(group).getAllByRole('button', { name: /^New / }).length).toBe(listBody.kinds.length)
     fireEvent.click(within(group).getByRole('button', { name: 'New Trade plan' }))
-    expect(onKind).toHaveBeenCalledWith('trade_plan')
+    expect(onCreate).toHaveBeenCalledWith({ kindId: 'trade_plan' })
   })
 
   it('names the default style on each kind button', async () => {
@@ -59,24 +58,24 @@ describe('New note: pick a kind', () => {
   })
 
   it('Choose another style lists that kind’s styles, previews one with my data, and uses it', async () => {
-    const { onStyle } = renderSection()
+    const { onCreate } = renderSection()
     fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
     const list = screen.getByRole('list', { name: 'Styles for Trade plan' })
     const mine = within(list).getAllByRole('listitem').find((li) => !/Built-in/.test(li.textContent))
     fireEvent.click(within(mine).getByRole('button', { name: /^Preview / }))
     expect(await screen.findByText(new RegExp(`Shown with ${previewBody.ticker}`))).toBeTruthy()
     // the chart block shows as a line, not a live chart
-    expect(document.querySelector('[data-block="chart"]').textContent).toContain('NVDA')
+    expect(screen.getByText(/Chart · NVDA · Daily/).tagName).toBe('EM')
     fireEvent.click(within(mine).getByRole('button', { name: /^Use / }))
-    expect(onStyle).toHaveBeenCalledWith('s-mine')
+    expect(onCreate).toHaveBeenCalledWith({ styleId: 's-mine' })
   })
 
   it('"Use this style" inside the preview makes the note and closes the preview', async () => {
-    const { onStyle } = renderSection()
+    const { onCreate } = renderSection()
     fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
     fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Use this style' }))
-    expect(onStyle).toHaveBeenCalledWith('s-mine')
+    expect(onCreate).toHaveBeenCalledWith({ styleId: 's-mine' })
   })
 
   it('a preview that fails says so and offers no Use', async () => {
@@ -86,6 +85,50 @@ describe('New note: pick a kind', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
     expect((await screen.findByRole('alert')).textContent).toContain('boom')
     expect(screen.getByRole('button', { name: 'Use this style' })).toBeDisabled()
+  })
+
+  // Round 2, I2: with the switch on, a block the app KNOWS is described by its name; only a block this
+  // bundle truly does not know is "from a newer version".
+  it('previews a known widget by its own name, a truly unknown one as a newer-version block', async () => {
+    const embed = (widgetId, params = {}) => ({ type: 'widgetEmbed', attrs: { widgetId, params } })
+    renderSection({}, { preview: { ...previewBody, bodyJson: { type: 'doc', content: [
+      embed('news', { symbol: 'NVDA' }), embed('chart', {}), embed('zz_future'),
+    ] } } })
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
+    await screen.findByText(/Shown with NVDA/)
+    const lines = [...document.querySelectorAll('[data-template-preview-body] em')].map((el) => el.textContent)
+    expect(lines).toEqual(['News', 'Chart of the note’s ticker', 'A block from a newer version (zz_future)'])
+  })
+
+  it('a kind with no styles says so instead of opening an empty list', async () => {
+    renderSection({}, { list: { ...listBody, kinds: [...listBody.kinds, { id: 'k_mine', name: 'My kind', icon: null }] } })
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for My kind' }))
+    expect(screen.getByText('No styles for this kind yet.')).toBeTruthy()
+  })
+
+  it('two pickers on screen do not share a heading id', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => ok(listBody))
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <KindSection onCreate={() => {}} /><KindSection onCreate={() => {}} />
+    </SWRConfig>)
+    await screen.findAllByRole('group', { name: 'Start from a kind of note' })
+    const ids = [...document.querySelectorAll('section[aria-labelledby]')].map((s) => s.getAttribute('aria-labelledby'))
+    expect(ids).toHaveLength(2)
+    expect(new Set(ids).size).toBe(2)
+    for (const id of ids) expect(document.getElementById(id)).toBeTruthy()
+  })
+
+  it('autoFocusFirst puts keyboard focus on the first kind once the list is there', async () => {
+    renderSection({ autoFocusFirst: true })
+    const first = await screen.findByRole('button', { name: 'New Trade plan' })
+    await waitFor(() => expect(document.activeElement).toBe(first))
+  })
+
+  it('without autoFocusFirst it takes no focus', async () => {
+    renderSection()
+    const first = await screen.findByRole('button', { name: 'New Trade plan' })
+    expect(document.activeElement).not.toBe(first)
   })
 
   it('every kind button carries the touch-floor class', async () => {

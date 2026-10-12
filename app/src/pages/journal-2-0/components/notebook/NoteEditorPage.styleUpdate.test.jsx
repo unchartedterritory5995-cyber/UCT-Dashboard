@@ -20,8 +20,15 @@ const baseNote = () => ({
   bodyJson: { type: 'doc', content: [H('Plan'), P('Intro line.')] },
 })
 const updateMock = vi.fn()
+const refreshMock = vi.fn()
+const swrMutate = vi.hoisted(() => vi.fn())
+// The editor invalidates through SWR's global mutate (the way a version restore does): watch it.
+vi.mock('swr', async (importOriginal) => {
+  const m = await importOriginal()
+  return { ...m, mutate: (...a) => { swrMutate(...a); return m.mutate(...a) } }
+})
 vi.mock('../../hooks/useJ2Notes', () => ({
-  useJ2Note: () => ({ note: NOTE, isLoading: false, update: updateMock, refresh: vi.fn() }),
+  useJ2Note: () => ({ note: NOTE, isLoading: false, update: updateMock, refresh: (...a) => refreshMock(...a) }),
   recordNoteOpened: vi.fn(),
   setNoteFavorite: vi.fn(),
 }))
@@ -64,16 +71,18 @@ beforeEach(() => {
   fetchJournalStyles.mockResolvedValue(LIST)
   planStyleUpdate.mockResolvedValue({ plan: PLAN })
   applyStyleUpdate.mockImplementation(async () => { calls.push('apply'); return { note: APPLIED, plan: PLAN } })
+  refreshMock.mockResolvedValue(undefined)
+  swrMutate.mockClear()
   global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }))
   latchNotebookFlags({ notebook_journal_styles_enabled: true })
 })
 afterEach(() => { vi.clearAllMocks(); __resetNotebookFlags() })
 
-async function renderEditor() {
+async function renderEditor(id = 'n1') {
   const NoteEditorPage = (await import('./NoteEditorPage')).default
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-      <MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} showBack /></MemoryRouter>
+      <MemoryRouter><NoteEditorPage noteId={id} onBack={vi.fn()} showBack /></MemoryRouter>
     </SWRConfig>,
   )
   await screen.findByPlaceholderText('Title')
@@ -167,8 +176,10 @@ describe('styleUpdate.waitsForSave', () => {
 
 describe('styleUpdate.staleBase', () => {
   it('a 409 writes nothing, says so, and Check again re-asks for the plan', async () => {
+    // its own note id: an earlier test's unsent words stay in the durable store under 'n1' (the re-read refuses them)
+    NOTE = { ...baseNote(), id: 'n2' }
     applyStyleUpdate.mockRejectedValue(Object.assign(new Error('This note changed since you opened it. Nothing was added.'), { status: 409 }))
-    await renderEditor()
+    await renderEditor('n2')
     const dialog = await openSheet()
     await within(dialog).findByText('Will be added')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
@@ -186,6 +197,83 @@ describe('styleUpdate.staleBase', () => {
     await within(dialog).findByText('Will be added')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
     expect(await within(dialog).findByText('This note is locked. Unlock it to change its layout.')).toBeTruthy()
+  })
+})
+
+// Round 2 (review I3): after a 409 the base must be able to move, or "Check again" is a dead end.
+describe('styleUpdate.checkAgain', () => {
+  const STALE = Object.assign(new Error('x'), { status: 409 })
+  const FRESH = () => ({ ...NOTE, updatedAt: '2026-01-09T00:00:00Z' })
+
+  it('409, then Check again re-reads the note so the base is the server\'s, then Apply succeeds with it', async () => {
+    NOTE = { ...baseNote(), id: 'n3' }
+    applyStyleUpdate.mockRejectedValueOnce(STALE)
+    refreshMock.mockResolvedValue({ note: FRESH() })
+    await renderEditor('n3')
+    const dialog = await openSheet()
+    await within(dialog).findByText('Will be added')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
+    await within(dialog).findByText('This note changed since you opened it. Nothing was added.')
+    expect(applyStyleUpdate).toHaveBeenLastCalledWith('n3', { baseUpdatedAt: '2026-01-01T00:00:00Z' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Check again' }))
+    await waitFor(() => expect(within(dialog).queryByText('This note changed since you opened it. Nothing was added.')).toBeNull())
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Apply' }))
+    await waitFor(() => expect(applyStyleUpdate).toHaveBeenCalledTimes(2))
+    expect(applyStyleUpdate).toHaveBeenLastCalledWith('n3', { baseUpdatedAt: '2026-01-09T00:00:00Z' })
+  })
+
+  it('if the editor holds unsent words the re-read refuses: it says so and does not re-plan', async () => {
+    NOTE = { ...baseNote(), id: 'n4' }
+    applyStyleUpdate.mockRejectedValueOnce(STALE)
+    refreshMock.mockResolvedValue({ note: FRESH() })
+    await renderEditor('n4')
+    const dialog = await openSheet()
+    await within(dialog).findByText('Will be added')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
+    await within(dialog).findByText('This note changed since you opened it. Nothing was added.')
+    const before = planStyleUpdate.mock.calls.length
+    updateMock.mockRejectedValue(new Error('offline'))
+    const editor = editorOf()
+    editor.commands.insertContentAt(editor.state.doc.content.size - 1, ' Words typed since.')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Check again' }))
+    expect(await within(dialog).findByText('Some words are still saving. Try again in a moment.', {}, { timeout: 4000 })).toBeTruthy()
+    expect(planStyleUpdate.mock.calls.length).toBe(before)
+    expect(JSON.stringify(editor.getJSON())).toContain('Words typed since.')
+  })
+})
+
+describe('after Apply lands', () => {
+  it('M7: says so politely, and M2: refreshes History and the note list like a restore does', async () => {
+    NOTE = { ...baseNote(), id: 'n5' }
+    applyStyleUpdate.mockImplementation(async () => ({ note: { ...APPLIED, id: 'n5' }, plan: PLAN }))
+    await renderEditor('n5')
+    const dialog = await openSheet()
+    await within(dialog).findByText('Will be added')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Update layout' })).toBeNull())
+    const status = await screen.findByText('Updated to the latest version of Weekend prep.')
+    expect(status.closest('[role="status"]')).toBeTruthy()
+    const keys = swrMutate.mock.calls.map(([k]) => k)
+    expect(keys).toContain('/api/j2/notes/n5/versions')
+    const matchers = keys.filter((k) => typeof k === 'function')
+    expect(matchers.some((fn) => fn('/api/j2/notes?sort=updated') === true && fn('/api/j2/notes/n5') === false)).toBe(true)
+  })
+
+  it('M1: words typed while the write was on the wire are kept, the server copy is not swapped in over them', async () => {
+    applyStyleUpdate.mockImplementation(async () => {
+      const ed = editorOf()
+      ed.commands.insertContentAt(ed.state.doc.content.size - 1, ' Typed during the write.')
+      return { note: APPLIED, plan: PLAN }
+    })
+    NOTE = { ...baseNote(), id: 'n6' }
+    await renderEditor('n6')
+    const dialog = await openSheet()
+    await within(dialog).findByText('Will be added')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
+    expect(await within(dialog).findByText('Some words are still saving. Try again in a moment.')).toBeTruthy()
+    const json = JSON.stringify(editorOf().getJSON())
+    expect(json).toContain('Typed during the write.')
+    expect(json).not.toContain('Added by the update.')
   })
 })
 

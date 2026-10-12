@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { ITEMS, blockItemGroup } from './SlashMenu'
+import { ITEMS, blockItemGroup, blockItemMatches } from './SlashMenu'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { STYLE_EVENT } from '../../lib/journalStylesFlag'
 
@@ -14,8 +14,8 @@ describe('/style', () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     expect(item().available({})).toBe(true)
   })
-  it('answers /style by title and keyword', () => {
-    expect(item().keywords).toContain('style')
+  it('answers /style by its title', () => {
+    expect(blockItemMatches(item(), 'style')).toBe(true)
   })
   it('dispatches the style event on the editor root', () => {
     const seen = []

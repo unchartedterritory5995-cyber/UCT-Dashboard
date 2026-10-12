@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import useJournalStyles from '../../../hooks/useJournalStyles'
 import { createJournalStyle } from '../../../lib/journalStyles'
+import { NOTE_KIND_PROPERTY } from '../../../lib/noteKinds'
 import styles from './SaveAsStyleForm.module.css'
 
 export const UNSENT_BEFORE_STYLE = 'Some words are still saving. Try again in a moment.'
@@ -14,10 +15,10 @@ export const UNSENT_BEFORE_STYLE = 'Some words are still saving. Try again in a 
  * @param onDone  `(sentence | null, { failed? }) => void`: the host says the sentence and closes the form.
  */
 export default function SaveAsStyleForm({ note, onBeforeSave, onDone }) {
-  const { data, mutate } = useJournalStyles()
+  const { data, error: listError, mutate } = useJournalStyles()
   const [phase, setPhase] = useState('checking')        // checking | form
   const [name, setName] = useState(note?.title || '')
-  const [kindId, setKindId] = useState(note?.kindId || '')
+  const [picked, setPicked] = useState(null)             // null = the member has not touched the select
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const startedRef = useRef(false)
@@ -38,8 +39,14 @@ export default function SaveAsStyleForm({ note, onBeforeSave, onDone }) {
   }, [])
 
   const kinds = data?.kinds || []
-  // The select shows the note's kind, else the first one, so "Save style" always names a real kind.
-  const chosenKind = kindId || kinds[0]?.id || ''
+  // The note's CURRENT kind is the builtin:note_kind property; the column is only what it was stamped with
+  // at a styled create. A kind this app does not know is no default at all. Nothing is guessed.
+  const noteKind = note?.propertiesJson?.[NOTE_KIND_PROPERTY] || note?.kindId || ''
+  const defaultKind = kinds.some((k) => k.id === noteKind) ? noteKind : ''
+  const chosenKind = picked ?? defaultKind
+  // While the list loads (or when the note has no kind) there is nothing chosen, so Save waits; if the list
+  // cannot load, the server's own fallback (property, then column) decides, but only when the note has a kind.
+  const cannotSave = !chosenKind && !(listError && noteKind)
 
   const submit = async (e) => {
     e.preventDefault()
@@ -50,7 +57,9 @@ export default function SaveAsStyleForm({ note, onBeforeSave, onDone }) {
       // Words typed while the member was naming it count too.
       if (onBeforeSave && !(await onBeforeSave())) { setError(UNSENT_BEFORE_STYLE); return }
       const out = await createJournalStyle({
-        fromNoteId: note.id, name: name.trim() || undefined, ...(chosenKind ? { kindId: chosenKind } : {}),
+        fromNoteId: note.id, name: name.trim() || undefined,
+        // An explicit kind overrides the server's fallback, so it is sent only when the member chose one.
+        ...(picked && picked !== defaultKind ? { kindId: picked } : {}),
       })
       mutate()
       onDone?.(`Saved as the style “${out?.style?.name || name.trim() || note.title || 'Untitled style'}”.`)
@@ -70,11 +79,12 @@ export default function SaveAsStyleForm({ note, onBeforeSave, onDone }) {
       </label>
       <label className={styles.field}>
         <span className={styles.label}>Kind of note</span>
-        <select className={styles.input} value={chosenKind} onChange={(e) => setKindId(e.target.value)}>
+        <select className={styles.input} value={chosenKind} onChange={(e) => setPicked(e.target.value)}>
+          {!defaultKind && <option value="">Choose a kind</option>}
           {kinds.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
         </select>
       </label>
-      <button type="submit" className={styles.btn} disabled={busy}>Save style</button>
+      <button type="submit" className={styles.btn} disabled={busy || cannotSave}>Save style</button>
       <button type="button" className={styles.btn} onClick={() => onDone?.(null)}>Cancel</button>
       {error && <span className={styles.error} role="alert">{error}</span>}
     </form>

@@ -269,8 +269,7 @@ export const ITEMS = [
     // (adds missing blocks only, never removes or moves their text). Dark behind
     // notebook_journal_styles_enabled; dispatched on this editor's own DOM root, like /canvas.
     title: 'Journal style',
-    description: 'Switch this note to one of your journal styles, previewed first',
-    keywords: ['style', 'layout', 'preset', 'kind', 'outline'],
+    description: 'Switch to a journal style',
     available: () => journalStylesEnabled(),
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run()

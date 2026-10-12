@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 /**
@@ -43,6 +43,12 @@ const listBody = {
   ],
   blockKinds: [],
 }
+// The lazy chunk is fetched once, up front: a test that races the first cold import of KindSection is
+// a test of the machine's speed (review I5).
+beforeAll(async () => { await import('../components/notebook/styles/StyleSurfaces') })
+const T = { timeout: 20000 }
+vi.setConfig({ testTimeout: 40000 })   // role queries over the whole Notebook are slow in jsdom; this is a wait, not a budget
+
 let urls
 beforeEach(() => {
   vi.clearAllMocks()
@@ -83,7 +89,7 @@ describe('New note: pick a kind (Notebook P1)', () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
-    const [btn] = await screen.findAllByRole('button', { name: 'New Trade plan' })
+    const [btn] = await screen.findAllByLabelText('New Trade plan', {}, T)
     fireEvent.click(btn)
     await waitFor(() => expect(createNoteViaApi).toHaveBeenCalled())
     expect(createNoteViaApi.mock.calls[0][0]).toMatchObject({ kindId: 'trade_plan' })
@@ -95,11 +101,33 @@ describe('New note: pick a kind (Notebook P1)', () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
-    const [another] = await screen.findAllByRole('button', { name: 'Choose another style for Trade plan' })
+    const [another] = await screen.findAllByLabelText('Choose another style for Trade plan', {}, T)
     fireEvent.click(another)
     fireEvent.click(screen.getAllByRole('button', { name: 'Use My plan' })[0])
     await waitFor(() => expect(createNoteViaApi).toHaveBeenCalled())
     expect(createNoteViaApi.mock.calls[0][0]).toMatchObject({ styleId: 's-mine' })
+  })
+
+  it('From a style opens the New-note sheet with focus on the first kind, not the search box (M6)', async () => {
+    latchNotebookFlags({ notebook_journal_styles_enabled: true })
+    render(<MemoryRouter initialEntries={['/journal']}><NotebookTab /></MemoryRouter>)
+    await screen.findByTestId('research-home')
+    act(() => { homeProps.onFromStyle() })
+    const dialog = await screen.findByRole('dialog', { name: 'New note' })
+    // not even for a moment: the search box must not grab focus while the kinds are still loading
+    expect(document.activeElement).not.toBe(within(dialog).getByRole('searchbox', { name: 'Search templates' }))
+    const first = await within(dialog).findByLabelText('New Trade plan', {}, T)
+    await waitFor(() => expect(document.activeElement).toBe(first))
+    expect(document.activeElement).not.toBe(within(dialog).getByRole('searchbox', { name: 'Search templates' }))
+  })
+
+  it('the Templates button still opens it with the search box focused', async () => {
+    latchNotebookFlags({ notebook_journal_styles_enabled: true })
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New note' })
+    await within(dialog).findByLabelText('New Trade plan', {}, T)
+    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('searchbox', { name: 'Search templates' })))
   })
 
   it('switch off: today\'s sheet exactly, and the styles list is never requested', async () => {
