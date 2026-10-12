@@ -98,7 +98,7 @@ export default function KindSection({ onCreate, busy = false, autoFocusFirst = f
         <TemplatePreview open onClose={() => setPreview(null)} title={preview.style.name}
           subtitle={preview.ticker ? `Shown with ${preview.ticker}, from your notes.` : 'Add a ticker to see the chart block.'}
           body={preview.body} loading={preview.loading} loadError={preview.error}
-          busy={busy || offline}
+          busy={busy || offline} useLabel="Use this style"
           onUse={() => { const id = preview.style.id; setPreview(null); onCreate({ styleId: id }) }} />
       )}
     </section>

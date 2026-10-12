@@ -26,6 +26,15 @@ describe('TemplatePreview widgetEmbed (switch off, member templates, the gallery
     expect(document.body.textContent).not.toMatch(/newer version|Chart|News/)
   })
 
+  it('a template preview still says "Use this template"; a caller may name its own action', () => {
+    const { unmount } = render(<TemplatePreview open onClose={() => {}} title="T" body={BODY} onUse={() => {}} />)
+    expect(screen.getByRole('button', { name: 'Use this template' })).toBeTruthy()
+    unmount()
+    render(<TemplatePreview open onClose={() => {}} title="T" body={BODY} onUse={() => {}} useLabel="Use this style" />)
+    expect(screen.getByRole('button', { name: 'Use this style' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Use this template' })).toBeNull()
+  })
+
   it('the block catalog and any widget handling stay out of this file (it rides the first open)', () => {
     const src = fs.readFileSync(path.join(__dirname, 'TemplatePreview.jsx'), 'utf8')
     expect(src).not.toMatch(/journalBlocks|blockLabel|widgetEmbed|previewLine/)
