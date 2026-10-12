@@ -350,6 +350,8 @@ describe('Save — the exact draft and revision the member approved', () => {
     expect(stored).toEqual([])
     // asked again → a NEW proposal on the current revision
     const again = await plan(h, ops)
+    expect(again.ok).toBe(true)
+    expect(again.plans[0].after.ops.find(o => o.type === 'save').pinRevision).toBe(2)     // pinned to the CURRENT revision
   })
   it('the store accepts but the read-back fails → saved-unconfirmed, never "Saved"', async () => {
     const h = host([L])
