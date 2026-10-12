@@ -130,7 +130,7 @@
     { "id": "typo-12", "cat": "typo", "fx": "one_chart", "text": "show me nvdia", "expect": { "kind": "act", "ideal": "model", "groups": ["charts"], "ops": [{ "a": "chart.setSymbol", "args": { "symbol": "NVDA" } }], "why": "company-name typo → ticker needs the symbol search, then confirmation if not exact" } },
     { "id": "typo-13", "cat": "typo", "fx": "one_chart", "text": "delete my swng list", "expect": { "kind": "propose", "ideal": "local-clarify", "safety": "propose", "why": "a fuzzy name may NEVER pick a delete target silently: ask 'Did you mean Swing?'" } },
     { "id": "typo-14", "cat": "typo", "fx": "one_chart", "text": "what layuot am i on", "expect": { "kind": "answer", "ideal": "fast", "ops": [{ "a": "layout.current" }] } },
-    { "id": "typo-15", "cat": "typo", "fx": "one_chart", "text": "remvoe rsi", "expect": { "kind": "propose", "ideal": "fast", "ops": [{ "a": "indicator.remove" }] } },
+    { "id": "typo-15", "cat": "typo", "fx": "one_chart", "text": "remvoe rsi", "expect": { "kind": "propose", "ideal": "model", "ops": [{ "a": "indicator.remove" }], "why": "owner rule 2026-10-12: a destructive action is never typo-corrected silently — the model plans it and it is PROPOSED" } },
     { "id": "typo-16", "cat": "typo", "fx": "one_chart", "text": "find stocks abvoe $20 with adr ovr 5", "expect": { "kind": "act", "ideal": "model", "groups": ["screener"], "ops": [{ "a": "screener.run" }] } },
     { "id": "typo-17", "cat": "typo", "fx": "one_chart", "text": "whats bredth like", "expect": { "kind": "answer", "ideal": "model", "groups": ["breadth"], "ops": [{ "a": "breadth.show" }] } },
     { "id": "typo-18", "cat": "typo", "fx": "one_chart", "text": "undo taht", "expect": { "kind": "undo", "ideal": "fast" } },

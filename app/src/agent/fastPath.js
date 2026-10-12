@@ -18,6 +18,7 @@
 //   { kind: 'undo' } | { kind: 'confirm' } | { kind: 'dismiss' } | { kind: 'subset', count }
 
 import { allCapabilityNames, getCapability } from './capabilities'
+import { lexiconFor, correctTypos } from './nl/lexicon'
 
 // Phase 1: "change MY chart to 15 minutes", "change the timeframe to daily", "switch to the 15 minute"
 // are the same obvious commands as "15 minute chart" — no model call.
@@ -135,7 +136,45 @@ export function matchPosition(snaps, position) {
 
 const VERB_LEAD = /^(add|remove|show|hide)\b/
 
-export function fastParse(text, { host = null } = {}) {
+// ── NL N3: obvious typos in an instant command ("weeky", "hide volumn", "swtich to daily") ──
+// The exact parse always runs first and is never changed. Only when it finds nothing is the sentence
+// corrected word by word against the lexicon GENERATED from the registry, the catalog and the member's
+// names (nl/lexicon.js), and parsed again. The corrected parse is used only when it is SAFE: plain
+// local, reversible actions — never an approval, never a confirm/irreversible action, never an action
+// that takes tickers from the text (a ticker is never "corrected"). Anything else → the model, as before.
+// The receipt states what actually changed ("Switched timeframe to Weekly"); `corrected` is telemetry.
+const SYMBOL_ACTIONS = new Set(['chart.setSymbol', 'chart.compare', 'watchlist.add', 'watchlist.remove', 'widget.addCharts'])
+function safeCorrected(r) {
+  if (!r) return false
+  if (r.kind === 'undo') return true
+  if (r.kind !== 'ops') return false                                   // confirm / subset / dismiss: never on a guess
+  return r.ops.every(o => {
+    const c = getCapability(o.action)
+    return c && (c.risk || 'local') === 'local' && c.reversible !== false && !SYMBOL_ACTIONS.has(o.action)
+  })
+}
+export function fastParse(text, opts = {}) {
+  const exact = fastParseExact(text, opts)
+  if (exact) return exact
+  const variants = correctTypos(text, lexiconFor(opts.host || null, LEXICON_SOURCES()))
+  if (!variants) return null
+  // Every equally close reading is parsed; it is used only when exactly ONE distinct action results
+  // ("swithc to 5 minuts": minute | minutes → the same 5-minute switch). Two different actions → model.
+  // EVERY reading that parses counts — safe or not ("cancle" = cancel | candle: a dismissal and a chart
+  // type are two different meanings, so nothing is corrected).
+  const results = new Map()
+  for (const v of variants) {
+    const r = fastParseExact(v.text, opts)
+    if (r) { const key = JSON.stringify(r); if (!results.has(key)) results.set(key, { r, changes: v.changes }) }
+  }
+  if (results.size !== 1) return null
+  const [{ r, changes }] = results.values()
+  return safeCorrected(r) ? { ...r, corrected: changes } : null
+}
+// the fast path's own phrase words, for the lexicon
+const LEXICON_SOURCES = () => [LEAD.source, TAIL.source, ...CANON.map(([re]) => re.source), POS_RE.source, ALL_RE.source, fastParseExact.toString()]
+
+function fastParseExact(text, { host = null } = {}) {
   const t = clean(String(text || ''))
   if (!t || t.length > 160) return null
   // M3: "Actually, undo that last change." — a leading filler word never changes what Undo means
