@@ -408,6 +408,12 @@
         "detail": "Not Found"
       },
       "status": 404
+    },
+    "PUT /api/j2/trader-blocks/positions/{position_id}/pre-entry": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
     }
   }
 }

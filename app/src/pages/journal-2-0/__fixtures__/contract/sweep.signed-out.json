@@ -408,6 +408,12 @@
         "detail": "Not authenticated"
       },
       "status": 401
+    },
+    "PUT /api/j2/trader-blocks/positions/{position_id}/pre-entry": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
     }
   }
 }

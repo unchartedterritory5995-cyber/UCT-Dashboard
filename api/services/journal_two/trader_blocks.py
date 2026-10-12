@@ -406,3 +406,32 @@ def build_market_context(block: dict, ctx: dict):
 
 
 BUILDERS["marketcontext"] = build_market_context
+
+
+# ── Log Trade's checklist for an OPEN position (R-P2-7) ─────────────────────────────────────
+# The ticks are stored in the adherence store (j2_trade_adherence) under `pos:<position id>`, never
+# in a note; the closed trade's adherence read (journal_two.get_trade_adherence_route) falls back to
+# this record when the trade has none of its own. No market read here (R-W0-1 / R-T3-1).
+PRE_ENTRY_PREFIX = "pos:"
+
+
+def pre_entry_ref(position_id: str) -> str:
+    """The adherence-store key of a position's pre-entry record (the ONE spelling of it)."""
+    return PRE_ENTRY_PREFIX + position_id
+
+
+def save_pre_entry(user_id: str, position_id: str, setup: str | None, checked: list[str],
+                   total: int) -> dict | None:
+    """The ticks made in Log Trade, stored in the adherence store under `pos:<position id>` (the
+    closed trade's adherence read falls back to it). None when the position is not this member's,
+    which the route answers with the same 404 as a position that does not exist."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import adherence_store
+    c = get_connection()
+    try:
+        own = c.execute("SELECT 1 FROM j2_positions WHERE id = ? AND user_id = ?", (position_id, user_id)).fetchone()
+    finally:
+        c.close()
+    if own is None:
+        return None
+    return adherence_store.upsert_adherence(user_id, pre_entry_ref(position_id), setup, checked, total)

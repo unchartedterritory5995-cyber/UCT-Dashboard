@@ -1675,6 +1675,12 @@ def journal_styles(w: World) -> None:
         locked = notes_service.create_note(who, {"title": "Locked plan", "ticker": "MSFT"}, c,
                                            style_stamp=trade_plan_stamp)
         c.execute("UPDATE j2_notes SET locked = 1 WHERE id IN (?, ?)", (held["id"], locked["id"]))
+        # P2a pre-entry (R-P2-7): an open position of this member's for Log Trade's ticks.
+        c.execute(
+            "INSERT INTO j2_positions (id, user_id, symbol, side, entry_date, shares, original_shares, entry_price,"
+            " stop_price, context_at_entry, created_at, updated_at, closed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            ("pos-styles-1", who, "NVDA", "Long", "2026-10-02", 10, 10, 180.0, 170.0, "{}",
+             "2026-10-02T14:00:00Z", "2026-10-02T14:00:00Z", None))
         c.commit()
     finally:
         c.close()
@@ -1777,6 +1783,12 @@ def journal_styles(w: World) -> None:
     w.record("trader-blocks.market-context", "GET", "/api/j2/trader-blocks/market-context",
              case="success", expect=200,
              note="SPY from the live-price cache, QQQ a held daily bar's last close, VIX unavailable (part a).")
+    w.record("trader-blocks.pre-entry", "PUT", "/api/j2/trader-blocks/positions/pos-styles-1/pre-entry",
+             case="success", expect=200, json_body={"setup": "VCP", "checkedRuleIds": ["r1"], "totalRules": 2},
+             note="Log Trade's ticks for an open position: the adherence store under pos:<id>, never a note.")
+    w.record("trader-blocks.pre-entry.not-found", "PUT", "/api/j2/trader-blocks/positions/nope/pre-entry",
+             case="error", expect=404, json_body={"setup": None, "checkedRuleIds": [], "totalRules": 0},
+             note="A position that is not the member's: the same 404 as one that does not exist.")
     w.as_user(who, FREE)
     w.record("journal-styles.list.free-plan", "GET", base, case="error", expect=402)
 
