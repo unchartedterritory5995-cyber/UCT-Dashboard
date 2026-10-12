@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable
 
 from api.services.auth_db import get_connection
+from api.services.journal_two import sample_marker
 from api.services.notebook_flags import flag_on
 
 FLAG = "NOTEBOOK_JOURNAL_STYLES_ENABLED"
@@ -832,8 +833,11 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
 
 
 def latest_ticker(user_id: str, conn: sqlite3.Connection) -> str | None:
+    """The ticker on the member's newest note: the preview's "your latest note's" ticker.
+    ⛔ Never a sample note's (sample_marker): an example ticker is not one the member wrote about."""
     r = conn.execute("SELECT ticker FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL AND ticker IS NOT NULL"
-                     " AND ticker != '' ORDER BY updated_at DESC, rowid DESC LIMIT 1", (user_id,)).fetchone()
+                     " AND ticker != '' AND " + sample_marker.not_sample_sql()
+                     + " ORDER BY updated_at DESC, rowid DESC LIMIT 1", (user_id,)).fetchone()
     return r["ticker"] if r else None
 
 
