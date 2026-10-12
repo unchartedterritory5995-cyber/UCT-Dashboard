@@ -95,6 +95,12 @@ def _chart(tf: str = "D") -> dict:
     return {"block": "chart", "enabled": True, "settings": {"tf": tf}}
 
 
+def _blk(block: str) -> dict:
+    """A P2 block with its catalog defaults (read from BLOCK_KINDS, never retyped)."""
+    kind = _BLOCK_BY_ID[block]
+    return {"block": block, "enabled": True, "settings": {s["key"]: s["default"] for s in kind["settings"]}}
+
+
 def _doc(*nodes: dict) -> dict:
     return {"type": "doc", "content": list(nodes)}
 
@@ -111,10 +117,15 @@ def _never_empty(before: list, after: list) -> list:
 # One built-in style per built-in kind. Versions are bumped BY HAND when an outline here changes,
 # which is what offers "update layout" to notes made from the older one.
 BUILTIN_STYLES: dict[str, dict] = {
-    "trade_plan": {"name": "Trade plan", "version": 1, "properties": {}, "blocks": [_chart("D")], "outline": _doc(
-        _h("The setup"), _p("What is the pattern, and why now?"), _ph("chart"),
+    # v2 (Notebook P2a, Task 12): the trader blocks and the market context stamp. A note made from v1
+    # gains them only through "Update layout", which ADDS them uncaptured (IR-S11, R-RC-1).
+    "trade_plan": {"name": "Trade plan", "version": 2, "properties": {},
+                   "blocks": [_chart("D"), _blk("preEntryChecklist"), _blk("positionSizing"), _blk("marketcontext")],
+                   "outline": _doc(
+        _h("The setup"), _ph("marketcontext"), _p("What is the pattern, and why now?"), _ph("chart"),
+        _ph("preEntryChecklist"),
         _h("Entry, stop and target"), _p("Entry:"), _p("Stop:"), _p("Target:"),
-        _h("Size and risk"), _p("How much am I risking, and is it within my rules?"))},
+        _h("Size and risk"), _ph("positionSizing"), _p("How much am I risking, and is it within my rules?"))},
     "daily_prep": {"name": "Daily prep", "version": 1, "properties": {}, "blocks": [], "outline": _doc(
         _h("The market"), _p("What is the tape telling me today?"),
         _h("Names on my list"), _p("Which setups are closest to a trigger?"),

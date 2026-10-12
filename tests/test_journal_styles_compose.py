@@ -33,18 +33,23 @@ def _text(node):
     return "".join(c.get("text", "") for c in node.get("content") or [])
 
 
-def test_builtin_trade_plan_places_the_chart_at_its_placeholder(db_path):
-    from api.services.journal_two import journal_styles as js
+def test_builtin_trade_plan_places_the_chart_at_its_placeholder(db_path, monkeypatch):
+    from api.services.journal_two import journal_styles as js, trader_blocks as tb
+    # Nothing held (a cold pod): the stamp is still built, and no regime is recorded.
+    monkeypatch.setattr(tb, "_breadth", lambda: {})
+    monkeypatch.setattr(tb, "_regime_field", lambda memo: {"missing": "wire_unavailable"})
+    monkeypatch.setattr(tb, "_quotes", lambda *a, **k: {})
     s = js.get_style("u1", "builtin:trade_plan")
     out = js.compose("u1", s, ticker="NVDA", conn=None, now=NOW)
     body = out["bodyJson"]
-    i = _types(body).index("widgetEmbed")
+    i = next(k for k, n in enumerate(body["content"])
+             if n["type"] == "widgetEmbed" and n["attrs"]["widgetId"] == "chart")
     assert _text(body["content"][i - 1]) == "What is the pattern, and why now?"
     attrs = body["content"][i]["attrs"]
-    assert attrs["widgetId"] == "chart" and attrs["params"] == {"symbol": "NVDA", "tf": "D", "to": int(NOW.timestamp())}
+    assert attrs["params"] == {"symbol": "NVDA", "tf": "D", "to": int(NOW.timestamp())}
     assert not any("{{block:" in _text(n) for n in body["content"])
     assert out["properties"] == {"builtin:note_kind": "trade_plan"}
-    assert (out["styleId"], out["styleVersion"], out["kindId"]) == ("builtin:trade_plan", 1, "trade_plan")
+    assert (out["styleId"], out["styleVersion"], out["kindId"]) == ("builtin:trade_plan", 2, "trade_plan")
 
 
 def test_blocks_without_a_placeholder_go_after_the_first_heading(db_path):
@@ -184,3 +189,122 @@ def test_preview_writes_nothing_and_takes_an_asked_ticker_and_a_draft(db_path):
         conn.close()
     with pytest.raises(js.StyleNotFound):
         js.preview("u1", {"styleId": "nope"})
+
+
+# ── Notebook P2a Task 12: the built-in Trade plan at version 2 (IR-S11, R-P2-8, R-RC-1) ──────
+# The P2a blocks join the Trade plan. A NEW note (a create, or an empty note switched to the style)
+# captures the market and records regime_at_write; an OLDER note offered the blocks by "Update
+# layout" gets them UNCAPTURED and never today's regime.
+P2A_BLOCKS = ["chart", "preEntryChecklist", "positionSizing", "marketcontext"]
+GREEN = {"value": "green", "source": "UCT Exposure Rating", "asOf": "2026-10-13", "missing": None, "detail": None}
+
+
+def _green(monkeypatch):
+    from api.services.journal_two import trader_blocks as tb
+    monkeypatch.setattr(tb, "_breadth", lambda: {})
+    monkeypatch.setattr(tb, "_regime_field", lambda memo: dict(GREEN))
+    monkeypatch.setattr(tb, "_quotes", lambda *a, **k: {})
+
+
+def _embeds(body):
+    return [n for n in body["content"] if n.get("type") == "widgetEmbed"]
+
+
+def _by_id(body, wid):
+    found = [n for n in _embeds(body) if n["attrs"]["widgetId"] == wid]
+    assert len(found) == 1, (wid, [n["attrs"]["widgetId"] for n in _embeds(body)])
+    return found[0]
+
+
+def _v1_trade_plan_body():
+    """A note as the v1 Trade plan wrote it (its chart in place), plus the member's own words."""
+    from api.services.journal_two import journal_styles as js
+    return {"type": "doc", "content": [
+        js._h("The setup"), js._p("What is the pattern, and why now?"),
+        js._build_chart({"settings": {"tf": "D"}}, {"ticker": "NVDA", "now": NOW})[0],
+        js._p("MY OWN WORDS"),
+        js._h("Entry, stop and target"), js._p("Entry: 101.5")]}
+
+
+def test_trade_plan_v2_holds_the_p2a_blocks(db_path, monkeypatch):
+    from api.services.journal_two import journal_styles as js
+    _green(monkeypatch)
+    s = js.BUILTIN_STYLES["trade_plan"]
+    assert s["version"] == 2
+    assert [b["block"] for b in s["blocks"]] == P2A_BLOCKS
+    assert all(b["enabled"] for b in s["blocks"])
+    # Each P2 block carries its catalog defaults (the ONE copy in BLOCK_KINDS), the chart its Daily.
+    for b in s["blocks"][1:]:
+        assert b["settings"] == {x["key"]: x["default"] for x in js._BLOCK_BY_ID[b["block"]]["settings"]}, b
+    assert s["blocks"][0]["settings"] == {"tf": "D"}
+    out = js.compose("u1", js.get_style("u1", "builtin:trade_plan"), ticker="NVDA", conn=None)
+    ids = [n["attrs"]["widgetId"] for n in out["bodyJson"]["content"] if n["type"] == "widgetEmbed"]
+    assert ids == ["marketcontext", "chart", "preEntryChecklist", "positionSizing"]
+    assert out["properties"]["builtin:regime_at_write"] == "green"
+    assert out["styleVersion"] == 2
+    # Every block sits at its own placeholder; no placeholder text survives.
+    assert not any("{{block:" in _text(n) for n in out["bodyJson"]["content"])
+    content = out["bodyJson"]["content"]
+    assert _text(content[content.index(_by_id(out["bodyJson"], "positionSizing")) - 1]) == "Size and risk"
+
+
+def test_a_new_trade_plan_note_captures_its_stamp_and_regime(db_path, monkeypatch):
+    """create: the stamp is CAPTURED (readings, capture time) and the regime it was written in is kept."""
+    from api.services.journal_two import journal_styles as js
+    _green(monkeypatch)
+    note, skipped = js.create_styled_note("u1", {"kindId": "trade_plan", "ticker": "NVDA", "title": "plan"})
+    assert skipped == []
+    assert (note["styleId"], note["styleVersion"]) == ("builtin:trade_plan", 2)
+    stamp = _by_id(note["bodyJson"], "marketcontext")["attrs"]
+    assert stamp["params"]["readings"]["regime"]["value"] == "green" and stamp["params"]["fields"] == "all"
+    assert "uncaptured" not in stamp["params"] and isinstance(stamp["capturedAt"], str)
+    sizing = _by_id(note["bodyJson"], "positionSizing")["attrs"]["params"]
+    assert (sizing["regimeId"], sizing["grade"]) == ("green", "A")
+    assert note["propertiesJson"]["builtin:regime_at_write"] == "green"
+
+
+def test_an_empty_note_switched_to_trade_plan_v2_is_written_as_a_create(db_path, monkeypatch):
+    """insertsOutline: an EMPTY note switched to the Trade plan gets the v2 outline, a captured stamp
+    and its regime (R-RC-1: create-equivalent)."""
+    from api.services.journal_two import journal_styles as js, notes
+    _green(monkeypatch)
+    n = notes.create_note("u1", {"title": "empty", "ticker": "NVDA"})
+    plan = js.plan_style_update("u1", n["id"], style_id="builtin:trade_plan")
+    assert (plan["insertsOutline"], plan["mode"], plan["toVersion"]) == (True, "create", 2)
+    note, _ = js.apply_style_update("u1", n["id"], style_id="builtin:trade_plan", expected_updated_at=n["updatedAt"])
+    assert [x["attrs"]["widgetId"] for x in _embeds(note["bodyJson"])] == \
+        ["marketcontext", "chart", "preEntryChecklist", "positionSizing"]
+    stamp = _by_id(note["bodyJson"], "marketcontext")["attrs"]
+    assert "uncaptured" not in stamp["params"] and isinstance(stamp["capturedAt"], str)
+    assert note["propertiesJson"]["builtin:regime_at_write"] == "green"
+    assert (note["styleId"], note["styleVersion"]) == ("builtin:trade_plan", 2)
+
+
+def test_a_v1_trade_plan_note_gets_the_p2a_blocks_and_an_UNCAPTURED_stamp(db_path, monkeypatch):
+    """IR-S11: 'Update layout to v2' never stamps today's market into an older note, and only ADDS."""
+    from api.services.journal_two import journal_styles as js, notes, trader_blocks as tb
+    _green(monkeypatch)
+    n = notes.create_note("u1", {"title": "old", "ticker": "NVDA", "bodyJson": _v1_trade_plan_body()},
+                          style_stamp=("builtin:trade_plan", 1, "trade_plan"))
+    before = n["bodyJson"]["content"]
+    plan = js.plan_style_update("u1", n["id"])
+    assert (plan["fromVersion"], plan["toVersion"], plan["versionCurrent"]) == (1, 2, False)
+    assert (plan["insertsOutline"], plan["mode"]) == (False, "update")
+    assert [a["block"] for a in plan["add"]] == ["preEntryChecklist", "positionSizing", "marketcontext"]
+    monkeypatch.setattr(tb, "market_context_params", lambda *a, **k: pytest.fail("an update must not capture"))
+    monkeypatch.setattr(tb, "_regime_field", lambda memo: pytest.fail("an update must not read a regime"))
+    note, _ = js.apply_style_update("u1", n["id"], expected_updated_at=n["updatedAt"])
+    stamps = [x for x in note["bodyJson"]["content"]
+              if x.get("type") == "widgetEmbed" and x["attrs"]["widgetId"] == "marketcontext"]
+    assert len(stamps) == 1 and stamps[0]["attrs"]["params"] == {"uncaptured": True, "fields": "all"}
+    assert stamps[0]["attrs"]["capturedAt"] is None
+    sizing = _by_id(note["bodyJson"], "positionSizing")["attrs"]["params"]
+    assert "regimeId" not in sizing and sizing["grade"] == "A"
+    assert "builtin:regime_at_write" not in (note["propertiesJson"] or {})
+    # Only ADDS: every node the member had is still there, in order, and the chart is not doubled.
+    assert [x for x in note["bodyJson"]["content"] if x not in before and x.get("type") != "widgetEmbed"] == []
+    kept = [x for x in note["bodyJson"]["content"] if x in before]
+    assert kept == before
+    assert len([x for x in _embeds(note["bodyJson"]) if x["attrs"]["widgetId"] == "chart"]) == 1
+    assert (note["styleId"], note["styleVersion"]) == ("builtin:trade_plan", 2)
+    assert js.plan_style_update("u1", n["id"])["upToDate"] is True

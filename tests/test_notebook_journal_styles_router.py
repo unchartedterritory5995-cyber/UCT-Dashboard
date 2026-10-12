@@ -201,7 +201,9 @@ def test_style_update_plan_and_apply(client):
     _as(client)
     n = _note()
     plan = client.get(f"/api/j2/notes/{n['id']}/style-update-plan").json()["plan"]
-    assert plan["add"] == [{"block": "chart", "label": None}]
+    # The built-in Trade plan at v2 (P2a Task 12): an empty v1 note lacks every one of its blocks.
+    assert plan["add"] == [{"block": b, "label": None}
+                           for b in ["chart", "preEntryChecklist", "positionSizing", "marketcontext"]]
     assert {"locked", "versionCurrent", "missingBlocks", "upToDate"} <= set(plan)
     r = client.post(f"/api/j2/notes/{n['id']}/apply-style-update", json={"baseUpdatedAt": n["updatedAt"]})
     assert r.status_code == 200

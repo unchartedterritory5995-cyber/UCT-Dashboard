@@ -1,8 +1,8 @@
 {
   "_contract": {
     "case": "error",
-    "endpoint": "DELETE /api/j2/note-kinds/k_d421c43dd2494f959d8cfacbbb776528",
-    "path": "/api/j2/note-kinds/k_d421c43dd2494f959d8cfacbbb776528",
+    "endpoint": "DELETE /api/j2/note-kinds/k_454af67ac7ab4e53b8de3c02c7c21b01",
+    "path": "/api/j2/note-kinds/k_454af67ac7ab4e53b8de3c02c7c21b01",
     "status": 404
   },
   "body": {

@@ -15,6 +15,28 @@
           "settings": {
             "tf": "D"
           }
+        },
+        {
+          "block": "preEntryChecklist",
+          "enabled": true,
+          "settings": {
+            "includeRules": "yes",
+            "requireAll": "no"
+          }
+        },
+        {
+          "block": "positionSizing",
+          "enabled": true,
+          "settings": {
+            "grade": "A"
+          }
+        },
+        {
+          "block": "marketcontext",
+          "enabled": true,
+          "settings": {
+            "fields": "all"
+          }
         }
       ],
       "builtin": true,
@@ -42,6 +64,15 @@
           {
             "content": [
               {
+                "text": "{{block:marketcontext}}",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
                 "text": "What is the pattern, and why now?",
                 "type": "text"
               }
@@ -52,6 +83,15 @@
             "content": [
               {
                 "text": "{{block:chart}}",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
+                "text": "{{block:preEntryChecklist}}",
                 "type": "text"
               }
             ],
@@ -111,6 +151,15 @@
           {
             "content": [
               {
+                "text": "{{block:positionSizing}}",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
                 "text": "How much am I risking, and is it within my rules?",
                 "type": "text"
               }
@@ -125,7 +174,7 @@
       "sourceGalleryId": null,
       "sourceVersion": null,
       "updatedAt": null,
-      "version": 1
+      "version": 2
     }
   }
 }
