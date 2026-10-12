@@ -58,6 +58,11 @@ _session = requests.Session()
 # plan is not confirmed anywhere in the accepted corpus. Configuration
 # value with a conservative default, per data-architecture §18.3's own
 # principle — changeable with no code change once the real ceiling is known.
+# 2026-10-12: web runs FMP_RATE_LIMIT_PER_MIN=500 (Premium publishes 750/min;
+# docs/terminal-research/09-security-licensing-cost/cost-model-data.md). At 120,
+# the first 30 min after a redeploy refused 1,124 calls locally (earnings intel,
+# price-target/grades consensus); at 500 the same window refused 0 and FMP sent
+# no 429. The 120 default stays for any process that does not set it.
 _FMP_RATE_LIMIT_PER_MIN = float(os.environ.get("FMP_RATE_LIMIT_PER_MIN", "120"))
 _bucket_tokens = _FMP_RATE_LIMIT_PER_MIN
 _bucket_updated = time.monotonic()
