@@ -1,8 +1,11 @@
-// Journal styles client (Notebook P1, Task 11). The server is built in parallel (Tasks 8-10), so
-// every answer below is an INLINE fixture in the shapes the plan documents. When Task 8 merges and
-// generates `__fixtures__/contract/journal-styles.*.json`, the three `*Fixture` consts below are
-// replaced by imports of those files (same `.body` shape) -- nothing else in this file changes.
+// Journal styles client (Notebook P1, Task 11). Every server answer below is a GENERATED contract fixture
+// (`__fixtures__/contract/*.json`, written by the server lane and kept current by
+// tests/test_notebook_contract_fixtures.py), so these tests are pinned to the real shapes. Each `*Fixture` const
+// keeps the old `{ body }` face so the tests read as before; a variation is a spread + override of a fixture
+// object. What stays inline has no fixture: a 404 "gate off", a 5xx, the proxy statuses, and bodies the client
+// must tolerate but the server never sends (a mapping answer with no `notes`).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { contract, contractBody, contractResponse } from '../__fixtures__/contract'
 
 vi.mock('./offline/settleNoteWrite', () => ({
   settleNoteWrite: vi.fn(async () => 'rev'),
@@ -25,37 +28,19 @@ import {
   defaultStyleFor, stylesOfKind,
 } from './journalStyles'
 
-// ── inline fixtures: the plan's documented shapes (Task 8 table, Task 6 style dict, Task 10 plan) ──
-const KIND_IDS = ['trade_plan', 'daily_prep', 'weekend_prep', 'earnings', 'post_trade_review',
-  'weekly_review', 'thesis', 'watchlist_note']
-const style = (over) => ({
-  id: 'x', name: 'X', kindId: 'thesis', builtin: true, isDefault: true, version: 1,
-  outlineTemplateId: null, hasOutline: true, blocks: [], properties: {}, sourceGalleryId: null,
-  sourceVersion: null, createdAt: null, updatedAt: null, deletedAt: null, ...over,
-})
-const listFixture = {
-  body: {
-    kinds: KIND_IDS.map((id, i) => ({ id, name: id, icon: 'note', builtin: true, sortOrder: i })),
-    styles: [
-      ...KIND_IDS.map((k) => style({ id: `builtin:${k}`, name: k, kindId: k })),
-      style({ id: 's_mine', name: 'Mine', kindId: 'trade_plan', builtin: false, isDefault: false }),
-    ],
-    blockKinds: ['chart'],
-  },
-}
-const applyFixture = {
-  body: {
-    note: { id: 'n1', updatedAt: '2026-10-11T12:00:00+00:00', styleId: 's_mine', styleVersion: 2, kindId: 'trade_plan' },
-    plan: { styleId: 's_mine', styleName: 'Mine', fromVersion: 1, toVersion: 2, switching: false,
-      insertsOutline: false, add: [{ block: 'chart', label: null }], skipped: [], upToDate: false },
-  },
-}
-const mappingApply = {
-  body: {
-    notes: [{ id: 'a', updatedAt: '2026-10-11T12:00:01+00:00' }, { id: 'b', updatedAt: '2026-10-11T12:00:02+00:00' }],
-    count: 2,
-  },
-}
+// ── the server's answers, from the contract fixtures ──
+// A real style row from the list, for the pure-function tests that need a payload of their own kinds.
+const style = (over) => ({ ...contractBody('journal-styles.list').styles[0], ...over })
+const listFixture = { body: contractBody('journal-styles.list') }
+// ⚠️ This fixture's `note.updatedAt` equals its seed's (the generator freezes the clock): a test that checks the
+// revision MOVED must override it explicitly, never read it from here. None below does.
+const applyFixture = { body: contractBody('notes.apply-style-update') }
+const planFixture = { body: contractBody('notes.style-update-plan') }
+const mappingApply = { body: contractBody('note-kinds.mapping-offer.apply') }
+// One body carrying every key the wire-shape tests' calls read, all from real answers (the wire tests ask what
+// each call SENDS; what comes back is incidental).
+const anyAnswer = { ...listFixture.body, ...applyFixture.body, ...mappingApply.body }
+const TRADE_PLAN_IDS = listFixture.body.styles.filter((x) => x.kindId === 'trade_plan').map((x) => x.id)
 
 const ok = (body) => ({ ok: true, status: 200, json: async () => body })
 const refusal = (status, detail) => ({ ok: false, status, json: async () => (detail ? { detail } : {}) })
@@ -76,7 +61,7 @@ describe('journal styles client', () => {
   it('reads the list in the server contract shape', async () => {
     globalThis.fetch.mockResolvedValue(ok(listFixture.body))
     const data = await fetchJournalStyles()
-    expect(data.kinds.length).toBe(8)
+    expect(data.kinds.length).toBe(listFixture.body.kinds.length)
     expect(defaultStyleFor(data, 'thesis').id).toBe('builtin:thesis')
     expect(stylesOfKind(data, 'trade_plan').some((s) => !s.builtin)).toBe(true)
   })
@@ -99,8 +84,9 @@ describe('journal styles client', () => {
   })
 
   it('a refusal carries the server sentence and status', async () => {
-    globalThis.fetch.mockResolvedValue(refusal(400, 'Choose a kind of note for this style.'))
-    await expect(createJournalStyle({ name: 'x' })).rejects.toMatchObject({ status: 400, message: 'Choose a kind of note for this style.' })
+    const bad = contract('journal-styles.create.bad-kind')
+    globalThis.fetch.mockResolvedValue(contractResponse('journal-styles.create.bad-kind'))
+    await expect(createJournalStyle({ name: 'x' })).rejects.toMatchObject({ status: bad._contract.status, message: bad.body.detail })
   })
 
   it('falls back to the cached copy when the network is down', async () => {
@@ -132,7 +118,7 @@ describe('what each call asks the server (the wire, not the call site)', () => {
       '/api/j2/notes/n1/apply-style-update', { styleId: 's_1', baseUpdatedAt: 'T0' }],
   ]
   it.each(cases)('%s', async (_name, run, method, url, body) => {
-    globalThis.fetch.mockResolvedValue(ok({ notes: [], note: { id: 'n1', updatedAt: 'u' } }))
+    globalThis.fetch.mockResolvedValue(ok(anyAnswer))
     await run()
     const call = sent()
     expect(call.url).toBe(url)
@@ -157,8 +143,8 @@ describe('what each call asks the server (the wire, not the call site)', () => {
   })
 
   it('the plan is a GET on its own route: it can never be mistaken for the write', async () => {
-    globalThis.fetch.mockResolvedValue(ok({ plan: applyFixture.body.plan }))
-    await planStyleUpdate('n1', { styleId: 's_mine' })
+    globalThis.fetch.mockResolvedValue(ok(planFixture.body))
+    await planStyleUpdate('n1', { styleId: planFixture.body.plan.styleId })
     const { url, method, init } = sent()
     expect(method).toBe('GET')
     expect(url).not.toMatch(/apply-style-update/)
@@ -166,7 +152,7 @@ describe('what each call asks the server (the wire, not the call site)', () => {
   })
 
   it('only the two calls that move a note settle; nothing else does', async () => {
-    globalThis.fetch.mockResolvedValue(ok({ notes: [], note: { id: 'n1', updatedAt: 'u' }, kinds: [], styles: [] }))
+    globalThis.fetch.mockResolvedValue(ok(anyAnswer))
     for (const [name, run] of cases) {
       if (name === 'applyStyleUpdate' || name === 'applyMappingOffer') continue
       await run()
@@ -179,17 +165,18 @@ describe('what each call asks the server (the wire, not the call site)', () => {
 
 describe('a call that moves a revision is landed, and only when it moved one', () => {
   it('the plan is a read: it settles nothing', async () => {
-    globalThis.fetch.mockResolvedValue(ok({ plan: applyFixture.body.plan }))
-    const out = await planStyleUpdate('n1', { styleId: 's_mine' })
-    expect(out.plan.toVersion).toBe(2)
+    globalThis.fetch.mockResolvedValue(ok(planFixture.body))
+    const out = await planStyleUpdate('n1', { styleId: planFixture.body.plan.styleId })
+    expect(out.plan.toVersion).toBe(planFixture.body.plan.toVersion)
     expect(settleNoteWrite).not.toHaveBeenCalled()
     expect(settleNoteWrites).not.toHaveBeenCalled()
   })
 
   it('a stale base (409) moved nothing: it throws the server sentence and settles nothing', async () => {
-    globalThis.fetch.mockResolvedValue(refusal(409, 'This note changed since you opened it. Nothing was added.'))
+    const stale = contract('notes.apply-style-update.stale')
+    globalThis.fetch.mockResolvedValue(contractResponse('notes.apply-style-update.stale'))
     await expect(applyStyleUpdate('n1', { baseUpdatedAt: 'old' })).rejects.toMatchObject({
-      status: 409, message: 'This note changed since you opened it. Nothing was added.',
+      status: stale._contract.status, message: stale.body.detail,
     })
     expect(settleNoteWrite).not.toHaveBeenCalled()
   })
@@ -209,7 +196,7 @@ describe('a call that moves a revision is landed, and only when it moved one', (
     globalThis.fetch.mockResolvedValue(ok(mappingApply.body))
     const out = await applyMappingOffer(['skip']).then((o) => { order.push('returned'); return o })
     expect(order).toEqual(['settled', 'returned'])
-    expect(out.count).toBe(2)
+    expect(out.count).toBe(mappingApply.body.count)
   })
 
   it('the settles use the account that ASKED, even if it changes while the request is out', async () => {
@@ -220,7 +207,7 @@ describe('a call that moves a revision is landed, and only when it moved one', (
     setCurrentAccountId('acct-B')
     release()
     await pending
-    expect(settleNoteWrite).toHaveBeenCalledWith('n1', applyFixture.body.note, 'acct-A')
+    expect(settleNoteWrite).toHaveBeenCalledWith(applyFixture.body.note.id, applyFixture.body.note, 'acct-A')
     globalThis.fetch.mockReturnValue(new Promise((r) => { release = () => r(ok(mappingApply.body)) }))
     const second = applyMappingOffer([])
     setCurrentAccountId('acct-C')
@@ -230,10 +217,11 @@ describe('a call that moves a revision is landed, and only when it moved one', (
   })
 
   it('a mapping offer that changed nothing settles nothing and does not throw', async () => {
-    globalThis.fetch.mockResolvedValue(ok({ notes: [], count: 0 }))
-    await expect(applyMappingOffer()).resolves.toEqual({ notes: [], count: 0 })
+    const nothing = { ...mappingApply.body, notes: [], count: 0 }               // the real answer's keys, nothing moved
+    globalThis.fetch.mockResolvedValue(ok(nothing))
+    await expect(applyMappingOffer()).resolves.toEqual(nothing)
     expect(sent().body).toEqual({ excludeNoteIds: [] })
-    globalThis.fetch.mockResolvedValue(ok({ count: 0 }))
+    globalThis.fetch.mockResolvedValue(ok({ count: 0 }))                         // tolerated: an answer with no `notes` key at all
     await expect(applyMappingOffer([])).resolves.toEqual({ count: 0 })
     expect(settleNoteWrite).not.toHaveBeenCalled()
   })
@@ -355,7 +343,8 @@ describe('the offline cache (the offline DB\'s existing meta store)', () => {
 
   it('the server ANSWERED with a refusal: the cache is not used (402 free plan, 404 gate off, 400, 500)', async () => {
     const readCache = vi.fn(async () => listFixture.body)
-    for (const [status, detail] of [[402, 'Journal styles require a paid plan'], [404, 'Not found'], [400, 'no'], [500, 'boom']]) {
+    const answered = ['journal-styles.list.free-plan', 'journal-styles.create.bad-kind'].map((n) => contract(n))
+    for (const [status, detail] of [...answered.map((c) => [c._contract.status, c.body.detail]), [404, 'Not found'], [500, 'boom']]) {
       globalThis.fetch.mockResolvedValue(refusal(status, detail))
       await expect(fetchJournalStyles({ readCache })).rejects.toMatchObject({ status, message: detail })
     }
@@ -386,7 +375,10 @@ describe('reading the list', () => {
 
   it('stylesOfKind keeps the server order', () => {
     const data = listFixture.body
-    expect(stylesOfKind(data, 'trade_plan').map((s) => s.id)).toEqual(['builtin:trade_plan', 's_mine'])
+    const ids = stylesOfKind(data, 'trade_plan').map((s) => s.id)
+    expect(ids).toEqual(TRADE_PLAN_IDS)
+    expect(ids).toHaveLength(3)                                  // the built-in, then the member's two own, with generated ids
+    expect(ids[0]).toBe('builtin:trade_plan')
   })
 })
 
