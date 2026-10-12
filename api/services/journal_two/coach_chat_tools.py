@@ -72,7 +72,16 @@ def _exec_list_recent_trades(*, user_id, account_id, args, conn=None) -> dict:
     if args.get("result"):
         trades = [t for t in trades if t.get("result") == args["result"]]
     if args.get("regime"):
-        trades = [t for t in trades if t.get("regime") == args["regime"]]
+        # j2_trades.regime holds classify_regime's lowercase ids; the schema offers the
+        # member word (YELLOW) and the id spelling (AMBER), so both are mapped to the id
+        # before comparing. A value that is neither is compared raw, as it always was.
+        from api.services.journal_two import regime as regime_service
+        want = regime_service.regime_id_for(args["regime"])
+        if want is None:
+            trades = [t for t in trades if t.get("regime") == args["regime"]]
+        else:
+            trades = [t for t in trades
+                      if regime_service.regime_id_for(t.get("regime")) == want]
     limit = int(args.get("limit", 100))
     trades = trades[-limit:] if len(trades) > limit else trades
     return {
@@ -917,7 +926,11 @@ _TOOLS_UNGATED: dict[str, dict[str, Any]] = {
                 "symbol": {"type": "string"},
                 "setup": {"type": "string"},
                 "result": {"type": "string", "enum": ["Win", "Loss", "BE"]},
-                "regime": {"type": "string", "enum": ["GREEN", "AMBER", "ORANGE", "RED"]},
+                # AMBER stays LAST as a back-compat alias of YELLOW (the stored id's
+                # spelling): the executor maps both to the same rows.
+                "regime": {"type": "string", "enum": ["GREEN", "YELLOW", "ORANGE", "RED", "AMBER"],
+                           "description": "Exposure tier at entry. Use YELLOW for the 50-89 tier; "
+                                          "its stored id `amber` is accepted as the same tier."},
                 "limit": {"type": "integer", "default": 100, "maximum": 500},
             },
         },

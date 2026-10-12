@@ -10,7 +10,7 @@ like:
 
   - "How did Bull Flag do over the last 90 days?"
   - "What's my pullback win rate this quarter?"
-  - "How did flag setups perform in AMBER regime YTD?"
+  - "How did flag setups perform in a Yellow regime YTD?"
 
 Returns a rich payload with by-month breakdown for trend visibility.
 """
@@ -128,6 +128,13 @@ def analyze_setup_in_period(
     # Filter
     setup_norm = (setup or "").strip().lower() or None
     regime_norm = (regime or "").strip().upper() or None
+    # F-O8-SERVER: the 50-89 tier's member word is YELLOW and its stored id is amber;
+    # both spellings resolve to the id, on the request AND on each trade's label, before
+    # comparing. A label that is neither keeps the raw upper-case comparison it always had.
+    from api.services.journal_two import regime as regime_service
+    regime_id = regime_service.regime_id_for(regime_norm)
+    # Spoken narration names the tier by its member word; an unknown label as given.
+    regime_shown = regime_service.regime_word(regime_id) or regime
 
     filtered: list[dict] = []
     for t in trades:
@@ -146,14 +153,17 @@ def analyze_setup_in_period(
         # Regime filter
         if regime_norm:
             t_regime = _regime_for_trade(t)
-            if (t_regime or "") != regime_norm:
+            if regime_id is not None:
+                if regime_service.regime_id_for(t_regime) != regime_id:
+                    continue
+            elif (t_regime or "") != regime_norm:
                 continue
         filtered.append(t)
 
     n = len(filtered)
     if n == 0:
         what = f"setup={setup}" if setup else "trades"
-        regime_clause = f" in {regime} regime" if regime else ""
+        regime_clause = f" in {regime_shown} regime" if regime else ""
         return {
             "ok": True,
             "narration": (
@@ -232,7 +242,7 @@ def analyze_setup_in_period(
         })
 
     setup_label = setup or "all setups"
-    regime_clause = f" in {regime} regime" if regime else ""
+    regime_clause = f" in {regime_shown} regime" if regime else ""
     narration = (
         f"{setup_label}{regime_clause} from {start_iso} to {end_iso}: "
         f"{n} trades, win rate {win_rate:.1f}%, "

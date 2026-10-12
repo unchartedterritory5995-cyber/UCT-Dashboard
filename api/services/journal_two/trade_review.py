@@ -15,6 +15,7 @@ from typing import Any
 from api.services.auth_db import get_connection
 from api.services.journal_two import accounts as accounts_service
 from api.services.journal_two import coach_data_assembler
+from api.services.journal_two import regime as regime_service
 
 
 class AnthropicReviewClient:
@@ -136,7 +137,9 @@ def generate_review(
             f"- R-multiple: {trade.get('r_multiple')}",
             f"- $P&L: {trade.get('pnl_dollar')}",
             f"- Hold days: {trade.get('hold_days')}",
-            f"- Regime: {trade.get('regime') or 'unknown'}",
+            # F-O8-SERVER: the model reads the member word (amber's is Yellow); the
+            # stored id is still what metadata below records.
+            f"- Regime: {regime_service.regime_word(trade.get('regime')) or trade.get('regime') or 'unknown'}",
             f"- Trader's notes: {trade.get('notes') or '(none)'}",
             f"- Mistake tags: {trade.get('mistake_tags')}",
             f"- Emotion tags: {trade.get('emotion_tags')}",

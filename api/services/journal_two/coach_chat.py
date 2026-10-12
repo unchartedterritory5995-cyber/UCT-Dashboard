@@ -170,7 +170,11 @@ def _current_regime_context() -> str:
         exp = info.get("exposure_pct") or info.get("score")
         if not r:
             return ""
-        ctx = f"\n\n[Live market context: today's Exposure Backdrop is {r}"
+        # F-O8-SERVER: the model reads the member word (amber's is "Yellow"), lower-cased
+        # mid-sentence; a value the map does not know passes through as before.
+        word = regime_service.regime_word(r)
+        shown = word.lower() if word else r
+        ctx = f"\n\n[Live market context: today's Exposure Backdrop is {shown}"
         if exp is not None:
             ctx += f" (exposure score {exp})"
         ctx += ". Factor this into your coaching where relevant.]"

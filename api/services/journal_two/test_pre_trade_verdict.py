@@ -217,3 +217,23 @@ def test_llm_path_handles_malformed_json_gracefully(db_conn):
         client=fake, conn=db_conn,
     )
     assert result["label"] in ("HOLD", "SKIP")
+
+
+def test_verdict_prompt_names_the_backdrop_yellow(db_conn, monkeypatch):
+    """F-O8-SERVER: the 50-89 tier reaches the model as "Yellow"; the read is still the id."""
+    from api.services.journal_two import pre_trade_verdict as ptv
+    from api.services.journal_two import regime as regime_service
+    amb = "am" + "ber"
+    monkeypatch.setattr(regime_service, "get_current_regime",
+                        lambda: {"regime": amb, "score": 72.0})
+    acc = _seed_account(db_conn)
+    fake = FakeVerdictClient(json.dumps({"label": "HOLD", "paragraph": "x", "factors": []}))
+    ptv.generate_verdict(
+        user_id="u_v", account_id=acc["id"],
+        params={"symbol": "NVDA", "side": "Long", "shares": 100,
+                "entry_price": 200.0, "stop_price": 199.0, "setup": "Bull Flag"},
+        client=fake, conn=db_conn,
+    )
+    msg = fake.calls[-1]["user_message"]
+    assert "## Current Exposure Backdrop: Yellow" in msg
+    assert amb not in msg.lower()
