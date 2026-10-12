@@ -174,11 +174,18 @@ describe('N-3: nothing attaches or detaches while a suggestion menu is open', ()
     expect(stamps(ed)).toBe(0)                                             // deferred
     expect(menuOpen(ed)).toBe(true)
     expect(listbox.isConnected).toBe(true)                                 // the menu was not exited
+    // ...and the attach then runs OUTSIDE the transaction that closed the menu, not from inside its dispatch
+    const at = { dispatching: 0, reg: [] }
+    const dispatch = ed.view.dispatch.bind(ed.view)
+    ed.view.dispatch = (tr) => { at.dispatching += 1; try { return dispatch(tr) } finally { at.dispatching -= 1 } }
+    const reg = ed.registerPlugin.bind(ed)
+    ed.registerPlugin = (p, f) => { at.reg.push(at.dispatching); return reg(p, f) }
     ed.commands.undo()                                                     // the "/" goes: the menu closes
     await waitFor(() => expect(menuOpen(ed)).toBe(false))
     await waitFor(() => expect(stamps(ed)).toBe(1))
     expect(ed.state.plugins[0].spec.key).toBe(PRICE_STAMPS_KEY)
     expect(listeners()).toBe(baseline)                                     // ...and stops listening once it has run
+    expect(at.reg).toEqual([0])
   })
 
   it('the block let go while a menu is open: the menu stays; the plugin goes once it closes', async () => {
