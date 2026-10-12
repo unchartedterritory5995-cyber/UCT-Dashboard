@@ -190,4 +190,11 @@ board check + save, model-path `ask` + streamed line, `activity` in the hook's r
 (typing line text only), `host.js` (board read URL), `capabilities/indicatorEdits.js` (one inert kind
 flag, `persistsInCommit: true`). No indicator UI or contract changed. Interfaces added: `useAgent().activity`,
 `agentClient.agentTurnStream / loadAgentConfig / serverStreams`, target-kind flag `persistsInCommit`.
-A trial merge with `feat/agent-indicator-builder` is recorded in the release notes for this branch.
+Trial merge (2026-10-12): the Indicators session's working tree (`C:/w/agind`, 17 files, uncommitted
+on `feat/agent-indicator-builder` = 382606e92c) applied onto `e392b229b4` with no conflicts; on the
+combined tree the Agent suite + `agentRoute.test.jsx` pass (65 files, 1078 tests, 4 skipped), including
+the latency budgets. Whoever lands second re-runs `agentLatency.test.jsx` (its budgets are the contract).
+
+Reproducing the baseline: commit `d4c47ae1e3` is production `382606e92c` + instrumentation only; run
+`AGENT_LATENCY_OUT=… npx vitest run src/agent/agentLatency.test.jsx` there and at this branch's head
+(`AGENT_LATENCY_STREAM=1` for the streamed mode).
