@@ -5,7 +5,7 @@
 // own recipe in this file's siblings); a second renders the REAL BlockNodeView with one body that throws,
 // so the whole composition (the named group, its Remove button, then the error state with "Try again")
 // is audited -- not a hand-built frame. An empty screen cannot pass as a clean one in either.
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { vi, expect } from 'vitest'
 import { axeSurface } from './surface'
 
@@ -27,8 +27,11 @@ axeSurface('trader-block-platform', async () => {
     expect(await screen.findByRole('group', { name })).toBeTruthy()
     expect(screen.getByRole('button', { name: `Remove ${name}` })).toBeTruthy()
   }
-  // every stub body painted (an unloaded chunk would read as a clean, empty block)
-  expect(await screen.findAllByText('This block is being built.')).toHaveLength(3)
+  // every stub body painted (an unloaded chunk would read as a clean, empty block). WAITED for, never
+  // sampled: a count read before every lazy body resolved saw fewer under load (lane A, 'expected 2, got 1').
+  await waitFor(() => expect(screen.getAllByText('This block is being built.')).toHaveLength(2))
+  // Task 10's body replaced its stub: the price stamps switch painted in its own group
+  expect(await screen.findByRole('switch', { name: 'Stamp prices as I write' })).toBeTruthy()
 })
 
 axeSurface('trader-block-platform:error', async () => {

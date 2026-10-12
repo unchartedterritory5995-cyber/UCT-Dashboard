@@ -317,6 +317,30 @@ def _quotes(user_id: str, symbols: tuple[str, ...], now: datetime | None = None)
     return out
 
 
+def price_stamp_quote(sym: str, now: datetime | None = None) -> dict | None:
+    """P2a Task 10: the price a stamp stores, with its real source and as-of, or None (no stamp).
+
+    A stamp captures a price at a moment, so unlike the market context (cache-only, R-W0-1: that read
+    sits inside a note write) it asks live_prices once, the bounded read /price has always made (its
+    valve and per-phase vendor bounds; the client gives the whole stamp 2 s). The answer then goes
+    through the SAME classification the market context stamp uses (_quotes -> _settled_cache_row /
+    _frozen_close / _last_close, then _index_field): a live price only inside the regular session;
+    outside it the frozen close is the "last close", dated by THAT session's close; a row that proves
+    no session is no stamp. The capture time never dates a close (R-T3). A change the row cannot prove
+    is None, never 0.0. Writes nothing."""
+    from api.routers import live_prices
+    now = now or datetime.now(timezone.utc)
+    try:
+        live_prices.get_live_prices(tickers=sym)        # fills the shared per-ticker cache _quotes reads
+    except Exception:  # noqa: BLE001 -- a failed read leaves the cache (or the held bar) to answer
+        pass
+    field = _index_field(sym, _quotes("", (sym,), now).get(sym), now)
+    if field["missing"]:
+        return None
+    v = field["value"]
+    return {"price": v["price"], "changePct": v["changePct"], "source": field["source"], "asOf": field["asOf"]}
+
+
 def _sourced(field: dict) -> dict:
     """entry_context's {value, source, asOf, missing(code), detail} -> the stored shape (a sentence)."""
     if field.get("missing"):

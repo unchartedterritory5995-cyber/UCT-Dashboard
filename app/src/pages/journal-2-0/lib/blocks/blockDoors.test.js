@@ -45,7 +45,12 @@ const BLOCK_DIR_RELS = DIRS.map((d) => `${rel(d)}/`)
  *   · Task 10 — its block body's one named write.
  * Never a whole file, never a note URL (the last case below refuses both).
  */
-export const WRITE_EXCEPTIONS = {}
+export const WRITE_EXCEPTIONS = {
+  'app/src/pages/journal-2-0/lib/blocks/priceStampsRun.js': [
+    { method: 'POST', url: '/api/j2/trader-blocks/price-stamp',
+      why: 'Task 10, the price stamp: creates ONE j2_fact_observations row (the price, its source and its as-of) and never advances the note; the stamp node lands through an editor transaction (spec §P2 item 4).' },
+  ],
+}
 
 /**
  * ④ (R-RC-6) module id -> why. A package by its own name; a source file by its repo-relative path
@@ -62,6 +67,12 @@ export const IMPORT_ALLOW = {
   // R-T6-3 (fix round 2): the app's ONE chunk-load-error predicate, so a block's Reload escalation
   // never restates it. The module also reloads the page for a ROUTE's stale chunk; no data, no writes.
   'app/src/utils/lazyWithRetry': "isChunkLoadError: the app's own stale-chunk predicate; no data, no writes",
+  // Task 10 (price stamps). The stub is a TipTap extension and the lazy half closes the stamp's history.
+  '@tiptap/core': 'Extension.create for the price-stamp extension; no network',
+  '@tiptap/pm/state': 'Plugin and PluginKey: the pending-stamp positions, mapped per transaction; no network',
+  '@tiptap/pm/history': 'closeHistory, so a stamp is its own undo step; no network',
+  'app/src/pages/journal-2-0/lib/journalStylesFlag': 'journalStylesEnabled, the latched S24 switch the stamp and its body obey; reads no network',
+  'app/src/lib/tickerResolver': "resolveCashtags, the line's $TICKER (a parser over a bundled JSON); no network",
 }
 
 /**
@@ -521,6 +532,16 @@ describe('⛔⛔ no block owns a second write door', () => {
     expect(problemsIn(f, `// import lazyWithRetry from '${m}'\nconst k = 1`)).toEqual([])
     // every name-limited module is also an allow-listed one
     for (const id of Object.keys(IMPORT_NAMES)) expect(Object.hasOwn(IMPORT_ALLOW, id), id).toBe(true)
+  })
+  it("CONTROL — Task 10's write: the /price capture's note URL is refused, its own route is exempt and nothing else", () => {
+    const why = 'a reason long enough to be a reason'
+    expect(exceptionProblems({ method: 'POST', url: '/api/j2/notes/{}/facts', why })).toEqual(['/api/j2/notes/{}/facts is a note URL'])
+    const f = 'app/src/pages/journal-2-0/lib/blocks/priceStampsRun.js'
+    expect(problemsIn(f, "fetch('/api/j2/trader-blocks/price-stamp', { method: 'POST' })")).toEqual([])
+    expect(problemsIn(f, "fetch('/api/j2/trader-blocks/price-stamp', { method: 'PUT' })")).toEqual([`WRITE ${f}: PUT /api/j2/trader-blocks/price-stamp`])
+    expect(problemsIn(f, "fetch(`/api/j2/notes/${id}/facts`, { method: 'POST' })")).toEqual([`WRITE ${f}: POST /api/j2/notes/{}/facts`])
+    const g = 'app/src/pages/journal-2-0/lib/blocks/priceStamps.js'                     // the exception is per FILE
+    expect(problemsIn(g, "fetch('/api/j2/trader-blocks/price-stamp', { method: 'POST' })")).toEqual([`WRITE ${g}: POST /api/j2/trader-blocks/price-stamp`])
   })
   it('CONTROL — an exception is method+URL, never the whole file (IR-I b)', () => {
     const f = 'app/src/pages/journal-2-0/lib/blocks/Y.js'

@@ -2011,6 +2011,10 @@ export default function NoteEditorPage({
   const isCanvas = isTradeCanvasDoc(note?.bodyJson)
   const isCanvasRef = useRef(isCanvas)
   isCanvasRef.current = isCanvas
+  // P2a Task 10: a price stamp reads the note's ticker when it runs (a bare-word line names it), so a
+  // ticker edited after the editor opened is the one used.
+  const noteTickerRef = useRef(null)
+  noteTickerRef.current = note?.ticker || null
   const canvasOn = tradeCanvasEnabled()
   // Blocks in a canvas note OTHER than the board (a capture appended by a
   // server door, say): shown under the board as ordinary text, never hidden.
@@ -2464,6 +2468,8 @@ export default function NoteEditorPage({
       // and a snapshot taken here would offer "Dictate" to nobody or to everybody.
       ed.storage.uctJournalWidgets = {
         ...(ed.storage.uctJournalWidgets || {}), noteId,
+        // P2a Task 10 (lib/blocks/priceStampsRun.js): read live, like canDictate below.
+        noteTicker: () => noteTickerRef.current,
         // When this note's editor opened. A node view compares a block's own capturedAt with
         // it to tell "added during this visit" from "was already here" (FingerprintPanel:
         // viewing a note must never write to it).

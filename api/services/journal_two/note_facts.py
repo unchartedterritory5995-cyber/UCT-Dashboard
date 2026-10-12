@@ -50,6 +50,27 @@ def _resolve_entity_id(ticker: str) -> str | None:
     return None
 
 
+#: The two price bases a P2a price stamp stores in `source_ref` (trader_blocks.price_stamp_quote).
+_PRICE_BASES = ("last close", "live price")
+
+
+def _as_of_label(fact_type: str, source_ref: Any, source_as_of: Any) -> str | None:
+    """What a stamped price IS and when, in ET, worded here so no client works out a session or a
+    zone: "Last close, Oct 13, 2026" (the session's date) or "Live price, 1:26 PM ET" (the vendor's
+    time). None for every other fact, and for any price captured without an as-of (/price)."""
+    if fact_type != "price" or source_ref not in _PRICE_BASES or not isinstance(source_as_of, str):
+        return None
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    try:
+        t = datetime.fromisoformat(source_as_of.replace("Z", "+00:00")).astimezone(ZoneInfo("America/New_York"))
+    except (ValueError, TypeError):
+        return None
+    if source_ref == "last close":
+        return f"Last close, {t:%b} {t.day}, {t.year}"
+    return f"Live price, {t.hour % 12 or 12}:{t.minute:02d} {'AM' if t.hour < 12 else 'PM'} ET"
+
+
 def _row_to_fact(row: sqlite3.Row) -> dict[str, Any]:
     fdef = fact_registry.get_fact_type(row["fact_type"])
     value = row["value_number"] if row["value_number"] is not None else row["value_text"]
@@ -69,6 +90,7 @@ def _row_to_fact(row: sqlite3.Row) -> dict[str, Any]:
         "sourceAsOf": row["source_as_of"],
         "source": row["source"],
         "sourceRef": row["source_ref"],
+        "asOfLabel": _as_of_label(row["fact_type"], row["source_ref"], row["source_as_of"]),
         "rightsClass": row["rights_class"],
         "caption": row["caption"],
         "createdAt": row["created_at"],
@@ -84,6 +106,7 @@ def create_fact_observation(
     idempotency_key: str | None = None,
     period: str | None = None,
     source_ref: str | None = None,
+    source_as_of: str | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
     """Create one immutable observation. `value` is validated against the
@@ -101,7 +124,11 @@ def create_fact_observation(
     owner's 2026-09-25 FMP licensing approval) auto-resolves the current FMP
     consensus the same way -- a member never types in a number UCT can fetch
     itself. Every OTHER fact type still requires an explicit value -- there
-    is no generic auto-fill, only these two, narrow, already-sourced cases."""
+    is no generic auto-fill, only these two, narrow, already-sourced cases.
+
+    `source_as_of` is the value's own as-of (the column's contract: never fabricated). Only a caller
+    that HAS one passes it: the P2a price stamp (trader_blocks.price_stamp_quote), whose last close is
+    dated by its session's close while `observed_at` stays the capture time."""
     ticker = (ticker or "").strip().upper()
     if not ticker:
         raise FactValidationError("Ticker is required")
@@ -169,7 +196,7 @@ def create_fact_observation(
                 (
                     fact_id, user_id, note_id, entity_id, ticker, fact_type, period,
                     value_number, value_text, fdef.unit, "USD", None, fdef.temporal_mode,
-                    observed_at or now, None, fdef.source, source_ref, fdef.rights_class,
+                    observed_at or now, source_as_of, fdef.source, source_ref, fdef.rights_class,
                     idempotency_key, caption, now,
                 ),
             )

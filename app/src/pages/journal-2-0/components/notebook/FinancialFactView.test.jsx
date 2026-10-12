@@ -183,6 +183,46 @@ describe('FinancialFactView', () => {
     expect(screen.queryByText(/^Source:/)).toBeNull()
   })
 
+  describe('P2a price stamps: the price says what it is, and when (the server worded both)', () => {
+    const stamp = (extra) => ({
+      id: 'f1', ticker: 'NVDA', factType: 'price', factLabel: 'Price', value: 601.25, unit: 'usd_per_share',
+      temporalMode: 'live_and_snapshot', observedAt: '2026-10-13T23:05:00Z', current: 601.25, caption: null, ...extra,
+    })
+    const show = (fact) => {
+      hookResult = { facts: [fact], isLoading: false, refresh: vi.fn() }
+      render(<FinancialFactView node={nodeFor('f1')} editor={editorWith('n1')} deleteNode={vi.fn()} />)
+    }
+
+    it("a last close shows the server's words for it (its session's date), beside the capture time", () => {
+      show(stamp({ sourceRef: 'last close', sourceAsOf: '2026-10-13T20:00:00Z', asOfLabel: 'Last close, Oct 13, 2026' }))
+      expect(screen.getByText('As of')).toBeTruthy()
+      expect(screen.getByText('Last close, Oct 13, 2026')).toBeTruthy()
+      expect(screen.getByText(/^Captured /)).toBeTruthy()
+    })
+
+    it('a live price shows its own words', () => {
+      show(stamp({ asOfLabel: 'Live price, 1:26 PM ET' }))
+      expect(screen.getByText('Live price, 1:26 PM ET')).toBeTruthy()
+    })
+
+    it('a /price capture with no label (every fact before P2a) shows no As of row', () => {
+      show(stamp({ sourceRef: null, sourceAsOf: null, asOfLabel: null }))
+      expect(screen.queryByText('As of')).toBeNull()
+    })
+
+  it('a change that cannot be read says "change unavailable", never 0.00%', () => {
+      show(stamp({ current: null }))
+      expect(screen.getByText('change unavailable')).toBeTruthy()
+      expect(screen.queryByText(/0\.00%/)).toBeNull()
+    })
+
+    it('CONTROL: a change that can be read is shown as a change (not the unavailable sentence)', () => {
+      show(stamp({ current: 602.25 }))
+      expect(screen.getByText(/\+\$1\.00/)).toBeTruthy()
+      expect(screen.queryByText('change unavailable')).toBeNull()
+    })
+  })
+
   it('the remove button calls deleteNode', () => {
     const deleteNode = vi.fn()
     hookResult = {

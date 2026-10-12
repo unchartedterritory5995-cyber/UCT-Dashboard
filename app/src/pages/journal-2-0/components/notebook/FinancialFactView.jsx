@@ -133,12 +133,23 @@ export default function FinancialFactView({ node, editor, deleteNode }) {
               </span>
             </div>
           )}
-          {bothNumeric && change !== null && (
+          {/* P2a price stamps: what the price IS and when ("Last close, Oct 13, 2026"), worded by the
+              server (note_facts._as_of_label); nothing here works out a session or a zone. */}
+          {fact.asOfLabel && (
+            <div className={styles.row}>
+              <span className={styles.rowLabel}>As of</span>
+              <span className={styles.rowValue}>{fact.asOfLabel}</span>
+            </div>
+          )}
+          {/* A change that cannot be read is said so (P2a), never shown as 0.00%. */}
+          {(bothNumeric || fact.temporalMode === 'live_and_snapshot') && (
             <div className={styles.row}>
               <span className={styles.rowLabel}>Change</span>
               <span className={styles.rowValue}>
-                {change >= 0 ? '+' : ''}{formatValue(change, fact.unit)}
-                {changePct !== null && ` (${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%)`}
+                {bothNumeric ? <>
+                  {change >= 0 ? '+' : ''}{formatValue(change, fact.unit)}
+                  {changePct !== null && ` (${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%)`}
+                </> : <span className={styles.muted}>change unavailable</span>}
               </span>
             </div>
           )}

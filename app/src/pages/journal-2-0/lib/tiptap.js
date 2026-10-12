@@ -37,6 +37,7 @@ import { DocumentExcerpt } from './documentExcerptNode'
 import { AskInsert } from './askInsertNode'
 import { AskCitation } from './askCitationNode'
 import { PasteContainers } from './pasteContainers'
+import { PriceStamps } from './blocks/priceStamps'
 import { NotebookCodeBlock } from './codeBlockNode'
 import { Mathematics } from './mathNodes'
 import { TextColor, NotebookHighlight } from './textColor'
@@ -350,6 +351,9 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     LinkPasteOffer,
     // Rail: pasteContainers.unit.test.js ("handles a paste after Link ...").
     PasteContainers,
+    // P2a Task 10: price-stamped lines. LAST, so (reversed list, V10) its Enter is asked FIRST of every
+    // Enter handler; it always returns false, so Enter itself lands at once. No paste, drop or input hook.
+    PriceStamps,
   ]
 }
 

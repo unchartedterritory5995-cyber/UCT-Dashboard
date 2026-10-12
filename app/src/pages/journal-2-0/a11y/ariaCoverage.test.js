@@ -40,8 +40,6 @@ export const EXEMPT = Object.freeze({
   // REPLACES its stub, and the "every exemption still applies" case below then makes it delete its row.
   'components/notebook/blocks/PreEntryChecklistBlock.jsx':
     'a stub body: one line of text (BlockEmpty) inside BlockNodeView\'s named group; replaced by its own task',
-  'components/notebook/blocks/PriceStampsBlock.jsx':
-    'a stub body: one line of text (BlockEmpty) inside BlockNodeView\'s named group; replaced by its own task',
   'components/notebook/blocks/PositionSizingBlock.jsx':
     'a stub body: one line of text (BlockEmpty) inside BlockNodeView\'s named group; replaced by its own task',
 })
