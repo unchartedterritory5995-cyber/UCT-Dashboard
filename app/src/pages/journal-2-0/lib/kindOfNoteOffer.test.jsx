@@ -8,12 +8,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, within } from '@testing-library/react'
 import { latchNotebookFlags, __resetNotebookFlags } from './offline/notebookFlags'
 import { JOURNAL_STYLES_FLAG } from './journalStylesFlag'
-import { isOfferable, NOTE_KIND_PROPERTY_ID } from './kindOfNoteOffer'
+import { isOfferable } from './kindOfNoteOffer'
+import { NOTE_KIND_PROPERTY } from './noteKinds'
 import { autofillCandidates } from './propertyAutofill'
 
 vi.mock('./offline/settleNoteWrite', () => ({ settleNoteWrite: vi.fn() }))
 
 import NoteBoardView, { groupableDefs } from '../components/notebook/NoteBoardView'
+import RollupEditor from '../components/notebook/RollupEditor'
 
 const KIND = {
   id: 'builtin:note_kind', name: 'Kind of note', type: 'select', source: 'user_set',
@@ -31,7 +33,7 @@ afterEach(() => { cleanup(); __resetNotebookFlags() })
 
 describe('the one predicate', () => {
   it('names the property it guards', () => {
-    expect(NOTE_KIND_PROPERTY_ID).toBe('builtin:note_kind')
+    expect(NOTE_KIND_PROPERTY).toBe('builtin:note_kind')
   })
   it('refuses Kind of note while dark, accepts it when on, and never touches another property', () => {
     expect(isOfferable(KIND)).toBe(false)
@@ -87,5 +89,33 @@ describe('autofill suggestions', () => {
     expect(autofillCandidates(props).map((p) => p.id)).toEqual(['builtin:thesis_status'])
     switchOn()
     expect(autofillCandidates(props).map((p) => p.id)).toEqual(['builtin:note_kind', 'builtin:thesis_status'])
+  })
+})
+
+describe('rollup editor ("Of the property")', () => {
+  const NUM = { id: 'p:size', name: 'Size', type: 'number', source: 'user_set' }
+  const rollup = (cfg = {}) => render(
+    <RollupEditor value={{ source: 'links_from_this', aggregate: 'win_rate', ...cfg }} onChange={vi.fn()}
+      defs={[KIND, STATUS, NUM]} />,
+  )
+  const choices = () => [...screen.getByLabelText('Of the property').querySelectorAll('option')].map((o) => o.textContent)
+
+  it('does not list Kind of note while dark; the other selects and numbers are still listed', () => {
+    rollup()
+    expect(choices()).toContain('Thesis Status')          // CONTROL: win rate lists selects
+    expect(choices()).toContain('Size')
+    expect(choices()).not.toContain('Kind of note')
+  })
+
+  it('lists it when the switch is on', () => {
+    switchOn()
+    rollup()
+    expect(choices()).toContain('Kind of note')
+  })
+
+  it('keeps it when the rollup already names it (rendering, not offering), with its win options', () => {
+    rollup({ propertyId: 'builtin:note_kind' })
+    expect(choices()).toContain('Kind of note')
+    expect(within(screen.getByLabelText('Counts as a win')).getByText('Trade plan')).toBeTruthy()
   })
 })

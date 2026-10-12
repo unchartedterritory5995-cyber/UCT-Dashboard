@@ -1,6 +1,10 @@
 // Kinds of note (spec P1.1). ⛔ ONE FACT IN TWO FILES with
 // api/services/journal_two/note_kinds.py::BUILTIN_NOTE_KINDS; tests/test_note_kinds.py IMPORTS this
 // module through Node and asserts equality. ⛔ NO IMPORTS in this file: plain Node must load it.
+// The property that holds a note's current kind. ⛔ ONE FACT IN TWO FILES with note_kinds.NOTE_KIND_PROPERTY
+// (pinned by test_the_client_property_id_equals_the_server_property_id); lib/kindOfNoteOffer.js imports it.
+export const NOTE_KIND_PROPERTY = 'builtin:note_kind'
+
 export const BUILTIN_NOTE_KINDS = Object.freeze([
   { id: 'trade_plan', name: 'Trade plan', icon: 'chart' },
   { id: 'daily_prep', name: 'Daily prep', icon: 'sun' },

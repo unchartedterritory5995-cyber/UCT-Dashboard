@@ -277,6 +277,7 @@ def property_definitions(user_id: str, raw: str | None, conn: sqlite3.Connection
     property travels as {name, type, options?} with fresh option ids left to the copier.
     Computed definitions, deleted properties and unknown types are left out."""
     from api.services.journal_two import note_properties as np
+    from api.services.journal_two.note_kinds import NOTE_KIND_PROPERTY
 
     out: list[dict] = []
     for property_id in np._parse_properties_json(raw):
@@ -285,7 +286,7 @@ def property_definitions(user_id: str, raw: str | None, conn: sqlite3.Connection
         if np.is_builtin_property_id(property_id):
             # Kind of note carries no value into a gallery entry (never a value) and its name would
             # surface a feature that may still be dark, so it is left out of the listing.
-            if property_id in np.BUILTIN_USER_SET_IDS and property_id != "builtin:note_kind":
+            if property_id in np.BUILTIN_USER_SET_IDS and property_id != NOTE_KIND_PROPERTY:
                 d = np._BUILTIN_BY_ID[property_id]
                 out.append({"builtinId": property_id, "name": d["name"], "type": d["type"]})
             continue

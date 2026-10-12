@@ -9,10 +9,12 @@ Two facts, two places, never one restated:
   * the `builtin:note_kind` property is the note's CURRENT kind, the one views, filters and boards
     group by. It is set at creation, editable like any select, and is the only thing grouping reads.
 
-A kind in use cannot be deleted: a note's current kind counts whether the note is live OR in Trash,
-and a style's kind counts whether the style is live OR soft-deleted, because restoring either would
-bring back a dead id. The member moves (or empties) those first. There is no soft delete for kinds,
-so no restore path can orphan a value. The check and the DELETE share one write lock.
+A kind in use cannot be deleted: a note's current kind counts whether the note is live OR in Trash
+(restoring it would bring back a dead id; the hold ends with the 30-day Trash purge), and a LIVE style's
+kind counts. The member's SOFT-DELETED styles of that kind do not block: they are hard-deleted in the
+same transaction as the kind and the result reports how many (`purgedDeletedStyles`). There is no soft
+delete for kinds, so no restore path can orphan a value. The check, the purge and the DELETE share one
+write lock.
 """
 from __future__ import annotations
 
@@ -185,28 +187,32 @@ def update_kind(user_id: str, kind_id: str, *, name: Any = None, icon: Any = Non
 _KIND_PATH = '$."' + NOTE_KIND_PROPERTY + '"'
 
 
-def _uses(user_id: str, kind_id: str, conn: sqlite3.Connection) -> tuple[int, int, int, int]:
-    """(notes holding it, of which in Trash, styles holding it, of which soft-deleted).
+def _has_styles_table(conn: sqlite3.Connection) -> bool:
+    return bool(conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='j2_journal_styles'").fetchone())
 
-    Trashed notes and soft-deleted styles COUNT: restoring either must never bring back a dead id.
-    The note scan is one SQL statement (`json_extract`, guarded by `json_valid` so one unreadable row
-    cannot block every delete)."""
+
+def _uses(user_id: str, kind_id: str, conn: sqlite3.Connection) -> tuple[int, int, int]:
+    """(notes holding it, of which in Trash, LIVE styles holding it).
+
+    Trashed notes COUNT (restoring one must never bring back a dead id); soft-deleted styles do not
+    (delete_kind purges them with the kind). The note scan is one SQL statement (`json_extract`, guarded
+    by `json_valid` so one unreadable row cannot block every delete)."""
     r = conn.execute(
         "SELECT COUNT(*) AS n, COALESCE(SUM(deleted_at IS NOT NULL), 0) AS t FROM j2_notes"
         " WHERE user_id = ? AND properties_json IS NOT NULL"
         " AND CASE WHEN json_valid(properties_json) THEN json_extract(properties_json, ?) END = ?",
         (user_id, _KIND_PATH, kind_id)).fetchone()
-    styles_n = styles_deleted = 0
-    has_styles = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='j2_journal_styles'").fetchone()
-    if has_styles:
-        s = conn.execute(
-            "SELECT COUNT(*) AS n, COALESCE(SUM(deleted_at IS NOT NULL), 0) AS d FROM j2_journal_styles"
-            " WHERE user_id = ? AND kind_id = ?", (user_id, kind_id)).fetchone()
-        styles_n, styles_deleted = s["n"], s["d"]
-    return r["n"], r["t"], styles_n, styles_deleted
+    styles_n = 0
+    if _has_styles_table(conn):
+        styles_n = conn.execute(
+            "SELECT COUNT(*) AS n FROM j2_journal_styles WHERE user_id = ? AND kind_id = ?"
+            " AND deleted_at IS NULL", (user_id, kind_id)).fetchone()["n"]
+    return r["n"], r["t"], styles_n
 
 
-def delete_kind(user_id: str, kind_id: str, conn: sqlite3.Connection | None = None) -> bool:
+def delete_kind(user_id: str, kind_id: str, conn: sqlite3.Connection | None = None) -> dict | bool:
+    """Delete a member kind. Returns `{"purgedDeletedStyles": n}` on success (truthy), False when there
+    is no such kind. Raises KindInUse while a note (live or trashed) or a live style holds it."""
     if kind_id in BUILTIN_KIND_IDS:
         raise KindValidationError("Built-in kinds can't be deleted.")
     from api.services.journal_two.notes import _begin_immediate
@@ -220,21 +226,26 @@ def delete_kind(user_id: str, kind_id: str, conn: sqlite3.Connection | None = No
             if started:
                 conn.rollback()
             return False
-        notes_n, notes_trashed, styles_n, styles_deleted = _uses(user_id, kind_id, conn)
+        notes_n, notes_trashed, styles_n = _uses(user_id, kind_id, conn)
         if notes_n or styles_n:
             parts = []
             if notes_n:
                 parts.append(f"{notes_n} note{'s' if notes_n != 1 else ''}"
                              + (f" ({notes_trashed} in Trash)" if notes_trashed else ""))
             if styles_n:
-                parts.append(f"{styles_n} style{'s' if styles_n != 1 else ''}"
-                             + (f" ({styles_deleted} deleted)" if styles_deleted else ""))
+                parts.append(f"{styles_n} style{'s' if styles_n != 1 else ''}")
+            tail = ("Restore or empty the ones in Trash, and move the rest to another kind first."
+                    if notes_trashed else "Move them to another kind first.")
             if started:
                 conn.rollback()
-            raise KindInUse(f"This kind is used by {' and '.join(parts)}. Move them to another kind first.")
+            raise KindInUse(f"This kind is used by {' and '.join(parts)}. {tail}")
+        purged = 0
+        if _has_styles_table(conn):
+            purged = conn.execute("DELETE FROM j2_journal_styles WHERE user_id = ? AND kind_id = ?"
+                                  " AND deleted_at IS NOT NULL", (user_id, kind_id)).rowcount
         conn.execute("DELETE FROM j2_note_kinds WHERE id = ? AND user_id = ?", (kind_id, user_id))
         conn.commit()
-        return True
+        return {"purgedDeletedStyles": purged}
     except BaseException:
         if started and conn.in_transaction:
             conn.rollback()

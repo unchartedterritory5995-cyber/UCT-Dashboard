@@ -45,6 +45,17 @@ def test_the_client_list_equals_the_server_list():
     assert client == [dict(k) for k in note_kinds.BUILTIN_NOTE_KINDS]
 
 
+def test_the_client_property_id_equals_the_server_property_id():
+    """lib/noteKinds.js is the one client copy of the property id; kindOfNoteOffer.js imports it."""
+    from api.services.journal_two import note_kinds
+    node = shutil.which("node")
+    js = (f"import({json.dumps(CLIENT.resolve().as_uri())}).then((m) => "
+          "process.stdout.write(JSON.stringify(m.NOTE_KIND_PROPERTY)))")
+    r = subprocess.run([node, "--input-type=module", "-e", js], capture_output=True, timeout=120)
+    assert r.returncode == 0, (r.stderr or b"").decode("utf-8", "replace")[:2000]
+    assert json.loads(r.stdout.decode("utf-8")) == note_kinds.NOTE_KIND_PROPERTY
+
+
 def test_no_builtin_id_can_collide_with_a_member_id():
     from api.services.journal_two import note_kinds
     assert not any(k["id"].startswith(note_kinds.MEMBER_KIND_PREFIX) for k in note_kinds.BUILTIN_NOTE_KINDS)
@@ -58,7 +69,7 @@ def test_list_create_rename_delete(db_path):
     assert ids[:8] == [b["id"] for b in nk.BUILTIN_NOTE_KINDS] and ids[-1] == k["id"]
     assert nk.update_kind("u1", k["id"], name="Gap & go")["name"] == "Gap & go"
     assert nk.list_kinds("u2")[-1]["id"] == "watchlist_note"           # another member sees none of it
-    assert nk.delete_kind("u1", k["id"]) is True
+    assert nk.delete_kind("u1", k["id"])
     assert nk.get_kind("u1", k["id"]) is None
 
 
@@ -117,6 +128,7 @@ def test_a_kind_held_by_a_trashed_note_cannot_be_deleted(db_path):
     with pytest.raises(nk.KindInUse) as e:
         nk.delete_kind("u1", k["id"])
     assert "1 note" in str(e.value) and "Trash" in str(e.value)
+    assert "Restore or empty" in str(e.value) and "another kind" in str(e.value)
     notes.restore_note("u1", n["id"])
     assert notes.get_note("u1", n["id"])["propertiesJson"][nk.NOTE_KIND_PROPERTY] == k["id"]
 
@@ -133,28 +145,74 @@ def _styles_table():
         c.close()
 
 
-def test_a_kind_held_by_a_soft_deleted_style_cannot_be_deleted(db_path):
+def _insert_style(sid, user_id, kind_id, deleted_at=None):
     from api.services.auth_db import get_connection
+    c = get_connection()
+    try:
+        c.execute("INSERT INTO j2_journal_styles (id, user_id, kind_id, deleted_at) VALUES (?,?,?,?)",
+                  (sid, user_id, kind_id, deleted_at))
+        c.commit()
+    finally:
+        c.close()
+
+
+def _style_ids():
+    from api.services.auth_db import get_connection
+    c = get_connection()
+    try:
+        return sorted(r["id"] for r in c.execute("SELECT id FROM j2_journal_styles"))
+    finally:
+        c.close()
+
+
+def test_a_kind_held_by_a_live_style_cannot_be_deleted(db_path):
     from api.services.journal_two import note_kinds as nk
     _styles_table()
     k = nk.create_kind("u1", "Swing")
-    c = get_connection()
-    try:
-        c.execute("INSERT INTO j2_journal_styles (id, user_id, kind_id, deleted_at) VALUES ('s1','u1',?,?)",
-                  (k["id"], "2026-10-01T00:00:00+00:00"))
-        c.commit()
-    finally:
-        c.close()
+    _insert_style("s-live", "u1", k["id"])
     with pytest.raises(nk.KindInUse) as e:
         nk.delete_kind("u1", k["id"])
     assert "1 style" in str(e.value)
-    c = get_connection()
-    try:
-        c.execute("DELETE FROM j2_journal_styles")
-        c.commit()
-    finally:
-        c.close()
-    assert nk.delete_kind("u1", k["id"]) is True       # CONTROL: nothing holds it any more
+    assert _style_ids() == ["s-live"]                     # nothing was purged by the refused delete
+    assert nk.get_kind("u1", k["id"]) is not None
+
+
+def test_soft_deleted_styles_are_purged_with_the_kind_and_reported(db_path):
+    """Ruling m-a: a soft-deleted style does not block; it is hard-deleted in the same transaction."""
+    from api.services.journal_two import note_kinds as nk
+    _styles_table()
+    k = nk.create_kind("u1", "Swing")
+    other = nk.create_kind("u1", "Other")
+    _insert_style("s-del-1", "u1", k["id"], "2026-10-01T00:00:00+00:00")
+    _insert_style("s-del-2", "u1", k["id"], "2026-10-02T00:00:00+00:00")
+    _insert_style("s-other-kind", "u1", other["id"], "2026-10-01T00:00:00+00:00")     # same member, other kind
+    _insert_style("s-other-member", "u2", k["id"], "2026-10-01T00:00:00+00:00")       # another member's row
+    res = nk.delete_kind("u1", k["id"])
+    assert res and res["purgedDeletedStyles"] == 2
+    assert nk.get_kind("u1", k["id"]) is None
+    assert _style_ids() == ["s-other-kind", "s-other-member"]
+
+
+def test_a_refused_delete_purges_nothing(db_path):
+    """The purge is part of the delete's transaction: a live style (or a note) holding the kind keeps
+    the soft-deleted rows too."""
+    from api.services.journal_two import note_kinds as nk
+    from api.services.journal_two import notes
+    _styles_table()
+    k = nk.create_kind("u1", "Swing")
+    _insert_style("s-del", "u1", k["id"], "2026-10-01T00:00:00+00:00")
+    notes.create_note("u1", {"title": "x"}, properties={nk.NOTE_KIND_PROPERTY: k["id"]})
+    with pytest.raises(nk.KindInUse):
+        nk.delete_kind("u1", k["id"])
+    assert _style_ids() == ["s-del"]
+
+
+def test_a_plain_delete_reports_zero_purged(db_path):
+    from api.services.journal_two import note_kinds as nk
+    k = nk.create_kind("u1", "Swing")
+    res = nk.delete_kind("u1", k["id"])
+    assert res == {"purgedDeletedStyles": 0}
+    assert nk.delete_kind("u1", k["id"]) is False         # CONTROL: gone now
 
 
 def test_another_members_use_does_not_block_a_delete(db_path):
@@ -162,7 +220,7 @@ def test_another_members_use_does_not_block_a_delete(db_path):
     from api.services.journal_two import notes
     k = nk.create_kind("u1", "Swing")
     notes.create_note("u2", {"title": "x"}, properties={"builtin:thesis_status": "active"})
-    assert nk.delete_kind("u1", k["id"]) is True
+    assert nk.delete_kind("u1", k["id"])
 
 
 def test_delete_checks_and_deletes_under_the_write_lock(db_path, monkeypatch):
@@ -172,7 +230,7 @@ def test_delete_checks_and_deletes_under_the_write_lock(db_path, monkeypatch):
     seen = []
     real = nk._uses
     monkeypatch.setattr(nk, "_uses", lambda u, kid, conn: (seen.append(conn.in_transaction), real(u, kid, conn))[1])
-    assert nk.delete_kind("u1", k["id"]) is True
+    assert nk.delete_kind("u1", k["id"])
     assert seen == [True]
 
 
@@ -188,7 +246,7 @@ def test_a_note_with_unreadable_properties_does_not_break_delete(db_path):
         c.commit()
     finally:
         c.close()
-    assert nk.delete_kind("u1", k["id"]) is True
+    assert nk.delete_kind("u1", k["id"])
 
 
 def test_a_lost_duplicate_name_race_is_a_validation_error_not_a_500(db_path, monkeypatch):
