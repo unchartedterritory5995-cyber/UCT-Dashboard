@@ -31,7 +31,7 @@ import { decideMode } from './policy'
 import { commitPlan, undoEntry, undoEntryFor } from './runtime'
 import { pendingLines as pendingWording } from './proposalWording'
 import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expandOps, bindSourceRefs } from './compose'
-import { traceStart, mark, traceEnd } from './trace'
+import { traceStart, mark, traceEnd, turnStart, turnPath, turnVisible, turnOutput, turnOutputMs, turnEnd } from './trace'
 import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT } from './capabilities'
 import { registerBuiltins } from './builtins'
 import { routeManifest, routingEnabled } from './routing'
@@ -173,6 +173,9 @@ async function persistBoard(host, ops) {
   }
 }
 
+// the server's stage timings (ms only) for the turn trace
+const stagesOf = (data) => { const s = data?.usage?.stages; return s && typeof s === 'object' ? JSON.stringify(s) : null }
+
 let _id = 0
 const nid = () => `i${Date.now().toString(36)}${(_id++).toString(36)}`
 const UNDO_MAX = 20
@@ -213,6 +216,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [])
   const [items, setItems] = useState([])
   const [busy, setBusy] = useState(false)
+  // the member's line and "typing…" are on screen: the turn's first visible feedback
+  useEffect(() => { if (busy) turnVisible() }, [busy])
   // ⛔ ONE thing at a time: a send, an Apply, an Undo or a choice. A ref (not the
   // `busy` state) so two clicks in the same tick cannot both get through; every
   // entry point the panel calls takes it, and the internal calls send() makes
@@ -221,8 +226,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const exclusive = useCallback((fn) => async (...args) => {
     if (lockRef.current) return undefined
     lockRef.current = true
+    const traced = turnStart('click')
     setBusy(true)
-    try { return await fn(...args) } finally { lockRef.current = false; setBusy(false) }
+    try { return await fn(...args) } finally { lockRef.current = false; setBusy(false); if (traced) turnEnd() }
   }, [])
   const [conversationId, setConversationIdState] = useState(() => readLocal(AGENT_CONVERSATION_KEY))
   const conversationRef = useRef(conversationId)
@@ -252,6 +258,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const push = useCallback((item) => {
     if (['agent', 'refusal', 'error'].includes(item?.role) && !String(item.text || '').trim()
         && !item.present && !item.table && !item.link) return
+    if (item?.role && item.role !== 'member') turnOutput(item.role)
     setItems(xs => [...xs, { id: nid(), at: Date.now(), ...item }])
   }, [])
   const patchItem = useCallback((id, patch) => setItems(xs => xs.map(x => (x.id === id ? { ...x, ...patch } : x))), [])
@@ -289,6 +296,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [push])
 
   const record = useCallback(async (body) => {
+    // a local turn's time to its first useful output (content-free: one number) rides the telemetry row
+    const ms = turnOutputMs()
+    if (body?.telemetry && body.telemetry.latency_ms == null && ms != null) body = { ...body, telemetry: { ...body.telemetry, latency_ms: ms } }
     const res = await agentRecord({ conversationId: conversationRef.current, ...body })
     if (res.ok && res.data?.conversationId && res.data.conversationId !== conversationRef.current) {
       setConversationId(res.data.conversationId)
@@ -653,6 +663,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       opsIn = [split.save]
     }
+    turnPath(path)
     traceStart(`${path}:${suggested || 'apply'}`)
     let out
     try {
@@ -799,6 +810,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     const text = String(raw || '').trim()
     if (!text || lockRef.current) return
     lockRef.current = true
+    turnStart('send')
     saidRef.current = text
     push({ role: 'member', text, voice })
     setBusy(true)
@@ -914,8 +926,11 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       mark('route', routed.routing ? `${routed.manifest.length}/${full.length}` : 'full')
       // Data that can change outside this panel is re-read first (bounded) — Phase 2: only for the
       // action groups this message was routed to (a timeframe change no longer waits on alerts).
+      turnPath('model')
       await refreshContext(1500, { groups: routed.routing ? routed.routing.selected : null })
+      mark('context:refreshed')
       let { context, refMap } = buildContext(host, { ...capCtx, message: text })
+      mark('context:built')
       const back = Object.fromEntries(Object.entries(refMap).map(([k, v]) => [v.ref, k]))
       const pending = p?.kind === 'proposal'
         // Transaction-local aliases (new1…) are not context refs: they pass through.
@@ -925,7 +940,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         conversationId: conversationRef.current, message: text, voice, pending,
         context, capabilities: r.manifest, manifestVersion: MANIFEST_VERSION, routing: r.routing, ...extra,
       })
+      mark('turn:sent')
       let res = await ask(routed)
+      mark('turn:received', res.ok ? stagesOf(res.data) : res.status || 'error')
       const need = res.ok ? (res.data.envelope?.need_groups || []).filter(g => !routed.routing?.selected?.includes(g)) : []
       if (res.ok && routed.routing && need.length) {
         if (res.data.conversationId !== conversationRef.current) setConversationId(res.data.conversationId)
@@ -941,6 +958,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         await refreshContext(1500, { groups: need });
         ({ context, refMap } = buildContext(host, { ...capCtx, message: text }))
         res = await ask(routed, { conversationId: res.data.conversationId, reroute: true })
+        mark('reroute:received', res.ok ? stagesOf(res.data) : res.status || 'error')
         if (res.ok && (res.data.envelope?.need_groups || []).length) {
           push({ role: 'agent', text: 'That needs more of UCT than I can plan in one step. Try asking for one part at a time.' })
           return
@@ -1001,6 +1019,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     } finally {
       lockRef.current = false
       setBusy(false)
+      turnEnd()
     }
   }, [push, gridMode, host, record, doUndo, approve, dismiss, execute, setConversationId, patchItem, capCtx])
 

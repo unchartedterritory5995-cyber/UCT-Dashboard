@@ -682,6 +682,10 @@ def history_messages(turns: list[dict]) -> list[dict]:
     return msgs
 
 
+def _ms(t0: float) -> int:
+    return int((time.perf_counter() - t0) * 1000)
+
+
 def _research(query: str, recency: str) -> dict:
     from api.services.perplexity_search import web_search
     res = web_search(query=query[:400], max_tokens=600, mode="fast",
@@ -946,6 +950,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     """Returns {envelope, usage, title}. Raises TurnError with a member sentence.
     `conversation_title`: the chat's current name, passed ONLY while the Agent may still name it
     (never after the member renamed it); `title` is the model's cleaned suggestion or None."""
+    t_build = time.perf_counter()
     msg = (message or "").strip()
     if not msg:
         raise TurnError("Say what you'd like UCT Agent to do or explain.")
@@ -982,11 +987,15 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
 
     started = time.monotonic()
     usage = {"model": model(), "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0,
-             "research_calls": 0, "model_calls": 0, "citations": []}
+             "research_calls": 0, "model_calls": 0, "citations": [],
+             # STAGE TIMINGS (ms only — never words or values): request build, each model call, research
+             "stages": {"build": _ms(t_build), "model": [], "research": 0},
+             "cache_read_tokens": 0, "cache_write_tokens": 0}
     cap_names = {c["name"] for c in caps}
     pre_research = None
     notice = None
     for round_ in range(MAX_RESEARCH_CALLS + 1):
+        t_call = time.perf_counter()
         try:
             resp = caller(
                 model=model(), max_tokens=MAX_TOKENS,
@@ -1009,8 +1018,11 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                 messages=messages,
             )
         usage["model_calls"] += 1
+        usage["stages"]["model"].append(_ms(t_call))
         u = getattr(resp, "usage", None)
         usage["input_tokens"] += int(getattr(u, "input_tokens", 0) or 0)
+        usage["cache_read_tokens"] += int(getattr(u, "cache_read_input_tokens", 0) or 0)
+        usage["cache_write_tokens"] += int(getattr(u, "cache_creation_input_tokens", 0) or 0)
         usage["output_tokens"] += int(getattr(u, "output_tokens", 0) or 0)
         usage["cost_usd"] += _record_cost(resp)
         if getattr(resp, "stop_reason", None) == "refusal":
@@ -1059,7 +1071,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                     planned = expand_compact_ops(env, caps)
                 pre_research = {"disposition": env["disposition"], "ops": list(planned.get("ops") or [])}
             usage["research_calls"] += 1
+            t_research = time.perf_counter()
             r = _research(str(req["query"]), str(req.get("recency") or "any"))
+            usage["stages"]["research"] = _ms(t_research)
             usage["citations"].extend(r["citations"])
             messages = messages + [
                 {"role": "assistant", "content": text},

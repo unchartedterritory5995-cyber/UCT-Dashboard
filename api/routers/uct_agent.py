@@ -21,8 +21,10 @@ FastAPI runs it in the threadpool, bounded by the client timeout, zero retries.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
+import time
 from datetime import datetime
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
@@ -78,6 +80,10 @@ def over_cost_cap() -> bool:
     return narrative_cost_guard.over_budget(agent.COST_SURFACE, env_name=COST_CAP_ENV)
 
 
+def _ms(t0: float) -> int:
+    return int((time.perf_counter() - t0) * 1000)
+
+
 def _et_day() -> str:
     return datetime.now(_ET).strftime("%Y-%m-%d")
 
@@ -127,6 +133,7 @@ NO_TITLE_YET = "(no name yet)"
 def agent_turn(body: TurnIn, background: BackgroundTasks, user: dict = Depends(require_admin_dark)):
     from api.services import ai_population_cap
     from api.services.uct_agent import store, turn as agent
+    t0 = time.perf_counter()
     uid = user["id"]
     if not _take(uid):
         raise HTTPException(status_code=429, detail="You've reached today's UCT Agent limit.")
@@ -156,6 +163,7 @@ def agent_turn(body: TurnIn, background: BackgroundTasks, user: dict = Depends(r
     # The first-message placeholder is not a name: the model is told there is none yet (and the
     # member's words are never sent twice).
     nameable = None if not info or info.get("source") == "user" else (info["title"] if info.get("source") == "auto" else NO_TITLE_YET)
+    pre_ms = _ms(t0)
     try:
         out = agent.run_turn(message=body.message, context=body.context, history=history,
                              capabilities=body.capabilities,
@@ -172,6 +180,7 @@ def agent_turn(body: TurnIn, background: BackgroundTasks, user: dict = Depends(r
         log.exception("[uct-agent] turn failed")
         raise HTTPException(status_code=503, detail=f"UCT Agent is unavailable right now ({type(e).__name__}). No changes were made.")
     env, usage = out["envelope"], out["usage"]
+    t_post = time.perf_counter()
     try:
         # A request for more action groups is plumbing, not a reply: nothing is stored for it.
         turn_id = None if env.get("need_groups") else store.add_turn(uid, cid, "agent", env.get("reply") or (env.get("question") or {}).get("text") or "",
@@ -198,9 +207,17 @@ def agent_turn(body: TurnIn, background: BackgroundTasks, user: dict = Depends(r
         "research_calls": usage.get("research_calls"), "unsupported": env.get("unsupported_category"),
         "voice": body.voice,
     })
+    # STAGE TIMINGS, ms only (the member's words, replies and values are never in them): pre = caps +
+    # conversation store before the model; build/model/research from run_turn; post = stores after it.
+    stages = {"pre": pre_ms, **(usage.get("stages") or {}), "post": _ms(t_post), "server": _ms(t0)}
+    log.info("[uct-agent] turn timing %s calls=%s in=%s out=%s cache_read=%s",
+             json.dumps(stages, separators=(",", ":")), usage.get("model_calls"), usage.get("input_tokens"),
+             usage.get("output_tokens"), usage.get("cache_read_tokens"))
     return {"conversationId": cid, "turnId": turn_id, "envelope": env,
-            "usage": {k: usage.get(k) for k in ("model", "input_tokens", "output_tokens", "cost_usd",
-                                                "latency_ms", "research_calls", "citations")}}
+            "usage": {**{k: usage.get(k) for k in ("model", "input_tokens", "output_tokens", "cost_usd",
+                                                   "latency_ms", "research_calls", "citations", "model_calls",
+                                                   "cache_read_tokens", "cache_write_tokens")},
+                      "stages": stages}}
 
 
 def _name_unnamed(uid: int, cid: str) -> None:
