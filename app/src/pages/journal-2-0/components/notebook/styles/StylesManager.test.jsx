@@ -123,13 +123,14 @@ beforeEach(() => {
 })
 afterEach(() => { __resetNotebookFlags() })
 
-const open = ({ userId = 'u1', ...props } = {}) => render(
+const tree = ({ userId = 'u1', ...props } = {}) => (
   <AuthContext.Provider value={{ user: { id: userId } }}>
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <StylesManager open onClose={vi.fn()} {...props} />
     </SWRConfig>
-  </AuthContext.Provider>,
+  </AuthContext.Provider>
 )
+const open = (props) => render(tree(props))
 const edit = async (name = 'My plan') => {
   fireEvent.click(await screen.findByRole('button', { name: `Edit ${name}` }))
   return screen.findByRole('form', { name: `Edit style ${name}` })
@@ -916,5 +917,66 @@ describe('round 3: the status bar leaves no gap when it has nothing to say', () 
     fireEvent.click(screen.getByRole('button', { name: 'Delete My plan' }))
     await screen.findByText('Style deleted.')
     expect(bar).not.toHaveAttribute('data-empty')
+  })
+})
+
+describe('round 4: Discard really discards, even when the same editor is reopened', () => {
+  const PROMPT = 'Discard your unsaved changes to this style?'
+
+  it('Edit A over a dirty A: Discard shows the stored values, nothing is dirty, Close asks nothing', async () => {
+    const onClose = vi.fn()
+    open({ onClose })
+    await edit()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Typed over it' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Edit My plan' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard changes' }))
+    await waitFor(() => expect(screen.getByLabelText('Name').value).toBe('My plan'))
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByText(PROMPT)).toBeNull()
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('New style over a dirty New style: Discard gives a blank form again', async () => {
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: /New style/ }))
+    fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Half a draft' } })
+    fireEvent.click(screen.getByRole('button', { name: /New style/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard changes' }))
+    await waitFor(() => expect(screen.getByLabelText('Name').value).toBe(''))
+  })
+})
+
+describe('round 4: deleting the open style', () => {
+  it('clears a discard prompt that was waiting on it', async () => {
+    open()
+    await edit()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Half done' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await screen.findByText('Discard your unsaved changes to this style?')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete My plan' }))
+    await screen.findByText('Style deleted.')
+    expect(screen.queryByText('Discard your unsaved changes to this style?')).toBeNull()
+    expect(screen.queryByRole('form', { name: /Edit style/ })).toBeNull()
+  })
+})
+
+describe('round 4: a bug of ours is logged once, not on every render', () => {
+  it('a first-load code bug: one console.error across re-renders', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    routes.unshift(['GET', /^\/api\/j2\/journal-styles$/, CODE_BUG])
+    installFetch()
+    const view = open()
+    expect(await alertText()).toContain(SERVER_SIDE)
+    for (let i = 0; i < 3; i += 1) view.rerender(tree())
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(spy.mock.calls.filter(([m]) => String(m).includes('journal styles'))).toHaveLength(1)
+    spy.mockRestore()
+  })
+
+  it('friendlyError itself is pure: it never logs', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    friendlyError(new TypeError('x is undefined'))
+    expect(spy).not.toHaveBeenCalled()
+    spy.mockRestore()
   })
 })

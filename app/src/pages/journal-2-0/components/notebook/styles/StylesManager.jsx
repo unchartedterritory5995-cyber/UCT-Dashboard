@@ -23,7 +23,7 @@ import {
   getMappingOffer, restoreJournalStyle, setDefaultJournalStyle, stylesOfKind, updateKind,
 } from '../../../lib/journalStyles'
 import StyleEditor from './StyleEditor'
-import { friendlyError } from './styleErrors'
+import { friendlyError, logIfUnexpected, reportError } from './styleErrors'
 import { markOfferApplied, offerApplied } from './offerApplied'
 import styles from './StylesManager.module.css'
 
@@ -47,7 +47,8 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const { prefs, setPref } = usePreferences()
   const userId = useContext(AuthContext)?.user?.id
 
-  const [editing, setEditing] = useState(null)          // { style } while the editor is open
+  const [editing, setEditing] = useState(null)          // { style, seq } while the editor is open
+  const openSeq = useRef(0)                             // a new number per opening: Discard must remount the editor even for the same style
   const [editorDirty, setEditorDirty] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(null)   // { then } while the discard question is up
   const [undo, setUndo] = useState(null)                // { id } of the style just deleted
@@ -78,6 +79,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     h.scrollIntoView?.({ block: 'start' })
   }, [editing])
   useEffect(() => { if (confirmDiscard) keepEditingRef.current?.focus() }, [confirmDiscard])
+  useEffect(() => { if (error) logIfUnexpected(error) }, [error])        // a first-load bug of ours: logged once, not per render
   useEffect(() => { if (confirmKind) confirmYesRef.current?.focus() }, [confirmKind])
   // Focus a moved target once it exists (Undo appears, a restored row comes back, the opener is still there).
   useEffect(() => {
@@ -117,7 +119,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     setBusy(true); setProblem(''); setKindProblem(''); setStatus('')
     pendingFocus.current = null
     if (!keepUndo) setUndo(null)
-    try { await fn() } catch (e) { setProblem(friendlyError(e)) } finally { setBusy(false) }
+    try { await fn() } catch (e) { setProblem(reportError(e)) } finally { setBusy(false) }
   }
   const finish = () => {
     setUndo(null); setStatus(''); setProblem(''); setKindProblem(''); setEditing(null); setConfirmDiscard(null); setConfirmKind(null)
@@ -140,7 +142,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     then?.()
   }
 
-  const openEditor = (style, opener) => { openerRef.current = opener || null; setEditing({ style }) }
+  const openEditor = (style, opener) => { openerRef.current = opener || null; openSeq.current += 1; setEditing({ style, seq: openSeq.current }) }
   const editStyle = (s, opener) => run(async () => {
     const out = await getJournalStyle(s.id)
     openEditor(out.style, opener)
@@ -162,7 +164,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const remove = (s) => run(async () => {
     await deleteJournalStyle(s.id)
     await mutate()
-    if (editing?.style?.id === s.id) { setEditing(null); setEditorDirty(false) }
+    if (editing?.style?.id === s.id) { setEditing(null); setEditorDirty(false); setConfirmDiscard(null) }
     pendingFocus.current = { type: 'undo' }            // the row that held focus is gone: Undo is the next stop
     setUndo({ id: s.id })
   })
@@ -186,7 +188,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     run(async () => {
       try {
         await createKind({ name: newKind.name.trim(), icon: newKind.icon })
-      } catch (err) { setKindProblem(friendlyError(err)); return }
+      } catch (err) { setKindProblem(reportError(err)); return }
       setNewKind({ name: '', icon: 'document' })
       await mutate()
       setStatus('Kind added.')
@@ -197,7 +199,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     run(async () => {
       try {
         await updateKind(renaming.id, { name: renaming.name.trim() })
-      } catch (err) { setKindProblem(friendlyError(err)); return }
+      } catch (err) { setKindProblem(reportError(err)); return }
       setRenaming(null)
       await mutate()
       setStatus('Kind renamed.')
@@ -208,7 +210,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     const at = ownKinds.findIndex((x) => x.id === k.id)
     const next = ownKinds[at + 1] || ownKinds[at - 1]
     let out
-    try { out = await deleteKind(k.id) } catch (err) { setKindProblem(friendlyError(err)); pendingFocus.current = { type: 'kindDelete', id: k.id }; return }       // the server's own sentence
+    try { out = await deleteKind(k.id) } catch (err) { setKindProblem(reportError(err)); pendingFocus.current = { type: 'kindDelete', id: k.id }; return }       // the server's own sentence
     await mutate()
     pendingFocus.current = next ? { type: 'kindRow', id: next.id } : { type: 'addKind' }
     const n = out?.purgedDeletedStyles || 0
@@ -400,7 +402,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
               {editing ? (
                 <>
                   <h3 className={styles.kindHead} tabIndex={-1} ref={editorHeadRef}>{editing.style.id ? 'Edit style' : 'New style'}</h3>
-                  <StyleEditor key={editing.style.id || 'new'} style={editing.style} kinds={kinds} offline={offline}
+                  <StyleEditor key={editing.seq} style={editing.style} kinds={kinds} offline={offline}
                     onSaved={saved} onCancel={closeEditor} onDirtyChange={setEditorDirty} />
                 </>
               ) : (

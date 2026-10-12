@@ -16,7 +16,7 @@ import { NOTE_KIND_PROPERTY } from '../../../lib/noteKinds'
 import { createJournalStyle, previewJournalStyle, updateJournalStyle } from '../../../lib/journalStyles'
 import { DocBody } from '../TemplatePreview'
 import { docToOutlineText, outlineIsExpressible, outlineTextToDoc } from './outlineText'
-import { friendlyError } from './styleErrors'
+import { reportError } from './styleErrors'
 import styles from './StylesManager.module.css'
 
 const PREVIEW_DEBOUNCE_MS = 400
@@ -110,7 +110,7 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
     const t = setTimeout(() => {
       previewJournalStyle({ style: latest.current })
         .then((data) => { if (live) setPreview({ state: 'ok', data }) })
-        .catch((e) => { if (live) setPreview({ state: 'error', data: null, message: friendlyError(e) }) })
+        .catch((e) => { if (live) setPreview({ state: 'error', data: null, message: reportError(e) }) })
     }, PREVIEW_DEBOUNCE_MS)
     return () => { live = false; clearTimeout(t) }
   }, [draftKey, kindId])
@@ -168,7 +168,7 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
       const out = isNew ? await createJournalStyle(body) : await updateJournalStyle(style.id, body)
       onSaved(out.style)
     } catch (e) {
-      setError(friendlyError(e))
+      setError(reportError(e))
     } finally {
       setSaving(false)
     }
