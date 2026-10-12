@@ -1,7 +1,25 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AddTradeModal from './AddTradeModal'
+
+// Notebook P2a, Task 8: the Log Trade checklist's three switches -- the journal styles switch, the
+// member's preference, and the `preEntryChecklist` prop only the two Log Trade doors pass. Each test
+// below sets them; the cases above leave the prop off, so they never see a checklist.
+const p2a = vi.hoisted(() => ({ styles: true, pref: 'on' }))
+vi.mock('../lib/journalStylesFlag', async (orig) => ({ ...(await orig()), journalStylesEnabled: () => p2a.styles }))
+vi.mock('../../../hooks/usePreferences', async (orig) => ({
+  ...(await orig()),
+  default: () => ({ prefs: { notebook_log_trade_checklist: p2a.pref }, setPref: vi.fn(), loading: false }),
+}))
+// The checklist reads through its one seam; here the seam answers with an account's ready data.
+vi.mock('../hooks/useChecklistSources', () => ({
+  RETURN_KEYS: ['settings', 'settingsState', 'retrySettings', 'rules', 'rulesState'],
+  default: () => ({
+    settings: { setups: ['VCP', 'Breakout'], setupRules: { VCP: [{ id: 's1', label: 'Volume dry-up' }, { id: 's2', label: 'Tight closes' }] } },
+    settingsState: 'ready', retrySettings: () => {}, rules: [], rulesState: 'ready',
+  }),
+}))
 
 // Seam 17 remainder: this file tests the MODAL's own save/validation
 // behavior, not SecuritySymbolInput's own search/debounce/keyboard behavior
@@ -188,5 +206,148 @@ describe('AddTradeModal', () => {
       compass_verdict_id: 'v-123',
       compass_verdict_label: 'GO',
     })
+  })
+})
+
+// ── Notebook P2a, Task 8: the pre-entry checklist in Log Trade ──────────────────────────────────
+describe('AddTradeModal: the pre-entry checklist (P2a)', () => {
+  const ADHERENCE = '/api/j2/trades/NEW1/adherence'
+  let putReply
+  beforeEach(() => {
+    p2a.styles = true
+    p2a.pref = 'on'
+    putReply = { ok: true, status: 200, json: () => Promise.resolve({}) }
+    global.fetch = vi.fn((url, init) => (init?.method === 'PUT'
+      ? Promise.resolve(putReply)
+      : Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) })))
+  })
+  const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+  const puts = () => global.fetch.mock.calls.filter(([, init]) => init?.method === 'PUT')
+
+  async function fillAndPickVcp(user) {
+    await user.type(screen.getByPlaceholderText('e.g. NVDA'), 'NVDA')
+    await user.type(screen.getByLabelText(/Shares \*/), '100')
+    await user.type(screen.getByLabelText(/Entry Price \*/), '29.57')
+    await user.type(screen.getByLabelText(/Exit Price \*/), '34.50')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Setup' }), 'VCP')
+  }
+
+  it('P2a: switch on, preference on, preEntryChecklist: the checklist shows, submit stays enabled, and a save writes the ticks under the created id', async () => {
+    const user = userEvent.setup({ delay: null })
+    const onSave = vi.fn(async () => ({ id: 'NEW1', symbol: 'NVDA' }))
+    const onClose = vi.fn()
+    render(<AddTradeModal settings={SETTINGS} onSave={onSave} onClose={onClose} preEntryChecklist />)
+    await fillAndPickVcp(user)
+    const group = await screen.findByRole('group', { name: 'Pre-entry checklist' })
+    await user.click(within(group).getByRole('checkbox', { name: 'Volume dry-up' }))
+    const submit = screen.getByRole('button', { name: 'Add Trade' })
+    expect(submit).toBeEnabled()
+    await user.click(submit)
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(ADHERENCE, expect.objectContaining({ method: 'PUT' })))
+    const [, init] = puts().find(([u]) => u === ADHERENCE)
+    expect(JSON.parse(init.body)).toEqual({ setup: 'VCP', checkedRuleIds: ['s1'], totalRules: 2 })
+    expect(onSave).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+  })
+
+  it('P2a: on-warn shows the soft warning; on does not', async () => {
+    const user = userEvent.setup({ delay: null })
+    p2a.pref = 'on-warn'
+    const first = render(<AddTradeModal settings={SETTINGS} onSave={vi.fn()} onClose={vi.fn()} preEntryChecklist />)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Setup' }), 'VCP')
+    const group = await screen.findByRole('group', { name: 'Pre-entry checklist' })
+    expect(within(group).getByRole('status').textContent).toBe('2 checklist items not ticked. You can still log this trade.')
+    expect(screen.getByRole('button', { name: 'Add Trade' })).toBeEnabled()
+    first.unmount()
+
+    p2a.pref = 'on'
+    render(<AddTradeModal settings={SETTINGS} onSave={vi.fn()} onClose={vi.fn()} preEntryChecklist />)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Setup' }), 'VCP')
+    const again = await screen.findByRole('group', { name: 'Pre-entry checklist' })
+    expect(within(again).getAllByRole('checkbox')).toHaveLength(2)
+    expect(within(again).queryByRole('status')).toBeNull()
+    expect(screen.queryByText(/You can still log this trade/)).toBeNull()
+  })
+
+  it('P2a: no preEntryChecklist prop (another surface): no checklist and no tick write', async () => {
+    const user = userEvent.setup({ delay: null })
+    const onSave = vi.fn(async () => ({ id: 'NEW1' }))
+    render(<AddTradeModal settings={SETTINGS} onSave={onSave} onClose={vi.fn()} />)
+    await fillAndPickVcp(user)
+    await settle()
+    expect(screen.queryByRole('group', { name: 'Pre-entry checklist' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Add Trade' }))
+    await settle()
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(puts()).toEqual([])
+  })
+
+  it('P2a: the switch off: no checklist and no tick write', async () => {
+    const user = userEvent.setup({ delay: null })
+    p2a.styles = false
+    const onSave = vi.fn(async () => ({ id: 'NEW1' }))
+    render(<AddTradeModal settings={SETTINGS} onSave={onSave} onClose={vi.fn()} preEntryChecklist />)
+    await fillAndPickVcp(user)
+    await settle()
+    expect(screen.queryByRole('group', { name: 'Pre-entry checklist' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Add Trade' }))
+    await settle()
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(puts()).toEqual([])
+  })
+
+  it('P2a: the preference off: no checklist and no tick write', async () => {
+    const user = userEvent.setup({ delay: null })
+    p2a.pref = 'off'
+    const onSave = vi.fn(async () => ({ id: 'NEW1' }))
+    render(<AddTradeModal settings={SETTINGS} onSave={onSave} onClose={vi.fn()} preEntryChecklist />)
+    await fillAndPickVcp(user)
+    await settle()
+    expect(screen.queryByRole('group', { name: 'Pre-entry checklist' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Add Trade' }))
+    await settle()
+    expect(puts()).toEqual([])
+  })
+
+  it('P2a: a checklist nobody ticked writes nothing (no default answer)', async () => {
+    const user = userEvent.setup({ delay: null })
+    const onClose = vi.fn()
+    render(<AddTradeModal settings={SETTINGS} onSave={vi.fn(async () => ({ id: 'NEW1' }))} onClose={onClose} preEntryChecklist />)
+    await fillAndPickVcp(user)
+    await screen.findByRole('group', { name: 'Pre-entry checklist' })
+    await user.click(screen.getByRole('button', { name: 'Add Trade' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(puts()).toEqual([])
+  })
+
+  it('P2a: a create that failed writes no ticks', async () => {
+    const user = userEvent.setup({ delay: null })
+    const onSave = vi.fn(async () => { throw new Error('500') })
+    render(<AddTradeModal settings={SETTINGS} onSave={onSave} onClose={vi.fn()} preEntryChecklist />)
+    await fillAndPickVcp(user)
+    const group = await screen.findByRole('group', { name: 'Pre-entry checklist' })
+    await user.click(within(group).getByRole('checkbox', { name: 'Volume dry-up' }))
+    await user.click(screen.getByRole('button', { name: 'Add Trade' }))
+    expect(await screen.findByText("Couldn't save this trade. Nothing was changed — try again.")).toBeTruthy()
+    expect(puts()).toEqual([])
+  })
+
+  it("P2a: a tick write that fails: the trade stays logged, the dialog says so in the server's words, and cannot log it twice", async () => {
+    const user = userEvent.setup({ delay: null })
+    putReply = { ok: false, status: 404, json: () => Promise.resolve({ detail: 'Trade not found' }) }
+    const onSave = vi.fn(async () => ({ id: 'NEW1' }))
+    const onClose = vi.fn()
+    render(<AddTradeModal settings={SETTINGS} onSave={onSave} onClose={onClose} preEntryChecklist />)
+    await fillAndPickVcp(user)
+    const group = await screen.findByRole('group', { name: 'Pre-entry checklist' })
+    await user.click(within(group).getByRole('checkbox', { name: 'Tight closes' }))
+    await user.click(screen.getByRole('button', { name: 'Add Trade' }))
+    expect((await screen.findByRole('alert')).textContent)
+      .toBe('Your trade is logged, but its pre-entry checklist was not saved. Trade not found.')
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Add Trade' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 })

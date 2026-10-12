@@ -1,9 +1,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AddPositionModal from './AddPositionModal'
 import usePreTradeVerdict from '../hooks/usePreTradeVerdict'
 import * as settleModule from '../lib/offline/settleNoteWrite'
+
+// Notebook P2a, Task 8: the Log Trade checklist's three switches -- the journal styles switch, the
+// member's preference, and the `preEntryChecklist` prop only the two Log Trade doors pass. The cases
+// that predate it leave the prop off, so they never see a checklist.
+const p2a = vi.hoisted(() => ({ styles: true, pref: 'on' }))
+vi.mock('../lib/journalStylesFlag', async (orig) => ({ ...(await orig()), journalStylesEnabled: () => p2a.styles }))
+vi.mock('../../../hooks/usePreferences', async (orig) => ({
+  ...(await orig()),
+  default: () => ({ prefs: { notebook_log_trade_checklist: p2a.pref }, setPref: vi.fn(), loading: false }),
+}))
+// The checklist reads through its one seam; here the seam answers with an account's ready data.
+vi.mock('../hooks/useChecklistSources', () => ({
+  RETURN_KEYS: ['settings', 'settingsState', 'retrySettings', 'rules', 'rulesState'],
+  default: () => ({
+    settings: { setups: ['Breakout', 'VCP'], setupRules: { VCP: [{ id: 's1', label: 'Volume dry-up' }] } },
+    settingsState: 'ready', retrySettings: () => {}, rules: [], rulesState: 'ready',
+  }),
+}))
 
 // Control the verdict directly so the attachment branches are testable without
 // wiring a live account + fetch.
@@ -427,5 +445,127 @@ describe('⛔ both of the trade modal\'s note doors land their revision', () => 
 
     expect(spy, 'a write that did not happen has no revision').not.toHaveBeenCalled()
     spy.mockRestore()
+  })
+})
+
+// ── Notebook P2a, Task 8: the pre-entry checklist in Log Trade ──────────────────────────────────
+describe('AddPositionModal: the pre-entry checklist (P2a)', () => {
+  const PRE_ENTRY = '/api/j2/trader-blocks/positions/NEW1/pre-entry'
+  let putReply
+  beforeEach(() => {
+    usePreTradeVerdict.mockReturnValue(NO_VERDICT)
+    p2a.styles = true
+    p2a.pref = 'on'
+    putReply = { ok: true, status: 200, json: () => Promise.resolve({}) }
+    vi.stubGlobal('fetch', vi.fn((url, init) => (init?.method === 'PUT'
+      ? Promise.resolve(putReply)
+      : Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) }))))
+  })
+  afterEach(() => { vi.unstubAllGlobals() })
+  const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+  const puts = () => globalThis.fetch.mock.calls.filter(([, init]) => init?.method === 'PUT')
+
+  async function fillAndPickVcp(user) {
+    await user.type(screen.getByPlaceholderText('e.g. NVDA'), 'nvda')
+    const inputs = screen.getAllByRole('spinbutton')
+    await user.type(inputs[0], '100')
+    await user.type(inputs[1], '500')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Setup' }), 'VCP')
+  }
+
+  it('P2a: switch on, preference on, preEntryChecklist: the checklist shows, submit stays enabled, and a save writes the ticks under the created id', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn(async () => ({ id: 'NEW1' }))
+    const onClose = vi.fn()
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={onSave} onClose={onClose} preEntryChecklist />)
+    await fillAndPickVcp(user)
+    const group = await screen.findByRole('group', { name: 'Pre-entry checklist' })
+    await user.click(within(group).getByRole('checkbox', { name: 'Volume dry-up' }))
+    const submit = screen.getByRole('button', { name: 'Add Position' })
+    expect(submit).toBeEnabled()
+    await user.click(submit)
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(PRE_ENTRY, expect.objectContaining({ method: 'PUT' })))
+    const [, init] = puts().find(([u]) => u === PRE_ENTRY)
+    expect(JSON.parse(init.body)).toEqual({ setup: 'VCP', checkedRuleIds: ['s1'], totalRules: 1 })
+    expect(onSave).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+  })
+
+  it('P2a: on-warn shows the soft warning; on does not', async () => {
+    const user = userEvent.setup()
+    p2a.pref = 'on-warn'
+    const first = render(<AddPositionModal settings={BASE_SETTINGS} onSave={vi.fn()} onClose={vi.fn()} preEntryChecklist />)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Setup' }), 'VCP')
+    const group = await screen.findByRole('group', { name: 'Pre-entry checklist' })
+    expect(within(group).getByRole('status').textContent).toBe('1 checklist item not ticked. You can still log this trade.')
+    expect(screen.getByRole('button', { name: 'Add Position' })).toBeEnabled()
+    first.unmount()
+
+    p2a.pref = 'on'
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={vi.fn()} onClose={vi.fn()} preEntryChecklist />)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Setup' }), 'VCP')
+    const again = await screen.findByRole('group', { name: 'Pre-entry checklist' })
+    expect(within(again).getAllByRole('checkbox')).toHaveLength(1)
+    expect(within(again).queryByRole('status')).toBeNull()
+    expect(screen.queryByText(/You can still log this trade/)).toBeNull()
+  })
+
+  it('P2a: no preEntryChecklist prop (another surface): no checklist and no tick write', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn(async () => ({ id: 'NEW1' }))
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={onSave} onClose={vi.fn()} />)
+    await fillAndPickVcp(user)
+    await settle()
+    expect(screen.queryByRole('group', { name: 'Pre-entry checklist' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Add Position' }))
+    await settle()
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(puts()).toEqual([])
+  })
+
+  it('P2a: the switch off: no checklist and no tick write', async () => {
+    const user = userEvent.setup()
+    p2a.styles = false
+    const onSave = vi.fn(async () => ({ id: 'NEW1' }))
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={onSave} onClose={vi.fn()} preEntryChecklist />)
+    await fillAndPickVcp(user)
+    await settle()
+    expect(screen.queryByRole('group', { name: 'Pre-entry checklist' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Add Position' }))
+    await settle()
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(puts()).toEqual([])
+  })
+
+  it('P2a: a create that failed writes no ticks', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn(async () => { throw new Error('500') })
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={onSave} onClose={vi.fn()} preEntryChecklist />)
+    await fillAndPickVcp(user)
+    const group = await screen.findByRole('group', { name: 'Pre-entry checklist' })
+    await user.click(within(group).getByRole('checkbox', { name: 'Volume dry-up' }))
+    await user.click(screen.getByRole('button', { name: 'Add Position' }))
+    expect(await screen.findByText("Couldn't save this position. Nothing was changed — try again.")).toBeTruthy()
+    expect(puts()).toEqual([])
+  })
+
+  it("P2a: 409 from the pre-entry route: the position stays logged, the server's sentence is shown, and it cannot be logged twice", async () => {
+    const user = userEvent.setup()
+    const detail = 'This trade is already closed or partly closed. Record its rules on the trade instead.'
+    putReply = { ok: false, status: 409, json: () => Promise.resolve({ detail }) }
+    const onSave = vi.fn(async () => ({ id: 'NEW1' }))
+    const onClose = vi.fn()
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={onSave} onClose={onClose} preEntryChecklist />)
+    await fillAndPickVcp(user)
+    const group = await screen.findByRole('group', { name: 'Pre-entry checklist' })
+    await user.click(within(group).getByRole('checkbox', { name: 'Volume dry-up' }))
+    await user.click(screen.getByRole('button', { name: 'Add Position' }))
+    expect((await screen.findByRole('alert')).textContent)
+      .toBe(`Your trade is logged, but its pre-entry checklist was not saved. ${detail}`)
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Add Position' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 })

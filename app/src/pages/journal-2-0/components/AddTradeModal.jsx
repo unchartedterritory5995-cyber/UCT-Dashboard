@@ -26,10 +26,16 @@ import PreTradeVerdictCard from './PreTradeVerdictCard'
 import { useIsPaid } from '../../../context/AuthContext'
 import UIcon from '../../../components/ui/UIcon'
 import SecuritySymbolInput from './SecuritySymbolInput'
+import usePreferences from '../../../hooks/usePreferences'
+import { journalStylesEnabled } from '../lib/journalStylesFlag'
+import { checklistMode, notSavedLine, saveTicksResult, ticksToSave } from '../lib/blocks/logTradeChecklist'
+import LogTradeChecklistSlot from './LogTradeChecklistSlot'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
+const NO_IDS = []
+const sameIds = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
 
-export default function AddTradeModal({ settings, onSave, onClose, accountName, accountId }) {
+export default function AddTradeModal({ settings, onSave, onClose, accountName, accountId, preEntryChecklist = false }) {
   const titleId = useId()
   const setups = settings?.setups ?? []
 
@@ -59,6 +65,21 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
   const { state: disciplineState } = useJ2DisciplineState(accountId)
   const [disciplineOverrideArmed, setDisciplineOverrideArmed] = useState(false)
   const { stats: setupStats } = useJ2SetupStats(accountId, setupVal)
+
+  // Notebook P2a (Task 8): the pre-entry checklist, a SOFT warning. Only the two Log Trade doors pass
+  // `preEntryChecklist` (IR-S7: they resolve the row they create); the member's preference turns it
+  // on. `ticked` keeps every tick, other setups' included; only the ticks of the items on screen are
+  // sent, and only if the member touched the list (an untouched list is no answer, never "0 of N").
+  const askChecklist = !!preEntryChecklist && journalStylesEnabled()
+  const { prefs } = usePreferences(askChecklist)
+  const mode = checklistMode(prefs)
+  const checklistOn = askChecklist && mode.show
+  const [ticked, setTicked] = useState(NO_IDS)
+  const [touched, setTouched] = useState(false)
+  const [itemIds, setItemIds] = useState(NO_IDS)
+  const [checklistNotSaved, setChecklistNotSaved] = useState('')
+  const onTicks = useCallback((next) => { setTicked(next); setTouched(true) }, [])
+  const onItems = useCallback((ids) => setItemIds((prev) => (sameIds(prev, ids) ? prev : ids)), [])
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
@@ -125,7 +146,7 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
     if (err) { setErrorMsg(err); return }
     setSaving(true)
     try {
-      await onSave({
+      const created = await onSave({
         symbol: symbol.trim().toUpperCase(),
         side,
         shares: Number(shares),
@@ -147,6 +168,13 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
           ? { compass_verdict_id: verdict.verdict_id, compass_verdict_label: verdict.label }
           : {},
       })
+      // The trade is logged. Its ticks go under the id the server gave it, and a failure here never
+      // undoes it: the dialog stays open to say so, with the log button gone so it cannot log twice.
+      if (checklistOn && touched && itemIds.length > 0 && created?.id != null) {
+        const { checked, total } = ticksToSave({ ticked, itemIds })
+        const saved = await saveTicksResult({ kind: 'trade', id: created.id, setup: setupVal.trim() || null, checked, total })
+        if (!saved.ok) { setChecklistNotSaved(notSavedLine(saved.reason)); return }
+      }
       onClose?.()
     } catch (e) {
       console.error('Failed to save trade:', e)
@@ -157,7 +185,7 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
   }, [
     validate, symbol, side, shares, entryPrice, entryDate, entryTime, exitPrice, exitDate,
     exitTime, originalStop, setupVal, notes, fees, selectedMistakes, selectedEmotions,
-    verdict, onSave, onClose,
+    verdict, onSave, onClose, checklistOn, touched, itemIds, ticked,
   ])
 
   // Pre-trade verdict run (paid-gated footer button). Snake_case payload — the
@@ -375,6 +403,11 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
             </label>
           </div>
 
+          {checklistOn && (
+            <LogTradeChecklistSlot setup={setupVal} requireAll={mode.requireAll}
+              checked={ticked} onChange={onTicks} onItems={onItems} />
+          )}
+
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Notes</span>
             <textarea
@@ -439,9 +472,16 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
             </div>
           )}
           {errorMsg && <div className={styles.errorBanner} role="alert">{errorMsg}</div>}
+          {checklistNotSaved && <div className={bannerStyles.alert} role="alert">{checklistNotSaved}</div>}
         </div>
 
         <div className={styles.footer} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+          {checklistNotSaved ? (
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-primary" onClick={onClose}>Done</button>
+            </div>
+          ) : (
+          <>
           {isPaid && (
             <>
               <PreTradeVerdictCard verdict={verdict} isLoading={verdictLoading} error={verdictError} />
@@ -474,6 +514,8 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
               {saving ? 'Saving…' : 'Add Trade'}
             </button>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>

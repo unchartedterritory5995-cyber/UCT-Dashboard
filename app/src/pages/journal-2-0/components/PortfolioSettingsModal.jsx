@@ -8,6 +8,8 @@ import styles from './PortfolioSettingsModal.module.css'
 import NoTradeWindowsEditor from './NoTradeWindowsEditor'
 import UIcon from '../../../components/ui/UIcon'
 import { uid } from '../../../utils/uid'
+import usePreferences from '../../../hooks/usePreferences'
+import { journalStylesEnabled } from '../lib/journalStylesFlag'
 
 const STOP_MODES = [
   {
@@ -93,6 +95,19 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
   const [beUnit, setBeUnit] = useState(settings?.breakevenRange?.unit ?? '$')
   const [beValue, setBeValue] = useState(settings?.breakevenRange?.value ?? 0)
   const [setups, setSetups] = useState(settings?.setups ?? [])
+  // Notebook P2a (Task 8): Log Trade's pre-entry checklist, opted into per member. A preference, not
+  // an account setting, so it is saved the moment it changes (not by Save Settings), and only offered
+  // while the journal styles switch is on.
+  const stylesOn = journalStylesEnabled()
+  const { prefs, setPref } = usePreferences(stylesOn)
+  const [checklistPrefFailed, setChecklistPrefFailed] = useState(false)
+  const checklistPref = ['on', 'on-warn'].includes(prefs?.notebook_log_trade_checklist)
+    ? prefs.notebook_log_trade_checklist : 'off'
+  const chooseChecklist = useCallback(async (value) => {
+    setChecklistPrefFailed(false)
+    const kept = await setPref('notebook_log_trade_checklist', value)
+    if (kept === false) setChecklistPrefFailed(true)
+  }, [setPref])
   const [newSetup, setNewSetup] = useState('')
   // P5-A2: per-setup rule LABELS — the checklist template each trade of that
   // setup is graded against later. Shape: { [setupName]: [{id, label}] }.
@@ -1067,6 +1082,28 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
                   )
                 })}
               </div>
+            )}
+            {stylesOn && (
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>Pre-entry checklist in Log Trade</span>
+                <select
+                  aria-label="Pre-entry checklist in Log Trade"
+                  className={styles.select}
+                  value={checklistPref}
+                  onChange={(e) => chooseChecklist(e.target.value)}
+                >
+                  <option value="off">Off</option>
+                  <option value="on">Show it</option>
+                  <option value="on-warn">Show it, and warn until every item is ticked</option>
+                </select>
+                <span className={styles.helper}>
+                  Shows the setup&apos;s checklist when you log a trade with Log Trade. The warning
+                  never stops you logging. Saved as soon as you pick it.
+                </span>
+                {checklistPrefFailed && (
+                  <span className={styles.helper} role="alert">Couldn&apos;t save this choice. Try again.</span>
+                )}
+              </label>
             )}
           </section>
 

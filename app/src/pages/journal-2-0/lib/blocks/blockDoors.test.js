@@ -41,11 +41,19 @@ const BLOCK_DIR_RELS = DIRS.map((d) => `${rel(d)}/`)
  * entry `exceptionProblems` refuses exempts nothing.
  * ⛔ IR-B5: empty until a task ships a file that writes. Each task adds EXACTLY its own entry, in the
  * commit that creates the call, and nothing else:
- *   · Task 8  — components/LogTradeChecklist.jsx, its one named write;
+ *   · Task 8  — lib/blocks/logTradeChecklist.js, its two named writes (Log Trade's ticks: the open
+ *     position's pre-entry PUT and the closed trade's adherence PUT; the body file writes nothing);
  *   · Task 10 — its block body's one named write.
  * Never a whole file, never a note URL (the last case below refuses both).
  */
-export const WRITE_EXCEPTIONS = {}
+export const WRITE_EXCEPTIONS = {
+  'app/src/pages/journal-2-0/lib/blocks/logTradeChecklist.js': [
+    { method: 'PUT', url: '/api/j2/trader-blocks/positions/{}/pre-entry',
+      why: 'Log Trade ticks for an OPEN position, to the adherence store under pos:<id> (R-P2-7); never a note.' },
+    { method: 'PUT', url: '/api/j2/trades/{}/adherence',
+      why: "Log Trade ticks for a CLOSED trade, to that trade's adherence record; never a note." },
+  ],
+}
 
 /**
  * ④ (R-RC-6) module id -> why. A package by its own name; a source file by its repo-relative path
