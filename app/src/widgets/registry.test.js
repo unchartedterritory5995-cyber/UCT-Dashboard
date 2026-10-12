@@ -33,10 +33,14 @@ import {
   validateParams,
   paramsPlainText,
   isReconstructable,
+  isTraderBlock,
 } from './registry'
 import { WORKSPACE_WIDGETS } from '../pages/charts/WidgetHost'
 import { GROUPS as COT_RAIL_GROUPS } from '../pages/cot/cotRead'
 import { SCREENER_CAPTURE_ROW_CAP, COT_CAPTURE_GROUPS, registerPanel } from './registry'
+import { BLOCK_KINDS, blockSearch } from '../pages/journal-2-0/lib/journalBlocks'
+import { Parser } from 'acorn'
+import jsx from 'acorn-jsx'
 
 const IDS = [
   'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',
@@ -46,13 +50,18 @@ const IDS = [
   // G-040 (wave 10, lane CX): the three CAPTURE-ONLY Notebook kinds. Registered so
   // a capture can store `widgetId` + `params`; bound by the journal host alone.
   'screener', 'cot', 'modelbook',
+  // Notebook P2a: the trader blocks (capture-only AND `block: true`), bound in
+  // blocks/BlockNodeView.jsx's BLOCK_COMPONENTS, never in EMBED_COMPONENTS.
+  'preEntryChecklist', 'priceStamps', 'positionSizing',
 ]
+const G040_KINDS = ['screener', 'cot', 'modelbook']
+const BLOCK_IDS = ['preEntryChecklist', 'priceStamps', 'positionSizing']
 // The ids a /charts board can hold — everything except the capture-only kinds.
-const CAPTURE_ONLY = ['screener', 'cot', 'modelbook']
+const CAPTURE_ONLY = [...G040_KINDS, ...BLOCK_IDS]
 const BOARD_IDS = IDS.filter(id => !CAPTURE_ONLY.includes(id))
 
 describe('widget registry — metadata pins', () => {
-  it('registers exactly the 20 workspace widget types + the G-040 capture-only kinds, in menu order', () => {
+  it('registers exactly the 20 workspace widget types, the G-040 capture-only kinds and the P2a blocks, in menu order', () => {
     expect(WIDGET_IDS).toEqual(IDS)
   })
 
@@ -66,6 +75,7 @@ describe('widget registry — metadata pins', () => {
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume Surge', scatter: 'Market Map',
       screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book',
+      preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
     })
   })
 
@@ -79,6 +89,7 @@ describe('widget registry — metadata pins', () => {
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume Surge', scatter: 'Market Map',
       screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book',
+      preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
     })
   })
 
@@ -92,6 +103,7 @@ describe('widget registry — metadata pins', () => {
       periodsort: 'Period Sort', nhnl: 'NH / NL', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume', scatter: 'Map',
       screener: 'Screener', cot: 'COT', modelbook: 'Model Book',
+      preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
     })
   })
 
@@ -121,6 +133,9 @@ describe('widget registry — metadata pins', () => {
       screener:     { w: 6,  h: 10, minW: 3, minH: 4 },
       cot:          { w: 5,  h: 8,  minW: 3, minH: 4 },
       modelbook:    { w: 6,  h: 8,  minW: 3, minH: 4 },
+      preEntryChecklist: { w: 6, h: 4, minW: 3, minH: 2 },
+      priceStamps: { w: 6, h: 4, minW: 3, minH: 2 },
+      positionSizing: { w: 6, h: 4, minW: 3, minH: 2 },
     })
   })
 
@@ -562,8 +577,12 @@ describe('widget registry — journal embed bindings', () => {
 
   it('reconstructable widgets and journal embed bindings cannot drift apart', () => {
     const bound = new Set(journalEmbedIds())
+    // ⛔ IR-B2, the explicit `block: true` branch: a block is rendered by BlockNodeView, so it is
+    // NEVER an embed binding and never counted as a live re-render, whatever its manifest says.
+    const blocks = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].block === true)
+    for (const id of blocks) expect(bound.has(id), `${id} is a block and must not be bound in EMBED_COMPONENTS`).toBe(false)
     const renders = WIDGET_IDS.filter(
-      id => isReconstructable(id, normalizeParams(id, RECONSTRUCTABLE_FIXTURES[id])),
+      id => WIDGET_REGISTRY[id].block !== true && isReconstructable(id, normalizeParams(id, RECONSTRUCTABLE_FIXTURES[id])),
     )
     // Fails BY NAME in both directions: a registry entry that promises a live
     // re-render with no renderer, and a renderer for a type that can never
@@ -574,7 +593,106 @@ describe('widget registry — journal embed bindings', () => {
     expect(bound.has('indexes')).toBe(true)
     expect(bound.has('marketcontext')).toBe(true)
     // …and the three G-040 capture-only kinds, whose ONLY host is this one.
-    for (const id of CAPTURE_ONLY) expect(bound.has(id), `${id} has no journal renderer`).toBe(true)
+    for (const id of G040_KINDS) expect(bound.has(id), `${id} has no journal renderer`).toBe(true)
+  })
+
+  // ⛔ R-RC-3: the path is built the way journalEmbedIds() builds its own (ROOT + a repo-relative
+  // constant), never from import.meta.url. CODE, NEVER PROSE: the keys come from the PARSE TREE,
+  // so a key written in a comment inside the map is not a binding (the control below proves it).
+  const BLOCK_VIEW_REL = 'app/src/pages/journal-2-0/components/notebook/blocks/BlockNodeView.jsx'
+  const JsxParser = Parser.extend(jsx())
+
+  /** BLOCK_COMPONENTS' keys in `src`, IN ORDER and WITH duplicates; null when the map is absent. */
+  function blockComponentKeysIn(src) {
+    const tree = JsxParser.parse(src, { ecmaVersion: 'latest', sourceType: 'module' })
+    for (const n of tree.body) {
+      const decl = n.type === 'ExportNamedDeclaration' ? n.declaration : n
+      if (decl?.type !== 'VariableDeclaration') continue
+      for (const d of decl.declarations) {
+        if (d.id?.name !== 'BLOCK_COMPONENTS' || d.init?.type !== 'ObjectExpression') continue
+        return d.init.properties.map(p => (p.key?.type === 'Identifier' ? p.key.name : String(p.key?.value)))
+      }
+    }
+    return null
+  }
+
+  /** BLOCK_COMPONENTS' keys, parsed out of BlockNodeView.jsx, IN ORDER and WITH duplicates. */
+  function blockComponentKeys() {
+    const keys = blockComponentKeysIn(readFileSync(join(ROOT, BLOCK_VIEW_REL), 'utf8'))
+    expect(keys, 'BLOCK_COMPONENTS not found in BlockNodeView.jsx').toBeTruthy()          // non-vacuity
+    return keys
+  }
+
+  /** Every block id bound exactly once; nothing else bound. Returns the problems, for the control. */
+  function blockBindingProblems(blockIds, keys) {
+    const out = []
+    for (const id of blockIds) {
+      const n = keys.filter(k => k === id).length
+      if (n !== 1) out.push(`${id} is bound ${n} times in BLOCK_COMPONENTS`)
+    }
+    for (const k of new Set(keys)) if (!blockIds.includes(k)) out.push(`${k} is not a block but is bound in BLOCK_COMPONENTS`)
+    return out
+  }
+
+  it('⛔ IR-B2: every block id has exactly ONE BLOCK_COMPONENTS entry, and no non-block id has one', () => {
+    const blocks = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].block === true)
+    expect(blocks).toEqual(BLOCK_IDS)
+    expect(blockBindingProblems(blocks, blockComponentKeys())).toEqual([])
+  })
+
+  it('CONTROL: the binding check sees a missing, a doubled and a stray entry', () => {
+    expect(blockBindingProblems(['a', 'b'], ['a'])).toEqual(['b is bound 0 times in BLOCK_COMPONENTS'])
+    expect(blockBindingProblems(['a'], ['a', 'a'])).toEqual(['a is bound 2 times in BLOCK_COMPONENTS'])
+    expect(blockBindingProblems(['a'], ['a', 'chart'])).toEqual(['chart is not a block but is bound in BLOCK_COMPONENTS'])
+  })
+
+  it('CONTROL: the key parser sees real keys (a duplicate included) and never a key in a comment', () => {
+    const src = [
+      "import x from './x'",
+      'export const BLOCK_COMPONENTS = {',
+      "  priceStamps: lazyLeaf(() => import('./PriceStampsBlock')),",
+      '  // positionSizing: lazyLeaf(() => import(\'./PositionSizingBlock\')),',
+      "  /* preEntryChecklist: 1, */ 'quoted': 2,",
+      "  priceStamps: lazyLeaf(() => import('./PriceStampsBlock')),",
+      '}',
+    ].join('\n')
+    expect(blockComponentKeysIn(src)).toEqual(['priceStamps', 'quoted', 'priceStamps'])
+    expect(blockComponentKeysIn("// export const BLOCK_COMPONENTS = { a: 1 }\nconst b = 1")).toBeNull()
+  })
+
+  it('⛔ P2a: a block is capture-only, offered by no menu, and its manifest is refused without captureOnly', () => {
+    for (const id of BLOCK_IDS) {
+      expect(WIDGET_REGISTRY[id].captureOnly).toBe(true)
+      expect(isTraderBlock(id)).toBe(true)
+    }
+    expect(isTraderBlock('chart')).toBe(false)
+    expect(isTraderBlock('marketcontext')).toBe(false)
+    expect(isTraderBlock('a-widget-nobody-declared')).toBe(false)
+    expect(() => registerPanel('x', { ...WIDGET_REGISTRY.priceStamps, captureOnly: false })).toThrow(/block entry must be captureOnly/)
+    expect(() => registerPanel('x', { ...WIDGET_REGISTRY.priceStamps, block: 'yes' })).toThrow(/block must be true when present/)
+    expect(() => registerPanel('x', { ...WIDGET_REGISTRY.priceStamps })).not.toThrow()            // control: the real shape passes
+  })
+
+  it('S20: a block\'s plain text IS its catalog search line', () => {
+    for (const id of BLOCK_IDS) {
+      expect(blockSearch(id), id).toBeTruthy()                                                   // non-vacuity
+      expect(paramsPlainText(id, {}), id).toBe(blockSearch(id))
+    }
+  })
+
+  it('S20: the registry\'s enum options and defaults ARE the catalog\'s, for every catalog setting of a block', () => {
+    for (const id of BLOCK_IDS) {
+      const kind = BLOCK_KINDS.find(k => k.id === id)
+      expect(kind, id).toBeTruthy()
+      expect(kind.settings.length, `${id} has catalog settings`).toBeGreaterThan(0)              // non-vacuity
+      for (const s of kind.settings) {
+        const f = WIDGET_REGISTRY[id].paramsSchema.find(x => x.key === s.key)
+        expect(f, `${id}.${s.key}`).toBeTruthy()
+        expect(f.type).toBe('enum')
+        expect(f.options, `${id}.${s.key}`).toEqual([...s.options])
+        expect(f.default, `${id}.${s.key}`).toBe(s.default)
+      }
+    }
   })
 })
 

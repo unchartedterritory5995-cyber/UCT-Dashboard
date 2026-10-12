@@ -5,7 +5,7 @@ import {
   retimeChartParams, embedRenderHeight, makeCrosshairBus, chartPlanEnabled,
   EMBED_MAX_H,
 } from '../../lib/widgetEmbedCore'
-import { widgetMeta } from '../../../../widgets/registry'
+import { widgetMeta, isTraderBlock } from '../../../../widgets/registry'
 import { chartsLinkPath } from '../../../../lib/chartDeepLink'
 import { peekDrawings } from '../../../../components/chart/drawingsStore'
 import { useCoarsePointer } from '../../../../components/chart/coarsePointer'
@@ -64,6 +64,13 @@ const EMBED_COMPONENTS = {
   cot: lazyLeaf(() => import('./CotEmbed')),
   modelbook: lazyLeaf(() => import('./ModelBookEmbed')),
 }
+
+// Notebook P2: a trader block is NOT an embed. It has no toolbar, no archive and no resize; its state
+// is its params, changed only through blocks/useBlockParams.js. Lazy, so a note with no block loads none
+// of it. ⛔ EmbedErrorBoundary (S15): a stale BlockNodeView chunk after a deploy shows the block's own
+// line, never a crashed note. An older bundle never reaches here: it has no registry row, so the block
+// keeps the "needs a newer version" card (docs/notebook/p1-verify-before-building.md §b).
+const BlockNodeView = lazyLeaf(() => import('./blocks/BlockNodeView'))
 
 // Wave 13 lane 13I-2: the technical fingerprint under a chart block (dark behind
 // notebook_ta_fingerprint_enabled). Lazy, so a note with the gate off loads none of it.
@@ -175,7 +182,26 @@ function PlaceholderChip({ attrs, reason, shareView = false }) {
   )
 }
 
+// The node view TipTap mounts for every widgetEmbed node: a trader block goes to BlockNodeView, every
+// other widget to EmbedNodeView. Two component TYPES (not a branch inside one) keep every hook of
+// EmbedNodeView in a stable order. Both receive the six props EmbedNodeView has always read (and
+// EmbedBlockActions.test.jsx reads `getPos` off this signature).
 export default function WidgetEmbedView({ node, selected, editor, updateAttributes, deleteNode, getPos }) {
+  const props = { node, selected, editor, updateAttributes, deleteNode, getPos }
+  if (isTraderBlock(node?.attrs?.widgetId)) {
+    const line = node.attrs.searchText || ''
+    return (
+      <EmbedErrorBoundary fallback={<NodeViewWrapper className={styles.frame} data-widget-embed-view="block-failed"><p>{line}</p></NodeViewWrapper>}>
+        <Suspense fallback={<NodeViewWrapper className={styles.frame} data-widget-embed-view="block-loading" />}>
+          <BlockNodeView {...props} />
+        </Suspense>
+      </EmbedErrorBoundary>
+    )
+  }
+  return <EmbedNodeView {...props} />
+}
+
+function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, getPos }) {
   const attrs = node.attrs || {}
   const decision = resolveEmbedRender(attrs)
   const half = attrs.layout?.width === 'half'

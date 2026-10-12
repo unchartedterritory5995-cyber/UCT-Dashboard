@@ -269,6 +269,10 @@ export function validatePanelManifest(id, manifest) {
   if (manifest.captureOnly !== undefined && typeof manifest.captureOnly !== 'boolean') {
     problems.push('captureOnly must be a boolean when present')
   }
+  // Notebook P2a: a trader block is a capture-only kind the Notebook binds in
+  // blocks/BlockNodeView.jsx (BLOCK_COMPONENTS), so it inherits every captureOnly refusal above.
+  if (manifest.block !== undefined && manifest.block !== true) problems.push('block must be true when present')
+  if (manifest.block === true && manifest.captureOnly !== true) problems.push('a block entry must be captureOnly')
   return problems
 }
 
@@ -279,6 +283,25 @@ export function registerPanel(id, manifest) {
   const problems = validatePanelManifest(id, manifest)
   if (problems.length) throw new PanelManifestError(id, problems)
   return { ...manifest, menus: { ...manifest.menus, terminal: manifest.menus.terminal === true } }
+}
+
+/** A trader block's manifest (Notebook P2): one shape, so each entry costs its params and words only.
+ *  ⛔ Rendered by blocks/BlockNodeView.jsx (BLOCK_COMPONENTS), never the embed host: not reconstructable,
+ *  never live, so resolveEmbedRender's archive and live paths can never pick a block up. */
+function blockManifest(label, paramsSchema, line) {
+  return {
+    labels: { header: label, menu: label, tab: label },
+    defaults: { w: 6, h: 4, minW: 3, minH: 2 },
+    placement: { family: 'panel', fill: 'narrow' },
+    menus: { workspace: false, tab: false, mobile: false, journal: false },
+    captureOnly: true,
+    block: true,
+    themeFollow: true,
+    paramsSchema,
+    plainText: () => line,
+    reconstructable: false,
+    liveCapable: false,
+  }
 }
 
 // The literal every entry is declared in. It is NOT exported: the exported
@@ -834,6 +857,27 @@ const PANEL_MANIFESTS = {
     reconstructable: (p) => Number.isInteger(p?.year) && typeof p?.symbol === 'string' && p.symbol !== '',
     liveCapable: false,
   },
+  // ── Notebook P2 (Tier 1, part a): trader blocks. ⛔ A block is a capture-only kind bound by the
+  // Notebook alone (blocks/BlockNodeView.jsx). Its member state is `params`, written only by
+  // blocks/useBlockParams.js (spec §P2 integrity rule; lib/blocks/blockDoors.test.js).
+  // The enum options and defaults mirror lib/journalBlocks.js (registry.test.js S20 pins them).
+  preEntryChecklist: blockManifest('Pre-entry checklist', [
+    { key: 'setup', type: 'string' },
+    { key: 'includeRules', type: 'enum', options: ['yes', 'no'], default: 'yes' },
+    { key: 'requireAll', type: 'enum', options: ['no', 'yes'], default: 'no' },
+    { key: 'checked', type: 'json', default: [] },
+  ], '[pre-entry checklist]'),
+  priceStamps: blockManifest('Price stamps', [
+    { key: 'on', type: 'enum', options: ['no', 'yes'], default: 'no' },
+  ], '[price stamps]'),
+  positionSizing: blockManifest('Position sizing', [
+    { key: 'entry', type: 'number' },
+    { key: 'stop', type: 'number' },
+    { key: 'grade', type: 'enum', options: ['A', 'A+', 'B'], default: 'A' },
+    { key: 'accountSize', type: 'number' },
+    { key: 'regimeId', type: 'enum', options: ['green', 'amber', 'orange', 'red'] },
+    { key: 'regimeAsOf', type: 'string' },
+  ], '[position sizing]'),
 }
 
 export const WIDGET_REGISTRY = deepFreeze(Object.fromEntries(
@@ -944,6 +988,11 @@ export function labelMap(kind) {
 /** Metadata for one widget id, or null for an unknown/removed type. */
 export function widgetMeta(id) {
   return WIDGET_REGISTRY[id] || null
+}
+
+/** Is this widget id a Notebook trader block (rendered by blocks/BlockNodeView, not the embed chrome)? */
+export function isTraderBlock(id) {
+  return WIDGET_REGISTRY[id]?.block === true
 }
 
 // ── Params helpers ───────────────────────────────────────────────────────────

@@ -36,6 +36,14 @@ export const EXEMPT = Object.freeze({
     'one line of plain text (word count, reading time) read as text; deliberately NOT a live region, which would talk over typing',
   'components/notebook/TranscriptDoors.jsx':
     'a native <button> named by its visible text ("Save from a transcript") plus a host that mounts SaveTranscriptPassage (itself a named dialog); no markup that needs aria',
+  // Notebook P2a stub bodies: one line of text inside BlockNodeView's named group. Each body task
+  // REPLACES its stub, and the "every exemption still applies" case below then makes it delete its row.
+  'components/notebook/blocks/PreEntryChecklistBlock.jsx':
+    'a stub body: one line of text (BlockEmpty) inside BlockNodeView\'s named group; replaced by its own task',
+  'components/notebook/blocks/PriceStampsBlock.jsx':
+    'a stub body: one line of text (BlockEmpty) inside BlockNodeView\'s named group; replaced by its own task',
+  'components/notebook/blocks/PositionSizingBlock.jsx':
+    'a stub body: one line of text (BlockEmpty) inside BlockNodeView\'s named group; replaced by its own task',
 })
 
 /** Another lane's file in the population. Classified, but its staleness is the
