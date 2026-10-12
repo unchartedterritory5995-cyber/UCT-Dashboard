@@ -25,6 +25,9 @@ export const BREADTH_METRICS = [
   'adv_decline', 'advancing', 'declining', 'universe_count',
   'stage2_count', 'stage4_count',
 ]
+//: The documented GENERAL overview (`metrics: []`), mirrors api/services/uct_agent/breadth_present.py
+//: OVERVIEW_METRICS (tests pin them equal): participation short + long, leadership, the day's moves.
+export const OVERVIEW_METRICS = ['pct_above_50sma', 'pct_above_200sma', 'net_new_high_low', 'adv_decline']
 export const METRIC_GUIDE = (
   'pct_above_{5,10,20,40,50,100,150,200}sma = % of stocks above that N-day simple MA; '
   + 'new_52w_highs/new_52w_lows = counts at 52-week highs/lows; net_new_high_low = highs minus lows; '
@@ -130,9 +133,9 @@ export function registerBreadthCapabilities() {
     localOnly: true,
     summary: 'Look up historical MARKET BREADTH from UCT\'s own finalized end-of-day data (US, NYSE or Nasdaq stocks): a value on a date, two dates compared, or a date range summarised — % of stocks above a moving average, new highs/lows, advance/decline, Stage 2/4 counts. '
       + 'UCT shows the figures to the member; you never see them. Use this (disposition apply, research null) — never state breadth figures yourself.',
-    hints: 'target = the breadth entry ref. universe us (all US stocks; default) | nyse | nasdaq. metrics = 1–4 keys. '
+    hints: 'target = breadth entry ref. universe us (default) | nyse | nasdaq. metrics = 1–4 keys; [] = general overview ("how\'s breadth today"). '
       + 'mode value: date (null = latest). compare: compare_date required, date null = latest. series: start required, end null = latest. '
-      + 'Dates YYYY-MM-DD, else null; turn "a month ago" into a date from the entry\'s today_et / latest_finalized. '
+      + 'Dates YYYY-MM-DD else null; "a month ago" → a date from the entry\'s today_et / latest_finalized. '
       + 'reply: one short line, no figures. Keys: ' + METRIC_GUIDE,
     args: {
       type: 'object',

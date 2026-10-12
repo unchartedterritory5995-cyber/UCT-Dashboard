@@ -9,12 +9,13 @@
 //   metrics     a few labelled figures                      { items }
 //   range       a period summarised (first/last/low/high)   { items, note }
 //   table       rows (ranked lists, screens)                { table }  — stacks on narrow panels
-//   headlines   news items                                  { headlines: [{title, meta}] , source }
+//   headlines   news items (the first HEADLINES_SHOWN; the rest under Details)  { headlines: [{title, meta}], source }
 //   text        prose                                       { text }
 //   error       a refusal / missing data + what to do next  { text }
 //
 // Any view may carry `details` (the full text, the full table, the source and methodology) shown
-// collapsed, and a `link` into UCT. A capability may return `present` itself; one that returns only
+// collapsed, and a `link` into UCT. A `present.short` names the subject compactly ("NVDA"), so a
+// single figure picked from a result reads "NVDA · Market cap" rather than the full title. A capability may return `present` itself; one that returns only
 // `{text, table, link}` (or a string) still gets a sensible view here, so new tools inherit it.
 //
 // ⛔ TWO CHANNELS. The view is the MEMBER's transcript: it is saved in the outcome row's data and
@@ -23,6 +24,8 @@
 
 export const VIEW_KINDS = ['value', 'comparison', 'metrics', 'range', 'table', 'headlines', 'text', 'error']
 export const VIEW_VERSION = 1
+//: News shows this many headlines up front; the rest stay one tap away under Details.
+export const HEADLINES_SHOWN = 5
 
 const str = (v, n = 400) => (v == null ? '' : String(v).replace(/\s+/g, ' ').trim().slice(0, n))
 const items = (xs, n = 24) => (Array.isArray(xs) ? xs : []).filter(x => x && x.label != null && x.value != null).slice(0, n)
@@ -90,7 +93,11 @@ export function presentOf(answer, { message = '' } = {}) {
     if (p.kind === 'value') Object.assign(view, { value: str(p.value, 80), label: str(p.label, 140), ...(p.note ? { note: str(p.note, 200) } : {}) })
     else if (['comparison', 'metrics', 'range'].includes(p.kind)) Object.assign(view, { items: items(p.items), ...(p.note ? { note: str(p.note, 200) } : {}) })
     else if (p.kind === 'table') view.table = table(p.table) || tbl
-    else if (p.kind === 'headlines') Object.assign(view, { headlines: (p.headlines || []).slice(0, 12).map(h => ({ title: str(h.title, 220), meta: str(h.meta, 120) })) })
+    else if (p.kind === 'headlines') {
+      const hs = (p.headlines || []).slice(0, 15).map(h => ({ title: str(h.title, 220), meta: str(h.meta, 120) }))
+      const n = detail ? hs.length : HEADLINES_SHOWN
+      Object.assign(view, { headlines: hs.slice(0, n), ...(hs.length > n ? { details: { headlines: hs.slice(n) } } : {}) })
+    }
     if (p.text) view.text = str(p.text, 4000)
     if (p.source) view.source = str(p.source, 160)
     // FOCUS: a metrics result whose labels the member NAMED shows just those (the rest is in details).
@@ -98,7 +105,7 @@ export function presentOf(answer, { message = '' } = {}) {
       const hit = view.items.filter(it => named(it, message))
       if (hit.length === 1) {
         const it = hit[0]
-        view = { kind: 'value', value: it.value, label: [view.title, it.label].filter(Boolean).join(' · '), ...(it.note ? { note: it.note } : {}),
+        view = { kind: 'value', value: it.value, label: [p.short ? str(p.short, 40) : view.title, it.label].filter(Boolean).join(' · '), ...(it.note ? { note: it.note } : {}),
           details: { items: items(p.items) } }
       } else if (hit.length > 1 && hit.length < view.items.length) {
         view = { ...view, items: hit, details: { items: items(p.items) } }
@@ -118,7 +125,8 @@ export function presentOf(answer, { message = '' } = {}) {
   const det = { ...(view.details || {}) }
   // (an error view already says its specific reason; the long answer adds nothing but noise)
   if (p && full && !det.text && view.text !== full && view.kind !== 'error') det.text = full
-  if (p && tbl && view.kind !== 'table' && !det.table) det.table = tbl
+  // (headlines: the rows already shown or listed under Details ARE the table — only the provenance text stays)
+  if (p && tbl && view.kind !== 'table' && view.kind !== 'headlines' && !det.table) det.table = tbl
   if (Object.keys(det).length) view.details = det
   if (lnk) view.link = lnk
   if (Array.isArray(a.sources) && a.sources.length) view.sources = a.sources.filter(s => typeof s === 'string').slice(0, 5)

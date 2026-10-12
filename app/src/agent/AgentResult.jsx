@@ -3,6 +3,7 @@
 // figures, a period, rows, headlines or prose — with the full answer one tap away under "Details".
 // Sized by the PANEL (container queries in AgentResult.module.css), never by the window: a narrow
 // panel stacks a table into one card per row; nothing scrolls sideways.
+import { useState } from 'react'
 import { Link, useInRouterContext } from 'react-router-dom'
 import styles from './AgentResult.module.css'
 
@@ -25,20 +26,40 @@ function Pairs({ items, variant }) {
   )
 }
 
+//: A result's rows show as a PREVIEW (no scroll box inside the transcript); "Show all" opens the rest
+//: in place, and the answer's link (e.g. "Open in Screener") carries the full result.
+export const ROWS_PREVIEW = 8
+
 /** Rows: a compact table where the panel is wide enough; one stacked card per row where it is not. */
-export function Rows({ table, testId = 'agent-result-table' }) {
+export function Rows({ table, testId = 'agent-result-table', preview = ROWS_PREVIEW }) {
+  const [all, setAll] = useState(false)
   const cols = table.columns
+  const cut = !all && preview && table.rows.length > preview + 2
+  const rows = cut ? table.rows.slice(0, preview) : table.rows
   return (
     <div className={`${styles.rows} ${cols.length > 2 ? styles.many : ''}`} data-testid={testId}>
       <table className={styles.table}>
         <thead><tr>{cols.map(c => <th key={c.key} scope="col">{c.label}</th>)}</tr></thead>
         <tbody>
-          {table.rows.map((r, i) => (
+          {rows.map((r, i) => (
             <tr key={i}>{cols.map(c => <td key={c.key} data-label={c.label}>{r[c.key] ?? '—'}</td>)}</tr>
           ))}
         </tbody>
       </table>
+      {cut && (
+        <button type="button" className={styles.more} onClick={() => setAll(true)} data-testid="agent-rows-more">
+          Show all {table.rows.length} rows
+        </button>
+      )}
     </div>
+  )
+}
+
+function Headlines({ items }) {
+  return (
+    <ul className={styles.headlines}>
+      {items.map((h, i) => <li key={i}><span className={styles.headline}>{h.title}</span>{h.meta && <span className={styles.meta}>{h.meta}</span>}</li>)}
+    </ul>
   )
 }
 
@@ -50,12 +71,13 @@ function OpenLink({ link }) {
 }
 
 function Details({ details, sources }) {
-  const has = details && (details.text || details.table || details.items?.length)
+  const has = details && (details.text || details.table || details.items?.length || details.headlines?.length)
   if (!has && !sources?.length) return null
   return (
     <details className={styles.details} data-testid="agent-result-details">
-      <summary>Details</summary>
+      <summary>{details?.headlines?.length ? `${details.headlines.length} more headline${details.headlines.length === 1 ? '' : 's'} · details` : 'Details'}</summary>
       <div className={styles.detailsBody}>
+        {details?.headlines?.length > 0 && <Headlines items={details.headlines} />}
         {details?.items?.length > 0 && <Pairs items={details.items} variant="dense" />}
         {details?.text && <Prose text={details.text} />}
         {details?.table && <Rows table={details.table} testId="agent-details-table" />}
@@ -82,8 +104,8 @@ export default function AgentResult({ view }) {
       case 'value':
         return (
           <div className={styles.value} data-testid="agent-result-value">
-            <div className={styles.figure}>{view.value}</div>
             {view.label && <div className={styles.label}>{view.label}</div>}
+            <div className={styles.figure}>{view.value}</div>
             {view.note && <div className={styles.note}>{view.note}</div>}
           </div>
         )
@@ -98,9 +120,7 @@ export default function AgentResult({ view }) {
         return (
           <>
             {view.title && <div className={styles.title}>{view.title}</div>}
-            <ul className={styles.headlines}>
-              {view.headlines.map((h, i) => <li key={i}><span className={styles.headline}>{h.title}</span>{h.meta && <span className={styles.meta}>{h.meta}</span>}</li>)}
-            </ul>
+            <Headlines items={view.headlines} />
           </>
         )
       default:

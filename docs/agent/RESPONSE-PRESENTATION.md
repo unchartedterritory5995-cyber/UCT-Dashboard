@@ -58,3 +58,31 @@ What a turn did is said by what actually ran: receipts for changes, a view per a
 what was refused. A local-only lookup beside news or an explanation gets UCT's fixed notice of the part
 NOT done — unless a `news.*` op answered it from UCT's stored feed, whose card says so
 ("From UCT's news feed (not a live web search)").
+
+## Acceptance stabilization (2026-10-12)
+
+* **Breadth freshness policy.** Breadth answers come only from MI's FINALIZED end-of-day sessions
+  (owner decision D5, `market_intel.breadth_reads`); source selection is unchanged and there is no
+  intraday or provisional breadth here. A present-tense answer (no date named) always states its session
+  ("As of 2026-10-08 close") and, when trading sessions after it have completed but are not finalized,
+  says so from DATES ONLY: "2026-10-09 isn't finalized in UCT's breadth data yet."
+  (`breadth_present.freshness_note`, `session_calendar.is_trading_day`). A request for a past date gets
+  no such note. Any current-session/provisional mode needs an owner decision and an MI-owned, labelled mode.
+* **Comparisons read in time order.** Earlier → Latest (or Later) → Change, and the change is always
+  LATER − EARLIER, whatever order the request named the dates in: MI's own `change` (first − second),
+  negated when the first date is the earlier one, never recomputed. A true minus sign plus "Down" /
+  "Up" / "Unchanged"; a change that rounds to zero carries no sign.
+* **General breadth.** `breadth.show` with `metrics: []` means "how's breadth?": the browser-only
+  route fills UCT's documented overview, `breadth_present.OVERVIEW_METRICS`, which is % above 50-day,
+  % above 200-day, net new highs − lows and net advancers. That is four measures, inside MI's limit;
+  naming more than four is still refused. The default never appears in a model request: the manifest
+  only says `[] = general overview`.
+* **Single values.** Compact label above the figure ("NVDA · Market cap": a result's `present.short`
+  names its subject), figure 20px (18px on a narrow panel), the source/session as a note, the full
+  result under Details. Links into UCT are quiet text actions ("Open NVDA in Research →").
+* **Headlines.** The first 5 are shown; the rest are under Details ("3 more headlines · details"), with
+  their time and source; asking for detail shows them all.
+* **Rows.** No scroll box inside the transcript: the first 8 rows, then "Show all N rows" in place; the
+  answer's link (e.g. "Open in Screener") carries the full result.
+
+Tests: `tests/test_uct_agent_acceptance_stabilization.py`, `app/src/agent/agentAcceptanceStabilization.test.jsx`.

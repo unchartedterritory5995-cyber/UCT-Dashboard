@@ -99,7 +99,7 @@ export async function answerProfile({ symbol }) {
   ].filter(x => x.value)
   return {
     text: lines.join('\n'), link: researchLink(sym),
-    present: { kind: 'metrics', title: `${sym} — ${f.name || sym}`, items: fig },
+    present: { kind: 'metrics', title: `${sym} — ${f.name || sym}`, short: sym, items: fig },
   }
 }
 

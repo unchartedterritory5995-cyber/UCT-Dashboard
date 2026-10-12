@@ -322,6 +322,10 @@ def agent_breadth(body: Any = Body(...), user: dict = Depends(require_admin_dark
     if len(_json.dumps(body, default=str)) > BREADTH_MAX_BODY:
         raise HTTPException(status_code=400, detail="that breadth request is too large")
     from api.services.uct_agent import breadth_present
+    # a GENERAL breadth request ("how's breadth today?") names no measure: it gets UCT's documented
+    # overview (breadth_present.OVERVIEW_METRICS — four measures, inside MI's four-measure limit)
+    if isinstance(body, dict) and body.get("metrics") == []:
+        body = {**body, "metrics": list(breadth_present.OVERVIEW_METRICS)}
     res = breadth_reads.read(body)
     out = breadth_answer.answer(res)
     log.info("[uct-agent] breadth lookup status=%s", out.get("status"))          # never a value

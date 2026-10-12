@@ -196,7 +196,9 @@ describe('4 · responsive: nothing scrolls sideways', () => {
   const css = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/agent/AgentResult.module.css'), 'utf8')
   it('rows wrap (no nowrap cells) and never scroll horizontally; the transcript is the size container', () => {
     expect(css).not.toMatch(/\.table td[^{]*\{[^}]*white-space:\s*nowrap/)
-    expect(css).toMatch(/\.rows \{[^}]*overflow-x: hidden/)
+    expect(css).toMatch(/\.rows \{[^}]*overflow: hidden/)
+    // ACCEPTANCE 2026-10-12: no scroll box nested inside the transcript — rows preview + "Show all"
+    expect(css).not.toMatch(/\.rows \{[^}]*max-height/)
     expect(css).toMatch(/@container agentlist \(max-width: 420px\)/)
     const panelCss = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/agent/AgentPanel.module.css'), 'utf8')
     expect(panelCss).toMatch(/container: agentlist \/ inline-size/)
