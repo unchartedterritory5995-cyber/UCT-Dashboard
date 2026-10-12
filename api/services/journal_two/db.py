@@ -2017,6 +2017,20 @@ _PHASE_2_ALTERS = [
     "CREATE TABLE IF NOT EXISTS j2_trade_plan_misses ("
     "user_id TEXT NOT NULL, trade_ref TEXT NOT NULL, stamp TEXT NOT NULL, "
     "checked_at TEXT NOT NULL, PRIMARY KEY (user_id, trade_ref))",
+    # Notebook P1 (journal styles): a member's own kinds of note (note_kinds.py). Built-in kinds
+    # are code constants and have no row. ⛔ user-scoped: purged with the account
+    # (account_purge._DIRECT_USER_TABLES). Names are unique per member, case-insensitive
+    # (the service also refuses a built-in's name).
+    """CREATE TABLE IF NOT EXISTS j2_note_kinds (
+        id         TEXT PRIMARY KEY,
+        user_id    TEXT NOT NULL,
+        name       TEXT NOT NULL,
+        icon       TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+    )""",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_note_kinds_user_name"
+    " ON j2_note_kinds(user_id, name COLLATE NOCASE)",
 ]
 
 # ── Wave 7 (lane I): the Notebook's read-path indexes ──────────────────────────

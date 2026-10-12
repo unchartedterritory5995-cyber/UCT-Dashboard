@@ -120,6 +120,8 @@ _DIRECT_USER_TABLES = (
     # copies (note_templates.py); a copy, never a link to the note it was
     # made from. Wave 6 fix round 1, I3.
     "j2_note_templates",
+    # Notebook P1 (journal styles): a member's own kinds of note (note_kinds.py).
+    "j2_note_kinds",
     # Wave 6 (Phase 2, task reminders) — the daily reminder's claim log
     # (note_tasks.run_task_reminders): which member was reminded on which ET
     # day, and how many of their tasks were due and overdue. Created lazily
