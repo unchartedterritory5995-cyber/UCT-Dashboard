@@ -31,7 +31,12 @@ NOTE_KIND_PROPERTY = "builtin:note_kind"
 MEMBER_KIND_PREFIX = "k_"
 MAX_KINDS_PER_MEMBER = 50
 MAX_KIND_NAME_CHARS = 40
-_ICON_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9]{0,39}$")
+# An icon is a UIcon registry name (app/src/components/ui/UIcon.jsx, UICON_NAMES): letters and digits,
+# hyphen-joined words allowed (`ind-trend`, `star-fill`), at most 40 characters. ⛔ ONE AUTHORITY: the kind
+# picker offers every UICON_NAMES entry, and tests/test_note_kinds.py bundles the registry and walks every
+# name through _clean_icon, so a name the picker offers can never be one this refuses.
+_ICON_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9]*(?:-[a-zA-Z0-9]+)*$")
+_MAX_ICON_CHARS = 40
 
 BUILTIN_NOTE_KINDS: tuple[dict, ...] = (
     {"id": "trade_plan", "name": "Trade plan", "icon": "chart"},
@@ -86,7 +91,7 @@ def _clean_name(raw: Any) -> str:
 def _clean_icon(raw: Any) -> str | None:
     if raw is None or raw == "":
         return None
-    if not isinstance(raw, str) or not _ICON_RE.match(raw):
+    if not isinstance(raw, str) or len(raw) > _MAX_ICON_CHARS or not _ICON_RE.fullmatch(raw):
         raise KindValidationError("Choose an icon from the list.")
     return raw
 

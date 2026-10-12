@@ -56,6 +56,61 @@ def test_the_client_property_id_equals_the_server_property_id():
     assert json.loads(r.stdout.decode("utf-8")) == note_kinds.NOTE_KIND_PROPERTY
 
 
+UICON = Path("app/src/components/ui/UIcon.jsx")
+
+
+def _uicon_names() -> list[str]:
+    """UICON_NAMES as the bundle has it. UIcon.jsx is JSX that imports React, so Node cannot import it
+    raw: esbuild (already in the frontend build) bundles it and Node evaluates the bundle, the method of
+    tests/test_notebook_builtin_templates_create.py. Never a hand-copied list of names."""
+    node = shutil.which("node")
+    assert node, "node is not on PATH; this rail reads the icon list the way the bundle does"
+    esbuild = shutil.which("esbuild")
+    if not esbuild:
+        for candidate in ("app/node_modules/.bin/esbuild.cmd", "app/node_modules/.bin/esbuild"):
+            if Path(candidate).exists():
+                esbuild = str(Path(candidate).resolve())
+                break
+    assert esbuild, "esbuild is not reachable (PATH, app/node_modules/.bin): cannot bundle UIcon.jsx"
+    build = subprocess.run([esbuild, str(UICON), "--bundle", "--format=esm", "--platform=node",
+                            "--target=es2022", "--jsx=automatic", "--log-level=warning"],
+                           capture_output=True, timeout=120)
+    assert build.returncode == 0, build.stderr.decode("utf-8", "replace")[:2000]
+    with tempfile.TemporaryDirectory() as tmp:
+        (Path(tmp) / "bundle.mjs").write_bytes(build.stdout)
+        (Path(tmp) / "runner.mjs").write_text(
+            "import { UICON_NAMES } from './bundle.mjs';\nprocess.stdout.write(JSON.stringify(UICON_NAMES));\n",
+            encoding="utf-8")
+        r = subprocess.run([node, "runner.mjs"], capture_output=True, timeout=120, cwd=tmp)
+    assert r.returncode == 0, (r.stderr or b"").decode("utf-8", "replace")[:2000]
+    return json.loads(r.stdout.decode("utf-8"))
+
+
+def test_every_icon_the_kind_picker_offers_is_one_the_server_accepts():
+    """Final review I-2: StylesManager's Icon select lists every UICON_NAMES entry, so the server's icon rule
+    is ONE authority only if every one of them passes it. The hyphenated names (ind-trend, star-fill) were
+    refused with "Choose an icon from the list." for an icon the member had just chosen from the list."""
+    from api.services.journal_two import note_kinds as nk
+    names = _uicon_names()
+    assert len(names) > 50 and "chart" in names                         # non-vacuity: the real registry
+    assert any("-" in n for n in names)                                  # the case under test is present
+    refused = []
+    for n in names:
+        try:
+            assert nk._clean_icon(n) == n
+        except nk.KindValidationError:
+            refused.append(n)
+    assert not refused, f"the kind picker offers icons the server refuses: {refused}"
+
+
+def test_the_icon_rule_still_refuses_what_is_not_an_icon_id():
+    """CONTROL: accepting the hyphen must not open the rule to anything else."""
+    from api.services.journal_two import note_kinds as nk
+    for bad in ("-lead", "a b", "<svg>", "x" * 41, "trend-", "a--b", "chart" + chr(10), 7):
+        with pytest.raises(nk.KindValidationError):
+            nk._clean_icon(bad)
+
+
 def test_no_builtin_id_can_collide_with_a_member_id():
     from api.services.journal_two import note_kinds
     assert not any(k["id"].startswith(note_kinds.MEMBER_KIND_PREFIX) for k in note_kinds.BUILTIN_NOTE_KINDS)
