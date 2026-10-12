@@ -117,7 +117,7 @@ const J2_HOOKS = 'app/src/pages/journal-2-0/hooks/'
 export const SEAM_RULES = {
   [`${J2_HOOKS}useChecklistSources`]: {
     imports: {
-      react: 'useCallback only; no network',
+      react: 'useCallback and useRef (the latest refresh, H14); no network',
       [`${J2_HOOKS}useJ2Settings`]: 'SWR read of the account settings; its save is unreachable (members)',
       [`${J2_HOOKS}useJ2SelectedAccount`]: 'the selected account; its setAccount is unreachable (members)',
       [`${J2_HOOKS}useJournalRules`]: 'SWR read of the active rules; its create and dismiss are unreachable (members)',
@@ -132,7 +132,7 @@ export const SEAM_RULES = {
   // (C-1, decided inside the seam); `refresh` of settings and of the accounts list are re-reads.
   [`${J2_HOOKS}usePositionSizingSources`]: {
     imports: {
-      react: 'useCallback only; no network',
+      react: 'useCallback and useRef (the latest refreshes, H14); no network',
       [`${J2_HOOKS}useJ2Settings`]: 'SWR read of the account settings; its save is unreachable (members)',
       [`${J2_HOOKS}useJ2SelectedAccount`]: 'the selected account; its setAccount is unreachable (members)',
       [`${J2_HOOKS}useJ2Accounts`]: "the accounts list's re-read only (members)",

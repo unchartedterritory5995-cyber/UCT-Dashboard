@@ -11,17 +11,18 @@ const refreshAccounts = vi.fn()
 let SETTINGS_RET = {}
 let ACCOUNT_RET = {}
 let REGIME_RET = {}
+let ACCOUNTS_RET = {}
 // The legacy j2_settings row is what useJ2Settings serves whenever accountId is null.
 vi.mock('./useJ2Settings', () => ({ default: () => ({ settings: { accountSize: 25000 }, isLoading: false, save, refresh, ...SETTINGS_RET }) }))
 vi.mock('./useJ2SelectedAccount', () => ({
   default: () => ({ accountId: 'a1', isLoading: false, isAllAccounts: false, accounts: [{ id: 'a1', name: 'Main' }], setAccount, ...ACCOUNT_RET }),
 }))
-vi.mock('./useJ2Accounts', () => ({ default: () => ({ accounts: [{ id: 'a1', name: 'Main' }], isLoading: false, refresh: refreshAccounts }) }))
+vi.mock('./useJ2Accounts', () => ({ default: () => ({ accounts: [{ id: 'a1', name: 'Main' }], isLoading: false, refresh: refreshAccounts, ...ACCOUNTS_RET }) }))
 vi.mock('./useJ2CurrentRegime', () => ({ default: () => ({ regime: { regime: 'green', asOf: '2026-10-13' }, ...REGIME_RET }) }))
 
 import usePositionSizingSources, { RETURN_KEYS } from './usePositionSizingSources'
 
-afterEach(() => { SETTINGS_RET = {}; ACCOUNT_RET = {}; REGIME_RET = {}; vi.clearAllMocks() })
+afterEach(() => { SETTINGS_RET = {}; ACCOUNT_RET = {}; REGIME_RET = {}; ACCOUNTS_RET = {}; vi.clearAllMocks() })
 
 describe('usePositionSizingSources', () => {
   it('returns data and read retries only: no save, no setAccount', () => {
@@ -74,11 +75,21 @@ describe('usePositionSizingSources', () => {
     expect(save).not.toHaveBeenCalled()
     expect(setAccount).not.toHaveBeenCalled()
   })
-  it('H14: the retries keep their identity across renders', () => {
+  // R-M2-2 M-1: the REAL useJ2Settings and useJ2Accounts return `refresh: () => mutate()`, a NEW function
+  // every render, so these mocks do too (a getter, read on every spread). A stable module-level spy would
+  // let an identity claim pass that production breaks.
+  it('H14: the retries keep their identity across renders, though each render hands a NEW refresh', () => {
+    SETTINGS_RET = { get refresh() { return () => refresh() } }
+    ACCOUNTS_RET = { get refresh() { return () => refreshAccounts() } }
     const { result, rerender } = renderHook(() => usePositionSizingSources())
     const { retrySettings, retryAccounts } = result.current
     rerender()
     expect(result.current.retrySettings).toBe(retrySettings)
     expect(result.current.retryAccounts).toBe(retryAccounts)
+    // and the stable retry still reaches the LATEST refresh
+    retrySettings()
+    retryAccounts()
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(refreshAccounts).toHaveBeenCalledTimes(1)
   })
 })

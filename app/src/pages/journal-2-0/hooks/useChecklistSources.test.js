@@ -114,4 +114,16 @@ describe('useChecklistSources', () => {
     expect(refresh).toHaveBeenCalledTimes(1)
     expect(save).not.toHaveBeenCalled()
   })
+  // R-M2-2 M-1: the real useJ2Settings returns a NEW `refresh` every render (`() => mutate()`); so does
+  // this mock (a getter, read on every spread). A stable module-level spy would hide an identity change.
+  it('H14: retrySettings keeps its identity across renders, though each render hands a NEW refresh', () => {
+    refresh.mockClear()
+    SETTINGS_RET = { get refresh() { return () => refresh() } }
+    const { result, rerender } = renderHook(() => useChecklistSources({ wantRules: false }))
+    const { retrySettings } = result.current
+    rerender()
+    expect(result.current.retrySettings).toBe(retrySettings)
+    retrySettings()                                             // and it still reaches the LATEST refresh
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
 })

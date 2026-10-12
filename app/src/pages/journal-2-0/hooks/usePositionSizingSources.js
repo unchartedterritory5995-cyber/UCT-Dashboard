@@ -23,7 +23,7 @@
  *   regime: object|undefined,                              // GET /api/j2/regime as served
  * }}
  */
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import useJ2Settings from './useJ2Settings'
 import useJ2SelectedAccount from './useJ2SelectedAccount'
 import useJ2Accounts from './useJ2Accounts'
@@ -64,8 +64,16 @@ export default function usePositionSizingSources() {
       ? 'ready'
       : (settingsError && !settingsLoading ? 'error' : 'loading')
 
-  const retrySettings = useCallback(() => { if (typeof refresh === 'function') refresh() }, [refresh])
-  const retryAccounts = useCallback(() => { if (typeof refreshAccounts === 'function') refreshAccounts() }, [refreshAccounts])
+  // H14 (R-M2-2 M-1): both hooks hand back a NEW `refresh` every render (`() => mutate()`). The latest one
+  // is held in a ref, so the two retries keep ONE identity for the life of the block and still reach it.
+  const refreshRef = useRef(refresh)
+  refreshRef.current = refresh
+  const refreshAccountsRef = useRef(refreshAccounts)
+  refreshAccountsRef.current = refreshAccounts
+  const retrySettings = useCallback(() => { if (typeof refreshRef.current === 'function') refreshRef.current() }, [])
+  const retryAccounts = useCallback(() => {
+    if (typeof refreshAccountsRef.current === 'function') refreshAccountsRef.current()
+  }, [])
 
   return {
     settings: settingsState === 'ready' ? settings : undefined,

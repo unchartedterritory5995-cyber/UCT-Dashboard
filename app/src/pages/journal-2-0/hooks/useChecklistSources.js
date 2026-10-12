@@ -23,7 +23,7 @@
  *             retrySettings: () => void, rules: object[],
  *             rulesState: 'off'|'loading'|'no-account'|'no-accounts'|'accounts-error'|'error'|'ready' }}
  */
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import useJ2Settings from './useJ2Settings'
 import useJ2SelectedAccount from './useJ2SelectedAccount'
 import useJournalRules from './useJournalRules'
@@ -71,7 +71,11 @@ export default function useChecklistSources({ wantRules }) {
     else rulesState = 'ready'
   }
 
-  const retrySettings = useCallback(() => { if (typeof refresh === 'function') refresh() }, [refresh])
+  // H14 (R-M2-2 M-1): useJ2Settings hands back a NEW `refresh` every render (`() => mutate()`). The latest
+  // one is held in a ref, so retrySettings keeps ONE identity and still reaches it.
+  const refreshRef = useRef(refresh)
+  refreshRef.current = refresh
+  const retrySettings = useCallback(() => { if (typeof refreshRef.current === 'function') refreshRef.current() }, [])
 
   return {
     settings: settingsState === 'ready' ? settings : undefined,
