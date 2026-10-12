@@ -260,11 +260,77 @@ def _econ_load(spec: dict) -> dict:
             "source": {"interface": "econ.publish.build_vintages_payload via econ.serving (db/local mode)"}}
 
 
+# ── fundamentals (SEC XBRL point-in-time, V4/V5 serving) ────────────────────
+
+#: A quarterly value stays the known value until the next filing; a 10-K can arrive ~90 days after
+#: year end on top of the quarter itself, so beyond this it is treated as stale (a gap).
+FUNDAMENTAL_MAX_STALENESS_DAYS = 200
+
+
+def _fund_describe(spec: dict) -> tuple[Optional[dict], Optional[dict]]:
+    """Pure: the fundamentals catalog. ⛔ Honours the catalog's own `formula_eligible` gate — PIT
+    fundamentals are "V1: chart-only; formulas/conditions/alerts later", so a metric is usable as a
+    research CONDITION only once its owner marks it eligible."""
+    from api.services.fundamentals_pit import catalog as _C
+    sym = _pr.normalize_symbol(spec.get("symbol"))
+    metric = spec.get("metric")
+    if not sym:
+        return None, _refused("bad_symbol", "That isn't a valid ticker symbol.")
+    m = _C.by_id().get(metric)
+    if m is None or not m.series or m.series not in _C.stored_series_ids():
+        return None, _refused("unknown_series", "That fundamental metric isn't available for studies.")
+    if not m.formula_eligible:
+        return None, _refused("not_condition_eligible",
+                              f"{m.name} is chart-only today: the fundamentals catalog does not yet allow it "
+                              "as a condition (formula_eligible). Its owner must enable that first.")
+    return {"kind": "fundamental", "symbol": sym, "metric": metric, "series_id": m.series,
+            "label": f"{sym} {m.name}", "unit": m.unit, "domain": DOMAIN_ANY,
+            "category": f"fundamentals (SEC XBRL, {m.cadence}, point-in-time)"}, None
+
+
+def _fund_load(spec: dict) -> dict:
+    """`fundamentals_pit.serving.series_response` — the member read path — in its LOCAL modes only
+    (`db` = FUNDAMENTALS_PIT_DB_PATH, `local` = FUNDAMENTALS_PIT_ARTIFACT_DIR). The production `r2`
+    source is a cloud read this research path is not authorized to make: refused, never fetched.
+    Points are `[t_eff_unix, v|None, period_end(, 'gap')]`, `t_eff` = when the filing became public."""
+    from api.services.fundamentals_pit import serving as _F
+    if _F._mode() not in ("db", "local"):
+        return {"status": "unavailable", "reason": "fundamentals_source_not_local",
+                "detail": "Fundamentals history is read here only from a LOCAL source (FUNDAMENTALS_PIT_SOURCE="
+                          "db or local). The production source (R2) is a cloud read this path may not make."}
+    status, body, _tag = _F.series_response(spec["symbol"], [spec["series_id"]])
+    if status != 200:
+        return {"status": "unavailable", "reason": "no_data",
+                "detail": f"No point-in-time fundamentals for {spec['symbol']}."}
+    pts = (body.get("metrics") or {}).get(spec["series_id"]) or []
+    rows: list = []
+    for p in pts:
+        d = session_of(int(p[0]))
+        v = None if (len(p) > 1 and p[1] is None) else float(p[1])   # a gap stays a gap — never a number
+        if rows and rows[-1][0] == d:
+            rows[-1] = (d, v)
+        else:
+            rows.append((d, v))
+    if not any(v is not None for _, v in rows):
+        return {"status": "unavailable", "reason": "no_data", "detail": "No usable values for that metric."}
+    notes = []
+    if body.get("withheld_split_sensitive"):
+        notes.append("Some per-share values are withheld because this company's split history is unverified.")
+    notes.append("Fundamental values take effect when the filing became public (10-Q/10-K), not the earlier "
+                 "press release.")
+    return {"status": "ok", "alignment": "as_of", "rows": rows,
+            "max_staleness_days": FUNDAMENTAL_MAX_STALENESS_DAYS, "notes": notes,
+            "coverage": {"first": rows[0][0], "last": rows[-1][0],
+                         "basis": "each value dated by the session that first knew its filing"},
+            "source": {"interface": "fundamentals_pit.serving.series_response (db/local mode)"}}
+
+
 ADAPTERS = {
     "breadth": (_breadth_describe, _breadth_load),
     "technical": (_tech_describe, _tech_load),
     "cot": (_cot_describe, _cot_load),
     "econ": (_econ_describe, _econ_load),
+    "fundamental": (_fund_describe, _fund_load),
 }
 
 

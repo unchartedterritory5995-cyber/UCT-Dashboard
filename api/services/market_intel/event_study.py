@@ -271,7 +271,8 @@ def _study(req: dict) -> dict:
         return {**series, "request": req, "stage": "condition_series"}
     if req["condition"].get("transform") == "change":
         rows = series["rows"]
-        series = {**series, "rows": [(rows[k][0], rows[k][1] - rows[k - 1][1]) for k in range(1, len(rows))]}
+        series = {**series, "rows": [(rows[k][0], None if rows[k][1] is None or rows[k - 1][1] is None
+                                      else rows[k][1] - rows[k - 1][1]) for k in range(1, len(rows))]}
         if not series["rows"]:
             return _unavailable("no_data", "Not enough observations to compute a change.", request=req)
     ps = _pr.daily_closes(req["symbol"])

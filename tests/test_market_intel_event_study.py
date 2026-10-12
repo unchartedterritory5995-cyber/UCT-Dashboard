@@ -534,3 +534,44 @@ def test_econ_production_source_is_refused_without_any_read(world, monkeypatch):
 def test_econ_unservable_series_is_refused(world):
     r = es.run(req(series={"kind": "econ", "symbol": "USRETAIL"}, threshold=0))       # failed-closed in the registry
     assert r["status"] == "refused" and r["reason"] == "unknown_series"
+
+
+# ── fundamentals adapter: honours the catalog gate; mechanics via the REAL pipeline fixture ──
+
+def test_fundamentals_are_refused_while_the_catalog_says_chart_only(world):
+    r = es.run(req(series={"kind": "fundamental", "symbol": "TST", "metric": "revenue_q"}, threshold=0))
+    assert r["status"] == "refused" and r["reason"] == "not_condition_eligible"
+    assert world["breadth_calls"] == 0 and world["price_calls"] == 0
+
+
+def test_fundamentals_point_in_time_through_the_real_pipeline(world, monkeypatch, tmp_path):
+    """The fundamentals team's own offline fixture: a synthetic company (TST) ingested and derived by
+    the REAL bulk pipeline into a local pit.db, served by the REAL serving.series_response (db mode).
+    Only the catalog's eligibility flag is lifted, inside this test."""
+    import dataclasses
+    from api.services.fundamentals_pit import catalog as C, serving as F
+    from tests.fundamentals_pit.test_pipeline import _run
+    _run(tmp_path)
+    monkeypatch.setenv("FUNDAMENTALS_PIT_SOURCE", "db")
+    monkeypatch.setenv("FUNDAMENTALS_PIT_DB_PATH", str(tmp_path / "pit.db"))
+    F.clear_cache()
+    real = C.by_id()
+    patched = {**real, "revenue_q": dataclasses.replace(real["revenue_q"], formula_eligible=True)}
+    monkeypatch.setattr(C, "by_id", lambda: patched)
+    r = es.run(req(series={"kind": "fundamental", "symbol": "TST", "metric": "revenue_q"},
+                   threshold=0, op="above", episodes="all", horizons=[{"sessions": 1}]))
+    assert r["status"] == "ok", r
+    # the FY10-K accepted 2024-02-15 16:00 ET is first known at that session's close — never earlier
+    assert [e["event_date"] for e in r["events"]] == ["2024-02-15"]
+    assert r["events"][0]["condition_value"] == 130.0                      # Q4 = FY − 9M, as the pipeline derives
+    assert r["alignment"] == "as_of" and any("filing became public" in n for n in r["notes"])
+
+
+def test_fundamentals_production_source_is_refused(world, monkeypatch):
+    import dataclasses
+    from api.services.fundamentals_pit import catalog as C
+    real = C.by_id()
+    monkeypatch.setattr(C, "by_id", lambda: {**real, "revenue_q": dataclasses.replace(real["revenue_q"], formula_eligible=True)})
+    monkeypatch.setenv("FUNDAMENTALS_PIT_SOURCE", "r2")
+    r = es.run(req(series={"kind": "fundamental", "symbol": "TST", "metric": "revenue_q"}, threshold=0))
+    assert r["status"] == "unavailable" and r["reason"] == "fundamentals_source_not_local"
