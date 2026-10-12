@@ -1041,7 +1041,9 @@ const NOTES_HOOK_FILE = 'app/src/pages/journal-2-0/hooks/useJ2Notes.js'
 describe('⛔⛔ ④b — helper-forwarded and dynamic-method writes are SEEN, resolved, and checked', () => {
   const doors = () => advancingRoutes(reachingFunctions(sqlAdvancingFunctions()))
   const doorKeys = () => new Set([...doors(), ...Object.keys(STYLE_DOOR_STOPGAP)])
-  const styles = () => readFileSync(join(REPO, ...JOURNAL_STYLES_FILE.split('/')), 'utf8')
+  // CRLF-normalised: a Windows checkout with core.autocrlf writes the file with CRLF, and the controls
+  // below delete exact `\n`-terminated lines (found on the integration merge, where it read "could not find").
+  const styles = () => readFileSync(join(REPO, ...JOURNAL_STYLES_FILE.split('/')), 'utf8').replace(/\r\n/g, '\n')
 
   it('every request in a note-touching file has a readable method, and every door write lands its revision', () => {
     const files = noteTouchingSources()

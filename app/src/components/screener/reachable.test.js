@@ -299,8 +299,9 @@ const AWAITING_A_DECISION = {
     + 'entry then.',
   'app/src/pages/journal-2-0/hooks/useJournalStyles.js':
     'NOTEBOOK P1 — the styles list hook (Task 11). Mounted by Tasks 12-14 of the P1 plan; remove this entry then.',
-  'app/src/pages/journal-2-0/lib/journalStylesFlag.js':
-    'NOTEBOOK P1 — the client gate (Task 3). Mounted by Tasks 12-14 of the P1 plan; remove this entry then.',
+  'app/src/pages/journal-2-0/lib/journalBlocks.js':
+    'NOTEBOOK P1 — the client half of the block catalog (Task 6). Mounted by Tasks 12-14 of the P1 plan; remove '
+    + 'this entry then.',
   // WAVE 13 CHART PLAN (13H-1, 2026-10-02) — unparked by 13H-2 on 2026-10-03.
   // `lib/chartPlan.js` and `lib/planLevels.js` stood here from 13H-1 (2026-10-02)
   // until the plan panel mounted them: App.jsx → … → WidgetEmbedView.jsx →
