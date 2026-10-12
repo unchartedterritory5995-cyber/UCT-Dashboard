@@ -420,18 +420,40 @@ def pre_entry_ref(position_id: str) -> str:
     return PRE_ENTRY_PREFIX + position_id
 
 
+#: The 409 sentence (R-T5-1): the position already has an exit, so its ticks belong on the trade.
+PRE_ENTRY_EXITED_SENTENCE = ("This trade is already closed or partly closed. "
+                             "Record its rules on the trade instead.")
+
+
+class PositionHasExit(Exception):
+    """The position is the member's but already has an exit (a j2_trades row carved from it)."""
+
+
 def save_pre_entry(user_id: str, position_id: str, setup: str | None, checked: list[str],
                    total: int) -> dict | None:
     """The ticks made in Log Trade, stored in the adherence store under `pos:<position id>` (the
-    closed trade's adherence read falls back to it). None when the position is not this member's,
-    which the route answers with the same 404 as a position that does not exist."""
+    closed trade's adherence read falls back to it), so `pos:` means "ticked before any outcome".
+      * None when the position is not this member's: the route's 404, the same as a missing one.
+      * PositionHasExit when it is theirs and ANY trade has been carved from it (a partial close
+        included; shares == original_shares would miss it, since update_position edits shares).
+    Ownership, the exit check and the upsert run on ONE connection in ONE transaction (BEGIN
+    IMMEDIATE), so a position deleted or closed in between can never leave an orphan pos: row."""
     from api.services.auth_db import get_connection
     from api.services.journal_two import adherence_store
     c = get_connection()
     try:
+        c.execute("BEGIN IMMEDIATE")
         own = c.execute("SELECT 1 FROM j2_positions WHERE id = ? AND user_id = ?", (position_id, user_id)).fetchone()
+        if own is None:
+            c.rollback()
+            return None
+        exited = c.execute("SELECT EXISTS (SELECT 1 FROM j2_trades WHERE user_id = ? AND position_id = ?)",
+                           (user_id, position_id)).fetchone()[0]
+        if exited:
+            c.rollback()
+            raise PositionHasExit(position_id)
+        return adherence_store.upsert_adherence(user_id, pre_entry_ref(position_id), setup, checked, total, conn=c)
     finally:
+        if c.in_transaction:
+            c.rollback()
         c.close()
-    if own is None:
-        return None
-    return adherence_store.upsert_adherence(user_id, pre_entry_ref(position_id), setup, checked, total)

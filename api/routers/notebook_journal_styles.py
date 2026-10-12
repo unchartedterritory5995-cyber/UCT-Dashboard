@@ -196,7 +196,8 @@ def trader_market_context(user: dict = Depends(require_paid)) -> dict[str, Any]:
 def trader_pre_entry(position_id: str, body: dict = Depends(paid_body),
                      user: dict = Depends(require_paid)) -> dict[str, Any]:
     """R-P2-7: writes the adherence store, never a note. Another member's position is the same 404
-    as one that does not exist, so a record's existence never leaks. No market read (R-W0-1)."""
+    as one that does not exist, so a record's existence never leaks. The member's own position with
+    any exit is 409 (R-T5-1): its rules go on the trade. No market read (R-W0-1)."""
     from api.services.journal_two import trader_blocks
     setup = body.get("setup")
     checked = body.get("checkedRuleIds", [])
@@ -207,7 +208,10 @@ def trader_pre_entry(position_id: str, body: dict = Depends(paid_body),
         raise HTTPException(status_code=400, detail="checkedRuleIds must be a list of strings")
     if isinstance(total, bool) or not isinstance(total, int) or total < 0:
         raise HTTPException(status_code=400, detail="totalRules must be a non-negative integer")
-    return _found(trader_blocks.save_pre_entry(user["id"], position_id, setup, checked, total))
+    try:
+        return _found(trader_blocks.save_pre_entry(user["id"], position_id, setup, checked, total))
+    except trader_blocks.PositionHasExit:
+        raise HTTPException(status_code=409, detail=trader_blocks.PRE_ENTRY_EXITED_SENTENCE)
 
 
 # ── kinds ────────────────────────────────────────────────────────────────────────────

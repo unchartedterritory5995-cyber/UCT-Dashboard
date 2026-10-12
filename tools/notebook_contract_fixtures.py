@@ -1675,13 +1675,20 @@ def journal_styles(w: World) -> None:
         locked = notes_service.create_note(who, {"title": "Locked plan", "ticker": "MSFT"}, c,
                                            style_stamp=trade_plan_stamp)
         c.execute("UPDATE j2_notes SET locked = 1 WHERE id IN (?, ?)", (held["id"], locked["id"]))
-        # P2a pre-entry (R-P2-7): an open position of this member's for Log Trade's ticks.
-        c.execute(
-            "INSERT INTO j2_positions (id, user_id, symbol, side, entry_date, shares, original_shares, entry_price,"
-            " stop_price, context_at_entry, created_at, updated_at, closed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            ("pos-styles-1", who, "NVDA", "Long", "2026-10-02", 10, 10, 180.0, 170.0, "{}",
-             "2026-10-02T14:00:00Z", "2026-10-02T14:00:00Z", None))
+        # P2a pre-entry (R-P2-7, R-T5-1): an open position of this member's for Log Trade's ticks, one
+        # of theirs already partly closed (a trade carved from it: any exit refuses the write), and an
+        # open position of ANOTHER member's (the same 404 as a missing one).
+        for pid, owner, shares in (("pos-styles-1", who, 10), ("pos-styles-2", who, 6),
+                                   ("pos-styles-other", empty, 10)):
+            c.execute(
+                "INSERT INTO j2_positions (id, user_id, symbol, side, entry_date, shares, original_shares,"
+                " entry_price, stop_price, context_at_entry, created_at, updated_at, closed_at)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (pid, owner, "NVDA", "Long", "2026-10-02", shares, 10, 180.0, 170.0, "{}",
+                 "2026-10-02T14:00:00Z", "2026-10-02T14:00:00Z", None))
         c.commit()
+        add_trade(c, "styles-2", user=who, shares=4, entry=180.0, exit_=190.0, stop=170.0,
+                  entry_date="2026-10-02T14:00:00+00:00", exit_date="2026-10-03T15:00:00+00:00")
     finally:
         c.close()
     w.as_user(empty)
@@ -1788,7 +1795,13 @@ def journal_styles(w: World) -> None:
              note="Log Trade's ticks for an open position: the adherence store under pos:<id>, never a note.")
     w.record("trader-blocks.pre-entry.not-found", "PUT", "/api/j2/trader-blocks/positions/nope/pre-entry",
              case="error", expect=404, json_body={"setup": None, "checkedRuleIds": [], "totalRules": 0},
-             note="A position that is not the member's: the same 404 as one that does not exist.")
+             note="A position id that does not exist.")
+    w.record("trader-blocks.pre-entry.other-member", "PUT", "/api/j2/trader-blocks/positions/pos-styles-other/pre-entry",
+             case="error", expect=404, json_body={"setup": None, "checkedRuleIds": [], "totalRules": 0},
+             note="Another member's open position: the same 404 as one that does not exist.")
+    w.record("trader-blocks.pre-entry.exited", "PUT", "/api/j2/trader-blocks/positions/pos-styles-2/pre-entry",
+             case="error", expect=409, json_body={"setup": "VCP", "checkedRuleIds": ["r1"], "totalRules": 2},
+             note="The member's own position, partly closed: any exit refuses the write; its rules go on the trade.")
     w.as_user(who, FREE)
     w.record("journal-styles.list.free-plan", "GET", base, case="error", expect=402)
 

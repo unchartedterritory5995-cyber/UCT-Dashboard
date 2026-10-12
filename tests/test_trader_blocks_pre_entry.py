@@ -248,3 +248,81 @@ def test_save_pre_entry_is_none_for_a_foreign_position(db_path):
     _position(user="u2", pid="p9")
     assert trader_blocks.save_pre_entry("u1", "p9", None, [], 0) is None
     assert trader_blocks.save_pre_entry("u2", "p9", None, ["a"], 1)["tradeRef"] == "pos:p9"
+
+
+# ── R-T5-1: a position with any exit refuses the write (409); not yours stays 404 ──────────
+
+def _exit(user="u1", pid="p1", tid="tx1", *, full=False):
+    """A partial or full close: a j2_trades row carved from the position (what any exit writes),
+    and on a full close the position's closed_at too."""
+    _trade(user=user, tid=tid, position_id=pid)
+    if full:
+        from api.services.auth_db import get_connection
+        c = get_connection()
+        c.execute("UPDATE j2_positions SET closed_at = '2026-10-15T15:00:00+00:00', shares = 0 WHERE id = ?", (pid,))
+        c.commit()
+        c.close()
+
+
+BODY = {"setup": "VCP", "checkedRuleIds": ["r1"], "totalRules": 2}
+
+
+def test_an_open_position_with_edited_shares_still_accepts_the_write(db_path):
+    """The predicate is 'a trade exists', never shares == original_shares: update_position edits
+    shares on an open position, which is not an exit."""
+    from api.services.auth_db import get_connection
+    _position()
+    c = get_connection()
+    c.execute("UPDATE j2_positions SET shares = 4 WHERE id = 'p1'")
+    c.commit()
+    c.close()
+    assert _app().put(PUT.format("p1"), json=BODY).status_code == 200
+
+
+@pytest.mark.parametrize("full", [False, True], ids=["partially-closed", "fully-closed"])
+def test_a_position_with_an_exit_is_409_and_writes_nothing(db_path, full):
+    from api.services.journal_two import adherence_store, trader_blocks
+    _position()
+    _exit(full=full)
+    got = _app().put(PUT.format("p1"), json=BODY)
+    assert (got.status_code, got.json()) == (409, {"detail": trader_blocks.PRE_ENTRY_EXITED_SENTENCE})
+    assert "trade" in trader_blocks.PRE_ENTRY_EXITED_SENTENCE.lower()
+    assert adherence_store.get_adherence("u1", "pos:p1") is None
+
+
+@pytest.mark.parametrize("full", [None, False, True], ids=["open", "partially-closed", "fully-closed"])
+def test_another_members_position_is_404_whatever_its_exits(db_path, full):
+    """Only the owner can learn a position has an exit: to anyone else every state is the one 404."""
+    from api.services.journal_two import adherence_store
+    _position(user="u1", pid="p1")
+    if full is not None:
+        _exit(user="u1", pid="p1", full=full)
+    theirs = _app("u2").put(PUT.format("p1"), json=BODY)
+    missing = _app("u2").put(PUT.format("never-existed"), json=BODY)
+    assert (theirs.status_code, theirs.json()) == (missing.status_code, missing.json()) == (404, {"detail": "Not found"})
+    assert adherence_store.get_adherence("u2", "pos:p1") is None
+
+
+def test_the_checks_and_the_upsert_share_one_connection(db_path, monkeypatch):
+    """Ownership, the exit check and the upsert run on ONE connection in one transaction, so a
+    position deleted or closed in between can never leave an orphan pos: row."""
+    from api.services.journal_two import adherence_store, trader_blocks
+    seen = []
+    real = adherence_store.upsert_adherence
+
+    def spy(*a, conn=None, **k):
+        seen.append(conn)
+        assert conn is not None and conn.in_transaction, "the upsert must ride the check's transaction"
+        return real(*a, conn=conn, **k)
+    monkeypatch.setattr(adherence_store, "upsert_adherence", spy)
+    _position()
+    assert trader_blocks.save_pre_entry("u1", "p1", "VCP", ["r1"], 2)["tradeRef"] == "pos:p1"
+    assert len(seen) == 1
+
+
+def test_another_members_trade_naming_my_position_is_not_my_exit(db_path):
+    """The exit predicate is scoped to the caller: a trade of someone else's that names this
+    position id (a forged or colliding id) never turns the owner's write into a 409."""
+    _position(user="u1", pid="p1")
+    _trade(user="u2", tid="t-other", position_id="p1")
+    assert _app("u1").put(PUT.format("p1"), json=BODY).status_code == 200
