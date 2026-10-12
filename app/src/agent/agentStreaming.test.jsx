@@ -18,12 +18,13 @@ const final = (e) => ({ t: 'final', conversationId: 'ac_s', turnId: 1, envelope:
 let urls = []
 let streamCtl = null          // the open SSE response's controller: the test sends events by hand
 let serverStream = true
-function install({ plainTurn = env('answer', 'Plain answer.') } = {}) {
+function install({ plainTurn = env('answer', 'Plain answer.'), streamReply = null } = {}) {
   globalThis.fetch = vi.fn(async (url) => {
     const u = String(url)
     urls.push(u)
     if (u === '/api/agent/config') return json({ stream: serverStream })
     if (u === '/api/agent/turn') return json({ conversationId: 'ac_s', turnId: 1, envelope: plainTurn, usage: { citations: [] } })
+    if (u === '/api/agent/turn/stream' && streamReply) return streamReply()
     if (u === '/api/agent/turn/stream') {
       const body = new ReadableStream({ start(c) { streamCtl = c; c.enqueue(new TextEncoder().encode(': open\n\n')) } })
       return new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } })
@@ -176,4 +177,25 @@ describe('UCT Agent streaming', () => {
     expect(board.state.widgets[0].opts.tf).toBe('W')
     expect(screen.getAllByTestId('agent-receipt')).toHaveLength(1)
   })
+
+  // ⛔ NEVER RESENT: the stream request may already have been taken by the server (message stored,
+  // allowance charged, model call started). Whatever unexpected reply comes back, the turn ends with ONE
+  // Agent request — never an automatic second one on /api/agent/turn — and the member is told plainly.
+  const turnShaped = { conversationId: 'ac_s', turnId: 1, envelope: env('answer', 'Should never be shown.'), usage: { citations: [] } }
+  for (const [label, reply] of [
+    ['a 200 JSON that looks exactly like a /turn result', () => json(turnShaped)],
+    ['a 200 HTML edge page', () => new Response('<html>busy</html>', { status: 200, headers: { 'content-type': 'text/html' } })],
+    ['a 404', () => json({ detail: 'Not Found' }, 404)],
+    ['a 405', () => json({ detail: 'Method Not Allowed' }, 405)],
+  ]) {
+    it(`an unexpected reply (${label}) is a failed turn — never re-sent`, async () => {
+      install({ streamReply: reply })
+      ask(await open(), 'explain RSI divergence in detail')
+      await waitFor(() => expect(screen.queryByTestId('agent-typing')).toBeNull())
+      const turns = urls.filter(u => u.startsWith('/api/agent/turn'))
+      expect(turns).toEqual(['/api/agent/turn/stream'])
+      expect(screen.queryByText('Should never be shown.')).toBeNull()
+      expect(document.body.textContent).toMatch(/couldn.t complete that request|Not Found|Method Not Allowed/)
+    })
+  }
 })

@@ -23,8 +23,9 @@ export const agentTurn = (body) => post('/api/agent/turn', body)
  * The same turn as `agentTurn`, over POST /api/agent/turn/stream (text/event-stream). `onEvent` gets
  * the server's early events — {t:'delta', text} (an answer's reply as written), {t:'retract'} (drop
  * it: a web search follows), {t:'status', stage} — and the result is EXACTLY agentTurn's: the final
- * event is /api/agent/turn's own JSON. A server without the route (404/405) is asked the old way.
- * Kill switch: localStorage `uct.agent.stream = '0'` always asks the old way.
+ * event is /api/agent/turn's own JSON. Exactly ONE request per turn: an unexpected reply (an error
+ * status, or anything but an event stream) is a failed turn, never re-sent on /api/agent/turn.
+ * Kill switch: localStorage `uct.agent.stream = '0'` always asks the old way (before any request).
  */
 export function streamingEnabled() {
   try { return globalThis.localStorage?.getItem('uct.agent.stream') !== '0' } catch { return true }
@@ -58,9 +59,14 @@ export async function agentTurnStream(body, onEvent = () => {}) {
   } catch {
     return { ok: false, error: 'Could not reach UCT. Check your connection.' }
   }
-  if (r.status === 404 || r.status === 405) return agentTurn(body)
-  // anything but an event stream (an older server, an edge page) is never parsed as one
-  if (r.ok && !String(r.headers?.get?.('content-type') || '').includes('text/event-stream')) return agentTurn(body)
+  // ⛔ NEVER RESENT. The request may already have been taken by the server (the member's message
+  // stored, the daily allowance charged, a model call started), so a reply that is not the event stream
+  // — any error status, or a 200 that is not text/event-stream (an edge page, an older server) — ends
+  // the turn honestly. It is never re-asked on /api/agent/turn automatically: the member asks again.
+  // (Nothing runs in the browser without a final envelope, so "No changes were made" stays true.)
+  if (r.ok && !String(r.headers?.get?.('content-type') || '').includes('text/event-stream')) {
+    return { ok: false, status: r.status, error: FAILED }
+  }
   if (!r.ok || !r.body?.getReader) {
     let data = null
     try { data = await r.json() } catch { /* empty */ }
