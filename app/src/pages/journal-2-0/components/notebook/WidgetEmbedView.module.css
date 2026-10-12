@@ -329,3 +329,7 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
   .toolbar::-webkit-scrollbar { display: none; }
   .toolbar > * { flex: 0 0 auto; }
 }
+.placeholderReload { align-self: flex-start; margin-top: 6px; }
+@media (max-width: 1024px) {
+  .placeholderReload { min-height: var(--tap-min); min-width: var(--tap-min); }
+}

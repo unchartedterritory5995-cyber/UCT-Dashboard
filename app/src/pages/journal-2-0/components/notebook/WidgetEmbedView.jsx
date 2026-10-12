@@ -135,6 +135,10 @@ function ArchivedImage({ attrs }) {
   )
 }
 
+/** P1.7(b): what an older bundle says about a block from a newer version. The node itself is
+ *  kept and written back unchanged (docs/notebook/p1-verify-before-building.md §b). */
+export const UNKNOWN_BLOCK_SENTENCE = 'This block needs a newer version of the app. Reload to see it.'
+
 function PlaceholderChip({ attrs, reason, shareView = false }) {
   // ⛔ Wave 8 final review, M-10: on a PUBLIC page (a share link or a published page) a widget
   // with no archived image is described by its own caption -- the words its image would carry
@@ -148,12 +152,22 @@ function PlaceholderChip({ attrs, reason, shareView = false }) {
       </div>
     )
   }
+  if (reason === 'unknown-widget') {
+    return (
+      <div className={styles.placeholder} {...RENDER_UNAVAILABLE}>
+        <span className={styles.placeholderLine}>{attrs.searchText || 'A block from a newer version of the app'}</span>
+        <span className={styles.placeholderWhy}>{UNKNOWN_BLOCK_SENTENCE}</span>
+        <button type="button" className={`btn btn-ghost ${styles.placeholderReload}`}
+          onClick={() => window.location.reload()}>
+          Reload
+        </button>
+      </div>
+    )
+  }
   return (
     <div className={styles.placeholder} {...RENDER_UNAVAILABLE}>
       <span className={styles.placeholderLine}>{attrs.searchText || '[widget]'}</span>
-      <span className={styles.placeholderWhy}>
-        {reason === 'unknown-widget' ? 'widget type unavailable' : 'snapshot image not captured yet'}
-      </span>
+      <span className={styles.placeholderWhy}>snapshot image not captured yet</span>
     </div>
   )
 }
