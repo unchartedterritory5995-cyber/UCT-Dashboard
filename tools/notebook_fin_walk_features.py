@@ -1416,7 +1416,10 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             m_main = main_btn.first.evaluate(COVER_JS) if shown else {}
             search_top = pA.locator("input[data-home-search]").first.evaluate("e => e.getBoundingClientRect().top") if pA.locator("input[data-home-search]").count() else None
             voice_on = bool(meA.get("notebook_voice_notes_enabled")) and bool(meA.get("paid_equiv"))
-            expected = ["From an outline"] + (["Voice note"] if voice_on else []) + ["Today's note"]
+            # Notebook P1: "From a style" (spec P0.1/P1.4) is listed while journal styles are on, read like voice.
+            styles_on = bool(meA.get("notebook_journal_styles_enabled")) and bool(meA.get("paid_equiv"))
+            expected = (["From an outline"] + (["From a style"] if styles_on else []) + (["Voice note"] if voice_on else [])
+                        + ["Today's note"])
             caret.first.click()
             menu = pA.get_by_role("menu", name="Start a note")
             opened = C.vis_loc(menu, 8000)
@@ -1437,7 +1440,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                   and after == before + 1 and "note=" in (landed or ""))
             C.step(pA, iA, "discover.new-note-home", "Research Home header: New note makes a note; the caret lists the ways that are armed",
                    "PASS" if ok else "FAIL", button=m_main, search_box_top=search_top, menu_items=items, expected_items=expected,
-                   voice_flag_on=voice_on, notes_before=before, notes_after=after, landed=landed, note_create_status=st,
+                   voice_flag_on=voice_on, styles_flag_on=styles_on, notes_before=before, notes_after=after, landed=landed, note_create_status=st,
                    scope=['[data-tour="new-note-home"]'])
             # 390: the same member, the menu fully inside the window
             c9, i9, p9 = phone_of(cA)
