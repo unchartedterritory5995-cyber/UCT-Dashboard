@@ -28,6 +28,20 @@ import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCa
 import { STYLE_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
 import styles from './SlashMenu.module.css'
 
+// Notebook P2a: a trader block (and the market context stamp) in the Trading group, dark behind the
+// switch (R-P2-1). Words and defaults are the registry's, already first-open; registry.test.js S20
+// pins them to journalBlocks.js, which is NOT first-open (SlashMenu.blocks.test.jsx proves agreement).
+const traderItem = (id, more) => ({
+  title: WIDGET_REGISTRY[id].labels.menu,
+  description: 'A trader block',
+  keywords: ['block', 'trading'],
+  available: journalStylesEnabled,
+  trading: true,
+  command: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertWidgetEmbed(id, Object.fromEntries(
+    WIDGET_REGISTRY[id].paramsSchema.filter((f) => f.type === 'enum' && f.default).map((f) => [f.key, f.default]))).run(),
+  ...more,
+})
+
 // Exported for the rails (SlashMenu.items.test.jsx): the block entries a bare
 // `/` offers, and what each one inserts.
 export const ITEMS = [
@@ -276,6 +290,24 @@ export const ITEMS = [
       editor.view.dom.dispatchEvent(new CustomEvent(STYLE_EVENT, { bubbles: true }))
     },
   },
+  traderItem('preEntryChecklist'),
+  traderItem('priceStamps'),
+  traderItem('positionSizing'),
+  traderItem('marketcontext', {
+    // R-P2-8: a member's own stamp, captured NOW; it never sets builtin:regime_at_write. ⛔ R-RC-4:
+    // the typed command leaves the note BEFORE the read is awaited (the /price rule). A failed read
+    // inserts nothing.
+    title: 'Market context',
+    description: 'Stamp the market as it is right now',
+    keywords: ['block', 'trading', 'regime'],
+    command: async ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      try {
+        const res = await fetch('/api/j2/trader-blocks/market-context', { credentials: 'include' })
+        if (res.ok) editor.chain().focus().insertWidgetEmbed('marketcontext', { ...(await res.json()), fields: 'all' }).run()
+      } catch { /* nothing was inserted; the member can retry */ }
+    },
+  }),
 ]
 
 // A bare `/` offers three groups, trading first: this is a trading notebook, and the chart, price
@@ -294,7 +326,7 @@ const TRADING_BLOCKS = new Set(['Trade-plan canvas', 'Transcript passage', 'Jour
 
 /** Which group a block item belongs to. Widget and fact captures are always trading. */
 export function blockItemGroup(item) {
-  if (TRADING_BLOCKS.has(item.title)) return 'trading'
+  if (item.trading || TRADING_BLOCKS.has(item.title)) return 'trading'
   return BASICS.has(item.title) ? 'basics' : 'more'
 }
 

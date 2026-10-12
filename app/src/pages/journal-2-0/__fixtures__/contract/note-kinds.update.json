@@ -1,8 +1,8 @@
 {
   "_contract": {
     "case": "success",
-    "endpoint": "PUT /api/j2/note-kinds/k_4ba0d9fb109341f7b9f01140e19ac259",
-    "path": "/api/j2/note-kinds/k_4ba0d9fb109341f7b9f01140e19ac259",
+    "endpoint": "PUT /api/j2/note-kinds/k_aa11456cc40a48589c43d65d03128ea8",
+    "path": "/api/j2/note-kinds/k_aa11456cc40a48589c43d65d03128ea8",
     "requestBody": {
       "name": "Gap & go"
     },
@@ -12,7 +12,7 @@
     "kind": {
       "builtin": false,
       "icon": "bolt",
-      "id": "k_4ba0d9fb109341f7b9f01140e19ac259",
+      "id": "k_aa11456cc40a48589c43d65d03128ea8",
       "name": "Gap & go",
       "sortOrder": 0
     }

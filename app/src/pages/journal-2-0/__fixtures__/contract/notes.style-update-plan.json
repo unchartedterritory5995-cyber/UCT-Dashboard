@@ -12,6 +12,18 @@
         {
           "block": "chart",
           "label": null
+        },
+        {
+          "block": "preEntryChecklist",
+          "label": null
+        },
+        {
+          "block": "positionSizing",
+          "label": null
+        },
+        {
+          "block": "marketcontext",
+          "label": null
         }
       ],
       "fromVersion": 1,
@@ -23,9 +35,9 @@
       "styleId": "builtin:trade_plan",
       "styleName": "Trade plan",
       "switching": false,
-      "toVersion": 1,
+      "toVersion": 2,
       "upToDate": false,
-      "versionCurrent": true
+      "versionCurrent": false
     }
   }
 }
