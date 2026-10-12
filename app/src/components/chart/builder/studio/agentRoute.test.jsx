@@ -17,6 +17,10 @@ import { AuthContext } from '../../../../context/AuthContext'
 import { setCreateIndicatorFlag, CREATE_INDICATOR_FLAG_KEY } from './createIndicatorFlag'
 import { setIndicatorAgentRoute, _resetIndicatorEntry } from '../../../../agent/indicatorEntry'
 import { clearSession, createKey, chartScope } from '../authoring/conversationSessions'
+import STOCKCHART_SRC from '../../../StockChart.jsx?raw'
+import PANE_SRC from '../../pane/ChartPane.jsx?raw'
+import WIDGET_SRC from '../../../../pages/charts/widgets/ChartWidget.jsx?raw'
+import HOST_SRC from '../../../../agent/host.js?raw'
 
 const CHART = 'w-agent-route-test'
 
@@ -127,5 +131,14 @@ describe('openIndicatorDoor — the builder doors, for the Agent', () => {
     act(() => { ok = t.ref.current.openIndicatorDoor(door) })
     expect(ok).toBe(true)
     expect(screen.queryByTestId('create-indicator')).toBeNull()
+  })
+})
+
+describe('the door chain the Agent reaches (source rails — found missing in the browser, 10-12)', () => {
+  it('host → widget → pane → StockChart → toolbar all forward openIndicatorDoor', () => {
+    expect(HOST_SRC).toMatch(/openIndicatorDoor: \(ref, door\) => \{[\s\S]{0,140}e\?\.api\.agent\.openIndicatorDoor\?\.\(door\)/)
+    expect(WIDGET_SRC).toMatch(/openIndicatorDoor: \(door\) => !!paneRef\.current\?\.openIndicatorDoor\?\.\(door\)/)
+    expect(PANE_SRC).toMatch(/openIndicatorDoor: \(door\) => \{[\s\S]{0,120}paneToolbarApi\.current\?\.openIndicatorDoor\?\.\(door\)/)
+    expect(STOCKCHART_SRC).toMatch(/openIndicatorDoor: \(door\) => \{[\s\S]{0,80}toolbarRef\.current\?\.openIndicatorDoor\?\.\(door\)/)
   })
 })
