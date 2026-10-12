@@ -37,6 +37,7 @@ import { registerBuiltins } from './builtins'
 import { routeManifest, routingEnabled } from './routing'
 import { agentTurn, agentRecord, agentConversation } from './agentClient'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
+import { presentOf, compactViews, itemsFromTurns } from './present'
 
 registerBuiltins()
 
@@ -235,6 +236,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const interruptedRef = useRef(null)       // { sig, lines, at } from a mark found at load
   const undoRef = useRef([])                // newest last
   const lastActionsRef = useRef([])         // actions of the last plan (routing keeps follow-ups' groups)
+  const saidRef = useRef('')                // the member's words this turn (how much an answer shows)
   const [, force] = useState(0)
   const rerender = () => force(n => n + 1)
 
@@ -245,7 +247,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [])
 
   // `at`: when the line joined the chat (the panel shows it beside the sender's name).
-  const push = useCallback((item) => setItems(xs => [...xs, { id: nid(), at: Date.now(), ...item }]), [])
+  // ⛔ Never an EMPTY Agent container: an agent / refusal / error line with nothing to show is not
+  // added (a blank reply, an answer that came back empty). Cards and questions always carry content.
+  const push = useCallback((item) => {
+    if (['agent', 'refusal', 'error'].includes(item?.role) && !String(item.text || '').trim()
+        && !item.present && !item.table && !item.link) return
+    setItems(xs => [...xs, { id: nid(), at: Date.now(), ...item }])
+  }, [])
   const patchItem = useCallback((id, patch) => setItems(xs => xs.map(x => (x.id === id ? { ...x, ...patch } : x))), [])
 
   // Reopen the remembered conversation (transcript only; proposals and undo are per session).
@@ -261,10 +269,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (!alive) return
       setRestoring(false)
       if (!conv) { setConversationId(null); return }
-      const history = (Array.isArray(conv.turns) ? conv.turns : []).map(t => ({
-        id: `h${t.id}`, role: t.role === 'member' ? 'member' : (t.role === 'outcome' ? 'outcome' : 'agent'),
-        text: t.text, history: true, at: t.created_at ? t.created_at * 1000 : undefined,
-      }))
+      const history = itemsFromTurns(conv.turns)
       setItems(xs => [...history, ...xs.filter(x => !x.history)])
     }, () => { if (alive) setRestoring(false) })
     return () => { alive = false }
@@ -420,14 +425,19 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         try { a = await getCapability(o.action).answer(targets.get(o.target)?.snap || null, o.args || {}, host) } catch (e) { a = `That didn't work: ${e?.message || 'error'}` }
         answers.push(typeof a === 'string' || a == null ? { text: a || '' } : a)
       }
-      for (const a of answers) push({ role: 'agent', text: a.text, table: a.table || null, link: a.link || null })
-      const text = answers.map(a => a.text).join('\n\n')
+      // ⭐ ONE presentation contract (present.js): each answer → the smallest view that carries it,
+      // shaped by the member's own request (concise by default, depth when asked).
+      const views = answers.map(a => presentOf(a, { message: saidRef.current }))
+      answers.forEach((a, i) => push(views[i] ? { role: 'agent', present: views[i], text: a.text || '' } : { role: 'agent', text: a.text, table: a.table || null, link: a.link || null }))
+      const text = answers.map(a => a.text).filter(Boolean).join('\n\n')
+      // the member's transcript keeps the views (restored on reload); never read into a model request
+      const saved = compactViews(views.filter(Boolean))
       // ⛔ LOCAL-RESULT BOUNDARY: the member's transcript keeps the answer; the row says it is LOCAL
       // ONLY (and what was asked — args, never values), so the server never replays it to a model.
       // The server also decides by the action name (turn.LOCAL_ONLY_ACTIONS); this is the second signal.
       const local = queries.filter(o => getCapability(o.action)?.localOnly)
       const localData = local.length ? { local: true, requests: local.map(o => o.args || {}) } : {}
-      record({ member, outcome: text, outcomeData: { kind: 'answered', actions: queries.map(o => o.action), ...localData }, telemetry: { path, disposition: 'answer', actions: queries.map(o => o.action), voice } })
+      record({ member, outcome: text || 'Answered.', outcomeData: { kind: 'answered', actions: queries.map(o => o.action), ...localData, ...(saved.length ? { views: saved } : {}) }, telemetry: { path, disposition: 'answer', actions: queries.map(o => o.action), voice } })
     }
     const ops = allOps.filter(o => !getCapability(o?.action)?.query)
     if (!ops.length) return
@@ -787,6 +797,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     const text = String(raw || '').trim()
     if (!text || lockRef.current) return
     lockRef.current = true
+    saidRef.current = text
     push({ role: 'member', text, voice })
     setBusy(true)
     try {
@@ -1000,10 +1011,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (!conv) return
     pendingRef.current = null
     setConversationId(id)
-    setItems(conv.turns.map(t => ({
-      id: `h${t.id}`, role: t.role === 'member' ? 'member' : (t.role === 'outcome' ? 'outcome' : 'agent'),
-      text: t.text, history: true, at: t.created_at ? t.created_at * 1000 : undefined,
-    })))
+    setItems(itemsFromTurns(conv.turns))
   }, [setConversationId])
 
   const canUndo = (undoId) => undoRef.current.some(e => e.id === undoId)

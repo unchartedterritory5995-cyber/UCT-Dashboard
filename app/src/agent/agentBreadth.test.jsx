@@ -122,7 +122,10 @@ describe('3 · the panel: the member sees UCT\'s answer; the model never gets it
     expect(breadthBodies).toEqual([REQ])
     await waitFor(() => expect(records.some(r => r.outcomeData?.kind === 'answered')).toBe(true), { timeout: 6000 })
     const row = records.find(r => r.outcomeData?.kind === 'answered')
-    expect(row.outcomeData).toEqual({ kind: 'answered', actions: ['breadth.show'], local: true, requests: [REQ] })
+    expect(row.outcomeData).toMatchObject({ kind: 'answered', actions: ['breadth.show'], local: true, requests: [REQ] })
+    // the member's transcript keeps the answer's VIEW (restored on reload); the server never replays it
+    expect(Object.keys(row.outcomeData).sort()).toEqual(['actions', 'kind', 'local', 'requests', 'views'])
+    expect(row.outcomeData.views).toHaveLength(1)
     expect(row.outcome).toMatch(/73\.5%/)                                          // the member's history keeps it
 
     envelopes.push({ disposition: 'answer', reply: 'Ask me for another date.', question: null, unsupported_category: null, ops: [] })
@@ -135,7 +138,7 @@ describe('3 · the panel: the member sees UCT\'s answer; the model never gets it
   })
 
   it('MIXED breadth + news: the breadth answer AND UCT\'s notice that the news part was not done are both shown', async () => {
-    const NOTICE = 'UCT\'s breadth answer for your request is shown here. I did not look up the news or current-events part of your message — nothing was searched. Ask that part on its own and I\'ll look it up.'
+    const NOTICE = 'UCT\'s breadth answer for your request is shown here. I did not look up the news or current-events part of your message — no web search was run. Ask that part on its own and I\'ll look it up.'
     const { say } = await mount()
     envelopes.push((b) => ({ ...plan([{ action: 'breadth.show', target: refOf(b, 'breadth'), args: REQ }], NOTICE), local_notice: true }))
     await say('what % of US stocks are above the 50-day, and the latest NVDA news?')

@@ -154,7 +154,8 @@ def test_ROUTE_answers_the_member_with_the_real_figure(client, world):
     b = r.json()
     assert b["status"] == "ok" and "73.5%" in b["text"] and SESSION in b["text"]      # the member sees it
     assert b["table"]["rows"][0]["value"] == "73.5%"
-    assert set(b) == {"status", "text", "table"}                                     # nothing else rides along
+    assert set(b) == {"status", "text", "table", "present"}                          # nothing else rides along
+    assert b["present"] == {"kind": "value", "value": "73.5%", "label": "US · % of Stocks Above 50-Day MA", "note": "As of 2026-10-09 close"}
 
 
 def test_ROUTE_refuses_by_reason_and_bounds_the_body(client, world):
@@ -376,7 +377,7 @@ def test_MIXED_breadth_plus_news_the_model_asked_research_lookup_runs_news_discl
     e = out["envelope"]
     assert e["ops"] == [BREADTH_OP]                                   # the supported part runs
     assert e["reply"] == turn.LOCAL_NEWS_NOT_DONE and e["local_notice"] is True
-    assert "did not look up the news" in e["reply"] and "nothing was searched" in e["reply"]
+    assert "did not look up the news" in e["reply"] and "no web search was run" in e["reply"]
     assert searched == [] and len(m.calls) == 1                       # no research call, no second model call
     assert out["usage"]["research_calls"] == 0 and out["usage"]["local_research_skipped"] is True
 

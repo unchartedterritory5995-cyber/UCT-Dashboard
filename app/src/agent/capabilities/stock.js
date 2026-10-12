@@ -80,7 +80,27 @@ export async function answerProfile({ symbol }) {
   lines.push(`Revenue (trailing 12 months) ${big(f.total_revenue) || NA}${num(f.revenue_growth_pct) != null ? ` · revenue growth ${pct(f.revenue_growth_pct)}` : ''}${num(f.profit_margin_pct) != null ? ` · profit margin ${f.profit_margin_pct.toFixed(1)}%` : ''}`)
   lines.push(`Next earnings: ${f.next_earnings ? `${day(f.next_earnings)} (scheduled date from the data vendor)` : NA}`)
   lines.push('Source: UCT fundamentals (data vendor snapshot, refreshed about every 30 minutes); price from UCT live quotes.')
-  return { text: lines.join('\n'), link: researchLink(sym) }
+  // the member's view: the labelled figures (present.js shows just the one(s) they named; the full
+  // profile above stays one tap away). Same values as the text — nothing new is fetched or computed.
+  const price = q ? money(q.price) : money(f.price)
+  const fig = [
+    { label: 'Price', value: price, note: q && num(q.observed_at) ? `as of ${stamp(q.observed_at)}` : (q ? null : 'fundamentals snapshot'), aka: ['price', 'quote', 'trading at', 'share price'] },
+    { label: 'Change today', value: q && num(q.change_pct) != null ? pct(q.change_pct, 2) : null, aka: ['change today', 'up today', 'down today', 'move today', 'moving today'] },
+    { label: 'Market cap', value: big(f.market_cap), aka: ['market cap', 'marketcap', 'valuation', 'worth'] },
+    { label: 'P/E (trailing)', value: fix(f.pe_trailing), aka: ['pe', 'p/e', 'price to earnings', 'pe ratio', 'p/e ratio'] },
+    { label: 'P/E (forward)', value: fix(f.pe_forward), aka: ['forward pe', 'forward p/e'] },
+    { label: '52-week range', value: num(f.fifty_two_week_low) != null || num(f.fifty_two_week_high) != null ? `${money(f.fifty_two_week_low) || NA} – ${money(f.fifty_two_week_high) || NA}` : null, aka: ['52 week', '52-week', 'year high', 'year low', '52w'] },
+    { label: 'Beta', value: fix(f.beta), aka: ['beta', 'volatility'] },
+    { label: 'Revenue (TTM)', value: big(f.total_revenue), aka: ['revenue', 'sales'] },
+    { label: 'Revenue growth', value: num(f.revenue_growth_pct) != null ? pct(f.revenue_growth_pct) : null, aka: ['growth', 'growing'] },
+    { label: 'Profit margin', value: num(f.profit_margin_pct) != null ? `${f.profit_margin_pct.toFixed(1)}%` : null, aka: ['margin', 'margins', 'profitability'] },
+    { label: 'Next earnings', value: f.next_earnings ? day(f.next_earnings) : null, aka: ['earnings', 'report', 'reports'] },
+    { label: 'Sector', value: f.sector ? `${f.sector}${f.industry ? ` / ${f.industry}` : ''}` : null, aka: ['sector', 'industry'] },
+  ].filter(x => x.value)
+  return {
+    text: lines.join('\n'), link: researchLink(sym),
+    present: { kind: 'metrics', title: `${sym} — ${f.name || sym}`, items: fig },
+  }
 }
 
 export async function answerEarnings({ symbol }) {

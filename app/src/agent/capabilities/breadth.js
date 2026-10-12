@@ -97,7 +97,9 @@ async function answerBreadth(args) {
   if (!b || typeof b.text !== 'string') return "UCT's breadth answer came back unreadable, so nothing is shown."
   const t = b.table
   const table = t && Array.isArray(t.columns) && Array.isArray(t.rows) ? { columns: t.columns, rows: t.rows } : null
-  return { text: b.text, table }
+  // `present`: the server's concise view of the same answer (present.js); text + table become details
+  const present = b.present && typeof b.present === 'object' ? b.present : null
+  return { text: b.text, table, ...(present ? { present } : {}) }
 }
 
 const nullableDate = { type: ['string', 'null'] }
