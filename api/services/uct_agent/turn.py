@@ -682,6 +682,10 @@ def history_messages(turns: list[dict]) -> list[dict]:
     return msgs
 
 
+def _ms(t0: float) -> int:
+    return int((time.perf_counter() - t0) * 1000)
+
+
 def _research(query: str, recency: str) -> dict:
     from api.services.perplexity_search import web_search
     res = web_search(query=query[:400], max_tokens=600, mode="fast",
@@ -698,6 +702,110 @@ def _default_caller(**kwargs):
     client = _get_anthropic_client().with_options(
         max_retries=0, timeout=llm_timeouts.seconds("UCT_AGENT_TIMEOUT_S", llm_timeouts.REQUEST_PATH))
     return client.messages.create(**kwargs)
+
+
+def _default_stream_caller(on_text: Callable[[str], None], **kwargs):
+    """The same request as `_default_caller`, streamed: each text chunk of the envelope JSON goes to
+    `on_text` as it arrives; returns the same final message (usage, stop reason, content)."""
+    from api.services.engine import _get_anthropic_client
+    from api.services import llm_timeouts
+    client = _get_anthropic_client().with_options(
+        max_retries=0, timeout=llm_timeouts.seconds("UCT_AGENT_TIMEOUT_S", llm_timeouts.REQUEST_PATH))
+    with client.messages.stream(**kwargs) as stream:
+        for event in stream:
+            if getattr(event, "type", None) == "text":
+                on_text(event.text)
+        return stream.get_final_message()
+
+
+# ── STREAMING THE REPLY (2026-10-12, latency) ───────────────────────────────────────────────────────
+# The model writes the envelope as JSON; for an ANSWER its `reply` is the text the member reads. While
+# it is being written, the decoded reply may be passed to the member early — ONLY through this gate:
+#   • disposition must already be "answer" (it precedes `reply`; anything else, or `reply` first,
+#     streams nothing: a plan's / question's words are never shown early, so a local-only lookup's
+#     reply — always a plan — can never stream);
+#   • the caller decides per model call whether its reply can be the FINAL one (run_turn: never when
+#     UCT will force research, never for a planned change waiting on research);
+#   • the first STREAM_HOLD characters are held back and checked with the same claim rule
+#     sanitize_envelope applies to an answer (_CLAIMS_WITHOUT_ACTION, anchored at the start): a reply
+#     that claims work is never streamed — its final text (NOTHING_DONE) arrives with the envelope;
+#   • at most 6000 characters (sanitize_envelope's cap).
+# The final envelope is still the authority: the browser replaces the streamed text with it.
+STREAM_HOLD = 160
+_DISPOSITION_KEY = re.compile(r'"disposition"\s*:\s*"([a-z]+)"')
+_REPLY_KEY = re.compile(r'"reply"\s*:\s*"')
+
+
+class ReplyStream:
+    def __init__(self, emit: Callable[[str], None], allowed: bool):
+        self.emit = emit
+        self.buf = ""
+        self.start = None          # index in buf where the reply string's content begins
+        self.end = False           # the reply string has closed
+        self.off = not allowed
+        self.decoded = ""
+        self.sent = 0              # characters of `decoded` already emitted
+        self.gate = None           # None = holding, True = streaming, False = never for this call
+
+    @property
+    def streamed(self) -> bool:
+        return self.sent > 0
+
+    def feed(self, chunk: str) -> None:
+        if self.off or self.end:
+            return
+        self.buf += chunk or ""
+        if self.start is None:
+            r = _REPLY_KEY.search(self.buf)
+            if not r:
+                return
+            d = _DISPOSITION_KEY.search(self.buf, 0, r.start())
+            if not d or d.group(1) != "answer":
+                self.off = True     # not an answer, or `reply` written before the disposition
+                return
+            self.start = r.end()
+        raw, i, closed, safe = self.buf[self.start:], 0, False, 0
+        # `safe`: the end of the longest prefix of `raw` holding only COMPLETE escapes
+        while i < len(raw):
+            ch = raw[i]
+            if ch == '"':
+                closed = True
+                break
+            if ch == "\\":
+                if i + 1 >= len(raw):
+                    break
+                if raw[i + 1] == "u":
+                    if i + 6 > len(raw):
+                        break
+                    # a high surrogate (\ud800–\udbff) is decoded together with its pair, never split
+                    if raw[i + 2:i + 4].lower() in ("d8", "d9", "da", "db"):
+                        if i + 12 > len(raw):
+                            break
+                        i += 12
+                    else:
+                        i += 6
+                else:
+                    i += 2
+                safe = i
+                continue
+            i += 1
+            safe = i
+        try:
+            self.decoded = json.loads('"' + raw[:safe] + '"')
+        except ValueError:
+            self.off = True
+            return
+        self.end = closed
+        if self.gate is None:
+            if len(self.decoded) < STREAM_HOLD:
+                return             # still holding (a short reply simply arrives with the envelope)
+            self.gate = not _CLAIMS_WITHOUT_ACTION.match(self.decoded)
+        if not self.gate:
+            return
+        text = self.decoded[:6000]
+        if len(text) > self.sent:
+            self.emit(text[self.sent:])
+            self.sent = len(text)
 
 
 def _record_cost(resp) -> float:
@@ -942,10 +1050,16 @@ def _context_refs(context: dict) -> set[str]:
 def run_turn(*, message: str, context: dict, history: list[dict], capabilities: list | None = None,
              pending: dict | None = None, recent_outcome: str | None = None,
              caller: Callable[..., Any] | None = None, manifest_version: int | None = None,
-             routing: dict | None = None, conversation_title: str | None = None) -> dict:
+             routing: dict | None = None, conversation_title: str | None = None,
+             on_event: Callable[[dict], None] | None = None, stream_caller: Callable[..., Any] | None = None) -> dict:
     """Returns {envelope, usage, title}. Raises TurnError with a member sentence.
+    `on_event` (streaming, optional): receives {"t": "delta", "text"} for an answer's reply as it is
+    written (ReplyStream's gate), {"t": "retract"} when streamed text will not be the answer after all
+    (research follows), and {"t": "status", "stage": "research"} when a web search starts. Nothing else —
+    never a plan's words, never research results, never values from a local-only lookup.
     `conversation_title`: the chat's current name, passed ONLY while the Agent may still name it
     (never after the member renamed it); `title` is the model's cleaned suggestion or None."""
+    t_build = time.perf_counter()
     msg = (message or "").strip()
     if not msg:
         raise TurnError("Say what you'd like UCT Agent to do or explain.")
@@ -964,7 +1078,11 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     unselected = route["unselected"] if route else None
     unselected_ids = {g["id"] for g in unselected} if unselected else None
 
+    streaming = on_event is not None
+    if streaming and stream_caller is None and caller is None:
+        stream_caller = _default_stream_caller
     caller = caller or _default_caller
+    forced_research = _needs_current_facts(msg)
     compact = compact_ops(caps)
     schema = envelope_schema(caps, unselected, compact)
     sysprompt = system_prompt(caps, unselected, compact)
@@ -982,13 +1100,23 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
 
     started = time.monotonic()
     usage = {"model": model(), "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0,
-             "research_calls": 0, "model_calls": 0, "citations": []}
+             "research_calls": 0, "model_calls": 0, "citations": [],
+             # STAGE TIMINGS (ms only — never words or values): request build, each model call, research
+             "stages": {"build": _ms(t_build), "model": [], "research": 0},
+             "cache_read_tokens": 0, "cache_write_tokens": 0}
     cap_names = {c["name"] for c in caps}
     pre_research = None
     notice = None
     for round_ in range(MAX_RESEARCH_CALLS + 1):
+        t_call = time.perf_counter()
+        # This call's reply may stream only if it can be the final answer: the post-research call
+        # always is; the first one is not when UCT will force research on an answer (current facts).
+        rs = (ReplyStream(lambda text: on_event({"t": "delta", "text": text}),
+                          allowed=(round_ > 0 or not forced_research) and pre_research is None)
+              if streaming and stream_caller is not None else None)
+        call = (lambda **kw: stream_caller(rs.feed, **kw)) if rs is not None else caller
         try:
-            resp = caller(
+            resp = call(
                 model=model(), max_tokens=MAX_TOKENS,
                 system=[{"type": "text", "text": sysprompt, "cache_control": {"type": "ephemeral"}}],
                 output_config={"format": {"type": "json_schema", "schema": schema}},
@@ -1002,15 +1130,18 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             compact = True
             schema = envelope_schema(caps, unselected, compact)
             sysprompt = system_prompt(caps, unselected, compact)
-            resp = caller(
+            resp = call(
                 model=model(), max_tokens=MAX_TOKENS,
                 system=[{"type": "text", "text": sysprompt, "cache_control": {"type": "ephemeral"}}],
                 output_config={"format": {"type": "json_schema", "schema": schema}},
                 messages=messages,
             )
         usage["model_calls"] += 1
+        usage["stages"]["model"].append(_ms(t_call))
         u = getattr(resp, "usage", None)
         usage["input_tokens"] += int(getattr(u, "input_tokens", 0) or 0)
+        usage["cache_read_tokens"] += int(getattr(u, "cache_read_input_tokens", 0) or 0)
+        usage["cache_write_tokens"] += int(getattr(u, "cache_creation_input_tokens", 0) or 0)
         usage["output_tokens"] += int(getattr(u, "output_tokens", 0) or 0)
         usage["cost_usd"] += _record_cost(resp)
         if getattr(resp, "stop_reason", None) == "refusal":
@@ -1059,7 +1190,13 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                     planned = expand_compact_ops(env, caps)
                 pre_research = {"disposition": env["disposition"], "ops": list(planned.get("ops") or [])}
             usage["research_calls"] += 1
+            if streaming:
+                if rs is not None and rs.streamed:
+                    on_event({"t": "retract"})    # what streamed was a placeholder, not the answer
+                on_event({"t": "status", "stage": "research"})
+            t_research = time.perf_counter()
             r = _research(str(req["query"]), str(req.get("recency") or "any"))
+            usage["stages"]["research"] = _ms(t_research)
             usage["citations"].extend(r["citations"])
             messages = messages + [
                 {"role": "assistant", "content": text},
