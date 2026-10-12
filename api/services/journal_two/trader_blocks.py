@@ -204,6 +204,19 @@ def _in_regular_session(now: datetime) -> bool:
         return False
 
 
+def _quote_window(now: datetime) -> str:
+    """R-T3-6: which session a live-path cache row read at `now` was built in. The row can be up to
+    live_prices._CACHE_TTL old, so it was built in the regular session only if `now - TTL` was in it
+    too: "live" when both instants are, "frozen" when neither is, "edge" (ambiguous: the row may be a
+    pre-market close read after the open, or a mid-minute print read after the close) otherwise."""
+    from api.routers import live_prices
+    then = now - timedelta(seconds=live_prices._CACHE_TTL)
+    live_now, live_then = _in_regular_session(now), _in_regular_session(then)
+    if live_now and live_then:
+        return "live"
+    return "edge" if live_now or live_then else "frozen"
+
+
 def _same_cents(a: float, b: float) -> bool:
     return round(a, 2) == round(b, 2)
 
@@ -272,9 +285,12 @@ def _settled_cache_row(sym: str, row: dict, now: datetime) -> dict | None:
             # genuine flat session has prev_close > 0 and keeps its 0.0.
             return _with_proven_change(sym, row, now)
         return row
-    if _in_regular_session(now):
+    window = _quote_window(now)
+    if window == "live":
         return row
-    return _frozen_close(sym, row, now)
+    if window == "frozen":
+        return _frozen_close(sym, row, now)
+    return None    # R-T3-6: within one cache age of an edge the row proves nothing; the held bar answers
 
 
 def _quotes(user_id: str, symbols: tuple[str, ...], now: datetime | None = None) -> dict:
@@ -318,10 +334,10 @@ def _epoch_iso(v: Any) -> str | None:
 def _index_field(sym: str, q: Any, now: datetime) -> dict:
     if isinstance(q, dict) and _num(q.get("price")) is not None:
         closed = bool(q.get("market_closed"))
-        if not closed and not _in_regular_session(now):
-            # R-T3-4 n2: outside the regular session a live-path row's price is a frozen close, never
-            # a live price; _quotes stores it as the session's last close when the row proves which
-            # session, so one reaching here unconverted is a sentence.
+        if not closed and _quote_window(now) != "live":
+            # R-T3-4 n2 / R-T3-6: outside the regular session (or within one cache age of its edge) a
+            # live-path row's price is not a live price; _quotes stores it as the session's last close
+            # when the row proves which session, so one reaching here unconverted is a sentence.
             return {"value": None, "source": None, "asOf": None, "missing": f"No {sym} quote could be read just now."}
         # A live row carries the vendor's observation epoch; a closed-market row the epoch of the
         # session close it IS; a held bar its close. Only a LIVE, regular-session row the vendor did not

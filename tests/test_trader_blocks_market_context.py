@@ -12,8 +12,9 @@ import subprocess
 import sys
 import tempfile
 import types
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi import FastAPI
@@ -303,7 +304,7 @@ def test_the_capture_time_never_dates_a_closed_row():
 # Each case: `now` (built in ET; run as ET and as UTC), the held bars (the bar store holds nothing
 # after "today", and may hold today's forming bar), the last completed session, and its close time.
 # Expected values are HARD-CODED, never derived from the calendar under test.
-_ET = __import__("zoneinfo").ZoneInfo("America/New_York")
+_ET = ZoneInfo("America/New_York")
 _BOUNDARIES = [
     ("saturday", datetime(2026, 10, 17, 12, 0, tzinfo=_ET), (20261014, 20261015, 20261016),
      "2026-10-16", "2026-10-16T20:00:00Z"),
@@ -543,6 +544,125 @@ def test_a_genuine_flat_session_is_still_stored_as_zero(held, monkeypatch):
     disagree are NOT consulted (a rail that always reroutes or always omits fails here)."""
     lp = held.live_prices
     lp.cache.set(lp._px_key("SPY"), _closed(0.0, 598.0), ttl=60)
+    _bars(monkeypatch, held.bars_sqlite, [(20261015, 0, 0, 0, 595.0, 1), (20261016, 0, 0, 0, 598.0, 1)], sym="SPY")
+    spy = _create(now=SATURDAY)["readings"]["spy"]
+    assert held.calls == []
+    assert spy == {"value": {"price": 598.0, "changePct": 0.0, "closed": True},
+                   "source": "last close", "asOf": "2026-10-16T20:00:00Z", "missing": None}
+
+
+# ── R-T3-6 Minor 1: BOTH session edges, with the cache's own age in mind ──────────────────────────
+# A cached row can be up to live_prices._CACHE_TTL old, so it was built in the session at `now` only
+# if `now - TTL` is in it too. A row is LIVE only when both instants are in the regular session,
+# FROZEN only when neither is; an instant within one TTL of the open or the close is AMBIGUOUS and the
+# row is not used (held bar, else the sentence). The TTL is read from live_prices, never restated.
+_SENTENCE = {"value": None, "source": None, "asOf": None, "missing": "No SPY quote could be read just now."}
+# A row built in-session at 15:59:55: lastTrade.p, which the running day aggregate tracks.
+_LATE_RTH_ROW = _frozen(601.25, 601.25, 598.0, 0.5435, 1791921595, None)
+_HALF_LATE_ROW = _frozen(610.5, 610.5, 608.0, 0.4112, 1795802395, None)
+_EDGES = [
+    # 09:30:05: the row may be the pre-market one (price = Friday's close), not a live print
+    ("open edge", datetime(2026, 10, 19, 9, 30, 5, tzinfo=_ET), _PRE_ROW),
+    # 16:00:05: the row may be a 15:59:55 mid-minute print, not the official close
+    ("close edge", datetime(2026, 10, 13, 16, 0, 5, tzinfo=_ET), _LATE_RTH_ROW),
+    ("half-day close edge", datetime(2026, 11, 27, 13, 0, 5, tzinfo=_ET), _HALF_LATE_ROW),
+]
+
+
+@pytest.mark.parametrize("zone", ["ET", "UTC"])
+@pytest.mark.parametrize("name,now,row", _EDGES, ids=[c[0] for c in _EDGES])
+def test_a_row_read_within_one_cache_age_of_a_session_edge_is_not_used(held, zone, name, now, row):
+    lp = held.live_prices
+    lp.cache.set(lp._px_key("SPY"), dict(row), ttl=60)
+    now = now if zone == "ET" else now.astimezone(timezone.utc)
+    spy = _create(now=now)["readings"]["spy"]
+    assert held.calls == []
+    assert spy == _SENTENCE
+
+
+def test_at_an_edge_the_held_bar_answers(held, monkeypatch):
+    """The ambiguous row is set aside for the calendar-checked held bar: at 16:00:05 Tuesday's bar has
+    settled, so it is the last close (not a sentence, and not the cached mid-minute print)."""
+    lp = held.live_prices
+    lp.cache.set(lp._px_key("SPY"), dict(_LATE_RTH_ROW), ttl=60)
+    _bars(monkeypatch, held.bars_sqlite, [(20261012, 0, 0, 0, 598.0, 1), (20261013, 0, 0, 0, 601.0, 1)], sym="SPY")
+    spy = _create(now=datetime(2026, 10, 13, 16, 0, 5, tzinfo=_ET))["readings"]["spy"]
+    assert held.calls == []
+    assert spy == {"value": {"price": 601.0, "changePct": 0.5017, "closed": True},
+                   "source": "last close", "asOf": "2026-10-13T20:00:00Z", "missing": None}
+
+
+def test_the_field_builder_never_calls_an_edge_row_live():
+    """_index_field itself at 09:30:05: in the session by the clock, but the row may predate the open."""
+    from api.services.journal_two import trader_blocks as tb
+    row = {"price": 600.5, "change_pct": -0.42, "observed_at": 1792416600, "market_closed": False}
+    assert tb._index_field("SPY", row, datetime(2026, 10, 19, 9, 30, 5, tzinfo=_ET)) == _SENTENCE
+
+
+def test_past_one_cache_age_the_edges_resolve_again(held):
+    """The controls, one second past one cache age: at the open the row is live, at the close it is
+    the session's last close. Built from live_prices' own TTL, so the window is the cache's."""
+    lp = held.live_prices
+    past = timedelta(seconds=lp._CACHE_TTL + 1)
+    lp.cache.set(lp._px_key("SPY"), {"price": 600.5, "change_pct": -0.42, "observed_at": 1792416610,
+                                      "market_closed": False}, ttl=60)
+    assert _create(now=datetime(2026, 10, 19, 9, 30, tzinfo=_ET) + past)["readings"]["spy"] == {
+        "value": {"price": 600.5, "changePct": -0.42, "closed": False},
+        "source": "live price", "asOf": "2026-10-19T13:30:10Z", "missing": None}
+    lp.cache.set(lp._px_key("SPY"), dict(_LATE_RTH_ROW), ttl=60)
+    assert _create(now=datetime(2026, 10, 13, 16, 0, tzinfo=_ET) + past)["readings"]["spy"] == {
+        "value": {"price": 601.25, "changePct": 0.5435, "closed": True},
+        "source": "last close", "asOf": "2026-10-13T20:00:00Z", "missing": None}
+    assert held.calls == []
+
+
+def test_the_edge_window_is_live_prices_own_cache_ttl(held, monkeypatch):
+    """A longer cache life widens the window: 16:00:30 is ambiguous under a 60 s TTL. A copy of the
+    TTL in trader_blocks would leave this row a 'last close'."""
+    lp = held.live_prices
+    monkeypatch.setattr(lp, "_CACHE_TTL", 60)
+    lp.cache.set(lp._px_key("SPY"), dict(_LATE_RTH_ROW), ttl=60)
+    assert _create(now=datetime(2026, 10, 13, 16, 0, 30, tzinfo=_ET))["readings"]["spy"] == _SENTENCE
+    assert held.calls == []
+
+
+# ── R-T3-6 Minor 2: `today` is the ET date, not the UTC one ────────────────────────────────────────
+# At 21:00 ET Tuesday the UTC date is already Wednesday. Today's (Tuesday's) session has closed, so a
+# prevDay-only row is MONDAY's close: the sentence. A UTC `today` would date it as Tuesday's close.
+@pytest.mark.parametrize("zone", ["ET", "UTC"])
+def test_after_the_utc_date_rolls_a_prevday_row_is_still_not_todays_close(held, zone):
+    lp = held.live_prices
+    lp.cache.set(lp._px_key("SPY"), _frozen(598.0, None, 598.0, 0.2, 1791939600, "post"), ttl=60)
+    now = datetime(2026, 10, 13, 21, 0, tzinfo=_ET)
+    now = now if zone == "ET" else now.astimezone(timezone.utc)
+    assert _create(now=now)["readings"]["spy"] == _SENTENCE
+    assert held.calls == []
+
+
+# ── R-T3-6 Minor 3: the n1 discriminator against the REAL live_prices._last_session_row ───────────
+# trader_blocks reads "prev_close 0.0 means the prior is missing" off rows live_prices writes. These
+# rails build the rows with live_prices' own function, so a change to how it writes prev_close turns
+# them red here. Friday 10/16 is the session its grouped walk dated; `now` is Saturday 10/17.
+def _real_closed_row(lp, monkeypatch, prior_map):
+    monkeypatch.setattr(lp, "_session_closes_day", date(2026, 10, 16))
+    snap = {"prevDay": {"c": 598.0, "o": 596.0, "h": 599.0, "l": 595.5, "v": 1000}}
+    row = lp._last_session_row("SPY", snap, {"SPY": 598.0}, prior_map)
+    assert row is not None and row["market_closed"] is True and row["change_pct"] == 0.0
+    return row
+
+
+def test_the_real_last_session_row_with_no_prior_stores_no_fabricated_change(held, monkeypatch):
+    lp = held.live_prices
+    lp.cache.set(lp._px_key("SPY"), _real_closed_row(lp, monkeypatch, {}), ttl=60)
+    spy = _create(now=SATURDAY)["readings"]["spy"]
+    assert held.calls == []
+    assert spy == {"value": {"price": 598.0, "changePct": None, "closed": True},
+                   "source": "last close", "asOf": "2026-10-16T20:00:00Z", "missing": None}
+
+
+def test_the_real_last_session_row_with_an_equal_prior_keeps_its_zero(held, monkeypatch):
+    lp = held.live_prices
+    lp.cache.set(lp._px_key("SPY"), _real_closed_row(lp, monkeypatch, {"SPY": 598.0}), ttl=60)
     _bars(monkeypatch, held.bars_sqlite, [(20261015, 0, 0, 0, 595.0, 1), (20261016, 0, 0, 0, 598.0, 1)], sym="SPY")
     spy = _create(now=SATURDAY)["readings"]["spy"]
     assert held.calls == []
