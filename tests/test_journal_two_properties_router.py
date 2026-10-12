@@ -290,6 +290,9 @@ def test_the_server_and_client_view_type_lists_CANNOT_drift():
 # ── the two halves of "what a regime is called" (R-T9-1) ─────────────────
 
 _MARKET_CONTEXT_MODEL = "app/src/pages/charts/widgets/marketContextModel.js"
+# M2 (R-M2-1 e): ONE map. The market context model re-exports REGIME_WORDS from here, and the position
+# sizing block reads it here; the rail reads the one file that holds the table.
+_REGIME_WORDS_JS = "app/src/pages/journal-2-0/lib/blocks/regimeWords.js"
 
 
 def _strip_js_comments(src: str) -> str:
@@ -325,23 +328,34 @@ def test_the_regime_words_the_stamp_shows_ARE_the_board_property_options():
     that a note was written in a "Yellow" regime must find a "Yellow" column. The client table
     is PARSED, never retyped here."""
     from pathlib import Path
-    client = _client_regime_words(Path(_MARKET_CONTEXT_MODEL).read_text(encoding="utf-8"))
+    client = _client_regime_words(Path(_REGIME_WORDS_JS).read_text(encoding="utf-8"))
     server = _server_regime_words()
     # Non-vacuity: a parse that found nothing would make any comparison pass.
-    assert client is not None, "could not find REGIME_WORDS = Object.freeze({...}) in the model"
+    assert client is not None, "could not find REGIME_WORDS = Object.freeze({...}) in regimeWords.js"
     assert len(client) == 4, f"expected the four regimes, parsed {client}"
     assert client.get("amber") == "Yellow", client
     assert len(server) == 4 and server.get("amber") == "Yellow", server
     assert client == server, f"client {client} != server {server} -- one renamed a regime without the other"
 
 
+def test_the_market_context_model_re_exports_the_ONE_map_and_restates_none():
+    """M2: the stamp's model takes REGIME_WORDS from regimeWords.js; a table of its own would be a second
+    copy this rail no longer reads."""
+    import re
+    from pathlib import Path
+    model = _strip_js_comments(Path(_MARKET_CONTEXT_MODEL).read_text(encoding="utf-8"))
+    assert _client_regime_words(model) is None, "marketContextModel.js restates REGIME_WORDS"
+    assert re.search(r"import\s*\{\s*REGIME_WORDS\s*\}\s*from\s*'[^']*/lib/blocks/regimeWords\.js'", model)
+    assert re.search(r"export\s*\{\s*REGIME_WORDS\s*\}", model)
+
+
 def test_CONTROL_the_regime_words_rail_sees_a_changed_label_and_never_reads_a_comment():
     from pathlib import Path
-    real = Path(_MARKET_CONTEXT_MODEL).read_text(encoding="utf-8")
+    real = Path(_REGIME_WORDS_JS).read_text(encoding="utf-8")
     server = _server_regime_words()
     # A changed label in a SOURCE STRING is seen (the rail can fail).
     drifted = real.replace("amber: 'Yellow'", "amber: 'Amber'")
-    assert drifted != real, "the control's needle is not in the model"
+    assert drifted != real, "the control's needle is not in regimeWords.js"
     assert _client_regime_words(drifted) != server
     assert _client_regime_words(drifted)["amber"] == "Amber"
     # A pair inside a comment is not parsed: a commented-out table is no table...

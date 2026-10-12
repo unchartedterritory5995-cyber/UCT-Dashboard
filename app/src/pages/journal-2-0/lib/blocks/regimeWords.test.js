@@ -1,5 +1,5 @@
 // R-M2-1 (e): the regime's display words. Equality with the board property's labels is railed in Python
-// (tests/test_house_sizing_table.py, against the live BUILTIN_PROPERTY_DEFS); here, every id the sizing
+// (tests/test_journal_two_properties_router.py, against the live BUILTIN_PROPERTY_DEFS); here, every id the sizing
 // table knows has a word, and the lookup is by own key.
 import { describe, it, expect } from 'vitest'
 import { REGIME_WORDS, regimeWord } from './regimeWords'

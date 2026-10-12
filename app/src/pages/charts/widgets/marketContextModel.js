@@ -1,6 +1,8 @@
 // Market Context widget — the pure model. The `/api/breadth` payload in, the
 // reading set the widget renders AND freezes out. Kept beside the component so
 // the live board and a frozen note embed resolve through ONE derivation.
+// The .js extension lets the Node parity rail (tests/test_trader_blocks_market_context.py) load this as is.
+import { REGIME_WORDS } from '../../journal-2-0/lib/blocks/regimeWords.js'
 
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 const round1 = (v) => (num(v) == null ? null : Math.round(v * 10) / 10)
@@ -48,9 +50,9 @@ export const finite = num
 // NO row, so an older capture and every /charts board reading look exactly as before. Each sourced
 // field is {value, source, asOf, missing}, and `missing` is a SENTENCE (IR-S4) — never rendered as
 // an object: anything else reads "Not available.".
-// ⛔ REGIME_WORDS restates the option labels of builtin:regime_at_write in
-// api/services/journal_two/note_properties.py (the board groups by those words).
-export const REGIME_WORDS = Object.freeze({ green: 'Green', amber: 'Yellow', orange: 'Orange', red: 'Red' })
+// ⛔ REGIME_WORDS is ONE map (M2, R-M2-1 e): the option labels of builtin:regime_at_write, owned by
+// journal-2-0/lib/blocks/regimeWords.js and shared with the position sizing block. Re-exported, never restated.
+export { REGIME_WORDS }
 export const SOURCED_ROWS = Object.freeze([
   { key: 'regime', label: 'Regime' }, { key: 'spy', label: 'SPY' },
   { key: 'qqq', label: 'QQQ' }, { key: 'vix', label: 'VIX' },
