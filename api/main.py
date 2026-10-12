@@ -9499,6 +9499,12 @@ app.include_router(scans_router.router)
 # started in the lifespan below (dark behind NHNL_SCANNER_ENABLED).
 from api.routers import nhnl as nhnl_router
 app.include_router(nhnl_router.router)
+# ── Time & Sales (COV-08 / FT-077, the T&S half): the live trade tape per security, over the
+# T prints bar_stream already receives. Paid stream + admin status, per-handler-gated. Dark
+# behind TIME_AND_SALES_ENABLED: unset, the stream answers one `unavailable` event and nothing
+# subscribes, listens or runs (api/services/time_and_sales.py).
+from api.routers import time_and_sales as time_and_sales_router
+app.include_router(time_and_sales_router.router)
 from api.routers import volume_scan as volume_scan_router
 app.include_router(volume_scan_router.router)
 from api.routers import scatter as scatter_router
@@ -9852,6 +9858,8 @@ from api.routers import research_cov as research_cov_router  # noqa: E402  (COV-
 app.include_router(research_cov_router.router)
 from api.routers import research_depth as research_depth_router  # noqa: E402  (lane gaps-research, dark per surface)
 app.include_router(research_depth_router.router)
+from api.routers import congress_trades as congress_trades_router  # noqa: E402  (COV-12/FT-067, dark)
+app.include_router(congress_trades_router.router)
 from api.routers import news_depth as news_depth_router  # noqa: E402  (Lane R D-6/7/8, dark per surface)
 app.include_router(news_depth_router.router)
 from api.routers import research_notices as research_notices_router  # noqa: E402  (lane R D-11/D-12, dark per surface)

@@ -401,6 +401,7 @@ _RESEARCH_DEPTH_SURFACES = (
     ("ftd_dataset_enabled", "ftd_dataset"),
     ("mention_series_enabled", "mention_series"),
     ("broker_estimates_enabled", "broker_estimates"),
+    ("congress_trades_enabled", "congress_trades"),
 )
 
 # Lane R Depth panels that the /terminal shell does NOT yet reach by a function code.

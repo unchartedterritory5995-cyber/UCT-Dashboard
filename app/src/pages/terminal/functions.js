@@ -137,6 +137,11 @@ export const FUNCTIONS = [
   { code: 'CHK', label: 'Pre-trade check (checklist, win rate, past trades, risk)', group: 'Security',
     ticker: { panel: 'Check' } },
   // ── end wave 8 lane F ──
+  // TAS: Time & Sales, the live trade tape (COV-08 / FT-077, the T&S half; owner approval
+  // 2026-10-12). Over the Massive T prints bar_stream already receives, streamed only while the
+  // panel is open. Dark at the server (TIME_AND_SALES_ENABLED): unset, the panel says it is not on.
+  { code: 'TAS', label: 'Time and sales (live trade tape)', group: 'Security',
+    ticker: { panel: 'TimeSales' } },
 
   // ── Research › Depth (each panel is its own surface behind its own flag) ──
   { code: 'DPTH', label: 'Research depth (every depth panel you have)', group: 'Research depth',
@@ -151,6 +156,11 @@ export const FUNCTIONS = [
     ticker: { panel: 'Ftd', section: 'depth', flag: `${DEPTH}.ftd_dataset_enabled` } },
   { code: 'ATTN', label: 'Room attention (mentions)', group: 'Research depth',
     ticker: { panel: 'MentionSeries', section: 'depth', flag: `${DEPTH}.mention_series_enabled` } },
+  // COV-12 / FT-067: STOCK Act disclosures from FMP. `NVDA CONG` = both chambers for the name (also
+  // shown on OWN beside insiders and 13F); bare `CONG` = the newest disclosures market-wide.
+  { code: 'CONG', label: 'Congressional trades (Senate and House disclosures)', group: 'Research depth',
+    ticker: { panel: 'CongressTrades', section: 'depth', flag: `${DEPTH}.congress_trades_enabled` },
+    market: { panel: 'CongressLatest', flag: `${DEPTH}.congress_trades_enabled` } },
 
   // ── options ──
   { code: 'OMON', label: 'Option chain', group: 'Options',
@@ -519,9 +529,13 @@ const FUNCTION_WORDS = {
   TWT: { keywords: ['twitter', 'tweets', 'social'], note: 'Says so if the X feed is switched off.' },
   SIZE: { keywords: ['position size', 'sizing', 'shares', 'risk per trade', 'r multiple'] },
   CHK: { keywords: ['check', 'checklist', 'pre-trade', 'win rate'], note: 'Says so if the setup library is not loaded.' },
+  TAS: { keywords: ['time and sales', 'time & sales', 'tape', 'prints', 'trades', 'block trades'],
+    note: 'Says so if the live tape is switched off.' },
   ERX: { keywords: ['earnings reaction'] },
   FTD: { keywords: ['fails to deliver'] },
   ATTN: { keywords: ['mentions', 'attention'] },
+  CONG: { keywords: ['congress', 'congressional trades', 'senate', 'house', 'politicians', 'stock act'],
+    note: 'Says so if this read is switched off.' },
   OMON: { keywords: ['options chain', 'options'] },
   OVS: { keywords: ['vol surface', 'skew'] },
   IVH: { keywords: ['iv', 'implied volatility'] },
