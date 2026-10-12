@@ -427,6 +427,8 @@ EXEMPT = {
     "api/services/user_playbook/service.py": "titles of notes the member linked to a playbook entry by hand",
     "api/routers/journal_two.py": _NOTE_ITSELF,
     "api/routers/notebook_chart_alerts.py": "reads one chart block of a note the member has open, on their click",
+    "api/routers/notebook_journal_styles.py": "the price-stamp route's ownership check on the one note the member "
+                                              "is typing in; a yes/no, never a count",
 }
 for _name in ("ai_actions", "ask_retrieval", "attachment_gc", "capture_destinations", "document_ocr",
               "document_search", "excerpt_search", "note_computed", "note_connectors/engine", "note_mentions",
