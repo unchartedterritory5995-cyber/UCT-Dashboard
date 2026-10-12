@@ -27,6 +27,8 @@ const LAZY = [
   '../components/notebook/PublishFolderSheet',
   // Wave 11 lane 11A: the voice-note dialog, on demand through `lazyDialog`.
   '../components/notebook/VoiceNoteDialog',
+  // Notebook P1 lane C: the Journal styles manager, on demand through `lazyDialog` (gated by the switch).
+  '../components/notebook/styles/StylesManager',
   // ⚰️ Wave 8 seam S8-3 put the first-run tour here too, through `lazyChunk` in a bare
   // <Suspense>. Final-review fix I-2 moved it out: NotebookTourGate (imported statically, below)
   // owns the tour's chunk, through `lazyLeaf` inside its own boundary.
