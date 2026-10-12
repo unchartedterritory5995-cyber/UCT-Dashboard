@@ -28,6 +28,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
+import { Parser } from 'acorn'
+import jsx from 'acorn-jsx'
 
 const MODE = 'fail'
 
@@ -573,6 +575,737 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
       expect(why.length, `${key} needs a real reason, not a label`).toBeGreaterThan(80)
       expect(why, `${key} must say what would close it`).toMatch(/would have to|To close it/)
     }
+  })
+})
+
+/**
+ * ⛔⛔ ④b — THE WRITES RAIL ④ COULD NOT SEE: a URL handed to a same-file HELPER, and a
+ * method that is not a literal. Read with an AST (acorn), the way `hub/writePathsTransitive.test.js`
+ * follows same-file calls — not another regex family.
+ *
+ * ⚰️ WHY (Notebook P1 lane B review, I-1). `lib/journalStyles.js` sends every request through one
+ * `call(url, {method})` helper. Rail ③ wants a literal `fetch('/api/j2/...')` and found none; rail ④
+ * matched `fetch(url, {` and then SKIPPED it, because `method,` is not the literal `method: 'POST'`
+ * it looks for. Deleting the settle from `applyStyleUpdate` left every rail here green — measured by
+ * an in-memory probe. "We could not read it" had become "it is not a door", which is the sentence
+ * ④'s own header forbids. A second site was blind for the same reason and for longer:
+ * `useJ2Notes.js` `setNoteFavorite` writes with `method: isFavorite ? 'POST' : 'DELETE'`.
+ *
+ * WHAT IT DOES, all derived from the code:
+ *   · a function that passes one of its OWN parameters to `fetch(<param>, …)` is a FORWARDING
+ *     HELPER; every call to it in the same file is a site, its URL resolved through the file's
+ *     `const` literals and its method read from the call's options literal (default from the
+ *     helper's destructuring, `method = 'GET'`);
+ *   · a direct `fetch` whose method is a ternary of two literals is both of them; any other
+ *     non-literal method (an identifier, a call, a spread with no literal beside it, options passed
+ *     as a variable) is reported UNRESOLVED-METHOD — never skipped;
+ *   · a site's SETTLE WINDOW runs from the site to the end of its enclosing function or the start
+ *     of the next scanned site, whichever comes first. The next `fetch(` is the wrong boundary here:
+ *     a helper holds the file's only `fetch(`, so every call would borrow the next door's settle.
+ *
+ * ⛔ WHICH ROUTES ARE DOORS. Rails ② and ③ derive routes from `journal_two.py` alone. The routes this
+ * file's two note-moving calls reach live in `notebook_journal_styles.py`, so they cannot be derived
+ * today and `STYLE_DOOR_STOPGAP` NAMES them. It is a stopgap, not an authority: each entry must match
+ * a real client site (a stale one fails), and widening rail ② to derive these routes (I-1 step 5) is
+ * owed before the P1 exit bar — then this list is deleted.
+ *
+ * ⛔ THE RAIL'S LIMITS, stated so nobody reads silence as coverage:
+ *   · THE SCAN RULE: a non-test `.js`/`.jsx` file under `app/src/pages/journal-2-0/` whose SOURCE CONTAINS
+ *     `/api/j2/note`. A file that calls fetch but names no note route (lib/notePublishLink.js and its exported
+ *     write-capable `requestJson`, used by NoteShareControls.jsx for share/publish — not doors — or the trades
+ *     and positions tabs) is NOT read. Widening it to every file that mentions `fetch` was tried and goes red on
+ *     ~20 sites in the trades/positions code (non-literal methods, computed URLs) that are not note doors.
+ *   · SAME-FILE ONLY. A helper imported from another file (`import { j2call } from './api'`) is NOT followed:
+ *     its calls are not sites. Inside a scanned file, a write-capable helper that is exported, passed by
+ *     reference, or has no in-file call is reported UNRESOLVED-HELPER (reported, not followed). A call through
+ *     an imported helper from a scanned file that does not define it stays unseen.
+ *   · FORWARDERS: a function that hands its own parameter(s) to `fetch` — or to an INJECTED fetch (a parameter
+ *     named like fetch, `getJson(fetchImpl, url, init)`) — is a helper and every in-file call of it is judged.
+ *     An injected fetch that is not such a forwarder is UNRESOLVED-HELPER. A parameter that defaults to
+ *     `fetch` / `globalThis.fetch`, and `window.fetch` / `self.fetch` / `globalThis.fetch`, are read as `fetch`.
+ *   · SILENT CALLEE SHAPES (not reported): `window.fetch(...)` is read, but an ALIAS of an injected fetch
+ *     (`const f = fetchImpl || globalThis.fetch; f(url, { method: 'POST' })`, as notebookTelemetry.js does for
+ *     telemetry), and an injected parameter NOT named like fetch (`request(url, ...)`), are not seen.
+ *   · A computed method key (`{ ['method']: 'POST' }`) and `fetch(new Request(url, { method: 'POST' }))`
+ *     read as GET and are NOT reported.
+ *   · SCOPE is `app/src/pages/journal-2-0/` only. Note writers elsewhere (hub/voiceNote.js, the terminal
+ *     panels, NotebookWidget) get only rail ③'s literal check. Widening 4b there today would red on
+ *     UpbEntryPage.jsx's eight positional-method `upbFetch(url, 'POST', ...)` calls, which are not doors.
+ *   · URL constants resolve BY SCOPE. EVERY local binding is registered in its function (any const/let/var,
+ *     patterns, for…of heads, function/class names, imports, catch parameters, parameters). The enclosing
+ *     function's own binding wins; a binding whose initialiser the rail cannot read, one that is reassigned,
+ *     one declared twice in a scope, or a parameter, resolves to NULL (UNRESOLVED-URL where a write goes) and
+ *     never to an outer constant of the same name. A name with NO local binding at all falls to null too.
+ */
+const JsxParser = Parser.extend(jsx())
+const AST_FUNC_TYPES = new Set(['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression'])
+const isAstNode = (v) => v && typeof v === 'object' && typeof v.type === 'string'
+
+function astWalk(node, visit, stack = []) {
+  if (!isAstNode(node)) return
+  visit(node, stack)
+  stack.push(node)
+  for (const k of Object.keys(node)) {
+    if (k === 'type' || k === 'start' || k === 'end' || k === 'loc') continue
+    const v = node[k]
+    if (Array.isArray(v)) v.forEach((x) => astWalk(x, visit, stack))
+    else astWalk(v, visit, stack)
+  }
+  stack.pop()
+}
+
+const STYLE_DOOR_STOPGAP = {
+  'POST /api/j2/notes/*/apply-style-update':
+    'Update layout (Task 10): one compare-and-set write on a note; the route lives in notebook_journal_styles.py, '
+    + 'which rail ② does not read. To close it, rail ② would have to derive routes from every router declaring the '
+    + '/api/j2 prefix and follow service delegation into update_note.',
+  'POST /api/j2/note-kinds/mapping-offer':
+    'The kind mapping offer (Task 4): update_note on many notes via note_kinds.apply_mapping, answered with '
+    + '[{id, updatedAt}]. Same router, same reason. To close it, rail ② would have to derive it as above.',
+}
+
+/** The names a function declares as parameters (plain, defaulted, rest, destructured). */
+function paramNamesOf(fn) {
+  const out = new Set()
+  const add = (p) => {
+    if (!p) return
+    if (p.type === 'Identifier') out.add(p.name)
+    else if (p.type === 'AssignmentPattern') add(p.left)
+    else if (p.type === 'RestElement') add(p.argument)
+    else if (p.type === 'ObjectPattern') p.properties.forEach((q) => add(q.type === 'RestElement' ? q.argument : q.value))
+    else if (p.type === 'ArrayPattern') p.elements.forEach(add)
+  }
+  fn.params.forEach(add)
+  return out
+}
+/** The functions around a node, innermost first (from an astWalk ancestor stack). */
+const fnChainOf = (stack) => [...stack].reverse().filter((x) => AST_FUNC_TYPES.has(x.type))
+
+/** Every name a binding pattern introduces (`x`, `{ a, b: c }`, `[d, ...e]`, defaults, rest). */
+function patternNames(p) {
+  if (!p) return []
+  if (p.type === 'Identifier') return [p.name]
+  if (p.type === 'AssignmentPattern') return patternNames(p.left)
+  if (p.type === 'RestElement') return patternNames(p.argument)
+  if (p.type === 'ObjectPattern') return p.properties.flatMap((q) => patternNames(q.type === 'RestElement' ? q.argument : q.value))
+  if (p.type === 'ArrayPattern') return p.elements.flatMap(patternNames)
+  return []
+}
+
+/** Every LOCAL BINDING of the file, with the function it lives in: any `const`/`let`/`var` (patterns and
+ *  `for…of/in` heads included), function and class names, imports, catch parameters. Only a binding whose
+ *  initialiser is a literal / template / `+` / ternary / call is READABLE, and only while nothing assigns to
+ *  it; every other binding is registered as UNREADABLE so it shadows an outer constant of the same name
+ *  instead of letting it through. Same-file functions are also kept under `fn:<name>` (so
+ *  `selectionExportUrl(format)` resolves to what it returns). */
+function constNodes(ast) {
+  const map = new Map()
+  const add = (name, node, chain, readable) => {
+    if (!map.has(name)) map.set(name, [])
+    map.get(name).push({ node, chain, scope: chain[0] ?? null, readable, reassigned: false })
+  }
+  const READABLE = ['Literal', 'TemplateLiteral', 'BinaryExpression', 'ConditionalExpression', 'CallExpression']
+  astWalk(ast, (n, stack) => {
+    const chain = fnChainOf(stack)
+    if (n.type === 'FunctionDeclaration' && n.id) { add(`fn:${n.id.name}`, n, chain, true); add(n.id.name, null, chain, false) }
+    if (n.type === 'ClassDeclaration' && n.id) add(n.id.name, null, chain, false)
+    if (n.type === 'ImportDeclaration') n.specifiers.forEach((sp) => add(sp.local.name, null, [], false))
+    if (n.type === 'CatchClause') patternNames(n.param).forEach((nm) => add(nm, null, chain, false))
+    if (n.type === 'VariableDeclarator') {
+      if (n.id.type !== 'Identifier') { patternNames(n.id).forEach((nm) => add(nm, null, chain, false)); return }
+      if (n.init && AST_FUNC_TYPES.has(n.init.type)) add(`fn:${n.id.name}`, n.init, chain, true)
+      const ok = Boolean(n.init) && READABLE.includes(n.init.type)
+      add(n.id.name, ok ? n.init : null, chain, ok)
+    }
+  })
+  // an assignment (or `++`, or a bare `for (x of …)` head) makes the binding it reaches unreadable
+  astWalk(ast, (n, stack) => {
+    let names = []
+    if (n.type === 'AssignmentExpression') names = patternNames(n.left)
+    if (n.type === 'UpdateExpression') names = patternNames(n.argument)
+    if ((n.type === 'ForOfStatement' || n.type === 'ForInStatement') && n.left.type !== 'VariableDeclaration') names = patternNames(n.left)
+    const chain = fnChainOf(stack)
+    for (const nm of names) {
+      for (const scope of [...chain, null]) {
+        const hit = (map.get(nm) || []).filter((x) => x.scope === scope)
+        if (hit.length || (scope && paramNamesOf(scope).has(nm))) { hit.forEach((x) => { x.reassigned = true }); break }
+      }
+    }
+  })
+  return map
+}
+
+/** The binding a name means at a place: the enclosing function's own first, then outward to the module.
+ *  `null` = it is a parameter, declared twice in one scope, unreadable, or reassigned: NEVER guessed, and never
+ *  resolved to an outer constant of the same name. `undefined` = not declared as a local binding at all. */
+function lookupBinding(name, chain, consts) {
+  for (const scope of [...chain, null]) {
+    if (scope && paramNamesOf(scope).has(name)) return null
+    const here = (consts.get(name) || []).filter((x) => x.scope === scope)
+    if (here.length > 1) return null
+    if (here.length === 1) return here[0].readable && !here[0].reassigned ? here[0] : null
+  }
+  return undefined
+}
+
+/** A URL expression as the route shapes it can resolve to: literal text kept, every other expression →
+ *  `*`, a conditional is BOTH branches, a conditional query suffix (`cond ? '?a=1' : ''`) is dropped.
+ *  `null` = could not be read at all (a parameter, an ambiguous name, a bare variable with no const behind it).
+ *  `chain` = the functions around the expression, innermost first. */
+function urlShapesOf(node, consts, chain, seen = new Set()) {
+  if (!node) return null
+  if (node.type === 'Literal') return typeof node.value === 'string' ? [node.value] : null
+  if (node.type === 'Identifier') {
+    const b = lookupBinding(node.name, chain, consts)
+    if (!b || seen.has(b)) return null
+    return urlShapesOf(b.node, consts, b.chain, new Set([...seen, b]))
+  }
+  if (node.type === 'CallExpression' && node.callee.type === 'Identifier') {
+    // a same-file function that just returns a URL expression: its parameters are path segments
+    const b = lookupBinding(`fn:${node.callee.name}`, chain, consts)
+    if (!b || seen.has(b)) return null
+    const fn = b.node
+    const ret = fn.body.type === 'BlockStatement'
+      ? fn.body.body.filter((x) => x.type === 'ReturnStatement').at(-1)?.argument : fn.body
+    return urlShapesOf(ret, consts, [fn, ...b.chain], new Set([...seen, b]))
+  }
+  if (node.type === 'ConditionalExpression') {
+    const c = urlShapesOf(node.consequent, consts, chain, seen)
+    const alt = urlShapesOf(node.alternate, consts, chain, seen)
+    return c && alt ? [...c, ...alt] : null
+  }
+  if (node.type === 'BinaryExpression' && node.operator === '+') {
+    const l = urlShapesOf(node.left, consts, chain, seen)
+    if (!l) return null
+    const r = urlShapesOf(node.right, consts, chain, seen) ?? ['*']
+    return l.flatMap((x) => r.map((y) => `${x}${y}`))
+  }
+  if (node.type === 'TemplateLiteral') {
+    let out = ['']
+    for (let i = 0; i < node.quasis.length; i += 1) {
+      out = out.map((x) => x + node.quasis[i].value.cooked)
+      if (i < node.expressions.length) {
+        const e = node.expressions[i]
+        let parts = ['*']
+        if (e.type === 'Identifier') parts = urlShapesOf(e, consts, chain, seen) ?? ['*']
+        else if (e.type === 'ConditionalExpression') {
+          const got = urlShapesOf(e, consts, chain, seen)
+          // `${q ? `?a=${x}` : ''}`: an optional QUERY, not a path segment
+          if (got && got.every((g) => g === '' || g.startsWith('?'))) parts = ['']
+        }
+        out = out.flatMap((x) => parts.map((p) => x + p))
+      }
+    }
+    return out
+  }
+  return null
+}
+const routesOf = (shapes) => (shapes === null ? null : shapes.map((x) => x.replace(/\?.*$/, '')))
+
+const isMethodProp = (p) => p.type === 'Property' && !p.computed && (p.key.name === 'method' || p.key.value === 'method')
+
+/** The literal methods an options expression resolves to; `undefined` = cannot say. */
+function methodsOfOptions(opts, fallback = 'GET') {
+  if (opts === undefined) return [fallback]
+  if (opts.type === 'ConditionalExpression') {
+    // `cond ? { credentials, signal } : { credentials }`: both branches must be readable
+    const c = methodsOfOptions(opts.consequent, fallback)
+    const alt = methodsOfOptions(opts.alternate, fallback)
+    return c && alt ? [...new Set([...c, ...alt])] : undefined
+  }
+  if (opts.type !== 'ObjectExpression') return undefined
+  const prop = opts.properties.find(isMethodProp)
+  if (!prop) return opts.properties.some((p) => p.type === 'SpreadElement') ? undefined : [fallback]
+  const v = prop.value
+  if (v.type === 'Literal' && typeof v.value === 'string') return [v.value.toUpperCase()]
+  if (v.type === 'ConditionalExpression' && [v.consequent, v.alternate]
+    .every((b) => b.type === 'Literal' && typeof b.value === 'string')) {
+    return [v.consequent.value.toUpperCase(), v.alternate.value.toUpperCase()]
+  }
+  return undefined
+}
+
+const WRITE_VERBS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+const isFetchRef = (e) => Boolean(e) && ((e.type === 'Identifier' && e.name === 'fetch')
+  || (e.type === 'MemberExpression' && !e.computed && e.property.name === 'fetch'
+    && ['globalThis', 'window', 'self'].includes(e.object.name)))
+
+/** Every request site in one file: direct `fetch`es and calls to same-file forwarding helpers, plus the
+ *  write-capable helpers and injected fetches the scan cannot judge (UNRESOLVED-HELPER). */
+function scanSites(file, src) {
+  const ast = JsxParser.parse(src, { ecmaVersion: 'latest', sourceType: 'module', locations: true })
+  const consts = constNodes(ast)
+  const nameOfFn = new Map()
+  astWalk(ast, (n) => {
+    if (n.type === 'FunctionDeclaration' && n.id) nameOfFn.set(n, n.id.name)
+    if (n.type === 'VariableDeclarator' && n.id?.type === 'Identifier' && n.init && AST_FUNC_TYPES.has(n.init.type)) {
+      nameOfFn.set(n.init, n.id.name)
+    }
+  })
+  const innermostFn = (stack) => [...stack].reverse().find((x) => AST_FUNC_TYPES.has(x.type))
+  const bare = (p) => (p.type === 'AssignmentPattern' ? p.left : p)
+  const helperProblems = []
+
+  /** 'fetch' (the global, `window|self|globalThis.fetch`, or a parameter defaulting to it), 'injected' (a
+   *  parameter named like fetch), or null */
+  const fetchKind = (n, stack) => {
+    if (isFetchRef(n.callee)) return 'fetch'
+    if (n.callee.type !== 'Identifier') return null
+    const name = n.callee.name
+    for (const fn of fnChainOf(stack)) {
+      const p = fn.params.find((q) => bare(q).type === 'Identifier' && bare(q).name === name)
+      if (p) return p.type === 'AssignmentPattern' && isFetchRef(p.right) ? 'fetch' : (/fetch/i.test(name) ? 'injected' : null)
+    }
+    return null
+  }
+
+  // pass 1: forwarding helpers — a function handing one of its own parameters to fetch
+  const helpers = new Map()
+  const helperFetches = new Set()
+  astWalk(ast, (n, stack) => {
+    if (n.type !== 'CallExpression') return
+    const kind = fetchKind(n, stack)
+    if (!kind) return
+    const fn = innermostFn(stack)
+    const a0 = n.arguments[0]
+    const idx = fn && a0?.type === 'Identifier'
+      ? fn.params.findIndex((p) => bare(p).type === 'Identifier' && bare(p).name === a0.name) : -1
+    if (idx < 0 || !nameOfFn.get(fn)) {
+      // an injected fetch that is NOT a parameter-forwarding helper cannot be judged: reported, never silent
+      if (kind === 'injected') helperProblems.push({ line: n.loc.start.line, name: n.callee.name, why: 'a fetch injected as a parameter' })
+      return
+    }
+    helperFetches.add(n)
+    const opts = n.arguments[1]
+    const mprop = opts?.type === 'ObjectExpression' ? opts.properties.find(isMethodProp) : null
+    const h = { name: nameOfFn.get(fn), urlIdx: idx, optsIdx: -1, fixed: null, fallback: 'GET', fn, calls: 0 }
+    // the options are the helper's own parameter, handed through whole (`fetch(url, opts)`) or spread in
+    // (`fetch(url, { credentials, ...init })`): the call's options literal says the method
+    const passed = opts?.type === 'Identifier' ? opts
+      : (opts?.type === 'ObjectExpression' && !mprop
+        ? opts.properties.find((p) => p.type === 'SpreadElement' && p.argument.type === 'Identifier')?.argument : null)
+    const passedIdx = passed ? fn.params.findIndex((p) => bare(p).type === 'Identifier' && bare(p).name === passed.name) : -1
+    if (passedIdx >= 0) h.optsIdx = passedIdx
+    else if (!mprop) h.fixed = methodsOfOptions(opts)
+    else if (mprop.value.type === 'Identifier') {
+      // the method is a destructured option of the helper: `{ method = 'GET', body }`
+      fn.params.forEach((p, i) => {
+        const pat = bare(p)
+        if (pat.type !== 'ObjectPattern') return
+        for (const pp of pat.properties) {
+          if (pp.type !== 'Property') continue
+          const local = pp.value.type === 'AssignmentPattern' ? pp.value.left : pp.value
+          if (local.type === 'Identifier' && local.name === mprop.value.name) {
+            h.optsIdx = i
+            if (pp.value.type === 'AssignmentPattern' && pp.value.right.type === 'Literal') {
+              h.fallback = String(pp.value.right.value).toUpperCase()
+            }
+          }
+        }
+      })
+      if (h.optsIdx < 0) h.fixed = undefined
+    } else h.fixed = methodsOfOptions(opts)
+    helpers.set(h.name, h)
+  })
+
+  const sites = []
+  const push = (n, stack, over) => {
+    const fn = innermostFn(stack)
+    sites.push({
+      file, line: n.loc.start.line, start: n.start, end: n.end, fnEnd: fn ? fn.end : src.length,
+      fnName: fn ? nameOfFn.get(fn) || null : null, ...over,
+    })
+  }
+  // pass 2: sites
+  astWalk(ast, (n, stack) => {
+    if (n.type !== 'CallExpression') return
+    const kind = fetchKind(n, stack)
+    if (!kind && n.callee.type !== 'Identifier') return
+    const chain = fnChainOf(stack)
+    if (kind) {
+      // a forwarder (`getJson(fetchImpl, url, init)`) is judged at ITS call sites; an injected fetch that is not
+      // one was reported in pass 1
+      if (helperFetches.has(n) || kind === 'injected') return
+
+      push(n, stack, { kind: 'fetch', methods: methodsOfOptions(n.arguments[1]), shapes: routesOf(urlShapesOf(n.arguments[0], consts, chain)) })
+      return
+    }
+    const h = helpers.get(n.callee.name)
+    if (!h) return
+    h.calls += 1
+    const methods = h.optsIdx >= 0 ? methodsOfOptions(n.arguments[h.optsIdx], h.fallback) : h.fixed
+    push(n, stack, { kind: 'helper', methods, shapes: routesOf(urlShapesOf(n.arguments[h.urlIdx], consts, chain)) })
+  })
+
+  // a write-capable helper the same-file call scan cannot account for is REPORTED, never silent
+  const exported = new Set()
+  const byReference = new Set()
+  astWalk(ast, (n, stack) => {
+    if (n.type === 'ExportNamedDeclaration') {
+      const d = n.declaration
+      if (d?.type === 'FunctionDeclaration' && d.id) exported.add(d.id.name)
+      if (d?.type === 'VariableDeclaration') d.declarations.forEach((x) => { if (x.id.type === 'Identifier') exported.add(x.id.name) })
+      ;(n.specifiers || []).forEach((sp) => exported.add(sp.local.name))
+    }
+    if (n.type === 'ExportDefaultDeclaration' && n.declaration.type === 'Identifier') exported.add(n.declaration.name)
+    if (n.type !== 'Identifier' || !helpers.has(n.name)) return
+    const parent = stack.at(-1)
+    if (!parent) return
+    if (parent.type === 'CallExpression' && parent.callee === n) return
+    if ((parent.type === 'VariableDeclarator' || parent.type === 'FunctionDeclaration') && parent.id === n) return
+    if (parent.type === 'MemberExpression' && parent.property === n && !parent.computed) return
+    if (parent.type === 'Property' && parent.key === n && !parent.computed && !parent.shorthand) return
+    if (parent.type === 'ExportSpecifier' || parent.type === 'ExportDefaultDeclaration') return
+    byReference.add(n.name)
+  })
+  for (const h of helpers.values()) {
+    const writeCapable = h.optsIdx >= 0 || h.fixed === undefined || (h.fixed || []).some((m) => WRITE_VERBS.has(m))
+    if (!writeCapable) continue
+    const why = [exported.has(h.name) && 'exported', byReference.has(h.name) && 'passed by reference', h.calls === 0 && 'no in-file call']
+      .filter(Boolean).join(', ')
+    if (why) helperProblems.push({ line: h.fn.loc.start.line, name: h.name, why: `a write-capable helper that is ${why}` })
+  }
+
+  sites.sort((x, y) => x.start - y.start)
+  return {
+    helperProblems,
+    sites: sites.map((st, i) => {
+      const next = sites.slice(i + 1).find((x) => x.start >= st.end)
+      const windowEnd = Math.min(st.fnEnd, next ? next.start : src.length)
+      return {
+        ...st,
+        keys: st.methods && st.shapes ? st.methods.flatMap((m) => st.shapes.map((sh) => `${m} ${sh}`)) : [],
+        settles: landsARevision(src.slice(st.start, windowEnd)),
+      }
+    }),
+  }
+}
+
+/**
+ * The problems rail ④b reports for a set of {path: source} files. Pure, so the controls below can run
+ * it over an in-memory copy of the real file with a settle deleted and watch it go red.
+ *   UNRESOLVED-METHOD — a request whose method could not be read (never skipped);
+ *   UNRESOLVED-URL    — a WRITE whose URL could not be read;
+ *   UNRESOLVED-HELPER — a write-capable helper or injected fetch the same-file scan cannot account for;
+ *   UNSETTLED         — a write to a door route that never lands its revision.
+ * ⛔ UNSETTLED is judged on EVERY resolved site, direct fetches included. An earlier version skipped any
+ * direct fetch with a literal `method: 'POST'` on the theory that rails ③/④ had judged it; they key on
+ * rail ②'s door set, so they judged neither the stopgap routes nor any door reached by a computed URL.
+ * Double-judging a site they also judge is harmless: the two agree on every door site in the tree.
+ */
+function forwardedProblems(files, doorKeys, exceptions = { ...ROUTE_EXCEPTIONS, ...SITE_EXCEPTIONS }) {
+  const problems = []
+  const seen = []
+  for (const [file, src] of Object.entries(files)) {
+    let scan
+    try { scan = scanSites(file, src) } catch (e) {
+      problems.push(`UNPARSEABLE: ${file} -- ${e.message}`)
+      continue
+    }
+    for (const hp of scan.helperProblems) {
+      problems.push(`UNRESOLVED-HELPER: ${file}:${hp.line} (${hp.name}) -- ${hp.why}`)
+    }
+    for (const st of scan.sites) {
+      seen.push(st)
+      if (st.methods === undefined) { problems.push(`UNRESOLVED-METHOD: ${file}:${st.line}`); continue }
+      // an unreadable URL matters where a WRITE goes: a GET helper called with a computed URL is a read
+      if (st.shapes === null && st.methods.some((m) => WRITE_VERBS.has(m))) problems.push(`UNRESOLVED-URL: ${file}:${st.line}`)
+      for (const key of st.keys) {
+        if (!WRITE_VERBS.has(key.split(' ')[0]) || !doorKeys.has(key)) continue
+        if (exceptions[key] || exceptions[`${file}:${key}`]) continue
+        if (!st.settles) problems.push(`UNSETTLED: ${file}:${st.line}${st.fnName ? ` (${st.fnName})` : ''} — ${key}`)
+      }
+    }
+  }
+  return { problems, sites: seen }
+}
+
+/** Every non-test `.js`/`.jsx` file under journal-2-0 whose SOURCE CONTAINS `/api/j2/note`, as {repo-relative
+ *  path: source}. ⛔ That is the scan rule, and it is a limit: a file that calls fetch but names no note route
+ *  (notePublishLink.js, the trades and positions tabs) is not read. Widening it to every file that mentions
+ *  `fetch` was tried and goes RED on ~20 sites in the trades/positions code that are not note doors
+ *  (non-literal methods, computed URLs), so it is stated rather than done. */
+function noteTouchingSources() {
+  const out = {}
+  for (const p of walk(join(CLIENT, 'pages', 'journal-2-0'))) {
+    if (!/\.(js|jsx)$/.test(p) || isTest(p)) continue
+    const src = readFileSync(p, 'utf8')
+    if (/\/api\/j2\/note/.test(src)) out[rel(p)] = src
+  }
+  return out
+}
+
+const JOURNAL_STYLES_FILE = 'app/src/pages/journal-2-0/lib/journalStyles.js'
+const NOTES_HOOK_FILE = 'app/src/pages/journal-2-0/hooks/useJ2Notes.js'
+
+describe('⛔⛔ ④b — helper-forwarded and dynamic-method writes are SEEN, resolved, and checked', () => {
+  const doors = () => advancingRoutes(reachingFunctions(sqlAdvancingFunctions()))
+  const doorKeys = () => new Set([...doors(), ...Object.keys(STYLE_DOOR_STOPGAP)])
+  // CRLF-normalised: a Windows checkout with core.autocrlf writes the file with CRLF, and the controls
+  // below delete exact `\n`-terminated lines (found on the integration merge, where it read "could not find").
+  const styles = () => readFileSync(join(REPO, ...JOURNAL_STYLES_FILE.split('/')), 'utf8').replace(/\r\n/g, '\n')
+
+  it('every request in a note-touching file has a readable method, and every door write lands its revision', () => {
+    const files = noteTouchingSources()
+    expect(Object.keys(files), 'the scan found no files — the matcher is broken, not the tree')
+      .toContain(JOURNAL_STYLES_FILE)
+    const { problems, sites } = forwardedProblems(files, doorKeys())
+    expect(sites.length, 'the AST scan saw almost no requests').toBeGreaterThan(40)
+    expect(problems, '⛔ a request the door rail cannot read, or a door write that never lands its revision').toEqual([])
+  }, 60_000)
+
+  it('⭐ CONTROL — both of journalStyles.js\'s note-moving calls resolve to their routes and are seen as settled', () => {
+    const { sites } = forwardedProblems({ [JOURNAL_STYLES_FILE]: styles() }, doorKeys())
+    const apply = sites.find((s) => s.fnName === 'applyStyleUpdate')
+    const mapping = sites.find((s) => s.fnName === 'applyMappingOffer')
+    expect(apply?.keys, 'applyStyleUpdate must resolve through call() to its route').toEqual(['POST /api/j2/notes/*/apply-style-update'])
+    expect(apply.settles).toBe(true)
+    expect(mapping?.keys).toEqual(['POST /api/j2/note-kinds/mapping-offer'])
+    expect(mapping.settles).toBe(true)
+    // …and the dry-run plan is a GET, not a write at all
+    const plan = sites.find((s) => s.fnName === 'planStyleUpdate')
+    expect(plan?.keys).toEqual(['GET /api/j2/notes/*/style-update-plan'])
+    // the stopgap names are matched by real sites (a stale entry fails here)
+    const seenKeys = new Set(sites.flatMap((s) => s.keys))
+    for (const k of Object.keys(STYLE_DOOR_STOPGAP)) {
+      expect(seenKeys.has(k), `${k} matches no client site`).toBe(true)
+      // …and the stopgap is deleted the moment rail ② derives the route itself: two authorities otherwise
+      expect(doors().has(k), `rail ② now derives ${k}: DELETE its STYLE_DOOR_STOPGAP entry`).toBe(false)
+    }
+  })
+
+  it('⭐ CONTROL — an in-memory copy of journalStyles.js with a settle deleted makes the rail go RED, and says where', () => {
+    const src = styles()
+    expect(forwardedProblems({ [JOURNAL_STYLES_FILE]: src }, doorKeys()).problems).toEqual([])
+    const noApply = src.replace('  await settleNoteWrite(out.note.id, out.note, accountId)\n', '')
+    expect(noApply, 'the control could not find the line it deletes').not.toBe(src)
+    const red1 = forwardedProblems({ [JOURNAL_STYLES_FILE]: noApply }, doorKeys()).problems
+    expect(red1.join('\n')).toMatch(/UNSETTLED: .*journalStyles\.js:\d+ \(applyStyleUpdate\) — POST \/api\/j2\/notes\/\*\/apply-style-update/)
+    const noMapping = src.replace(/ {2}await settleNoteWrites\([^\n]*\n/, '')
+    expect(noMapping, 'the control could not find the line it deletes').not.toBe(src)
+    const red2 = forwardedProblems({ [JOURNAL_STYLES_FILE]: noMapping }, doorKeys()).problems
+    expect(red2.join('\n')).toMatch(/UNSETTLED: .*\(applyMappingOffer\) — POST \/api\/j2\/note-kinds\/mapping-offer/)
+    // the window ends at the function: the neighbouring door's settle is not borrowed
+    expect(red2.join('\n')).not.toMatch(/applyStyleUpdate/)
+    expect(red1.join('\n')).not.toMatch(/applyMappingOffer/)
+  })
+
+  it('⭐ CONTROL — a planted dynamic-method fetch is reported UNRESOLVED-METHOD; a two-literal ternary is resolved', () => {
+    const planted = [
+      "export async function a(id, m) { return fetch(`/api/j2/notes/${id}/x`, { method: m, credentials: 'include' }) }",
+      "export async function b(id, init) { return fetch(`/api/j2/notes/${id}/y`, init) }",
+      "export async function c(id, p) { return fetch(`/api/j2/notes/${id}/z`, { ...p }) }",
+      "export async function d(id, on) { return fetch(`/api/j2/notes/${id}/f`, { method: on ? 'POST' : 'DELETE' }) }",
+      "export async function e(id) { return fetch(`/api/j2/notes/${id}/g`) }",
+    ].join('\n')
+    const { problems, sites } = forwardedProblems({ 'planted.js': planted }, new Set())
+    expect(problems).toEqual(['UNRESOLVED-METHOD: planted.js:1', 'UNRESOLVED-METHOD: planted.js:2', 'UNRESOLVED-METHOD: planted.js:3'])
+    expect(sites.find((s) => s.line === 4).keys).toEqual(['POST /api/j2/notes/*/f', 'DELETE /api/j2/notes/*/f'])
+    expect(sites.find((s) => s.line === 5).keys).toEqual(['GET /api/j2/notes/*/g'])
+  })
+
+  it('⭐ CONTROL — a helper\'s calls get their OWN method and URL, and an unsettled door call is reported', () => {
+    const planted = [
+      "const BASE = '/api/j2/notes'",
+      "async function call(url, { method = 'GET', body } = {}) { const r = await fetch(url, { method, body }); return r.json() }",
+      'export const read = (id) => call(`${BASE}/${id}`)',
+      "export async function move(id) { const out = await call(`${BASE}/${id}/hero`, { method: 'POST' }); return out }",
+      "export async function settled(id) { const out = await call(`${BASE}/${id}/hero`, { method: 'POST' }); await settleNoteWrite(id, out); return out }",
+    ].join('\n')
+    const { problems, sites } = forwardedProblems({ 'planted.js': planted }, new Set(['POST /api/j2/notes/*/hero']))
+    expect(sites.find((s) => s.fnName === 'read').keys).toEqual(['GET /api/j2/notes/*'])
+    expect(problems).toEqual(['UNSETTLED: planted.js:4 (move) — POST /api/j2/notes/*/hero'])
+  })
+
+  it('⭐ the favourite toggle, blind to every rail until now, resolves to both routes and is not a door', () => {
+    const src = noteTouchingSources()[NOTES_HOOK_FILE]
+    const { sites } = forwardedProblems({ [NOTES_HOOK_FILE]: src }, doorKeys())
+    const fav = sites.find((s) => s.fnName === 'setNoteFavorite')
+    expect(fav?.keys).toEqual(['POST /api/j2/notes/*/favorite', 'DELETE /api/j2/notes/*/favorite'])
+    // the derivation (journal_two.py's own SQL) does not find it advancing updated_at, so there is
+    // no revision to land -- a fact derived from the code, not a label
+    expect(doors().has('POST /api/j2/notes/*/favorite')).toBe(false)
+    expect(doors().has('DELETE /api/j2/notes/*/favorite')).toBe(false)
+  })
+
+  // ── I-A: every direct fetch is judged, not only the ones with a non-literal shape ──────────────
+  it('⭐ CONTROL — a DIRECT fetch to a stopgap door with no settle is RED, and settled it is clean', () => {
+    const bad = [
+      'export async function go(id) {',
+      '  const r = await fetch(`/api/j2/notes/${id}/apply-style-update`, { method: \'POST\' })',
+      '  return r.json()',
+      '}',
+    ].join('\n')
+    const stop = new Set(Object.keys(STYLE_DOOR_STOPGAP))
+    expect(forwardedProblems({ 'planted.js': bad }, stop).problems)
+      .toEqual(['UNSETTLED: planted.js:2 (go) — POST /api/j2/notes/*/apply-style-update'])
+    const good = bad.replace('  return r.json()', '  const b = await r.json()\n  await settleNoteWrite(id, b.note)\n  return b')
+    expect(forwardedProblems({ 'planted.js': good }, stop).problems).toEqual([])
+  })
+
+  it('⭐ CONTROL — a door reached by a COMPUTED URL (concatenation, a URL function) with no settle is RED', () => {
+    const planted = [
+      "const BASE = '/api/j2/notes'",
+      "const heroUrl = (id) => `/api/j2/notes/${id}/hero`",
+      "export async function a(id) { return fetch(BASE + '/' + id + '/hero', { method: 'POST' }) }",
+      "export async function b(id) { return fetch(heroUrl(id), { method: 'POST' }) }",
+    ].join('\n')
+    expect(forwardedProblems({ 'planted.js': planted }, new Set(['POST /api/j2/notes/*/hero'])).problems).toEqual([
+      'UNSETTLED: planted.js:3 (a) — POST /api/j2/notes/*/hero',
+      'UNSETTLED: planted.js:4 (b) — POST /api/j2/notes/*/hero',
+    ])
+  })
+
+  // ── I-B: a write-capable helper the scan cannot account for is REPORTED ─────────────────────────
+  it('⭐ CONTROL — an exported, by-reference, call-less or injected write helper is UNRESOLVED-HELPER; a read helper is not', () => {
+    const run = (src) => forwardedProblems({ 'planted.js': src }, new Set()).problems
+    expect(run('export async function send(url, init) { return fetch(url, init) }'))
+      .toEqual([expect.stringMatching(/^UNRESOLVED-HELPER: planted\.js:1 \(send\) -- .*exported/)])
+    expect(run([
+      'const sender = async (url, init) => fetch(url, init)',
+      "sender('/api/j2/notes/1/x', { method: 'POST' })",
+      'useThing(sender)',
+    ].join('\n'))).toEqual([expect.stringMatching(/^UNRESOLVED-HELPER: planted\.js:1 \(sender\) -- .*passed by reference/)])
+    expect(run('async function send(url, init) { return fetch(url, init) }'))
+      .toEqual([expect.stringMatching(/^UNRESOLVED-HELPER: planted\.js:1 \(send\) -- .*no in-file call/)])
+    expect(run("export async function archive(id, fetchImpl) { return fetchImpl('/api/j2/notes/1/archive', { method: 'PATCH' }) }"))
+      .toEqual([expect.stringMatching(/^UNRESOLVED-HELPER: planted\.js:1 \(fetchImpl\) -- .*injected/)])
+    // a GET-only helper, exported, is a read: nothing to judge
+    expect(run('export const fetcher = (url) => fetch(url)')).toEqual([])
+    // a parameter that DEFAULTS to fetch is fetch itself, so the call is an ordinary site
+    const { problems, sites } = forwardedProblems({
+      'planted.js': "export async function archive(id, fetchImpl = globalThis.fetch) { return fetchImpl(`/api/j2/notes/${id}/archive`, { method: 'PATCH' }) }",
+    }, new Set())
+    expect(problems).toEqual([])
+    expect(sites[0].keys).toEqual(['PATCH /api/j2/notes/*/archive'])
+  })
+
+  // ── I-C: constants resolve by scope ────────────────────────────────────────────────────────────
+  it('⭐ CONTROL — a `const url` in one function is not read as a later function\'s `const url`', () => {
+    const planted = [
+      'export async function setHero(id) {',
+      '  const url = `/api/j2/notes/${id}/hero`',
+      "  const out = await call(url, { method: 'POST' })",
+      '  return out',
+      '}',
+      'export async function search() {',
+      "  const url = '/api/j2/notes/search'",
+      '  return call(url)',
+      '}',
+      'async function call(url, init) { return fetch(url, init) }',
+    ].join('\n')
+    const { problems, sites } = forwardedProblems({ 'planted.js': planted }, new Set(['POST /api/j2/notes/*/hero']))
+    expect(sites.find((x) => x.fnName === 'setHero').keys).toEqual(['POST /api/j2/notes/*/hero'])
+    expect(sites.find((x) => x.fnName === 'search').keys).toEqual(['GET /api/j2/notes/search'])
+    expect(problems).toEqual(['UNSETTLED: planted.js:3 (setHero) — POST /api/j2/notes/*/hero'])
+  })
+
+  it('⭐ CONTROL — a name declared twice in ONE scope, or shadowed by a parameter, is unreadable, never guessed', () => {
+    const twice = [
+      // the module also has a `url`: an ambiguous inner name must NOT fall through to it
+      "const url = '/api/j2/notes/search'",
+      'export async function f(id, big) {',
+      "  if (big) { const url = '/api/j2/notes/big' }",
+      '  const url = `/api/j2/notes/${id}/hero`',
+      "  return fetch(url, { method: 'POST' })",
+      '}',
+    ].join('\n')
+    expect(forwardedProblems({ 'planted.js': twice }, new Set()).problems).toEqual(['UNRESOLVED-URL: planted.js:5'])
+    const shadow = [
+      "const url = '/api/j2/notes/search'",
+      "export async function g(url) { const x = url + '/y'; return fetch(x, { method: 'POST' }) }",
+    ].join('\n')
+    expect(forwardedProblems({ 'planted.js': shadow }, new Set()).problems).toEqual(['UNRESOLVED-URL: planted.js:2'])
+    // an outer module constant is still found from inside a function that does not redeclare it
+    const outer = [
+      "const BASE = '/api/j2/notes'",
+      "export async function h() { const url = BASE + '/x'; return fetch(url, { method: 'POST' }) }",
+      "export async function i() { const url = BASE + '/y'; return fetch(url, { method: 'POST' }) }",
+    ].join('\n')
+    const { problems, sites } = forwardedProblems({ 'planted.js': outer }, new Set())
+    expect(problems).toEqual([])
+    expect(sites.map((x) => x.keys[0])).toEqual(['POST /api/j2/notes/x', 'POST /api/j2/notes/y'])
+  })
+
+
+  // ── C-1: EVERY local binding shadows an outer constant, whatever its shape ───────────────────────
+  it.each([
+    ['a call initialiser the rail cannot read', 'const url = heroOf(id)'],
+    ['a destructured binding', 'const { url } = cfg'],
+    ['a for…of loop variable', 'for (const url of urls) { await fetch(url, { method: \'POST\' }) }'],
+    ['a `let` that is reassigned', 'let url = \'/api/j2/notes/search\'; url = `/api/j2/notes/${id}/hero`'],
+    ['a catch parameter', 'try { x() } catch (url) { y() }'],
+    ['a function declared with the name', 'function url() { return \'/api/j2/notes/hero\' }'],
+  ])('⭐ CONTROL — %s shadows the module constant and is UNREADABLE, never read as the outer one', (_what, decl) => {
+    const loop = decl.startsWith('for')
+    const planted = [
+      "const url = '/api/j2/notes/search'",
+      'export async function f(id, urls, cfg) {',
+      `  ${decl}`,
+      ...(loop ? [] : ["  const r = await fetch(url, { method: 'POST' })", '  return r']),
+      '}',
+    ].join('\n')
+    const { problems, sites } = forwardedProblems({ 'planted.js': planted }, new Set(['POST /api/j2/notes/search']))
+    expect(sites.map((x) => x.keys), 'read as the outer constant').toEqual([[]])
+    expect(problems).toEqual([expect.stringMatching(/^UNRESOLVED-URL: planted\.js:\d+$/)])
+  })
+
+  it('⭐ CONTROL — a same-file URL function in a `const url = heroOf(id)` IS read (the call initialiser is readable when it resolves)', () => {
+    const planted = [
+      "const url = '/api/j2/notes/search'",
+      'const heroOf = (id) => `/api/j2/notes/${id}/hero`',
+      'export async function f(id) {',
+      '  const url = heroOf(id)',
+      "  return fetch(url, { method: 'POST' })",
+      '}',
+    ].join('\n')
+    expect(forwardedProblems({ 'planted.js': planted }, new Set(['POST /api/j2/notes/*/hero'])).problems)
+      .toEqual(['UNSETTLED: planted.js:5 (f) — POST /api/j2/notes/*/hero'])
+  })
+
+  // ── E-1: a function forwarding its parameters to an INJECTED fetch is a helper, judged at its calls ──
+  it('⭐ CONTROL — an injected-fetch forwarder is judged at its call sites: an unsettled door write is RED', () => {
+    const planted = [
+      'async function getJson(fetchImpl, url, init) { const res = await fetchImpl(url, { credentials: \'include\', ...init }); return res.json() }',
+      'export const read = (fetchImpl) => getJson(fetchImpl, \'/api/j2/trades?limit=1\')',
+      "async function check(fetchImpl) { return getJson(fetchImpl, '/api/j2/notes/import/check', { method: 'POST' }) }",
+      'async function save(fetchImpl, id) { return getJson(fetchImpl, `/api/j2/notes/${id}`, { method: \'PUT\' }) }',
+      'check(realFetch); save(realFetch, 1)',
+    ].join('\n')
+    const { problems, sites } = forwardedProblems({ 'planted.js': planted }, new Set(['PUT /api/j2/notes/*']))
+    expect(sites.map((x) => x.keys[0])).toEqual(['GET /api/j2/trades', 'POST /api/j2/notes/import/check', 'PUT /api/j2/notes/*'])
+    expect(problems).toEqual(['UNSETTLED: planted.js:4 (save) — PUT /api/j2/notes/*'])
+  })
+
+  it('⭐ CONTROL — `window.fetch` / `globalThis.fetch` are fetch: a computed URL through them is judged', () => {
+    const planted = [
+      "const heroUrl = (id) => `/api/j2/notes/${id}/hero`",
+      "export async function a(id) { return window.fetch(heroUrl(id), { method: 'POST' }) }",
+      "export async function b(id) { return globalThis.fetch(heroUrl(id), { method: 'POST' }) }",
+    ].join('\n')
+    expect(forwardedProblems({ 'planted.js': planted }, new Set(['POST /api/j2/notes/*/hero'])).problems).toEqual([
+      'UNSETTLED: planted.js:2 (a) — POST /api/j2/notes/*/hero',
+      'UNSETTLED: planted.js:3 (b) — POST /api/j2/notes/*/hero',
+    ])
+  })
+
+  it('the real tree has NO helper exceptions: every injected or forwarded fetch resolves or is fixed', () => {
+    const { problems } = forwardedProblems(noteTouchingSources(), doorKeys())
+    expect(problems.filter((p) => p.startsWith('UNRESOLVED-HELPER'))).toEqual([])
+  }, 60_000)
+
+  // ── M-C: the window ends at the NEXT scanned site ──────────────────────────────────────────────
+  it('⭐ CONTROL — two door calls in one function: a settle after the second does not cover the first', () => {
+    const planted = [
+      'export async function two(id) {',
+      "  const a = await fetch(`/api/j2/notes/${id}/hero`, { method: 'POST' })",
+      "  const b = await fetch(`/api/j2/notes/${id}/hero`, { method: 'DELETE' })",
+      '  await settleNoteWrite(id, await b.json())',
+      '}',
+    ].join('\n')
+    expect(forwardedProblems({ 'planted.js': planted },
+      new Set(['POST /api/j2/notes/*/hero', 'DELETE /api/j2/notes/*/hero'])).problems)
+      .toEqual(['UNSETTLED: planted.js:2 (two) — POST /api/j2/notes/*/hero'])
   })
 })
 
