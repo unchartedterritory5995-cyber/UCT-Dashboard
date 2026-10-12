@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
-import { setAuthoringSources, _resetAuthoring } from './capabilities/indicatorAuthoring'
+import { setAuthoringSources, _resetAuthoring, oneLineOf, shownName } from './capabilities/indicatorAuthoring'
 import { _resetProposedPlans } from './capabilities/indicatorEdits'
 import { makeBoard } from './__fixtures__/board'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
@@ -185,10 +185,10 @@ describe('D — modifying an indicator that is already saved keeps ONE short con
     await say('apply it')
     await waitFor(() => expect(proposals().length).toBe(1), { timeout: 6000 })
     // the chart already shows it: a new version updates it there — the card never offers a second copy
-    expect(proposals()[0].textContent).toMatch(/This updates “.+” everywhere it’s used — save version 2(?! and add)/)
+    expect(proposals()[0].textContent).toMatch(/This updates (?:“.+”|your saved indicator) everywhere it’s used — save version 2(?! and add)/)
     await say('do it')
     await waitFor(() => expect([...server.values()][0].version).toBe(2), { timeout: 8000 })
-    await waitFor(() => expect(transcript()).toMatch(/Updated “.+” to version 2 — every chart using it shows the change now\. That’s permanent \(no Undo\)\./), { timeout: 6000 })
+    await waitFor(() => expect(transcript()).toMatch(/Updated (?:“.+”|your indicator) to version 2 — every chart using it shows the change now\. That’s permanent \(no Undo\)\./), { timeout: 6000 })
     expect(customOn(board, 'c')).toHaveLength(1)                         // still ONE copy on the chart
   }, 25000)
 })
@@ -304,4 +304,16 @@ describe('the card stays where the member must see something (Indicators (a)/(b)
     await waitFor(() => expect(proposals().length).toBe(1), { timeout: 6000 })
     expect(server.size).toBe(0)
   }, 20000)
+})
+
+describe('formula-like builder names never reach chat (Indicators 10-12)', () => {
+  it('a derived name that reads like a formula is replaced; plain names are shown', () => {
+    expect(shownName('EMA 9 > EMA 20', 'your indicator')).toBe('your indicator')
+    expect(shownName('EMA 9 · EMA 20 +3', 'it')).toBe('it')
+    expect(shownName('9/20 EMA trend', 'it')).toBe('“9/20 EMA trend”')
+    expect(shownName('RSI (14)', 'it')).toBe('“RSI (14)”')
+    const st = { name: 'High < High[1] and Low > Low[1]', readback: { outputs: [{ name: 'High <', phrase: 'marks inside candles' }] } }
+    expect(oneLineOf(st)).toBe('marks inside candles')
+    expect(oneLineOf({ name: 'EMA 9 > EMA 20', readback: {} })).toBe('your indicator')
+  })
 })

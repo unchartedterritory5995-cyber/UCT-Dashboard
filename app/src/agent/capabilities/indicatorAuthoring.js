@@ -179,6 +179,11 @@ function ownNames() {
 }
 /** ONE line that says what the draft does (Indicators' order): the colour / paint rule or signal
  *  line first, else the first VISIBLE output — never a hidden one. */
+// Indicators 10-12: the builder's derived names can read like formulas ("EMA 9 > EMA 20") — never put one in chat
+const FORMULA_NAME = /[<>=+*^[\]·]|&&|\|\|/
+export const looksLikeFormula = (name) => FORMULA_NAME.test(String(name || ''))
+/** “Name” for chat, or the fallback when the name is missing or reads like a formula. */
+export const shownName = (name, fallback) => (name && !looksLikeFormula(name) ? `“${name}”` : fallback)
 export function oneLineOf(status) {
   const rb = status?.readback || {}
   const look = (rb.presentation || []).filter(l => typeof l === 'string' && !/: hidden \(still calculated\)$/.test(l))
@@ -188,8 +193,8 @@ export function oneLineOf(status) {
   const ruled = look.find(l => / coloured | while /.test(l))
   if (ruled) return ruled
   const o = (rb.outputs || []).find(x => x && x.name && x.phrase)
-  if (o) return `${o.name} — ${o.phrase}`
-  return look[0] || (status?.name ? `“${status.name}”` : 'the indicator')
+  if (o) return looksLikeFormula(o.name) ? o.phrase : `${o.name} — ${o.phrase}`
+  return look[0] || shownName(status?.name, 'your indicator')
 }
 const sentence = (s) => { const t = String(s || '').trim(); return t ? `${t[0].toUpperCase()}${t.slice(1)}`.replace(/[.\s]+$/, '') : t }
 /** The lines a member must always see after a turn (Indicators (d)): questions, refusals, unavailable. */
@@ -432,7 +437,7 @@ export function refusalSentence(res) {
   }
 }
 
-const nameOf = (s) => (s?.status?.name ? `“${s.status.name}”` : 'the draft')
+const nameOf = (s) => shownName(s?.status?.name, 'the draft')
 
 // ── ⛔ F6 — APPROVAL INTEGRITY. A Save is always proposed, and the proposal's Apply RE-PLANS. What
 // the member approved is SEALED when the card is made (`sealSave`, kept by useAgent with the
@@ -523,7 +528,7 @@ export const indicatorDraftsKind = {
       const st = st0
       const out = draftUndo(patch.undo.draftRef, { expectedStepId: patch.undo.stepId }, ctx)
       if (!out.ok) throw fail(refusalSentence(out))
-      return { lines: [`Undid the last change to ${st?.name ? `“${st.name}”` : 'the draft'} (draft — not saved).`, ...(out.lines || [])] }
+      return { lines: [`Undid the last change to ${shownName(st?.name, 'the draft')} (draft — not saved).`, ...(out.lines || [])] }
     }
     const snap = snapshots(host).find(s => s.ref === ref)
     if (!snap) throw fail('that draft is no longer available')
@@ -588,7 +593,7 @@ export const indicatorDraftsKind = {
             return (all.find(x => x.ref === c) || all.find(x => String(x.ref).split('~')[0] === c))?.label || 'another chart'
           } catch { return 'another chart' }
         }
-        lines.push(`Showing ${name ? `“${name}”` : 'the draft'} as a preview on ${label(op.chartRef)} — a preview only, not saved${out.movedFrom ? ` (moved from ${label(out.movedFrom)})` : ''}.`)
+        lines.push(`Showing ${shownName(name, 'the draft')} as a preview on ${label(op.chartRef)} — a preview only, not saved${out.movedFrom ? ` (moved from ${label(out.movedFrom)})` : ''}.`)
       } else if (op.type === 'save') {
         const ctx = authoringCtx(host, originOf(draftStatus(draftRef, authoringCtx(host))))
         const st = draftStatus(draftRef, ctx)
@@ -662,8 +667,8 @@ export const indicatorDraftsKind = {
         lines.push(op.addTo?.length
           ? `Saved to your indicators${what} — that’s permanent; Undo takes it off the chart, the saved indicator stays.`
           : !out.created && showsDefinition(host, out.defId).length
-            ? `Updated “${saved}” to version ${out.version} — every chart using it shows the change now. That’s permanent (no Undo).`
-            : `Saved “${saved}” to your indicators${what} — permanent. It isn’t on a chart yet; say “apply it” to add it.`)
+            ? `Updated ${shownName(saved, 'your indicator')} to version ${out.version} — every chart using it shows the change now. That’s permanent (no Undo).`
+            : `Saved ${shownName(saved, 'it')} to your indicators${what} — permanent. It isn’t on a chart yet; say “apply it” to add it.`)
         // the specialist's own outcomes that matter (never its chart outcome — Save attaches no chart, §16)
         const chartTexts = new Set((out.outcomes || []).filter(o => o && o.kind === 'chart').map(o => o.text))
         for (const t of (out.outcomes || []).map(o => o && o.text)) {
@@ -874,7 +879,7 @@ export function registerIndicatorAuthoringCapabilities() {
       const s = b.status
       const nm = op.name ? `“${op.name}”` : nameOf(b)
       const ack = op.ackShown.length ? ` · You are also acknowledging: ${op.ackShown.join(' ')}` : ''
-      if (s.mode === 'edit') return `This updates ${nm} everywhere it’s used — save version ${Number.isInteger(s.baseVersion) ? s.baseVersion + 1 : 'new'}${where}${ack}`
+      if (s.mode === 'edit') return `This updates ${op.name ? nm : shownName(s.name, 'your saved indicator')} everywhere it’s used — save version ${Number.isInteger(s.baseVersion) ? s.baseVersion + 1 : 'new'}${where}${ack}`
       return `Save ${nm} as a new indicator${where}${ack}`
     },
   })
