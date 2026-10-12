@@ -502,13 +502,10 @@
     "path": "/journal/notebook",
     "steps": [
       {
-        "click": "link|View all notes"
+        "open_note": "Research: how a base"
       },
       {
-        "click": "button|+ New note"
-      },
-      {
-        "type": "/Pre-entry"
+        "type": "\n/Pre-entry"
       }
     ],
     "target": {
@@ -520,7 +517,7 @@
       "390"
     ],
     "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
-    "note": "Each P2a block is one slash item in the Trading group; the checklist stands for the four. The option's accessible name is its title AND its description (SlashMenu.jsx SlashList), so the name is matched from its start, as row 32's Due date is. Unmeasured when added."
+    "note": "Each P2a block is one slash item in the Trading group; the checklist stands for the four. The option's accessible name is its title AND its description (SlashMenu.jsx SlashList), so the name is matched from its start, as row 32's Due date is. Reached the way row 32 reaches the same slash menu (an open note, then type): ruling R-T13-4, after the first audit (door-audit-20261012T220847Z) walked View all notes and + New note first, which costs two presses no slash door owns."
   },
   {
     "feature": "Pre-entry checklist in Log Trade: the opt-in select (P2a)",
@@ -550,6 +547,10 @@
       "390"
     ],
     "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    "reason": {
+      "verdict": "HARD",
+      "text": "Integrator ruling R-T13-5: a once-per-member setting, kept in Portfolio Settings' TRADE SETUPS section beside the per-setup checklists it switches on, so the choice sits with the rules it shows. Measured one press (two at 390, behind Journal tools), labelled and uncovered, but 3.74 screens down the modal at 1280 and 3.96 at 390: past the one-scroll line. Owner call: accept, or add a way in from Log Trade itself (follow-up F-CHECKLIST-DOOR, carried to P2b's pre-flight)."
+    },
     "note": "The member's opt-in (PortfolioSettingsModal, shown only while journal styles are on), reached from the Journal header's settings gear. At 390 the Notebook folds the header tools behind \"Journal tools\" (JournalLayout D2), so that press comes first. Reachability read from the source, not measured; unmeasured when added. Row 58 (the checklist in Log Trade itself) needs this opt-in set, which no seed does, so the walk measures it (blocks.log-trade-checklist); row 60 (Update layout on a v1 Trade plan note) needs a seeded v1 note, which no seed makes, so the walk's styles update row measures it."
   }
 ]
