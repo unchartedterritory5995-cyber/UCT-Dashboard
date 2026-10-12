@@ -20,6 +20,7 @@ import { registerDrawingCapabilities } from './capabilities/drawings'
 import { registerIndicatorCapabilities } from './capabilities/indicators'
 import { registerIndicatorEditCapabilities } from './capabilities/indicatorEdits'
 import { registerIndicatorAuthoringCapabilities } from './capabilities/indicatorAuthoring'
+import { registerBreadthCapabilities } from './capabilities/breadth'
 
 let done = false
 export function registerBuiltins() {
@@ -33,6 +34,7 @@ export function registerBuiltins() {
   registerSessionMeasures()
   registerAlertCapabilities()
   registerStockCapabilities()
+  registerBreadthCapabilities()
   registerSettingsCapabilities()
   registerAppCapabilities()
   registerNewsCapabilities()

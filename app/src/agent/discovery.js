@@ -46,6 +46,14 @@ export const TOPICS = [
     planned: { when: 'Stage 2', what: 'reading a chart screenshot and rebuilding it in UCT, saying what it saw, what it inferred and what it could not tell' },
   },
   {
+    id: 'breadth', title: 'Market breadth history',
+    words: [/\bbreadth\b/, /\b(advance[- /]decline|new highs|new lows|% of stocks above)\b/],
+    caps: ['breadth.show'], productHas: true,
+    canDo: 'look up UCT’s finalized end-of-day market breadth for US, NYSE or Nasdaq stocks — a value on a date, two dates compared, or a date range summarised (% of stocks above their moving averages, new highs and lows, advance/decline, Stage 2/4 counts). UCT shows the figures to you directly; they are not sent to the AI model',
+    known: () => ['intraday or live breadth', 'breadth for UCT’s own universe or other indexes', 'conditional history questions (“when was breadth this low while…”)'],
+    planned: { when: 'Stage 3', what: 'conditional questions across UCT’s historical data, with explicit definitions and no look-ahead' },
+  },
+  {
     id: 'history', title: 'Historical market questions',
     words: [/\b(last time|when was|how often|historically|in the past|all[- ]time high|since \d{4})\b/],
     caps: [], productHas: false,
@@ -152,7 +160,7 @@ export const TOPICS = [
     words: [/\b(news|catalysts?|earnings|profile|fundamentals?|compare|headlines?)\b/],
     caps: ['stock.profile', 'stock.earnings', 'stock.compare', 'news.latest', 'news.catalysts'], productHas: true,
     canDo: 'look up a company’s profile and key numbers, its earnings, compare two stocks, and show the latest news and catalysts',
-    known: () => ['calendar, ownership, insider, ETF holdings, breadth, options flow and themes (on their own widgets)'],
+    known: () => ['calendar, ownership, insider, ETF holdings, options flow and themes (on their own widgets)'],
     planned: { when: 'Batch 10', what: 'more read-only data questions' },
   },
   {

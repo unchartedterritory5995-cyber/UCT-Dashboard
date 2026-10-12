@@ -421,7 +421,12 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       for (const a of answers) push({ role: 'agent', text: a.text, table: a.table || null, link: a.link || null })
       const text = answers.map(a => a.text).join('\n\n')
-      record({ member, outcome: text, outcomeData: { kind: 'answered', actions: queries.map(o => o.action) }, telemetry: { path, disposition: 'answer', actions: queries.map(o => o.action), voice } })
+      // ⛔ LOCAL-RESULT BOUNDARY: the member's transcript keeps the answer; the row says it is LOCAL
+      // ONLY (and what was asked — args, never values), so the server never replays it to a model.
+      // The server also decides by the action name (turn.LOCAL_ONLY_ACTIONS); this is the second signal.
+      const local = queries.filter(o => getCapability(o.action)?.localOnly)
+      const localData = local.length ? { local: true, requests: local.map(o => o.args || {}) } : {}
+      record({ member, outcome: text, outcomeData: { kind: 'answered', actions: queries.map(o => o.action), ...localData }, telemetry: { path, disposition: 'answer', actions: queries.map(o => o.action), voice } })
     }
     const ops = allOps.filter(o => !getCapability(o?.action)?.query)
     if (!ops.length) return
@@ -786,7 +791,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (gridMode) {
         const t = 'UCT Agent works on the Charts workspace. Switch out of Multi Chart (Layouts ▸ Multi Chart) and ask again.'
         push({ role: 'agent', text: t })
-        record({ member: text, outcome: t, telemetry: { path: 'local', disposition: 'unsupported', unsupported: 'multichart', voice } })
+        record({ member: text, outcome: t, outcomeData: { kind: 'unsupported' }, telemetry: { path: 'local', disposition: 'unsupported', unsupported: 'multichart', voice } })
         return
       }
       // A choice clicked under the MODEL's own question answers that question:
@@ -805,7 +810,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         const t = fast.kind === 'dismiss' ? 'Nothing is waiting — nothing changed.'
           : "There is no proposal waiting to apply. Tell me what you'd like to change."
         push({ role: 'agent', text: t })
-        record({ member: text, outcome: t, telemetry: { path: 'fast', voice } })
+        record({ member: text, outcome: t, outcomeData: { kind: 'nothing-pending' }, telemetry: { path: 'fast', voice } })
         return
       }
       // Ops whose capability already resolved the target (a named saved list) run as-is.
@@ -834,7 +839,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         if (charts.length === 0) {
           const t = 'There is nothing on this workspace for that to change.'
           push({ role: 'agent', text: t })
-          record({ member: text, outcome: t, telemetry: { path: 'fast', refused: true, voice } })
+          record({ member: text, outcome: t, outcomeData: { kind: 'refused', actions: fast.ops.map(o => o?.action) }, telemetry: { path: 'fast', refused: true, voice } })
           return
         }
         // "both / all" → one op set per target; the multi-target policy makes it
@@ -856,7 +861,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         if (candidates.length > 1 || unmatchedHint) {
           pendingRef.current = { kind: 'target', ops: fast.ops, path: 'fast', member: text, voice, epoch: epochOf(host) }
           push({ role: 'question', text: ask, choices: candidates.map(c => ({ ref: c.ref, label: c.label })), local: true })
-          record({ member: text, outcome: 'Asked which target.', telemetry: { path: 'fast', clarified: true, voice } })
+          record({ member: text, outcome: 'Asked which target.', outcomeData: { kind: 'clarify-target', actions: fast.ops.map(o => o?.action) }, telemetry: { path: 'fast', clarified: true, voice } })
           return
         }
         return await execute(fast.ops.map(o => ({ ...o, target: candidates[0].ref })), { path: 'fast', mode: 'apply', member: text, voice })
@@ -932,7 +937,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         return
       }
       // apply / propose: translate the context refs back to real target refs
-      if (env.reply) push({ role: 'agent', text: env.reply, sources })
+      // ⛔ LOCAL-RESULT BOUNDARY: a plan holding a local-only lookup shows UCT's answer, never the
+      // model's own words about it (the server blanks that reply too).
+      const localPlan = (env.ops || []).some(o => getCapability(o?.action)?.localOnly)
+      if (env.reply && !localPlan) push({ role: 'agent', text: env.reply, sources })
       if (p?.kind === 'proposal') { pendingRef.current = null; patchItem(p.id, { status: 'replaced' }) }
       // A reference that names a context target (a saved list's ref) is bound to
       // that target's own read-only producer before the refs are translated.
