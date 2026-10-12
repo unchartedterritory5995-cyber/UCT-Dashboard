@@ -62,7 +62,8 @@ export function accountSizeFor({ params, settings }) {
 
 /**
  * The house size for one trade. `regime` is a house word (GREEN / YELLOW / ORANGE / RED; map a regime
- * id through REGIME_OF first). Returns
+ * id through REGIME_OF first): the TABLE KEY that decides the size. `label` (optional, R-M2-1 e) is the
+ * word a sentence reads, lib/blocks/regimeWords.js's (Orange); without it the key is read. Returns
  *   { ok: true, skip: false, reason: null, stopPct, sizePct, riskPct, plannedRiskPct, shares,
  *     riskDollars, positionDollars, positionPct, boundBy: 'regime' | 'risk' }
  * or { ok: false, skip, code, reason } with a sentence and no number it could not derive.
@@ -74,13 +75,13 @@ export function accountSizeFor({ params, settings }) {
  *   positionPct    = what those whole shares hold, as a percent of the account (<= sizePct)
  * A short (stop above entry) sizes the same way.
  */
-export function houseSize({ entry, stop, accountSize, grade, regime }) {
+export function houseSize({ entry, stop, accountSize, grade, regime, label = regime }) {
   const row = Object.hasOwn(SIZE_CEILING_PCT, regime || '') ? SIZE_CEILING_PCT[regime] : null
   if (!row) return fail('regime', 'The market regime is not known yet.')
   if (!Object.hasOwn(row, grade || '')) return fail('grade', 'Pick a setup grade.')
   const ceiling = row[grade]
   if (!(ceiling > 0)) {
-    return fail('skip', `The house rules skip ${articleFor(grade)} ${grade} setup in ${articleFor(regime)} ${regime} market.`, { skip: true })
+    return fail('skip', `The house rules skip ${articleFor(grade)} ${grade} setup in ${articleFor(label)} ${label} market.`, { skip: true })
   }
   const e = positive(entry)
   const s = positive(stop)

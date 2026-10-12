@@ -44,6 +44,10 @@ describe('PositionSizingBlock', () => {
     expect(screen.getByText('125 shares')).toBeTruthy()
     expect(screen.getByText('$625 at risk (1.25% of the account)')).toBeTruthy()
     expect(screen.queryByText(/^Whole shares:/)).toBeNull()                  // 125 x $100 IS 25% of $50,000
+    // R-M2-1 (e): the regime reads in the board property's words (Green), never the table key (GREEN)
+    expect(screen.getByText('The Green ceiling for an A+ setup.')).toBeTruthy()
+    expect(screen.getByText('Sized for a Green market.')).toBeTruthy()
+    expect(screen.queryByText(/GREEN/)).toBeNull()
   })
   it('the default account size is not an account size: says where to set it, sizes nothing, offers a size for this note (IR-S9)', () => {
     S.settings = { accountSize: 100000 }
@@ -83,13 +87,13 @@ describe('PositionSizingBlock', () => {
   it("sized in an older regime: says so and offers today's", () => {
     const setParams = vi.fn(() => true)
     render(<PositionSizingBlock params={{ entry: 100, stop: 95, grade: 'A', regimeId: 'orange', regimeAsOf: '2026-10-01' }} setParams={setParams} editable />)
-    expect(screen.getByText('Sized for an ORANGE market (as of 2026-10-01).')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: "Use today's regime (GREEN)" }))
+    expect(screen.getByText('Sized for an Orange market (as of 2026-10-01).')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: "Use today's regime (Green)" }))
     expect(setParams).toHaveBeenCalledWith({ regimeId: 'green', regimeAsOf: '2026-10-13' })
   })
   it('B in ORANGE renders skip, never a size, even before any price is entered', () => {
     render(<PositionSizingBlock params={{ grade: 'B', regimeId: 'orange' }} setParams={vi.fn()} editable />)
-    expect(screen.getByText('The house rules skip a B setup in an ORANGE market.')).toBeTruthy()
+    expect(screen.getByText('The house rules skip a B setup in an Orange market.')).toBeTruthy()
     expect(screen.queryByText(/of the account$/)).toBeNull()
     expect(screen.queryByText(/shares$/)).toBeNull()
   })
@@ -117,7 +121,7 @@ describe('PositionSizingBlock', () => {
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Stop' }), { target: { value: '94' } })
     fireEvent.change(screen.getByRole('combobox', { name: 'Setup grade' }), { target: { value: 'A+' } })
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Account size for this note' }), { target: { value: '5000' } })
-    fireEvent.click(screen.getByRole('button', { name: "Use today's regime (GREEN)" }))
+    fireEvent.click(screen.getByRole('button', { name: "Use today's regime (Green)" }))
     expect(setParams).toHaveBeenCalledTimes(4)
     expect(S.save).not.toHaveBeenCalled()
   })

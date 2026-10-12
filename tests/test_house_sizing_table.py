@@ -77,3 +77,58 @@ def test_control_the_parser_reads_a_planted_table_and_sees_a_changed_cell():
     src = '_SIZING_TABLE = {("GREEN", "A+"): 0.25, ("RED", "B"): 0.00}\nother = 1\n'
     assert _sizing_table(src) == {("GREEN", "A+"): 0.25, ("RED", "B"): 0.0}
     assert _sizing_table(src.replace("0.25", "0.20"))[("GREEN", "A+")] != 0.25
+
+
+# ── R-M2-1 (e): the regime's DISPLAY words are the board property's labels ─────────────────────────
+# houseSizing.json's regimeWords are the TABLE KEYS (GREEN/YELLOW...), matched against the engine. What a
+# member reads is app/src/pages/journal-2-0/lib/blocks/regimeWords.js REGIME_WORDS, which must equal the
+# option labels of builtin:regime_at_write (the board groups notes by those words). Parsed from the
+# comment-stripped source, never typed here. ⛔ Lane B (Task 9) restates the same map in
+# marketContextModel.js with its own rail (tests/test_journal_two_properties_router.py); at its merge the
+# two become ONE map, this file's.
+import re
+
+REGIME_WORDS_JS = Path(__file__).resolve().parent.parent / "app" / "src" / "pages" / "journal-2-0" / "lib" / "blocks" / "regimeWords.js"
+
+
+def _strip_js_comments(src: str) -> str:
+    out, i, n = [], 0, len(src)
+    while i < n:
+        c = src[i]
+        if c in "'\"`":
+            j = i + 1
+            while j < n and src[j] != c:
+                j += 2 if src[j] == "\\" else 1
+            out.append(src[i:j + 1]); i = j + 1
+        elif src.startswith("//", i):
+            j = src.find("\n", i); i = n if j < 0 else j
+        elif src.startswith("/*", i):
+            j = src.find("*/", i + 2); i = n if j < 0 else j + 2
+        else:
+            out.append(c); i += 1
+    return "".join(out)
+
+
+def _regime_words(js_src: str) -> dict[str, str] | None:
+    m = re.search(r"REGIME_WORDS\s*=\s*Object\.freeze\(\{(.*?)\}\)", _strip_js_comments(js_src), re.S)
+    if not m:
+        return None
+    return dict(re.findall(r"(\w+)\s*:\s*'([^']*)'", m.group(1)))
+
+
+def test_the_regime_display_words_are_the_board_propertys_labels():
+    from api.services.journal_two import note_properties
+    prop = next(d for d in note_properties.BUILTIN_PROPERTY_DEFS if d["id"] == note_properties.REGIME_AT_WRITE)
+    labels = {o["id"]: o["label"] for o in prop["options"]}
+    client = _regime_words(REGIME_WORDS_JS.read_text(encoding="utf-8"))
+    assert client is not None, "could not find REGIME_WORDS = Object.freeze({...}) in regimeWords.js"
+    assert len(client) == 4 and client["amber"] == "Yellow"            # non-vacuity
+    assert client == labels
+
+
+def test_CONTROL_the_regime_words_parse_sees_a_changed_label_and_never_a_comment():
+    good = "export const REGIME_WORDS = Object.freeze({ green: 'Green', amber: 'Yellow' })"
+    assert _regime_words(good) == {"green": "Green", "amber": "Yellow"}
+    assert _regime_words(good.replace("'Yellow'", "'YELLOW'")) == {"green": "Green", "amber": "YELLOW"}
+    assert _regime_words("// export const REGIME_WORDS = Object.freeze({ amber: 'Yellow' })\nconst x = 1\n") is None
+    assert _regime_words("/* REGIME_WORDS = Object.freeze({ amber: 'Yellow' }) */ const x = 1") is None

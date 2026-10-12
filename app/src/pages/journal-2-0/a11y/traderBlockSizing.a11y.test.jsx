@@ -42,7 +42,7 @@ axeSurface('trader-block-sizing', async () => {
   expect(a.getByRole('combobox', { name: 'Setup grade' })).toBeTruthy()
   const list = a.getByRole('list', { name: 'Position size' })
   expect(within(list).getAllByRole('listitem').length).toBeGreaterThanOrEqual(4)
-  expect(a.getByRole('button', { name: "Use today's regime (GREEN)" })).toBeTruthy()
+  expect(a.getByRole('button', { name: "Use today's regime (Green)" })).toBeTruthy()
 
   const b = within(screen.getByRole('region', { name: 'The placeholder account' }))
   expect(b.getByText('Set your account size in Settings.')).toBeTruthy()

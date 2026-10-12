@@ -22,6 +22,7 @@ import {
   houseSize, accountSizeFor, isPlaceholderAccount, articleFor,
   REGIME_OF, PLACEHOLDER_ACCOUNT_SIZE, MAX_ACCOUNT_RISK_PCT, PREFERRED_ACCOUNT_RISK_PCT,
 } from '../../../lib/blocks/houseSizing'
+import { regimeWord } from '../../../lib/blocks/regimeWords'
 import blockStyles from './Blocks.module.css'
 import styles from './PositionSizingBlock.module.css'
 
@@ -55,7 +56,8 @@ export default function PositionSizingBlock({ params = {}, setParams, editable }
   const todayId = knownRegime(cur?.regime)
   const storedId = knownRegime(params.regimeId)
   const regimeId = storedId || todayId
-  const regime = regimeId ? REGIME_OF[regimeId] : null
+  const regime = regimeId ? REGIME_OF[regimeId] : null          // the sizing table's key: decides the size
+  const word = regimeWord(regimeId)                             // R-M2-1 (e): the word a member reads
   const asOf = storedId ? params.regimeAsOf : cur?.asOf
   const grade = params.grade || 'A'
 
@@ -79,7 +81,7 @@ export default function PositionSizingBlock({ params = {}, setParams, editable }
   const stamp = todayId ? { regimeId: todayId, regimeAsOf: cur?.asOf || '' } : {}
   const write = (patch) => (editable ? setParams({ ...patch, ...(storedId ? {} : stamp) }) : false)
 
-  const r = houseSize({ entry: params.entry, stop: params.stop, accountSize, grade, regime })
+  const r = houseSize({ entry: params.entry, stop: params.stop, accountSize, grade, regime, label: word })
   // N-6: "under $0.01" inside a sentence; a list line that STARTS with it capitalises its first letter.
   const riskMoney = r.ok ? (r.riskDollars > 0 ? money(r.riskDollars) : 'under $0.01') : null
   const summary = r.ok ? `${sharesWord(r.shares)}, ${riskMoney} at risk.` : r.skip ? r.reason : ''
@@ -154,14 +156,14 @@ export default function PositionSizingBlock({ params = {}, setParams, editable }
       {sizedAgainst && <p className={blockStyles.muted}>{sizedAgainst}</p>}
 
       <p className={blockStyles.muted}>
-        {regime ? `Sized for ${articleFor(regime)} ${regime} market${asOf ? ` (as of ${asOf})` : ''}.` : 'The market regime is not known yet.'}
+        {regime ? `Sized for ${articleFor(word)} ${word} market${asOf ? ` (as of ${asOf})` : ''}.` : 'The market regime is not known yet.'}
       </p>
       {todayId && storedId && storedId !== todayId && (
         <>
-          <p className={blockStyles.muted}>{`Today's market is ${REGIME_OF[todayId]}.`}</p>
+          <p className={blockStyles.muted}>{`Today's market is ${regimeWord(todayId)}.`}</p>
           {editable && (
             <button type="button" className={`btn btn-ghost ${styles.tap}`} onClick={() => setParams(stamp)}>
-              {`Use today's regime (${REGIME_OF[todayId]})`}
+              {`Use today's regime (${regimeWord(todayId)})`}
             </button>
           )}
         </>
@@ -180,7 +182,7 @@ export default function PositionSizingBlock({ params = {}, setParams, editable }
           <li className={blockStyles.muted}>
             {r.boundBy === 'risk'
               ? `Capped by the ${MAX_ACCOUNT_RISK_PCT}% account-risk limit.`
-              : `The ${regime} ceiling for ${articleFor(grade)} ${grade} setup.`}
+              : `The ${word} ceiling for ${articleFor(grade)} ${grade} setup.`}
           </li>
         </ul>
       ) : (

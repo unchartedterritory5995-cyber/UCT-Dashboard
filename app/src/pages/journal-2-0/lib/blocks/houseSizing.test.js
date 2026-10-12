@@ -122,6 +122,12 @@ describe('houseSize at the edges (integrator ruling: rounding is explicit and te
     expect(houseSize({ grade: 'A+', regime: 'RED' }).reason).toBe('The house rules skip an A+ setup in a RED market.')
     expect(houseSize({ grade: 'A', regime: 'RED' }).reason).toBe('The house rules skip an A setup in a RED market.')
   })
+  it('R-M2-1 (e): `label` words the regime in a sentence; the table key still decides the size', () => {
+    expect(houseSize({ grade: 'B', regime: 'ORANGE', label: 'Orange' }).reason)
+      .toBe('The house rules skip a B setup in an Orange market.')
+    expect(houseSize({ entry: 100, stop: 95, accountSize: 1e5, grade: 'A+', regime: 'GREEN', label: 'Green' }))
+      .toMatchObject({ ok: true, sizePct: 25 })
+  })
   it('I-1: positionPct is what the WHOLE shares hold, beside the house size (a $7,000 account, one $1,000 share)', () => {
     const r = houseSize({ entry: 1000, stop: 950, accountSize: 7000, grade: 'A+', regime: 'GREEN' })
     expect(r).toMatchObject({ ok: true, sizePct: 25, shares: 1, positionDollars: 1000, positionPct: 14.29 })
