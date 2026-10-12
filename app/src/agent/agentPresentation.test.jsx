@@ -7,7 +7,7 @@
 //   · saved views are bounded; nothing scrolls sideways (wrapping rows; stacked cards on a narrow panel)
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
-import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
 import { registerCapability } from './capabilities'
@@ -193,12 +193,12 @@ describe('3 · the panel: live answers, restored conversations, no empty contain
 })
 
 describe('4 · responsive: nothing scrolls sideways', () => {
-  const css = fs.readFileSync(path.join(__dirname, 'AgentResult.module.css'), 'utf8')
+  const css = fs.readFileSync(fileURLToPath(new URL('./AgentResult.module.css', import.meta.url)), 'utf8')
   it('rows wrap (no nowrap cells) and never scroll horizontally; the transcript is the size container', () => {
     expect(css).not.toMatch(/\.table td[^{]*\{[^}]*white-space:\s*nowrap/)
     expect(css).toMatch(/\.rows \{[^}]*overflow-x: hidden/)
     expect(css).toMatch(/@container agentlist \(max-width: 420px\)/)
-    const panelCss = fs.readFileSync(path.join(__dirname, 'AgentPanel.module.css'), 'utf8')
+    const panelCss = fs.readFileSync(fileURLToPath(new URL('./AgentPanel.module.css', import.meta.url)), 'utf8')
     expect(panelCss).toMatch(/container: agentlist \/ inline-size/)
   })
   it('a wide table renders every cell with its column label, for the stacked narrow layout', () => {
