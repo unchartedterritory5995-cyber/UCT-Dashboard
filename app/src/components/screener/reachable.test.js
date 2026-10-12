@@ -285,23 +285,6 @@ const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stub
  * recorded in a diff with a reason beside it; that is the point.
  */
 const AWAITING_A_DECISION = {
-  // ── NOTEBOOK P1 JOURNAL STYLES — BUILT, NOT YET MOUNTED (2026-10-11) ─────────
-  //
-  // The client layer of Notebook P1 (journal styles) lands BEFORE the surfaces that use it, by the plan's own
-  // task order (docs/superpowers/plans/2026-10-11-notebook-p1-journal-styles-core.md): Task 3 (the switch),
-  // Task 11 (the API and hook). Nothing a member can navigate to imports them until Tasks 12-14 (the new-note
-  // kind picker, the Styles manager, the in-note surfaces) mount them behind the same switch, so this rail is
-  // right that they are unreached today. ⛔ EXPIRY: the Task 12/13/14 commit that mounts each one DELETES its
-  // entry here (this rail goes red on an entry for a reachable file, so the mounting lane cannot forget).
-  // If P1 is abandoned, the files go with it.
-  'app/src/pages/journal-2-0/lib/journalStyles.js':
-    'NOTEBOOK P1 — the journal styles API client (Task 11). Mounted by Tasks 12-14 of the P1 plan; remove this '
-    + 'entry then.',
-  'app/src/pages/journal-2-0/hooks/useJournalStyles.js':
-    'NOTEBOOK P1 — the styles list hook (Task 11). Mounted by Tasks 12-14 of the P1 plan; remove this entry then.',
-  'app/src/pages/journal-2-0/lib/journalBlocks.js':
-    'NOTEBOOK P1 — the client half of the block catalog (Task 6). Mounted by Tasks 12-14 of the P1 plan; remove '
-    + 'this entry then.',
   // WAVE 13 CHART PLAN (13H-1, 2026-10-02) — unparked by 13H-2 on 2026-10-03.
   // `lib/chartPlan.js` and `lib/planLevels.js` stood here from 13H-1 (2026-10-02)
   // until the plan panel mounted them: App.jsx → … → WidgetEmbedView.jsx →
@@ -817,7 +800,6 @@ const PARKING_EXPIRES = {
   'THE DASHBOARD COCKPIT RETIREMENT (2026-08-30)': '2026-10-31',
   'SEAM 18 / COMMUNITY SURFACE — RECORDED, NOT DELETED (2026-09-11)': '2026-11-30',
   'The Community surface itself: 15 files, one coherent feature': '2026-11-30',
-  'NOTEBOOK P1 JOURNAL STYLES — BUILT, NOT YET MOUNTED (2026-10-11)': '2026-11-30',
   'S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   'FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   // ⭐⭐ ADDED BY THE 2026-09-23 MERGE, AND NEITHER PARENT WAS WRONG.

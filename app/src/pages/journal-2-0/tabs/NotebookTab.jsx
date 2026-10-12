@@ -76,6 +76,7 @@ import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate
 import TourOfferDoor from '../components/notebook/onboarding/TourOfferDoor'
 import { GettingStartedSkipLink } from '../components/notebook/onboarding/keyboardDoors'
 import { OTHER_TOURS } from '../components/notebook/onboarding/tourRegistry'
+import { journalStylesEnabled } from '../lib/journalStylesFlag'
 
 // ── Wave 7 (lane I3): the views and dialogs a member opens ON PURPOSE load on demand ──
 // Graph, board, calendar, timeline and tasks are view modes; Import and Export are
@@ -133,6 +134,8 @@ const PublishFolderSheet = lazyDialog(() => import('../components/notebook/Publi
 // Wave 11 lane 11A: the voice-note dialog, fetched the first time a member starts one. It is
 // rendered only while a voice note is in progress, so each start mounts it afresh.
 const VoiceNoteDialog = lazyDialog(() => import('../components/notebook/VoiceNoteDialog'), 'voice note')
+// Notebook P1: the Journal styles manager, fetched the first time it is opened (a creating door, gated below).
+const StylesManager = lazyDialog(() => import('../components/notebook/styles/StylesManager'), 'journal styles')
 
 // ── Wave 9 (lane 9D, D2): the folder Publish door ────────────────────────────
 // FolderSidebar renders `extraFolderActions` as `{id, label, onSelect(folder)}` buttons named
@@ -413,6 +416,16 @@ export default function NotebookTab() {
   const { symbol: focusSymbol } = useAppFocus()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  // Notebook P1: the Styles manager. `?styles=1` (the Settings card's link) asks to open it, once, and leaves the URL
+  // clean. The request is kept even if the switch has not latched yet; ONLY the render gate below decides whether
+  // anything shows (one guard, not two).
+  const stylesOn = journalStylesEnabled()
+  const [stylesOpen, setStylesOpen] = useState(() => searchParams.get('styles') === '1')
+  useEffect(() => {
+    if (searchParams.get('styles') !== '1') return
+    setStylesOpen(true)
+    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.delete('styles'); return p }, { replace: true })
+  }, [searchParams, setSearchParams])
   const [exportOpen, setExportOpen] = useState(false)
   // Bumped on a successful import to force-remount FolderSidebar, which owns
   // its own useJ2NoteFolders() SWR hook — an import can create new folders
@@ -2417,6 +2430,12 @@ export default function NotebookTab() {
               <UIcon name="upload" size={16} gold={false} />
               <span className={styles.actionLabel}>Import</span>
             </button>
+            {stylesOn && (
+              <button type="button" className={styles.importBtn} onClick={() => setStylesOpen(true)} aria-haspopup="dialog">
+                <UIcon name="sliders" size={16} gold={false} />
+                <span className={styles.actionLabel}>Styles</span>
+              </button>
+            )}
             <button
               type="button"
               className={styles.exportBtn}
@@ -2471,6 +2490,8 @@ export default function NotebookTab() {
           open={exportOpen}
           onClose={() => setExportOpen(false)}
         />
+
+        {stylesOn && <StylesManager open={stylesOpen} onClose={() => setStylesOpen(false)} blockedNoteIds={[...(blockedNoteIds || [])]} />}
 
         <SavedViewEditor
           open={saveViewOpen}

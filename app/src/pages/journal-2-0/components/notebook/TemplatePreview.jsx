@@ -109,7 +109,7 @@ function Block({ node, inline = false }) {
 }
 
 /** The preview body: every top-level block of a TipTap doc, read-only. */
-function DocBody({ body }) {
+export function DocBody({ body }) {
   const blocks = (body && body.content) || []
   if (!blocks.length) return <p className={styles.status}>This template makes an empty page.</p>
   return <div className={styles.body} data-template-preview-body="">{blocks.map((n, i) => <Block key={i} node={n} />)}</div>
