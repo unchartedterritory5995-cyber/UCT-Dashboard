@@ -6413,15 +6413,6 @@ async def lifespan(app: FastAPI):
                 except Exception as _e:
                     logging.getLogger(__name__).debug(
                         "[breadth-live] sample tick skipped: %s", _e)
-                # ⭐ US / NYSE / Nasdaq live breadth rides the same clock: a cheap stale-check
-                # that kicks ONE background refresh (reusing the snapshot just fetched above).
-                try:
-                    from api.services import breadth_live_universes as _blu
-                    if _blu.serving():
-                        _blu.payload(cached_only=True)
-                except Exception as _e:
-                    logging.getLogger(__name__).debug(
-                        "[breadth-live-universes] tick skipped: %s", _e)
 
             _scheduler.add_job(
                 _breadth_live_sample,
@@ -6431,6 +6422,29 @@ async def lifespan(app: FastAPI):
                 coalesce=True, misfire_grace_time=30, replace_existing=True)
             logging.getLogger(__name__).info(
                 "[startup] breadth-live intraday sampler scheduled (weekdays 9-16 ET, 1/min)")
+
+            # ⭐ (2026-10-12 incident) US / NYSE / Nasdaq live breadth gets its OWN minute job.
+            # Its kick used to ride at the end of the UCT sampler above; on 2026-10-12 that job
+            # sat ~25 min in the UCT chart rebuild, APScheduler skipped every later minute
+            # (max_instances=1) and these universes went unrefreshed 13:41->14:31 ET. `tick()`
+            # is a stale-check that kicks at most ONE background refresh (the module's own
+            # in-flight guard prevents overlap) plus the market-hours health alert.
+            def _breadth_live_universes_tick():
+                try:
+                    from api.services import breadth_live_universes as _blu
+                    _blu.tick()
+                except Exception as _e:
+                    logging.getLogger(__name__).debug(
+                        "[breadth-live-universes] tick skipped: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_live_universes_tick,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9-16", minute="*",
+                                    timezone=_ET),
+                id="breadth_live_universes_tick", max_instances=1,
+                coalesce=True, misfire_grace_time=30, replace_existing=True)
+            logging.getLogger(__name__).info(
+                "[startup] breadth live-universes tick scheduled (weekdays 9-16 ET, 1/min, own job)")
         except Exception:
             logging.getLogger(__name__).exception(
                 "[startup] failed to schedule breadth-live intraday sampler")

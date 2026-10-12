@@ -794,18 +794,129 @@ def _stale() -> bool:
     return age > (REFRESH_SECONDS if bl._session_started() and bl._market_open() else IDLE_REFRESH_SECONDS)
 
 
-def _kick() -> None:
-    if _refreshing.is_set():
-        return
-    _refreshing.set()
+#: ⭐ (2026-10-12 incident) THE IN-FLIGHT FLAG CAN NEVER OUTLIVE ITS THREAD. The flag used to be
+#: set before `Thread.start()` and cleared only by the thread's own `finally` — a start that
+#: raised (thread limit, interpreter shutdown) left it set forever and every later kick returned
+#: without doing anything. Now check-and-set is atomic, a failed start clears it, and a flag
+#: whose thread is no longer alive is treated as stale and recovered.
+_kick_lock = threading.Lock()
+_inflight: dict = {}          # {"thread": Thread, "since": epoch s} of the refresh in flight
 
-    def run():
-        try:
-            refresh()
-        finally:
+
+def _kick() -> bool:
+    """Start ONE background refresh unless one is genuinely running. True if started."""
+    with _kick_lock:
+        if _refreshing.is_set():
+            t = _inflight.get("thread")
+            if t is not None and t.is_alive():
+                return False
+            _log.warning("[breadth_live_universes] in-flight flag had no live thread — recovered")
             _refreshing.clear()
+        _refreshing.set()
 
-    threading.Thread(target=run, name="breadth-live-universes", daemon=True).start()
+        def run():
+            try:
+                refresh()
+            finally:
+                _refreshing.clear()
+
+        t = threading.Thread(target=run, name="breadth-live-universes", daemon=True)
+        try:
+            t.start()
+        except Exception as e:                   # noqa: BLE001 - a kick must never wedge the flag
+            _refreshing.clear()
+            _log.warning("[breadth_live_universes] refresh thread failed to start: %s", e)
+            return False
+        _inflight.update(thread=t, since=time.time())
+        return True
+
+
+def inflight_seconds(now: Optional[float] = None) -> Optional[float]:
+    """How long the current refresh has been running, or None when none is."""
+    t = _inflight.get("thread")
+    if not _refreshing.is_set() or t is None or not t.is_alive():
+        return None
+    return (now if now is not None else time.time()) - float(_inflight.get("since") or 0)
+
+
+def tick(now: Optional[datetime] = None, post=None) -> dict:
+    """The scheduler's per-minute entry for US / NYSE / Nasdaq — its OWN job.
+
+    ⭐ (2026-10-12 incident) This kick used to ride at the END of the UCT live sampler's job.
+    On 2026-10-12 that job sat ~25 min inside the UCT chart rebuild (`update_intraday` →
+    `_rebuild_after_write`), APScheduler skipped every later minute (max_instances=1), and the
+    US / NYSE / Nasdaq payload went unrefreshed 13:41→14:31 ET. A slow UCT sample must never
+    stop these universes. Cheap: a stale-check that kicks at most one background refresh, then
+    the market-hours health check. Never raises."""
+    out: dict = {"serving": False}
+    try:
+        if not serving():
+            return out
+        out["serving"] = True
+        payload(cached_only=True)
+        out["health"] = check_health(now, post=post)
+    except Exception as e:                       # noqa: BLE001
+        _log.warning("[breadth_live_universes] tick failed: %s", e)
+        out["error"] = f"{type(e).__name__}: {e}"
+    return out
+
+
+#: Live-publication health — #breadth-alerts when US / NYSE / Nasdaq live data is not current.
+#: "Current" is `breadth_current.row_observation` — the Agent's rule (data <= FRESH_MAX_S old).
+HEALTH_INFLIGHT_S = 300         # a refresh running longer than this is stuck, not slow
+HEALTH_OPEN_GRACE_MIN = 15      # 09:30-09:45: the traded-share gate and first build settle
+HEALTH_WARMUP_S = 1200          # boot grace (600 s) + a cold state build: no storm after deploys
+
+
+def check_health(now: Optional[datetime] = None, post=None) -> dict:
+    """One market-hours health pass. Alerts at most once per condition (`breadth_alerts`
+    dedup) and posts ONE resolution when publication is current again. Silent on weekends,
+    holidays, before 09:45, after the close, and in the first HEALTH_WARMUP_S of a process.
+    Dates, ages and stages only — never a breadth value."""
+    from api.services import breadth_alerts, breadth_current
+    from api.services import breadth_live as bl
+    from api.services import session_calendar as sc
+    now = now or bl._now_et()
+    d = now.date()
+    if not sc.is_trading_day(d):
+        return {"checked": False, "reason": "not a trading day"}
+    close = sc.close_time(d)
+    open_ok = now.hour * 60 + now.minute >= 9 * 60 + 30 + HEALTH_OPEN_GRACE_MIN
+    if not open_ok or (close and now >= close):
+        return {"checked": False, "reason": "outside regular hours"}
+    if _process_uptime() < HEALTH_WARMUP_S:
+        return {"checked": False, "reason": "process warm-up"}
+    problems = []
+    p = _payload.get("value") or {}
+    today = d.isoformat()
+    row = None
+    for u in UNIVERSES:
+        for r in ((p.get("universes") or {}).get(u) or {}).get("rows") or []:
+            if r.get("date") == today and not r.get("final"):
+                row = r
+                break
+        if row:
+            break
+    if row is None:
+        problems.append(f"no live row for {today} in the published payload"
+                        + (f" (carried: {p.get('carried_reason')})" if p.get("carried") else "")
+                        + (f" ({p.get('reason')})" if p.get("reason") else ""))
+    else:
+        obs = breadth_current.row_observation(p, row, now)
+        if not obs["fresh"]:
+            problems.append(f"live data not current: {obs['reason']}"
+                            + (" — payload is carried" if p.get("carried") else ""))
+    fly = inflight_seconds()
+    if fly is not None and fly > HEALTH_INFLIGHT_S:
+        problems.append(f"a refresh has been in flight {round(fly)} s (stage {_progress.get('stage')})")
+    key = "live_universes:stale"
+    if problems:
+        sent = breadth_alerts.send(key, "US / NYSE / Nasdaq live breadth is not current",
+                                   [f"checked {now:%H:%M} ET", *problems], post=post)
+        return {"checked": True, "ok": False, "problems": problems, "sent": sent}
+    resolved = breadth_alerts.resolve(key, "US / NYSE / Nasdaq live breadth is current again",
+                                      [f"checked {now:%H:%M} ET"], post=post)
+    return {"checked": True, "ok": True, "resolved": resolved}
 
 
 def payload(cached_only: bool = True) -> dict:
@@ -835,20 +946,43 @@ def _finite(v) -> Optional[float]:
     return f if math.isfinite(f) else None
 
 
-def append_library_bars(body: list, universe: str, metric: str) -> list:
+def append_library_bars(body: list, universe: str, metric: str, state_out: Optional[dict] = None,
+                        now: Optional[datetime] = None) -> list:
     """`body` (sealed canonical bars) + provisional/live bars for one metric.
 
     ⭐ (2026-10-10) A session the live engine RECORDED (`_record_intraday`) is drawn with its real
     intraday path — open = the first live reading of the session, high/low = the extremes seen,
     close = the row's value — and marked observed (`ohlc: 1`), like the canonical history beside it.
-    A session it did not record (a restart gap, an off-hours deploy) is a close-to-close body."""
+    A session it did not record (a restart gap, an off-hours deploy) is a close-to-close body.
+
+    ⛔ (2026-10-12 incident) TODAY'S DEVELOPING BAR ONLY WHEN IT IS LIVE. From 13:41 to 14:31 ET
+    a stalled refresh left members a frozen 13:41 reading drawn as "today". Today's row is now
+    judged by `breadth_current.row_observation` — the SAME rule the Agent uses (vendor data time,
+    ≤ FRESH_MAX_S old) — and a stale, carried-old or unstamped intraday row is NOT drawn: the
+    chart ends at the newest completed session instead of inventing or freezing a value. Completed
+    sessions (finalized history, provisional closes) are unchanged. `state_out`, when given, says
+    what happened to today's bar: {live: drawn|withheld|none, status, observed_at, reason}."""
     if not body:
         return body
+    from api.services import breadth_current
     out = list(body)
-    for row in rows_for(universe):
+    p = payload(cached_only=True) if serving() else {}
+    u = (p.get("universes") or {}).get(universe) or {}
+    rows = list(u.get("rows") or []) if u.get("ok") else []
+    now = now or datetime.now(breadth_current._ET)
+    state = {"live": "none", "status": None, "observed_at": None, "reason": None}
+    for row in rows:
         v = _finite((row.get("metrics") or {}).get(metric))
         if v is None or row["date"] <= out[-1]["t"]:
             continue
+        if not row.get("final"):
+            obs = breadth_current.row_observation(p, row, now)
+            state.update(status=obs["status"],
+                         observed_at=obs["observed"].isoformat() if obs["observed"] else None)
+            if not obs["fresh"]:
+                state.update(live="withheld", reason=obs["reason"])
+                continue
+            state["live"] = "drawn"
         path = _intraday_path(row["date"], universe, metric)
         if path is not None:
             o, h, l = path
@@ -858,6 +992,8 @@ def append_library_bars(body: list, universe: str, metric: str) -> list:
         o = out[-1]["c"]
         out.append({"t": row["date"], "o": round(o, 4), "h": round(max(o, v), 4),
                     "l": round(min(o, v), 4), "c": round(v, 4), "v": 0})
+    if state_out is not None:
+        state_out.update(state)
     return out
 
 
