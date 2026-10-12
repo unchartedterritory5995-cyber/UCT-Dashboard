@@ -182,11 +182,9 @@ describe('2 · the panel reports what UCT did, never what the model said it did'
     turns.push(env('apply', [{ ...BARS, target: 'c1' }, { ...BARS, target: 'c2' }], ''))
     render(<AgentPanel host={host} onClose={() => {}} />)
     type('​make both charts bars')
-    // two charts = a PROPOSAL first (approval preserved): nothing written yet
-    await screen.findByText(/Proposed changes/)
-    expect(st.w1.stored).toBeNull()
-    type('do it')
+    // owner 2026-10-12: an explicit change on two charts runs at once (no card) — the honesty is unchanged
     await waitFor(() => expect(document.body.textContent).toMatch(/didn't take effect/), { timeout: 5000 })
+    expect(screen.queryByText(/Proposed changes/)).toBeNull()
     // names the one that failed and says the rest was rolled back — and the board says the same
     expect(document.body.textContent).toMatch(/Some of that didn't take effect: Right chart \(QQQ\) did not take effect — nothing was left changed\./)
     expect(st.w2.stored).toBeNull()

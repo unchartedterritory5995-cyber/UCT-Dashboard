@@ -216,6 +216,12 @@ describe('a stored proposal never runs on a different board', () => {
     globalThis.fetch = vi.fn(async (url, init) => {
       const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
       if (url === '/api/agent/record') { records.push(JSON.parse(init.body)); return json({ conversationId: 'ac_1' }) }
+      // the model PROPOSES (a taste request) — a stored proposal waiting for "do it"
+      if (url === '/api/agent/turn') {
+        const b = JSON.parse(init.body)
+        const ops = (b.context.charts || []).map(c => ({ action: 'chart.setTimeframe', target: c.ref, args: { timeframe: 'W' } }))
+        return json({ conversationId: 'ac_1', envelope: { disposition: 'propose', reply: '', question: null, ops, unsupported_category: null }, usage: { research_calls: 0, citations: [] } })
+      }
       return json({ conversations: [] })
     })
   })
@@ -228,7 +234,9 @@ describe('a stored proposal never runs on a different board', () => {
   it('proposal on Agent Test → member switches to another layout by hand → "do it" refuses, nothing changes', async () => {
     const { host, state } = lib()
     render(<AgentPanel host={host} onClose={() => {}} />)
-    type('make both charts weekly')
+    // (owner 2026-10-12: an explicit "make both charts weekly" now runs at once — a model PROPOSAL is
+    // what still waits for approval, so the stale-board rule is exercised on one)
+    type('set these charts up for swing trading')
     await screen.findByTestId('agent-proposal')
     await act(async () => { host.layouts.open({ id: 12 }) })          // manual switch (think: Main Trading)
     const board = JSON.stringify(state.widgets)

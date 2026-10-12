@@ -92,7 +92,8 @@ export function planOps(targets, ops, env = {}, ctx = null) {
       const cap = getCapability(op.action)
       if (cap.target !== tgt.kind) { refusals.push({ index, action: op.action, target: ref, reason: `${op.action} doesn't apply to that.` }); continue }
       // `trusted`: this op's symbols came from UCT itself (a screen, a saved list) — not model text.
-      const oenv = op.trusted ? { ...opEnv, trusted: true } : opEnv
+      // `explicit`: the member's own words asked for this op (fast path / a capability's screen) — policy.js
+      const oenv = op.trusted || op.explicit ? { ...opEnv, ...(op.trusted ? { trusted: true } : {}), ...(op.explicit === true ? { explicit: true } : {}) } : opEnv
       const why = cap.check(st, op.args, oenv)
       if (why) { refusals.push({ index, action: op.action, target: ref, reason: why }); continue }
       if (cap.confirmIf && cap.confirmIf(st, op.args, oenv)) confirm = true
@@ -212,8 +213,12 @@ export function planShape(plan) {
   const ops = plan.plans.reduce((n, p) => n + p.items.length, 0)
   // New things this plan brings into existence (capabilities mark themselves).
   const resources = plan.plans.reduce((n, p) => n + p.items.filter(i => getCapability(i.op.action)?.createsResource).length, 0)
-  const confirm = plan.plans.some(p => p.confirm || p.items.some(i => getCapability(i.op.action)?.risk === 'confirm'))
-  const irreversible = plan.plans.some(p => p.items.some(i => getCapability(i.op.action)?.reversible === false))
+  // `explicitOk` (policy.js): an op the member's own words asked for (op.explicit, set only by
+  // deterministic checks of their text) does not count as confirm / irreversible on its own —
+  // its capability's `confirmIf` (p.confirm) still does.
+  const flagged = (i) => !(getCapability(i.op.action)?.explicitOk && i.op.explicit === true)
+  const confirm = plan.plans.some(p => p.confirm || p.items.some(i => getCapability(i.op.action)?.risk === 'confirm' && flagged(i)))
+  const irreversible = plan.plans.some(p => p.items.some(i => getCapability(i.op.action)?.reversible === false && flagged(i)))
   return { targets, ops, resources, confirm, irreversible }
 }
 

@@ -200,7 +200,23 @@ share it and closing either uninstalls both.
 
 ## 6. Save — explicit approval, canonical persistence, read-back
 
-- Save is **always** a member-approved action (Agent `risk: 'confirm'`), never inferred from "looks good".
+- Save is **always** a member-approved action, never inferred from "looks good". **Amended 2026-10-12
+  (owner: "do not ask me to approve an action I've already explicitly requested"; Indicators ACK with
+  conditions a–e, PROPOSED text below):** the member's OWN explicit words in THIS message ("save it",
+  "save it as X", "apply it", "add it to the left chart") are the approval, so the Agent skips the card —
+  decided locally from the message, never because the model planned a save, and only when ALL hold:
+  - (a) exactly one usable draft (`draftAmbiguity` first); the name is the member's literal one or the
+    draft's own (a model-invented name → card); the chart is named, or the single chart, or the valid
+    clicked chart (several charts and none named → card/ask); no name collision with a saved indicator.
+  - (b) no `ackText` — a repainting draft ALWAYS gets the card, warning shown verbatim (F6 seal unchanged).
+  - (c) the receipt says the save is permanent: "Undo takes it off the chart, the saved indicator stays".
+  - (d) a draft line keeps "not saved yet"; refusals, "No change was made…", questions, unsupported and
+    not-understood lines are never collapsed or hidden.
+  - (e) an EDIT-mode save (a new version of a saved indicator) ALWAYS keeps the card for now — the Agent
+    cannot see how many charts use it. A usage count from Indicators may relax this later.
+
+  Everything else is unchanged: `expectedRevision`/pin, read-back, refusals below, the F6 seal for every
+  card, admin-only access, and Save is still never undone by Undo (D7).
 - `saveDraft` refuses `stale-revision`, `needs-ack` (repaint acknowledgement not given), `not-dirty`,
   `access`, `validation` (with `prepareSave` errors). It calls the existing `storeConversation`.
 - **Read-back:** success is reported only after the stored row is read back (`GET
@@ -443,3 +459,21 @@ S6 found that every acknowledgement said "reads a bar ahead", whatever the formu
 - **Persisted metadata.** The server stamps its own per-plot verdict at save (`lint_verdict` →
   `ast_lint.lint_definition`); `tests/test_repaint_warning_window.py` pins that it measures the same
   window for the same trees (5 / 1 / 1 / 4 / 0), so the warning approved and the badge stored agree.
+
+### 16.4 Build and apply in one message — a turn inside a Save (PROPOSED 2026-10-12, needs Indicators ACK)
+
+Owner: "make inside candles white and put it on my chart" should end in one short receipt. The Agent
+plans `[indicator.draft (new), indicator.saveDraft (addTo, name: null)]` on the SAME new target and runs
+them in order; the Save is pinned to EXACTLY the revision that turn produced (`pinRevision =
+status.revision` after the turn). It runs only if ALL hold, else it stops with "Not saved or applied
+yet — ‹why›. Say “apply it” when you're ready." and the draft stays active:
+
+1. the member's own words ask to apply/save (as §6); 2. the draft is NEW, created by this message;
+3. the turn's outcome is `applied`; 4. zero not-understood/unavailable items or questions;
+5. no `ackText`; 6. the save pin equals the turn's revision; 7. no name collision and under the
+definition cap (a cap refusal is shown as itself); 8. the receipt shows what was saved — a one-line
+description plus the builder's own "assumed…" lines.
+
+A turn + Save on an EXISTING draft (refining, then saving in one message) is NOT combined: the turn
+runs, the Save is dropped, and the draft line says "not saved yet — want me to apply it?". No new
+`agentAuthoring` call surface: the Agent calls `draftTurn` then `saveDraft` exactly as today.

@@ -111,6 +111,8 @@ function fanOutOf(ops) {
 // run, what the rest did STAYS (a new list is never deleted because it could not be opened) and
 // the member is told exactly that. Never a way around approval: they are on the same card.
 const isDeferred = (o) => !!getCapability(o?.action)?.deferred
+// a model reply that only acknowledges (the receipt that follows is the real confirmation)
+const BARE_ACK = /^(?:on it|sure(?: thing)?|ok(?:ay)?|got it|will do|doing (?:it|that)(?: now)?|right away|coming (?:right )?up|done|one moment|one sec)[.!…]*$/i
 // alias → the name a creator in these ops will give it (watchlist.create's `as`)
 function aliasNames(ops) {
   const out = {}
@@ -361,9 +363,16 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [setConversationId])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null }) => {
-    // A follow-up step's refusal says what the earlier steps already did (`note`).
-    const refusalPush = (text) => push({ role: 'refusal', text: note ? `${text} ${note}` : text })
+  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null }) => {
+    // A follow-up step's refusal says what the earlier steps already did (`note`). `lead` (OWNER
+    // 2026-10-12): the held receipt of the step before it (a Save) — said in THIS step's message,
+    // first, so "save + apply" reads as ONE confirmation; `lead.used` tells the caller it was said.
+    const leadLines = lead && !lead.used ? lead.lines : []
+    const refusalPush = (text) => {
+      const before = leadLines.length ? `${leadLines.join(' ')} ` : ''
+      if (lead) lead.used = true
+      push({ role: 'refusal', text: `${before}${note ? `${text} ${note}` : text}` })
+    }
     let allOps = opsIn
     let deferred = []
     if (opsIn.some(isDeferred) && !opsIn.every(isDeferred)) {
@@ -646,18 +655,23 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     }
     if (res.ok) {
       // A composed request says first what its producers actually returned.
-      const lines = composed ? [...composed.lines, ...res.lines] : res.lines
+      // (the held Save's line FOLLOWS the add's — "Added “X” to QQQ · Saved to your indicators…")
+      const lines = [...(composed ? [...composed.lines, ...res.lines] : res.lines), ...leadLines]
+      if (lead) lead.used = true
       if (!saved.ok) {
         push({ role: 'receipt', lines, undoId: null, notes: [UNSAVED_NOTE[saved.reason] || UNSAVED_NOTE['not-saved']], unsaved: true })
         record({ member, outcome: `${lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'applied-unsaved', actions, lines, reason: saved.reason }, telemetry: { path, disposition: 'apply', actions, voice, refused: true } })
         return
       }
+      const next = [...(Array.isArray(res.followUps) ? res.followUps : []), ...landDeferred(deferred, res.created, pendingNames, suggested === 'approved')]
+      // OWNER 2026-10-12: a Save followed by ONE chart add says both in ONE message — this receipt is
+      // HELD and becomes the add's lead (said first in its message; said on its own if the add never runs)
+      const holdForAdd = next.length === 1 && !!next[0].awaitDefinition && !deferred.length
       // a target UCT chose for the member (the chart they clicked) is NAMED on the receipt, so a bare
       // "switch to weekly" on a board of several charts never leaves them guessing which one changed
-      push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: [...(onTarget ? [onTarget] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
+      if (!holdForAdd) push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: [...(onTarget ? [onTarget] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
-      const next = [...(Array.isArray(res.followUps) ? res.followUps : []), ...landDeferred(deferred, res.created, pendingNames, suggested === 'approved')]
-      if (next.length) return { followUps: next }
+      if (next.length) return { followUps: next, ...(holdForAdd ? { held: { lines, used: false } } : {}) }
     } else {
       const text = `Some of that didn't take effect: ${res.failed.map(f => `${f.label} ${f.reason}`).join('; ')}.`
       if (res.lines.length) push({ role: 'receipt', lines: res.lines, undoId: res.undo?.id || null })
@@ -734,20 +748,24 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     } finally { traceEnd('done') }
     // ⭐ M3: the confirmed Save's chart adds — ONE execution per op, each planned, permission-checked,
     // persisted, confirmed and receipted on its own (a failure never undoes another chart or the Save)
+    const held = out?.held || null                    // a Save's receipt waiting to lead its chart add
     for (const { awaitDefinition, ...op } of out?.followUps || []) {
       if (awaitDefinition && !(await definitionListed(awaitDefinition))) {
         const chart = (() => { try { return host.charts.read(String(op.target).replace(/^ixe:/, ''))?.label || 'that chart' } catch { return 'that chart' } })()
         // refinement B: the SAVED definition is kept (context `lastSaved`) — a retry adds the same one, never a second Save
         const nm = awaitDefinition.name ? `“${awaitDefinition.name}”` : 'It'
         const text = `${nm} is saved, but your indicator list hasn’t caught up yet, so I didn’t add it to ${chart} — ask me to add it again in a moment (it won’t be saved twice).`
+        if (held && !held.used) { held.used = true; push({ role: 'receipt', lines: held.lines, undoId: null }) }
         push({ role: 'refusal', text })
         record({ member, outcome: text, outcomeData: { kind: 'refused', actions: [op.action] }, telemetry: { path: 'followup', refused: true, voice } })
         continue
       }
       traceStart('followup:apply')
       const { followNote, approvedStep, ...one } = op
-      try { await executeInner([one], { path: 'followup', mode: approvedStep ? 'approved' : 'apply', member, voice, note: followNote || null }) } finally { traceEnd('done') }
+      try { await executeInner([one], { path: 'followup', mode: approvedStep ? 'approved' : 'apply', member, voice, note: followNote || null, lead: held }) } finally { traceEnd('done') }
     }
+    // a held Save receipt is ALWAYS said — on its own if no step used it (never a silent save)
+    if (held && !held.used) push({ role: 'receipt', lines: held.lines, undoId: null })
     return undefined
   }, [executeInner, definitionListed, host, push, record])
 
@@ -912,6 +930,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // model: after a reload or a chat switch the history still shows the old
       // proposal, and the model would REGENERATE and apply it. Approval only ever
       // executes a stored, re-validated plan.
+      // OWNER 2026-10-12: "Apply it." with NO proposal waiting may be a capability's own phrase (apply the
+      // indicator draft) — never an approval of anything; it runs only if that capability claims it.
+      if (fast?.kind === 'confirm' && !pendingRef.current) {
+        const alt = fastParse(text, { host, controlWords: false })
+        if (alt?.kind === 'ops' && alt.ops.every(o => o.target)) {
+          lastActionsRef.current = alt.ops.map(o => o.action)
+          return await execute(alt.ops, { path: 'fast', mode: 'apply', member: text, voice })
+        }
+      }
       if (fast?.kind === 'confirm' || fast?.kind === 'subset' || fast?.kind === 'dismiss') {
         const t = fast.kind === 'dismiss' ? 'Nothing is waiting — nothing changed.'
           : "There is no proposal waiting to apply. Tell me what you'd like to change."
@@ -1070,7 +1097,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // model's own words about it (the server blanks that reply too). The one exception is the
       // SERVER's own deterministic notice (`local_notice`) saying which part was not done.
       const localPlan = (env.ops || []).some(o => getCapability(o?.action)?.localOnly)
-      if (env.reply && (!localPlan || env.local_notice === true)) push({ role: 'agent', text: env.reply, sources })
+      // OWNER 2026-10-12: a bare acknowledgement ("On it.") before an APPLY's receipt is a second message
+      // that says nothing — the receipt is the confirmation. Anything substantive still shows.
+      const bareAck = env.disposition === 'apply' && BARE_ACK.test(String(env.reply || '').trim())
+      if (env.reply && !bareAck && (!localPlan || env.local_notice === true)) push({ role: 'agent', text: env.reply, sources })
       if (p?.kind === 'proposal') { pendingRef.current = null; patchItem(p.id, { status: 'replaced' }) }
       // A reference that names a context target (a saved list's ref) is bound to
       // that target's own read-only producer before the refs are translated.
