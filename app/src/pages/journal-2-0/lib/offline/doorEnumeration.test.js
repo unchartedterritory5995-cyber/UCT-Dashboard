@@ -316,10 +316,12 @@ const SERVER_LEDGER = {
     + 'its notes are trashed by sample_notebook.py\'s own pre-checked removal (their ids are recorded with the sample\'s), '
     + 'and its own remove() touches only non-note rows (a passed setup, an insight; a trade or entry context only '
     + 'for a preference recorded by the earlier version -- no trade is seeded)',
-  // Notebook P1 (journal styles, lane A2 Task 10): "Update layout to vN". Task 9 (create_styled_note, a
-  // create_note for a NEW note behind journal_two's POST /api/j2/notes {styleId|kindId}) extends this row.
+  // Notebook P1 (journal styles): "Update layout to vN" (lane A2 Task 10) and styled create (lane A3 Task 9).
   'api/services/journal_two/journal_styles.py':
-    'apply_style_update: ONE update_note(expected_updated_at, style_stamp) under BEGIN IMMEDIATE behind '
+    'create_styled_note: ONE create_note (body, property values and the style stamp in the same insert) for a NEW '
+    + 'note nobody holds yet, behind journal_two\'s POST /api/j2/notes {styleId|kindId}; no follow-up write, so no '
+    + 'revision to land beyond the create the client already opens (createNoteViaApi). '
+    + 'apply_style_update: ONE update_note(expected_updated_at, style_stamp) under BEGIN IMMEDIATE behind '
     + 'POST /api/j2/notes/{id}/apply-style-update (Task 8\'s router; the dry run is a separate read, '
     + 'GET /api/j2/notes/{id}/style-update-plan -> plan_style_update, which writes nothing). 423 on a locked note '
     + '(notes._refuse_if_locked); the compare-and-set is ALWAYS against the revision the call read the body at, and a '
@@ -1484,7 +1486,8 @@ const DOOR_CLASSIFICATION = {
   },
   'api/services/journal_two/journal_styles.py': {
     class: FORK,
-    why: 'apply_style_update inserts missing blocks AFTER THE FIRST HEADING (or, switching an empty note, the style\'s '
+    why: 'create_styled_note makes a NEW note in one insert (nobody can hold it yet: none). '
+      + 'apply_style_update inserts missing blocks AFTER THE FIRST HEADING (or, switching an empty note, the style\'s '
       + 'outline, which may carry an instruction paragraph): not a tail append of server-appended types, so '
       + 'appendedServerNodes (positional, tail only) cannot prove APPEND_ONLY and a tab holding unsent words 409s into '
       + 'a BODY_REWRITE and forks -- both survive. A kind-only switch leaves the body byte-identical (METADATA_ONLY, '
@@ -1492,7 +1495,7 @@ const DOOR_CLASSIFICATION = {
       + 'IMMEDIATE, always against the revision the call read (tests/test_journal_styles_update.py, the '
       + 'read-then-type race and the early-conflict rail).',
     evidence: ['tests/test_journal_styles_update.py', 'app/src/pages/journal-2-0/lib/offline/ownerReconcile.test.js',
-      'tests/test_notes_cas_is_atomic.py'],
+      'tests/test_notes_cas_is_atomic.py', 'tests/test_journal_styles_create.py'],
   },
   'api/services/journal_two/note_kinds.py': {
     class: NONE,

@@ -1620,7 +1620,11 @@ export default function NotebookTab() {
   // than a second creation flow -- this wrapper only adds NotebookTab's OWN
   // UI concerns (app-focus ticker fallback, current-folder scoping, tree/
   // refresh bookkeeping) on top of it.
-  const createNote = async ({ title = '', bodyJson, tags, ticker, properties, revealPropertyIds, focusFirst = null } = {}) => {
+  // Journal styles (P1): `styleId` / `kindId` make the note from a style in ONE server insert (the
+  // server composes the body), and are passed straight through to the one create door.
+  const createNote = async ({
+    title = '', bodyJson, tags, ticker, properties, revealPropertyIds, focusFirst = null, styleId, kindId,
+  } = {}) => {
     setCreating(true)
     setPickerOpen(false)
     try {
@@ -1632,7 +1636,9 @@ export default function NotebookTab() {
       // made unfiled (a new note is never born archived or trashed).
       const safeFolderId = folderId && !['__unfiled__', '__trash__', ARCHIVED_FOLDER].includes(folderId)
         ? folderId : undefined
-      const created = await createNoteViaApi({ title, bodyJson, tags, ticker: seededTicker, folderId: safeFolderId, properties })
+      const created = await createNoteViaApi({
+        title, bodyJson, tags, ticker: seededTicker, folderId: safeFolderId, properties, styleId, kindId,
+      })
       // Wave 12 (12B-2): a template's definitions start empty, and the Properties
       // section hides an empty property -- so the new note shows them (this tab only).
       if (revealPropertyIds?.length) rememberTemplateReveal(created?.id, revealPropertyIds)
@@ -1683,10 +1689,14 @@ export default function NotebookTab() {
       // from the server's response: every note's stored bodyJson is a real doc,
       // even an empty one, so reading `created.bodyJson` could not tell blank
       // from templated).
-      openNote(created, null, { fresh: true, blank: !title && !bodyJson, to: focusFirst })
+      // A styled note is not blank either: the server composed its body (its outline).
+      openNote(created, null, { fresh: true, blank: !title && !bodyJson && !styleId && !kindId, to: focusFirst })
     } catch (e) {
       console.error('[notebook] create note failed', e)
-      setActionError("Couldn't create that note. Nothing was saved.")
+      // Spec P1.6: a new note is never queued offline -- say so, rather than a bare failure.
+      setActionError(typeof navigator !== 'undefined' && navigator.onLine === false
+        ? "You're offline. A new note needs a connection; nothing was saved."
+        : "Couldn't create that note. Nothing was saved.")
     } finally {
       setCreating(false)
     }

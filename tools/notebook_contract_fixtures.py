@@ -420,14 +420,16 @@ class World:
             self.app.dependency_overrides[authmw.require_paid] = lambda: dict(user)
 
     def record(self, name: str, method: str, path: str, *, case: str, expect: int,
-               json_body: Any = None, content: bytes | None = None, note: str = "") -> Any:
-        """Call the endpoint, check the status is the one this case is about, keep the answer."""
+               json_body: Any = None, content: bytes | None = None, note: str = "", client: Any = None) -> Any:
+        """Call the endpoint, check the status is the one this case is about, keep the answer.
+        `client` answers through another app (journal_two's create door, deliberately not in
+        `build_app()`: its routes are not gated by these flags, so they belong in neither sweep)."""
         kwargs: dict[str, Any] = {}
         if json_body is not None:
             kwargs["json"] = json_body
         if content is not None:
             kwargs["content"] = content
-        res = self.client.request(method, path, **kwargs)
+        res = (client or self.client).request(method, path, **kwargs)
         if res.status_code != expect:
             raise AssertionError(f"{name}: {method} {path} answered {res.status_code}, wanted {expect}: "
                                  f"{res.text[:400]}")
@@ -1749,6 +1751,31 @@ def journal_styles(w: World) -> None:
              case="success", expect=200)
     w.as_user(who, FREE)
     w.record("journal-styles.list.free-plan", "GET", base, case="error", expect=402)
+
+    # Styled create (Task 9) rides journal_two's own POST /api/j2/notes, through a second app that
+    # shares this one's session overrides. journal_two is NOT in build_app(): its routes are not
+    # gated by these flags, so they belong in neither sweep.
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import journal_two
+    notes_app = FastAPI()
+    notes_app.include_router(journal_two.router)
+    notes_app.dependency_overrides = w.app.dependency_overrides      # the same session as the main app
+    notes_client = TestClient(notes_app)
+    w.as_user(who)
+    w.record("notes.create.kind", "POST", notes, case="success", expect=200, client=notes_client,
+             json_body={"kindId": "trade_plan", "ticker": "NVDA"},
+             note="A kind's default style (here the built-in): body, properties and stamp in one insert.")
+    w.record("notes.create.styled", "POST", notes, case="success", expect=200, client=notes_client,
+             json_body={"styleId": "builtin:thesis", "title": "Thesis"},
+             note="No ticker: the chart block is left out and an instruction stands where it was.")
+    w.record("notes.create.styled.not-found", "POST", notes, case="error", expect=404,
+             client=notes_client, json_body={"styleId": "nope"})
+    w.record("notes.create.kind.unknown", "POST", notes, case="error", expect=400,
+             client=notes_client, json_body={"kindId": "nope"})
+    w.as_user(who, FREE)
+    w.record("notes.create.styled.free-plan", "POST", notes, case="error", expect=402,
+             client=notes_client, json_body={"kindId": "thesis"})
     w.as_user(MEMBER)
 
 

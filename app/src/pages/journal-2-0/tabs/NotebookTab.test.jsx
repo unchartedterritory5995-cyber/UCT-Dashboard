@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
 import { MemoryRouter, useNavigate } from 'react-router-dom'
 // 13Q-Q1check: a spy over the REAL `mutate`, not a replacement for it -- other
@@ -233,6 +233,36 @@ describe('NotebookTab — template picker', () => {
   // focus in the BODY, not the title -- cutting the 4 extra real Tab presses
   // (keys) / 1 extra click (mouse, taps) the instrument measured reaching the
   // body by hand after a fresh=true open always landed on the title (I-1).
+  // Journal styles (P1, spec P1.6): a create is never queued offline, and the member is told why.
+  // Asserted by the RENDERED sentence, offline and online (the two must differ).
+  describe('a create that fails names why, and says nothing was saved', () => {
+    const failPost = () => {
+      global.fetch.mockImplementation((url, opts) => {
+        if (String(url) === '/api/j2/telemetry') return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+        if (opts?.method === 'POST') return Promise.reject(new TypeError('Failed to fetch'))
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+      })
+    }
+    afterEach(() => vi.restoreAllMocks())
+
+    it('offline: "You\'re offline. A new note needs a connection; nothing was saved."', async () => {
+      failPost()
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+      renderTab()
+      fireEvent.click(screen.getByRole('button', { name: '+ New note' }))
+      expect((await screen.findByRole('alert')).textContent)
+        .toBe("You're offline. A new note needs a connection; nothing was saved.")
+    })
+
+    it('online: the plain "Couldn\'t create that note" sentence', async () => {
+      failPost()
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+      renderTab()
+      fireEvent.click(screen.getByRole('button', { name: '+ New note' }))
+      expect((await screen.findByRole('alert')).textContent).toBe("Couldn't create that note. Nothing was saved.")
+    })
+  })
+
   it('13Q-2: the primary "+ New note" button opens with focus in the BODY, not the title', async () => {
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: '+ New note' }))
