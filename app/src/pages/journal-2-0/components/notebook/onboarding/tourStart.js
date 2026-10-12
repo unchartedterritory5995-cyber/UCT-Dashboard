@@ -11,7 +11,7 @@
 // note or trade already exists and opens it. With nothing to open, it says so (`none`) and
 // the engine shows a card with a way out. A tour never invents member data to have something
 // to point at.
-import { NOTEBOOK_ROOT, startKind } from './tourRegistry'
+import { NEEDS_NOTES, NOTEBOOK_ROOT, startKind } from './tourRegistry'
 
 /** Query parameters that pick a different SCREEN of the same page, not a filter on it. A
  *  member on `/journal/notebook?note=<id>` is in a note, not on Home, even though the
@@ -100,10 +100,17 @@ async function recentTradeId(fetchImpl) {
  *                               (never creates one). `chart`: a tour that needs a chart in a note,
  *                               and the member has notes but none holds one. `chartNoNotes`: the
  *                               same, and the member has no note at all
+ *   { none: 'firstNote' }       a tour whose first anchor exists only once the member has a note
+ *                               (NEEDS_NOTES), and the member has none: the card says to make one
  *   { none: 'error' }           the lookup failed; the card says so
  * Never throws.
  */
 export async function resolveStart(entry, location, { fetchImpl = globalThis.fetch } = {}) {
+  // D (polish round): asked only when the first anchor is NOT on screen. For a NEEDS_NOTES tour
+  // with no note at all it can never appear, so waiting for it would end in "start it again", and
+  // starting it again ends the same way. One read (the same unfiltered limit-1 read the chart card
+  // uses); a read that fails answers "has notes", so the tour goes on exactly as before.
+  if (NEEDS_NOTES.includes(entry?.id) && (await hasNoNotes(fetchImpl))) return { none: 'firstNote' }
   const kind = startKind(entry)
   if (!kind) return { stay: true }
   if (kind === 'path') return atStart(entry.start, location) ? { stay: true } : { path: entry.start }
@@ -158,6 +165,20 @@ export const UNREACHABLE_COPY = Object.freeze({
     actionLabel: 'Add the sample notebook',
     exitLabel: 'Go to my notes',
     exitPath: NOTEBOOK_ROOT,
+  }),
+  // D (polish round): a tour that starts on a control drawn only once the member has a note (the
+  // voice tour's "New note" arrow), for a member with none. One way out: the Notebook, to write one.
+  // Started ON Home (the exit path is the page already shown), the button does the useful thing in
+  // place instead (polish review nit): with the "Start a note" control there (`hereFocus`), it closes
+  // the card and puts focus on that control, labelled `hereLabel`; with no such control, the card
+  // offers only Close. From anywhere else (Help > Walkthroughs) it goes to the Notebook as before.
+  firstNote: Object.freeze({
+    title: 'Make a note first',
+    body: 'Make your first note, then come back to this tour.',
+    exitLabel: 'Go to the Notebook',
+    exitPath: NOTEBOOK_ROOT,
+    hereFocus: '[data-start-note]',
+    hereLabel: 'Show me where',
   }),
   trade: Object.freeze({
     title: 'This walkthrough runs on a closed trade',

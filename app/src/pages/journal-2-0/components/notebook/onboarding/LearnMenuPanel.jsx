@@ -61,7 +61,14 @@ import styles from './LearnMenu.module.css'
 // stay out of the Notebook's first-open bytes.
 const CapabilityPreview = lazyChunk(() => import('./CapabilityPreview'))
 
-export default function LearnMenuPanel({ open, asSheet, menuId, triggerRef, onOpenChange, hasAnyNotes = true }) {
+export default function LearnMenuPanel({ open, asSheet, menuId, triggerRef, onOpenChange, onReady, hasAnyNotes = true }) {
+  // Tell the button the menu's id now exists (LearnMenu.jsx names it in `aria-controls` only after
+  // this). Once, on mount: the panel is kept mounted from the first press on.
+  // ⛔ A PASSIVE effect, not a layout one: a layout-effect update re-renders this panel inside its own
+  // commit, after its item refs were attached, and the render truncates `itemRefs` (below) -- the
+  // arrow keys then walked nothing (measured: four LearnMenu.test.jsx cases red). The button names
+  // the menu one commit after it appears; it never names an id that does not exist.
+  useEffect(() => { onReady?.() }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [adding, setAdding] = useState(false)
   const [sampleMsg, setSampleMsg] = useState('')
   // "What your Notebook can do": the capability preview, open in a Sheet.

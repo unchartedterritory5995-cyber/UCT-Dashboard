@@ -25,7 +25,7 @@
 // The menu exists only while the wave-14 onboarding switch is on (`checklistEnabled`: the
 // onboarding flag AND getting-started, reused, never restated). Off, Research Home is the
 // pre-wave-14 page, exactly as Help's Walkthroughs section is.
-import { BASE_TOUR_ID, TOUR_REGISTRY, replayableTours, tourLive } from './tourRegistry'
+import { BASE_TOUR_ID, NEEDS_NOTES, TOUR_REGISTRY, replayableTours, tourLive } from './tourRegistry'
 import { openNotebookTour } from './tourControl'
 import { openRegistryTour } from './tourRegistryControl'
 
@@ -60,12 +60,11 @@ export function groupLearnTours(tours) {
     .filter((g) => g.tours.length > 0)
 }
 
-/** Tours whose FIRST anchor exists only once the member has a note. The voice tour opens on the
- *  "New note" control Research Home draws only when `hasAnyNotes` (ResearchHome.jsx, homeTop), so
- *  for a member with no notes it can never open: it fails with "could not be shown here ... start
- *  it again from Learn", and starting it again fails the same way. Hidden from Learn until they have
- *  a note. (The registry's `requires` is a list of FLAG keys, which cannot say "has a note".) */
-export const NEEDS_NOTES = Object.freeze(['voice-notes'])
+/** Tours whose FIRST anchor exists only once the member has a note: hidden from Learn until they
+ *  have one. The list's one authority is the registry module (tourRegistry.js, `NEEDS_NOTES`, which
+ *  also tells the engine to say "make a note first" from every other door); re-exported here so
+ *  existing imports keep working. */
+export { NEEDS_NOTES }
 
 /** The tours the menu offers, in registry order (see the header). `flag` is notebookFlag
  *  (a parameter so a rail can arm a fake registry's flags); `registry` is TOUR_REGISTRY.

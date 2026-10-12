@@ -25,6 +25,7 @@ import { ReactRenderer } from '@tiptap/react'
 import { useEffect, useImperativeHandle, useState, forwardRef } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { applyComboboxWiring } from '../../lib/comboboxWiring'
+import { guardedCommand, sessionStillOpen } from '../../lib/suggestionSession'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteLinkMenu.module.css'
 
@@ -150,6 +151,13 @@ NoteLinkList.displayName = 'NoteLinkList'
 // Exported so another suggestion (the `@` date list) can ask whether a `[[` session is open.
 export const noteLinkMenuPluginKey = new PluginKey('noteLinkMenu')
 
+/** The note-link Suggestion's command, exported so a rail can hand it a dead session's range.
+ *  Guarded (lib/suggestionSession.js): a row clicked for a session that has ended does nothing,
+ *  never deleting the text that now sits where the dead `[[` was. */
+export const noteLinkCommand = guardedCommand(noteLinkMenuPluginKey, ({ editor, range, props }) => {
+  editor.chain().focus().deleteRange(range).insertNoteLink(props.id).run()
+})
+
 export const NoteLinkMenuExtension = Extension.create({
   name: 'noteLinkMenu',
   addProseMirrorPlugins() {
@@ -189,9 +197,7 @@ export const NoteLinkMenuExtension = Extension.create({
         // menu's whole purpose is searching human-authored, usually
         // multi-word titles, so it needs it even more.
         allowSpaces: true,
-        command: ({ editor, range, props }) => {
-          editor.chain().focus().deleteRange(range).insertNoteLink(props.id).run()
-        },
+        command: noteLinkCommand,
         items: (() => {
           // One search sequence per plugin instance (never shared between
           // open notes/editors) -- see makeNoteSearch.
@@ -227,8 +233,27 @@ export const NoteLinkMenuExtension = Extension.create({
             applyComboboxWiring(editorDom, { menuId: MENU_ID, activeId: id, showing: Boolean(id && !dismissed) })
           }
 
+          const teardown = () => {
+            window.removeEventListener('scroll', onViewportChange, true)
+            window.removeEventListener('resize', onViewportChange)
+            setActiveDescendant(null)
+            popup?.remove()
+            component?.destroy()
+            popup = null
+            component = null
+          }
+
           return {
             onStart: (props) => {
+              // The session starts after a debounced search (150 ms plus the fetch). In between the
+              // note may have been closed (reading a destroyed editor's view throws: an unhandled
+              // rejection), or the `[[` deleted (a popup for a session that is gone, which nothing
+              // removes). Either way: draw nothing. lib/suggestionSession.js, shared by all four menus.
+              if (!sessionStillOpen(noteLinkMenuPluginKey, props.editor, props.range)) return
+              // A `[[` re-pasted at the same spot inside the delay starts a second session at the same
+              // `from`, so both late onStarts pass the check above. Only the newest popup is the one
+              // onExit removes: drop any earlier one first (H14 review F2).
+              teardown()
               dismissed = false
               getRect = props.clientRect
               editorDom = props.editor?.view?.dom || null
@@ -263,13 +288,7 @@ export const NoteLinkMenuExtension = Extension.create({
               return component?.ref?.onKeyDown?.(props) ?? false
             },
             onExit() {
-              window.removeEventListener('scroll', onViewportChange, true)
-              window.removeEventListener('resize', onViewportChange)
-              setActiveDescendant(null)
-              popup?.remove()
-              component?.destroy()
-              popup = null
-              component = null
+              teardown()
             },
           }
         },

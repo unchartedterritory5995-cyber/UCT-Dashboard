@@ -12,7 +12,16 @@
 // `aria-haspopup="menu"` + `aria-expanded`, and ArrowDown on the closed button opens it. Whether an
 // opening is the anchored popover or the phone sheet is decided when the button is pressed
 // (`useIsPhone()` read at click time, never at first paint).
-import { Suspense, useId, useRef, useState } from 'react'
+//
+// WHILE THE CHUNK LOADS (polish round, review I4-a): the first press of a page load opens a menu
+// that is not on the page yet. So `aria-controls` names the menu only once the panel has mounted
+// (it says so through `onReady`), never an id nothing carries; and until then this button answers
+// Escape and a press outside itself, cancelling the open, so the menu does not pop open after the
+// member has already dismissed it. Once the panel is mounted its own handlers take over.
+// ⚠️ A FAILED chunk is not handled here: `lazyChunk` retries once in place and then hands the error
+// to `utils/lazyWithRetry`, the app-wide stale-chunk policy (one page reload per session, then the
+// route's error boundary), the same as every other on-demand Notebook view.
+import { Suspense, useEffect, useId, useRef, useState } from 'react'
 import UIcon from '../../../../../components/ui/UIcon'
 import { useIsPhone } from '../../../../../hooks/useBreakpoint'
 import { notebookFlag } from '../../../lib/offline/notebookFlags'
@@ -28,9 +37,28 @@ export default function LearnMenu({ className = '', hasAnyNotes = true }) {
   const [asSheet, setAsSheet] = useState(false)
   // Mounted from the first press on, and kept: the catalog Sheet outlives the menu.
   const [wanted, setWanted] = useState(false)
+  // The panel has mounted (it calls `onReady` once): only then does the menu's id exist.
+  const [ready, setReady] = useState(false)
   const menuId = useId()
   const triggerRef = useRef(null)
   const phone = useIsPhone()
+
+  // Opened, chunk still on its way: a press outside the button cancels the open. Escape is the
+  // button's own onKeyDown below: focus is still on it while the panel loads, and a document-level
+  // key listener would be a raw one outside the shortcut registry (TERM-063 census).
+  useEffect(() => {
+    if (!open || ready) return undefined
+    const onDown = (e) => {
+      if (triggerRef.current?.contains(e.target)) return   // the button toggles on its own
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('touchstart', onDown)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('touchstart', onDown)
+    }
+  }, [open, ready])
 
   if (!learnMenuEnabled(notebookFlag)) return null
 
@@ -48,13 +76,16 @@ export default function LearnMenu({ className = '', hasAnyNotes = true }) {
         className={`btn btn-ghost ${styles.trigger}`}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-controls={open ? menuId : undefined}
+        aria-controls={open && ready ? menuId : undefined}
         title={LEARN_COPY.buttonTitle}
         onClick={() => (open ? setOpen(false) : openMenu())}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown' && !open) {
             e.preventDefault()
             openMenu()
+          } else if (e.key === 'Escape' && open && !ready) {
+            e.preventDefault()
+            setOpen(false)
           }
         }}
       >
@@ -69,6 +100,7 @@ export default function LearnMenu({ className = '', hasAnyNotes = true }) {
             menuId={menuId}
             triggerRef={triggerRef}
             onOpenChange={setOpen}
+            onReady={() => setReady(true)}
             hasAnyNotes={hasAnyNotes}
           />
         </Suspense>

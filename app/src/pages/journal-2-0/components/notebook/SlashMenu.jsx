@@ -7,8 +7,9 @@
  */
 
 import { Extension } from '@tiptap/react'
-import Suggestion from '@tiptap/suggestion'
+import Suggestion, { SuggestionPluginKey } from '@tiptap/suggestion'
 import { ReactRenderer } from '@tiptap/react'
+import { guardedCommand, sessionStillOpen } from '../../lib/suggestionSession'
 import { useEffect, useImperativeHandle, useState, forwardRef } from 'react'
 import { WIDGET_REGISTRY, JOURNAL_MENU_TYPES, tfText } from '../../../../widgets/registry'
 import {
@@ -701,6 +702,13 @@ const SlashList = forwardRef((props, ref) => {
 })
 SlashList.displayName = 'SlashList'
 
+/** The slash Suggestion's command, exported so a rail can hand it a dead session's range.
+ *  Guarded (lib/suggestionSession.js): an item chosen for a session that has ended never runs.
+ *  The slash menu passes no pluginKey, so it lives under Suggestion's default key. */
+export const slashCommand = guardedCommand(SuggestionPluginKey, ({ editor, range, props }) => {
+  props.command({ editor, range })
+})
+
 export const SlashMenuExtension = Extension.create({
   name: 'slashMenu',
   addProseMirrorPlugins() {
@@ -714,9 +722,7 @@ export const SlashMenuExtension = Extension.create({
         // suggestion; with zero matches the list renders nothing and (per the
         // guard in SlashList.onKeyDown) passes every key through.
         allowSpaces: true,
-        command: ({ editor, range, props }) => {
-          props.command({ editor, range })
-        },
+        command: slashCommand,
         items: ({ query, editor }) => {
           const q = (query || '').toLowerCase()
           const widgets = widgetItems(query)
@@ -776,6 +782,9 @@ export const SlashMenuExtension = Extension.create({
 
           return {
             onStart: (props) => {
+              // Suggestion calls this after awaiting `items`; a session that ended meanwhile (the
+              // trigger deleted, or a start and an end in one task) draws nothing.
+              if (!sessionStillOpen(SuggestionPluginKey, props.editor, props.range)) return
               dismissed = false
               getRect = props.clientRect
               editorDom = props.editor?.view?.dom || null

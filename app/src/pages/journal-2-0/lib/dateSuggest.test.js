@@ -15,6 +15,14 @@ import { todayET } from './calendar'
 import { resolveDateWord } from './dateMentionNode'
 import { dateChoices, runDateCommand, dateSuggestPluginKey, DateSuggest } from './dateSuggest'
 
+// jsdom has no Range geometry. A focus WITHOUT a position (the product's own `chain().focus()` in
+// runDateCommand and the menus' commands) still schedules TipTap's scrollIntoView frame when the view
+// is not focused yet, and that frame reached prosemirror's coordsAtPos -> "target.getClientRects is
+// not a function" in a loaded batch (1 of 5 runs even with every test focus passing
+// scrollIntoView: false). The same two lines EmojiMenu.test.jsx carries for the same reason.
+if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
+if (!Range.prototype.getBoundingClientRect) Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
+
 const TODAY = '2026-10-14' // a Wednesday
 
 describe('dateChoices', () => {
@@ -83,6 +91,11 @@ describe('the extension on the real roster', () => {
   // JSON content, not HTML: an HTML parse collapses a trailing space, and "Call broker " + "@" is
   // exactly the case under test (the "@" must follow a space).
   const para = (text) => (text ? { type: 'paragraph', content: [{ type: 'text', text }] } : { type: 'paragraph' })
+  // ⛔ Every focus here passes `{ scrollIntoView: false }` (polish round, coordinator ruling). TipTap's
+  // focus schedules scrollIntoView in a requestAnimationFrame; jsdom has no getClientRects, so a frame
+  // that fired while a case was still running (a loaded batch) threw "target.getClientRects is not a
+  // function" as an unhandled error attributed to this file. These cases test what is typed, never
+  // where the page scrolls.
   function mount(text = '', block = para) {
     const el = document.createElement('div')
     document.body.appendChild(el)
@@ -111,7 +124,7 @@ describe('the extension on the real roster', () => {
 
   it('typing @ after a space opens the suggestion, with the query as typed', () => {
     const ed = mount('Call broker ')
-    ed.commands.focus('end')
+    ed.commands.focus('end', { scrollIntoView: false })
     ed.commands.insertContent('@tom')
     const s = state(ed)
     expect(s.active).toBe(true)
@@ -120,14 +133,14 @@ describe('the extension on the real roster', () => {
 
   it('at the very start of a line it opens too', () => {
     const ed = mount('')
-    ed.commands.focus('end')
+    ed.commands.focus('end', { scrollIntoView: false })
     ed.commands.insertContent('@')
     expect(state(ed).active).toBe(true)
   })
 
   it('⛔ an email address never opens it (the @ must start a word)', () => {
     const ed = mount('write to me')
-    ed.commands.focus('end')
+    ed.commands.focus('end', { scrollIntoView: false })
     ed.commands.insertContent('name@tom')
     expect(state(ed).active).toBeFalsy()
   })
@@ -143,7 +156,7 @@ describe('the extension on the real roster', () => {
 
   it('typing @ then choosing Tomorrow inserts a date mention (the command the Enter key runs)', () => {
     const ed = mount('Call broker ')
-    ed.commands.focus('end')
+    ed.commands.focus('end', { scrollIntoView: false })
     ed.commands.insertContent('@')
     runDateCommand(ed, { label: 'Tomorrow', date: '2026-10-15' }, state(ed).range)
     const json = JSON.stringify(ed.getJSON())
@@ -156,7 +169,7 @@ describe('the extension on the real roster', () => {
 
   it('runDateCommand without a range inserts at the caret and removes nothing', () => {
     const ed = mount('Due ')
-    ed.commands.focus('end')
+    ed.commands.focus('end', { scrollIntoView: false })
     runDateCommand(ed, { label: 'Today', date: '2026-10-14' })
     expect(mentions(ed)).toEqual(['2026-10-14'])
     expect(text(ed)).toBe('Due  ')
@@ -164,7 +177,7 @@ describe('the extension on the real roster', () => {
 
   it('runDateCommand refuses a choice with no date (the picker row) and changes nothing', () => {
     const ed = mount('Due ')
-    ed.commands.focus('end')
+    ed.commands.focus('end', { scrollIntoView: false })
     const before = JSON.stringify(ed.getJSON())
     expect(runDateCommand(ed, { label: 'Pick a date…', date: null, picker: true })).toBe(false)
     expect(runDateCommand(ed, { label: 'x', date: '2026-02-30' })).toBe(false)
@@ -173,15 +186,25 @@ describe('the extension on the real roster', () => {
 
   // The list is only real when it is drawn: a key sent to an editor whose list never rendered
   // passes through trivially. These helpers draw it (ReactRenderer needs a React tree) and wait.
+  // N5 (polish round): the list mounts after a promise (the session's items, then its chunk), and
+  // mounting it updates EditorContent's portals. The wait happens INSIDE act, so that update is
+  // part of the test's act scope -- before, it landed outside one ("not wrapped in act").
+  const listMounted = () => [...document.body.children]
+    .some((el) => el.style?.position === 'fixed' && el.querySelector('.react-renderer'))
   async function typeWithList(text, typed) {
     const ed = mount(text)
     render(createElement(EditorContent, { editor: ed }))
-    ed.commands.focus('end')
-    ed.commands.insertContent(typed)
-    await waitFor(() => expect(document.getElementById('uct-date-suggest')).not.toBeNull())
+    ed.commands.focus('end', { scrollIntoView: false })
+    await act(async () => {
+      ed.commands.insertContent(typed)
+      for (let i = 0; i < 300 && !listMounted(); i += 1) await new Promise((r) => setTimeout(r, 10))
+    })
+    expect(document.getElementById('uct-date-suggest')).not.toBeNull()
     return ed
   }
   const pressKey = (ed, k) => ed.view.someProp('handleKeyDown', (f) => f(ed.view, new KeyboardEvent('keydown', { key: k })))
+  // A key that ends the session unmounts the list (a portal update): pressed inside act too.
+  const pressIn = async (ed, k) => { let out; await act(async () => { out = pressKey(ed, k) }); return out }
   const paragraphs = (ed) => ed.getJSON().content.map((n) => n.type)
 
   it('end to end: "@tom", ArrowDown, Enter inserts tomorrow and leaves no @tom text behind', async () => {
@@ -194,7 +217,7 @@ describe('the extension on the real roster', () => {
 
   it('⛔ a bare "@" then Enter inserts NO date: it leaves the "@" and starts a new paragraph', async () => {
     const ed = await typeWithList('Buy NVDA ', '@')
-    pressKey(ed, 'Enter')
+    await pressIn(ed, 'Enter')
     expect(mentions(ed)).toEqual([])
     expect(paragraphs(ed)).toEqual(['paragraph', 'paragraph'])
     expect(ed.state.doc.firstChild.textContent).toBe('Buy NVDA @')
@@ -203,7 +226,7 @@ describe('the extension on the real roster', () => {
   it('⛔ "@tom" then Enter inserts NO date either (and "@mon", "@fri", "@next")', async () => {
     for (const q of ['@tom', '@mon', '@fri', '@next']) {
       const ed = await typeWithList('ask ', q)
-      pressKey(ed, 'Enter')
+      await pressIn(ed, 'Enter')
       expect(mentions(ed), q).toEqual([])
       expect(paragraphs(ed), q).toEqual(['paragraph', 'paragraph'])
       expect(ed.state.doc.firstChild.textContent, q).toBe(`ask ${q}`)
@@ -221,7 +244,7 @@ describe('the extension on the real roster', () => {
 
   it('Tab inserts the first choice with nothing selected', async () => {
     const ed = await typeWithList('Due ', '@tom')
-    expect(pressKey(ed, 'Tab')).toBe(true)
+    expect(await pressIn(ed, 'Tab')).toBe(true)
     expect(mentions(ed)).toEqual([resolveDateWord('tomorrow', todayET())])
     expect(paragraphs(ed)).toEqual(['paragraph'])
   })
@@ -229,7 +252,7 @@ describe('the extension on the real roster', () => {
   describe('never beside another suggestion', () => {
     it('⛔ "[" is not a word start: "[@tom" opens nothing', () => {
       const ed = mount('see ')
-      ed.commands.focus('end')
+      ed.commands.focus('end', { scrollIntoView: false })
       ed.commands.insertContent('[@tom')
       expect(state(ed).active).toBeFalsy()
     })
@@ -237,32 +260,48 @@ describe('the extension on the real roster', () => {
     it('⛔ typing "@" inside an open slash command does not open the date list; Enter is not a date', async () => {
       const ed = mount('Call ')
       render(createElement(EditorContent, { editor: ed }))
-      ed.commands.focus('end')
+      ed.commands.focus('end', { scrollIntoView: false })
       ed.commands.insertContent('/chart AMD ')
       await waitFor(() => expect(document.getElementById('uct-slash-menu')).not.toBeNull())
       expect(slashKey.getState(ed.state).active).toBe(true) // non-vacuity: the slash session IS open
-      ed.commands.insertContent('@')
+      // the slash menu's own portal updates on both keys: inside act (N5)
+      await act(async () => { ed.commands.insertContent('@') })
       expect(slashKey.getState(ed.state).active).toBe(true)
       expect(state(ed).active).toBeFalsy()
       expect(document.getElementById('uct-date-suggest')).toBeNull()
-      pressKey(ed, 'Enter')
+      await pressIn(ed, 'Enter')
       expect(mentions(ed)).toEqual([])
     })
 
-    it('⛔ typing "@" inside an open [[ note link does not open the date list', () => {
-      const ed = mount('See ')
-      ed.commands.focus('end')
-      ed.commands.insertContent('[[Weekly review ')
-      expect(noteLinkMenuPluginKey.getState(ed.state).active).toBe(true) // non-vacuity
-      ed.commands.insertContent('@')
-      expect(noteLinkMenuPluginKey.getState(ed.state).active).toBe(true)
-      expect(state(ed).active).toBeFalsy()
+    it('⛔ typing "@" inside an open [[ note link does not open the date list', async () => {
+      // N5 (polish round): the note-link menu starts its session only after a debounced search, so
+      // a synchronous test ended, and afterEach destroyed the editor, BEFORE that session's onStart
+      // read `editor.view` -- an unhandled rejection attributed to this file in loaded batch runs
+      // (1 of 2 batches, before and after I4b alike). The search is answered at once here, and the
+      // test waits for its own session to start (its popup on the page) before it ends.
+      const realFetch = globalThis.fetch
+      globalThis.fetch = async () => ({ ok: true, json: async () => ({ notes: [] }) })
+      try {
+        const ed = mount('See ')
+        ed.commands.focus('end', { scrollIntoView: false })
+        ed.commands.insertContent('[[Weekly review ')
+        expect(noteLinkMenuPluginKey.getState(ed.state).active).toBe(true) // non-vacuity
+        ed.commands.insertContent('@')
+        expect(noteLinkMenuPluginKey.getState(ed.state).active).toBe(true)
+        expect(state(ed).active).toBeFalsy()
+        const popupUp = () => [...document.body.children].some((el) => el.style?.position === 'fixed')
+        for (let i = 0; i < 200 && !popupUp(); i += 1) await new Promise((r) => setTimeout(r, 10))
+        expect(popupUp()).toBe(true) // the note-link session started while the editor was alive
+        expect(document.getElementById('uct-date-suggest')).toBeNull()
+      } finally {
+        globalThis.fetch = realFetch
+      }
     })
 
     it('the "Due date" slash item still opens the date list (the slash session ends in the same step)', async () => {
       const ed = mount('Call broker ')
       render(createElement(EditorContent, { editor: ed }))
-      ed.commands.focus('end')
+      ed.commands.focus('end', { scrollIntoView: false })
       ed.commands.insertContent('/due')
       await waitFor(() => expect(document.getElementById('uct-slash-menu')).not.toBeNull())
       await act(async () => { pressKey(ed, 'ArrowDown') })
@@ -275,7 +314,7 @@ describe('the extension on the real roster', () => {
 
   it('⛔ "@john" then Enter is NOT swallowed: no list, so Enter reaches the editor as a newline', () => {
     const ed = mount('ask ')
-    ed.commands.focus('end')
+    ed.commands.focus('end', { scrollIntoView: false })
     ed.commands.insertContent('@john')
     press(ed, 'Enter')
     expect(mentions(ed)).toEqual([])
@@ -303,7 +342,7 @@ describe('the extension on the real roster', () => {
 
   it('the existing input rule still turns "@tomorrow " into a mention (it was not changed)', () => {
     const ed = mount('Call ')
-    ed.commands.focus('end')
+    ed.commands.focus('end', { scrollIntoView: false })
     const type = (s) => {
       for (const ch of s) {
         const { from, to } = ed.state.selection

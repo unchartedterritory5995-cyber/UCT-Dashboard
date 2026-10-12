@@ -5,7 +5,7 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   SAMPLE_IMPORT_PREFIX, SCREEN_PARAMS, UNREACHABLE_COPY, atStart, notePath, openNoteId, resolveStart, tradePath,
 } from './tourStart'
-import { NOTEBOOK_ROOT, OTHER_TOURS, startKind } from './tourRegistry'
+import { NEEDS_NOTES, NOTEBOOK_ROOT, OTHER_TOURS, getTourEntry, startKind } from './tourRegistry'
 
 const loc = (pathname, search = '') => ({ pathname, search })
 
@@ -213,6 +213,55 @@ describe('(b) a trade start opens the member\'s most recent trade page', () => {
   it('none', async () => {
     const f = fakeFetch({ trades: [] })
     expect(await resolveStart({ start: { trade: 'recent' } }, loc('/journal'), { fetchImpl: f })).toEqual({ none: 'trade' })
+  })
+})
+
+// D (polish round): the voice tour opens on the "New note" arrow, drawn only once the member has a
+// note. Learn hides it from a member with none, but Help > Walkthroughs and What's new still start
+// it; the engine waited for an anchor that could not appear and failed with "start it again".
+describe('(D) a tour whose first anchor needs a note: "make a note first", from every door', () => {
+  const voice = getTourEntry('voice-notes')
+
+  it('the real voice tour is the one NEEDS_NOTES names (non-vacuity: a real, replayable entry)', () => {
+    expect(NEEDS_NOTES).toContain('voice-notes')
+    expect(voice).toBeTruthy()
+    expect(voice.replayable).toBe(true)
+  })
+
+  it('a member with NO note gets the one card, wherever they start it from (Home included)', async () => {
+    const f = fakeFetch({ notes: [] })
+    expect(await resolveStart(voice, loc('/support'), { fetchImpl: f })).toEqual({ none: 'firstNote' })
+    expect(await resolveStart(voice, loc(NOTEBOOK_ROOT), { fetchImpl: f })).toEqual({ none: 'firstNote' })
+    expect(writes(f)).toEqual([]) // read-only
+  })
+
+  it('a member WITH a note: the start goes on exactly as before (navigate, or stay)', async () => {
+    const f = fakeFetch({ notes: [{ id: 'n1' }] })
+    expect(await resolveStart(voice, loc('/support'), { fetchImpl: f })).toEqual({ path: NOTEBOOK_ROOT })
+    expect(await resolveStart(voice, loc(NOTEBOOK_ROOT), { fetchImpl: f })).toEqual({ stay: true })
+  })
+
+  it('a read that fails is not taken as "no notes": the tour goes on as before', async () => {
+    const f = vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) }))
+    expect(await resolveStart(voice, loc('/support'), { fetchImpl: f })).toEqual({ path: NOTEBOOK_ROOT })
+  })
+
+  it('a tour NOT in NEEDS_NOTES never pays for the read', async () => {
+    const f = fakeFetch({ notes: [] })
+    expect(await resolveStart({ id: 'some-other-tour', start: NOTEBOOK_ROOT }, loc('/support'), { fetchImpl: f }))
+      .toEqual({ path: NOTEBOOK_ROOT })
+    expect(f).not.toHaveBeenCalled()
+  })
+
+  it('the card: plain words, one way out to the Notebook, no "start it again"', () => {
+    const c = UNREACHABLE_COPY.firstNote
+    expect(c.title).toBe('Make a note first')
+    expect(c.body).toBe('Make your first note, then come back to this tour.')
+    expect(c.body).not.toMatch(/[—–!]/)
+    expect(c.body).not.toMatch(/start it again/)
+    expect(c.exitLabel).toBe('Go to the Notebook')
+    expect(c.exitPath).toBe(NOTEBOOK_ROOT)
+    expect(c.action).toBeUndefined()
   })
 })
 
