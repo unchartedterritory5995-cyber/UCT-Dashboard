@@ -35,6 +35,7 @@ import { WORKSPACE_MENU_TYPES, labelMap } from '../../widgets/registry'
 import { mark } from '../trace'
 import { afterRender } from '../frames'
 import { CHART_TIMEFRAMES, CHART_TYPE_IDS } from './chart'
+import { isPronounToken } from '../nl/tickers'
 
 const LABEL = labelMap('menu')
 const label = (t) => LABEL[t] || t
@@ -60,7 +61,9 @@ const NEW_CHART_TICKER = /^(?:please\s+)?(?:open|add|create|make|start|pull up|b
 export function newChartTicker(raw) {
   const m = NEW_CHART_TICKER.exec(String(raw || '').trim())
   const t = m ? (m[1] || m[2]) : null
-  return t && /^[A-Z][A-Z0-9.]{0,9}$/.test(t) && !/^(?:A|AN|NEW|MY|THE)$/.test(t) ? t : null
+  // ⛔ a pronoun is never a ticker — "OPEN A CHART OF IT" typed in capitals is still "it"
+  const typed = t && String(raw).includes(`$${t}`) ? `$${t}` : t       // "$IT" is explicitly a ticker
+  return t && /^[A-Z][A-Z0-9.]{0,9}$/.test(t) && !/^(?:A|AN|NEW|MY|THE)$/.test(t) && !isPronounToken(typed, raw) ? t : null
 }
 /** F4 (model path): a plan that adds ONE chart for a named ticker but drops the ticker is corrected to
  *  the born-on-its-ticker form. Anything else is left exactly as planned. */
