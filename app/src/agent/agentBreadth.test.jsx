@@ -134,6 +134,23 @@ describe('3 · the panel: the member sees UCT\'s answer; the model never gets it
     expect(t2.context.breadth[0]).toMatchObject({ today_et: '2026-10-11', latest_finalized: { us: '2026-10-09' } })
   })
 
+  it('MIXED breadth + news: the breadth answer AND UCT\'s notice that the news part was not done are both shown', async () => {
+    const NOTICE = 'UCT\'s breadth answer for your request is shown here. I did not look up the news or current-events part of your message — nothing was searched. Ask that part on its own and I\'ll look it up.'
+    const { say } = await mount()
+    envelopes.push((b) => ({ ...plan([{ action: 'breadth.show', target: refOf(b, 'breadth'), args: REQ }], NOTICE), local_notice: true }))
+    await say('what % of US stocks are above the 50-day, and the latest NVDA news?')
+    await screen.findByText(/73\.5% on 2026-10-09/, {}, { timeout: 6000 })
+    expect(screen.getByTestId('agent-transcript').textContent).toContain('I did not look up the news or current-events part')
+  })
+
+  it('a reply on a local plan WITHOUT the server\'s notice flag is still never shown', async () => {
+    const { say } = await mount()
+    envelopes.push((b) => ({ ...plan([{ action: 'breadth.show', target: refOf(b, 'breadth'), args: REQ }], 'I did not look up the news. It was 73.5%.'), local_notice: false }))
+    await say('breadth and news?')
+    await screen.findByText(/73\.5% on 2026-10-09/, {}, { timeout: 6000 })
+    expect(screen.getByTestId('agent-transcript').textContent).not.toContain('It was 73.5%')
+  })
+
   it('a MIXED turn (breadth + stock profile) is recorded local with only the breadth request', async () => {
     const { say } = await mount()
     envelopes.push((b) => plan([

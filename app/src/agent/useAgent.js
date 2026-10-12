@@ -946,9 +946,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       // apply / propose: translate the context refs back to real target refs
       // ⛔ LOCAL-RESULT BOUNDARY: a plan holding a local-only lookup shows UCT's answer, never the
-      // model's own words about it (the server blanks that reply too).
+      // model's own words about it (the server blanks that reply too). The one exception is the
+      // SERVER's own deterministic notice (`local_notice`) saying which part was not done.
       const localPlan = (env.ops || []).some(o => getCapability(o?.action)?.localOnly)
-      if (env.reply && !localPlan) push({ role: 'agent', text: env.reply, sources })
+      if (env.reply && (!localPlan || env.local_notice === true)) push({ role: 'agent', text: env.reply, sources })
       if (p?.kind === 'proposal') { pendingRef.current = null; patchItem(p.id, { status: 'replaced' }) }
       // A reference that names a context target (a saved list's ref) is bound to
       // that target's own read-only producer before the refs are translated.
