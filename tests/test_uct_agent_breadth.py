@@ -76,21 +76,9 @@ def leaked(payload) -> list[str]:
 
 @pytest.fixture
 def world(monkeypatch):
-    # The fixture's own socket ban also blocks the LOOPBACK socketpair Windows asyncio needs inside
-    # TestClient, so it is replaced by an equivalent guard that refuses every non-loopback connect.
-    import socket
-    state = synthetic_breadth_world(monkeypatch, sentinel=SENTINEL, session=SESSION, forbid_network=False)
-    real_connect = socket.socket.connect
-
-    def loopback_only(self, addr, *a, **k):
-        host = addr[0] if isinstance(addr, tuple) else addr
-        if host not in ("127.0.0.1", "::1", "localhost"):
-            raise AssertionError(f"no network in breadth leak tests (tried {host})")
-        return real_connect(self, addr, *a, **k)
-    monkeypatch.setattr(socket.socket, "connect", loopback_only)
-    monkeypatch.setattr(socket, "create_connection",
-                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("no network in breadth leak tests")))
-    return state
+    # The shared fixture's guard is LOOPBACK-ONLY (MI c62b394455): TestClient's socketpair works,
+    # any other connect fails the test.
+    return synthetic_breadth_world(monkeypatch, sentinel=SENTINEL, session=SESSION, forbid_network=True)
 
 
 @pytest.fixture
