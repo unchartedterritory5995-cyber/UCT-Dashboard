@@ -55,6 +55,12 @@ describe('useJournalStyles (gate on)', () => {
     expect(result.current.error).toBeUndefined()
   })
 
+  it.each([[null], [0], ['']])('a falsy non-boolean `enabled` (%s) narrows it too, gate on', async (value) => {
+    renderHook(() => useJournalStyles({ enabled: value }), { wrapper })
+    await act(async () => { await Promise.resolve() })
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+  })
+
   it('makes no request when the caller narrows it (`enabled: false`), gate on or not', async () => {
     const { result } = renderHook(() => useJournalStyles({ enabled: false }), { wrapper })
     await act(async () => { await Promise.resolve() })
