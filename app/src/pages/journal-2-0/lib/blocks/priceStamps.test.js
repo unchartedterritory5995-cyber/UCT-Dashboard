@@ -123,8 +123,12 @@ describe('price stamps', () => {
 
   it('M-4: a code-block line never stamps, even naming $NVDA', async () => {
     const ed = editorWith({ type: 'doc', content: [
-      { type: 'codeBlock', content: [{ type: 'text', text: 'buy $NVDA' }] }] })
-    ed.commands.setTextSelection(ed.state.doc.content.size - 1)
+      { type: 'codeBlock', attrs: { language: null }, content: [{ type: 'text', text: 'buy $NVDA' }] }] })
+    let end = 0
+    ed.state.doc.descendants((n, pos, parent) => { if (n.isText && parent.type.name === 'codeBlock') end = pos + n.nodeSize })
+    ed.commands.setTextSelection(end)
+    const { $from } = ed.state.selection                       // CONTROL: the caret ends a code line naming $NVDA
+    expect([$from.parent.type.name, $from.parent.textContent, $from.parentOffset]).toEqual(['codeBlock', 'buy $NVDA', 9])
     ed.view.someProp('handleKeyDown', (f) => f(ed.view, new KeyboardEvent('keydown', { key: 'Enter' })))
     await vi.advanceTimersByTimeAsync(400)
     expect(globalThis.fetch).not.toHaveBeenCalled()
