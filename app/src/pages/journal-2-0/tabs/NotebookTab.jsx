@@ -1882,6 +1882,12 @@ export default function NotebookTab() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // The New-note menu's other doors, ONE each for both menus (Research Home's split button and the
+  // notes list's caret): null while its gate is off, so a menu lists no door that opens nothing.
+  const openNewNoteSheet = () => setPickerOpen(true)
+  const fromStyle = stylesOn ? () => setPickerOpen('kinds') : null
+  const recordVoiceNote = voiceOn ? () => startVoiceNote('record') : null
+
   // A successful import can create notes AND folders — refresh both. Notes
   // come back through useJ2Notes' own refresh(); folders live behind
   // FolderSidebar's own useJ2NoteFolders() hook with no exposed handle up
@@ -2298,9 +2304,9 @@ export default function NotebookTab() {
             // toolbar's Templates button uses, and the SAME voice starter the sheet's own
             // "Voice note" button calls (null while the voice gate is off, so the menu lists
             // no door that opens nothing).
-            onOpenNewNoteSheet={() => setPickerOpen(true)}
-            onFromStyle={stylesOn ? () => setPickerOpen('kinds') : null}
-            onStartVoiceNote={voiceOn ? () => startVoiceNote('record') : null}
+            onOpenNewNoteSheet={openNewNoteSheet}
+            onFromStyle={fromStyle}
+            onStartVoiceNote={recordVoiceNote}
             // P0.13: Home's search box steps aside while the panel's search is on screen.
             searchActive={sidebarSearching && sidebarOpen}
             skipLinkClassName={styles.skipLink}
@@ -2485,7 +2491,7 @@ export default function NotebookTab() {
             <button
               type="button"
               className={styles.templatesBtn}
-              onClick={() => setPickerOpen(true)}
+              onClick={openNewNoteSheet}
               disabled={creating}
               aria-haspopup="dialog"
               data-tour="templates"
@@ -2504,8 +2510,8 @@ export default function NotebookTab() {
             </button>
             {/* P1 follow-up: Home's caret beside it (spec P1.4), the SAME handlers Home is handed above */}
             {stylesOn && (
-              <NewNoteCaret onFromOutline={() => setPickerOpen(true)} onFromStyle={() => setPickerOpen('kinds')}
-                onVoice={voiceOn ? () => startVoiceNote('record') : null} onToday={openToday} />
+              <NewNoteCaret onFromOutline={openNewNoteSheet} onFromStyle={fromStyle}
+                onVoice={recordVoiceNote} onToday={openToday} />
             )}
           </div>
         </div>

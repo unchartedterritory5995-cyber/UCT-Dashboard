@@ -46,7 +46,7 @@ function CaretMenu({ caretClass, onFromOutline, onFromStyle, onVoice = null, onT
     else if (e.key === 'ArrowUp') { e.preventDefault(); list[(i - 1 + list.length) % list.length]?.focus() }
     // The list's caret sits in a role="toolbar" whose Left/Right/Home/End rove its controls; from an
     // open menu they would move focus out and leave the menu hanging open.
-    else if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) e.stopPropagation()
+    else if (/^(Arrow[LR]|Home|End)/.test(e.key)) e.stopPropagation()
   }
   // Focus goes back to the caret BEFORE the item runs: the menu (and the item holding focus) is gone
   // on the next render, and what the item opens (the New-note sheet, the voice dialog) returns focus
@@ -80,11 +80,13 @@ function CaretMenu({ caretClass, onFromOutline, onFromStyle, onVoice = null, onT
 }
 
 // The notes list's form: the caret alone, sized like the list's `btn-sm` "+ New note". No tour
-// anchor on the wrapper: "new-note-home" is Home's, and the voice tour starts there.
+// anchor on the wrapper: "new-note-home" is Home's, and the voice tour starts there. ⛔ The wrapper
+// is a SPAN on purpose: NewNoteMenu.module.css tells this form from Home's (a div) by `span.split`
+// (a class of its own cost the Notebook's first open ~30 B).
 export function NewNoteCaret(doors) {
   return (
-    <span className={styles.alone}>
-      <CaretMenu caretClass={`btn btn-primary btn-sm ${styles.caretAlone}`} {...doors} />
+    <span className={styles.split}>
+      <CaretMenu caretClass="btn btn-primary btn-sm" {...doors} />
     </span>
   )
 }

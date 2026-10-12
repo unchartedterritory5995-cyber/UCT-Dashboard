@@ -17,14 +17,10 @@
   padding-inline: 8px;
   border-left: 1px solid var(--bg);
 }
-/* The notes list's form (NewNoteCaret, P1 follow-up): the caret alone beside the list's own
-   "+ New note" (`btn btn-sm`), so it keeps its full radius and the menu hangs from it. */
-.alone {
-  position: relative;
-  display: flex;
-  flex-shrink: 0;
-}
-.caretAlone {
+/* The notes list's form (NewNoteCaret, P1 follow-up): the caret alone in a SPAN.split beside the
+   list's own "+ New note" (`btn btn-sm`), so it keeps its full radius and the menu hangs from it.
+   `span.split` is that form; Home's split is a div. */
+span.split > button {
   padding-inline: 8px;
 }
 .menu {
@@ -70,12 +66,12 @@
 @media (max-width: 1024px) {
   .main,
   .caret,
-  .caretAlone,
+  span.split > button,
   .item {
     min-height: var(--tap-min);
   }
   .caret,
-  .caretAlone {
+  span.split > button {
     min-width: var(--tap-min);
   }
 }
@@ -92,10 +88,10 @@
   /* The list's caret ends an action row that may or may not wrap at 390px, so neither of its own
      edges is safe to hang 200px from. It hangs from the row instead (NotebookTab's `.newWrap` is the
      positioned box on a phone), right-aligned, so it stays on screen either way. */
-  .alone {
+  span.split {
     position: static;
   }
-  .alone .menu {
+  span.split .menu {
     left: auto;
     right: 0;
   }

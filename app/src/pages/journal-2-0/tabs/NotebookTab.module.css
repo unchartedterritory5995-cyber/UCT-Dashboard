@@ -547,7 +547,7 @@
   /* P0.11: a labelled View select replaces the seven icon-only buttons on a phone */
   .viewSelectWrap { display: inline-flex; }
   .viewModeGroup { display: none; }
-  /* position: the New note caret's menu (NewNoteMenu.module.css `.alone .menu`) hangs from this row */
+  /* position: the New note caret's menu (NewNoteMenu.module.css `span.split .menu`) hangs from this row */
   .newWrap { margin-left: 0; position: relative; }
 }
 
