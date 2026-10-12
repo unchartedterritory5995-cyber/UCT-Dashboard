@@ -1440,6 +1440,106 @@
    "query": true
   },
   {
+   "name": "breadth.show",
+   "domain": "breadth",
+   "target": "breadth",
+   "summary": "Look up historical MARKET BREADTH from UCT's own finalized end-of-day data (US, NYSE or Nasdaq stocks): a value on a date, two dates compared, or a date range summarised — % of stocks above a moving average, new highs/lows, advance/decline, Stage 2/4 counts. UCT shows the figures to the member; you never see them. Use this (disposition apply, research null) — never state breadth figures yourself.",
+   "hints": "target = the breadth entry ref. universe us (all US stocks; default) | nyse | nasdaq. metrics = 1–4 keys. mode value: date (null = latest). compare: compare_date required, date null = latest. series: start required, end null = latest. Dates YYYY-MM-DD, else null; turn \"a month ago\" into a date from the entry's today_et / latest_finalized. reply: one short line, no figures. Keys: pct_above_{5,10,20,40,50,100,150,200}sma = % of stocks above that N-day simple MA; new_52w_highs/new_52w_lows = counts at 52-week highs/lows; net_new_high_low = highs minus lows; hi_ratio/lo_ratio = % of stocks at 52-week highs/lows; new_20d_highs/new_20d_lows = 20-day; near_52w_high = within 5% of 52w high; up_4pct_today/down_4pct_today = up/down 4%+ that day; ratio_5day/ratio_10day = up-4%/down-4% ratio over 5/10 days; adv_decline = net advancers; advancing/declining = issues up/down; universe_count = stocks counted; stage2_count/stage4_count = Stage 2 uptrend / Stage 4 downtrend counts.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "mode": {
+      "type": "string",
+      "enum": [
+       "value",
+       "compare",
+       "series"
+      ]
+     },
+     "universe": {
+      "type": "string",
+      "enum": [
+       "us",
+       "nyse",
+       "nasdaq"
+      ]
+     },
+     "metrics": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "enum": [
+        "pct_above_5sma",
+        "pct_above_10sma",
+        "pct_above_20sma",
+        "pct_above_40sma",
+        "pct_above_50sma",
+        "pct_above_100sma",
+        "pct_above_150sma",
+        "pct_above_200sma",
+        "new_52w_highs",
+        "new_52w_lows",
+        "net_new_high_low",
+        "hi_ratio",
+        "lo_ratio",
+        "new_20d_highs",
+        "new_20d_lows",
+        "near_52w_high",
+        "up_4pct_today",
+        "down_4pct_today",
+        "ratio_5day",
+        "ratio_10day",
+        "adv_decline",
+        "advancing",
+        "declining",
+        "universe_count",
+        "stage2_count",
+        "stage4_count"
+       ]
+      }
+     },
+     "date": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "compare_date": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "start": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "end": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "mode",
+     "universe",
+     "metrics",
+     "date",
+     "compare_date",
+     "start",
+     "end"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
    "name": "settings.show",
    "domain": "settings",
    "target": "settings",
@@ -2888,6 +2988,7 @@
       "enum": [
        "backtest",
        "vision",
+       "breadth",
        "history",
        "arrange",
        "widgets",

@@ -25,6 +25,7 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart } from './capabilities/workspace'
+import { resolveDeictic, screenDeicticOps } from './deixis'
 import { planOps, prepareOps, collectTargets, undoNotesFor } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry, undoEntryFor } from './runtime'
@@ -421,7 +422,12 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       for (const a of answers) push({ role: 'agent', text: a.text, table: a.table || null, link: a.link || null })
       const text = answers.map(a => a.text).join('\n\n')
-      record({ member, outcome: text, outcomeData: { kind: 'answered', actions: queries.map(o => o.action) }, telemetry: { path, disposition: 'answer', actions: queries.map(o => o.action), voice } })
+      // ⛔ LOCAL-RESULT BOUNDARY: the member's transcript keeps the answer; the row says it is LOCAL
+      // ONLY (and what was asked — args, never values), so the server never replays it to a model.
+      // The server also decides by the action name (turn.LOCAL_ONLY_ACTIONS); this is the second signal.
+      const local = queries.filter(o => getCapability(o.action)?.localOnly)
+      const localData = local.length ? { local: true, requests: local.map(o => o.args || {}) } : {}
+      record({ member, outcome: text, outcomeData: { kind: 'answered', actions: queries.map(o => o.action), ...localData }, telemetry: { path, disposition: 'answer', actions: queries.map(o => o.action), voice } })
     }
     const ops = allOps.filter(o => !getCapability(o?.action)?.query)
     if (!ops.length) return
@@ -773,7 +779,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       await execute(p.ops.map(o => (isDraftAction(o.action) ? { ...o, target: ref } : o)), { path: p.path, mode: p.mode === 'propose' ? 'propose' : 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice, chosen: true })
       return
     }
-    await execute(p.ops.map(o => ({ ...o, target: ref })), { path: p.path, mode: 'apply', member: `${p.member} → ${label}`, voice: p.voice })
+    // (a model PROPOSAL re-aimed by a "which chart?" pick stays a proposal; fast picks set no mode)
+    await execute(p.ops.map(o => ({ ...o, target: ref })), { path: p.path, mode: p.mode === 'propose' ? 'propose' : 'apply', member: `${p.member} → ${label}`, voice: p.voice })
   }, [execute, push, host])
 
   const send = useCallback(async (raw, { voice = false, answering = false } = {}) => {
@@ -786,7 +793,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (gridMode) {
         const t = 'UCT Agent works on the Charts workspace. Switch out of Multi Chart (Layouts ▸ Multi Chart) and ask again.'
         push({ role: 'agent', text: t })
-        record({ member: text, outcome: t, telemetry: { path: 'local', disposition: 'unsupported', unsupported: 'multichart', voice } })
+        record({ member: text, outcome: t, outcomeData: { kind: 'unsupported' }, telemetry: { path: 'local', disposition: 'unsupported', unsupported: 'multichart', voice } })
         return
       }
       // A choice clicked under the MODEL's own question answers that question:
@@ -805,7 +812,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         const t = fast.kind === 'dismiss' ? 'Nothing is waiting — nothing changed.'
           : "There is no proposal waiting to apply. Tell me what you'd like to change."
         push({ role: 'agent', text: t })
-        record({ member: text, outcome: t, telemetry: { path: 'fast', voice } })
+        record({ member: text, outcome: t, outcomeData: { kind: 'nothing-pending' }, telemetry: { path: 'fast', voice } })
         return
       }
       // Ops whose capability already resolved the target (a named saved list) run as-is.
@@ -834,7 +841,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         if (charts.length === 0) {
           const t = 'There is nothing on this workspace for that to change.'
           push({ role: 'agent', text: t })
-          record({ member: text, outcome: t, telemetry: { path: 'fast', refused: true, voice } })
+          record({ member: text, outcome: t, outcomeData: { kind: 'refused', actions: fast.ops.map(o => o?.action) }, telemetry: { path: 'fast', refused: true, voice } })
           return
         }
         // "both / all" → one op set per target; the multi-target policy makes it
@@ -852,11 +859,17 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           if (hit.length) candidates = hit
           else ask = `I don't see a ${fast.target.position} ${noun}. Which one?`
         }
+        // Context & Awareness 1B: "this chart / this stock / it" → the chart the member last CLICKED
+        // (agent/deixis.js). No live selection → the question below, exactly as before.
+        if (!fast.target?.position && candidates.length > 1) {
+          const d = resolveDeictic({ host, kind, candidates, text, chartOp: true })
+          if (d?.ref) candidates = candidates.filter(c => c.ref === d.ref)
+        }
         const unmatchedHint = fast.target?.position && charts.length > 1 && candidates === charts
         if (candidates.length > 1 || unmatchedHint) {
           pendingRef.current = { kind: 'target', ops: fast.ops, path: 'fast', member: text, voice, epoch: epochOf(host) }
           push({ role: 'question', text: ask, choices: candidates.map(c => ({ ref: c.ref, label: c.label })), local: true })
-          record({ member: text, outcome: 'Asked which target.', telemetry: { path: 'fast', clarified: true, voice } })
+          record({ member: text, outcome: 'Asked which target.', outcomeData: { kind: 'clarify-target', actions: fast.ops.map(o => o?.action) }, telemetry: { path: 'fast', clarified: true, voice } })
           return
         }
         return await execute(fast.ops.map(o => ({ ...o, target: candidates[0].ref })), { path: 'fast', mode: 'apply', member: text, voice })
@@ -932,7 +945,11 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         return
       }
       // apply / propose: translate the context refs back to real target refs
-      if (env.reply) push({ role: 'agent', text: env.reply, sources })
+      // ⛔ LOCAL-RESULT BOUNDARY: a plan holding a local-only lookup shows UCT's answer, never the
+      // model's own words about it (the server blanks that reply too). The one exception is the
+      // SERVER's own deterministic notice (`local_notice`) saying which part was not done.
+      const localPlan = (env.ops || []).some(o => getCapability(o?.action)?.localOnly)
+      if (env.reply && (!localPlan || env.local_notice === true)) push({ role: 'agent', text: env.reply, sources })
       if (p?.kind === 'proposal') { pendingRef.current = null; patchItem(p.id, { status: 'replaced' }) }
       // A reference that names a context target (a saved list's ref) is bound to
       // that target's own read-only producer before the refs are translated.
@@ -947,6 +964,21 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         return
       }
       for (const n of screened.notes) push({ role: 'agent', text: n })
+      // Context & Awareness 1B: a deictic request ("this chart", "this stock", "make it weekly") runs
+      // only on the chart the member selected — never on a chart the model picked by itself. Nothing
+      // executes before the member answers; their pick resumes THIS plan (no second model call).
+      const deictic = screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability })
+      if (deictic?.ask) {
+        const kinds = kindsOf(screened.ops)
+        if (kinds.length === 1) {
+          pendingRef.current = { kind: 'target', ops: screened.ops, path: 'model', mode: env.disposition, member: text, voice, epoch: epochOf(host) }
+          push({ role: 'question', text: deictic.ask.text, choices: deictic.ask.choices, local: true })
+        } else {
+          push({ role: 'agent', text: 'Which chart do you mean? Click it (or say left, right…) and ask again — nothing has changed yet.' })
+        }
+        record({ member: null, outcome: deictic.ask.text, outcomeData: { kind: 'clarify-deictic', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return
+      }
       // S6 F4: a new chart for a named ticker is born on it (not linked), even if the plan dropped the ticker
       const ops = screenNewChart(screened.ops, text).ops
       lastActionsRef.current = ops.map(o => o.action)

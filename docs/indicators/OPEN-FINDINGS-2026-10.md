@@ -3,7 +3,12 @@
 Recorded, not fixed: each is outside Batch 2's scope (owner ruling: "Record, but do not expand
 this batch to implement"). Dated 2026-10-08/09.
 
-## 1. RSI with level lines cannot carry an alert (Indicators — existing limitation)
+## 1. RSI with level lines cannot carry an alert (Indicators — existing limitation) — ✅ FIXED on `feat/uie-phase6` (2026-10-11, not deployed)
+
+> **Fix:** an `hlines` guide is refused for ITSELF (new alert-lane gate `presentation`, per plot) in both
+> `alert_user_series.py` and its browser mirror `evaluability.js`; the RSI line and its MA arm; an alert on
+> the guide is refused in member words. See `PHASE6-ENGINE-LEDGER-2026-10-11.md` §3. The text below is the
+> original finding.
 
 **Seen:** production, real model, 10-08. "Build me an RSI indicator with a moving average", then
 "Alert me when the RSI crosses above 70" was refused at authoring time:

@@ -412,6 +412,7 @@ A request with several steps is ONE plan: put every step in `ops`, in order, con
 
 TARGETING
 Every op has `target` = a `ref` from <workspace_context> (each action says which kind of target it acts on). If exactly one target of that kind exists, use it. To CHANGE, delete or overwrite one of several that the member did not identify (by name, symbol, position such as left / top-right, or "all of them"), use clarify — never guess which one to change. "All of them" means one op per target (and that is a propose).
+"This chart", "this stock", "here" and "it" (for a chart) mean the chart marked `selected: true` in <workspace_context> (the one the member last clicked), and the same chart in the other chart-based entries (match by its label); with several charts and none selected, clarify — for a question about "this stock" too.
 
 PLAN SIZE: at most 12 ops per request. If what they ask needs more, do not plan part of it: use disposition answer, say it is too many changes for one request and suggest splitting it (or use a bulk action below that covers it, such as widget.addCharts).
 
@@ -507,19 +508,158 @@ _OUTCOME_LABEL = {
 }
 
 
+# ── ⛔ LOCAL-RESULT BOUNDARY (Market Intelligence breadth slice 1, owner 2026-10-11) ──────────────
+# Some answers are LOCAL ONLY: UCT reads the values from its own services and shows them to the
+# member, and they must NEVER reach a model — not as history, context, recent outcome or a plan's
+# reply (uct-mi-phase0/LOCAL-RESULT-BOUNDARY-CONTRACT.md). The model may only PLAN such a lookup
+# (validated args); it never sees what came back. The stored transcript keeps the member's answer —
+# the member reads it — and THIS is the one place that decides what a stored row may say to a model.
+#: Actions whose results are local only. Decided by NAME on the server (never trusted from the
+#: browser alone); the browser's `localOnly` flag on the same capabilities is a second signal.
+LOCAL_ONLY_ACTIONS = frozenset({"breadth.show"})
+LOCAL_RESULT_NOTE = ("[UCT showed the member this result on their screen. Its figures are shown ONLY to "
+                     "the member and are never given to you: do not state, estimate or repeat any value "
+                     "from it. To answer about it again, plan the same lookup.]")
+#: A MIXED request — a local-only lookup plus news / current events. The lookup is answered locally;
+#: the news part is NOT researched in that turn (its web answer would sit beside figures the model never
+#: saw, and the model's words on a local plan are never shown). UCT says so — deterministic text, no
+#: figures — instead of dropping the other part silently. Flagged `local_notice` so the browser shows it.
+LOCAL_NEWS_NOT_DONE = ("UCT's breadth answer for your request is shown here. I did not look up the news or "
+                       "current-events part of your message — nothing was searched. Ask that part on its own "
+                       "and I'll look it up.")
+#: A MIXED request — a local-only lookup plus an EXPLANATION, interpretation or cause. The model never sees
+#: the figures, so it cannot comment on them; it is not asked to, and UCT never invents a cause. Said plainly.
+LOCAL_EXPLAIN_NOT_DONE = ("UCT's breadth answer for your request is shown here. I did not explain or interpret "
+                          "these figures or analyse what caused them — breadth figures are shown only to you, "
+                          "never to me, so I can't comment on them. Ask what a measure means on its own and "
+                          "I'll explain the measure.")
+LOCAL_NEWS_AND_EXPLAIN_NOT_DONE = ("UCT's breadth answer for your request is shown here. I did not look up the "
+                                   "news or current-events part of your message — nothing was searched — and I "
+                                   "did not explain or interpret these figures or analyse what caused them: "
+                                   "breadth figures are shown only to you, never to me. Ask the news on its own "
+                                   "and I'll look it up; ask what a measure means and I'll explain the measure.")
+#: Every notice UCT may give on a local plan — the ONLY agent text of such a plan ever shown or replayed.
+LOCAL_NOTICES = frozenset({LOCAL_NEWS_NOT_DONE, LOCAL_EXPLAIN_NOT_DONE, LOCAL_NEWS_AND_EXPLAIN_NOT_DONE})
+#: News / current-events words in the MEMBER's message (not "today": "breadth today" is a breadth question).
+_NEWS_WORDS = re.compile(r"\b(news|headlines?|catalysts?|press releases?|announce\w*|why (is|are)\b.{0,40}\b"
+                         r"(moving|up|down|falling|rising|dropping|ripping|tanking|soaring))\b", re.I)
+#: Explanation / interpretation / cause words in the MEMBER's message.
+_EXPLAIN_WORDS = re.compile(r"\b(why|how come|explain\w*|interpret\w*|what (does|do|did) (it|that|this|those|these) "
+                            r"(mean|tell|say|signal|suggest|imply|indicate)|what (caused|causes|drove|drives|is driving)|"
+                            r"caus(e|ed|es|ing)|reasons?|bullish|bearish|(good|bad|healthy|worrying) sign|"
+                            r"is (it|that|this) (good|bad|healthy|weak|strong))\b", re.I)
+
+
+def local_notice_for(*, news: bool, explain: bool) -> str | None:
+    """UCT's fixed words for the parts of a mixed local-lookup request it did NOT do (None = nothing)."""
+    if news and explain:
+        return LOCAL_NEWS_AND_EXPLAIN_NOT_DONE
+    return LOCAL_NEWS_NOT_DONE if news else (LOCAL_EXPLAIN_NOT_DONE if explain else None)
+
+
+def _plans_local_lookup(env) -> bool:
+    """Does this (compact or expanded) plan hold a local-only lookup? By action NAME only."""
+    if not isinstance(env, dict) or env.get("disposition") not in MUTATING:
+        return False
+    return any(isinstance(o, dict) and o.get("action") in LOCAL_ONLY_ACTIONS for o in env.get("ops") or [])
+
+
+#: A stored outcome row this server cannot read (no data, or data of the wrong shape): it may have
+#: held a local result, so it is replaced — FAIL CLOSED, never replayed on the chance it is safe.
+UNREADABLE_OUTCOME = "[UCT] (an earlier UCT message that is not repeated here)"
+
+
+def _row_actions(data) -> list | None:
+    """The `actions` a stored row names, [] when it names none, None when the shape is unreadable."""
+    if not isinstance(data, dict):
+        return None
+    acts = data.get("actions", [])
+    if not isinstance(acts, list) or not all(isinstance(a, str) for a in acts):
+        return None
+    return acts
+
+
+def _envelope_actions(data) -> list | None:
+    """The ops' actions of a stored AGENT row's envelope; [] when none; None when unreadable."""
+    if not isinstance(data, dict) or "envelope" not in data:
+        return []
+    env = data.get("envelope")
+    if not isinstance(env, dict):
+        return None
+    ops = env.get("ops") or []
+    if not isinstance(ops, list):
+        return None
+    return [o.get("action") if isinstance(o, dict) else None for o in ops]
+
+
+def is_local_row(t: dict) -> bool:
+    """Did this stored row carry (or may it have carried) a LOCAL-ONLY result? Fail closed."""
+    data = t.get("data")
+    if t.get("role") == "outcome":
+        acts = _row_actions(data)
+        if acts is None:
+            return True                                    # unreadable: treat as local
+        return bool(LOCAL_ONLY_ACTIONS.intersection(acts)) or (isinstance(data, dict) and data.get("local") is True)
+    if t.get("role") == "agent":
+        acts = _envelope_actions(data)
+        return acts is None or bool(LOCAL_ONLY_ACTIONS.intersection(a for a in acts if a))
+    return False                                           # the member's own words are never censored
+
+
+def _local_requests(data) -> str:
+    """What the member ASKED for, rebuilt from validated request args only (enums and ISO dates —
+    no value can pass validation). Anything that does not validate is left out."""
+    reqs = data.get("requests") if isinstance(data, dict) else None
+    if not isinstance(reqs, list):
+        return ""
+    try:
+        from api.services.market_intel import breadth_reads
+    except Exception:  # noqa: BLE001 -- the note stands on its own
+        return ""
+    parts = []
+    for r in reqs[:4]:
+        ok, _err = breadth_reads.validate(r) if isinstance(r, dict) else (None, None)
+        if not ok:
+            continue
+        when = {"value": f"on {ok.get('date') or 'the latest finalized session'}",
+                "compare": f"{ok.get('date') or 'the latest finalized session'} vs {ok.get('compare_date')}",
+                "series": f"from {ok.get('start')} to {ok.get('end') or 'the latest finalized session'}"}[ok["mode"]]
+        parts.append(f"breadth lookup ({ok['universe'].upper()}: {', '.join(ok['metrics'])}; {when})")
+    return ("The member asked for: " + "; ".join(parts) + ".") if parts else ""
+
+
+def outcome_for_model(t: dict) -> str:
+    """The text a stored OUTCOME row may contribute to a model request — the ONLY door for one."""
+    data = t.get("data")
+    if _row_actions(data) is None:
+        return UNREADABLE_OUTCOME
+    if is_local_row(t):
+        asked = _local_requests(data)
+        return f"{LOCAL_RESULT_NOTE} {asked}".strip()
+    # Label what UCT ACTUALLY did. A proposal was never executed, so it
+    # must not read as "[UCT executed]" in the model's memory.
+    label = _OUTCOME_LABEL.get(data.get("kind"), "[UCT]")
+    return f"{label} {t['text']}"
+
+
 def history_messages(turns: list[dict]) -> list[dict]:
     """Rebuild alternating user/assistant messages from stored rows. An
     `outcome` row (what UCT actually did) is appended to the agent side, so
-    the model's memory of a turn is the receipt, not its own request."""
+    the model's memory of a turn is the receipt, not its own request.
+    ⛔ Local-only results never pass (outcome_for_model / is_local_row)."""
     msgs: list[dict] = []
     for t in turns[-HISTORY_TURNS * 3:]:
         role = "user" if t["role"] == "member" else "assistant"
         if t["role"] == "outcome":
-            # Label what UCT ACTUALLY did. A proposal was never executed, so it
-            # must not read as "[UCT executed]" in the model's memory.
-            kind = (t.get("data") or {}).get("kind") if isinstance(t.get("data"), dict) else None
-            label = _OUTCOME_LABEL.get(kind, "[UCT]")
-            text = f"{label} {t['text']}"
+            text = outcome_for_model(t)
+        elif t["role"] == "agent" and is_local_row(t):
+            # the planning reply of a local-only lookup (blanked when stored; an older or garbled
+            # row is left out here too) — the outcome row's note stands for the turn. The ONE
+            # exception is UCT's own fixed notice (exact text + the server's flag), so the next
+            # turn knows which part of a mixed request was NOT done; model words never pass.
+            env = (t.get("data") or {}).get("envelope") if isinstance(t.get("data"), dict) else None
+            ours = isinstance(env, dict) and env.get("local_notice") is True and t.get("text") in LOCAL_NOTICES
+            text = f"[UCT] {t['text']}" if ours else ""
         else:
             text = t["text"]
         if not text:
@@ -673,7 +813,7 @@ def name_conversation(turns: list[dict], caller: Callable | None = None) -> str 
 
 
 def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | None = None,
-                      unselected_ids: set[str] | None = None) -> dict:
+                      unselected_ids: set[str] | None = None, local_notice: str | None = None) -> dict:
     """The server-side gate between the model and the browser."""
     need = env.get("need_groups") if unselected_ids else None
     need = [g for g in need if g in unselected_ids] if isinstance(need, list) else []
@@ -742,6 +882,13 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         # so the next turn's history does not believe it either. (Shape only in the log.)
         log.warning("uct_agent claim without action: replaced a %d-char answer", len(reply))
         reply = NOTHING_DONE
+    if disp in MUTATING and any(o.get("action") in LOCAL_ONLY_ACTIONS for o in ops):
+        # ⛔ LOCAL-RESULT BOUNDARY: the model planned a lookup whose figures it never sees, so any
+        # figure in its reply is invented. UCT's own answer is the reply; this text is not shown,
+        # stored or replayed. A part of the request NOT done this turn is said in UCT's own words.
+        reply = local_notice or ""
+    else:
+        local_notice = None
     return {
         "disposition": disp,
         "reply": reply,
@@ -749,6 +896,7 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         "ops": ops,
         "unsupported_category": (str(env.get("unsupported_category"))[:40]
                                  if disp == "unsupported" and env.get("unsupported_category") else None),
+        **({"local_notice": True} if local_notice else {}),
     }
 
 
@@ -817,7 +965,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     blocks = [_block("workspace_context", context or {})]
     if pending:
         blocks.append(_block("pending_proposal", pending))
-    if recent_outcome:
+    if recent_outcome and not any(is_local_row(t) for t in (history or []) if isinstance(t, dict)):
+        # ⛔ LOCAL-RESULT BOUNDARY: free text from the browser about the last outcome could repeat a
+        # local result's figures; in a conversation that holds one, it is dropped (fail closed).
         blocks.append(_block("recent_outcome", recent_outcome))
     if conversation_title:
         blocks.append(_block("conversation_title", conversation_title))
@@ -829,6 +979,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
              "research_calls": 0, "model_calls": 0, "citations": []}
     cap_names = {c["name"] for c in caps}
     pre_research = None
+    notice = None
     for round_ in range(MAX_RESEARCH_CALLS + 1):
         try:
             resp = caller(
@@ -879,6 +1030,15 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             usage["research_forced"] = True
         wants = ((disp == "answer" or (disp in MUTATING and _asks_question(msg))) and isinstance(req, dict)
                  and str(req.get("query") or "").strip() and round_ < MAX_RESEARCH_CALLS)
+        if _plans_local_lookup(env):
+            # ⛔ MIXED requests beside a local-only lookup: no research (nothing is searched or spent),
+            # and no explanation of figures the model never saw. The lookup runs; the member is TOLD
+            # which other part was not done — UCT's fixed words, never the model's.
+            news = bool(wants or (isinstance(req, dict) and str(req.get("query") or "").strip()) or _NEWS_WORDS.search(msg))
+            notice = local_notice_for(news=news, explain=bool(_EXPLAIN_WORDS.search(msg)))
+            if news:
+                wants = False
+                usage["local_research_skipped"] = True
         if wants:
             # A MIXED request (question needing research + a change): the change was planned in
             # THIS call, from the member's words alone, before any web text existed — it is
@@ -919,7 +1079,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                    else env.get("reply")}
         if compact and isinstance(env, dict) and env.get("disposition") in MUTATING:
             env = expand_compact_ops(env, caps)
-        envelope = sanitize_envelope(env, valid_refs, cap_names, unselected_ids)
+        envelope = sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)
         usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
         title = clean_title(env) if conversation_title and not envelope.get("need_groups") else None

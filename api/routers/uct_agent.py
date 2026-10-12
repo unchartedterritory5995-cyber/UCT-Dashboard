@@ -9,6 +9,8 @@
   DELETE /api/agent/conversations/{id}     delete a chat and its transcript (History)
   GET  /api/agent/search?q=                find words across the member's own chats (History)
   POST /api/agent/session-stats            latest completed session close/volume/dollar volume (read-only)
+  POST /api/agent/breadth                  a historical breadth lookup, answered LOCALLY (read-only, no model)
+  GET  /api/agent/breadth/dates            today (ET) + latest finalized session per universe (dates only)
 
 Nothing here mutates a workspace: the browser executes the deterministic
 actions and reports the outcome back through /record. Paid (402) AND admin (403)
@@ -25,7 +27,7 @@ from datetime import datetime
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from api.middleware import auth_middleware
@@ -302,3 +304,32 @@ def agent_session_stats(body: SessionStatsIn, user: dict = Depends(require_admin
     if len(body.symbols) > session_stats.MAX_SYMBOLS:
         raise HTTPException(status_code=400, detail=f"at most {session_stats.MAX_SYMBOLS} symbols at once")
     return session_stats.latest_session(body.symbols)
+
+
+# ── Market Intelligence breadth slice 1 — LOCAL-RESULT BOUNDARY ────────────────────────────────────
+# The model only PLANS `breadth.show` (validated args). The browser asks THIS route for the answer and
+# shows it to the member; nothing here calls a model, and the values never go back to one (the
+# conversation replays such a turn as a note — turn.outcome_for_model). Values are not logged.
+BREADTH_MAX_BODY = 2000
+
+
+@router.post("/api/agent/breadth")
+def agent_breadth(body: Any = Body(...), user: dict = Depends(require_admin_dark)):
+    """`{status, text, table}` for one breadth request (market_intel.breadth_reads / breadth_answer).
+    Read-only; never a model call. A refusal is an answer (status refused/unavailable), not an error."""
+    import json as _json
+    from api.services.market_intel import breadth_answer, breadth_reads
+    if len(_json.dumps(body, default=str)) > BREADTH_MAX_BODY:
+        raise HTTPException(status_code=400, detail="that breadth request is too large")
+    res = breadth_reads.read(body)
+    out = breadth_answer.answer(res)
+    log.info("[uct-agent] breadth lookup status=%s", out.get("status"))          # never a value
+    return {"status": out.get("status"), "text": out.get("text"), "table": out.get("table")}
+
+
+@router.get("/api/agent/breadth/dates")
+def agent_breadth_dates(user: dict = Depends(require_admin_dark)):
+    """Dates only — today (ET) and each universe's latest FINALIZED session — so the model can turn
+    "a month ago" into a real date. No breadth value is ever in this payload."""
+    from api.services.market_intel import breadth_reads
+    return breadth_reads.date_context()
