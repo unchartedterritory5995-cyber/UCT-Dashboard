@@ -472,5 +472,28 @@
     ],
     "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
     "note": "Research Home's New note caret."
+  },
+  {
+    "feature": "New note from a style, from the notes list",
+    "audit_row": 56,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "click": "link|View all notes"
+      },
+      {
+        "click": "button|More ways to start a note"
+      }
+    ],
+    "target": {
+      "role": "menuitem",
+      "name": "From a style"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    "note": "P1 follow-up (owner GO 2026-10-12): the notes list's caret beside \"+ New note\", the same menu as Home's (row 55). Reached from Research Home the way row 54 reaches the list (View all notes). Unmeasured when added."
   }
 ]
