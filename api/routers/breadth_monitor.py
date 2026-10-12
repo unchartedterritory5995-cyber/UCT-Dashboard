@@ -1488,6 +1488,14 @@ def breadth_pipeline_status(sessions: int = Query(default=10, ge=2, le=30),
     return breadth_pipeline.status(sessions=sessions)
 
 
+@router.get("/api/breadth-monitor/nhnl-validation")
+def breadth_nhnl_validation_report(_: None = Depends(require_push_secret)):
+    """(2026-10-12, owner Option B) The provisional-vs-settled NH/NL grade: capture coverage and a
+    per universe × measure verdict. VALUE-FREE (counts, pass/fail, dates, times). Push-secret only."""
+    from api.services import breadth_nhnl_validation as nv
+    return nv.report()
+
+
 @router.get("/api/breadth-monitor/current")
 def breadth_current_reading(universe: str = Query(default="us"), metric: str = Query(...),
                             _: None = Depends(require_push_secret)):
