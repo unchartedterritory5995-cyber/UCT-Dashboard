@@ -836,3 +836,32 @@ def test_research_catalog_is_static_and_value_free(world):
     assert world["breadth_calls"] == 0 and world["price_calls"] == 0
     blob = repr(cat)
     assert not re.search(r"\b\d+\.\d{3,}\b", blob)                              # no data values
+
+
+# ── on_release: "after every release" ───────────────────────────────────────
+
+def test_on_release_is_every_publication_session(world, monkeypatch):
+    t = lambda d, hm="08:30": _et_unix(d, hm)  # noqa: E731
+    vrows = [["2024-01-01", "2024-01-31", t("2024-02-13"), 3.1, "V", 1],
+             ["2024-02-01", "2024-02-29", t("2024-03-12"), 3.2, "V", 2],
+             ["2024-03-01", "2024-03-31", t("2024-04-10", "17:00"), 3.5, "V", 3]]   # after the close → 04-11
+    _econ_world(monkeypatch, vrows)
+    r = es.run({"condition": {"series": {"kind": "econ", "symbol": "USCPIYOY"}, "op": "on_release"},
+                "symbol": "QQQ", "horizons": [{"sessions": 1}]})
+    assert [e["event_date"] for e in r["events"]] == ["2024-02-13", "2024-03-12", "2024-04-11"]
+    a = esa.answer(r)
+    assert "was released" in a["text"] and "each release" in a["text"]
+
+
+def test_on_release_is_refused_for_daily_series_and_with_a_threshold(world):
+    daily = es.run({"condition": {"series": BREADTH, "op": "on_release"}, "symbol": "QQQ", "horizons": [{"sessions": 1}]})
+    assert daily["status"] == "refused" and "released series" in daily["detail"]
+    thr = es.run({"condition": {"series": {"kind": "cot", "market": "GC", "group": "large_spec"}, "op": "on_release",
+                                "threshold": 5}, "symbol": "GLD", "horizons": [{"sessions": 1}]})
+    assert thr["status"] == "refused"
+
+
+def test_on_release_note_is_value_free(world):
+    note = es.request_note({"condition": {"series": {"kind": "cot", "market": "GC", "group": "large_spec"},
+                                          "op": "on_release"}, "symbol": "GLD", "horizons": [{"sessions": 5}]})
+    assert note.startswith("event study: every time Gold COT") and "was released" in note

@@ -43,7 +43,7 @@ from api.services import session_calendar as _sc
 from api.services.market_intel import price_reads as _pr
 from api.services.market_intel import series_adapters as _sa
 
-OPS = ("below", "above", "cross_below", "cross_above")
+OPS = ("below", "above", "cross_below", "cross_above", "on_release")
 EPISODES = ("first", "all")
 ENTRIES = ("event_close", "next_close")
 MAX_HORIZONS = 6
@@ -94,6 +94,14 @@ def _validate_condition(cond: Any) -> tuple[Optional[dict], Optional[dict]]:
         return None, err
     if cond.get("op") not in OPS:
         return None, _refused("bad_condition", "The condition must be below, above, cross_below or cross_above a threshold.")
+    if cond["op"] == "on_release":
+        # every NEW observation of a point-in-time series (e.g. after every CPI release) — no threshold
+        if series.get("alignment") != "as_of":
+            return None, _refused("bad_condition", "on_release applies only to released series (economic data, "
+                                                   "COT, filings), not to daily series.")
+        if cond.get("transform", "level") != "level" or cond.get("threshold") is not None:
+            return None, _refused("bad_condition", "on_release takes no threshold or transform.")
+        return {"series": series, "op": "on_release", "threshold": None, "transform": "level"}, None
     transform = cond.get("transform", "level")
     if transform not in ("level", "change"):
         return None, _refused("bad_condition", "transform is level (the value) or change (vs the previous observation).")
@@ -219,7 +227,9 @@ def _truth(cond: dict, cal: list[str], known: dict, pubs: Optional[set]) -> dict
             out[d], prev = None, None
             continue
         observed = pubs is None or d in pubs
-        if op in ("below", "above"):
+        if op == "on_release":
+            out[d] = bool(observed)
+        elif op in ("below", "above"):
             out[d] = _qualifies(op, thr, v)
         else:
             out[d] = bool(observed and prev is not None and _qualifies(op, thr, v)
@@ -233,7 +243,7 @@ def _detect_combined(req: dict, cal: list[str], truths: list[dict], eval_set: Op
                      ws: str, we: str) -> tuple[list[str], dict]:
     """Events where ALL conditions hold. Evaluated on every session, or — when every condition is an
     as_of series — only on publication sessions (a carried value is not a new observation)."""
-    crossing = any(c["op"].startswith("cross_") for c in req["conditions"])
+    crossing = any(c["op"].startswith("cross_") or c["op"] == "on_release" for c in req["conditions"])
     events, qualifying, runs, gaps = [], 0, 0, 0
     in_run = False
     for d in cal:
@@ -492,7 +502,8 @@ def _study(req: dict) -> dict:
     }
 
 
-_OP_WORDS = {"below": "below", "above": "above", "cross_below": "crossing below", "cross_above": "crossing above"}
+_OP_WORDS = {"below": "below", "above": "above", "cross_below": "crossing below", "cross_above": "crossing above",
+             "on_release": "was released"}
 
 
 def request_note(raw: Any) -> str:
@@ -502,7 +513,8 @@ def request_note(raw: Any) -> str:
     ok, _err = validate(raw)
     if not ok:
         return ""
-    conds = " AND ".join(f"{c['series']['label']} {_OP_WORDS[c['op']]} {c['threshold']:g}" for c in ok["conditions"])
+    conds = " AND ".join(f"{c['series']['label']} {_OP_WORDS[c['op']]}"
+                         + ("" if c["threshold"] is None else f" {c['threshold']:g}") for c in ok["conditions"])
     wins = ", ".join(_hlabel(h) for h in ok["horizons"])
     span = f"; {ok['start'] or 'all history'} to {ok['end'] or 'latest'}" if (ok["start"] or ok["end"]) else ""
     return (f"event study: every time {conds}, {ok['symbol']} over {wins} "

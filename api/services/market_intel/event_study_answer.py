@@ -9,7 +9,8 @@ from typing import Any
 
 from api.services.market_intel.breadth_answer import fmt_value
 
-_OP_TEXT = {"below": "below", "above": "above", "cross_below": "crossed below", "cross_above": "crossed above"}
+_OP_TEXT = {"below": "below", "above": "above", "cross_below": "crossed below", "cross_above": "crossed above",
+            "on_release": "was released"}
 
 _REASON_TEXT = {
     "bad_request": "I couldn't read that study request.",
@@ -40,7 +41,10 @@ def _fmt_threshold(unit, domain, v: float) -> str:
 
 
 def _episode_text(q: dict) -> str:
-    if any(c["op"].startswith("cross_") for c in (q.get("conditions") or [q["condition"]])):
+    cs = q.get("conditions") or [q["condition"]]
+    if any(c["op"] == "on_release" for c in cs):
+        return "each release"
+    if any(c["op"].startswith("cross_") for c in cs):
         return "each crossing"
     return "first session of each run" if q["episodes"] == "first" else "every qualifying session"
 
@@ -62,8 +66,10 @@ def answer(res: Any) -> dict:
         return {"status": r.get("status") or "unavailable", "text": _why(r), "table": None}
     q, cov, c = res["request"], res["coverage"], res["counts"]
     conds = q.get("conditions") or [q["condition"]]
-    ctext = " AND ".join(f"{c['series']['label']} {_OP_TEXT[c['op']]} "
-                         f"{_fmt_threshold(c['series']['unit'], c['series']['domain'], c['threshold'])}" for c in conds)
+    ctext = " AND ".join(f"{c['series']['label']} {_OP_TEXT[c['op']]}"
+                         + ("" if c["threshold"] is None else
+                            f" {_fmt_threshold(c['series']['unit'], c['series']['domain'], c['threshold'])}")
+                         for c in conds)
     head = (f"{ctext}: "
             f"{c['events_used']} event{'s' if c['events_used'] != 1 else ''} between {cov['study_start']} and "
             f"{cov['study_end']} ({_episode_text(q)}"

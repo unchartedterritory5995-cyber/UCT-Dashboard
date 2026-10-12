@@ -50,7 +50,7 @@ def _breadth_describe(spec: dict) -> tuple[Optional[dict], Optional[dict]]:
     m = _bm.get(metric) or {}
     return {"kind": "breadth", "universe": universe, "metric": metric,
             "label": f"{_bu.label(universe)} · {m.get('name')}", "unit": m.get("unit"),
-            "domain": m.get("domain"), "category": "market breadth"}, None
+            "domain": m.get("domain"), "category": "market breadth", "alignment": "session"}, None
 
 
 def _breadth_load(spec: dict) -> dict:
@@ -91,7 +91,8 @@ def _tech_describe(spec: dict) -> tuple[Optional[dict], Optional[dict]]:
         return None, _refused("bad_period", f"The period must be a whole number from {bounds[0]} to {bounds[1]}.")
     tmpl, unit, dom, _b = _TECH[ind]
     return {"kind": "technical", "symbol": sym, "indicator": ind, "period": n,
-            "label": tmpl.format(sym=sym, n=n), "unit": unit, "domain": dom, "category": "technical"}, None
+            "label": tmpl.format(sym=sym, n=n), "unit": unit, "domain": dom, "category": "technical",
+            "alignment": "session"}, None
 
 
 def _tech_load(spec: dict) -> dict:
@@ -145,7 +146,7 @@ def _cot_describe(spec: dict) -> tuple[Optional[dict], Optional[dict]]:
         return None, _refused("unknown_series", f"There is no published COT series for {market}.")
     return {"kind": "cot", "market": market, "group": group, "series_id": row.id,
             "label": f"{row.display} (net contracts)", "unit": "count", "domain": "signed",
-            "category": "positioning (CFTC COT, legacy futures-only)"}, None
+            "category": "positioning (CFTC COT, legacy futures-only)", "alignment": "as_of"}, None
 
 
 def _cot_load(spec: dict) -> dict:
@@ -179,7 +180,7 @@ def _econ_describe(spec: dict) -> tuple[Optional[dict], Optional[dict]]:
     units = (meta.get("units") or {}).get("display") or ""
     return {"kind": "econ", "symbol": entry["symbol"], "pit_safe_only": bool(spec.get("pit_safe_only", False)),
             "label": meta["name"] + (f" ({units})" if units else ""), "unit": "econ", "domain": DOMAIN_ANY,
-            "category": f"economic ({meta.get('frequency')}, {(meta.get('source') or {}).get('agency')})",
+            "category": f"economic ({meta.get('frequency')}, {(meta.get('source') or {}).get('agency')})", "alignment": "as_of",
             "max_age_days": meta.get("max_age_days")}, None
 
 
@@ -296,7 +297,7 @@ def _fund_describe(spec: dict) -> tuple[Optional[dict], Optional[dict]]:
                               "as a condition (formula_eligible). Its owner must enable that first.")
     return {"kind": "fundamental", "symbol": sym, "metric": metric, "series_id": m.series,
             "label": f"{sym} {m.name}", "unit": m.unit, "domain": DOMAIN_ANY,
-            "category": f"fundamentals (SEC XBRL, {m.cadence}, point-in-time)"}, None
+            "category": f"fundamentals (SEC XBRL, {m.cadence}, point-in-time)", "alignment": "as_of"}, None
 
 
 def _fund_load(spec: dict) -> dict:
@@ -343,7 +344,8 @@ def _mcap_describe(spec: dict) -> tuple[Optional[dict], Optional[dict]]:
     if not sym:
         return None, _refused("bad_symbol", "That isn't a valid ticker symbol.")
     return {"kind": "market_cap", "symbol": sym, "label": f"{sym} company market capitalization (USD)",
-            "unit": "usd", "domain": "nonneg", "category": "market cap (point-in-time share state)"}, None
+            "unit": "usd", "domain": "nonneg", "category": "market cap (point-in-time share state)",
+            "alignment": "session"}, None
 
 
 def _mcap_load(spec: dict) -> dict:
