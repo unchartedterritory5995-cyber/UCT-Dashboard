@@ -10,7 +10,7 @@
         "api/services/bars_sqlite.py :: the ohlcv CREATE TABLE literal",
         "api/services/breadth_metrics.py :: the _ROWS catalogue literal"
       ],
-      "count": 193,
+      "count": 196,
       "note": "a bars or breadth metric is table-qualified (ohlcv.c, breadth_snapshot_numeric.pct_above_50sma) so a short column/key name cannot shadow a screener scalar"
     },
     "entity": {
@@ -48,7 +48,7 @@
     "screener_rows": {
       "declared_in": "app/src/components/chart/engine/ast/closedTable.json",
       "authority": "authoritative",
-      "metric_count": 137
+      "metric_count": 138
     },
     "bars_sqlite": {
       "declared_in": "api/services/bars_sqlite.py",
@@ -147,33 +147,33 @@
         "cadence",
         "grain"
       ],
-      "metric_count": 51
+      "metric_count": 53
     }
   },
   "axis_report": {
-    "metric_count": 193,
+    "metric_count": 196,
     "stores": {
       "bars_sqlite": 5,
-      "breadth_snapshot_numeric": 51,
-      "screener_rows": 137
+      "breadth_snapshot_numeric": 53,
+      "screener_rows": 138
     },
     "cadences": {
-      "(undeclared)": 56,
-      "nightly": 137
+      "(undeclared)": 58,
+      "nightly": 138
     },
     "grains": {
-      "(undeclared)": 56,
-      "date": 137
+      "(undeclared)": 58,
+      "date": 138
     },
     "as_of_columns": {
-      "bars_asof": 58,
-      "date": 51,
+      "bars_asof": 59,
+      "date": 53,
       "snapshot_date": 79,
       "ts": 5
     },
     "yields": {
       "bool": 22,
-      "num": 171
+      "num": 174
     }
   },
   "metrics": {
@@ -627,6 +627,16 @@
       "authority": "derived",
       "sentence": "% of Stocks Above 10-Day MA"
     },
+    "breadth_snapshot_numeric.pct_above_150sma": {
+      "store": "breadth_snapshot_numeric",
+      "column": "pct_above_150sma",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "% of Stocks Above 150-Day MA"
+    },
     "breadth_snapshot_numeric.pct_above_200sma": {
       "store": "breadth_snapshot_numeric",
       "column": "pct_above_200sma",
@@ -646,6 +656,16 @@
       "yields": "num",
       "authority": "derived",
       "sentence": "% of Stocks Above 20-Day EMA"
+    },
+    "breadth_snapshot_numeric.pct_above_20sma": {
+      "store": "breadth_snapshot_numeric",
+      "column": "pct_above_20sma",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "% of Stocks Above 20-Day MA"
     },
     "breadth_snapshot_numeric.pct_above_40sma": {
       "store": "breadth_snapshot_numeric",
@@ -1026,6 +1046,16 @@
       "yields": "num",
       "authority": "authoritative",
       "sentence": "the dividend yield"
+    },
+    "dollar_vol_1d": {
+      "store": "screener_rows",
+      "column": "dollar_vol_1d",
+      "as_of_column": "bars_asof",
+      "grain": "date",
+      "cadence": "nightly",
+      "yields": "num",
+      "authority": "authoritative",
+      "sentence": "the dollar volume traded in the latest completed session (its close times its volume)"
     },
     "dollar_vol_30d": {
       "store": "screener_rows",

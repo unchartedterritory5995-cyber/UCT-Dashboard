@@ -245,12 +245,12 @@ describe('🟠 targeting and entry', () => {
   })
 
   it('live audit: the browser tab names the terminal, and gives the old title back on the way out', async () => {
-    document.title = 'UCT Intelligence — Coming soon'
+    document.title = 'UCT Intelligence: Coming soon'
     renderAt(['/terminal'])
     await settle()
     expect(document.title).toBe('UCT Terminal — UCT Intelligence')
     cleanup()
-    expect(document.title).toBe('UCT Intelligence — Coming soon')
+    expect(document.title).toBe('UCT Intelligence: Coming soon')
   })
 
   it('#5: @A skips a calendar in group A and lands on the first panel that follows a security', async () => {

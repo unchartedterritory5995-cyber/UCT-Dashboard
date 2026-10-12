@@ -104,12 +104,14 @@ def self_check() -> int:
     wed_in = _dt.datetime(2026, 10, 14, 14, 0, tzinfo=utc)     # 10:00 EDT
     wed_out = _dt.datetime(2026, 10, 14, 15, 5, tzinfo=utc)    # 11:05 EDT
     wed_edge = _dt.datetime(2026, 10, 14, 15, 0, tzinfo=utc)   # 11:00 EDT, half-open
-    tue = _dt.datetime(2026, 10, 13, 14, 0, tzinfo=utc)
+    tue = _dt.datetime(2026, 10, 20, 14, 0, tzinfo=utc)
     winter = _dt.datetime(2026, 12, 2, 15, 0, tzinfo=utc)      # 10:00 EST
     case("a Wednesday 10:00 ET is FROZEN", decide(wed_in)[0] == EXIT_FROZEN)
     case("11:05 ET is not", decide(wed_out)[0] == EXIT_OPEN)
     case("11:00 ET exactly is not (half-open)", decide(wed_edge)[0] == EXIT_OPEN)
-    case("a Tuesday 10:00 ET is not", decide(tue)[0] == EXIT_OPEN)
+    case("a plain Tuesday 10:00 ET is not", decide(tue)[0] == EXIT_OPEN)
+    case("the one-off window Tue 2026-10-13 10:00 ET is FROZEN",
+         decide(_dt.datetime(2026, 10, 13, 14, 0, tzinfo=utc))[0] == EXIT_FROZEN)
     case("winter (EST) 10:00 ET is FROZEN", decide(winter)[0] == EXIT_FROZEN)
     case("the env override opens it", decide(wed_in, override="hotfix")[0] == EXIT_OPEN)
     case("the message token opens it",

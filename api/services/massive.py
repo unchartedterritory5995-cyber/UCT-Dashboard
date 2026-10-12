@@ -827,15 +827,20 @@ class _MassiveRestClient:
             f"{_REST_BASE}/v2/snapshot/locale/us/markets/stocks/tickers"
             f"?apiKey={self._api_key}"
         )
+        fetched_at = time.time()
         try:
             data = self._get(url)
         except Exception:
             return {}
         out: dict[str, dict] = {}
+        stamps: list = []
         for t in data.get("tickers", []):
             ticker = t.get("ticker", "")
             if not ticker:
                 continue
+            obs = self._ticker_observed_at(t)
+            if obs is not None and obs <= fetched_at + 5:
+                stamps.append(obs)
             day      = t.get("day", {})
             prev_day = t.get("prevDay", {})
             last     = t.get("lastTrade", {})
@@ -860,6 +865,17 @@ class _MassiveRestClient:
                 "day_high":   _px(day.get("h")),
                 "day_low":    _px(day.get("l")),
             }
+        # (2026-10-12) WHEN THE DATA IS FROM, beside the rows (their shape is unchanged for
+        # every other consumer). `data_at` = the vendor's own per-ticker `updated` stamp at the
+        # 95th percentile — the newest observations without trusting one outlier; on a
+        # delayed-entitlement plan it trails `fetched_at` by the delay. Intraday breadth labels
+        # its reading with this, never with the time UCT computed it. None when unstamped.
+        stamps.sort()
+        self.last_full_snapshot_meta = {
+            "fetched_at": fetched_at,
+            "data_at": stamps[int(0.95 * (len(stamps) - 1))] if stamps else None,
+            "data_at_newest": stamps[-1] if stamps else None,
+            "stamped": len(stamps), "tickers": len(out)}
         return out
 
     def get_full_market_snapshot_hl(self) -> dict[str, dict]:

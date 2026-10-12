@@ -25,6 +25,9 @@ export const BREADTH_METRICS = [
   'adv_decline', 'advancing', 'declining', 'universe_count',
   'stage2_count', 'stage4_count',
 ]
+//: The documented GENERAL overview (`metrics: []`), mirrors api/services/uct_agent/breadth_present.py
+//: OVERVIEW_METRICS (tests pin them equal): participation short + long, leadership, the day's moves.
+export const OVERVIEW_METRICS = ['pct_above_50sma', 'pct_above_200sma', 'net_new_high_low', 'adv_decline']
 export const METRIC_GUIDE = (
   'pct_above_{5,10,20,40,50,100,150,200}sma = % of stocks above that N-day simple MA; '
   + 'new_52w_highs/new_52w_lows = counts at 52-week highs/lows; net_new_high_low = highs minus lows; '
@@ -97,7 +100,44 @@ async function answerBreadth(args) {
   if (!b || typeof b.text !== 'string') return "UCT's breadth answer came back unreadable, so nothing is shown."
   const t = b.table
   const table = t && Array.isArray(t.columns) && Array.isArray(t.rows) ? { columns: t.columns, rows: t.rows } : null
-  return { text: b.text, table }
+  // `present`: the server's concise view of the same answer (present.js); text + table become details
+  const present = b.present && typeof b.present === 'object' ? b.present : null
+  return { text: b.text, table, ...(present ? { present } : {}) }
+}
+
+// ── DETERMINISTIC routing for the OBVIOUS breadth questions (the fast path's own mechanism) ─────────
+// "How's breadth today?", "What % of stocks are above their 50-day?", "... at the close?" are planned
+// here with no model call — the SAME registry op, through the same planner / policy / runtime and the
+// same local-only answer. Strict whole-message wording only: a date, a weekday, "yesterday", a second
+// request or any other word → the model plans it, as before. Values never pass through here.
+const SMA_PERIODS = new Set([5, 10, 20, 40, 50, 100, 150, 200])
+const WHEN_NOW = '(?: (?:right now|now|today|currently|at the moment|so far today|this (?:morning|afternoon)))?'
+const AT_CLOSE = ' (?:at|as of|on) (?:the )?(?:latest |last |most recent )?close'
+const UNI_WORD = '(us|u\\.s\\.|nyse|nasdaq)'
+const UNI_PRE = `(?:${UNI_WORD} )?`
+const UNI_POST = `(?: (?:on|for|in|across) (?:the )?${UNI_WORD}(?: stocks)?)?`
+const ASK = "(?:(?:what(?:'s| is| are| was)?|how(?:'s| is)|show(?: me)?|give me|tell me) )?"
+const OVERVIEW_RE = new RegExp(`^${ASK}(?:the )?${UNI_PRE}(?:market )?breadth(?: (?:look(?:ing)?|like|doing))*${UNI_POST}(${WHEN_NOW}|${AT_CLOSE})$`)
+const PCT_RE = new RegExp(`^${ASK}(?:the )?(?:percent(?:age)?|%|pct) (?:of )?${UNI_PRE}(?:stocks )?(?:that are |are |were )?above (?:their |the |its )?(\\d+)(?:[\\s-]*(?:day|d))?(?: (?:moving average|ma|sma|simple moving average|day moving average))?${UNI_POST}(${WHEN_NOW}|${AT_CLOSE})$`)
+const uniOf = (...ws) => {
+  const w = ws.find(Boolean)
+  return !w || w === 'u.s.' ? 'us' : w
+}
+export function breadthFast(raw) {
+  const t = String(raw || '').toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/[?.!]+$/g, '').replace(/\s+/g, ' ').trim()
+  if (!t || t.length > 120) return null
+  const base = { date: null, compare_date: null, start: null, end: null }
+  let m = OVERVIEW_RE.exec(t)
+  if (m) {
+    return { mode: 'value', universe: uniOf(m[1], m[2]), metrics: [], ...base, basis: /close$/.test(m[3] || '') ? 'close' : null }
+  }
+  m = PCT_RE.exec(t)
+  if (m) {
+    const n = Number(m[2])
+    if (!SMA_PERIODS.has(n)) return null
+    return { mode: 'value', universe: uniOf(m[1], m[3]), metrics: [`pct_above_${n}sma`], ...base, basis: /close$/.test(m[4] || '') ? 'close' : null }
+  }
+  return null
 }
 
 const nullableDate = { type: ['string', 'null'] }
@@ -126,11 +166,12 @@ export function registerBreadthCapabilities() {
     target: 'breadth', query: true,
     // ⛔ the boundary: this answer is shown to the member and never replayed to a model
     localOnly: true,
-    summary: 'Look up historical MARKET BREADTH from UCT\'s own finalized end-of-day data (US, NYSE or Nasdaq stocks): a value on a date, two dates compared, or a date range summarised — % of stocks above a moving average, new highs/lows, advance/decline, Stage 2/4 counts. '
+    summary: 'Look up MARKET BREADTH from UCT\'s own data (US, NYSE, Nasdaq): the current reading (live in the session), a finalized value on a date, two dates compared, or a range summarised — % above a moving average, new highs/lows, advance/decline, Stage 2/4 counts. '
       + 'UCT shows the figures to the member; you never see them. Use this (disposition apply, research null) — never state breadth figures yourself.',
-    hints: 'target = the breadth entry ref. universe us (all US stocks; default) | nyse | nasdaq. metrics = 1–4 keys. '
-      + 'mode value: date (null = latest). compare: compare_date required, date null = latest. series: start required, end null = latest. '
-      + 'Dates YYYY-MM-DD, else null; turn "a month ago" into a date from the entry\'s today_et / latest_finalized. '
+    hints: 'target = breadth entry ref. universe us (default) | nyse | nasdaq. metrics 1–4 keys; [] = general overview. '
+      + 'value: date null = now (live); basis "close" only if a close is asked, else null. '
+      + 'compare: compare_date required, date null = latest close. series: start required, end null = latest. '
+      + 'Dates YYYY-MM-DD else null, from today_et / latest_finalized. '
       + 'reply: one short line, no figures. Keys: ' + METRIC_GUIDE,
     args: {
       type: 'object',
@@ -139,10 +180,16 @@ export function registerBreadthCapabilities() {
         universe: { type: 'string', enum: BREADTH_UNIVERSES },
         metrics: { type: 'array', items: { type: 'string', enum: BREADTH_METRICS } },
         date: nullableDate, compare_date: nullableDate, start: nullableDate, end: nullableDate,
+        // "close" = the member asked for a closing / end-of-day value (finalized); null = present tense
+        basis: { type: ['string', 'null'], enum: ['close', null] },
       },
-      required: ['mode', 'universe', 'metrics', 'date', 'compare_date', 'start', 'end'],
+      required: ['mode', 'universe', 'metrics', 'date', 'compare_date', 'start', 'end', 'basis'],
       additionalProperties: false,
     },
+    fastWhole: true,
+    // market data is never fetched on a guessed spelling ("whats bredth like" → the model plans it)
+    fastCorrect: false,
+    fast: ({ raw }) => breadthFast(raw),
     answer: (_snap, args) => answerBreadth(args),
   })
 }

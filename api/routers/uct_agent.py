@@ -321,10 +321,32 @@ def agent_breadth(body: Any = Body(...), user: dict = Depends(require_admin_dark
     from api.services.market_intel import breadth_answer, breadth_reads
     if len(_json.dumps(body, default=str)) > BREADTH_MAX_BODY:
         raise HTTPException(status_code=400, detail="that breadth request is too large")
+    from api.services.uct_agent import breadth_present
+    # a GENERAL breadth request ("how's breadth today?") names no measure: it gets UCT's documented
+    # overview (breadth_present.OVERVIEW_METRICS — four measures, inside MI's four-measure limit)
+    if isinstance(body, dict) and body.get("metrics") == []:
+        body = {**body, "metrics": list(breadth_present.OVERVIEW_METRICS)}
     res = breadth_reads.read(body)
     out = breadth_answer.answer(res)
     log.info("[uct-agent] breadth lookup status=%s", out.get("status"))          # never a value
-    return {"status": out.get("status"), "text": out.get("text"), "table": out.get("table")}
+    # `present`: the concise VIEW for the member (present.js) — MI's values, MI's formatting; the
+    # full text and table stay available as details. Member channel only (never replayed to a model).
+    try:
+        present = breadth_present.view_of(res, out)
+    except Exception:  # noqa: BLE001 -- presentation never costs the member the answer itself
+        log.exception("[uct-agent] breadth view failed; the browser derives one")
+        present = None
+    text = out.get("text")
+    # PRESENT TENSE (owner 2026-10-12): "what's breadth now?" → the Breadth team's current reading per
+    # measure (breadth_current contract), labelled with its own time/status; the finalized read above
+    # stays as dated context. Dates, closes, comparisons and ranges stay finalized (D5).
+    from api.services.uct_agent import breadth_now
+    if breadth_now.enabled() and breadth_now.wants_current(body) and out.get("status") in ("ok", "partial"):
+        try:
+            text, present, _kinds = breadth_now.overlay(res, out, present)
+        except Exception:  # noqa: BLE001 -- the finalized answer stands
+            log.exception("[uct-agent] present-tense breadth failed; finalized answer shown")
+    return {"status": out.get("status"), "text": text, "table": out.get("table"), "present": present}
 
 
 @router.get("/api/agent/breadth/dates")

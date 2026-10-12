@@ -144,6 +144,46 @@ def ensure_conversation(user_id: int, conversation_id: str | None, first_text: s
     return create_conversation(user_id, first_text)
 
 
+DATA_MAX_CHARS = 20000
+#: What a row's data must ALWAYS keep, whatever its size: the history door (turn.outcome_for_model /
+#: is_local_row) decides from these, and a row without them is replayed as unreadable.
+_ESSENTIAL = ("kind", "actions", "local", "requests", "voice")
+
+
+def _data_json(data: dict | None) -> str | None:
+    """A row's data as JSON, NEVER cut mid-value. Over the limit, the optional display parts (the
+    member's saved answer views, then long lines, then the stored envelope) are dropped first; the
+    essential keys always survive. (Cutting the JSON — the old `[:20000]` — made the whole row
+    unreadable: its kind, actions and local flag were lost with the table that overflowed.)"""
+    if data is None:
+        return None
+    dump = lambda d: json.dumps(d, separators=(",", ":"))  # noqa: E731
+    out = dump(data)
+    if len(out) <= DATA_MAX_CHARS or not isinstance(data, dict):
+        return out if len(out) <= DATA_MAX_CHARS else None
+    d = dict(data)
+    for key in ("views", "view", "citations"):
+        if key in d:
+            d.pop(key)
+            d["trimmed"] = True
+            if len(dump(d)) <= DATA_MAX_CHARS:
+                return dump(d)
+    if isinstance(d.get("lines"), list):
+        d["lines"] = [str(x)[:300] for x in d["lines"][:20]]
+        if len(dump(d)) <= DATA_MAX_CHARS:
+            return dump(d)
+    if isinstance(d.get("envelope"), dict):
+        env = d["envelope"]
+        d["envelope"] = {k: env.get(k) for k in ("disposition", "local_notice") if k in env}
+        d["envelope"]["ops"] = [{"action": o.get("action")} for o in (env.get("ops") or []) if isinstance(o, dict)][:24]
+        if len(dump(d)) <= DATA_MAX_CHARS:
+            return dump(d)
+    keep = {k: data[k] for k in _ESSENTIAL if k in data}
+    keep["trimmed"] = True
+    out = dump(keep)
+    return out if len(out) <= DATA_MAX_CHARS else dump({"trimmed": True})
+
+
 def add_turn(user_id: int, conversation_id: str, role: str, text: str, data: dict | None = None) -> int:
     if role not in ("member", "agent", "outcome"):
         raise ValueError(f"bad role {role!r}")
@@ -152,7 +192,7 @@ def add_turn(user_id: int, conversation_id: str, role: str, text: str, data: dic
         cur = c.execute(
             "INSERT INTO agent_turns (conversation_id, user_id, role, text, data_json, created_at) VALUES (?,?,?,?,?,?)",
             (conversation_id, _uid(user_id), role, _clip(text),
-             json.dumps(data, separators=(",", ":"))[:20000] if data is not None else None, now))
+             _data_json(data), now))
         c.execute("UPDATE agent_conversations SET updated_at = ? WHERE id = ? AND user_id = ?",
                   (now, conversation_id, _uid(user_id)))
         c.commit()

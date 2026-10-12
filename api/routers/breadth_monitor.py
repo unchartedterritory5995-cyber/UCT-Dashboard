@@ -1478,6 +1478,26 @@ def breadth_external_status(days: int = Query(default=30, ge=1, le=120),
     return out
 
 
+@router.get("/api/breadth-monitor/pipeline")
+def breadth_pipeline_status(sessions: int = Query(default=10, ge=2, le=30),
+                            _: None = Depends(require_push_secret)):
+    """(2026-10-12) Each recent session's pipeline stage — raw row, next-session gate, finalized
+    US / NYSE / Nasdaq — and whether any is stuck at collection or finalization. Read-only;
+    dates and statuses only. Push-secret only."""
+    from api.services import breadth_pipeline
+    return breadth_pipeline.status(sessions=sessions)
+
+
+@router.get("/api/breadth-monitor/current")
+def breadth_current_reading(universe: str = Query(default="us"), metric: str = Query(...),
+                            _: None = Depends(require_push_secret)):
+    """(2026-10-12) The present-tense reading the Agent contract returns
+    (`breadth_current.reading`): intraday / provisional / finalized + observation time +
+    `current`. Push-secret only."""
+    from api.services import breadth_current
+    return breadth_current.reading(universe, metric)
+
+
 @router.get("/api/admin/breadth-eod-source")
 def breadth_eod_source_status_admin(limit: int = Query(default=60, ge=1, le=400),
                                     _user: dict = Depends(require_admin)):

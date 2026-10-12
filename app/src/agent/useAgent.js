@@ -37,6 +37,7 @@ import { registerBuiltins } from './builtins'
 import { routeManifest, routingEnabled } from './routing'
 import { agentTurn, agentRecord, agentConversation } from './agentClient'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
+import { presentOf, compactViews, itemsFromTurns } from './present'
 
 registerBuiltins()
 
@@ -235,6 +236,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const interruptedRef = useRef(null)       // { sig, lines, at } from a mark found at load
   const undoRef = useRef([])                // newest last
   const lastActionsRef = useRef([])         // actions of the last plan (routing keeps follow-ups' groups)
+  const saidRef = useRef('')                // the member's words this turn (how much an answer shows)
   const [, force] = useState(0)
   const rerender = () => force(n => n + 1)
 
@@ -245,7 +247,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [])
 
   // `at`: when the line joined the chat (the panel shows it beside the sender's name).
-  const push = useCallback((item) => setItems(xs => [...xs, { id: nid(), at: Date.now(), ...item }]), [])
+  // ⛔ Never an EMPTY Agent container: an agent / refusal / error line with nothing to show is not
+  // added (a blank reply, an answer that came back empty). Cards and questions always carry content.
+  const push = useCallback((item) => {
+    if (['agent', 'refusal', 'error'].includes(item?.role) && !String(item.text || '').trim()
+        && !item.present && !item.table && !item.link) return
+    setItems(xs => [...xs, { id: nid(), at: Date.now(), ...item }])
+  }, [])
   const patchItem = useCallback((id, patch) => setItems(xs => xs.map(x => (x.id === id ? { ...x, ...patch } : x))), [])
 
   // Reopen the remembered conversation (transcript only; proposals and undo are per session).
@@ -261,10 +269,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (!alive) return
       setRestoring(false)
       if (!conv) { setConversationId(null); return }
-      const history = (Array.isArray(conv.turns) ? conv.turns : []).map(t => ({
-        id: `h${t.id}`, role: t.role === 'member' ? 'member' : (t.role === 'outcome' ? 'outcome' : 'agent'),
-        text: t.text, history: true, at: t.created_at ? t.created_at * 1000 : undefined,
-      }))
+      const history = itemsFromTurns(conv.turns)
       setItems(xs => [...history, ...xs.filter(x => !x.history)])
     }, () => { if (alive) setRestoring(false) })
     return () => { alive = false }
@@ -291,7 +296,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [setConversationId])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null }) => {
+  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null }) => {
     // A follow-up step's refusal says what the earlier steps already did (`note`).
     const refusalPush = (text) => push({ role: 'refusal', text: note ? `${text} ${note}` : text })
     let allOps = opsIn
@@ -420,14 +425,19 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         try { a = await getCapability(o.action).answer(targets.get(o.target)?.snap || null, o.args || {}, host) } catch (e) { a = `That didn't work: ${e?.message || 'error'}` }
         answers.push(typeof a === 'string' || a == null ? { text: a || '' } : a)
       }
-      for (const a of answers) push({ role: 'agent', text: a.text, table: a.table || null, link: a.link || null })
-      const text = answers.map(a => a.text).join('\n\n')
+      // ⭐ ONE presentation contract (present.js): each answer → the smallest view that carries it,
+      // shaped by the member's own request (concise by default, depth when asked).
+      const views = answers.map(a => presentOf(a, { message: saidRef.current }))
+      answers.forEach((a, i) => push(views[i] ? { role: 'agent', present: views[i], text: a.text || '' } : { role: 'agent', text: a.text, table: a.table || null, link: a.link || null }))
+      const text = answers.map(a => a.text).filter(Boolean).join('\n\n')
+      // the member's transcript keeps the views (restored on reload); never read into a model request
+      const saved = compactViews(views.filter(Boolean))
       // ⛔ LOCAL-RESULT BOUNDARY: the member's transcript keeps the answer; the row says it is LOCAL
       // ONLY (and what was asked — args, never values), so the server never replays it to a model.
       // The server also decides by the action name (turn.LOCAL_ONLY_ACTIONS); this is the second signal.
       const local = queries.filter(o => getCapability(o.action)?.localOnly)
       const localData = local.length ? { local: true, requests: local.map(o => o.args || {}) } : {}
-      record({ member, outcome: text, outcomeData: { kind: 'answered', actions: queries.map(o => o.action), ...localData }, telemetry: { path, disposition: 'answer', actions: queries.map(o => o.action), voice } })
+      record({ member, outcome: text || 'Answered.', outcomeData: { kind: 'answered', actions: queries.map(o => o.action), ...localData, ...(saved.length ? { views: saved } : {}) }, telemetry: { path, disposition: 'answer', actions: queries.map(o => o.action), voice } })
     }
     const ops = allOps.filter(o => !getCapability(o?.action)?.query)
     if (!ops.length) return
@@ -569,7 +579,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member, outcome: `${lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'applied-unsaved', actions, lines, reason: saved.reason }, telemetry: { path, disposition: 'apply', actions, voice, refused: true } })
         return
       }
-      push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: [...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
+      // a target UCT chose for the member (the chart they clicked) is NAMED on the receipt, so a bare
+      // "switch to weekly" on a board of several charts never leaves them guessing which one changed
+      push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: [...(onTarget ? [onTarget] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
       const next = [...(Array.isArray(res.followUps) ? res.followUps : []), ...landDeferred(deferred, res.created, pendingNames, suggested === 'approved')]
       if (next.length) return { followUps: next }
@@ -582,7 +594,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [host, push, record, capCtx])
 
   // Every execution is traced (agent/trace.js): phase timestamps, memory only.
-  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null }) => {
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null }) => {
     // ⛔ M3: with several indicator drafts open, a request on one the member has not selected is
     // never planned — they are shown the drafts and pick one (chooseTarget), nothing changes.
     // ARGUMENT RESOLUTION: a capability may turn the member's WORDS in an argument into a real
@@ -644,7 +656,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     traceStart(`${path}:${suggested || 'apply'}`)
     let out
     try {
-      out = await executeInner(opsIn, { path, mode: suggested, member, voice, approval, card })
+      out = await executeInner(opsIn, { path, mode: suggested, member, voice, approval, card, onTarget })
     } finally { traceEnd('done') }
     // ⭐ M3: the confirmed Save's chart adds — ONE execution per op, each planned, permission-checked,
     // persisted, confirmed and receipted on its own (a failure never undoes another chart or the Save)
@@ -787,6 +799,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     const text = String(raw || '').trim()
     if (!text || lockRef.current) return
     lockRef.current = true
+    saidRef.current = text
     push({ role: 'member', text, voice })
     setBusy(true)
     try {
@@ -861,9 +874,11 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         }
         // Context & Awareness 1B: "this chart / this stock / it" → the chart the member last CLICKED
         // (agent/deixis.js). No live selection → the question below, exactly as before.
+        let implicitTarget = null
         if (!fast.target?.position && candidates.length > 1) {
           const d = resolveDeictic({ host, kind, candidates, text, chartOp: true })
           if (d?.ref) candidates = candidates.filter(c => c.ref === d.ref)
+          if (d?.implicit && candidates.length === 1) implicitTarget = `On ${candidates[0].label || 'the chart you selected'} — the chart you last clicked.`
         }
         const unmatchedHint = fast.target?.position && charts.length > 1 && candidates === charts
         if (candidates.length > 1 || unmatchedHint) {
@@ -872,7 +887,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           record({ member: text, outcome: 'Asked which target.', outcomeData: { kind: 'clarify-target', actions: fast.ops.map(o => o?.action) }, telemetry: { path: 'fast', clarified: true, voice } })
           return
         }
-        return await execute(fast.ops.map(o => ({ ...o, target: candidates[0].ref })), { path: 'fast', mode: 'apply', member: text, voice })
+        return await execute(fast.ops.map(o => ({ ...o, target: candidates[0].ref })), { path: 'fast', mode: 'apply', member: text, voice, onTarget: implicitTarget })
       }
 
       // ⛔ F2b: "save it" with indicator drafts open but none selected — ask what to save (no model call)
@@ -1000,10 +1015,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (!conv) return
     pendingRef.current = null
     setConversationId(id)
-    setItems(conv.turns.map(t => ({
-      id: `h${t.id}`, role: t.role === 'member' ? 'member' : (t.role === 'outcome' ? 'outcome' : 'agent'),
-      text: t.text, history: true, at: t.created_at ? t.created_at * 1000 : undefined,
-    })))
+    setItems(itemsFromTurns(conv.turns))
   }, [setConversationId])
 
   const canUndo = (undoId) => undoRef.current.some(e => e.id === undoId)

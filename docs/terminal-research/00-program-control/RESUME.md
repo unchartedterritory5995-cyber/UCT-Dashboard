@@ -310,7 +310,7 @@ cost breaker; atomic compare-and-set confirm), **TERM-021 ceiling** (`3a27475a8`
 owed item is DONE) and the verdict card's 429 copy (`fe478a615`). Scoped runs: 330 + 279 + 51 passed, 0 failed.
 
 **Other repos, committed locally, owner to push:** `uct-intelligence` `25fade0` (setup_performance tie-break by id:
-EP win rate 42.2% → 17.2%; also get_historical_analogs) · `morning-wire` `3a15625` (TERM-085 surface line,
+EP win rate 42.2% → 17.2%; also get_historical_analogs) · `morning-wire` `3a15625` (tip now `801fd1e`, 2026-10-12) (TERM-085 surface line,
 WIRE_SURFACE_LINE_ENABLED default off; dashboard styling `.rd-surface` merged here).
 
 **Owner commands pending:**

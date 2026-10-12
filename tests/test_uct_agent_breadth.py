@@ -148,13 +148,16 @@ def test_ROUTE_admin_only_like_every_agent_route(world, monkeypatch):
     assert TestClient(app).post("/api/agent/breadth", json=REQ).status_code == 402
 
 
-def test_ROUTE_answers_the_member_with_the_real_figure(client, world):
+def test_ROUTE_answers_the_member_with_the_real_figure(client, world, monkeypatch):
+    # the FINALIZED route as before (present-tense current readings: test_uct_agent_breadth_current.py)
+    monkeypatch.setenv("AGENT_BREADTH_CURRENT", "0")
     r = client.post("/api/agent/breadth", json=REQ)
     assert r.status_code == 200
     b = r.json()
     assert b["status"] == "ok" and "73.5%" in b["text"] and SESSION in b["text"]      # the member sees it
     assert b["table"]["rows"][0]["value"] == "73.5%"
-    assert set(b) == {"status", "text", "table"}                                     # nothing else rides along
+    assert set(b) == {"status", "text", "table", "present"}                          # nothing else rides along
+    assert b["present"] == {"kind": "value", "value": "73.5%", "label": "US · % of Stocks Above 50-Day MA", "note": "As of 2026-10-09 close"}
 
 
 def test_ROUTE_refuses_by_reason_and_bounds_the_body(client, world):
@@ -232,7 +235,7 @@ def test_DOOR_the_note_keeps_what_was_ASKED_validated_args_only():
                                   "data": {"kind": "answered", "actions": ["breadth.show"], "local": True,
                                            "requests": [REQ, bad, "nope", {"x": 1}]}})
     assert out.startswith(turn.LOCAL_RESULT_NOTE)
-    assert "US: pct_above_50sma; on the latest finalized session" in out
+    assert "US: pct_above_50sma; on the current reading" in out
     assert not leaked(out)
 
 
@@ -376,7 +379,7 @@ def test_MIXED_breadth_plus_news_the_model_asked_research_lookup_runs_news_discl
     e = out["envelope"]
     assert e["ops"] == [BREADTH_OP]                                   # the supported part runs
     assert e["reply"] == turn.LOCAL_NEWS_NOT_DONE and e["local_notice"] is True
-    assert "did not look up the news" in e["reply"] and "nothing was searched" in e["reply"]
+    assert "did not look up the news" in e["reply"] and "no web search was run" in e["reply"]
     assert searched == [] and len(m.calls) == 1                       # no research call, no second model call
     assert out["usage"]["research_calls"] == 0 and out["usage"]["local_research_skipped"] is True
 

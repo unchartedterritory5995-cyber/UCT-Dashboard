@@ -35,6 +35,7 @@
 
 import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup, registerOutputSource, SYMBOLS } from '../capabilities'
 import { encodeSpec } from '../../pages/screener/shell/specUrl'
+import { matchName } from '../nl/match'
 
 const META_TTL_MS = 6 * 3600 * 1000      // the registry changes only on deploy
 const SAVED_TTL_MS = 60 * 1000
@@ -602,7 +603,12 @@ export function registerScreenerCapabilities() {
       if (!m || !cache.saved) return null
       const all = [...cache.saved.saved, ...cache.saved.starters]
       const hits = all.filter(s => norm(s.name) === norm(m[1]) || norm(s.name) === norm(`${m[1]} screen`))
-      return hits.length === 1 ? { screen: hits[0].id, show: null, as: null } : null
+      if (hits.length) return hits.length === 1 ? { screen: hits[0].id, show: null, as: null } : null
+      // NL N2: a typo in the screen's own name ("run my breakuot screen") — running is read-only;
+      // ONE clear match only, a tie or nothing close → the model, which sees the real names
+      const f = matchName(m[1], all.map(s => s.name))
+      const one = f.kind === 'fuzzy' ? all.filter(s => s.name === f.name) : []
+      return one.length === 1 ? { screen: one[0].id, show: null, as: null } : null
     },
     async answer(_snap, { screen, show }) {
       await loadMeta()

@@ -225,7 +225,7 @@ describe('⭐ the six-line conversation — one draft, one lineage, typed outcom
     const a = await run(h, [addOp])
     expect(a.res.ok).toBe(true)
     // M2 names the instance by its first output's label, which the specialist's rename re-derived ("Bullish")
-    expect(a.res.lines[0]).toMatch(/^Added Bullish.* on Left chart \(NVDA\) \(saved\)\.$/)
+    expect(a.res.lines[0]).toMatch(/^Added Bullish.* on Left chart \(NVDA\)\.$/)
     expect(instancesOn(h, 'L').some(i => i.defId === saved.def_id)).toBe(true)
     expect(a.res.undo).toBeTruthy()                                     // the chart add has its own Undo…
     const ua = await undoEntry(h, a.res.undo)

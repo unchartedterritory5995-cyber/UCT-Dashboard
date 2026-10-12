@@ -34,6 +34,9 @@ import { CHART_DEFAULTS } from '../../components/chart/chartDefaults'
 import { chartTemplateSettings } from '../../components/chart/chartTemplateApply'
 import { makeTfCode, isValidTf, tfLabel as tfShort } from '../../components/chart/timeframes'
 import { pickComparisonColor } from '../../components/chart/comparisonUtils'
+import { isPronounToken, groundSymbols, groundingOf, resolvedTicker, candidatesText } from '../nl/tickers'
+import { plainSymbolWord } from '../nl/lexicon'
+import { matchName } from '../nl/match'
 
 // The chart types and the timeframes UCT charts natively are the PRODUCT's lists
 // (chartDefaults.CHART_TYPE_OPTIONS, timeframes.NATIVE_TFS) — imported, never copied, so a new
@@ -348,7 +351,7 @@ const CAPABILITIES = [
     args: { type: 'object', properties: { symbol: { type: 'string' } }, required: ['symbol'], additionalProperties: false },
     // "$NVDA", or chart|open|show|load|pull up + an UPPERCASE ticker in the RAW
     // text (so "show volume" can never read as the ticker VOLUME).
-    fast: ({ raw: said }) => {
+    fast: ({ raw: said, host }) => {
       // Phase 2: the VERB may be capitalised ("Open NVDA") and "on the main chart" adds nothing on a
       // one-chart board (several charts → the orchestrator asks which). The TICKER keeps its case.
       // Only these verbs ("Chart SPY." is left exactly as before — it may mean a NEW chart).
@@ -362,34 +365,52 @@ const CAPABILITIES = [
       const m = /^\$([A-Za-z][A-Za-z0-9.]{0,9})$/.exec(raw)
         || /^(?:chart|open|show|load|pull up|put|switch to|go to)\s+\$?([A-Z][A-Z0-9.]{0,9})$/.exec(raw)
         || /^(?:change|switch|set)\s+(?:the\s+)?(?:symbol|ticker)\s+to\s+\$?([A-Za-z][A-Za-z0-9.]{0,9})$/i.exec(raw)
-      return m ? { symbol: m[1].toUpperCase() } : null
+      // ⛔ "change the ticker to it" / "$" aside, a pronoun is never a ticker (nl/tickers.js)
+      const typed = m && raw.includes(`$${m[1]}`) ? `$${m[1]}` : m?.[1]   // "$IT" is explicitly a ticker
+      if (m) return !isPronounToken(typed, said) ? { symbol: m[1].toUpperCase() } : null
+      // NL N4: a LOWERCASE ticker after a chart verb ("pull up nvda", "chart amd") — only a word UCT
+      // does not know (nor a typo of one) and never a pronoun; prepare then asks the ticker search
+      // whether it exists (or is an exact company name). "switch to weekly" stays a timeframe.
+      const low = /^(?:chart|pull up|bring up|load|switch to|put up)\s+([a-z][a-z0-9.]{0,9})$/.exec(raw)
+      return low && plainSymbolWord(low[1], host, said) ? { symbol: low[1].toUpperCase() } : null
     },
-    // Async lookup BEFORE planning: an unknown ticker is refused, never charted blank.
+    // Async lookup BEFORE planning: an unknown ticker is refused, never charted blank. NL N4: a symbol
+    // that is not a ticker is tried ONCE as an exact company name through the same ticker search
+    // ("NVIDIA" → NVDA); several companies → the member is asked; none → refused. Never a guess.
     // Symbols that came from UCT itself (`trusted`: a screen's results, a saved
     // list's rows) are not looked up again.
     async prepare(ops) {
       const syms = ops.filter(o => !o.trusted).map(o => String(o.args?.symbol || '').trim().toUpperCase()).filter(Boolean)
-      return syms.length ? { unknownSymbols: await unknownSymbols(syms) } : {}
+      if (!syms.length) return {}
+      const unknown = await unknownSymbols(syms)
+      if (!unknown.size) return { unknownSymbols: unknown }
+      const g = await groundSymbols([...unknown])
+      return { unknownSymbols: g.unknown, ambiguousSymbols: g.ambiguous, namedSymbols: g.named }
     },
     check(st, { symbol }, env) {
       const s = String(symbol || '').trim().toUpperCase()
       if (!s) return 'Which ticker?'
+      if (env?.ambiguousSymbols?.has(s)) return `“${String(symbol).trim()}” could be ${candidatesText(s)} — which one? Say the ticker.`
+      if (env?.namedSymbols?.has(s)) return null                       // an exact company name → its one ticker
       if (!/^[A-Z0-9.$:^_\-/]{1,24}$/.test(s)) return `“${symbol}” doesn't look like a ticker.`
       if (env?.unknownSymbols?.has(s)) return `UCT has no symbol “${s}”.`
       return null
     },
     apply(st, { symbol }) {
-      const s = String(symbol).trim().toUpperCase()
+      const s = resolvedTicker(symbol)
       if (st.symbol === s) return st
       // Parity with ChartWidget.handleSymbolChange: a new ticker abandons the
       // "group only" compare view and its overlays.
       const cs = st.cs?.compareHideBase ? set(st.cs, { compareHideBase: false, comparisonSymbols: [] }) : st.cs
       return { ...st, cs, symbol: s }
     },
-    describe(b, a, _args, env) {
+    describe(b, a, args, env) {
       if (b.symbol === a.symbol) return null
       const n = env?.target?.linkedCount || 0
-      return n > 0 ? `Changed symbol to ${a.symbol} (and ${n} linked widget${n === 1 ? '' : 's'})` : `Changed symbol to ${a.symbol}`
+      // NL N4: a company name resolved to its ticker is named in the receipt
+      const g = groundingOf(args?.symbol)
+      const sym = g?.kind === 'name' ? `${a.symbol} (${g.name})` : a.symbol
+      return n > 0 ? `Changed symbol to ${sym} (and ${n} linked widget${n === 1 ? '' : 's'})` : `Changed symbol to ${sym}`
     },
     noop: (b, a) => `Already showing ${a.symbol}`,
   },
@@ -597,6 +618,16 @@ const CAPABILITIES = [
     summary: "Apply one of the member's saved chart templates to ONE chart, exactly as clicking it does (Chart Settings → Templates, or right-click → Chart template): the chart takes the template's whole saved setup, its indicators included.",
     hints: 'template = a name from chartTemplates, exactly. For several charts ("all my charts"), one op per chart.',
     args: { type: 'object', properties: { template: { type: 'string' } }, required: ['template'], additionalProperties: false },
+    // NL N2: a template name that is not exact but close ("swing setp") is HIGH-IMPACT (it replaces the
+    // chart's indicators): never applied on a guess — the member is asked “Did you mean …?” with the
+    // real name(s); their pick fills `template` and the plan continues (useAgent's pickArg flow).
+    resolveArgs({ template }) {
+      if (findTemplate(template)) return null
+      const f = matchName(template, templatesNow().map(t => t.name))
+      const names = f.kind === 'fuzzy' ? [f.name] : f.kind === 'several' ? f.names : []
+      if (!names.length) return null
+      return { ask: { arg: 'template', text: names.length === 1 ? `Did you mean your template “${names[0]}”?` : `Which template — ${names.map(n => `“${n}”`).join(' or ')}?`, choices: names.map(n => ({ ref: n, label: n })) } }
+    },
     check: (st, { template }) => (findTemplate(template) ? null
       : templatesNow().length ? `You have no chart template named “${template}” (you have: ${templatesNow().map(t => t.name).slice(0, 8).join(', ')}).` : 'You have no saved chart templates yet — save one in Chart Settings → Templates.'),
     apply: (st, { template }) => ({ ...st, cs: chartTemplateSettings(findTemplate(template)) }),

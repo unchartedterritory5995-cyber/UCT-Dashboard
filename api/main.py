@@ -6511,6 +6511,13 @@ async def lifespan(app: FastAPI):
                     breadth_health.run(morning=morning)
                 except Exception as _e:
                     logging.getLogger(__name__).warning("[breadth-health] run failed: %s", _e)
+                # (2026-10-12) which pipeline stage is any recent session stuck at — collection
+                # (no EOD row) or finalization (collected + next-session row, still not final)
+                try:
+                    from api.services import breadth_pipeline
+                    breadth_pipeline.check()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[breadth-pipeline] check failed: %s", _e)
 
             _scheduler.add_job(
                 _breadth_eod_row_check,

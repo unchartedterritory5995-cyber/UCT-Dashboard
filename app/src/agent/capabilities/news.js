@@ -67,6 +67,12 @@ export async function answerLatest({ symbol, limit }) {
     text: `${head}\nSource: UCT's news feed (the Company Panel's News tab); tone is UCT's rule-based tag.`,
     table: { columns: [{ key: 'when', label: 'Published' }, { key: 'headline', label: 'Headline' }, { key: 'source', label: 'Source' }, { key: 'tone', label: 'Tone' }], rows },
     link: { href: `/research/${sym}`, label: `Open ${sym} in Research` },
+    // the member's view: headlines first, with WHERE they came from — never mistaken for a web search
+    present: {
+      kind: 'headlines', title: `${sym} — latest headlines`,
+      headlines: rows.map(r => ({ title: r.headline, meta: [r.when, r.source !== '—' ? r.source : null].filter(Boolean).join(' · ') })),
+      source: `From UCT's news feed (not a live web search)${stale ? ` — the newest is ${Math.floor(ageDays(newest))} days old` : ''}.`,
+    },
   }
 }
 
