@@ -519,6 +519,25 @@ LOCAL_ONLY_ACTIONS = frozenset({"breadth.show"})
 LOCAL_RESULT_NOTE = ("[UCT showed the member this result on their screen. Its figures are shown ONLY to "
                      "the member and are never given to you: do not state, estimate or repeat any value "
                      "from it. To answer about it again, plan the same lookup.]")
+#: A MIXED request — a local-only lookup plus news / current events. The lookup is answered locally;
+#: the news part is NOT researched in that turn (its web answer would sit beside figures the model never
+#: saw, and the model's words on a local plan are never shown). UCT says so — deterministic text, no
+#: figures — instead of dropping the other part silently. Flagged `local_notice` so the browser shows it.
+LOCAL_NEWS_NOT_DONE = ("UCT's breadth answer for your request is shown here. I did not look up the news or "
+                       "current-events part of your message — nothing was searched. Ask that part on its own "
+                       "and I'll look it up.")
+#: News / current-events words in the MEMBER's message (not "today": "breadth today" is a breadth question).
+_NEWS_WORDS = re.compile(r"\b(news|headlines?|catalysts?|press releases?|announce\w*|why (is|are)\b.{0,40}\b"
+                         r"(moving|up|down|falling|rising|dropping|ripping|tanking|soaring))\b", re.I)
+
+
+def _plans_local_lookup(env) -> bool:
+    """Does this (compact or expanded) plan hold a local-only lookup? By action NAME only."""
+    if not isinstance(env, dict) or env.get("disposition") not in MUTATING:
+        return False
+    return any(isinstance(o, dict) and o.get("action") in LOCAL_ONLY_ACTIONS for o in env.get("ops") or [])
+
+
 #: A stored outcome row this server cannot read (no data, or data of the wrong shape): it may have
 #: held a local result, so it is replaced — FAIL CLOSED, never replayed on the chance it is safe.
 UNREADABLE_OUTCOME = "[UCT] (an earlier UCT message that is not repeated here)"
@@ -609,8 +628,12 @@ def history_messages(turns: list[dict]) -> list[dict]:
             text = outcome_for_model(t)
         elif t["role"] == "agent" and is_local_row(t):
             # the planning reply of a local-only lookup (blanked when stored; an older or garbled
-            # row is left out here too) — the outcome row's note stands for the turn
-            text = ""
+            # row is left out here too) — the outcome row's note stands for the turn. The ONE
+            # exception is UCT's own fixed notice (exact text + the server's flag), so the next
+            # turn knows which part of a mixed request was NOT done; model words never pass.
+            env = (t.get("data") or {}).get("envelope") if isinstance(t.get("data"), dict) else None
+            ours = isinstance(env, dict) and env.get("local_notice") is True and t.get("text") == LOCAL_NEWS_NOT_DONE
+            text = f"[UCT] {LOCAL_NEWS_NOT_DONE}" if ours else ""
         else:
             text = t["text"]
         if not text:
@@ -764,7 +787,7 @@ def name_conversation(turns: list[dict], caller: Callable | None = None) -> str 
 
 
 def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | None = None,
-                      unselected_ids: set[str] | None = None) -> dict:
+                      unselected_ids: set[str] | None = None, local_notice: str | None = None) -> dict:
     """The server-side gate between the model and the browser."""
     need = env.get("need_groups") if unselected_ids else None
     need = [g for g in need if g in unselected_ids] if isinstance(need, list) else []
@@ -836,8 +859,10 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
     if disp in MUTATING and any(o.get("action") in LOCAL_ONLY_ACTIONS for o in ops):
         # ⛔ LOCAL-RESULT BOUNDARY: the model planned a lookup whose figures it never sees, so any
         # figure in its reply is invented. UCT's own answer is the reply; this text is not shown,
-        # stored or replayed.
-        reply = ""
+        # stored or replayed. A part of the request NOT done this turn is said in UCT's own words.
+        reply = local_notice or ""
+    else:
+        local_notice = None
     return {
         "disposition": disp,
         "reply": reply,
@@ -845,6 +870,7 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         "ops": ops,
         "unsupported_category": (str(env.get("unsupported_category"))[:40]
                                  if disp == "unsupported" and env.get("unsupported_category") else None),
+        **({"local_notice": True} if local_notice else {}),
     }
 
 
@@ -927,6 +953,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
              "research_calls": 0, "model_calls": 0, "citations": []}
     cap_names = {c["name"] for c in caps}
     pre_research = None
+    notice = None
     for round_ in range(MAX_RESEARCH_CALLS + 1):
         try:
             resp = caller(
@@ -977,6 +1004,13 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             usage["research_forced"] = True
         wants = ((disp == "answer" or (disp in MUTATING and _asks_question(msg))) and isinstance(req, dict)
                  and str(req.get("query") or "").strip() and round_ < MAX_RESEARCH_CALLS)
+        if _plans_local_lookup(env) and (wants or (isinstance(req, dict) and str(req.get("query") or "").strip())
+                                         or _NEWS_WORDS.search(msg)):
+            # ⛔ MIXED breadth + news: no research beside a local-only lookup (nothing is searched,
+            # nothing is spent); the lookup runs, and the member is TOLD the news part was not done.
+            wants = False
+            notice = LOCAL_NEWS_NOT_DONE
+            usage["local_research_skipped"] = True
         if wants:
             # A MIXED request (question needing research + a change): the change was planned in
             # THIS call, from the member's words alone, before any web text existed — it is
@@ -1017,7 +1051,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                    else env.get("reply")}
         if compact and isinstance(env, dict) and env.get("disposition") in MUTATING:
             env = expand_compact_ops(env, caps)
-        envelope = sanitize_envelope(env, valid_refs, cap_names, unselected_ids)
+        envelope = sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)
         usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
         title = clean_title(env) if conversation_title and not envelope.get("need_groups") else None
