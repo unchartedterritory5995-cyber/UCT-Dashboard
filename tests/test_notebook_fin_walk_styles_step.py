@@ -177,6 +177,17 @@ def test_unknown_block_checks_the_typed_text_was_saved():
     assert "kept" in _step_verdict_names(fn, "styles.unknown-block"), "the block-survived check stays"
 
 
+def test_the_blocks_step_has_no_blind_sleep():
+    """Notebook P2a Task 13: the trader blocks step waits, never sleeps, and its integrity row waits for the
+    autosave's own answer. The same AST read as styles(), on `def blocks`."""
+    fn = _func(FEATURES.read_text(encoding="utf-8"), "blocks")
+    assert fn is not None, "no def blocks() in the features file"           # non-vacuity: the step exists
+    assert _calls_method(fn, "get_by_role"), "non-vacuity: the right function, with real calls in it"
+    assert "blocks.integrity-tick-leave" in _code_strings(fn), "non-vacuity: the integrity row is in it"
+    assert _sleep_calls(fn) == []
+    assert _calls_function(fn, SAVE), "the integrity row must wait for the save, not a clock"
+
+
 def test_save_landed_waits_on_the_save_response_not_a_poll():
     src = FEATURES.read_text(encoding="utf-8")
     fn = _func(src, SAVE)
