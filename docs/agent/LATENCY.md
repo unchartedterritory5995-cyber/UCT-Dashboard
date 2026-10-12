@@ -198,3 +198,58 @@ the latency budgets. Whoever lands second re-runs `agentLatency.test.jsx` (its b
 Reproducing the baseline: commit `d4c47ae1e3` is production `382606e92c` + instrumentation only; run
 `AGENT_LATENCY_OUT=… npx vitest run src/agent/agentLatency.test.jsx` there and at this branch's head
 (`AGENT_LATENCY_STREAM=1` for the streamed mode).
+
+## Final validation (2026-10-12, owner-approved local validation — no deploy)
+
+### Production timing report — NOT RUN (permission)
+Two attempts to run `tools/agent_latency_telemetry.py` (read-only, aggregate-only) on the web service via
+`railway ssh --service web` were refused by this session's auto-mode classifier as **[Production Reads]**.
+Not retried, not delegated. To run it, either the owner runs it (`! railway ssh --service web "python -c …"`
+— or after deploy, `python tools/agent_latency_telemetry.py`), or adds a Claude Code permission rule allowing
+`Bash(railway ssh --service web:*)` for this purpose. Note what production can and cannot show today: server
+rows carry model time per turn (incl. research) and cost; there are NO stage timings, browser timings or
+network times in production until this branch ships (they are added here).
+
+### Streaming safety assessment
+| Concern | Verdict | Evidence |
+|---|---|---|
+| Partial rendering / final replacement | Safe — one provisional line, repainted ≤ every 50 ms, replaced by the final reply; removed when the turn ends as anything else | `agentStreaming.test.jsx` (answer, clarify, plan cases) |
+| Cancellation / sidebar closure | Parity with today: closing unmounts the panel (AgentDock → null); updates after unmount are no-ops; the server finishes and stores the turn (seen on reopen). No fetch abort — the model call is not cancelled (same as /turn) | "closing the sidebar mid-stream" test |
+| Network failure / interrupted stream | Safe — dropped stream → "connection … dropped … No changes were made." (true: plans run only in the browser after the final event); error event → /turn's own status + sentence; stream ending without a final → the generic failure | drop + error tests |
+| Duplicate messages / actions | No duplicate actions: plans execute once, after the final event (test counts 1 commit, 1 receipt). One theoretical duplicate TURN: a 200 non-event-stream reply to the stream route is re-asked on /turn (only an edge page could do that; the stream route always answers event-stream) | plan-once test |
+| Approval / Undo safeguards | Unchanged paths: streaming touches only answer/unsupported rendering. D1 keeps Undo entries conditional on a confirmed save; D2 keeps the board check before every write | agent suite (1043) |
+| Proprietary breadth values | Cannot stream: only `answer` dispositions stream; a breadth lookup is always a plan (reply blanked, sentinel test); breadth answers come from /api/agent/breadth, never the stream | `test_a_local_only_breadth_plan_streams_nothing…` |
+| New open routes | None: `/turn/stream` and `/config` sit behind `require_admin_dark`; a test derived from the router asserts 401 / 402 / 403 for anonymous / free / paid member on all 12 Agent routes, with no model call started | `test_every_agent_route_refuses_…` |
+
+Residual (documented, not blocking a dark deploy): each streamed turn uses its own worker thread (fine for
+admin-only; bound it before a member rollout); a stream cut by the client may skip the post-reply
+title/telemetry background tasks; structured-output streaming on Haiku 4.5 is not yet verified with a real model.
+
+### Integration plan (with `feat/agent-indicator-builder`, `C:/w/agind`, not modified)
+Trial (`trial/agperf-x-agind` = 69128e7b80): `perf/agent-latency` f59f27e954 + Indicators 588a59b38a
+(which includes 9a3cae5a6c) on 382606e92c — **0 conflicts** in either order. Semantics checked: Create
+Indicator / Modify entry runs `indicator.draft` (boardScoped: false → no early board read, no save); a door
+clicked mid-reply waits for `busy` (a streamed reply holds busy until its final event); the resizable dock
+only changes width. Combined: Agent + Charts pages + studio route 201 files / 2518 tests pass, latency
+budgets pass in both modes, Python Agent + workspace 433 pass.
+
+Order: one combined RC branch from current master → merge Indicators → merge perf → full gate → one deploy
+(streaming flag unset). Either single-branch order also merges cleanly; whoever lands second merges master
+and re-runs the gate. After integration run: `npx vitest run src/agent src/pages/charts
+src/components/chart/builder/studio`, `AGENT_LATENCY_STREAM=1 npx vitest run src/agent/agentLatency.test.jsx`,
+`pytest tests/test_uct_agent*.py tests/test_workspace_revision_safety.py tests/test_board_bound.py
+tests/api/test_sse_gzip_exempt.py` (after `vite build`), eslint on the shared Agent files, and a browser pass:
+Create Indicator door → Agent, resize, timeframe / symbol / indicator commands + Undo receipts, an ordinary
+question (flag off → unchanged), an approval card.
+
+### The six baseline frontend failures — unrelated
+Same on production code: `jsonFetcher` ratchet (hooks/useFlagged.js listed but healed), terminal
+`panelProvenance` (MyResearchPanel now adopts — stale EXEMPT), terminal `formControls` (2 native selects),
+two journal importer round-trips (local venv lacks `markdown_it`), `iteratorGlobalFloor` (needs `app/dist`;
+passes after a build). None touch Agent files. Not fixed (out of scope).
+
+### Smaller real-model probe (proposal — not run)
+`python tools/agent_latency_probe.py BODIES.json --cats explain,clarify,breadth-historical --run --max-usd 0.30`
+— 3 requests × plain/streamed (≤ 12 calls, hard worst case $0.27, expected ≈ $0.05; no web search). Measures
+first-streamed-text vs total model time, tokens, cache reads. Single cheapest check: `--cats explain
+--modes stream --max-usd 0.05` (worst $0.045).
