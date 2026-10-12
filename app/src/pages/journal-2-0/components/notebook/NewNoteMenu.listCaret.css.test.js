@@ -68,6 +68,10 @@ describe('CONTROLS: the reader can see a rule, and can miss one', () => {
     expect(declsFor(mediaBlocks(css, TOUCH), '.listCaret > button')).toEqual({})
     expect(declsFor(mediaBlocks(css, PHONE), '.caret')).toEqual({})
   })
+  it('a whole @media block inside a comment does not count (this is what `strip` is for)', () => {
+    const css = '/* @media (max-width: 640px) { .listCaret { position: static; } } */ .x { color: red; }'
+    expect(declsFor(mediaBlocks(css, PHONE), '.listCaret')).toEqual({})
+  })
 })
 
 describe('the list caret\'s CSS contract (review I1)', () => {
@@ -88,5 +92,9 @@ describe('the list caret\'s CSS contract (review I1)', () => {
   })
   it('…and the row it hangs from is positioned (NotebookTab.module.css .newWrap)', () => {
     expect(declsFor(mediaBlocks(TAB_CSS, PHONE), '.newWrap')['position']).toBe('relative')
+  })
+  it('at >=641px the caret itself is the menu\'s containing block (base .listCaret is relative)', () => {
+    const base = strip(MENU_CSS).split('@media')[0]
+    expect(declsFor(base, '.listCaret')).toMatchObject({ position: 'relative', display: 'flex' })
   })
 })

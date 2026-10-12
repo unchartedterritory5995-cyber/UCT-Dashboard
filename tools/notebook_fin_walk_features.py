@@ -21,6 +21,8 @@ import traceback
 from datetime import timedelta
 from pathlib import Path
 
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+
 REPO = Path(__file__).resolve().parents[1]
 if str(REPO / "tools") not in sys.path:
     sys.path.insert(0, str(REPO / "tools"))
@@ -1417,7 +1419,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             search_top = pA.locator("input[data-home-search]").first.evaluate("e => e.getBoundingClientRect().top") if pA.locator("input[data-home-search]").count() else None
             voice_on = bool(meA.get("notebook_voice_notes_enabled")) and bool(meA.get("paid_equiv"))
             # Notebook P1: "From a style" (spec P0.1/P1.4) is listed while journal styles are on, read like voice.
-            styles_on = bool(meA.get("notebook_journal_styles_enabled")) and bool(meA.get("paid_equiv"))
+            styles_on = bool(meA.get("notebook_journal_styles_enabled"))
             expected = (["From an outline"] + (["From a style"] if styles_on else []) + (["Voice note"] if voice_on else [])
                         + ["Today's note"])
             caret.first.click()
@@ -1966,6 +1968,20 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         finally:
             cA.close()
 
+    def save_landed(page, note_id, act, ceiling_ms=15000):
+        """Run `act()` (the member's edit), then WAIT for the autosave's own answer: the PUT to
+        /api/j2/notes/{note_id} that lands it, 2xx. Playwright's waiter, never a sampled poll
+        (CLAUDE.md "SAMPLING WHERE A WAITER WAS AVAILABLE"); the ceiling only bounds it. Returns the
+        note the server holds after that PUT answered, or None when none landed inside the ceiling."""
+        path = re.compile(rf"/api/j2/notes/{re.escape(str(note_id))}(\?|$)")
+        try:
+            with page.expect_response(lambda r: r.request.method == "PUT" and bool(path.search(r.url)) and r.ok,
+                                      timeout=ceiling_ms):
+                act()
+        except PlaywrightTimeoutError:
+            return None
+        return M.get(base + f"/api/j2/notes/{note_id}").json()["note"]
+
     # ── Notebook P1: journal styles, at 1280 / 820 / 390 ──────────────────────────────────
     def styles():
         state = ctx.storage_state()
@@ -2034,12 +2050,14 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         if banner:
             pg.get_by_role("button", name="Review update").click()
             pg.get_by_role("button", name="Apply").click()
-            pg.wait_for_timeout(2500)
+            pg.get_by_text(re.compile(r"Update layout to v\d+\?")).first.wait_for(state="hidden", timeout=15000)
         got = M.get(base + f"/api/j2/notes/{n['id']}").json()["note"]
+        added = any(x.get("type") == "widgetEmbed" and (x.get("attrs") or {}).get("widgetId") == "chart"
+                    for x in got.get("bodyJson", {}).get("content", []))
         conflicted = [x for x in C.notes_list(ctx, base) if "(conflicted copy)" in (x.get("title") or "")]
-        ok = banner and got.get("styleVersion") == (mine or {}).get("version", 0) + 2 and not conflicted
+        ok = banner and added and got.get("styleVersion") == (mine or {}).get("version", 0) + 2 and not conflicted
         C.step(pg, inst, "styles.update-layout", "The banner's Review update -> Apply adds the block, stamps the version, forks nothing",
-               "PASS" if ok else "FAIL", style_version=got.get("styleVersion"), conflicted=len(conflicted))
+               "PASS" if ok else "FAIL", style_version=got.get("styleVersion"), chart_added=added, conflicted=len(conflicted))
         ed = pg.locator(".ProseMirror").first
         ed.click()
         pg.keyboard.press("Control+End")
@@ -2054,11 +2072,18 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         fb = M.post(base + "/api/j2/notes", data={"title": "Future block", "bodyJson": future}).json()["note"]
         C.goto(pg, base, f"/journal/notebook?note={fb['id']}", wait=".ProseMirror")
         card = C.vis_loc(pg.get_by_text("This block needs a newer version of the app. Reload to see it."), 10000)
-        pg.wait_for_timeout(3000)
-        kept = any(x.get("attrs", {}).get("widgetId") == "walkFutureBlock"
-                   for x in M.get(base + f"/api/j2/notes/{fb['id']}").json()["note"]["bodyJson"]["content"])
-        C.step(pg, inst, "styles.unknown-block", "A block from a newer version shows the card and is still in the saved note",
-               "PASS" if card and kept else "FAIL", card=card, kept=kept)
+        ed2 = pg.locator(".ProseMirror").first
+
+        def edit():                                     # an edit, so the save writes the body back
+            ed2.click()
+            pg.keyboard.press("Control+Home")
+            pg.keyboard.press("End")
+            pg.keyboard.type("y", delay=40)
+        landed = save_landed(pg, fb["id"], edit)
+        kept = bool(landed) and any((x.get("attrs") or {}).get("widgetId") == "walkFutureBlock"
+                                    for x in landed["bodyJson"]["content"])
+        C.step(pg, inst, "styles.unknown-block", "A block from a newer version shows the card and survives an edit and a save",
+               "PASS" if card and kept else "FAIL", card=card, saved=bool(landed), kept=kept)
         want = {"styles.new-from-kind", "styles.manager", "styles.save-as-style", "styles.update-layout",
                 "styles.slash-style", "styles.unknown-block"}
         seen = {s.get("feature") for s in C.REC["steps"] if s.get("config") == cfg}

@@ -73,8 +73,9 @@ CAL_FILE = "fin-walk-sandbox-calendar.json"
 # Sandbox degradation every lane's sandbox already serves (13X's list, reused, not widened).
 BENIGN = ("/api/j2/broker/sync", "/api/stream/bars", "/api/live-prices", "warm=1", "/api/stream/prices")
 
-# The seventeen switches waves 11-14 add and production has not armed. Read against the ledger at
-# run time (`flag_sets`), so a name that is not a real flag refuses the run.
+# The switches waves 11-14 and P1/P2 add and production has not armed (count them from the list,
+# never from this line). Read against the ledger at run time (`flag_sets`), so a name that is not a
+# real flag refuses the run.
 WAVE_FLAGS = [
     "NOTEBOOK_FORMULAS_ENABLED", "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
     "NOTEBOOK_TA_FINGERPRINT_ENABLED", "NOTEBOOK_PLAN_GRADING_ENABLED", "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
