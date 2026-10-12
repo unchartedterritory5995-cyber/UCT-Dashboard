@@ -91,7 +91,9 @@ async function answerBreadth(args) {
     const b = await r.json().catch(() => ({}))
     return `I couldn't read UCT's breadth data right now (${b.detail || `HTTP ${r.status}`}).`
   }
-  const b = await r.json().catch(() => null)
+  // An unreadable body is SAID, never swallowed into a blank (TERM-033: no `.catch(() => null)`).
+  let b
+  try { b = await r.json() } catch { return "UCT's breadth answer came back unreadable, so nothing is shown." }
   if (!b || typeof b.text !== 'string') return "UCT's breadth answer came back unreadable, so nothing is shown."
   const t = b.table
   const table = t && Array.isArray(t.columns) && Array.isArray(t.rows) ? { columns: t.columns, rows: t.rows } : null
