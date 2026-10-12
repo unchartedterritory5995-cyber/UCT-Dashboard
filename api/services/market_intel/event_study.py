@@ -94,6 +94,12 @@ def validate(req: Any) -> tuple[Optional[dict], Optional[dict]]:
         return None, err
     if cond.get("op") not in OPS:
         return None, _refused("bad_condition", "The condition must be below, above, cross_below or cross_above a threshold.")
+    transform = cond.get("transform", "level")
+    if transform not in ("level", "change"):
+        return None, _refused("bad_condition", "transform is level (the value) or change (vs the previous observation).")
+    if transform == "change":
+        series = {**series, "label": f"Change in {series['label']}", "domain": _sa.DOMAIN_ANY,
+                  "unit": series["unit"]}
     thr = _finite(cond.get("threshold"))
     if thr is None or not _sa.threshold_ok(series["domain"], thr):
         return None, _refused("bad_threshold", "That threshold isn't a possible value for this measure.")
@@ -123,7 +129,7 @@ def validate(req: Any) -> tuple[Optional[dict], Optional[dict]]:
         return None, _refused("bad_date", "Study dates must be real calendar dates (YYYY-MM-DD).")
     if start and end and end < start:
         return None, _refused("bad_date", "The study window ends before it starts.")
-    return {"condition": {"series": series, "op": cond["op"], "threshold": thr},
+    return {"condition": {"series": series, "op": cond["op"], "threshold": thr, "transform": transform},
             "symbol": sym, "horizons": horizons, "episodes": episodes, "entry": entry,
             "non_overlapping": bool(req.get("non_overlapping", False)), "baseline": bool(req.get("baseline", True)),
             "start": _parse_date(start) if start else None, "end": _parse_date(end) if end else None}, None
@@ -147,28 +153,39 @@ def _qualifies(op: str, thr: float, v: float) -> bool:
 
 # ── core ─────────────────────────────────────────────────────────────────────
 
-def _align(series: dict, cal: list[str]) -> dict:
-    """session → value known at that session's close (None = gap), per the series' alignment."""
+def _align(series: dict, cal: list[str]) -> tuple[dict, Optional[set]]:
+    """(session → value known at that session's close (None = gap), publication sessions).
+
+    For an `as_of` series the second item is the set of sessions on which a NEW observation became
+    known. Events may only occur on those sessions: a weekly or monthly value carried across the
+    sessions between publications is the SAME observation, not a new event each day (a defect the
+    real-data validation exposed: "CPI change < 0, every session" counted ~3,300 events for ~300
+    releases). For a `session` series every session is an observation (None)."""
     rows = series["rows"]
     if series["alignment"] == "session":
         m = dict(rows)
-        return {d: m.get(d) for d in cal}
+        return {d: m.get(d) for d in cal}, None
     stale = series.get("max_staleness_days")
-    out, j, cur = {}, -1, None
+    out, pubs, j, cur = {}, set(), -1, None
     for d in cal:
+        moved = False
         while j + 1 < len(rows) and rows[j + 1][0] <= d:
             j += 1
             cur = rows[j]
+            moved = True
+        if moved:
+            pubs.add(d)                      # first session at/after the publication day
         if cur is None:
             out[d] = None
         elif stale is not None and (_date.fromisoformat(d) - _date.fromisoformat(cur[0])).days > stale:
             out[d] = None
         else:
             out[d] = cur[1]
-    return out
+    return out, pubs
 
 
-def _detect(req: dict, cal: list[str], known: dict, ws: str, we: str) -> tuple[list[str], dict]:
+def _detect(req: dict, cal: list[str], known: dict, ws: str, we: str,
+            pubs: Optional[set] = None) -> tuple[list[str], dict]:
     op, thr = req["condition"]["op"], req["condition"]["threshold"]
     events, qualifying, runs, gaps = [], 0, 0, 0
     prev: Optional[float] = None
@@ -181,6 +198,8 @@ def _detect(req: dict, cal: list[str], known: dict, ws: str, we: str) -> tuple[l
             gaps += 1
             prev, in_run = None, False
             continue
+        if pubs is not None and d not in pubs:
+            continue                          # same observation as the last publication: not a new event
         q = _qualifies(op, thr, v)
         if op in ("below", "above"):
             if q:
@@ -250,6 +269,11 @@ def _study(req: dict) -> dict:
     series = _sa.load(req["condition"]["series"])
     if series.get("status") != "ok":
         return {**series, "request": req, "stage": "condition_series"}
+    if req["condition"].get("transform") == "change":
+        rows = series["rows"]
+        series = {**series, "rows": [(rows[k][0], rows[k][1] - rows[k - 1][1]) for k in range(1, len(rows))]}
+        if not series["rows"]:
+            return _unavailable("no_data", "Not enough observations to compute a change.", request=req)
     ps = _pr.daily_closes(req["symbol"])
     if ps.get("status") != "ok":
         return {**ps, "request": req, "stage": "price"}
@@ -268,8 +292,12 @@ def _study(req: dict) -> dict:
     cal = _trading_days(min(ws, b_first), cal_end)
     idx = {d: i for i, d in enumerate(cal)}
 
-    known = _align(series, cal)        # session → known condition value (None = gap)
-    raw, counts = _detect(req, cal, known, ws, we)
+    if series["alignment"] == "as_of":
+        # the last publication may fall on a non-session day: the window runs to the session that knew it
+        nxt = next((d for d in cal if d >= b_last), b_last)
+        we = min(nxt, req["end"] or nxt)
+    known, pubs = _align(series, cal)  # session → known condition value (None = gap); publication sessions
+    raw, counts = _detect(req, cal, known, ws, we, pubs)
 
     def entry_of(d: str) -> Optional[str]:
         if req["entry"] == "event_close":
@@ -350,6 +378,7 @@ def _study(req: dict) -> dict:
                      f"they never qualify and they end a run.")
     if series["alignment"] == "as_of":
         notes.append("This series is point-in-time: each session uses only the latest value PUBLISHED by that day.")
+    notes.extend(series.get("notes") or [])
 
     spec = req["condition"]["series"]
     return {
@@ -360,6 +389,7 @@ def _study(req: dict) -> dict:
         "coverage": {"series_first": b_first, "series_last": b_last,
                      "series_basis": series["coverage"].get("basis"),
                      "series_authority": series["coverage"].get("authority"),
+                     "pit_profile": series.get("pit_profile"),
                      "price_first": p_first, "price_last": p_last, "study_start": ws, "study_end": we,
                      "price_basis": ps.get("basis")},
         "counts": {**counts, "events_detected": len(raw), "events_used": len(events), **excluded,

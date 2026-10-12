@@ -154,10 +154,117 @@ def _cot_load(spec: dict) -> dict:
                        "licensing": getattr(row, "licensing", None)}}
 
 
+# ── economic (the econ service's own vintages; point-in-time by first availability) ─
+
+def _econ_describe(spec: dict) -> tuple[Optional[dict], Optional[dict]]:
+    """Pure: the econ registry's own member gate (`publish.resolve` + `publish.servable`, which
+    re-checks `licensing.production_eligible`) and member-safe meta (`publish.meta_for`)."""
+    from api.services.econ import publish as _P
+    entry = _P.resolve(str(spec.get("symbol") or "").strip())
+    ok, why = _P.servable(entry)
+    if not ok:
+        return None, _refused("unknown_series", "That economic series isn't available for studies.", why=why)
+    meta = _P.meta_for(entry)
+    units = (meta.get("units") or {}).get("display") or ""
+    return {"kind": "econ", "symbol": entry["symbol"], "pit_safe_only": bool(spec.get("pit_safe_only", False)),
+            "label": meta["name"] + (f" ({units})" if units else ""), "unit": "econ", "domain": DOMAIN_ANY,
+            "category": f"economic ({meta.get('frequency')}, {(meta.get('source') or {}).get('agency')})",
+            "max_age_days": meta.get("max_age_days")}, None
+
+
+def _econ_vintage_rows(symbol: str) -> tuple[Optional[list], Optional[dict]]:
+    """Every stored vintage [[ps, pe, t_unix, v, pit, release_id], …] through the econ SERVING source,
+    WITHOUT the network: `db` (ECON_DB_PATH read-only) or `local` (ECON_ARTIFACT_DIR). The production
+    default `r2` is a cloud read this research path is not authorized to make — refused, never fetched."""
+    from api.services.econ import publish as _P, serving as _S
+    mode = _S.mode()
+    if mode == "db":
+        st = _S._open_db()
+        try:
+            return _P.build_vintages_payload(st, symbol)["rows"], None
+        finally:
+            st.close()
+    if mode == "local":
+        doc = _S._artifact(_P.vintages_key(symbol))
+        if not isinstance(doc, dict) or doc.get("symbol") != symbol:
+            return None, {"status": "unavailable", "reason": "not_published",
+                          "detail": "No local economic vintages are published for that series."}
+        return doc.get("rows") or [], None
+    return None, {"status": "unavailable", "reason": "econ_source_not_local",
+                  "detail": "Economic history is read here only from a LOCAL source (ECON_SERVING_SOURCE=db or "
+                            "local). The production source (R2) is a cloud read this research path is not "
+                            "authorized to make."}
+
+
+def session_of(t_unix: int) -> str:
+    """The first trading session whose CLOSE comes at or after `t_unix`: a release at 08:30 ET is
+    known by that day's close; one after the close (or on a holiday) belongs to the next session."""
+    from datetime import datetime, timezone, timedelta
+    from api.services import session_calendar as _sc
+    # epoch arithmetic, not fromtimestamp: Windows rejects pre-1970 (negative) timestamps, and
+    # economic history starts in 1913
+    ts = (datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=int(t_unix))).astimezone(_sc.ET)
+    d = ts.date()
+    for _ in range(15):
+        close = _sc.close_time(d)
+        if close is not None and ts <= close:
+            return d.isoformat()
+        d += timedelta(days=1)
+    return d.isoformat()
+
+
+def econ_pit_rows(vrows: list, pit_safe_only: bool = False) -> tuple[list, dict]:
+    """Vintages → the value KNOWN at each availability instant: the LATEST period released so far,
+    at its latest vintage available by then. One row per change, dated by `session_of`.
+    Returns (rows, profile) where profile counts the PIT classes behind the rows used."""
+    from collections import Counter
+    vs = [r for r in vrows if r[3] is not None and (not pit_safe_only or r[4] in ("V", "U"))]
+    vs.sort(key=lambda r: (r[2], r[5]))
+    best: dict[str, list] = {}          # period → latest vintage seen so far
+    out, prof, last_key = [], Counter(), None
+    for r in vs:
+        ps = r[0]
+        b = best.get(ps)
+        if b is None or (r[2], r[5]) > (b[2], b[5]):
+            best[ps] = r
+        latest_ps = max(best)                         # the newest PERIOD known at this instant
+        lr = best[latest_ps]
+        key = (latest_ps, lr[3])
+        if key != last_key:
+            d = session_of(r[2])
+            if out and out[-1][0] == d:
+                out[-1] = (d, float(lr[3]))           # same session: the close knows the last value
+            else:
+                out.append((d, float(lr[3])))
+            prof[lr[4]] += 1
+            last_key = key
+    return out, dict(prof)
+
+
+def _econ_load(spec: dict) -> dict:
+    vrows, err = _econ_vintage_rows(spec["symbol"])
+    if err:
+        return err
+    rows, prof = econ_pit_rows(vrows, spec.get("pit_safe_only", False))
+    if not rows:
+        return {"status": "unavailable", "reason": "no_data", "detail": "No usable economic history for that series."}
+    notes = []
+    if prof.get("L") or prof.get("X"):
+        notes.append(f"{prof.get('L', 0) + prof.get('X', 0)} of {sum(prof.values())} release values are from "
+                     "backfilled history (class L/X): their release DATES are rule-based and late-side, but their "
+                     "VALUES may include later revisions that were not known at the time.")
+    return {"status": "ok", "alignment": "as_of", "rows": rows,
+            "max_staleness_days": spec.get("max_age_days"), "pit_profile": prof, "notes": notes,
+            "coverage": {"first": rows[0][0], "last": rows[-1][0],
+                         "basis": "each value dated by the session that first knew it (release time → session close)"},
+            "source": {"interface": "econ.publish.build_vintages_payload via econ.serving (db/local mode)"}}
+
+
 ADAPTERS = {
     "breadth": (_breadth_describe, _breadth_load),
     "technical": (_tech_describe, _tech_load),
     "cot": (_cot_describe, _cot_load),
+    "econ": (_econ_describe, _econ_load),
 }
 
 

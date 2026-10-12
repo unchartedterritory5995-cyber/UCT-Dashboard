@@ -21,9 +21,11 @@ BREADTH = {"kind": "breadth", "universe": "nasdaq", "metric": "pct_above_50sma"}
 HORIZONS = [{"sessions": 5}, {"sessions": 21}, {"months": 3}]
 
 
-def req(op="below", threshold=10, series=None, **kw):
-    out = {"condition": {"series": series or BREADTH, "op": op, "threshold": threshold},
-           "symbol": "QQQ", "horizons": HORIZONS}
+def req(op="below", threshold=10, series=None, transform=None, **kw):
+    cond = {"series": series or BREADTH, "op": op, "threshold": threshold}
+    if transform is not None:
+        cond["transform"] = transform
+    out = {"condition": cond, "symbol": "QQQ", "horizons": HORIZONS}
     out.update(kw)
     return out
 
@@ -353,8 +355,9 @@ def test_point_in_time_series_uses_only_published_values(world, monkeypatch):
     monkeypatch.setitem(sa.ADAPTERS, "pit_fake", (describe, load))
     r = es.run(req(series={"kind": "pit_fake"}, threshold=10, horizons=[{"sessions": 1}], episodes="all"))
     dates = [e["event_date"] for e in r["events"]]
-    # the 5.0 published Fri 2024-01-12 is known from that session until the next publication (01-19)
-    assert dates[0] == "2024-01-12" and "2024-01-18" in dates and "2024-01-19" not in dates
+    # the 5.0 published Fri 2024-01-12 is known until the next publication (01-19), but it is ONE
+    # observation: with episodes=all it is one event on its publication session, not one per session
+    assert dates[0] == "2024-01-12" and "2024-01-18" not in dates and "2024-01-19" not in dates
     assert "2024-01-11" not in dates                                       # never before it was public
     # 01-19's 50.0 goes STALE after 10 days (no publication until 02-23): sessions after 01-29 are gaps
     assert r["counts"]["condition_gaps"] > 0
@@ -406,3 +409,128 @@ def test_cot_public_day_comes_from_the_real_release_calendar(world, monkeypatch)
 def test_crossing_answer_says_each_crossing(world):
     t = esa.answer(es.run(req(op="cross_below")))["text"]
     assert "each crossing" in t and "first session of each run" not in t
+
+
+def test_as_of_series_events_only_on_publication_sessions(world, monkeypatch):
+    """Adversarial (found by real-data validation): a monthly value carried across the sessions between
+    releases is ONE observation. episodes=all must count releases, not every session in between."""
+    from api.services.market_intel import series_adapters as sa
+    published = [("2024-01-11", -0.1), ("2024-02-13", -0.2), ("2024-03-12", 0.3), ("2024-04-10", -0.1)]
+
+    def describe(spec):
+        return {"kind": "m", "label": "Fake monthly", "unit": "econ", "domain": "any", "category": "test"}, None
+
+    def load(spec):
+        return {"status": "ok", "alignment": "as_of", "rows": published, "max_staleness_days": 45,
+                "coverage": {"first": published[0][0], "last": published[-1][0]}, "source": {"interface": "fake"}}
+    monkeypatch.setitem(sa.ADAPTERS, "m", (describe, load))
+    every = es.run(req(series={"kind": "m"}, threshold=0, horizons=[{"sessions": 1}], episodes="all"))
+    assert [e["event_date"] for e in every["events"]] == ["2024-01-11", "2024-02-13", "2024-04-10"]
+    first = es.run(req(series={"kind": "m"}, threshold=0, horizons=[{"sessions": 1}], episodes="first"))
+    # Jan and Feb releases are one run of consecutive qualifying RELEASES; March breaks it
+    assert [e["event_date"] for e in first["events"]] == ["2024-01-11", "2024-04-10"]
+    cross = es.run(req(series={"kind": "m"}, op="cross_above", threshold=0, horizons=[{"sessions": 1}]))
+    assert [e["event_date"] for e in cross["events"]] == ["2024-03-12"]
+
+
+def test_publication_on_a_non_session_day_lands_on_the_next_session(world, monkeypatch):
+    from api.services.market_intel import series_adapters as sa
+    published = [("2024-03-29", -1.0)]                       # Good Friday: market closed
+
+    def describe(spec):
+        return {"kind": "h", "label": "Fake", "unit": "econ", "domain": "any", "category": "test"}, None
+
+    def load(spec):
+        return {"status": "ok", "alignment": "as_of", "rows": published, "max_staleness_days": 45,
+                "coverage": {"first": published[0][0], "last": published[-1][0]}, "source": {"interface": "fake"}}
+    monkeypatch.setitem(sa.ADAPTERS, "h", (describe, load))
+    r = es.run(req(series={"kind": "h"}, threshold=0, horizons=[{"sessions": 1}]))
+    assert [e["event_date"] for e in r["events"]] == ["2024-04-01"]
+
+
+# ── economic adapter (fixtures; the econ service's own vintages) ─────────────
+
+def _et_unix(day: str, hhmm: str) -> int:
+    from datetime import datetime
+    from api.services import session_calendar as sc
+    h, m = map(int, hhmm.split(":"))
+    return int(datetime.fromisoformat(day).replace(hour=h, minute=m, tzinfo=sc.ET).timestamp())
+
+
+@pytest.mark.parametrize("day,hhmm,expect", [
+    ("2024-01-11", "08:30", "2024-01-11"),     # pre-open release → that session's close knows it
+    ("2024-01-11", "16:00", "2024-01-11"),     # at the close: still that session
+    ("2024-01-11", "16:30", "2024-01-12"),     # after the close → next session
+    ("2024-11-29", "13:30", "2024-12-02"),     # after a 13:00 half-day close → next session
+    ("2024-03-29", "08:30", "2024-04-01"),     # Good Friday release → next session
+    ("2024-01-13", "10:00", "2024-01-16"),     # Saturday → Tuesday (MLK day Monday)
+])
+def test_release_time_maps_to_the_first_session_whose_close_knows_it(day, hhmm, expect):
+    from api.services.market_intel import series_adapters as sa
+    assert sa.session_of(_et_unix(day, hhmm)) == expect
+
+
+def test_pre_1970_release_times_do_not_crash():
+    """Real-data validation found Windows rejecting negative timestamps (CPI history starts 1913)."""
+    from api.services.market_intel import series_adapters as sa
+    assert sa.session_of(-1_765_000_000) < "1915-01-01"
+
+
+def test_econ_pit_rows_use_only_what_was_known_and_handle_revisions():
+    from api.services.market_intel import series_adapters as sa
+    t = lambda d: _et_unix(d, "08:30")  # noqa: E731
+    v = [  # [ps, pe, t, v, pit, release_id]
+        ["2024-01-01", "2024-01-31", t("2024-02-13"), 3.1, "V", 1],
+        ["2024-02-01", "2024-02-29", t("2024-03-12"), 3.2, "V", 2],
+        ["2024-01-01", "2024-01-31", t("2024-03-12"), 3.0, "V", 2],   # a revision of an OLDER period
+        ["2024-02-01", "2024-02-29", t("2024-03-20"), 3.3, "V", 3],   # a revision of the LATEST period
+        ["2024-03-01", "2024-03-31", t("2024-04-10"), 3.5, "L", 4],
+    ]
+    rows, prof = sa.econ_pit_rows(v)
+    assert rows == [("2024-02-13", 3.1), ("2024-03-12", 3.2), ("2024-03-20", 3.3), ("2024-04-10", 3.5)]
+    assert prof == {"V": 3, "L": 1}
+    safe, prof2 = sa.econ_pit_rows(v, pit_safe_only=True)
+    assert safe[-1] == ("2024-03-20", 3.3) and "L" not in prof2
+
+
+def _econ_world(monkeypatch, vrows, mode="db"):
+    from api.services.econ import serving as S, publish as P
+    from api.services.market_intel import series_adapters as sa
+    monkeypatch.setattr(S, "mode", lambda: mode)
+    calls = {"open": 0}
+
+    class _St:
+        def close(self): pass
+
+    def fake_open():
+        calls["open"] += 1
+        return _St()
+    monkeypatch.setattr(S, "_open_db", fake_open)
+    monkeypatch.setattr(P, "build_vintages_payload", lambda st, sym: {"rows": vrows})
+    return calls
+
+
+def test_econ_study_end_to_end_with_change_transform(world, monkeypatch):
+    t = lambda d: _et_unix(d, "08:30")  # noqa: E731
+    vrows = [[f"2024-{m:02d}-01", f"2024-{m:02d}-28", t(d), val, "L", m]
+             for m, d, val in [(1, "2024-02-13", 3.1), (2, "2024-03-12", 3.2), (3, "2024-04-10", 3.5),
+                               (4, "2024-05-15", 3.4), (5, "2024-06-12", 3.3), (6, "2024-07-11", 3.0)]]
+    calls = _econ_world(monkeypatch, vrows)
+    r = es.run(req(series={"kind": "econ", "symbol": "USCPIYOY"}, op="below", threshold=0, transform="change",
+                   horizons=[{"sessions": 1}], episodes="all"))
+    assert r["status"] == "ok" and calls["open"] == 1
+    assert [e["event_date"] for e in r["events"]] == ["2024-05-15", "2024-06-12", "2024-07-11"]   # each lower release
+    assert r["coverage"]["pit_profile"] == {"L": 6}
+    assert any("backfilled history" in n for n in r["notes"])
+    assert r["series_label"].startswith("Change in ")
+
+
+def test_econ_production_source_is_refused_without_any_read(world, monkeypatch):
+    calls = _econ_world(monkeypatch, [], mode="r2")
+    r = es.run(req(series={"kind": "econ", "symbol": "USCPIYOY"}, threshold=3))
+    assert r["status"] == "unavailable" and r["reason"] == "econ_source_not_local" and calls["open"] == 0
+
+
+def test_econ_unservable_series_is_refused(world):
+    r = es.run(req(series={"kind": "econ", "symbol": "USRETAIL"}, threshold=0))       # failed-closed in the registry
+    assert r["status"] == "refused" and r["reason"] == "unknown_series"
