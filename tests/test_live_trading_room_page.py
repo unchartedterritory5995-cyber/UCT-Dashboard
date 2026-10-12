@@ -143,7 +143,7 @@ SOCIAL_LINKS = [
     "https://x.com/TSDR_Trading",
     "https://www.instagram.com/tsdr_trading",
     "https://youtube.com/@unchartedtrtyy",
-    "https://facebook.com/unchartedterritoryy",
+    "https://www.facebook.com/profile.php?id=61595317401777",
 ]
 
 
