@@ -424,6 +424,19 @@ def _study(req: dict) -> dict:
                              "median": s.get("median")})
 
     notes = []
+    jumps = [j for j in (ps.get("suspect_jumps") or []) if ws <= j]
+    spanning = 0
+    if jumps:
+        for item in listed:
+            ends = [x["exit_date"] for x in item["returns"] if x["outcome"] == "ok"]
+            if ends and any(item["entry_date"] < j <= max(ends) for j in jumps):
+                spanning += 1
+        notes.append(f"{req['symbol']} has {len(jumps)} one-session move(s) over "
+                     f"{int(_pr.SUSPECT_JUMP * 100)}% in the stored history (first {jumps[0]}), which may be an "
+                     f"unadjusted corporate action; {spanning} event window(s) span one.")
+    by_year: dict[str, int] = {}
+    for d, _e in events:
+        by_year[d[:4]] = by_year.get(d[:4], 0) + 1
     if overlapping:
         notes.append(f"{overlapping} event(s) began while an earlier event's longest window was still open, so "
                      f"their outcomes overlap and are not independent.")
@@ -457,7 +470,14 @@ def _study(req: dict) -> dict:
                      "price_first": p_first, "price_last": p_last, "study_start": ws, "study_end": we,
                      "price_basis": ps.get("basis")},
         "counts": {**counts, "events_detected": len(raw), "events_used": len(events), **excluded,
-                   "overlapping_events": overlapping},
+                   "overlapping_events": overlapping, "windows_spanning_suspect_jumps": spanning},
+        "diagnostics": {"events_by_year": dict(sorted(by_year.items())),
+                        "conditions": [{"label": c["series"]["label"], "alignment": sr["alignment"],
+                                        "first": sr["rows"][0][0], "last": sr["rows"][-1][0],
+                                        "observations": len(sr["rows"]),
+                                        "pit_profile": sr.get("pit_profile")}
+                                       for c, sr in zip(req["conditions"], loaded)],
+                        "suspect_price_jumps": jumps[:20]},
         "horizons": per_h, "baseline": baseline,
         "events": listed[-MAX_EVENTS_LISTED:], "events_listed_truncated": len(listed) > MAX_EVENTS_LISTED,
         "notes": notes,

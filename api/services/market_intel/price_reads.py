@@ -18,6 +18,9 @@ import re
 from typing import Optional
 
 MAX_BARS = 60000
+#: A one-session move larger than this is flagged as a POSSIBLE unadjusted corporate action (a split the
+#: serve-time heal missed on a cold metadata cache, a ticker reuse). Flagged and disclosed, never "fixed".
+SUSPECT_JUMP = 0.40
 _SYMBOL = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 
 
@@ -67,5 +70,8 @@ def daily_closes(symbol) -> dict:
     if not closes:
         return {"status": "unavailable", "reason": "no_price_history", "symbol": sym,
                 "detail": f"UCT has no stored daily history for {sym}."}
+    jumps = [closes[i][0] for i in range(1, len(closes))
+             if abs(closes[i][1] / closes[i - 1][1] - 1.0) > SUSPECT_JUMP]
     return {"status": "ok", "symbol": sym, "closes": closes, "first": closes[0][0], "last": closes[-1][0],
-            "basis": "daily close, split-adjusted, not dividend-adjusted (price return)"}
+            "basis": "daily close, split-adjusted, not dividend-adjusted (price return)",
+            "suspect_jumps": jumps}

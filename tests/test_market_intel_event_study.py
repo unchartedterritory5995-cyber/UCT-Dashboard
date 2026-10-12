@@ -684,3 +684,39 @@ def test_compound_answer_names_every_condition(world, monkeypatch):
     tech = {"kind": "technical", "symbol": "QQQ", "indicator": "rsi", "period": 14}
     a = esa.answer(es.run(comp(c(), c(tech, op="above", threshold=1))))
     assert a["status"] == "ok" and " AND QQQ RSI(14) above 1" in a["text"]
+
+
+# ── integrity: corporate actions, diagnostics, performance ──────────────────
+
+def test_an_unadjusted_split_is_flagged_not_silently_used(world, monkeypatch):
+    """Adversarial: a 2:1 split the store failed to adjust looks like a −50% day. It is flagged, and
+    every event window that spans it is counted — returns are not 'fixed' by guessing."""
+    bars = [{"t": d, "c": (100.0 + i) if i < 13 else (100.0 + i) / 2} for i, d in enumerate(S)]
+    fx.install(monkeypatch, bars=bars)
+    r = es.run(req(horizons=[{"sessions": 5}]))
+    assert r["diagnostics"]["suspect_price_jumps"] == [S[13]]
+    assert r["counts"]["windows_spanning_suspect_jumps"] == 1                 # the S[10] event's window
+    assert any("unadjusted corporate action" in n for n in r["notes"])
+
+
+def test_diagnostics_events_by_year_and_condition_coverage(world):
+    r = es.run(req())
+    assert r["diagnostics"]["events_by_year"] == {"2024": 5}
+    cov = r["diagnostics"]["conditions"][0]
+    assert cov["alignment"] == "session" and cov["first"] == S[0] and cov["observations"] == len(S) - 1
+
+
+def test_performance_on_a_long_history(world, monkeypatch):
+    """~26 years of sessions, 6 windows, every qualifying session, baseline on: must stay fast."""
+    import time as _t
+    days = fx.trading_days("2000-01-03", "2025-12-31")
+    rows = [(d, 5.0 if i % 37 < 4 else 50.0) for i, d in enumerate(days)]
+    bars = [{"t": d, "c": 100.0 + (i % 250) * 0.3} for i, d in enumerate(days)]
+    fx.install(monkeypatch, rows=rows, bars=bars)
+    t0 = _t.monotonic()
+    r = es.run(req(episodes="all", horizons=[{"sessions": 1}, {"sessions": 5}, {"sessions": 21}, {"sessions": 63},
+                                              {"months": 6}, {"months": 12}]), deadline_s=30)
+    took = _t.monotonic() - t0
+    assert r["status"] == "ok" and r["counts"]["events_used"] > 600
+    assert took < 4.0, f"study took {took:.2f}s"
+    assert len(r["events"]) == es.MAX_EVENTS_LISTED and r["events_listed_truncated"]
