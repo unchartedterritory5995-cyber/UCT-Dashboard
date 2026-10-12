@@ -12,6 +12,8 @@
  * write path, nothing for the offline layer to learn.
  */
 
+import { isOfferable } from './kindOfNoteOffer'
+
 // ⛔ ONE FACT IN TWO FILES with `property_autofill.AUTOFILL_TYPES`, pinned by
 // tests/test_property_autofill.py (it PARSES this array). Keep it a literal.
 export const AUTOFILL_TYPES = ['text', 'number', 'select', 'multi_select', 'date', 'checkbox', 'url']
@@ -30,7 +32,7 @@ export const autofillAlreadySetSentence = (name) =>
  *  offered when the server would have something to try. */
 export function autofillCandidates(properties) {
   return (Array.isArray(properties) ? properties : []).filter((p) => (
-    p && p.source === 'user_set' && p.value == null && AUTOFILL_TYPES.includes(p.type)
+    p && p.source === 'user_set' && p.value == null && AUTOFILL_TYPES.includes(p.type) && isOfferable(p)
     && !((p.type === 'select' || p.type === 'multi_select') && !(p.options || []).length)
   ))
 }

@@ -335,7 +335,8 @@ def build_context(user_id: str, request: str) -> dict[str, Any]:
         terms = _request_terms(request)
         ids = _candidate_ids(conn, user_id, request)
         folder_paths = notes_service._folder_paths(conn, user_id)
-        defs = note_properties.list_property_defs(user_id, conn=conn)
+        from api.services.journal_two.note_kinds import offered
+        defs = offered(note_properties.list_property_defs(user_id, conn=conn))
         settable = [d for d in defs if d.get("source") == "user_set" and d.get("type") in pa.AUTOFILL_TYPES]
         by_id = {}
         if ids:
@@ -618,7 +619,8 @@ def validate_plan(user_id: str, raw: str, context: dict[str, Any]) -> dict[str, 
     conn = get_connection()
     try:
         conn.row_factory = sqlite3.Row
-        defs = [d for d in note_properties.list_property_defs(user_id, conn=conn)
+        from api.services.journal_two.note_kinds import offered
+        defs = [d for d in offered(note_properties.list_property_defs(user_id, conn=conn))
                 if d.get("source") == "user_set" and d.get("type") in pa.AUTOFILL_TYPES]
         folder_paths = notes_service._folder_paths(conn, user_id)
         note_cache: dict[str, Any] = {}

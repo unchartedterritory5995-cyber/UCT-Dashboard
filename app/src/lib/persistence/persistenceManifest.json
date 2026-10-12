@@ -434,6 +434,16 @@
       ]
     },
     {
+      "key": "notebook_kind_mapping",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Notebook",
+      "kind": "state",
+      "label": "Kind of note offer answer",
+      "serverAllowlisted": true,
+      "files": []
+    },
+    {
       "key": "notebook_sample",
       "store": "server-preference",
       "scope": "cross-device",
