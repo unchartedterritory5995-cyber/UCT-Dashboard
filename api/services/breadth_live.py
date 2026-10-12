@@ -1871,9 +1871,12 @@ def _compute_fresh(now: float) -> dict:
 
     from api.services.massive import _get_client
     try:
-        snap = _get_client().get_full_market_snapshot()
+        _client = _get_client()
+        snap = _client.get_full_market_snapshot()
     except Exception as e:
         return {"ok": False, "reason": f"snapshot failed: {e}"}
+    # the vendor's observation time of this snapshot (None = unstamped / unknown)
+    data_at = (getattr(_client, "last_full_snapshot_meta", None) or {}).get("data_at")
     if not snap:
         return {"ok": False, "reason": "empty market snapshot"}
 
@@ -1904,7 +1907,10 @@ def _compute_fresh(now: float) -> dict:
     payload = {
         "ok": True,
         "provisional": True,
-        "as_of": et.isoformat(timespec="seconds"),
+        "as_of": et.isoformat(timespec="seconds"),          # when UCT COMPUTED it
+        # (2026-10-12) when the MARKET DATA was observed (vendor stamp); None = unknown
+        "data_as_of": (datetime.fromtimestamp(data_at, et.tzinfo).isoformat(timespec="seconds")
+                       if data_at else None),
         "levels_as_of": _iso(levels["as_of_ts"]),
         "session_date": _iso(_ts_int(et.date())) if session_live else _iso(levels["as_of_ts"]),
         "market_open": _market_open(),
@@ -1948,6 +1954,7 @@ def _compute_fresh(now: float) -> dict:
         _live_cache["highs"] = highs
         _live_cache["lows"] = lows
         _live_cache["levels"] = levels
+        _live_cache["data_at"] = data_at
     return payload
 
 
