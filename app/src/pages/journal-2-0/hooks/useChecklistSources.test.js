@@ -73,6 +73,9 @@ describe('useChecklistSources', () => {
     ['accounts loaded, first pick pending', { accountId: null, isLoading: false, isAllAccounts: false, accounts: [{ id: 'a1' }] }, 'loading'],
     ['accounts failed', { accountId: null, isLoading: false, isAllAccounts: true, accounts: [], accountsError: new Error('500') }, 'accounts-error'],
     ['no accounts at all', { accountId: null, isLoading: false, isAllAccounts: false, accounts: [] }, 'no-accounts'],
+    // R-T7-3 N-2: a failed poll keeps SWR's last accounts, so an error with accounts on hand is not
+    // "accounts couldn't load"; the selection decides (AccountSelector.jsx's own precedent)
+    ['All Accounts, a failed re-poll, accounts on hand', { accountId: null, isLoading: false, isAllAccounts: true, accounts: [{ id: 'a1' }], accountsError: new Error('500') }, 'no-account'],
   ])('M-3 %s: %s', (_name, account, state) => {
     ACCOUNT_RET = account
     const { result } = renderHook(() => useChecklistSources({ wantRules: true }))

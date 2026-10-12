@@ -2,10 +2,15 @@
  * Currently-selected account, persisted to localStorage. Used by every
  * J2.0 read hook to scope queries.
  *
- * Returns `{ accountId, account, setAccount }` where:
- *   - accountId: string | null  (null = "All Accounts" aggregate view)
- *   - account: full account object | null when "All Accounts"
- *   - setAccount(id | null): updates selection + persists
+ * Returns `{ accountId, account, accounts, setAccount, isLoading, isAllAccounts, accountsError }`:
+ *   - accountId: string | null. null is "All Accounts", but ALSO "no pick yet" and "accounts
+ *     failed"; `isAllAccounts` is the one that means All Accounts.
+ *   - account: full account object | null when accountId is null
+ *   - setAccount(id | null): updates selection + persists (null = All Accounts)
+ *   - isAllAccounts: the selection is the "All Accounts" sentinel. Derived from hook STATE (the raw
+ *     selection), so it always agrees with accountId; another tab's change arrives through the native
+ *     `storage` event and moves both together.
+ *   - accountsError: useJ2Accounts' read error, passed through
  *
  * On first load: picks the first account in the user's list (typically
  * "Default") if no localStorage value or the stored ID is now invalid.
@@ -26,20 +31,21 @@ const CHANGE_EVENT = 'uct:j2:selected-account-changed'
 // through to it — every existing caller omits it and is unaffected.
 export default function useJ2SelectedAccount(enabled = true) {
   const { accounts, isLoading, error: accountsError } = useJ2Accounts(enabled)
-  const [accountId, setAccountIdState] = useState(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored === ALL_ACCOUNTS) return null
-    return stored || null
-  })
+  // The RAW selection: ALL_ACCOUNTS, an account id, or null (nothing picked yet). accountId and
+  // isAllAccounts are both derived from it, so they can never disagree.
+  const [selection, setSelection] = useState(() => localStorage.getItem(STORAGE_KEY) || null)
+  const accountId = selection === ALL_ACCOUNTS ? null : selection
 
-  // Subscribe to in-tab change events fired by any other hook instance.
+  // In-tab change events fired by any other hook instance (an id of null is setAccount(null), All
+  // Accounts), and the native `storage` event for a change made in ANOTHER tab.
   useEffect(() => {
+    const types = [CHANGE_EVENT, 'storage']
     const handler = (e) => {
-      const next = e.detail?.id === undefined ? null : e.detail.id
-      setAccountIdState(next)
+      if (e.type === CHANGE_EVENT) setSelection(e.detail?.id == null ? ALL_ACCOUNTS : e.detail.id)
+      else if (e.key === STORAGE_KEY) setSelection(e.newValue || null)
     }
-    window.addEventListener(CHANGE_EVENT, handler)
-    return () => window.removeEventListener(CHANGE_EVENT, handler)
+    types.forEach((t) => window.addEventListener(t, handler))
+    return () => types.forEach((t) => window.removeEventListener(t, handler))
   }, [])
 
   // Once accounts arrive, validate the stored ID — if it doesn't exist
@@ -48,23 +54,23 @@ export default function useJ2SelectedAccount(enabled = true) {
     if (isLoading || accounts.length === 0) return
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored === ALL_ACCOUNTS) {
-      if (accountId !== null) setAccountIdState(null)
+      if (selection !== ALL_ACCOUNTS) setSelection(ALL_ACCOUNTS)
       return
     }
     const exists = stored && accounts.some((a) => a.id === stored)
     if (!stored || !exists) {
       const firstId = accounts[0].id
-      setAccountIdState(firstId)
+      setSelection(firstId)
       localStorage.setItem(STORAGE_KEY, firstId)
       window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: { id: firstId } }))
-    } else if (accountId !== stored) {
-      setAccountIdState(stored)
+    } else if (selection !== stored) {
+      setSelection(stored)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accounts, isLoading])
 
   const setAccount = useCallback((id) => {
-    setAccountIdState(id)
+    setSelection(id === null ? ALL_ACCOUNTS : id)
     if (id === null) localStorage.setItem(STORAGE_KEY, ALL_ACCOUNTS)
     else localStorage.setItem(STORAGE_KEY, id)
     window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: { id } }))
@@ -74,11 +80,5 @@ export default function useJ2SelectedAccount(enabled = true) {
     ? accounts.find((a) => a.id === accountId) || null
     : null
 
-  // `accountId` is null for "All Accounts" AND before the first pick AND when accounts failed to load.
-  // Only the stored selection tells the first apart (Notebook P2a, Task 7 fix round 1, M-3); additive.
-  let storedAll = false
-  try { storedAll = localStorage.getItem(STORAGE_KEY) === ALL_ACCOUNTS } catch { storedAll = false }
-  const isAllAccounts = accountId === null && storedAll
-
-  return { accountId, account, accounts, setAccount, isLoading, isAllAccounts, accountsError }
+  return { accountId, account, accounts, setAccount, isLoading, isAllAccounts: selection === ALL_ACCOUNTS, accountsError }
 }

@@ -133,6 +133,12 @@ describe('PreEntryChecklistBlock', () => {
     expect(screen.queryByText(ALL_ACCOUNTS_LINE)).toBeNull()
     expect(screen.queryByText(/No rules are marked "before entry" yet/)).toBeNull()
   })
+  it('N-2: All Accounts with a failed re-poll but accounts on hand reads the All Accounts line, not "couldn\'t load"', () => {
+    ACCOUNT_EXTRA = { accountId: null, isLoading: false, isAllAccounts: true, accounts: [{ id: 'a1' }], accountsError: new Error('500') }
+    render(<PreEntryChecklistBlock params={base} setParams={vi.fn()} editable />)
+    expect(screen.getByText(ALL_ACCOUNTS_LINE)).toBeTruthy()
+    expect(screen.queryByText(/Your accounts couldn't load/)).toBeNull()
+  })
   it('a before-entry rule is a named checkbox after the setup items, and ticks with its rule: id', () => {
     RULES = [{ id: 'r1', label: 'No trades in the first 5 minutes', beforeEntry: true }]
     const setParams = vi.fn(() => true)

@@ -44,7 +44,10 @@ export default function useChecklistSources({ wantRules }) {
   let rulesState = 'off'
   if (wantRules) {
     if (!accountId) {
-      if (accountsError) rulesState = 'accounts-error'
+      // R-T7-3 N-2: SWR keeps the last accounts when a re-poll fails, so the error decides only when
+      // there are none on hand (AccountSelector.jsx's own `!!error && accounts.length === 0`).
+      const noAccounts = !Array.isArray(accounts) || accounts.length === 0
+      if (!!accountsError && noAccounts) rulesState = 'accounts-error'
       else if (accountsLoading) rulesState = 'loading'
       else if (isAllAccounts) rulesState = 'no-account'
       else if (Array.isArray(accounts) && accounts.length === 0) rulesState = 'no-accounts'
