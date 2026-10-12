@@ -42,14 +42,18 @@ def main() -> int:
     ap.add_argument("bodies")
     ap.add_argument("--run", action="store_true")
     ap.add_argument("--max-usd", type=float, default=0.0)
+    ap.add_argument("--cats", default="", help="comma-separated categories (default: one request per category)")
+    ap.add_argument("--modes", default="plain,stream", help="plain,stream | stream")
     a = ap.parse_args()
+    cats = {c.strip() for c in a.cats.split(",") if c.strip()}
+    modes = [m for m in ("plain", "stream") if m in a.modes.split(",")]
     seen, reqs = set(), []
     for b in json.load(open(a.bodies, encoding="utf-8")):
-        if b["cat"] not in seen:                     # one (cold) request per category
+        if b["cat"] not in seen and (not cats or b["cat"] in cats):   # one (cold) request per category
             seen.add(b["cat"])
             reqs.append(b)
-    worst = sum(2 * 2 * worst_cost(b["body"]) for b in reqs)     # plain + streamed, ≤ 2 calls each
-    print(f"requests={len(reqs)} calls<= {4 * len(reqs)} worst_case_usd={worst:.3f}")
+    worst = sum(len(modes) * 2 * worst_cost(b["body"]) for b in reqs)     # per mode, ≤ 2 calls each
+    print(f"requests={len(reqs)} modes={','.join(modes)} calls<= {2 * len(modes) * len(reqs)} worst_case_usd={worst:.3f}")
     for b in reqs:
         print(f"  {b['cat']}: body_chars={len(json.dumps(b['body']))} caps={len(b['body'].get('capabilities') or [])}")
     if not a.run:
@@ -72,7 +76,7 @@ def main() -> int:
     print("cat|mode|first_text_ms|model_ms|calls|in_tok|out_tok|cache_read|cost_usd|disposition")
     for b in reqs:
         body = b["body"]
-        for mode in ("plain", "stream"):
+        for mode in modes:
             est = worst_cost(body)
             calls = {"n": 0}
 
