@@ -334,6 +334,13 @@ const SERVER_LEDGER = {
     + '(Trash) only to UNDO a note the set itself created; its client (AiActionsPanel / lib/aiActions.js) lands every '
     + 'revision the apply and undo routes return with settleNoteWrites, and holds back a body block on a note with unsent '
     + 'words on this device',
+  // Notebook P1 (journal styles, lane A1): the Research Type -> Kind of note offer. `apply_mapping` writes ONE
+  // property (`builtin:note_kind`) per note through update_note, on notes the member chose to map; it never touches
+  // a title, subtitle or body, skips a locked note, and the client names (and excludes) every note holding unsent
+  // words on this device before it asks. The route that calls it returns each {id, updatedAt} for settleNoteWrites.
+  'api/services/journal_two/note_kinds.py':
+    'apply_mapping: update_note(properties only: builtin:note_kind) on the member-confirmed unmapped notes, skipping a '
+    + 'locked note and any id the client excluded for unsent words; metadata only, every revision returned for the client to land',
 }
 
 describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions', () => {
@@ -747,11 +754,19 @@ const DOOR_CLASSIFICATION = {
     why: 'apply_style_update inserts missing blocks AFTER THE FIRST HEADING (or, switching an empty note, the style\'s '
       + 'outline, which may carry an instruction paragraph): not a tail append of server-appended types, so '
       + 'appendedServerNodes (positional, tail only) cannot prove APPEND_ONLY and a tab holding unsent words 409s into '
-      + 'a BODY_REWRITE and forks -- both survive. A stamp-only or kind-only update leaves the body byte-identical '
-      + '(METADATA_ONLY, rebased). One compare-and-set under BEGIN IMMEDIATE, against the revision the call read when '
-      + 'the client sent no base (tests/test_journal_styles_update.py, the read-then-type race).',
+      + 'a BODY_REWRITE and forks -- both survive. A kind-only switch leaves the body byte-identical (METADATA_ONLY, '
+      + 'rebased); nothing to add writes nothing. A locked note is refused (423). One compare-and-set under BEGIN '
+      + 'IMMEDIATE, always against the revision the call read (tests/test_journal_styles_update.py, the '
+      + 'read-then-type race and the early-conflict rail).',
     evidence: ['tests/test_journal_styles_update.py', 'app/src/pages/journal-2-0/lib/offline/ownerReconcile.test.js',
       'tests/test_notes_cas_is_atomic.py'],
+  },
+  'api/services/journal_two/note_kinds.py': {
+    class: NONE,
+    why: 'apply_mapping writes only the builtin:note_kind property (update_note properties patch): a title, subtitle '
+      + 'and body are untouched, so another tab\'s unsent words rebase (METADATA_ONLY), never fork. A locked note is '
+      + 'skipped, the client excludes notes holding unsent words, and each moved revision is returned to be landed.',
+    evidence: ['tests/test_note_kinds.py'],
   },
   'api/services/journal_two/note_connectors/engine.py': {
     class: FORK,

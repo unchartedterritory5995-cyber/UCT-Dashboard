@@ -43,6 +43,7 @@ import sqlite3
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two.note_kinds import NOTE_KIND_PROPERTY
 from api.services.journal_two.note_properties import BUILTIN_USER_SET_IDS
 
 # Property ids whose transitions are meaningful thesis-research events. A
@@ -50,7 +51,10 @@ from api.services.journal_two.note_properties import BUILTIN_USER_SET_IDS
 # v1 -- the changelog is a research timeline, not a generic audit of every
 # field (directive §35's "read as a timeline, not an audit database");
 # revisit only if a member need for it actually surfaces.
-_TRACKED_PROPERTY_IDS = BUILTIN_USER_SET_IDS
+# ⛔ Kind of note is a FILING label, not a research event, and its value is an opaque id for a member
+# kind (the timeline would read "builtin:note_kind changed to k_ce7b..."). A new built-in is not tracked
+# by default: it is added here on purpose, never by inheriting the set.
+_TRACKED_PROPERTY_IDS = BUILTIN_USER_SET_IDS - {NOTE_KIND_PROPERTY}
 
 
 def _parse_props(raw: str | None) -> dict[str, Any]:

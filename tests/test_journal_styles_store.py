@@ -13,15 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from tests._journal_styles_kind_stub import install as _install_kind_stubs
-
 CLIENT = Path("app/src/pages/journal-2-0/lib/journalBlocks.js")
-
-
-@pytest.fixture(autouse=True)
-def _kinds(monkeypatch):
-    """Task 4/5 stand-ins while lane A2 is built without them; a no-op once they exist."""
-    _install_kind_stubs(monkeypatch)
 
 
 @pytest.fixture

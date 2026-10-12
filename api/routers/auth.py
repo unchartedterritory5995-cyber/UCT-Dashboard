@@ -2807,6 +2807,8 @@ _PREFERENCE_KEYS = {
     # same commit as its writer, because an unlisted key answers 400 and the list would
     # reopen on every visit (the wave-8 `notebook_tour` defect recorded just below).
     "notebook_getting_started": _PREF_OPAQUE,
+    # Notebook P1: the Research Type -> Kind of note offer's answer ("dismissed").
+    "notebook_kind_mapping": _PREF_OPAQUE,
     # Wave 8: the sample-notebook strip and the first-run tour each write one
     # key (`ResearchHome.jsx` dismissStrip, `NotebookTour.jsx`). Without these two rows
     # the server answered 400 "Unknown preference key" and neither ever

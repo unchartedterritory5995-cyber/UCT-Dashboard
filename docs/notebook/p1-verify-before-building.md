@@ -22,7 +22,7 @@ Spec: `docs/superpowers/specs/2026-10-11-notebook-journal-styles-design.md` §P1
   `Validate STORED params (from a notebook doc). Unknown keys are tolerated`.
 
 **The catch (binding on P2):** an older bundle drops an ATTRIBUTE it does not declare.
-`widgetEmbedNode.jsx:125-126` (one comment sentence wrapped over two lines) —
+`widgetEmbedNode.jsx:124-126` (one comment sentence wrapped over three lines) —
 `NOTEBOOK_TYPE_SCHEMA versions node/mark TYPES, not attributes — an older bundle silently DROPS an`
 `attr it does not know.` The mechanism is ProseMirror's `NodeType.create`, which builds only the
 attributes the type declares (`prosemirror-model/dist/index.js:2157` —

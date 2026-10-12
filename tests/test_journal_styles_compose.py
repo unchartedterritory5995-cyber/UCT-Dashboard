@@ -10,15 +10,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from tests._journal_styles_kind_stub import install as _install_kind_stubs
-
 NOW = datetime(2026, 10, 11, 14, 30, tzinfo=timezone.utc)
-
-
-@pytest.fixture(autouse=True)
-def _kinds(monkeypatch):
-    """Task 4/5 stand-ins while lane A2 is built without them; a no-op once they exist."""
-    _install_kind_stubs(monkeypatch)
 
 
 @pytest.fixture

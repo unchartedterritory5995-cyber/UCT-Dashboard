@@ -103,8 +103,10 @@ def candidates(resolved: list[dict[str, Any]]) -> list[dict[str, Any]]:
     autofill type, and EMPTY -- in the note's own property order, at most
     `MAX_FIELDS`. A property with a value is never a candidate, so a
     suggestion can never replace something the member chose."""
+    from api.services.journal_two.note_kinds import offered
     out = []
-    for p in resolved or []:
+    # Kind of note is not suggested while journal styles are off (offered() reads the switch per call).
+    for p in offered(list(resolved or [])):
         if p.get("source") != "user_set" or p.get("type") not in AUTOFILL_TYPES:
             continue
         if p.get("value") is not None:
