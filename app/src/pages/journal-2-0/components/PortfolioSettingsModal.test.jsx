@@ -300,11 +300,17 @@ describe('PortfolioSettingsModal', () => {
     await user.clear(orangeInputEl)
     await user.type(orangeInputEl, '0.5')
 
+    // O8: the `amber` multiplier is labelled with the house word; the stored key stays `amber`.
+    expect(screen.queryByLabelText(/AMBER/i)).toBeNull()
+    const yellowInputEl = screen.getByLabelText(/YELLOW/i)
+    await user.clear(yellowInputEl)
+    await user.type(yellowInputEl, '0.75')
+
     await user.click(screen.getByRole('button', { name: 'Save Settings' }))
 
     expect(onSave).toHaveBeenCalledTimes(1)
     const payload = onSave.mock.calls[0][0]
-    expect(payload.regimeSizeMultipliers).toEqual({ green: 1.0, orange: 0.5 })
+    expect(payload.regimeSizeMultipliers).toEqual({ green: 1.0, amber: 0.75, orange: 0.5 })
   })
 
   it('Phase E seeded mistake taxonomy ships in the save payload', async () => {

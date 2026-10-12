@@ -10,6 +10,7 @@ import UIcon from '../../../components/ui/UIcon'
 import { uid } from '../../../utils/uid'
 import usePreferences from '../../../hooks/usePreferences'
 import { journalStylesEnabled } from '../lib/journalStylesFlag'
+import { regimeWord } from '../lib/blocks/regimeWords'
 
 const STOP_MODES = [
   {
@@ -668,14 +669,14 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, margin: '8px 0' }}>
               {[
-                { key: 'green', label: 'GREEN', tint: '#22c55e', placeholder: '1.0' },
-                { key: 'amber', label: 'AMBER', tint: '#fbbf24', placeholder: '0.75' },
-                { key: 'orange', label: 'ORANGE', tint: '#fb923c', placeholder: '0.5' },
-                { key: 'red', label: 'RED', tint: '#ef4444', placeholder: '0' },
-              ].map(({ key, label, tint, placeholder }) => (
+                { key: 'green', tint: '#22c55e', placeholder: '1.0' },
+                { key: 'amber', tint: '#fbbf24', placeholder: '0.75' },
+                { key: 'orange', tint: '#fb923c', placeholder: '0.5' },
+                { key: 'red', tint: '#ef4444', placeholder: '0' },
+              ].map(({ key, tint, placeholder }) => (
                 <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 90 }}>
                   <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.5, color: tint }}>
-                    {label}
+                    {(regimeWord(key) || 'Unknown').toUpperCase()}
                   </span>
                   <input
                     type="number"

@@ -17,15 +17,11 @@ import { useId, useRef } from 'react'
 import { SkipLinkPortal } from '../../../components/skipLinks'
 import { useEntryContextFor, useEntryContextMeta } from '../hooks/useEntryContext'
 import WhyPrompt from './WhyPrompt'
+import { regimeWord } from '../lib/blocks/regimeWords'
 import styles from './EntryContextCard.module.css'
 
 const REGIME_DOT = {
   green: styles.dotGreen, amber: styles.dotAmber, orange: styles.dotOrange, red: styles.dotRed,
-}
-
-function capitalize(s) {
-  const t = String(s || '')
-  return t ? t.charAt(0).toUpperCase() + t.slice(1) : t
 }
 
 function humanizeScan(name) {
@@ -130,7 +126,7 @@ export default function EntryContextCard({ kind, id, skipLink = false }) {
           format={(field) => (
             <>
               <span className={`${styles.dot} ${REGIME_DOT[field.value] || ''}`} aria-hidden="true" />
-              {capitalize(field.value)}
+              {regimeWord(field.value) ?? 'Unknown'}
             </>
           )} />
         <FieldRow fieldKey="exposure" label="Exposure" field={f.exposure} missingReasons={missingReasons}
