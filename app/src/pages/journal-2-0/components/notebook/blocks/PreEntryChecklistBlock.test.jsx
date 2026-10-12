@@ -115,8 +115,9 @@ describe('PreEntryChecklistBlock', () => {
   })
   it('All Accounts selected: no setup, item or count from the legacy row; says one account is needed (C-1)', () => {
     ACCOUNT_EXTRA = { accountId: null, isLoading: false, isAllAccounts: true, accounts: [{ id: 'a1' }] }
+    const setParams = vi.fn(() => true)       // R-M2-2 M-4: the member's ticks and setup are left exactly as they are
     for (const includeRules of ['yes', 'no']) {
-      const { unmount } = render(<PreEntryChecklistBlock params={{ ...base, includeRules }} setParams={vi.fn()} editable />)
+      const { unmount } = render(<PreEntryChecklistBlock params={{ ...base, includeRules, checked: ['s1', 'rule:r1'] }} setParams={setParams} editable />)
       expect(screen.getByText(ALL_ACCOUNTS_LINE)).toBeTruthy()
       expect(screen.queryByRole('checkbox')).toBeNull()
       expect(screen.queryByText(/ticked$/)).toBeNull()
@@ -124,10 +125,11 @@ describe('PreEntryChecklistBlock', () => {
       unmount()
     }
     // and with no setup picked, the legacy row's setups are never offered as the member's own
-    render(<PreEntryChecklistBlock params={{ ...base, setup: '' }} setParams={vi.fn()} editable />)
+    render(<PreEntryChecklistBlock params={{ ...base, setup: '' }} setParams={setParams} editable />)
     expect(screen.queryByRole('combobox')).toBeNull()
     expect(screen.queryByText(/You have no setups yet/)).toBeNull()
     expect(screen.getByText(ALL_ACCOUNTS_LINE)).toBeTruthy()
+    expect(setParams).not.toHaveBeenCalled()
   })
   // M-3: the All Accounts sentence is true only for All Accounts. Each other "no account yet" state
   // reads its own honest line, and (C-1) none lists the legacy row's items.
