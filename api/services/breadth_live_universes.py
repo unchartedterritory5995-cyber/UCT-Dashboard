@@ -855,6 +855,12 @@ def tick(now: Optional[datetime] = None, post=None) -> dict:
         out["serving"] = True
         payload(cached_only=True)
         out["health"] = check_health(now, post=post)
+        # (2026-10-12, owner Option B) after the close, record the first provisional NH/NL row
+        # the engine serves, for grading against the settled series (`breadth_nhnl_validation`).
+        # Inert: it writes its own capture file and changes nothing served.
+        from api.services import breadth_live as bl
+        from api.services import breadth_nhnl_validation as nv
+        out["nhnl_capture"] = nv.capture(_payload.get("value"), now or bl._now_et())
     except Exception as e:                       # noqa: BLE001
         _log.warning("[breadth_live_universes] tick failed: %s", e)
         out["error"] = f"{type(e).__name__}: {e}"
