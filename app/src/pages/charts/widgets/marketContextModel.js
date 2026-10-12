@@ -107,9 +107,11 @@ export function sourcedText(key, field) {
   const f = field && typeof field === 'object' ? field : {}
   if (f.value == null) return NOT_AVAILABLE(f)
   if (key === 'regime') {
-    if (typeof f.value !== 'string' || !f.value) return NOT_AVAILABLE({})
+    // R-T9-1: an OWN key only — `REGIME_WORDS['constructor']` is a function, not a word; an id this
+    // table does not hold is not a regime this client can name.
+    if (typeof f.value !== 'string' || !Object.prototype.hasOwnProperty.call(REGIME_WORDS, f.value)) return NOT_AVAILABLE({})
     const when = etWhen(f.asOf)
-    return { text: REGIME_WORDS[f.value] || f.value, missing: false,
+    return { text: REGIME_WORDS[f.value], missing: false,
       asOfText: `${REGIME_SOURCE}${when ? `, as of ${when}` : ''}` }
   }
   const p = typeof f.value?.price === 'number' && Number.isFinite(f.value.price) ? f.value.price : null

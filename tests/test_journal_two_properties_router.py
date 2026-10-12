@@ -287,6 +287,76 @@ def test_the_server_and_client_view_type_lists_CANNOT_drift():
     )
 
 
+# ── the two halves of "what a regime is called" (R-T9-1) ─────────────────
+
+_MARKET_CONTEXT_MODEL = "app/src/pages/charts/widgets/marketContextModel.js"
+
+
+def _strip_js_comments(src: str) -> str:
+    """Block comments, then line comments that start a line or follow whitespace. CODE, NEVER
+    PROSE: every literal this rail hunts is read from what is left. (A `//` glued to a non-space
+    character -- a URL inside a string -- is not a comment and is kept.)"""
+    import re
+    src = re.sub(r"/\*.*?\*/", "", src, flags=re.S)
+    return re.sub(r"(^|[ \t])//[^\n]*", r"\1", src)
+
+
+def _client_regime_words(js_src: str) -> dict | None:
+    """REGIME_WORDS's key -> label pairs, parsed from the comment-stripped source; None when the
+    `REGIME_WORDS = Object.freeze({...})` block is not in the code."""
+    import re
+    m = re.search(r"REGIME_WORDS\s*=\s*Object\.freeze\(\{(.*?)\}\)", _strip_js_comments(js_src), re.S)
+    if not m:
+        return None
+    return dict(re.findall(r"([A-Za-z_]\w*)\s*:\s*'([^']*)'", m.group(1)))
+
+
+def _server_regime_words() -> dict:
+    """builtin:regime_at_write's option id -> label, read from the LIVE BUILTIN_PROPERTY_DEFS."""
+    from api.services.journal_two.note_properties import BUILTIN_PROPERTY_DEFS
+    defn = next(d for d in BUILTIN_PROPERTY_DEFS if d["id"] == "builtin:regime_at_write")
+    return {o["id"]: o["label"] for o in defn["options"]}
+
+
+def test_the_regime_words_the_stamp_shows_ARE_the_board_property_options():
+    """⛔ ONE FACT, TWO FILES (R-T9-1). The market context stamp shows a regime as a word
+    (marketContextModel.js REGIME_WORDS) and the board groups notes by the same regime under
+    builtin:regime_at_write's option labels (note_properties.py). A member told by the stamp
+    that a note was written in a "Yellow" regime must find a "Yellow" column. The client table
+    is PARSED, never retyped here."""
+    from pathlib import Path
+    client = _client_regime_words(Path(_MARKET_CONTEXT_MODEL).read_text(encoding="utf-8"))
+    server = _server_regime_words()
+    # Non-vacuity: a parse that found nothing would make any comparison pass.
+    assert client is not None, "could not find REGIME_WORDS = Object.freeze({...}) in the model"
+    assert len(client) == 4, f"expected the four regimes, parsed {client}"
+    assert client.get("amber") == "Yellow", client
+    assert len(server) == 4 and server.get("amber") == "Yellow", server
+    assert client == server, f"client {client} != server {server} -- one renamed a regime without the other"
+
+
+def test_CONTROL_the_regime_words_rail_sees_a_changed_label_and_never_reads_a_comment():
+    from pathlib import Path
+    real = Path(_MARKET_CONTEXT_MODEL).read_text(encoding="utf-8")
+    server = _server_regime_words()
+    # A changed label in a SOURCE STRING is seen (the rail can fail).
+    drifted = real.replace("amber: 'Yellow'", "amber: 'Amber'")
+    assert drifted != real, "the control's needle is not in the model"
+    assert _client_regime_words(drifted) != server
+    assert _client_regime_words(drifted)["amber"] == "Amber"
+    # A pair inside a comment is not parsed: a commented-out table is no table...
+    only_comment = "// export const REGIME_WORDS = Object.freeze({ amber: 'Yellow' })\nconst x = 1\n"
+    assert _client_regime_words(only_comment) is None
+    block_comment = "/* REGIME_WORDS = Object.freeze({ amber: 'Yellow' }) */\nconst x = 1\n"
+    assert _client_regime_words(block_comment) is None
+    # ...and a commented pair inside the real table neither adds nor overrides an entry (each one
+    # sits AFTER the real pair, where an unstripped parse would let it win).
+    with_comment = ("export const REGIME_WORDS = Object.freeze({\n"
+                    "  green: 'Green', amber: 'Yellow',\n  // amber: 'Amber', purple: 'Purple',\n"
+                    "  orange: 'Orange', red: 'Red', /* red: 'Crimson', */\n})\n")
+    assert _client_regime_words(with_comment) == {"green": "Green", "amber": "Yellow", "orange": "Orange", "red": "Red"}
+
+
 def test_every_saveable_type_is_actually_accepted(app, client):
     """The enum is not decoration: each value round-trips through the API."""
     _login_as(app, "u1")
