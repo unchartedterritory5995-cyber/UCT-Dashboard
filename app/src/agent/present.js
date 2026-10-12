@@ -116,7 +116,8 @@ export function presentOf(answer, { message = '' } = {}) {
   }
   // Everything the full answer had stays one tap away (unless it IS what is shown).
   const det = { ...(view.details || {}) }
-  if (p && full && !det.text && view.text !== full) det.text = full
+  // (an error view already says its specific reason; the long answer adds nothing but noise)
+  if (p && full && !det.text && view.text !== full && view.kind !== 'error') det.text = full
   if (p && tbl && view.kind !== 'table' && !det.table) det.table = tbl
   if (Object.keys(det).length) view.details = det
   if (lnk) view.link = lnk

@@ -22,6 +22,8 @@ import compassMark from '../components/intro/assets/compass-mark.png'
 import { HeadIcon, AgentAvatar, MemberAvatar, SenderLine, Hl } from './agentUi'
 import AgentResult, { Rows } from './AgentResult'
 import styles from './AgentPanel.module.css'
+// structured answers take the column's width (a single figure and prose stay as small as they are)
+const WIDE_VIEWS = new Set(['comparison', 'metrics', 'range', 'table', 'headlines'])
 
 // Welcome: the Agent's first text — a moment of "typing", then a left-side bubble stamped with
 // the time the chat opened, and a few quick replies (a tap sends that text as-is).
@@ -60,11 +62,11 @@ function useMember() {
   return { id: user?.id ?? null, name: (user?.display_name || '').trim() || 'User' }
 }
 
-function AgentSays({ children, testId, at, cont }) {
+function AgentSays({ children, testId, at, cont, wide }) {
   return (
     <div className={`${styles.agentRow} ${cont ? styles.cont : ''}`} data-testid={testId}>
       {cont ? <span className={styles.avatarGap} aria-hidden="true" /> : <AgentAvatar />}
-      <div className={styles.agentCol}>
+      <div className={`${styles.agentCol} ${wide ? styles.wideCol : ''}`}>
         {!cont && <SenderLine name="UCT Agent" at={at} />}
         {children}
       </div>
@@ -159,7 +161,7 @@ function Item({ it, agent, member, at, cont }) {
       )
     case 'agent':
       // ⭐ an answer VIEW (present.js) renders through the one presentation component
-      if (it.present) return <AgentSays at={at} cont={cont}><AgentResult view={it.present} /></AgentSays>
+      if (it.present) return <AgentSays at={at} cont={cont} wide={WIDE_VIEWS.has(it.present.kind)}><AgentResult view={it.present} /></AgentSays>
       // ⛔ never an empty bubble (an older restored row, a blank reply)
       if (!String(it.text || '').trim() && !it.table && !it.link) return null
       return (

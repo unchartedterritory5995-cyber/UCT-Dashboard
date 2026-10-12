@@ -72,6 +72,10 @@ function Details({ details, sources }) {
   )
 }
 
+// structured views use the column's width (so their figures sit side by side); a single figure and
+// short prose stay as compact as their content
+const FULL = new Set(['comparison', 'metrics', 'range', 'table', 'headlines'])
+
 export default function AgentResult({ view }) {
   const body = (() => {
     switch (view.kind) {
@@ -105,7 +109,7 @@ export default function AgentResult({ view }) {
   })()
   const extraText = view.text && !['text', 'error', 'table'].includes(view.kind)
   return (
-    <div className={`${styles.result} ${view.kind === 'error' ? styles.error : ''}`} data-testid="agent-result" data-kind={view.kind}>
+    <div className={`${styles.result} ${view.kind === 'error' ? styles.error : ''} ${FULL.has(view.kind) ? styles.full : ''}`} data-testid="agent-result" data-kind={view.kind}>
       {body}
       {extraText && <Prose text={view.text} />}
       {view.source && <div className={styles.source}>{view.source}</div>}

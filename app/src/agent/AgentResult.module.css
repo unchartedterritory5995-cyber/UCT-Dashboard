@@ -7,6 +7,7 @@
   animation: resultIn 220ms cubic-bezier(.2,.8,.25,1.1) both;
 }
 @keyframes resultIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.result.full { width: 100%; box-sizing: border-box; }
 .result.error { border-color: var(--warn-border, var(--border)); background: var(--warn-bg, var(--bg-elevated)); color: var(--text); }
 
 .prose { margin: 0 0 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -28,7 +29,7 @@
 .pairNote { display: block; font-size: 10.5px; font-weight: 400; color: var(--text-muted); margin-top: 1px; }
 .up dd { color: var(--up, var(--text-bright)); }
 .down dd { color: var(--down, var(--text-bright)); }
-.compare { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+.compare { grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); }
 .dense { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
 .dense .pair dd { font-size: 12.5px; }
 
@@ -69,6 +70,24 @@
   .many .table tr:last-child { border-bottom: 0; }
   .many .table td { border: 0; padding: 1px 0; display: flex; gap: 8px; justify-content: space-between; text-align: right; }
   .many .table td::before { content: attr(data-label); color: var(--text-muted); font-weight: 400; text-align: left; flex: 0 0 auto; max-width: 45%; }
-  .many .table td:first-child { font-size: 12.5px; }
+  .many .table td:first-child { font-size: 13px; justify-content: flex-start; padding-bottom: 3px; }
+  .many .table td:first-child::before { content: none; }
   .figure { font-size: 23px; }
+  /* labelled figures become compact rows: label left, value right — short, scannable */
+  .pairs:not(.compare) { grid-template-columns: 1fr; gap: 0; }
+  .pairs:not(.compare) .pair { display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+    border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; padding: 5px 1px; }
+  .pairs:not(.compare) .pair:last-child { border-bottom: 0; }
+  .pairs:not(.compare) .pair dt { margin: 0; font-size: 12px; color: var(--text); }
+  .pairs:not(.compare) .pair dd { text-align: right; font-size: 14px; }
+  .pairs:not(.compare) .pairNote { display: inline; margin: 0 0 0 6px; }
+}
+/* a comparison keeps its tiles side by side until the column is really narrow */
+@container agentlist (max-width: 300px) {
+  .compare { grid-template-columns: 1fr; gap: 0; }
+  .compare .pair { display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+    border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; padding: 5px 1px; }
+  .compare .pair:last-child { border-bottom: 0; }
+  .compare .pair dd { text-align: right; font-size: 14px; }
+  .compare .pairNote { display: inline; margin: 0 0 0 6px; }
 }

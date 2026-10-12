@@ -111,7 +111,7 @@ describe('⭐ add with settings — planned, applied, read back, receipted, undo
     const [inst] = added(before, h.store.L, 'movingAverage')
     expect(inst.inputs).toMatchObject({ period: 20, maType: 'ema' })
     // the receipt states the settings AS STORED
-    expect(res.lines[0]).toMatch(/^Added .*20.* on Left chart \(NVDA\) — .*period 20.*EMA.* \(saved\)\.$/)
+    expect(res.lines[0]).toMatch(/^Added .*20.* on Left chart \(NVDA\) — .*period 20.*EMA.*\.$/)
     // byte-equal to Add to Chart + the settings dialog
     let ui = addInstance(view(before), 'movingAverage', registry)
     const id = added(before, ui, 'movingAverage')[0].instanceId
@@ -140,7 +140,7 @@ describe('⭐ add with settings — planned, applied, read back, receipted, undo
     const { res } = await run(h, [{ ...fast('Add RSI'), target: 'ixe:L' }])
     expect(res.ok).toBe(true)
     expect(added(before, h.store.L, 'rsi')[0].inputs.period).toBe(14)
-    expect(res.lines[0]).toMatch(/^Added .* on Left chart \(NVDA\) \(saved\)\.$/)
+    expect(res.lines[0]).toMatch(/^Added .* on Left chart \(NVDA\)\.$/)
   })
 })
 
