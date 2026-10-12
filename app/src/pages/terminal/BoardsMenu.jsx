@@ -131,7 +131,7 @@ export function BoardsMenu({
       <label className={styles.menuCheck}>
         <Checkbox checked={library.keepCalendar} disabled={!libraryWritable}
           onChange={(e) => onKeepCalendar(e.target.checked)} data-testid="terminal-keep-calendar" />
-        <span>Open <code>/calendar</code> as the classic page instead of this terminal. The terminal stays at <code>/terminal</code>.</span>
+        <span>Open the classic calendar instead of this terminal from the menu's UCT Terminal entry and from <code>/calendar</code> links. The terminal stays open at <code>/terminal</code>.</span>
       </label>
 
       <div className={styles.menuHead}>Recovery</div>
