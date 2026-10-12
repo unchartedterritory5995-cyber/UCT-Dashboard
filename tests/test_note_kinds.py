@@ -134,7 +134,8 @@ def test_a_kind_held_by_a_trashed_note_cannot_be_deleted(db_path):
 
 
 def _styles_table():
-    """The minimal j2_journal_styles table, created in the test only (lane A2 owns the real one)."""
+    """Since the lane A2 merge, init_db creates the REAL j2_journal_styles (journal_styles.py), so this
+    is a no-op kept for the tests that call it; `_insert_style` writes the real table's NOT NULL columns."""
     from api.services.auth_db import get_connection
     c = get_connection()
     try:
@@ -149,8 +150,10 @@ def _insert_style(sid, user_id, kind_id, deleted_at=None):
     from api.services.auth_db import get_connection
     c = get_connection()
     try:
-        c.execute("INSERT INTO j2_journal_styles (id, user_id, kind_id, deleted_at) VALUES (?,?,?,?)",
-                  (sid, user_id, kind_id, deleted_at))
+        c.execute("INSERT INTO j2_journal_styles (id, user_id, name, kind_id, deleted_at, created_at, updated_at)"
+                  " VALUES (?,?,?,?,?,?,?)",
+                  (sid, user_id, f"style {sid}", kind_id, deleted_at, "2026-10-11T00:00:00+00:00",
+                   "2026-10-11T00:00:00+00:00"))
         c.commit()
     finally:
         c.close()

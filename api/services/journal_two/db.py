@@ -2009,6 +2009,41 @@ _PHASE_2_ALTERS = [
     "matched_at TEXT NOT NULL, relinked_at TEXT, "
     "relink_count INTEGER NOT NULL DEFAULT 0, previous_json TEXT, "
     "PRIMARY KEY (user_id, trade_ref))",
+    # Notebook P1 (journal styles, journal_styles.py): a member's styles. `blocks_json` is an ordered
+    # list of {block, enabled, settings} where `block` IS a widget id; `version` bumps on every
+    # content edit (outline, blocks, properties, kind) so notes made earlier can be offered an
+    # update. Soft delete with undo (`deleted_at`, `default_before_delete`). ⛔ user-scoped: purged
+    # with the account (account_purge._DIRECT_USER_TABLES). Placed above the trade-plan memo, not
+    # at the list's end, only so it merges beside lane A1's j2_note_kinds append without a
+    # conflict; nothing here depends on statement order.
+    """CREATE TABLE IF NOT EXISTS j2_journal_styles (
+        id                    TEXT PRIMARY KEY,
+        user_id               TEXT NOT NULL,
+        name                  TEXT NOT NULL,
+        kind_id               TEXT NOT NULL,
+        outline_template_id   TEXT,
+        outline_body_json     TEXT,
+        blocks_json           TEXT NOT NULL DEFAULT '[]',
+        properties_json       TEXT NOT NULL DEFAULT '{}',
+        is_default            INTEGER NOT NULL DEFAULT 0,
+        default_before_delete INTEGER NOT NULL DEFAULT 0,
+        source_gallery_id     TEXT,
+        source_version        INTEGER,
+        version               INTEGER NOT NULL DEFAULT 1,
+        created_at            TEXT NOT NULL,
+        updated_at            TEXT NOT NULL,
+        deleted_at            TEXT
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_j2_journal_styles_user ON j2_journal_styles(user_id, deleted_at, created_at)",
+    # ⛔ ONE default per (member, kind) is the INDEX's job, not a check's (the daily-note precedent).
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_journal_styles_default"
+    " ON j2_journal_styles(user_id, kind_id) WHERE is_default = 1 AND deleted_at IS NULL",
+    # Notebook P1: what made a note -- additive, NULL for every existing note, read as optional.
+    # `kind_id` is PROVENANCE (the kind it was created as); the CURRENT kind is the
+    # builtin:note_kind property (note_kinds.py docstring).
+    "ALTER TABLE j2_notes ADD COLUMN style_id TEXT",
+    "ALTER TABLE j2_notes ADD COLUMN style_version INTEGER",
+    "ALTER TABLE j2_notes ADD COLUMN kind_id TEXT",
     # fin-security I-2: the remembered "unplanned" (plan_grading.MatchScope). One row per trade
     # that had no plan the last time it was matched, with a stamp of everything that could
     # change that. A memo, never a freeze: a stamp that no longer matches is ignored and the
