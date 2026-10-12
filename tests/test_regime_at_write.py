@@ -78,6 +78,18 @@ def _stamp(note):
     return None
 
 
+def _stamp_regimes(note):
+    """The regime value of EVERY marketcontext stamp in the body, in document order."""
+    out, stack = [], list((note["bodyJson"] or {}).get("content") or [])
+    while stack:
+        n = stack.pop(0)
+        if isinstance(n, dict) and n.get("type") == "widgetEmbed" and n["attrs"].get("widgetId") == "marketcontext":
+            out.append((((n["attrs"].get("params") or {}).get("readings") or {}).get("regime") or {}).get("value"))
+        elif isinstance(n, dict) and isinstance(n.get("content"), list):
+            stack[0:0] = n["content"]
+    return out
+
+
 def _put(note_id, body):
     from api.routers import journal_two
     app = FastAPI()
@@ -207,11 +219,94 @@ def test_the_create_mode_guard_holds_even_if_a_stamp_were_captured_in_update(db_
     that (wrongly) captured in update mode still cannot put today's regime on an older note."""
     from api.services.journal_two import journal_styles as js, trader_blocks as tb
     s = _ctx_style()
-    always = lambda block, ctx: tb.build_market_context(block, {**ctx, "mode": "create"})   # noqa: E731
+
+    def always(block, ctx):
+        # The SAME ctx compose reads (so the builder's record lands where compose looks), with its
+        # mode forced to create for this one call.
+        was, ctx["mode"] = ctx["mode"], "create"
+        try:
+            return tb.build_market_context(block, ctx)
+        finally:
+            ctx["mode"] = was
+
     monkeypatch.setitem(js.BLOCK_BUILDERS, "marketcontext", always)
     out = js.compose("u1", s, ticker=None, conn=None, mode="update")
     assert _stamp({"bodyJson": out["bodyJson"]})["params"]["readings"]["regime"]["value"] == "red"   # control
     assert REGIME not in out["properties"]
+
+
+# ── I-1 (R-T4-1): only the stamp the composer BUILT this call counts, never one in the outline ──
+
+def _forged(value="green", as_of="2020-01-01"):
+    """A marketcontext stamp as a member could paste into a style outline or a template body."""
+    return {"type": "widgetEmbed", "attrs": {
+        "v": 1, "widgetId": "marketcontext", "embedId": "forged0001", "mode": "snapshot",
+        "params": {"readings": {"regime": {"value": value, "source": "UCT Exposure Rating", "asOf": as_of,
+                                           "missing": None}}, "fields": "all"},
+        "capturedAt": f"{as_of}T14:00:00Z", "annotations": [], "caption": None,
+        "layout": {"width": "full", "height": None}, "fallback": None}}
+
+
+def _outline(*first):
+    return {"type": "doc", "content": [*first,
+                                       {"type": "heading", "attrs": {"level": 2},
+                                        "content": [{"type": "text", "text": "The thesis"}]},
+                                       {"type": "paragraph", "content": [{"type": "text", "text": "Why?"}]}]}
+
+
+def _outline_style(blocks, outline, name="Forged"):
+    from api.services.journal_two import journal_styles as js
+    return js.create_style("u1", {"name": name, "kindId": "thesis", "blocks": blocks, "outlineBodyJson": outline})
+
+
+_CTX_BLOCK = [{"block": "marketcontext", "enabled": True, "settings": {}}]
+
+
+def test_a_forged_stamp_in_the_outline_with_no_context_block_stores_nothing(db_path, red):
+    from api.services.journal_two import journal_styles as js
+    s = _outline_style([], _outline(_forged()))
+    n, _ = js.create_styled_note("u1", {"styleId": s["id"]})
+    assert _stamp(n)["params"]["readings"]["regime"]["value"] == "green"           # control: forgery landed
+    assert REGIME not in (n["propertiesJson"] or {})
+
+
+@pytest.mark.parametrize("held, want", [("red", "red"), (None, None)])
+def test_a_forged_stamp_ahead_of_the_built_one_never_wins(db_path, regime, held, want):
+    """The forged GREEN stamp is FIRST in the body; the property is the held RED the builder froze,
+    and nothing at all when nothing is held."""
+    from api.services.journal_two import journal_styles as js
+    if held is None:
+        regime["regime"] = {"missing": "wire_unavailable"}
+    s = _outline_style(_CTX_BLOCK, _outline(_forged()))
+    n, _ = js.create_styled_note("u1", {"styleId": s["id"]})
+    assert _stamp(n)["params"]["readings"]["regime"]["value"] == "green"           # control: forged is first
+    assert (n["propertiesJson"] or {}).get(REGIME) == want
+
+
+def test_a_forged_stamp_ahead_of_the_built_one_never_wins_through_inserts_outline(db_path, red):
+    from api.services.journal_two import journal_styles as js, notes
+    s = _outline_style(_CTX_BLOCK, _outline(_forged()))
+    empty = notes.create_note("u1", {"title": "empty"})
+    note, plan = js.apply_style_update("u1", empty["id"], style_id=s["id"])
+    assert plan["insertsOutline"]
+    assert _stamp(note)["params"]["readings"]["regime"]["value"] == "green"        # control
+    assert note["propertiesJson"][REGIME] == "red"
+
+
+@pytest.mark.parametrize("with_block, want", [(False, None), (True, "amber")])
+def test_a_template_saved_from_an_old_note_never_copies_its_regime(db_path, regime, with_block, want):
+    """A note written in RED is saved as a template; a style links it. Today reads YELLOW. A note
+    made from that style records today's regime (only if it builds a context block), never RED."""
+    from api.services.journal_two import journal_styles as js, note_templates
+    old = _styled_note()
+    assert old["propertiesJson"][REGIME] == "red"
+    tpl = note_templates.create_from_note("u1", old["id"], name="Old thesis")
+    regime["regime"] = {**regime["regime"], "value": "amber", "asOf": "2026-10-20"}
+    s = js.create_style("u1", {"name": "From template", "kindId": "thesis", "outlineTemplateId": tpl["id"],
+                              "blocks": _CTX_BLOCK if with_block else []})
+    n, _ = js.create_styled_note("u1", {"styleId": s["id"]})
+    assert "red" in _stamp_regimes(n)                                              # control: old stamp copied
+    assert (n["propertiesJson"] or {}).get(REGIME) == want
 
 
 # ── R-W0-2: the date is the regime's own; no date, no value ────────────────────────────────────
@@ -259,48 +354,114 @@ def test_a_create_reads_the_regime_from_held_state_only(db_path, monkeypatch):
     assert REGIME not in (n["propertiesJson"] or {})
 
 
-# ── S1, in code: only the composer passes the keep mode, and no route passes either keyword ────
+# ── S1 / M-1, in code: only notes.py and the composer ever pass a captured mode, in ANY form ────
 
+ROOT = Path(__file__).resolve().parents[1]
 _KEYWORDS = ("captured", "captured_properties")
+_WRITERS = ("create_note", "update_note", "set_note_properties")
+_ALLOWED = {"api/services/journal_two/notes.py", "api/services/journal_two/journal_styles.py"}
 
 
-def _keep_sites(source: str, path: str) -> list[tuple[str, int, str]]:
-    """Every Call that passes `captured`/`captured_properties` as a keyword, from the AST (so a
-    comment or a docstring never counts): (path, line, the constant passed, or '<expr>')."""
+def _max_positional() -> dict[str, int]:
+    """How many arguments each writer accepts POSITIONALLY, from its real signature (never typed)."""
+    import inspect
+    from api.services.journal_two import note_properties, notes
+    fns = {"create_note": notes.create_note, "update_note": notes.update_note,
+           "set_note_properties": note_properties.set_note_properties}
+    kinds = (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    return {name: sum(1 for p in inspect.signature(fn).parameters.values() if p.kind in kinds)
+            for name, fn in fns.items()}
+
+
+def _callee(node: ast.Call) -> str | None:
+    f = node.func
+    return f.id if isinstance(f, ast.Name) else (f.attr if isinstance(f, ast.Attribute) else None)
+
+
+def _sites(source: str, path: str, max_pos: dict[str, int]) -> list[tuple[str, int, str]]:
+    """Every way a call could hand a writer a captured mode, from the AST (a comment or a docstring
+    never counts): a `captured`/`captured_properties` keyword with ANY value, a `**` splat into a
+    writer, and a writer called with more positionals than it takes (or a `*` splat)."""
     out = []
     for node in ast.walk(ast.parse(source)):
-        if isinstance(node, ast.Call):
-            for kw in node.keywords:
-                if kw.arg in _KEYWORDS:
-                    val = kw.value.value if isinstance(kw.value, ast.Constant) else "<expr>"
-                    out.append((path, node.lineno, val))
+        if not isinstance(node, ast.Call):
+            continue
+        name = _callee(node)
+        for kw in node.keywords:
+            if kw.arg in _KEYWORDS:
+                val = kw.value.value if isinstance(kw.value, ast.Constant) else "<expr>"
+                out.append((path, node.lineno, f"keyword {kw.arg}={val}"))
+            elif kw.arg is None and name in _WRITERS:
+                out.append((path, node.lineno, f"** splat into {name}"))
+        if name in _WRITERS and (len(node.args) > max_pos[name]
+                                 or any(isinstance(a, ast.Starred) for a in node.args)):
+            out.append((path, node.lineno, f"positional into {name}"))
     return out
 
 
 def _all_sites() -> list[tuple[str, int, str]]:
+    max_pos = _max_positional()
     out = []
-    for p in sorted(Path("api").rglob("*.py")):
+    for p in sorted((ROOT / "api").rglob("*.py")):
         if "__pycache__" in p.parts or p.name.startswith("test_"):
             continue
-        out.extend(_keep_sites(p.read_text(encoding="utf-8"), p.as_posix()))
+        out.extend(_sites(p.read_text(encoding="utf-8"), p.relative_to(ROOT).as_posix(), max_pos))
     return out
 
 
-def test_the_rail_sees_a_call_and_not_a_comment():
-    """Controls: a real call is found; the same text in a comment or a docstring is not."""
-    real = "f(x, captured_properties='keep')\n"
-    comment = "# f(x, captured_properties='keep')\nx = 1\n"
-    doc = '"""f(x, captured_properties=\'keep\')"""\n'
-    assert _keep_sites(real, "r") == [("r", 1, "keep")]
-    assert _keep_sites(comment, "c") == []
-    assert _keep_sites(doc, "d") == []
+def test_the_rail_sees_every_form_and_not_a_comment():
+    """Controls, one per shape: each real form is found; the same text in prose is not."""
+    mp = _max_positional()
+    assert mp["update_note"] >= 3                                                   # non-vacuity
+    over = ", ".join(f"a{i}" for i in range(mp["update_note"] + 1))
+    found = {
+        "literal": "f(x, captured_properties='keep')",
+        "expression": "svc.create_note(u, p, captured_properties=payload.get('m'))",
+        "short name": "set_note_properties(u, n, p, c, captured=mode)",
+        "splat": "notes_service.update_note(u, n, p, **extra)",
+        "positional": f"update_note({over})",
+        "star": "create_note(*args)",
+    }
+    for shape, src in found.items():
+        assert _sites(src, "r", mp), shape
+    quiet = {
+        "comment": "# f(x, captured_properties='keep')" + chr(10) + "x = 1",
+        "docstring": '"""update_note(u, n, p, **extra) captured=keep"""',
+        "splat into another function": "other(u, **extra)",
+        "a writer within its positional limit": "update_note(u, n, p)",
+    }
+    for shape, src in quiet.items():
+        assert _sites(src, "q", mp) == [], shape
 
 
-def test_only_the_composer_writes_a_captured_property():
+def test_the_captured_mode_is_keyword_only():
+    import inspect
+    from api.services.journal_two import note_properties, notes
+    kw = inspect.Parameter.KEYWORD_ONLY
+    assert inspect.signature(notes.create_note).parameters["captured_properties"].kind == kw
+    assert inspect.signature(notes.update_note).parameters["captured_properties"].kind == kw
+    assert inspect.signature(note_properties.set_note_properties).parameters["captured"].kind == kw
+
+
+def test_only_notes_and_the_composer_pass_a_captured_mode():
     sites = _all_sites()
-    keep = [(p, v) for p, _, v in sites if v == "keep"]
-    assert keep, "non-vacuity: the composer's keep sites must be found"
-    assert {p for p, _ in keep} == {"api/services/journal_two/journal_styles.py"}, keep
-    assert not [s for s in sites if s[0].startswith("api/routers/")], sites
+    assert any(p.endswith("journal_styles.py") and "=keep" in w for p, _, w in sites), (
+        "non-vacuity: the composer's keep site must be found")
+    outside = [s for s in sites if s[0] not in _ALLOWED]
+    assert not outside, outside
     # notes.py threads the mode through (a variable), and never hard-codes keep.
-    assert all(v != "keep" for p, _, v in sites if p.endswith("journal_two/notes.py")), sites
+    assert not [s for s in sites if s[0].endswith("journal_two/notes.py") and "=keep" in s[2]], sites
+
+
+# ── M-4: the filter's refusal names a captured property for what it is ─────────────────────────
+
+def test_the_filter_refusal_says_captured_not_derived(db_path):
+    from api.services.journal_two import note_properties as np
+    from api.services.journal_two.notes import list_notes
+    with pytest.raises(np.PropertyValidationError) as got:
+        list_notes("u1", property_filter=[{"propertyId": REGIME, "op": "eq", "value": "red"}])
+    assert "recorded when a note is written" in str(got.value), str(got.value)
+    assert "derived" not in str(got.value)
+    with pytest.raises(np.PropertyValidationError) as derived:                    # control: unchanged
+        list_notes("u1", property_filter=[{"propertyId": "builtin:ticker", "op": "eq", "value": "NVDA"}])
+    assert "derived" in str(derived.value)

@@ -3629,6 +3629,7 @@ def update_note(
     restored_from_version_id: str | None = None,
     client_schema: int | None = None,
     style_stamp: tuple[str, int] | None = None,
+    *,
     captured_properties: str = "drop",
 ) -> dict[str, Any] | None:
     """`style_stamp` is INTERNAL (journal styles, P1): `(style_id, style_version)` written in

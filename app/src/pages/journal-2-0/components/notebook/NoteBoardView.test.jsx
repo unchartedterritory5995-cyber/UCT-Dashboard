@@ -335,6 +335,14 @@ describe('a captured grouping (R-W0-3)', () => {
     expect(screen.getByText(/recorded when a note is written/i)).toBeInTheDocument()
   })
 
+  it('a def that names NO source is read-only: the predicate fails closed (M-3)', () => {
+    const { source, ...noSource } = STATUS
+    expect(source).toBe('user_set')                                    // control: the fixture had one
+    renderBoard({ propertyDefs: [noSource] })
+    expect(screen.getAllByRole('combobox')).toHaveLength(1)           // Group by only
+    expect(screen.getByText('NVDA thesis').closest('article').getAttribute('draggable')).toBe('false')
+  })
+
   it('switching back to a property the member sets brings the move door back (control)', () => {
     renderBoard({ notes: RNOTES, propertyDefs: [REGIME, STATUS], initialGroupById: 'builtin:regime_at_write' })
     expect(screen.getAllByRole('combobox')).toHaveLength(1)

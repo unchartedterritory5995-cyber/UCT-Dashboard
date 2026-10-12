@@ -753,6 +753,12 @@ def property_filter_sql(
             continue
         if prop_def["source"] != "user_set":
             if strict:
+                if prop_def["source"] == "captured":
+                    # M-4: a captured property is not derived; it is recorded once, at writing time.
+                    raise PropertyValidationError(
+                        f"{prop_def['name']} is recorded when a note is written and cannot be filtered"
+                        " through property_filter"
+                    )
                 raise PropertyValidationError(
                     f"{prop_def['name']} is derived and cannot be filtered through property_filter"
                 )

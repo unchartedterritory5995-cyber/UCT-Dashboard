@@ -292,6 +292,8 @@ def build_market_context(block: dict, ctx: dict):
         params = {**market_context_params(ctx.setdefault("memo", {}), user_id=ctx.get("user_id") or "",
                                           now=ctx["now"]), "fields": fields}
         captured_at = _iso(ctx["now"])
+        # R-T4-1 I-1: the regime reading THIS build froze, for the composer's regime_at_write.
+        ctx.setdefault("captured", {})["regime"] = params["readings"]["regime"]
     return {"type": "widgetEmbed", "attrs": {
         "v": 1, "widgetId": "marketcontext", "embedId": uuid.uuid4().hex, "mode": "snapshot", "params": params,
         "capturedAt": captured_at, "annotations": [], "caption": None,

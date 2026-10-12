@@ -782,9 +782,9 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
         props[_nk().NOTE_KIND_PROPERTY] = style["kindId"]
         if mode == "create":
             # R-P2-6 / R-RC-1: only a create (or its equivalent) records the regime it was written
-            # in, and only from the stamp it just froze: an update-mode stamp is uncaptured.
+            # in, and only from the reading its own builder froze on ctx (never a scan of the body).
             from api.services.journal_two import note_properties as np_
-            reg = _captured_regime(doc["content"])
+            reg = _captured_regime(ctx)
             if reg:
                 props[np_.REGIME_AT_WRITE] = reg
         return {"bodyJson": doc, "properties": props, "skipped": skipped,
@@ -899,30 +899,26 @@ def _present(content: list) -> set[str]:
     return found
 
 
-def _captured_regime(content: list) -> str | None:
-    """The regime id frozen in the first market context stamp of a composed body (R-P2-6), or None.
+def _captured_regime(ctx: dict) -> str | None:
+    """The regime id the market context builder froze in THIS compose (R-P2-6, R-T4-1 I-1), or None.
 
-    ⛔ It reads nothing itself: the stamp's regime reading is trader_blocks' held-only read (R-W0-1,
-    R-T3-1), dated as entry_context._regime_fields dates it (R-W0-2: `asOf` is the regime's own wire
-    date, never the capture time). Stored only when that reading is a known regime id AND carries its
-    own date; an uncaptured stamp (IR-S11, no readings), a missing regime, an undated one or an
-    unknown id yields None, so nothing is stored rather than a fabricated value. ⛔ The caller
-    (compose) asks only in create mode: that guard, not this function, keeps an update out."""
+    ⛔ It never scans the composed body: that body starts from a member-authored style outline or a
+    linked template, which can carry a pasted or week-old stamp. The value is the reading
+    trader_blocks.build_market_context recorded on `ctx["captured"]["regime"]` when it built a stamp
+    in create mode (a real create, or an empty note switched to a style). That reading is
+    trader_blocks' held-only read (R-W0-1, R-T3-1), dated as entry_context._regime_fields dates it
+    (R-W0-2: `asOf` is the regime's own wire date, never the capture time). Stored only when it is a
+    known regime id AND carries its own date; no market context block built this compose, nothing
+    held, an undated or unknown reading: None, so nothing is stored rather than a fabricated value.
+    ⛔ The caller (compose) asks only in create mode: that guard, not this function, keeps an update
+    out."""
     from api.services.journal_two import note_properties as np_
     ids = {o["id"] for o in np_._BUILTIN_BY_ID[np_.REGIME_AT_WRITE]["options"]}
-    stack = list(content or [])
-    while stack:
-        n = stack.pop(0)
-        if not isinstance(n, dict):
-            continue
-        a = n.get("attrs") or {}
-        if n.get("type") == "widgetEmbed" and a.get("widgetId") == "marketcontext":
-            r = (((a.get("params") or {}).get("readings") or {}).get("regime") or {})
-            dated = isinstance(r.get("asOf"), str) and bool(r["asOf"].strip())
-            return r.get("value") if r.get("value") in ids and dated and not r.get("missing") else None
-        if isinstance(n.get("content"), list):
-            stack[0:0] = n["content"]
-    return None
+    r = ((ctx.get("captured") or {}).get("regime")) or {}
+    if not isinstance(r, dict):
+        return None
+    dated = isinstance(r.get("asOf"), str) and bool(r["asOf"].strip())
+    return r.get("value") if r.get("value") in ids and dated and not r.get("missing") else None
 
 
 def _is_empty(content: list) -> bool:

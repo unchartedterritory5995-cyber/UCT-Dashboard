@@ -66,11 +66,11 @@ export function columnsFor(def) {
  * ⛔ R-W0-3: can a MEMBER set this property? Only then can a board move a note between its columns.
  * A captured built-in (`builtin:regime_at_write`) is written once by the composer and the server drops
  * a member write to it (IR-S1), so a board grouped by it is read-only: no move <select>, no drag, and
- * `move()` refuses a drop. A def that names no source is a member's (every user-created def is
- * `user_set`); only an explicit other source is read-only.
+ * `move()` refuses a drop. ⛔ It FAILS CLOSED (M-3): only an explicit `user_set` source is movable,
+ * so a def shape without the field is read-only rather than movable. Every server def carries one.
  */
 export function membersCanSet(def) {
-  return !!def && (def.source === undefined || def.source === 'user_set')
+  return !!def && def.source === 'user_set'
 }
 
 /** Which column a note belongs in. An unknown option id reads as un-set. */
