@@ -70,6 +70,18 @@ describe('the Styles door on the Notebook tab', () => {
     expect(await screen.findByRole('heading', { name: 'Journal styles' })).toBeInTheDocument()
   })
 
+  // Task 15 review Minor 7: the same deep link on Research Home (the Settings card's own URL), switch OFF.
+  it('?styles=1 on Research Home opens nothing, and asks for nothing, when the switch is off', async () => {
+    latchNotebookFlags({ notebook_journal_styles_enabled: false })
+    render(<Providers route="/journal/notebook?styles=1"><NotebookTab /></Providers>)
+    await settle()
+    expect(screen.queryByRole('button', { name: 'Import' })).toBeNull()     // control: the list header is NOT here
+    expect(screen.getByRole('button', { name: 'More ways to start a note' })).toBeInTheDocument()   // Home is
+    await settle()
+    expect(screen.queryByRole('heading', { name: 'Journal styles' })).toBeNull()
+    expect(globalThis.fetch.mock.calls.some(([u]) => String(u).includes('journal-styles'))).toBe(false)
+  })
+
   it('?styles=1 opens nothing, and asks for nothing, when the switch is off', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: false })
     await show('/journal/notebook?view=all&styles=1')

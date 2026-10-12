@@ -21,7 +21,8 @@ import { settleNoteWrite } from './offline/settleNoteWrite'
  * `styleId` / `kindId` (journal styles, P1) are additive the same way: each is sent only when
  * truthy, and the SERVER composes body + property values + the style stamp in ONE insert, so a
  * styled create passes no bodyJson/properties and makes no follow-up PUT (no second revision).
- * A refusal throws an Error carrying `.status` (402 free plan, 404 switch off, 400, ...). */
+ * A refusal throws an Error carrying `.status` (402 free plan, 404 switch off, 400, ...) and the body's
+ * `.detail` (review M-3: a styled create's sentence, e.g. a kind deleted in another tab). */
 export async function createNoteViaApi({
   title = '', subtitle, bodyJson, tags, ticker, folderId, properties, styleId, kindId,
 } = {}) {
@@ -43,6 +44,7 @@ export async function createNoteViaApi({
   if (!res.ok) {
     const err = new Error(`Could not create note (${res.status})`)
     err.status = res.status
+    try { const d = (await res.json())?.detail; if (typeof d === 'string') err.detail = d } catch { /* no JSON body */ }
     throw err
   }
   let created = (await res.json()).note

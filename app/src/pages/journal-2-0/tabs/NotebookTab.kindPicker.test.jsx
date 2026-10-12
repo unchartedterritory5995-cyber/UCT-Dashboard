@@ -33,6 +33,7 @@ import { createNoteViaApi } from '../lib/noteCreation'
 import { BUILTIN_NOTE_KINDS } from '../lib/noteKinds'
 import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/notebookFlags'
 import { setCurrentAccountId } from '../lib/offline/currentAccount'
+import { contractBody } from '../__fixtures__/contract'
 
 const listBody = {
   kinds: BUILTIN_NOTE_KINDS.map((k) => ({ ...k, builtin: true })),
@@ -106,6 +107,31 @@ describe('New note: pick a kind (Notebook P1)', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Use My plan' })[0])
     await waitFor(() => expect(createNoteViaApi).toHaveBeenCalled())
     expect(createNoteViaApi.mock.calls[0][0]).toMatchObject({ styleId: 's-mine' })
+  })
+
+  // Final review M-3: a styled create's refusal says the SERVER's sentence (a kind deleted in another tab),
+  // read from the recorded answer; a 404 (the switch, or a gone style) has none worth showing.
+  it('a refused styled create shows the server\'s own sentence', async () => {
+    latchNotebookFlags({ notebook_journal_styles_enabled: true })
+    const detail = contractBody('notes.create.kind.unknown').detail
+    createNoteViaApi.mockRejectedValueOnce(Object.assign(new Error('Could not create note (400)'), { status: 400, detail }))
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    const [btn] = await screen.findAllByLabelText('New Trade plan', {}, T)
+    fireEvent.click(btn)
+    await waitFor(() => expect(screen.getAllByRole('alert').map((a) => a.textContent)).toContain(detail))
+  })
+
+  it('a styled create refused with a 404 keeps the plain sentence', async () => {
+    latchNotebookFlags({ notebook_journal_styles_enabled: true })
+    createNoteViaApi.mockRejectedValueOnce(Object.assign(new Error('Could not create note (404)'), {
+      status: 404, detail: contractBody('notes.create.styled.not-found').detail }))
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    const [btn] = await screen.findAllByLabelText('New Trade plan', {}, T)
+    fireEvent.click(btn)
+    await waitFor(() => expect(screen.getAllByRole('alert').map((a) => a.textContent))
+      .toContain("Couldn't create that note. Nothing was saved."))
   })
 
   it('From a style opens the New-note sheet with focus on the first kind, not the search box (M6)', async () => {

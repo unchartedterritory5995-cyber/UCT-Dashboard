@@ -261,6 +261,21 @@ describe('NotebookTab — template picker', () => {
       fireEvent.click(screen.getByRole('button', { name: '+ New note' }))
       expect((await screen.findByRole('alert')).textContent).toBe("Couldn't create that note. Nothing was saved.")
     })
+
+    // Review M-3 shows a STYLED create's server sentence; a plain create says exactly what it said before,
+    // even when the server sent a sentence of its own.
+    it.each([400, 402, 404, 500])('a plain create refused with %i and a server sentence keeps the plain sentence', async (status) => {
+      global.fetch.mockImplementation((url, opts) => {
+        if (opts?.method === 'POST' && String(url) === '/api/j2/notes') {
+          return Promise.resolve({ ok: false, status, json: () => Promise.resolve({ detail: 'A sentence from the server.' }) })
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+      })
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+      renderTab()
+      fireEvent.click(screen.getByRole('button', { name: '+ New note' }))
+      expect((await screen.findByRole('alert')).textContent).toBe("Couldn't create that note. Nothing was saved.")
+    })
   })
 
   it('13Q-2: the primary "+ New note" button opens with focus in the BODY, not the title', async () => {
