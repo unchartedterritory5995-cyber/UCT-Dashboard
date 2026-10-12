@@ -178,10 +178,35 @@ test('an explicit position beats the selection: left selected, "switch the right
   expect(tfOf('c-left')).toBe('D')
 }, 45000)
 
-test('a bare request with no "this" still asks on a multi-chart board (selection is only for deictic words)', async () => {
+// OWNER DECISION 2026-10-12: a BARE command ("switch to weekly") goes to the clicked chart while that
+// selection is valid; with no valid selection it still asks.
+test('a BARE request goes to the clicked chart: click RIGHT, "switch to weekly" → only the right chart changes', async () => {
+  mount()
+  await screen.findByTestId('chart-c-right')
+  await click('c-right')
+  await say('switch to weekly')
+  await waitFor(() => expect(tfOf('c-right')).toBe('W'), { timeout: 15000 })
+  expect(tfOf('c-left')).toBe('D')
+  expect(screen.queryByText(/^Which chart\?$/)).toBeNull()
+  expect(turns).toHaveLength(0)
+}, 45000)
+
+test('a BARE request with no click still asks on a multi-chart board — never a guess', async () => {
+  mount()
+  await screen.findByTestId('chart-c-left')
+  await say('switch to monthly')
+  expect(await screen.findByText(/^Which chart\?$/, {}, { timeout: 15000 })).toBeTruthy()
+  expect([tfOf('c-left'), tfOf('c-right')]).toEqual(['D', 'D'])
+}, 45000)
+
+test('a BARE request after a layout switch (stale selection) asks — the old click does not carry over', async () => {
   mount()
   await screen.findByTestId('chart-c-left')
   await click('c-left')
+  await act(async () => { dockButton('Alt Board').click() })
+  await waitFor(() => expect(activeId()).toBe(2))
+  await act(async () => { dockButton('Desk One').click() })
+  await waitFor(() => expect(activeId()).toBe(1))
   await say('switch to weekly')
   expect(await screen.findByText(/^Which chart\?$/, {}, { timeout: 15000 })).toBeTruthy()
   expect([tfOf('c-left'), tfOf('c-right')]).toEqual(['D', 'D'])

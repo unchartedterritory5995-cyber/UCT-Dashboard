@@ -87,3 +87,25 @@ describe('screenDeicticOps (model plans)', () => {
     expect(screenDeicticOps({ host: solo.host, ops: [op('S')], text: 'make this chart weekly', getTargetKind, getCapability })).toBeNull()
   })
 })
+
+// OWNER DECISION 2026-10-12: a BARE chart command uses the valid clicked chart; otherwise ask.
+describe('bare chart commands (no "this") on a multi-chart board', () => {
+  it('use the clicked chart while it is valid; no click → null (the caller asks)', () => {
+    const { host, state } = makeHost({ selected: 'R' })
+    const kind = chartKind()
+    expect(resolveDeictic({ host, kind, candidates: host.charts.list(), text: 'switch to weekly', chartOp: true })).toEqual({ ref: 'R', implicit: true })
+    state.selected = null
+    expect(resolveDeictic({ host, kind, candidates: host.charts.list(), text: 'switch to weekly', chartOp: true })).toBeNull()
+  })
+  it('a clicked chart that was CLOSED (or belongs to another layout) is not valid → null, never another chart', () => {
+    const { host, state } = makeHost({ selected: 'R' })
+    state.ws = state.ws.filter(w => w.id !== 'R')
+    state.ws.push({ id: 'X', type: 'chart', x: 12, y: 0, w: 12, h: 20, color: 'X' })
+    expect(host.charts.selected()).toBeNull()
+    expect(resolveDeictic({ host, kind: chartKind(), candidates: host.charts.list(), text: 'switch to weekly', chartOp: true })).toBeNull()
+  })
+  it('the model-path screen is unchanged: only deictic words are screened', () => {
+    const { host } = makeHost({ selected: 'L' })
+    expect(screenDeicticOps({ host, ops: [{ action: 'chart.setTimeframe', target: 'R', args: { timeframe: 'W' } }], text: 'switch the right chart to weekly', getTargetKind, getCapability })).toBeNull()
+  })
+})

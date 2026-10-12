@@ -37,9 +37,19 @@ export function chartRefOf(kind, snap) {
  * words don't point at a chart: the caller's own rule decides, unchanged).
  */
 export function resolveDeictic({ host, kind, candidates, text, chartOp = false }) {
-  if (!Array.isArray(candidates) || !candidates.length || !pointsAtChart(text, { chartOp })) return null
+  if (!Array.isArray(candidates) || !candidates.length) return null
   const backed = candidates.map(c => ({ c, chart: chartRefOf(kind, c) }))
   if (backed.some(b => !b.chart)) return null                         // not a chart-backed kind
+  if (!pointsAtChart(text, { chartOp })) {
+    // OWNER DECISION (2026-10-12): a BARE chart command ("switch to weekly", "add rsi") on a board of
+    // several charts goes to the chart the member explicitly CLICKED — only while that selection is
+    // valid (still on this board, same layout: host.charts.selected()). No selection, a stale one or a
+    // closed chart → null, and the caller asks "Which chart?" exactly as before. Never a guess.
+    if (!chartOp || candidates.length < 2) return null
+    const sel = selectedChart(host)
+    const hit = sel ? backed.filter(b => b.chart === sel) : []
+    return hit.length === 1 ? { ref: hit[0].c.ref, implicit: true } : null
+  }
   if (candidates.length === 1) return { ref: candidates[0].ref }
   // "this NVDA chart": a named symbol that exactly one chart shows
   const named = NAMED.exec(String(text || ''))
