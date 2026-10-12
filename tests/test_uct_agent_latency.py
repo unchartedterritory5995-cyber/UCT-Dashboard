@@ -300,3 +300,44 @@ def test_keys_answers_only_those_keys_read_the_same_way(prefs_app):
 
 def test_no_keys_is_the_whole_blob_unchanged(prefs_app):
     assert "tracings_doc" in prefs_app.get("/api/auth/preferences").json()
+
+
+# ── no new open door: every Agent route (derived from the router, so a route added later is covered)
+#    is 401 anonymous, 402 free, 403 for a paid non-admin — the stream and config routes included ──
+
+def _agent_routes():
+    out = []
+    for r in rx.router.routes:
+        for m in sorted(getattr(r, "methods", None) or []):
+            if m in ("GET", "POST", "PATCH", "DELETE"):
+                out.append((m, r.path.replace("{conversation_id}", "ac_x")))
+    return out
+
+
+def test_the_new_routes_are_in_the_derived_set():
+    paths = {p for _m, p in _agent_routes()}
+    assert {"/api/agent/turn/stream", "/api/agent/config"} <= paths
+
+
+@pytest.mark.parametrize("method,path", _agent_routes())
+def test_every_agent_route_refuses_anonymous_free_and_paid_member(monkeypatch, method, path):
+    called = []
+    monkeypatch.setattr(turn, "_default_caller", lambda **kw: called.append(1))
+    monkeypatch.setattr(turn, "_default_stream_caller", lambda on_text, **kw: called.append(1))
+    monkeypatch.setenv(rx.STREAM_ENV, "1")
+    from api.middleware.auth_middleware import get_current_user_with_plan
+    body = {"message": "hi", "context": {}, "capabilities": []} if method in ("POST", "PATCH") else None
+
+    def call(user):
+        app = FastAPI()
+        app.include_router(rx.router)
+        if user is not None:
+            app.dependency_overrides[get_current_user_with_plan] = lambda: user
+        c = TestClient(app)
+        return c.request(method, path, json=body)
+
+    monkeypatch.setattr(rx, "is_paid_user", lambda u: u.get("plan") != "free")
+    assert call(None).status_code == 401
+    assert call({"id": "u-free", "plan": "free", "role": "user"}).status_code == 402
+    assert call({"id": "u-paid", "plan": "pro", "role": "user"}).status_code == 403
+    assert called == []                                   # no model call was ever started
