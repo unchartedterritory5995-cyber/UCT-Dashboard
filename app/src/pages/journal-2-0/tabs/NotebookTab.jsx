@@ -2514,8 +2514,6 @@ export default function NotebookTab() {
           onClose={() => setExportOpen(false)}
         />
 
-        {stylesOn && <StylesManager open={stylesOpen} onClose={() => setStylesOpen(false)} blockedNoteIds={[...(blockedNoteIds || [])]} />}
-
         <SavedViewEditor
           open={saveViewOpen}
           onClose={() => setSaveViewOpen(false)}
@@ -2765,6 +2763,10 @@ export default function NotebookTab() {
         )}
           </>
         )}
+        {/* Notebook P1: the Styles manager is mounted OUTSIDE the pane's branches for the same reason as the
+            New-note sheet below: the Settings card's `?styles=1` lands on Research Home, where a manager
+            mounted inside the list branch opened nothing (found by the Task 15 walk). */}
+        {stylesOn && <StylesManager open={stylesOpen} onClose={() => setStylesOpen(false)} blockedNoteIds={[...(blockedNoteIds || [])]} />}
         {/* P0.1: the New-note sheet and the voice-note dialog are mounted OUTSIDE the pane's
             branches. Research Home's "New note" menu opens them, and a sheet mounted inside the
             list branch would make that door a dead button on Home (and beside an open note). */}

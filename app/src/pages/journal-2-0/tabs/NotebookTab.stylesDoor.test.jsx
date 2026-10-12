@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { installFetch, Providers } from '../a11y/fixtures'
 import { __resetNotebookFlags, latchNotebookFlags } from '../lib/offline/notebookFlags'
 import NotebookTab from './NotebookTab'
+import JournalStylesCard from '../components/JournalStylesCard'
 
 // The manager has its own rail (styles/StylesManager.test.jsx), and refuses to render while the switch is off.
 // It is replaced here by a stub that does NOT refuse, so these tests prove the TAB's gate on its own: with the
@@ -50,6 +51,22 @@ describe('the Styles door on the Notebook tab', () => {
   it('?styles=1 opens the manager when the switch is on', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     await show('/journal/notebook?view=all&styles=1')
+    expect(await screen.findByRole('heading', { name: 'Journal styles' })).toBeInTheDocument()
+  })
+
+  // Task 15 (fin walk, 2026-10-12): the Settings card links to `/journal/notebook?styles=1` with NO `view=all`,
+  // which lands on Research Home. The manager was mounted inside the notes-list branch, so that link opened
+  // nothing. The href is READ from the real card (never retyped), and the control proves Home is what rendered.
+  it("the Settings card's own link opens the manager on Research Home", async () => {
+    latchNotebookFlags({ notebook_journal_styles_enabled: true })
+    render(<Providers route="/settings"><JournalStylesCard /></Providers>)
+    const href = screen.getByRole('link', { name: 'Open journal styles' }).getAttribute('href')
+    cleanup()
+    expect(href).not.toMatch(/view=/)                                       // the case under test: Home, not the list
+    render(<Providers route={href}><NotebookTab /></Providers>)
+    await settle()
+    expect(screen.queryByRole('button', { name: 'Import' })).toBeNull()     // control: the list header is NOT here
+    expect(screen.getByRole('button', { name: 'More ways to start a note' })).toBeInTheDocument()   // Home is
     expect(await screen.findByRole('heading', { name: 'Journal styles' })).toBeInTheDocument()
   })
 
