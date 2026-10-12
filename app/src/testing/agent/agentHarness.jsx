@@ -105,6 +105,7 @@ setCreateIndicatorFlag(true)
 // persistence decides (so the harness can prove it survives a reload).
 if (params.has('open')) { try { localStorage.setItem('uct.agent.open', params.get('open') === '0' ? '0' : '1') } catch { /* */ } }
 
+const LIVE = /^\d{2,5}$/.test(params.get('live') || '') ? params.get('live') : null
 const json = (o, status = 200) => Promise.resolve(new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } }))
 const realFetch = window.fetch.bind(window)
 let convSeq = 0
@@ -112,6 +113,13 @@ window.fetch = async (input, init) => {
   const url = typeof input === 'string' ? input : (input && input.url) || ''
   const method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase()
   let path = url.replace(/^https?:\/\/[^/]+/, '')
+  // ?live=<port> — the owner-approved real-model acceptance: the Agent's turn/record and EVERY
+  // /api/user-definitions route (converse + saves, on a SCRATCH store) go to the local acceptance relay
+  // on 127.0.0.1:<port>. Everything else stays fixture / refused exactly as without it.
+  if (LIVE && (path === '/api/agent/turn' || path === '/api/agent/record' || path.startsWith('/api/user-definitions'))) {
+    ;(H.live = H.live || []).push(`${method} ${path.split('?')[0]}`)
+    return realFetch(`http://127.0.0.1:${LIVE}${path}`, { ...(init || {}), credentials: 'omit' })
+  }
   if (path.startsWith('/api/auth/me')) {
     return json({ user: { id: 1, email: 'harness@local', role: 'admin', display_name: 'Harness' }, plan: 'pro', subscription: null, trial: null })
   }

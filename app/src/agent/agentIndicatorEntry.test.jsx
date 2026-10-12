@@ -9,7 +9,7 @@ import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { parseFormula } from '../components/chart/engine/ast/parse'
 import { AuthContext } from '../context/AuthContext'
 import { setCreateIndicatorFlag, CREATE_INDICATOR_FLAG_KEY } from '../components/chart/builder/studio/createIndicatorFlag'
-import { setAuthoringSources, _resetAuthoring } from './capabilities/indicatorAuthoring'
+import { setAuthoringSources, _resetAuthoring, indicatorDraftsKind } from './capabilities/indicatorAuthoring'
 import { storeConversation } from '../components/chart/builder/conversationSave'
 import { _simulateReload, STORAGE_KEY } from '../components/chart/builder/authoring/conversationSessions'
 import { _resetDraftPreview } from '../components/chart/builder/agentAuthoring'
@@ -307,5 +307,19 @@ describe('a door clicked while the Agent is busy', () => {
     expect(screen.queryByText('What indicator would you like to build?')).toBeNull()
     await act(async () => { release() })
     expect(await screen.findByText('What indicator would you like to build?')).toBeTruthy()
+  })
+})
+
+describe('the draft the door started is the ACTIVE one (real-model acceptance 10-12)', () => {
+  it('a follow-up ("also…") is planned onto it: the planner context marks it active, not a new draft', async () => {
+    const host = makeHost(['c1', 'c2'])
+    mount(host, { id: 1, chartRef: 'c2', defId: null, name: null })
+    await screen.findByText('What indicator would you like to build?')
+    await waitFor(() => expect(screen.getByLabelText('Message UCT Agent').disabled).toBe(false))
+    await act(async () => { type('plot the EMA 20 of close') })
+    await screen.findByText(/Started .*\(draft — not saved\)/)
+    const drafts = indicatorDraftsKind.list(host).filter(d => !d.new)
+    expect(drafts).toHaveLength(1)
+    expect(drafts[0].active).toBe(true)
   })
 })
