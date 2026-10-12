@@ -137,6 +137,11 @@ export const FUNCTIONS = [
   { code: 'CHK', label: 'Pre-trade check (checklist, win rate, past trades, risk)', group: 'Security',
     ticker: { panel: 'Check' } },
   // ── end wave 8 lane F ──
+  // TAS: Time & Sales, the live trade tape (COV-08 / FT-077, the T&S half; owner approval
+  // 2026-10-12). Over the Massive T prints bar_stream already receives, streamed only while the
+  // panel is open. Dark at the server (TIME_AND_SALES_ENABLED): unset, the panel says it is not on.
+  { code: 'TAS', label: 'Time and sales (live trade tape)', group: 'Security',
+    ticker: { panel: 'TimeSales' } },
 
   // ── Research › Depth (each panel is its own surface behind its own flag) ──
   { code: 'DPTH', label: 'Research depth (every depth panel you have)', group: 'Research depth',
@@ -519,6 +524,8 @@ const FUNCTION_WORDS = {
   TWT: { keywords: ['twitter', 'tweets', 'social'], note: 'Says so if the X feed is switched off.' },
   SIZE: { keywords: ['position size', 'sizing', 'shares', 'risk per trade', 'r multiple'] },
   CHK: { keywords: ['check', 'checklist', 'pre-trade', 'win rate'], note: 'Says so if the setup library is not loaded.' },
+  TAS: { keywords: ['time and sales', 'time & sales', 'tape', 'prints', 'trades', 'block trades'],
+    note: 'Says so if the live tape is switched off.' },
   ERX: { keywords: ['earnings reaction'] },
   FTD: { keywords: ['fails to deliver'] },
   ATTN: { keywords: ['mentions', 'attention'] },

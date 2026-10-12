@@ -54,6 +54,8 @@ export const PANEL_IMPORTERS = {
   // ── wave 8 lane F: CHK pre-trade check ──
   Check: () => import('./panels/CheckPanel'),
   // ── end wave 8 lane F ──
+  // TAS (COV-08 / FT-077): the live trade tape — terminal-native, one SSE stream per open panel
+  TimeSales: () => import('./panels/TimeSalesPanel'),
   Depth: () => import('./panels/DepthPanel'),
   Events: () => import('../research/depth/EventsPanel'),
   FilingSearch: () => import('../research/depth/FilingSearchPanel'),
