@@ -10,7 +10,8 @@ import { vi, expect } from 'vitest'
 import { axeSurface } from './surface'
 
 vi.mock('@tiptap/react', () => ({ NodeViewWrapper: ({ children, ...p }) => <div {...p}>{children}</div> }))
-import BlockNodeView from '../components/notebook/blocks/BlockNodeView'
+import userEvent from '@testing-library/user-event'
+import BlockNodeView, { BLOCK_COMPONENTS } from '../components/notebook/blocks/BlockNodeView'
 import { BLOCK_ERROR_SENTENCE } from '../components/notebook/blocks/blockStates'
 
 const editor = { isEditable: true, storage: { uctJournalWidgets: { noteId: 'n1' } } }
@@ -51,6 +52,26 @@ axeSurface('trader-block-platform:error', async () => {
   } finally {
     vi.doUnmock('../components/notebook/blocks/PriceStampsBlock')
     vi.resetModules()
+    spy.mockRestore()
+  }
+})
+
+axeSurface('trader-block-platform:reload', async () => {
+  // R-T6-3: a stale chunk after a deploy. The first failure offers "Try again"; the retry fails the
+  // same way, so the REAL BlockNodeView escalates to "Reload". Audited in that state.
+  const real = BLOCK_COMPONENTS.priceStamps
+  BLOCK_COMPONENTS.priceStamps = () => Promise.reject(new Error('Failed to fetch dynamically imported module'))
+  const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  try {
+    render(<BlockNodeView node={node('priceStamps')} editor={editor} updateAttributes={() => {}} deleteNode={() => {}} />)
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Try again' }, { timeout: 3000 }))
+    const reload = await screen.findByRole('button', { name: 'Reload to see Price stamps' }, { timeout: 3000 })
+    expect(reload.textContent).toBe('Reload')
+    expect(screen.getByRole('group', { name: 'Price stamps' }).contains(reload)).toBe(true)
+    expect(screen.getByText(BLOCK_ERROR_SENTENCE)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+  } finally {
+    BLOCK_COMPONENTS.priceStamps = real
     spy.mockRestore()
   }
 })

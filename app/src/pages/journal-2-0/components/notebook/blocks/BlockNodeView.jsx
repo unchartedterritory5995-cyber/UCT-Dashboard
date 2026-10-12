@@ -4,6 +4,7 @@
 import { Component, Suspense, useMemo, useState } from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
 import { lazyLeaf } from '../../../lib/lazyChunk'
+import { isChunkLoadError } from '../../../../../utils/lazyWithRetry'
 import { blockLabel } from '../../../lib/journalBlocks'
 import { useBlockParams } from './useBlockParams'
 import { BlockError, BlockLoading } from './blockStates'
@@ -20,14 +21,19 @@ export const BLOCK_COMPONENTS = {
 /** A body that throws (or whose chunk fails twice) shows BLOCK_ERROR_SENTENCE inside the block's own
  *  frame; the note around it keeps working. "Try again" calls `onRetry`, which builds a NEW lazy
  *  component (fix round 1, I-1): React.lazy remembers a rejected load forever, so re-rendering the
- *  old one could never succeed. */
+ *  old one could never succeed.
+ *  ⛔ R-T6-3: after a deploy the old chunk is gone for good, so when a RETRY (attempt > 0) also fails
+ *  with a chunk-load error -- the app's own predicate, utils/lazyWithRetry -- the error state offers
+ *  "Reload" instead (PlaceholderChip's button and name). Any other error keeps "Try again". */
 class BlockBoundary extends Component {
-  constructor(p) { super(p); this.state = { failed: false } }
-  static getDerivedStateFromError() { return { failed: true } }
+  constructor(p) { super(p); this.state = { failed: false, chunk: false } }
+  static getDerivedStateFromError(error) { return { failed: true, chunk: isChunkLoadError(error) } }
   render() {
-    return this.state.failed
-      ? <BlockError onRetry={() => { this.props.onRetry(); this.setState({ failed: false }) }} />
-      : this.props.children
+    if (!this.state.failed) return this.props.children
+    if (this.state.chunk && this.props.attempt > 0) {
+      return <BlockError onReload={() => window.location.reload()} reloadName={`Reload to see ${this.props.label}`} />
+    }
+    return <BlockError onRetry={() => { this.props.onRetry(); this.setState({ failed: false, chunk: false }) }} />
   }
 }
 
@@ -56,7 +62,7 @@ export default function BlockNodeView({ node, editor, updateAttributes, deleteNo
           )}
         </div>
         {shareView || !Body ? <p className={styles.muted}>{attrs.searchText || label}</p> : (
-          <BlockBoundary onRetry={() => setAttempt((n) => n + 1)}>
+          <BlockBoundary attempt={attempt} label={label} onRetry={() => setAttempt((n) => n + 1)}>
             <Suspense fallback={<BlockLoading />}>
               <Body params={attrs.params || {}} setParams={setParams} editable={editable} editor={editor} attrs={attrs} />
             </Suspense>

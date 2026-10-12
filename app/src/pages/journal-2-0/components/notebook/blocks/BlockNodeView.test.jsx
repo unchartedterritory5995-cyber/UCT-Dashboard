@@ -15,11 +15,77 @@ vi.mock('./PositionSizingBlock', () => {
   return { default: () => <p>sizing body</p> }
 })
 
-import BlockNodeView from './BlockNodeView'
+import BlockNodeView, { BLOCK_COMPONENTS } from './BlockNodeView'
 import { BLOCK_ERROR_SENTENCE } from './blockStates'
 
 const node = (widgetId, params = {}) => ({ attrs: { widgetId, params, searchText: '[x]' } })
 const editor = (extra = {}) => ({ isEditable: true, storage: { uctJournalWidgets: { noteId: 'n1', ...extra } } })
+
+// R-T6-3: a stale chunk after a deploy. The message is the one the app's chunk-error predicate
+// recognises (utils/lazyWithRetry); it names no URL, so lazyChunk's in-place retry asks the SAME
+// importer once more inside each attempt -- every attempt therefore calls the importer twice.
+const chunkError = () => new Error('Failed to fetch dynamically imported module')
+const SizingBody = () => <p>sizing body</p>
+
+/** Run `body` with the positionSizing importer replaced by `importer`, restoring it after. */
+async function withImporter(importer, body) {
+  const real = BLOCK_COMPONENTS.positionSizing
+  BLOCK_COMPONENTS.positionSizing = importer
+  const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  try { await body() } finally { BLOCK_COMPONENTS.positionSizing = real; spy.mockRestore() }
+}
+const tryAgain = () => userEvent.setup().click(screen.getByRole('button', { name: 'Try again' }))
+
+describe('BlockNodeView — escalation to Reload (R-T6-3)', () => {
+  it('chunk fail, then the retry fails with a chunk error again: Reload is offered, and it reloads the page', async () => {
+    const importer = vi.fn(() => Promise.reject(chunkError()))
+    await withImporter(importer, async () => {
+      render(<BlockNodeView node={node('positionSizing')} editor={editor()} updateAttributes={() => {}} />)
+      expect(await screen.findByText(BLOCK_ERROR_SENTENCE)).toBeTruthy()
+      expect(screen.queryByRole('button', { name: /^Reload/ })).toBeNull()        // the first failure: Try again only
+      await tryAgain()
+      const reload = await screen.findByRole('button', { name: 'Reload to see Position sizing' }, { timeout: 3000 })
+      expect(reload.textContent).toBe('Reload')
+      expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+      expect(importer.mock.calls.length).toBeGreaterThanOrEqual(2)               // the retry really asked again
+      const realLocation = window.location
+      const reloadPage = vi.fn()
+      Object.defineProperty(window, 'location', { configurable: true, writable: true, value: { ...realLocation, reload: reloadPage } })
+      try {
+        await userEvent.setup().click(reload)
+        expect(reloadPage).toHaveBeenCalledTimes(1)
+      } finally {
+        Object.defineProperty(window, 'location', { configurable: true, writable: true, value: realLocation })
+      }
+    })
+  })
+
+  it('chunk fail, then the retry succeeds: the body renders and no Reload appears', async () => {
+    let calls = 0
+    const importer = vi.fn(() => (++calls <= 2 ? Promise.reject(chunkError()) : Promise.resolve({ default: SizingBody })))
+    await withImporter(importer, async () => {
+      render(<BlockNodeView node={node('positionSizing')} editor={editor()} updateAttributes={() => {}} />)
+      expect(await screen.findByText(BLOCK_ERROR_SENTENCE)).toBeTruthy()
+      await tryAgain()
+      expect(await screen.findByText('sizing body')).toBeTruthy()
+      expect(screen.queryByRole('button', { name: /^Reload/ })).toBeNull()
+      expect(screen.queryByText(BLOCK_ERROR_SENTENCE)).toBeNull()
+    })
+  })
+
+  it('a render (non-chunk) error keeps "Try again" only, even after a retry fails again', async () => {
+    const importer = vi.fn(() => Promise.resolve({ default: () => { throw new Error('a bug in the body') } }))
+    await withImporter(importer, async () => {
+      render(<BlockNodeView node={node('positionSizing')} editor={editor()} updateAttributes={() => {}} />)
+      expect(await screen.findByText(BLOCK_ERROR_SENTENCE)).toBeTruthy()
+      await tryAgain()
+      expect(await screen.findByRole('button', { name: 'Try again' })).toBeTruthy()
+      expect(screen.getByText(BLOCK_ERROR_SENTENCE)).toBeTruthy()
+      expect(screen.queryByRole('button', { name: /^Reload/ })).toBeNull()
+      expect(importer).toHaveBeenCalledTimes(2)                                    // non-vacuity: a retry happened
+    })
+  })
+})
 
 describe('BlockNodeView', () => {
   it('renders the block body with its params, labelled by the block name', async () => {

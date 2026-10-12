@@ -59,6 +59,9 @@ export const IMPORT_ALLOW = {
   'app/src/pages/journal-2-0/lib/lazyChunk': "lazyLeaf: fetches the block's own CODE chunk, never data",
   'app/src/pages/journal-2-0/lib/journalBlocks': 'the block catalog (labels, search lines); a module with no imports',
   'app/src/widgets/registry': 'metadata only (paramsPlainText); imports no component and no network code',
+  // R-T6-3 (fix round 2): the app's ONE chunk-load-error predicate, so a block's Reload escalation
+  // never restates it. The module also reloads the page for a ROUTE's stale chunk; no data, no writes.
+  'app/src/utils/lazyWithRetry': "isChunkLoadError: the app's own stale-chunk predicate; no data, no writes",
 }
 
 const HELPER_METHOD = { jsonPost: 'POST', jsonPut: 'PUT', jsonPatch: 'PATCH', jsonDelete: 'DELETE' }

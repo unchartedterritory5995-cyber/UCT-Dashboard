@@ -15,11 +15,14 @@ export function BlockEmpty({ title, children }) {
     </div>
   )
 }
-export function BlockError({ onRetry }) {
+/** `onRetry`: a "Try again" button. `onReload` + `reloadName`: a "Reload" button whose accessible
+ *  name says which block it is for and starts with the visible word (PlaceholderChip's pattern). */
+export function BlockError({ onRetry, onReload, reloadName }) {
   return (
     <div className={styles.error} role="status">
       <p>{BLOCK_ERROR_SENTENCE}</p>
       {onRetry && <button type="button" className={`btn btn-ghost ${styles.tap}`} onClick={onRetry}>Try again</button>}
+      {onReload && <button type="button" className={`btn btn-ghost ${styles.tap}`} aria-label={reloadName} onClick={onReload}>Reload</button>}
     </div>
   )
 }
