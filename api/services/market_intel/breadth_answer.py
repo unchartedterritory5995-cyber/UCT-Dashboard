@@ -129,13 +129,13 @@ def _series_lines(res: dict) -> tuple[list[str], list[dict]]:
         f = lambda v: fmt_value(m["unit"], m["domain"], v)  # noqa: E731
         clip = ""
         if m.get("clipped_start") or m.get("clipped_end"):
-            clip = f" (finalized sessions in your range run {m['from']} to {m['to']})"
+            clip = f" (finalized sessions in your range run {m['start']} to {m['end']})"
         lines.append(
-            f"{name}, {m['from']} to {m['to']} ({m['sessions']} sessions){clip}: "
+            f"{name}, {m['start']} to {m['end']} ({m['sessions']} sessions){clip}: "
             f"from {f(m['first']['value'])} to {f(m['last']['value'])} (change {fmt_change(m['unit'], m['change'])}); "
             f"low {f(m['min']['value'])} on {m['min']['date']}, high {f(m['max']['value'])} on {m['max']['date']}; "
             f"average {f(m['mean'])}.")
-        rows.append({"metric": m["label"], "range": f"{m['from']} – {m['to']}",
+        rows.append({"metric": m["label"], "range": f"{m['start']} – {m['end']}",
                      "first": f(m["first"]["value"]), "last": f(m["last"]["value"]),
                      "low": f"{f(m['min']['value'])} ({m['min']['date']})",
                      "high": f"{f(m['max']['value'])} ({m['max']['date']})"})

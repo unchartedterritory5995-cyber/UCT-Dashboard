@@ -8,9 +8,7 @@ floors, finalized-only (D5) handling, missing data, unsupported requests, bounds
 from __future__ import annotations
 
 import re
-import socket
 import time
-from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -19,79 +17,16 @@ from api.services import breadth_metrics as bm
 from api.services.market_intel import breadth_answer as ba
 from api.services.market_intel import breadth_reads as br
 
-# ── synthetic fixture world ──────────────────────────────────────────────────
-
-FIRST, LAST_SEALED = "2026-06-01", "2026-10-09"
-HOLIDAY, MISSING = "2026-07-03", "2026-08-20"     # no bar on these weekdays
-PROVISIONAL = ("2026-10-12", "2026-10-13")         # appended after the sealed watermark
-
-
-def _sessions() -> list[str]:
-    d, end, out = date.fromisoformat(FIRST), date.fromisoformat(LAST_SEALED), []
-    while d <= end:
-        s = d.isoformat()
-        if d.weekday() < 5 and s not in (HOLIDAY, MISSING):
-            out.append(s)
-        d += timedelta(days=1)
-    return out
-
-
-SESSIONS = _sessions()
-
-
-def _value(metric: str, i: int) -> float:
-    unit = bm.get(metric)["unit"]
-    dom = bm.get(metric)["domain"]
-    if unit == bm.UNIT_PERCENT:
-        return round(20.0 + (i * 7 % 60) + 0.25, 2)          # 20.25 … 79.25, inside 0–100
-    if unit == bm.UNIT_RATIO:
-        return round(0.5 + (i % 9) * 0.25, 2)
-    if dom == bm.DOMAIN_SIGNED:
-        return float((i * 37 % 401) - 200)                     # −200 … +200
-    return float(100 + (i * 13 % 900))
-
-
-def _bars(metric: str) -> list[dict]:
-    rows = [{"t": s, "o": 0, "h": 0, "l": 0, "c": _value(metric, i)} for i, s in enumerate(SESSIONS)]
-    rows += [{"t": p, "o": 0, "h": 0, "l": 0, "c": 99999.0} for p in PROVISIONAL]   # must never surface
-    return rows
-
-
-AVAIL = {u: {"state": "available", "rows": len(SESSIONS), "first": FIRST, "last": LAST_SEALED,
-             "floor": FIRST, "authority": "breadth-v2" if u == "us" else "exchange-breadth-v1"}
-         for u in ("us", "nyse", "nasdaq")}
+# ── synthetic fixture world (shared with the Agent's leak tests) ─────────────
+from tests.market_intel_breadth_fixtures import (  # noqa: E402
+    FIRST, HOLIDAY, LAST_SEALED, MISSING, SESSIONS, synthetic_breadth_world,
+)
+from tests.market_intel_breadth_fixtures import value as _value  # noqa: E402
 
 
 @pytest.fixture
 def world(monkeypatch):
-    """Canonical breadth functions → synthetic fixtures; sockets forbidden for the whole test."""
-    state = {"avail": {k: dict(v) for k, v in AVAIL.items()}, "unpublished": set(), "slow": 0.0,
-             "raise": False, "empty": set(), "calls": []}
-
-    def fake_build(sym, tf="D", bars=400):
-        state["calls"].append((sym, tf, bars))
-        if state["slow"]:
-            time.sleep(state["slow"])
-        if state["raise"]:
-            raise RuntimeError("store down")
-        metric = next(m for m in br.SLICE1_METRICS if sym.endswith(":" + bm.get(m)["code"]))
-        if metric in state["empty"]:
-            return {"ticker": sym, "tf": tf, "bars": []}
-        return {"ticker": sym, "tf": tf, "bars": _bars(metric)}
-
-    def fake_resolve(sym, published_only=True):
-        code = sym.split(":")[-1]
-        return None if code in state["unpublished"] else {"symbol": sym}
-
-    monkeypatch.setattr(br._bs, "availability", lambda: state["avail"])
-    monkeypatch.setattr(br._bs, "build_breadth_bars", fake_build)
-    monkeypatch.setattr(br._bs, "resolve", fake_resolve)
-
-    def no_network(*a, **k):
-        raise AssertionError("breadth reads must not open a network connection")
-    monkeypatch.setattr(socket.socket, "connect", no_network)
-    monkeypatch.setattr(socket, "create_connection", no_network)
-    return state
+    return synthetic_breadth_world(monkeypatch)
 
 
 def idx(day: str) -> int:
@@ -111,7 +46,7 @@ def test_value_latest_is_the_last_finalized_session(world):
 def test_provisional_sessions_after_the_watermark_never_surface(world):
     """D5: finalized EOD only — the 99999 provisional bars are dropped, not substituted."""
     for mode_req in ({"mode": "value", "date": None},
-                     {"mode": "series", "from": "2026-10-01", "to": None}):
+                     {"mode": "series", "start": "2026-10-01", "end": None}):
         r = br.read({**mode_req, "universe": "nyse", "metrics": ["new_52w_highs"]})
         blob = repr(r)
         assert "99999" not in blob and "2026-10-12" not in blob and "2026-10-13" not in blob
@@ -162,8 +97,9 @@ def test_malformed_dates_are_refused(world, bad):
     ({"mode": "value", "universe": "us", "metrics": ["a", "b", "c", "d", "e"]}, "too_many_metrics"),
     ({"mode": "value", "universe": "us", "metrics": []}, "bad_request"),
     ({"mode": "forecast", "universe": "us", "metrics": ["advancing"]}, "bad_request"),
-    ({"mode": "value", "universe": "us", "metrics": ["advancing"], "from": "2026-07-01"}, "bad_request"),
-    ({"mode": "series", "universe": "us", "metrics": ["advancing"], "from": "2026-09-01", "to": "2026-08-01"}, "bad_date"),
+    ({"mode": "value", "universe": "us", "metrics": ["advancing"], "start": "2026-07-01"}, "bad_request"),
+    ({"mode": "series", "universe": "us", "metrics": ["advancing"], "from": "2026-07-01", "to": None}, "bad_request"),
+    ({"mode": "series", "universe": "us", "metrics": ["advancing"], "start": "2026-09-01", "end": "2026-08-01"}, "bad_date"),
     ({"mode": "compare", "universe": "us", "metrics": ["advancing"], "date": None}, "bad_date"),
     ("not a dict", "bad_request"),
 ])
@@ -229,8 +165,8 @@ def test_store_failure_never_raises(world):
 def test_out_of_domain_values_are_dropped_by_the_catalogue_rule(world, monkeypatch):
     real = br._bs.build_breadth_bars
 
-    def with_bad(sym, tf="D", bars=400):
-        p = real(sym, tf, bars)
+    def with_bad(sym, tf="D", n=400):
+        p = real(sym, tf, n)
         p["bars"] = [{**b, "c": 140.0} if b["t"] == LAST_SEALED else b for b in p["bars"]]   # 140% is not a reading
         return p
     monkeypatch.setattr(br._bs, "build_breadth_bars", with_bad)
@@ -249,11 +185,11 @@ def test_compare_reports_both_sessions_and_the_change(world):
 
 def test_series_summary_is_exact_and_bounded(world):
     r = br.read({"mode": "series", "universe": "nasdaq", "metrics": ["net_new_high_low"],
-                 "from": "2026-07-01", "to": "2026-09-30"})
+                 "start": "2026-07-01", "end": "2026-09-30"})
     m = r["metrics"][0]
     win = [(s, _value("net_new_high_low", i)) for i, s in enumerate(SESSIONS) if "2026-07-01" <= s <= "2026-09-30"]
     vals = [v for _, v in win]
-    assert m["sessions"] == len(win) and m["from"] == win[0][0] and m["to"] == win[-1][0]
+    assert m["sessions"] == len(win) and m["start"] == win[0][0] and m["end"] == win[-1][0]
     assert m["first"]["value"] == vals[0] and m["last"]["value"] == vals[-1]
     assert m["min"]["value"] == min(vals) and m["max"]["value"] == max(vals)
     assert m["mean"] == pytest.approx(sum(vals) / len(vals))
@@ -265,14 +201,14 @@ def test_series_summary_is_exact_and_bounded(world):
 
 def test_series_clipped_to_finalized_coverage_says_so(world):
     m = br.read({"mode": "series", "universe": "us", "metrics": ["advancing"],
-                 "from": "2026-05-01", "to": "2026-12-31"})["metrics"][0]
-    assert m["from"] == FIRST and m["to"] == LAST_SEALED and m["clipped_start"] and m["clipped_end"]
+                 "start": "2026-05-01", "end": "2026-12-31"})["metrics"][0]
+    assert m["start"] == FIRST and m["end"] == LAST_SEALED and m["clipped_start"] and m["clipped_end"]
 
 
 def test_range_cap(world, monkeypatch):
     monkeypatch.setattr(br, "MAX_RANGE_SESSIONS", 10)
     m = br.read({"mode": "series", "universe": "us", "metrics": ["advancing"],
-                 "from": "2026-06-01", "to": None})["metrics"][0]
+                 "start": "2026-06-01", "end": None})["metrics"][0]
     assert m["status"] == "refused" and m["reason"] == "range_too_long"
 
 
@@ -349,13 +285,13 @@ def test_refusal_answers_never_contain_a_value(world):
 
 def test_series_answer_states_range_low_high_and_average(world):
     a = ba.answer(br.read({"mode": "series", "universe": "nyse", "metrics": ["stage2_count"],
-                           "from": "2026-09-01", "to": "2026-09-30"}))
+                           "start": "2026-09-01", "end": "2026-09-30"}))
     assert "2026-09-01 to 2026-09-30" in a["text"] and "low " in a["text"] and "high " in a["text"]
     assert "average" in a["text"]
 
 
 def test_answer_is_deterministic(world):
-    req = {"mode": "series", "universe": "us", "metrics": ["advancing", "declining"], "from": "2026-06-15", "to": None}
+    req = {"mode": "series", "universe": "us", "metrics": ["advancing", "declining"], "start": "2026-06-15", "end": None}
     assert ba.answer(br.read(req)) == ba.answer(br.read(req))
 
 
@@ -367,3 +303,37 @@ def test_market_intel_modules_import_no_model_or_network_client():
                            r"|perplexity|voice_tools|_get_anthropic_client", re.M)
     for f in root.glob("*.py"):
         assert not forbidden.search(f.read_text(encoding="utf-8")), f.name
+
+
+# ── interface additions (Agent review 2026-10-11) ────────────────────────────
+
+def test_date_context_carries_dates_only(world):
+    ctx = br.date_context()
+    assert ctx == {"today_et": "2026-10-11",
+                   "latest_finalized": {"us": LAST_SEALED, "nyse": LAST_SEALED, "nasdaq": LAST_SEALED}}
+    assert world["calls"] == []                       # no series read: no breadth value can be in it
+
+
+def test_latest_finalized_never_raises_and_respects_the_authority(world, monkeypatch):
+    world["avail"]["nyse"].pop("authority")
+    assert br.latest_finalized("nyse") is None        # an untrusted watermark is not offered as a date
+    monkeypatch.setattr(br._bs, "availability", lambda: (_ for _ in ()).throw(RuntimeError("down")))
+    assert br.latest_finalized("us") is None
+
+
+def test_metric_guide_is_compact_and_covers_every_metric():
+    assert len(br.METRIC_GUIDE) <= 600
+    assert not re.search(r"\d+\.\d", br.METRIC_GUIDE)  # words only, no readings
+    covered = br.METRIC_GUIDE
+    for m in br.SLICE1_METRICS:
+        if m.startswith("pct_above_"):
+            n = m[len("pct_above_"):-len("sma")]
+            assert n in covered, m
+        else:
+            assert m in covered, m
+
+
+def test_sentinel_world_puts_the_sentinel_on_the_session(monkeypatch):
+    synthetic_breadth_world(monkeypatch, sentinel=73.4567)
+    a = ba.answer(br.read({"mode": "value", "universe": "us", "metrics": ["pct_above_50sma"], "date": None}))
+    assert "73.5%" in a["text"] and LAST_SEALED in a["text"]

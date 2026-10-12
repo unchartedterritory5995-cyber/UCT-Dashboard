@@ -53,6 +53,17 @@ DATA_CLASS = "UCT-computed from Massive end-of-day prices; multi-security breadt
 
 _pool = _cf.ThreadPoolExecutor(max_workers=4, thread_name_prefix="mi-breadth")
 
+#: ≤ ~600 chars for the Agent capability hint: what each metric key MEANS. Words only — no values.
+METRIC_GUIDE = (
+    "pct_above_{5,10,20,40,50,100,150,200}sma = % of stocks above that N-day simple MA; "
+    "new_52w_highs/new_52w_lows = counts at 52-week highs/lows; net_new_high_low = highs minus lows; "
+    "hi_ratio/lo_ratio = % of stocks at 52-week highs/lows; new_20d_highs/new_20d_lows = 20-day; "
+    "near_52w_high = within 5% of 52w high; up_4pct_today/down_4pct_today = up/down 4%+ that day; "
+    "ratio_5day/ratio_10day = up-4%/down-4% ratio over 5/10 days; "
+    "adv_decline = net advancers; advancing/declining = issues up/down; universe_count = stocks counted; "
+    "stage2_count/stage4_count = Stage 2 uptrend / Stage 4 downtrend counts."
+)
+
 
 # ── validation ────────────────────────────────────────────────────────────────
 
@@ -78,6 +89,8 @@ def validate(req: Any) -> tuple[Optional[dict], Optional[dict]]:
     """(normalised request, None) or (None, refusal). Shape and bounds only — no data is read."""
     if not isinstance(req, dict):
         return None, _refused("bad_request", "The breadth request was not understood.")
+    if "from" in req or "to" in req:
+        return None, _refused("bad_request", "Use `start` / `end` for a date range.")
     mode = req.get("mode")
     if mode not in MODES:
         return None, _refused("bad_request", "Ask for a value on a date, a comparison of two dates, or a date range.")
@@ -104,7 +117,7 @@ def validate(req: Any) -> tuple[Optional[dict], Optional[dict]]:
         d = req.get("date")
         if d is not None and _parse_date(d) is None:
             return None, _refused("bad_date", "Dates must be real calendar dates (YYYY-MM-DD).", universe=universe)
-        if req.get("from") is not None or req.get("to") is not None or req.get("compare_date") is not None:
+        if req.get("start") is not None or req.get("end") is not None or req.get("compare_date") is not None:
             return None, _refused("bad_request", "A single-date question takes one date only.", universe=universe)
         out["date"] = _parse_date(d) if d else None
     elif mode == "compare":
@@ -115,13 +128,13 @@ def validate(req: Any) -> tuple[Optional[dict], Optional[dict]]:
                                   universe=universe)
         out["date"], out["compare_date"] = (_parse_date(d1) if d1 else None), _parse_date(d2)
     else:
-        f, t = req.get("from"), req.get("to")
+        f, t = req.get("start"), req.get("end")
         if _parse_date(f) is None or (t is not None and _parse_date(t) is None):
             return None, _refused("bad_date", "A date range needs a real start date (YYYY-MM-DD); "
                                               "the end may be left out to mean the latest session.",
                                   universe=universe)
-        out["from"], out["to"] = _parse_date(f), (_parse_date(t) if t else None)
-        if out["to"] and out["to"] < out["from"]:
+        out["start"], out["end"] = _parse_date(f), (_parse_date(t) if t else None)
+        if out["end"] and out["end"] < out["start"]:
             return None, _refused("bad_date", "The range ends before it starts.", universe=universe)
     return out, None
 
@@ -147,6 +160,26 @@ def _coverage(universe: str) -> tuple[Optional[dict], Optional[dict]]:
                                   universe=universe)
     return {"first": row["first"], "last": row["last"], "floor": row.get("floor"),
             "authority": row["authority"], "state": row.get("state")}, None
+
+
+def latest_finalized(universe: str) -> Optional[str]:
+    """The universe's latest FINALIZED session date, or None. Cheap (memoised availability), never raises.
+    A date, not a breadth value — safe for the model-facing context (it lets the model turn
+    "a month ago" into a real date; `read()` still validates and snaps)."""
+    try:
+        cov, _err = _coverage(universe)
+        return cov["last"] if cov else None
+    except Exception:
+        return None
+
+
+def date_context() -> dict:
+    """`{today_et, latest_finalized: {universe: date|None}}` — dates only, for the Agent's context."""
+    try:
+        today = _bs._et_today()
+    except Exception:
+        today = None
+    return {"today_et": today, "latest_finalized": {u: latest_finalized(u) for u in SLICE1_UNIVERSES}}
 
 
 def _finite(v) -> Optional[float]:
@@ -270,7 +303,7 @@ def _summary(rows: list, f: str, t: Optional[str], cov: dict) -> dict:
     if len(win) > 2 and spare > 0:
         keep |= {round(k * (len(win) - 1) / (spare + 1)) for k in range(1, spare + 1)}
     sampled = [{"date": win[k][0], "value": win[k][1]} for k in sorted(keep)]
-    return {"status": "ok", "from_requested": f, "to_requested": t, "from": win[0][0], "to": win[-1][0],
+    return {"status": "ok", "start_requested": f, "end_requested": t, "start": win[0][0], "end": win[-1][0],
             "sessions": len(win), "first": {"date": win[0][0], "value": win[0][1]},
             "last": {"date": win[-1][0], "value": last}, "change": last - win[0][1],
             "min": {"date": win[lo][0], "value": win[lo][1]}, "max": {"date": win[hi][0], "value": win[hi][1]},
@@ -290,7 +323,7 @@ def _read_metric(req: dict, metric: str, cov: dict) -> dict:
             bad = a if a.get("status") != "ok" else b
             return {**_meta(metric), **bad}
         return {**_meta(metric), "status": "ok", "current": a, "other": b, "change": a["value"] - b["value"]}
-    return {**_meta(metric), **_summary(rows, req["from"], req["to"], cov)}
+    return {**_meta(metric), **_summary(rows, req["start"], req["end"], cov)}
 
 
 def _read(req: dict) -> dict:
