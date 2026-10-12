@@ -156,6 +156,43 @@ def test_mapping_offer_apply_returns_locked_notes_as_skipped(client):
     assert client.post("/api/j2/note-kinds/mapping-offer", json={"excludeNoteIds": "x"}).status_code == 400
 
 
+def test_mapping_offer_apply_never_500s_mid_loop(client, monkeypatch):
+    """Review M6: a note that becomes locked, or changes, between the offer's read and its own write
+    is SKIPPED with its reason; the notes already written stay reported (their revisions must reach
+    the client to be landed), and the route answers 200, never a 500 after a partial apply."""
+    from api.services.journal_two import notes as notes_service
+    _as(client)
+    props = {"builtin:research_type": "earnings_play"}
+    first, raced_lock, raced_write, last = (_note(props=props, stamp=None) for _ in range(4))
+    real = notes_service.update_note
+
+    def racing(user_id, note_id, *a, **k):
+        if note_id == raced_lock["id"]:
+            raise notes_service.NoteLockedError(notes_service.LOCKED_APPEND_SENTENCE)
+        if note_id == raced_write["id"]:
+            raise notes_service.NoteConflictError("changed under us")
+        return real(user_id, note_id, *a, **k)
+    monkeypatch.setattr(notes_service, "update_note", racing)
+    r = client.post("/api/j2/note-kinds/mapping-offer", json={"excludeNoteIds": []})
+    assert r.status_code == 200
+    out = r.json()
+    assert [n["id"] for n in out["notes"]] == [first["id"], last["id"]] and out["count"] == 2
+    assert out["skipped"] == [{"id": raced_lock["id"], "reason": "locked"},
+                              {"id": raced_write["id"], "reason": "changed"}]
+
+
+def test_apply_style_update_requires_a_base_revision(client):
+    """Ruling M1: baseUpdatedAt is REQUIRED (the revision the member is looking at). Missing is a
+    400 with a plain sentence, and nothing is written."""
+    from api.routers import notebook_journal_styles as r
+    _as(client)
+    n = _note()
+    res = client.post(f"/api/j2/notes/{n['id']}/apply-style-update", json={})
+    assert res.status_code == 400 and res.json()["detail"] == r.BASE_REQUIRED_SENTENCE
+    plan = client.get(f"/api/j2/notes/{n['id']}/style-update-plan").json()["plan"]
+    assert plan["missingBlocks"] is True                                 # nothing was added
+
+
 def test_style_update_plan_and_apply(client):
     _as(client)
     n = _note()

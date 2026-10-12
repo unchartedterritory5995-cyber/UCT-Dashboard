@@ -277,10 +277,13 @@ const SITE_EXCEPTIONS = {
     + '{folderId, welcomeNoteId}, which the welcome note\'s first open fetches. To close it the route would have to '
     + 'return every seeded {id, updatedAt} and this helper land them with settleNoteWrites -- harmless, never needed.',
   'app/src/pages/journal-2-0/components/notebook/onboarding/sampleNotebook.js:DELETE /api/j2/onboarding/sample-notebook':
-    'removal TRASHES only the recorded sample ids (delete_note, which moves no revision a save can meet: a later save '
-    + 'reads 404 and stays queued) and removes only sample folders holding none of the member\'s notes (delete_folder, '
-    + 'the folders kept otherwise are named); its one door, ResearchHome "Remove it", first runs the bulk trash '
-    + 'pre-check (SERVER_LEDGER sample_notebook.py). To close it the route would have to report each moved revision.',
+    'removal TRASHES only the recorded sample ids through delete_note, which sets deleted_at and does NOT move '
+    + 'updated_at. A note trashed under queued words would meet its next save as a 404 and be stranded as BLOCKED in '
+    + 'the Trash, so the one door, ResearchHome "Remove it", first runs the bulk trash pre-check (precheckNoteBatch, '
+    + 'op trash) over the sample notes still out of Trash and holds the whole removal back for any holding unsent '
+    + 'words. delete_folder DOES advance updated_at, but it runs only on sample-made folders holding none of the '
+    + 'member\'s notes, after the sample notes are trashed, so it moves only already-trashed sample notes. To close it '
+    + 'the route would have to report each revision the folder cascade moved.',
   'app/src/pages/journal-2-0/hooks/useNoteConnectors.js:POST /api/j2/notes/connectors/*/connect':
     'connecting a Roam/Craft/Notion/Dropbox/Obsidian source starts a background sync (note_connectors engine.sync_source) '
     + 'that writes notes as a GENUINE second writer: a fork against it is the correct answer (rail ② and ⑥\'s engine row), '
@@ -393,6 +396,24 @@ function variableUrlWrites() {
     }
   }
   return out
+}
+
+/** Every client write site any of rails ③, ④ and ④b sees, as `{file, keys, settles}`. */
+function allClientWriteSites() {
+  const out = clientWrites().map((w) => ({ file: w.file, keys: [w.key], settles: w.settles }))
+  for (const w of variableUrlWrites()) {
+    out.push({ file: w.file, keys: [w.shape, w.bare].filter(Boolean).map((s) => `${w.method} ${s}`), settles: w.settles })
+  }
+  for (const s of forwardedProblems(noteTouchingSources(), new Set()).sites) {
+    out.push({ file: s.file, keys: s.keys, settles: s.settles })
+  }
+  return out
+}
+
+/** SITE_EXCEPTIONS keys with no current UNSETTLED write site behind them (pure, so a control can plant one). */
+function staleSiteExceptions(exceptions, sites) {
+  const live = new Set(sites.filter((s) => !s.settles).flatMap((s) => s.keys.map((k) => `${s.file}:${k}`)))
+  return Object.keys(exceptions).filter((k) => !live.has(k))
 }
 
 /**
@@ -726,6 +747,27 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
       expect(why, `${key} must say what would close it`).toMatch(/would have to|To close it/)
     }
   })
+
+  // ⛔ Review M4 (lane A3 round 2): an exception that no longer excuses a real site is not harmless --
+  // it waits to excuse the NEXT unsettled write that lands under the same `file:key` (the history of
+  // the delete_folder exception above). Every SITE_EXCEPTIONS key must still name a CURRENT client
+  // write site that does not settle, seen by any of rails ③, ④ or ④b.
+  it('⛔ every SITE_EXCEPTIONS entry still names a current, unsettled client write site', () => {
+    expect(staleSiteExceptions(SITE_EXCEPTIONS, allClientWriteSites())).toEqual([])
+  }, 60_000)
+
+  it('⭐ CONTROL — a stale exception (no such site, or a site that now settles) is reported', () => {
+    const sites = [
+      { file: 'a.js', keys: ['POST /api/j2/notes/*/x'], settles: false },
+      { file: 'b.js', keys: ['POST /api/j2/notes/*/y'], settles: true },
+    ]
+    const exceptions = { 'a.js:POST /api/j2/notes/*/x': 'live', 'b.js:POST /api/j2/notes/*/y': 'settles now',
+      'c.js:POST /api/j2/notes/*/z': 'gone' }
+    expect(staleSiteExceptions(exceptions, sites)).toEqual(['b.js:POST /api/j2/notes/*/y', 'c.js:POST /api/j2/notes/*/z'])
+    // and the real gatherer sees the real exceptions' sites at all (non-vacuity)
+    const keys = new Set(allClientWriteSites().flatMap((s) => s.keys.map((k) => `${s.file}:${k}`)))
+    expect(keys).toContain('app/src/pages/journal-2-0/lib/offline/useOutboxDrain.js:PUT /api/j2/notes/*')
+  }, 60_000)
 })
 
 /**

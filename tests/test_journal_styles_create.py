@@ -108,6 +108,24 @@ def test_a_chart_block_with_no_ticker_is_skipped_and_named(client):
     assert not any(x["type"] == "widgetEmbed" for x in r["note"]["bodyJson"]["content"])
 
 
+@pytest.mark.parametrize("door", [{"kindId": "thesis"}, {"styleId": "builtin:thesis"}], ids=["kindId", "styleId"])
+def test_a_styled_create_ignores_a_client_body_and_properties(client, door):
+    """Review I1 (spec P1.3: the SERVER composes). A bodyJson and properties sent beside a
+    styleId/kindId are dropped: the body and values come only from the composed style."""
+    _as(client)
+    marker = "CLIENT-SENT-BODY-MARKER"
+    r = client.post("/api/j2/notes", json={
+        **door, "title": "T",
+        "bodyJson": {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": marker}]}]},
+        "properties": {"builtin:confidence": "high"}})
+    assert r.status_code == 200
+    n = r.json()["note"]
+    assert marker not in str(n["bodyJson"])
+    assert n["bodyJson"]["content"][0] == {"type": "heading", "attrs": {"level": 2},
+                                           "content": [{"type": "text", "text": "The thesis"}]}
+    assert n["propertiesJson"] == {"builtin:note_kind": "thesis"}
+
+
 def test_kind_without_any_style_makes_a_note_with_only_the_kind(client):
     _as(client)
     from api.services.journal_two import note_kinds as nk

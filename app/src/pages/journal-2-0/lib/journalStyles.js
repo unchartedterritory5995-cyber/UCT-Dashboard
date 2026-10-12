@@ -101,7 +101,8 @@ export const planStyleUpdate = (noteId, { styleId } = {}) =>
   call(`${NOTES_URL}/${enc(noteId)}/style-update-plan${styleId ? `?styleId=${enc(styleId)}` : ''}`)
 
 /** The one compare-and-set write. `baseUpdatedAt` (the revision the member is looking at) is REQUIRED:
- *  without it the server would write unconditionally. 409 (stale base) throws and moved nothing. */
+ *  the server refuses a request without it (400), and a base that is not the note's current revision is a
+ *  409 that writes nothing. Either refusal throws and moved nothing. */
 export async function applyStyleUpdate(noteId, { styleId, baseUpdatedAt } = {}) {
   if (!baseUpdatedAt) throw new Error('applyStyleUpdate needs baseUpdatedAt, the revision the member is looking at')
   const accountId = getCurrentAccountId()

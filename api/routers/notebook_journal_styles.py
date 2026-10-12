@@ -16,10 +16,14 @@ fixtures `journal-styles.*` and `note-kinds.*`, tools/notebook_contract_fixtures
   DELETE /api/j2/note-kinds/{kind_id}                   409 while in use; answers purgedDeletedStyles
   GET    /api/j2/note-kinds/mapping-offer               the one-shot Research Type -> Kind offer
   POST   /api/j2/note-kinds/mapping-offer               apply it; answers the moved revisions and
-                                                        the locked notes it skipped
+                                                        the notes it skipped (locked, or changed
+                                                        under it), never a 500 mid-loop
   GET    /api/j2/notes/{note_id}/style-update-plan      the "Update layout" dry run (writes nothing)
   POST   /api/j2/notes/{note_id}/apply-style-update     the one compare-and-set write ({styleId?,
-                                                        baseUpdatedAt}); 409 stale base, 423 locked
+                                                        baseUpdatedAt}). baseUpdatedAt is REQUIRED
+                                                        (400 without it): the revision the member is
+                                                        looking at, which the client lands the answer
+                                                        against. 409 stale base, 423 locked
 
 The rules (the template gallery router's):
   * THE GATE IS A ROUTER DEPENDENCY: NOTEBOOK_JOURNAL_STYLES_ENABLED off answers the one 404 for
@@ -49,6 +53,9 @@ from api.services.journal_two import notes as notes_service
 MAX_BODY_BYTES = 512_000
 TOO_LARGE_SENTENCE = "Request too large"
 NOT_FOUND = "Not found"
+# Integrator ruling (review M1): the base revision is required. Without it a caller that lands the
+# answer would record as its own a revision that may fold in another writer's change it never saw.
+BASE_REQUIRED_SENTENCE = "Send baseUpdatedAt, the revision of the note you are looking at."
 
 
 def _require_enabled() -> None:
@@ -239,6 +246,8 @@ def apply_style_update_endpoint(note_id: str, body: dict = Depends(paid_body),
                                 user: dict = Depends(require_paid)) -> dict[str, Any]:
     style_id = _optional_text(body, "styleId")
     base = _optional_text(body, "baseUpdatedAt")
+    if base is None:
+        raise HTTPException(status_code=400, detail=BASE_REQUIRED_SENTENCE)
     try:
         note, plan = js.apply_style_update(user["id"], note_id, style_id=style_id, expected_updated_at=base)
     except js.StyleNotFound:

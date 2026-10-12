@@ -1742,6 +1742,9 @@ def journal_styles(w: World) -> None:
     w.record("notes.apply-style-update.stale", "POST", f"{notes}/{styled['id']}/apply-style-update", case="error",
              expect=409, json_body={"baseUpdatedAt": "2026-01-01T00:00:00+00:00"},
              note="The member's base is not the note's revision: nothing is written.")
+    w.record("notes.apply-style-update.no-base", "POST", f"{notes}/{styled['id']}/apply-style-update", case="error",
+             expect=400, json_body={},
+             note="baseUpdatedAt is required (the revision the member is looking at): nothing is written.")
     w.record("notes.apply-style-update.locked", "POST", f"{notes}/{locked['id']}/apply-style-update", case="error",
              expect=423, json_body={"baseUpdatedAt": locked["updatedAt"]})
     w.record("notes.apply-style-update", "POST", f"{notes}/{styled['id']}/apply-style-update", case="success",

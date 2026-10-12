@@ -1693,7 +1693,9 @@ export default function NotebookTab() {
       openNote(created, null, { fresh: true, blank: !title && !bodyJson && !styleId && !kindId, to: focusFirst })
     } catch (e) {
       console.error('[notebook] create note failed', e)
-      // Spec P1.6: a new note is never queued offline -- say so, rather than a bare failure.
+      // Plan Task 11 / ruling R4 (a documented deviation from spec P1.6, which asks for an outbox
+      // queue): a create -- a styled one included -- is REFUSED offline and never queued; the member
+      // is told so rather than shown a bare failure.
       setActionError(typeof navigator !== 'undefined' && navigator.onLine === false
         ? "You're offline. A new note needs a connection; nothing was saved."
         : "Couldn't create that note. Nothing was saved.")
