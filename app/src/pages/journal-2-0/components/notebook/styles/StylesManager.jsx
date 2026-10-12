@@ -9,11 +9,12 @@
 // Focus: opening the editor moves focus to its heading and scrolls it into view (the one-column phone layout
 // puts it far below the list); closing it returns focus to the button that opened it; after Delete focus
 // lands on Undo, after Undo on the restored row. The status line is sticky, so it is seen where the member is.
-import { useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import useSWR, { mutate as globalMutate } from 'swr'
 import Sheet from '../../../../../components/mobile/Sheet'
 import UIcon, { UICON_NAMES } from '../../../../../components/ui/UIcon'
 import usePreferences from '../../../../../hooks/usePreferences'
+import { AuthContext } from '../../../../../context/AuthContext'
 import useJournalStyles from '../../../hooks/useJournalStyles'
 import { journalStylesEnabled } from '../../../lib/journalStylesFlag'
 import { kindIcon } from '../../../lib/noteKinds'
@@ -23,6 +24,7 @@ import {
 } from '../../../lib/journalStyles'
 import StyleEditor from './StyleEditor'
 import { friendlyError } from './styleErrors'
+import { markOfferApplied, offerApplied } from './offerApplied'
 import styles from './StylesManager.module.css'
 
 const MAPPING_PREF = 'notebook_kind_mapping'
@@ -43,10 +45,11 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const { data: offerData } = useSWR(
     open && on ? 'journal-styles:mapping-offer' : null, () => getMappingOffer(), { shouldRetryOnError: false })
   const { prefs, setPref } = usePreferences()
+  const userId = useContext(AuthContext)?.user?.id
 
   const [editing, setEditing] = useState(null)          // { style } while the editor is open
   const [editorDirty, setEditorDirty] = useState(false)
-  const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(null)   // { then } while the discard question is up
   const [undo, setUndo] = useState(null)                // { id } of the style just deleted
   const [status, setStatus] = useState('')
   const [problem, setProblem] = useState('')
@@ -55,14 +58,17 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const [newKind, setNewKind] = useState({ name: '', icon: 'document' })
   const [renaming, setRenaming] = useState(null)        // { id, name }
   const [confirmKind, setConfirmKind] = useState(null)  // id of the kind a Delete is waiting on
-  const [offerDone, setOfferDone] = useState(false)     // the offer was applied: never asked again this session
+  const [offerDone, setOfferDone] = useState(false)     // the offer was applied (also kept in offerApplied.js, which outlives this tab)
 
   const editorHeadRef = useRef(null)
   const openerRef = useRef(null)
   const undoRef = useRef(null)
   const keepEditingRef = useRef(null)
   const rowEls = useRef({})
-  const pendingFocus = useRef(null)                     // { type: 'opener' | 'undo' | 'row', id? }
+  const kindRowEls = useRef({})
+  const kindDeleteBtns = useRef({})
+  const confirmYesRef = useRef(null)
+  const pendingFocus = useRef(null)                     // { type: 'opener' | 'undo' | 'row' | 'kindDelete' | 'kindRow' | 'addKind', id? }
 
   // The editor opened: bring it to the member. (On a phone it sits below the whole list.)
   useEffect(() => {
@@ -72,6 +78,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     h.scrollIntoView?.({ block: 'start' })
   }, [editing])
   useEffect(() => { if (confirmDiscard) keepEditingRef.current?.focus() }, [confirmDiscard])
+  useEffect(() => { if (confirmKind) confirmYesRef.current?.focus() }, [confirmKind])
   // Focus a moved target once it exists (Undo appears, a restored row comes back, the opener is still there).
   useEffect(() => {
     const pf = pendingFocus.current
@@ -84,16 +91,26 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     } else if (pf.type === 'row') {
       const li = rowEls.current[pf.id]
       if (li) { pendingFocus.current = null; (li.querySelector('button:not(:disabled)') || li).focus() }
+    } else if (pf.type === 'kindDelete') {
+      const b = kindDeleteBtns.current[pf.id]
+      if (b) { pendingFocus.current = null; b.focus() }
+    } else if (pf.type === 'kindRow') {
+      const li = kindRowEls.current[pf.id]
+      if (li) { pendingFocus.current = null; (li.querySelector('button:not(:disabled)') || li).focus() }
+    } else if (pf.type === 'addKind') {
+      pendingFocus.current = null
+      document.getElementById('js-kind-name')?.focus()
     }
   })
 
   if (!on) return null
 
   const kinds = data?.kinds || []
+  const ownKinds = kinds.filter((k) => !k.builtin)
   const offline = data?.fromCache === true
   const locked = busy || offline
   const offer = offerData?.offer
-  const showOffer = Boolean(offer) && !offline && !offerDone && !dismissed(prefs?.[MAPPING_PREF])
+  const showOffer = Boolean(offer) && !offline && !offerDone && !offerApplied(userId) && !dismissed(prefs?.[MAPPING_PREF])
 
   /** Any action but Undo ends the Undo line ("kept until the next action or close"). */
   const run = async (fn, { keepUndo = false } = {}) => {
@@ -103,17 +120,24 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     try { await fn() } catch (e) { setProblem(friendlyError(e)) } finally { setBusy(false) }
   }
   const finish = () => {
-    setUndo(null); setStatus(''); setProblem(''); setKindProblem(''); setEditing(null); setConfirmDiscard(false); setConfirmKind(null)
+    setUndo(null); setStatus(''); setProblem(''); setKindProblem(''); setEditing(null); setConfirmDiscard(null); setConfirmKind(null)
     onClose()
   }
   /** Closing over an editor with unsaved changes asks first, in the page (never window.confirm). */
-  const close = () => {
-    if (editing && editorDirty) { setConfirmDiscard(true); return }
-    finish()
+  const close = () => guard(finish)
+  /** Anything that would replace or close the editor asks first when it holds unsaved changes. */
+  const guard = (then) => {
+    if (editing && editorDirty) { setConfirmDiscard({ then }); return }
+    then()
   }
   const closeEditor = () => {
-    setEditing(null); setEditorDirty(false)
+    setEditing(null); setEditorDirty(false); setConfirmDiscard(null)     // a waiting discard question has nothing left to ask about
     pendingFocus.current = { type: 'opener' }
+  }
+  const discard = () => {
+    const then = confirmDiscard?.then
+    setConfirmDiscard(null); setEditorDirty(false)
+    then?.()
   }
 
   const openEditor = (style, opener) => { openerRef.current = opener || null; setEditing({ style }) }
@@ -181,9 +205,12 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   }
   const removeKind = (k) => run(async () => {
     setConfirmKind(null)
+    const at = ownKinds.findIndex((x) => x.id === k.id)
+    const next = ownKinds[at + 1] || ownKinds[at - 1]
     let out
-    try { out = await deleteKind(k.id) } catch (err) { setKindProblem(friendlyError(err)); return }       // the server's own sentence
+    try { out = await deleteKind(k.id) } catch (err) { setKindProblem(friendlyError(err)); pendingFocus.current = { type: 'kindDelete', id: k.id }; return }       // the server's own sentence
     await mutate()
+    pendingFocus.current = next ? { type: 'kindRow', id: next.id } : { type: 'addKind' }
     const n = out?.purgedDeletedStyles || 0
     setStatus(n ? `Kind deleted. ${plural(n, 'style you had deleted', 'styles you had deleted')} for it ${n === 1 ? 'was' : 'were'} removed for good.` : 'Kind deleted.')
   })
@@ -199,6 +226,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     // among the notes the offer counted (the excluded ids are never sent to the server's count).
     const unsent = skipped.length - lockedN + (ids.length ? Math.max(0, asked - count - skipped.length) : 0)
     setOfferDone(true)                                  // never ask again: the server still counts the notes it skipped
+    markOfferApplied(userId)                            // ...and not on the next visit either (this tab remounts)
     globalMutate((k) => typeof k === 'string' && k.startsWith('/api/j2/notes'))
     setStatus(
       `Set the kind on ${plural(count, 'note', 'notes')}.`
@@ -206,8 +234,6 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
       + (unsent ? ` ${plural(unsent, 'note', 'notes')} with unsent changes ${unsent === 1 ? 'was' : 'were'} left for later.` : ''))
   })
   const notNow = () => { setPref(MAPPING_PREF, 'dismissed') }
-
-  const ownKinds = kinds.filter((k) => !k.builtin)
 
   return (
     <Sheet open={open} onClose={close} title={<h2 style={{ margin: 0, font: 'inherit' }}>Journal styles</h2>}
@@ -217,7 +243,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
           A style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.
         </p>
 
-        <div className={styles.stickyTop}>
+        <div className={styles.stickyTop} data-empty={undo || status || confirmDiscard ? undefined : 'true'}>
           <div role="status" aria-live="polite">
             {undo ? (
               <p className={styles.notice}>
@@ -230,8 +256,8 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
             <section className={styles.notice} aria-label="Unsaved changes">
               <span>Discard your unsaved changes to this style?</span>
               <button type="button" ref={keepEditingRef} className={styles.btn}
-                onClick={() => { setConfirmDiscard(false); document.getElementById('js-name')?.focus() }}>Keep editing</button>
-              <button type="button" className={`${styles.btn} ${styles.danger}`} onClick={finish}>Discard changes</button>
+                onClick={() => { setConfirmDiscard(null); document.getElementById('js-name')?.focus() }}>Keep editing</button>
+              <button type="button" className={`${styles.btn} ${styles.danger}`} onClick={discard}>Discard changes</button>
             </section>
           )}
         </div>
@@ -260,7 +286,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
           <div className={styles.layout}>
             <div className={styles.listCol}>
               <button type="button" className={`${styles.btn}`} disabled={locked || !kinds.length}
-                onClick={(e) => { setUndo(null); openEditor(newDraftStyle(kinds[0]?.id), e.currentTarget) }}>
+                onClick={(e) => { const opener = e.currentTarget; guard(() => { setUndo(null); openEditor(newDraftStyle(kinds[0]?.id), opener) }) }}>
                 <UIcon name="plus" size={14} gold={false} /> New style
               </button>
 
@@ -283,10 +309,10 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                             </div>
                             <div className={styles.rowActions}>
                               {s.builtin ? (
-                                <button type="button" className={styles.btn} disabled={locked} onClick={(e) => duplicate(s, e.currentTarget)}
+                                <button type="button" className={styles.btn} disabled={locked} onClick={(e) => { const opener = e.currentTarget; guard(() => duplicate(s, opener)) }}
                                   aria-label={`Duplicate ${s.name} to edit`}>Duplicate to edit</button>
                               ) : (
-                                <button type="button" className={styles.btn} disabled={locked} onClick={(e) => editStyle(s, e.currentTarget)}
+                                <button type="button" className={styles.btn} disabled={locked} onClick={(e) => { const opener = e.currentTarget; guard(() => editStyle(s, opener)) }}
                                   aria-label={`Edit ${s.name}`}>Edit</button>
                               )}
                               {!s.builtin && (
@@ -315,7 +341,8 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                 {ownKinds.length === 0 && <p className={styles.hint}>You have no kinds of your own yet. Add one below.</p>}
                 <ul className={styles.kindList}>
                   {ownKinds.map((k) => (
-                    <li key={k.id} className={styles.kindRow}>
+                    <li key={k.id} className={styles.kindRow} tabIndex={-1}
+                      ref={(el) => { if (el) kindRowEls.current[k.id] = el; else delete kindRowEls.current[k.id] }}>
                       {renaming?.id === k.id ? (
                         <form className={styles.kindForm} onSubmit={saveRename} aria-label={`Rename ${k.name}`}>
                           <input type="text" aria-label={`New name for ${k.name}`} value={renaming.name} maxLength={MAX_KIND_NAME}
@@ -327,9 +354,10 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                         <>
                           <p className={styles.hint}>{`Delete the kind ${k.name}? Styles you deleted that used it are removed permanently.`}</p>
                           <div className={styles.rowActions}>
-                            <button type="button" className={`${styles.btn} ${styles.danger}`} disabled={locked}
+                            <button type="button" ref={confirmYesRef} className={`${styles.btn} ${styles.danger}`} disabled={locked}
                               onClick={() => removeKind(k)}>{`Yes, delete kind ${k.name}`}</button>
-                            <button type="button" className={styles.btn} onClick={() => setConfirmKind(null)}>{`Keep kind ${k.name}`}</button>
+                            <button type="button" className={styles.btn}
+                              onClick={() => { pendingFocus.current = { type: 'kindDelete', id: k.id }; setConfirmKind(null) }}>{`Keep kind ${k.name}`}</button>
                           </div>
                         </>
                       ) : (
@@ -342,6 +370,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                             <button type="button" className={styles.btn} disabled={locked} aria-label={`Rename ${k.name}`}
                               onClick={() => { setKindProblem(''); setRenaming({ id: k.id, name: k.name }) }}>Rename</button>
                             <button type="button" className={`${styles.btn} ${styles.danger}`} disabled={locked}
+                              ref={(el) => { if (el) kindDeleteBtns.current[k.id] = el; else delete kindDeleteBtns.current[k.id] }}
                               aria-label={`Delete kind ${k.name}`} onClick={() => { setKindProblem(''); setConfirmKind(k.id) }}>Delete</button>
                           </div>
                         </>

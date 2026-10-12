@@ -5,6 +5,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, within, fireEvent, waitFor, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
+import { AuthContext } from '../../../../../context/AuthContext'
+import { __resetOfferApplied } from './offerApplied'
+import { friendlyError } from './styleErrors'
 
 const setPref = vi.fn()
 let prefsNow = {}
@@ -61,6 +64,7 @@ const PREVIEW = {
 const OFFLINE = "You're offline. Changes to styles need a connection."
 const SERVER_SIDE = 'Something went wrong on our side. Try again.'
 const NETWORK = Symbol('network failure')
+const CODE_BUG = Symbol('a bug in our own code')
 const NO_BODY = [500]                                // a 5xx whose body is not JSON
 
 let calls
@@ -78,6 +82,7 @@ function installFetch(extra = []) {
     let out = hit ? hit[2] : [404, { detail: 'Not found' }]
     if (typeof out === 'function') out = out(body)
     if (out === NETWORK) return Promise.reject(new TypeError('Failed to fetch'))
+    if (out === CODE_BUG) return Promise.reject(new TypeError('Cannot read properties of undefined'))
     const [status, payload] = Array.isArray(out) && typeof out[0] === 'number' ? out : [200, out]
     return Promise.resolve({
       ok: status >= 200 && status < 300, status,
@@ -93,6 +98,8 @@ beforeEach(() => {
   latchNotebookFlags({ notebook_journal_styles_enabled: true })
   prefsNow = {}
   setPref.mockClear()
+  __resetOfferApplied()
+  try { sessionStorage.clear() } catch { /* private mode */ }
   Element.prototype.scrollIntoView = vi.fn()
   routes = [
     ['GET', /^\/api\/j2\/journal-styles$/, LIST],
@@ -116,10 +123,12 @@ beforeEach(() => {
 })
 afterEach(() => { __resetNotebookFlags() })
 
-const open = (props = {}) => render(
-  <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
-    <StylesManager open onClose={vi.fn()} {...props} />
-  </SWRConfig>,
+const open = ({ userId = 'u1', ...props } = {}) => render(
+  <AuthContext.Provider value={{ user: { id: userId } }}>
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+      <StylesManager open onClose={vi.fn()} {...props} />
+    </SWRConfig>
+  </AuthContext.Provider>,
 )
 const edit = async (name = 'My plan') => {
   fireEvent.click(await screen.findByRole('button', { name: `Edit ${name}` }))
@@ -722,5 +731,190 @@ describe('the switch', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.queryByText('Journal styles')).toBeNull()
     expect(calls).toHaveLength(0)
+  })
+})
+
+describe('round 3: the applied offer outlives the Notebook route', () => {
+  const OFFER = { offer: { total: 7, rows: [] } }
+  const setup = () => {
+    routes.unshift(
+      ['GET', /^\/api\/j2\/note-kinds\/mapping-offer$/, OFFER],
+      ['POST', /^\/api\/j2\/note-kinds\/mapping-offer$/, { notes: [], count: 5, skipped: [{ id: 'n9', reason: 'locked' }, { id: 'n8', reason: 'locked' }] }],
+    )
+    installFetch()
+  }
+  const noOffer = async () => {
+    await screen.findByRole('heading', { name: 'Trade plan', level: 3 })
+    await waitFor(() => expect(called('GET', /mapping-offer$/).length).toBeGreaterThan(0))
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    expect(screen.queryByRole('button', { name: 'Set kinds' })).toBeNull()
+  }
+
+  it('apply, leave (unmount), arrive again through Settings: the offer is not asked again', async () => {
+    setup()
+    const first = open()
+    fireEvent.click(await screen.findByRole('button', { name: 'Set kinds' }))
+    await screen.findByText(/Set the kind on 5 notes/)
+    first.unmount()
+    open()
+    await noOffer()
+  })
+
+  it('storage that throws still hides it for the rest of the session (in this module)', async () => {
+    const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked') })
+    const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked') })
+    try {
+      setup()
+      const first = open()
+      fireEvent.click(await screen.findByRole('button', { name: 'Set kinds' }))
+      await screen.findByText(/Set the kind on 5 notes/)
+      first.unmount()
+      open()
+      await noOffer()
+    } finally { get.mockRestore(); set.mockRestore() }
+  })
+
+  it('it is kept per member: another member is still offered theirs', async () => {
+    setup()
+    const first = open({ userId: 'u1' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Set kinds' }))
+    await screen.findByText(/Set the kind on 5 notes/)
+    first.unmount()
+    open({ userId: 'u2' })
+    expect(await screen.findByRole('button', { name: 'Set kinds' })).toBeInTheDocument()
+  })
+})
+
+describe('round 3: unsaved editor changes', () => {
+  const PROMPT = 'Discard your unsaved changes to this style?'
+
+  it('Cancel clears a discard prompt that was waiting', async () => {
+    open()
+    await edit()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Half done' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await screen.findByText(PROMPT)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByText(PROMPT)).toBeNull())
+  })
+
+  it('Save clears it too', async () => {
+    open()
+    await edit()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Half done' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await screen.findByText(PROMPT)
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    await screen.findByText('Saved Half done.')
+    expect(screen.queryByText(PROMPT)).toBeNull()
+  })
+
+  it('opening another style over a dirty editor asks first; nothing is created until the answer', async () => {
+    open()
+    await edit()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Half done' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate Trade plan to edit' }))
+    await screen.findByText(PROMPT)
+    expect(called('POST', /journal-styles$/)).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+    expect(screen.getByLabelText('Name').value).toBe('Half done')
+    expect(called('POST', /journal-styles$/)).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate Trade plan to edit' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard changes' }))
+    await screen.findByRole('form', { name: 'Edit style Trade plan copy' })
+    expect(called('POST', /journal-styles$/)).toHaveLength(1)
+  })
+
+  it('New style over a dirty editor asks too; Discard goes where the member asked', async () => {
+    open()
+    await edit()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Half done' } })
+    fireEvent.click(screen.getByRole('button', { name: /New style/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard changes' }))
+    await screen.findByRole('form', { name: 'New style' })
+    expect(screen.getByLabelText('Name').value).toBe('')
+  })
+
+  it('with nothing changed, opening another style just opens it', async () => {
+    open()
+    await edit()
+    fireEvent.click(screen.getByRole('button', { name: /New style/ }))
+    await screen.findByRole('form', { name: 'New style' })
+    expect(screen.queryByText(PROMPT)).toBeNull()
+  })
+})
+
+describe('round 3: "offline" only for a real network failure', () => {
+  it('a TypeError from our own code is not called offline: server-side words, and it is logged', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    routes.unshift(['DELETE', /^\/api\/j2\/journal-styles\/s_member$/, CODE_BUG])
+    installFetch()
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete My plan' }))
+    expect(await alertText()).toBe(SERVER_SIDE)
+    expect(spy).toHaveBeenCalled()
+    spy.mockRestore()
+  })
+
+  it('Chrome, Safari and Firefox wordings of a network failure are offline', () => {
+    for (const msg of ['Failed to fetch', 'Load failed', 'NetworkError when attempting to fetch resource.']) {
+      expect(friendlyError(new TypeError(msg))).toBe(OFFLINE)
+    }
+  })
+})
+
+describe('round 3: the kind-delete confirm keeps focus', () => {
+  const TWO = { ...LIST, kinds: [...KINDS, { id: 'k_two', name: 'Gap plays', icon: 'bolt', builtin: false, sortOrder: 10 }] }
+  const kindRoutes = (list) => {
+    routes.unshift(['GET', /^\/api\/j2\/journal-styles$/, list], ['DELETE', /^\/api\/j2\/note-kinds\/k_own$/, { ok: true, purgedDeletedStyles: 0 }])
+    installFetch()
+  }
+
+  it('opening the confirm focuses its first button; Keep returns focus to that kind’s Delete', async () => {
+    kindRoutes(TWO)
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete kind Setups I trade' }))
+    const yes = await screen.findByRole('button', { name: 'Yes, delete kind Setups I trade' })
+    await waitFor(() => expect(document.activeElement).toBe(yes))
+    fireEvent.click(screen.getByRole('button', { name: 'Keep kind Setups I trade' }))
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Delete kind Setups I trade' })))
+  })
+
+  it('after a delete, focus goes to the next kind row (its first button)', async () => {
+    let gone = false
+    routes.unshift(
+      ['GET', /^\/api\/j2\/journal-styles$/, () => (gone ? { ...TWO, kinds: TWO.kinds.filter((k) => k.id !== 'k_own') } : TWO)],
+      ['DELETE', /^\/api\/j2\/note-kinds\/k_own$/, () => { gone = true; return { ok: true, purgedDeletedStyles: 0 } }],
+    )
+    installFetch()
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete kind Setups I trade' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Yes, delete kind Setups I trade' }))
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Rename Gap plays' })))
+  })
+
+  it('deleting the last own kind sends focus to the add-kind field', async () => {
+    let gone = false
+    routes.unshift(
+      ['GET', /^\/api\/j2\/journal-styles$/, () => (gone ? { ...LIST, kinds: KINDS.filter((k) => k.id !== 'k_own') } : LIST)],
+      ['DELETE', /^\/api\/j2\/note-kinds\/k_own$/, () => { gone = true; return { ok: true, purgedDeletedStyles: 0 } }],
+    )
+    installFetch()
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete kind Setups I trade' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Yes, delete kind Setups I trade' }))
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('New kind name')))
+  })
+})
+
+describe('round 3: the status bar leaves no gap when it has nothing to say', () => {
+  it('is marked empty until there is something to say, then is not', async () => {
+    open()
+    await screen.findByRole('heading', { name: 'Trade plan', level: 3 })
+    const bar = screen.getByRole('status').parentElement
+    expect(bar).toHaveAttribute('data-empty')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete My plan' }))
+    await screen.findByText('Style deleted.')
+    expect(bar).not.toHaveAttribute('data-empty')
   })
 })
