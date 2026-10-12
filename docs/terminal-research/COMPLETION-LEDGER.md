@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (2026-10-12): not complete.** 275 of 279 rows are `live` or `moot`; 4 are not (0 `dark`, 3 `building`, 1 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (2026-10-12): not complete.** 276 of 279 rows are `live` or `moot`; 3 are not (0 `dark`, 3 `building`, 0 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -37,7 +37,7 @@ python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETI
 Printed 2026-10-12:
 
 ```
-279 Counter({'live': 235, 'moot': 40, 'building': 3, 'owner-blocked': 1})
+279 Counter({'live': 236, 'moot': 40, 'building': 3})
 0 duplicate ids
 ```
 
@@ -54,9 +54,9 @@ The per-section split is the same regex applied to each `## ` section:
 | 3 TERM-001..093 | 93 | 85 | 0 | 2 | 0 | 6 |
 | 4 BRK-01..10 | 10 | 9 | 0 | 0 | 0 | 1 |
 | 5 COV-01..12 | 12 | 9 | 0 | 0 | 0 | 3 |
-| 6 FT-001..080 | 80 | 70 | 0 | 0 | 1 | 9 |
+| 6 FT-001..080 | 80 | 71 | 0 | 0 | 0 | 9 |
 | 7 Untracked promises | 58 | 49 | 0 | 0 | 0 | 9 |
-| **total** | **279** | **235** | **0** | **3** | **1** | **40** |
+| **total** | **279** | **236** | **0** | **3** | **0** | **40** |
 
 `building` by lane: P 3.
 
@@ -266,7 +266,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `FT-031` | Three alert kinds | `live` | `api/services/alert_conditions.py:44`. |
 | `FT-032` | Alert on the position drawing | `live` | Built on lane f-l6 (`47013a182`, branch-only until merged; no flag, so it is live once merged): `alertKindFor('position')` returns `line` (`app/src/components/chart/drawingAlertAnchors.js`); entry, stop and target are bound line alerts keyed by point index (`<id>#1` is the stop), so the existing resync moves and deletes them; the menu offers Entry, Stop, Target and All three (`positionAlerts` in `drawingSettingsSchema.js`, `ChartDrawingOverlay.jsx`), and the entry's side comes from the last close (`StockChart.jsx`). Tests: `drawingPositionAlert.test.jsx`. Was `building (Lane S)`. Landed on master with lane L6 (`25bab1588`); no flag, so live on merge. |
 | `FT-033` | Outbound webhook alerts | `live` | `ALERT_WEBHOOKS_ENABLED` still `pending` (`docs/feature_flags.json`); on master. Arming checked 2026-10-10 (lane f-l6): read site `api/services/alert_taxonomy/outbound_webhooks.py:102`, drain job `alert_webhooks_drain`; prerequisite `BROKER_ENCRYPTION_KEY` on web (`outbound_webhooks.py:219` refuses to mint a signing secret without it). `12-decisions/2026-10-10-arming-list.md`. Armed 2026-10-11 (owner ruling 2026-10-10, "everything on the list"): see the flag's `docs/feature_flags.json` entry for the service and flip time. |
-| `FT-034` | Six trigger source types | `owner-blocked (as TERM-025: arm ALERT_TAXONOMY_RATING_CHANGE_DARK_ENABLED on web, then flip rating-change when the readiness tool prints it READY)` | The rating-change type is built dark (`api/services/alert_taxonomy/rating_change.py`, `ALERT_RATING_CHANGE_ENABLED` pending). Lane f-l6 (`fbe983304`) adds its shadow log (`rating_change_compare.py`, behind `ALERT_TAXONOMY_RATING_CHANGE_DARK_ENABLED`, spans and a heartbeat only), read by `tools/alert_type_readiness.py` like the other seven. ➜ 2026-10-07: T-11 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) ➜ 2026-10-10 (lane f-flip): the flip shape every type follows now exists in code for regime-change, scan-membership-change and catalyst-match (`*_live.py` modules, flags `dark`, see TERM-025); rating-change keeps its own `ALERT_RATING_CHANGE_ENABLED` delivery gate and flips when the readiness tool prints it READY. ➜ 2026-10-12 (first live sweeps): the shadow population was the A-Z first 150 of ~3,200 cohort symbols, i.e. 112 `$IDX:` theme rows plus 38 names A..AAT, and 123 of 150 could not evaluate. FIXED `6312838983` (`cohort_tickers`: stock symbols only, most-held first, ties on a fixed hash, the same set every sweep); the 08:45 sweep on it evaluated 139 of 150 (was 27). The 10-session count starts 2026-10-12, so READY is 2026-10-23 at the earliest. At that reading, the predicates the 07:15/07:45 sweeps opened that the fixed population no longer holds stall out and need `--dispositions` `confirmed_inactive` (they scored nothing; deleting those rows instead needs the owner's OK, as a live-data write). |
+| `FT-034` | Six trigger source types | `live` | The rating-change type is built dark (`api/services/alert_taxonomy/rating_change.py`, `ALERT_RATING_CHANGE_ENABLED` pending). Lane f-l6 (`fbe983304`) adds its shadow log (`rating_change_compare.py`, behind `ALERT_TAXONOMY_RATING_CHANGE_DARK_ENABLED`, spans and a heartbeat only), read by `tools/alert_type_readiness.py` like the other seven. ➜ 2026-10-07: T-11 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) ➜ 2026-10-10 (lane f-flip): the flip shape every type follows now exists in code for regime-change, scan-membership-change and catalyst-match (`*_live.py` modules, flags `dark`, see TERM-025); rating-change keeps its own `ALERT_RATING_CHANGE_ENABLED` delivery gate and flips when the readiness tool prints it READY. ➜ 2026-10-12 (first live sweeps): the shadow population was the A-Z first 150 of ~3,200 cohort symbols, i.e. 112 `$IDX:` theme rows plus 38 names A..AAT, and 123 of 150 could not evaluate. FIXED `6312838983` (`cohort_tickers`: stock symbols only, most-held first, ties on a fixed hash, the same set every sweep); the 08:45 sweep on it evaluated 139 of 150 (was 27). The 10-session count starts 2026-10-12, so READY is 2026-10-23 at the earliest. At that reading, the predicates the 07:15/07:45 sweeps opened that the fixed population no longer holds stall out and need `--dispositions` `confirmed_inactive` (they scored nothing; deleting those rows instead needs the owner's OK, as a live-data write). LIVE 2026-10-12: owner ruling "Switch on now" waived the 10-session readiness bar; `ALERT_RATING_CHANGE_ENABLED=1` set on web 18:42Z (deploy `087ee696`), read back in-process (`rating_change.is_enabled()` True). Members can create rating-change alerts; the 30-minute sweep delivers new upgrades/downgrades only (no history replay, `alert_fires` dedup). The shadow log keeps running, so the readiness tool can still be read on 2026-10-23 as an after-the-fact check. |
 | `FT-035` | Per-alert lifecycle | `live` | Expiry armed on web 2026-10-04 (`a046f7d9f`) (`ALERT_LIFECYCLE_ENABLED`). Remind built dark (`lane/s2-finish`, `9e69eddd9`): `ALERT_REMIND_ENABLED` pending; arming checked 2026-10-10 (lane f-l6): read site `api/services/alert_taxonomy/remind.py:63`, job `alert_remind`, no prerequisite (`12-decisions/2026-10-10-arming-list.md`). Reverse still waits on the price_level flip (TERM-025). Was `building (Lane S)`. Armed 2026-10-11 (owner ruling 2026-10-10, "everything on the list"): see the flag's `docs/feature_flags.json` entry for the service and flip time. |
 | `FT-036` | Routing rule + suspend | `live` | `ALERT_ROUTING_RULE_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:1890`); the rule governs the TERM-048 bridge too (`937b3d9e5`). Was `building (Lane S)`. |
 | `FT-037` | Four channels incl. SMS / push | `moot (decided 2026-10-07: no SMS; email, in-app and push cover it)` | Email/in-app live; push dark (BRK-04). ➜ 2026-10-07: S-3 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
