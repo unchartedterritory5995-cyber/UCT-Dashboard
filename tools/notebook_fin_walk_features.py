@@ -2124,9 +2124,17 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             M.put(base + f"/api/j2/journal-styles/{mine['id']}", data={"blocks": [{"block": "chart", "enabled": True, "settings": {"tf": "W"}}]})
         C.goto(pg, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
         banner = C.vis_loc(pg.get_by_text(re.compile(r"Update layout to v\d+\?")), 15000)
+        apply_status = None
         if banner:
             pg.get_by_role("button", name="Review update").click()
-            pg.get_by_role("button", name="Apply").click()
+            # Wait on the WRITE the press makes, never on the banner: the banner hides on the press while
+            # the apply is still composing (a chart snapshot, ~4 s cold), so a read taken when it hides
+            # can be answered BEFORE the apply lands (walk 7b87a2c7e6: GET answered first, v2 read back
+            # while the apply returned v3 with the chart). Integrator ruling R-T13-1: tool, not product.
+            with pg.expect_response(lambda r: "/apply-style-update" in r.url and r.request.method == "POST",
+                                    timeout=30000) as applied:
+                pg.get_by_role("button", name="Apply").click()
+            apply_status = applied.value.status
             pg.get_by_text(re.compile(r"Update layout to v\d+\?")).first.wait_for(state="hidden", timeout=15000)
         got = M.get(base + f"/api/j2/notes/{n['id']}").json()["note"]
         added = any(x.get("type") == "widgetEmbed" and (x.get("attrs") or {}).get("widgetId") == "chart"
@@ -2134,7 +2142,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         conflicted = [x for x in C.notes_list(ctx, base) if "(conflicted copy)" in (x.get("title") or "")]
         ok = banner and added and got.get("styleVersion") == (mine or {}).get("version", 0) + 2 and not conflicted
         C.step(pg, inst, "styles.update-layout", "The banner's Review update -> Apply adds the block, stamps the version, forks nothing",
-               "PASS" if ok else "FAIL", style_version=got.get("styleVersion"), chart_added=added, conflicted=len(conflicted))
+               "PASS" if ok else "FAIL", banner=bool(banner), apply_status=apply_status,
+               style_version=got.get("styleVersion"), chart_added=added, conflicted=len(conflicted))
         ed = pg.locator(".ProseMirror").first
         ed.click()
         pg.keyboard.press("Control+End")

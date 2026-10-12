@@ -170,6 +170,72 @@ def test_update_layout_reads_the_added_block_and_unknown_block_saves_first():
     assert _calls_function(fn, SAVE), "unknown-block must wait for the save, not a clock"
 
 
+APPLY = "/apply-" + "style-update"
+
+
+def _apply_wait_line(tree) -> int | None:
+    """Line of a `with <x>.expect_response(...)` whose predicate names the apply route in CODE, else None."""
+    for n in ast.walk(tree):
+        if isinstance(n, ast.With):
+            for item in n.items:
+                c = item.context_expr
+                if isinstance(c, ast.Call) and _dotted(c.func).endswith("expect_response") and APPLY in _code_strings(c):
+                    return n.lineno
+    return None
+
+
+NOTE_GET = "/api/j2/" + "notes/"
+
+
+def _readback_line(tree) -> int | None:
+    """Line of the first `M.get(...)` of a NOTE (its URL holds the notes route in code): the walk's own read of
+    the note after the apply. Other reads in the step (the styles listing) are not the read-back."""
+    lines = [n.lineno for n in ast.walk(tree) if isinstance(n, ast.Call) and _dotted(n.func) == "M.get"
+             and NOTE_GET in _code_strings(n)]
+    return min(lines) if lines else None
+
+
+def _step_keywords(tree, feature: str) -> set[str]:
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Call) and _dotted(n.func).endswith(".step"):
+            if any(isinstance(a, ast.Constant) and a.value == feature for a in n.args):
+                return {k.arg for k in n.keywords if k.arg}
+    return set()
+
+
+def test_control_f_the_apply_wait_matcher_ignores_prose_and_sees_code():
+    note_get = "    got = M.get(base + f'" + NOTE_GET + "{nid}')\n"
+    prose = ("def styles():\n"
+             "    # with pg.expect_response(lambda r: '" + APPLY + "' in r.url):\n"
+             "    pg.get_by_role('button', name='Apply').click()\n" + note_get)
+    real = ("def styles():\n"
+            "    listing = M.get(base + '/api/j2/journal-styles')\n"          # an earlier, unrelated read
+            "    with pg.expect_response(lambda r: '" + APPLY + "' in r.url) as a:\n"
+            "        pg.get_by_role('button', name='Apply').click()\n" + note_get)
+    late = ("def styles():\n" + note_get +
+            "    with pg.expect_response(lambda r: '" + APPLY + "' in r.url) as a:\n"
+            "        pg.get_by_role('button', name='Apply').click()\n")
+    assert _apply_wait_line(ast.parse(prose)) is None
+    t = ast.parse(real)
+    assert _readback_line(t) == 5, "the read-back is the note GET, not the earlier styles listing"
+    assert _apply_wait_line(t) is not None and _apply_wait_line(t) < _readback_line(t)
+    t = ast.parse(late)
+    assert not (_apply_wait_line(t) < _readback_line(t)), "a read taken BEFORE the wait must not satisfy the rail"
+
+
+def test_update_layout_reads_back_only_after_the_apply_answers():
+    """Integrator ruling R-T13-1 (walk 7b87a2c7e6): the banner hides on the press while the apply is still
+    composing, so a read keyed on the banner raced the apply (GET answered first, v2 read back while the apply
+    returned v3 with the chart). The read must come after the walk has waited on the apply's own response."""
+    fn = _real_styles()
+    wait = _apply_wait_line(fn)
+    read = _readback_line(fn)
+    assert read is not None, "non-vacuity: the update-layout read-back is in styles()"
+    assert wait is not None, "update-layout must wait on the apply-style-update POST, not on the banner"
+    assert wait < read, "the read-back must come after the apply's response"
+    assert "banner" in _step_keywords(fn, "styles.update-layout"), "the row must record whether the banner showed"
+
+
 def test_unknown_block_checks_the_typed_text_was_saved():
     fn = _real_styles()
     assert _compares_to(fn, "xy"), "the edited paragraph must be compared to the text the edit leaves"
