@@ -1,0 +1,26 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "PUT /api/j2/trader-blocks/positions/pos-styles-1/pre-entry",
+    "note": "Log Trade's ticks for an open position: the adherence store under pos:<id>, never a note.",
+    "path": "/api/j2/trader-blocks/positions/pos-styles-1/pre-entry",
+    "requestBody": {
+      "checkedRuleIds": [
+        "r1"
+      ],
+      "setup": "VCP",
+      "totalRules": 2
+    },
+    "status": 200
+  },
+  "body": {
+    "adherencePct": 0.5,
+    "checkedRuleIds": [
+      "r1"
+    ],
+    "setup": "VCP",
+    "totalRules": 2,
+    "tradeRef": "pos:pos-styles-1",
+    "updatedAt": "2026-10-05T14:30:00+00:00"
+  }
+}

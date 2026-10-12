@@ -37,6 +37,14 @@ export const BLOCK_KINDS = Object.freeze([
       Object.freeze({ key: 'grade', label: 'Setup grade', options: Object.freeze(['A', 'A+', 'B']), default: 'A' }),
     ]),
   }),
+  Object.freeze({
+    id: 'marketcontext',
+    label: 'Market context',
+    settings: Object.freeze([
+      Object.freeze({ key: 'fields', label: 'Show', options: Object.freeze(['all', 'regime', 'indexes']), default: 'all',
+        optionLabels: Object.freeze({ all: 'Everything', regime: 'Regime, exposure and breadth', indexes: 'SPY, QQQ and VIX' }) }),
+    ]),
+  }),
 ])
 
 const TF_WORDS = { D: 'Daily', W: 'Weekly', 60: '1 hour', 15: '15 minutes', 5: '5 minutes' }
