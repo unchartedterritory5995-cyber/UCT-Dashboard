@@ -181,6 +181,14 @@ export const SURFACES = Object.freeze({
   'components/notebook/CotEmbed.jsx': { recipe: 'embed-cot' },
   'components/notebook/ModelBookEmbed.jsx': { recipe: 'embed-model-book' },
 
+  // ── Notebook P2a trader blocks (blocks/; rail a11y/traderBlocks.a11y.test.jsx). Each body task
+  // swaps its own line for its own recipe when it replaces the stub.
+  'components/notebook/blocks/BlockNodeView.jsx': { recipe: 'trader-block-platform' },
+  'components/notebook/blocks/blockStates.jsx': { coveredBy: 'trader-block-platform' },
+  'components/notebook/blocks/PreEntryChecklistBlock.jsx': { coveredBy: 'trader-block-platform' },
+  'components/notebook/blocks/PriceStampsBlock.jsx': { coveredBy: 'trader-block-platform' },
+  'components/notebook/blocks/PositionSizingBlock.jsx': { coveredBy: 'trader-block-platform' },
+
   // ── documents ──────────────────────────────────────────────────────────────
   'components/notebook/DocumentPreviewSheet.jsx': { recipe: 'document-preview-pdf' },
   'components/notebook/PdfViewerBoundary.jsx': { coveredBy: 'document-preview-pdf' },
