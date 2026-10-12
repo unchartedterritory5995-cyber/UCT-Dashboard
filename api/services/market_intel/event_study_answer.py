@@ -40,7 +40,7 @@ def _fmt_threshold(unit, domain, v: float) -> str:
 
 
 def _episode_text(q: dict) -> str:
-    if q["condition"]["op"].startswith("cross_"):
+    if any(c["op"].startswith("cross_") for c in (q.get("conditions") or [q["condition"]])):
         return "each crossing"
     return "first session of each run" if q["episodes"] == "first" else "every qualifying session"
 
@@ -61,8 +61,10 @@ def answer(res: Any) -> dict:
         r = res if isinstance(res, dict) else {}
         return {"status": r.get("status") or "unavailable", "text": _why(r), "table": None}
     q, cov, c = res["request"], res["coverage"], res["counts"]
-    thr = _fmt_threshold(res["series_unit"], res["series_domain"], q["condition"]["threshold"])
-    head = (f"{res['series_label']} {_OP_TEXT[q['condition']['op']]} {thr}: "
+    conds = q.get("conditions") or [q["condition"]]
+    ctext = " AND ".join(f"{c['series']['label']} {_OP_TEXT[c['op']]} "
+                         f"{_fmt_threshold(c['series']['unit'], c['series']['domain'], c['threshold'])}" for c in conds)
+    head = (f"{ctext}: "
             f"{c['events_used']} event{'s' if c['events_used'] != 1 else ''} between {cov['study_start']} and "
             f"{cov['study_end']} ({_episode_text(q)}"
             f"{', non-overlapping' if q['non_overlapping'] else ''}). Forward {q['symbol']} price returns from the "

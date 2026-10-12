@@ -83,10 +83,10 @@ def _parse_date(s) -> Optional[str]:
 
 # ── validation (pure; reads nothing) ─────────────────────────────────────────
 
-def validate(req: Any) -> tuple[Optional[dict], Optional[dict]]:
-    if not isinstance(req, dict):
-        return None, _refused("bad_request", "The study request was not understood.")
-    cond = req.get("condition")
+MAX_COMPOUND = 3
+
+
+def _validate_condition(cond: Any) -> tuple[Optional[dict], Optional[dict]]:
     if not isinstance(cond, dict):
         return None, _refused("bad_condition", "The condition must name a series, an operator and a threshold.")
     series, err = _sa.describe(cond.get("series"))
@@ -103,6 +103,28 @@ def validate(req: Any) -> tuple[Optional[dict], Optional[dict]]:
     thr = _finite(cond.get("threshold"))
     if thr is None or not _sa.threshold_ok(series["domain"], thr):
         return None, _refused("bad_threshold", "That threshold isn't a possible value for this measure.")
+    return {"series": series, "op": cond["op"], "threshold": thr, "transform": transform}, None
+
+
+def validate(req: Any) -> tuple[Optional[dict], Optional[dict]]:
+    if not isinstance(req, dict):
+        return None, _refused("bad_request", "The study request was not understood.")
+    cond = req.get("condition")
+    if isinstance(cond, dict) and "all" in cond:
+        parts = cond.get("all")
+        if not isinstance(parts, list) or not 2 <= len(parts) <= MAX_COMPOUND or len(cond) != 1:
+            return None, _refused("bad_condition", f"A combined condition is {{all: [2–{MAX_COMPOUND} conditions]}}.")
+        conditions = []
+        for c in parts:
+            v, err = _validate_condition(c)
+            if err:
+                return None, err
+            conditions.append(v)
+    else:
+        v, err = _validate_condition(cond)
+        if err:
+            return None, err
+        conditions = [v]
     sym = _pr.normalize_symbol(req.get("symbol"))
     if not sym:
         return None, _refused("bad_symbol", "Name the ticker to measure afterwards (for example QQQ).")
@@ -129,8 +151,7 @@ def validate(req: Any) -> tuple[Optional[dict], Optional[dict]]:
         return None, _refused("bad_date", "Study dates must be real calendar dates (YYYY-MM-DD).")
     if start and end and end < start:
         return None, _refused("bad_date", "The study window ends before it starts.")
-    return {"condition": {"series": series, "op": cond["op"], "threshold": thr, "transform": transform},
-            "symbol": sym, "horizons": horizons, "episodes": episodes, "entry": entry,
+    return {"condition": conditions[0], "conditions": conditions, "symbol": sym, "horizons": horizons, "episodes": episodes, "entry": entry,
             "non_overlapping": bool(req.get("non_overlapping", False)), "baseline": bool(req.get("baseline", True)),
             "start": _parse_date(start) if start else None, "end": _parse_date(end) if end else None}, None
 
@@ -184,39 +205,55 @@ def _align(series: dict, cal: list[str]) -> tuple[dict, Optional[set]]:
     return out, pubs
 
 
-def _detect(req: dict, cal: list[str], known: dict, ws: str, we: str,
-            pubs: Optional[set] = None) -> tuple[list[str], dict]:
-    op, thr = req["condition"]["op"], req["condition"]["threshold"]
+def _truth(cond: dict, cal: list[str], known: dict, pubs: Optional[set]) -> dict:
+    """session → True / False / None(unknown) for ONE condition, on every session.
+
+    level: the known value qualifies. cross: True only on an OBSERVATION session (every session for a
+    session series, a publication session for an as_of series) whose previous observation was known
+    and on the other side of the threshold."""
+    op, thr = cond["op"], cond["threshold"]
+    out, prev = {}, None
+    for d in cal:
+        v = known.get(d)
+        if v is None:
+            out[d], prev = None, None
+            continue
+        observed = pubs is None or d in pubs
+        if op in ("below", "above"):
+            out[d] = _qualifies(op, thr, v)
+        else:
+            out[d] = bool(observed and prev is not None and _qualifies(op, thr, v)
+                          and (prev >= thr if op == "cross_below" else prev <= thr))
+        if observed:
+            prev = v
+    return out
+
+
+def _detect_combined(req: dict, cal: list[str], truths: list[dict], eval_set: Optional[set],
+                     ws: str, we: str) -> tuple[list[str], dict]:
+    """Events where ALL conditions hold. Evaluated on every session, or — when every condition is an
+    as_of series — only on publication sessions (a carried value is not a new observation)."""
+    crossing = any(c["op"].startswith("cross_") for c in req["conditions"])
     events, qualifying, runs, gaps = [], 0, 0, 0
-    prev: Optional[float] = None
     in_run = False
     for d in cal:
         if d < ws or d > we:
             continue
-        v = known.get(d)
-        if v is None:
+        vals = [t.get(d) for t in truths]
+        if any(v is None for v in vals):
             gaps += 1
-            prev, in_run = None, False
+            in_run = False
             continue
-        if pubs is not None and d not in pubs:
-            continue                          # same observation as the last publication: not a new event
-        q = _qualifies(op, thr, v)
-        if op in ("below", "above"):
-            if q:
-                qualifying += 1
-                if not in_run:
-                    runs += 1
-                if req["episodes"] == "all" or not in_run:
-                    events.append(d)
-            in_run = q
-        else:
-            # cross_below: previous ≥ threshold and this < threshold; cross_above: previous ≤ and this >.
-            crossed = prev is not None and q and (prev >= thr if op == "cross_below" else prev <= thr)
-            if crossed:
-                events.append(d)
+        if eval_set is not None and d not in eval_set:
+            continue
+        q = all(vals)
+        if q:
+            qualifying += 1
+            if not in_run or crossing:
                 runs += 1
-            qualifying += 1 if q else 0
-        prev = v
+            if crossing or req["episodes"] == "all" or not in_run:
+                events.append(d)
+        in_run = q
     return events, {"qualifying_sessions": qualifying, "episodes_or_crossings": runs, "condition_gaps": gaps}
 
 
@@ -265,21 +302,33 @@ def _hlabel(h: dict) -> str:
     return f"{n} trading session{'s' if n != 1 else ''}" if u == "sessions" else f"{n} calendar month{'s' if n != 1 else ''}"
 
 
-def _study(req: dict) -> dict:
-    series = _sa.load(req["condition"]["series"])
+def _load_condition(cond: dict, req: dict) -> dict:
+    series = _sa.load(cond["series"])
     if series.get("status") != "ok":
         return {**series, "request": req, "stage": "condition_series"}
-    if req["condition"].get("transform") == "change":
+    if cond.get("transform") == "change":
         rows = series["rows"]
         series = {**series, "rows": [(rows[k][0], None if rows[k][1] is None or rows[k - 1][1] is None
                                       else rows[k][1] - rows[k - 1][1]) for k in range(1, len(rows))]}
         if not series["rows"]:
             return _unavailable("no_data", "Not enough observations to compute a change.", request=req)
+    return series
+
+
+def _study(req: dict) -> dict:
+    loaded = []
+    for c in req["conditions"]:
+        sr = _load_condition(c, req)
+        if sr.get("status") != "ok":
+            return sr
+        loaded.append(sr)
+    series = loaded[0]
     ps = _pr.daily_closes(req["symbol"])
     if ps.get("status") != "ok":
         return {**ps, "request": req, "stage": "price"}
     price = dict(ps["closes"])
-    b_first, b_last = series["rows"][0][0], series["rows"][-1][0]
+    b_first = max(sr["rows"][0][0] for sr in loaded)        # every condition must be knowable
+    b_last = min(sr["rows"][-1][0] for sr in loaded)
     p_first, p_last = ps["first"], ps["last"]
 
     ws = max(b_first, p_first, req["start"] or b_first)
@@ -293,12 +342,20 @@ def _study(req: dict) -> dict:
     cal = _trading_days(min(ws, b_first), cal_end)
     idx = {d: i for i, d in enumerate(cal)}
 
-    if series["alignment"] == "as_of":
+    all_as_of = all(sr["alignment"] == "as_of" for sr in loaded)
+    if all_as_of:
         # the last publication may fall on a non-session day: the window runs to the session that knew it
         nxt = next((d for d in cal if d >= b_last), b_last)
         we = min(nxt, req["end"] or nxt)
-    known, pubs = _align(series, cal)  # session → known condition value (None = gap); publication sessions
-    raw, counts = _detect(req, cal, known, ws, we, pubs)
+    truths, eval_set, knowns = [], (set() if all_as_of else None), []
+    for c, sr in zip(req["conditions"], loaded):
+        known, pubs = _align(sr, cal)       # session → known value (None = gap); publication sessions
+        knowns.append(known)
+        truths.append(_truth(c, cal, known, pubs))
+        if all_as_of:
+            eval_set |= pubs
+    known = knowns[0]
+    raw, counts = _detect_combined(req, cal, truths, eval_set, ws, we)
 
     def entry_of(d: str) -> Optional[str]:
         if req["entry"] == "event_close":
@@ -332,7 +389,8 @@ def _study(req: dict) -> dict:
     inc = [0] * len(req["horizons"])
     miss = [0] * len(req["horizons"])
     for d, e in events:
-        item = {"event_date": d, "entry_date": e, "entry_close": price[e], "condition_value": known[d], "returns": []}
+        item = {"event_date": d, "entry_date": e, "entry_close": price[e], "condition_value": known[d],
+                "condition_values": [k[d] for k in knowns], "returns": []}
         for k, h in enumerate(req["horizons"]):
             outcome, ex, r = _forward(cal, idx, price, p_last, e, h)
             if outcome == "ok":
@@ -377,14 +435,19 @@ def _study(req: dict) -> dict:
     if counts["condition_gaps"]:
         notes.append(f"{counts['condition_gaps']} trading session(s) in the window have no known condition value; "
                      f"they never qualify and they end a run.")
-    if series["alignment"] == "as_of":
-        notes.append("This series is point-in-time: each session uses only the latest value PUBLISHED by that day.")
-    notes.extend(series.get("notes") or [])
+    if any(sr["alignment"] == "as_of" for sr in loaded):
+        notes.append("This study uses point-in-time series: each session sees only the latest value PUBLISHED by that day.")
+    if len(loaded) > 1:
+        notes.append("All conditions must hold on the same session; the study covers only the span where every "
+                     "series is known.")
+    for sr in loaded:
+        notes.extend(sr.get("notes") or [])
 
     spec = req["condition"]["series"]
     return {
         "status": "ok", "request": req,
-        "series_label": spec["label"], "series_category": spec["category"],
+        "series_label": " AND ".join(c["series"]["label"] for c in req["conditions"]),
+        "series_category": " + ".join(dict.fromkeys(c["series"]["category"] for c in req["conditions"])),
         "series_unit": spec["unit"], "series_domain": spec["domain"], "alignment": series["alignment"],
         "series_description": (series.get("source") or {}).get("universe_description"),
         "coverage": {"series_first": b_first, "series_last": b_last,

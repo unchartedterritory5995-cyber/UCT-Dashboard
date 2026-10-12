@@ -608,3 +608,79 @@ def test_market_cap_production_source_is_refused(world, monkeypatch):
     monkeypatch.setenv("MCAP_PIT_SOURCE", "r2")
     r = es.run(req(series={"kind": "market_cap", "symbol": "AAA"}, op="above", threshold=1e9))
     assert r["status"] == "unavailable" and r["reason"] == "marketcap_source_not_local"
+
+
+# ── compound conditions (AND across datasets) ────────────────────────────────
+
+def _pit_adapter(monkeypatch, kind, published, stale=60):
+    from api.services.market_intel import series_adapters as sa
+
+    def describe(spec):
+        return {"kind": kind, "label": f"Fake {kind}", "unit": "econ", "domain": "any", "category": f"test {kind}"}, None
+
+    def load(spec):
+        return {"status": "ok", "alignment": "as_of", "rows": published, "max_staleness_days": stale,
+                "coverage": {"first": published[0][0], "last": published[-1][0]}, "source": {"interface": "fake"}}
+    monkeypatch.setitem(sa.ADAPTERS, kind, (describe, load))
+
+
+def comp(*conds, **kw):
+    out = {"condition": {"all": list(conds)}, "symbol": "QQQ", "horizons": [{"sessions": 1}]}
+    out.update(kw)
+    return out
+
+
+def c(series=None, op="below", threshold=10):
+    return {"series": series or BREADTH, "op": op, "threshold": threshold}
+
+
+def test_compound_session_and_session(world, monkeypatch):
+    bars = [{"t": d, "c": 100.0 - (5.0 if i in (11, 12) else 0.0) + i * 0.01} for i, d in enumerate(S)]
+    fx.install(monkeypatch, bars=bars)
+    tech = {"kind": "technical", "symbol": "QQQ", "indicator": "pct_from_sma", "period": 5}
+    r = es.run(comp(c(), c(tech, threshold=-2), episodes="all"))
+    assert r["status"] == "ok"
+    # breadth < 10 on S[10..12]; QQQ ≥2% under its 5-day SMA only on S[11], S[12]
+    assert [e["event_date"] for e in r["events"]] == [S[11], S[12]]
+    assert "AND" in r["series_label"] and len(r["events"][0]["condition_values"]) == 2
+
+
+def test_compound_daily_and_point_in_time_uses_the_carried_value_every_session(world, monkeypatch):
+    _pit_adapter(monkeypatch, "pa", [("2024-01-02", -1.0), ("2024-03-01", 1.0)])
+    r = es.run(comp(c(), c({"kind": "pa"}, threshold=0), episodes="all"))
+    # breadth runs: S[10..12] (Jan) qualify while the Jan-published value (−1 < 0) holds; S[50] (Mar 15) does not
+    dates = [e["event_date"] for e in r["events"]]
+    assert dates == [S[10], S[11], S[12]] and S[50] not in dates
+
+
+def test_compound_of_two_point_in_time_series_evaluates_only_publications(world, monkeypatch):
+    _pit_adapter(monkeypatch, "pa", [("2024-01-10", -1.0), ("2024-02-09", -2.0), ("2024-03-08", 1.0)])
+    _pit_adapter(monkeypatch, "pb", [("2024-01-05", 5.0), ("2024-02-02", 6.0), ("2024-03-01", 7.0)])
+    r = es.run(comp(c({"kind": "pa"}, threshold=0), c({"kind": "pb"}, op="above", threshold=4), episodes="all"))
+    # true on every session 01-10..03-07 (pa flips positive on 03-08), but events only on sessions where
+    # SOME series published: 01-10 (pa), 02-02 (pb), 02-09 (pa), 03-01 (pb) — never the days in between
+    assert [e["event_date"] for e in r["events"]] == ["2024-01-10", "2024-02-02", "2024-02-09", "2024-03-01"]
+
+
+def test_compound_with_an_unknown_part_is_a_gap(world, monkeypatch):
+    rows = [(d, (8.0 if 10 <= i <= 14 else 50.0)) for i, d in enumerate(S) if i != 12]
+    fx.install(monkeypatch, rows=rows)
+    tech = {"kind": "technical", "symbol": "QQQ", "indicator": "rsi", "period": 2}
+    r = es.run(comp(c(), c(tech, op="above", threshold=0), episodes="first"))
+    # S[12] has no breadth value → the run breaks: S[10] and S[13] start separate runs
+    assert [e["event_date"] for e in r["events"]][:2] == [S[10], S[13]]
+    assert r["counts"]["condition_gaps"] >= 1
+
+
+@pytest.mark.parametrize("bad", [{"all": [c()]}, {"all": [c(), c(), c(), c()]}, {"all": "x"},
+                                 {"all": [c(), {"series": {"kind": "nope"}, "op": "below", "threshold": 1}]},
+                                 {"all": [c(), c()], "op": "below"}])
+def test_compound_validation(world, bad):
+    r = es.run({"condition": bad, "symbol": "QQQ", "horizons": [{"sessions": 1}]})
+    assert r["status"] == "refused" and world["breadth_calls"] == 0
+
+
+def test_compound_answer_names_every_condition(world, monkeypatch):
+    tech = {"kind": "technical", "symbol": "QQQ", "indicator": "rsi", "period": 14}
+    a = esa.answer(es.run(comp(c(), c(tech, op="above", threshold=1))))
+    assert a["status"] == "ok" and " AND QQQ RSI(14) above 1" in a["text"]
