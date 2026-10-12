@@ -1444,7 +1444,7 @@
    "domain": "breadth",
    "target": "breadth",
    "summary": "Look up MARKET BREADTH from UCT's own data (US, NYSE, Nasdaq): the current reading (live in the session), a finalized value on a date, two dates compared, or a range summarised — % above a moving average, new highs/lows, advance/decline, Stage 2/4 counts. UCT shows the figures to the member; you never see them. Use this (disposition apply, research null) — never state breadth figures yourself.",
-   "hints": "target = breadth entry ref. universe us (default) | nyse | nasdaq. metrics 1–4 keys; [] = general overview. value: date null = now (live); basis \"close\" only if a close is asked, else null. compare: compare_date required, date null = latest close. series: start required, end null = latest. Dates YYYY-MM-DD else null, from today_et / latest_finalized. reply: one short line, no figures. Keys: pct_above_{5,10,20,40,50,100,150,200}sma = % of stocks above that N-day simple MA; new_52w_highs/new_52w_lows = counts at 52-week highs/lows; net_new_high_low = highs minus lows; hi_ratio/lo_ratio = % of stocks at 52-week highs/lows; new_20d_highs/new_20d_lows = 20-day; near_52w_high = within 5% of 52w high; up_4pct_today/down_4pct_today = up/down 4%+ that day; ratio_5day/ratio_10day = up-4%/down-4% ratio over 5/10 days; adv_decline = net advancers; advancing/declining = issues up/down; universe_count = stocks counted; stage2_count/stage4_count = Stage 2 uptrend / Stage 4 downtrend counts.",
+   "hints": "target = breadth entry ref. universe us (default) | nyse | nasdaq | uct. metrics 1–4 keys; [] = general overview. value: date null = now (live); basis \"close\" only if a close is asked, else null. compare: compare_date required, date null = latest close. series: start required, end null = latest. Dates YYYY-MM-DD else null, from today_et / latest_finalized. reply: one short line, no figures. Keys: pct_above_{5,10,20,40,50,100,150,200}sma = % of stocks above that N-day simple MA; new_52w_highs/new_52w_lows = counts at 52-week highs/lows; net_new_high_low = highs minus lows; hi_ratio/lo_ratio = % of stocks at 52-week highs/lows; new_20d_highs/new_20d_lows = 20-day; near_52w_high = within 5% of 52w high; up_4pct_today/down_4pct_today = up/down 4%+ that day; ratio_5day/ratio_10day = up-4%/down-4% ratio over 5/10 days; adv_decline = net advancers; advancing/declining = issues up/down; universe_count = stocks counted; stage2_count/stage4_count = Stage 2 uptrend / Stage 4 downtrend counts.",
    "args": {
     "type": "object",
     "properties": {
@@ -1461,7 +1461,8 @@
       "enum": [
        "us",
        "nyse",
-       "nasdaq"
+       "nasdaq",
+       "uct"
       ]
      },
      "metrics": {

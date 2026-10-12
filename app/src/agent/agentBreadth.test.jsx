@@ -75,7 +75,8 @@ describe('1 · the capability: local only, closed args, dates-only context', () 
   it('the browser refuses a bad shape before anything is asked (from/to, wrong universe); the route refuses unknown metrics', () => {
     expect(shapeError('breadth.show', REQ)).toBeNull()
     expect(shapeError('breadth.show', { ...REQ, from: '2026-01-01' })).toMatch(/Unexpected detail/)
-    expect(shapeError('breadth.show', { ...REQ, universe: 'uct' })).toMatch(/isn't an option/)
+    expect(shapeError('breadth.show', { ...REQ, universe: 'europe' })).toMatch(/isn't an option/)
+    expect(shapeError('breadth.show', { ...REQ, universe: 'uct' })).toBeNull()        // answered honestly, locally (agentBreadthFast)
   })
 
   it('basis: null = present tense (UCT\'s current reading), "close" = an explicit close; nothing else', () => {
