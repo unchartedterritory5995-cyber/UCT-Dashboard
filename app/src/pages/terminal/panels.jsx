@@ -54,12 +54,17 @@ export const PANEL_IMPORTERS = {
   // ── wave 8 lane F: CHK pre-trade check ──
   Check: () => import('./panels/CheckPanel'),
   // ── end wave 8 lane F ──
+  // TAS (COV-08 / FT-077): the live trade tape — terminal-native, one SSE stream per open panel
+  TimeSales: () => import('./panels/TimeSalesPanel'),
   Depth: () => import('./panels/DepthPanel'),
   Events: () => import('../research/depth/EventsPanel'),
   FilingSearch: () => import('../research/depth/FilingSearchPanel'),
   EarningsReaction: () => import('../research/depth/EarningsReactionPanel'),
   Ftd: () => import('../research/depth/FtdPanel'),
   MentionSeries: () => import('../research/depth/MentionSeriesPanel'),
+  // COV-12 congressional trades: the Depth panel for a ticker, a terminal-native list without one
+  CongressTrades: () => import('../research/depth/CongressTradesPanel'),
+  CongressLatest: () => import('./panels/CongressLatestPanel'),
   OptionsChain: () => import('../research/tabs/OptionsChainTab'),
   IvHistory: () => import('../research/tabs/IvHistoryPanel'),
   Backtest: () => import('../research/tabs/BacktestPanel'),
