@@ -1,0 +1,128 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/journal-styles/preview",
+    "note": "No ticker asked: the member's latest note's.",
+    "path": "/api/j2/journal-styles/preview",
+    "requestBody": {
+      "styleId": "builtin:trade_plan"
+    },
+    "status": 200
+  },
+  "body": {
+    "bodyJson": {
+      "content": [
+        {
+          "attrs": {
+            "level": 2
+          },
+          "content": [
+            {
+              "text": "The setup",
+              "type": "text"
+            }
+          ],
+          "type": "heading"
+        },
+        {
+          "content": [
+            {
+              "text": "What is the pattern, and why now?",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        },
+        {
+          "attrs": {
+            "annotations": [],
+            "caption": null,
+            "capturedAt": "2026-10-05T14:30:00Z",
+            "embedId": "9062a1c0fdc24f32992e7909dafe9e34",
+            "fallback": null,
+            "layout": {
+              "height": null,
+              "width": "full"
+            },
+            "mode": "snapshot",
+            "params": {
+              "symbol": "MSFT",
+              "tf": "D",
+              "to": 1791210600
+            },
+            "v": 1,
+            "widgetId": "chart"
+          },
+          "type": "widgetEmbed"
+        },
+        {
+          "attrs": {
+            "level": 2
+          },
+          "content": [
+            {
+              "text": "Entry, stop and target",
+              "type": "text"
+            }
+          ],
+          "type": "heading"
+        },
+        {
+          "content": [
+            {
+              "text": "Entry:",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        },
+        {
+          "content": [
+            {
+              "text": "Stop:",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        },
+        {
+          "content": [
+            {
+              "text": "Target:",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        },
+        {
+          "attrs": {
+            "level": 2
+          },
+          "content": [
+            {
+              "text": "Size and risk",
+              "type": "text"
+            }
+          ],
+          "type": "heading"
+        },
+        {
+          "content": [
+            {
+              "text": "How much am I risking, and is it within my rules?",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ],
+      "type": "doc"
+    },
+    "properties": {
+      "builtin:note_kind": "trade_plan"
+    },
+    "skipped": [],
+    "ticker": "MSFT",
+    "tickerSource": "latest-note"
+  }
+}

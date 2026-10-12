@@ -1,0 +1,17 @@
+.wrap { margin: 0 0 16px; }
+.h { font-size: 14px; margin: 0 0 8px; }
+.status { font-size: 13px; color: var(--text-muted); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.kind { display: flex; flex-direction: column; gap: 4px; }
+.kindBtn { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center; text-align: left; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: inherit; cursor: pointer; }
+.kindName { font-weight: 600; }
+.kindStyle { grid-column: 2; font-size: 12px; color: var(--text-muted); }
+.another, .rowBtn { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 12px; text-align: left; padding: 4px 0; }
+.list { list-style: none; margin: 0; padding: 0; }
+.row { display: flex; gap: 8px; align-items: center; padding: 4px 0; }
+.rowName { flex: 1; font-size: 13px; }
+@media (max-width: 1024px) {
+  .kindBtn, .another, .rowBtn { min-height: var(--tap-min); }
+  .rowBtn { min-width: var(--tap-min); }
+}
+@media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }

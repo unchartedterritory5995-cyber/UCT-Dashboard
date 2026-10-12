@@ -480,6 +480,18 @@ GATE_READ_PATHS = (
     # segments, which is why the derivation rail names only the .py).
     "api/services/journal_two/sample_notebook.py",
     "api/services/journal_two/sample_notebook.json",
+    # Notebook P1 (journal styles, 2026-10-12; named by this rail on the P1 landing tree): the door
+    # ledger and the one-fact-in-two-files rails read the new styles/kinds sources and cite their
+    # tests, and the widened rail 2 cites two older Python tests as evidence. Exact paths.
+    "api/routers/notebook_journal_styles.py",
+    "api/services/journal_two/journal_styles.py",
+    "api/services/journal_two/note_kinds.py",
+    "tests/test_journal_styles_create.py",
+    "tests/test_journal_styles_update.py",
+    "tests/test_note_kinds.py",
+    "tests/test_note_sync_router.py",
+    "tests/test_notebook_journal_styles_router.py",
+    "tests/test_notebook_transcript_capture.py",
     # the Pine translator's own corpus + parity/lookback rails read these —
     # directories are whole-tree entries (same idiom as app/src above), the
     # rest are individual files `tests/test_the_read_set_covers_...` named

@@ -1,0 +1,20 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "PUT /api/j2/note-kinds/k_4ba0d9fb109341f7b9f01140e19ac259",
+    "path": "/api/j2/note-kinds/k_4ba0d9fb109341f7b9f01140e19ac259",
+    "requestBody": {
+      "name": "Gap & go"
+    },
+    "status": 200
+  },
+  "body": {
+    "kind": {
+      "builtin": false,
+      "icon": "bolt",
+      "id": "k_4ba0d9fb109341f7b9f01140e19ac259",
+      "name": "Gap & go",
+      "sortOrder": 0
+    }
+  }
+}

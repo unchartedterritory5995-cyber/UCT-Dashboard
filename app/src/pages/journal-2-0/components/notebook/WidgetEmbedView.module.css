@@ -329,3 +329,10 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
   .toolbar::-webkit-scrollbar { display: none; }
   .toolbar > * { flex: 0 0 auto; }
 }
+/* The unknown-kind card is a column: the block line, the sentence, then the Reload button on its
+   own line. The shared .placeholder row is untouched, so the other reasons render as before. */
+.placeholderUnknown { flex-direction: column; align-items: flex-start; gap: 4px; }
+.placeholderReload { margin-top: 6px; }
+@media (max-width: 1024px) {
+  .placeholderReload { min-height: var(--tap-min); min-width: var(--tap-min); }
+}

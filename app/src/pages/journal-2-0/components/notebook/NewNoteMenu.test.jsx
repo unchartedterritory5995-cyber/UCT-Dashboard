@@ -69,3 +69,15 @@ describe('NewNoteMenu', () => {
     expect(document.activeElement).toBe(caret)
   })
 })
+
+describe('NewNoteMenu: From a style (Notebook P1)', () => {
+  it('lists "From a style" only when a handler is passed', () => {
+    const { rerender } = render(<NewNoteMenu onBlank={() => {}} onFromOutline={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
+    expect(screen.queryByRole('menuitem', { name: /From a style/ })).toBeNull()
+    const onFromStyle = vi.fn()
+    rerender(<NewNoteMenu onBlank={() => {}} onFromOutline={() => {}} onFromStyle={onFromStyle} />)
+    fireEvent.click(screen.getByRole('menuitem', { name: /From a style/ }))
+    expect(onFromStyle).toHaveBeenCalledTimes(1)
+  })
+})

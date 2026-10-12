@@ -115,3 +115,25 @@ def test_the_shadow_log_is_readable_through_dark_report(db):
     out = dark_report.dark_report("rating-change", db_path=db)
     assert out["table"] == "rating_change_comparison_spans"
     assert [p["predicate_id"] for p in out["predicates"]] == ["shadow:NVDA"]
+
+
+def test_the_population_is_STOCKS_most_held_first_and_spans_the_alphabet(monkeypatch):
+    """2026-10-12: the first live sweep took the A-Z first 150 of ~3,200 symbols:
+    112 `$IDX:` theme rows and 38 names A..AAT, so 123 of 150 could not evaluate."""
+    from api.services.alert_taxonomy import catalyst_match_projection as cmp
+    alpha = [f"A{c}{d}" for c in "ABCDEFGHIJ" for d in "ABCDEFGHIJ"]          # 100 'A' names
+    late = ["NVDA", "ZS", "TSLA", "MSFT", "BRK.B", "BF-B", "XOM"]
+    junk = ["$IDX:AEROSPACE", "$IDX:3D-PRINTING", "^VIX", "BTC-USD", "ES=F", "", "  "]
+    lists = {1: set(alpha + late + junk), 2: {"NVDA", "zs"}, 3: {"NVDA"}}
+    monkeypatch.setattr(cmp, "cohort_user_ids", lambda: [1, 2, 3])
+    monkeypatch.setattr(cmp, "member_tickers_for", lambda ids: lists)
+    monkeypatch.setenv("RATING_CHANGE_SHADOW_MAX_TICKERS", "20")
+    got = rcc.cohort_tickers()
+    assert got[:2] == ["NVDA", "ZS"]                     # held by 3, then by 2 (case-folded)
+    assert len(got) == 20 and len(set(got)) == 20
+    assert not any(s.startswith(("$", "^")) or "=" in s or s == "BTC-USD" for s in got)
+    assert any(not s.startswith("A") for s in got[2:])  # not an A-Z cut
+    assert rcc.cohort_tickers() == got                   # the same set every sweep
+    monkeypatch.setenv("RATING_CHANGE_SHADOW_MAX_TICKERS", "500")
+    full = set(rcc.cohort_tickers())
+    assert {"BRK.B", "BF-B", "XOM"} <= full and not full & set(junk)

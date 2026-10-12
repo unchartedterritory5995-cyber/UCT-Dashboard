@@ -1,0 +1,13 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "DELETE /api/j2/note-kinds/k_d421c43dd2494f959d8cfacbbb776528",
+    "note": "The kind's one soft-deleted style goes with it, and the answer counts it.",
+    "path": "/api/j2/note-kinds/k_d421c43dd2494f959d8cfacbbb776528",
+    "status": 200
+  },
+  "body": {
+    "ok": true,
+    "purgedDeletedStyles": 1
+  }
+}

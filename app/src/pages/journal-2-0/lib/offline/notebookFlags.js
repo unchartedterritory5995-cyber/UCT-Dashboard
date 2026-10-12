@@ -74,6 +74,7 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_semantic_search_enabled: false, // wave 7 lane H3: search by meaning — absent ⇒ OFF
   notebook_terminal_links_enabled: false, // TERM-056: a pasted terminal command becomes a link — absent ⇒ OFF
   compass_notes_tool_enabled: false, // wave 7 lane H: Compass chat can search the member's notes (COMPASS_NOTES_TOOL_ENABLED) — absent ⇒ OFF
+  notebook_journal_styles_enabled: false, // P1: journal styles (kinds, styles, the manager) — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 

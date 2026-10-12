@@ -1,0 +1,1689 @@
+{
+  "blockquote_only_child_disabled": {
+    "content": [
+      {
+        "content": [
+          {
+            "type": "paragraph"
+          }
+        ],
+        "type": "blockquote"
+      }
+    ],
+    "type": "doc"
+  },
+  "builtin_daily_prep": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "The market",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "What is the tape telling me today?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Names on my list",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Which setups are closest to a trigger?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "My plan",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "What will I do, and what will I not do?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "builtin_daily_prep_no_ticker": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "The market",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "What is the tape telling me today?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Names on my list",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Which setups are closest to a trigger?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "My plan",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "What will I do, and what will I not do?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "builtin_earnings": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "What the market expects",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Consensus, and the move the options price in:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "symbol": "NVDA",
+            "tf": "D",
+            "to": 1791729000
+          },
+          "v": 1,
+          "widgetId": "chart"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "My view",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "What would surprise the market?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "The plan around the report",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Hold, trim, or wait?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "builtin_earnings_no_ticker": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "What the market expects",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Consensus, and the move the options price in:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Add a ticker to this note, then type /chart to add the chart.",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "My view",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "What would surprise the market?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "The plan around the report",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Hold, trim, or wait?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "builtin_post_trade_review": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "What happened",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Entry, exit and result:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "symbol": "NVDA",
+            "tf": "D",
+            "to": 1791729000
+          },
+          "v": 1,
+          "widgetId": "chart"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Did I follow my plan?",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Where did I follow it, and where did I not?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "What I'd do differently",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "builtin_post_trade_review_no_ticker": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "What happened",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Entry, exit and result:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Add a ticker to this note, then type /chart to add the chart.",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Did I follow my plan?",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Where did I follow it, and where did I not?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "What I'd do differently",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "builtin_thesis": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "The thesis",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Why will this stock go up (or down)?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "symbol": "NVDA",
+            "tf": "W",
+            "to": 1791729000
+          },
+          "v": 1,
+          "widgetId": "chart"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "What would prove me wrong",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Catalysts",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "builtin_thesis_no_ticker": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "The thesis",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Why will this stock go up (or down)?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Add a ticker to this note, then type /chart to add the chart.",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "What would prove me wrong",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Catalysts",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "builtin_trade_plan": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "The setup",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "What is the pattern, and why now?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "symbol": "NVDA",
+            "tf": "D",
+            "to": 1791729000
+          },
+          "v": 1,
+          "widgetId": "chart"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Entry, stop and target",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Entry:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Stop:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Target:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Size and risk",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "How much am I risking, and is it within my rules?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "builtin_trade_plan_no_ticker": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "The setup",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "What is the pattern, and why now?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Add a ticker to this note, then type /chart to add the chart.",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Entry, stop and target",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Entry:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Stop:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Target:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Size and risk",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "How much am I risking, and is it within my rules?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "builtin_watchlist_note": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Why it is on my list",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "symbol": "NVDA",
+            "tf": "D",
+            "to": 1791729000
+          },
+          "v": 1,
+          "widgetId": "chart"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "The level I am waiting for",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "builtin_watchlist_note_no_ticker": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Why it is on my list",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Add a ticker to this note, then type /chart to add the chart.",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "The level I am waiting for",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "builtin_weekend_prep": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "The week behind",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "What worked and what did not?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Leading groups",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Where is the strength?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Next week's list",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Which names, at which levels?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "builtin_weekend_prep_no_ticker": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "The week behind",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "What worked and what did not?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Leading groups",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Where is the strength?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Next week's list",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Which names, at which levels?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "builtin_weekly_review": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "The numbers",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Trades, wins, losses and the result:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Best and worst trade",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "One thing to change",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "builtin_weekly_review_no_ticker": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "The numbers",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Trades, wins, losses and the result:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Best and worst trade",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "One thing to change",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "callout_only_child_unbuildable": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "H",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "type": "paragraph"
+          }
+        ],
+        "type": "callout"
+      }
+    ],
+    "type": "doc"
+  },
+  "column_only_child_placeholder": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "H",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "symbol": "NVDA",
+            "tf": "D",
+            "to": 1791729000
+          },
+          "v": 1,
+          "widgetId": "chart"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "type": "paragraph"
+              }
+            ],
+            "type": "column"
+          },
+          {
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "words",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              }
+            ],
+            "type": "column"
+          }
+        ],
+        "type": "columns"
+      }
+    ],
+    "type": "doc"
+  },
+  "hand_typed_placeholder_not_in_style": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "H",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "{{block:chart}}",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "w",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "list_item_first_child_placeholder": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Plan",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "symbol": "NVDA",
+            "tf": "D",
+            "to": 1791729000
+          },
+          "v": 1,
+          "widgetId": "chart"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "type": "paragraph"
+              }
+            ],
+            "type": "listItem"
+          }
+        ],
+        "type": "bulletList"
+      }
+    ],
+    "type": "doc"
+  },
+  "list_item_first_child_placeholder_no_ticker": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Plan",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Add a ticker to this note, then type /chart to add the chart.",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "type": "paragraph"
+              }
+            ],
+            "type": "listItem"
+          }
+        ],
+        "type": "bulletList"
+      }
+    ],
+    "type": "doc"
+  },
+  "save_chart_alone_in_callout_composed": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Setup",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "symbol": "NVDA",
+            "tf": "60",
+            "to": 1791729000
+          },
+          "v": 1,
+          "widgetId": "chart"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "content": [
+          {
+            "type": "paragraph"
+          }
+        ],
+        "type": "callout"
+      },
+      {
+        "content": [
+          {
+            "text": "mine",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "save_chart_alone_in_callout_outline": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Setup",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "type": "paragraph"
+          }
+        ],
+        "type": "callout"
+      },
+      {
+        "content": [
+          {
+            "text": "mine",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "save_two_charts_in_columns_composed": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Setup",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "symbol": "NVDA",
+            "tf": "D",
+            "to": 1791729000
+          },
+          "v": 1,
+          "widgetId": "chart"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "type": "paragraph"
+              }
+            ],
+            "type": "column"
+          },
+          {
+            "content": [
+              {
+                "type": "paragraph"
+              }
+            ],
+            "type": "column"
+          }
+        ],
+        "type": "columns"
+      }
+    ],
+    "type": "doc"
+  },
+  "save_two_charts_in_columns_outline": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Setup",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "type": "paragraph"
+              }
+            ],
+            "type": "column"
+          },
+          {
+            "content": [
+              {
+                "type": "paragraph"
+              }
+            ],
+            "type": "column"
+          }
+        ],
+        "type": "columns"
+      }
+    ],
+    "type": "doc"
+  },
+  "task_item_first_child_placeholder": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Plan",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "symbol": "NVDA",
+            "tf": "D",
+            "to": 1791729000
+          },
+          "v": 1,
+          "widgetId": "chart"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "content": [
+          {
+            "attrs": {
+              "checked": false
+            },
+            "content": [
+              {
+                "type": "paragraph"
+              }
+            ],
+            "type": "taskItem"
+          }
+        ],
+        "type": "taskList"
+      }
+    ],
+    "type": "doc"
+  },
+  "toggle_content_only_child": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "H",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "symbol": "NVDA",
+            "tf": "D",
+            "to": 1791729000
+          },
+          "v": 1,
+          "widgetId": "chart"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "More",
+                "type": "text"
+              }
+            ],
+            "type": "toggleSummary"
+          },
+          {
+            "content": [
+              {
+                "type": "paragraph"
+              }
+            ],
+            "type": "toggleContent"
+          }
+        ],
+        "type": "toggle"
+      }
+    ],
+    "type": "doc"
+  }
+}

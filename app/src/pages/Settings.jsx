@@ -24,6 +24,7 @@ import VoiceLearningPanel from '../components/voice/VoiceLearningPanel'
 import BrokerConnectionsCard from './journal-2-0/components/BrokerConnectionsCard'
 import BrowserCaptureCard from './journal-2-0/components/BrowserCaptureCard'
 import PersonalApiCard from './journal-2-0/components/PersonalApiCard'
+import JournalStylesCard from './journal-2-0/components/JournalStylesCard'
 import InboundEmailCard from './journal-2-0/components/InboundEmailCard'
 // Wave 8 seam S8-5: the sharing card (lane 8B builds it) -- renders null while both
 // sharing gates are dark (ruling D-B9). Rail: Settings.sharingCard.test.js.
@@ -2443,6 +2444,9 @@ export default function Settings() {
       // Wave 8 seam S8-5 -- renders null unless j2_share_links_enabled or
       // notebook_publish_enabled is on (both dark, ruling D-B9).
       card('sharing', <SharingCard />),
+      // Notebook P1 -- renders null unless notebook_journal_styles_enabled (dark). After sharing, which
+      // Settings.sharingCard.test.js pins right after personalApi.
+      card('journalStyles', <JournalStylesCard />),
       card('inboundEmail', <InboundEmailCard />),
     ],
     legal: [

@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "DELETE /api/j2/note-kinds/k_4ba0d9fb109341f7b9f01140e19ac259",
+    "path": "/api/j2/note-kinds/k_4ba0d9fb109341f7b9f01140e19ac259",
+    "status": 409
+  },
+  "body": {
+    "detail": "This kind is used by 1 style. Move them to another kind first."
+  }
+}

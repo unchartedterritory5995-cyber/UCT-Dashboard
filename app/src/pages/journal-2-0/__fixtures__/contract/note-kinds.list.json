@@ -1,0 +1,68 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/note-kinds",
+    "path": "/api/j2/note-kinds",
+    "status": 200
+  },
+  "body": {
+    "kinds": [
+      {
+        "builtin": true,
+        "icon": "chart",
+        "id": "trade_plan",
+        "name": "Trade plan",
+        "sortOrder": 0
+      },
+      {
+        "builtin": true,
+        "icon": "sun",
+        "id": "daily_prep",
+        "name": "Daily prep",
+        "sortOrder": 1
+      },
+      {
+        "builtin": true,
+        "icon": "calendar",
+        "id": "weekend_prep",
+        "name": "Weekend prep",
+        "sortOrder": 2
+      },
+      {
+        "builtin": true,
+        "icon": "earnings",
+        "id": "earnings",
+        "name": "Earnings",
+        "sortOrder": 3
+      },
+      {
+        "builtin": true,
+        "icon": "check",
+        "id": "post_trade_review",
+        "name": "Post-trade review",
+        "sortOrder": 4
+      },
+      {
+        "builtin": true,
+        "icon": "refresh",
+        "id": "weekly_review",
+        "name": "Weekly review",
+        "sortOrder": 5
+      },
+      {
+        "builtin": true,
+        "icon": "book",
+        "id": "thesis",
+        "name": "Thesis",
+        "sortOrder": 6
+      },
+      {
+        "builtin": true,
+        "icon": "eye",
+        "id": "watchlist_note",
+        "name": "Watchlist note",
+        "sortOrder": 7
+      }
+    ]
+  }
+}

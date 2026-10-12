@@ -349,3 +349,19 @@ def test_changelog_is_tenant_scoped(conn):
     other = _create(conn, "u1")
     ev.add_evidence("u1", thesis["id"], target_type="note", target_id=other["id"], stance="supports", conn=conn)
     assert changelog.get_thesis_changelog("u2", thesis["id"], conn=conn) == []
+
+
+def test_a_kind_of_note_change_is_not_a_thesis_event(conn, monkeypatch):
+    # builtin:note_kind is a filing label, not a research event: it must stay out of the timeline
+    # (it would read as a raw id), and the tracked set must keep naming only the research properties.
+    import api.services.journal_two.notes as notes_mod
+    from api.services.journal_two import note_properties as props
+    monkeypatch.setattr(notes_mod, "J2_VERSION_COALESCE_MINUTES", 0)
+    thesis = _create(conn, "u1")
+    update_note("u1", thesis["id"], {"properties": {"builtin:note_kind": "trade_plan"}}, conn=conn)
+    update_note("u1", thesis["id"], {"properties": {"builtin:note_kind": "thesis"}}, conn=conn)
+    events = changelog.get_thesis_changelog("u1", thesis["id"], conn=conn)
+    assert not [e for e in events if e["type"] == "property_changed"]
+    assert "builtin:note_kind" in props.BUILTIN_USER_SET_IDS                       # CONTROL: it is a user-set built-in
+    assert "builtin:note_kind" not in changelog._TRACKED_PROPERTY_IDS
+    assert "builtin:thesis_status" in changelog._TRACKED_PROPERTY_IDS              # CONTROL: the research four stay

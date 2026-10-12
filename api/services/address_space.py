@@ -183,6 +183,10 @@ EXEMPT: dict[str, str] = {
                            "belongs in the Notebook editor files, owned by the notebook workstream "
                            "(TERM-038 slice 2 stopped here by rule)",
     "j2_note_templates": "no-door: a note template is applied from the editor, never opened by URL",
+    "j2_journal_styles": "no-door: a journal style is opened from the Styles manager and applied when a "
+                         "note is made, never opened by URL (Notebook P1)",
+    "j2_note_kinds": "not-a-saved-object: a kind of note is a select option notes are grouped by, "
+                     "managed in the Styles manager, not a thing a member opens (Notebook P1)",
     "j2_template_gallery": "no-door: a community gallery template is browsed and copied inside the "
                            "Notebook's template dialog, never opened by URL (wave 12, lane 12A)",
     "j2_note_folders": "no-door: a folder has no URL instruction that opens it yet; that door belongs "

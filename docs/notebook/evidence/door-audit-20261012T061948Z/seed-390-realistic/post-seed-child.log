@@ -1,0 +1,6 @@
+tip: door audit seed
+  Model keys   : BLANKED ANTHROPIC_API_KEY, WISDOM_ANTHROPIC_API_KEY, OPENAI_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_AUTH_TOKEN; keyring -> null backend (opt in: --allow-model-keys or HUB_SANDBOX_ALLOW_MODEL_KEYS=1)
+POSTSEED {"block_keys": ["asOf", "embedId", "embedKey", "fingerprint", "fingerprintSource", "frozenAt", "mode", "noteId", "noteTitle", "position", "setupTag", "symbol", "timeframe", "values"], "block_symbols": [["MSFT", "Flat Base Breakout"], ["AMD", "VCP"], ["AAPL", "Classic Flag/Pullback"]], "template": {"found": true, "tag": "VCP"}, "nightly": {"ran": true, "asOf": "2026-10-12", "universe": 1, "universeTruncated": false, "members": 3, "templates": 3, "rows": 3, "thin": 0, "deferred": 0, "errors": 0, "patternReads": 0, "seconds": 0.003}, "passed_setups": {"added": 0, "scored": 1}, "projected": 0, "scans": []}
+
+--- stderr ---
+[email] RESEND_API_KEY not set — emails disabled

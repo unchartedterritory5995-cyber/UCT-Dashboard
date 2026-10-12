@@ -83,6 +83,8 @@ WAVE_FLAGS = [
     "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED", "NOTEBOOK_PASSED_SETUPS_ENABLED",
     "AWARENESS_NOTE_RESURFACE_ENABLED", "NOTEBOOK_THESIS_CHIPS_ENABLED", "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
     "NOTEBOOK_GETTING_STARTED_ENABLED",
+    # Notebook P1 (journal styles), dark in production; walked in c2 by the `styles` step.
+    "NOTEBOOK_JOURNAL_STYLES_ENABLED",
 ]
 # Armed in c2 for the meaning-search TOUR only (the tour lists only while its flag is on). The
 # search itself needs an embedding key and is recorded NOT_RUN.

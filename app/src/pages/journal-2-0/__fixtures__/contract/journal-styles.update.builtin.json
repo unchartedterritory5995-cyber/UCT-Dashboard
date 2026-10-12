@@ -1,0 +1,14 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "PUT /api/j2/journal-styles/builtin:thesis",
+    "path": "/api/j2/journal-styles/builtin:thesis",
+    "requestBody": {
+      "name": "x"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "Built-in styles can't be changed. Duplicate it to make your own."
+  }
+}

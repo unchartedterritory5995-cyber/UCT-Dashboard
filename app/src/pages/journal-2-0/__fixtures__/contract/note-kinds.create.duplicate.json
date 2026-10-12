@@ -1,0 +1,14 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/note-kinds",
+    "path": "/api/j2/note-kinds",
+    "requestBody": {
+      "name": "trade plan"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "There is already a kind called trade plan."
+  }
+}

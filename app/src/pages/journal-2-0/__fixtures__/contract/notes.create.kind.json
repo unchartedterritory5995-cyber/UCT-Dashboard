@@ -1,0 +1,149 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/notes",
+    "note": "A kind's default style (here the built-in): body, properties and stamp in one insert.",
+    "path": "/api/j2/notes",
+    "requestBody": {
+      "kindId": "trade_plan",
+      "ticker": "NVDA"
+    },
+    "status": 200
+  },
+  "body": {
+    "note": {
+      "accountId": null,
+      "archivedAt": null,
+      "bodyJson": {
+        "content": [
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "The setup",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "What is the pattern, and why now?",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "attrs": {
+              "annotations": [],
+              "caption": null,
+              "capturedAt": "2026-10-05T14:30:00Z",
+              "embedId": "a28df6efa7a04dba954e79bb1277d59c",
+              "fallback": null,
+              "layout": {
+                "height": null,
+                "width": "full"
+              },
+              "mode": "snapshot",
+              "params": {
+                "symbol": "NVDA",
+                "tf": "D",
+                "to": 1791210600
+              },
+              "v": 1,
+              "widgetId": "chart"
+            },
+            "type": "widgetEmbed"
+          },
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "Entry, stop and target",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "Entry:",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
+                "text": "Stop:",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
+                "text": "Target:",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "Size and risk",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "How much am I risking, and is it within my rules?",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          }
+        ],
+        "type": "doc"
+      },
+      "bodyPlain": "The setup What is the pattern, and why now? [widget] Entry, stop and target Entry: Stop: Target: Size and risk How much am I risking, and is it within my rules?",
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "dailyDate": null,
+      "deletedAt": null,
+      "firstImageUrl": null,
+      "folderId": null,
+      "heroImageUrl": null,
+      "id": "28170f6d91464636a644b85d3dca2711",
+      "kindId": "trade_plan",
+      "locked": false,
+      "propertiesJson": {
+        "builtin:note_kind": "trade_plan"
+      },
+      "styleId": "builtin:trade_plan",
+      "styleVersion": 1,
+      "subtitle": null,
+      "tags": [],
+      "ticker": "NVDA",
+      "title": "",
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "userId": "contract-styles"
+    },
+    "skippedBlocks": []
+  }
+}

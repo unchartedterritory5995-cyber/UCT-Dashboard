@@ -1,0 +1,14 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/notes",
+    "path": "/api/j2/notes",
+    "requestBody": {
+      "styleId": "nope"
+    },
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}

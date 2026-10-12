@@ -37,8 +37,10 @@ registered only while it is on.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import re
 import sqlite3
 import time
 from datetime import datetime
@@ -243,12 +245,33 @@ def observe(ticker: str, items: list[dict], day: str, *, actions: Iterable[str] 
     return tally
 
 
+_EQUITY_SYMBOL = re.compile(r"^[A-Z][A-Z0-9]{0,5}(?:[.-][A-Z0-9]{1,2})?$")
+
+
+def _spread(sym: str) -> str:
+    return hashlib.sha1(sym.encode()).hexdigest()
+
+
 def cohort_tickers() -> list[str]:
-    """Distinct watchlist tickers of the S7 dark cohort, sorted, capped."""
+    """The shadow population: distinct STOCK symbols on the S7 dark cohort's
+    watchlists, the most-held first, capped.
+
+    (2026-10-12) It used to be every symbol sorted A-Z and cut at the cap. The
+    cohort holds ~3,200 symbols, so the cut kept 112 theme-index rows
+    (`$IDX:AEROSPACE`, no analyst coverage, could-not-evaluate every tick) and 38
+    names from A to AAT: 123 of 150 failed on the first live sweep. Now a symbol
+    that is not a stock ticker never enters, and ties in how many cohort lists
+    hold a name break on a fixed hash, so the sample spans the alphabet and is
+    the same set every sweep (a span needs the same ticker tick after tick)."""
     from api.services.alert_taxonomy import catalyst_match_projection as _cmp
     by_user = _cmp.member_tickers_for(_cmp.cohort_user_ids())
-    names = sorted({t for s in by_user.values() for t in s})
-    return names[:max_tickers()]
+    held: dict[str, int] = {}
+    for syms in by_user.values():
+        for s in {str(x).strip().upper() for x in syms}:
+            if _EQUITY_SYMBOL.match(s):
+                held[s] = held.get(s, 0) + 1
+    ranked = sorted(held, key=lambda s: (-held[s], _spread(s)))
+    return ranked[:max_tickers()]
 
 
 def run_dark_sweep(*, now: Optional[float] = None, db_path: str | None = None,

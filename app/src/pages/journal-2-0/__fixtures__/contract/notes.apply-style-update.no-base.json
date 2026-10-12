@@ -1,0 +1,13 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/notes/3f852852cd854488b72ffac1c3f104b6/apply-style-update",
+    "note": "baseUpdatedAt is required (the revision the member is looking at): nothing is written.",
+    "path": "/api/j2/notes/3f852852cd854488b72ffac1c3f104b6/apply-style-update",
+    "requestBody": {},
+    "status": 400
+  },
+  "body": {
+    "detail": "Send baseUpdatedAt, the revision of the note you are looking at."
+  }
+}

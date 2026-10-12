@@ -1,0 +1,7 @@
+Post-hoc check, run because this walk's sandbox stop was FORCED (no 'shutdown' checkpoint in integrity-c2.md).
+Method: mtime of every main .db under C:\data (read-only listing; weaker than the launcher's content hash, which is held in memory only).
+Taken: 2026-10-12 02:09:20 local.
+Baseline instant: 2026-10-12 01:41:13 (the walk's pre-boot checkpoint).
+Main .db files: 62
+Written after the baseline: 0
+Newest main .db write: C:\data\bars.db 2026-10-09 06:00:12

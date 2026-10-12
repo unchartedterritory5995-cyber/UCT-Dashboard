@@ -1,0 +1,27 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/note-kinds/mapping-offer",
+    "note": "One note mapped (its revision returned to be landed); the locked one is skipped and named.",
+    "path": "/api/j2/note-kinds/mapping-offer",
+    "requestBody": {
+      "excludeNoteIds": []
+    },
+    "status": 200
+  },
+  "body": {
+    "count": 1,
+    "notes": [
+      {
+        "id": "aa619b682ea04671a4f2b6137e808e7d",
+        "updatedAt": "2026-10-05T14:30:00+00:00"
+      }
+    ],
+    "skipped": [
+      {
+        "id": "d9b6154c38074bf0a8a18005c8862944",
+        "reason": "locked"
+      }
+    ]
+  }
+}

@@ -529,3 +529,67 @@ describe('trade-plan canvas — a new canvas note', () => {
     expect(landed()).toEqual([])
   })
 })
+
+// ⭐ Notebook P1 (Task 11) — the two journal-styles doors. `lib/journalStyles.js` reaches the server
+// through one helper, so the enumeration rail needed its own AST pass (④b) to see them; THESE drive the
+// real module with only `recordLandedRevision` stubbed, so the account gate, the baseline authority and
+// the response read all run for real. The plan (a GET) and a refused write are the negatives.
+describe('journal styles — Update layout (apply-style-update)', () => {
+  it('the write lands the revision it was answered with, for the account that asked', async () => {
+    const { applyStyleUpdate } = await import('../journalStyles')
+    answering({ note: NOTE, plan: { toVersion: 2 } })
+    await applyStyleUpdate('n1', { styleId: 's1', baseUpdatedAt: '2026-09-12T13:00:00.000000+00:00' })
+    expect(landed()).toEqual([T2])
+    expect(landedFor()).toEqual(['n1'])
+    expect(recordLandedRevision.mock.calls[0][0].accountId).toBe('acct-A')
+  })
+
+  it('⛔ CONTROL — the plan is a read, so it lands nothing', async () => {
+    const { planStyleUpdate } = await import('../journalStyles')
+    const fetchMock = answering({ plan: { toVersion: 2 }, note: NOTE })
+    await planStyleUpdate('n1', { styleId: 's1' })
+    expect(fetchMock.mock.calls[0][1].method).toBe('GET')
+    expect(landed(), 'a plan wrote nothing, so there is no revision to record').toEqual([])
+  })
+
+  it('⛔ CONTROL — a stale base (409) moved nothing and lands nothing', async () => {
+    const { applyStyleUpdate } = await import('../journalStyles')
+    answering({ detail: 'This note changed since you opened it. Nothing was added.' }, { ok: false, status: 409 })
+    await expect(applyStyleUpdate('n1', { baseUpdatedAt: 'old' })).rejects.toMatchObject({ status: 409 })
+    expect(landed()).toEqual([])
+  })
+
+  it('⛔ CONTROL — a write sent with no base is refused before any request, and lands nothing', async () => {
+    const { applyStyleUpdate } = await import('../journalStyles')
+    const fetchMock = answering({ note: NOTE })
+    await expect(applyStyleUpdate('n1', {})).rejects.toThrow(/baseUpdatedAt/)
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(landed()).toEqual([])
+  })
+})
+
+describe('journal styles — the kind mapping offer', () => {
+  const T3 = '2026-09-12T14:00:01.000000+00:00'
+
+  it('every note it changed lands, in order, each with its own revision', async () => {
+    const { applyMappingOffer } = await import('../journalStyles')
+    answering({ notes: [{ id: 'a', updatedAt: T2 }, { id: 'b', updatedAt: T3 }], count: 2 })
+    await applyMappingOffer([])
+    expect(landed()).toEqual([T2, T3])
+    expect(landedFor()).toEqual(['a', 'b'])
+  })
+
+  it('⛔ CONTROL — an offer the server REFUSED lands nothing', async () => {
+    const { applyMappingOffer } = await import('../journalStyles')
+    answering({}, { ok: false, status: 500 })
+    await expect(applyMappingOffer([])).rejects.toMatchObject({ status: 500 })
+    expect(landed()).toEqual([])
+  })
+
+  it('⛔ CONTROL — an offer that changed nothing lands nothing', async () => {
+    const { applyMappingOffer } = await import('../journalStyles')
+    answering({ notes: [], count: 0 })
+    await applyMappingOffer([])
+    expect(landed()).toEqual([])
+  })
+})
