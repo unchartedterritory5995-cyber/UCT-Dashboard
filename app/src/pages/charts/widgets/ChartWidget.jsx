@@ -330,6 +330,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         // INDICATORS M1 (AGENT-INTEGRATION-HANDOFF §11): the chart's own Create Indicator door.
         openCreateIndicator: (o) => paneRef.current?.openCreateIndicatorFor?.(o) ?? { ok: false, reason: 'unavailable', prefilled: false, draft: false, editing: false },
         canCreateIndicator: () => !!paneRef.current?.canCreateIndicator?.(),
+        // INDICATORS ⇄ AGENT: the existing builder's doors on this chart (Formula / Import / Library / Screenshot)
+        openIndicatorDoor: (door) => !!paneRef.current?.openIndicatorDoor?.(door),
         // INDICATORS M2 (AGENT-INTEGRATION-HANDOFF §15.6): the Indicators button's own predicate.
         canManageIndicators: () => !!paneRef.current?.canManageIndicators?.(),
         // INDICATORS M3 (AGENT-M3-CONTRACT §3.3): the tab's one authoring preview on THIS chart.

@@ -120,6 +120,11 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
       const e = entries().find(x => x.ref === ref)
       return e?.api.agent.openCreateIndicator ? e.api.agent.openCreateIndicator(opts) : null
     },
+    // ⭐ INDICATORS ⇄ AGENT: one of the existing builder's doors (formula | pine | library | image) on this chart
+    openIndicatorDoor: (ref, door) => {
+      const e = entries().find(x => x.ref === ref)
+      try { return !!e?.api.agent.openIndicatorDoor?.(door) } catch { return false }
+    },
     // The Time Navigator's jump on this chart (a view; see ChartWidget's adapter).
     goTo: (ref, ms) => {
       const e = entries().find(x => x.ref === ref)

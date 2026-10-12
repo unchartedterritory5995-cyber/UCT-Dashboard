@@ -21,6 +21,9 @@ import { APP_THEME_BY_ID, applyAppTheme } from '../../styles/appThemes'
 import { setAgentFlag } from '../../agent/agentFlag'
 import ChartsWorkspace from '../../pages/charts/ChartsWorkspace'
 import { scriptedTurn } from './scriptedAgent'
+import ramp200 from '../../pages/parityBars/ramp200.json'
+import { setCreateIndicatorFlag } from '../../components/chart/builder/studio/createIndicatorFlag'
+import { parseFormula } from '../../components/chart/engine/ast/parse'
 
 const params = new URLSearchParams(location.search)
 const NCHARTS = Number(params.get('charts') || 2)
@@ -96,10 +99,13 @@ const H = (window.__agentHarness = { refused: [], turns: [], records: [], conver
 // (exactly what a second tab/device does — this tab never re-reads after load).
 H.remoteWrite = (key, value) => { PREFS[key] = typeof value === 'string' ? value : JSON.stringify(value) }
 setAgentFlag(true)
+// Create Indicator (admin + this browser's flag) — so the chart's door, and its route to the Agent, exist
+setCreateIndicatorFlag(true)
 // Only an explicit ?open= seeds the remembered state; otherwise the Agent's own
 // persistence decides (so the harness can prove it survives a reload).
 if (params.has('open')) { try { localStorage.setItem('uct.agent.open', params.get('open') === '0' ? '0' : '1') } catch { /* */ } }
 
+const LIVE = /^\d{2,5}$/.test(params.get('live') || '') ? params.get('live') : null
 const json = (o, status = 200) => Promise.resolve(new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } }))
 const realFetch = window.fetch.bind(window)
 let convSeq = 0
@@ -107,6 +113,13 @@ window.fetch = async (input, init) => {
   const url = typeof input === 'string' ? input : (input && input.url) || ''
   const method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase()
   let path = url.replace(/^https?:\/\/[^/]+/, '')
+  // ?live=<port> — the owner-approved real-model acceptance: the Agent's turn/record and EVERY
+  // /api/user-definitions route (converse + saves, on a SCRATCH store) go to the local acceptance relay
+  // on 127.0.0.1:<port>. Everything else stays fixture / refused exactly as without it.
+  if (LIVE && (path === '/api/agent/turn' || path === '/api/agent/record' || path.startsWith('/api/user-definitions'))) {
+    ;(H.live = H.live || []).push(`${method} ${path.split('?')[0]}`)
+    return realFetch(`http://127.0.0.1:${LIVE}${path}`, { ...(init || {}), credentials: 'omit' })
+  }
   if (path.startsWith('/api/auth/me')) {
     return json({ user: { id: 1, email: 'harness@local', role: 'admin', display_name: 'Harness' }, plan: 'pro', subscription: null, trial: null })
   }
@@ -226,6 +239,46 @@ window.fetch = async (input, init) => {
     if (path.startsWith('/api/auth/preferences')) return json(PREFS)
     if (path.startsWith('/api/charts/layouts')) return json({ global: [], mine: [] })
     return json({}, 404)
+  }
+  // /api/user-definitions/converse — the indicator conversation, SCRIPTED (no model): "EMA <n>" or
+  // "RSI <n>" builds that one line; anything else is an honest "unsupported". Logged in H.converse.
+  // ?bars=ramp — every bars request answered with the SYNTHETIC 200-bar ramp (no market data) and
+  // COUNTED in H.bars, so a layout change (e.g. resizing the Agent) can be checked for refetches.
+  if (params.get('bars') === 'ramp' && path.startsWith('/api/bars')) {
+    ;(H.bars = H.bars || []).push(path.split('?')[0])
+    return json({ bars: ramp200.bars })
+  }
+  if (path === '/api/user-definitions/converse' && method === 'POST') {
+    const body = JSON.parse(init.body)
+    ;(H.converse = H.converse || []).push(body.message)
+    const rev = body.view?.revision || 0
+    const m = /\b(ema|sma|rsi)\D{0,12}(\d{1,3})\b/i.exec(body.message) || /\b(\d{1,3})[- ]?(?:day |period |bar )?(ema|sma|rsi)\b/i.exec(body.message)
+    if (!m) return json({ ok: true, disposition: 'unsupported', turn: 'noop', reply: 'The harness can only build an EMA, SMA or RSI.', envelope: null })
+    const [fn, n] = /\d/.test(m[1]) ? [m[2], m[1]] : [m[1], m[2]]
+    const F = fn.toUpperCase()
+    const tree = parseFormula(`${fn.toLowerCase()}(close, ${n})`).ast
+    return json({ ok: true, disposition: 'change', turn: 'patch', reply: '',
+      envelope: { contract: 'uct.authoring.patch/1', baseRevision: rev, assumptions: [], disposition: 'change',
+        ops: [{ op: 'create', name: `${F} ${n}`, placement: F === 'RSI' ? 'pane' : 'price', outputs: [{ key: 'v', label: `${F} ${n}`, tree }] }] } })
+  }
+  // /api/agent/breadth — a FIXTURE (layout checks only; the figures are made up): the first ask is a
+  // multi-column table, every later one a comparison card.
+  if (path === '/api/agent/breadth/dates') return json({ today_et: '2026-10-12', latest_finalized: { us: '2026-10-09', nyse: '2026-10-09', nasdaq: '2026-10-09' } })
+  if (path === '/api/agent/breadth' && method === 'POST') {
+    H.breadth = (H.breadth || 0) + 1
+    if (H.breadth === 1) {
+      return json({ status: 'ok', text: 'Breadth now (harness fixture).', present: { kind: 'table' }, table: {
+        columns: [{ key: 'u', label: 'Universe' }, { key: 'a20', label: '% > 20-Day' }, { key: 'a50', label: '% > 50-Day' }, { key: 'a200', label: '% > 200-Day' }, { key: 'nhnl', label: 'NH − NL' }],
+        rows: [
+          { u: 'UCT', a20: '41.8%', a50: '38.2%', a200: '57.9%', nhnl: '+112' },
+          { u: 'US (all)', a20: '36.4%', a50: '33.0%', a200: '51.2%', nhnl: '+48' },
+          { u: 'NYSE', a20: '39.1%', a50: '35.7%', a200: '55.4%', nhnl: '+31' },
+          { u: 'Nasdaq', a20: '33.9%', a50: '30.6%', a200: '47.8%', nhnl: '+17' },
+        ] } })
+    }
+    return json({ status: 'ok', text: 'US · % of Stocks Above 50-Day MA (harness fixture).', present: { kind: 'comparison', title: 'US · % of Stocks Above 50-Day MA', items: [
+      { label: 'Earlier', value: '44.5%', note: '2026-09-09' }, { label: 'Latest', value: '25.6%', note: '2026-10-09' },
+      { label: 'Change', value: '−18.9 pts', note: 'Down', tone: 'down' }] } })
   }
   if (path === '/api/agent/turn') {
     const body = JSON.parse(init.body)

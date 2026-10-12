@@ -38,6 +38,9 @@ import { routeManifest, routingEnabled } from './routing'
 import { agentTurn, agentRecord, agentConversation } from './agentClient'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
 import { presentOf, compactViews, itemsFromTurns } from './present'
+// ⭐ INDICATORS ⇄ AGENT (2026-10-12): the chart's Create Indicator / Modify doors open the Agent; the
+// member's answer to its question runs the existing `indicator.draft` for that chart. See indicatorEntry.js.
+import { beginAuthoringIntent, takeAuthoringIntent, peekAuthoringIntent, clearAuthoringIntent, authoringPrompt, authoringOp, isCancelWords, INDICATOR_DOORS, openIndicatorDoor } from './indicatorEntry'
 
 registerBuiltins()
 
@@ -817,6 +820,22 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (fast?.kind === 'confirm' && pendingRef.current?.kind === 'proposal') return await approve(null, { member: text, voice })
       if (fast?.kind === 'subset' && pendingRef.current?.kind === 'proposal') return await approve(fast.count, { member: text, voice })
       if (fast?.kind === 'dismiss' && pendingRef.current) return dismiss({ member: text })
+      // ⭐ INDICATORS ⇄ AGENT — the member is answering "What indicator would you like to build?"
+      // (asked when the chart's Create Indicator / Modify door opened the Agent): THIS message is the
+      // request, sent to the existing `indicator.draft` for that chart — before the fast path's actions, which
+      // would read "a 20 EMA crossover…" as an indicator add, and before "nothing is waiting" (its
+      // "never mind" sets THIS question aside). Undo and a pending proposal keep priority. One message answers it.
+      const authoring = answering ? null : takeAuthoringIntent()
+      if (authoring) {
+        if (isCancelWords(text)) {
+          const t = 'OK — nothing was built.'
+          push({ role: 'agent', text: t })
+          record({ member: text, outcome: t, outcomeData: { kind: 'authoring-cancelled' }, telemetry: { path: 'local', voice } })
+          return
+        }
+        lastActionsRef.current = ['indicator.draft']
+        return await execute([authoringOp(authoring, text)], { path: 'fast', mode: 'apply', member: text, voice })
+      }
       // "do it" / "just the first two" with NOTHING pending never goes to the
       // model: after a reload or a chat switch the history still shows the old
       // proposal, and the model would REGENERATE and apply it. Approval only ever
@@ -1004,6 +1023,29 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     }
   }, [push, gridMode, host, record, doUndo, approve, dismiss, execute, setConversationId, patchItem, capCtx])
 
+  // ⭐ INDICATORS ⇄ AGENT — the chart's Create Indicator / Modify door opened the Agent on a chart:
+  // ask the question and hold ONE intent (indicatorEntry.js). No model call; the member's answer is
+  // what runs. Create offers the existing builder's doors beside it.
+  const prompt = useCallback((request) => {
+    if (!request || !request.chartRef || lockRef.current) return false
+    const i = beginAuthoringIntent(request)
+    if (!i) return false
+    const text = authoringPrompt(i)
+    push({ role: 'question', text, local: true, authoring: true,
+      choices: i.defId ? [] : INDICATOR_DOORS.map(d => ({ label: d.label, door: d.door })) })
+    record({ member: null, outcome: text, outcomeData: { kind: 'authoring-prompt', chart: i.chartRef, edit: i.defId }, telemetry: { path: 'local', disposition: 'clarify' } })
+    return true
+  }, [push, record])
+  // A door beside the question: the existing builder, on the intent's chart (the intent is set aside).
+  const openDoor = useCallback((door) => {
+    const i = peekAuthoringIntent()
+    if (!i) return false
+    clearAuthoringIntent()
+    const r = openIndicatorDoor(host, i.chartRef, door)
+    push({ role: 'agent', text: r.text })
+    return r.ok
+  }, [host, push])
+
   const newChat = useCallback(() => {
     setConversationId(null)
     pendingRef.current = null
@@ -1025,6 +1067,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     undo: exclusive((undoId) => doUndo(undoId, { member: null })),
     approve: exclusive(() => approve(null, { member: null })), dismiss: () => { if (!lockRef.current) dismiss({ member: null }) },
     chooseTarget: exclusive(chooseTarget), canUndo,
+    prompt, openDoor,
     hasPending: !!pendingRef.current,
   }
 }
