@@ -2082,8 +2082,14 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         landed = save_landed(pg, fb["id"], edit)
         kept = bool(landed) and any((x.get("attrs") or {}).get("widgetId") == "walkFutureBlock"
                                     for x in landed["bodyJson"]["content"])
+        # The saved body must carry the "y" the edit typed after the first paragraph's "x": a PUT that wrote the
+        # old body back would keep the block and still not be the save this row says it waits for.
+        first = (((landed or {}).get("bodyJson") or {}).get("content") or [{}])[0]
+        para = "".join(t.get("text") or "" for t in first.get("content") or [])
+        typed = para == "xy"
         C.step(pg, inst, "styles.unknown-block", "A block from a newer version shows the card and survives an edit and a save",
-               "PASS" if card and kept else "FAIL", card=card, saved=bool(landed), kept=kept)
+               "PASS" if card and kept and typed else "FAIL", card=card, saved=bool(landed), kept=kept, typed=typed,
+               first_paragraph=para)
         want = {"styles.new-from-kind", "styles.manager", "styles.save-as-style", "styles.update-layout",
                 "styles.slash-style", "styles.unknown-block"}
         seen = {s.get("feature") for s in C.REC["steps"] if s.get("config") == cfg}
