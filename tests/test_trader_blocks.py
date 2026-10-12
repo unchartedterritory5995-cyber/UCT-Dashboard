@@ -145,6 +145,29 @@ def test_update_layout_lands_the_sizer_unstamped_and_an_empty_note_stamped(db_pa
         assert sizers[0]["attrs"]["params"] == params, name
 
 
+def test_the_sizer_reads_its_regime_through_the_ONE_held_gate(monkeypatch):
+    """R-M2-1 (d): the sizer and the market context ask the SAME function for the regime field
+    (trader_blocks._regime_field, the held-only gate), never a second copy of that gate. Patching the
+    one gate reaches the sizer; an unreadable hold is a missing regime, never a failed note."""
+    from api.services.journal_two import journal_styles as js, trader_blocks as tb
+    seen: list[dict] = []
+
+    def gate(memo):
+        seen.append(memo)
+        return {"value": "red", "asOf": "2026-10-02"}
+    monkeypatch.setattr(tb, "_regime_field", gate)
+    memo: dict = {}
+    node, _ = js.BLOCK_BUILDERS["positionSizing"]({"block": "positionSizing", "settings": {"grade": "A"}}, dict(CTX, memo=memo))
+    assert seen == [memo]                                    # the compose's own memo, asked once
+    assert node["attrs"]["params"] == {"grade": "A", "regimeId": "red", "regimeAsOf": "2026-10-02"}
+
+    def broken(memo):
+        raise RuntimeError("the hold could not be read")
+    monkeypatch.setattr(tb, "_regime_field", broken)
+    node, reason = js.BLOCK_BUILDERS["positionSizing"]({"block": "positionSizing", "settings": {"grade": "B"}}, dict(CTX, memo={}))
+    assert reason is None and node["attrs"]["params"] == {"grade": "B"}
+
+
 def test_the_sizer_reads_the_composes_one_frozen_regime(monkeypatch):
     """One compose, one regime reading: a reading already frozen in the compose's memo (by the market
     context or another block) is the one the sizer stamps."""

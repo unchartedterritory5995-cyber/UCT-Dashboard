@@ -64,20 +64,18 @@ def build_position_sizing(block: dict, ctx: dict):
 
     R-T11-1 / R-RC-1 (IR-S11, as build_market_context): "Update layout" on an older note ("update")
     offers the sizer UNSTAMPED and reads no regime; only a new note ("create", which an empty note's
-    outline insert is too) stamps the regime it was built in."""
-    from api.services import engine
+    outline insert is too) stamps the regime it was built in.
+
+    R-M2-1 (d): the held gate is _regime_field, the ONE copy the market context also asks."""
     params = {"grade": _settings(block).get("grade", "A")}
     if ctx.get("mode") == "update":
         return _node("positionSizing", params, ctx), None
     try:
-        held = engine.get_breadth(held_only=True) is not None
+        field = _regime_field(ctx.setdefault("memo", {}))
     except Exception:  # noqa: BLE001 -- an unreadable hold is a missing regime, never a failed note
-        held = False
-    if held:
-        from api.services.journal_two import entry_context
-        field = entry_context._regime_fields(ctx.setdefault("memo", {}))[0]
-        if field.get("value") in REGIME_IDS:
-            params.update({"regimeId": field["value"], "regimeAsOf": field.get("asOf") or ""})
+        field = {}
+    if field.get("value") in REGIME_IDS:
+        params.update({"regimeId": field["value"], "regimeAsOf": field.get("asOf") or ""})
     return _node("positionSizing", params, ctx), None
 
 
