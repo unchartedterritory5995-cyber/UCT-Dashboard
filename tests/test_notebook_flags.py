@@ -80,6 +80,8 @@ NOTEBOOK_KEYS = [
     # Task 14b (ruling R16): the Notebook can say Compass reads notes only while it does -- the
     # client key for COMPASS_NOTES_TOOL_ENABLED (wave 7 lane H), an enablement gate.
     "compass_notes_tool_enabled",
+    # Notebook P1: journal styles (kinds of note, styles, Update layout) — an enablement gate.
+    "notebook_journal_styles_enabled",
 ]
 
 #: Keys whose capability ships ON: unset means ON. Every other key is an enablement gate.
