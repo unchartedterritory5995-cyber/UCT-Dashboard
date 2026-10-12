@@ -7,8 +7,8 @@ against the parsed AST, so a comment or a docstring that merely names a call can
 has two controls: one proving a source holding the needle ONLY in a comment and a docstring is NOT a match,
 and one proving a real occurrence IS. The needles are built by concatenation so this file does not itself
 hold the matched literal in a way a text sweep could mistake for the tool's code.
-The one test whose SUBJECT is comment text (`test_no_typed_switch_count`, the WAVE_FLAGS note) reads the comment
-tokens, and only those, with its own controls."""
+The one test whose SUBJECT is prose (`test_no_typed_switch_count`: the WAVE_FLAGS comment and the walk's module
+docstring) reads comment tokens and bare string statements, and only those, with its own controls."""
 from __future__ import annotations
 
 import ast
@@ -104,6 +104,8 @@ PROSE_ONLY = ("def styles():\n"
               "    '''docstring: " + SAVE + "(pg) then " + WID + " == chart and time.sle" + "ep(1)'''\n"
               "    # " + SAVE + "(pg, id, edit)  " + WID + " == 'chart'  pg.keyboard.type('y')  time.sle" + "ep(1)\n"
               "    # pg.wait_for" + "_timeout(500)  expect_response PUT notebook_journal_styles_enabled\n"
+              "    'PU" + "T'\n"                                                    # bare string statements: prose, not code
+              "    'notebook_journal_" + "styles_enabled'\n"
               "    pass\n")
 REAL_CODE = ("def styles():\n"
              "    landed = " + SAVE + "(pg, fb['id'], edit)\n"
@@ -196,33 +198,42 @@ def test_styles_on_mirrors_the_product_gate():
         assert "paid_equiv" not in strings
 
 
-# ── the typed switch count: the SUBJECT is a comment (the WAVE_FLAGS note), so this one reads COMMENTS ──
+# ── the typed switch count: its SUBJECT is prose (the WAVE_FLAGS comment, the module docstring), so it reads PROSE ──
 _NUMBER_WORDS = ("zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|"
                  "sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred")
-# A numeral or number word (or "twenty-one") before "switches". `(?<![-\w])` keeps a label such as "wave-13" out.
-TYPED_COUNT = re.compile(r"(?<![-\w])(?:\d+|(?:" + _NUMBER_WORDS + r")(?:[- ](?:one|two|three|four|five|six|seven|eight|nine))?)"
-                         r"\s+switches\b", re.IGNORECASE)
+# A numeral or number word (or "twenty-one") before "switches", optionally with a wave/phase label between
+# ("fourteen wave-13 switches"). `(?<![-\w])(?<!wave )` keeps the label's own number ("wave-13", "wave 13") out.
+TYPED_COUNT = re.compile(r"(?<![-\w])(?<!wave )(?:\d+|(?:" + _NUMBER_WORDS + r")(?:[- ](?:one|two|three|four|five|six|seven|eight|nine))?)"
+                         r"\s+(?:(?:wave[- ]?\d+|P\d+)\s+)?switches\b", re.IGNORECASE)
 
 
-def _comment_text(src: str) -> str:
-    """Every comment in `src`, '#' dropped, joined by a space so a count split over two lines still reads."""
+def _prose_text(src: str) -> str:
+    """The prose of `src`: every comment ('#' dropped) and every bare string statement (module/function docstrings
+    and stray strings), joined by a space so a count split over two lines still reads. A string that is a value
+    in code (`x = '19 switches'`) is data, not prose, and is left out."""
     toks = tokenize.generate_tokens(io.StringIO(src).readline)
-    return " ".join(t.string.lstrip("#").strip() for t in toks if t.type == tokenize.COMMENT)
+    parts = [t.string.lstrip("#").strip() for t in toks if t.type == tokenize.COMMENT]
+    parts += [n.value.value for n in ast.walk(ast.parse(src))
+              if isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant) and isinstance(n.value.value, str)]
+    return " ".join(parts)
 
 
-def test_control_e_the_typed_count_matcher_catches_any_numeral_or_number_word_in_a_comment():
+def test_control_e_the_typed_count_matcher_catches_any_numeral_or_number_word_in_prose():
     for s in ("# The seventeen switches waves 11-14 add", "# The 19 switches", "# twenty switches", "# Twenty-one switches",
-              "# the 7 switches", "# TWO switches", "x = 1  # and 19\n# switches"):
-        assert TYPED_COUNT.search(_comment_text(s + "\n")), s
+              "# the 7 switches", "# TWO switches", "x = 1  # and 19\n# switches",
+              '"""the fourteen wave-13 switches"""', 'def f():\n    "the twenty switches"', "# 3 P1 switches"):
+        assert TYPED_COUNT.search(_prose_text(s + "\n")), s
     for s in ("# The switches waves 11-14 and P1/P2 add", "# count the switches from the list", "# switches",
-              "# the wave-13 switches", "x = '19 switches'", 'def f():\n    "the twenty switches"'):
-        assert not TYPED_COUNT.search(_comment_text(s + "\n")), s
+              "# the wave-13 switches", "# every wave 13 switches", '"""the wave-13 switches"""',
+              "x = '19 switches'", "x = ['twenty switches']"):
+        assert not TYPED_COUNT.search(_prose_text(s + "\n")), s
 
 
 def test_no_typed_switch_count():
     src = WALK.read_text(encoding="utf-8")
     assert "WAVE_FLAGS = [" in src                                        # non-vacuity
-    note = _comment_text(src)
-    assert "switches" in note, "non-vacuity: the WAVE_FLAGS note is among the comments read"
-    hits = [m.group(0) for m in TYPED_COUNT.finditer(note)]
+    prose = _prose_text(src)
+    assert "switches" in prose, "non-vacuity: the WAVE_FLAGS note is among the prose read"
+    assert "wave 11-14" in prose, "non-vacuity: the module docstring is among the prose read"
+    hits = [m.group(0) for m in TYPED_COUNT.finditer(prose)]
     assert not hits, f"a typed switch count: {hits}"

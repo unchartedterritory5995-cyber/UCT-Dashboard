@@ -7,7 +7,7 @@ THREE CONFIGURATIONS, each on its own sandbox boot (scripts/hub_sandbox_boot.py 
   c1  every Notebook flag OFF except those the ledger (docs/feature_flags.json) records as armed
       on web today. No wave 12-15 surface may appear anywhere, and the product must work
       (create a note, type, reload, find it, delete it).
-  c2  c1's flags plus every wave 11-14 switch (formulas, template gallery, the fourteen wave-13
+  c2  c1's flags plus every wave 11-14 switch (formulas, template gallery, the wave-13
       switches, NOTEBOOK_GETTING_STARTED_ENABLED). Fresh empty account: first run, the sample
       notebook, the Get started list, the offer and What's new, every feature's main path, all
       tours at 1280 and 390, then the sample removed in one click.
