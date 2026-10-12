@@ -36,10 +36,12 @@ ADMIN = {"id": "c0ffee00-0000-4000-8000-0000000000a1", "plan": "pro", "role": "a
 MON_1152 = datetime(2026, 10, 12, 11, 52, tzinfo=ET)
 
 
-def live_payload(as_of, today="2026-10-12", ok=True, drift=0.01, final_today=False):
+def live_payload(as_of, today="2026-10-12", ok=True, drift=0.01, final_today=False, data_as_of="same"):
+    """`as_of` = UCT's compute time; `data_as_of` = the vendor snapshot's data time (the label's source)."""
     m = {"pct_above_50sma": LIVE, "pct_above_200sma": 41.5, "adv_decline": 812.0, "net_new_high_low": 99.0,
          "new_52w_highs": 150.0}
-    return {"ok": ok, "as_of": as_of, "reason": None if ok else "engine down",
+    return {"ok": ok, "as_of": as_of, "data_as_of": as_of if data_as_of == "same" else data_as_of,
+            "reason": None if ok else "engine down",
             "universes": {"us": {"ok": True, "population_drift": drift, "rows": [
                 {"date": "2026-10-09", "final": True, "metrics": {k: v - 1 for k, v in m.items()}},
                 {"date": today, "final": final_today, "metrics": m}]}}}
@@ -131,6 +133,9 @@ def test_CLOSE_an_explicit_closing_question_is_the_dated_finalized_close(client,
 
 @pytest.mark.parametrize("payload", [
     live_payload("2026-10-12T10:00:00-04:00"),                                  # 112 minutes old mid-session
+    # ⛔ recomputed seconds ago over a 15-minute-DELAYED snapshot: the data time decides, never compute time
+    live_payload("2026-10-12T11:51:30-04:00", data_as_of="2026-10-12T11:36:30-04:00"),
+    live_payload("2026-10-12T11:51:30-04:00", data_as_of=None),                 # data time unknown
     live_payload("2026-10-12T11:51:30-04:00", ok=False),                        # engine down
     live_payload("2026-10-12T11:51:30-04:00", drift=0.2),                       # population doesn't reconcile
     None,                                                                       # no payload at all
@@ -141,7 +146,7 @@ def test_STALE_or_UNAVAILABLE_is_said_and_never_shown_as_now(client, live, paylo
     p = b["present"]
     assert p["value"] == "25.6%"                                                # the finalized close
     assert p["note"].startswith(f"As of {FIN} close")
-    assert breadth_now.UNAVAILABLE in p["note"]
+    assert breadth_now.UNAVAILABLE in p["note"] and f". {breadth_now.UNAVAILABLE}" in p["note"]    # its own sentence
     assert "Intraday" not in json.dumps(b) and not any(s in json.dumps(b) for s in LIVE_LEAKS)
 
 
@@ -252,3 +257,9 @@ def test_ISOLATION_the_logs_carry_statuses_never_values(client, live, caplog):
         client.post("/api/agent/breadth", json={**BASE, "mode": "value", "metrics": []})
     assert "present-tense kinds=" in caplog.text
     assert not _leaks(caplog.text)
+
+
+def test_LABEL_is_the_market_data_time_never_the_compute_time(client, live):
+    live.payload = live_payload("2026-10-12T11:51:30-04:00", data_as_of="2026-10-12T11:49:10-04:00")
+    p = ask(client)["present"]
+    assert p["note"] == "Intraday · 11:49 AM ET"                                 # the snapshot's time, not 11:51

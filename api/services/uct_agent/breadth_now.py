@@ -108,7 +108,8 @@ def overlay(res: dict, answer: dict, view: Optional[dict], reading: Optional[Cal
     if all(p["kind"] == "fallback" for p in picks.values()):
         # nothing current: the finalized answer as before (dated), with the reason said once
         if view and view.get("kind") in ("value", "metrics"):
-            view = {**view, "note": " ".join(x for x in (view.get("note"), UNAVAILABLE) if x)}
+            from api.services.uct_agent.breadth_present import _join
+            view = {**view, "note": _join(view.get("note"), UNAVAILABLE)}
         return answer.get("text") or "", view, statuses
 
     missing = [m for m in mets if m.get("status") != "ok"]

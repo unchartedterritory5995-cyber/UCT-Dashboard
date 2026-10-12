@@ -148,7 +148,9 @@ def test_ROUTE_admin_only_like_every_agent_route(world, monkeypatch):
     assert TestClient(app).post("/api/agent/breadth", json=REQ).status_code == 402
 
 
-def test_ROUTE_answers_the_member_with_the_real_figure(client, world):
+def test_ROUTE_answers_the_member_with_the_real_figure(client, world, monkeypatch):
+    # the FINALIZED route as before (present-tense current readings: test_uct_agent_breadth_current.py)
+    monkeypatch.setenv("AGENT_BREADTH_CURRENT", "0")
     r = client.post("/api/agent/breadth", json=REQ)
     assert r.status_code == 200
     b = r.json()
