@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import TABLE from '../../../../constants/houseSizing.json'
 import {
   houseSize, accountSizeFor, roundPct, SIZE_CEILING_PCT, MAX_ACCOUNT_RISK_PCT, REGIME_OF, PLACEHOLDER_ACCOUNT_SIZE,
+  PREFERRED_ACCOUNT_RISK_PCT,
 } from './houseSizing'
 
 describe('the house table (R-P2-5; app/src/constants/houseSizing.json, railed by tests/test_house_sizing_table.py)', () => {
@@ -120,6 +121,15 @@ describe('houseSize at the edges (integrator ruling: rounding is explicit and te
     expect(houseSize({ grade: 'B', regime: 'ORANGE' })).toMatchObject({ ok: false, skip: true, code: 'skip' })
     expect(houseSize({ grade: 'A+', regime: 'RED' }).reason).toBe('The house rules skip an A+ setup in a RED market.')
     expect(houseSize({ grade: 'A', regime: 'RED' }).reason).toBe('The house rules skip an A setup in a RED market.')
+  })
+  it('I-1: positionPct is what the WHOLE shares hold, beside the house size (a $7,000 account, one $1,000 share)', () => {
+    const r = houseSize({ entry: 1000, stop: 950, accountSize: 7000, grade: 'A+', regime: 'GREEN' })
+    expect(r).toMatchObject({ ok: true, sizePct: 25, shares: 1, positionDollars: 1000, positionPct: 14.29 })
+    expect(houseSize({ entry: 100, stop: 95, accountSize: 50000, grade: 'A+', regime: 'GREEN' }).positionPct).toBe(25)
+  })
+  it('the preferred risk (under 1%) is read from the one table', () => {
+    expect(PREFERRED_ACCOUNT_RISK_PCT).toBe(TABLE.preferredAccountRiskPct)
+    expect(PREFERRED_ACCOUNT_RISK_PCT).toBe(1)
   })
   it('an unknown grade asks for one', () => {
     expect(houseSize({ entry: 100, stop: 95, accountSize: A, grade: 'C', regime: 'GREEN' })).toMatchObject({ ok: false, code: 'grade', reason: 'Pick a setup grade.' })

@@ -34,6 +34,7 @@ def _sizing_table(src: str) -> dict[tuple[str, str], float]:
 def test_the_in_repo_table_is_whole():
     t = json.loads(TABLE.read_text(encoding="utf-8"))
     assert t["maxAccountRiskPct"] == 2
+    assert t["preferredAccountRiskPct"] == 1          # the house rule: max 2%, prefer under 1%
     assert set(t["ceilingPct"]) == {"GREEN", "YELLOW", "ORANGE", "RED"}
     assert all(set(row) == {"A+", "A", "B"} for row in t["ceilingPct"].values())
     assert t["regimeWords"] == {"green": "GREEN", "amber": "YELLOW", "orange": "ORANGE", "red": "RED"}

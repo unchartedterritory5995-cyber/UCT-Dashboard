@@ -1,10 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 
 // The two hooks the body reads. `S` is mutated per test; `save` is a spy that must NEVER be called
 // (the block reads settings, it never writes them: its one write door is setParams).
-const S = vi.hoisted(() => ({ settings: null, isLoading: false, save: null, regime: null }))
-vi.mock('../../../hooks/useJ2Settings', () => ({ default: () => ({ settings: S.settings, isLoading: S.isLoading, save: S.save }) }))
+const S = vi.hoisted(() => ({ settings: null, isLoading: false, save: null, regime: null, error: undefined, refresh: null,
+  accountName: 'Main', isAllAccounts: false }))
+vi.mock('../../../hooks/useJ2Settings', () => ({ default: () => ({ settings: S.settings, isLoading: S.isLoading, save: S.save,
+  error: S.error, refresh: S.refresh, accountName: S.accountName, isAllAccounts: S.isAllAccounts }) }))
 vi.mock('../../../hooks/useJ2CurrentRegime', () => ({ default: () => ({ regime: S.regime }) }))
 import PositionSizingBlock from './PositionSizingBlock'
 
@@ -13,7 +15,12 @@ beforeEach(() => {
   S.isLoading = false
   S.save = vi.fn()
   S.regime = { regime: 'green', asOf: '2026-10-13' }
+  S.error = undefined
+  S.refresh = vi.fn()
+  S.accountName = 'Main'
+  S.isAllAccounts = false
 })
+afterEach(() => { vi.useRealTimers() })
 
 describe('PositionSizingBlock', () => {
   it('named inputs; an input change is one setParams carrying the regime it was sized in', () => {
@@ -25,9 +32,10 @@ describe('PositionSizingBlock', () => {
   })
   it('shows size, shares and risk from the house formula', () => {
     render(<PositionSizingBlock params={{ entry: 100, stop: 95, grade: 'A+', regimeId: 'green' }} setParams={vi.fn()} editable />)
-    expect(screen.getByText('25% of the account')).toBeTruthy()
+    expect(screen.getByText('House size: 25% of the account')).toBeTruthy()
     expect(screen.getByText('125 shares')).toBeTruthy()
     expect(screen.getByText('$625 at risk (1.25% of the account)')).toBeTruthy()
+    expect(screen.queryByText(/^Whole shares:/)).toBeNull()                  // 125 x $100 IS 25% of $50,000
   })
   it('the default account size is not an account size: says where to set it, sizes nothing, offers a size for this note (IR-S9)', () => {
     S.settings = { accountSize: 100000 }
@@ -104,5 +112,84 @@ describe('PositionSizingBlock', () => {
     fireEvent.click(screen.getByRole('button', { name: "Use today's regime (GREEN)" }))
     expect(setParams).toHaveBeenCalledTimes(4)
     expect(S.save).not.toHaveBeenCalled()
+  })
+
+  // ── Fix round 1 (R-T11-1) ──────────────────────────────────────────────────────────────────────
+  it('C-1: All Accounts (or no account picked yet) is not an account size: no shares, says why, keeps the note input', () => {
+    S.isAllAccounts = true
+    S.settings = { accountSize: 25000 }                       // the frozen legacy j2_settings row
+    render(<PositionSizingBlock params={{ entry: 100, stop: 95, grade: 'A+', regimeId: 'green' }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('Pick one account to size against, or enter a size for this note.')).toBeTruthy()
+    expect(screen.getByRole('spinbutton', { name: 'Account size for this note' })).toBeTruthy()
+    expect(screen.queryByText(/shares$/)).toBeNull()
+    expect(screen.queryByText(/of the account$/)).toBeNull()
+    expect(screen.queryByText(/25,000/)).toBeNull()
+  })
+  it("C-1: with no account picked, a size typed into the note still sizes, and says it is the note's", () => {
+    S.isAllAccounts = true
+    S.settings = { accountSize: 25000 }
+    render(<PositionSizingBlock params={{ entry: 100, stop: 95, grade: 'A+', regimeId: 'green', accountSize: 80000 }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('200 shares')).toBeTruthy()
+    expect(screen.getByText("Sized against this note's $80,000.")).toBeTruthy()
+  })
+  it('I-1: the house size is labelled as such, and the real whole-share percent is shown when it differs', () => {
+    S.settings = { accountSize: 7000 }
+    render(<PositionSizingBlock params={{ entry: 1000, stop: 950, grade: 'A+', regimeId: 'green' }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('House size: 25% of the account')).toBeTruthy()
+    expect(screen.getByText('1 share')).toBeTruthy()
+    expect(screen.getByText('$1,000 position')).toBeTruthy()
+    expect(screen.getByText('Whole shares: 14.29% of the account')).toBeTruthy()
+  })
+  it('I-2: says which account and amount it sized against, live, and never stamps the size into params', () => {
+    const setParams = vi.fn(() => true)
+    const { rerender } = render(<PositionSizingBlock params={{ entry: 100, stop: 95, grade: 'A+', regimeId: 'green' }} setParams={setParams} editable />)
+    expect(screen.getByText('Sized against Main: $50,000.')).toBeTruthy()
+    S.settings = { accountSize: 60000 }
+    rerender(<PositionSizingBlock params={{ entry: 100, stop: 95, grade: 'A+', regimeId: 'green' }} setParams={setParams} editable />)
+    expect(screen.getByText('Sized against Main: $60,000.')).toBeTruthy()
+    expect(screen.getByText('150 shares')).toBeTruthy()
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Stop' }), { target: { value: '94' } })
+    expect(setParams).toHaveBeenCalledWith({ stop: 94 })
+    for (const [patch] of setParams.mock.calls) expect(Object.keys(patch)).not.toContain('accountSize')
+  })
+  it('a sub-dollar risk shows its cents and never reads "$0 at risk (0% of the account)"', () => {
+    S.settings = { accountSize: 100001 }
+    render(<PositionSizingBlock params={{ entry: 1000, stop: 999.999, grade: 'A+', regimeId: 'green' }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('$0.02 at risk (under 0.01% of the account)')).toBeTruthy()
+    expect(screen.queryByText(/^\$0 at risk/)).toBeNull()
+  })
+  it('a failed settings read says so and offers Try again; it never claims the size is unset', () => {
+    S.settings = undefined
+    S.error = new Error('500')
+    render(<PositionSizingBlock params={{ entry: 100, stop: 95, grade: 'A', regimeId: 'green' }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('Your account size could not be read just now.')).toBeTruthy()
+    expect(screen.queryByText('Your account size is not set yet.')).toBeNull()
+    expect(screen.queryByText(/shares$/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(S.refresh).toHaveBeenCalledTimes(1)
+  })
+  it('above the preferred 1% and within 2%: one quiet note; at or under 1%: none', () => {
+    const { rerender } = render(<PositionSizingBlock params={{ entry: 100, stop: 95, grade: 'A+', regimeId: 'green' }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('$625 at risk (1.25% of the account)')).toBeTruthy()
+    expect(screen.getAllByText('Above the house preference of under 1% risk per trade.')).toHaveLength(1)
+    rerender(<PositionSizingBlock params={{ entry: 50, stop: 47, grade: 'A+', regimeId: 'amber' }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('$450 at risk (0.9% of the account)')).toBeTruthy()
+    expect(screen.queryByText(/preference of under 1%/)).toBeNull()
+  })
+  it('the live region announces only the SETTLED result, not every keystroke', () => {
+    vi.useFakeTimers()
+    const { rerender } = render(<PositionSizingBlock params={{ entry: 100, stop: 95, grade: 'A+', regimeId: 'green' }} setParams={vi.fn()} editable />)
+    const live = screen.getByTestId('sizing-announce')
+    expect(live.getAttribute('aria-live')).toBe('polite')
+    expect(screen.getByRole('list', { name: 'Position size' }).closest('[aria-live]')).toBeNull()
+    act(() => { vi.advanceTimersByTime(1000) })
+    expect(live.textContent).toBe('125 shares, $625 at risk.')
+    for (const stop of [9, 90.5, 90]) {
+      rerender(<PositionSizingBlock params={{ entry: 100, stop, grade: 'A+', regimeId: 'green' }} setParams={vi.fn()} editable />)
+      act(() => { vi.advanceTimersByTime(200) })
+      expect(live.textContent).toBe('125 shares, $625 at risk.')                  // still the settled one
+    }
+    act(() => { vi.advanceTimersByTime(1000) })
+    expect(live.textContent).toBe('100 shares, $1,000 at risk.')
   })
 })

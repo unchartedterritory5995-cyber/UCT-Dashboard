@@ -12,12 +12,16 @@
 //   · shares are whole and rounded DOWN, so neither the regime ceiling nor the 2% cap is exceeded.
 //     The quotient is snapped to 6 decimal places before the floor, so float noise (1.10 - 1.00 is
 //     0.10000000000000009) never costs a share that the arithmetic says fits exactly;
-//   · percents and dollars are shown to 2 places, rounded half UP in decimal (roundPct).
+//   · percents and dollars are RETURNED to 2 places, rounded half UP in decimal (roundPct). How they
+//     are SHOWN is the block's choice: PositionSizingBlock shows whole dollars at $10 and above, cents
+//     below, and a nonzero percent that rounds to 0.00 as "under 0.01%" (never "$0 at risk (0%)").
 import TABLE from '../../../../constants/houseSizing.json'
 
 const freezeRows = (o) => Object.freeze(Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Object.freeze({ ...v })])))
 
 export const MAX_ACCOUNT_RISK_PCT = TABLE.maxAccountRiskPct
+/** The house rule's "prefer under 1%": advice shown beside a size, never a limit applied to it. */
+export const PREFERRED_ACCOUNT_RISK_PCT = TABLE.preferredAccountRiskPct
 export const PLACEHOLDER_ACCOUNT_SIZE = TABLE.placeholderAccountSize
 export const SIZE_CEILING_PCT = freezeRows(TABLE.ceilingPct)
 export const REGIME_OF = Object.freeze({ ...TABLE.regimeWords })
@@ -59,13 +63,14 @@ export function accountSizeFor({ params, settings }) {
  * The house size for one trade. `regime` is a house word (GREEN / YELLOW / ORANGE / RED; map a regime
  * id through REGIME_OF first). Returns
  *   { ok: true, skip: false, reason: null, stopPct, sizePct, riskPct, plannedRiskPct, shares,
- *     riskDollars, positionDollars, boundBy: 'regime' | 'risk' }
+ *     riskDollars, positionDollars, positionPct, boundBy: 'regime' | 'risk' }
  * or { ok: false, skip, code, reason } with a sentence and no number it could not derive.
  *   sizePct        = min(the regime ceiling for the grade, MAX_ACCOUNT_RISK_PCT / Stop Distance % × 100)
  *   plannedRiskPct = sizePct × stopPct / 100 (the house formula's Account Risk %, before whole shares)
  *   shares         = floor(account × sizePct / 100 / entry), which is floor(risk cap $ / per-share risk)
  *                    when the 2% cap binds (the same number, computed with fewer float steps)
  *   riskPct        = the risk of those whole shares, as a percent of the account (<= plannedRiskPct)
+ *   positionPct    = what those whole shares hold, as a percent of the account (<= sizePct)
  * A short (stop above entry) sizes the same way.
  */
 export function houseSize({ entry, stop, accountSize, grade, regime }) {
@@ -101,6 +106,7 @@ export function houseSize({ entry, stop, accountSize, grade, regime }) {
     shares,
     riskDollars: roundPct(shares * perShareRisk),
     positionDollars: roundPct(shares * e),
+    positionPct: roundPct(((shares * e) / a) * 100),
     boundBy,
   }
 }

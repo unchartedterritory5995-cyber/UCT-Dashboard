@@ -101,6 +101,50 @@ def test_a_cold_hold_never_reaches_the_breadth_vendor_and_stamps_nothing(monkeyp
     assert reads == []                          # the default (vendor-capable) path was never entered
 
 
+@pytest.mark.parametrize("mode, stamped", [("create", True), ("update", False)])
+def test_the_sizer_stamps_todays_regime_only_into_a_new_note(mode, stamped, monkeypatch):
+    """R-T11-1 / R-RC-1 (IR-S11, as the market context): "Update layout" on an older note offers the
+    sizer UNSTAMPED and reads no regime at all; a new note (create, which an empty note's outline
+    insert also is) stamps the regime it was built in."""
+    from api.services.journal_two import journal_styles as js, regime
+    reads: list[str] = []
+    monkeypatch.setattr(regime, "_read_exposure", lambda: reads.append("exposure") or {"score": 95, "as_of": "2026-10-13"})
+    calls = _held_breadth(monkeypatch, {"wire_date": "2026-10-13"})
+    node, reason = js.BLOCK_BUILDERS["positionSizing"]({"block": "positionSizing", "settings": {"grade": "A"}},
+                                                        dict(CTX, memo={}, mode=mode))
+    assert reason is None
+    if stamped:
+        assert node["attrs"]["params"] == {"grade": "A", "regimeId": "green", "regimeAsOf": "2026-10-13"}
+        assert calls == [True] and reads == ["exposure"]
+    else:
+        assert node["attrs"]["params"] == {"grade": "A"}
+        assert calls == [] and reads == []          # an older note never reads today's market
+
+
+def test_update_layout_lands_the_sizer_unstamped_and_an_empty_note_stamped(db_path, monkeypatch):
+    """End to end through the real apply: "Update layout" on a note with words lands the sizer with no
+    regime; the same style on an EMPTY note (insertsOutline, create-equivalent) lands it stamped."""
+    from api.services.journal_two import journal_styles as js, notes, regime
+    monkeypatch.setattr(regime, "_read_exposure", lambda: {"score": 95, "as_of": "2026-10-13"})
+    _held_breadth(monkeypatch, {"wire_date": "2026-10-13"})
+    s = js.create_style("u1", {"name": "Sized", "kindId": "thesis",
+        "blocks": [{"block": "positionSizing", "enabled": True, "settings": {"grade": "A"}}],
+        "outlineBodyJson": {"type": "doc", "content": [
+            {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Thesis"}]}]}})
+    cases = {
+        "empty": (notes.create_note("u1", {"title": "blank", "ticker": "NVDA"}),
+                  {"grade": "A", "regimeId": "green", "regimeAsOf": "2026-10-13"}),
+        "words": (notes.create_note("u1", {"title": "mine", "ticker": "NVDA", "bodyJson": {"type": "doc", "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": "MY WORDS"}]}]}}), {"grade": "A"}),
+    }
+    for name, (n, params) in cases.items():
+        note, plan = js.apply_style_update("u1", n["id"], style_id=s["id"], expected_updated_at=n["updatedAt"])
+        sizers = [x for x in note["bodyJson"]["content"]
+                  if x.get("type") == "widgetEmbed" and x["attrs"]["widgetId"] == "positionSizing"]
+        assert len(sizers) == 1, (name, plan)
+        assert sizers[0]["attrs"]["params"] == params, name
+
+
 def test_the_sizer_reads_the_composes_one_frozen_regime(monkeypatch):
     """One compose, one regime reading: a reading already frozen in the compose's memo (by the market
     context or another block) is the one the sizer stamps."""

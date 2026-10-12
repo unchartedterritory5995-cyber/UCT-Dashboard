@@ -59,9 +59,15 @@ def build_position_sizing(block: dict, ctx: dict):
     every block in one compose stamps the same frozen reading. HELD-ONLY (R-W0-1): it is entered only
     when the pod already holds a breadth payload, because the default engine.get_breadth goes on to the
     breadth vendor fetch on a cold box. A cold hold leaves the block unstamped; the client stamps
-    today's regime on the member's first change."""
+    today's regime on the member's first change.
+
+    R-T11-1 / R-RC-1 (IR-S11, as build_market_context): "Update layout" on an older note ("update")
+    offers the sizer UNSTAMPED and reads no regime; only a new note ("create", which an empty note's
+    outline insert is too) stamps the regime it was built in."""
     from api.services import engine
     params = {"grade": _settings(block).get("grade", "A")}
+    if ctx.get("mode") == "update":
+        return _node("positionSizing", params, ctx), None
     try:
         held = engine.get_breadth(held_only=True) is not None
     except Exception:  # noqa: BLE001 -- an unreadable hold is a missing regime, never a failed note
