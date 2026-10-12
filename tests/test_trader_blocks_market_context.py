@@ -189,11 +189,11 @@ def held(monkeypatch):
     return ns
 
 
-def _create(block_settings=None):
+def _create(block_settings=None, now=NOW):
     from api.services.journal_two import journal_styles as js
     node, reason = js.BLOCK_BUILDERS["marketcontext"](
         {"block": "marketcontext", "enabled": True, "settings": block_settings or {}},
-        {"ticker": None, "now": NOW, "memo": {}, "mode": "create", "user_id": "u1"})
+        {"ticker": None, "now": now, "memo": {}, "mode": "create", "user_id": "u1"})
     assert reason is None
     return node["attrs"]["params"]
 
@@ -257,9 +257,83 @@ def test_a_live_cache_row_with_no_observation_time_is_dated_by_the_capture(held)
 # ── R-T3-2 I1: the "last close" is a SETTLED session's close, never today's forming bar ─────────────
 # NOW is Tue 2026-10-13 13:26 ET, mid-session: the last completed session is Mon 10/12.
 
-def _bars(monkeypatch, bs, rows):
-    """QQQ's held daily bars (oldest first, as bars_sqlite answers), whatever depth is asked."""
-    monkeypatch.setattr(bs, "get_bars", lambda ticker, tf, n: list(rows)[-n:] if (ticker, tf) == ("QQQ", "D") else [])
+def _bars(monkeypatch, bs, rows, sym="QQQ"):
+    """One symbol's held daily bars (oldest first, as bars_sqlite answers), whatever depth is asked."""
+    monkeypatch.setattr(bs, "get_bars", lambda ticker, tf, n: list(rows)[-n:] if (ticker, tf) == (sym, "D") else [])
+
+
+# ── R-T3-3 Important 1: an UNDATED closed cache row is never dated by the capture ─────────────────
+# live_prices._last_session_row leaves session_close_at None AND change_pct a fabricated 0.0 while its
+# grouped session map is warming or disagrees. Such a row is routed to _last_close (calendar-checked,
+# change from the prior bar); with no held bar the field is the sentence. The reviewer's probe:
+SATURDAY = datetime(2026, 10, 17, 14, 0, tzinfo=timezone.utc)        # Sat 10/17 10:00 ET
+_UNDATED_CLOSED = {"price": 598.0, "change_pct": 0.0, "observed_at": None, "session_close_at": None,
+                   "market_closed": True}
+
+
+def test_an_undated_closed_cache_row_takes_fridays_settled_close_instead(held, monkeypatch):
+    lp = held.live_prices
+    lp.cache.set(lp._px_key("SPY"), dict(_UNDATED_CLOSED), ttl=60)
+    _bars(monkeypatch, held.bars_sqlite, [(20261015, 0, 0, 0, 595.0, 1), (20261016, 0, 0, 0, 598.0, 1)], sym="SPY")
+    spy = _create(now=SATURDAY)["readings"]["spy"]
+    assert held.calls == []
+    assert spy == {"value": {"price": 598.0, "changePct": 0.5042, "closed": True},
+                   "source": "last close", "asOf": "2026-10-16T20:00:00Z", "missing": None}
+
+
+def test_an_undated_closed_cache_row_with_no_held_bar_is_the_sentence(held):
+    lp = held.live_prices
+    lp.cache.set(lp._px_key("SPY"), dict(_UNDATED_CLOSED), ttl=60)
+    spy = _create(now=SATURDAY)["readings"]["spy"]
+    assert held.calls == []
+    assert spy == {"value": None, "source": None, "asOf": None, "missing": "No SPY quote could be read just now."}
+
+
+def test_the_capture_time_never_dates_a_closed_row():
+    """The field builder itself: a closed row with no date of its own is a sentence (only a LIVE row
+    may be dated by the capture)."""
+    from api.services.journal_two import trader_blocks as tb
+    assert tb._index_field("SPY", dict(_UNDATED_CLOSED), SATURDAY) == {
+        "value": None, "source": None, "asOf": None, "missing": "No SPY quote could be read just now."}
+
+
+# ── R-T3-3 Minor 2: the session boundaries, against the REAL session_calendar ─────────────────────
+# Each case: `now` (built in ET; run as ET and as UTC), the held bars (the bar store holds nothing
+# after "today", and may hold today's forming bar), the last completed session, and its close time.
+# Expected values are HARD-CODED, never derived from the calendar under test.
+_ET = __import__("zoneinfo").ZoneInfo("America/New_York")
+_BOUNDARIES = [
+    ("saturday", datetime(2026, 10, 17, 12, 0, tzinfo=_ET), (20261014, 20261015, 20261016),
+     "2026-10-16", "2026-10-16T20:00:00Z"),
+    ("monday pre-market", datetime(2026, 10, 19, 8, 0, tzinfo=_ET), (20261015, 20261016, 20261019),
+     "2026-10-16", "2026-10-16T20:00:00Z"),
+    ("thanksgiving midday", datetime(2026, 11, 26, 12, 0, tzinfo=_ET), (20261123, 20261124, 20261125),
+     "2026-11-25", "2026-11-25T21:00:00Z"),
+    ("thanksgiving evening", datetime(2026, 11, 26, 20, 0, tzinfo=_ET), (20261123, 20261124, 20261125),
+     "2026-11-25", "2026-11-25T21:00:00Z"),
+    ("half-day 12:59", datetime(2026, 11, 27, 12, 59, tzinfo=_ET), (20261124, 20261125, 20261127),
+     "2026-11-25", "2026-11-25T21:00:00Z"),
+    ("half-day 13:00", datetime(2026, 11, 27, 13, 0, tzinfo=_ET), (20261124, 20261125, 20261127),
+     "2026-11-27", "2026-11-27T18:00:00Z"),
+    ("normal 15:59:59", datetime(2026, 10, 13, 15, 59, 59, tzinfo=_ET), (20261009, 20261012, 20261013),
+     "2026-10-12", "2026-10-12T20:00:00Z"),
+    ("normal 16:00:00", datetime(2026, 10, 13, 16, 0, 0, tzinfo=_ET), (20261009, 20261012, 20261013),
+     "2026-10-13", "2026-10-13T20:00:00Z"),
+]
+
+
+@pytest.mark.parametrize("zone", ["ET", "UTC"])
+@pytest.mark.parametrize("name,now,days,session,close_iso", _BOUNDARIES, ids=[c[0] for c in _BOUNDARIES])
+def test_the_last_close_respects_every_session_boundary(monkeypatch, zone, name, now, days, session, close_iso):
+    from api.services import bars_sqlite
+    from api.services.journal_two import trader_blocks as tb
+    now = now if zone == "ET" else now.astimezone(timezone.utc)
+    closes = {d: 100.0 + i for i, d in enumerate(days)}
+    _bars(monkeypatch, bars_sqlite, [(d, 0, 0, 0, c, 1) for d, c in closes.items()])
+    assert tb._last_completed_session(now).isoformat() == session
+    got = tb._last_close("QQQ", now)
+    assert got is not None and got["asOf"] == close_iso
+    assert got["price"] == closes[int(session.replace("-", ""))]
 
 
 def test_todays_forming_daily_bar_is_never_taken_as_a_close(held, monkeypatch):

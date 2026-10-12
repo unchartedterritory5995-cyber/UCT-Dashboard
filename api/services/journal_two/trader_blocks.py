@@ -203,6 +203,11 @@ def _quotes(user_id: str, symbols: tuple[str, ...], now: datetime | None = None)
     out: dict = {}
     for sym in symbols:
         row = live_prices.cache.get(live_prices._px_key(sym))
+        if isinstance(row, dict) and row.get("market_closed") and _num(row.get("session_close_at")) is None:
+            # R-T3-3: an UNDATED closed row (live_prices' grouped session map still warming or
+            # disagreeing, so its change_pct is a fabricated 0.0) is not used; the calendar-checked
+            # held bar answers instead, or nothing does.
+            row = None
         if not isinstance(row, dict):
             try:
                 row = _last_close(sym, now)
@@ -230,15 +235,17 @@ def _epoch_iso(v: Any) -> str | None:
 def _index_field(sym: str, q: Any, now: datetime) -> dict:
     if isinstance(q, dict) and _num(q.get("price")) is not None:
         closed = bool(q.get("market_closed"))
-        return {"value": {"price": q["price"], "changePct": _num(q.get("change_pct")), "closed": closed},
-                # R-T3-2 m2: a row read while the market is closed is a last close, never a live price.
-                "source": q.get("source") or ("last close" if closed else "live price"),
-                # A live row carries the vendor's observation epoch; a closed-market row the epoch of
-                # the session close it IS; a held bar its close. A row the vendor did not time is
-                # dated by the capture: the cache's 15 s TTL bounds its age (R-T3-2 m2).
-                "asOf": (q.get("asOf") or _epoch_iso(q.get("observed_at"))
-                         or _epoch_iso(q.get("session_close_at")) or _iso(now)),
-                "missing": None}
+        # A live row carries the vendor's observation epoch; a closed-market row the epoch of the
+        # session close it IS; a held bar its close. Only a LIVE row the vendor did not time is dated
+        # by the capture (the cache's 15 s TTL bounds its age, R-T3-2 m2); a closed row's value is a
+        # past session's close, so the capture is never its date (R-T3-3): undated, it is a sentence.
+        as_of = (q.get("asOf") or _epoch_iso(q.get("observed_at"))
+                 or _epoch_iso(q.get("session_close_at")) or (None if closed else _iso(now)))
+        if as_of is not None:
+            return {"value": {"price": q["price"], "changePct": _num(q.get("change_pct")), "closed": closed},
+                    # R-T3-2 m2: a row read while the market is closed is a last close, never a live price.
+                    "source": q.get("source") or ("last close" if closed else "live price"),
+                    "asOf": as_of, "missing": None}
     return {"value": None, "source": None, "asOf": None, "missing": f"No {sym} quote could be read just now."}
 
 
