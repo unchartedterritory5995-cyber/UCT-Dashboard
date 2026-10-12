@@ -41,11 +41,19 @@ const BLOCK_DIR_RELS = DIRS.map((d) => `${rel(d)}/`)
  * entry `exceptionProblems` refuses exempts nothing.
  * ⛔ IR-B5: empty until a task ships a file that writes. Each task adds EXACTLY its own entry, in the
  * commit that creates the call, and nothing else:
- *   · Task 8  — components/LogTradeChecklist.jsx, its one named write;
+ *   · Task 8  — lib/blocks/logTradeChecklist.js, its two named writes (Log Trade's ticks: the open
+ *     position's pre-entry PUT and the closed trade's adherence PUT; the body file writes nothing);
  *   · Task 10 — its block body's one named write.
  * Never a whole file, never a note URL (the last case below refuses both).
  */
-export const WRITE_EXCEPTIONS = {}
+export const WRITE_EXCEPTIONS = {
+  'app/src/pages/journal-2-0/lib/blocks/logTradeChecklist.js': [
+    { method: 'PUT', url: '/api/j2/trader-blocks/positions/{}/pre-entry',
+      why: 'Log Trade ticks for an OPEN position, to the adherence store under pos:<id> (R-P2-7); never a note.' },
+    { method: 'PUT', url: '/api/j2/trades/{}/adherence',
+      why: "Log Trade ticks for a CLOSED trade, to that trade's adherence record; never a note." },
+  ],
+}
 
 /**
  * ④ (R-RC-6) module id -> why. A package by its own name; a source file by its repo-relative path
@@ -70,6 +78,11 @@ export const IMPORT_ALLOW = {
   'app/src/pages/journal-2-0/hooks/useJ2CurrentRegime': "READ only: today's regime id and its date (GET /api/j2/regime)",
   // R-T11-2 N-2: the accounts list's state picks the sentence when no specific account is selected.
   'app/src/pages/journal-2-0/hooks/useJ2Accounts': 'READ only: the accounts list, its loading and error state, and refresh (a re-read)',
+  // Task 7: the checklist's ONE read seam. It composes the Journal's settings, selected-account and
+  // rules SWR hooks and returns DATA ONLY (its return keys are pinned in useChecklistSources.test.js):
+  // the save / create / dismiss writes those hooks carry never reach a block file. It fetches nothing
+  // itself and is not a network module of its own.
+  'app/src/pages/journal-2-0/hooks/useChecklistSources': 'the checklist read seam: setups, setupRules and before-entry rules as data only; no write function is returned',
 }
 
 /**
@@ -81,6 +94,36 @@ export const IMPORT_ALLOW = {
 export const IMPORT_NAMES = {
   'app/src/utils/lazyWithRetry': ['isChunkLoadError'],
 }
+
+/**
+ * ⑤ R-T7-2 / I-3: a READ SEAM is an IMPORT_ALLOW entry under journal-2-0/hooks/. It lives outside the
+ * block directories, so ①-④ never read it; ⑤ does, every run, for every such entry (derived from
+ * IMPORT_ALLOW, so a seam is scanned the day it is allow-listed). Each seam has its OWN rules:
+ *   · `imports`: the only modules it may import (problemsIn's every check runs with this list);
+ *   · `members`: per hook module, the only names it may destructure from that hook's result. A hook
+ *     result bound whole, spread, passed on or returned is a `REF`, so save / create / dismiss /
+ *     mutate / setAccount are unreachable by construction;
+ *   · and the default export returns ONE literal object, no spread, whose keys equal the seam's own
+ *     exported `RETURN_KEYS` (the constant its shape test reads; never a second copy here).
+ * A seam with no entry here fails closed.
+ */
+const J2_HOOKS = 'app/src/pages/journal-2-0/hooks/'
+export const SEAM_RULES = {
+  [`${J2_HOOKS}useChecklistSources`]: {
+    imports: {
+      react: 'useCallback only; no network',
+      [`${J2_HOOKS}useJ2Settings`]: 'SWR read of the account settings; its save is unreachable (members)',
+      [`${J2_HOOKS}useJ2SelectedAccount`]: 'the selected account; its setAccount is unreachable (members)',
+      [`${J2_HOOKS}useJournalRules`]: 'SWR read of the active rules; its create and dismiss are unreachable (members)',
+    },
+    members: {
+      [`${J2_HOOKS}useJ2Settings`]: ['settings', 'isLoading', 'error', 'refresh'],
+      [`${J2_HOOKS}useJ2SelectedAccount`]: ['accountId', 'isLoading', 'isAllAccounts', 'accountsError', 'accounts'],
+      [`${J2_HOOKS}useJournalRules`]: ['rules', 'isLoading', 'error'],
+    },
+  },
+}
+export const seamIds = () => Object.keys(IMPORT_ALLOW).filter((id) => id.startsWith(J2_HOOKS))
 
 const HELPER_METHOD = { jsonPost: 'POST', jsonPut: 'PUT', jsonPatch: 'PATCH', jsonDelete: 'DELETE' }
 const WRITE_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE']
@@ -310,6 +353,105 @@ export function problemsIn(file, src, exceptions = WRITE_EXCEPTIONS, allow = IMP
   return out
 }
 
+/** `walk`, with every ancestor (nearest last) instead of the parent alone. */
+function walkStack(n, fn, stack = []) {
+  if (!n || typeof n.type !== 'string') return
+  fn(n, stack)
+  stack.push(n)
+  for (const k of Object.keys(n)) {
+    const v = n[k]
+    if (Array.isArray(v)) v.forEach((c) => walkStack(c, fn, stack))
+    else if (v && typeof v === 'object' && typeof v.type === 'string') walkStack(v, fn, stack)
+  }
+  stack.pop()
+}
+
+const isFn = (n) => /Function/.test(n?.type || '')
+
+/** The return arguments of `fn` itself, never of a function nested inside it. */
+function ownReturns(fn) {
+  if (fn.type === 'ArrowFunctionExpression' && fn.expression) return [fn.body]
+  const out = []
+  const visit = (n) => {
+    if (!n || typeof n.type !== 'string') return
+    if (n.type === 'ReturnStatement') { out.push(n.argument); return }
+    for (const k of Object.keys(n)) {
+      const v = n[k]
+      for (const c of (Array.isArray(v) ? v : [v])) if (c && typeof c.type === 'string' && !isFn(c)) visit(c)
+    }
+  }
+  visit(fn.body)
+  return out
+}
+
+/** The seam's exported RETURN_KEYS as a string list, or null when it is not one literal list. */
+function returnKeysOf(ast) {
+  for (const n of ast.body) {
+    if (n.type !== 'ExportNamedDeclaration' || n.declaration?.type !== 'VariableDeclaration') continue
+    for (const d of n.declaration.declarations) {
+      if (d.id?.name !== 'RETURN_KEYS') continue
+      let arr = d.init
+      if (arr?.type === 'CallExpression' && nameOf(arr.callee) === 'freeze' && arr.callee.object?.name === 'Object') arr = arr.arguments[0]
+      if (arr?.type !== 'ArrayExpression' || !arr.elements.every((e) => e?.type === 'Literal' && typeof e.value === 'string')) return null
+      return arr.elements.map((e) => e.value)
+    }
+  }
+  return undefined
+}
+
+/** ⑤ Every reason a read seam fails (see SEAM_RULES). */
+export function seamProblems(file, src, rule) {
+  if (!rule) return [`SEAM ${file}: no SEAM_RULES entry`]
+  const hookIds = Object.keys(rule.members)
+  const out = problemsIn(file, src, {}, rule.imports, Object.fromEntries(hookIds.map((id) => [id, ['default']])))
+  const ast = parse(src)
+  const hooks = new Map()                                                     // local name -> hook module id
+  for (const n of ast.body) {
+    if (n.type !== 'ImportDeclaration') continue
+    const id = specOf(n.source) == null ? null : moduleIdOf(file, specOf(n.source))
+    if (!hookIds.includes(id)) continue
+    for (const s of n.specifiers) if (s.type === 'ImportDefaultSpecifier') hooks.set(s.local.name, id)
+  }
+  walkStack(ast, (n, stack) => {
+    if (n.type !== 'Identifier' || !hooks.has(n.name)) return
+    const parent = stack[stack.length - 1]
+    const grand = stack[stack.length - 2]
+    if (parent && /^Import\w*Specifier$/.test(parent.type)) return
+    const id = hooks.get(n.name)
+    const hook = posix.basename(id)
+    const destructured = parent?.type === 'CallExpression' && parent.callee === n
+      && grand?.type === 'VariableDeclarator' && grand.init === parent && grand.id.type === 'ObjectPattern'
+    if (!destructured) { out.push(`REF ${file}: ${hook}`); return }
+    for (const p of grand.id.properties) {
+      if (p.type === 'RestElement') out.push(`MEMBER ${file}: ${hook}(...rest)`)
+      else if (p.computed) out.push(`MEMBER ${file}: ${hook}[?]`)
+      else {
+        const key = p.key?.name ?? p.key?.value
+        if (!rule.members[id].includes(key)) out.push(`MEMBER ${file}: ${hook}.${key}`)
+      }
+    }
+  })
+  const keys = returnKeysOf(ast)
+  if (keys === undefined) out.push(`SHAPE ${file}: no exported RETURN_KEYS`)
+  if (keys === null) out.push(`SHAPE ${file}: RETURN_KEYS is not one literal list of strings`)
+  const def = ast.body.find((n) => n.type === 'ExportDefaultDeclaration')?.declaration
+  const fn = isFn(def) ? def
+    : def?.type === 'Identifier' ? ast.body.find((n) => n.type === 'FunctionDeclaration' && n.id?.name === def.name) : null
+  if (!fn) { out.push(`SHAPE ${file}: no default-exported function`); return out }
+  const returns = ownReturns(fn)
+  if (!returns.length) out.push(`SHAPE ${file}: no return`)
+  for (const r of returns) {
+    if (r?.type !== 'ObjectExpression') { out.push(`SHAPE ${file}: returns a non-literal`); continue }
+    if (r.properties.some((p) => p.type === 'SpreadElement')) { out.push(`SHAPE ${file}: spread in the return`); continue }
+    if (r.properties.some((p) => p.computed)) { out.push(`SHAPE ${file}: computed key in the return`); continue }
+    const got = r.properties.map((p) => p.key?.name ?? p.key?.value).sort()
+    if (Array.isArray(keys) && JSON.stringify(got) !== JSON.stringify([...keys].sort())) {
+      out.push(`SHAPE ${file}: return keys ${got.join(',')} are not RETURN_KEYS ${[...keys].sort().join(',')}`)
+    }
+  }
+  return out
+}
+
 /** ③'s other half: does `src` CALL updateAttributes (a call in code, never a word in a comment)? */
 export function callsUpdateAttributes(src) {
   let found = false
@@ -536,6 +678,76 @@ describe('⛔⛔ no block owns a second write door', () => {
     expect(problemsIn(f, `// import lazyWithRetry from '${m}'\nconst k = 1`)).toEqual([])
     // every name-limited module is also an allow-listed one
     for (const id of Object.keys(IMPORT_NAMES)) expect(Object.hasOwn(IMPORT_ALLOW, id), id).toBe(true)
+  })
+  it('⑤ every read seam (an IMPORT_ALLOW entry under hooks/) is scanned with its OWN rules: nothing found', () => {
+    const seams = seamIds()
+    expect(seams).toContain(`${J2_HOOKS}useChecklistSources`)                    // non-vacuity
+    for (const id of seams) {
+      const p = `${id}.js`
+      expect(existsSync(join(REPO, p)), `${p} is not a file`).toBe(true)
+      expect(seamProblems(p, readFileSync(join(REPO, p), 'utf8'), SEAM_RULES[id]), id).toEqual([])
+    }
+    // and no rules entry is left over for a seam the allow-list no longer names
+    for (const id of Object.keys(SEAM_RULES)) expect(seams, id).toContain(id)
+  })
+  it('⑤ each seam\'s shape test reads the seam\'s own RETURN_KEYS (one copy of the shape)', () => {
+    for (const id of seamIds()) {
+      const t = join(REPO, `${id}.test.js`)
+      expect(existsSync(t), `${id}.test.js`).toBe(true)
+      const names = []
+      walk(parse(readFileSync(t, 'utf8')), (n) => {
+        if (n.type === 'ImportDeclaration' && moduleIdOf(rel(t), String(n.source.value)) === id) {
+          for (const s of n.specifiers) if (s.type === 'ImportSpecifier') names.push(s.imported.name)
+        }
+      })
+      expect(names, id).toContain('RETURN_KEYS')
+    }
+  })
+  it('CONTROL — ⑤ a seam that reaches a write, an unlisted module or an open return is seen, by name', () => {
+    const f = `${J2_HOOKS}useChecklistSources.js`
+    const rule = SEAM_RULES[`${J2_HOOKS}useChecklistSources`]
+    const seam = (body, extra = '') => [
+      "import { useCallback, useEffect } from 'react'",
+      "import useJ2Settings from './useJ2Settings'",
+      "import useJournalRules from './useJournalRules'",
+      extra,
+      "export const RETURN_KEYS = Object.freeze(['settings', 'rules'])",
+      'export default function useX() {',
+      body,
+      '}',
+    ].join('\n')
+    const CLEAN = "  const { settings, refresh } = useJ2Settings()\n  const { rules } = useJournalRules(null)\n  return { settings, rules }"
+    expect(seamProblems(f, seam(CLEAN), rule)).toEqual([])
+    // destructuring a write
+    expect(seamProblems(f, seam(CLEAN.replace('settings, refresh', 'settings, save')), rule))
+      .toEqual([`MEMBER ${f}: useJ2Settings.save`])
+    // the whole result bound, then returned
+    expect(seamProblems(f, seam("  const s = useJ2Settings()\n  const { rules } = useJournalRules(null)\n  return s"), rule))
+      .toEqual([`REF ${f}: useJ2Settings`, `SHAPE ${f}: returns a non-literal`])
+    // a spread return
+    expect(seamProblems(f, seam("  const { settings } = useJ2Settings()\n  return { settings, ...useJournalRules(null) }"), rule))
+      .toEqual([`REF ${f}: useJournalRules`, `SHAPE ${f}: spread in the return`])
+    // an import outside the seam's own list
+    expect(seamProblems(f, seam(CLEAN, "import { jsonPut } from '../lib/api'"), rule)).toEqual([`UNLISTED ${f}: ../lib/api`])
+    // a PUT fetch inside the hook
+    expect(seamProblems(f, seam(`${CLEAN.replace('  return', "  useEffect(() => { fetch('/api/j2/x', { method: 'PUT' }) }, [])\n  return")}`), rule))
+      .toEqual([`WRITE ${f}: PUT /api/j2/x`])
+    // a rest element, a renamed member, a key the shape does not declare, a named import of a hook
+    expect(seamProblems(f, seam(CLEAN.replace('settings, refresh', 'settings, ...rest')), rule)).toEqual([`MEMBER ${f}: useJ2Settings(...rest)`])
+    expect(seamProblems(f, seam(CLEAN.replace('settings, refresh', 'settings, mutate: m')), rule)).toEqual([`MEMBER ${f}: useJ2Settings.mutate`])
+    expect(seamProblems(f, seam(CLEAN.replace('{ settings, rules }', '{ settings, rules, extra: 1 }')), rule))
+      .toEqual([`SHAPE ${f}: return keys extra,rules,settings are not RETURN_KEYS rules,settings`])
+    expect(seamProblems(f, seam(CLEAN, "import { mutate } from './useJ2Settings'"), rule)).toEqual([`NAMES ${f}: ./useJ2Settings (mutate)`])
+    // no rules entry at all fails closed
+    expect(seamProblems(f, seam(CLEAN), undefined)).toEqual([`SEAM ${f}: no SEAM_RULES entry`])
+    // the same text inside comments is never seen
+    expect(seamProblems(f, seam(CLEAN, [
+      '// const { settings, save } = useJ2Settings()',
+      '/* return { ...useJournalRules(id) } */',
+      "// import { jsonPut } from '../lib/api'",
+      "// fetch('/api/j2/x', { method: 'PUT' })",
+      '/* const s = useJ2Settings(); return s */',
+    ].join('\n')), rule)).toEqual([])
   })
   it('CONTROL — an exception is method+URL, never the whole file (IR-I b)', () => {
     const f = 'app/src/pages/journal-2-0/lib/blocks/Y.js'

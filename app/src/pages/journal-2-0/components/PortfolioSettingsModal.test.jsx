@@ -1,7 +1,20 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import PortfolioSettingsModal from './PortfolioSettingsModal'
+
+// Notebook P2a, Task 8: the Log Trade checklist's opt-in lives here, behind the journal styles switch.
+// The cases that predate it run with the switch off (its default), so they never see the control.
+const p2a = vi.hoisted(() => ({ styles: false, pref: undefined, setPref: null }))
+vi.mock('../lib/journalStylesFlag', async (orig) => ({ ...(await orig()), journalStylesEnabled: () => p2a.styles }))
+vi.mock('../../../hooks/usePreferences', async (orig) => ({
+  ...(await orig()),
+  default: () => ({
+    prefs: p2a.pref === undefined ? {} : { notebook_log_trade_checklist: p2a.pref },
+    setPref: (...a) => p2a.setPref(...a),
+    loading: false,
+  }),
+}))
 
 const baseSettings = {
   id: 's1',
@@ -385,5 +398,53 @@ describe('PortfolioSettingsModal', () => {
     await user.click(screen.getByRole('button', { name: 'Save Settings' }))
     const payload = onSave.mock.calls[0][0]
     expect(payload.setupRules).toEqual({})
+  })
+})
+
+// ── Notebook P2a, Task 8: "Pre-entry checklist in Log Trade" ─────────────────────────────────────
+describe('PortfolioSettingsModal: the Log Trade checklist opt-in (P2a)', () => {
+  const NAME = 'Pre-entry checklist in Log Trade'
+  afterEach(() => { p2a.styles = false; p2a.pref = undefined; p2a.setPref = null })
+
+  it('is absent with the journal styles switch off', () => {
+    p2a.styles = false
+    p2a.setPref = vi.fn(async () => true)
+    render(<PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />)
+    expect(screen.queryByRole('combobox', { name: NAME })).toBeNull()
+    expect(screen.queryByText(NAME)).toBeNull()
+  })
+
+  it('with the switch on: Off by default, and each choice writes the literal key with that value', async () => {
+    p2a.styles = true
+    p2a.setPref = vi.fn(async () => true)
+    const user = userEvent.setup({ delay: null })
+    render(<PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />)
+    const select = screen.getByRole('combobox', { name: NAME })
+    expect(select.value).toBe('off')
+    expect([...select.options].map((o) => [o.value, o.textContent])).toEqual([
+      ['off', 'Off'], ['on', 'Show it'], ['on-warn', 'Show it, and warn until every item is ticked'],
+    ])
+    await user.selectOptions(select, 'on')
+    expect(p2a.setPref).toHaveBeenLastCalledWith('notebook_log_trade_checklist', 'on')
+    await user.selectOptions(select, 'on-warn')
+    expect(p2a.setPref).toHaveBeenLastCalledWith('notebook_log_trade_checklist', 'on-warn')
+    expect(p2a.setPref).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows the stored choice', () => {
+    p2a.styles = true
+    p2a.pref = 'on-warn'
+    p2a.setPref = vi.fn(async () => true)
+    render(<PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />)
+    expect(screen.getByRole('combobox', { name: NAME }).value).toBe('on-warn')
+  })
+
+  it('a choice the server did not keep says so, in words', async () => {
+    p2a.styles = true
+    p2a.setPref = vi.fn(async () => false)
+    const user = userEvent.setup({ delay: null })
+    render(<PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />)
+    await user.selectOptions(screen.getByRole('combobox', { name: NAME }), 'on')
+    expect((await screen.findByText("Couldn't save this choice. Try again.")).getAttribute('role')).toBe('alert')
   })
 })

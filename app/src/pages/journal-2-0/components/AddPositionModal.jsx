@@ -37,6 +37,8 @@ import UIcon from '../../../components/ui/UIcon'
 import { buildWidgetEmbedAttrs } from '../lib/widgetEmbedCore'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 import SecuritySymbolInput from './SecuritySymbolInput'
+import useLogTradeChecklist from '../hooks/useLogTradeChecklist'
+import LogTradeChecklistSlot from './LogTradeChecklistSlot'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -59,7 +61,7 @@ function positionChartWindow(entryDateIso) {
 }
 
 
-export default function AddPositionModal({ settings, onSave, onClose, prefill, accountName }) {
+export default function AddPositionModal({ settings, onSave, onClose, prefill, accountName, preEntryChecklist = false }) {
   const titleId = useId()
   // `prefill` arrives from chart right-click (§8.2) — locks Symbol,
   // seeds Entry Price + Entry Date from the clicked bar, and stamps a
@@ -117,6 +119,12 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
   const [disciplineOverrideArmed, setDisciplineOverrideArmed] = useState(false)
   const { stats: setupStats } = useJ2SetupStats(accountId, setup)
 
+  // Notebook P2a (Task 8): the pre-entry checklist, a SOFT warning. Only the two Log Trade doors pass
+  // `preEntryChecklist` (IR-S7: they resolve the row they create); the member's preference turns it
+  // on. The hook owns the ticks and the one save after the row exists (R-T8-1: "touched" per setup
+  // list, a 10 s ceiling on the write, Try again for no answer / a timeout / a 5xx only).
+  const checklist = useLogTradeChecklist({ preEntryChecklist, kind: 'position', setup })
+
   const { regime: regimeData } = useJ2CurrentRegime()
   const { interventions, dismiss: dismissIntervention } = useInterventions(accountId)
   const currentRegime = regimeData?.regime
@@ -131,6 +139,10 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
     resetVerdict()
     onClose?.()
   }, [resetVerdict, onClose])
+
+  const retryChecklist = useCallback(async () => {
+    if ((await checklist.retry()) && checklist.isOpen()) handleClose()
+  }, [checklist, handleClose])
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') handleClose() }
@@ -348,6 +360,11 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
       // Never manufacture a tradeRef before this resolves.
       const created = await onSave(payload)
 
+      // 2b. The ticks, under the id the server gave the position (the adherence store under
+      // pos:<id>, R-P2-7). A failure never undoes the position: the dialog stays open to say so,
+      // with the log button gone so it cannot log twice.
+      const checklistSaved = await checklist.saveFor(created, payload.setup)
+
       // 3. Attach the typed trade reference now that a real id exists.
       // tradeRefType is 'position' (not 'equity_trade') -- this id lives in
       // j2_positions until the position closes into a j2_trades row; see
@@ -373,14 +390,17 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
           return // keep the modal open so the warning + retry stay visible
         }
       }
-      onClose?.()
+      if (!checklistSaved) return // keep the modal open so the checklist line stays visible
+      // N-2: closed while this save was pending? Its close must not reach a dialog opened since.
+      if (checklist.isOpen()) onClose?.()
     } catch (e) {
       console.error('Failed to save position:', e)
       setErrorMsg("Couldn't save this position. Nothing was changed — try again.")
     } finally {
       setSaving(false)
     }
-  }, [validate, symbol, side, entryDate, shares, entryPrice, stopPrice, setup, notes, verdict, thesisSelection, onSave, onClose])
+  }, [validate, symbol, side, entryDate, shares, entryPrice, stopPrice, setup, notes, verdict, thesisSelection, onSave, onClose,
+    checklist])
 
   const suggestedTarget = computeSuggestedTarget({
     side,
@@ -571,6 +591,7 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
             </select>
           </label>
             <SetupStatsPanel stats={setupStats} isAPlus={isAPlus} />
+          {checklist.on && <LogTradeChecklistSlot {...checklist.slotProps} />}
 
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Notes</span>
@@ -700,6 +721,7 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
           {thesisLinkWarning && (
             <div className={bannerStyles.alert} role="alert">{thesisLinkWarning}</div>
           )}
+          {checklist.notSaved && <div className={bannerStyles.alert} role="alert">{checklist.notSaved}</div>}
         </div>
 
         <div className={styles.footer} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
@@ -711,6 +733,15 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
               <button type="button" className="btn btn-primary" onClick={retryPendingLink}>
                 Retry linking
               </button>
+            </div>
+          ) : checklist.notSaved ? (
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              {checklist.canRetry && (
+                <button type="button" className="btn btn-ghost" onClick={retryChecklist} disabled={checklist.retrying}>
+                  {checklist.retrying ? 'Trying again…' : 'Try again'}
+                </button>
+              )}
+              <button type="button" className="btn btn-primary" onClick={handleClose}>Done</button>
             </div>
           ) : (
           <>

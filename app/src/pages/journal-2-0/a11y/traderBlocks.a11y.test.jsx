@@ -10,10 +10,14 @@ import { vi, expect } from 'vitest'
 import { axeSurface } from './surface'
 
 vi.mock('@tiptap/react', () => ({ NodeViewWrapper: ({ children, ...p }) => <div {...p}>{children}</div> }))
-// Task 11's real body reads these two hooks; its own recipe is traderBlockSizing.a11y.test.jsx.
-vi.mock('../hooks/useJ2Settings', () => ({ default: () => ({ settings: { accountSize: 50000 }, accountId: 'a1', accountName: 'Main' }) }))
+// Task 11's real body reads settings, accounts and the regime (its own recipe is
+// traderBlockSizing.a11y.test.jsx); Task 7's checklist reads settings, the selected account and rules
+// (its own states are audited in traderBlockChecklist.a11y.test.jsx). One member, account a1, no setups.
+vi.mock('../hooks/useJ2Settings', () => ({ default: () => ({ settings: { accountSize: 50000, setups: [], setupRules: {} }, accountId: 'a1', accountName: 'Main' }) }))
 vi.mock('../hooks/useJ2Accounts', () => ({ default: () => ({ accounts: [{ id: 'a1', name: 'Main' }], isLoading: false }) }))
 vi.mock('../hooks/useJ2CurrentRegime', () => ({ default: () => ({ regime: { regime: 'green', asOf: '2026-10-13' } }) }))
+vi.mock('../hooks/useJ2SelectedAccount', () => ({ default: () => ({ accountId: 'a1', accounts: [{ id: 'a1', name: 'Main' }] }) }))
+vi.mock('../hooks/useJournalRules', () => ({ default: () => ({ rules: [] }) }))
 import userEvent from '@testing-library/user-event'
 import BlockNodeView, { BLOCK_COMPONENTS } from '../components/notebook/blocks/BlockNodeView'
 import { BLOCK_ERROR_SENTENCE } from '../components/notebook/blocks/blockStates'
@@ -31,14 +35,18 @@ axeSurface('trader-block-platform', async () => {
     expect(await screen.findByRole('group', { name })).toBeTruthy()
     expect(screen.getByRole('button', { name: `Remove ${name}` })).toBeTruthy()
   }
-  // every body painted (an unloaded chunk would read as a clean, empty block). Each body is its own lazy
-  // chunk behind its own Suspense, so wait PER NAMED GROUP: `findAllBy*` resolves on the first match
-  // and read 1 of N under load. A task that replaces a stub removes its name from STUBBED.
-  const STUBBED = ['Pre-entry checklist', 'Price stamps']
-  for (const name of STUBBED) {
+  // Every body painted (an unloaded chunk would read as a clean, empty block), each inside its OWN
+  // named group. Each body is its own lazy chunk behind its own Suspense, so they commit at different
+  // ticks: wait per group, THEN count. (A findAll resolves on the FIRST match, so a count read from it
+  // is a sample; R-T7-2 I-1 reproduced that red with one chunk 300 ms late.)
+  // Task 10: delete your block's name from STUB_GROUPS when you replace its stub.
+  const STUB_GROUPS = ['Price stamps']
+  for (const name of STUB_GROUPS) {
     expect(await within(screen.getByRole('group', { name })).findByText('This block is being built.')).toBeTruthy()
   }
-  expect(screen.getAllByText('This block is being built.')).toHaveLength(STUBBED.length)
+  expect(screen.getAllByText('This block is being built.')).toHaveLength(STUB_GROUPS.length)
+  const checklist = screen.getByRole('group', { name: 'Pre-entry checklist' })
+  expect(await within(checklist).findByText(/You have no setups yet/)).toBeTruthy()
   // Task 11 replaced the sizing stub: its body proves it painted by its own named input, waited for in its group.
   expect(await within(screen.getByRole('group', { name: 'Position sizing' })).findByRole('spinbutton', { name: 'Entry' })).toBeTruthy()
 })

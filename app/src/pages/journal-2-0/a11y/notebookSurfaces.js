@@ -185,7 +185,7 @@ export const SURFACES = Object.freeze({
   // swaps its own line for its own recipe when it replaces the stub.
   'components/notebook/blocks/BlockNodeView.jsx': { recipe: 'trader-block-platform' },
   'components/notebook/blocks/blockStates.jsx': { coveredBy: 'trader-block-platform' },
-  'components/notebook/blocks/PreEntryChecklistBlock.jsx': { coveredBy: 'trader-block-platform' },
+  'components/notebook/blocks/PreEntryChecklistBlock.jsx': { recipe: 'trader-block-checklist' },
   'components/notebook/blocks/PriceStampsBlock.jsx': { coveredBy: 'trader-block-platform' },
   'components/notebook/blocks/PositionSizingBlock.jsx': { recipe: 'trader-block-sizing' },
 
@@ -300,4 +300,7 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // refusal line, as the desktop popover (learn-menu-grouped) and as the phone's bottom Sheet
   // (learn-menu-sheet); rail a11y/learnMenu.a11y.test.jsx.
   'components/notebook/onboarding/LearnMenu.jsx': { recipe: 'learn-menu-grouped', railFile: 'a11y/learnMenu.a11y.test.jsx' },
+  // Notebook P2a: Log Trade's pre-entry checklist (dark behind the journal styles switch and the member's
+  // opt-in); rail a11y/logTradeChecklist.a11y.test.jsx.
+  'components/LogTradeChecklist.jsx': { recipe: 'log-trade-checklist', railFile: 'a11y/logTradeChecklist.a11y.test.jsx' },
 })

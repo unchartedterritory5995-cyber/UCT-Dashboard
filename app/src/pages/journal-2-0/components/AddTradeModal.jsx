@@ -26,10 +26,12 @@ import PreTradeVerdictCard from './PreTradeVerdictCard'
 import { useIsPaid } from '../../../context/AuthContext'
 import UIcon from '../../../components/ui/UIcon'
 import SecuritySymbolInput from './SecuritySymbolInput'
+import useLogTradeChecklist from '../hooks/useLogTradeChecklist'
+import LogTradeChecklistSlot from './LogTradeChecklistSlot'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
-export default function AddTradeModal({ settings, onSave, onClose, accountName, accountId }) {
+export default function AddTradeModal({ settings, onSave, onClose, accountName, accountId, preEntryChecklist = false }) {
   const titleId = useId()
   const setups = settings?.setups ?? []
 
@@ -59,6 +61,15 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
   const { state: disciplineState } = useJ2DisciplineState(accountId)
   const [disciplineOverrideArmed, setDisciplineOverrideArmed] = useState(false)
   const { stats: setupStats } = useJ2SetupStats(accountId, setupVal)
+
+  // Notebook P2a (Task 8): the pre-entry checklist, a SOFT warning. Only the two Log Trade doors pass
+  // `preEntryChecklist` (IR-S7: they resolve the row they create); the member's preference turns it
+  // on. The hook owns the ticks and the one save after the row exists (R-T8-1: "touched" per setup
+  // list, a 10 s ceiling on the write, Try again for no answer / a timeout / a 5xx only).
+  const checklist = useLogTradeChecklist({ preEntryChecklist, kind: 'trade', setup: setupVal })
+  const retryChecklist = useCallback(async () => {
+    if ((await checklist.retry()) && checklist.isOpen()) onClose?.()
+  }, [checklist, onClose])
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
@@ -125,7 +136,7 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
     if (err) { setErrorMsg(err); return }
     setSaving(true)
     try {
-      await onSave({
+      const created = await onSave({
         symbol: symbol.trim().toUpperCase(),
         side,
         shares: Number(shares),
@@ -147,7 +158,11 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
           ? { compass_verdict_id: verdict.verdict_id, compass_verdict_label: verdict.label }
           : {},
       })
-      onClose?.()
+      // The trade is logged. Its ticks go under the id the server gave it, and a failure here never
+      // undoes it: the dialog stays open to say so, with the log button gone so it cannot log twice.
+      if (!(await checklist.saveFor(created, setupVal.trim() || null))) return
+      // N-2: closed while this save was pending? Its close must not reach a dialog opened since.
+      if (checklist.isOpen()) onClose?.()
     } catch (e) {
       console.error('Failed to save trade:', e)
       setErrorMsg("Couldn't save this trade. Nothing was changed — try again.")
@@ -157,7 +172,7 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
   }, [
     validate, symbol, side, shares, entryPrice, entryDate, entryTime, exitPrice, exitDate,
     exitTime, originalStop, setupVal, notes, fees, selectedMistakes, selectedEmotions,
-    verdict, onSave, onClose,
+    verdict, onSave, onClose, checklist,
   ])
 
   // Pre-trade verdict run (paid-gated footer button). Snake_case payload — the
@@ -375,6 +390,8 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
             </label>
           </div>
 
+          {checklist.on && <LogTradeChecklistSlot {...checklist.slotProps} />}
+
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Notes</span>
             <textarea
@@ -439,9 +456,21 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
             </div>
           )}
           {errorMsg && <div className={styles.errorBanner} role="alert">{errorMsg}</div>}
+          {checklist.notSaved && <div className={bannerStyles.alert} role="alert">{checklist.notSaved}</div>}
         </div>
 
         <div className={styles.footer} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+          {checklist.notSaved ? (
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              {checklist.canRetry && (
+                <button type="button" className="btn btn-ghost" onClick={retryChecklist} disabled={checklist.retrying}>
+                  {checklist.retrying ? 'Trying again…' : 'Try again'}
+                </button>
+              )}
+              <button type="button" className="btn btn-primary" onClick={onClose}>Done</button>
+            </div>
+          ) : (
+          <>
           {isPaid && (
             <>
               <PreTradeVerdictCard verdict={verdict} isLoading={verdictLoading} error={verdictError} />
@@ -474,6 +503,8 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
               {saving ? 'Saving…' : 'Add Trade'}
             </button>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>
