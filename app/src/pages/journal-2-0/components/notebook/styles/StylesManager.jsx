@@ -28,7 +28,6 @@ import { friendlyError, logIfUnexpected, reportError } from './styleErrors'
 import { markOfferApplied, offerApplied } from './offerApplied'
 import styles from './StylesManager.module.css'
 
-const MAPPING_PREF = 'notebook_kind_mapping'
 const MAX_KIND_NAME = 40                           // note_kinds.MAX_KIND_NAME_CHARS
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
 const dismissed = (v) => String(v ?? '').replace(/^"|"$/g, '') === 'dismissed'
@@ -112,7 +111,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const offline = data?.fromCache === true
   const locked = busy || offline
   const offer = offerData?.offer
-  const showOffer = Boolean(offer) && !offline && !offerDone && !offerApplied(userId) && !dismissed(prefs?.[MAPPING_PREF])
+  const showOffer = Boolean(offer) && !offline && !offerDone && !offerApplied(userId) && !dismissed(prefs?.notebook_kind_mapping)
 
   /** Any action but Undo ends the Undo line ("kept until the next action or close"). */
   const run = async (fn, { keepUndo = false } = {}) => {
@@ -235,7 +234,9 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
       + (lockedN ? ` ${plural(lockedN, 'locked note', 'locked notes')} ${lockedN === 1 ? 'was' : 'were'} left as ${lockedN === 1 ? 'it was' : 'they were'}.` : '')
       + (unsent ? ` ${plural(unsent, 'note', 'notes')} with unsent changes ${unsent === 1 ? 'was' : 'were'} left for later.` : ''))
   })
-  const notNow = () => { setPref(MAPPING_PREF, 'dismissed') }
+  // A literal key, so usePreferences.additionsOnly can see which preference this writes (both the read and
+  // the write are pinned by StylesManager.test.jsx's "Not now" case).
+  const notNow = () => { setPref('notebook_kind_mapping', 'dismissed') }
 
   return (
     <Sheet open={open} onClose={close} title={<h2 style={{ margin: 0, font: 'inherit' }}>Journal styles</h2>}
