@@ -63,6 +63,11 @@ def test_every_builtin_kind_has_a_builtin_style_and_its_blocks_are_known():
         assert all(b["block"] in js.KNOWN_BLOCKS for b in s["blocks"]), kind
 
 
+def test_every_catalogued_block_has_a_builder():
+    from api.services.journal_two import journal_styles as js
+    assert set(js.BLOCK_BUILDERS) == js.KNOWN_BLOCKS
+
+
 def _make(user="u1", **kw):
     from api.services.journal_two import journal_styles as js
     body = {"name": "My plan", "kindId": "trade_plan",

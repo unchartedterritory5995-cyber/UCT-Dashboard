@@ -19,7 +19,7 @@ import re
 import sqlite3
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable
 
 from api.services.auth_db import get_connection
 from api.services.notebook_flags import flag_on
@@ -509,6 +509,190 @@ def create_style_from_note(user_id: str, note_id: str, name: Any, kind_id: Any =
         return create_style(user_id, {"name": name if name else (note.get("title") or "My style"),
                                       "kindId": kind, "outlineBodyJson": outline, "blocks": blocks,
                                       "properties": props}, conn)
+    finally:
+        if owned:
+            conn.close()
+
+
+# ── The one composer (spec P1.3) ─────────────────────────────────────────────────────────────
+# Used by styled create (Task 9), preview (Task 8) and update layout (Task 10). Outline body ->
+# block nodes where the outline marks them (a paragraph that is exactly {{block:<id>}}), the rest
+# after the first heading -> property defaults that still fit -> the kind.
+
+PLACEHOLDER_RE = re.compile(r"^\{\{block:([a-zA-Z][a-zA-Z0-9_]{0,40})\}\}$")
+SKIP_SENTENCES = {
+    "needs-ticker": "Add a ticker to this note, then type /chart to add the chart.",
+}
+
+
+def _build_chart(block: dict, ctx: dict) -> tuple[dict | None, str | None]:
+    """A chart of the note's ticker, frozen at `now` (the frozen-means-anchored rule of
+    widgetEmbedCore.buildWidgetEmbedAttrs). No searchText, like sample_examples._chart_embed:
+    the client never re-derives it and search does not need it for a fresh chart. Every attribute
+    here is one widgetEmbedNode.jsx already declares (zero schema change)."""
+    ticker = ctx.get("ticker")
+    if not ticker:
+        return None, "needs-ticker"
+    now = ctx["now"]
+    tf = (block.get("settings") or {}).get("tf") or "D"
+    return {"type": "widgetEmbed", "attrs": {
+        "v": 1, "widgetId": "chart", "embedId": uuid.uuid4().hex, "mode": "snapshot",
+        "params": {"symbol": ticker, "tf": tf, "to": int(now.timestamp())},
+        "capturedAt": now.isoformat().replace("+00:00", "Z"),
+        "annotations": [], "caption": None, "layout": {"width": "full", "height": None}, "fallback": None,
+    }}, None
+
+
+#: block id -> builder. ⛔ Every id in BLOCK_KINDS has a builder (railed); P2 adds both together.
+BLOCK_BUILDERS: dict[str, Callable[[dict, dict], tuple[dict | None, str | None]]] = {"chart": _build_chart}
+
+
+def _plain(node: Any) -> str:
+    return "".join(c.get("text", "") for c in (node.get("content") or [])
+                   if isinstance(c, dict) and c.get("type") == "text") if isinstance(node, dict) else ""
+
+
+def _placeholder_kind(node: Any) -> str | None:
+    if not isinstance(node, dict) or node.get("type") != "paragraph":
+        return None
+    m = PLACEHOLDER_RE.match(_plain(node).strip())
+    return m.group(1) if m else None
+
+
+def _after_first_heading(content: list) -> int:
+    for i, n in enumerate(content):
+        if isinstance(n, dict) and n.get("type") == "heading":
+            return i + 1
+    return 0
+
+
+def _outline_doc(user_id: str, style: dict, conn: sqlite3.Connection) -> dict:
+    """A COPY of the outline to compose into: the linked member template when it still exists,
+    else the style's inline outline, else an empty doc (never a failed create)."""
+    if style.get("builtin"):
+        return copy.deepcopy(BUILTIN_STYLES[style["kindId"]]["outline"])
+    tid = style.get("outlineTemplateId")
+    if tid:
+        r = conn.execute("SELECT body_json FROM j2_note_templates WHERE id = ? AND user_id = ?",
+                         (tid, user_id)).fetchone()
+        if r and r["body_json"]:
+            try:
+                body = json.loads(r["body_json"])
+                if isinstance(body, dict) and body.get("type") == "doc":
+                    return body
+            except (TypeError, ValueError):
+                pass
+    body = style.get("outlineBodyJson")
+    if isinstance(body, dict) and body.get("type") == "doc":
+        return copy.deepcopy(body)
+    return {"type": "doc", "content": []}
+
+
+def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Connection | None,
+            now: datetime | None = None) -> dict:
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        ctx = {"ticker": ticker, "now": now or datetime.now(timezone.utc)}
+        doc = _outline_doc(user_id, style, conn)
+        enabled: dict[str, dict] = {}
+        disabled: set[str] = set()
+        for b in style.get("blocks") or []:
+            if b.get("enabled"):
+                enabled.setdefault(b["block"], b)
+            else:
+                disabled.add(b["block"])
+        skipped: list[dict] = []
+        placed: set[str] = set()
+
+        def note_skip(bid: str, reason: str) -> None:
+            if {"block": bid, "reason": reason} not in skipped:
+                skipped.append({"block": bid, "reason": reason})
+
+        def build(b: dict) -> list[dict]:
+            builder = BLOCK_BUILDERS.get(b["block"])
+            if builder is None:
+                note_skip(b["block"], "unknown-block")
+                return []
+            node, reason = builder(b, ctx)
+            if node is None:
+                note_skip(b["block"], reason)
+                return [_p(SKIP_SENTENCES[reason])] if reason in SKIP_SENTENCES else []
+            return [node]
+
+        def walk(content: list) -> list:
+            out = []
+            for node in content:
+                bid = _placeholder_kind(node)
+                if bid is not None:
+                    if bid in enabled:
+                        out.extend(build(enabled[bid]))
+                        placed.add(bid)
+                    elif bid not in disabled:
+                        note_skip(bid, "unknown-block")
+                    continue
+                if isinstance(node, dict) and isinstance(node.get("content"), list):
+                    node = {**node, "content": walk(node["content"])}
+                out.append(node)
+            return out
+
+        doc["content"] = walk(doc.get("content") or [])
+        rest: list[dict] = []
+        for bid, b in enabled.items():
+            if bid not in placed:
+                rest.extend(build(b))
+        if rest:
+            i = _after_first_heading(doc["content"])
+            doc["content"][i:i] = rest
+        if not doc["content"]:
+            doc["content"] = [{"type": "paragraph"}]
+        props = _valid_defaults(user_id, style.get("properties") or {}, conn)
+        props[_nk().NOTE_KIND_PROPERTY] = style["kindId"]
+        return {"bodyJson": doc, "properties": props, "skipped": skipped,
+                "styleId": style.get("id"), "styleVersion": style.get("version"), "kindId": style["kindId"]}
+    finally:
+        if owned:
+            conn.close()
+
+
+def latest_ticker(user_id: str, conn: sqlite3.Connection) -> str | None:
+    r = conn.execute("SELECT ticker FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL AND ticker IS NOT NULL"
+                     " AND ticker != '' ORDER BY updated_at DESC, rowid DESC LIMIT 1", (user_id,)).fetchone()
+    return r["ticker"] if r else None
+
+
+def preview(user_id: str, payload: Any, conn: sqlite3.Connection | None = None) -> dict:
+    """A read-only compose for the live preview (spec P1.4), with the member's OWN data: their ticker
+    (asked for, else their latest note's) and their property definitions. Writes nothing.
+    `payload` is {"styleId"} for a saved style, or {"style": {...}} for an unsaved draft."""
+    from api.services.journal_two import notes as notes_service
+    if not isinstance(payload, dict):
+        raise StyleValidationError("Send a style to preview.")
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        if payload.get("styleId") is not None:
+            style = get_style(user_id, payload["styleId"], conn)
+            if style is None:
+                raise StyleNotFound(payload["styleId"])
+        else:
+            draft = payload.get("style")
+            if not isinstance(draft, dict):
+                raise StyleValidationError("Send a style to preview.")
+            style = {"id": None, "builtin": False, "version": None, "name": _clean_name(draft.get("name") or "Draft"),
+                     "kindId": _clean_kind(user_id, draft.get("kindId"), conn),
+                     "outlineTemplateId": _clean_template(user_id, draft.get("outlineTemplateId"), conn),
+                     "outlineBodyJson": _clean_outline(draft.get("outlineBodyJson")),
+                     "blocks": _clean_blocks(draft.get("blocks")),
+                     "properties": _clean_properties(user_id, draft.get("properties"), conn)}
+        try:
+            asked = notes_service._validate_ticker(payload.get("ticker")) if payload.get("ticker") else None
+        except notes_service.NoteValidationError as e:
+            raise StyleValidationError(str(e)) from e
+        ticker = asked or latest_ticker(user_id, conn)
+        out = compose(user_id, style, ticker=ticker, conn=conn)
+        return {"bodyJson": out["bodyJson"], "properties": out["properties"], "skipped": out["skipped"],
+                "ticker": ticker, "tickerSource": "asked" if asked else ("latest-note" if ticker else None)}
     finally:
         if owned:
             conn.close()

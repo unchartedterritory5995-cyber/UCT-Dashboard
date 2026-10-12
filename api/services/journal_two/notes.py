@@ -3267,12 +3267,15 @@ def create_note(
     *,
     daily_date: str | None = None,
     properties: dict[str, Any] | None = None,
+    style_stamp: tuple[str | None, int | None, str] | None = None,
 ) -> dict[str, Any]:
     """`daily_date` and `properties` are INTERNAL (never read from `payload`,
     so `POST /notes` cannot set them): the daily note is made in ONE insert,
     with its day and its template's property values, so there is no second
     write — no revision a caller would have to land. A second note for a day
-    is refused by the database (`idx_j2_notes_daily`), as `sqlite3.IntegrityError`."""
+    is refused by the database (`idx_j2_notes_daily`), as `sqlite3.IntegrityError`.
+    `style_stamp` is INTERNAL too (journal styles, P1): `(style_id, style_version, kind_id)`
+    written in the same insert."""
     payload = payload or {}
     title = (payload.get("title") or "").strip()
     if len(title) > MAX_TITLE_CHARS:
@@ -3316,18 +3319,21 @@ def create_note(
                 properties_json = set_note_properties(user_id, new_id, properties, conn, replace=True)
             except PropertyValidationError as e:
                 raise NoteValidationError(str(e)) from e
+        stamp = style_stamp or (None, None, None)
         conn.execute(
             """
             INSERT INTO j2_notes (
                 id, user_id, account_id, folder_id, title, subtitle,
                 body_json, body_plain, hero_image_url, first_image_url, ticker, tags,
-                created_at, updated_at, daily_date, properties_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                created_at, updated_at, daily_date, properties_json,
+                style_id, style_version, kind_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 new_id, user_id, account_id, folder_id, title, subtitle,
                 json.dumps(body_json), body_plain, hero, first_image, ticker,
                 json.dumps(tags), now, now, daily_date, properties_json,
+                stamp[0], stamp[1], stamp[2],
             ),
         )
         _sync_note_sidecars(conn, user_id, new_id, body_json, body_plain)
