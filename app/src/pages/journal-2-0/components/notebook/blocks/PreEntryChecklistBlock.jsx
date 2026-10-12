@@ -5,13 +5,15 @@
 // ⛔ A checklist is the member's own discipline record: no tick, count or "you have none" appears that
 // the member's data does not say, and none the member gave is erased: changing setup writes `setup`
 // only, so switching back shows that setup's ticks again (R-T7-2). Loading and failed reads say so in
-// words of their own.
+// words of their own. With no SPECIFIC account selected it lists nothing (C-1, as Log Trade does).
 // It reads through hooks/useChecklistSources (data only; the hooks behind it also write) and the ONE
 // copy of the item / toggle / "not ticked" logic in lib/blocks/checklistItems.
 import { useId } from 'react'
 import useChecklistSources from '../../../hooks/useChecklistSources'
 import { BLOCK_KINDS } from '../../../lib/journalBlocks'
-import { checklistItems, checklistSummary, toggleChecked, untickedLine } from '../../../lib/blocks/checklistItems'
+import {
+  CHECKLIST_ACCOUNT_LINES, checklistItems, checklistSummary, toggleChecked, untickedLine,
+} from '../../../lib/blocks/checklistItems'
 import { BlockEmpty, BlockError, BlockLoading } from './blockStates'
 import styles from './Blocks.module.css'
 
@@ -27,9 +29,7 @@ function setting(params, key) {
 const RULE_LINES = {
   loading: 'Loading your before-entry rules…',
   error: "Your rules couldn't load, so none are listed here.",
-  'no-account': 'Your before-entry rules show here when one account is selected.',
-  'no-accounts': 'Your before-entry rules show here once you have a Journal account.',
-  'accounts-error': "Your accounts couldn't load, so your before-entry rules aren't listed here.",
+  // (with no specific account the whole checklist says why instead: CHECKLIST_ACCOUNT_LINES)
   // R-T7-2 concern 3: true today and stays true. The pointer to the control that marks a rule
   // "before entry" lands with that control (part b), never before it.
   none: 'No rules are marked "before entry" yet, so none are listed here.',
@@ -45,6 +45,11 @@ export default function PreEntryChecklistBlock({ params, setParams, editable }) 
 
   if (settingsState === 'loading') return <BlockLoading />
   if (settingsState === 'error') return <BlockError onRetry={retrySettings} />
+  // R-M2-1 (c), C-1: no specific account selected. The settings then are the legacy row, not this
+  // member's setups, so nothing is listed or offered; the ticks in params are left exactly as they are.
+  if (Object.hasOwn(CHECKLIST_ACCOUNT_LINES, settingsState)) {
+    return <p className={styles.muted}>{CHECKLIST_ACCOUNT_LINES[settingsState]}</p>
+  }
 
   const setups = Array.isArray(settings?.setups) ? settings.setups : []
 

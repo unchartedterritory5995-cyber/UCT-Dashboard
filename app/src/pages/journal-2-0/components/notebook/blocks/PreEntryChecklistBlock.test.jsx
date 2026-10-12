@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 
-const ALL_ACCOUNTS_LINE = 'Your before-entry rules show here when one account is selected.'
+// R-M2-1 (c), C-1: with no SPECIFIC account selected the settings served are the frozen legacy row, not
+// the member's setups, so the block lists nothing and says why (Log Trade's own sentences).
+const ALL_ACCOUNTS_LINE = 'Your pre-entry checklist shows here when one account is selected.'
 
 const SETUPS_FIXTURE = { setups: ['VCP'], setupRules: { VCP: [{ id: 's1', label: 'Volume dry-up' }, { id: 's2', label: 'Tight closes' }] } }
 let SETTINGS = SETUPS_FIXTURE
@@ -111,26 +113,37 @@ describe('PreEntryChecklistBlock', () => {
     expect(screen.queryByText(/No rules are marked "before entry" yet/)).toBeNull()
     expect(screen.getByText("Your rules couldn't load, so none are listed here.")).toBeTruthy()
   })
-  it('All Accounts selected: says rules need one account, never "No rules are marked"', () => {
+  it('All Accounts selected: no setup, item or count from the legacy row; says one account is needed (C-1)', () => {
     ACCOUNT_EXTRA = { accountId: null, isLoading: false, isAllAccounts: true, accounts: [{ id: 'a1' }] }
-    render(<PreEntryChecklistBlock params={base} setParams={vi.fn()} editable />)
-    expect(screen.queryByText(/No rules are marked "before entry" yet/)).toBeNull()
+    for (const includeRules of ['yes', 'no']) {
+      const { unmount } = render(<PreEntryChecklistBlock params={{ ...base, includeRules }} setParams={vi.fn()} editable />)
+      expect(screen.getByText(ALL_ACCOUNTS_LINE)).toBeTruthy()
+      expect(screen.queryByRole('checkbox')).toBeNull()
+      expect(screen.queryByText(/ticked$/)).toBeNull()
+      expect(screen.queryByText(/No rules are marked "before entry" yet/)).toBeNull()
+      unmount()
+    }
+    // and with no setup picked, the legacy row's setups are never offered as the member's own
+    render(<PreEntryChecklistBlock params={{ ...base, setup: '' }} setParams={vi.fn()} editable />)
+    expect(screen.queryByRole('combobox')).toBeNull()
+    expect(screen.queryByText(/You have no setups yet/)).toBeNull()
     expect(screen.getByText(ALL_ACCOUNTS_LINE)).toBeTruthy()
   })
   // M-3: the All Accounts sentence is true only for All Accounts. Each other "no account yet" state
-  // reads its own honest line.
+  // reads its own honest line, and (C-1) none lists the legacy row's items.
   it.each([
-    ['accounts still loading', { accountId: null, isLoading: true, isAllAccounts: false, accounts: [] }, 'Loading your before-entry rules…'],
-    ['accounts loaded, first pick not made yet', { accountId: null, isLoading: false, isAllAccounts: false, accounts: [{ id: 'a1' }] }, 'Loading your before-entry rules…'],
+    ['accounts still loading', { accountId: null, isLoading: true, isAllAccounts: false, accounts: [] }, 'Loading…'],
+    ['accounts loaded, first pick not made yet', { accountId: null, isLoading: false, isAllAccounts: false, accounts: [{ id: 'a1' }] }, 'Loading…'],
     ['accounts failed to load', { accountId: null, isLoading: false, isAllAccounts: false, accounts: [], accountsError: new Error('500') },
-      "Your accounts couldn't load, so your before-entry rules aren't listed here."],
+      "Your accounts couldn't load, so your pre-entry checklist isn't shown."],
     ['no accounts at all', { accountId: null, isLoading: false, isAllAccounts: false, accounts: [] },
-      'Your before-entry rules show here once you have a Journal account.'],
+      'Your pre-entry checklist shows here once you have a Journal account.'],
   ])('M-3 %s: its own line, never the All Accounts sentence', (_name, account, line) => {
     ACCOUNT_EXTRA = account
     render(<PreEntryChecklistBlock params={base} setParams={vi.fn()} editable />)
     expect(screen.getByText(line)).toBeTruthy()
     expect(screen.queryByText(ALL_ACCOUNTS_LINE)).toBeNull()
+    expect(screen.queryByRole('checkbox')).toBeNull()
     expect(screen.queryByText(/No rules are marked "before entry" yet/)).toBeNull()
   })
   it('N-2: All Accounts with a failed re-poll but accounts on hand reads the All Accounts line, not "couldn\'t load"', () => {
@@ -229,7 +242,6 @@ describe('I-2: ticks the block cannot resolve right now are kept, never erased',
     ['rules ready (control)', () => { RULES = [{ id: 'r1', label: 'Rule one', beforeEntry: true }] }],
     ['rules failed to load', () => { RULES_EXTRA = { error: new Error('500') } }],
     ['rules still loading', () => { RULES_EXTRA = { isLoading: true } }],
-    ['All Accounts selected', () => { ACCOUNT_EXTRA = { accountId: null, isLoading: false, isAllAccounts: true, accounts: [{ id: 'a1' }] } }],
   ])('%s: ticking "Tight closes" keeps rule:r1', (_name, arrange) => {
     arrange()
     const written = tickTightCloses(start)

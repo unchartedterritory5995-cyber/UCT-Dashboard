@@ -82,6 +82,31 @@ describe('useChecklistSources', () => {
     expect(result.current.rulesState).toBe(state)
     expect(result.current.rules).toEqual([])
   })
+  // R-M2-1 (c), the C-1 class: with no SPECIFIC account selected, useJ2Settings reads the frozen legacy
+  // j2_settings row, which is not any account's setups. The seam never hands it on as the member's own:
+  // settings are absent and settingsState says WHY (the same reason rulesState carries), whether or not
+  // rules are wanted. Each mock below serves the legacy row ({ setups: ['VCP'] }).
+  it.each([
+    ['All Accounts', { accountId: null, isLoading: false, isAllAccounts: true, accounts: [{ id: 'a1' }] }, 'no-account'],
+    ['the first pick not made yet', { accountId: null, isLoading: false, isAllAccounts: false, accounts: [{ id: 'a1' }] }, 'loading'],
+    ['accounts still loading', { accountId: null, isLoading: true, isAllAccounts: false, accounts: [] }, 'loading'],
+    ['accounts failed', { accountId: null, isLoading: false, isAllAccounts: false, accounts: [], accountsError: new Error('500') }, 'accounts-error'],
+    ['no accounts at all', { accountId: null, isLoading: false, isAllAccounts: false, accounts: [] }, 'no-accounts'],
+    ['All Accounts, a failed re-poll, accounts on hand', { accountId: null, isLoading: false, isAllAccounts: true, accounts: [{ id: 'a1' }], accountsError: new Error('500') }, 'no-account'],
+  ])('C-1 %s: the legacy settings row is never handed on as ready', (_name, account, state) => {
+    ACCOUNT_RET = account
+    for (const wantRules of [true, false]) {
+      const { result } = renderHook(() => useChecklistSources({ wantRules }))
+      expect(result.current.settings, `wantRules ${wantRules}`).toBeUndefined()
+      expect(result.current.settingsState, `wantRules ${wantRules}`).toBe(state)
+      if (wantRules) expect(result.current.rulesState).toBe(state)
+    }
+  })
+  it('C-1 control: one account selected hands its settings on as ready', () => {
+    const { result } = renderHook(() => useChecklistSources({ wantRules: false }))
+    expect(result.current.settings).toEqual({ setups: ['VCP'] })
+    expect(result.current.settingsState).toBe('ready')
+  })
   it('retrySettings re-reads the settings (the hook\'s own refresh), nothing else', () => {
     const { result } = renderHook(() => useChecklistSources({ wantRules: false }))
     result.current.retrySettings()

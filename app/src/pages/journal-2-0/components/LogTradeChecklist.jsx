@@ -11,17 +11,12 @@
 // A tick keeps another setup's ticks (R-T7-2 I-2); changing setup never touches them.
 import { useEffect } from 'react'
 import useChecklistSources from '../hooks/useChecklistSources'
-import { checklistItems, toggleChecked, uncheckedItems } from '../lib/blocks/checklistItems'
+import { CHECKLIST_ACCOUNT_LINES, checklistItems, toggleChecked, uncheckedItems } from '../lib/blocks/checklistItems'
 import { softWarning } from '../lib/blocks/logTradeChecklist'
 import styles from './notebook/blocks/Blocks.module.css'
 
 const LOADING = 'Loading your pre-entry checklist…'
-const ACCOUNT_LINES = {
-  loading: LOADING,
-  'no-account': 'Your pre-entry checklist shows here when one account is selected.',
-  'no-accounts': 'Your pre-entry checklist shows here once you have a Journal account.',
-  'accounts-error': "Your accounts couldn't load, so your pre-entry checklist isn't shown.",
-}
+const ACCOUNT_LINES = { loading: LOADING, ...CHECKLIST_ACCOUNT_LINES }
 const NO_IDS = []
 
 // N-3 (R-T8-2): `disabled` while the dialog shows a failed save, so the boxes stay exactly what

@@ -12,8 +12,14 @@
  * nothing", so the checklist never tells a member "you have no setups" or "no rules are marked"
  * while it simply has not heard back.
  *
+ * ⛔ R-M2-1 (c), the C-1 class: with no SPECIFIC account selected (accountId == null: All Accounts, the
+ * first pick not made yet, accounts loading or failing) useJ2Settings reads the frozen legacy
+ * j2_settings row, which is not any account's setups. The seam never hands it on: `settings` is absent
+ * and `settingsState` names the reason, the same one `rulesState` carries.
+ *
  * @param {{ wantRules: boolean }} opts  false: the rules are never fetched (null account).
- * @returns {{ settings: object|undefined, settingsState: 'loading'|'error'|'ready',
+ * @returns {{ settings: object|undefined,
+ *             settingsState: 'loading'|'error'|'ready'|'no-account'|'no-accounts'|'accounts-error',
  *             retrySettings: () => void, rules: object[],
  *             rulesState: 'off'|'loading'|'no-account'|'no-accounts'|'accounts-error'|'error'|'ready' }}
  */
@@ -33,26 +39,34 @@ export default function useChecklistSources({ wantRules }) {
   } = useJ2SelectedAccount()
   const { rules, isLoading: rulesLoading, error: rulesError } = useJournalRules(wantRules ? accountId : null)
 
-  const settingsState = settings !== undefined && settings !== null
-    ? 'ready'
-    : (settingsError && !settingsLoading ? 'error' : 'loading')
+  // WHY no specific account is selected, or null when one is (M-3): accounts failed, still loading,
+  // "All Accounts" chosen, no account at all, or the first pick not made yet (a frame between accounts
+  // arriving and the selection effect). Only "All Accounts" is "no-account"; the pending first pick
+  // reads as loading.
+  let accountState = null
+  if (!accountId) {
+    // R-T7-3 N-2: SWR keeps the last accounts when a re-poll fails, so the error decides only when
+    // there are none on hand (AccountSelector.jsx's own `!!error && accounts.length === 0`).
+    const noAccounts = !Array.isArray(accounts) || accounts.length === 0
+    if (!!accountsError && noAccounts) accountState = 'accounts-error'
+    else if (accountsLoading) accountState = 'loading'
+    else if (isAllAccounts) accountState = 'no-account'
+    else if (Array.isArray(accounts) && accounts.length === 0) accountState = 'no-accounts'
+    else accountState = 'loading'
+  }
 
-  // Rules are per account. With no account selected there is no rule list to read, and WHY decides
-  // the line (M-3): accounts failed, still loading, "All Accounts" chosen, no account at all, or the
-  // first pick not made yet (a frame between accounts arriving and the selection effect). Only
-  // "All Accounts" is "no-account"; the pending first pick reads as loading.
+  // C-1: the settings are one account's only when one account is selected.
+  const settingsState = accountState
+    || (settings !== undefined && settings !== null
+      ? 'ready'
+      : (settingsError && !settingsLoading ? 'error' : 'loading'))
+
+  // Rules are per account. With no account selected there is no rule list to read, and the account
+  // state says why.
   let rulesState = 'off'
   if (wantRules) {
-    if (!accountId) {
-      // R-T7-3 N-2: SWR keeps the last accounts when a re-poll fails, so the error decides only when
-      // there are none on hand (AccountSelector.jsx's own `!!error && accounts.length === 0`).
-      const noAccounts = !Array.isArray(accounts) || accounts.length === 0
-      if (!!accountsError && noAccounts) rulesState = 'accounts-error'
-      else if (accountsLoading) rulesState = 'loading'
-      else if (isAllAccounts) rulesState = 'no-account'
-      else if (Array.isArray(accounts) && accounts.length === 0) rulesState = 'no-accounts'
-      else rulesState = 'loading'
-    } else if (rulesError) rulesState = 'error'
+    if (accountState) rulesState = accountState
+    else if (rulesError) rulesState = 'error'
     else if (rulesLoading) rulesState = 'loading'
     else rulesState = 'ready'
   }

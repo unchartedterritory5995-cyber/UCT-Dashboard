@@ -6,6 +6,15 @@
 // ⛔ A checklist is the member's own discipline record: only CURRENT item ids ever count as ticked,
 // and a row with no id is not an item (it could never be ticked, so it could never be honest).
 
+/** Why no checklist is listed when no SPECIFIC account is selected (R-M2-1 c, C-1: the settings served
+ *  then are the legacy row, not the member's setups). The ONE copy: the block and Log Trade both show
+ *  these, keyed by useChecklistSources' account states. */
+export const CHECKLIST_ACCOUNT_LINES = Object.freeze({
+  'no-account': 'Your pre-entry checklist shows here when one account is selected.',
+  'no-accounts': 'Your pre-entry checklist shows here once you have a Journal account.',
+  'accounts-error': "Your accounts couldn't load, so your pre-entry checklist isn't shown.",
+})
+
 const hasId = (v) => v !== undefined && v !== null && v !== ''
 
 export function checklistItems({ settings, rules, setup, includeRules }) {
