@@ -106,7 +106,7 @@ it never tripped. **No production save, write, flag or data was touched.**
 |---|---|---|---|
 | 1 | Create | **PASS** | Question + 4 doors, 0 calls; the answer → "Started “EMA 9 > EMA 20” (draft — not saved)": 1 builder call, **0 planner calls**, nothing written to a chart |
 | 2 | Preview | **PASS** | "Showing “EMA 9 > EMA 20” as a preview on Left chart (SPY) — a preview only, not saved." (1 planner call) |
-| 3 | Refine | **FAIL (as run — test order, not this branch)** | Run AFTER the saves to protect the budget. M3 clears the selected draft on every save (`setActive(null)`) and never guesses between ≥2 drafts, so "also require RSI above 50" was planned as a NEW draft ("Which chart is this indicator for?"). In the documented order the door's draft IS the selected one — now pinned by a regression test. Re-run needs ≈ $0.02 (budget left $0.028; the guard's worst-case reservation refused it) |
+| 3 | Refine | **PASS — focused re-run (below)**; first run FAIL (as run — test order, not this branch) | Run AFTER the saves to protect the budget. M3 clears the selected draft on every save (`setActive(null)`) and never guesses between ≥2 drafts, so "also require RSI above 50" was planned as a NEW draft ("Which chart is this indicator for?"). In the documented order the door's draft IS the selected one — now pinned by a regression test. Re-run needs ≈ $0.02 (budget left $0.028; the guard's worst-case reservation refused it) |
 | 4 | Approve + save | **PASS** | Named the draft → "You have 4 indicator drafts open — which one do you mean?" (M3 rule; 2 were empty drafts from the relay set-up failures) → chose it (no call) → proposal "Save “Trend Test” as a new indicator … then add it to Left chart (SPY)" → Apply → saved v1 (read back) + added |
 | 5 | Undo | **PASS** | typed "undo" → "Removed the Trend Test I added on Left chart (SPY)."; the saved definition stays; 0 calls |
 | 6 | Modify | **PASS** | Settings → "Modify with UCT Intelligence" on Trend One → "What would you like to change in “Trend One”?" (no doors, settings closed, no dock). "make the line blue" → an `edit:<defId>` draft (1 builder call, 0 planner); "save it" (fast path, 0 calls) → "Save a new version of “Trend One” … blue line" → Apply → "Saved “Trend One” (version 2)" — same id |
@@ -115,7 +115,29 @@ it never tripped. **No production save, write, flag or data was touched.**
 | 9 | Context | **PASS** | Create on the RIGHT chart, switched it NVDA → AAPL in the chart UI, then answered → the builder request carried `{sym: AAPL, tf: D}`, revision 0 (a separate new draft) |
 | 10 | Fallback | **PASS** | Agent off → + Create Indicator opens the chart-side dock with Formula / Import / Library / Screenshot (its build path was verified earlier with the scripted builder) |
 
+### Focused Refine re-run (owner-approved, $0.05 cap) — PASS
+
+Fresh tab (no other drafts), ceiling $0.05, same worst-case guard. A fully-real create + refine could not be
+admitted under $0.05 (create ≈ $0.031 reserved, refine planner ≈ $0.026, refine builder ≈ $0.032), so the
+STARTING draft was built by the real engine from a scripted builder reply ("EMA trend candles": EMA 9 / EMA 20
++ candles coloured when 9 > 20 — creation itself was model-verified in step 1) and the REFINEMENT was fully real.
+
+- "also require RSI above 50 and show it on the chart" → real planner: `indicator.draft` on the ACTIVE draft
+  (`i6`), not a new one → real builder: "Updated “EMA 9 · EMA 20 +3” (draft — not saved)"; the colour rule now
+  requires "the 14-bar RSI of close is greater than 50". One draft before and after; the request carried
+  revision 1 (continuing).
+- Save readiness: "save it" (local fast path, 0 calls) → "Save “EMA 9 · EMA 20 +3” as a new indicator (draft
+  revision 2)" → dismissed; nothing saved.
+- Preview: NOT re-confirmed — the planner returned only the draft op and dropped "show it on the chart" (its
+  own choice; preview has no local path). The preview capability passed in step 2.
+- **Incremental spend: 2 calls, $0.0369** (planner $0.0133, builder $0.0236 — cache expired). Guard never tripped.
+
+**Real-model acceptance: complete — 10/10 PASS** (preview after a refinement not re-shown; see above).
+Total for both runs: 8 calls, $0.1085 against $0.15 authorized.
+
 Observations (existing M3 behaviour, not changed here — for the Indicators owner):
+- The planner may drop a preview the member asked for in the same message as a refinement
+  ("…and show it on the chart").
 - A first builder message that FAILS (here: the relay's missing cost-ledger table) leaves an empty
   "Untitled draft" that later counts in "which one do you mean?".
 - After saving Trend One v2 the receipt says "It is not on a chart" although v1 is on the left chart.
