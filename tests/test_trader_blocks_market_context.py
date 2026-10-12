@@ -232,7 +232,9 @@ def test_a_warm_quote_cache_and_a_held_daily_bar_are_read_and_nothing_else(held,
 
 def test_a_closed_market_cache_row_is_dated_by_its_session_close(held):
     lp = held.live_prices
-    lp.cache.set(lp._px_key("SPY"), {"price": 598.0, "change_pct": 0.3, "observed_at": None,
+    # prev_close is present, as live_prices._last_session_row writes it whenever the prior is known
+    # (R-T3-4 n1: a closed row without a positive prev_close carries a fabricated change).
+    lp.cache.set(lp._px_key("SPY"), {"price": 598.0, "change_pct": 0.3, "prev_close": 596.21, "observed_at": None,
                                       "session_close_at": 1791489600, "market_closed": True}, ttl=60)
     r = _create()["readings"]
     assert held.calls == []
@@ -389,8 +391,11 @@ def test_an_update_layout_on_a_written_note_lands_uncaptured_and_an_empty_switch
     create-equivalent (captures), a note with words gets the block UNCAPTURED (no market read)."""
     from api.services.journal_two import journal_styles as js, notes
     lp = held.live_prices
-    lp.cache.set(lp._px_key("SPY"), {"price": 600.5, "change_pct": -0.42, "observed_at": 1791912360,
-                                      "market_closed": False}, ttl=60)
+    # apply_style_update captures at the WALL CLOCK, so the row is a dated closed one: a live-path row
+    # read outside the regular session is a frozen close (R-T3-4 n2), which would make this test a
+    # function of the hour it runs in.
+    lp.cache.set(lp._px_key("SPY"), {"price": 600.5, "change_pct": -0.42, "prev_close": 603.03, "observed_at": None,
+                                      "session_close_at": 1791489600, "market_closed": True}, ttl=60)
     s = js.create_style("u1", {"name": "Context", "kindId": "thesis",
         "blocks": [{"block": "marketcontext", "enabled": True, "settings": {"fields": "indexes"}}],
         "outlineBodyJson": {"type": "doc", "content": [
@@ -413,3 +418,133 @@ def test_an_update_layout_on_a_written_note_lands_uncaptured_and_an_empty_switch
     p = stamp(note)
     assert p["fields"] == "indexes" and p["readings"]["spy"]["value"]["price"] == 600.5
     assert held.calls == []
+
+
+# ── R-T3-4 n2: outside the regular session a live-path cache row holds a FROZEN close ─────────────
+# live_prices._fetch_snapshots, outside RTH, prices a row `day.c or lastTrade.p or prevDay.c` and
+# leaves market_closed unset. Such a row is the close of ONE session: today's (day.c, once today's
+# session has closed) or the last completed one (prevDay.c, while today's has not). It is stored as
+# "last close", dated by THAT session's close from the real session_calendar, never as "live price"
+# and never by the capture; a row that cannot prove which session it is goes to the held bar, else
+# the sentence. Rows are shaped as _fetch_snapshots writes them; expected values are HARD-CODED.
+MON_PRE = datetime(2026, 10, 19, 8, 0, tzinfo=_ET)          # Mon pre-market: last session Fri 10/16
+TUE_POST = datetime(2026, 10, 13, 17, 30, tzinfo=_ET)       # Tue post-market: last session Tue 10/13
+HALF_POST = datetime(2026, 11, 27, 15, 0, tzinfo=_ET)       # half-day post-market: closed 13:00 EST
+
+
+def _frozen(price, day_close, prev_close, change_pct, observed_at, ext_session):
+    return {"price": price, "change_pct": change_pct, "change": 1.0, "volume": 1, "day_open": 0.0,
+            "day_high": 0.0, "day_low": 0.0, "prev_close": prev_close, "day_close": day_close,
+            "ext_price": price + 0.6, "ext_session": ext_session, "observed_at": observed_at,
+            "prev_change": 3.0, "prev_change_pct": 0.5042}
+
+
+# Pre-market: no day bar yet; SPY's lastTrade sits on the regular close, so price == prevDay.c.
+# change_pct is the vendor's todaysChangePerc (the pre-market move), NOT Friday's session move.
+_PRE_ROW = _frozen(598.0, None, 598.0, 0.35, 1792411140, "pre")
+_FROZEN_CASES = [
+    ("monday pre-market", MON_PRE, _PRE_ROW,
+     {"value": {"price": 598.0, "changePct": None, "closed": True},
+      "source": "last close", "asOf": "2026-10-16T20:00:00Z", "missing": None}),
+    ("normal post-market", TUE_POST, _frozen(601.25, 601.25, 598.0, 0.5435, 1791926970, "post"),
+     {"value": {"price": 601.25, "changePct": 0.5435, "closed": True},
+      "source": "last close", "asOf": "2026-10-13T20:00:00Z", "missing": None}),
+    ("half-day post-market", HALF_POST, _frozen(610.5, 610.5, 608.0, 0.4112, 1795809540, "post"),
+     {"value": {"price": 610.5, "changePct": 0.4112, "closed": True},
+      "source": "last close", "asOf": "2026-11-27T18:00:00Z", "missing": None}),
+]
+
+
+@pytest.mark.parametrize("zone", ["ET", "UTC"])
+@pytest.mark.parametrize("name,now,row,want", _FROZEN_CASES, ids=[c[0] for c in _FROZEN_CASES])
+def test_a_frozen_close_outside_the_session_is_that_sessions_last_close(held, zone, name, now, row, want):
+    lp = held.live_prices
+    lp.cache.set(lp._px_key("SPY"), dict(row), ttl=60)
+    now = now if zone == "ET" else now.astimezone(timezone.utc)
+    spy = _create(now=now)["readings"]["spy"]
+    assert held.calls == []
+    assert spy == want
+
+
+_UNPROVABLE = [
+    # a real pre-market print, not a close of any session
+    ("pre-market trade", MON_PRE, _frozen(600.1, None, 598.0, 0.35, 1792411140, "pre")),
+    # a day bar pre-market may already be today's forming one: it proves no session
+    ("pre-market day bar", MON_PRE, _frozen(600.9, 600.9, 598.0, 0.49, 1792411140, "pre")),
+    # post-market with no day bar: prevDay.c is MONDAY's close, not the session that just closed
+    ("post-market prevDay only", TUE_POST, _frozen(598.0, None, 598.0, 0.2, 1791926970, "post")),
+]
+
+
+@pytest.mark.parametrize("zone", ["ET", "UTC"])
+@pytest.mark.parametrize("name,now,row", _UNPROVABLE, ids=[c[0] for c in _UNPROVABLE])
+def test_a_frozen_row_that_cannot_prove_its_session_is_the_sentence(held, zone, name, now, row):
+    lp = held.live_prices
+    lp.cache.set(lp._px_key("SPY"), dict(row), ttl=60)
+    now = now if zone == "ET" else now.astimezone(timezone.utc)
+    spy = _create(now=now)["readings"]["spy"]
+    assert held.calls == []
+    assert spy == {"value": None, "source": None, "asOf": None, "missing": "No SPY quote could be read just now."}
+
+
+def test_a_frozen_close_takes_its_sessions_change_from_the_held_bars(held, monkeypatch):
+    """The pre-market row does not carry Friday's own move provably; the held bars do."""
+    lp = held.live_prices
+    lp.cache.set(lp._px_key("SPY"), dict(_PRE_ROW), ttl=60)
+    _bars(monkeypatch, held.bars_sqlite, [(20261015, 0, 0, 0, 595.0, 1), (20261016, 0, 0, 0, 598.0, 1)], sym="SPY")
+    spy = _create(now=MON_PRE)["readings"]["spy"]
+    assert held.calls == []
+    assert spy == {"value": {"price": 598.0, "changePct": 0.5042, "closed": True},
+                   "source": "last close", "asOf": "2026-10-16T20:00:00Z", "missing": None}
+
+
+def test_the_field_builder_never_calls_a_row_live_outside_the_session():
+    """_index_field itself: a live-path row read outside the regular session is not a live price and
+    is not dated by its observation or the capture; the SAME row in the session is (the control)."""
+    from api.services.journal_two import trader_blocks as tb
+    row = {"price": 600.5, "change_pct": -0.42, "observed_at": 1791912360, "market_closed": False}
+    assert tb._index_field("SPY", dict(row), MON_PRE) == {
+        "value": None, "source": None, "asOf": None, "missing": "No SPY quote could be read just now."}
+    assert tb._index_field("SPY", dict(row), NOW) == {
+        "value": {"price": 600.5, "changePct": -0.42, "closed": False},
+        "source": "live price", "asOf": "2026-10-13T17:26:00Z", "missing": None}
+
+
+# ── R-T3-4 n1: a DATED closed row whose change is fabricated never stores 0.0 ─────────────────────
+# live_prices._last_session_row writes change_pct 0.0 AND prev_close 0.0 when the prior session's
+# close is missing; a known prior writes prev_close > 0. So the row itself tells a fabricated 0.0
+# from a genuine one. A fabricated change takes the held bars' change, else it is omitted (None).
+def _closed(change_pct, prev_close):
+    return {"price": 598.0, "change_pct": change_pct, "change": 0.0, "prev_close": prev_close,
+            "observed_at": None, "session_close_at": 1792180800, "market_closed": True}
+
+
+def test_a_dated_closed_row_with_no_prior_stores_no_fabricated_change(held):
+    lp = held.live_prices
+    lp.cache.set(lp._px_key("SPY"), _closed(0.0, 0.0), ttl=60)
+    spy = _create(now=SATURDAY)["readings"]["spy"]
+    assert held.calls == []
+    assert spy == {"value": {"price": 598.0, "changePct": None, "closed": True},
+                   "source": "last close", "asOf": "2026-10-16T20:00:00Z", "missing": None}
+
+
+def test_a_dated_closed_row_with_no_prior_takes_the_change_from_the_held_bars(held, monkeypatch):
+    lp = held.live_prices
+    lp.cache.set(lp._px_key("SPY"), _closed(0.0, 0.0), ttl=60)
+    _bars(monkeypatch, held.bars_sqlite, [(20261015, 0, 0, 0, 595.0, 1), (20261016, 0, 0, 0, 598.0, 1)], sym="SPY")
+    spy = _create(now=SATURDAY)["readings"]["spy"]
+    assert held.calls == []
+    assert spy == {"value": {"price": 598.0, "changePct": 0.5042, "closed": True},
+                   "source": "last close", "asOf": "2026-10-16T20:00:00Z", "missing": None}
+
+
+def test_a_genuine_flat_session_is_still_stored_as_zero(held, monkeypatch):
+    """THE CONTROL: the prior is present and equal, so 0.0 is the session's real move. Held bars that
+    disagree are NOT consulted (a rail that always reroutes or always omits fails here)."""
+    lp = held.live_prices
+    lp.cache.set(lp._px_key("SPY"), _closed(0.0, 598.0), ttl=60)
+    _bars(monkeypatch, held.bars_sqlite, [(20261015, 0, 0, 0, 595.0, 1), (20261016, 0, 0, 0, 598.0, 1)], sym="SPY")
+    spy = _create(now=SATURDAY)["readings"]["spy"]
+    assert held.calls == []
+    assert spy == {"value": {"price": 598.0, "changePct": 0.0, "closed": True},
+                   "source": "last close", "asOf": "2026-10-16T20:00:00Z", "missing": None}
