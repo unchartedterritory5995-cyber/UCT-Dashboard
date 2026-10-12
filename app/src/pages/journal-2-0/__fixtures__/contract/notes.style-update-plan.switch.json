@@ -1,0 +1,30 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/notes/3f852852cd854488b72ffac1c3f104b6/style-update-plan",
+    "note": "Switching a note that has text to another style: blocks added, nothing removed.",
+    "path": "/api/j2/notes/3f852852cd854488b72ffac1c3f104b6/style-update-plan?styleId=builtin:thesis",
+    "status": 200
+  },
+  "body": {
+    "plan": {
+      "add": [
+        {
+          "block": "chart",
+          "label": null
+        }
+      ],
+      "fromVersion": null,
+      "insertsOutline": false,
+      "locked": false,
+      "missingBlocks": true,
+      "skipped": [],
+      "styleId": "builtin:thesis",
+      "styleName": "Thesis",
+      "switching": true,
+      "toVersion": 1,
+      "upToDate": false,
+      "versionCurrent": false
+    }
+  }
+}

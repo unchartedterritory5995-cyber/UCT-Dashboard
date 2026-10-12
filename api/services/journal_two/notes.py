@@ -1416,6 +1416,10 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
         "propertiesJson": (
             json.loads(row["properties_json"]) if row["properties_json"] and "properties_json" in row.keys() else {}
         ),
+        # Notebook P1 (journal styles): what made this note. None for every note made otherwise.
+        "styleId": row["style_id"] if "style_id" in row.keys() else None,
+        "styleVersion": row["style_version"] if "style_version" in row.keys() else None,
+        "kindId": row["kind_id"] if "kind_id" in row.keys() else None,
     }
 
 
@@ -3263,12 +3267,15 @@ def create_note(
     *,
     daily_date: str | None = None,
     properties: dict[str, Any] | None = None,
+    style_stamp: tuple[str | None, int | None, str] | None = None,
 ) -> dict[str, Any]:
     """`daily_date` and `properties` are INTERNAL (never read from `payload`,
     so `POST /notes` cannot set them): the daily note is made in ONE insert,
     with its day and its template's property values, so there is no second
     write — no revision a caller would have to land. A second note for a day
-    is refused by the database (`idx_j2_notes_daily`), as `sqlite3.IntegrityError`."""
+    is refused by the database (`idx_j2_notes_daily`), as `sqlite3.IntegrityError`.
+    `style_stamp` is INTERNAL too (journal styles, P1): `(style_id, style_version, kind_id)`
+    written in the same insert."""
     payload = payload or {}
     title = (payload.get("title") or "").strip()
     if len(title) > MAX_TITLE_CHARS:
@@ -3312,18 +3319,21 @@ def create_note(
                 properties_json = set_note_properties(user_id, new_id, properties, conn, replace=True)
             except PropertyValidationError as e:
                 raise NoteValidationError(str(e)) from e
+        stamp = style_stamp or (None, None, None)
         conn.execute(
             """
             INSERT INTO j2_notes (
                 id, user_id, account_id, folder_id, title, subtitle,
                 body_json, body_plain, hero_image_url, first_image_url, ticker, tags,
-                created_at, updated_at, daily_date, properties_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                created_at, updated_at, daily_date, properties_json,
+                style_id, style_version, kind_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 new_id, user_id, account_id, folder_id, title, subtitle,
                 json.dumps(body_json), body_plain, hero, first_image, ticker,
                 json.dumps(tags), now, now, daily_date, properties_json,
+                stamp[0], stamp[1], stamp[2],
             ),
         )
         _sync_note_sidecars(conn, user_id, new_id, body_json, body_plain)
@@ -3614,8 +3624,12 @@ def update_note(
     force_version: bool = False,
     restored_from_version_id: str | None = None,
     client_schema: int | None = None,
+    style_stamp: tuple[str, int] | None = None,
 ) -> dict[str, Any] | None:
-    """`client_schema` is the schema the CLIENT that sent this patch can read
+    """`style_stamp` is INTERNAL (journal styles, P1): `(style_id, style_version)` written in
+    the SAME UPDATE as the body; never read from a PUT.
+
+    `client_schema` is the schema the CLIENT that sent this patch can read
     (`notebook_schema.declared_schema` of its `X-UCT-Notebook-Schema` header —
     0 when absent). A body write from a client older than the STORED body is
     refused with `NotebookSchemaTooOld` before anything else is checked: that
@@ -3754,6 +3768,9 @@ def update_note(
             except PropertyValidationError as e:
                 raise NoteValidationError(str(e)) from e
             sets.append("properties_json = ?"); params.append(new_properties_json)
+        if style_stamp is not None:
+            sets.append("style_id = ?"); params.append(style_stamp[0])
+            sets.append("style_version = ?"); params.append(style_stamp[1])
 
         if not sets:
             if began:

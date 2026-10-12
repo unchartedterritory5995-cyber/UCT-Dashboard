@@ -79,7 +79,7 @@ import {
   embedRenderHeight, EMBED_LEGACY_DEFAULT_HEIGHT,
   parseMtfSlashArgs, parseCompareSlashArgs, parseDayToken,
 } from './widgetEmbedCore'
-import WidgetEmbedView from '../components/notebook/WidgetEmbedView'
+import WidgetEmbedView, { UNKNOWN_BLOCK_SENTENCE } from '../components/notebook/WidgetEmbedView'
 
 const nowSec = Math.floor(Date.now() / 1000)
 
@@ -376,7 +376,9 @@ describe('WidgetEmbedView fallback rendering', () => {
   it('renders a labeled placeholder for an unknown type with no archive', () => {
     render(<WidgetEmbedView node={{ attrs: { widgetId: 'gone', searchText: '[mystery]' } }} selected={false} />)
     expect(screen.getByText('[mystery]')).toBeTruthy()
-    expect(screen.getByText(/widget type unavailable/i)).toBeTruthy()
+    // P1.7(b): the card names the cause and offers the fix; the node is never touched.
+    expect(screen.getByText(UNKNOWN_BLOCK_SENTENCE)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Reload/ })).toBeTruthy()
   })
   // ⛔ Wave 8 final review, M-10: a stranger on a share link or a published page never reads
   // the author's "snapshot image not captured yet"; the widget's own caption stands in. The

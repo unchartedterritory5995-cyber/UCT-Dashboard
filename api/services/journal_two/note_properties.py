@@ -28,6 +28,7 @@ import uuid
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two.note_kinds import BUILTIN_NOTE_KINDS, NOTE_KIND_PROPERTY
 
 # ⛔ ONE FACT IN TWO FILES with the client's NEW_PROPERTY_TYPES
 # (components/notebook/PropertiesSection.jsx), pinned against each other by
@@ -106,6 +107,12 @@ BUILTIN_PROPERTY_DEFS: list[dict[str, Any]] = [
         ],
     },
     {"id": "builtin:review_date", "name": "Review Date", "type": "date", "source": "user_set"},
+    # Notebook P1: the note's CURRENT kind (note_kinds.py). Static options are the built-in kinds;
+    # `_builtin_def` adds the member's own. ⛔ Registered unconditionally (spec P1.7c).
+    {
+        "id": NOTE_KIND_PROPERTY, "name": "Kind of note", "type": "select", "source": "user_set",
+        "options": [{"id": k["id"], "label": k["name"], "color": "gray"} for k in BUILTIN_NOTE_KINDS],
+    },
 ]
 _BUILTIN_BY_ID = {d["id"]: d for d in BUILTIN_PROPERTY_DEFS}
 BUILTIN_USER_SET_IDS = frozenset(d["id"] for d in BUILTIN_PROPERTY_DEFS if d["source"] == "user_set")
@@ -113,6 +120,27 @@ BUILTIN_USER_SET_IDS = frozenset(d["id"] for d in BUILTIN_PROPERTY_DEFS if d["so
 
 def is_builtin_property_id(property_id: str) -> bool:
     return isinstance(property_id, str) and property_id.startswith("builtin:")
+
+
+def _builtin_def(user_id: str, property_id: str, conn: sqlite3.Connection | None) -> dict[str, Any] | None:
+    """A built-in definition as THIS member sees it. `builtin:note_kind`'s options are per member
+    (built-in kinds + their own); every other built-in is the static entry. The one reader: a
+    built-in lookup that validates a value must come through here, or a member's own kind is refused."""
+    d = _BUILTIN_BY_ID.get(property_id)
+    if d is None:
+        return None
+    out = dict(d)
+    if property_id == NOTE_KIND_PROPERTY:
+        from api.services.journal_two.note_kinds import kind_options
+        if conn is None:
+            owned = get_connection()
+            try:
+                out["options"] = kind_options(user_id, owned)
+            finally:
+                owned.close()
+        else:
+            out["options"] = kind_options(user_id, conn)
+    return out
 
 
 # ── User-defined property definitions (j2_note_properties) ─────────────────
@@ -151,7 +179,7 @@ def list_property_defs(user_id: str, conn: sqlite3.Connection | None = None) -> 
             + " ORDER BY sort_order, name",
             (user_id,),
         ).fetchall()
-        return [dict(d) for d in BUILTIN_PROPERTY_DEFS] + [_def_row_to_dict(r) for r in rows]
+        return [_builtin_def(user_id, d["id"], conn) for d in BUILTIN_PROPERTY_DEFS] + [_def_row_to_dict(r) for r in rows]
     finally:
         if owned:
             conn.close()
@@ -159,8 +187,7 @@ def list_property_defs(user_id: str, conn: sqlite3.Connection | None = None) -> 
 
 def get_property_def(user_id: str, property_id: str, conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
     if is_builtin_property_id(property_id):
-        d = _BUILTIN_BY_ID.get(property_id)
-        return dict(d) if d else None
+        return _builtin_def(user_id, property_id, conn)
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -427,7 +454,7 @@ def set_note_properties(
         if is_builtin_property_id(property_id):
             if property_id not in BUILTIN_USER_SET_IDS:
                 raise PropertyValidationError(f"{property_id} is not a settable property")
-            prop_def = _BUILTIN_BY_ID[property_id]
+            prop_def = _builtin_def(user_id, property_id, conn)
         else:
             prop_def = get_property_def(user_id, property_id, conn=conn)
             if prop_def is None:

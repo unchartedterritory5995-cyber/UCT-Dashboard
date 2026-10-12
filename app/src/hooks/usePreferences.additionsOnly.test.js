@@ -128,6 +128,9 @@ const BASELINE_KEYS = {
   j2_calendar_pnl_basis: 'scalar',
   j2_custom_dashboard: 'structured',
   multichart_state: 'structured',
+  // Notebook P1 (journal styles, 2026-10-12): the kind-mapping offer's "Not now". StylesManager writes the
+  // one string 'dismissed', so a scalar. Made literal at the call site, as notebook_sample/notebook_tour were.
+  notebook_kind_mapping: 'scalar',
   // ⭐ S5 CP2 sweep 2026-09-29 (fix/master-reds): notebook_sample/notebook_tour
   // were opaque setPref sites (SAMPLE_PREF/TOUR_PREF, ResearchHome.jsx /
   // NotebookTour.jsx) made literal at the call site rather than baselined —

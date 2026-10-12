@@ -4,6 +4,7 @@ import BlockedBadge from './BlockedBadge'
 import LockedGlyph from './LockedGlyph'
 import { ComputedChips } from './ComputedValue'
 import { useOptimisticNoteProperty } from '../../lib/useOptimisticNoteProperty'
+import { isOfferable } from '../../lib/kindOfNoteOffer'
 import styles from './NoteBoardView.module.css'
 
 /**
@@ -37,9 +38,11 @@ import styles from './NoteBoardView.module.css'
 const NO_VALUE = '__unset__'
 
 /** A board can only be grouped by these. See the header. */
-export function groupableDefs(propertyDefs) {
+export function groupableDefs(propertyDefs, keepId = null) {
   return (propertyDefs || []).filter(
-    (d) => d.type === 'select' && Array.isArray(d.options) && d.options.length > 0,
+    // Kind of note is not offered as a grouping while journal styles are off, unless a saved view
+    // already names it (lib/kindOfNoteOffer.js -- the one predicate every offering door asks).
+    (d) => d.type === 'select' && Array.isArray(d.options) && d.options.length > 0 && isOfferable(d, keepId),
   )
 }
 
@@ -82,7 +85,7 @@ export default function NoteBoardView({
   initialGroupById = null,
   onGroupByChange,
 }) {
-  const defs = useMemo(() => groupableDefs(propertyDefs), [propertyDefs])
+  const defs = useMemo(() => groupableDefs(propertyDefs, initialGroupById), [propertyDefs, initialGroupById])
 
   // Default to the select property the member's notes ACTUALLY use, so a fresh
   // board opens on something populated rather than on an empty first column.

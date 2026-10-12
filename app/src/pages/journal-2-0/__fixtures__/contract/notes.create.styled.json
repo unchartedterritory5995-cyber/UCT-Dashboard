@@ -1,0 +1,111 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/notes",
+    "note": "No ticker: the chart block is left out and an instruction stands where it was.",
+    "path": "/api/j2/notes",
+    "requestBody": {
+      "styleId": "builtin:thesis",
+      "title": "Thesis"
+    },
+    "status": 200
+  },
+  "body": {
+    "note": {
+      "accountId": null,
+      "archivedAt": null,
+      "bodyJson": {
+        "content": [
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "The thesis",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "content": [
+              {
+                "text": "Why will this stock go up (or down)?",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "content": [
+              {
+                "text": "Add a ticker to this note, then type /chart to add the chart.",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          },
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "What would prove me wrong",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "type": "paragraph"
+          },
+          {
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "text": "Catalysts",
+                "type": "text"
+              }
+            ],
+            "type": "heading"
+          },
+          {
+            "type": "paragraph"
+          }
+        ],
+        "type": "doc"
+      },
+      "bodyPlain": "The thesis Why will this stock go up (or down)? Add a ticker to this note, then type /chart to add the chart. What would prove me wrong  Catalysts ",
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "dailyDate": null,
+      "deletedAt": null,
+      "firstImageUrl": null,
+      "folderId": null,
+      "heroImageUrl": null,
+      "id": "f35f581e9f234de4bd572288a3f3a9c3",
+      "kindId": "thesis",
+      "locked": false,
+      "propertiesJson": {
+        "builtin:note_kind": "thesis"
+      },
+      "styleId": "builtin:thesis",
+      "styleVersion": 1,
+      "subtitle": null,
+      "tags": [],
+      "ticker": null,
+      "title": "Thesis",
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "userId": "contract-styles"
+    },
+    "skippedBlocks": [
+      {
+        "block": "chart",
+        "reason": "needs-ticker"
+      }
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/notes/3f852852cd854488b72ffac1c3f104b6/style-update-plan",
+    "note": "A Trade plan note with no chart yet: the update would add the chart block.",
+    "path": "/api/j2/notes/3f852852cd854488b72ffac1c3f104b6/style-update-plan",
+    "status": 200
+  },
+  "body": {
+    "plan": {
+      "add": [
+        {
+          "block": "chart",
+          "label": null
+        }
+      ],
+      "fromVersion": 1,
+      "insertsOutline": false,
+      "locked": false,
+      "missingBlocks": true,
+      "skipped": [],
+      "styleId": "builtin:trade_plan",
+      "styleName": "Trade plan",
+      "switching": false,
+      "toVersion": 1,
+      "upToDate": false,
+      "versionCurrent": true
+    }
+  }
+}

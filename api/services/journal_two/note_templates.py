@@ -78,7 +78,7 @@ def _still_valid_properties(user_id: str, raw: str | None, conn: sqlite3.Connect
         if np.is_builtin_property_id(property_id):
             if property_id not in np.BUILTIN_USER_SET_IDS:
                 continue
-            prop_def = np._BUILTIN_BY_ID[property_id]
+            prop_def = np._builtin_def(user_id, property_id, conn)
         else:
             prop_def = np.get_property_def(user_id, property_id, conn=conn)
             if prop_def is None:

@@ -1835,6 +1835,15 @@
       "where": ["web"],
       "note": "ARMED on web 2026-10-08 ~00:42 CT (=1): read back True from the running process through the smoke account's sign-in payload, and the app-wide click-through passed. Wave 13 lane 13J, 2026-10-03. Enablement gate for find more like this (components/notebook/SimilarNames.jsx): from a tagged chart block, today's names whose technical fingerprint and confirmed patterns most closely match it, each with its reasons per field. PRECOMPUTED NIGHTLY (api/services/journal_two/similar_matches.py, APScheduler job notebook_similar_matches_nightly, mon-fri 05:45 ET, after the 03:00 snapshot and the 05:00 scan sweep, on a worker thread) into j2_similar_matches (self-ensured, purged with the account): one read of screener_rows a run, at most 300 members (least recently matched first), 25 tagged charts a member, 10 matches a chart, a 600 s run budget; distance is a deterministic weighted mean over tech_fingerprint.summary_values (one constants block, RULES) plus confirmed-pattern overlap for the 50 nearest (pattern engine read-only, confirmed_only). The request path ONLY reads the stored rows: GET /api/j2/similar-names/templates and /{note_id}/{embed_key} (api/routers/notebook_setups_board.py) never open the screener, bars or pattern stores. Both routes answer the one 404 while off, before any session is read, and need a paid plan. The job reads the flag per run, so it is inert while dark. Zero model calls, zero vendor calls, never writes a note. Rides the auth payload as notebook_find_similar_enabled, read per request. Unset means OFF and that is the decision. Rollback: unset or 0 on web; stored rows stay, inert, and age out after 7 days of runs."
     },
+    "NOTEBOOK_JOURNAL_STYLES_ENABLED": {
+      "member_facing": {
+        "label": "Journal styles",
+        "where": "Notebook"
+      },
+      "status": "dark",
+      "where": [],
+      "note": "Notebook P1, 2026-10-11 (spec docs/superpowers/specs/2026-10-11-notebook-journal-styles-design.md §P1). Enablement gate for journal styles: kinds of note (built-in and the member's own), styles (outline + blocks + property defaults) with versions and one default per kind, the Styles manager, New note -> kind -> default style, Save this note's setup as a style, /style and the previewed Update layout action. Paid. Rides the auth payload (_access_payload) as notebook_journal_styles_enabled; the router answers one 404 while it is off. It gates CREATING only: notes already made from a style render unchanged with it off, and their Kind of note value still shows."
+    },
     "NOTEBOOK_EARNINGS_PREP_ENABLED": {
       "member_facing": {
         "label": "Earnings prep (Reporting soon)",

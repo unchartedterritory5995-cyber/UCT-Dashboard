@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/journal-styles",
+    "path": "/api/j2/journal-styles",
+    "status": 402
+  },
+  "body": {
+    "detail": "Journal styles require a paid plan"
+  }
+}

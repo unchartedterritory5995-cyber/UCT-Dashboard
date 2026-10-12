@@ -1,0 +1,23 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/note-kinds/mapping-offer",
+    "path": "/api/j2/note-kinds/mapping-offer",
+    "status": 200
+  },
+  "body": {
+    "offer": {
+      "rows": [
+        {
+          "count": 2,
+          "createsKind": false,
+          "kindId": "earnings",
+          "kindName": "Earnings",
+          "researchType": "earnings_play",
+          "researchTypeLabel": "Earnings Play"
+        }
+      ],
+      "total": 2
+    }
+  }
+}

@@ -3560,13 +3560,37 @@ async def ask_current_note_stream(
     return await _ask_stream(user, asvc.NOTE, note_id, payload or {})
 
 
+def _styled_create_allowed(user: dict) -> None:
+    """Journal styles (P1): the ONLY place POST /notes reads the switch or the plan, and only when a
+    styleId/kindId is sent -- every other create is exactly what it was (spec P1.7c). Both checks are
+    the journal-styles router's OWN (`_require_enabled`, then `require_paid`), called here so the
+    switch, the plan predicate and the 402 sentence have one authority. The gate answers first."""
+    from api.middleware import auth_middleware as authmw
+    from api.routers import notebook_journal_styles as styles_router
+    styles_router._require_enabled()
+    planned = user if "plan" in user else {**user, "plan": authmw.get_user_plan(user["id"])}
+    styles_router.require_paid(planned)
+
+
 @router.post("/notes")
 def create_note_endpoint(
     payload: dict[str, Any] | None = Depends(_json(dict[str, Any] | None)),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
+    payload = payload or {}
+    if payload.get("styleId") is not None or payload.get("kindId") is not None:
+        # One insert: body, property values and the style stamp (journal_styles.create_styled_note).
+        _styled_create_allowed(user)
+        from api.services.journal_two import journal_styles
+        try:
+            n, skipped = journal_styles.create_styled_note(user["id"], payload)
+        except journal_styles.StyleNotFound:
+            raise HTTPException(status_code=404, detail="Not found")
+        except (journal_styles.StyleValidationError, NoteValidationError) as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return {"note": _servable_note(n), "skippedBlocks": skipped}
     try:
-        n = notes_service.create_note(user["id"], payload or {})
+        n = notes_service.create_note(user["id"], payload)
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"note": _servable_note(n)}

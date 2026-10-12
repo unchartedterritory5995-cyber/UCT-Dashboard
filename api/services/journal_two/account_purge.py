@@ -120,12 +120,16 @@ _DIRECT_USER_TABLES = (
     # copies (note_templates.py); a copy, never a link to the note it was
     # made from. Wave 6 fix round 1, I3.
     "j2_note_templates",
+    # Notebook P1 (journal styles): a member's own kinds of note (note_kinds.py).
+    "j2_note_kinds",
     # Wave 6 (Phase 2, task reminders) — the daily reminder's claim log
     # (note_tasks.run_task_reminders): which member was reminded on which ET
     # day, and how many of their tasks were due and overdue. Created lazily
     # by that pass, so on a pod where it never ran this is a "no such table"
     # no-op. Wave 6 fix round 4, R4-4.
     "j2_task_reminder_log",
+    # Notebook P1: a member's journal styles (journal_styles.py).
+    "j2_journal_styles",
     # Wave 7 (lane G, G3 email-in) — the member's private `notes+<token>@`
     # address. Self-ensured by inbound_email.py (never db.py), so on a pod
     # where email-in never ran this is a "no such table" no-op. A live address

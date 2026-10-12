@@ -2,6 +2,7 @@ import { useId } from 'react'
 import {
   ROLLUP_AGGREGATES, ROLLUP_SOURCES, TRADE_FIELDS, TRADE_RESULTS, describeRollup,
 } from '../../lib/formula/computed'
+import { isOfferable } from '../../lib/kindOfNoteOffer'
 import styles from './FormulaEditor.module.css'
 
 /**
@@ -19,7 +20,9 @@ export default function RollupEditor({ value, onChange, defs, savedViews = [], s
   const set = (patch) => onChange({ ...cfg, ...patch })
   const isTrades = cfg.source === 'trades'
   const wantsValue = cfg.aggregate && cfg.aggregate !== 'count'
-  const readable = (defs || []).filter((d) => d.id !== selfId && d.source !== 'financial_derived' && (
+  // Kind of note is not OFFERED here while journal styles are off, unless this rollup already names it.
+  const readable = (defs || []).filter((d) => d.id !== selfId && d.source !== 'financial_derived'
+    && isOfferable(d, cfg.propertyId) && (
     d.type === 'number' || d.type === 'formula' || (cfg.aggregate === 'win_rate' && d.type === 'select')))
   const prop = (defs || []).find((d) => d.id === cfg.propertyId)
   const needsOption = cfg.aggregate === 'win_rate' && (isTrades ? cfg.tradeField === 'result' : prop?.type === 'select')
