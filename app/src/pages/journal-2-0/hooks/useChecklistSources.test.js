@@ -18,15 +18,17 @@ vi.mock('./useJournalRules', () => ({
   default: (id) => { rulesCalls.push(id); return { rules: [{ id: 'r1' }], create, dismiss, isLoading: false, ...RULES_RET } },
 }))
 
-import useChecklistSources from './useChecklistSources'
+import useChecklistSources, { RETURN_KEYS } from './useChecklistSources'
 
 afterEach(() => { SETTINGS_RET = {}; RULES_RET = {}; ACCOUNT_RET = {}; rulesCalls.length = 0 })
 
 describe('useChecklistSources', () => {
   it('returns data and a read retry only: no save, create, dismiss or setAccount', () => {
     const { result } = renderHook(() => useChecklistSources({ wantRules: true }))
-    expect(Object.keys(result.current).sort())
-      .toEqual(['retrySettings', 'rules', 'rulesState', 'settings', 'settingsState'])
+    // RETURN_KEYS is the ONE copy of the shape: blockDoors.test.js's seam rail reads the same constant
+    // and requires the hook's literal return to carry exactly these keys.
+    expect(Object.keys(result.current).sort()).toEqual([...RETURN_KEYS].sort())
+    expect(RETURN_KEYS.length).toBeGreaterThan(0)
     for (const v of Object.values(result.current)) {
       expect([save, create, dismiss]).not.toContain(v)
     }
@@ -59,12 +61,22 @@ describe('useChecklistSources', () => {
     RULES_RET = { error: new Error('500'), rules: [] }
     expect(renderHook(() => useChecklistSources({ wantRules: true })).result.current.rulesState).toBe('error')
   })
-  it('rules with no account selected: loading while accounts load, then "no-account" (All Accounts)', () => {
-    ACCOUNT_RET = { accountId: null, isLoading: true }
-    expect(renderHook(() => useChecklistSources({ wantRules: true })).result.current.rulesState).toBe('loading')
-    ACCOUNT_RET = { accountId: null, isLoading: false }
+  it('All Accounts selected: "no-account", and no rules', () => {
+    ACCOUNT_RET = { accountId: null, isLoading: false, isAllAccounts: true, accounts: [{ id: 'a1' }] }
     const { result } = renderHook(() => useChecklistSources({ wantRules: true }))
     expect(result.current.rulesState).toBe('no-account')
+    expect(result.current.rules).toEqual([])
+  })
+  // M-3: "no-account" means All Accounts and nothing else.
+  it.each([
+    ['accounts loading', { accountId: null, isLoading: true, isAllAccounts: true, accounts: [] }, 'loading'],
+    ['accounts loaded, first pick pending', { accountId: null, isLoading: false, isAllAccounts: false, accounts: [{ id: 'a1' }] }, 'loading'],
+    ['accounts failed', { accountId: null, isLoading: false, isAllAccounts: true, accounts: [], accountsError: new Error('500') }, 'accounts-error'],
+    ['no accounts at all', { accountId: null, isLoading: false, isAllAccounts: false, accounts: [] }, 'no-accounts'],
+  ])('M-3 %s: %s', (_name, account, state) => {
+    ACCOUNT_RET = account
+    const { result } = renderHook(() => useChecklistSources({ wantRules: true }))
+    expect(result.current.rulesState).toBe(state)
     expect(result.current.rules).toEqual([])
   })
   it('retrySettings re-reads the settings (the hook\'s own refresh), nothing else', () => {

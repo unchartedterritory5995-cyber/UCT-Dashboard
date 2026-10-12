@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+
+const ALL_ACCOUNTS_LINE = 'Your before-entry rules show here when one account is selected.'
 
 const SETUPS_FIXTURE = { setups: ['VCP'], setupRules: { VCP: [{ id: 's1', label: 'Volume dry-up' }, { id: 's2', label: 'Tight closes' }] } }
 let SETTINGS = SETUPS_FIXTURE
@@ -43,11 +45,11 @@ describe('PreEntryChecklistBlock', () => {
     render(<PreEntryChecklistBlock params={{ ...base, requireAll: 'yes', checked: ['s1'] }} setParams={vi.fn()} editable />)
     expect(screen.getByRole('status').textContent).toBe('1 checklist item not ticked.')
   })
-  it('no setup picked: a named select of the member setups', () => {
+  it('no setup picked: a named select of the member setups (R-T7-2: the pick never touches the ticks)', () => {
     const setParams = vi.fn(() => true)
     render(<PreEntryChecklistBlock params={{ ...base, setup: '' }} setParams={setParams} editable />)
     fireEvent.change(screen.getByRole('combobox', { name: 'Setup for this trade' }), { target: { value: 'VCP' } })
-    expect(setParams).toHaveBeenCalledWith({ setup: 'VCP', checked: [] })
+    expect(setParams).toHaveBeenCalledWith({ setup: 'VCP' })
   })
   it('no setups yet: says what to do, never an empty box', () => {
     SETTINGS = { setups: [], setupRules: {} }
@@ -60,10 +62,11 @@ describe('PreEntryChecklistBlock', () => {
     expect(box.checked).toBe(true)
     expect(box.disabled).toBe(true)
   })
-  it('includeRules yes with no before-entry rules says how to mark one', () => {
+  it('includeRules yes with no before-entry rules says so, and points at no control that does not exist yet', () => {
     RULES = [{ id: 'r1', label: 'x', beforeEntry: false }]
     render(<PreEntryChecklistBlock params={base} setParams={vi.fn()} editable />)
-    expect(screen.getByText(/No rules are marked "before entry" yet/)).toBeTruthy()
+    expect(screen.getByText('No rules are marked "before entry" yet, so none are listed here.')).toBeTruthy()
+    expect(screen.queryByText(/My rules/)).toBeNull()
   })
   it('keyboard: Space on a focused checkbox ticks it through setParams', () => {
     const setParams = vi.fn(() => true)
@@ -109,10 +112,26 @@ describe('PreEntryChecklistBlock', () => {
     expect(screen.getByText("Your rules couldn't load, so none are listed here.")).toBeTruthy()
   })
   it('All Accounts selected: says rules need one account, never "No rules are marked"', () => {
-    ACCOUNT_EXTRA = { accountId: null, isLoading: false }
+    ACCOUNT_EXTRA = { accountId: null, isLoading: false, isAllAccounts: true, accounts: [{ id: 'a1' }] }
     render(<PreEntryChecklistBlock params={base} setParams={vi.fn()} editable />)
     expect(screen.queryByText(/No rules are marked "before entry" yet/)).toBeNull()
-    expect(screen.getByText('Your before-entry rules show here when one account is selected.')).toBeTruthy()
+    expect(screen.getByText(ALL_ACCOUNTS_LINE)).toBeTruthy()
+  })
+  // M-3: the All Accounts sentence is true only for All Accounts. Each other "no account yet" state
+  // reads its own honest line.
+  it.each([
+    ['accounts still loading', { accountId: null, isLoading: true, isAllAccounts: false, accounts: [] }, 'Loading your before-entry rules…'],
+    ['accounts loaded, first pick not made yet', { accountId: null, isLoading: false, isAllAccounts: false, accounts: [{ id: 'a1' }] }, 'Loading your before-entry rules…'],
+    ['accounts failed to load', { accountId: null, isLoading: false, isAllAccounts: false, accounts: [], accountsError: new Error('500') },
+      "Your accounts couldn't load, so your before-entry rules aren't listed here."],
+    ['no accounts at all', { accountId: null, isLoading: false, isAllAccounts: false, accounts: [] },
+      'Your before-entry rules show here once you have a Journal account.'],
+  ])('M-3 %s: its own line, never the All Accounts sentence', (_name, account, line) => {
+    ACCOUNT_EXTRA = account
+    render(<PreEntryChecklistBlock params={base} setParams={vi.fn()} editable />)
+    expect(screen.getByText(line)).toBeTruthy()
+    expect(screen.queryByText(ALL_ACCOUNTS_LINE)).toBeNull()
+    expect(screen.queryByText(/No rules are marked "before entry" yet/)).toBeNull()
   })
   it('a before-entry rule is a named checkbox after the setup items, and ticks with its rule: id', () => {
     RULES = [{ id: 'r1', label: 'No trades in the first 5 minutes', beforeEntry: true }]
@@ -150,17 +169,29 @@ describe('PreEntryChecklistBlock', () => {
     expect(screen.getByText('2 of 2 ticked')).toBeTruthy()
     expect(screen.queryByText(/not ticked/)).toBeNull()
   })
-  it('a picked setup with no checklist says so by name', () => {
+  it('a picked setup with no checklist says so by name, and names the settings section exactly (M-2)', () => {
     SETTINGS = { setups: ['Flag'], setupRules: {} }
     render(<PreEntryChecklistBlock params={{ ...base, setup: 'Flag', includeRules: 'no' }} setParams={vi.fn()} editable />)
-    expect(screen.getByText('No checklist for Flag yet. Add its rules in Journal settings, under Setups.')).toBeTruthy()
+    expect(screen.getByText('No checklist for Flag yet. Add its rules in Journal settings, under Trade setups.')).toBeTruthy()
     expect(screen.queryByText(/ticked$/)).toBeNull()
   })
-  it('Change setup clears the setup and its ticks through setParams; a reader has no such button', () => {
+  it('M-2: a setup the member has since deleted or renamed says it is gone, never "add its rules"', () => {
+    SETTINGS = { setups: ['Flag'], setupRules: {} }
+    render(<PreEntryChecklistBlock params={{ ...base, setup: 'VCP', includeRules: 'no' }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('VCP is no longer one of your setups. Change setup to pick another.')).toBeTruthy()
+    expect(screen.queryByText(/Add its rules/)).toBeNull()
+  })
+  it('M-2: a reader of a gone setup reads the fact without an instruction they cannot follow', () => {
+    SETTINGS = { setups: ['Flag'], setupRules: {} }
+    render(<PreEntryChecklistBlock params={{ ...base, setup: 'VCP', includeRules: 'no' }} setParams={vi.fn()} editable={false} />)
+    expect(screen.getByText('VCP is no longer one of your setups.')).toBeTruthy()
+  })
+  it('Change setup writes { setup: "" } only and never touches the ticks; a reader has no such button', () => {
     const setParams = vi.fn(() => true)
     const { unmount } = render(<PreEntryChecklistBlock params={{ ...base, checked: ['s1'] }} setParams={setParams} editable />)
     fireEvent.click(screen.getByRole('button', { name: 'Change setup' }))
-    expect(setParams).toHaveBeenCalledWith({ setup: '', checked: [] })
+    expect(setParams).toHaveBeenCalledTimes(1)
+    expect(setParams).toHaveBeenCalledWith({ setup: '' })
     unmount()
     render(<PreEntryChecklistBlock params={{ ...base, checked: ['s1'] }} setParams={vi.fn()} editable={false} />)
     expect(screen.queryByRole('button', { name: 'Change setup' })).toBeNull()
@@ -174,5 +205,92 @@ describe('PreEntryChecklistBlock', () => {
     render(<PreEntryChecklistBlock params={base} setParams={vi.fn()} editable />)
     const group = screen.getByRole('group', { name: 'Pre-entry checklist for VCP' })
     expect(group.contains(screen.getByRole('checkbox', { name: 'Volume dry-up' }))).toBe(true)
+  })
+})
+
+// ── R-T7-2 / I-2: a tick never drops an id that simply cannot be resolved right now. The member's
+// rule ticks survive every state in which the rules are not listed.
+describe('I-2: ticks the block cannot resolve right now are kept, never erased', () => {
+  const start = { ...base, checked: ['s1', 'rule:r1'] }
+  const tickTightCloses = (params) => {
+    const setParams = vi.fn(() => true)
+    render(<PreEntryChecklistBlock params={params} setParams={setParams} editable />)
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Tight closes' }))
+    expect(setParams).toHaveBeenCalledTimes(1)
+    return setParams.mock.calls[0][0].checked
+  }
+  it.each([
+    ['rules ready (control)', () => { RULES = [{ id: 'r1', label: 'Rule one', beforeEntry: true }] }],
+    ['rules failed to load', () => { RULES_EXTRA = { error: new Error('500') } }],
+    ['rules still loading', () => { RULES_EXTRA = { isLoading: true } }],
+    ['All Accounts selected', () => { ACCOUNT_EXTRA = { accountId: null, isLoading: false, isAllAccounts: true, accounts: [{ id: 'a1' }] } }],
+  ])('%s: ticking "Tight closes" keeps rule:r1', (_name, arrange) => {
+    arrange()
+    const written = tickTightCloses(start)
+    expect(written).toContain('rule:r1')
+    expect([...written].sort()).toEqual(['rule:r1', 's1', 's2'])
+  })
+  it('an unresolvable id is never shown or counted while it is kept', () => {
+    RULES_EXTRA = { error: new Error('500') }
+    render(<PreEntryChecklistBlock params={{ ...start, requireAll: 'yes' }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('1 of 2 ticked')).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toBe('1 checklist item not ticked.')
+  })
+  it('includeRules no then yes: a setup tick made while rules were off keeps the rule tick, which shows again', () => {
+    RULES = [{ id: 'r1', label: 'Rule one', beforeEntry: true }]
+    const written = tickTightCloses({ ...start, includeRules: 'no' })
+    expect([...written].sort()).toEqual(['rule:r1', 's1', 's2'])
+    cleanup()
+    render(<PreEntryChecklistBlock params={{ ...base, includeRules: 'yes', checked: written }} setParams={vi.fn()} editable />)
+    expect(screen.getByRole('checkbox', { name: 'Rule one' }).checked).toBe(true)
+    expect(screen.getByText('3 of 3 ticked')).toBeTruthy()
+  })
+  it('an account switch (other setup ids) keeps the first account\'s ticks, and switching back shows them', () => {
+    SETTINGS = { setups: ['VCP'], setupRules: { VCP: [{ id: 'x1', label: 'Volume dry-up' }, { id: 'x2', label: 'Tight closes' }] } }
+    RULES = [{ id: 'r9', label: 'Other rule', beforeEntry: true }]
+    const written = tickTightCloses(start)
+    expect([...written].sort()).toEqual(['rule:r1', 's1', 'x2'])
+    cleanup()
+    SETTINGS = SETUPS_FIXTURE
+    RULES = [{ id: 'r1', label: 'Rule one', beforeEntry: true }]
+    render(<PreEntryChecklistBlock params={{ ...base, checked: written }} setParams={vi.fn()} editable />)
+    expect(screen.getByRole('checkbox', { name: 'Volume dry-up' }).checked).toBe(true)
+    expect(screen.getByRole('checkbox', { name: 'Rule one' }).checked).toBe(true)
+    expect(screen.getByText('2 of 3 ticked')).toBeTruthy()
+  })
+})
+
+// ── Concern 4 (R-T7-2): changing setup keeps every tick; switching back restores that setup's ticks.
+describe('concern 4: each setup keeps its own ticks', () => {
+  const TWO = {
+    setups: ['VCP', 'Flag'],
+    setupRules: {
+      VCP: [{ id: 's1', label: 'Volume dry-up' }, { id: 's2', label: 'Tight closes' }],
+      Flag: [{ id: 'f1', label: 'Pole first' }],
+    },
+  }
+  it('VCP -> Flag -> VCP restores s1; a rule tick still counts under Flag; a Flag tick does not erase VCP\'s ids', () => {
+    SETTINGS = TWO
+    RULES = [{ id: 'r1', label: 'Rule one', beforeEntry: true }]
+    let params = { ...base, checked: ['s1', 'rule:r1'] }
+    const setParams = vi.fn((patch) => { params = { ...params, ...patch }; return true })
+    const { rerender } = render(<PreEntryChecklistBlock params={params} setParams={setParams} editable />)
+    fireEvent.click(screen.getByRole('button', { name: 'Change setup' }))
+    rerender(<PreEntryChecklistBlock params={params} setParams={setParams} editable />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Setup for this trade' }), { target: { value: 'Flag' } })
+    rerender(<PreEntryChecklistBlock params={params} setParams={setParams} editable />)
+    expect(params.checked).toEqual(['s1', 'rule:r1'])                      // neither write touched the ticks
+    expect(screen.getByRole('checkbox', { name: 'Rule one' }).checked).toBe(true)
+    expect(screen.getByText('1 of 2 ticked')).toBeTruthy()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Pole first' }))
+    rerender(<PreEntryChecklistBlock params={params} setParams={setParams} editable />)
+    expect([...params.checked].sort()).toEqual(['f1', 'rule:r1', 's1'])
+    fireEvent.click(screen.getByRole('button', { name: 'Change setup' }))
+    rerender(<PreEntryChecklistBlock params={params} setParams={setParams} editable />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Setup for this trade' }), { target: { value: 'VCP' } })
+    rerender(<PreEntryChecklistBlock params={params} setParams={setParams} editable />)
+    expect(screen.getByRole('checkbox', { name: 'Volume dry-up' }).checked).toBe(true)
+    expect(screen.getByRole('checkbox', { name: 'Tight closes' }).checked).toBe(false)
+    expect(screen.getByText('2 of 3 ticked')).toBeTruthy()
   })
 })

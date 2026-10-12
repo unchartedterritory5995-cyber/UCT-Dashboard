@@ -15,28 +15,41 @@
  * @param {{ wantRules: boolean }} opts  false: the rules are never fetched (null account).
  * @returns {{ settings: object|undefined, settingsState: 'loading'|'error'|'ready',
  *             retrySettings: () => void, rules: object[],
- *             rulesState: 'off'|'loading'|'no-account'|'error'|'ready' }}
+ *             rulesState: 'off'|'loading'|'no-account'|'no-accounts'|'accounts-error'|'error'|'ready' }}
  */
 import { useCallback } from 'react'
 import useJ2Settings from './useJ2Settings'
 import useJ2SelectedAccount from './useJ2SelectedAccount'
 import useJournalRules from './useJournalRules'
 
+/** The ONE copy of this seam's return shape. useChecklistSources.test.js reads it, and
+ *  lib/blocks/blockDoors.test.js (⑤) requires the literal return below to carry exactly these keys. */
+export const RETURN_KEYS = Object.freeze(['settings', 'settingsState', 'retrySettings', 'rules', 'rulesState'])
+
 export default function useChecklistSources({ wantRules }) {
   const { settings, isLoading: settingsLoading, error: settingsError, refresh } = useJ2Settings()
-  const { accountId, isLoading: accountsLoading } = useJ2SelectedAccount()
+  const {
+    accountId, isLoading: accountsLoading, isAllAccounts, accountsError, accounts,
+  } = useJ2SelectedAccount()
   const { rules, isLoading: rulesLoading, error: rulesError } = useJournalRules(wantRules ? accountId : null)
 
   const settingsState = settings !== undefined && settings !== null
     ? 'ready'
     : (settingsError && !settingsLoading ? 'error' : 'loading')
 
-  // Rules are per account. With accounts loaded and none selected ("All Accounts"), there is no rule
-  // list to read: that is its own state, never a forever-loading line and never "none are marked".
+  // Rules are per account. With no account selected there is no rule list to read, and WHY decides
+  // the line (M-3): accounts failed, still loading, "All Accounts" chosen, no account at all, or the
+  // first pick not made yet (a frame between accounts arriving and the selection effect). Only
+  // "All Accounts" is "no-account"; the pending first pick reads as loading.
   let rulesState = 'off'
   if (wantRules) {
-    if (!accountId) rulesState = accountsLoading ? 'loading' : 'no-account'
-    else if (rulesError) rulesState = 'error'
+    if (!accountId) {
+      if (accountsError) rulesState = 'accounts-error'
+      else if (accountsLoading) rulesState = 'loading'
+      else if (isAllAccounts) rulesState = 'no-account'
+      else if (Array.isArray(accounts) && accounts.length === 0) rulesState = 'no-accounts'
+      else rulesState = 'loading'
+    } else if (rulesError) rulesState = 'error'
     else if (rulesLoading) rulesState = 'loading'
     else rulesState = 'ready'
   }

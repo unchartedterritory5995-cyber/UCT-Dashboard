@@ -25,7 +25,7 @@ const CHANGE_EVENT = 'uct:j2:selected-account-changed'
 // `enabled` defaults to true (see useJ2Accounts.js) and is threaded straight
 // through to it — every existing caller omits it and is unaffected.
 export default function useJ2SelectedAccount(enabled = true) {
-  const { accounts, isLoading } = useJ2Accounts(enabled)
+  const { accounts, isLoading, error: accountsError } = useJ2Accounts(enabled)
   const [accountId, setAccountIdState] = useState(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored === ALL_ACCOUNTS) return null
@@ -74,5 +74,11 @@ export default function useJ2SelectedAccount(enabled = true) {
     ? accounts.find((a) => a.id === accountId) || null
     : null
 
-  return { accountId, account, accounts, setAccount, isLoading }
+  // `accountId` is null for "All Accounts" AND before the first pick AND when accounts failed to load.
+  // Only the stored selection tells the first apart (Notebook P2a, Task 7 fix round 1, M-3); additive.
+  let storedAll = false
+  try { storedAll = localStorage.getItem(STORAGE_KEY) === ALL_ACCOUNTS } catch { storedAll = false }
+  const isAllAccounts = accountId === null && storedAll
+
+  return { accountId, account, accounts, setAccount, isLoading, isAllAccounts, accountsError }
 }

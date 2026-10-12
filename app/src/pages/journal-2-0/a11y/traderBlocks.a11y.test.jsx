@@ -5,7 +5,7 @@
 // own recipe in this file's siblings); a second renders the REAL BlockNodeView with one body that throws,
 // so the whole composition (the named group, its Remove button, then the error state with "Try again")
 // is audited -- not a hand-built frame. An empty screen cannot pass as a clean one in either.
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { vi, expect } from 'vitest'
 import { axeSurface } from './surface'
 
@@ -32,11 +32,18 @@ axeSurface('trader-block-platform', async () => {
     expect(await screen.findByRole('group', { name })).toBeTruthy()
     expect(screen.getByRole('button', { name: `Remove ${name}` })).toBeTruthy()
   }
-  // every body painted (an unloaded chunk would read as a clean, empty block): the two stubs still
-  // stubs, and the checklist's real body inside its own named group
-  expect(await screen.findAllByText('This block is being built.')).toHaveLength(2)
+  // Every body painted (an unloaded chunk would read as a clean, empty block), each inside its OWN
+  // named group. Each body is its own lazy chunk behind its own Suspense, so they commit at different
+  // ticks: wait per group, THEN count. (A findAll resolves on the FIRST match, so a count read from it
+  // is a sample; R-T7-2 I-1 reproduced that red with one chunk 300 ms late.)
+  // Tasks 10 and 11: delete your block's name from STUB_GROUPS when you replace its stub.
+  const STUB_GROUPS = ['Price stamps', 'Position sizing']
+  for (const name of STUB_GROUPS) {
+    expect(await within(screen.getByRole('group', { name })).findByText('This block is being built.')).toBeTruthy()
+  }
+  expect(screen.getAllByText('This block is being built.')).toHaveLength(STUB_GROUPS.length)
   const checklist = screen.getByRole('group', { name: 'Pre-entry checklist' })
-  expect(checklist.contains(await screen.findByText(/You have no setups yet/))).toBe(true)
+  expect(await within(checklist).findByText(/You have no setups yet/)).toBeTruthy()
 })
 
 axeSurface('trader-block-platform:error', async () => {
