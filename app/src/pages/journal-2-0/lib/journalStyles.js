@@ -2,15 +2,18 @@
 // by the contract fixtures. Imported ONLY by lazy chunks and the hook (never on first open).
 // ⛔ Two calls move a note's revision (update layout, the mapping offer); each LANDS what it moved
 // with settleNoteWrite before returning (lib/offline/doorEnumeration.test.js).
-//   · A DRY-RUN plan writes nothing and a refused write (409 stale base) moved nothing: neither settles.
+//   · The PLAN is a GET on its own route (never the write's route) and a refused write (409 stale base)
+//     moved nothing: neither settles. Both settles use the account that ASKED, read before the request.
+//   · The write refuses to leave without its base revision: a compare-and-set with no base is a blind write.
 //   · It imports settleNoteWrite, NEVER useDurableNote (importing that takes a Web Lock).
 // Offline (spec P1.6): the list is cached in the offline DB's `meta` store and read back when the
 // network fails. Creating offline is refused by the create door (NotebookTab), never queued.
 //   · The cache belongs to the account that ASKED: the id is read when the request starts, so an
 //     account switch while it is in flight cannot write one member's styles into another's store.
-//   · "Offline" means the server never answered, or a deploy swap's proxy did (502/503/504). A real
+//   · "Offline" means the server never answered, or a deploy swap's proxy did (502/503/504, or
+//     Cloudflare's 520-524). If the account changed meanwhile, the old account's cache is not served. A real
 //     refusal (402 free plan, 404 gate off, 400, 500) is the server speaking and is never papered over.
-import { settleNoteWrite } from './offline/settleNoteWrite'
+import { settleNoteWrite, settleNoteWrites } from './offline/settleNoteWrite'
 import { openNotebookDb, getMeta, putMeta, offlineStorageAvailable } from './offline/notebookDb'
 import { offlineEnabled } from './offline/offlineFlag'
 import { getCurrentAccountId } from './offline/currentAccount'
@@ -20,7 +23,8 @@ export const STYLES_CACHE_KEY = 'journal-styles:v1'
 const KINDS_URL = '/api/j2/note-kinds'
 const NOTES_URL = '/api/j2/notes'
 // A reverse proxy answering for a server that is mid-swap says nothing about the member's styles.
-const PROXY_UNREACHABLE = new Set([502, 503, 504])
+// (Cloudflare's 520-524 are the same statement from the edge.)
+const PROXY_UNREACHABLE = new Set([502, 503, 504, 520, 521, 522, 523, 524])
 
 async function call(url, { method = 'GET', body } = {}) {
   const res = await fetch(url, {
@@ -60,6 +64,8 @@ export async function fetchJournalStyles({ readCache = readCachedStyles } = {}) 
     return data
   } catch (e) {
     if (e?.status && !PROXY_UNREACHABLE.has(e.status)) throw e       // the server answered: not "offline"
+    // The member moved to another account while this was out: the cached list is the OLD account's.
+    if (getCurrentAccountId() !== accountId) throw e
     const cached = await readCache(accountId)
     if (cached) return { ...cached, fromCache: true }
     throw e
@@ -81,24 +87,28 @@ export const getMappingOffer = () => call(`${KINDS_URL}/mapping-offer`)
 
 /** Writes `builtin:note_kind` on every note the member did not exclude. Each note it changed is landed. */
 export async function applyMappingOffer(excludeNoteIds = []) {
+  const accountId = getCurrentAccountId()
   const out = await call(`${KINDS_URL}/mapping-offer`, { method: 'POST', body: { excludeNoteIds } })
-  // One after another, never Promise.all: every settle read-modify-writes the same landed ring.
-  for (const n of out.notes || []) await settleNoteWrite(n.id, n)
+  // The batch idiom: one account for the whole batch, sequential inside (every settle read-modify-writes
+  // the same landed ring).
+  await settleNoteWrites(out.notes || [], accountId)
   return out
 }
 
-/** The preview behind "Update layout": writes nothing, so it settles nothing. */
+/** The preview behind "Update layout": a GET on its own route (the server's style-update-plan), so it
+ *  can never be taken for the write; it writes nothing and settles nothing. */
 export const planStyleUpdate = (noteId, { styleId } = {}) =>
-  call(`${NOTES_URL}/${enc(noteId)}/apply-style-update`, {
-    method: 'POST', body: { dryRun: true, ...(styleId ? { styleId } : {}) },
-  })
+  call(`${NOTES_URL}/${enc(noteId)}/style-update-plan${styleId ? `?styleId=${enc(styleId)}` : ''}`)
 
-/** The one compare-and-set write. 409 (stale base) throws and moved nothing. */
+/** The one compare-and-set write. `baseUpdatedAt` (the revision the member is looking at) is REQUIRED:
+ *  without it the server would write unconditionally. 409 (stale base) throws and moved nothing. */
 export async function applyStyleUpdate(noteId, { styleId, baseUpdatedAt } = {}) {
+  if (!baseUpdatedAt) throw new Error('applyStyleUpdate needs baseUpdatedAt, the revision the member is looking at')
+  const accountId = getCurrentAccountId()
   const out = await call(`${NOTES_URL}/${enc(noteId)}/apply-style-update`, {
-    method: 'POST', body: { ...(styleId ? { styleId } : {}), ...(baseUpdatedAt ? { baseUpdatedAt } : {}) },
+    method: 'POST', body: { ...(styleId ? { styleId } : {}), baseUpdatedAt },
   })
-  await settleNoteWrite(out.note.id, out.note)
+  await settleNoteWrite(out.note.id, out.note, accountId)
   return out
 }
 

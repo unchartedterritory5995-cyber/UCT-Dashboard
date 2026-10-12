@@ -4,14 +4,17 @@
 // replaced by imports of those files (same `.body` shape) -- nothing else in this file changes.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-vi.mock('./offline/settleNoteWrite', () => ({ settleNoteWrite: vi.fn(async () => 'rev') }))
+vi.mock('./offline/settleNoteWrite', () => ({
+  settleNoteWrite: vi.fn(async () => 'rev'),
+  settleNoteWrites: vi.fn(async () => []),
+}))
 vi.mock('./offline/notebookDb', () => ({
   openNotebookDb: vi.fn(async () => ({ close: vi.fn(), fake: true })),
   getMeta: vi.fn(async () => null),
   putMeta: vi.fn(async () => undefined),
   offlineStorageAvailable: vi.fn(() => true),
 }))
-import { settleNoteWrite } from './offline/settleNoteWrite'
+import { settleNoteWrite, settleNoteWrites } from './offline/settleNoteWrite'
 import journalStylesSource from './journalStyles.js?raw'
 import { openNotebookDb, getMeta, putMeta, offlineStorageAvailable } from './offline/notebookDb'
 import { setCurrentAccountId } from './offline/currentAccount'
@@ -61,7 +64,7 @@ const sent = () => { const [url, init] = lastCall(); return { url, method: init.
 
 beforeEach(() => {
   globalThis.fetch = vi.fn()
-  settleNoteWrite.mockClear()
+  settleNoteWrite.mockClear(); settleNoteWrites.mockClear()
   openNotebookDb.mockClear(); getMeta.mockClear(); putMeta.mockClear()
   getMeta.mockResolvedValue(null)
   offlineStorageAvailable.mockReturnValue(true)
@@ -79,16 +82,20 @@ describe('journal styles client', () => {
   })
 
   it('lands the update-layout write before returning', async () => {
+    setCurrentAccountId('acct-1')
     globalThis.fetch.mockResolvedValue(ok(applyFixture.body))
     const out = await applyStyleUpdate('n1', { baseUpdatedAt: 'x' })
-    expect(settleNoteWrite).toHaveBeenCalledWith(applyFixture.body.note.id, applyFixture.body.note)
+    expect(settleNoteWrite).toHaveBeenCalledWith(applyFixture.body.note.id, applyFixture.body.note, 'acct-1')
     expect(out.note.styleVersion).toBe(applyFixture.body.note.styleVersion)
   })
 
   it('lands every note the mapping offer changed', async () => {
+    setCurrentAccountId('acct-1')
     globalThis.fetch.mockResolvedValue(ok(mappingApply.body))
     await applyMappingOffer([])
-    expect(settleNoteWrite).toHaveBeenCalledTimes(mappingApply.body.notes.length)
+    // the batch idiom: every returned {id, updatedAt}, for the account that asked
+    expect(settleNoteWrites).toHaveBeenCalledTimes(1)
+    expect(settleNoteWrites).toHaveBeenCalledWith(mappingApply.body.notes, 'acct-1')
   })
 
   it('a refusal carries the server sentence and status', async () => {
@@ -119,8 +126,8 @@ describe('what each call asks the server (the wire, not the call site)', () => {
     ['deleteKind', () => deleteKind('k_1'), 'DELETE', '/api/j2/note-kinds/k_1', undefined],
     ['getMappingOffer', () => getMappingOffer(), 'GET', '/api/j2/note-kinds/mapping-offer', undefined],
     ['applyMappingOffer', () => applyMappingOffer(['n9']), 'POST', '/api/j2/note-kinds/mapping-offer', { excludeNoteIds: ['n9'] }],
-    ['planStyleUpdate', () => planStyleUpdate('n 1', { styleId: 's_1' }), 'POST', '/api/j2/notes/n%201/apply-style-update',
-      { dryRun: true, styleId: 's_1' }],
+    ['planStyleUpdate', () => planStyleUpdate('n 1', { styleId: 's 1' }), 'GET', '/api/j2/notes/n%201/style-update-plan?styleId=s%201',
+      undefined],
     ['applyStyleUpdate', () => applyStyleUpdate('n1', { styleId: 's_1', baseUpdatedAt: 'T0' }), 'POST',
       '/api/j2/notes/n1/apply-style-update', { styleId: 's_1', baseUpdatedAt: 'T0' }],
   ]
@@ -141,12 +148,21 @@ describe('what each call asks the server (the wire, not the call site)', () => {
     expect(sent()).toMatchObject({ url: '/api/j2/journal-styles', method: 'GET' })
   })
 
-  it('an unset styleId / baseUpdatedAt is left off the wire, never sent as null', async () => {
+  it('an unset styleId is left off the wire, never sent as null (write and plan alike)', async () => {
     globalThis.fetch.mockResolvedValue(ok(applyFixture.body))
-    await applyStyleUpdate('n1', {})
-    expect(sent().body).toEqual({})
+    await applyStyleUpdate('n1', { baseUpdatedAt: 'T0' })
+    expect(sent().body).toEqual({ baseUpdatedAt: 'T0' })
     await planStyleUpdate('n1')
-    expect(sent().body).toEqual({ dryRun: true })
+    expect(sent()).toMatchObject({ url: '/api/j2/notes/n1/style-update-plan', method: 'GET' })
+  })
+
+  it('the plan is a GET on its own route: it can never be mistaken for the write', async () => {
+    globalThis.fetch.mockResolvedValue(ok({ plan: applyFixture.body.plan }))
+    await planStyleUpdate('n1', { styleId: 's_mine' })
+    const { url, method, init } = sent()
+    expect(method).toBe('GET')
+    expect(url).not.toMatch(/apply-style-update/)
+    expect(init.body).toBeUndefined()
   })
 
   it('only the two calls that move a note settle; nothing else does', async () => {
@@ -157,15 +173,17 @@ describe('what each call asks the server (the wire, not the call site)', () => {
     }
     await fetchJournalStyles()
     expect(settleNoteWrite).not.toHaveBeenCalled()
+    expect(settleNoteWrites).not.toHaveBeenCalled()
   })
 })
 
 describe('a call that moves a revision is landed, and only when it moved one', () => {
-  it('the dry-run plan writes nothing, so it settles nothing', async () => {
+  it('the plan is a read: it settles nothing', async () => {
     globalThis.fetch.mockResolvedValue(ok({ plan: applyFixture.body.plan }))
     const out = await planStyleUpdate('n1', { styleId: 's_mine' })
     expect(out.plan.toVersion).toBe(2)
     expect(settleNoteWrite).not.toHaveBeenCalled()
+    expect(settleNoteWrites).not.toHaveBeenCalled()
   })
 
   it('a stale base (409) moved nothing: it throws the server sentence and settles nothing', async () => {
@@ -181,23 +199,34 @@ describe('a call that moves a revision is landed, and only when it moved one', (
     // a macrotask, so only a real `await` on the settle can order 'settled' before 'returned'
     settleNoteWrite.mockImplementationOnce(async () => { await new Promise((r) => setTimeout(r, 5)); order.push('settled'); return 'rev' })
     globalThis.fetch.mockResolvedValue(ok(applyFixture.body))
-    await applyStyleUpdate('n1', {}).then(() => order.push('returned'))
+    await applyStyleUpdate('n1', { baseUpdatedAt: 'T0' }).then(() => order.push('returned'))
     expect(order).toEqual(['settled', 'returned'])
   })
 
-  it('the mapping offer lands each note in order, one after the other, with the note it returned', async () => {
-    const inFlight = { n: 0, max: 0 }
-    settleNoteWrite.mockImplementation(async () => {
-      inFlight.n += 1; inFlight.max = Math.max(inFlight.max, inFlight.n)
-      await Promise.resolve(); await Promise.resolve()
-      inFlight.n -= 1
-      return 'rev'
-    })
+  it('the mapping-offer batch settle is awaited before it returns, and returns the server body', async () => {
+    const order = []
+    settleNoteWrites.mockImplementationOnce(async () => { await new Promise((r) => setTimeout(r, 5)); order.push('settled'); return [] })
     globalThis.fetch.mockResolvedValue(ok(mappingApply.body))
-    const out = await applyMappingOffer(['skip'])
-    expect(settleNoteWrite.mock.calls).toEqual(mappingApply.body.notes.map((n) => [n.id, n]))
-    expect(inFlight.max).toBe(1)
+    const out = await applyMappingOffer(['skip']).then((o) => { order.push('returned'); return o })
+    expect(order).toEqual(['settled', 'returned'])
     expect(out.count).toBe(2)
+  })
+
+  it('the settles use the account that ASKED, even if it changes while the request is out', async () => {
+    setCurrentAccountId('acct-A')
+    let release
+    globalThis.fetch.mockReturnValue(new Promise((r) => { release = () => r(ok(applyFixture.body)) }))
+    const pending = applyStyleUpdate('n1', { baseUpdatedAt: 'T0' })
+    setCurrentAccountId('acct-B')
+    release()
+    await pending
+    expect(settleNoteWrite).toHaveBeenCalledWith('n1', applyFixture.body.note, 'acct-A')
+    globalThis.fetch.mockReturnValue(new Promise((r) => { release = () => r(ok(mappingApply.body)) }))
+    const second = applyMappingOffer([])
+    setCurrentAccountId('acct-C')
+    release()
+    await second
+    expect(settleNoteWrites).toHaveBeenLastCalledWith(mappingApply.body.notes, 'acct-B')
   })
 
   it('a mapping offer that changed nothing settles nothing and does not throw', async () => {
@@ -207,6 +236,21 @@ describe('a call that moves a revision is landed, and only when it moved one', (
     globalThis.fetch.mockResolvedValue(ok({ count: 0 }))
     await expect(applyMappingOffer([])).resolves.toEqual({ count: 0 })
     expect(settleNoteWrite).not.toHaveBeenCalled()
+  })
+})
+
+describe('the update-layout write is a compare-and-set, never a blind write', () => {
+  it.each([[undefined], [null], ['']])('refuses to send without a base revision (%s), before any request', async (base) => {
+    await expect(applyStyleUpdate('n1', { baseUpdatedAt: base })).rejects.toThrow(/baseUpdatedAt/)
+    await expect(applyStyleUpdate('n1')).rejects.toThrow(/baseUpdatedAt/)
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+    expect(settleNoteWrite).not.toHaveBeenCalled()
+  })
+
+  it('with a base it is sent as the compare-and-set value', async () => {
+    globalThis.fetch.mockResolvedValue(ok(applyFixture.body))
+    await applyStyleUpdate('n1', { baseUpdatedAt: '2026-10-11T11:00:00+00:00' })
+    expect(sent().body).toEqual({ baseUpdatedAt: '2026-10-11T11:00:00+00:00' })
   })
 })
 
@@ -290,6 +334,19 @@ describe('the offline cache (the offline DB\'s existing meta store)', () => {
     expect(data.styles).toEqual(listFixture.body.styles)
   })
 
+  it('network down AFTER the account changed: the first account cached list is not served to the second', async () => {
+    setCurrentAccountId('acct-A')
+    const readCache = vi.fn(async () => listFixture.body)
+    const boom = new TypeError('Failed to fetch')
+    let fail
+    globalThis.fetch.mockReturnValue(new Promise((_r, reject) => { fail = () => reject(boom) }))
+    const pending = fetchJournalStyles({ readCache })
+    setCurrentAccountId('acct-B')
+    fail()
+    await expect(pending).rejects.toBe(boom)
+    expect(readCache).not.toHaveBeenCalled()
+  })
+
   it('network down and nothing cached: the original network error, not a made-up empty list', async () => {
     const boom = new TypeError('Failed to fetch')
     globalThis.fetch.mockRejectedValue(boom)
@@ -305,8 +362,8 @@ describe('the offline cache (the offline DB\'s existing meta store)', () => {
     expect(readCache).not.toHaveBeenCalled()
   })
 
-  it('a deploy swap (502/503/504 from the proxy) is "the server is not there": the cache serves', async () => {
-    for (const status of [502, 503, 504]) {
+  it('a deploy swap (502/503/504 from the proxy, 520-524 from Cloudflare) is "the server is not there": the cache serves', async () => {
+    for (const status of [502, 503, 504, 520, 521, 522, 523, 524]) {
       globalThis.fetch.mockResolvedValue(refusal(status))
       const data = await fetchJournalStyles({ readCache: async () => listFixture.body })
       expect(data).toEqual({ ...listFixture.body, fromCache: true })

@@ -1,11 +1,16 @@
 // Journal styles list (P1). Used by lazy chunks only. Revalidates on focus like the property defs.
-// `enabled` is the caller's gate (pass journalStylesEnabled()): with it false no request is made.
+// ⛔ FAILS CLOSED ON THE SWITCH ITSELF. The hook reads the latched gate (journalStylesEnabled) on every
+// render and fetches only when it is on: no caller can widen it. `enabled: false` may only NARROW it
+// (a surface that is not showing). With the gate off every route here answers 404, and an offline copy
+// would otherwise be served as if the feature were on.
 // `data.fromCache === true` means the network was down and the offline copy is being shown.
 import useSWR from 'swr'
 import { STYLES_URL, fetchJournalStyles } from '../lib/journalStyles'
+import { journalStylesEnabled } from '../lib/journalStylesFlag'
 
 export default function useJournalStyles({ enabled = true } = {}) {
-  return useSWR(enabled ? STYLES_URL : null, () => fetchJournalStyles(), {
+  const on = enabled !== false && journalStylesEnabled()
+  return useSWR(on ? STYLES_URL : null, () => fetchJournalStyles(), {
     revalidateOnFocus: true, shouldRetryOnError: false,
   })
 }
