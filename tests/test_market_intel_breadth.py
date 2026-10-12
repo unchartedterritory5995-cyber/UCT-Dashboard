@@ -337,3 +337,39 @@ def test_sentinel_world_puts_the_sentinel_on_the_session(monkeypatch):
     synthetic_breadth_world(monkeypatch, sentinel=73.4567)
     a = ba.answer(br.read({"mode": "value", "universe": "us", "metrics": ["pct_above_50sma"], "date": None}))
     assert "73.5%" in a["text"] and LAST_SEALED in a["text"]
+
+
+# ── boundary contracts the Agent relies on (Agent review 2026-10-11) ─────────
+
+@pytest.mark.parametrize("req", [
+    {"mode": "value", "universe": "us", "metrics": ["pct_above_50sma"], "date": "2026-10-09"},
+    {"mode": "compare", "universe": "nyse", "metrics": ["advancing", "declining"], "date": None, "compare_date": "2026-09-01"},
+    {"mode": "series", "universe": "nasdaq", "metrics": ["net_new_high_low"], "start": "2026-07-01", "end": None},
+])
+def test_validate_is_pure_and_value_free(world, req):
+    ok, err = br.validate(dict(req, note="73.4567 sneaked in", extra={"v": 73.4567}))
+    assert err is None and world["calls"] == []                      # no read of any kind
+    allowed = {"mode", "universe", "metrics", "date", "compare_date", "start", "end"}
+    assert set(ok) <= allowed                                        # unknown keys never copied through
+    for k, v in ok.items():
+        if k == "metrics":
+            assert all(m in br.SLICE1_METRICS for m in v)
+        elif k in ("date", "compare_date", "start", "end"):
+            assert v is None or re.fullmatch(r"\d{4}-\d{2}-\d{2}", v)
+        else:
+            assert v in br.MODES + br.SLICE1_UNIVERSES
+    assert "73.4567" not in repr(ok)
+
+
+def test_loopback_is_allowed_but_the_network_is_not(world):
+    import socket
+    a, b = socket.socketpair()                                       # what Windows asyncio needs
+    a.close(); b.close()
+    with pytest.raises(AssertionError):
+        socket.create_connection(("93.184.216.34", 443), timeout=0.1)
+    s = socket.socket()
+    try:
+        with pytest.raises(AssertionError):
+            s.connect(("93.184.216.34", 443))
+    finally:
+        s.close()
