@@ -7,9 +7,21 @@ styles: the store, versions, defaults, the composer that turns a style into a no
 
 ⛔ Dark behind NOTEBOOK_JOURNAL_STYLES_ENABLED, read PER CALL through the one Notebook flag parse.
 ⛔ The switch gates CREATING, never RENDERING (docs/notebook/p1-verify-before-building.md §c).
+
+Kinds of note live in note_kinds.py (Task 4). It is read through `_nk()`, a lazy import, so this
+module imports cleanly on its own; nothing here restates a kind constant.
 """
 from __future__ import annotations
 
+import copy
+import json
+import re
+import sqlite3
+import uuid
+from datetime import datetime, timezone
+from typing import Any
+
+from api.services.auth_db import get_connection
 from api.services.notebook_flags import flag_on
 
 FLAG = "NOTEBOOK_JOURNAL_STYLES_ENABLED"
@@ -18,3 +30,485 @@ FLAG = "NOTEBOOK_JOURNAL_STYLES_ENABLED"
 def enabled() -> bool:
     """The gate, read per call (default OFF)."""
     return flag_on(FLAG, False)
+
+
+def _nk():
+    """The kinds-of-note module (Task 4), imported at call time: the one authority over kinds and
+    over the `builtin:note_kind` property id."""
+    from api.services.journal_two import note_kinds
+    return note_kinds
+
+
+MAX_STYLES_PER_MEMBER = 200
+MAX_STYLE_NAME_CHARS = 80
+MAX_BLOCKS = 30
+MAX_UNKNOWN_SETTINGS_BYTES = 4096
+BLOCK_ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,40}$")
+BUILTIN_PREFIX = "builtin:"
+
+# ⛔ ONE FACT IN TWO FILES with app/src/pages/journal-2-0/lib/journalBlocks.js (ids, settings keys,
+# options, defaults). A block id IS a widget id. P2 adds a row here, the client row, and a builder.
+BLOCK_KINDS: tuple[dict, ...] = (
+    {"id": "chart", "settings": ({"key": "tf", "options": ("D", "W", "60", "15", "5"), "default": "D"},)},
+)
+KNOWN_BLOCKS = frozenset(k["id"] for k in BLOCK_KINDS)
+_BLOCK_BY_ID = {k["id"]: k for k in BLOCK_KINDS}
+
+
+class StyleValidationError(ValueError):
+    pass
+
+
+class StyleNotFound(LookupError):
+    pass
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _h(text: str) -> dict:
+    return {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": text}]}
+
+
+def _p(text: str = "") -> dict:
+    return {"type": "paragraph", "content": [{"type": "text", "text": text}]} if text else {"type": "paragraph"}
+
+
+def _ph(block: str) -> dict:
+    return _p("{{block:%s}}" % block)
+
+
+def _chart(tf: str = "D") -> dict:
+    return {"block": "chart", "enabled": True, "settings": {"tf": tf}}
+
+
+def _doc(*nodes: dict) -> dict:
+    return {"type": "doc", "content": list(nodes)}
+
+
+# One built-in style per built-in kind. Versions are bumped BY HAND when an outline here changes,
+# which is what offers "update layout" to notes made from the older one.
+BUILTIN_STYLES: dict[str, dict] = {
+    "trade_plan": {"name": "Trade plan", "version": 1, "properties": {}, "blocks": [_chart("D")], "outline": _doc(
+        _h("The setup"), _p("What is the pattern, and why now?"), _ph("chart"),
+        _h("Entry, stop and target"), _p("Entry:"), _p("Stop:"), _p("Target:"),
+        _h("Size and risk"), _p("How much am I risking, and is it within my rules?"))},
+    "daily_prep": {"name": "Daily prep", "version": 1, "properties": {}, "blocks": [], "outline": _doc(
+        _h("The market"), _p("What is the tape telling me today?"),
+        _h("Names on my list"), _p("Which setups are closest to a trigger?"),
+        _h("My plan"), _p("What will I do, and what will I not do?"))},
+    "weekend_prep": {"name": "Weekend prep", "version": 1, "properties": {}, "blocks": [], "outline": _doc(
+        _h("The week behind"), _p("What worked and what did not?"),
+        _h("Leading groups"), _p("Where is the strength?"),
+        _h("Next week's list"), _p("Which names, at which levels?"))},
+    "earnings": {"name": "Earnings", "version": 1, "properties": {}, "blocks": [_chart("D")], "outline": _doc(
+        _h("What the market expects"), _p("Consensus, and the move the options price in:"), _ph("chart"),
+        _h("My view"), _p("What would surprise the market?"),
+        _h("The plan around the report"), _p("Hold, trim, or wait?"))},
+    "post_trade_review": {"name": "Post-trade review", "version": 1, "properties": {}, "blocks": [_chart("D")],
+                          "outline": _doc(
+        _h("What happened"), _p("Entry, exit and result:"), _ph("chart"),
+        _h("Did I follow my plan?"), _p("Where did I follow it, and where did I not?"),
+        _h("What I'd do differently"), _p())},
+    "weekly_review": {"name": "Weekly review", "version": 1, "properties": {}, "blocks": [], "outline": _doc(
+        _h("The numbers"), _p("Trades, wins, losses and the result:"),
+        _h("Best and worst trade"), _p(), _h("One thing to change"), _p())},
+    "thesis": {"name": "Thesis", "version": 1, "properties": {}, "blocks": [_chart("W")], "outline": _doc(
+        _h("The thesis"), _p("Why will this stock go up (or down)?"), _ph("chart"),
+        _h("What would prove me wrong"), _p(), _h("Catalysts"), _p())},
+    "watchlist_note": {"name": "Watchlist note", "version": 1, "properties": {}, "blocks": [_chart("D")],
+                       "outline": _doc(_h("Why it is on my list"), _p(), _ph("chart"),
+                                       _h("The level I am waiting for"), _p())},
+}
+
+
+def builtin_style_id(kind_id: str) -> str:
+    return BUILTIN_PREFIX + kind_id
+
+
+def _member_default(user_id: str, kind_id: str, conn: sqlite3.Connection) -> str | None:
+    r = conn.execute("SELECT id FROM j2_journal_styles WHERE user_id = ? AND kind_id = ? AND is_default = 1"
+                     " AND deleted_at IS NULL", (user_id, kind_id)).fetchone()
+    return r["id"] if r else None
+
+
+def _builtin(user_id: str, kind_id: str, conn: sqlite3.Connection, *, full: bool) -> dict:
+    s = BUILTIN_STYLES[kind_id]
+    out = {"id": builtin_style_id(kind_id), "name": s["name"], "kindId": kind_id, "builtin": True,
+           "isDefault": _member_default(user_id, kind_id, conn) is None, "version": s["version"],
+           "outlineTemplateId": None, "hasOutline": True, "blocks": copy.deepcopy(s["blocks"]),
+           "properties": dict(s["properties"]), "sourceGalleryId": None, "sourceVersion": None,
+           "createdAt": None, "updatedAt": None, "deletedAt": None}
+    if full:
+        out["outlineBodyJson"] = copy.deepcopy(s["outline"])
+    return out
+
+
+def _row(r: sqlite3.Row, *, full: bool) -> dict:
+    body = json.loads(r["outline_body_json"]) if r["outline_body_json"] else None
+    out = {"id": r["id"], "name": r["name"], "kindId": r["kind_id"], "builtin": False,
+           "isDefault": bool(r["is_default"]), "version": r["version"],
+           "outlineTemplateId": r["outline_template_id"], "hasOutline": bool(body or r["outline_template_id"]),
+           "blocks": json.loads(r["blocks_json"] or "[]"), "properties": json.loads(r["properties_json"] or "{}"),
+           "sourceGalleryId": r["source_gallery_id"], "sourceVersion": r["source_version"],
+           "createdAt": r["created_at"], "updatedAt": r["updated_at"], "deletedAt": r["deleted_at"]}
+    if full:
+        out["outlineBodyJson"] = body
+    return out
+
+
+def _clean_name(raw: Any) -> str:
+    if not isinstance(raw, str) or not raw.strip():
+        raise StyleValidationError("A journal style needs a name.")
+    name = " ".join(raw.split())
+    if len(name) > MAX_STYLE_NAME_CHARS:
+        raise StyleValidationError(f"A style's name can be at most {MAX_STYLE_NAME_CHARS} characters.")
+    return name
+
+
+def _clean_kind(user_id: str, raw: Any, conn: sqlite3.Connection) -> str:
+    if _nk().get_kind(user_id, raw, conn) is None:
+        raise StyleValidationError("Choose a kind of note for this style.")
+    return raw
+
+
+def _clean_template(user_id: str, raw: Any, conn: sqlite3.Connection) -> str | None:
+    if raw in (None, ""):
+        return None
+    if not isinstance(raw, str) or conn.execute(
+            "SELECT 1 FROM j2_note_templates WHERE id = ? AND user_id = ?", (raw, user_id)).fetchone() is None:
+        raise StyleValidationError("That outline is not one of your templates.")
+    return raw
+
+
+def _clean_outline(raw: Any) -> dict | None:
+    if raw is None:
+        return None
+    from api.services.journal_two import notes as notes_service
+    try:
+        return notes_service._validate_body_json(raw)
+    except notes_service.NoteValidationError as e:
+        raise StyleValidationError(f"The outline could not be saved: {e}") from e
+
+
+def _clean_blocks(raw: Any) -> list[dict]:
+    if raw is None:
+        return []
+    if not isinstance(raw, list) or len(raw) > MAX_BLOCKS:
+        raise StyleValidationError(f"A style can hold up to {MAX_BLOCKS} blocks.")
+    out, seen = [], set()
+    for b in raw:
+        if not isinstance(b, dict) or not isinstance(b.get("block"), str) or not BLOCK_ID_RE.match(b["block"]):
+            raise StyleValidationError("Each block needs a valid block id.")
+        bid = b["block"]
+        if bid in seen:
+            raise StyleValidationError("A style can hold each block once.")
+        seen.add(bid)
+        settings = b.get("settings") if b.get("settings") is not None else {}
+        if not isinstance(settings, dict):
+            raise StyleValidationError("A block's settings must be an object.")
+        kind = _BLOCK_BY_ID.get(bid)
+        if kind is None:
+            if len(json.dumps(settings)) > MAX_UNKNOWN_SETTINGS_BYTES:
+                raise StyleValidationError("That block's settings are too large.")
+            clean = settings                                     # a newer version's block: kept verbatim
+        else:
+            allowed = {s["key"]: s for s in kind["settings"]}
+            clean = {}
+            for k, v in settings.items():
+                spec = allowed.get(k)
+                if spec is None or v not in spec["options"]:
+                    raise StyleValidationError(f"{k} is not a setting this block accepts.")
+                clean[k] = v
+        out.append({"block": bid, "enabled": bool(b.get("enabled", True)), "settings": clean})
+    return out
+
+
+def _clean_properties(user_id: str, raw: Any, conn: sqlite3.Connection) -> dict:
+    from api.services.journal_two import note_properties as np
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise StyleValidationError("properties must be an object")
+    out = {}
+    for pid, value in raw.items():
+        if pid == _nk().NOTE_KIND_PROPERTY:
+            raise StyleValidationError("A style's kind of note is set by the kind you choose.")
+        if np.is_builtin_property_id(pid) and pid not in np.BUILTIN_USER_SET_IDS:
+            raise StyleValidationError(f"{pid} is not a property a style can fill.")
+        d = np.get_property_def(user_id, pid, conn=conn)
+        if d is None or d.get("computed"):
+            raise StyleValidationError(f"Unknown property: {pid}")
+        try:
+            v = np.validate_property_value(d, value)
+        except np.PropertyValidationError as e:
+            raise StyleValidationError(str(e)) from e
+        if v is not None:
+            out[pid] = v
+    return out
+
+
+def _valid_defaults(user_id: str, raw: Any, conn: sqlite3.Connection) -> dict:
+    """The property values that still fit a property the member has (note_templates' rule): a
+    deleted or changed property, or the kind (which a style sets from its kindId), is left out,
+    never a failed write. Used for a style's defaults at compose time and for a note's values
+    when its setup is saved as a style."""
+    from api.services.journal_two import note_properties as np
+    kind_prop = _nk().NOTE_KIND_PROPERTY
+    out = {}
+    for pid, value in (raw if isinstance(raw, dict) else {}).items():
+        if pid == kind_prop:
+            continue
+        if np.is_builtin_property_id(pid) and pid not in np.BUILTIN_USER_SET_IDS:
+            continue
+        d = np.get_property_def(user_id, pid, conn=conn)
+        if d is None or d.get("computed"):
+            continue
+        try:
+            v = np.validate_property_value(d, value)
+        except np.PropertyValidationError:
+            continue
+        if v is not None:
+            out[pid] = v
+    return out
+
+
+def _load_row(user_id: str, style_id: str, conn: sqlite3.Connection, *, include_deleted=False):
+    sql = "SELECT * FROM j2_journal_styles WHERE id = ? AND user_id = ?"
+    if not include_deleted:
+        sql += " AND deleted_at IS NULL"
+    return conn.execute(sql, (style_id, user_id)).fetchone()
+
+
+def get_style(user_id: str, style_id: Any, conn: sqlite3.Connection | None = None, *,
+              full: bool = True, include_deleted: bool = False) -> dict | None:
+    if not isinstance(style_id, str):
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        if style_id.startswith(BUILTIN_PREFIX):
+            kind = style_id[len(BUILTIN_PREFIX):]
+            return _builtin(user_id, kind, conn, full=full) if kind in BUILTIN_STYLES else None
+        r = _load_row(user_id, style_id, conn, include_deleted=include_deleted)
+        return _row(r, full=full) if r else None
+    finally:
+        if owned:
+            conn.close()
+
+
+def list_styles(user_id: str, conn: sqlite3.Connection | None = None) -> list[dict]:
+    """Built-in styles (in built-in kind order), then the member's live styles, oldest first."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        out = [_builtin(user_id, k["id"], conn, full=False) for k in _nk().BUILTIN_NOTE_KINDS
+               if k["id"] in BUILTIN_STYLES]
+        rows = conn.execute("SELECT * FROM j2_journal_styles WHERE user_id = ? AND deleted_at IS NULL"
+                            " ORDER BY created_at, rowid", (user_id,)).fetchall()
+        return out + [_row(r, full=False) for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
+def create_style(user_id: str, payload: Any, conn: sqlite3.Connection | None = None) -> dict:
+    if not isinstance(payload, dict):
+        raise StyleValidationError("Send a style object.")
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        name = _clean_name(payload.get("name"))
+        kind = _clean_kind(user_id, payload.get("kindId"), conn)
+        tpl = _clean_template(user_id, payload.get("outlineTemplateId"), conn)
+        outline = _clean_outline(payload.get("outlineBodyJson"))
+        blocks = _clean_blocks(payload.get("blocks"))
+        props = _clean_properties(user_id, payload.get("properties"), conn)
+        n = conn.execute("SELECT COUNT(*) AS c FROM j2_journal_styles WHERE user_id = ? AND deleted_at IS NULL",
+                         (user_id,)).fetchone()["c"]
+        if n >= MAX_STYLES_PER_MEMBER:
+            raise StyleValidationError(f"You can keep up to {MAX_STYLES_PER_MEMBER} styles. Delete one first.")
+        sid, now = uuid.uuid4().hex, _now()
+        conn.execute(
+            "INSERT INTO j2_journal_styles (id, user_id, name, kind_id, outline_template_id, outline_body_json,"
+            " blocks_json, properties_json, is_default, source_gallery_id, source_version, version,"
+            " created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, 1, ?, ?)",
+            (sid, user_id, name, kind, tpl, json.dumps(outline) if outline else None,
+             json.dumps(blocks), json.dumps(props), now, now))
+        conn.commit()
+        return get_style(user_id, sid, conn)
+    finally:
+        if owned:
+            conn.close()
+
+
+_CONTENT_KEYS = {"kindId": "kind_id", "outlineTemplateId": "outline_template_id",
+                 "outlineBodyJson": "outline_body_json", "blocks": "blocks_json", "properties": "properties_json"}
+
+
+def update_style(user_id: str, style_id: str, patch: Any, conn: sqlite3.Connection | None = None) -> dict | None:
+    if isinstance(style_id, str) and style_id.startswith(BUILTIN_PREFIX):
+        raise StyleValidationError("Built-in styles can't be changed. Duplicate it to make your own.")
+    if not isinstance(patch, dict):
+        raise StyleValidationError("Send a style object.")
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        r = _load_row(user_id, style_id, conn)
+        if r is None:
+            return None
+        sets, params, content_changed = [], [], False
+        if "name" in patch:
+            sets.append("name = ?"); params.append(_clean_name(patch["name"]))
+        cleaned = {}
+        if "kindId" in patch:
+            cleaned["kindId"] = _clean_kind(user_id, patch["kindId"], conn)
+        if "outlineTemplateId" in patch:
+            cleaned["outlineTemplateId"] = _clean_template(user_id, patch["outlineTemplateId"], conn)
+        if "outlineBodyJson" in patch:
+            o = _clean_outline(patch["outlineBodyJson"])
+            cleaned["outlineBodyJson"] = json.dumps(o) if o else None
+        if "blocks" in patch:
+            cleaned["blocks"] = json.dumps(_clean_blocks(patch["blocks"]))
+        if "properties" in patch:
+            cleaned["properties"] = json.dumps(_clean_properties(user_id, patch["properties"], conn))
+        for key, value in cleaned.items():
+            col = _CONTENT_KEYS[key]
+            if r[col] != value:
+                content_changed = True
+            sets.append(f"{col} = ?"); params.append(value)
+        if "kindId" in cleaned and cleaned["kindId"] != r["kind_id"]:
+            sets.append("is_default = 0")                       # a default belongs to its old kind
+        if content_changed:
+            sets.append("version = version + 1")
+        if not sets:
+            return _row(r, full=True)
+        sets.append("updated_at = ?"); params.append(_now())
+        conn.execute(f"UPDATE j2_journal_styles SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
+                     (*params, style_id, user_id))
+        conn.commit()
+        return get_style(user_id, style_id, conn)
+    finally:
+        if owned:
+            conn.close()
+
+
+def set_default(user_id: str, style_id: str, conn: sqlite3.Connection | None = None) -> dict | None:
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        s = get_style(user_id, style_id, conn, full=False)
+        if s is None:
+            return None
+        conn.execute("UPDATE j2_journal_styles SET is_default = 0 WHERE user_id = ? AND kind_id = ?"
+                     " AND is_default = 1", (user_id, s["kindId"]))
+        if not s["builtin"]:
+            conn.execute("UPDATE j2_journal_styles SET is_default = 1 WHERE id = ? AND user_id = ?",
+                         (style_id, user_id))
+        conn.commit()
+        return get_style(user_id, style_id, conn)
+    finally:
+        if owned:
+            conn.close()
+
+
+def delete_style(user_id: str, style_id: str, conn: sqlite3.Connection | None = None) -> dict | None:
+    """Soft delete (spec P1.4: with undo). Remembers whether it was the default, for restore."""
+    if isinstance(style_id, str) and style_id.startswith(BUILTIN_PREFIX):
+        raise StyleValidationError("Built-in styles can't be deleted.")
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        r = _load_row(user_id, style_id, conn)
+        if r is None:
+            return None
+        now = _now()
+        conn.execute("UPDATE j2_journal_styles SET deleted_at = ?, default_before_delete = is_default,"
+                     " is_default = 0, updated_at = ? WHERE id = ? AND user_id = ?", (now, now, style_id, user_id))
+        conn.commit()
+        return get_style(user_id, style_id, conn, include_deleted=True)
+    finally:
+        if owned:
+            conn.close()
+
+
+def restore_style(user_id: str, style_id: str, conn: sqlite3.Connection | None = None) -> dict | None:
+    """Undo a delete. The default comes back only when no other style became the default meanwhile."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        r = _load_row(user_id, style_id, conn, include_deleted=True)
+        if r is None or r["deleted_at"] is None:
+            return get_style(user_id, style_id, conn) if r else None
+        again = bool(r["default_before_delete"]) and _member_default(user_id, r["kind_id"], conn) is None
+        conn.execute("UPDATE j2_journal_styles SET deleted_at = NULL, is_default = ?, default_before_delete = 0,"
+                     " updated_at = ? WHERE id = ? AND user_id = ?", (1 if again else 0, _now(), style_id, user_id))
+        conn.commit()
+        return get_style(user_id, style_id, conn)
+    finally:
+        if owned:
+            conn.close()
+
+
+def default_style_for_kind(user_id: str, kind_id: str, conn: sqlite3.Connection | None) -> dict:
+    """The member's default for the kind, else the built-in style, else a BLANK style (a member's
+    own kind with no style): no outline, no blocks, and `id` None, so a note records only its kind."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        mine = _member_default(user_id, kind_id, conn)
+        if mine:
+            return get_style(user_id, mine, conn)
+        if kind_id in BUILTIN_STYLES:
+            return _builtin(user_id, kind_id, conn, full=True)
+        return {"id": None, "name": "", "kindId": kind_id, "builtin": False, "isDefault": False, "version": None,
+                "outlineTemplateId": None, "hasOutline": False, "blocks": [], "properties": {},
+                "outlineBodyJson": None}
+    finally:
+        if owned:
+            conn.close()
+
+
+def create_style_from_note(user_id: str, note_id: str, name: Any, kind_id: Any = None,
+                           conn: sqlite3.Connection | None = None) -> dict | None:
+    """"Save this note's setup as a style" (spec P1.4). The SERVER reads the note: every block node
+    becomes a block (with its settings) and a {{block:id}} placeholder where it stood; the rest of
+    the body is the outline; the note's user-set property values (not its kind) are the defaults."""
+    from api.services.journal_two import notes as notes_service
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        note = notes_service.get_note(user_id, note_id, conn=conn)
+        if note is None:
+            return None
+        blocks, seen = [], set()
+
+        def strip(content: list) -> list:
+            out = []
+            for node in content:
+                if isinstance(node, dict) and node.get("type") == "widgetEmbed":
+                    bid = (node.get("attrs") or {}).get("widgetId")
+                    if isinstance(bid, str) and BLOCK_ID_RE.match(bid) and bid not in seen and bid in KNOWN_BLOCKS:
+                        seen.add(bid)
+                        params = (node.get("attrs") or {}).get("params") or {}
+                        spec = {s["key"]: s for s in _BLOCK_BY_ID[bid]["settings"]}
+                        settings = {k: params[k] for k in spec if params.get(k) in spec[k]["options"]}
+                        blocks.append({"block": bid, "enabled": True, "settings": settings})
+                        out.append(_ph(bid))
+                    continue                                    # every embed leaves the outline
+                if isinstance(node, dict) and isinstance(node.get("content"), list):
+                    node = {**node, "content": strip(node["content"])}
+                out.append(node)
+            return out
+
+        kind_prop = _nk().NOTE_KIND_PROPERTY
+        outline = {"type": "doc", "content": strip((note.get("bodyJson") or {}).get("content") or [])}
+        props = _valid_defaults(user_id, note.get("propertiesJson") or {}, conn)
+        kind =kind_id or (note.get("propertiesJson") or {}).get(kind_prop) or note.get("kindId")
+        return create_style(user_id, {"name": name if name else (note.get("title") or "My style"),
+                                      "kindId": kind, "outlineBodyJson": outline, "blocks": blocks,
+                                      "properties": props}, conn)
+    finally:
+        if owned:
+            conn.close()

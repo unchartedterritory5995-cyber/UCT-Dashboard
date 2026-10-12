@@ -1416,6 +1416,10 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
         "propertiesJson": (
             json.loads(row["properties_json"]) if row["properties_json"] and "properties_json" in row.keys() else {}
         ),
+        # Notebook P1 (journal styles): what made this note. None for every note made otherwise.
+        "styleId": row["style_id"] if "style_id" in row.keys() else None,
+        "styleVersion": row["style_version"] if "style_version" in row.keys() else None,
+        "kindId": row["kind_id"] if "kind_id" in row.keys() else None,
     }
 
 
