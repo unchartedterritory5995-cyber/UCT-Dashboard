@@ -4813,3 +4813,18 @@ needs either the owner's own run or an added Bash permission rule for production
 and the Calendar's sector-context read all now synthesize on Opus 5 instead of a mix of Sonnet
 4.6 and stale Opus point-versions — a quality change on already-shipping features, no schema
 change, no new surface, no UI change.
+
+## COV-12 / FT-067 congressional trades — `9fd686707b` · 2026-10-12 · dark behind `CONGRESS_TRADES_ENABLED`
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: ADDITIVE, safe; discharge by marker bump** (none done) |
+| stranded file | `api/services/fmp_client.py` (`tools/flow_worker_watch_coverage.py`: changed=16, red=1) |
+
+The only change to `fmp_client.py` is four NEW typed functions (`get_senate_trades`,
+`get_house_trades`, `get_senate_latest`, `get_house_latest`). Their only caller is the new
+`api/services/congress_trades.py`, reached only from the new `api/routers/congress_trades.py`,
+which is mounted on `web` in `api/main.py`. Flow-worker calls none of them; no existing function,
+constant or transport line in `fmp_client.py` changed, so flow-worker running the older file
+lacks only code it never invokes. No marker bump (a flow-worker restart drops the OPRA socket for
+zero behavioural difference).
