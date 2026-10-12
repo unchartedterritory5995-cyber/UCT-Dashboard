@@ -35,6 +35,7 @@
 import { registerCapability, registerTargetKind, registerContextProvider, isRef, SYMBOLS } from '../capabilities'
 import { unknownSymbols } from '../agentClient'
 import { isPronounToken } from '../nl/tickers'
+import { matchName } from '../nl/match'
 import { afterRender } from '../frames'
 import { MAX_TOP } from '../compose'
 // Each list's tickers ARE shown to the model (removing "TSLA from Momentum" needs it:
@@ -84,7 +85,7 @@ const listsOf = (host) => (host?.watchlists ? host.watchlists.snapshot() : [])
 const sigOf = (items) => JSON.stringify(items.map(i => [i.id, i.sym]))
 
 /** One list by name (exact, case/quote-insensitive), or the one visible list for "my/this/the watchlist". */
-function resolveList(host, phrase) {
+function resolveList(host, phrase, { level = 'safe' } = {}) {
   const lists = listsOf(host)
   const p = norm(phrase).replace(/ (watch ?list|list)$/, '')
   if (/^(my|this|the|our)? ?(watch ?list|list)?$/.test(norm(phrase)) || /^(my|this|the)$/.test(p)) {
@@ -94,7 +95,13 @@ function resolveList(host, phrase) {
     return !shown.length && lists.length === 1 ? lists[0] : null
   }
   const hits = lists.filter(l => norm(l.name) === p || norm(l.name) === norm(phrase))
-  return hits.length === 1 ? hits[0] : null
+  if (hits.length) return hits.length === 1 ? hits[0] : null
+  // NL N2: a TYPO in the list's own name ("my momentm watchlist", "my swig list"). ONE clear match
+  // only; a tie or nothing close → null (the model, which sees the real names, decides or asks).
+  // `level: 'strict'` for high-impact actions (rename — still a proposal naming the real list).
+  if (!level) return null
+  const f = matchName(p.replace(/^(?:my|the|our) /, ''), lists.map(l => l.name), { level })
+  return f.kind === 'fuzzy' ? lists.find(l => l.name === f.name) : null
 }
 
 /** A list by its name ("Software Stocks", "my Momentum list"), or null if none / several. */
@@ -610,7 +617,7 @@ export function registerWatchlistCapabilities() {
     fast: ({ raw, host }) => {
       const m = /^(?:please )?rename (?:my |the )?(.+?) to (.+?)[.!]?$/i.exec(String(raw).trim())
       if (!m || !host?.watchlists) return null
-      const l = resolveList(host, m[1])
+      const l = resolveList(host, m[1], { level: 'strict' })
       const name = m[2].replace(/^[“"'‘]|[”"'’]$/g, '').trim()
       return l && name ? { name, __target: l.id } : null
     },

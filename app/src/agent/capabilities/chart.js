@@ -35,6 +35,7 @@ import { chartTemplateSettings } from '../../components/chart/chartTemplateApply
 import { makeTfCode, isValidTf, tfLabel as tfShort } from '../../components/chart/timeframes'
 import { pickComparisonColor } from '../../components/chart/comparisonUtils'
 import { isPronounToken } from '../nl/tickers'
+import { matchName } from '../nl/match'
 
 // The chart types and the timeframes UCT charts natively are the PRODUCT's lists
 // (chartDefaults.CHART_TYPE_OPTIONS, timeframes.NATIVE_TFS) — imported, never copied, so a new
@@ -600,6 +601,16 @@ const CAPABILITIES = [
     summary: "Apply one of the member's saved chart templates to ONE chart, exactly as clicking it does (Chart Settings → Templates, or right-click → Chart template): the chart takes the template's whole saved setup, its indicators included.",
     hints: 'template = a name from chartTemplates, exactly. For several charts ("all my charts"), one op per chart.',
     args: { type: 'object', properties: { template: { type: 'string' } }, required: ['template'], additionalProperties: false },
+    // NL N2: a template name that is not exact but close ("swing setp") is HIGH-IMPACT (it replaces the
+    // chart's indicators): never applied on a guess — the member is asked “Did you mean …?” with the
+    // real name(s); their pick fills `template` and the plan continues (useAgent's pickArg flow).
+    resolveArgs({ template }) {
+      if (findTemplate(template)) return null
+      const f = matchName(template, templatesNow().map(t => t.name))
+      const names = f.kind === 'fuzzy' ? [f.name] : f.kind === 'several' ? f.names : []
+      if (!names.length) return null
+      return { ask: { arg: 'template', text: names.length === 1 ? `Did you mean your template “${names[0]}”?` : `Which template — ${names.map(n => `“${n}”`).join(' or ')}?`, choices: names.map(n => ({ ref: n, label: n })) } }
+    },
     check: (st, { template }) => (findTemplate(template) ? null
       : templatesNow().length ? `You have no chart template named “${template}” (you have: ${templatesNow().map(t => t.name).slice(0, 8).join(', ')}).` : 'You have no saved chart templates yet — save one in Chart Settings → Templates.'),
     apply: (st, { template }) => ({ ...st, cs: chartTemplateSettings(findTemplate(template)) }),

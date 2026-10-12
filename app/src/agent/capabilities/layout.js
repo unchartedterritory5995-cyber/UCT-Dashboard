@@ -37,6 +37,7 @@
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import { hasUsableDraft } from './indicatorAuthoring'
 import { afterRender } from '../frames'
+import { matchName } from '../nl/match'
 
 const MAX_NAME = 60
 const norm = (s) => String(s || '').toLowerCase().replace(/[“”"'`‘’]/g, '').replace(/\s+/g, ' ').trim()
@@ -61,6 +62,14 @@ function resolveName(entries, phrase) {
   if (!want) return null
   const hits = entries.filter(e => norm(e.name) === want)
   return hits.length === 1 ? hits[0] : null
+}
+/** NL N2, for HIGH-IMPACT actions (rename, copy): the exact name, else ONE layout within the STRICT
+ *  threshold (one edit, 5+ letter words). These are proposals — the card names the real layout. */
+function resolveNameStrict(entries, phrase) {
+  const exact = resolveName(entries, phrase)
+  if (exact) return exact
+  const f = matchName(phrase, entries.map(e => e.name), { level: 'strict' })
+  return f.kind === 'fuzzy' ? entries.find(e => e.name === f.name) : null
 }
 
 /**
@@ -358,10 +367,15 @@ export function registerLayoutCapabilities() {
       // a bare word with no "layout" must be an exact name (so "open NVDA" never opens a layout)
       if (/ layout$/.test(phrase)) {
         const c = layoutCandidates(entries, phrase)
-        return c.length === 1 ? { layout: String(c[0].id) } : c.length > 1 ? { layout: phrase } : null
+        if (c.length) return c.length === 1 ? { layout: String(c[0].id) } : { layout: phrase }
       }
       const hit = resolveName(entries, phrase)
-      return hit ? { layout: String(hit.id) } : null
+      if (hit) return { layout: String(hit.id) }
+      // NL N2: a TYPO in a layout's own name ("open swng board") — one clear match opens (switching
+      // is reversible and still asks first when edits would be lost); a tie is asked in resolveArgs.
+      const f = matchName(phrase.replace(/^(?:my|the|our) /, '').replace(/ layout$/, ''), entries.map(e => e.name))
+      if (f.kind === 'fuzzy') return { layout: String(entries.find(e => e.name === f.name).id) }
+      return f.kind === 'several' ? { layout: phrase } : null
     },
     // ⭐ The member's WORDS → a real layout, the SAME way on every path (instant, model-planned,
     // approved): useAgent.execute calls this before planning. One match → that id; several → a
@@ -374,7 +388,15 @@ export function registerLayoutCapabilities() {
       const c = layoutCandidates(entries, args.layout)
       if (c.length === 1) return { args: { ...args, layout: String(c[0].id) } }
       if (c.length > 1) return { ask: { arg: 'layout', text: `Which layout — ${c.map(e => quote(e.name)).join(' or ')}?`, choices: c.map(e => ({ ref: String(e.id), label: e.name })) } }
-      if (!isPrevious(args.layout)) return null
+      if (!isPrevious(args.layout)) {
+        // NL N2 (after exact names and "previous"): a typo in the name — the same words the model may
+        // pass. One clear match → it; a tie → asked with the real names; nothing close → check refuses.
+        const f = matchName(String(args.layout || '').replace(/^(?:my|the|our) /i, '').replace(/ layout$/i, ''), entries.map(e => e.name))
+        const byName = (n) => entries.find(e => e.name === n)
+        if (f.kind === 'fuzzy') return { args: { ...args, layout: String(byName(f.name).id) } }
+        if (f.kind === 'several') return { ask: { arg: 'layout', text: `Which layout — ${f.names.map(quote).join(' or ')}?`, choices: f.names.map(n => ({ ref: String(byName(n).id), label: n })) } }
+        return null
+      }
       // "previous" = the most recent OTHER layout this tab had open, read now (Alt-Tab: A→B, back
       // → A, back → B). Gone since (deleted / no longer offered) → ask among the recent ones left.
       const trail = snap.recent || []
@@ -498,7 +520,7 @@ export function registerLayoutCapabilities() {
       const m = /^(?:please )?rename (?:my |the )?(.+?)(?: layout)? to (.+?)[.!]?$/i.exec(String(raw).trim())
       if (!m || !host?.layouts) return null
       const s = host.layouts.snapshot()
-      const which = /^(this|this one|current|the current one|it)$/i.test(m[1].trim()) ? (s.active && s.entries.find(e => e.id === s.active.id)) : resolveName(s.entries, m[1])
+      const which = /^(this|this one|current|the current one|it)$/i.test(m[1].trim()) ? (s.active && s.entries.find(e => e.id === s.active.id)) : resolveNameStrict(s.entries, m[1])
       const name = m[2].replace(/^[“"'‘]|[”"'’]$/g, '').trim()
       return which && name ? { layout: String(which.id), name } : null
     },
@@ -605,7 +627,7 @@ export function registerLayoutCapabilities() {
       if (!m || !host?.layouts) return null
       if (!named && / as | to | called | named /i.test(m[1])) return null
       const entries = host.layouts.snapshot().entries
-      const hit = resolveName(entries, m[1]) || resolveName(entries, m[1].replace(/ layout$/i, ''))
+      const hit = resolveNameStrict(entries, m[1]) || resolveNameStrict(entries, m[1].replace(/ layout$/i, ''))
       if (!hit) return null
       const name = named ? m[2].replace(/^[“"'‘]|[”"'’]$/g, '').trim() : null
       return { layout: String(hit.id), name: name || null }
