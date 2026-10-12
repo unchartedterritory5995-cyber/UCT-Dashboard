@@ -48,9 +48,9 @@ export const TOPICS = [
   {
     id: 'breadth', title: 'Market breadth (now and history)',
     words: [/\bbreadth\b/, /\b(advance[- /]decline|new highs|new lows|% of stocks above)\b/],
-    caps: ['breadth.show'], productHas: true,
-    canDo: 'look up UCT’s market breadth for US, NYSE or Nasdaq stocks — the current reading during the session (labelled with its time, when UCT’s live feed has one; otherwise the latest finalized close, dated), a finalized value on a date, two dates compared, or a date range summarised (% of stocks above their moving averages, new highs and lows, advance/decline, Stage 2/4 counts). UCT shows the figures to you directly; they are not sent to the AI model',
-    known: () => ['breadth for UCT’s own universe (it is on the Breadth page) or other indexes', 'live new highs / new lows (finalized closes only for now)', 'live-versus-historical comparisons', 'conditional history questions (“when was breadth this low while…”)'],
+    caps: ['breadth.show', 'breadth.history'], productHas: true,
+    canDo: 'look up and search UCT’s market breadth for US, NYSE or Nasdaq stocks — when a measure was last below or above a level, crossings, how many times, episodes and how long they lasted; the current reading during the session (labelled with its time, when UCT’s live feed has one; otherwise the latest finalized close, dated), a finalized value on a date, two dates compared, or a date range summarised (% of stocks above their moving averages, new highs and lows, advance/decline, Stage 2/4 counts). UCT shows the figures to you directly; they are not sent to the AI model',
+    known: () => ['breadth for UCT’s own universe (it is on the Breadth page) or other indexes', 'live new highs / new lows (finalized closes only for now)', 'live-versus-historical comparisons', 'cross-asset conditions (“when was breadth this low while QQQ was at a high?”)', 'weekly-close searches (daily finalized sessions for now)'],
     planned: { when: 'Stage 3', what: 'conditional questions across UCT’s historical data, with explicit definitions and no look-ahead' },
   },
   {

@@ -518,7 +518,7 @@ _OUTCOME_LABEL = {
 # the member reads it — and THIS is the one place that decides what a stored row may say to a model.
 #: Actions whose results are local only. Decided by NAME on the server (never trusted from the
 #: browser alone); the browser's `localOnly` flag on the same capabilities is a second signal.
-LOCAL_ONLY_ACTIONS = frozenset({"breadth.show"})
+LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history"})
 LOCAL_RESULT_NOTE = ("[UCT showed the member this result on their screen. Its figures are shown ONLY to "
                      "the member and are never given to you: do not state, estimate or repeat any value "
                      "from it. To answer about it again, plan the same lookup.]")
@@ -545,8 +545,10 @@ LOCAL_NEWS_AND_EXPLAIN_NOT_DONE = ("UCT's breadth answer for your request is sho
 #: question is answered by UCT's own breadth.show — never by research, never from memory.
 BREADTH_RULE = ("MARKET BREADTH (% of US / NYSE / Nasdaq stocks above a moving average — shorthand such as 50sma, "
                 "200 dma, 50-day MA — new highs/lows, advance/decline, Stage 2/4; now, today, at the close or on a date): "
-                "plan breadth.show. Never research it, never answer it from memory, and never say UCT lacks NYSE or "
-                "Nasdaq breadth (universe nyse / nasdaq).")
+                "plan breadth.show. HISTORY (when it was last / first below or above a level, crossings, how many "
+                "times, episodes, how long they lasted — including a follow-up about \"that\" reading): plan "
+                "breadth.history. Never research breadth, never answer it from memory, never say UCT lacks historical "
+                "breadth or NYSE / Nasdaq breadth, and never tell the member to scroll a chart.")
 #: The MEMBER's words ask a breadth question (mirrors app/src/agent/routing.js `breadth`; words only).
 _BREADTH_Q = re.compile(
     r"\bbreadth\b"
@@ -555,6 +557,22 @@ _BREADTH_Q = re.compile(
     r"|\bnew\s+(52[- ]week\s+|52w\s+|20[- ]day\s+)?(highs?|lows?)\b|\bnet new (highs?|lows?)\b"
     r"|\badvance[- /]decline\b|\badvancers?\b|\bdecliners?\b|\bstage ?[24] (counts?|stocks|names)\b|\bmarket internals\b",
     re.I)
+
+
+#: A HISTORY follow-up's own words ("when was the last time THAT was below 10%?", "how often has it
+#: happened?", "how long did it last?") — a breadth question only right after a breadth answer.
+_HISTORY_FOLLOWUP = re.compile(r"\b(last|first|most recent) time\b|\bhow (many times|often)\b|\bhow long did\b|"
+                               r"\bcross(ed|es)? (above|below)\b|\b(below|above|under|over) \d+(\.\d+)?\s*%|"
+                               r"\bsame (thing|question|search)? ?(for|on)\b|\bwhat about (last year|this year|(in )?\d{4})\b", re.I)
+
+
+def _last_breadth_row(history) -> bool:
+    """Was the conversation's most recent UCT outcome a breadth result (show or history)?"""
+    for t in reversed(history or []):
+        if isinstance(t, dict) and t.get("role") == "outcome":
+            acts = _row_actions(t.get("data")) or []
+            return any(str(a or "").startswith("breadth.") for a in acts)
+    return False
 
 
 def is_breadth_question(message: str) -> bool:
@@ -629,6 +647,19 @@ def is_local_row(t: dict) -> bool:
     return False                                           # the member's own words are never censored
 
 
+def _history_note(args) -> str:
+    """A breadth.history request, described by Market Intelligence's own value-free note (built only
+    from its validate(): enums, dates and the member's own threshold) — or nothing."""
+    if not isinstance(args, dict):
+        return ""
+    try:
+        from api.services.market_intel import breadth_events
+        note = breadth_events.request_note(args)
+    except Exception:  # noqa: BLE001 -- the dependency absent / the args invalid: say nothing
+        return ""
+    return str(note or "")[:300]
+
+
 def _local_requests(data) -> str:
     """What the member ASKED for, rebuilt from validated request args only (enums and ISO dates —
     no value can pass validation). Anything that does not validate is left out."""
@@ -647,6 +678,9 @@ def _local_requests(data) -> str:
             r = {**r, "metrics": list(OVERVIEW_METRICS)}
         ok, _err = breadth_reads.validate(r) if isinstance(r, dict) else (None, None)
         if not ok:
+            note = _history_note(r)
+            if note:
+                parts.append(note)
             continue
         # present tense (no date, not an explicit close) is UCT's CURRENT reading — say so, never a value
         now = "the current reading" if r.get("basis") != "close" else "the latest finalized close"
@@ -1182,7 +1216,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         # Research rides with a CHANGE only when the member's own words ask a question (a mixed
         # request); a plain command never triggers research, whatever the model asks for.
         disp = env.get("disposition") if isinstance(env, dict) else None
-        breadth_q = "breadth.show" in cap_names and is_breadth_question(msg)
+        breadth_q = bool({"breadth.show", "breadth.history"} & cap_names) and (
+            is_breadth_question(msg) or (_HISTORY_FOLLOWUP.search(msg) and _last_breadth_row(history)))
         if breadth_q and isinstance(req, dict) and not (_NEWS_WORDS.search(msg) or _EXPLAIN_WORDS.search(msg)):
             req = None                # ⛔ a breadth LOOKUP is UCT's own data: never the web
             usage["breadth_research_blocked"] = True

@@ -1552,6 +1552,116 @@
    "query": true
   },
   {
+   "name": "breadth.history",
+   "domain": "breadth",
+   "target": "breadth",
+   "summary": "Search UCT's finalized daily MARKET BREADTH history (US, NYSE, Nasdaq) for when a condition held: the last/first time a measure was below/above a level, crossings, how many times, episodes and how long they lasted. UCT computes it and shows the member; you never see figures. Never say UCT lacks historical breadth.",
+   "hints": "target = breadth entry ref. universe us (default) | nyse | nasdaq | uct; metric = ONE key (same keys as breadth.show). op below | at_or_below | above | at_or_above (strict unless at_or) | crosses_below | crosses_above; level in the measure's unit (10 = 10%). find last | first (date of the most recent / earliest match) | count (sessions + episodes; crossings for crosses_*) | episodes | longest | last_episode (runs of consecutive sessions). start / end YYYY-MM-DD or null (all history). aggregation \"daily\". A follow-up \"that\" / \"it\" = the measure and universe of the member's last breadth request. Lowest / highest in a period: breadth.show mode series. reply: one short line, no figures.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "universe": {
+      "type": "string",
+      "enum": [
+       "us",
+       "nyse",
+       "nasdaq",
+       "uct"
+      ]
+     },
+     "metric": {
+      "type": "string",
+      "enum": [
+       "pct_above_5sma",
+       "pct_above_10sma",
+       "pct_above_20sma",
+       "pct_above_40sma",
+       "pct_above_50sma",
+       "pct_above_100sma",
+       "pct_above_150sma",
+       "pct_above_200sma",
+       "new_52w_highs",
+       "new_52w_lows",
+       "net_new_high_low",
+       "hi_ratio",
+       "lo_ratio",
+       "new_20d_highs",
+       "new_20d_lows",
+       "near_52w_high",
+       "up_4pct_today",
+       "down_4pct_today",
+       "ratio_5day",
+       "ratio_10day",
+       "adv_decline",
+       "advancing",
+       "declining",
+       "universe_count",
+       "stage2_count",
+       "stage4_count"
+      ]
+     },
+     "op": {
+      "type": "string",
+      "enum": [
+       "below",
+       "at_or_below",
+       "above",
+       "at_or_above",
+       "crosses_below",
+       "crosses_above"
+      ]
+     },
+     "level": {
+      "type": "number"
+     },
+     "find": {
+      "type": "string",
+      "enum": [
+       "last",
+       "first",
+       "count",
+       "episodes",
+       "longest",
+       "last_episode"
+      ]
+     },
+     "start": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "end": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "aggregation": {
+      "type": "string",
+      "enum": [
+       "daily"
+      ]
+     }
+    },
+    "required": [
+     "universe",
+     "metric",
+     "op",
+     "level",
+     "find",
+     "start",
+     "end",
+     "aggregation"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
    "name": "settings.show",
    "domain": "settings",
    "target": "settings",

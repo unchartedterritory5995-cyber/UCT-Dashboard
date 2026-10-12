@@ -108,7 +108,8 @@ def test_WITHOUT_breadth_offered_the_old_current_facts_rule_stands(searched):
 def test_PROMPT_carries_the_breadth_rule_only_when_breadth_show_is_offered():
     assert turn.BREADTH_RULE in turn.system_prompt(CAPS)
     assert turn.BREADTH_RULE not in turn.system_prompt([c for c in CAPS if c["name"] != "breadth.show"])
-    assert "never say UCT lacks NYSE or Nasdaq breadth" in turn.BREADTH_RULE
+    assert "never say UCT lacks historical breadth or NYSE / Nasdaq breadth" in turn.BREADTH_RULE
+    assert "breadth.history" in turn.BREADTH_RULE and "never tell the member to scroll a chart" in turn.BREADTH_RULE
 
 
 def test_MANIFEST_offers_nasdaq_nyse_us_and_uct_with_honest_handling():

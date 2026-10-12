@@ -87,7 +87,19 @@ export const breadthKind = {
   fingerprint: () => 'breadth',
 }
 
+// ── the member's last breadth SUBJECT (names only — a measure key, a universe, the last search's
+// args; never a value): "that", "it", "same thing for Nasdaq", "what about last year?" resolve
+// against it deterministically. In-memory, per page; the model path still has the history note.
+let subject = null
+export function rememberBreadthSubject(s) { subject = s && typeof s === 'object' ? { ...s } : null }
+export const lastBreadthSubject = () => subject
+export const breadthToday = () => dates.today_et
+export function _resetBreadthSubject() { subject = null }
+
 async function answerBreadth(args) {
+  if (Array.isArray(args?.metrics)) {
+    rememberBreadthSubject({ kind: 'show', universe: args.universe, metric: args.metrics.length === 1 ? args.metrics[0] : null, show: args })
+  }
   if (args?.universe === 'uct') return { text: UCT_UNIVERSE_ANSWER, link: { href: '/breadth', label: 'Open Breadth' } }
   let r
   try {
@@ -131,9 +143,13 @@ const uniOf = (...ws) => {
   const w = ws.find(Boolean)
   return !w || w === 'u.s.' ? 'us' : w
 }
+const SAME_SHOW_RE = new RegExp(`^(?:and )?(?:the )?same (?:thing |question )?(?:for|on) (?:the )?${UNI_WORD}(?: stocks)?$`)
 export function breadthFast(raw) {
   const t = String(raw || '').toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/[?.!]+$/g, '').replace(/\s+/g, ' ').trim()
   if (!t || t.length > 120) return null
+  // "same thing for Nasdaq" after a READING: the same request, one universe changed (a search → breadth.history)
+  const same = SAME_SHOW_RE.exec(t)
+  if (same) return subject?.kind === 'show' && subject.show ? { ...subject.show, universe: uniOf(same[1]) } : null
   const base = { date: null, compare_date: null, start: null, end: null }
   let m = OVERVIEW_RE.exec(t)
   if (m) {
