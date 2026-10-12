@@ -7,6 +7,13 @@ vi.mock('./PreEntryChecklistBlock', () => ({ default: () => { throw new Error('b
 vi.mock('./PriceStampsBlock', () => ({
   default: ({ params }) => <button type="button" aria-label="Stamp prices as I write">stamps {params.on}</button>,
 }))
+// I-1 (fix round 1): the FIRST load of this body's chunk rejects, the second resolves.
+const sizingChunk = vi.hoisted(() => ({ loads: 0 }))
+vi.mock('./PositionSizingBlock', () => {
+  sizingChunk.loads += 1
+  if (sizingChunk.loads === 1) throw new Error('the chunk failed to load')
+  return { default: () => <p>sizing body</p> }
+})
 
 import BlockNodeView from './BlockNodeView'
 import { BLOCK_ERROR_SENTENCE } from './blockStates'
@@ -24,6 +31,20 @@ describe('BlockNodeView', () => {
     render(<BlockNodeView node={node('preEntryChecklist')} editor={editor()} updateAttributes={() => {}} />)
     expect(await screen.findByText(BLOCK_ERROR_SENTENCE)).toBeTruthy()
     expect(screen.getByRole('group', { name: 'Pre-entry checklist' })).toBeTruthy()
+  })
+  it('I-1: after a failed chunk, "Try again" loads the body for real (a failed lazy is not reused)', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      render(<BlockNodeView node={node('positionSizing')} editor={editor()} updateAttributes={() => {}} />)
+      expect(await screen.findByText(BLOCK_ERROR_SENTENCE)).toBeTruthy()
+      expect(sizingChunk.loads).toBe(1)
+      await userEvent.setup().click(screen.getByRole('button', { name: 'Try again' }))
+      expect(await screen.findByText('sizing body')).toBeTruthy()
+      expect(screen.queryByText(BLOCK_ERROR_SENTENCE)).toBeNull()
+      expect(sizingChunk.loads).toBe(2)                     // the retry asked for the chunk again
+    } finally {
+      spy.mockRestore()
+    }
   })
   it('on a public share page it renders the block line only (nothing auth-scoped mounts)', () => {
     render(<BlockNodeView node={node('priceStamps', { on: 'yes' })} editor={editor({ shareView: true })} updateAttributes={() => {}} />)

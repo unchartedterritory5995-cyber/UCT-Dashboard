@@ -52,6 +52,18 @@ export const EXEMPT = Object.freeze({
  *  its own roles and names, so it is held to the census like every other file. */
 export const OTHER_LANE_EXEMPT = Object.freeze({})
 
+/** The stub sentence every P2a stub body renders (blocks/*Block.jsx until its task replaces it). */
+export const STUB_SENTENCE = 'This block is being built.'
+
+/** Rows whose reason says "a stub body" but whose file no longer renders the stub sentence (comments
+ *  stripped first: the sentence in a comment is not the stub). */
+export function staleStubExemptions(exempt, read) {
+  return Object.entries(exempt)
+    .filter(([, why]) => why.startsWith('a stub body'))
+    .filter(([f]) => !read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1').includes(STUB_SENTENCE))
+    .map(([f]) => f)
+}
+
 export function deriveNoAriaFiles() {
   return derivePopulation().filter((f) => !TOKEN.test(readFileSync(join(J2_DIR, f), 'utf8')))
 }
@@ -75,6 +87,25 @@ describe('the aria census is derived and fully classified', () => {
   it('every 8A exemption still applies (a file that gained aria leaves the table)', () => {
     const stale = Object.keys(EXEMPT).filter((f) => !noAria.includes(f))
     expect(stale).toEqual([])
+  })
+
+  // Fix round 1 (R-T6-1, departure 5): "still has no aria" is not the claim a stub row makes. A real
+  // body built from <label>/<input>/named buttons may carry no aria token either, so the case above
+  // would keep its row green with a false reason. Pin the claim itself: the stub sentence.
+  it('every "a stub body" exemption names a file that is STILL the stub', () => {
+    const stubRows = Object.keys(EXEMPT).filter((f) => EXEMPT[f].startsWith('a stub body'))
+    expect(stubRows.length).toBeGreaterThan(0)                                  // non-vacuity
+    expect(staleStubExemptions(EXEMPT, (f) => readFileSync(join(J2_DIR, f), 'utf8'))).toEqual([])
+  })
+
+  it('CONTROL: a real body that kept its stub row is caught; the stub itself is not', () => {
+    const rows = { 'x/Body.jsx': 'a stub body: one line of text, replaced by its own task', 'x/Other.jsx': 'renders its children or null' }
+    const real = () => 'export default function Body() { return <form><label>Setup<input /></label></form> }'
+    const stub = () => 'export default function Body() { return <BlockEmpty title="This block is being built." /> }'
+    expect(staleStubExemptions(rows, real)).toEqual(['x/Body.jsx'])
+    expect(staleStubExemptions(rows, stub)).toEqual([])
+    // the sentence inside a COMMENT is not the stub
+    expect(staleStubExemptions(rows, () => '// "This block is being built."\nexport default () => <form />')).toEqual(['x/Body.jsx'])
   })
 
   it('each reason is a real sentence', () => {

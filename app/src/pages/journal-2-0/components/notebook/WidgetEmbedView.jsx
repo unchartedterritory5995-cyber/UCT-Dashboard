@@ -184,12 +184,11 @@ function PlaceholderChip({ attrs, reason, shareView = false }) {
 
 // The node view TipTap mounts for every widgetEmbed node: a trader block goes to BlockNodeView, every
 // other widget to EmbedNodeView. Two component TYPES (not a branch inside one) keep every hook of
-// EmbedNodeView in a stable order. Both receive the six props EmbedNodeView has always read (and
-// EmbedBlockActions.test.jsx reads `getPos` off this signature).
-export default function WidgetEmbedView({ node, selected, editor, updateAttributes, deleteNode, getPos }) {
-  const props = { node, selected, editor, updateAttributes, deleteNode, getPos }
-  if (isTraderBlock(node?.attrs?.widgetId)) {
-    const line = node.attrs.searchText || ''
+// EmbedNodeView in a stable order. Both receive TipTap's props untouched (EmbedBlockActions.test.jsx
+// pins `getPos` on EmbedNodeView's own signature, the view that mounts EmbedBlockActions).
+export default function WidgetEmbedView(props) {
+  if (isTraderBlock(props.node?.attrs?.widgetId)) {
+    const line = props.node.attrs.searchText || ''
     return (
       <EmbedErrorBoundary fallback={<NodeViewWrapper className={styles.frame} data-widget-embed-view="block-failed"><p>{line}</p></NodeViewWrapper>}>
         <Suspense fallback={<NodeViewWrapper className={styles.frame} data-widget-embed-view="block-loading" />}>

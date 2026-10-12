@@ -36,7 +36,9 @@ const P = Parser.extend(jsx())
 const BLOCK_DIR_RELS = DIRS.map((d) => `${rel(d)}/`)
 
 /**
- * file -> [{ method, url (a RegExp source over the call's URL, `{}` standing for each ${…}), why }]
+ * file -> [{ method, url, why }]. `url` is a LITERAL template, compared for equality with the call's
+ * URL (`{}` standing for each ${…}); it is never a regular expression (fix round 1, M-1), and an
+ * entry `exceptionProblems` refuses exempts nothing.
  * ⛔ IR-B5: empty until a task ships a file that writes. Each task adds EXACTLY its own entry, in the
  * commit that creates the call, and nothing else:
  *   · Task 8  — components/LogTradeChecklist.jsx, its one named write;
@@ -79,8 +81,53 @@ function methodOf(opts) {
   return m.value?.type === 'Literal' ? String(m.value.value).toUpperCase() : '?'
 }
 
+// A literal path template: /api/… segments of plain characters, `{}` standing for each ${…}.
+// No '?' (the reading of a URL that could not be read), no regex metacharacter, no query string.
+const LITERAL_URL = /^\/api\/(?:[A-Za-z0-9_.-]|\{\}|\/)+$/
+const NOTE_URL = /^\/api\/j2\/notes(\/|$)/
+
+/** Every reason a write exception is refused ([] when it may exempt its own call). */
+export function exceptionProblems(e) {
+  const out = []
+  if (!WRITE_METHODS.includes(e?.method)) out.push(`${e?.method} is not a write method`)
+  if (typeof e?.url !== 'string' || !LITERAL_URL.test(e.url)) out.push(`${JSON.stringify(e?.url)} is not a literal URL template`)
+  else if (NOTE_URL.test(e.url)) out.push(`${e.url} is a note URL`)
+  if (String(e?.why || '').length <= 20) out.push('the reason is missing or too short')
+  return out
+}
+
 function exempt(exceptions, file, method, url) {
-  return (exceptions[file] || []).some((e) => e.method === method && new RegExp(`^${e.url}$`).test(url))
+  return (exceptions[file] || []).some((e) => exceptionProblems(e).length === 0 && e.method === method && e.url === url)
+}
+
+// M-2 (fix round 1): the names that ARE a request. Each is decided only as the direct callee of a
+// call (fetch, sendBeacon, the helpers) or of `new` (XMLHttpRequest, Request); any other reference
+// (an alias, `.call` / `.apply`, a destructuring) cannot be decided statically and fails closed.
+const DOOR_NAMES = new Set(['fetch', 'sendBeacon', 'XMLHttpRequest', 'Request', ...Object.keys(HELPER_METHOD)])
+const GLOBAL_OBJECTS = new Set(['window', 'globalThis', 'self'])
+
+/** The name an Identifier or a member access reaches (`a.fetch`, `a['fetch']`), else undefined. */
+function nameOf(n) {
+  if (!n) return undefined
+  if (n.type === 'Identifier') return n.name
+  if (n.type === 'MemberExpression') {
+    if (!n.computed) return n.property?.name
+    if (n.property?.type === 'Literal') return String(n.property.value)
+  }
+  return undefined
+}
+
+/** Is `n` (an Identifier or member access naming a door) used as anything but the direct callee? */
+function isLooseDoorReference(n, parent) {
+  if (!parent) return true
+  if ((parent.type === 'CallExpression' || parent.type === 'NewExpression') && parent.callee === n) return false
+  if (n.type === 'Identifier') {
+    if (parent.type === 'MemberExpression' && parent.property === n && !parent.computed) return false   // judged as the member
+    if (parent.type === 'Property' && parent.value !== n && parent.key === n && !parent.computed) return false   // a key, not a value
+    if (/^(Import|Export)\w*Specifier$/.test(parent.type)) return false                                   // ④ judges imports
+    if ((parent.type === 'MethodDefinition' || parent.type === 'PropertyDefinition') && parent.key === n) return false
+  }
+  return true
 }
 
 /** The string an import names, or null when it is computed (an `import(x)`). */
@@ -106,13 +153,13 @@ function importProblem(file, spec, allow) {
   return `UNLISTED ${file}: ${spec}`
 }
 
-function walk(n, fn) {
+function walk(n, fn, parent = null) {
   if (!n || typeof n.type !== 'string') return
-  fn(n)
+  fn(n, parent)
   for (const k of Object.keys(n)) {
     const v = n[k]
-    if (Array.isArray(v)) v.forEach((c) => walk(c, fn))
-    else if (v && typeof v === 'object' && typeof v.type === 'string') walk(v, fn)
+    if (Array.isArray(v)) v.forEach((c) => walk(c, fn, n))
+    else if (v && typeof v === 'object' && typeof v.type === 'string') walk(v, fn, n)
   }
 }
 
@@ -122,13 +169,27 @@ export function problemsIn(file, src, exceptions = WRITE_EXCEPTIONS, allow = IMP
   const out = []
   const write = (method, url) => { if (!exempt(exceptions, file, method, url)) out.push(`WRITE ${file}: ${method} ${url}`) }
   const imported = (node) => { const p = importProblem(file, specOf(node), allow); if (p) out.push(p) }
-  walk(parse(src), (n) => {
+  walk(parse(src), (n, parent) => {
     if (n.type === 'ImportDeclaration' || n.type === 'ExportAllDeclaration'
         || (n.type === 'ExportNamedDeclaration' && n.source)) imported(n.source)
     if (n.type === 'ImportExpression') imported(n.source)
-    if (n.type === 'NewExpression' && n.callee?.name === 'XMLHttpRequest') out.push(`XHR ${file}`)
+    // M-2: a door reached any way but as the direct callee
+    if ((n.type === 'Identifier' || n.type === 'MemberExpression') && DOOR_NAMES.has(nameOf(n))
+        && isLooseDoorReference(n, parent)) out.push(`REF ${file}: ${nameOf(n)}`)
+    if (n.type === 'MemberExpression' && n.computed && n.property?.type !== 'Literal'
+        && GLOBAL_OBJECTS.has(n.object?.name)) out.push(`REF ${file}: ${n.object.name}[?]`)
+    if (n.type === 'ObjectPattern') {
+      for (const p of n.properties) {
+        if (p.type === 'Property' && !p.computed && DOOR_NAMES.has(p.key?.name ?? p.key?.value)) out.push(`REF ${file}: ${p.key.name ?? p.key.value}`)
+      }
+    }
+    if (n.type === 'NewExpression' && nameOf(n.callee) === 'XMLHttpRequest') out.push(`XHR ${file}`)
+    if (n.type === 'NewExpression' && nameOf(n.callee) === 'Request') {
+      const method = methodOf(n.arguments[1])
+      if (method !== 'GET') write(method, urlOf(n.arguments[0]))
+    }
     if (n.type === 'CallExpression') {
-      const callee = n.callee.type === 'Identifier' ? n.callee.name : n.callee.property?.name
+      const callee = nameOf(n.callee)
       if (callee === 'updateAttributes' && !file.endsWith('/useBlockParams.js')) out.push(`UPDATE ${file}`)
       if (callee === 'fetch') {
         const method = methodOf(n.arguments[1])
@@ -192,15 +253,9 @@ describe('⛔⛔ no block owns a second write door', () => {
       for (const e of list) expect(bare.some((p) => p.startsWith(`WRITE ${f}: ${e.method} `)), `${f} ${e.method}`).toBe(true)
     }
   })
-  it('every write exception is ONE write method and a URL that is never a note, with a reason', () => {
+  it('every write exception is ONE write method, a LITERAL URL template that is never a note, with a reason', () => {
     for (const [f, list] of Object.entries(WRITE_EXCEPTIONS)) {
-      for (const e of list) {
-        expect(WRITE_METHODS, `${f}: ${e.method}`).toContain(e.method)
-        expect(String(e.why || '').length, `${f}: why`).toBeGreaterThan(20)
-        for (const note of ['/api/j2/notes', '/api/j2/notes/{}', '/api/j2/notes/{}/meta']) {
-          expect(new RegExp(`^${e.url}$`).test(note), `${f}: ${e.url} exempts a note write`).toBe(false)
-        }
-      }
+      for (const e of list) expect(exceptionProblems(e), `${f}: ${JSON.stringify(e)}`).toEqual([])
     }
   })
   it('④ every IMPORT_ALLOW entry is a real module that a real block file imports, and none lifts the ban', () => {
@@ -259,9 +314,59 @@ describe('⛔⛔ no block owns a second write door', () => {
     expect(problemsIn(g, "import { blockSearch } from '../journalBlocks'")).toEqual([])
     expect(problemsIn(g, "import { patch } from '../notesApi'")).toEqual([`UNLISTED ${g}: ../notesApi`])
   })
+  it('CONTROL — M-2: every other shape of a write door is seen, and the same text in a comment is not', () => {
+    const f = 'app/src/pages/journal-2-0/components/notebook/blocks/X.jsx'
+    // a Request object carries its own method
+    expect(problemsIn(f, "fetch(new Request('/api/j2/notes/1', { method: 'PUT' }))")).toEqual([`WRITE ${f}: PUT /api/j2/notes/1`])
+    expect(problemsIn(f, 'const r = new Request(u, opts)')).toEqual([`WRITE ${f}: ? ?`])
+    expect(problemsIn(f, "fetch(new Request('/api/j2/regime'))")).toEqual([])            // a GET Request is a read
+    // a door that is not the direct callee cannot be decided statically: it fails closed
+    expect(problemsIn(f, "fetch.call(null, '/api/j2/notes/1', { method: 'PUT' })")).toEqual([`REF ${f}: fetch`])
+    expect(problemsIn(f, "fetch.apply(null, ['/api/j2/notes/1', { method: 'PUT' }])")).toEqual([`REF ${f}: fetch`])
+    expect(problemsIn(f, "const g = fetch; g('/api/j2/notes/1', { method: 'PUT' })")).toEqual([`REF ${f}: fetch`])
+    expect(problemsIn(f, "const g = window.fetch")).toEqual([`REF ${f}: fetch`])
+    expect(problemsIn(f, "const { fetch: g } = globalThis")).toEqual([`REF ${f}: fetch`])
+    expect(problemsIn(f, 'const s = navigator.sendBeacon')).toEqual([`REF ${f}: sendBeacon`])
+    expect(problemsIn(f, 'const X = XMLHttpRequest')).toEqual([`REF ${f}: XMLHttpRequest`])
+    expect(problemsIn(f, "window[name]('/api/j2/notes/1')")).toEqual([`REF ${f}: window[?]`])
+    // a computed but LITERAL global member is decided like the plain call
+    expect(problemsIn(f, "globalThis['fetch']('/api/j2/notes/1', { method: 'PUT' })")).toEqual([`WRITE ${f}: PUT /api/j2/notes/1`])
+    expect(problemsIn(f, "window['fetch']('/api/j2/notes/1', { method: 'PUT' })")).toEqual([`WRITE ${f}: PUT /api/j2/notes/1`])
+    expect(problemsIn(f, "window['fetch']('/api/j2/regime')")).toEqual([])
+    expect(problemsIn(f, "window.fetch('/api/j2/regime')")).toEqual([])
+    // not references: a property NAMED fetch on an object literal
+    expect(problemsIn(f, 'const o = { fetch: 1, sendBeacon: 2 }')).toEqual([])
+    // the commented forms are never matches
+    expect(problemsIn(f, [
+      "// fetch(new Request('/api/j2/notes/1', { method: 'PUT' }))",
+      "// fetch.call(null, '/api/j2/notes/1', { method: 'PUT' })",
+      "/* fetch.apply(null, ['/x', { method: 'PUT' }]) */",
+      '// const g = fetch; g(u, { method: "PUT" })',
+      "/* globalThis['fetch']('/api/j2/notes/1', { method: 'PUT' }) */ const k = 1",
+      "// window['fetch']('/api/j2/notes/1', { method: 'PUT' })",
+    ].join('\n'))).toEqual([])
+  })
+  it('CONTROL — M-1: an exception URL is a LITERAL template; a broad, regex-shaped or note URL is refused', () => {
+    const why = 'a reason long enough to be a reason'
+    for (const url of ['\\?', '[^n].*', '.*', '?', '/api/j2/.*', '/api/j2/trades/\\d+', '/api/j2/trades/{}/a|b', '']) {
+      expect(exceptionProblems({ method: 'PUT', url, why }), JSON.stringify(url)).not.toEqual([])
+    }
+    expect(exceptionProblems({ method: 'PUT', url: '/api/j2/trades/{}/adherence', why })).toEqual([])
+    expect(exceptionProblems({ method: 'PUT', url: '/api/j2/notes/{}', why })).toEqual(['/api/j2/notes/{} is a note URL'])
+    expect(exceptionProblems({ method: 'GET', url: '/api/j2/trades/{}', why })).toEqual(['GET is not a write method'])
+    expect(exceptionProblems({ method: 'PUT', url: '/api/j2/trades/{}', why: 'x' })).toEqual(['the reason is missing or too short'])
+    // matching is literal: an entry exempts its own template and nothing else
+    const f = 'app/src/pages/journal-2-0/lib/blocks/Y.js'
+    const ex = { [f]: [{ method: 'PUT', url: '/api/j2/trades/{}/adherence', why }] }
+    expect(problemsIn(f, "fetch(`/api/j2/trades/${id}/adherence`, { method: 'PUT' })", ex)).toEqual([])
+    expect(problemsIn(f, "fetch('/api/j2/trades/7/adherence', { method: 'PUT' })", ex)).toHaveLength(1)
+    // and a broad entry exempts NOTHING, even when a test hands it straight to problemsIn
+    const broad = { [f]: [{ method: 'PUT', url: '?', why }] }
+    expect(problemsIn(f, "fetch(u, { method: 'PUT' })", broad)).toEqual([`WRITE ${f}: PUT ?`])
+  })
   it('CONTROL — an exception is method+URL, never the whole file (IR-I b)', () => {
     const f = 'app/src/pages/journal-2-0/lib/blocks/Y.js'
-    const ex = { [f]: [{ method: 'PUT', url: '/api/j2/trades/\\{\\}/adherence', why: 'test' }] }
+    const ex = { [f]: [{ method: 'PUT', url: '/api/j2/trades/{}/adherence', why: 'a reason long enough to be a reason' }] }
     expect(problemsIn(f, "fetch(`/api/j2/trades/${id}/adherence`, { method: 'PUT' })", ex)).toEqual([])
     expect(problemsIn(f, "fetch(`/api/j2/notes/${id}`, { method: 'PUT' })", ex)).toEqual([`WRITE ${f}: PUT /api/j2/notes/{}`])
     expect(problemsIn(f, "fetch(`/api/j2/trades/${id}/adherence`, { method: 'DELETE' })", ex)).toHaveLength(1)

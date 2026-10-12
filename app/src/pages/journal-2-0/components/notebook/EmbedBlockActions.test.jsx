@@ -129,6 +129,11 @@ describe('where it shows (the stylesheet is the authority; jsdom applies none)',
     expect(view).toContain("const EmbedBlockActions = lazyLeaf(() => import('./EmbedBlockActions'))")
     expect(view).not.toMatch(/^import EmbedBlockActions/m)
     expect(view).toContain('const touchTier = useIsTouch()')
-    expect(view).toMatch(/export default function WidgetEmbedView\(\{[^)]*\bgetPos\b/)
+    // Notebook P2a (fix round 1, R-T6-1): the default export is a dispatcher that forwards its props
+    // untouched; the embed that MOUNTS EmbedBlockActions is EmbedNodeView, so its own signature is
+    // the one that must take getPos.
+    expect(view).toMatch(/function EmbedNodeView\(\{[^)]*\bgetPos\b/)
+    expect(view).toMatch(/export default function WidgetEmbedView\(props\)/)
+    expect(view).toContain('<EmbedNodeView {...props} />')
   })
 })
