@@ -1,5 +1,5 @@
 // UCT Agent — NL Intent: pronouns are never tickers (N1-safety) · grounded tickers (N4).
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { registerBuiltins } from './builtins'
 import { fastParse } from './fastPath'
 import { isPronounToken } from './nl/tickers'
@@ -43,5 +43,86 @@ describe('pronouns are never tickers', () => {
     expect(ops('change the ticker to it')).toBeNull()
     expect(ops('change the ticker to $it')).toEqual([['chart.setSymbol', { symbol: 'IT' }]])
     expect(ops('$IT')).toEqual([['chart.setSymbol', { symbol: 'IT' }]])
+  })
+})
+
+// ── N4: grounded tickers ──
+import { groundSymbols, _resetGrounding } from './nl/tickers'
+import { planOps, prepareOps, collectTargets } from './executor'
+import { commitPlan } from './runtime'
+
+const SEARCH = {
+  NVDA: [{ ticker: 'NVDA', name: 'NVIDIA Corporation', type: 'stock' }, { ticker: 'NVDL', name: 'GraniteShares 2x Long NVDA Daily ETF', type: 'etf' }],
+  NVIDIA: [{ ticker: 'NVDA', name: 'NVIDIA Corporation', type: 'stock' }, { ticker: 'NVDL', name: 'GraniteShares 2x Long NVDA Daily ETF', type: 'etf' }],
+  APPLE: [{ ticker: 'AAPL', name: 'Apple Inc.', type: 'stock' }, { ticker: 'APLE', name: 'Apple Hospitality REIT, Inc.', type: 'stock' }],
+  ALPHABET: [{ ticker: 'GOOGL', name: 'Alphabet Inc. Class A', type: 'stock' }, { ticker: 'GOOG', name: 'Alphabet Inc. Class C', type: 'stock' }],
+  AMD: [{ ticker: 'AMD', name: 'Advanced Micro Devices, Inc.', type: 'stock' }],
+}
+function installSearch() {
+  globalThis.fetch = vi.fn(async (url) => {
+    const q = new URL(url, 'http://x').searchParams.get('q')?.toUpperCase()
+    return new Response(JSON.stringify({ results: String(url).startsWith('/api/ticker-search') ? (SEARCH[q] || []) : [] }), { status: 200, headers: { 'content-type': 'application/json' } })
+  })
+}
+const CTX = { surface: 'charts' }
+async function run(host, ops) {
+  const env = await prepareOps(ops)
+  const plan = planOps(collectTargets(host, ['chart', 'watchlist']), ops, env, CTX)
+  return { env, plan }
+}
+
+describe('grounded tickers and company names (N4)', () => {
+  beforeEach(() => { _resetGrounding(); installSearch() })
+
+  it('an EXACT company name resolves to its ONE ticker; look-alikes (a REIT, a leveraged ETF) never win', async () => {
+    const g = await groundSymbols(['NVIDIA', 'APPLE', 'ALPHABET', 'BANANAS'])
+    expect([...g.named].sort()).toEqual(['APPLE', 'NVIDIA'])
+    expect([...g.ambiguous]).toEqual(['ALPHABET'])                     // two share classes: the member chooses
+    expect([...g.unknown]).toEqual(['BANANAS'])
+  })
+  it('chart: "apple" charts AAPL (never the REIT) and the receipt names the company; the chart REALLY shows AAPL', async () => {
+    const b = board()
+    const ops = [{ action: 'chart.setSymbol', target: 'c1', args: { symbol: 'apple' } }]
+    const { plan } = await run(b.host, ops)
+    expect(plan.ok).toBe(true)
+    expect(plan.lines).toEqual(['Changed symbol to AAPL (Apple Inc.)'])
+    const res = await commitPlan(b.host, plan)
+    expect(res.ok).toBe(true)
+    expect(b.host.charts.read('c1').symbol).toBe('AAPL')
+  })
+  it('chart: an ambiguous name is ASKED (both candidates named), an unknown one refused — nothing changes', async () => {
+    const b = board()
+    const amb = await run(b.host, [{ action: 'chart.setSymbol', target: 'c1', args: { symbol: 'alphabet' } }])
+    expect(amb.plan.refusals[0].reason).toMatch(/“alphabet” could be GOOGL \(Alphabet Inc\. Class A\) or GOOG \(Alphabet Inc\. Class C\) — which one\?/)
+    const none = await run(b.host, [{ action: 'chart.setSymbol', target: 'c1', args: { symbol: 'bananas' } }])
+    expect(none.plan.refusals[0].reason).toMatch(/UCT has no symbol “BANANAS”/)
+    expect(b.host.charts.read('c1').symbol).toBe('NVDA')                // the fixture's own symbol, unchanged
+  })
+  it('a real ticker is never re-interpreted as a name', async () => {
+    const b = board()
+    const { plan } = await run(b.host, [{ action: 'chart.setSymbol', target: 'c1', args: { symbol: 'AMD' } }])
+    expect(plan.lines).toEqual(['Changed symbol to AMD'])
+  })
+  it('instant phrases: a lowercase ticker after a chart verb; known words and live names are never tickers', () => {
+    expect(ops('pull up nvda')).toEqual([['chart.setSymbol', { symbol: 'NVDA' }]])
+    expect(ops('chart amd')).toEqual([['chart.setSymbol', { symbol: 'AMD' }]])
+    expect(ops('pull up nvidia')).toEqual([['chart.setSymbol', { symbol: 'NVIDIA' }]])   // grounded at prepare
+    expect(ops('switch to weekly')).toEqual([['chart.setTimeframe', { timeframe: 'W' }]])
+    expect(ops('pull up momentum')).not.toEqual([['chart.setSymbol', { symbol: 'MOMENTUM' }]])  // a list name
+    expect(ops('load it')).toBeNull()                                     // a pronoun
+    expect(ops('switch to candels')).not.toEqual([['chart.setSymbol', { symbol: 'CANDELS' }]])  // a typo of a known word
+  })
+  it('watchlist: "add apple to momentum" adds AAPL (named in the receipt); an ambiguous name adds NOTHING', async () => {
+    const b = board()
+    const f = fastParse('add apple to momentum', { host: b.host })
+    const ops1 = f.ops.map(o => ({ ...o, target: o.target }))
+    const { plan } = await run(b.host, ops1)
+    expect(plan.ok).toBe(true)
+    expect(plan.lines[0]).toMatch(/^Added AAPL to “Momentum” \(“apple” = AAPL, Apple Inc\.\)/i)
+    const res = await commitPlan(b.host, plan)
+    expect(res.ok).toBe(true)
+    expect(b.state.server.lists.find(l => l.id === 'm1').items.map(i => i.sym)).toEqual(['NVDA', 'AAPL'])
+    const amb = await run(b.host, [{ action: 'watchlist.add', target: 'm1', args: { symbols: ['ALPHABET'] } }])
+    expect(amb.plan.refusals[0].reason).toMatch(/could be GOOGL .* or GOOG .* Nothing was added/)
   })
 })

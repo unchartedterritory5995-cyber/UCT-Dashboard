@@ -34,7 +34,7 @@
 
 import { registerCapability, registerTargetKind, registerContextProvider, isRef, SYMBOLS } from '../capabilities'
 import { unknownSymbols } from '../agentClient'
-import { isPronounToken } from '../nl/tickers'
+import { isPronounToken, groundSymbols, groundingOf, resolvedTicker, candidatesText } from '../nl/tickers'
 import { matchName } from '../nl/match'
 import { afterRender } from '../frames'
 import { MAX_TOP } from '../compose'
@@ -436,9 +436,15 @@ export function registerWatchlistCapabilities() {
     },
     // Model-typed tickers are looked up; a screen's results (`trusted` — they came
     // from UCT's own Screener) and pending references are not.
+    // NL N4: a symbol that is not a ticker is tried ONCE as an exact company name through the same
+    // ticker search ("add nvidia to momentum" → NVDA, said in the receipt); several companies → asked.
     async prepare(ops) {
       const syms = [...new Set(ops.filter(o => !o.trusted && Array.isArray(o.args?.symbols)).flatMap(o => o.args.symbols.map(upper)).filter(Boolean))]
-      return syms.length ? { unknownSymbols: await unknownSymbols(syms) } : {}
+      if (!syms.length) return {}
+      const unknown = await unknownSymbols(syms)
+      if (!unknown.size) return { unknownSymbols: unknown }
+      const g = await groundSymbols([...unknown])
+      return { unknownSymbols: g.unknown, ambiguousSymbols: g.ambiguous, namedSymbols: g.named }
     },
     check(st, { symbols }, env) {
       const bad = editProblem(st, env)
@@ -452,7 +458,9 @@ export function registerWatchlistCapabilities() {
       if (!syms.length) return 'Which tickers?'
       const max = env?.trusted ? MAX_TRUSTED : MAX_PER_REQUEST
       if (syms.length > max) return `That's more than ${max.toLocaleString()} tickers at once — split it up.`
-      const odd = syms.find(s => !TICKER.test(s))
+      const vague = syms.find(s => env?.ambiguousSymbols?.has(s))
+      if (vague) return `“${vague}” could be ${candidatesText(vague)} — which one? Say the ticker. Nothing was added.`
+      const odd = syms.find(s => !TICKER.test(s) && !env?.namedSymbols?.has(s))
       if (odd) return `“${odd}” doesn't look like a ticker.`
       const unknown = syms.filter(s => env?.unknownSymbols?.has(s))
       if (unknown.length) return `UCT has no symbol ${andList(unknown.map(s => `“${s}”`))} — nothing was added.`
@@ -464,12 +472,13 @@ export function registerWatchlistCapabilities() {
       if (isRef(symbols)) return { ...st, addFrom: symbols }
       const have = new Set([...st.symbols, ...st.add])
       const add = []; const skipped = [...st.skipped]
-      for (const s of [...new Set((symbols || []).map(upper))]) (have.has(s) ? skipped : add).push(s)
+      // (a company name the ticker search resolved exactly is added as its ticker — NL N4)
+      for (const s of [...new Set((symbols || []).map(x => resolvedTicker(upper(x))))]) (have.has(s) ? skipped : add).push(s)
       if (!add.length) return st          // nothing new: a no-op, said as one
       return { ...st, add: [...st.add, ...add], skipped }
     },
     noop: (st, _a, { symbols }) => `${andList((symbols || []).map(upper))} ${(symbols || []).length === 1 ? 'is' : 'are'} already in ${quote(st.name)}`,
-    describe(b, a) {
+    describe(b, a, args) {
       if (a.addFrom && !b.addFrom) return a.addFrom.top == null ? `Add all of its results to ${quote(a.name)}` : `Add the top ${a.addFrom.top} of its results to ${quote(a.name)}`
       if (!a.add.length) return null
       // A long add is counted, not listed — the watchlist itself is the record.
@@ -477,7 +486,10 @@ export function registerWatchlistCapabilities() {
       const skip = !a.skipped.length ? ''
         : a.skipped.length > 3 ? ` · ${a.skipped.length} were already there`
           : ` · ${andList(a.skipped)} ${a.skipped.length === 1 ? 'was' : 'were'} already there`
-      return `Added ${what} to ${quote(a.name)}${skip}`
+      // NL N4: company names resolved to tickers are named ("NVIDIA" = NVDA, NVIDIA Corporation)
+      const named = (Array.isArray(args?.symbols) ? args.symbols : []).map(s => groundingOf(upper(s))).filter(g => g?.kind === 'name')
+      const from = named.length ? ` (${named.map(g => `“${g.input}” = ${g.ticker}, ${g.name}`).join('; ')})` : ''
+      return `Added ${what} to ${quote(a.name)}${from}${skip}`
     },
   })
 

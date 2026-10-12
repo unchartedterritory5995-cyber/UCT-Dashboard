@@ -18,7 +18,7 @@
 //   { kind: 'undo' } | { kind: 'confirm' } | { kind: 'dismiss' } | { kind: 'subset', count }
 
 import { allCapabilityNames, getCapability } from './capabilities'
-import { lexiconFor, correctTypos } from './nl/lexicon'
+import { lexiconFor, correctTypos, setBaseSources } from './nl/lexicon'
 
 // Phase 1: "change MY chart to 15 minutes", "change the timeframe to daily", "switch to the 15 minute"
 // are the same obvious commands as "15 minute chart" — no model call.
@@ -156,7 +156,7 @@ function safeCorrected(r) {
 export function fastParse(text, opts = {}) {
   const exact = fastParseExact(text, opts)
   if (exact) return exact
-  const variants = correctTypos(text, lexiconFor(opts.host || null, LEXICON_SOURCES()))
+  const variants = correctTypos(text, lexiconFor(opts.host || null))
   if (!variants) return null
   // Every equally close reading is parsed; it is used only when exactly ONE distinct action results
   // ("swithc to 5 minuts": minute | minutes → the same 5-minute switch). Two different actions → model.
@@ -171,8 +171,9 @@ export function fastParse(text, opts = {}) {
   const [{ r, changes }] = results.values()
   return safeCorrected(r) ? { ...r, corrected: changes } : null
 }
-// the fast path's own phrase words, for the lexicon
+// the fast path's own phrase words, registered with the lexicon (it cannot import this module)
 const LEXICON_SOURCES = () => [LEAD.source, TAIL.source, ...CANON.map(([re]) => re.source), POS_RE.source, ALL_RE.source, fastParseExact.toString()]
+setBaseSources(LEXICON_SOURCES)
 
 function fastParseExact(text, { host = null } = {}) {
   const t = clean(String(text || ''))

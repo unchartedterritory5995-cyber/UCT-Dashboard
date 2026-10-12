@@ -14,17 +14,20 @@
 import { allCapabilityNames, getCapability } from '../capabilities'
 import { addableRows } from '../capabilities/indicatorEdits'
 import { savedScreensNow } from '../capabilities/screener'
-import { templatesNow } from '../capabilities/chart'
 import { editDistance, allowedEdits } from './match'
 import { isPronounToken } from './tickers'
 
-const WORD = /[a-z]{3,}/g
-const wordsOf = (s) => (String(s || '').toLowerCase().replace(/\\[bBsSdDwW]/g, ' ').match(WORD) || [])
+// Words of 3+ letters. ALL-CAPS tokens in prose/source are skipped: they are tickers and acronyms in
+// examples ("Compare NVDA against QQQ") — a ticker must never become a "known word".
+const WORD = /[A-Za-z]{3,}/g
+const wordsOf = (s) => (String(s || '').replace(/\\[bBsSdDwW]/g, ' ').match(WORD) || []).filter(w => !/^[A-Z]+$/.test(w)).map(w => w.toLowerCase())
+
+const stripComments = (src) => String(src || '').replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:\\])\/\/[^\n]*/g, '$1 ')
 
 let staticWords = null
 let staticKey = ''
 /** Registry- and catalog-derived words (rebuilt when the registry changes). */
-function registryWords(extraSources) {
+function registryWords() {
   const names = allCapabilityNames()
   const key = `${names.length}:${names.join(',').length}`
   if (staticWords && staticKey === key) return staticWords
@@ -36,9 +39,9 @@ function registryWords(extraSources) {
     add(n.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\./g, ' '))
     add(c.summary); add(c.hints)
     for (const p of Object.values(c.args?.properties || {})) for (const v of (p.enum || [])) add(String(v))
-    if (typeof c.fast === 'function') add(c.fast.toString())
+    // the phrase's CODE only — comments are prose about it (and quote example tickers in lowercase)
+    if (typeof c.fast === 'function') add(stripComments(c.fast.toString()))
   }
-  for (const s of extraSources || []) add(s)
   try { for (const r of addableRows()) { add(r.name); add(r.defId) } } catch { /* the catalog is optional */ }
   staticWords = set
   staticKey = key
@@ -52,7 +55,11 @@ function liveWords(host) {
   try { for (const e of host?.layouts?.snapshot?.().entries || []) add(e.name) } catch { /* no layouts */ }
   try { for (const l of host?.watchlists?.snapshot?.() || []) add(l.name) } catch { /* no lists */ }
   try { const s = savedScreensNow(); for (const x of [...(s?.saved || []), ...(s?.starters || [])]) add(x.name) } catch { /* not loaded */ }
-  try { for (const t of templatesNow() || []) add(t.name) } catch { /* none */ }
+  try {                                                                 // the member's chart templates (their preference)
+    const raw = host?.prefs?.read?.()?.chart_templates
+    const list = typeof raw === 'string' ? JSON.parse(raw) : raw
+    for (const t of Array.isArray(list) ? list : []) add(t?.name)
+  } catch { /* none */ }
   return set
 }
 
@@ -64,9 +71,37 @@ function symbolsOnBoard(host) {
   return set
 }
 
+// The fast path's own phrase sources (CANON, LEAD, position words…), registered by fastPath.js at load
+// (it imports this module, so this module cannot import it).
+let baseSources = () => []
+export function setBaseSources(fn) { baseSources = typeof fn === 'function' ? fn : () => [] }
+
 export function lexiconFor(host, extraSources = []) {
-  const words = new Set([...registryWords(extraSources), ...liveWords(host)])
+  const words = new Set([...registryWords(), ...liveWords(host), ...extraWords(baseSources()), ...extraWords(extraSources)])
   return { words, symbols: symbolsOnBoard(host) }
+}
+const EXTRA = new Map()                                                 // source text → its words
+function extraWords(sources) {
+  const out = []
+  for (const s of sources || []) {
+    if (!EXTRA.has(s)) EXTRA.set(s, wordsOf(stripComments(s)))
+    out.push(...EXTRA.get(s))
+  }
+  return out
+}
+
+/**
+ * NL N4: may this lowercase word be read as a TICKER? Only when it is not a word UCT knows (or one
+ * edit from one — then it is a typo of that word, never a symbol) and not a pronoun. Whether the
+ * ticker exists is decided later by the ticker search (prepare), never here.
+ */
+export function plainSymbolWord(tok, host, raw = tok) {
+  const t = String(tok || '').toLowerCase()
+  if (!/^[a-z][a-z0-9.]{0,9}$/.test(t) || isPronounToken(tok, raw)) return false
+  const { words } = lexiconFor(host)
+  if (words.has(t)) return false
+  if (t.length >= 4) for (const w of words) if (Math.abs(w.length - t.length) <= 1 && editDistance(t, w, 1) <= 1) return false
+  return true
 }
 
 export const MAX_VARIANTS = 16
