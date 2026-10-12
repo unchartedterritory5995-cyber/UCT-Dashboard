@@ -89,7 +89,9 @@
   .pairs:not(.compare) .pair:last-child { border-bottom: 0; }
   .pairs:not(.compare) .pair dt { margin: 0; font-size: 12px; color: var(--text); }
   .pairs:not(.compare) .pair dd { text-align: right; font-size: 14px; }
-  .pairs:not(.compare) .pairNote { display: inline; margin: 0 0 0 6px; }
+  .pairs:not(.compare) .pairNote { display: block; margin: 1px 0 0; }
+  .pairs:not(.compare) .pair dt { flex: 1 1 auto; min-width: 0; }
+  .pairs:not(.compare) .pair dd { flex: 0 1 auto; max-width: 62%; }
 }
 /* a comparison keeps its tiles side by side until the column is really narrow */
 @container agentlist (max-width: 300px) {
