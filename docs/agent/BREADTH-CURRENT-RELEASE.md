@@ -49,6 +49,15 @@ breadth uses the latest valid intraday reading; history, closes, comparisons and
    redeploy or restart the service.
 5. **Smoke.** Run the manual checks below in the admin panel. A real-model run needs separate
    approval of the paid smoke test.
+   ⏱ **Warm-up.** After any web deploy or restart, expect about 10–12 minutes before readings are
+   current again:
+   - the live engine's 600 s boot grace refuses to build;
+   - during it, web serves the last good payload "carried" from disk (same ET day, within 3 h) or nothing;
+   - then one cold build takes tens of seconds.
+   In that window every answer is the honest "No current breadth reading is available right now…"
+   with the dated finalized close (tested: boot-grace and carried payloads). Smoke after the warm-up.
+   The web scheduler refreshes the live payload every minute, Mon–Fri 09:00–16:59 ET (`_breadth_live_sample`,
+   api/main.py). Outside that window the first call refreshes it; provisional/finalized labels apply.
 6. **Roll back** without a deploy: set `AGENT_BREADTH_CURRENT=0`, or delete the variable, and restart.
    Answers return to finalized-only immediately.
 

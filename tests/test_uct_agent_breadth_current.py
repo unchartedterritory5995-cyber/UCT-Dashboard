@@ -139,6 +139,10 @@ def test_CLOSE_an_explicit_closing_question_is_the_dated_finalized_close(client,
     live_payload("2026-10-12T11:51:30-04:00", ok=False),                        # engine down
     live_payload("2026-10-12T11:51:30-04:00", drift=0.2),                       # population doesn't reconcile
     None,                                                                       # no payload at all
+    # ⭐ POST-RESTART WARM-UP (~10–12 min after a web deploy): boot grace refuses to build …
+    {"ok": False, "reason": "boot grace: no state build in the first 600s of a process"},
+    # … or the last good payload is CARRIED from disk — its market data is old, so never "now"
+    dict(live_payload("2026-10-12T09:40:00-04:00"), carried=True, carried_from="2026-10-12T09:40:00-04:00"),
 ])
 def test_STALE_or_UNAVAILABLE_is_said_and_never_shown_as_now(client, live, payload):
     live.payload = payload
