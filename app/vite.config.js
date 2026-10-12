@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
  * Unset the flag and the original marketing metadata comes back untouched.
  */
 function comingSoonMeta() {
-  const TITLE = 'UCT Intelligence — Coming soon'
+  const TITLE = 'UCT Intelligence: Coming soon'
   const DESC =
     'The Trading Brain you need as a companion. Join the launch list.'
   // A DIFFERENT filename, not a replacement of og-image.png: social platforms
