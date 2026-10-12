@@ -26,6 +26,7 @@ const AgentPanel = lazy(loadAgentPanel)
 import { ContextChannelsProvider } from '../../lib/context/contextChannels'
 import LayoutDock from './LayoutDock'
 import { UCT_DEFAULT_ID, arrangementSig, layoutAutoSaves } from './layoutDockPins'
+import { observeActive, recentLayouts } from './layoutTrail'
 import { WATCHLIST_DEFAULTS, watchlistDefaultsForTheme } from '../watchlist/watchlistSettings'
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
@@ -2953,6 +2954,10 @@ export default function ChartsWorkspace() {
   // (and are flushed on switch); edits on UCT Default, a prebuilt or a blank board
   // are dropped by a switch — the manual product does the same, silently.
   const agentLayoutsRef = useRef(null)
+  // This tab's layout trail (layoutTrail.js): every change of the open-layout pointer, from the
+  // Dock or the Agent alike, so "switch back to the previous layout" has an answer.
+  const layoutTrailRef = useRef({ last: null, trail: [] })
+  const layoutTrail = observeActive(layoutTrailRef.current, dockActiveTpl)
   {
     const active = dockActiveTpl
     const known = active?.id != null && dockEntries.some(e => e.id === active.id)
@@ -2969,6 +2974,8 @@ export default function ChartsWorkspace() {
       pendingActive: !known && active?.id != null ? { id: active.id, name: active.name || null } : null,
       unsaved,
       arrangement: arrangementSig(layout),
+      // The layouts this tab had open before, most recent first (never the open one).
+      recent: recentLayouts(layoutTrail, active?.id),
       open: (entry) => { if (entry && entry.id !== dockActiveId) handleDockOpen(entry) },
       rename: (id, name) => handleDockRename(id, name),
       saveAs: (name) => saveCurrentAs(name, 'user', { createOnly: true }),

@@ -82,6 +82,41 @@ export function layoutCandidates(entries, phrase) {
   return entries.filter(e => { const n = ` ${norm(e.name)} `; return words.every(w => n.includes(` ${w} `)) })
 }
 
+// ── "the previous layout": this tab's layout trail (pages/charts/layoutTrail.js) ──
+// The WHOLE argument must say "previous" (never a substring: "Back Test" is a name).
+export const PREVIOUS = 'previous'
+const PREVIOUS_WORDS = /^(?:(?:the|my|our) )?(?:(?:previous|last|prior|other|old|earlier)(?: (?:layout|one|board))?|(?:layout|one|board) (?:i|we) (?:was|were|had) (?:just )?(?:on|using|in|open|looking at)|(?:layout|one|board) (?:i|we) had(?: open)?(?: before)?|(?:layout|one|board) before(?: (?:this|that)(?: one)?)?)$/
+export const isPrevious = (v) => typeof v === 'string' && PREVIOUS_WORDS.test(norm(v))
+// A "go back" lead ("switch back to", "go back to", "return to") takes any previous-phrase; a plain
+// open verb only with the word layout/board ("open the last layout"), so "open the last one" is the model's.
+const BACK_LEAD = /^(?:please )?(?:(?:switch|go|change|flip|take me|bring me|head|jump|get) back(?: to)?|return to|back to) (.+)$/
+const OPEN_LEAD = /^(?:please )?(?:open|load|switch to|change to|go to|take me to|bring up|pull up|jump to) (.+ (?:layout|board))$/
+export function backPhrase(lower) {
+  const m = BACK_LEAD.exec(lower) || OPEN_LEAD.exec(lower)
+  return m && isPrevious(m[1]) ? m[1] : null
+}
+// The trail's layouts that are still in the layout list, newest first, with today's names (a
+// rename keeps its id), never the one open now; at most 5.
+function liveRecent(s) {
+  const byId = new Map((s.entries || []).map(e => [String(e.id), e]))
+  return (s.recent || []).map(r => byId.get(String(r.id))).filter(e => e && String(e.id) !== String(s.active?.id ?? '')).slice(0, 5)
+}
+function previousSection(s) {
+  const live = liveRecent(s)
+  const trail = s.recent || []
+  const prev = live[0] && trail[0] && String(live[0].id) === String(trail[0].id) ? live[0] : null
+  return {
+    previous: prev ? { id: String(prev.id), name: prev.name } : null,
+    ...(live.length ? { recent: live.map(e => ({ id: String(e.id), name: e.name })) } : {}),
+  }
+}
+function previousProblem(st) {
+  const trail = st.recent || []
+  if (!(st.entries || []).length) return 'Your layouts are still loading — try again in a moment.'
+  if (!trail.length) return "This tab hasn't had another layout open yet, so there's no previous layout to go back to. Tell me which layout to open."
+  return `${quote(trail[0].name || 'The layout you had open before')} isn't in your layout list anymore, so I can't go back to it. Tell me which layout to open.`
+}
+
 function snapshotOf(host) {
   if (!host?.layouts) return null
   const s = host.layouts.snapshot()
@@ -92,7 +127,7 @@ export const layoutsKind = {
   name: 'layouts',
   list: (host) => { const s = snapshotOf(host); return s ? [s] : [] },
   read: (host, ref) => (ref === 'layouts' ? snapshotOf(host) : null),
-  stateOf: (snap) => ({ entries: snap.entries, active: snap.active, unsaved: snap.unsaved, op: null }),
+  stateOf: (snap) => ({ entries: snap.entries, active: snap.active, unsaved: snap.unsaved, recent: snap.recent || [], op: null }),
   patch: (before, after) => {
     const op = after.op
     if (!op) return null
@@ -244,6 +279,9 @@ export function registerLayoutCapabilities() {
         open: s.active ? { id: String(s.active.id), name: s.active.name } : null,
         // Switching away would discard edits on the board (it is not one of the member's own layouts).
         unsavedChanges: s.unsaved,
+        // This tab's layout history: `previous` = what "switch back" / "the previous layout" opens
+        // (layout.open takes "previous" and resolves it itself); null = none to go back to.
+        ...previousSection(s),
         layouts: s.entries.slice(0, 80).map(e => ({ id: String(e.id), name: e.name, kind: KIND_WORD[e.kind] || e.kind })),
       }]
     },
@@ -300,9 +338,20 @@ export function registerLayoutCapabilities() {
       properties: { layout: { type: 'string' } },
       required: ['layout'], additionalProperties: false,
     },
+    // Tried on the WHOLE sentence too (fastPath matchWhole), so "Okay, now switch back to the
+    // previous layout" is not split at its comma into a lead-in that matches nothing.
+    fastWhole: true,
     fast: ({ lower, host }) => {
+      if (!host?.layouts) return null
+      // "switch back to the previous layout" → this tab's layout trail (resolveArgs). A layout
+      // whose NAME the words match still wins ("open my last layout" with a layout called "Last").
+      const back = backPhrase(lower)
+      if (back) {
+        const c = layoutCandidates(host.layouts.snapshot().entries, back)
+        return c.length === 1 ? { layout: String(c[0].id) } : c.length > 1 ? { layout: back } : { layout: PREVIOUS }
+      }
       const m = /^(?:please )?(?:open|load|switch to|change to|go to|go back to|take me to|bring up|pull up|jump to)(?: (?:my|the))? (.+?)$/.exec(lower)
-      if (!m || !host?.layouts) return null
+      if (!m) return null
       const entries = host.layouts.snapshot().entries
       const phrase = m[1]
       // "switch to my trading layout" → the layouts named with those words (several → resolveArgs asks);
@@ -317,17 +366,28 @@ export function registerLayoutCapabilities() {
     // ⭐ The member's WORDS → a real layout, the SAME way on every path (instant, model-planned,
     // approved): useAgent.execute calls this before planning. One match → that id; several → a
     // question with the real names (the panel's own pick flow); none → the check below refuses.
+    // Order: an id → a name (exact, or every layout the words name) → "previous" (the trail).
     resolveArgs(args, host) {
-      const entries = host?.layouts?.snapshot?.().entries || []
+      const snap = host?.layouts?.snapshot?.() || {}
+      const entries = snap.entries || []
       if (entries.some(e => String(e.id) === String(args.layout))) return null
       const c = layoutCandidates(entries, args.layout)
       if (c.length === 1) return { args: { ...args, layout: String(c[0].id) } }
       if (c.length > 1) return { ask: { arg: 'layout', text: `Which layout — ${c.map(e => quote(e.name)).join(' or ')}?`, choices: c.map(e => ({ ref: String(e.id), label: e.name })) } }
-      return null
+      if (!isPrevious(args.layout)) return null
+      // "previous" = the most recent OTHER layout this tab had open, read now (Alt-Tab: A→B, back
+      // → A, back → B). Gone since (deleted / no longer offered) → ask among the recent ones left.
+      const trail = snap.recent || []
+      const live = liveRecent(snap)
+      if (!trail.length) return null                                   // check() says why
+      if (live[0] && String(live[0].id) === String(trail[0].id)) return { args: { ...args, layout: String(live[0].id) } }
+      if (!live.length) return null                                    // check() says why
+      return { ask: { arg: 'layout', text: `${quote(trail[0].name || 'The layout you had open before')} isn't in your layout list anymore. Open one of your other recent layouts?`, choices: live.map(e => ({ ref: String(e.id), label: e.name })) } }
     },
     check(st, { layout }) {
       const busy = oneAtATime(st)
       if (busy) return busy
+      if (isPrevious(layout) && !entryOf(st, layout)) return previousProblem(st)
       if (!entryOf(st, layout)) return "That layout isn't in your layout list."
       return null
     },
@@ -342,7 +402,10 @@ export function registerLayoutCapabilities() {
     describe(b, a) {
       if (!a.op?.open) return null
       const lost = b.unsaved ? ` — unsaved changes on ${b.active ? quote(b.active.name) : 'this board'} are discarded` : ''
-      return `Opened ${quote(a.op.open.name)}${lost}`
+      // the layout left, from the read-back BEFORE state (never from context or the model); a
+      // discard clause already names it. Reads right as a receipt and as a proposal ("Open … in place of …").
+      const was = !lost && b.active?.name ? ` in place of ${quote(b.active.name)}` : ''
+      return `Opened ${quote(a.op.open.name)}${was}${lost}`
     },
   })
 

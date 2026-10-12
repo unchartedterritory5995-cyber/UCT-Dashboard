@@ -218,6 +218,8 @@ export function buildLayoutSource(getLayouts) {
         pendingActive: L.pendingActive || null,
         unsaved: !!L.unsaved,
         arrangement: L.arrangement || '',
+        // this tab's previously open layouts, newest first (pages/charts/layoutTrail.js)
+        recent: (L.recent || []).map(e => ({ id: e.id, name: e.name, scope: e.scope || 'user' })),
       }
     },
     open: (entry) => getLayouts()?.open(entry),
