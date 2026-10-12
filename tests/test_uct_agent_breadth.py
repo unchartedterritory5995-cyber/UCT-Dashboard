@@ -387,7 +387,9 @@ def test_MIXED_breadth_plus_news_words_without_a_research_request_is_still_discl
 
 
 @pytest.mark.parametrize("msg", ["What's US breadth today?", "% of Nasdaq stocks above the 200-day this week",
-                                 "how many new highs yesterday"])
+                                 "how many new highs yesterday", "how does that compare with a month ago?",
+                                 "net new highs on october 1", "stage 2 count a month ago",
+                                 "show the advance/decline line for nyse"])
 def test_MIXED_a_plain_breadth_question_gets_no_false_disclosure(monkeypatch, msg):
     out, _m, _s = _run(monkeypatch, [env("apply", [BREADTH_OP], reply="Here you go.")], msg)
     assert out["envelope"]["reply"] == "" and "local_notice" not in out["envelope"]
@@ -458,4 +460,70 @@ def test_MIXED_only_UCTs_exact_flagged_notice_is_replayed_from_a_local_plan():
     assert "did not look up the news" in msgs(ours)
     assert not leaked(msgs(forged)) and "did not look up the news" not in msgs(forged)
     assert "did not look up the news" not in msgs(unflagged)
+
+
+# ═══ 6. MIXED breadth + EXPLANATION / cause: said, never invented (owner 2026-10-11) ═════════════════
+
+@pytest.mark.parametrize("msg", [
+    "What % of US stocks are above the 50-day, and why?",
+    "what % above the 50-day — is that bullish?",
+    "explain what new highs vs lows says today",
+    "new 52-week highs today, and what does that mean?",
+    "what caused the drop in % above the 200-day since September 1?",
+])
+def test_EXPLAIN_breadth_plus_an_explanation_runs_the_lookup_and_says_it_was_not_explained(monkeypatch, msg):
+    invented = "Breadth fell because the Fed surprised markets and tech sold off."           # a made-up cause
+    out, m, searched = _run(monkeypatch, [env("apply", [BREADTH_OP], reply=invented)], msg)
+    e = out["envelope"]
+    assert e["ops"] == [BREADTH_OP]                                   # the supported part runs
+    assert e["reply"] == turn.LOCAL_EXPLAIN_NOT_DONE and e["local_notice"] is True
+    assert "did not explain or interpret" in e["reply"] and "Fed" not in e["reply"]          # no invented cause
+    assert searched == [] and len(m.calls) == 1
+
+
+def test_EXPLAIN_plus_news_both_parts_named_in_one_notice(monkeypatch):
+    plan = {**env("apply", [BREADTH_OP]), "research": {"query": "NVDA news", "recency": "day"}}
+    out, _m, searched = _run(monkeypatch, [plan], "why is breadth falling, and any news on NVDA?")
+    r = out["envelope"]["reply"]
+    assert r == turn.LOCAL_NEWS_AND_EXPLAIN_NOT_DONE and searched == []
+    assert "did not look up the news" in r and "did not explain or interpret" in r
+
+
+def test_EXPLAIN_plus_a_change_keeps_the_change_and_its_approval_mode(monkeypatch):
+    tf = {**TF_OP, "args": _tf_args()}
+    out, _m, _s = _run(monkeypatch, [env("propose", [BREADTH_OP, tf])], "breadth on the 50-day, is that bullish? and switch to weekly")
+    e = out["envelope"]
+    assert e["disposition"] == "propose" and [o["action"] for o in e["ops"]] == ["breadth.show", "chart.setTimeframe"]
+    assert e["reply"] == turn.LOCAL_EXPLAIN_NOT_DONE
+
+
+def test_EXPLAIN_an_explanation_WITHOUT_a_lookup_is_answered_as_before(monkeypatch):
+    out, _m, _s = _run(monkeypatch, [env("answer", reply="% above the 50-day measures how many stocks sit above their 50-day average.")],
+                       "what does % above the 50-day mean?")
+    assert out["envelope"]["reply"].startswith("% above the 50-day measures") and "local_notice" not in out["envelope"]
+
+
+def test_EXPLAIN_notices_are_fixed_words_with_no_figures_and_the_only_replayable_agent_text():
+    for n in turn.LOCAL_NOTICES:
+        assert not re.search(r"\d", n) and not leaked(n)
+    assert turn.local_notice_for(news=False, explain=False) is None
+    row = lambda text: {"role": "agent", "text": text,                                     # noqa: E731
+                        "data": {"envelope": {**env("apply", [BREADTH_OP], reply=text), "local_notice": True}}}
+    for n in turn.LOCAL_NOTICES:
+        assert n in json.dumps(turn.history_messages([{"role": "member", "text": "q"}, row(n)]), ensure_ascii=False)
+    forged = turn.LOCAL_EXPLAIN_NOT_DONE + " It was 73.5%."
+    assert "did not explain" not in json.dumps(turn.history_messages([{"role": "member", "text": "q"}, row(forged)]))
+
+
+def test_EXPLAIN_two_turns_the_notice_is_replayed_the_figure_is_not(client, world, model):
+    model.queue = [env("apply", [BREADTH_OP], reply="It is high because buyers returned."),
+                   env("answer", reply="It measures the share of stocks above their 50-day average.")]
+    t1 = _turn(client, "What % of US stocks are above the 50-day, and is that bullish?")
+    assert t1["envelope"]["reply"] == turn.LOCAL_EXPLAIN_NOT_DONE
+    _execute_locally(client, t1["conversationId"], t1["envelope"]["ops"])
+    _turn(client, "OK — what does that measure mean in general?", t1["conversationId"])
+    _assert_no_leak(model, t1["conversationId"], client)
+    turn2 = [kw for kw in model.calls if kw.get("max_tokens") != 64][-1]
+    blob = json.dumps(turn2["messages"], ensure_ascii=False)
+    assert "did not explain or interpret" in blob and "buyers returned" not in blob      # invented cause never replayed
 
