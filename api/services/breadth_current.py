@@ -16,7 +16,9 @@ This module only CHOOSES between them and says what it chose. It never computes 
 (`payload(cached_only=True)` kicks a background refresh when stale).
 
 STATUS
-  intraday     today's session, market open, observed `observed_at` (≤ FRESH_MAX_S old)
+  intraday     today's session in progress; `observed_at` = the VENDOR's observation time of
+               the snapshot (`data_as_of`), never UCT's compute time (`computed_at`); current
+               only when that observation is ≤ FRESH_MAX_S old
   provisional  a completed session measured from closing prices, not yet finalized
   finalized    the canonical value (what history, backtests and closing questions use)
 
@@ -96,7 +98,9 @@ def expected_session(now: datetime) -> tuple:
 def _label(status: str, session: str, observed: Optional[datetime]) -> str:
     d = date.fromisoformat(session)
     day = f"{d:%b} {d.day}"
-    if status == "intraday" and observed:
+    if status == "intraday":
+        if not observed:
+            return "Intraday · observation time unknown"
         t = observed.astimezone(_ET)
         return f"Intraday · {t.hour % 12 or 12}:{t:%M} {t:%p} ET"
     if status == "provisional":
@@ -117,7 +121,9 @@ def choose(universe: str, metric: str, now: datetime, payload: Optional[dict],
     live = None
     p = payload or {}
     u = (p.get("universes") or {}).get(universe) or {}
-    observed = _parse(p.get("as_of"))
+    computed = _parse(p.get("as_of"))           # when UCT computed the payload
+    data_obs = _parse(p.get("data_as_of"))      # when the market data was observed (vendor)
+    observed, basis = None, None
     if metric in FINALIZED_ONLY:
         reasons.append("no live reading exists for this measure")
     elif metric in UNVALIDATED_LIVE:
@@ -135,8 +141,14 @@ def choose(universe: str, metric: str, now: datetime, payload: Optional[dict],
                 continue
             d = r.get("date")
             close = sc.close_time(date.fromisoformat(d)) if d else None
-            # a today row observed before the close is an intraday sample, not a close
-            completed = bool(r.get("final")) or bool(close and observed and observed >= close)
+            if r.get("final"):
+                # a completed session measured from its closing bars: observed at its close
+                observed, basis, completed = close, "session_close", True
+            else:
+                # today's row: only the VENDOR's data time says whether it saw the close —
+                # a delayed feed computed at 16:05 still holds data from before 16:00
+                observed, basis = data_obs, ("vendor_snapshot" if data_obs else "unknown")
+                completed = bool(close and data_obs and data_obs >= close)
             live = {"session": d, "value": v,
                     "status": "provisional" if completed else "intraday"}
             break
@@ -155,23 +167,35 @@ def choose(universe: str, metric: str, now: datetime, payload: Optional[dict],
     if pick is None:
         return dict(out, ok=False, current=False, stale_reason="; ".join(reasons) or "no reading")
 
-    age = (now - observed).total_seconds() if observed else None
+    is_live = pick is live
+    age = (now - observed).total_seconds() if (is_live and observed) else None
     res = dict(out, ok=True, value=pick["value"], status=pick["status"], session=pick["session"],
-               observed_at=observed.isoformat() if (observed and pick is live) else None,
-               age_s=round(age) if (age is not None and pick is live) else None,
+               observed_at=observed.isoformat() if (is_live and observed) else None,
+               observation_basis=basis if is_live else "finalized_close",
+               computed_at=computed.isoformat() if (is_live and computed) else None,
+               data_age_s=round(age) if age is not None else None,
+               compute_lag_s=(round((computed - observed).total_seconds())
+                              if (is_live and computed and observed and basis == "vendor_snapshot")
+                              else None),
                finalized_session=fin["session"] if fin else None,
-               population_drift=u.get("population_drift") if pick is live else None)
+               population_drift=u.get("population_drift") if is_live else None)
     current = pick["session"] == want
-    if current and pick["status"] == "intraday" and (age is None or age > FRESH_MAX_S):
-        current = False
-        reasons.append(f"intraday reading is {round(age) if age is not None else '?'}s old")
+    if current and pick["status"] == "intraday":
+        # ⛔ freshness is the age of the MARKET DATA, never of the computation: a payload
+        # recomputed seconds ago over a delayed or frozen snapshot is not "now"
+        if observed is None:
+            current = False
+            reasons.append("market-data observation time unavailable")
+        elif age > FRESH_MAX_S:
+            current = False
+            reasons.append(f"market data is {round(age)}s old (feed delayed or snapshot stale)")
     if current and market_open and pick["status"] != "intraday":
         current = False                      # a close while the session trades is not "now"
     if not current and pick["session"] != want:
         reasons.append(f"newest reading is for {pick['session']}, not {want}")
     res["current"] = current
     res["stale_reason"] = None if current else ("; ".join(reasons) or "not current")
-    res["label"] = _label(pick["status"], pick["session"], observed if pick is live else None)
+    res["label"] = _label(pick["status"], pick["session"], observed if is_live else None)
     return res
 
 

@@ -91,8 +91,9 @@ def test_check_sends_one_alert_per_stuck_stage_and_clears(monkeypatch, tmp_path)
 FINAL = {d: 40.0 for d in FIN_THROUGH_8}
 
 
-def _payload(as_of, rows, ok=True, drift=0.01):
+def _payload(as_of, rows, ok=True, drift=0.01, data_as_of="same"):
     return {"ok": True, "as_of": as_of, "L": "2026-10-09",
+            "data_as_of": as_of if data_as_of == "same" else data_as_of,
             "universes": {"us": {"ok": ok, "population_drift": drift, "rows": rows,
                                  "reason": None if ok else "degraded"}}}
 
@@ -111,7 +112,7 @@ def test_market_hours_prefers_the_fresh_intraday_reading():
 def test_a_stale_intraday_payload_is_not_now():
     now = datetime(2026, 10, 12, 12, 30, tzinfo=ET)
     r = bc.choose("us", "pct_above_50sma", now, _payload("2026-10-12T11:52:20-04:00", ROWS), FINAL)
-    assert r["status"] == "intraday" and not r["current"] and "s old" in r["stale_reason"]
+    assert r["status"] == "intraday" and not r["current"] and "market data is" in r["stale_reason"]
 
 
 def test_live_down_never_passes_off_the_finalized_value_as_current():
@@ -130,8 +131,10 @@ def test_after_the_close_todays_row_is_a_provisional_close():
 
 def test_weekend_reads_fridays_provisional_close_as_current():
     now = datetime(2026, 10, 11, 10, 0, tzinfo=ET)
-    r = bc.choose("us", "pct_above_50sma", now, _payload("2026-10-11T09:55:00-04:00", ROWS[:1]), FINAL)
+    r = bc.choose("us", "pct_above_50sma", now,
+                  _payload("2026-10-11T09:55:00-04:00", ROWS[:1], data_as_of=None), FINAL)
     assert r["session"] == "2026-10-09" and r["status"] == "provisional" and r["current"]
+    assert r["observation_basis"] == "session_close" and r["observed_at"].startswith("2026-10-09T16:00")
 
 
 def test_finalized_wins_once_the_session_finalizes():
@@ -171,3 +174,66 @@ def test_nh_nl_family_is_finalized_only_until_validated():
     assert r["accuracy_tier"] == "finalized_only"
     assert bc.accuracy_tier("advancing") == "approximate"
     assert bc.accuracy_tier("pct_above_50sma") == "validated"
+
+
+# ── observation time vs computation time (2026-10-12 licensing review) ──────
+
+def test_delayed_source_is_labelled_with_the_data_time_and_is_not_current():
+    """A 15-minute-delayed feed recomputed at 11:52 holds data observed at 11:37."""
+    now = datetime(2026, 10, 12, 11, 52, 30, tzinfo=ET)
+    p = _payload("2026-10-12T11:52:20-04:00", ROWS, data_as_of="2026-10-12T11:37:15-04:00")
+    r = bc.choose("us", "pct_above_50sma", now, p, FINAL)
+    assert r["label"] == "Intraday · 11:37 AM ET" and r["observed_at"].startswith("2026-10-12T11:37:15")
+    assert r["computed_at"].startswith("2026-10-12T11:52:20") and r["compute_lag_s"] == 905
+    assert not r["current"] and "feed delayed" in r["stale_reason"]
+
+
+def test_fresh_computation_over_stale_observations_is_not_current():
+    now = datetime(2026, 10, 12, 13, 0, 5, tzinfo=ET)
+    p = _payload("2026-10-12T13:00:00-04:00", ROWS, data_as_of="2026-10-12T12:50:00-04:00")
+    r = bc.choose("us", "pct_above_50sma", now, p, FINAL)
+    assert r["data_age_s"] == 605 and not r["current"]
+
+
+def test_valid_current_observation():
+    now = datetime(2026, 10, 12, 14, 0, 30, tzinfo=ET)
+    p = _payload("2026-10-12T14:00:20-04:00", ROWS, data_as_of="2026-10-12T14:00:12-04:00")
+    r = bc.choose("us", "pct_above_50sma", now, p, FINAL)
+    assert r["current"] and r["status"] == "intraday" and r["data_age_s"] == 18
+    assert r["observation_basis"] == "vendor_snapshot" and r["label"] == "Intraday · 2:00 PM ET"
+
+
+def test_unknown_observation_time_is_never_current_and_says_so():
+    now = datetime(2026, 10, 12, 11, 53, tzinfo=ET)
+    p = _payload("2026-10-12T11:52:50-04:00", ROWS, data_as_of=None)
+    r = bc.choose("us", "pct_above_50sma", now, p, FINAL)
+    assert r["status"] == "intraday" and not r["current"] and r["observed_at"] is None
+    assert r["observation_basis"] == "unknown" and r["label"] == "Intraday · observation time unknown"
+    assert "observation time unavailable" in r["stale_reason"]
+
+
+def test_a_delayed_feed_just_after_the_close_has_not_seen_the_close():
+    now = datetime(2026, 10, 12, 16, 5, tzinfo=ET)
+    p = _payload("2026-10-12T16:04:50-04:00", ROWS, data_as_of="2026-10-12T15:49:50-04:00")
+    r = bc.choose("us", "pct_above_50sma", now, p, FINAL)
+    assert r["status"] == "intraday" and not r["current"]
+
+
+def test_snapshot_records_the_vendor_data_time_beside_unchanged_rows(monkeypatch):
+    from api.services import massive
+    c = massive._MassiveRestClient.__new__(massive._MassiveRestClient)
+    c._api_key = "k"
+    now = 1_791_830_000.0
+    monkeypatch.setattr(massive.time, "time", lambda: now)
+    tickers = [{"ticker": f"T{i}", "updated": int((now - 900 - i) * 1e9),
+                "day": {"c": 10, "v": 5}, "prevDay": {"c": 9}, "lastTrade": {"p": 10}}
+               for i in range(100)]
+    tickers.append({"ticker": "FUT", "updated": int((now + 3600) * 1e9), "day": {"c": 1}})
+    tickers.append({"ticker": "NOSTAMP", "day": {"c": 1}})
+    monkeypatch.setattr(c, "_get", lambda url: {"tickers": tickers}, raising=False)
+    out = c.get_full_market_snapshot()
+    assert set(out["T0"]) == {"last_price", "prev_close", "today_vol", "prev_vol", "day_open",
+                              "day_high", "day_low"}
+    m = c.last_full_snapshot_meta
+    assert m["stamped"] == 100 and m["tickers"] == 102          # future stamp + unstamped dropped
+    assert now - 905 <= m["data_at"] <= now - 900 and m["data_at_newest"] == now - 900

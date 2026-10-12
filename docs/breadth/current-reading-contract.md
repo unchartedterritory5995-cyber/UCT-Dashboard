@@ -35,8 +35,11 @@ r = breadth_current.reading(universe, metric)   # universe: "us" | "nyse" | "nas
 | `value` | the reading (same number the member's chart shows) |
 | `status` | `intraday` · `provisional` · `finalized` |
 | `session` | the trading session the value belongs to |
-| `observed_at` | ET timestamp of the live observation (`intraday` / `provisional` only) |
-| `age_s` | seconds since `observed_at` |
+| `observed_at` | when the **market data** was observed. Today's row uses the vendor's own snapshot stamp. A completed session uses that session's close. `null` = unknown. |
+| `observation_basis` | `vendor_snapshot` · `session_close` · `unknown` · `finalized_close` |
+| `computed_at` | when UCT computed the live payload. This is **never** the label time. |
+| `data_age_s` | seconds since `observed_at`; freshness is judged on this |
+| `compute_lag_s` | `computed_at − observed_at` (≈ the feed delay plus the refresh cadence) |
 | `current` | **True only if this is the reading a present-tense question means** |
 | `stale_reason` | why not current (always set when `current` is False) |
 | `label` | ready-to-show tag: `Intraday · 11:52 AM ET`, `Provisional close · Oct 9`, `Finalized close · Oct 8` |
@@ -54,6 +57,40 @@ r = breadth_current.reading(universe, metric)   # universe: "us" | "nyse" | "nas
   covers today after 16:00 ET, and the previous session until its D+1 gate lands.
 - **finalized**: the canonical value. It is what history, backtests and charts' sealed bars use.
 
+## Timestamp semantics and freshness (2026-10-12 licensing review)
+
+**The problem.** Before this change the live payload's only time (`as_of`) was when UCT
+*computed* it. On a delayed feed, "Intraday · 11:52 AM ET" could describe data observed around
+11:37.
+
+**The fix (breadth side only; no change to any calculation).**
+
+- **Snapshot.** The full-market snapshot now records the vendor's own per-ticker `updated`
+  stamp (epoch ns, the same field `massive._ticker_observed_at` already trusted) beside the
+  rows. It takes the **95th percentile** across tickers, which is the newest observations
+  without trusting one outlier. Stamps in the future are dropped, and the row shapes are
+  unchanged.
+- **Payloads.** That time travels as `data_as_of` on the `breadth_live` payload and the
+  live-universes payload, next to `as_of` (the compute time).
+- **`reading()`:**
+  - builds `observed_at`, the label time and the freshness check from `data_as_of` only;
+  - decides "has today's row seen the close?" from the data time. A delayed feed computed at
+    16:05 still shows intraday;
+  - when `data_as_of` is missing, returns `observation_basis: "unknown"`, labels the reading
+    "Intraday · observation time unknown", and sets `current: false`.
+
+**Freshness requirement:** `current` needs `data_age_s ≤ 300`. A 15-minute-delayed feed can
+therefore never be presented as "now", however recently it was recomputed.
+
+**Entitlement evidence (2026-10-12)**
+
+- Production's stock stream authenticates on the real-time host (`wss://socket.massive.com`,
+  not `delayed.massive.com`) and was receiving trades.
+- The D1 provider check (2026-09-02) measured Massive as real-time against FMP's 15-minute
+  delay.
+- The REST snapshot uses the same key. The `compute_lag_s` of the first deployed payloads is
+  the direct confirmation. Owner sign-off on the plan's display entitlements is still required.
+
 ## Rules the Agent applies
 
 1. **Present-tense questions** ("now", "currently", "today", unqualified): call `reading()`.
@@ -69,7 +106,11 @@ r = breadth_current.reading(universe, metric)   # universe: "us" | "nyse" | "nas
    - Finalized is labelled "Finalized close".
 5. **One pipeline**: values come only from the existing live engine and the canonical store.
    The Agent must not recompute breadth.
-6. **Model-data isolation is unchanged.** UCT-derived breadth values must not enter
+6. **Scope**: US, NYSE and Nasdaq aggregate measures only. No UCT universe, no per-stock
+   lists.
+7. **Show the time the contract gives.** The label's time is the market-data observation
+   time. Never substitute `computed_at` or the request time.
+8. **Model-data isolation is unchanged.** UCT-derived breadth values must not enter
    model-facing plans, history or chat naming. Whatever path the Agent uses today for
    finalized values governs these too.
 
@@ -97,8 +138,8 @@ Notes on the `finalized_only` tier:
 
 | when (ET) | what `reading()` returns |
 |---|---|
-| trading day 09:30–16:00 | `intraday`, refreshed about every 55 s |
-| 16:00 to the next 09:30 | `provisional` for today |
+| trading day 09:30–16:00 | `intraday`, refreshed about every 55 s; `current` while the data is ≤ 5 min old |
+| once the snapshot's data time passes 16:00 (13:00 on half days) | `provisional` for today |
 | D+1 ~16:30–20:30 | D becomes `finalized` once the D+1 row lands and the producer ticks |
 | weekend / holiday | the last session, `provisional` until Monday's row finalizes it |
 

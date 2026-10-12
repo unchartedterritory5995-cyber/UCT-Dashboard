@@ -48,7 +48,7 @@ import math
 import os
 import threading
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 import numpy as np
@@ -592,22 +592,27 @@ def _close_rows(st: dict, k: int) -> dict:
 
 
 def _snapshot():
-    """(prices, vols, opens, highs, lows) — `breadth_live`'s own snapshot when fresh, else one
-    fetch. `highs`/`lows` are the session's running RTH high/low (intraday new highs/lows)."""
+    """(prices, vols, opens, highs, lows, data_at) — `breadth_live`'s own snapshot when fresh,
+    else one fetch. `highs`/`lows` are the session's running RTH high/low (intraday new
+    highs/lows). `data_at` = the vendor's observation time of the snapshot (epoch s; None =
+    unknown) — ⛔ NOT the time it was fetched or computed (2026-10-12 licensing review)."""
     from api.services import breadth_live as bl
     with bl._live_lock:
         at = bl._live_cache.get("at", 0)
         p, v = bl._live_cache.get("prices"), bl._live_cache.get("vols")
         hi, lo = bl._live_cache.get("highs"), bl._live_cache.get("lows")
+        data_at = bl._live_cache.get("data_at")
     if p and hi is not None and time.time() - at <= SNAPSHOT_MAX_AGE:
-        return p, v or {}, None, hi, lo or {}
+        return p, v or {}, None, hi, lo or {}, data_at
     from api.services.massive import _get_client
-    snap = _get_client().get_full_market_snapshot() or {}
+    client = _get_client()
+    snap = client.get_full_market_snapshot() or {}
     return ({t: d["last_price"] for t, d in snap.items() if d.get("last_price")},
             {t: d["today_vol"] for t, d in snap.items() if d.get("today_vol")},
             {t: d["day_open"] for t, d in snap.items() if d.get("day_open")},
             {t: d["day_high"] for t, d in snap.items() if d.get("day_high")},
-            {t: d["day_low"] for t, d in snap.items() if d.get("day_low")})
+            {t: d["day_low"] for t, d in snap.items() if d.get("day_low")},
+            (getattr(client, "last_full_snapshot_meta", None) or {}).get("data_at"))
 
 
 #: Fields the intraday new-highs/lows series owns when it is served (breadth_nhnl_intraday).
@@ -656,9 +661,10 @@ def compute(force: bool = False) -> dict:
     today_iso = now_et.date().isoformat()
     live_today = None
     highs, lows = {}, {}
+    data_at = None
     if bl._session_started() and today_iso > iso_dates[-1]:
         try:
-            prices, vols, opens, highs, lows = _snapshot()
+            prices, vols, opens, highs, lows, data_at = _snapshot()
         except Exception as e:
             prices, vols, opens = {}, {}, None
             _log.warning("[breadth_live_universes] snapshot failed: %s", e)
@@ -669,7 +675,11 @@ def compute(force: bool = False) -> dict:
             live_today = {u: method_row(_subset_levels(lv, st["idx"][u], st["members"][u]),
                                         prices, vols, opens) for u in UNIVERSES}
 
+    # `as_of` = when this payload was COMPUTED; `data_as_of` = when the market data under
+    # today's live row was OBSERVED (vendor stamp; None = unknown or no live row).
     out = {"ok": True, "as_of": now_et.isoformat(timespec="seconds"), "L": iso_dates[-1],
+           "data_as_of": (datetime.fromtimestamp(data_at, now_et.tzinfo).isoformat(timespec="seconds")
+                          if (live_today and data_at) else None),
            "universes": {}}
     close_rows = _state.setdefault("close_rows", {})
     for u in UNIVERSES:
