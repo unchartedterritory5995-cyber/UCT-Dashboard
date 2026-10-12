@@ -1802,6 +1802,20 @@ def journal_styles(w: World) -> None:
     w.record("trader-blocks.pre-entry.exited", "PUT", "/api/j2/trader-blocks/positions/pos-styles-2/pre-entry",
              case="error", expect=409, json_body={"setup": "VCP", "checkedRuleIds": ["r1"], "totalRules": 2},
              note="The member's own position, partly closed: any exit refuses the write; its rules go on the trade.")
+    # P2a Task 10 (price stamps, R-T10-1): the stamp's ONE write, a fact row, never the note. The quote is
+    # stubbed (no vendor read), in price_stamp_quote's own shape: MSFT answers with a last close dated by that
+    # session's close, ZZZZ answers nothing.
+    w.p.setattr(trader_blocks, "price_stamp_quote", lambda sym, now=None: (
+        {"price": 412.5, "changePct": -0.31, "source": "last close", "asOf": "2026-10-02T20:00:00Z"} if sym == "MSFT" else None))
+    w.record("trader-blocks.price-stamp", "POST", "/api/j2/trader-blocks/price-stamp",
+             case="success", expect=200, json_body={"noteId": styled["id"], "ticker": "MSFT"},
+             note="One price fact row for a stamped line in the member's own live note, with its source and as-of.")
+    w.record("trader-blocks.price-stamp.not-found", "POST", "/api/j2/trader-blocks/price-stamp",
+             case="error", expect=404, json_body={"noteId": "nope", "ticker": "MSFT"},
+             note="Not the caller's live note: nothing is read and no row is written.")
+    w.record("trader-blocks.price-stamp.no-price", "POST", "/api/j2/trader-blocks/price-stamp",
+             case="error", expect=409, json_body={"noteId": styled["id"], "ticker": "ZZZZ"},
+             note="No price could be read: no row, and the line is left as written.")
     w.as_user(who, FREE)
     w.record("journal-styles.list.free-plan", "GET", base, case="error", expect=402)
 

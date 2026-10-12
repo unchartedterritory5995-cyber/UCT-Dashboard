@@ -1,0 +1,16 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/trader-blocks/price-stamp",
+    "note": "Not the caller's live note: nothing is read and no row is written.",
+    "path": "/api/j2/trader-blocks/price-stamp",
+    "requestBody": {
+      "noteId": "nope",
+      "ticker": "MSFT"
+    },
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}

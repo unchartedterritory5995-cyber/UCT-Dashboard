@@ -1,0 +1,16 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/trader-blocks/price-stamp",
+    "note": "No price could be read: no row, and the line is left as written.",
+    "path": "/api/j2/trader-blocks/price-stamp",
+    "requestBody": {
+      "noteId": "3f852852cd854488b72ffac1c3f104b6",
+      "ticker": "ZZZZ"
+    },
+    "status": 409
+  },
+  "body": {
+    "detail": "No ZZZZ price could be read just now."
+  }
+}
