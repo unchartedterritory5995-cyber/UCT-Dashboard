@@ -85,7 +85,7 @@ def test_the_window_is_wednesday_09_to_11_ET_half_open_in_both_seasons():
     assert not mw.in_window(_dt.datetime(2026, 10, 14, 12, 59, tzinfo=utc))
     assert not mw.in_window(_dt.datetime(2026, 10, 14, 15, 0, tzinfo=utc))   # 11:00 EDT
     assert mw.in_window(_dt.datetime(2026, 12, 2, 14, 30, tzinfo=utc))       # 09:30 EST
-    assert not mw.in_window(_dt.datetime(2026, 10, 13, 14, 0, tzinfo=utc))   # Tuesday
+    assert not mw.in_window(_dt.datetime(2026, 10, 20, 14, 0, tzinfo=utc))   # a plain Tuesday
 
 
 def test_the_first_window_is_2026_10_14_and_then_every_wednesday():
@@ -288,3 +288,28 @@ def test_the_promotion_workflow_skips_the_fast_forward_when_frozen():
     assert "python tools/deploy_freeze.py" in wf
     assert "steps.freeze.outputs.frozen != 'yes'" in wf
     assert "cron: '5 15 * * 3'" in wf
+
+
+def test_the_one_off_extra_window_2026_10_13_is_a_full_window():
+    # owner ruling 2026-10-12: a second attempt on Tue 2026-10-13, same bounds and bar
+    utc = _dt.timezone.utc
+    extra = _dt.date(2026, 10, 13)
+    assert mw.is_window_day(extra)
+    assert not mw.is_window_day(_dt.date(2026, 10, 20))             # only that Tuesday
+    assert mw.in_window(_dt.datetime(2026, 10, 13, 13, 0, tzinfo=utc))       # 09:00 EDT
+    assert not mw.in_window(_dt.datetime(2026, 10, 13, 15, 0, tzinfo=utc))   # 11:00 EDT
+    assert not mw.in_window(_dt.datetime(2026, 10, 20, 13, 30, tzinfo=utc))
+    tue_noon = _dt.datetime(2026, 10, 13, 12, 0, tzinfo=ET)
+    assert mw.latest_window_day(tue_noon) == extra                   # finalize keys on it
+    assert mw.latest_window_day(tue_noon + _dt.timedelta(days=1)) == DAY
+    assert mw.latest_window_day(tue_noon + _dt.timedelta(days=7)) == DAY  # Tue 10/20: back to the weekly rule
+    assert "tue" in mw._CRON_DAYS and "wed" in mw._CRON_DAYS
+
+
+def test_status_finds_the_next_window_from_the_extra_day_and_never_spins(monkeypatch):
+    monkeypatch.setattr(mw, "read_rows", lambda d: [])
+    monkeypatch.setattr(mw, "pod_identity", lambda: {})
+    after_tue = _dt.datetime(2026, 10, 13, 12, 0, tzinfo=ET)          # past Tuesday's window
+    assert mw.status(after_tue)["next_window"] == DAY.isoformat()
+    before_tue = _dt.datetime(2026, 10, 13, 8, 0, tzinfo=ET)
+    assert mw.status(before_tue)["next_window"] == "2026-10-13"
