@@ -1758,6 +1758,25 @@ def journal_styles(w: World) -> None:
              note="One write: the chart after the first heading, the member's words untouched, the stamp moved.")
     w.record("notes.style-update-plan.up-to-date", "GET", f"{notes}/{styled['id']}/style-update-plan",
              case="success", expect=200)
+    # P2a market context stamp: its three sources stand in at trader_blocks' own seams (the wire's
+    # breadth, the regime field, and the cache-only quotes: SPY warm in the live-price cache, QQQ
+    # from a held daily bar's last close).
+    from api.services.journal_two import trader_blocks
+    w.p.setattr(trader_blocks, "_breadth", lambda: {
+        "market_phase": "Uptrend", "exposure": {"score": 72.5, "score_delta": 2.5}, "breadth_score": 58.3,
+        "distribution_days": 2, "pct_above_50ma": 61.4, "pct_above_200ma": 66.0, "wire_date": TODAY})
+    w.p.setattr(trader_blocks, "_regime_field", lambda memo: {
+        "value": "amber", "source": "journal_two.regime.get_current_regime", "asOf": TODAY,
+        "missing": None, "detail": None})
+    w.p.setattr(trader_blocks, "_quotes", lambda user_id, symbols, now=None: {
+        "SPY": {"price": 601.25, "change_pct": 0.42, "observed_at": int(FROZEN_NOW.timestamp()) - 60,
+                "market_closed": False},
+        "QQQ": {"price": 486.0, "change_pct": 1.25, "market_closed": True, "source": "last close",
+                "asOf": "2026-10-02T20:00:00Z"}})
+    w.as_user(who)
+    w.record("trader-blocks.market-context", "GET", "/api/j2/trader-blocks/market-context",
+             case="success", expect=200,
+             note="SPY from the live-price cache, QQQ a held daily bar's last close, VIX unavailable (part a).")
     w.as_user(who, FREE)
     w.record("journal-styles.list.free-plan", "GET", base, case="error", expect=402)
 

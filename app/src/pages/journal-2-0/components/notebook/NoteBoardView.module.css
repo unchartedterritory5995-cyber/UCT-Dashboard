@@ -37,6 +37,12 @@
   min-height: var(--tap-min, 44px);
 }
 
+/* R-W0-3: the sentence a read-only (captured) grouping shows instead of move doors. */
+.readOnlyNote {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .error {
   font-size: 12px;
   /* Wave 8 (8A, A5): the error colour, not the error BORDER tint (1.2:1 as text). */

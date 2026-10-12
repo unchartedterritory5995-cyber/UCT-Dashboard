@@ -58,6 +58,9 @@ BLOCK_KINDS: tuple[dict, ...] = (
         {"key": "on", "options": ("no", "yes"), "default": "no"},)},
     {"id": "positionSizing", "search": "[position sizing]", "settings": (
         {"key": "grade", "options": ("A", "A+", "B"), "default": "A"},)},
+    # The market context stamp is the EXISTING marketcontext capture widget (IR-S6). No `search`.
+    {"id": "marketcontext", "settings": (
+        {"key": "fields", "options": ("all", "regime", "indexes"), "default": "all"},)},
 )
 KNOWN_BLOCKS = frozenset(k["id"] for k in BLOCK_KINDS)
 _BLOCK_BY_ID = {k["id"]: k for k in BLOCK_KINDS}
@@ -777,6 +780,13 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
             doc["content"] = [{"type": "paragraph"}]
         props = _valid_defaults(user_id, style.get("properties") or {}, conn)
         props[_nk().NOTE_KIND_PROPERTY] = style["kindId"]
+        if mode == "create":
+            # R-P2-6 / R-RC-1: only a create (or its equivalent) records the regime it was written
+            # in, and only from the reading its own builder froze on ctx (never a scan of the body).
+            from api.services.journal_two import note_properties as np_
+            reg = _captured_regime(ctx)
+            if reg:
+                props[np_.REGIME_AT_WRITE] = reg
         return {"bodyJson": doc, "properties": props, "skipped": skipped,
                 "styleId": style.get("id"), "styleVersion": style.get("version"), "kindId": style["kindId"]}
     finally:
@@ -813,7 +823,7 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
         base = {k: payload[k] for k in ("title", "subtitle", "tags", "ticker", "folderId") if k in payload}
         base["bodyJson"] = composed["bodyJson"]
         note = notes_service.create_note(
-            user_id, base, conn, properties=composed["properties"],
+            user_id, base, conn, properties=composed["properties"], captured_properties="keep",
             style_stamp=(composed["styleId"], composed["styleVersion"], composed["kindId"]))
         return note, composed["skipped"]
     finally:
@@ -887,6 +897,28 @@ def _present(content: list) -> set[str]:
         if isinstance(n.get("content"), list):
             stack.extend(n["content"])
     return found
+
+
+def _captured_regime(ctx: dict) -> str | None:
+    """The regime id the market context builder froze in THIS compose (R-P2-6, R-T4-1 I-1), or None.
+
+    ⛔ It never scans the composed body: that body starts from a member-authored style outline or a
+    linked template, which can carry a pasted or week-old stamp. The value is the reading
+    trader_blocks.build_market_context recorded on `ctx["captured"]["regime"]` when it built a stamp
+    in create mode (a real create, or an empty note switched to a style). That reading is
+    trader_blocks' held-only read (R-W0-1, R-T3-1), dated as entry_context._regime_fields dates it
+    (R-W0-2: `asOf` is the regime's own wire date, never the capture time). Stored only when it is a
+    known regime id AND carries its own date; no market context block built this compose, nothing
+    held, an undated or unknown reading: None, so nothing is stored rather than a fabricated value.
+    ⛔ The caller (compose) asks only in create mode: that guard, not this function, keeps an update
+    out."""
+    from api.services.journal_two import note_properties as np_
+    ids = {o["id"] for o in np_._BUILTIN_BY_ID[np_.REGIME_AT_WRITE]["options"]}
+    r = ((ctx.get("captured") or {}).get("regime")) or {}
+    if not isinstance(r, dict):
+        return None
+    dated = isinstance(r.get("asOf"), str) and bool(r["asOf"].strip())
+    return r.get("value") if r.get("value") in ids and dated and not r.get("missing") else None
 
 
 def _is_empty(content: list) -> bool:
@@ -1020,9 +1052,15 @@ def apply_style_update(user_id: str, note_id: str, *, style_id: str | None = Non
         if not plan["switching"] and not built:
             return notes_service.get_note(user_id, note_id, conn=conn), plan
         patch: dict[str, Any] = {}
+        captured: dict[str, Any] = {}
         if plan["insertsOutline"]:
-            patch["bodyJson"] = compose(user_id, style, ticker=row["ticker"], conn=conn,
-                                        mode=plan["mode"])["bodyJson"]
+            composed = compose(user_id, style, ticker=row["ticker"], conn=conn, mode=plan["mode"])
+            patch["bodyJson"] = composed["bodyJson"]
+            # R-RC-1: an empty note switched to a style is create-equivalent (`plan["mode"]` is
+            # "create" on this branch alone), so the regime its fresh stamp froze is recorded with it.
+            from api.services.journal_two import note_properties as np_
+            if np_.REGIME_AT_WRITE in composed["properties"]:
+                captured[np_.REGIME_AT_WRITE] = composed["properties"][np_.REGIME_AT_WRITE]
         elif built:
             new = copy.deepcopy(body)
             i = _after_first_heading(new["content"])
@@ -1030,10 +1068,13 @@ def apply_style_update(user_id: str, note_id: str, *, style_id: str | None = Non
             patch["bodyJson"] = new
         if plan["switching"]:
             patch["properties"] = {_nk().NOTE_KIND_PROPERTY: style["kindId"]}
+        if captured:
+            patch["properties"] = {**patch.get("properties", {}), **captured}
         try:
             note = notes_service.update_note(user_id, note_id, patch, conn=conn,
                                              expected_updated_at=row["updated_at"], client_schema=None,
-                                             style_stamp=(style["id"], style["version"]))
+                                             style_stamp=(style["id"], style["version"]),
+                                             captured_properties="keep" if captured else "drop")
         except notes_service.NoteValidationError as e:
             raise StyleValidationError(str(e)) from e
         if note is None:

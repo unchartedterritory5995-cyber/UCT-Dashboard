@@ -436,7 +436,15 @@ def _load_wire_data() -> dict | None:
 
 # ─── Breadth ──────────────────────────────────────────────────────────────────
 
-def get_breadth() -> dict:
+def get_breadth(held_only: bool = False) -> dict | None:
+    """The wire's breadth payload.
+
+    ``held_only=True`` answers ONLY from what this pod already holds (the cache, the state file,
+    the pushed wire) and returns None where the default call would go on to the live fetch
+    (Priority 3, ``morning_wire_engine.fetch_breadth``: an unbounded vendor call). The pattern of
+    ``breadth_live.compute_live(cached_only=True)``. A note create's market read uses it
+    (trader_blocks, integrator ruling R-W0-1). The default call is unchanged.
+    """
     cached = cache.get("breadth")
     if cached:
         return _stamp_wire_status(cached)   # re-judge on every read, never cached
@@ -455,6 +463,8 @@ def get_breadth() -> dict:
             breadth = _normalize_breadth(wire["breadth"], state)
             breadth["exposure"] = _normalize_exposure(wire.get("exposure") or {})
             breadth["ma_data"]  = wire.get("ma_data") or {}
+        elif held_only:
+            return None     # nothing held: never the live fetch below
         else:
             # Priority 3: live fetch (local dev only — Finviz token not on Railway)
             try:

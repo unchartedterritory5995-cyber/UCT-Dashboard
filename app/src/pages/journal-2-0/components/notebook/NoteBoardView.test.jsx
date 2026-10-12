@@ -290,6 +290,69 @@ describe('NoteBoardView', () => {
   })
 })
 
+// ── R-W0-3: a grouping no member can set is a READ-ONLY board ──────────────────
+// `builtin:regime_at_write` is captured once by the composer; the server drops a member write to it
+// (IR-S1). A board that offered to move a note between its columns would show a move, send a write
+// the server ignores, and leave the member's card where the server says it is.
+describe('a captured grouping (R-W0-3)', () => {
+  const REGIME = {
+    id: 'builtin:regime_at_write',
+    name: 'Regime when written',
+    type: 'select',
+    source: 'captured',
+    options: [
+      { id: 'green', label: 'Green', color: 'green' },
+      { id: 'amber', label: 'Yellow', color: 'amber' },
+      { id: 'orange', label: 'Orange', color: 'amber' },
+      { id: 'red', label: 'Red', color: 'red' },
+    ],
+  }
+  const RNOTES = [
+    { id: 'n1', title: 'NVDA thesis', propertiesJson: { 'builtin:regime_at_write': 'red', 'builtin:thesis_status': 'watching' } },
+    { id: 'n2', title: 'AMD thesis', propertiesJson: { 'builtin:regime_at_write': 'amber' } },
+    { id: 'n3', title: 'Untriaged note', propertiesJson: {} },
+  ]
+
+  it("a note's Regime when written groups the board, read-only (no drag between columns for a captured property)", async () => {
+    renderBoard({ notes: RNOTES, propertyDefs: [REGIME], initialGroupById: 'builtin:regime_at_write' })
+    // It groups: each note sits under the regime it was written in, by the option's own label.
+    expect(within(columnNamed('Red')).getByText('NVDA thesis')).toBeInTheDocument()
+    expect(within(columnNamed('Yellow')).getByText('AMD thesis')).toBeInTheDocument()
+    expect(within(columnNamed('No value')).getByText('Untriaged note')).toBeInTheDocument()
+    // No move door: the only <select> on the board is "Group by".
+    expect(screen.getAllByRole('combobox')).toHaveLength(1)
+    // No drag door: no card is draggable.
+    for (const title of ['NVDA thesis', 'AMD thesis', 'Untriaged note']) {
+      expect(screen.getByText(title).closest('article').getAttribute('draggable')).toBe('false')
+    }
+    // And a drop (the path that skips the render guard) writes nothing.
+    fireEvent.drop(columnNamed('Green'), { dataTransfer: { getData: () => 'n1' } })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(settleSpy).not.toHaveBeenCalled()
+    expect(within(columnNamed('Red')).getByText('NVDA thesis')).toBeInTheDocument()
+    // The member is told why, in words.
+    expect(screen.getByText(/recorded when a note is written/i)).toBeInTheDocument()
+  })
+
+  it('a def that names NO source is read-only: the predicate fails closed (M-3)', () => {
+    const { source, ...noSource } = STATUS
+    expect(source).toBe('user_set')                                    // control: the fixture had one
+    renderBoard({ propertyDefs: [noSource] })
+    expect(screen.getAllByRole('combobox')).toHaveLength(1)           // Group by only
+    expect(screen.getByText('NVDA thesis').closest('article').getAttribute('draggable')).toBe('false')
+  })
+
+  it('switching back to a property the member sets brings the move door back (control)', () => {
+    renderBoard({ notes: RNOTES, propertyDefs: [REGIME, STATUS], initialGroupById: 'builtin:regime_at_write' })
+    expect(screen.getAllByRole('combobox')).toHaveLength(1)
+    fireEvent.change(screen.getByLabelText('Group by'), { target: { value: 'builtin:thesis_status' } })
+    expect(screen.getAllByRole('combobox')).toHaveLength(RNOTES.length + 1)
+    expect(screen.getByText('NVDA thesis').closest('article').getAttribute('draggable')).toBe('true')
+    expect(screen.queryByText(/recorded when a note is written/i)).toBeNull()
+  })
+})
+
 // ── F4 / A2R-03 (WCAG 2.4.3): focus follows a card moved from the keyboard ──
 // Lane 10E-2's keyboard walk: the move worked, and focus fell to <body> -- the card
 // re-mounts in its new column and the focused <select> goes with the old node. Focus now
