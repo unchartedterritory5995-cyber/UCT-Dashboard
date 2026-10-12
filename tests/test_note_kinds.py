@@ -73,7 +73,6 @@ def test_names_are_unique_against_builtins_and_each_other(db_path):
         nk.update_kind("u1", "trade_plan", name="Mine")
 
 
-@pytest.mark.xfail(strict=True, reason="needs Task 5: builtin:note_kind")
 def test_a_kind_in_use_cannot_be_deleted(db_path):
     from api.services.journal_two import note_kinds as nk
     from api.services.journal_two import notes
@@ -84,7 +83,6 @@ def test_a_kind_in_use_cannot_be_deleted(db_path):
     assert "1 note" in str(e.value)
 
 
-@pytest.mark.xfail(strict=True, reason="needs Task 5: builtin:note_kind")
 def test_mapping_offer_and_apply(db_path):
     from api.services.journal_two import note_kinds as nk
     from api.services.journal_two import notes

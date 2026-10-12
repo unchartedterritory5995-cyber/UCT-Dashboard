@@ -9,6 +9,7 @@ import FormulaEditor from './FormulaEditor'
 import RollupEditor, { rollupReady } from './RollupEditor'
 import useSWR from 'swr'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
+import { journalStylesEnabled } from '../../lib/journalStylesFlag'
 import { checkFormula, displayExpression, formulaInputIds } from '../../lib/formula/computed'
 import { templateRevealFor } from '../../lib/templatePropertyDefs'
 import {
@@ -148,7 +149,10 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
     [properties, manuallyShown, valuesById],
   )
   const hidden = useMemo(
-    () => properties.filter((p) => p.source === 'user_set' && !shown(p)),
+    () => properties.filter((p) => p.source === 'user_set' && !shown(p)
+      // Notebook P1: Kind of note is OFFERED only while journal styles are on; a note that already
+      // has one shows it either way (spec P1.7c -- the switch gates creating, never rendering).
+      && (p.id !== 'builtin:note_kind' || journalStylesEnabled())),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [properties, manuallyShown, valuesById],
   )
