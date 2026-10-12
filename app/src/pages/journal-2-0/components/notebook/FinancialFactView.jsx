@@ -123,39 +123,32 @@ export default function FinancialFactView({ node, editor, deleteNode }) {
             <span className={styles.rowLabel}>Captured</span>
             <span className={styles.rowValue}>{formatValue(fact.value, fact.unit)}</span>
           </div>
+          {/* Only a live_and_snapshot fact has this row (today: price), so its change is unreadable exactly
+              when its current value is (P2a review H): never a 0.00%. */}
           {fact.temporalMode === 'live_and_snapshot' && (
             <div className={styles.row}>
               <span className={styles.rowLabel}>Current</span>
               <span className={styles.rowValue}>
                 {hasCurrent && currentValue !== null && currentValue !== undefined
                   ? formatValue(currentValue, fact.unit)
-                  : <span className={styles.muted}>Couldn&apos;t refresh</span>}
+                  : <span className={styles.muted}>Couldn&apos;t refresh · change unavailable</span>}
               </span>
             </div>
           )}
-          {/* P2a price stamps: what the price IS and when ("Last close, Oct 13, 2026"), worded by the
-              server (note_facts._as_of_label); nothing here works out a session or a zone. */}
-          {fact.asOfLabel && (
-            <div className={styles.row}>
-              <span className={styles.rowLabel}>As of</span>
-              <span className={styles.rowValue}>{fact.asOfLabel}</span>
-            </div>
-          )}
-          {/* A change that cannot be read is said so (P2a), never shown as 0.00%. */}
-          {(bothNumeric || fact.temporalMode === 'live_and_snapshot') && (
+          {bothNumeric && change !== null && (
             <div className={styles.row}>
               <span className={styles.rowLabel}>Change</span>
               <span className={styles.rowValue}>
-                {bothNumeric ? <>
-                  {change >= 0 ? '+' : ''}{formatValue(change, fact.unit)}
-                  {changePct !== null && ` (${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%)`}
-                </> : <span className={styles.muted}>change unavailable</span>}
+                {change >= 0 ? '+' : ''}{formatValue(change, fact.unit)}
+                {changePct !== null && ` (${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%)`}
               </span>
             </div>
           )}
         </div>
         <div className={styles.footer}>
-          <span className={styles.captured}>Captured {formatObservedAt(fact.observedAt)}</span>
+          {/* P2a price stamps: what the price IS and when ("Last close, Oct 9, 2026, 4:00 PM ET"), worded by
+              the server (note_facts._as_of_label); nothing here works out a session or a zone. */}
+          <span className={styles.captured}>Captured {formatObservedAt(fact.observedAt)}{fact.asOfLabel && ` · ${fact.asOfLabel}`}</span>
           {/* G-062 / fact_registry.py's RightsClass note: a `conditional`
               fact is genuinely new vendor-value persistence, and showing it
               carries a display obligation the registry documents -- name the

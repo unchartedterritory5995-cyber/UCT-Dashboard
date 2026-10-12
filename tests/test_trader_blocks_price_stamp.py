@@ -8,10 +8,12 @@ and writes no note. Expected values are HARD-CODED, never derived from the calen
 from __future__ import annotations
 
 import importlib
+import json
 import os
 import tempfile
 import types
 from datetime import datetime, timezone
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -192,10 +194,52 @@ def test_gate_off_404_signed_out_401_free_402(client, monkeypatch, quote):
     assert quote["asked"] == []
 
 
+def _note(uid="u1", trashed=False):
+    """A real note row for `uid` (the route answers 404 for any other)."""
+    from api.services.journal_two import notes
+    nid = notes.create_note(uid, {"title": "NVDA thesis"})["id"]
+    if trashed:
+        assert notes.delete_note(uid, nid)
+    return nid
+
+
+def _rows(db_path):
+    import sqlite3
+    with sqlite3.connect(db_path) as conn:
+        return conn.execute("SELECT COUNT(*) FROM j2_fact_observations").fetchone()[0]
+
+
+def _note_row(db_path, nid):
+    import sqlite3
+    with sqlite3.connect(db_path) as conn:
+        return conn.execute("SELECT updated_at, body_json, deleted_at FROM j2_notes WHERE id = ?", (nid,)).fetchone()
+
+
+# ── I-1 (review): the note must be the caller's own, live note, or nothing is read or written ──────
+
+@pytest.mark.parametrize("whose", ["foreign", "trashed", "missing"])
+def test_a_note_that_is_not_the_callers_live_note_is_404_before_any_read_or_row(client, quote, db_path, whose):
+    _as(client)
+    nid = {"foreign": lambda: _note("u2"), "trashed": lambda: _note("u1", trashed=True),
+           "missing": lambda: "no-such-note"}[whose]()
+    r = client.post(URL, json={"noteId": nid, "ticker": "NVDA"})
+    assert r.status_code == 404 and r.json()["detail"] == "Not found"
+    assert quote["asked"] == []                                       # no vendor read
+    assert _rows(db_path) == 0                                        # no row
+
+
+def test_the_callers_own_note_is_stamped(client, quote, db_path):
+    _as(client)
+    r = client.post(URL, json={"noteId": _note("u1"), "ticker": "NVDA"})
+    assert r.status_code == 200 and quote["asked"] == ["NVDA"] and _rows(db_path) == 1
+
+
 def test_a_stamp_is_one_fact_row_with_its_source_and_as_of_and_writes_no_note(client, quote, db_path):
     import sqlite3
     _as(client)
-    r = client.post(URL, json={"noteId": "n1", "ticker": "nvda"})
+    nid = _note("u1")
+    before = _note_row(db_path, nid)
+    r = client.post(URL, json={"noteId": nid, "ticker": "nvda"})
     assert r.status_code == 200, r.text
     fact = r.json()["fact"]
     assert fact["ticker"] == "NVDA" and fact["factType"] == "price" and fact["value"] == 601.25
@@ -206,14 +250,15 @@ def test_a_stamp_is_one_fact_row_with_its_source_and_as_of_and_writes_no_note(cl
     assert quote["asked"] == ["NVDA"]
     with sqlite3.connect(db_path) as conn:
         assert conn.execute("SELECT COUNT(*) FROM j2_fact_observations").fetchone()[0] == 1
-        assert conn.execute("SELECT COUNT(*) FROM j2_notes").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM j2_notes").fetchone()[0] == 1
+    assert _note_row(db_path, nid) == before                          # the note itself is untouched
 
 
 def test_no_quote_is_409_with_a_sentence_and_no_row(client, quote, db_path):
     import sqlite3
     _as(client)
     quote["value"] = None
-    r = client.post(URL, json={"noteId": "n1", "ticker": "NVDA"})
+    r = client.post(URL, json={"noteId": _note("u1"), "ticker": "NVDA"})
     assert r.status_code == 409 and r.json()["detail"] == "No NVDA price could be read just now."
     with sqlite3.connect(db_path) as conn:
         assert conn.execute("SELECT COUNT(*) FROM j2_fact_observations").fetchone()[0] == 0
@@ -230,7 +275,7 @@ def test_a_bad_body_is_400_before_any_read(client, quote, body):
 
 def test_a_class_share_keeps_its_spelling(client, quote):
     _as(client)
-    r = client.post(URL, json={"noteId": "n1", "ticker": "BRK-B"})
+    r = client.post(URL, json={"noteId": _note("u1"), "ticker": "BRK-B"})
     assert r.status_code == 200 and r.json()["fact"]["ticker"] == "BRK-B" and quote["asked"] == ["BRK-B"]
 
 
@@ -252,22 +297,26 @@ def test_create_fact_observation_stores_a_given_source_as_of_and_none_by_default
 
 # ── the words the card shows: worded on the server, in ET (no client works out a session or a zone) ──
 
-@pytest.mark.parametrize("ref,as_of,want", [
-    ("last close", "2026-10-13T20:00:00Z", "Last close, Oct 13, 2026"),
-    # a winter close is 21:00Z; in UTC+9 (Tokyo) that is already the next day; the label is the session's
-    ("last close", "2026-11-25T21:00:00Z", "Last close, Nov 25, 2026"),
-    ("last close", "2026-11-27T18:00:00Z", "Last close, Nov 27, 2026"),          # a half-day close
-    ("live price", "2026-10-13T17:26:00Z", "Live price, 1:26 PM ET"),
-    ("live price", "2026-10-13T13:31:00Z", "Live price, 9:31 AM ET"),
-    ("live price", "2026-10-13T16:05:00Z", "Live price, 12:05 PM ET"),
-    (None, "2026-10-13T20:00:00Z", None),                                         # /price: no basis
-    ("trade-123", "2026-10-13T20:00:00Z", None),                                  # another kind of ref
-    ("last close", None, None),
-    ("last close", "not a time", None),
-])
-def test_the_as_of_label(ref, as_of, want):
+_WORDING = Path(__file__).resolve().parents[1] / "app/src/pages/charts/widgets/priceAsOfWording.fixture.json"
+_ROWS = json.loads(_WORDING.read_text(encoding="utf-8"))["rows"]
+
+
+@pytest.mark.parametrize("row", _ROWS, ids=[r["want"] for r in _ROWS])
+def test_the_as_of_label_is_the_market_context_wording(row):
+    """M-1: the SAME words the market context stamp shows (marketContextModel.test.js reads this table)."""
     from api.services.journal_two import note_facts
-    assert note_facts._as_of_label("price", ref, as_of) == want
+    assert note_facts._as_of_label("price", row["source"], row["asOf"]) == row["want"]
+
+
+def test_the_shared_wording_table_is_not_empty_and_covers_both_bases():
+    assert len(_ROWS) >= 4 and {r["source"] for r in _ROWS} == {"last close", "live price"}
+
+
+@pytest.mark.parametrize("ref,as_of", [(None, "2026-10-13T20:00:00Z"), ("trade-123", "2026-10-13T20:00:00Z"),
+                                       ("last close", None), ("last close", "not a time")])
+def test_no_basis_or_no_as_of_is_no_label(ref, as_of):
+    from api.services.journal_two import note_facts
+    assert note_facts._as_of_label("price", ref, as_of) is None
 
 
 def test_only_a_price_fact_carries_an_as_of_label():
@@ -277,5 +326,5 @@ def test_only_a_price_fact_carries_an_as_of_label():
 
 def test_the_route_returns_the_label_with_the_fact(client, quote):
     _as(client)
-    fact = client.post(URL, json={"noteId": "n1", "ticker": "NVDA"}).json()["fact"]
-    assert fact["asOfLabel"] == "Last close, Oct 13, 2026"
+    fact = client.post(URL, json={"noteId": _note("u1"), "ticker": "NVDA"}).json()["fact"]
+    assert fact["asOfLabel"] == "Last close, Oct 13, 2026, 4:00 PM ET"

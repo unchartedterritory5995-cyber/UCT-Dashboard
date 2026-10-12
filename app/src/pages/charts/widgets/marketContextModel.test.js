@@ -11,6 +11,7 @@ import {
   sourcedText, presetFor, FIELD_SETS, SOURCED_ROWS, REGIME_WORDS, CONTEXT_ROWS, UNCAPTURED_SENTENCE,
 } from './marketContextModel'
 import { BLOCK_KINDS } from '../../journal-2-0/lib/journalBlocks'
+import PRICE_AS_OF_WORDING from './priceAsOfWording.fixture.json'
 
 describe('the stamp\'s sourced rows', () => {
   it('a regime reads as its word', () => {
@@ -77,6 +78,14 @@ describe('the stamp\'s wording (Task 9 rulings)', () => {
       asOf: null, missing: null }).asOfText).toBe('Delayed quote')
     expect(sourcedText('spy', { value: { price: 1, changePct: 1, closed: true }, source: 'live_prices._px_key',
       asOf: null, missing: null }).asOfText).toBe('Quoted price')
+  })
+
+  it("the price's source line is the ONE shared wording (the price stamp's server label reads the same table)", () => {
+    expect(PRICE_AS_OF_WORDING.rows.length).toBeGreaterThanOrEqual(4)
+    for (const row of PRICE_AS_OF_WORDING.rows) {
+      expect(sourcedText('spy', { value: { price: 1, changePct: 1, closed: row.source === 'last close' },
+        source: row.source, asOf: row.asOf, missing: null }).asOfText, row.want).toBe(row.want)
+    }
   })
 
   it('a price whose number is not a number is not available — never "NaN"', () => {

@@ -13,7 +13,8 @@ fixtures `journal-styles.*` and `note-kinds.*`, tools/notebook_contract_fixtures
   GET    /api/j2/trader-blocks/market-context           the readings a market context stamp freezes (P2a)
   POST   /api/j2/trader-blocks/price-stamp              one price fact row for a stamped line ({noteId,
                                                         ticker}): live price, or last close dated by its
-                                                        session; 409 when none could be read (P2a)
+                                                        session; 404 unless the caller's live note, 409
+                                                        when no price could be read (P2a)
   GET    /api/j2/note-kinds                             built-in and member kinds
   POST   /api/j2/note-kinds                             a member kind
   PUT    /api/j2/note-kinds/{kind_id}                   rename / icon / order
@@ -200,6 +201,16 @@ def trader_market_context(user: dict = Depends(require_paid)) -> dict[str, Any]:
 _STAMP_SYMBOL = re.compile(r"^[A-Z]{1,5}(?:-[A-Z])?$")
 
 
+def _owns_live_note(user_id: str, note_id: str) -> bool:
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        return conn.execute("SELECT 1 FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+                            (note_id, user_id)).fetchone() is not None
+    finally:
+        conn.close()
+
+
 @router.post("/trader-blocks/price-stamp")
 def trader_price_stamp(body: dict = Depends(paid_body), user: dict = Depends(require_paid)) -> dict[str, Any]:
     """P2a Task 10 (spec §P2 item 4): the price stamp's ONE write, a j2_fact_observations row. It never
@@ -215,6 +226,10 @@ def trader_price_stamp(body: dict = Depends(paid_body), user: dict = Depends(req
     sym = sym.strip().upper() if isinstance(sym, str) else ""
     if not _STAMP_SYMBOL.match(sym):
         raise HTTPException(status_code=400, detail="ticker must be a symbol")
+    # R-T10-1 / review I-1: the caller's own, live note, or nothing is read or written. A one-row probe
+    # (ai_actions._note_state's shape), never notes.get_note (it parses the body and can backfill a column).
+    if not _owns_live_note(user["id"], note_id):
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
     q = trader_blocks.price_stamp_quote(sym, now=datetime.now(timezone.utc))
     if q is None:
         raise HTTPException(status_code=409, detail=f"No {sym} price could be read just now.")

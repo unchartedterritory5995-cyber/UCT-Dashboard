@@ -1,8 +1,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { Profiler } from 'react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { Editor } from '@tiptap/core'
 let STYLES_ON = true
 vi.mock('../../../lib/journalStylesFlag', async (orig) => ({ ...(await orig()), journalStylesEnabled: () => STYLES_ON }))
 import PriceStampsBlock from './PriceStampsBlock'
+import { buildExtensions } from '../../../lib/tiptap'
+import { PRICE_STAMPS_KEY } from '../../../lib/blocks/priceStamps'
 
 afterEach(() => { STYLES_ON = true })
 
@@ -44,5 +48,85 @@ describe('PriceStampsBlock', () => {
     expect(screen.getByText('This block needs Journal styles, which is not on for you.')).toBeTruthy()
     expect(screen.getByRole('switch', { name: 'Stamp prices as I write' }).disabled).toBe(true)
     expect(screen.queryByText(/Write \$NVDA and press Enter/)).toBeNull()
+  })
+})
+
+// ── Fix round 1 (option E): the block HOLDS the editor's stamp plugin while it is mounted and on ──────
+const content = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Long $NVDA here' }] }] }
+function realEditor() {
+  const ed = new Editor({ extensions: buildExtensions(), content })
+  ed.storage.uctJournalWidgets = { noteId: 'n1', noteTicker: null }
+  return ed
+}
+const stampPlugins = (ed) => ed.state.plugins.filter((p) => p.spec.key === PRICE_STAMPS_KEY)
+const block = (ed, on = 'yes', editable = true) => <PriceStampsBlock params={{ on }} setParams={vi.fn()} editable={editable} editor={ed} />
+async function enterStamps(ed) {
+  global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ fact: { id: 'f1' } }) }))
+  ed.commands.setTextSelection(ed.state.doc.content.size - 1)
+  ed.view.someProp('handleKeyDown', (f) => f(ed.view, new KeyboardEvent('keydown', { key: 'Enter' })))
+  await new Promise((r) => setTimeout(r, 30))
+  return global.fetch.mock.calls.filter(([u]) => u === '/api/j2/trader-blocks/price-stamp').length
+}
+
+describe('PriceStampsBlock holds the price-stamp plugin', () => {
+  it('mounted and on: the plugin is registered FIRST, and Enter stamps', async () => {
+    const ed = realEditor()
+    expect(stampPlugins(ed)).toHaveLength(0)
+    render(block(ed))
+    expect(stampPlugins(ed)).toHaveLength(1)
+    expect(ed.state.plugins[0].spec.key).toBe(PRICE_STAMPS_KEY)
+    expect(await enterStamps(ed)).toBe(1)
+  })
+
+  it('two stamps blocks: ONE plugin; removing one keeps stamping; removing both unregisters', async () => {
+    const ed = realEditor()
+    const a = render(block(ed))
+    const b = render(block(ed))
+    expect(stampPlugins(ed)).toHaveLength(1)
+    a.unmount()
+    expect(stampPlugins(ed)).toHaveLength(1)
+    expect(await enterStamps(ed)).toBe(1)
+    b.unmount()
+    expect(stampPlugins(ed)).toHaveLength(0)
+  })
+
+  it('the block switched off: unregistered, and Enter stamps nothing', async () => {
+    const ed = realEditor()
+    const r = render(block(ed))
+    expect(stampPlugins(ed)).toHaveLength(1)
+    r.rerender(block(ed, 'no'))
+    expect(stampPlugins(ed)).toHaveLength(0)
+    expect(await enterStamps(ed)).toBe(0)
+  })
+
+  it('the block removed from the note: unregistered, and Enter stamps nothing', async () => {
+    const ed = realEditor()
+    const r = render(block(ed))
+    r.unmount()
+    expect(stampPlugins(ed)).toHaveLength(0)
+    expect(await enterStamps(ed)).toBe(0)
+  })
+
+  it('the journal styles switch off: nothing registers, even with on = yes (S24)', async () => {
+    STYLES_ON = false
+    const ed = realEditor()
+    render(block(ed))
+    expect(stampPlugins(ed)).toHaveLength(0)
+    expect(await enterStamps(ed)).toBe(0)
+  })
+
+  it('a read-only block registers nothing', () => {
+    const ed = realEditor()
+    render(block(ed, 'yes', false))
+    expect(stampPlugins(ed)).toHaveLength(0)
+  })
+
+  it('H14: holding the plugin re-renders nothing (registering is no transaction, no React state)', async () => {
+    const ed = realEditor()
+    let commits = 0
+    render(<Profiler id="stamps" onRender={() => { commits += 1 }}>{block(ed)}</Profiler>)
+    await waitFor(() => expect(stampPlugins(ed)).toHaveLength(1))
+    await new Promise((r) => setTimeout(r, 50))
+    expect(commits).toBe(1)
   })
 })

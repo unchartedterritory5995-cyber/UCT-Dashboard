@@ -67,9 +67,8 @@ export const IMPORT_ALLOW = {
   // R-T6-3 (fix round 2): the app's ONE chunk-load-error predicate, so a block's Reload escalation
   // never restates it. The module also reloads the page for a ROUTE's stale chunk; no data, no writes.
   'app/src/utils/lazyWithRetry': "isChunkLoadError: the app's own stale-chunk predicate; no data, no writes",
-  // Task 10 (price stamps). The stub is a TipTap extension and the lazy half closes the stamp's history.
-  '@tiptap/core': 'Extension.create for the price-stamp extension; no network',
-  '@tiptap/pm/state': 'Plugin and PluginKey: the pending-stamp positions, mapped per transaction; no network',
+  // Task 10 (price stamps): the block body holds a ProseMirror plugin, and the run closes the stamp's history.
+  '@tiptap/pm/state': 'Plugin and PluginKey: the stamp plugin the block registers, and its pending positions; no network',
   '@tiptap/pm/history': 'closeHistory, so a stamp is its own undo step; no network',
   'app/src/pages/journal-2-0/lib/journalStylesFlag': 'journalStylesEnabled, the latched S24 switch the stamp and its body obey; reads no network',
   'app/src/lib/tickerResolver': "resolveCashtags, the line's $TICKER (a parser over a bundled JSON); no network",

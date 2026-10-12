@@ -1,0 +1,12 @@
+{
+  "_why": "ONE wording for a stamped price's source and as-of, in ET. Read by marketContextModel.test.js (the market context stamp, client) AND tests/test_trader_blocks_price_stamp.py (note_facts._as_of_label, the price stamp's server label), so the two cannot drift. Times are HARD-CODED, never derived from the calendar.",
+  "rows": [
+    {"source": "last close", "asOf": "2026-10-09T20:00:00Z", "want": "Last close, Oct 9, 2026, 4:00 PM ET"},
+    {"source": "last close", "asOf": "2026-11-25T21:00:00Z", "want": "Last close, Nov 25, 2026, 4:00 PM ET"},
+    {"source": "last close", "asOf": "2026-11-27T18:00:00Z", "want": "Last close, Nov 27, 2026, 1:00 PM ET"},
+    {"source": "live price", "asOf": "2026-10-13T17:26:00Z", "want": "Live price, Oct 13, 2026, 1:26 PM ET"},
+    {"source": "live price", "asOf": "2026-10-13T13:31:00Z", "want": "Live price, Oct 13, 2026, 9:31 AM ET"},
+    {"source": "live price", "asOf": "2026-10-13T16:05:00Z", "want": "Live price, Oct 13, 2026, 12:05 PM ET"},
+    {"source": "live price", "asOf": "2026-10-14T01:30:00Z", "want": "Live price, Oct 13, 2026, 9:30 PM ET"}
+  ]
+}

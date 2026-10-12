@@ -1,27 +1,27 @@
-// Price-stamped lines (spec §P2 item 4; R-P2-2, R-P2-3, IR-S3, S24). A real TipTap editor in jsdom, so
-// the Enter order (V10) is proved rather than assumed: Enter lands at once, the stamp follows as its own
-// undo step, within STAMP_TIMEOUT_MS of the Enter or not at all.
+// Price-stamped lines (spec §P2 item 4; R-P2-2, R-P2-3, IR-S3). A real TipTap editor in jsdom, so the
+// Enter order is proved rather than assumed: Enter lands at once, the stamp follows as its own undo
+// step, within STAMP_TIMEOUT_MS of the Enter or not at all. Fix round 1 (option E): the plugin is held
+// by the block body (attachPriceStamps); these rails attach it directly, and PriceStampsBlock.test.jsx
+// rails the holding (S24, two blocks, switch off, removal).
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { Editor, Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 
-let STYLES_ON = true
-vi.mock('../journalStylesFlag', async (orig) => ({ ...(await orig()), journalStylesEnabled: () => STYLES_ON }))
-
 import { buildExtensions } from '../tiptap'
-import { stampsOn, STAMP_TIMEOUT_MS, PRICE_STAMPS_KEY } from './priceStamps'
+import { STAMP_TIMEOUT_MS, PRICE_STAMPS_KEY, attachPriceStamps } from './priceStamps'
 
 let lineTicker, requestStamp
-beforeAll(async () => { ({ lineTicker, requestStamp } = await import('./priceStampsRun')) })   // warm the lazy chunk once
+beforeAll(async () => { ({ lineTicker, requestStamp } = await import('./priceStampsRun')) })
 
 const doc = (on, ...paras) => ({ type: 'doc', content: [
   { type: 'widgetEmbed', attrs: { widgetId: 'priceStamps', params: { on } } },
   ...paras.map((t) => ({ type: 'paragraph', content: t ? [{ type: 'text', text: t }] : [] })),
 ] })
 
-function editorWith(content, extra = []) {
+function editorWith(content, extra = [], { attach = true } = {}) {
   const ed = new Editor({ extensions: [...buildExtensions(), ...extra], content })
   ed.storage.uctJournalWidgets = { noteId: 'n1', noteTicker: 'AMD' }
+  if (attach) attachPriceStamps(ed)                     // what a mounted, on stamps block does
   return ed
 }
 const types = (ed) => ed.getJSON().content.map((n) => n.type)
@@ -38,7 +38,6 @@ const reply = (id = 'f1') => ({ ok: true, json: async () => ({ fact: { id } }) }
 
 describe('price stamps', () => {
   beforeEach(() => {
-    STYLES_ON = true
     vi.useFakeTimers()
     globalThis.fetch = vi.fn(() => new Promise((r) => setTimeout(() => r(reply()), 300)))
   })
@@ -89,28 +88,59 @@ describe('price stamps', () => {
     expect(types(ed)).toEqual(['widgetEmbed', 'paragraph', 'financialFact', 'paragraph'])
   })
 
-  it('off by default: no block or on=no stamps nothing and fetches nothing', async () => {
-    const ed = editorWith(doc('no', 'Long $NVDA here'))
-    pressEnterAtEndOf(ed, 1)
-    await vi.advanceTimersByTimeAsync(400)
-    expect(globalThis.fetch).not.toHaveBeenCalled()
-    expect(stampsOn(ed.state.doc)).toBe(false)
-    const none = editorWith({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Long $NVDA' }] }] })
-    pressEnterAtEndOf(none, 0)
-    await vi.advanceTimersByTimeAsync(400)
-    expect(globalThis.fetch).not.toHaveBeenCalled()
-    expect(stampsOn(none.state.doc)).toBe(false)
-    expect(stampsOn(editorWith(doc('yes', 'x')).state.doc)).toBe(true)          // control: the switch reads on
-  })
-
-  it('the journal styles switch off: nothing is fetched and nothing stamped, even with on=yes (S24)', async () => {
-    STYLES_ON = false
-    const ed = editorWith(doc('yes', 'Long $NVDA here'))
-    pressEnterAtEndOf(ed, 1)
+  it('Enter before the block has loaded (nothing holds the plugin): no stamp, no fetch, no error', async () => {
+    const ed = editorWith(doc('yes', 'Long $NVDA here'), [], { attach: false })
+    expect(PRICE_STAMPS_KEY.get(ed.state)).toBeUndefined()
+    expect(() => pressEnterAtEndOf(ed, 1)).not.toThrow()
+    expect(types(ed)).toEqual(['widgetEmbed', 'paragraph', 'paragraph'])     // Enter itself landed
     await vi.advanceTimersByTimeAsync(400)
     expect(globalThis.fetch).not.toHaveBeenCalled()
     expect(types(ed)).not.toContain('financialFact')
-    expect(types(ed)).toEqual(['widgetEmbed', 'paragraph', 'paragraph'])     // Enter itself still landed
+  })
+
+  it('the plugin is asked FIRST: a list item, whose own Enter consumes the key, still gets its stamp', async () => {
+    const ed = editorWith({ type: 'doc', content: [{ type: 'bulletList', content: [{ type: 'listItem', content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Long $NVDA here' }] }] }] }] })
+    let end = 0
+    ed.state.doc.descendants((n, pos) => { if (n.isText) end = pos + n.nodeSize })
+    ed.commands.setTextSelection(end)
+    expect(ed.state.selection.$from.parent.textContent).toBe('Long $NVDA here')
+    ed.view.someProp('handleKeyDown', (f) => f(ed.view, new KeyboardEvent('keydown', { key: 'Enter' })))
+    await vi.advanceTimersByTimeAsync(400)
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(ed.getJSON())).toContain('financialFact')
+  })
+
+  it('only a plain Enter stamps: Shift+Enter, or Enter while composing, records nothing', async () => {
+    const ed = editorWith(doc('yes', 'Long $NVDA here'))
+    ed.commands.setTextSelection(lineAt(ed, 1).to - 1)
+    for (const init of [{ shiftKey: true }, { isComposing: true }, { ctrlKey: true }, { altKey: true }]) {
+      ed.view.someProp('handleKeyDown', (f) => f(ed.view, new KeyboardEvent('keydown', { key: 'Enter', ...init })))
+    }
+    await vi.advanceTimersByTimeAsync(400)
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+  })
+
+  it('M-4: a code-block line never stamps, even naming $NVDA', async () => {
+    const ed = editorWith({ type: 'doc', content: [
+      { type: 'codeBlock', content: [{ type: 'text', text: 'buy $NVDA' }] }] })
+    ed.commands.setTextSelection(ed.state.doc.content.size - 1)
+    ed.view.someProp('handleKeyDown', (f) => f(ed.view, new KeyboardEvent('keydown', { key: 'Enter' })))
+    await vi.advanceTimersByTimeAsync(400)
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+    expect(PRICE_STAMPS_KEY.getState(ed.state).size).toBe(0)
+  })
+
+  it('M-3: a start that no longer sits on a text line when the price lands takes no stamp', async () => {
+    const ed = editorWith(doc('yes', 'Long $NVDA here'))
+    pressEnterAtEndOf(ed, 1)
+    await vi.advanceTimersByTimeAsync(100)                     // the line was read; the fetch is out
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+    const [[id]] = [...PRICE_STAMPS_KEY.getState(ed.state)]
+    ed.view.dispatch(ed.state.tr.setMeta(PRICE_STAMPS_KEY, [id, 0]))   // its start now maps onto the block
+    await vi.advanceTimersByTimeAsync(400)
+    expect(types(ed)).not.toContain('financialFact')
+    expect(PRICE_STAMPS_KEY.getState(ed.state).size).toBe(0)
   })
 
   it('a fetch slower than the 2 s budget inserts nothing', async () => {

@@ -1,12 +1,11 @@
-// The lazy half of price stamps (IR-S12): the ticker resolver (and its taxonomy) load here, on the first
-// stamp of a session, never on first open. Writes ONE thing that is not a note: a price fact row, through
-// the trader-blocks stamp route (lib/blocks/blockDoors.test.js names this method+URL; the /price
+// The run half of price stamps: what a stamped line names, the one write, and the stamp's own undo step.
+// It rides the price stamps block's lazy chunk with priceStamps.js (fix round 1, option E), so the ticker
+// resolver and its taxonomy are never first-open. Writes ONE thing that is not a note: a price fact row,
+// through the trader-blocks stamp route (lib/blocks/blockDoors.test.js names this method+URL; the /price
 // capture's own URL is a note URL, which that rail refuses). The SERVER decides what the price is and
 // what it is as of: a live price during the regular session, outside it the last close dated by its
 // session (api/services/journal_two/trader_blocks.py price_stamp_quote). Nothing here reads a clock or a
-// session edge. The stub hands this module its plugin key and `settle` (rather than this module
-// importing the stub): the stub lives in the editor's first-open chunk, and importing it from here would
-// make this lazy chunk's preload list carry that whole chunk's dependency list into first open.
+// session edge. The plugin key and `settle` are handed in, so this module imports nothing of the plugin.
 import { closeHistory } from '@tiptap/pm/history'
 import { resolveCashtags } from '../../../../lib/tickerResolver'
 
@@ -36,10 +35,10 @@ export async function requestStamp({ noteId, symbol, signal }) {
   }
 }
 
-/** `until`: the stamp's deadline (the Enter + STAMP_TIMEOUT_MS), chunk load already spent from it. */
+/** `until`: the stamp's deadline (the Enter + STAMP_TIMEOUT_MS). */
 export default async function runStamp({ editor, id, until, key, settle }) {
   const left = until - Date.now()
-  if (!(left > 0)) { settle(editor, id); return }         // the chunk took the whole budget: no fetch
+  if (!(left > 0)) { settle(editor, id); return }         // the budget is spent: no fetch
   const ctl = new AbortController()
   const timer = setTimeout(() => ctl.abort(), left)
   try {
@@ -60,7 +59,8 @@ async function stamp({ editor, id, key, settle, signal }) {
   if (editor.isDestroyed) return
   const pos = at()                                       // mapped through every edit since Enter
   const now = pos == null ? null : editor.state.doc.nodeAt(pos)
-  if (!fact?.id || signal.aborted || !now) { settle(editor, id); return }   // IR-S3: line gone (pos null) -> nothing
+  // IR-S3: the line gone (pos null) or no longer a text line at its start -> nothing
+  if (!fact?.id || signal.aborted || !now?.isTextblock) { settle(editor, id); return }
   const tr = closeHistory(editor.state.tr)
     .insert(pos + now.nodeSize, editor.schema.nodes.financialFact.create({ factId: fact.id }))
     .setMeta(key, id)

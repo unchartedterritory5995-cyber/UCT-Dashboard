@@ -55,20 +55,21 @@ _PRICE_BASES = ("last close", "live price")
 
 
 def _as_of_label(fact_type: str, source_ref: Any, source_as_of: Any) -> str | None:
-    """What a stamped price IS and when, in ET, worded here so no client works out a session or a
-    zone: "Last close, Oct 13, 2026" (the session's date) or "Live price, 1:26 PM ET" (the vendor's
-    time). None for every other fact, and for any price captured without an as-of (/price)."""
+    """What a stamped price IS and when, in the market context stamp's own words (marketContextModel.js
+    sourcedText): "Last close, Oct 9, 2026, 4:00 PM ET" / "Live price, Oct 13, 2026, 1:26 PM ET". The clock
+    is trader_blocks._et_clock, the one ET clock; app/src/pages/charts/widgets/priceAsOfWording.fixture.json
+    pins both sides. None for every other fact, and for any price captured without an as-of (/price)."""
     if fact_type != "price" or source_ref not in _PRICE_BASES or not isinstance(source_as_of, str):
         return None
     from datetime import datetime
     from zoneinfo import ZoneInfo
+    from api.services.journal_two.trader_blocks import _et_clock
     try:
-        t = datetime.fromisoformat(source_as_of.replace("Z", "+00:00")).astimezone(ZoneInfo("America/New_York"))
+        at = datetime.fromisoformat(source_as_of.replace("Z", "+00:00"))
+        t = at.astimezone(ZoneInfo("America/New_York"))
     except (ValueError, TypeError):
         return None
-    if source_ref == "last close":
-        return f"Last close, {t:%b} {t.day}, {t.year}"
-    return f"Live price, {t.hour % 12 or 12}:{t.minute:02d} {'AM' if t.hour < 12 else 'PM'} ET"
+    return f"{source_ref[0].upper()}{source_ref[1:]}, {t:%b} {t.day}, {t.year}, {_et_clock(at)}"
 
 
 def _row_to_fact(row: sqlite3.Row) -> dict[str, Any]:
