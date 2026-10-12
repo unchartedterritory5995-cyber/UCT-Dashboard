@@ -182,13 +182,23 @@ def _clean_kind(user_id: str, raw: Any, conn: sqlite3.Connection) -> str:
     return raw
 
 
+def _live_template(user_id: str, tid: Any, conn: sqlite3.Connection) -> str | None:
+    """`tid` when it is one of the member's templates now, else None."""
+    if not isinstance(tid, str) or not tid:
+        return None
+    hit = conn.execute("SELECT 1 FROM j2_note_templates WHERE id = ? AND user_id = ?", (tid, user_id)).fetchone()
+    return tid if hit else None
+
+
 def _clean_template(user_id: str, raw: Any, conn: sqlite3.Connection) -> str | None:
+    """⛔ Final review I-1: a linked template that no longer exists is NO template (compose's own fallback,
+    `_outline_doc`), never a refusal: a refusal locked the style for good, because Duplicate and the editor's
+    preview send the stored link back. Only an id that is not text is malformed."""
     if raw in (None, ""):
         return None
-    if not isinstance(raw, str) or conn.execute(
-            "SELECT 1 FROM j2_note_templates WHERE id = ? AND user_id = ?", (raw, user_id)).fetchone() is None:
+    if not isinstance(raw, str):
         raise StyleValidationError("That outline is not one of your templates.")
-    return raw
+    return _live_template(user_id, raw, conn)
 
 
 def _clean_outline(raw: Any) -> dict | None:
@@ -238,7 +248,22 @@ def _clean_blocks(raw: Any) -> list[dict]:
     return out
 
 
+def _stale_option(d: dict, value: Any) -> bool:
+    """A select value of the right SHAPE whose option the member has since removed: stale, not malformed."""
+    if d.get("type") == "select":
+        return isinstance(value, str)
+    if d.get("type") == "multi_select":
+        return isinstance(value, list) and all(isinstance(x, str) for x in value)
+    return False
+
+
 def _clean_properties(user_id: str, raw: Any, conn: sqlite3.Connection) -> dict:
+    """⛔ Final review I-1: a STALE reference (a property the member has deleted, an option they removed) is
+    DROPPED from what is stored, the rule compose already applies (`_valid_defaults`), never a refusal: the
+    editor re-sends every stored default on each Save, Duplicate and draft preview, so a refusal here locked
+    the style for good. A MALFORMED value (a wrong type for a property that exists) still answers 400.
+    Dropped on save, not on read: every door that sends a style back comes through here, and serving the
+    stored value keeps the list a plain read (no property lookups per style)."""
     from api.services.journal_two import note_properties as np
     if raw is None:
         return {}
@@ -252,10 +277,12 @@ def _clean_properties(user_id: str, raw: Any, conn: sqlite3.Connection) -> dict:
             raise StyleValidationError(f"{pid} is not a property a style can fill.")
         d = np.get_property_def(user_id, pid, conn=conn)
         if d is None or d.get("computed"):
-            raise StyleValidationError(f"Unknown property: {pid}")
+            continue                                            # deleted (or not settable): stale, dropped
         try:
             v = np.validate_property_value(d, value)
         except np.PropertyValidationError as e:
+            if _stale_option(d, value):
+                continue                                        # its option was removed: stale, dropped
             raise StyleValidationError(str(e)) from e
         if v is not None:
             out[pid] = v
@@ -386,9 +413,21 @@ def update_style(user_id: str, style_id: str, patch: Any, conn: sqlite3.Connecti
             cleaned["blocks"] = json.dumps(_clean_blocks(patch["blocks"]))
         if "properties" in patch:
             cleaned["properties"] = json.dumps(_clean_properties(user_id, patch["properties"], conn))
+        def effective(col: str) -> Any:
+            # What compose reads from the stored value: a stale default or a gone template was already
+            # ignored there, so dropping it on this save is not an edit and bumps no version (I-1).
+            if col == "properties_json":
+                try:
+                    return json.dumps(_valid_defaults(user_id, json.loads(r[col] or "{}"), conn))
+                except (TypeError, ValueError):
+                    return r[col]
+            if col == "outline_template_id":
+                return _live_template(user_id, r[col], conn)
+            return r[col]
+
         for key, value in cleaned.items():
             col = _CONTENT_KEYS[key]
-            if r[col] != value:
+            if effective(col) != value:
                 content_changed = True
             sets.append(f"{col} = ?"); params.append(value)
         if "kindId" in cleaned and cleaned["kindId"] != r["kind_id"]:

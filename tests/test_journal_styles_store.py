@@ -250,6 +250,116 @@ def test_saving_a_note_whose_property_was_deleted_leaves_that_value_out(db_path)
     assert s["properties"] == {"builtin:confidence": "low"}
 
 
+def _editor_body(style: dict, **changes) -> dict:
+    """What StyleEditor.save sends for an existing style: name, kind, blocks and properties, every time
+    (the outline only when the member changed it)."""
+    body = {"name": style["name"], "kindId": style["kindId"], "blocks": style["blocks"],
+            "properties": style["properties"]}
+    body.update(changes)
+    return body
+
+
+def _duplicate_body(style: dict) -> dict:
+    """What StylesManager.duplicate sends: the full style read back, renamed."""
+    body = {"name": style["name"] + " copy", "kindId": style["kindId"], "blocks": style["blocks"],
+            "properties": style["properties"]}
+    if style.get("outlineTemplateId"):
+        body["outlineTemplateId"] = style["outlineTemplateId"]
+    if style.get("outlineBodyJson"):
+        body["outlineBodyJson"] = style["outlineBodyJson"]
+    return body
+
+
+def test_a_deleted_property_never_locks_a_style(db_path):
+    """Final review I-1: a style whose stored default names a property the member has since deleted
+    (a soft delete leaves the value behind) must still rename, duplicate, edit and preview. The stale id
+    is dropped from what is stored, the way compose already ignores it."""
+    from api.services.journal_two import journal_styles as js, note_properties as np
+    p = np.create_property_def("u1", "Setup", "select", [{"label": "VCP"}])
+    s = _make(properties={p["id"]: p["options"][0]["id"], "builtin:confidence": "high"})
+    np.delete_property_def("u1", p["id"])
+    stored = js.get_style("u1", s["id"])
+    assert p["id"] in stored["properties"]                         # the case under test: still served
+
+    renamed = js.update_style("u1", s["id"], _editor_body(stored, name="Renamed"))
+    assert renamed["name"] == "Renamed"
+    assert renamed["properties"] == {"builtin:confidence": "high"}     # the stale id is gone from storage
+    assert renamed["version"] == stored["version"]                 # dropping what compose ignored is no edit
+
+    copy_ = js.create_style("u1", _duplicate_body(stored))
+    assert copy_["properties"] == {"builtin:confidence": "high"}
+
+    edited = js.update_style("u1", s["id"], _editor_body(renamed, blocks=[]))
+    assert edited["blocks"] == [] and edited["version"] == stored["version"] + 1
+
+    out = js.preview("u1", {"style": _editor_body(stored)})
+    assert p["id"] not in out["properties"] and out["properties"]["builtin:confidence"] == "high"
+
+
+def test_a_deleted_select_option_never_locks_a_style(db_path):
+    """The same class one level down: the property still exists, the OPTION the default named does not."""
+    from api.services.journal_two import journal_styles as js, note_properties as np
+    p = np.create_property_def("u1", "Setup", "select", [{"label": "VCP"}, {"label": "Flag"}])
+    s = _make(properties={p["id"]: p["options"][0]["id"]})
+    np.update_property_def("u1", p["id"], options=[p["options"][1]])          # VCP is removed
+    stored = js.get_style("u1", s["id"])
+    renamed = js.update_style("u1", s["id"], _editor_body(stored, name="Renamed"))
+    assert renamed["name"] == "Renamed" and renamed["properties"] == {}
+    assert js.create_style("u1", _duplicate_body(stored))["properties"] == {}
+    assert p["id"] not in js.preview("u1", {"style": _editor_body(stored)})["properties"]
+
+
+def test_a_malformed_value_for_a_property_that_exists_is_still_refused(db_path):
+    """CONTROL: leniency is for STALE references only. A wrong type for a live property is the client's
+    mistake and answers 400, on save, on duplicate and on the draft preview."""
+    from api.services.journal_two import journal_styles as js, note_properties as np
+    p = np.create_property_def("u1", "Setup", "select", [{"label": "VCP"}])
+    s = _make()
+    with pytest.raises(js.StyleValidationError):
+        js.update_style("u1", s["id"], {"properties": {p["id"]: 7}})
+    with pytest.raises(js.StyleValidationError):
+        _make(properties={"builtin:confidence": ["high"]})
+    with pytest.raises(js.StyleValidationError):
+        js.preview("u1", {"style": {"name": "x", "kindId": "thesis", "properties": {p["id"]: True}}})
+
+
+def test_a_deleted_linked_template_never_locks_a_style(db_path):
+    """Final review I-1, the template half: a missing linked template is treated as no template (compose's
+    own fallback), on rename, duplicate, edit and the draft preview."""
+    from api.services.journal_two import journal_styles as js, note_templates, notes
+    n = notes.create_note("u1", {"title": "t", "bodyJson": {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "from template"}]}]}})
+    t = note_templates.create_from_note("u1", n["id"])
+    s = _make(outlineTemplateId=t["id"])
+    note_templates.delete_template("u1", t["id"])
+    stored = js.get_style("u1", s["id"])
+    assert stored["outlineTemplateId"] == t["id"]                  # the case under test: still linked
+
+    renamed = js.update_style("u1", s["id"], _editor_body(stored, name="Renamed",
+                                                         outlineTemplateId=stored["outlineTemplateId"]))
+    assert renamed["name"] == "Renamed" and renamed["outlineTemplateId"] is None
+    assert renamed["version"] == stored["version"]                 # compose read the inline outline before too
+
+    copy_ = js.create_style("u1", _duplicate_body(stored))
+    assert copy_["outlineTemplateId"] is None
+    assert copy_["outlineBodyJson"] == stored["outlineBodyJson"]   # the inline outline travels
+
+    edited = js.update_style("u1", s["id"], _editor_body(renamed, blocks=[]))
+    assert edited["blocks"] == []
+
+    draft = _editor_body(stored, outlineTemplateId=stored["outlineTemplateId"],
+                         outlineBodyJson=stored["outlineBodyJson"])
+    out = js.preview("u1", {"style": draft})
+    assert out["bodyJson"]["content"][0]["type"] == "heading"      # the inline outline, composed
+
+
+def test_a_template_id_of_the_wrong_type_is_still_refused(db_path):
+    """CONTROL: a missing template is stale; a template id that is not text is malformed."""
+    from api.services.journal_two import journal_styles as js
+    with pytest.raises(js.StyleValidationError):
+        _make(outlineTemplateId=5)
+
+
 def test_note_carries_style_keys(db_path):
     from api.services.journal_two import notes
     n = notes.create_note("u1", {"title": "x"})
