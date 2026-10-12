@@ -301,10 +301,8 @@ describe('⛔ F6 — a Save applies only what its card showed', () => {
     expect(s.expiresAt - s.issuedAt).toBe(PROPOSAL_TTL_MS)
     expect(Object.isFrozen(s)).toBe(true)
     const card = prop.card[0]
-    expect(card).toContain('(draft revision 1)')
-    expect(card).toContain('as “Swing”')
-    expect(card).toContain('then add it to Right chart (AAPL)')
-    expect(card).toContain(`The builder's summary: ${s.linesShown.join(' / ')}`)
+    expect(card).toContain('Save “Swing” as a new indicator and add it to Right chart (AAPL)')
+    expect(card).not.toContain("The builder's summary")              // owner 10-12: short card; the seal still pins the summary
     expect(card).toContain(`You are also acknowledging: ${s.ackShown.join(' ')}`)
     const { p } = await plan(h, prop.ops, { approved: true, approval: prop.seals })
     expect(p.ok).toBe(true)
@@ -355,7 +353,7 @@ describe('⛔ F6 in the real panel', () => {
     const h = host([L])
     let T = 1_800_000_000_000
     vi.spyOn(Date, 'now').mockImplementation(() => T)
-    const ref = await emaDraft(h)
+    const ref = await pivotDraft(h)                  // repainting → its Save still needs a card (owner 10-12)
     render(<AuthContext.Provider value={{ user: { role: 'admin' }, cohorts: [] }}><AgentPanel host={h} onClose={() => {}} /></AuthContext.Provider>)
     const box = screen.getByLabelText('Message UCT Agent')
     const send = (t) => { fireEvent.change(box, { target: { value: t } }); fireEvent.keyDown(box, { key: 'Enter' }) }

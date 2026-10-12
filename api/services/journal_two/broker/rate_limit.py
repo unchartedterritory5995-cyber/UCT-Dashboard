@@ -25,6 +25,7 @@ Correctness notes:
 from __future__ import annotations
 
 import asyncio
+import threading
 import time
 from typing import Awaitable, Callable
 
@@ -49,7 +50,12 @@ class AsyncRateLimiter:
         self._sleep = sleep
         self._tokens = float(cap)  # start full (allow an initial burst)
         self._last = clock()
-        self._lock = asyncio.Lock()
+        # A THREADING lock, not asyncio.Lock: one process-wide limiter is shared by
+        # syncs running on DIFFERENT event loops (the request loop, the scheduler's
+        # asyncio.run threads, and since 2026-10-12 the off-loop request syncs).
+        # An asyncio.Lock contended across loops raises or strands its waiter.
+        # Safe here because the critical section below never awaits.
+        self._lock = threading.Lock()
 
     async def acquire(self, n: float = 1.0) -> None:
         """Block until `n` tokens are available, then consume them."""
@@ -60,7 +66,7 @@ class AsyncRateLimiter:
                 f"cannot acquire {n} tokens; capacity is {self._capacity}"
             )
         while True:
-            async with self._lock:
+            with self._lock:  # no await inside — see __init__
                 now = self._clock()
                 # Refill for elapsed time (never above capacity).
                 elapsed = max(0.0, now - self._last)

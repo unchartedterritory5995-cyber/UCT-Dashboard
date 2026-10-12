@@ -6,6 +6,8 @@ import UIcon from '../ui/UIcon'
 import styles from './MoreSheet.module.css'
 import uctLogo from '../intro/assets/compass-mark.png'
 import { FREE_PAGES } from '../../constants/freePages'
+import { useTerminalNavPath } from '../../pages/terminal/TerminalRoutes'
+import { TERMINAL_PATH } from '../../pages/terminal/terminalGate'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
@@ -89,6 +91,8 @@ export default function MoreSheet({ open, onClose }) {
     fetcher,
     { refreshInterval: 120_000 },
   )
+  // V19: the UCT Terminal entry honours "keep classic calendar" (TerminalRoutes.jsx).
+  const terminalNavPath = useTerminalNavPath()
 
   if (!open) return null
   const go = (to) => { onClose?.(); navigate(to) }
@@ -145,7 +149,7 @@ export default function MoreSheet({ open, onClose }) {
                     className={`${styles.item} ${isActive(l.to) ? styles.active : ''} ${locked ? styles.locked : ''}`}
                     aria-current={isActive(l.to) ? 'page' : undefined}
                     aria-label={locked ? `${l.label} — unlock with Pro` : undefined}
-                    onClick={() => go(locked ? '/subscribe' : l.to)}
+                    onClick={() => go(locked ? '/subscribe' : l.to === TERMINAL_PATH ? terminalNavPath : l.to)}
                   >
                     <span className={styles.icon} aria-hidden="true"><UIcon name={l.icon} size={20} /></span>
                     <span className={styles.itemLabel}>{l.label}</span>

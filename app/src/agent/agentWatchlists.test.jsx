@@ -229,13 +229,13 @@ describe('rename, compound, compact-mode manifest', () => {
     expect(state.server.lists.find(l => l.id === 's1').name).toBe('Swing')
     expect((await plan(host, [{ action: 'watchlist.rename', target: 's1', args: { name: 'MOMENTUM' } }])).p.refusals[0].reason).toMatch(/already have a watchlist named “Momentum”/)
   })
-  it('two lists in one request: a proposal, each list gets only its own symbols', async () => {
+  it('two lists in one request (explicit: runs, no card), each list gets only its own symbols', async () => {
     const { host, state } = lib()
     const { p, env } = await plan(host, [
       { action: 'watchlist.add', target: 'm1', args: { symbols: ['RKLB'] } },
       { action: 'watchlist.add', target: 's1', args: { symbols: ['AMD'] } },
     ])
-    expect(decideMode('apply', p)).toBe('propose')
+    expect(decideMode('apply', p)).toBe('apply')            // owner 2026-10-12: explicit + reversible → no second click
     expect(p.lines).toEqual(['Added RKLB to “Momentum”', 'Added AMD to “Swing”'])
     await commitPlan(host, p, { env })
     expect(symsOf(state, 'm1')).toContain('RKLB')

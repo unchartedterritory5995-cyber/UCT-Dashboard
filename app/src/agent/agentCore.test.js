@@ -214,9 +214,13 @@ describe('stale protection', () => {
 })
 
 describe('policy', () => {
-  it('a multi-target plan is always a proposal even if apply was suggested', () => {
+  // OWNER 2026-10-12: an EXPLICIT multi-target plan of local, reversible changes runs (no second click);
+  // a model proposal, or a confirm / irreversible op, still proposes
+  it('an explicit multi-target plan of reversible changes applies; a propose stays a propose', () => {
     const host = makeHost([{ ref: 'c1' }, { ref: 'c2' }])
-    expect(decideMode('apply', plan(host, [op('chart.setType', { type: 'bars' }, 'c1'), op('chart.setType', { type: 'bars' }, 'c2')]))).toBe('propose')
+    const p = plan(host, [op('chart.setType', { type: 'bars' }, 'c1'), op('chart.setType', { type: 'bars' }, 'c2')])
+    expect(decideMode('apply', p)).toBe('apply')
+    expect(decideMode('propose', p)).toBe('propose')
   })
   it('a small single-target request applies; a propose stays a propose', () => {
     const p = plan(makeHost([{ ref: 'c1' }]), [op('chart.setType', { type: 'bars' })])

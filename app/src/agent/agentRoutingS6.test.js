@@ -130,7 +130,7 @@ describe('F2 — "Save it as X" with an indicator draft open is never a silent l
     const h = host()
     const ref = await withDraft(h)
     const op = { action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: 'Trend' } }
-    expect(screen(h, [op], 'Save it as Trend').ops).toEqual([op])
+    expect(screen(h, [op], 'Save it as Trend').ops).toEqual([{ ...op, explicit: true }])   // the member's own words → no second click (owner 10-12)
   })
 })
 

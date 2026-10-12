@@ -170,17 +170,16 @@ describe('F2b — "save it" with an indicator draft open is never a layout save'
     expect(saveReferent(h, 'Save the indicator.')?.kind).toBe('draft')
     expect(fastParse('Save it.', { host: h })).toBe(null)               // neither the layout nor the draft claims it
   })
-  it('end to end (the acceptance repro): "Save it." with the draft selected → an INDICATOR Save card; no layout write, no model call', async () => {
+  // owner 2026-10-12 (+ Indicators' conditions): "Save it." is the member's own explicit save → no second click
+  it('end to end (the acceptance repro): "Save it." with the draft selected → the INDICATOR is saved (no card); no layout write, no model call', async () => {
     const h = host([L])
     await emaDraft(h)
     const send = mount(h)
     send('Save it.')
-    await waitFor(() => expect(cards()).toHaveLength(1))
-    expect(cards()[0]).toMatch(/^Proposed changesSave “EMA 20” as a new indicator \(draft revision 1\)/)
-    expect(cards()[0]).not.toMatch(/layout/i)
-    expect(turns()).toBe(0)
-    send('do it')
     await waitFor(() => expect(stored).toHaveLength(1), { timeout: 4000 })
+    expect(cards()).toHaveLength(0)
+    await waitFor(() => expect(transcript()).toMatch(/Saved “EMA 20” to your indicators — permanent\./), { timeout: 4000 })
+    expect(turns()).toBe(0)
     expect(h.saves).toEqual([])                                            // the layout was never saved
   })
   it('end to end: drafts open, none selected → "Save it." asks; no card, no write, no model call', async () => {
@@ -226,7 +225,7 @@ describe('R1 — "save it as X": rename first (its own step), then a Save card t
     expect(transcript()).toMatch(/Renamed the draft to “Swing Highs” \(draft — not saved\)\./)   // the rename, its own step
     expect(calls.length).toBe(n)                                                  // no model call for the name
     const card = cards()[0]
-    expect(card).toMatch(/Save “Swing Highs” as a new indicator \(draft revision 2\)/)
+    expect(card).toMatch(/Save “Swing Highs” as a new indicator/)
     expect(card).toMatch(/You are also acknowledging: Swing Highs reads .+ ahead, so .+ — confirm below before saving/)
     send('do it')
     await waitFor(() => expect(stored).toHaveLength(1), { timeout: 4000 })
@@ -250,7 +249,8 @@ describe('R1 — "save it as X": rename first (its own step), then a Save card t
   })
   it('the rename has its own exact Undo (the specialist\'s step): Undo puts the old name back; no Save happened', async () => {
     const h = host([L])
-    await emaDraft(h)
+    await pivotDraft(h)                       // a repainting draft: its Save still needs the card (an acknowledgement)
+    const before = drafts(h)[0].status.name
     const send = mount(h)
     send('Save it as Trend One.')
     await waitFor(() => expect(cards()).toHaveLength(1), { timeout: 4000 })
@@ -258,7 +258,7 @@ describe('R1 — "save it as X": rename first (its own step), then a Save card t
     send('cancel')
     await waitFor(() => expect(transcript()).toContain('Okay — nothing changed.'))
     send('undo')
-    await waitFor(() => expect(drafts(h)[0].status.name).toBe('EMA 20'), { timeout: 4000 })
+    await waitFor(() => expect(drafts(h)[0].status.name).toBe(before), { timeout: 4000 })
     await waitFor(() => expect(transcript()).toMatch(/Undid the last change to/), { timeout: 4000 })
     expect(stored).toEqual([])
   })
@@ -323,10 +323,11 @@ describe('R1 — renameDraft is the ONLY rename path', () => {
     const ref = await emaDraft(h)
     const ops = [{ action: 'indicator.draft', target: ref, args: { message: 'Name it “Trend Watch”.', chart: null, edit: null } }, { action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: null } }]
     const s = screenModelOps(h, ops, 'Name it Trend Watch and save it.', CTX)
-    expect(s.ops).toEqual([{ action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: 'Trend Watch' } }])
-    // a real maths change + Save is NOT rewritten: it stays two ops, and the planner refuses it
+    expect(s.ops).toEqual([{ action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: 'Trend Watch' }, explicit: true }])
+    // a real maths change + Save on an EXISTING draft: the change runs, the Save is dropped (owner 10-12) — the
+    // draft line then says "not saved yet … Want me to apply it", so nothing is saved that the member didn't see
     const maths = [{ action: 'indicator.draft', target: ref, args: { message: 'make the slow line 50', chart: null, edit: null } }, ops[1]]
-    expect(screenModelOps(h, maths, 'make the slow line 50 and save it', CTX).ops).toHaveLength(2)
+    expect(screenModelOps(h, maths, 'make the slow line 50 and save it', CTX).ops).toEqual([maths[0]])
   })
   it('end to end: the model plans the two-op form → one rename receipt (renameDraft, no model call) + one Save card on the renamed draft', async () => {
     const h = host([L])
@@ -341,11 +342,12 @@ describe('R1 — renameDraft is the ONLY rename path', () => {
       ] }
     })
     send('Call it Trend Watch and save it.')
-    await waitFor(() => expect(cards()).toHaveLength(1), { timeout: 4000 })
+    // owner 2026-10-12: the member's own "save it" (with the name they said) needs no card
+    await waitFor(() => expect(stored).toHaveLength(1), { timeout: 4000 })
     expect(transcript()).toMatch(/Renamed the draft to “Trend Watch” \(draft — not saved\)\./)
-    expect(cards()[0]).toMatch(/Save “Trend Watch” as a new indicator/)
+    await waitFor(() => expect(transcript()).toMatch(/Saved “Trend Watch” to your indicators — permanent\./), { timeout: 4000 })
+    expect(cards()).toHaveLength(0)
     expect(calls.length).toBe(n)
-    expect(stored).toEqual([])
   })
 })
 
@@ -378,7 +380,7 @@ describe('M1 — no unrequested preview in indicator creation; asked-for preview
       { action: 'indicator.previewDraft', target: b.context.indicatorDrafts.find(e => e.new).ref, args: { chart: 'L' } },
     ] }))
     send('Build me an EMA 20 indicator on the left chart.')
-    await waitFor(() => expect(transcript()).toMatch(/Started “EMA 20” \(draft — not saved\)/), { timeout: 4000 })
+    await waitFor(() => expect(transcript()).toMatch(/Draft ready \(not saved yet\)/), { timeout: 4000 })
     expect(transcript()).toContain('I won’t show a preview unless you ask for one.')
     expect(transcript()).not.toMatch(/There is no draft to preview yet/)
     expect(previews).toBe(0)

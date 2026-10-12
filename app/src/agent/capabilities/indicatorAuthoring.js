@@ -136,6 +136,64 @@ const NEGATION = /\b(don['’]?t|do not|not|no|without|never|neither|nor)\b/i
 export function asksToApply(text) {
   return String(text || '').split(/[.;!?\n]+|,\s*(?:but|then)\b/i).some(c => APPLY_WORDS.test(c) && !NEGATION.test(c))
 }
+
+// ── OWNER 2026-10-12: an explicit "apply it" / "save it" needs no second click (policy.js `explicitOk`).
+// Indicators' conditions (2026-10-12): decided ONLY from the member's OWN words in THIS message, here,
+// never because the model planned a save; one usable draft (draftAmbiguity still asks first); the name
+// is theirs or the draft's; a chart they named (or the one they clicked, still valid); an
+// acknowledgement, a new version of a saved indicator or a duplicate name keeps the card (confirmIf). ──
+const APPLY_IT = /\b(?:apply|add|put|place|attach)\s+(?:it|this|that|this one|the indicator|the draft|my indicator)\b/i
+/** Did the member's own words in THIS message ask to save or apply the indicator? */
+export function explicitSaveWords(text) {
+  const t = String(text || '').trim()
+  if (LAYOUT_WORDS.test(t) && !INDICATOR_WORDS.test(t)) return false
+  if (GENERIC_SAVE.test(t) || INDICATOR_SAVE.test(t)) return true
+  if (/\bsave\b/i.test(t) && /\b(indicator|draft|it|this)\b/i.test(t) && !NEGATION.test(t)) return true
+  return asksToApply(t) || t.split(/[.;!?\n]+|,\s*(?:but|then)\b/i).some(c => APPLY_IT.test(c) && !NEGATION.test(c))
+}
+// "Apply it." / "add it to my chart" / "ok, put it on the chart" — the WHOLE message (fast path)
+const APPLY_IT_WHOLE = /^(?:(?:ok(?:ay)?|now|great|perfect|nice|cool|yes|yep|sure|looks good)[,!.]?\s+)*(?:please\s+)?(?:apply|add|put|place)\s+(?:it|this|that|this one|the indicator|the draft|my indicator)(?:\s+(?:to|on|onto)\s+(?:my|the|this)\s+chart)?(?:,?\s*please)?[.!]?$/i
+/** The valid clicked chart (still on this board / layout) — host.charts.selected() — or null. */
+const clickedChart = (host) => { try { return host?.charts?.selected?.() || null } catch { return null } }
+/** Did the member NAME this chart (its symbol, its position) — or click it (owner decision)? */
+function chartNamed(host, chartRef, words) {
+  const charts = boardCharts(host)
+  if (charts.length <= 1) return true
+  if (clickedChart(host) === chartRef) return true
+  const c = charts.find(x => x.ref === chartRef)
+  if (!c) return false
+  const w = String(words || '').toLowerCase()
+  if (c.symbol && new RegExp(`\\b${String(c.symbol).toLowerCase().replace(/[.^$*+?()[\]{}|\\]/g, '\\$&')}\\b`).test(w)) return true
+  return !!c.position && c.position.split('-').every(p => new RegExp(`\\b${p}\\b`).test(w))
+}
+/** The board's charts already showing this saved definition (a new version updates them in place). */
+function showsDefinition(host, defId) {
+  if (!defId) return []
+  return boardCharts(host).filter(c => (c.cs?.indicatorInstances || []).some(i => i && !i.deleted && i.defId === defId)).map(c => c.ref)
+}
+/** The member's own saved indicator names (lower-case), for the duplicate-name rule. */
+function ownNames() {
+  let rows = []
+  try { rows = sources.rows() || [] } catch { rows = [] }
+  return rows.map(r => String(r?.definition?.meta?.name || r?.definition?.name || r?.name || '').trim().toLowerCase()).filter(Boolean)
+}
+/** ONE line that says what the draft does (Indicators' order): the colour / paint rule or signal
+ *  line first, else the first VISIBLE output — never a hidden one. */
+export function oneLineOf(status) {
+  const rb = status?.readback || {}
+  const look = (rb.presentation || []).filter(l => typeof l === 'string' && !/: hidden \(still calculated\)$/.test(l))
+  const paint = look.find(l => /^(candles painted|background shaded)\b/.test(l))
+  if (paint) return paint
+  if (rb.intent) return rb.intent
+  const ruled = look.find(l => / coloured | while /.test(l))
+  if (ruled) return ruled
+  const o = (rb.outputs || []).find(x => x && x.name && x.phrase)
+  if (o) return `${o.name} — ${o.phrase}`
+  return look[0] || (status?.name ? `“${status.name}”` : 'the indicator')
+}
+const sentence = (s) => { const t = String(s || '').trim(); return t ? `${t[0].toUpperCase()}${t.slice(1)}`.replace(/[.\s]+$/, '') : t }
+/** The lines a member must always see after a turn (Indicators (d)): questions, refusals, unavailable. */
+const mustShow = (lines) => (lines || []).filter(l => /^Question:|cannot be used|couldn’t|could not|not understood|isn’t available|is not available/i.test(String(l)))
 // ⛔ F2b — WHAT "SAVE IT" MEANS. One deterministic rule, shared by the fast path (layout.js and
 // indicator.saveDraft's own phrase) and the model path (useAgent): with an indicator draft open, a
 // generic "save it / save this / save it as X" is NEVER a layout save.
@@ -277,7 +335,11 @@ export function screenModelOps(host, ops, text, capCtx = {}) {
   // member's pick fills `chart`; nothing is sent to the builder until then)
   // ⛔ only for a member who CAN author: without access the op is left alone and refused, never asked about
   const unplaced = out.find(o => o?.action === 'indicator.draft' && o.target === NEW && o.args?.chart == null)
-  if (canAuthor && unplaced && out.length === 1) {
+  // owner decision 2026-10-12: the chart the member CLICKED (still valid) is the chart they mean
+  if (canAuthor && unplaced && boardCharts(host).length > 1 && clickedChart(host)) {
+    out = out.map(o => (o === unplaced ? { ...o, args: { ...o.args, chart: clickedChart(host) } } : o))
+  }
+  if (canAuthor && unplaced && out.length === 1 && out[0].args?.chart == null) {
     const charts = boardCharts(host)
     if (charts.length > 1) {
       return { ops: [], notes, ask: { text: 'Which chart is this indicator for?',
@@ -297,7 +359,40 @@ export function screenModelOps(host, ops, text, capCtx = {}) {
     notes.push('Saving only — I won’t add it to a chart unless you ask.')
     return { ...o, args: { ...o.args, addTo: [] } }
   })
-  return { ops: out, notes }
+  return { ops: markExplicitSaves(host, out, words, notes), notes }
+}
+
+/** OWNER 2026-10-12 + Indicators' conditions: a Save is EXPLICIT (no second click) only when the
+ *  member's own words in THIS message ask for it — decided here, never by the model. A Save riding
+ *  with a draft change (R1) is kept only for a NEW draft this message builds AND asks to apply/save;
+ *  otherwise the change runs and the Save waits for "apply it". */
+function markExplicitSaves(host, ops, words, notes) {
+  void notes
+  const explicit = explicitSaveWords(words)
+  const turn = ops.find(o => o?.action === 'indicator.draft')
+  // the build runs before its save, whatever order the model listed them in
+  if (turn) ops = [...ops.filter(o => o?.action !== 'indicator.saveDraft'), ...ops.filter(o => o?.action === 'indicator.saveDraft')]
+  return ops.flatMap(o => {
+    if (o?.action !== 'indicator.saveDraft') return [o]
+    if (turn && turn.target === o.target && !(explicit && o.target === NEW && o.args?.name == null)) {
+      // R1 is not met: the change runs alone; the draft stays ready for "apply it" (no second model
+      // call) — its receipt already ends with "Want me to apply it…", so no extra note
+      return []
+    }
+    // a NEW VERSION of a saved indicator updates every chart already showing it — never a second copy there
+    let st = null
+    try { st = snapshots(host).find(s => s.ref === o.target)?.status || null } catch { st = null }
+    if (st?.mode === 'edit' && Array.isArray(o.args?.addTo) && o.args.addTo.length) {
+      const has = new Set(showsDefinition(host, st.defId))
+      o = { ...o, args: { ...o.args, addTo: o.args.addTo.filter(r => !has.has(asChartRef(r))) } }
+    }
+    if (!explicit) return [o]                                                   // the card decides
+    const nm = o.args?.name
+    if (nm != null && !String(words).toLowerCase().includes(String(nm).trim().toLowerCase())) return [o]  // a name they didn't say
+    const charts = (o.args?.addTo || []).map(asChartRef)
+    if (charts.some(c => !chartNamed(host, c, words))) return [o]               // a chart they didn't name
+    return [{ ...o, explicit: true }]
+  })
 }
 
 // ── what the member is told when the specialist refuses (every reason in §10/§16) ──
@@ -468,8 +563,11 @@ export const indicatorDraftsKind = {
         const st = draftStatus(draftRef, authoringCtx(host))
         name = st?.name || name
         if (out.kind === 'applied') {
-          // a draft this request opened was STARTED, not updated (S6 wording nit)
-          lines.push(`${opened ? 'Started' : 'Updated'} ${name ? `“${name}”` : 'the draft'} (draft — not saved).`, ...(out.lines || []))
+          // OWNER 2026-10-12: ONE short line (Indicators (d)): what it does + "not saved yet"; the builder's
+          // full read-back stays in the context for "how does it work?". Questions / refusals / unavailable
+          // parts are never collapsed. A Save riding in this request (R1) answers the "apply it?" itself.
+          const rides = patch.ops.some(o => o.type === 'save')
+          lines.push(`${opened ? 'Draft ready' : 'Draft updated'} (not saved yet): ${sentence(oneLineOf(st))}.${rides ? '' : ' Want me to apply it or change anything?'}`, ...mustShow(out.lines))
           undoData = { draftRef, stepId: out.stepId }
         } else if (out.kind === 'question') {
           lines.push(...(out.reply ? [out.reply] : []), ...(out.questions || []), 'No change was made to the draft.')
@@ -503,7 +601,25 @@ export const indicatorDraftsKind = {
           : fail(m, keep))
         if (!st || !st.draftRef) throw notSaved(refusalSentence(st))
         let pin = op.pinRevision
-        if (turn) {
+        // ⭐ R1 (Indicators-acked 2026-10-12): "build X and apply it" in ONE message — the save of the NEW
+        // draft this message built runs only if every condition holds; otherwise it STOPS at a ready draft
+        // (still active: "apply it" next finishes it, no second model call).
+        if (turn && op.r1) {
+          const why = (() => {
+            if (turn.outcome !== 'applied') return 'the builder didn’t build it as asked'
+            if (!st || st.revision !== revision) return 'the draft changed while I was working'
+            if ((st.questions || []).length) return 'the builder has a question first'
+            if ((st.readback?.outputs || []).some(o => o && o.status === 'refused' && !o.pending)) return 'part of it can’t be used this way'
+            if ((st.ackText || []).length) return `it needs your acknowledgement first: ${st.ackText.join(' ')}`
+            if (st.name && ownNames().includes(String(st.name).trim().toLowerCase())) return `you already have an indicator named “${st.name}”`
+            return null
+          })()
+          if (why) {
+            lines.push(`Not saved or applied yet — ${why}. Say “apply it” when you’re ready.`)
+            continue
+          }
+          pin = st.revision
+        } else if (turn) {
           // the two-op form ("Name it X" turn, then Save): only the typed rename-only marker counts
           if (turn.outcome !== 'applied') throw fail('The builder didn’t rename it, so I didn’t save it — say the name again, then ask me to save.', keep)
           if (st.revision !== op.pinRevision + 1) throw notSaved(refusalSentence({ reason: R.STALE_REVISION }))
@@ -534,16 +650,26 @@ export const indicatorDraftsKind = {
         }
         setActive(null)
         rememberSaved({ defId: out.defId, version: out.version, name: out.name || name || null })
-        lines.push(`Saved “${out.name || name || 'the indicator'}” (version ${out.version}${out.created ? ', a new indicator' : ''}) — confirmed by reading it back from your saved indicators.`)
-        // the specialist's own receipt + outcomes, once each — but NOT its chart outcome: Save never
-        // attaches a chart here (§16), so "no chart is open here" would contradict the adds below
+        // OWNER 2026-10-12: ONE short, honest line (Indicators (c)): saved = permanent; R1 also says WHAT
+        // was saved (its line + the builder's assumptions). With chart adds, the add's receipt follows
+        // in the same message (useAgent holds this one as its lead).
+        const saved = out.name || name || 'the indicator'
+        // the builder's own ASSUMPTIONS (Indicators condition 8: "Assumed: 20-bar lookback") — not the
+        // engine's presentation defaults
+        const assumed = (st.readback?.assumptions || []).filter(a => /^(Assumed|UCT Intelligence assumed)/.test(String(a)))
+        const what = op.r1 ? ` — ${sentence(oneLineOf(st))}${assumed.length ? ` (${assumed.join('; ')})` : ''}` : ''
+        lines.length = op.r1 ? 0 : lines.length                                // R1: this line replaces the draft line
+        lines.push(op.addTo?.length
+          ? `Saved to your indicators${what} — that’s permanent; Undo takes it off the chart, the saved indicator stays.`
+          : !out.created && showsDefinition(host, out.defId).length
+            ? `Updated “${saved}” to version ${out.version} — every chart using it shows the change now. That’s permanent (no Undo).`
+            : `Saved “${saved}” to your indicators${what} — permanent. It isn’t on a chart yet; say “apply it” to add it.`)
+        // the specialist's own outcomes that matter (never its chart outcome — Save attaches no chart, §16)
         const chartTexts = new Set((out.outcomes || []).filter(o => o && o.kind === 'chart').map(o => o.text))
-        for (const t of [...(out.receipt?.items || []), ...(out.outcomes || []).map(o => o && o.text)]) {
-          if (t && !chartTexts.has(t) && !lines.includes(t)) lines.push(t)
+        for (const t of (out.outcomes || []).map(o => o && o.text)) {
+          if (t && !chartTexts.has(t) && !lines.includes(t) && /warning|limit|not|can’t|cannot/i.test(t)) lines.push(t)
         }
-        if (!op.addTo?.length) lines.push('It is not on a chart — ask me to add it to one.')
         for (const c of op.addTo || []) followUps.push({ action: 'indicator.add', target: `ixe:${c}`, args: { defId: out.defId, inputs: null }, awaitDefinition: { defId: out.defId, version: out.version, name: out.name || name || null } })
-        if (op.addTo?.length) lines.push(`Next: adding it to ${op.addTo.length === 1 ? 'the chart' : `${op.addTo.length} charts`} — each gets its own receipt.`)
         undoData = null
       }
     }
@@ -665,24 +791,52 @@ export function registerIndicatorAuthoringCapabilities() {
     argRefs: { addTo: ['chart', 'indicators', 'indicatorEdits'] },
     // ⛔ F2b: "save it / save this / save it as X" with the SELECTED draft usable = that draft (a proposal)
     fast: ({ raw, host }) => {
+      // OWNER 2026-10-12: these phrases ARE the member's own words asking → explicit (policy.js)
       const r = saveReferent(host, raw)
-      return r && r.kind === 'draft' ? { addTo: [], name: r.name, __target: r.target } : null
+      if (r && r.kind === 'draft') return { addTo: [], name: r.name, __target: r.target, __explicit: true }
+      // "Apply it." / "add it to my chart" with the ACTIVE draft: the board's one chart, or the chart
+      // the member clicked (still valid); with several and none clicked → the model (which may ask)
+      if (!APPLY_IT_WHOLE.test(String(raw || '').trim())) return null
+      let active = null
+      try { active = snapshots(host).find(x => x.active && !x.new && !x.expired) || null } catch { active = null }
+      if (!active) return null
+      const charts = boardCharts(host)
+      // a NEW VERSION of a saved indicator a chart already shows updates it there — never a second copy
+      if (active.status?.mode === 'edit' && showsDefinition(host, active.status.defId).length) return { addTo: [], name: null, __target: active.ref, __explicit: true }
+      const chart = charts.length === 1 ? charts[0].ref : (charts.some(c => c.ref === clickedChart(host)) ? clickedChart(host) : null)
+      return chart ? { addTo: [chart], name: null, __target: active.ref, __explicit: true } : null
+    },
+    // OWNER 2026-10-12 (+ Indicators' conditions): an explicit save/apply runs without a card…
+    explicitOk: true,
+    // …except when this draft needs the member's eyes: an acknowledgement of ANY kind (shown verbatim),
+    // a NEW VERSION of a saved indicator (it changes every chart, layout and armed alert using it), or
+    // a new indicator under a name they already have.
+    confirmIf(st, { name }) {
+      if (st.new || !st.status) return false
+      if ((st.status.ackText || []).length) return true
+      if (st.status.mode === 'edit') return true
+      const nm = String(name || st.status.name || '').trim().toLowerCase()
+      return !!nm && ownNames().includes(nm)
     },
     summary: 'Save an indicator draft as one of the member\'s indicators (Create Indicator\'s own Save; a new indicator, or a new version of the one being edited) — always shown as a proposal with the builder\'s own summary first. addTo: charts to add the SAVED indicator to afterwards (each added separately, with its own receipt).',
     hints: 'Use when the member saves THE INDICATOR: "save it", "save it as X", "save the indicator/draft" while an indicator draft is active (the active indicatorDrafts entry) — that "it" is the draft, NOT the workspace layout (layout.saveAs is only for an explicit layout/workspace/board). target = the draft\'s ref (usually the active one). name = the name the member gave ("save it as Bullish Trend" → "Bullish Trend"), else null — never a separate indicator.draft op for the name. addTo = [] UNLESS the member asked in this message to add/apply/put it on a chart; then only the charts\' refs from the charts section that they named. Saving and adding to a chart are separate intents. "Save the indicator" with one active draft is that draft — do not ask which.',
     args: { type: 'object', properties: { addTo: { type: 'array', items: { type: 'string' } }, name: { type: ['string', 'null'] } }, required: ['addTo', 'name'], additionalProperties: false },
     check(st, { addTo, name }, env) {
-      if (st.new) return 'There is no draft to save yet — describe the indicator first.'
+      // ⭐ R1 (Indicators-acked 2026-10-12): the NEW draft this message builds, when the member's own words
+      // asked to apply/save it (env.explicit — markExplicitSaves). Its conditions are checked after the
+      // build (commit); a failing one stops at a ready draft.
+      const r1 = st.new && env?.explicit === true && has(st, 'turn') && name == null
+      if (st.new && !r1) return 'There is no draft to save yet — describe the indicator first.'
       if (name != null && (typeof name !== 'string' || !name.trim() || name.length > 120)) return 'Say the name to save it as.'
       if (name != null && has(st, 'turn')) return 'Name it in the save itself, not as a separate change.'
       // ⛔ renameDraft is the ONLY rename path: a draft turn (which can reach the model) never rides
-      // inside a Save — change the draft first, or name it with "save it as …"
-      if (has(st, 'turn')) return 'Change the draft first, then ask me to save it — or say “save it as …” to name it as you save.'
-      const u = usable(st); if (u) return u
+      // inside a Save — change the draft first, or name it with "save it as …" (R1 above aside)
+      if (has(st, 'turn') && !r1) return 'Change the draft first, then ask me to save it — or say “save it as …” to name it as you save.'
+      if (!r1) { const u = usable(st); if (u) return u }
       if (has(st, 'save')) return 'One save at a time.'
-      if (!has(st, 'turn') && !st.status.canSave) return refusalSentence({ reason: R.NOT_DIRTY })
+      if (!r1 && !has(st, 'turn') && !st.status.canSave) return refusalSentence({ reason: R.NOT_DIRTY })
       for (const r of addTo || []) {
-        const c = st.charts.find(x => x.ref === asChartRef(r))
+        const c = (st.charts || []).find(x => x.ref === asChartRef(r))
         if (!c) return 'That isn’t a chart on this board, so nothing was saved or added — name the chart (or just say “save it”).'
         if (!c.canAdd) return `Indicators on ${c.label} can’t be changed from here.`
       }
@@ -699,6 +853,8 @@ export function registerIndicatorAuthoringCapabilities() {
       const nm = typeof name === 'string' && name.trim() ? name.trim() : null
       // approved: EXACTLY the sealed values (check() proved the draft still matches them);
       // proposing: the draft as it is now, which is what the card will show and the seal will keep
+      // R1: the new draft does not exist yet — its revision is the one the build produces (commit)
+      if (st.new) return { ...st, ops: [...st.ops, { type: 'save', addTo: add, name: null, pinRevision: null, ackShown: [], linesShown: [], nameShown: null, r1: true }] }
       const seal = env?.approved ? sealFor(env, st.ref) : null
       const s = st.status
       const pin = seal
@@ -708,17 +864,18 @@ export function registerIndicatorAuthoringCapabilities() {
       const ops = st.ops.map(o => (o.type === 'turn' ? { ...o, pinRevision: pin.revision } : o))
       return { ...st, ops: [...ops, { type: 'save', addTo: add, name: nm, pinRevision: pin.revision, ackShown: pin.ackShown, linesShown: pin.lines, nameShown: pin.name, ...(seal ? { seal } : {}) }] }
     },
+    // OWNER 2026-10-12: the card (when one is still needed) is SHORT — what is saved and where, plus any
+    // acknowledgement verbatim (Indicators (b)); the builder's full read-back is no longer pasted in.
     describe: (b, a) => {
       const op = a.ops.find(o => o.type === 'save')
       if (!op) return null
+      const where = op.addTo.length ? ` and add it to ${op.addTo.map(r => (b.charts || []).find(c => c.ref === r)?.label || r).join(', ')}` : ''
+      if (op.r1) return `Save it as a new indicator${where}`
       const s = b.status
-      const turn = a.ops.find(o => o.type === 'turn')
-      const what = s.mode === 'edit' ? `a new version of ${nameOf(b)}` : `${nameOf(b)} as a new indicator`
-      const after = op.addTo.length ? ` — then add it to ${op.addTo.map(r => b.charts.find(c => c.ref === r)?.label || r).join(', ')}, each separately` : ''
-      const summary = op.linesShown.length ? ` · The builder's summary: ${op.linesShown.join(' / ')}` : ''
+      const nm = op.name ? `“${op.name}”` : nameOf(b)
       const ack = op.ackShown.length ? ` · You are also acknowledging: ${op.ackShown.join(' ')}` : ''
-      const as = op.name ? ` as “${op.name}” (renamed first — a name-only step)` : ''
-      return `Save ${what}${as} (draft revision ${op.pinRevision}${turn ? ', after that rename only' : ''})${after}${summary}${ack}`
+      if (s.mode === 'edit') return `This updates ${nm} everywhere it’s used — save version ${Number.isInteger(s.baseVersion) ? s.baseVersion + 1 : 'new'}${where}${ack}`
+      return `Save ${nm} as a new indicator${where}${ack}`
     },
   })
 

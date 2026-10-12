@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { vi } from 'vitest'
-import { renderWithProviders, screen, fireEvent } from '../test-utils'
+import { SWRConfig } from 'swr'
+import { renderWithProviders, screen, fireEvent, waitFor } from '../test-utils'
 import NavBar, { NAV_ITEMS } from './NavBar'
 
 test('no free tier: every nav entry, the Morning Wire included, is locked to upgrade', () => {
@@ -70,4 +71,64 @@ test('the Search trigger is a plain button, not a nav route — it never navigat
   const trigger = screen.getByLabelText('Search — Ctrl+K')
   expect(trigger.tagName).toBe('BUTTON')
   expect(trigger).not.toHaveAttribute('href')
+})
+
+// V19: "keep classic calendar" (Boards menu) must reach the menu's UCT Terminal entry, which
+// graduated to `/terminal` and so went round the `/calendar` route that honoured the choice.
+// Fresh SWR cache per render: the auth and preferences answers differ between these cases.
+function stubMember({ cohorts, keepCalendar }) {
+  vi.stubGlobal('fetch', vi.fn((url) => {
+    const u = String(url)
+    let body = {}
+    if (u.startsWith('/api/auth/me')) {
+      body = { user: { id: 1, email: 'p@local', role: 'member', email_verified: true }, plan: 'pro', cohorts }
+    } else if (u.startsWith('/api/auth/preferences')) {
+      body = keepCalendar === undefined ? {} : {
+        terminal_boards: JSON.stringify({ v: 1, boards: [], presets: {}, favorites: [], keepCalendar }),
+      }
+    }
+    return Promise.resolve({ ok: true, status: 200, headers: { get: () => null }, json: () => Promise.resolve(body) })
+  }))
+}
+
+async function terminalEntryHref() {
+  renderWithProviders(<SWRConfig value={{ provider: () => new Map() }}><NavBar /></SWRConfig>)
+  const link = await screen.findByRole('link', { name: /^uct terminal$/i })
+  return link
+}
+
+test('V19: a member who kept the classic calendar gets it from the UCT Terminal entry', async () => {
+  stubMember({ cohorts: ['terminal-next'], keepCalendar: true })
+  try {
+    const link = await terminalEntryHref()
+    await waitFor(() => expect(link).toHaveAttribute('href', '/calendar'))
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
+test('V19: a member who did not tick it still opens the terminal from the entry', async () => {
+  stubMember({ cohorts: ['terminal-next'], keepCalendar: false })
+  try {
+    const link = await terminalEntryHref()
+    // Let the preferences answer land before asserting it changed nothing.
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/auth/preferences'))
+    await new Promise((r) => setTimeout(r, 0))
+    expect(link).toHaveAttribute('href', '/terminal')
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
+test('V19: a kept-calendar member on /terminal still sees the entry lit', async () => {
+  stubMember({ cohorts: ['terminal-next'], keepCalendar: true })
+  window.history.pushState({}, '', '/terminal')
+  try {
+    const link = await terminalEntryHref()
+    await waitFor(() => expect(link).toHaveAttribute('href', '/calendar'))
+    expect(link.className).toMatch(/active/)
+  } finally {
+    window.history.pushState({}, '', '/')
+    vi.unstubAllGlobals()
+  }
 })
