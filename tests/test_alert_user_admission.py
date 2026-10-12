@@ -751,6 +751,13 @@ def _every_gate_message(real_bars, monkeypatch) -> dict:
                 {"type": "series", "name": "market_cap"},
                 {"type": "num", "value": 1e9}]}}}))
 
+    # ⭐ UIE PHASE 6 — DRIVEN DIRECTLY, like `scalar`: an `hlines` guide plot (the RSI's 70/30
+    # lines) is refused for ITSELF where its value function would be made.
+    capture("presentation", lambda: aus._make_value_fn(
+        DEF_ID, "levels",
+        {"plots": [{"key": "rsi", "style": "line"}, {"key": "levels", "style": "hlines", "levels": [70, 30]}],
+         "compute": {"kind": "ast", "ast": _ast_sma(), "trees": {"rsi": _ast_sma()}, "scanPlot": "rsi"}}))
+
     save(USER_B, defn(), repaint={"value": "repaints"})
     capture("repaint", lambda: aus.admit_user_definition(USER_B, DEF_ID, bars=real_bars))
 

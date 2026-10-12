@@ -232,7 +232,8 @@ def test_P2_7_plot_admissions_keep_the_scalar_refusal_PER_PLOT():
     admissible, withheld = aus.plot_admissions(TWO_ID, two_plot())
     assert [a for a, _ in admissible] == [f"{TWO_ID}.sig"]
     assert withheld[f"{TWO_ID}.cap"].gate == "scalar"
-    assert aus.PER_PLOT_GATES == frozenset({"withheld", "scalar"})
+    # ⭐ UIE Phase 6: `presentation` (an `hlines` level-line guide) is per plot too
+    assert aus.PER_PLOT_GATES == frozenset({"withheld", "scalar", "presentation"})
 
 
 def test_P2_7_a_plot_refusal_still_refuses_the_whole_definition():
