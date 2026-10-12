@@ -86,7 +86,12 @@ def _unavailable(reason: str, detail: str, **extra) -> dict:
 
 
 def validate(req: Any) -> tuple[Optional[dict], Optional[dict]]:
-    """(normalised request, None) or (None, refusal). Shape and bounds only — no data is read."""
+    """(normalised request, None) or (None, refusal). Shape and bounds only — no data is read.
+
+    ⛔ BOUNDARY CONTRACT (Agent turn.py relies on it): validate() is PURE and VALUE-FREE. It reads no
+    store, calls no service, and its output holds only the mode/universe/metric enums and ISO dates
+    copied from the request — never a breadth value. The Agent rebuilds a history note ("the member
+    asked for …") from it; if this ever reads data or echoes free text, that note could leak."""
     if not isinstance(req, dict):
         return None, _refused("bad_request", "The breadth request was not understood.")
     if "from" in req or "to" in req:

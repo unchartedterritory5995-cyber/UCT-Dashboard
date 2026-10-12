@@ -71,6 +71,7 @@ def _metric_for(sym: str) -> str:
 
 def synthetic_breadth_world(monkeypatch, sentinel: Optional[float] = None, session: str = LAST_SEALED,
                             forbid_network: bool = True) -> dict:
+    # forbid_network=True installs a LOOPBACK-ONLY guard: any non-loopback connect fails the test.
     """Install the fakes; returns a mutable `state` the test can steer:
     avail (per-universe availability rows), unpublished (metric CODES), slow (seconds), raise (bool),
     empty (metric keys with no series), calls (every build_breadth_bars call)."""
@@ -96,8 +97,30 @@ def synthetic_breadth_world(monkeypatch, sentinel: Optional[float] = None, sessi
     monkeypatch.setattr(br._bs, "resolve", fake_resolve)
     monkeypatch.setattr(br._bs, "_et_today", lambda: "2026-10-11")
     if forbid_network:
-        def no_network(*a, **k):
-            raise AssertionError("breadth reads must not open a network connection")
-        monkeypatch.setattr(socket.socket, "connect", no_network)
-        monkeypatch.setattr(socket, "create_connection", no_network)
+        install_loopback_only_guard(monkeypatch)
     return state
+
+
+_LOOPBACK = {"127.0.0.1", "::1", "localhost"}
+
+
+def install_loopback_only_guard(monkeypatch) -> None:
+    """Refuse every non-loopback connect. Loopback stays allowed: Windows asyncio builds its
+    self-pipe with a 127.0.0.1 socketpair, which a FastAPI TestClient needs (Agent review 2026-10-11)."""
+    real_connect, real_create = socket.socket.connect, socket.create_connection
+
+    def _host(address):
+        return address[0] if isinstance(address, tuple) and address else address
+
+    def guarded_connect(self, address):
+        if self.family == getattr(socket, "AF_UNIX", object()) or _host(address) in _LOOPBACK:
+            return real_connect(self, address)
+        raise AssertionError(f"breadth reads must not open a network connection ({_host(address)!r})")
+
+    def guarded_create(address, *a, **k):
+        if _host(address) in _LOOPBACK:
+            return real_create(address, *a, **k)
+        raise AssertionError(f"breadth reads must not open a network connection ({_host(address)!r})")
+
+    monkeypatch.setattr(socket.socket, "connect", guarded_connect)
+    monkeypatch.setattr(socket, "create_connection", guarded_create)
