@@ -194,6 +194,105 @@ def _last_close(sym: str, now: datetime) -> dict | None:
             "market_closed": True, "source": "last close", "asOf": _epoch_iso(closed_at)}
 
 
+def _in_regular_session(now: datetime) -> bool:
+    """Is `now` inside a regular session (the one session authority, api/services/session_calendar.py:
+    holidays and half-days included)? Only then is a live-path quote a live price."""
+    from api.services import session_calendar
+    try:
+        return session_calendar.session_at(now) == "rth"
+    except Exception:  # noqa: BLE001 -- an instant the calendar cannot place is never "live"
+        return False
+
+
+def _quote_window(now: datetime) -> str:
+    """R-T3-6: which session a live-path cache row read at `now` was built in. The row can be up to
+    live_prices._CACHE_TTL old, so it was built in the regular session only if `now - TTL` was in it
+    too: "live" when both instants are, "frozen" when neither is, "edge" (ambiguous: the row may be a
+    pre-market close read after the open, or a mid-minute print read after the close) otherwise."""
+    from api.routers import live_prices
+    then = now - timedelta(seconds=live_prices._CACHE_TTL)
+    live_now, live_then = _in_regular_session(now), _in_regular_session(then)
+    if live_now and live_then:
+        return "live"
+    return "edge" if live_now or live_then else "frozen"
+
+
+def _same_cents(a: float, b: float) -> bool:
+    return round(a, 2) == round(b, 2)
+
+
+def _with_proven_change(sym: str, row: dict, now: datetime) -> dict:
+    """A closed row whose change the row cannot prove (R-T3-4 n1): the held daily bars' close and
+    change (_last_close, calendar-checked) when held, else the row with its change OMITTED. Never a
+    fabricated 0.0."""
+    try:
+        held = _last_close(sym, now)
+    except Exception:  # noqa: BLE001 -- an unreadable bar store is no held bar
+        held = None
+    return held if held is not None else {**row, "change_pct": None}
+
+
+def _frozen_close(sym: str, row: dict, now: datetime) -> dict | None:
+    """R-T3-4 n2. Outside the regular session live_prices._fetch_snapshots prices a live-path row
+    `day.c or lastTrade.p or prevDay.c` (day.c first) and leaves market_closed unset, so its price is
+    a FROZEN close. It is the close of ONE session, which the row proves or it is not used (None):
+      * day.c (day_close present, price equal): today's close once today's session has closed;
+        before that (the overnight hours before the vendor resets its day bar, a weekend, a holiday)
+        the last completed session's. In PRE-market `day` may already be today's forming bar, so it
+        proves nothing there.
+      * prevDay.c (no day bar, price equal to prev_close): the session before the vendor's current
+        day, which is the last completed session only while TODAY's session has not closed.
+    Anything else (a real extended-hours print, a disagreeing field) proves no session.
+    The result is a closed row dated by that session's close (session_calendar), source "last close".
+    Its change is kept only when the row proves it: day.c's change is computed against prev_close on
+    the row; prevDay.c's row carries the vendor's extended-hours move, not that session's."""
+    from zoneinfo import ZoneInfo
+    from api.services import session_calendar
+    last_done = _last_completed_session(now)
+    price = _num(row.get("price"))
+    if last_done is None or price is None or price <= 0:
+        return None
+    day_close, prev_close = _num(row.get("day_close")), _num(row.get("prev_close"))
+    today = now.astimezone(ZoneInfo("America/New_York")).date()
+    if day_close is not None:
+        if not _same_cents(price, day_close) or session_calendar.session_at(now) == "pre":
+            return None
+        proven = prev_close is not None and prev_close > 0
+    else:
+        if last_done == today or prev_close is None or not _same_cents(price, prev_close):
+            return None
+        proven = False
+    close_at = session_calendar.close_time(last_done)
+    if close_at is None:
+        return None
+    frozen = {"price": round(price, 2), "change_pct": _num(row.get("change_pct")) if proven else None,
+              "market_closed": True, "source": "last close", "asOf": _iso(close_at)}
+    return frozen if proven else _with_proven_change(sym, frozen, now)
+
+
+def _settled_cache_row(sym: str, row: dict, now: datetime) -> dict | None:
+    """A live_prices cache row as the stamp may store it, or None when it is not usable."""
+    if row.get("market_closed"):
+        if _num(row.get("session_close_at")) is None:
+            # R-T3-3: an UNDATED closed row (live_prices' grouped session map still warming or
+            # disagreeing, so its change_pct is a fabricated 0.0) is not used; the calendar-checked
+            # held bar answers instead, or nothing does.
+            return None
+        prev_close = _num(row.get("prev_close"))
+        if prev_close is None or prev_close <= 0:
+            # R-T3-4 n1: live_prices._last_session_row writes prev_close 0.0 (and change_pct 0.0)
+            # exactly when the prior session's close is missing, so the change is fabricated; a
+            # genuine flat session has prev_close > 0 and keeps its 0.0.
+            return _with_proven_change(sym, row, now)
+        return row
+    window = _quote_window(now)
+    if window == "live":
+        return row
+    if window == "frozen":
+        return _frozen_close(sym, row, now)
+    return None    # R-T3-6: within one cache age of an edge the row proves nothing; the held bar answers
+
+
 def _quotes(user_id: str, symbols: tuple[str, ...], now: datetime | None = None) -> dict:
     """SPY/QQQ for the stamp, CACHE-ONLY (R-W0-1): the live-price route's shared 15 s per-ticker
     cache (the rows its own polls write), else the last completed session's close from a held daily
@@ -203,11 +302,11 @@ def _quotes(user_id: str, symbols: tuple[str, ...], now: datetime | None = None)
     out: dict = {}
     for sym in symbols:
         row = live_prices.cache.get(live_prices._px_key(sym))
-        if isinstance(row, dict) and row.get("market_closed") and _num(row.get("session_close_at")) is None:
-            # R-T3-3: an UNDATED closed row (live_prices' grouped session map still warming or
-            # disagreeing, so its change_pct is a fabricated 0.0) is not used; the calendar-checked
-            # held bar answers instead, or nothing does.
-            row = None
+        if isinstance(row, dict):
+            try:
+                row = _settled_cache_row(sym, row, now)
+            except Exception:  # noqa: BLE001 -- an unreadable row is an absent quote
+                row = None
         if not isinstance(row, dict):
             try:
                 row = _last_close(sym, now)
@@ -235,9 +334,14 @@ def _epoch_iso(v: Any) -> str | None:
 def _index_field(sym: str, q: Any, now: datetime) -> dict:
     if isinstance(q, dict) and _num(q.get("price")) is not None:
         closed = bool(q.get("market_closed"))
+        if not closed and _quote_window(now) != "live":
+            # R-T3-4 n2 / R-T3-6: outside the regular session (or within one cache age of its edge) a
+            # live-path row's price is not a live price; _quotes stores it as the session's last close
+            # when the row proves which session, so one reaching here unconverted is a sentence.
+            return {"value": None, "source": None, "asOf": None, "missing": f"No {sym} quote could be read just now."}
         # A live row carries the vendor's observation epoch; a closed-market row the epoch of the
-        # session close it IS; a held bar its close. Only a LIVE row the vendor did not time is dated
-        # by the capture (the cache's 15 s TTL bounds its age, R-T3-2 m2); a closed row's value is a
+        # session close it IS; a held bar its close. Only a LIVE, regular-session row the vendor did not
+        # time is dated by the capture (the cache's 15 s TTL bounds its age, R-T3-2 m2); a closed row's value is a
         # past session's close, so the capture is never its date (R-T3-3): undated, it is a sentence.
         as_of = (q.get("asOf") or _epoch_iso(q.get("observed_at"))
                  or _epoch_iso(q.get("session_close_at")) or (None if closed else _iso(now)))
