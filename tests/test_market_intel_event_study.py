@@ -793,3 +793,24 @@ def test_validated_request_echoes_nothing_but_what_was_asked(world):
     assert set(ok) == {"condition", "conditions", "symbol", "horizons", "episodes", "entry",
                        "non_overlapping", "baseline", "start", "end"}
     assert "73.4567" not in repr(ok) and ok["symbol"] == "QQQ"
+
+
+def test_bollinger_pct_b_and_macd_hist_use_the_existing_calculations(world, monkeypatch):
+    from api.services import indicator_compute as ic
+    bars = [{"t": d, "c": 100.0 + 3 * ((i * 7) % 11) - (25.0 if i == 40 else 0.0)} for i, d in enumerate(S)]
+    fx.install(monkeypatch, bars=bars)
+    closes = [b["c"] for b in bars]
+    up, _m, lo = ic.compute_bb_raw(closes, 20, 2.0)
+    pctb = [None if u is None else (c - l) / (u - l) * 100 for c, u, l in zip(closes, up, lo)]
+    r = es.run(req(series={"kind": "technical", "symbol": "QQQ", "indicator": "bb_pct_b", "period": 20},
+                   threshold=0, horizons=[{"sessions": 1}], episodes="all"))
+    expect = [S[i] for i, v in enumerate(pctb) if v is not None and v < 0]
+    assert [e["event_date"] for e in r["events"]] == expect and S[40] in expect
+    _a, _b, hist = ic.compute_macd_raw(closes, 12, 26, 9)
+    r2 = es.run(req(series={"kind": "technical", "symbol": "QQQ", "indicator": "macd_hist", "period": None},
+                    op="cross_below", threshold=0, horizons=[{"sessions": 1}]))
+    exp2 = [S[i] for i in range(1, len(hist)) if hist[i] is not None and hist[i - 1] is not None
+            and hist[i - 1] >= 0 > hist[i]]
+    assert [e["event_date"] for e in r2["events"]] == exp2
+    bad = es.run(req(series={"kind": "technical", "symbol": "QQQ", "indicator": "macd_hist", "period": 9}))
+    assert bad["status"] == "refused" and bad["reason"] == "bad_period"

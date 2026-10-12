@@ -70,6 +70,8 @@ _TECH = {
     # indicator: (label template, unit, domain, period bounds)
     "rsi": ("{sym} RSI({n})", "index", _bm.DOMAIN_PCT, (2, 200)),
     "pct_from_sma": ("{sym} % from its {n}-day SMA", "percent_change", "signed", (2, 400)),
+    "bb_pct_b": ("{sym} Bollinger %B ({n}, 2σ)", "percent_b", DOMAIN_ANY, (5, 200)),
+    "macd_hist": ("{sym} MACD histogram (12, 26, 9)", "price_units", DOMAIN_ANY, None),
 }
 
 
@@ -80,10 +82,13 @@ def _tech_describe(spec: dict) -> tuple[Optional[dict], Optional[dict]]:
     if not sym:
         return None, _refused("bad_symbol", "That isn't a valid ticker symbol.")
     if ind not in _TECH:
-        return None, _refused("unknown_indicator", "Technical studies support rsi and pct_from_sma.")
-    lo, hi = _TECH[ind][3]
-    if not isinstance(n, int) or isinstance(n, bool) or not lo <= n <= hi:
-        return None, _refused("bad_period", f"The period must be a whole number from {lo} to {hi}.")
+        return None, _refused("unknown_indicator", f"Technical studies support {', '.join(_TECH)}.")
+    bounds = _TECH[ind][3]
+    if bounds is None:
+        if n is not None:
+            return None, _refused("bad_period", "MACD uses the standard 12/26/9 settings; leave the period out.")
+    elif not isinstance(n, int) or isinstance(n, bool) or not bounds[0] <= n <= bounds[1]:
+        return None, _refused("bad_period", f"The period must be a whole number from {bounds[0]} to {bounds[1]}.")
     tmpl, unit, dom, _b = _TECH[ind]
     return {"kind": "technical", "symbol": sym, "indicator": ind, "period": n,
             "label": tmpl.format(sym=sym, n=n), "unit": unit, "domain": dom, "category": "technical"}, None
@@ -101,6 +106,12 @@ def _tech_load(spec: dict) -> dict:
     n = spec["period"]
     if spec["indicator"] == "rsi":
         vals = ic.compute_rsi_raw(closes, n)
+    elif spec["indicator"] == "bb_pct_b":
+        up, _mid, lo = ic.compute_bb_raw(closes, n, 2.0)
+        vals = [None if (u is None or l is None or u == l) else (c - l) / (u - l) * 100.0
+                for c, u, l in zip(closes, up, lo)]
+    elif spec["indicator"] == "macd_hist":
+        _m, _s, vals = ic.compute_macd_raw(closes, 12, 26, 9)
     else:
         sma = ic.compute_sma(closes, n)
         vals = [None if (s is None or s == 0) else (c / s - 1.0) * 100.0 for c, s in zip(closes, sma)]
