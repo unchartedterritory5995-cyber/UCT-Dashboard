@@ -373,3 +373,15 @@ def test_loopback_is_allowed_but_the_network_is_not(world):
             s.connect(("93.184.216.34", 443))
     finally:
         s.close()
+
+
+def test_all_metrics_refused_says_each_specific_reason_not_the_generic_line(world):
+    """Agent review 2026-10-12: a request whose every metric is refused had no top-level reason, so the
+    member saw "That breadth answer isn't available." instead of WHY."""
+    a = ba.answer(br.read({"mode": "value", "universe": "us", "metrics": ["advancing", "declining"],
+                           "date": "2026-10-13"}))
+    assert a["status"] == "refused" and "isn't available." not in a["text"].split("\n")[0][-30:]
+    assert "after the latest finalized session" in a["text"] and LAST_SEALED in a["text"]
+    assert "US · Advancing Issues:" in a["text"] and "US · Declining Issues:" in a["text"]
+    early = ba.answer(br.read({"mode": "value", "universe": "us", "metrics": ["advancing"], "date": "2020-01-02"}))
+    assert "before this breadth history begins" in early["text"]

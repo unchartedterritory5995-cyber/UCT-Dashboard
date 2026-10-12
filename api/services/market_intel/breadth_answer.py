@@ -149,7 +149,14 @@ def answer(res: Any) -> dict:
     """`{status, text, table, provenance}` for one read result. Deterministic; never raises."""
     if not isinstance(res, dict) or res.get("status") not in ("ok", "partial") or not res.get("metrics"):
         r = res if isinstance(res, dict) else {}
-        return {"status": r.get("status") or "unavailable", "text": _why(r), "table": None, "provenance": None}
+        text = _why(r)
+        if not r.get("reason") and r.get("metrics"):
+            # every metric refused individually: say each metric's own reason (e.g. "after the latest
+            # finalized session … is 2026-10-09"), never the generic line (Agent review 2026-10-12)
+            label = r.get("universe_label") or ""
+            text = "\n".join(dict.fromkeys(f"{label} · {m.get('label')}: {_why(m)}".lstrip(" ·")
+                                           for m in r["metrics"] if isinstance(m, dict)))
+        return {"status": r.get("status") or "unavailable", "text": text, "table": None, "provenance": None}
     mode = (res.get("request") or {}).get("mode")
     builder = {"value": _value_lines, "compare": _compare_lines, "series": _series_lines}.get(mode, _value_lines)
     lines, tables = builder(res)
