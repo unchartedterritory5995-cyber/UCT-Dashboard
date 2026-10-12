@@ -131,11 +131,12 @@ export function registerBreadthCapabilities() {
     target: 'breadth', query: true,
     // ⛔ the boundary: this answer is shown to the member and never replayed to a model
     localOnly: true,
-    summary: 'Look up historical MARKET BREADTH from UCT\'s own finalized end-of-day data (US, NYSE or Nasdaq stocks): a value on a date, two dates compared, or a date range summarised — % of stocks above a moving average, new highs/lows, advance/decline, Stage 2/4 counts. '
+    summary: 'Look up MARKET BREADTH from UCT\'s own data (US, NYSE, Nasdaq): the current reading (live in the session), a finalized value on a date, two dates compared, or a range summarised — % above a moving average, new highs/lows, advance/decline, Stage 2/4 counts. '
       + 'UCT shows the figures to the member; you never see them. Use this (disposition apply, research null) — never state breadth figures yourself.',
-    hints: 'target = breadth entry ref. universe us (default) | nyse | nasdaq. metrics = 1–4 keys; [] = general overview ("how\'s breadth today"). '
-      + 'mode value: date (null = latest). compare: compare_date required, date null = latest. series: start required, end null = latest. '
-      + 'Dates YYYY-MM-DD else null; "a month ago" → a date from the entry\'s today_et / latest_finalized. '
+    hints: 'target = breadth entry ref. universe us (default) | nyse | nasdaq. metrics 1–4 keys; [] = general overview. '
+      + 'value: date null = now (live); basis "close" only if a close is asked, else null. '
+      + 'compare: compare_date required, date null = latest close. series: start required, end null = latest. '
+      + 'Dates YYYY-MM-DD else null, from today_et / latest_finalized. '
       + 'reply: one short line, no figures. Keys: ' + METRIC_GUIDE,
     args: {
       type: 'object',
@@ -144,8 +145,10 @@ export function registerBreadthCapabilities() {
         universe: { type: 'string', enum: BREADTH_UNIVERSES },
         metrics: { type: 'array', items: { type: 'string', enum: BREADTH_METRICS } },
         date: nullableDate, compare_date: nullableDate, start: nullableDate, end: nullableDate,
+        // "close" = the member asked for a closing / end-of-day value (finalized); null = present tense
+        basis: { type: ['string', 'null'], enum: ['close', null] },
       },
-      required: ['mode', 'universe', 'metrics', 'date', 'compare_date', 'start', 'end'],
+      required: ['mode', 'universe', 'metrics', 'date', 'compare_date', 'start', 'end', 'basis'],
       additionalProperties: false,
     },
     answer: (_snap, args) => answerBreadth(args),

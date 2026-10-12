@@ -233,7 +233,7 @@ def test_DOOR_the_note_keeps_what_was_ASKED_validated_args_only():
                                   "data": {"kind": "answered", "actions": ["breadth.show"], "local": True,
                                            "requests": [REQ, bad, "nope", {"x": 1}]}})
     assert out.startswith(turn.LOCAL_RESULT_NOTE)
-    assert "US: pct_above_50sma; on the latest finalized session" in out
+    assert "US: pct_above_50sma; on the current reading" in out
     assert not leaked(out)
 
 

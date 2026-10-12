@@ -618,10 +618,16 @@ def _local_requests(data) -> str:
         return ""
     parts = []
     for r in reqs[:4]:
+        if isinstance(r, dict) and r.get("metrics") == []:
+            # the general overview: the route filled UCT's documented four measures (names only)
+            from api.services.uct_agent.breadth_present import OVERVIEW_METRICS
+            r = {**r, "metrics": list(OVERVIEW_METRICS)}
         ok, _err = breadth_reads.validate(r) if isinstance(r, dict) else (None, None)
         if not ok:
             continue
-        when = {"value": f"on {ok.get('date') or 'the latest finalized session'}",
+        # present tense (no date, not an explicit close) is UCT's CURRENT reading — say so, never a value
+        now = "the current reading" if r.get("basis") != "close" else "the latest finalized close"
+        when = {"value": f"on {ok.get('date') or now}",
                 "compare": f"{ok.get('date') or 'the latest finalized session'} vs {ok.get('compare_date')}",
                 "series": f"from {ok.get('start')} to {ok.get('end') or 'the latest finalized session'}"}[ok["mode"]]
         parts.append(f"breadth lookup ({ok['universe'].upper()}: {', '.join(ok['metrics'])}; {when})")

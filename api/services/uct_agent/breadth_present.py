@@ -126,7 +126,7 @@ def view_of(res: Any, answer: dict) -> Optional[dict]:
             ch, word = _change(m, delta)
             return {"kind": "comparison", "title": f"{uni} · {m['label']}",
                     "items": [{"label": "Earlier", "value": _v(m, early["value"]), "note": _when(early)},
-                              {"label": "Latest" if late.get("as_of") == last_fin else "Later", "value": _v(m, late["value"]), "note": _when(late)},
+                              {"label": "Latest close" if late.get("as_of") == last_fin else "Later", "value": _v(m, late["value"]), "note": _when(late)},
                               {"label": "Change", "value": ch, "note": word, "tone": {"Down": "down", "Up": "up"}.get(word, "")}],
                     **({"note": fresh} if fresh else {})}
         rows = []

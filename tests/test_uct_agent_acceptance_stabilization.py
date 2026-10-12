@@ -59,7 +59,7 @@ def test_SIGN_the_production_case_is_down_18_9(world):
     for res in (_with(_compare(compare_date="2026-09-09"), 25.6, 44.5),                       # latest vs then
                 _with(_compare(date="2026-09-09", compare_date=SESSION), 44.5, 25.6)):        # REVERSED order
         v = _view(res)
-        assert [i["label"] for i in v["items"]] == ["Earlier", "Latest", "Change"]
+        assert [i["label"] for i in v["items"]] == ["Earlier", "Latest close", "Change"]
         assert [i["value"] for i in v["items"]] == ["44.5%", "25.6%", f"{MINUS}18.9 pts"]
         assert [i["note"] for i in v["items"]] == ["2026-09-09", SESSION, "Down"]
         assert v["items"][2]["tone"] == "down"

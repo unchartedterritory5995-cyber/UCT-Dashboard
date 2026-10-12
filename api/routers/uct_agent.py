@@ -336,7 +336,17 @@ def agent_breadth(body: Any = Body(...), user: dict = Depends(require_admin_dark
     except Exception:  # noqa: BLE001 -- presentation never costs the member the answer itself
         log.exception("[uct-agent] breadth view failed; the browser derives one")
         present = None
-    return {"status": out.get("status"), "text": out.get("text"), "table": out.get("table"), "present": present}
+    text = out.get("text")
+    # PRESENT TENSE (owner 2026-10-12): "what's breadth now?" → the Breadth team's current reading per
+    # measure (breadth_current contract), labelled with its own time/status; the finalized read above
+    # stays as dated context. Dates, closes, comparisons and ranges stay finalized (D5).
+    from api.services.uct_agent import breadth_now
+    if breadth_now.enabled() and breadth_now.wants_current(body) and out.get("status") in ("ok", "partial"):
+        try:
+            text, present, _kinds = breadth_now.overlay(res, out, present)
+        except Exception:  # noqa: BLE001 -- the finalized answer stands
+            log.exception("[uct-agent] present-tense breadth failed; finalized answer shown")
+    return {"status": out.get("status"), "text": text, "table": out.get("table"), "present": present}
 
 
 @router.get("/api/agent/breadth/dates")

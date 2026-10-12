@@ -61,13 +61,23 @@ NOT done — unless a `news.*` op answered it from UCT's stored feed, whose card
 
 ## Acceptance stabilization (2026-10-12)
 
-* **Breadth freshness policy.** Breadth answers come only from MI's FINALIZED end-of-day sessions
-  (owner decision D5, `market_intel.breadth_reads`); source selection is unchanged and there is no
-  intraday or provisional breadth here. A present-tense answer (no date named) always states its session
-  ("As of 2026-10-08 close") and, when trading sessions after it have completed but are not finalized,
-  says so from DATES ONLY: "2026-10-09 isn't finalized in UCT's breadth data yet."
-  (`breadth_present.freshness_note`, `session_calendar.is_trading_day`). A request for a past date gets
-  no such note. Any current-session/provisional mode needs an owner decision and an MI-owned, labelled mode.
+* **Breadth freshness policy** (owner decision 2026-10-12; supersedes the finalized-only present tense).
+  - *Present tense* ("what's breadth now?", a value with no date and `basis` not `"close"`): each measure
+    comes from the Breadth team's current reading, `breadth_current.reading()` (contract:
+    `docs/breadth/current-reading-contract.md`), applied by `api/services/uct_agent/breadth_now.py`.
+    Each measure is labelled with ITS OWN status and time: "Intraday · 11:52 AM ET", "Provisional close · Oct 9".
+    Approximate counts say "approximate count". The new-high / new-low family stays finalized-only and
+    says so. A reading is shown as now only when the contract's `current` is True.
+  - *Not current* (stale, unavailable, population drift, feed off): the member is told a live reading
+    isn't available, and the finalized close is shown with its date as context.
+  - *History, explicit closes* (`basis: "close"`), *comparisons and ranges*: MI's finalized read,
+    unchanged (D5). A comparison's newest tile is labelled "Latest close".
+  - The finalized-only note ("2026-10-09 isn't finalized in UCT's breadth data yet") remains for
+    finalized answers. Finalization normally runs one session behind, by design.
+  - Kill switch: `AGENT_BREADTH_CURRENT=0` (default on). If the dependency is absent, answers fall back to finalized.
+  - ⛔ Isolation is unchanged: current values travel only on the browser-only breadth route into the
+    member's LOCAL row. The model's history note names the measures and says "the current reading";
+    it never carries a value.
 * **Comparisons read in time order.** Earlier → Latest (or Later) → Change, and the change is always
   LATER − EARLIER, whatever order the request named the dates in: MI's own `change` (first − second),
   negated when the first date is the earlier one, never recomputed. A true minus sign plus "Down" /

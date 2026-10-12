@@ -63,8 +63,8 @@ def test_VIEW_several_measures_are_labelled_figures(world):
 def test_VIEW_a_comparison_is_two_dated_values_and_the_change(world):
     v = _view({**BASE, "mode": "compare", "metrics": ["pct_above_50sma"], "compare_date": "2026-09-09"})
     # chronological (ACCEPTANCE 2026-10-12): earlier, then latest, then the change LATER − EARLIER
-    assert v["kind"] == "comparison" and [i["label"] for i in v["items"]] == ["Earlier", "Latest", "Change"]
-    assert v["items"][1] == {"label": "Latest", "value": "73.5%", "note": "2026-10-09"}
+    assert v["kind"] == "comparison" and [i["label"] for i in v["items"]] == ["Earlier", "Latest close", "Change"]
+    assert v["items"][1] == {"label": "Latest close", "value": "73.5%", "note": "2026-10-09"}
     m = breadth_reads.read({**BASE, "mode": "compare", "metrics": ["pct_above_50sma"], "compare_date": "2026-09-09"})["metrics"][0]
     mi = breadth_answer.fmt_change(m["unit"], m["change"])                                    # MI's own number
     assert v["items"][2]["value"] == (mi if mi.startswith("+") else "−" + mi[1:])
