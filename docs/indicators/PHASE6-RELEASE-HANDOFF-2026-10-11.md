@@ -84,7 +84,12 @@ Per `docs/runbooks/deploy-windows.md` and `tools/flow_worker_watch_coverage.py`:
   lands during market hours, merge without the marker (ADDITIVE allows it) and bump at the next window.
   Confirm by ARTIFACT: flow-worker's running commit advances to master's tip.
 - **Gates.** `tools/pre_push_guard.py` (web SUCCESS and settled, no burst) before the push; promotion to
-  `production` waits on the gating workflows incl. `master deploy gate` and `UCT Agent guard`.
+  `production` waits on the gating workflows. The Agent suites run INSIDE `master deploy gate` (the
+  always-runs gate) since `9d34cbf204` — the separate `UCT Agent guard` workflow was removed there because
+  an absent run of a non-always-runs gate reads as "not relevant" and promotes. This release touches no
+  Agent file, but `src/agent` and `tests/test_uct_agent*.py` still run on it there.
+- **Rebase first.** Master has moved past `b4282b5d9d` (now `8fd90f6bb7`); the branch merges cleanly — merge
+  `origin/master` into the release branch and re-run the alert-lane focus suites before the push.
 
 ## 8. Recommended follow-up milestone (recorded, not started)
 
