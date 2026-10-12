@@ -341,6 +341,8 @@ export default function ResearchHome({
   // nothing). Optional so every existing caller/test keeps working unchanged.
   onOpenNewNoteSheet = null,
   onStartVoiceNote = null,
+  // Notebook P1: opens the same New-note sheet, whose top section is the kind picker. null = gate off.
+  onFromStyle = null,
   // P0.13 (search in place): true while the folders panel's search is open. Home's own search box
   // steps aside then, so a member sees ONE search box, not two.
   searchActive = false,
@@ -710,7 +712,7 @@ export default function ResearchHome({
       <div className={styles.homeHeader}>
         <HomeSearch hidden={searchActive} />
         {hasAnyNotes && onOpenNewNoteSheet && (
-          <NewNoteMenu onBlank={onCreateNote} onFromOutline={onOpenNewNoteSheet}
+          <NewNoteMenu onBlank={onCreateNote} onFromOutline={onOpenNewNoteSheet} onFromStyle={onFromStyle}
             onVoice={onStartVoiceNote} onToday={onOpenToday} />
         )}
         <LearnMenu hasAnyNotes={hasAnyNotes} />

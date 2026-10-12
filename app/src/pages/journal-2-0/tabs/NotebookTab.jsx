@@ -64,6 +64,7 @@ import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk from '../lib/lazyChunk'
+import { journalStylesEnabled } from '../lib/journalStylesFlag'
 import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
 // Wave 14: every OTHER registered tour, beyond the base one above, runs through the generic
 // engine, whose gate (RegistryToursGate) is mounted ONCE in the app shell (components/Layout.jsx,
@@ -122,6 +123,8 @@ function lazyDialog(load, label) {
 }
 
 const NoteGraphView = lazyView(() => import('../components/notebook/NoteGraphView'), 'graph')
+// Notebook P1 (spec P1.4): the kind picker at the top of the New-note sheet. Lazy; gate off = never rendered.
+const KindSection = lazyView(() => import('../components/notebook/styles/KindSection'), 'kinds of note')
 const NoteBoardView = lazyView(() => import('../components/notebook/NoteBoardView'), 'board')
 const NoteCalendarView = lazyView(() => import('../components/notebook/NoteCalendarView'), 'calendar')
 const NoteTimelineView = lazyView(() => import('../components/notebook/NoteTimelineView'), 'timeline')
@@ -1613,6 +1616,15 @@ export default function NotebookTab() {
     else runBulk(anyway.op, anyway.args || {}, anyway.ctx || {}, anyway.ids, { acceptUnchecked: true, continues: true })
   }
 
+  // Notebook P1: the kind picker for the New-note sheet. createNote seeds the ticker from app focus
+  // (`ticker || focusSymbol`), so a chart block gets the symbol the member was just charting.
+  const stylesOn = journalStylesEnabled()
+  const kindSection = stylesOn ? (
+    <KindSection busy={creating}
+      onKind={(kindId) => createNote({ kindId })}
+      onStyle={(styleId) => createNote({ styleId })} />
+  ) : null
+
   // Create a note. Blank note passes no title/body; a template seeds both
   // (plus its preset tags and, when known, the ticker). The actual network
   // calls live in lib/noteCreation.js (Wave H) so the Ticker Research
@@ -1620,7 +1632,7 @@ export default function NotebookTab() {
   // than a second creation flow -- this wrapper only adds NotebookTab's OWN
   // UI concerns (app-focus ticker fallback, current-folder scoping, tree/
   // refresh bookkeeping) on top of it.
-  const createNote = async ({ title = '', bodyJson, tags, ticker, properties, revealPropertyIds, focusFirst = null } = {}) => {
+  const createNote = async ({ title = '', bodyJson, tags, ticker, properties, revealPropertyIds, focusFirst = null, styleId, kindId } = {}) => {
     setCreating(true)
     setPickerOpen(false)
     try {
@@ -1632,7 +1644,7 @@ export default function NotebookTab() {
       // made unfiled (a new note is never born archived or trashed).
       const safeFolderId = folderId && !['__unfiled__', '__trash__', ARCHIVED_FOLDER].includes(folderId)
         ? folderId : undefined
-      const created = await createNoteViaApi({ title, bodyJson, tags, ticker: seededTicker, folderId: safeFolderId, properties })
+      const created = await createNoteViaApi({ title, bodyJson, tags, ticker: seededTicker, folderId: safeFolderId, properties, styleId, kindId })
       // Wave 12 (12B-2): a template's definitions start empty, and the Properties
       // section hides an empty property -- so the new note shows them (this tab only).
       if (revealPropertyIds?.length) rememberTemplateReveal(created?.id, revealPropertyIds)
@@ -1683,7 +1695,7 @@ export default function NotebookTab() {
       // from the server's response: every note's stored bodyJson is a real doc,
       // even an empty one, so reading `created.bodyJson` could not tell blank
       // from templated).
-      openNote(created, null, { fresh: true, blank: !title && !bodyJson, to: focusFirst })
+      openNote(created, null, { fresh: true, blank: !title && !bodyJson && !styleId && !kindId, to: focusFirst })
     } catch (e) {
       console.error('[notebook] create note failed', e)
       setActionError("Couldn't create that note. Nothing was saved.")
@@ -2260,6 +2272,7 @@ export default function NotebookTab() {
             // "Voice note" button calls (null while the voice gate is off, so the menu lists
             // no door that opens nothing).
             onOpenNewNoteSheet={() => setPickerOpen(true)}
+            onFromStyle={stylesOn ? () => setPickerOpen(true) : null}
             onStartVoiceNote={voiceOn ? () => startVoiceNote('record') : null}
             // P0.13: Home's search box steps aside while the panel's search is on screen.
             searchActive={sidebarSearching && sidebarOpen}
@@ -2569,7 +2582,7 @@ export default function NotebookTab() {
               </div>
             )}
             <div className={styles.emptyPicker}>
-              <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} />
+              <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} kindSection={kindSection} />
             </div>
           </div>
         ) : (
@@ -2759,7 +2772,7 @@ export default function NotebookTab() {
           )}
           {/* 13Q-5: autoFocus only in the Sheet dialog -- the inline empty-notebook
               mount below must never steal focus from a page load. */}
-          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} autoFocusSearch />
+          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} autoFocusSearch kindSection={kindSection} />
         </Sheet>
 
         {voiceNote && voiceOn && (

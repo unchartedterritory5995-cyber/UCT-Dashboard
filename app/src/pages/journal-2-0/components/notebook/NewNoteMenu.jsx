@@ -5,7 +5,7 @@ import { useRef, useState, useEffect } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './NewNoteMenu.module.css'
 
-export default function NewNoteMenu({ onBlank, onFromOutline, onVoice = null, onToday = null }) {
+export default function NewNoteMenu({ onBlank, onFromOutline, onFromStyle = null, onVoice = null, onToday = null }) {
   const [open, setOpen] = useState(false)
   const caretRef = useRef(null)
   const menuRef = useRef(null)
@@ -14,6 +14,7 @@ export default function NewNoteMenu({ onBlank, onFromOutline, onVoice = null, on
   // not carried through this list as data.
   const items = [
     { key: 'outline', label: 'From an outline', run: onFromOutline, icon: 'document' },
+    onFromStyle && { key: 'style', label: 'From a style', run: onFromStyle, icon: 'sliders' },
     onVoice && { key: 'voice', label: 'Voice note', run: onVoice, icon: 'mic' },
     onToday && { key: 'today', label: "Today's note", run: onToday, icon: 'sun' },
   ].filter(Boolean)
@@ -57,7 +58,12 @@ export default function NewNoteMenu({ onBlank, onFromOutline, onVoice = null, on
       </button>
       {open && (
         <div ref={menuRef} className={styles.menu} role="menu" aria-label="Start a note" onKeyDown={onMenuKey}>
-          {items.map((it) => (it.key === 'voice' ? (
+          {items.map((it) => (it.key === 'style' ? (
+            <button key={it.key} type="button" role="menuitem" className={styles.item}
+              data-tour="new-note-style" onClick={run(it.run)}>
+              <UIcon name={it.icon} size={14} gold={false} /> {it.label}
+            </button>
+          ) : it.key === 'voice' ? (
             <button key={it.key} type="button" role="menuitem" className={styles.item}
               data-tour="new-note-voice" onClick={run(it.run)}>
               <UIcon name={it.icon} size={14} gold={false} /> {it.label}

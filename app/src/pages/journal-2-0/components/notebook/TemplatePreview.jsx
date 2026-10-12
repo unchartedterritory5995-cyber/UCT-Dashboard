@@ -21,6 +21,7 @@
 // way -- there is no code path in this file that stringifies a node for
 // display.
 import Sheet from '../../../../components/mobile/Sheet'
+import { blockLabel, tfWord } from '../../lib/journalBlocks'
 import styles from './TemplatePreview.module.css'
 
 function Marks({ marks, children }) {
@@ -101,6 +102,13 @@ function Block({ node, inline = false }) {
       const src = node.attrs?.src
       return src ? <img className={styles.img} src={src} alt={node.attrs?.alt || ''} /> : null
     }
+    case 'widgetEmbed': {
+      // Notebook P1: a style's block previews as one named line, never a live widget.
+      const p = node.attrs?.params || {}
+      const what = node.attrs?.widgetId === 'chart' && p.symbol
+        ? `Chart · ${p.symbol} · ${tfWord(p.tf)}` : blockLabel(node.attrs?.widgetId)
+      return <div className={styles.blockLine} data-block={node.attrs?.widgetId || ''}>{what}</div>
+    }
     default:
       // Never raw JSON. A container we don't specifically render still shows
       // its children; a leaf we don't recognize shows nothing.
@@ -109,7 +117,7 @@ function Block({ node, inline = false }) {
 }
 
 /** The preview body: every top-level block of a TipTap doc, read-only. */
-function DocBody({ body }) {
+export function DocBody({ body }) {
   const blocks = (body && body.content) || []
   if (!blocks.length) return <p className={styles.status}>This template makes an empty page.</p>
   return <div className={styles.body} data-template-preview-body="">{blocks.map((n, i) => <Block key={i} node={n} />)}</div>
@@ -120,7 +128,7 @@ function DocBody({ body }) {
 // passes false and the sheet shows Close alone.
 export default function TemplatePreview({
   open, onClose, title, subtitle, body, onUse, busy = false, loading = false, loadError = null,
-  showUse = true,
+  showUse = true, useLabel = 'Use this template',
 }) {
   return (
     <Sheet open={open} onClose={onClose} title={title || 'Preview'} labelledByTitle variant="auto" maxWidth={640}>
@@ -142,7 +150,7 @@ export default function TemplatePreview({
               onClick={onUse}
               disabled={busy || loading || !!loadError}
             >
-              Use this template
+              {useLabel}
             </button>
           )}
         </div>
