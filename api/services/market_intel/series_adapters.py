@@ -325,12 +325,48 @@ def _fund_load(spec: dict) -> dict:
             "source": {"interface": "fundamentals_pit.serving.series_response (db/local mode)"}}
 
 
+# ── market cap (Market Cap V1, point-in-time share state × close) ───────────
+
+def _mcap_describe(spec: dict) -> tuple[Optional[dict], Optional[dict]]:
+    sym = _pr.normalize_symbol(spec.get("symbol"))
+    if not sym:
+        return None, _refused("bad_symbol", "That isn't a valid ticker symbol.")
+    return {"kind": "market_cap", "symbol": sym, "label": f"{sym} company market capitalization (USD)",
+            "unit": "usd", "domain": "nonneg", "category": "market cap (point-in-time share state)"}, None
+
+
+def _mcap_load(spec: dict) -> dict:
+    """`marketcap.pit_serving.series` — the member read path, which VERIFIES the authority pointer, the
+    manifest hash and the document hash before serving a value — in its LOCAL mode only
+    (MCAP_PIT_LOCAL_ROOT, dev / drills). Production (`r2`, dark, no published authority) is refused."""
+    from api.services.marketcap import pit_serving as _M
+    if _M.mode() != "local":
+        return {"status": "unavailable", "reason": "marketcap_source_not_local",
+                "detail": "Market cap history is read here only from a LOCAL published root (MCAP_PIT_SOURCE=local). "
+                          "Production Market Cap V1 is dark with no published authority."}
+    status, body, _tag = _M.series(spec["symbol"])
+    if status != 200:
+        return {"status": "unavailable", "reason": "no_data" if status == 404 else "unverified",
+                "detail": f"No verified market-cap history for {spec['symbol']}."}
+    rows = [(str(d), float(v)) for d, v in (body.get("points") or []) if d and v is not None]
+    if not rows:
+        return {"status": "unavailable", "reason": "no_data", "detail": "No market-cap values."}
+    notes = []
+    if body.get("gaps"):
+        notes.append(f"{len(body['gaps'])} reason-coded gap(s) in this company's market-cap history are left as gaps.")
+    return {"status": "ok", "alignment": "session", "rows": rows, "max_staleness_days": None, "notes": notes,
+            "coverage": {"first": rows[0][0], "last": rows[-1][0], "authority": body.get("build_id"),
+                         "basis": "company-level, point-in-time shares × close"},
+            "source": {"interface": "marketcap.pit_serving.series (local mode; verified authority)"}}
+
+
 ADAPTERS = {
     "breadth": (_breadth_describe, _breadth_load),
     "technical": (_tech_describe, _tech_load),
     "cot": (_cot_describe, _cot_load),
     "econ": (_econ_describe, _econ_load),
     "fundamental": (_fund_describe, _fund_load),
+    "market_cap": (_mcap_describe, _mcap_load),
 }
 
 

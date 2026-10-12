@@ -575,3 +575,36 @@ def test_fundamentals_production_source_is_refused(world, monkeypatch):
     monkeypatch.setenv("FUNDAMENTALS_PIT_SOURCE", "r2")
     r = es.run(req(series={"kind": "fundamental", "symbol": "TST", "metric": "revenue_q"}, threshold=0))
     assert r["status"] == "unavailable" and r["reason"] == "fundamentals_source_not_local"
+
+
+# ── market cap adapter: the Market Cap team's own local publish → verify → serve fixture ──
+
+def test_market_cap_through_a_verified_local_publication(world, monkeypatch, tmp_path):
+    from api.services.marketcap import publication as P, pit_serving as M
+    from tests.marketcap.lifecycle_fixtures import make_build, make_prices, manifest_fields, passing_validation
+    bid = "MCAP_V1-20261002T050000Z"
+    root = str(tmp_path / "bucket")
+    t = P.LocalTarget(root)
+    db = make_build(str(tmp_path / "b.db"), bid, last_day=20261001)
+    r = P.publish_build(t, build_db=db, prices_db=make_prices(str(tmp_path / "prices.db")),
+                        manifest_fields=manifest_fields(bid, P.file_sha(db)[0]), validation=passing_validation())
+    P.advance(t, bid, r["manifest_sha256"], expect_current=None, by="test", reason="mi test", acceptance="HUMAN_CUTOVER")
+    monkeypatch.setenv("MCAP_PIT_SOURCE", "local")
+    monkeypatch.setenv("MCAP_PIT_LOCAL_ROOT", root)
+    monkeypatch.delenv("MCAP_PIT_PIN", raising=False)
+    M.clear_cache()
+    days = ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"]
+    fx.install(monkeypatch, bars=[{"t": d, "c": 10.0 + i} for i, d in enumerate(days)])
+    out = es.run(req(series={"kind": "market_cap", "symbol": "AAA"}, op="above", threshold=1.015e9,
+                     horizons=[{"sessions": 1}], episodes="first"))
+    M.clear_cache()
+    assert out["status"] == "ok", out
+    assert out["coverage"]["series_authority"] == bid
+    # AAA cap = 1e9 × (1 + i/100) on 09-28..10-01 → first above 1.015e9 is 09-30 (1.02e9)
+    assert [e["event_date"] for e in out["events"]] == ["2026-09-30"]
+
+
+def test_market_cap_production_source_is_refused(world, monkeypatch):
+    monkeypatch.setenv("MCAP_PIT_SOURCE", "r2")
+    r = es.run(req(series={"kind": "market_cap", "symbol": "AAA"}, op="above", threshold=1e9))
+    assert r["status"] == "unavailable" and r["reason"] == "marketcap_source_not_local"
