@@ -436,8 +436,12 @@
   {
     "feature": "Journal styles manager (P1)",
     "audit_row": 54,
-    "path": "/journal/notebook?view=all",
-    "steps": [],
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "click": "link|View all notes"
+      }
+    ],
     "target": {
       "role": "button",
       "name": "Styles"
@@ -447,7 +451,7 @@
       "390"
     ],
     "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
-    "note": "A P1 door, numbered after the 2026-10-11 audit's 53 rows."
+    "note": "A P1 door, numbered after the 2026-10-11 audit's 53 rows. The Styles button sits in the notes list's header, reached from Research Home the way row 11 reaches it (View all notes): the audit loads every row from Research Home, so a ?view=all path never loads (measured 2026-10-12, door-audit-20261012T055312Z, NOT_MEASURED)."
   },
   {
     "feature": "New note from a style (P1)",
