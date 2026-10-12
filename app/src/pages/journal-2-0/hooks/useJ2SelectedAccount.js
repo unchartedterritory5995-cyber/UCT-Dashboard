@@ -4,7 +4,8 @@
  *
  * Returns `{ accountId, account, accounts, setAccount, isLoading, isAllAccounts, accountsError }`:
  *   - accountId: string | null. null is "All Accounts", but ALSO "no pick yet" and "accounts
- *     failed"; `isAllAccounts` is the one that means All Accounts.
+ *     failed"; `isAllAccounts` is the one that means All Accounts. This hook is the ONE owner of
+ *     that name (R-M2-1 b): useJ2Settings says `noSpecificAccount` for accountId == null instead.
  *   - account: full account object | null when accountId is null
  *   - setAccount(id | null): updates selection + persists (null = All Accounts)
  *   - isAllAccounts: the selection is the "All Accounts" sentinel. Derived from this tab's hook STATE

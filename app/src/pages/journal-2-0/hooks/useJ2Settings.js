@@ -84,6 +84,8 @@ export default function useJ2Settings(enabled = true) {
     refresh: () => mutate(),
     accountId,
     accountName: account?.name,
-    isAllAccounts: accountId == null,
+    // R-M2-1 (b): no SPECIFIC account is selected (All Accounts, no pick yet, or accounts failing).
+    // Not "is all accounts": that name belongs to useJ2SelectedAccount alone.
+    noSpecificAccount: accountId == null,
   }
 }

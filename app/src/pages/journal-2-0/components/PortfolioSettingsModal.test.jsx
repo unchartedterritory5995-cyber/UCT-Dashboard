@@ -36,6 +36,22 @@ describe('PortfolioSettingsModal', () => {
     expect(screen.getByRole('heading', { name: /Settings/ })).toBeInTheDocument()
   })
 
+  // R-M2-1 (b): the prop is `noSpecificAccount` (accountId == null), never a second `isAllAccounts`.
+  it('with no specific account selected: the banner shows and Save is disabled', () => {
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} noSpecificAccount />,
+    )
+    expect(screen.getByText('All Accounts mode')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save Settings' })).toBeDisabled()
+  })
+  it('with one account selected: no banner, and Save is enabled', () => {
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} noSpecificAccount={false} />,
+    )
+    expect(screen.queryByText('All Accounts mode')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Save Settings' })).not.toBeDisabled()
+  })
+
   it('shows the pre-populated account size', () => {
     render(
       <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />,

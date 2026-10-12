@@ -72,7 +72,8 @@ function buildDefaultStop(mode, barBuffer, barBufferUnit, fixedAmount, fixedPerc
   }
 }
 
-export default function PortfolioSettingsModal({ settings, onSave, onClose, accountName, isAllAccounts }) {
+// `noSpecificAccount`: useJ2Settings' own name for accountId == null (R-M2-1 b), when Save cannot write.
+export default function PortfolioSettingsModal({ settings, onSave, onClose, accountName, noSpecificAccount }) {
   // Local form state seeded from props.settings. Saving writes this
   // back through useJ2Settings.save(). Cancel discards local state.
   const [accountSize, setAccountSize] = useState(settings?.accountSize ?? 100_000)
@@ -399,7 +400,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
             ×
           </button>
         </div>
-        {isAllAccounts && (
+        {noSpecificAccount && (
           <div style={{
             margin: '12px 20px 0', padding: '10px 14px',
             background: 'var(--warn-bg)', border: '1px solid var(--warn-border)',
@@ -1231,8 +1232,8 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
             type="button"
             className="btn btn-primary"
             onClick={handleSave}
-            disabled={saving || isAllAccounts}
-            title={isAllAccounts ? 'Select a single account to save settings' : ''}
+            disabled={saving || noSpecificAccount}
+            title={noSpecificAccount ? 'Select a single account to save settings' : ''}
           >
             {saving ? 'Saving…' : 'Save Settings'}
           </button>
