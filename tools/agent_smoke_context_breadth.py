@@ -143,6 +143,8 @@ def main() -> int:
     ap.add_argument("--scripted", action="store_true")
     ap.add_argument("--max-usd", type=float, default=None)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--payloads-out", default=None,
+                    help="also write every request SENT to the model (system, messages, schema size) for inspection")
     ap.add_argument("--leak-control", action="store_true",
                     help="scripted only: a deliberately LEAKY history door — the run must STOP at q2, nothing sent")
     a = ap.parse_args()
@@ -184,6 +186,7 @@ def main() -> int:
     turn._research = _research
     turn._record_cost = lambda _resp: 0.0
     budget = {"spent": 0.0, "calls": 0, "q_calls": 0}
+    sent: list[dict] = []
     current = {"qid": None, "body": None}
     ceiling = a.max_usd if a.run else HARD_CEILING_USD
 
@@ -203,6 +206,9 @@ def main() -> int:
             raise Stop(f"${budget['spent']:.4f} spent + worst ${worst:.4f} would pass ${ceiling:.2f} — NOT sent")
         budget["q_calls"] += 1
         budget["calls"] += 1
+        sent.append({"qid": current["qid"], "model": kw.get("model"), "max_tokens": kw.get("max_tokens"),
+                     "system": kw.get("system"), "messages": kw.get("messages"),
+                     "schema_chars": len(json.dumps(kw.get("output_config"), default=str))})
         if a.scripted:
             import types
             env = scripted_plan(current["qid"], current["body"])
@@ -256,6 +262,8 @@ def main() -> int:
                     "envelope": env, "research_calls": usage.get("research_calls", 0)})
     print(f"calls {budget['calls']}   spent ${budget['spent']:.4f} of ${ceiling:.2f}   "
           f"passed {sum(1 for o in out if o['ok'])}/{len(items)}   leaks 0{'' if not stopped else '   STOPPED: ' + stopped}")
+    if a.payloads_out:
+        json.dump(sent, open(a.payloads_out, "w", encoding="utf-8"), indent=1, default=str)
     if a.out:
         json.dump({"results": out, "stopped": stopped, "spent_usd": budget["spent"], "calls": budget["calls"]},
                   open(a.out, "w", encoding="utf-8"), indent=2)
