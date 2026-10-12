@@ -1,14 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 
-// The two hooks the body reads. `S` is mutated per test; `save` is a spy that must NEVER be called
-// (the block reads settings, it never writes them: its one write door is setParams).
+// The hooks behind the block's read seam (hooks/usePositionSizingSources, R-M2-1 a); the seam itself is
+// real here. `S` is mutated per test; `save` is a spy that must NEVER be called (the block reads
+// settings, it never writes them: its one write door is setParams).
 const S = vi.hoisted(() => ({ settings: null, isLoading: false, save: null, regime: null, error: undefined, refresh: null,
   accountName: 'Main', accountId: 'a1', accounts: null }))
-// `isAllAccounts` mirrors the real hook (`accountId == null`); the block must not depend on it (R-T11-2 N-1).
 vi.mock('../../../hooks/useJ2Settings', () => ({ default: () => ({ settings: S.settings, isLoading: S.isLoading, save: S.save,
-  error: S.error, refresh: S.refresh, accountName: S.accountName, accountId: S.accountId, isAllAccounts: S.isAllAccounts ?? S.accountId == null }) }))
+  error: S.error, refresh: S.refresh, accountName: S.accountName, accountId: S.accountId, noSpecificAccount: S.accountId == null }) }))
 vi.mock('../../../hooks/useJ2Accounts', () => ({ default: () => S.accounts }))
+// `isAllAccounts` defaults to `accountId == null`; the sizing rule must not depend on it (R-T11-2 N-1).
+vi.mock('../../../hooks/useJ2SelectedAccount', () => ({ default: () => ({ accountId: S.accountId,
+  isAllAccounts: S.isAllAccounts ?? S.accountId == null, isLoading: !!S.accounts?.isLoading,
+  accountsError: S.accounts?.error, accounts: S.accounts?.accounts ?? [], setAccount: S.save }) }))
 vi.mock('../../../hooks/useJ2CurrentRegime', () => ({ default: () => ({ regime: S.regime }) }))
 import PositionSizingBlock from './PositionSizingBlock'
 
@@ -223,6 +227,16 @@ describe('PositionSizingBlock', () => {
     expect(screen.getByText('You have no accounts yet. Enter a size for this note.')).toBeTruthy()
     expect(screen.queryByText(/^Pick one account/)).toBeNull()
     expect(screen.queryByText(/shares$/)).toBeNull()
+  })
+  it('R-M2-1: accounts loaded but the first pick not made yet: "Loading your accounts…", never "Pick one", no size', () => {
+    S.accountId = null
+    S.isAllAccounts = false
+    S.settings = { accountSize: 25000 }                       // the frozen legacy j2_settings row
+    render(<PositionSizingBlock params={{ entry: 100, stop: 95, grade: 'A+', regimeId: 'green' }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('Loading your accounts…')).toBeTruthy()
+    expect(screen.queryByText(/^Pick one account/)).toBeNull()
+    expect(screen.queryByText(/shares$/)).toBeNull()
+    expect(screen.queryByText(/25,000/)).toBeNull()
   })
   it('N-1: "no specific account" is accountId == null, whatever isAllAccounts says', () => {
     S.accountId = 'a1'

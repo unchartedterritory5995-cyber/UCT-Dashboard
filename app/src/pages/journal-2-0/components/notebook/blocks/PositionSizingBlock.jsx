@@ -3,24 +3,21 @@
 // lib/blocks/houseSizing.js derives from app/src/constants/houseSizing.json; a missing input is a
 // sentence, never a guessed value.
 // ⛔ Its one write door is `setParams` (one editor transaction, blocks/useBlockParams.js). It READS
-// settings and the regime through their hooks and never calls a hook's writer (PositionSizingBlock.test
-// pins that `save` is never called; "Try again" calls the hook's `refresh`, a re-read).
+// settings, the selected account and the regime through ONE read seam, hooks/usePositionSizingSources
+// (R-M2-1 a; data only, scanned by blockDoors rule ⑤), so no hook writer is reachable from here.
+// "Try again" is the seam's retrySettings / retryAccounts, a re-read.
 // ⛔ IR-S9 / integrator ruling S9: the server writes a $100,000 placeholder into every new account, so
 // an account size that is unset or still that placeholder is NOT the member's: nothing is sized against
 // it. The block says why and offers a size for this note instead.
 // ⛔ R-T11-1 C-1 / R-T11-2 N-1: with no SPECIFIC account selected (All Accounts, the first load before
 // one is picked, or accounts that will not load) useJ2Settings reads the frozen legacy j2_settings row,
-// which is not any account's size, so nothing is sized against it. THE RULE IS `accountId == null`
-// (useJ2Settings' own accountId) and it stays that rule: an "is all accounts" key, here or lane A's, may
-// only choose WHICH SENTENCE explains the missing size, never whether one exists. The accounts list's
-// own state (loading, failed, empty) picks the sentence below. The M2 integration moves these reads
-// into a read-only seam; this block does not build it.
+// which is not any account's size, so nothing is sized against it. THE RULE IS `accountId == null`, and
+// it lives IN THE SEAM: the seam never hands that row on, so this block cannot receive it. The seam's
+// `accountState` (specific | all | pending | accounts-error | no-accounts) picks the sentence below.
 // ⛔ R-T11-1 I-2: the account size is read LIVE (never stamped into params); the block says which
 // account, and which amount, it sized against.
 import { useEffect, useId, useState } from 'react'
-import useJ2Settings from '../../../hooks/useJ2Settings'
-import useJ2CurrentRegime from '../../../hooks/useJ2CurrentRegime'
-import useJ2Accounts from '../../../hooks/useJ2Accounts'
+import usePositionSizingSources from '../../../hooks/usePositionSizingSources'
 import {
   houseSize, accountSizeFor, isPlaceholderAccount, articleFor,
   REGIME_OF, PLACEHOLDER_ACCOUNT_SIZE, MAX_ACCOUNT_RISK_PCT, PREFERRED_ACCOUNT_RISK_PCT,
@@ -51,9 +48,9 @@ const SETTLE_MS = 800
 
 export default function PositionSizingBlock({ params = {}, setParams, editable }) {
   const ids = { entry: useId(), stop: useId(), grade: useId(), account: useId() }
-  const { settings, isLoading, error, refresh, accountName, accountId } = useJ2Settings()
-  const accts = useJ2Accounts()
-  const { regime: cur } = useJ2CurrentRegime()
+  const {
+    settings, settingsState, retrySettings, accountState, accountName, retryAccounts, regime: cur,
+  } = usePositionSizingSources()
 
   const todayId = knownRegime(cur?.regime)
   const storedId = knownRegime(params.regimeId)
@@ -62,12 +59,13 @@ export default function PositionSizingBlock({ params = {}, setParams, editable }
   const asOf = storedId ? params.regimeAsOf : cur?.asOf
   const grade = params.grade || 'A'
 
-  // The account size, and why there is none. Order: no specific account (C-1) · a failed read (M-2) ·
-  // still loading (neither the member's size nor "unset") · the placeholder or an unset size (S9).
-  const noAccount = accountId == null
-  const readFailed = !noAccount && settings == null && !!error
-  const usable = noAccount || readFailed ? null : settings
-  const settingsKnown = noAccount || readFailed || settings != null || !isLoading
+  // The account size, and why there is none. Order: no specific account (C-1, decided in the seam) ·
+  // a failed read (M-2) · still loading (neither the member's size nor "unset") · the placeholder or an
+  // unset size (S9).
+  const noAccount = accountState !== 'specific'
+  const readFailed = settingsState === 'error'
+  const usable = settingsState === 'ready' ? settings : null
+  const settingsKnown = settingsState !== 'loading'
   const settingsOwn = accountSizeFor({ params: {}, settings: usable })
   const needsOwnSize = settingsKnown && settingsOwn == null
   const noteSize = num(params.accountSize) > 0 ? num(params.accountSize) : null
@@ -117,16 +115,14 @@ export default function PositionSizingBlock({ params = {}, setParams, editable }
         <div className={styles.notice}>
           {needsOwnSize && noteSize == null && (
             noAccount ? (
-              accts?.error ? (
+              accountState === 'accounts-error' ? (
                 <>
                   <p className={blockStyles.muted}>Your accounts could not be loaded just now.</p>
-                  {typeof accts.refresh === 'function' && (
-                    <button type="button" className={`btn btn-ghost ${styles.tap}`} onClick={() => accts.refresh()}>Try again</button>
-                  )}
+                  <button type="button" className={`btn btn-ghost ${styles.tap}`} onClick={retryAccounts}>Try again</button>
                 </>
-              ) : accts?.isLoading || !accts ? (
+              ) : accountState === 'pending' ? (
                 <p className={blockStyles.muted}>Loading your accounts…</p>
-              ) : (accts.accounts || []).length === 0 ? (
+              ) : accountState === 'no-accounts' ? (
                 <p className={blockStyles.muted}>You have no accounts yet. Enter a size for this note.</p>
               ) : (
                 <p className={blockStyles.muted}>Pick one account to size against, or enter a size for this note.</p>
@@ -134,9 +130,7 @@ export default function PositionSizingBlock({ params = {}, setParams, editable }
             ) : readFailed ? (
               <>
                 <p className={blockStyles.muted}>Your account size could not be read just now.</p>
-                {typeof refresh === 'function' && (
-                  <button type="button" className={`btn btn-ghost ${styles.tap}`} onClick={() => refresh()}>Try again</button>
-                )}
+                <button type="button" className={`btn btn-ghost ${styles.tap}`} onClick={retrySettings}>Try again</button>
               </>
             ) : (
               <>

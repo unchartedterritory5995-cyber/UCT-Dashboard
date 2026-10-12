@@ -50,8 +50,8 @@ export default function useChecklistSources({ wantRules }) {
     const noAccounts = !Array.isArray(accounts) || accounts.length === 0
     if (!!accountsError && noAccounts) accountState = 'accounts-error'
     else if (accountsLoading) accountState = 'loading'
+    else if (Array.isArray(accounts) && accounts.length === 0) accountState = 'no-accounts'   // before All Accounts: "All" of none is not a choice
     else if (isAllAccounts) accountState = 'no-account'
-    else if (Array.isArray(accounts) && accounts.length === 0) accountState = 'no-accounts'
     else accountState = 'loading'
   }
 

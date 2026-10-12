@@ -93,6 +93,7 @@ describe('useChecklistSources', () => {
     ['accounts failed', { accountId: null, isLoading: false, isAllAccounts: false, accounts: [], accountsError: new Error('500') }, 'accounts-error'],
     ['no accounts at all', { accountId: null, isLoading: false, isAllAccounts: false, accounts: [] }, 'no-accounts'],
     ['All Accounts, a failed re-poll, accounts on hand', { accountId: null, isLoading: false, isAllAccounts: true, accounts: [{ id: 'a1' }], accountsError: new Error('500') }, 'no-account'],
+    ['All Accounts stored, but no accounts at all', { accountId: null, isLoading: false, isAllAccounts: true, accounts: [] }, 'no-accounts'],
   ])('C-1 %s: the legacy settings row is never handed on as ready', (_name, account, state) => {
     ACCOUNT_RET = account
     for (const wantRules of [true, false]) {

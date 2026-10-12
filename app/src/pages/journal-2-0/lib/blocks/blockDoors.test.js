@@ -71,13 +71,10 @@ export const IMPORT_ALLOW = {
   // never restates it. The module also reloads the page for a ROUTE's stale chunk; no data, no writes.
   'app/src/utils/lazyWithRetry': "isChunkLoadError: the app's own stale-chunk predicate; no data, no writes",
   // Task 11 (position sizing): the ONE in-repo house sizing table (IR-S10), a JSON file with no code,
-  // and the two hooks the body READS through. The body takes `settings`/`isLoading` and `regime` from
-  // them and never calls useJ2Settings' `save` (PositionSizingBlock.test.jsx pins that).
+  // and (R-M2-1 a) the body's ONE read seam, which replaced its three direct hook imports (useJ2Settings,
+  // useJ2CurrentRegime, useJ2Accounts) so ⑤ scans what the body can reach.
   'app/src/constants/houseSizing.json': 'the house sizing table (IR-S10): plain JSON data, no code, no network',
-  'app/src/pages/journal-2-0/hooks/useJ2Settings': 'READ only: settings.accountSize (a GET); the body never calls its save',
-  'app/src/pages/journal-2-0/hooks/useJ2CurrentRegime': "READ only: today's regime id and its date (GET /api/j2/regime)",
-  // R-T11-2 N-2: the accounts list's state picks the sentence when no specific account is selected.
-  'app/src/pages/journal-2-0/hooks/useJ2Accounts': 'READ only: the accounts list, its loading and error state, and refresh (a re-read)',
+  'app/src/pages/journal-2-0/hooks/usePositionSizingSources': 'the sizing read seam: settings only for a specific account (C-1), the account state, the regime, and two re-reads; no write function is returned',
   // Task 7: the checklist's ONE read seam. It composes the Journal's settings, selected-account and
   // rules SWR hooks and returns DATA ONLY (its return keys are pinned in useChecklistSources.test.js):
   // the save / create / dismiss writes those hooks carry never reach a block file. It fetches nothing
@@ -120,6 +117,23 @@ export const SEAM_RULES = {
       [`${J2_HOOKS}useJ2Settings`]: ['settings', 'isLoading', 'error', 'refresh'],
       [`${J2_HOOKS}useJ2SelectedAccount`]: ['accountId', 'isLoading', 'isAllAccounts', 'accountsError', 'accounts'],
       [`${J2_HOOKS}useJournalRules`]: ['rules', 'isLoading', 'error'],
+    },
+  },
+  // R-M2-1 (a): the position sizing block's seam. Settings are handed on only for a specific account
+  // (C-1, decided inside the seam); `refresh` of settings and of the accounts list are re-reads.
+  [`${J2_HOOKS}usePositionSizingSources`]: {
+    imports: {
+      react: 'useCallback only; no network',
+      [`${J2_HOOKS}useJ2Settings`]: 'SWR read of the account settings; its save is unreachable (members)',
+      [`${J2_HOOKS}useJ2SelectedAccount`]: 'the selected account; its setAccount is unreachable (members)',
+      [`${J2_HOOKS}useJ2Accounts`]: "the accounts list's re-read only (members)",
+      [`${J2_HOOKS}useJ2CurrentRegime`]: "SWR read of today's regime (GET /api/j2/regime)",
+    },
+    members: {
+      [`${J2_HOOKS}useJ2Settings`]: ['settings', 'isLoading', 'error', 'refresh'],
+      [`${J2_HOOKS}useJ2SelectedAccount`]: ['accountId', 'isLoading', 'isAllAccounts', 'accountsError', 'accounts'],
+      [`${J2_HOOKS}useJ2Accounts`]: ['refresh'],
+      [`${J2_HOOKS}useJ2CurrentRegime`]: ['regime', 'isLoading', 'error'],
     },
   },
 }
@@ -682,6 +696,7 @@ describe('⛔⛔ no block owns a second write door', () => {
   it('⑤ every read seam (an IMPORT_ALLOW entry under hooks/) is scanned with its OWN rules: nothing found', () => {
     const seams = seamIds()
     expect(seams).toContain(`${J2_HOOKS}useChecklistSources`)                    // non-vacuity
+    expect(seams).toContain(`${J2_HOOKS}usePositionSizingSources`)
     for (const id of seams) {
       const p = `${id}.js`
       expect(existsSync(join(REPO, p)), `${p} is not a file`).toBe(true)
@@ -748,6 +763,32 @@ describe('⛔⛔ no block owns a second write door', () => {
       "// fetch('/api/j2/x', { method: 'PUT' })",
       '/* const s = useJ2Settings(); return s */',
     ].join('\n')), rule)).toEqual([])
+  })
+  it('CONTROL — ⑤ the sizing seam: a writer, an unlisted member or an unlisted hook is seen, by name', () => {
+    const f = `${J2_HOOKS}usePositionSizingSources.js`
+    const rule = SEAM_RULES[`${J2_HOOKS}usePositionSizingSources`]
+    const seam = (body, extra = '') => [
+      "import useJ2Settings from './useJ2Settings'",
+      "import useJ2SelectedAccount from './useJ2SelectedAccount'",
+      "import useJ2Accounts from './useJ2Accounts'",
+      extra,
+      "export const RETURN_KEYS = Object.freeze(['settings', 'accountId'])",
+      'export default function useX() {',
+      body,
+      '}',
+    ].join('\n')
+    const CLEAN = "  const { settings, refresh } = useJ2Settings()\n  const { accountId } = useJ2SelectedAccount()\n"
+      + "  const { refresh: r } = useJ2Accounts()\n  return { settings, accountId }"
+    expect(seamProblems(f, seam(CLEAN), rule)).toEqual([])
+    expect(seamProblems(f, seam(CLEAN.replace('settings, refresh', 'settings, save')), rule))
+      .toEqual([`MEMBER ${f}: useJ2Settings.save`])
+    expect(seamProblems(f, seam(CLEAN.replace('{ accountId }', '{ accountId, setAccount }')), rule))
+      .toEqual([`MEMBER ${f}: useJ2SelectedAccount.setAccount`])
+    expect(seamProblems(f, seam(CLEAN.replace('{ refresh: r }', '{ refresh: r, accounts }')), rule))
+      .toEqual([`MEMBER ${f}: useJ2Accounts.accounts`])
+    expect(seamProblems(f, seam(CLEAN, "import useJournalRules from './useJournalRules'"), rule))
+      .toEqual([`UNLISTED ${f}: ./useJournalRules`])
+    expect(seamProblems(f, seam(CLEAN, '// const { save } = useJ2Settings()'), rule)).toEqual([])
   })
   it('CONTROL — an exception is method+URL, never the whole file (IR-I b)', () => {
     const f = 'app/src/pages/journal-2-0/lib/blocks/Y.js'
