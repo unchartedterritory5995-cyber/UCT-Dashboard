@@ -5,11 +5,14 @@
 // own recipe in this file's siblings); a second renders the REAL BlockNodeView with one body that throws,
 // so the whole composition (the named group, its Remove button, then the error state with "Try again")
 // is audited -- not a hand-built frame. An empty screen cannot pass as a clean one in either.
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { vi, expect } from 'vitest'
 import { axeSurface } from './surface'
 
 vi.mock('@tiptap/react', () => ({ NodeViewWrapper: ({ children, ...p }) => <div {...p}>{children}</div> }))
+// Task 11's real body reads these two hooks; its own recipe is traderBlockSizing.a11y.test.jsx.
+vi.mock('../hooks/useJ2Settings', () => ({ default: () => ({ settings: { accountSize: 50000 } }) }))
+vi.mock('../hooks/useJ2CurrentRegime', () => ({ default: () => ({ regime: { regime: 'green', asOf: '2026-10-13' } }) }))
 import userEvent from '@testing-library/user-event'
 import BlockNodeView, { BLOCK_COMPONENTS } from '../components/notebook/blocks/BlockNodeView'
 import { BLOCK_ERROR_SENTENCE } from '../components/notebook/blocks/blockStates'
@@ -27,8 +30,16 @@ axeSurface('trader-block-platform', async () => {
     expect(await screen.findByRole('group', { name })).toBeTruthy()
     expect(screen.getByRole('button', { name: `Remove ${name}` })).toBeTruthy()
   }
-  // every stub body painted (an unloaded chunk would read as a clean, empty block)
-  expect(await screen.findAllByText('This block is being built.')).toHaveLength(3)
+  // every body painted (an unloaded chunk would read as a clean, empty block). Each body is its own lazy
+  // chunk behind its own Suspense, so wait PER NAMED GROUP: `findAllBy*` resolves on the first match
+  // and read 1 of N under load. A task that replaces a stub removes its name from STUBBED.
+  const STUBBED = ['Pre-entry checklist', 'Price stamps']
+  for (const name of STUBBED) {
+    expect(await within(screen.getByRole('group', { name })).findByText('This block is being built.')).toBeTruthy()
+  }
+  expect(screen.getAllByText('This block is being built.')).toHaveLength(STUBBED.length)
+  // Task 11 replaced the sizing stub: its body proves it painted by its own named input, waited for in its group.
+  expect(await within(screen.getByRole('group', { name: 'Position sizing' })).findByRole('spinbutton', { name: 'Entry' })).toBeTruthy()
 })
 
 axeSurface('trader-block-platform:error', async () => {

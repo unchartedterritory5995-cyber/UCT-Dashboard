@@ -187,7 +187,7 @@ export const SURFACES = Object.freeze({
   'components/notebook/blocks/blockStates.jsx': { coveredBy: 'trader-block-platform' },
   'components/notebook/blocks/PreEntryChecklistBlock.jsx': { coveredBy: 'trader-block-platform' },
   'components/notebook/blocks/PriceStampsBlock.jsx': { coveredBy: 'trader-block-platform' },
-  'components/notebook/blocks/PositionSizingBlock.jsx': { coveredBy: 'trader-block-platform' },
+  'components/notebook/blocks/PositionSizingBlock.jsx': { recipe: 'trader-block-sizing' },
 
   // ── documents ──────────────────────────────────────────────────────────────
   'components/notebook/DocumentPreviewSheet.jsx': { recipe: 'document-preview-pdf' },

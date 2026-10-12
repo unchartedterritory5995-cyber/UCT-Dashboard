@@ -53,11 +53,65 @@ def test_settings_flow_into_params():
     assert node["attrs"]["params"] == {"on": "yes"}
 
 
+def _held_breadth(monkeypatch, payload):
+    """engine.get_breadth answering `payload` for a HELD read; every call's held_only is recorded, and a
+    non-held call (the one that can go on to the breadth vendor fetch) is recorded as such."""
+    from api.services import engine
+    calls: list[bool] = []
+
+    def get_breadth(held_only: bool = False):
+        calls.append(held_only)
+        return payload
+    monkeypatch.setattr(engine, "get_breadth", get_breadth)
+    return calls
+
+
 def test_the_sizer_records_the_regime_id_it_was_built_in(monkeypatch):
     from api.services.journal_two import journal_styles as js, regime
     monkeypatch.setattr(regime, "_read_exposure", lambda: {"score": 40, "as_of": "2026-10-13"})
-    node, _ = js.BLOCK_BUILDERS["positionSizing"]({"block": "positionSizing", "settings": {"grade": "A+"}}, dict(CTX))
+    _held_breadth(monkeypatch, {"wire_date": "2026-10-12"})
+    node, _ = js.BLOCK_BUILDERS["positionSizing"]({"block": "positionSizing", "settings": {"grade": "A+"}}, dict(CTX, memo={}))
     assert node["attrs"]["params"] == {"grade": "A+", "regimeId": "orange", "regimeAsOf": "2026-10-13"}
+
+
+# ── R-W0-2: the sizer's regime is read HELD-ONLY and dated exactly as entry_context dates it ─────
+
+def test_the_sizer_dates_its_regime_exactly_as_entry_context_does(monkeypatch):
+    """The wire's normalised exposure carries no date, so entry_context._regime_fields dates the regime by
+    the wire run's own date. The sizer's stamp is that same date, never "" and never today."""
+    from api.services.journal_two import journal_styles as js, regime, entry_context
+    monkeypatch.setattr(regime, "_read_exposure", lambda: {"score": 95})
+    _held_breadth(monkeypatch, {"wire_date": "2026-10-09"})
+    node, _ = js.BLOCK_BUILDERS["positionSizing"]({"block": "positionSizing", "settings": {"grade": "A"}}, dict(CTX, memo={}))
+    expected = entry_context._regime_fields({})[0]
+    assert expected["value"] == "green" and expected["asOf"] == "2026-10-09"           # non-vacuity
+    assert node["attrs"]["params"] == {"grade": "A", "regimeId": expected["value"], "regimeAsOf": expected["asOf"]}
+
+
+def test_a_cold_hold_never_reaches_the_breadth_vendor_and_stamps_nothing(monkeypatch):
+    """Nothing held: the sizer stays unstamped (the client stamps today's regime on the first change), and
+    no read that could go on to morning_wire_engine.fetch_breadth was made."""
+    from api.services.journal_two import journal_styles as js, regime
+    reads: list[str] = []
+    monkeypatch.setattr(regime, "_read_exposure", lambda: reads.append("exposure") or {"score": 95})
+    calls = _held_breadth(monkeypatch, None)
+    node, reason = js.BLOCK_BUILDERS["positionSizing"]({"block": "positionSizing", "settings": {"grade": "B"}}, dict(CTX, memo={}))
+    assert reason is None and node["attrs"]["params"] == {"grade": "B"}
+    assert calls == [True]                      # one read, and it was the held one
+    assert reads == []                          # the default (vendor-capable) path was never entered
+
+
+def test_the_sizer_reads_the_composes_one_frozen_regime(monkeypatch):
+    """One compose, one regime reading: a reading already frozen in the compose's memo (by the market
+    context or another block) is the one the sizer stamps."""
+    from api.services.journal_two import journal_styles as js, regime, entry_context
+    monkeypatch.setattr(regime, "_read_exposure", lambda: {"score": 95, "as_of": "2026-10-13"})
+    _held_breadth(monkeypatch, {"wire_date": "2026-10-13"})
+    frozen = (entry_context._field("red", entry_context.SRC_REGIME, "2026-10-01"),
+              entry_context._field(3.0, entry_context.SRC_EXPOSURE, "2026-10-01"))
+    node, _ = js.BLOCK_BUILDERS["positionSizing"]({"block": "positionSizing", "settings": {"grade": "A"}},
+                                                  dict(CTX, memo={"regime": frozen}))
+    assert node["attrs"]["params"] == {"grade": "A", "regimeId": "red", "regimeAsOf": "2026-10-01"}
 
 
 # ── the build mode (IR-S11, integrator ruling R-RC-1) ─────────────────────────────────────────

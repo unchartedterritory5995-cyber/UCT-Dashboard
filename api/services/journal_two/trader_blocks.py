@@ -52,12 +52,25 @@ def build_price_stamps(block: dict, ctx: dict):
 
 def build_position_sizing(block: dict, ctx: dict):
     """The regime the size was built in, as the regime ID; the client maps ids to the house words
-    through app/src/constants/houseSizing.json, the ONE in-repo table (IR-S10)."""
-    from api.services.journal_two import regime as regime_mod
-    cur = regime_mod.get_current_regime()
+    through app/src/constants/houseSizing.json, the ONE in-repo table (IR-S10).
+
+    R-W0-2: the regime is read and DATED exactly as entry_context._regime_fields reads it (the wire's
+    exposure, dated by the reading's own date or else the wire run's), through the compose's memo, so
+    every block in one compose stamps the same frozen reading. HELD-ONLY (R-W0-1): it is entered only
+    when the pod already holds a breadth payload, because the default engine.get_breadth goes on to the
+    breadth vendor fetch on a cold box. A cold hold leaves the block unstamped; the client stamps
+    today's regime on the member's first change."""
+    from api.services import engine
     params = {"grade": _settings(block).get("grade", "A")}
-    if cur.get("regime") in REGIME_IDS:
-        params.update({"regimeId": cur["regime"], "regimeAsOf": cur.get("asOf") or ""})
+    try:
+        held = engine.get_breadth(held_only=True) is not None
+    except Exception:  # noqa: BLE001 -- an unreadable hold is a missing regime, never a failed note
+        held = False
+    if held:
+        from api.services.journal_two import entry_context
+        field = entry_context._regime_fields(ctx.setdefault("memo", {}))[0]
+        if field.get("value") in REGIME_IDS:
+            params.update({"regimeId": field["value"], "regimeAsOf": field.get("asOf") or ""})
     return _node("positionSizing", params, ctx), None
 
 

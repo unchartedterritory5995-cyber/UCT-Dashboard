@@ -62,6 +62,12 @@ export const IMPORT_ALLOW = {
   // R-T6-3 (fix round 2): the app's ONE chunk-load-error predicate, so a block's Reload escalation
   // never restates it. The module also reloads the page for a ROUTE's stale chunk; no data, no writes.
   'app/src/utils/lazyWithRetry': "isChunkLoadError: the app's own stale-chunk predicate; no data, no writes",
+  // Task 11 (position sizing): the ONE in-repo house sizing table (IR-S10), a JSON file with no code,
+  // and the two hooks the body READS through. The body takes `settings`/`isLoading` and `regime` from
+  // them and never calls useJ2Settings' `save` (PositionSizingBlock.test.jsx pins that).
+  'app/src/constants/houseSizing.json': 'the house sizing table (IR-S10): plain JSON data, no code, no network',
+  'app/src/pages/journal-2-0/hooks/useJ2Settings': 'READ only: settings.accountSize (a GET); the body never calls its save',
+  'app/src/pages/journal-2-0/hooks/useJ2CurrentRegime': "READ only: today's regime id and its date (GET /api/j2/regime)",
 }
 
 /**
@@ -294,7 +300,9 @@ export function problemsIn(file, src, exceptions = WRITE_EXCEPTIONS, allow = IMP
         }
       }
       if (callee === 'sendBeacon') write('POST', urlOf(n.arguments[0]))
-      if (HELPER_METHOD[callee]) write(HELPER_METHOD[callee], urlOf(n.arguments[0]))
+      // Own keys only: a bare `HELPER_METHOD[callee]` also answers for Object.prototype's names, so
+      // `x.toLocaleString(...)` / `x.toString()` read as writes (found by Task 11's money formatter).
+      if (Object.hasOwn(HELPER_METHOD, callee || '')) write(HELPER_METHOD[callee], urlOf(n.arguments[0]))
     }
   })
   return out
@@ -363,7 +371,9 @@ describe('⛔⛔ no block owns a second write door', () => {
       expect(String(why).length, id).toBeGreaterThan(15)
       expect(BANNED_IMPORT.test(id), `${id} is banned and cannot be allow-listed`).toBe(false)
       if (id.startsWith('app/')) {
-        expect(['.js', '.jsx'].some((x) => existsSync(join(REPO, `${id}${x}`))), `${id} is not a file`).toBe(true)
+        // a module id carries no extension; a data file (houseSizing.json) is named with its own
+        const isFile = (p) => existsSync(p) && statSync(p).isFile()
+        expect(isFile(join(REPO, id)) || ['.js', '.jsx'].some((x) => isFile(join(REPO, `${id}${x}`))), `${id} is not a file`).toBe(true)
       }
     }
   })
@@ -380,6 +390,9 @@ describe('⛔⛔ no block owns a second write door', () => {
     expect(problemsIn(f, 'updateAttributes({ params: {} })')).toEqual([`UPDATE ${f}`])
     expect(problemsIn(f, "fetch('/api/j2/regime')")).toEqual([])
     expect(problemsIn(f, "fetch('/api/j2/regime', { credentials: 'include' })")).toEqual([])
+    // Object.prototype's own method names are not helpers (the lookup is own-keys only)
+    expect(problemsIn(f, "const s = (1).toLocaleString('en-US'); const t = x.toString(); const v = o.valueOf()")).toEqual([])
+    expect(problemsIn(f, "jsonPost('/api/j2/notes', b)")).toEqual([`WRITE ${f}: POST /api/j2/notes`])
   })
   it('CONTROL — the same text inside a comment or a string is NOT a match (code, never prose)', () => {
     const f = 'app/src/pages/journal-2-0/components/notebook/blocks/X.jsx'

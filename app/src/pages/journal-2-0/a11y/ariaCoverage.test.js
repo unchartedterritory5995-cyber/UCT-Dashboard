@@ -42,8 +42,6 @@ export const EXEMPT = Object.freeze({
     'a stub body: one line of text (BlockEmpty) inside BlockNodeView\'s named group; replaced by its own task',
   'components/notebook/blocks/PriceStampsBlock.jsx':
     'a stub body: one line of text (BlockEmpty) inside BlockNodeView\'s named group; replaced by its own task',
-  'components/notebook/blocks/PositionSizingBlock.jsx':
-    'a stub body: one line of text (BlockEmpty) inside BlockNodeView\'s named group; replaced by its own task',
 })
 
 /** Another lane's file in the population. Classified, but its staleness is the

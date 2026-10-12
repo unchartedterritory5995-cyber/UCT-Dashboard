@@ -1,0 +1,12 @@
+{
+  "source": "uct-intelligence/uct_intelligence/api.py _SIZING_TABLE (percent of account), railed by tests/test_house_sizing_table.py",
+  "maxAccountRiskPct": 2,
+  "placeholderAccountSize": 100000,
+  "regimeWords": { "green": "GREEN", "amber": "YELLOW", "orange": "ORANGE", "red": "RED" },
+  "ceilingPct": {
+    "GREEN": { "A+": 25, "A": 20, "B": 10 },
+    "YELLOW": { "A+": 15, "A": 12, "B": 6 },
+    "ORANGE": { "A+": 8, "A": 5, "B": 0 },
+    "RED": { "A+": 0, "A": 0, "B": 0 }
+  }
+}
