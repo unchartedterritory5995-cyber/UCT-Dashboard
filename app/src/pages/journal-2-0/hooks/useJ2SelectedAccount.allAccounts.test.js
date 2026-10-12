@@ -44,25 +44,14 @@ describe('useJ2SelectedAccount: isAllAccounts and accountsError', () => {
     expect(result.current.accountId).toBeNull()
     expect(result.current.isAllAccounts).toBe(true)          // never "null and not All Accounts"
   })
-  it('N-1 tab A / tab B: the native storage event moves accountId and isAllAccounts together', () => {
+  // R-T7-4: no cross-tab live sync. A selection made in another tab does NOT move this tab (the
+  // behaviour every caller had before P2a); this tab keeps its own, consistent selection.
+  it('R-T7-4: a storage event from another tab does NOT change this tab\'s accountId', () => {
     localStorage.setItem(KEY, '_all_')
     ACCOUNTS_RET = { accounts: [{ id: 'a1' }, { id: 'a2' }], isLoading: false }
     const { result } = renderHook(() => useJ2SelectedAccount())
     localStorage.setItem(KEY, 'a2')
     act(() => { window.dispatchEvent(new StorageEvent('storage', { key: KEY, newValue: 'a2', oldValue: '_all_' })) })
-    expect(result.current.accountId).toBe('a2')
-    expect(result.current.isAllAccounts).toBe(false)
-    // and back: tab B returns to All Accounts
-    localStorage.setItem(KEY, '_all_')
-    act(() => { window.dispatchEvent(new StorageEvent('storage', { key: KEY, newValue: '_all_', oldValue: 'a2' })) })
-    expect(result.current.accountId).toBeNull()
-    expect(result.current.isAllAccounts).toBe(true)
-  })
-  it('N-1: a storage event for another key changes nothing', () => {
-    localStorage.setItem(KEY, '_all_')
-    ACCOUNTS_RET = { accounts: [{ id: 'a1' }], isLoading: false }
-    const { result } = renderHook(() => useJ2SelectedAccount())
-    act(() => { window.dispatchEvent(new StorageEvent('storage', { key: 'something.else', newValue: 'a1' })) })
     expect(result.current.accountId).toBeNull()
     expect(result.current.isAllAccounts).toBe(true)
   })

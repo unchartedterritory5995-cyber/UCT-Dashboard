@@ -7,9 +7,9 @@
  *     failed"; `isAllAccounts` is the one that means All Accounts.
  *   - account: full account object | null when accountId is null
  *   - setAccount(id | null): updates selection + persists (null = All Accounts)
- *   - isAllAccounts: the selection is the "All Accounts" sentinel. Derived from hook STATE (the raw
- *     selection), so it always agrees with accountId; another tab's change arrives through the native
- *     `storage` event and moves both together.
+ *   - isAllAccounts: the selection is the "All Accounts" sentinel. Derived from this tab's hook STATE
+ *     (the raw selection), so it always agrees with accountId. A selection made in another tab does
+ *     not move this tab (no cross-tab sync).
  *   - accountsError: useJ2Accounts' read error, passed through
  *
  * On first load: picks the first account in the user's list (typically
@@ -36,16 +36,12 @@ export default function useJ2SelectedAccount(enabled = true) {
   const [selection, setSelection] = useState(() => localStorage.getItem(STORAGE_KEY) || null)
   const accountId = selection === ALL_ACCOUNTS ? null : selection
 
-  // In-tab change events fired by any other hook instance (an id of null is setAccount(null), All
-  // Accounts), and the native `storage` event for a change made in ANOTHER tab.
+  // Subscribe to in-tab change events fired by any other hook instance (an id of null is
+  // setAccount(null), All Accounts). No cross-tab sync (R-T7-4): another tab's pick never moves this one.
   useEffect(() => {
-    const types = [CHANGE_EVENT, 'storage']
-    const handler = (e) => {
-      if (e.type === CHANGE_EVENT) setSelection(e.detail?.id == null ? ALL_ACCOUNTS : e.detail.id)
-      else if (e.key === STORAGE_KEY) setSelection(e.newValue || null)
-    }
-    types.forEach((t) => window.addEventListener(t, handler))
-    return () => types.forEach((t) => window.removeEventListener(t, handler))
+    const handler = (e) => setSelection(e.detail?.id == null ? ALL_ACCOUNTS : e.detail.id)
+    window.addEventListener(CHANGE_EVENT, handler)
+    return () => window.removeEventListener(CHANGE_EVENT, handler)
   }, [])
 
   // Once accounts arrive, validate the stored ID — if it doesn't exist
