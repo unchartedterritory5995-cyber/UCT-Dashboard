@@ -405,3 +405,29 @@ def threshold_ok(domain: Optional[str], v: float) -> bool:
     if domain in (_bm.DOMAIN_NONNEG, _bm.DOMAIN_RATIO):
         return v >= 0
     return True
+
+
+def research_catalog() -> dict:
+    """STATIC, value-free menu of what studies can use — for a future Agent capability schema/hint.
+    Kinds, their spec fields and enums; never a data value. Gated kinds are listed with their gate."""
+    from api.services.market_indicators import registry as _reg
+    cot_markets = sorted({sid.split(":")[1] for sid in getattr(_reg, "SERIES", {})
+                          if sid.startswith("COT:") and sid.count(":") == 2 and _reg.resolve(sid) is not None})
+    try:
+        from api.services.econ import publish as _P, registry as _R
+        econ = sorted(e["symbol"] for e in _R.load_registry() if _P.servable(e)[0])
+    except Exception:  # noqa: BLE001
+        econ = []
+    return {
+        "breadth": {"fields": {"universe": list(_br.SLICE1_UNIVERSES), "metric": list(_br.SLICE1_METRICS)},
+                    "guide": _br.METRIC_GUIDE},
+        "technical": {"fields": {"symbol": "ticker", "indicator": list(_TECH),
+                                 "period": {k: (list(v[3]) if v[3] else None) for k, v in _TECH.items()}}},
+        "cot": {"fields": {"market": cot_markets, "group": list(_COT_GROUPS)}},
+        "econ": {"fields": {"symbol": econ, "pit_safe_only": "bool"},
+                 "gate": "local econ source only (ECON_SERVING_SOURCE=db|local); production R2 not authorized"},
+        "fundamental": {"fields": {"symbol": "ticker", "metric": "fundamentals catalog id"},
+                        "gate": "catalog formula_eligible (0 metrics today) + local source"},
+        "market_cap": {"fields": {"symbol": "ticker"},
+                       "gate": "local verified publication only (MCAP_PIT_SOURCE=local); production dark"},
+    }

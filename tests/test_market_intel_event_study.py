@@ -814,3 +814,25 @@ def test_bollinger_pct_b_and_macd_hist_use_the_existing_calculations(world, monk
     assert [e["event_date"] for e in r2["events"]] == exp2
     bad = es.run(req(series={"kind": "technical", "symbol": "QQQ", "indicator": "macd_hist", "period": 9}))
     assert bad["status"] == "refused" and bad["reason"] == "bad_period"
+
+
+# ── Agent-integration helpers (pure, value-free) ─────────────────────────────
+
+def test_request_note_is_value_free_and_rebuilt_from_validation_only(world):
+    note = es.request_note(req(note="73.4567", horizons=[{"sessions": 5}, {"months": 3}], start="2010-01-01"))
+    assert note == ("event study: every time NASDAQ · % of Stocks Above 50-Day MA below 10, QQQ over "
+                    "5 trading sessions, 3 calendar months (first session of each run, entry event close; "
+                    "2010-01-01 to latest)")
+    assert "73.4567" not in note
+    assert es.request_note({"condition": "junk"}) == "" and es.request_note("x") == ""
+    assert world["breadth_calls"] == 0 and world["price_calls"] == 0           # nothing read
+
+
+def test_research_catalog_is_static_and_value_free(world):
+    from api.services.market_intel import series_adapters as sa
+    cat = sa.research_catalog()
+    assert set(cat) == {"breadth", "technical", "cot", "econ", "fundamental", "market_cap"}
+    assert "GC" in cat["cot"]["fields"]["market"] and "USCPIYOY" in cat["econ"]["fields"]["symbol"]
+    assert world["breadth_calls"] == 0 and world["price_calls"] == 0
+    blob = repr(cat)
+    assert not re.search(r"\b\d+\.\d{3,}\b", blob)                              # no data values

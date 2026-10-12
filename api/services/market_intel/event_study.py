@@ -492,6 +492,24 @@ def _study(req: dict) -> dict:
     }
 
 
+_OP_WORDS = {"below": "below", "above": "above", "cross_below": "crossing below", "cross_above": "crossing above"}
+
+
+def request_note(raw: Any) -> str:
+    """What the member ASKED for, in one line, rebuilt ONLY from `validate()` output — for the Agent's
+    history placeholder (LOCAL-RESULT BOUNDARY). Pure and value-free: registry labels, the member's own
+    thresholds, symbols, windows and dates; never a result. Anything that does not validate gives ""."""
+    ok, _err = validate(raw)
+    if not ok:
+        return ""
+    conds = " AND ".join(f"{c['series']['label']} {_OP_WORDS[c['op']]} {c['threshold']:g}" for c in ok["conditions"])
+    wins = ", ".join(_hlabel(h) for h in ok["horizons"])
+    span = f"; {ok['start'] or 'all history'} to {ok['end'] or 'latest'}" if (ok["start"] or ok["end"]) else ""
+    return (f"event study: every time {conds}, {ok['symbol']} over {wins} "
+            f"({'every qualifying session' if ok['episodes'] == 'all' else 'first session of each run'}, "
+            f"entry {ok['entry'].replace('_', ' ')}{', non-overlapping' if ok['non_overlapping'] else ''}{span})")
+
+
 def run(request: Any, *, deadline_s: float = DEADLINE_S) -> dict:
     """Validate and run one event study. Never raises."""
     req, refusal = validate(request)
