@@ -168,7 +168,7 @@ describe('NL intent corpus', () => {
       'ROUTING MISSES: ' + rows.filter(r => r.routing === 'MISS').map(r => `${r.id} [${Array.isArray(r.groups) ? r.groups.join(',') : r.groups}]`).join(' | '),
     ]
     console.log(`\n── NL intent corpus (deterministic layers) ──\n${lines.join('\n')}\n`)
-    if (process.env.AGENT_NL_OUT) fs.writeFileSync(process.env.AGENT_NL_OUT, JSON.stringify({ rows, by, tot }, null, 2))
+    if (globalThis.process?.env?.AGENT_NL_OUT) fs.writeFileSync(globalThis.process.env.AGENT_NL_OUT, JSON.stringify({ rows, by, tot }, null, 2))
     const newWrong = rows.filter(r => r.outcome === 'fast-WRONG' && !KNOWN_WRONG.has(r.id)).map(r => `${r.id}: “${r.text}” → ${r.detail}`)
     expect(newWrong, 'a NEW deterministic misfire (the fast path acted wrongly with no model involved)').toEqual([])
   })

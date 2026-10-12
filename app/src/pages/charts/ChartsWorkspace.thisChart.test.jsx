@@ -8,7 +8,7 @@
  */
 import { render, screen, act, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
-import { vi } from 'vitest'
+import { vi, test, expect, beforeEach, afterEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 
 vi.mock('./WidgetHost', async () => {
