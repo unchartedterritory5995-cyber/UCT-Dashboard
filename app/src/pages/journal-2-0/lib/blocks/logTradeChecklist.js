@@ -30,6 +30,9 @@ const NO_ANSWER = 'The request did not reach the server.'
  *  never sit on "Saving…" for a request that is not coming back. */
 export const SAVE_TIMEOUT_MS = 10000
 const TIMED_OUT = Symbol('timed out')
+/** N-1 (R-T8-2): a timeout is not "did not reach". The PUT may have landed after the dialog stopped
+ *  waiting, so the line hedges, and the retry it points to is an idempotent upsert. */
+export const TIMEOUT_REASON = 'The server did not answer within 10 seconds, so it may not have been saved. Try again to make sure.'
 // A sentence the server ended with any closing mark keeps it as sent; only a bare one gets a stop (M-3).
 const ENDS_LIKE_A_SENTENCE = /[.!?…:;)\]"'\u201d\u2019]$/
 const statusLine = (status) => `The server answered with status ${status}.`
@@ -73,7 +76,8 @@ export async function saveTicksResult({ kind, id, setup, checked, total }, timeo
     } catch {
       return { ok: false, reason: NO_ANSWER, retryable: true }
     }
-    if (res === TIMED_OUT || !res) return { ok: false, reason: NO_ANSWER, retryable: true }
+    if (res === TIMED_OUT) return { ok: false, reason: TIMEOUT_REASON, retryable: true }
+    if (!res) return { ok: false, reason: NO_ANSWER, retryable: true }
     if (res.ok) return { ok: true, reason: null, retryable: false }
     const reason = await Promise.race([failureReason(res), timedOut])
     return {
@@ -93,6 +97,7 @@ export async function saveTicks(args) {
 
 /** What the dialog shows when the trade is logged and its checklist is not. */
 export function notSavedLine(reason) {
+  if (reason === TIMEOUT_REASON) return `Your trade is logged; its pre-entry checklist is not confirmed. ${reason}`
   return `Your trade is logged, but its pre-entry checklist was not saved. ${reason}`
 }
 

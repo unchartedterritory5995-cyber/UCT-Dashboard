@@ -45,6 +45,15 @@ describe('LogTradeChecklist', () => {
     expect(screen.getByRole('status').textContent).toBe('')
   })
 
+  it('N-3: disabled shows the boxes as sent, read-only, and a click reports nothing', () => {
+    const onChange = vi.fn()
+    renderList({ checked: ['s2'], disabled: true, onChange })
+    const boxes = screen.getAllByRole('checkbox')
+    expect(boxes.map((b) => [b.disabled, b.checked])).toEqual([[true, false], [true, true]])
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Volume dry-up' }))
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
   it('requireAll no: the same boxes, no warning', () => {
     renderList({ requireAll: 'no' })
     expect(screen.getAllByRole('checkbox')).toHaveLength(2)

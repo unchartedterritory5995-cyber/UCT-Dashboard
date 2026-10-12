@@ -4,7 +4,7 @@
 // the preference's three values.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
-  LOG_TRADE_CHECKLIST_PREF, SAVE_TIMEOUT_MS, checklistMode, notSavedLine, saveTicks, saveTicksResult, softWarning, ticksToSave,
+  LOG_TRADE_CHECKLIST_PREF, SAVE_TIMEOUT_MS, TIMEOUT_REASON, checklistMode, notSavedLine, saveTicks, saveTicksResult, softWarning, ticksToSave,
 } from './logTradeChecklist'
 
 const ok = (body = {}) => ({ ok: true, status: 200, json: async () => body })
@@ -100,7 +100,9 @@ describe('saveTicksResult: why a save failed, in the words that came back', () =
       expect(settled).toBeNull()
       expect(signal.aborted).toBe(false)
       await vi.advanceTimersByTimeAsync(1)
-      expect(settled).toEqual({ ok: false, reason: 'The request did not reach the server.', retryable: true })
+      // N-1: a timeout is not "did not reach": the request may have landed. Its own, hedged reason.
+      expect(settled).toEqual({ ok: false, reason: TIMEOUT_REASON, retryable: true })
+      expect(TIMEOUT_REASON).toBe('The server did not answer within 10 seconds, so it may not have been saved. Try again to make sure.')
       expect(signal.aborted).toBe(true)
       expect(SAVE_TIMEOUT_MS).toBe(10000)
     } finally {
@@ -123,6 +125,12 @@ describe('saveTicksResult: why a save failed, in the words that came back', () =
 
   it('notSavedLine says the trade is logged and the checklist is not, then why', () => {
     expect(notSavedLine('Not found.')).toBe('Your trade is logged, but its pre-entry checklist was not saved. Not found.')
+    expect(notSavedLine('The request did not reach the server.'))
+      .toBe('Your trade is logged, but its pre-entry checklist was not saved. The request did not reach the server.')
+  })
+
+  it('N-1: after a timeout the line never says "was not saved": it is not confirmed, and may have landed', () => {
+    expect(notSavedLine(TIMEOUT_REASON)).toBe('Your trade is logged; its pre-entry checklist is not confirmed. The server did not answer within 10 seconds, so it may not have been saved. Try again to make sure.')
   })
 })
 

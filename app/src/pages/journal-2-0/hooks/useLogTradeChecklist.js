@@ -15,12 +15,14 @@
  *   - a failed write leaves the trade logged and says why; "Try again" is offered only where another
  *     try could answer differently (no answer, a timeout, a 5xx), and re-sends the SAME save.
  *
+ * `isOpen()` is false once this dialog has unmounted: the dialogs skip a trailing close then (N-2).
  * @returns {{ on: boolean, slotProps: object, notSaved: string, canRetry: boolean, retrying: boolean,
+ *             isOpen: () => boolean,
  *             saveFor: (created: object, setupForRecord: string|null) => Promise<boolean>,
  *             retry: () => Promise<boolean> }}
  *   `saveFor` and `retry` resolve true when the dialog may close.
  */
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import usePreferences from '../../../hooks/usePreferences'
 import { journalStylesEnabled } from '../lib/journalStylesFlag'
 import { checklistMode, notSavedLine, saveTicksResult, ticksToSave } from '../lib/blocks/logTradeChecklist'
@@ -39,6 +41,14 @@ export default function useLogTradeChecklist({ preEntryChecklist, kind, setup })
   const [notSaved, setNotSaved] = useState('')
   const [pending, setPending] = useState(null)   // the exact save "Try again" repeats, or null
   const [retrying, setRetrying] = useState(false)
+  // N-2 (R-T8-2): a save or retry that settles after THIS dialog closed must not close the next one
+  // (the door's onClose is `setModal(null)`, which would close whatever dialog is open by then).
+  const mounted = useRef(false)
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
+  const isOpen = useCallback(() => mounted.current, [])
 
   const onChange = useCallback((next) => {
     setTicked(next)
@@ -72,7 +82,8 @@ export default function useLogTradeChecklist({ preEntryChecklist, kind, setup })
 
   return {
     on,
-    slotProps: { setup, requireAll: mode.requireAll, checked: ticked, onChange, onItems },
+    slotProps: { setup, requireAll: mode.requireAll, checked: ticked, onChange, onItems, disabled: !!notSaved },
+    isOpen,
     notSaved,
     canRetry: !!pending,
     retrying,

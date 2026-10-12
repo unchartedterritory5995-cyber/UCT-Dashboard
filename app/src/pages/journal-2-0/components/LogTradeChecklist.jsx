@@ -24,7 +24,9 @@ const ACCOUNT_LINES = {
 }
 const NO_IDS = []
 
-export default function LogTradeChecklist({ setup, requireAll, checked, onChange, onItems }) {
+// N-3 (R-T8-2): `disabled` while the dialog shows a failed save, so the boxes stay exactly what
+// "Try again" re-sends.
+export default function LogTradeChecklist({ setup, requireAll, checked, onChange, onItems, disabled = false }) {
   const { settings, settingsState, retrySettings, rules, rulesState } = useChecklistSources({ wantRules: true })
   // One account's data, read: its settings are in, and its rules answered (or failed, which leaves
   // the setup's own items standing). Any other rules state is "no single account" or still loading.
@@ -73,8 +75,8 @@ export default function LogTradeChecklist({ setup, requireAll, checked, onChange
       <p className={styles.emptyTitle}>{`Pre-entry checklist for ${setup}`}</p>
       {items.map((i) => (
         <label key={i.id} className={styles.row}>
-          <input type="checkbox" checked={on.has(i.id)}
-            onChange={() => onChange([...toggleChecked(items, ticked, i.id), ...kept], items.length)} />
+          <input type="checkbox" checked={on.has(i.id)} disabled={disabled}
+            onChange={() => { if (!disabled) onChange([...toggleChecked(items, ticked, i.id), ...kept], items.length) }} />
           <span>{i.label}</span>
         </label>
       ))}

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -640,5 +641,103 @@ describe('AddPositionModal: the pre-entry checklist (P2a)', () => {
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()   // a 409's sentence stands
     await user.click(screen.getByRole('button', { name: 'Done' }))
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  // ── N-2: a close from an old dialog never closes a newer one ──────────────────────────────────
+  // A stand-in for the door: `open` like its `modal` state, onClose = setModal(null), and a way to
+  // open Log Trade again. The PUT is held, so the old dialog's save is still pending when it closes.
+  function Door({ onSave }) {
+    const [open, setOpen] = useState(true)
+    return (
+      <>
+        <button type="button" onClick={() => setOpen(true)}>Open Log Trade again</button>
+        {open && <AddPositionModal settings={BASE_SETTINGS} onSave={onSave} onClose={() => setOpen(false)} preEntryChecklist />}
+      </>
+    )
+  }
+  let releasePut
+  const holdPuts = () => {
+    globalThis.fetch.mockImplementation((url, init) => (init?.method === 'PUT'
+      ? new Promise((resolve) => { releasePut = resolve })
+      : Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) })))
+  }
+  const OK = { ok: true, status: 200, json: () => Promise.resolve({}) }
+  const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+
+  it('N-2 CONTROL: with the dialog still open, the held save settling closes it (the flush is long enough)', async () => {
+    const user = userEvent.setup()
+    holdPuts()
+    render(<Door onSave={vi.fn(async () => ({ id: 'NEW1' }))} />)
+    await fillAndPickVcp(user)
+    await user.click(within(await screen.findByRole('group', { name: 'Pre-entry checklist' })).getByRole('checkbox', { name: 'Volume dry-up' }))
+    await user.click(screen.getByRole('button', { name: 'Add Position' }))
+    await waitFor(() => expect(releasePut).toBeTypeOf('function'))
+    await act(async () => { releasePut(OK) })
+    await flush()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('N-2: closed while its save is pending, reopened and typed into: the old save settling leaves the new dialog open', async () => {
+    const user = userEvent.setup()
+    holdPuts()
+    render(<Door onSave={vi.fn(async () => ({ id: 'NEW1' }))} />)
+    await fillAndPickVcp(user)
+    await user.click(within(await screen.findByRole('group', { name: 'Pre-entry checklist' })).getByRole('checkbox', { name: 'Volume dry-up' }))
+    await user.click(screen.getByRole('button', { name: 'Add Position' }))
+    await waitFor(() => expect(releasePut).toBeTypeOf('function'))
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Open Log Trade again' }))
+    await user.type(screen.getByPlaceholderText('e.g. NVDA'), 'AMD')
+    await act(async () => { releasePut(OK) })
+    await flush()
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.getByPlaceholderText('e.g. NVDA').value).toBe('AMD')
+  })
+
+  it('N-2: closed with Done while Try again is pending, reopened and typed into: the old retry settling leaves the new dialog open', async () => {
+    const user = userEvent.setup()
+    putReply = { ok: false, status: 503, json: () => Promise.resolve({}) }
+    render(<Door onSave={vi.fn(async () => ({ id: 'NEW1' }))} />)
+    await fillAndPickVcp(user)
+    await user.click(within(await screen.findByRole('group', { name: 'Pre-entry checklist' })).getByRole('checkbox', { name: 'Volume dry-up' }))
+    await user.click(screen.getByRole('button', { name: 'Add Position' }))
+    await screen.findByRole('button', { name: 'Try again' })
+    holdPuts()
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(releasePut).toBeTypeOf('function'))
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Open Log Trade again' }))
+    await user.type(screen.getByPlaceholderText('e.g. NVDA'), 'AMD')
+    await act(async () => { releasePut(OK) })
+    await flush()
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.getByPlaceholderText('e.g. NVDA').value).toBe('AMD')
+  })
+
+  it('N-3: while the failure line shows, the checklist is read-only, so Try again sends exactly what is on screen', async () => {
+    const user = userEvent.setup()
+    putReply = { ok: false, status: 503, json: () => Promise.resolve({}) }
+    const onClose = vi.fn()
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={vi.fn(async () => ({ id: 'NEW1' }))} onClose={onClose} preEntryChecklist />)
+    await fillAndPickVcp(user)
+    const group = await screen.findByRole('group', { name: 'Pre-entry checklist' })
+    await user.click(within(group).getByRole('checkbox', { name: 'Volume dry-up' }))
+    await user.click(screen.getByRole('button', { name: 'Add Position' }))
+    await screen.findByRole('button', { name: 'Try again' })
+    const boxes = within(screen.getByRole('group', { name: 'Pre-entry checklist' })).getAllByRole('checkbox')
+    expect(boxes.every((b) => b.disabled)).toBe(true)
+    for (const b of boxes) await user.click(b)                 // nothing on screen can change
+    const onScreen = boxes.filter((b) => b.checked).map((b) => b.closest('label').textContent)
+    expect(onScreen).toEqual(['Volume dry-up'])
+    putReply = OK
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    const sent = globalThis.fetch.mock.calls.filter(([, init]) => init?.method === 'PUT').map(([u, init]) => [u, JSON.parse(init.body)])
+    expect(sent).toEqual([
+      [PRE_ENTRY, { setup: 'VCP', checkedRuleIds: ['s1'], totalRules: 1 }],
+      [PRE_ENTRY, { setup: 'VCP', checkedRuleIds: ['s1'], totalRules: 1 }],
+    ])
   })
 })

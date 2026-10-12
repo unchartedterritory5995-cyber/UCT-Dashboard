@@ -68,7 +68,7 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
   // list, a 10 s ceiling on the write, Try again for no answer / a timeout / a 5xx only).
   const checklist = useLogTradeChecklist({ preEntryChecklist, kind: 'trade', setup: setupVal })
   const retryChecklist = useCallback(async () => {
-    if (await checklist.retry()) onClose?.()
+    if ((await checklist.retry()) && checklist.isOpen()) onClose?.()
   }, [checklist, onClose])
 
   useEffect(() => {
@@ -161,7 +161,8 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
       // The trade is logged. Its ticks go under the id the server gave it, and a failure here never
       // undoes it: the dialog stays open to say so, with the log button gone so it cannot log twice.
       if (!(await checklist.saveFor(created, setupVal.trim() || null))) return
-      onClose?.()
+      // N-2: closed while this save was pending? Its close must not reach a dialog opened since.
+      if (checklist.isOpen()) onClose?.()
     } catch (e) {
       console.error('Failed to save trade:', e)
       setErrorMsg("Couldn't save this trade. Nothing was changed — try again.")

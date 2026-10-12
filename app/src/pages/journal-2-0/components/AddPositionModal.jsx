@@ -141,7 +141,7 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
   }, [resetVerdict, onClose])
 
   const retryChecklist = useCallback(async () => {
-    if (await checklist.retry()) handleClose()
+    if ((await checklist.retry()) && checklist.isOpen()) handleClose()
   }, [checklist, handleClose])
 
   useEffect(() => {
@@ -391,7 +391,8 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
         }
       }
       if (!checklistSaved) return // keep the modal open so the checklist line stays visible
-      onClose?.()
+      // N-2: closed while this save was pending? Its close must not reach a dialog opened since.
+      if (checklist.isOpen()) onClose?.()
     } catch (e) {
       console.error('Failed to save position:', e)
       setErrorMsg("Couldn't save this position. Nothing was changed — try again.")
