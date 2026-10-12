@@ -17,6 +17,16 @@
   padding-inline: 8px;
   border-left: 1px solid var(--bg);
 }
+/* The notes list's form (NewNoteCaret, P1 follow-up): the caret alone beside the list's own
+   "+ New note" (`btn btn-sm`), so it keeps its full radius and the menu hangs from it. */
+.alone {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+}
+.caretAlone {
+  padding-inline: 8px;
+}
 .menu {
   position: absolute;
   top: calc(100% + 4px);
@@ -60,10 +70,12 @@
 @media (max-width: 1024px) {
   .main,
   .caret,
+  .caretAlone,
   .item {
     min-height: var(--tap-min);
   }
-  .caret {
+  .caret,
+  .caretAlone {
     min-width: var(--tap-min);
   }
 }
@@ -76,5 +88,15 @@
     left: 0;
     right: auto;
     max-width: calc(100vw - 32px);
+  }
+  /* The list's caret ends an action row that may or may not wrap at 390px, so neither of its own
+     edges is safe to hang 200px from. It hangs from the row instead (NotebookTab's `.newWrap` is the
+     positioned box on a phone), right-aligned, so it stays on screen either way. */
+  .alone {
+    position: static;
+  }
+  .alone .menu {
+    left: auto;
+    right: 0;
   }
 }

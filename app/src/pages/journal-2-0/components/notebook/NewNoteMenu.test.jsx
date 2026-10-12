@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import NewNoteMenu from './NewNoteMenu'
+import NewNoteMenu, { NewNoteCaret } from './NewNoteMenu'
 
 describe('NewNoteMenu', () => {
   it('the main button makes a blank note in one press', () => {
@@ -79,5 +79,41 @@ describe('NewNoteMenu: From a style (Notebook P1)', () => {
     rerender(<NewNoteMenu onBlank={() => {}} onFromOutline={() => {}} onFromStyle={onFromStyle} />)
     fireEvent.click(screen.getByRole('menuitem', { name: /From a style/ }))
     expect(onFromStyle).toHaveBeenCalledTimes(1)
+  })
+})
+
+// P1 follow-up (owner GO 2026-10-12): the notes list renders the caret WITHOUT the primary button
+// (the list keeps its own "+ New note"). Same menu, same doors, and no second "new-note-home"
+// anchor: that one belongs to Home's split button alone.
+describe('NewNoteCaret: the caret alone (the notes list)', () => {
+  it('renders the caret and the same menu, no primary button and no Home anchor', () => {
+    const onFromOutline = vi.fn(); const onFromStyle = vi.fn(); const onToday = vi.fn()
+    const { container } = render(<NewNoteCaret onFromOutline={onFromOutline} onFromStyle={onFromStyle} onToday={onToday} />)
+    expect(screen.queryByRole('button', { name: 'New note' })).toBeNull()
+    expect(container.querySelector('[data-tour="new-note-home"]')).toBeNull()
+    const caret = screen.getByRole('button', { name: 'More ways to start a note' })
+    expect(caret).toHaveAttribute('aria-haspopup', 'menu')
+    expect(caret.className).toMatch(/\bbtn btn-primary btn-sm\b/)
+    fireEvent.click(caret)
+    expect(screen.getAllByRole('menuitem').map((el) => el.textContent.trim()))
+      .toEqual(['From an outline', 'From a style', "Today's note"])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'From a style' }))
+    expect(onFromStyle).toHaveBeenCalledTimes(1)
+    expect(document.activeElement).toBe(caret)
+  })
+  it('the voice item keeps its tour anchor in this form too', () => {
+    render(<NewNoteCaret onFromOutline={vi.fn()} onVoice={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
+    expect(screen.getByRole('menuitem', { name: 'Voice note' })).toHaveAttribute('data-tour', 'new-note-voice')
+  })
+  it('Left/Right inside the open menu do not escape it (a toolbar around it cannot steal them)', () => {
+    const outer = vi.fn()
+    render(<div onKeyDown={outer}><NewNoteCaret onFromOutline={vi.fn()} onToday={vi.fn()} /></div>)
+    fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
+    const [first] = screen.getAllByRole('menuitem')
+    for (const key of ['ArrowLeft', 'ArrowRight', 'Home', 'End']) fireEvent.keyDown(first, { key })
+    expect(outer).not.toHaveBeenCalled()
+    fireEvent.keyDown(first, { key: 'ArrowDown' })
+    expect(outer).toHaveBeenCalledTimes(1)   // the keys the menu does not need still bubble
   })
 })

@@ -13,6 +13,7 @@ import SavedViewEditor from '../components/notebook/SavedViewEditor'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import ResearchHome from '../components/notebook/ResearchHome'
+import { NewNoteCaret } from '../components/notebook/NewNoteMenu'
 import TemplatePicker from '../components/notebook/TemplatePicker'
 import NoteConnectorsTrustStrip from '../components/connectors/NoteConnectorsTrustStrip'
 import Sheet from '../../../components/mobile/Sheet'
@@ -2501,6 +2502,11 @@ export default function NotebookTab() {
             >
               + New note
             </button>
+            {/* P1 follow-up: Home's caret beside it (spec P1.4), the SAME handlers Home is handed above */}
+            {stylesOn && (
+              <NewNoteCaret onFromOutline={() => setPickerOpen(true)} onFromStyle={() => setPickerOpen('kinds')}
+                onVoice={voiceOn ? () => startVoiceNote('record') : null} onToday={openToday} />
+            )}
           </div>
         </div>
 
