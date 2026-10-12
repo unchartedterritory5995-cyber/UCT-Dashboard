@@ -89,6 +89,17 @@ describe('the stamp\'s wording (Task 9 rulings)', () => {
     expect(sourcedText('regime', { value: { id: 'red' }, source: 'x', asOf: null, missing: null }).text).toBe('Not available.')
   })
 
+  it('R-T9-1 minor 4: only a regime id REGIME_WORDS owns is a word — an inherited key reads "Not available."', () => {
+    for (const v of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+      expect(sourcedText('regime', { value: v, source: 'x', asOf: '2026-10-13', missing: null }), v)
+        .toEqual({ text: 'Not available.', missing: true, asOfText: null })
+    }
+    // control: every owned id still reads its word
+    for (const [id, word] of Object.entries(REGIME_WORDS)) {
+      expect(sourcedText('regime', { value: id, source: 'x', asOf: null, missing: null }).text).toBe(word)
+    }
+  })
+
   it('presetFor: a known preset, else everything — an inherited key is not a preset', () => {
     expect(presetFor('indexes')).toBe(FIELD_SETS.indexes)
     expect(presetFor(undefined)).toBe(FIELD_SETS.all)
