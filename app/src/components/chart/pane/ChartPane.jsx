@@ -824,6 +824,13 @@ function ChartPane({
       return res
     },
     canCreateIndicator: () => { try { return !!paneToolbarApi.current?.canModifyWithIntelligence?.() } catch { return false } },
+    // ⭐ INDICATORS ⇄ AGENT — the existing builder's doors, opened for the Agent (the settings modal closes)
+    openIndicatorDoor: (door) => {
+      let ok = false
+      try { ok = !!paneToolbarApi.current?.openIndicatorDoor?.(door) } catch { ok = false }
+      if (ok && door !== 'library') setSettingsOpen(false)   // Library IS the settings modal's Indicators tab
+      return ok
+    },
     // ⭐ AGENT M2 — THE authoritative "may this chart's indicators be added / removed /
     // shown / hidden?" (the Indicators button's own predicate). Agent passes it as
     // `ctx.canManage` to `builder/agentMutations.js` at plan, at apply and at every Undo.
