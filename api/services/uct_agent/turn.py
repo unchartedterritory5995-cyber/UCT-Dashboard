@@ -527,9 +527,34 @@ LOCAL_RESULT_NOTE = ("[UCT showed the member this result on their screen. Its fi
 LOCAL_NEWS_NOT_DONE = ("UCT's breadth answer for your request is shown here. I did not look up the news or "
                        "current-events part of your message — nothing was searched. Ask that part on its own "
                        "and I'll look it up.")
+#: A MIXED request — a local-only lookup plus an EXPLANATION, interpretation or cause. The model never sees
+#: the figures, so it cannot comment on them; it is not asked to, and UCT never invents a cause. Said plainly.
+LOCAL_EXPLAIN_NOT_DONE = ("UCT's breadth answer for your request is shown here. I did not explain or interpret "
+                          "these figures or analyse what caused them — breadth figures are shown only to you, "
+                          "never to me, so I can't comment on them. Ask what a measure means on its own and "
+                          "I'll explain the measure.")
+LOCAL_NEWS_AND_EXPLAIN_NOT_DONE = ("UCT's breadth answer for your request is shown here. I did not look up the "
+                                   "news or current-events part of your message — nothing was searched — and I "
+                                   "did not explain or interpret these figures or analyse what caused them: "
+                                   "breadth figures are shown only to you, never to me. Ask the news on its own "
+                                   "and I'll look it up; ask what a measure means and I'll explain the measure.")
+#: Every notice UCT may give on a local plan — the ONLY agent text of such a plan ever shown or replayed.
+LOCAL_NOTICES = frozenset({LOCAL_NEWS_NOT_DONE, LOCAL_EXPLAIN_NOT_DONE, LOCAL_NEWS_AND_EXPLAIN_NOT_DONE})
 #: News / current-events words in the MEMBER's message (not "today": "breadth today" is a breadth question).
 _NEWS_WORDS = re.compile(r"\b(news|headlines?|catalysts?|press releases?|announce\w*|why (is|are)\b.{0,40}\b"
                          r"(moving|up|down|falling|rising|dropping|ripping|tanking|soaring))\b", re.I)
+#: Explanation / interpretation / cause words in the MEMBER's message.
+_EXPLAIN_WORDS = re.compile(r"\b(why|how come|explain\w*|interpret\w*|what (does|do|did) (it|that|this|those|these) "
+                            r"(mean|tell|say|signal|suggest|imply|indicate)|what (caused|causes|drove|drives|is driving)|"
+                            r"caus(e|ed|es|ing)|reasons?|bullish|bearish|(good|bad|healthy|worrying) sign|"
+                            r"is (it|that|this) (good|bad|healthy|weak|strong))\b", re.I)
+
+
+def local_notice_for(*, news: bool, explain: bool) -> str | None:
+    """UCT's fixed words for the parts of a mixed local-lookup request it did NOT do (None = nothing)."""
+    if news and explain:
+        return LOCAL_NEWS_AND_EXPLAIN_NOT_DONE
+    return LOCAL_NEWS_NOT_DONE if news else (LOCAL_EXPLAIN_NOT_DONE if explain else None)
 
 
 def _plans_local_lookup(env) -> bool:
@@ -633,8 +658,8 @@ def history_messages(turns: list[dict]) -> list[dict]:
             # exception is UCT's own fixed notice (exact text + the server's flag), so the next
             # turn knows which part of a mixed request was NOT done; model words never pass.
             env = (t.get("data") or {}).get("envelope") if isinstance(t.get("data"), dict) else None
-            ours = isinstance(env, dict) and env.get("local_notice") is True and t.get("text") == LOCAL_NEWS_NOT_DONE
-            text = f"[UCT] {LOCAL_NEWS_NOT_DONE}" if ours else ""
+            ours = isinstance(env, dict) and env.get("local_notice") is True and t.get("text") in LOCAL_NOTICES
+            text = f"[UCT] {t['text']}" if ours else ""
         else:
             text = t["text"]
         if not text:
@@ -1005,13 +1030,15 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             usage["research_forced"] = True
         wants = ((disp == "answer" or (disp in MUTATING and _asks_question(msg))) and isinstance(req, dict)
                  and str(req.get("query") or "").strip() and round_ < MAX_RESEARCH_CALLS)
-        if _plans_local_lookup(env) and (wants or (isinstance(req, dict) and str(req.get("query") or "").strip())
-                                         or _NEWS_WORDS.search(msg)):
-            # ⛔ MIXED breadth + news: no research beside a local-only lookup (nothing is searched,
-            # nothing is spent); the lookup runs, and the member is TOLD the news part was not done.
-            wants = False
-            notice = LOCAL_NEWS_NOT_DONE
-            usage["local_research_skipped"] = True
+        if _plans_local_lookup(env):
+            # ⛔ MIXED requests beside a local-only lookup: no research (nothing is searched or spent),
+            # and no explanation of figures the model never saw. The lookup runs; the member is TOLD
+            # which other part was not done — UCT's fixed words, never the model's.
+            news = bool(wants or (isinstance(req, dict) and str(req.get("query") or "").strip()) or _NEWS_WORDS.search(msg))
+            notice = local_notice_for(news=news, explain=bool(_EXPLAIN_WORDS.search(msg)))
+            if news:
+                wants = False
+                usage["local_research_skipped"] = True
         if wants:
             # A MIXED request (question needing research + a change): the change was planned in
             # THIS call, from the member's words alone, before any web text existed — it is
