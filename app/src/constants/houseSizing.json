@@ -1,5 +1,5 @@
 {
-  "source": "uct-intelligence/uct_intelligence/api.py _SIZING_TABLE (percent of account), railed by tests/test_house_sizing_table.py",
+  "source": "ONLY ceilingPct is engine-checked: it is uct-intelligence/uct_intelligence/api.py _SIZING_TABLE (percent of account), compared cell by cell by tests/test_house_sizing_table.py. maxAccountRiskPct and preferredAccountRiskPct are PINNED house values (spec P2 item 5: max 2%, prefer under 1%); the engine has no named authority for them, so they are pinned by the same test, not engine-checked.",
   "maxAccountRiskPct": 2,
   "preferredAccountRiskPct": 1,
   "placeholderAccountSize": 100000,

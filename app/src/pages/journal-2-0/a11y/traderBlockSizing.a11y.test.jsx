@@ -14,8 +14,9 @@ const H = vi.hoisted(() => ({ Settings: null }))
 vi.mock('../hooks/useJ2Settings', async () => {
   const React = await import('react')
   H.Settings = React.createContext({ accountSize: 50000 })
-  return { default: () => ({ settings: React.useContext(H.Settings), isLoading: false }) }
+  return { default: () => ({ settings: React.useContext(H.Settings), isLoading: false, accountId: 'a1', accountName: 'Main' }) }
 })
+vi.mock('../hooks/useJ2Accounts', () => ({ default: () => ({ accounts: [{ id: 'a1', name: 'Main' }], isLoading: false }) }))
 vi.mock('../hooks/useJ2CurrentRegime', () => ({ default: () => ({ regime: { regime: 'green', asOf: '2026-10-13' } }) }))
 import PositionSizingBlock from '../components/notebook/blocks/PositionSizingBlock'
 

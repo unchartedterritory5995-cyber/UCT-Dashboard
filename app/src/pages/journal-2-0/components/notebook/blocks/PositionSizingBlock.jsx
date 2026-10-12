@@ -8,16 +8,19 @@
 // ⛔ IR-S9 / integrator ruling S9: the server writes a $100,000 placeholder into every new account, so
 // an account size that is unset or still that placeholder is NOT the member's: nothing is sized against
 // it. The block says why and offers a size for this note instead.
-// ⛔ R-T11-1 C-1: with no SPECIFIC account selected (All Accounts, or the first load before one is
-// picked) useJ2Settings reads the frozen legacy j2_settings row, which is not any account's size, so
-// nothing is sized against it either. "No specific account" is derived exactly as the hook in this tree
-// derives it: `isAllAccounts: accountId == null` (hooks/useJ2Settings.js line 87). At the M2 merge this
-// switches to lane A's shared `isAllAccounts` from useJ2SelectedAccount.
+// ⛔ R-T11-1 C-1 / R-T11-2 N-1: with no SPECIFIC account selected (All Accounts, the first load before
+// one is picked, or accounts that will not load) useJ2Settings reads the frozen legacy j2_settings row,
+// which is not any account's size, so nothing is sized against it. THE RULE IS `accountId == null`
+// (useJ2Settings' own accountId) and it stays that rule: an "is all accounts" key, here or lane A's, may
+// only choose WHICH SENTENCE explains the missing size, never whether one exists. The accounts list's
+// own state (loading, failed, empty) picks the sentence below. The M2 integration moves these reads
+// into a read-only seam; this block does not build it.
 // ⛔ R-T11-1 I-2: the account size is read LIVE (never stamped into params); the block says which
 // account, and which amount, it sized against.
 import { useEffect, useId, useState } from 'react'
 import useJ2Settings from '../../../hooks/useJ2Settings'
 import useJ2CurrentRegime from '../../../hooks/useJ2CurrentRegime'
+import useJ2Accounts from '../../../hooks/useJ2Accounts'
 import {
   houseSize, accountSizeFor, isPlaceholderAccount, articleFor,
   REGIME_OF, PLACEHOLDER_ACCOUNT_SIZE, MAX_ACCOUNT_RISK_PCT, PREFERRED_ACCOUNT_RISK_PCT,
@@ -48,7 +51,8 @@ const SETTLE_MS = 800
 
 export default function PositionSizingBlock({ params = {}, setParams, editable }) {
   const ids = { entry: useId(), stop: useId(), grade: useId(), account: useId() }
-  const { settings, isLoading, error, refresh, accountName, isAllAccounts } = useJ2Settings()
+  const { settings, isLoading, error, refresh, accountName, accountId } = useJ2Settings()
+  const accts = useJ2Accounts()
   const { regime: cur } = useJ2CurrentRegime()
 
   const todayId = knownRegime(cur?.regime)
@@ -60,7 +64,7 @@ export default function PositionSizingBlock({ params = {}, setParams, editable }
 
   // The account size, and why there is none. Order: no specific account (C-1) · a failed read (M-2) ·
   // still loading (neither the member's size nor "unset") · the placeholder or an unset size (S9).
-  const noAccount = !!isAllAccounts
+  const noAccount = accountId == null
   const readFailed = !noAccount && settings == null && !!error
   const usable = noAccount || readFailed ? null : settings
   const settingsKnown = noAccount || readFailed || settings != null || !isLoading
@@ -78,7 +82,8 @@ export default function PositionSizingBlock({ params = {}, setParams, editable }
   const write = (patch) => (editable ? setParams({ ...patch, ...(storedId ? {} : stamp) }) : false)
 
   const r = houseSize({ entry: params.entry, stop: params.stop, accountSize, grade, regime })
-  const riskMoney = r.ok ? (r.riskDollars > 0 ? money(r.riskDollars) : 'Under $0.01') : null
+  // N-6: "under $0.01" inside a sentence; a list line that STARTS with it capitalises its first letter.
+  const riskMoney = r.ok ? (r.riskDollars > 0 ? money(r.riskDollars) : 'under $0.01') : null
   const summary = r.ok ? `${sharesWord(r.shares)}, ${riskMoney} at risk.` : r.skip ? r.reason : ''
   const [announced, setAnnounced] = useState('')
   useEffect(() => {
@@ -112,7 +117,20 @@ export default function PositionSizingBlock({ params = {}, setParams, editable }
         <div className={styles.notice}>
           {needsOwnSize && noteSize == null && (
             noAccount ? (
-              <p className={blockStyles.muted}>Pick one account to size against, or enter a size for this note.</p>
+              accts?.error ? (
+                <>
+                  <p className={blockStyles.muted}>Your accounts could not be loaded just now.</p>
+                  {typeof accts.refresh === 'function' && (
+                    <button type="button" className={`btn btn-ghost ${styles.tap}`} onClick={() => accts.refresh()}>Try again</button>
+                  )}
+                </>
+              ) : accts?.isLoading || !accts ? (
+                <p className={blockStyles.muted}>Loading your accounts…</p>
+              ) : (accts.accounts || []).length === 0 ? (
+                <p className={blockStyles.muted}>You have no accounts yet. Enter a size for this note.</p>
+              ) : (
+                <p className={blockStyles.muted}>Pick one account to size against, or enter a size for this note.</p>
+              )
             ) : readFailed ? (
               <>
                 <p className={blockStyles.muted}>Your account size could not be read just now.</p>
@@ -161,7 +179,7 @@ export default function PositionSizingBlock({ params = {}, setParams, editable }
           <li>{sharesWord(r.shares)}</li>
           <li>{`${money(r.positionDollars)} position`}</li>
           {r.positionPct !== r.sizePct && <li>{`Whole shares: ${pct(r.positionPct)} of the account`}</li>}
-          <li>{`${riskMoney} at risk (${pct(r.riskPct)} of the account)`}</li>
+          <li>{`${riskMoney[0].toUpperCase()}${riskMoney.slice(1)} at risk (${pct(r.riskPct)} of the account)`}</li>
           {r.riskPct > PREFERRED_ACCOUNT_RISK_PCT && r.riskPct <= MAX_ACCOUNT_RISK_PCT && (
             <li className={blockStyles.muted}>{`Above the house preference of under ${PREFERRED_ACCOUNT_RISK_PCT}% risk per trade.`}</li>
           )}

@@ -68,6 +68,8 @@ export const IMPORT_ALLOW = {
   'app/src/constants/houseSizing.json': 'the house sizing table (IR-S10): plain JSON data, no code, no network',
   'app/src/pages/journal-2-0/hooks/useJ2Settings': 'READ only: settings.accountSize (a GET); the body never calls its save',
   'app/src/pages/journal-2-0/hooks/useJ2CurrentRegime': "READ only: today's regime id and its date (GET /api/j2/regime)",
+  // R-T11-2 N-2: the accounts list's state picks the sentence when no specific account is selected.
+  'app/src/pages/journal-2-0/hooks/useJ2Accounts': 'READ only: the accounts list, its loading and error state, and refresh (a re-read)',
 }
 
 /**

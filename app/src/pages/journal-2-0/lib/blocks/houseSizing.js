@@ -1,9 +1,10 @@
 // The house sizing formula, and nothing else (spec §P2 item 5):
 //   Account Risk % = Position Size % × Stop Distance %
 // capped at MAX_ACCOUNT_RISK_PCT, with the regime ceilings of the house table. ⛔ The table is
-// app/src/constants/houseSizing.json, the ONE in-repo copy (IR-S10), railed against uct-intelligence's
-// _SIZING_TABLE by tests/test_house_sizing_table.py. A ceiling of 0 is a skip. Every export below is
-// READ from that file; nothing here restates a number from it.
+// app/src/constants/houseSizing.json, the ONE in-repo copy (IR-S10). Only its ceilings are engine-checked
+// (against uct-intelligence's _SIZING_TABLE, by tests/test_house_sizing_table.py); the 2% limit and the
+// 1% preference are pinned house values with no engine authority. A ceiling of 0 is a skip. Every export
+// below is READ from that file; nothing here restates a number from it.
 //
 // ⛔ ROUNDING IS EXPLICIT (integrator ruling), and tested at the edges in houseSizing.test.js:
 //   · the size is computed from the REAL stop distance; only what is SHOWN is rounded. A stop distance

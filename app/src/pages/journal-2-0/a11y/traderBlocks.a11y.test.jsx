@@ -11,7 +11,8 @@ import { axeSurface } from './surface'
 
 vi.mock('@tiptap/react', () => ({ NodeViewWrapper: ({ children, ...p }) => <div {...p}>{children}</div> }))
 // Task 11's real body reads these two hooks; its own recipe is traderBlockSizing.a11y.test.jsx.
-vi.mock('../hooks/useJ2Settings', () => ({ default: () => ({ settings: { accountSize: 50000 } }) }))
+vi.mock('../hooks/useJ2Settings', () => ({ default: () => ({ settings: { accountSize: 50000 }, accountId: 'a1', accountName: 'Main' }) }))
+vi.mock('../hooks/useJ2Accounts', () => ({ default: () => ({ accounts: [{ id: 'a1', name: 'Main' }], isLoading: false }) }))
 vi.mock('../hooks/useJ2CurrentRegime', () => ({ default: () => ({ regime: { regime: 'green', asOf: '2026-10-13' } }) }))
 import userEvent from '@testing-library/user-event'
 import BlockNodeView, { BLOCK_COMPONENTS } from '../components/notebook/blocks/BlockNodeView'

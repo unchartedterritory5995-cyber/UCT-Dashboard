@@ -4,9 +4,11 @@ import { render, screen, fireEvent, act } from '@testing-library/react'
 // The two hooks the body reads. `S` is mutated per test; `save` is a spy that must NEVER be called
 // (the block reads settings, it never writes them: its one write door is setParams).
 const S = vi.hoisted(() => ({ settings: null, isLoading: false, save: null, regime: null, error: undefined, refresh: null,
-  accountName: 'Main', isAllAccounts: false }))
+  accountName: 'Main', accountId: 'a1', accounts: null }))
+// `isAllAccounts` mirrors the real hook (`accountId == null`); the block must not depend on it (R-T11-2 N-1).
 vi.mock('../../../hooks/useJ2Settings', () => ({ default: () => ({ settings: S.settings, isLoading: S.isLoading, save: S.save,
-  error: S.error, refresh: S.refresh, accountName: S.accountName, isAllAccounts: S.isAllAccounts }) }))
+  error: S.error, refresh: S.refresh, accountName: S.accountName, accountId: S.accountId, isAllAccounts: S.isAllAccounts ?? S.accountId == null }) }))
+vi.mock('../../../hooks/useJ2Accounts', () => ({ default: () => S.accounts }))
 vi.mock('../../../hooks/useJ2CurrentRegime', () => ({ default: () => ({ regime: S.regime }) }))
 import PositionSizingBlock from './PositionSizingBlock'
 
@@ -18,7 +20,9 @@ beforeEach(() => {
   S.error = undefined
   S.refresh = vi.fn()
   S.accountName = 'Main'
-  S.isAllAccounts = false
+  S.accountId = 'a1'
+  S.isAllAccounts = undefined
+  S.accounts = { accounts: [{ id: 'a1', name: 'Main' }], isLoading: false, error: undefined, refresh: vi.fn() }
 })
 afterEach(() => { vi.useRealTimers() })
 
@@ -116,7 +120,7 @@ describe('PositionSizingBlock', () => {
 
   // ── Fix round 1 (R-T11-1) ──────────────────────────────────────────────────────────────────────
   it('C-1: All Accounts (or no account picked yet) is not an account size: no shares, says why, keeps the note input', () => {
-    S.isAllAccounts = true
+    S.accountId = null
     S.settings = { accountSize: 25000 }                       // the frozen legacy j2_settings row
     render(<PositionSizingBlock params={{ entry: 100, stop: 95, grade: 'A+', regimeId: 'green' }} setParams={vi.fn()} editable />)
     expect(screen.getByText('Pick one account to size against, or enter a size for this note.')).toBeTruthy()
@@ -126,7 +130,7 @@ describe('PositionSizingBlock', () => {
     expect(screen.queryByText(/25,000/)).toBeNull()
   })
   it("C-1: with no account picked, a size typed into the note still sizes, and says it is the note's", () => {
-    S.isAllAccounts = true
+    S.accountId = null
     S.settings = { accountSize: 25000 }
     render(<PositionSizingBlock params={{ entry: 100, stop: 95, grade: 'A+', regimeId: 'green', accountSize: 80000 }} setParams={vi.fn()} editable />)
     expect(screen.getByText('200 shares')).toBeTruthy()
@@ -191,5 +195,47 @@ describe('PositionSizingBlock', () => {
     }
     act(() => { vi.advanceTimersByTime(1000) })
     expect(live.textContent).toBe('100 shares, $1,000 at risk.')
+  })
+
+  // ── R-T11-2 ──────────────────────────────────────────────────────────────────────────────────
+  it('N-2: before the first pick, while accounts load: "Loading your accounts…", never "Pick one", no size', () => {
+    S.accountId = null
+    S.accounts = { accounts: [], isLoading: true, error: undefined, refresh: vi.fn() }
+    render(<PositionSizingBlock params={{ entry: 100, stop: 95, grade: 'A+', regimeId: 'green' }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('Loading your accounts…')).toBeTruthy()
+    expect(screen.queryByText(/^Pick one account/)).toBeNull()
+    expect(screen.queryByText(/shares$/)).toBeNull()
+  })
+  it('N-2: accounts that fail to load say so, with Try again, never "Pick one", no size', () => {
+    S.accountId = null
+    S.accounts = { accounts: [], isLoading: false, error: new Error('500'), refresh: vi.fn() }
+    render(<PositionSizingBlock params={{ entry: 100, stop: 95, grade: 'A+', regimeId: 'green' }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('Your accounts could not be loaded just now.')).toBeTruthy()
+    expect(screen.queryByText(/^Pick one account/)).toBeNull()
+    expect(screen.queryByText(/shares$/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(S.accounts.refresh).toHaveBeenCalledTimes(1)
+  })
+  it('N-2: no accounts at all says so and sizes nothing', () => {
+    S.accountId = null
+    S.accounts = { accounts: [], isLoading: false, error: undefined, refresh: vi.fn() }
+    render(<PositionSizingBlock params={{ entry: 100, stop: 95, grade: 'A+', regimeId: 'green' }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('You have no accounts yet. Enter a size for this note.')).toBeTruthy()
+    expect(screen.queryByText(/^Pick one account/)).toBeNull()
+    expect(screen.queryByText(/shares$/)).toBeNull()
+  })
+  it('N-1: "no specific account" is accountId == null, whatever isAllAccounts says', () => {
+    S.accountId = 'a1'
+    S.isAllAccounts = true                     // a key that disagrees: it may only pick a sentence, never the rule
+    render(<PositionSizingBlock params={{ entry: 100, stop: 95, grade: 'A+', regimeId: 'green' }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('125 shares')).toBeTruthy()
+  })
+  it('N-6: a risk under one cent reads "under $0.01" inside the sentence', () => {
+    vi.useFakeTimers()
+    S.settings = { accountSize: 100001 }
+    render(<PositionSizingBlock params={{ entry: 1000, stop: 999.9999, grade: 'A+', regimeId: 'green' }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('Under $0.01 at risk (under 0.01% of the account)')).toBeTruthy()
+    act(() => { vi.advanceTimersByTime(1000) })
+    expect(screen.getByTestId('sizing-announce').textContent).toBe('25 shares, under $0.01 at risk.')
   })
 })

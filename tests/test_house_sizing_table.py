@@ -1,5 +1,9 @@
 """IR-S10 / R-P2-5: app/src/constants/houseSizing.json is the ONE in-repo copy of the house sizing table.
 This rail PARSES uct-intelligence's _SIZING_TABLE (an ast read, never an import) and compares every cell.
+⛔ ONLY `ceilingPct` IS ENGINE-CHECKED. `maxAccountRiskPct` (2) and `preferredAccountRiskPct` (1) are PINNED
+house values from spec P2 item 5 ("max 2%, prefer under 1%"): the engine has no named authority for either
+(calculate_position_size takes risk_pct as an argument; its only 1% is a function-local default), so they
+are pinned here as literals and are NOT compared against uct-intelligence.
 ⛔ When uct-intelligence is not on this box the comparison SKIPS, visibly, naming where it looked.
 A SKIP IS NOT A PASS: the PR body says which of the two this run was."""
 from __future__ import annotations
