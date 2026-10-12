@@ -228,6 +228,25 @@ def test_a_note_that_is_not_the_callers_live_note_is_404_before_any_read_or_row(
     assert _rows(db_path) == 0                                        # no row
 
 
+def test_n6_a_note_trashed_during_the_vendor_read_is_404_and_no_row(client, quote, db_path, monkeypatch):
+    """N-6: the ownership check is repeated INSIDE the write's transaction, after the vendor read (which can
+    take seconds). The seam: the quote itself trashes the note, i.e. between the probe and the write."""
+    from api.services.journal_two import notes, trader_blocks as tb
+    _as(client)
+    nid = _note("u1")
+    fake = tb.price_stamp_quote
+
+    def trash_then_quote(sym, now=None):
+        assert notes.delete_note("u1", nid)
+        return fake(sym, now=now)
+
+    monkeypatch.setattr(tb, "price_stamp_quote", trash_then_quote)
+    r = client.post(URL, json={"noteId": nid, "ticker": "NVDA"})
+    assert quote["asked"] == ["NVDA"]                                 # the probe passed; the read ran
+    assert r.status_code == 404 and r.json()["detail"] == "Not found"
+    assert _rows(db_path) == 0
+
+
 def test_the_callers_own_note_is_stamped(client, quote, db_path):
     _as(client)
     r = client.post(URL, json={"noteId": _note("u1"), "ticker": "NVDA"})

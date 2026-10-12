@@ -2,8 +2,10 @@
 // switched on, editable and the journal styles switch is on (S24), it holds the editor's price-stamp
 // plugin (lib/blocks/priceStamps.js); unmounting, switching off or removing the block lets it go, and
 // the plugin is unregistered when no stamps block holds it (fix round 1, review I-2 option E).
-// ⛔ Registering a plugin is reconfigure + updateState: no transaction and no React state, so the
-// effect cannot loop (H14); PriceStampsBlock.test.jsx counts the renders.
+// ⛔ Holding the plugin is NOT free: registering or unregistering rebuilds every plugin view, and one of
+// them dispatches from its constructor, so each costs exactly ONE meta-only transaction. Nothing it
+// changes is in this effect's deps, so it cannot loop (H14); PriceStampsBlock.lifecycle.test.jsx rails
+// that in a real EditorContent (one transaction each way, then nothing for 600 ms).
 import { useEffect } from 'react'
 import { journalStylesEnabled } from '../../../lib/journalStylesFlag'
 import { attachPriceStamps } from '../../../lib/blocks/priceStamps'

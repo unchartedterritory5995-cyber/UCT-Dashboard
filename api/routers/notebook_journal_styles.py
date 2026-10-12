@@ -201,14 +201,18 @@ def trader_market_context(user: dict = Depends(require_paid)) -> dict[str, Any]:
 _STAMP_SYMBOL = re.compile(r"^[A-Z]{1,5}(?:-[A-Z])?$")
 
 
-def _owns_live_note(user_id: str, note_id: str) -> bool:
+def _owns_live_note(user_id: str, note_id: str, conn=None) -> bool:
+    """The caller's own, live note? One row (ai_actions._note_state's shape). On `conn` when given, so the
+    stamp's write can ask it inside its own transaction (N-6)."""
     from api.services.auth_db import get_connection
-    conn = get_connection()
+    own = conn is None
+    conn = conn or get_connection()
     try:
         return conn.execute("SELECT 1 FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
                             (note_id, user_id)).fetchone() is not None
     finally:
-        conn.close()
+        if own:
+            conn.close()
 
 
 @router.post("/trader-blocks/price-stamp")
@@ -233,9 +237,21 @@ def trader_price_stamp(body: dict = Depends(paid_body), user: dict = Depends(req
     q = trader_blocks.price_stamp_quote(sym, now=datetime.now(timezone.utc))
     if q is None:
         raise HTTPException(status_code=409, detail=f"No {sym} price could be read just now.")
-    fact = note_facts.create_fact_observation(
-        user["id"], note_id, ticker=sym, fact_type="price", value=q["price"],
-        source_as_of=q["asOf"], source_ref=q["source"])
+    # N-6: the vendor read can take seconds, so the note is asked again INSIDE the write: the same
+    # connection, one IMMEDIATE transaction holding the check and the insert (create_fact_observation
+    # commits it). A note trashed during the read gets 404 and no row.
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        if not _owns_live_note(user["id"], note_id, conn):
+            conn.rollback()
+            raise HTTPException(status_code=404, detail=NOT_FOUND)
+        fact = note_facts.create_fact_observation(
+            user["id"], note_id, ticker=sym, fact_type="price", value=q["price"],
+            source_as_of=q["asOf"], source_ref=q["source"], conn=conn)
+    finally:
+        conn.close()
     return {"fact": fact}
 
 

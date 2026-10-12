@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { Profiler } from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { Editor } from '@tiptap/core'
 let STYLES_ON = true
@@ -87,7 +86,7 @@ describe('PriceStampsBlock holds the price-stamp plugin', () => {
     expect(stampPlugins(ed)).toHaveLength(1)
     expect(await enterStamps(ed)).toBe(1)
     b.unmount()
-    expect(stampPlugins(ed)).toHaveLength(0)
+    await waitFor(() => expect(stampPlugins(ed)).toHaveLength(0))       // the last let-go waits a microtask (N-1)
   })
 
   it('the block switched off: unregistered, and Enter stamps nothing', async () => {
@@ -95,7 +94,7 @@ describe('PriceStampsBlock holds the price-stamp plugin', () => {
     const r = render(block(ed))
     expect(stampPlugins(ed)).toHaveLength(1)
     r.rerender(block(ed, 'no'))
-    expect(stampPlugins(ed)).toHaveLength(0)
+    await waitFor(() => expect(stampPlugins(ed)).toHaveLength(0))
     expect(await enterStamps(ed)).toBe(0)
   })
 
@@ -103,7 +102,7 @@ describe('PriceStampsBlock holds the price-stamp plugin', () => {
     const ed = realEditor()
     const r = render(block(ed))
     r.unmount()
-    expect(stampPlugins(ed)).toHaveLength(0)
+    await waitFor(() => expect(stampPlugins(ed)).toHaveLength(0))
     expect(await enterStamps(ed)).toBe(0)
   })
 
@@ -121,12 +120,4 @@ describe('PriceStampsBlock holds the price-stamp plugin', () => {
     expect(stampPlugins(ed)).toHaveLength(0)
   })
 
-  it('H14: holding the plugin re-renders nothing (registering is no transaction, no React state)', async () => {
-    const ed = realEditor()
-    let commits = 0
-    render(<Profiler id="stamps" onRender={() => { commits += 1 }}>{block(ed)}</Profiler>)
-    await waitFor(() => expect(stampPlugins(ed)).toHaveLength(1))
-    await new Promise((r) => setTimeout(r, 50))
-    expect(commits).toBe(1)
-  })
 })
