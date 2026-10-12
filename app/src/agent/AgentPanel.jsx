@@ -20,6 +20,7 @@ import AgentHistory from './AgentHistory'
 import VoiceInputButton from '../pages/journal-2-0/components/VoiceInputButton'
 import compassMark from '../components/intro/assets/compass-mark.png'
 import { HeadIcon, AgentAvatar, MemberAvatar, SenderLine, Hl } from './agentUi'
+import AgentResult, { Rows } from './AgentResult'
 import styles from './AgentPanel.module.css'
 
 // Welcome: the Agent's first text — a moment of "typing", then a left-side bubble stamped with
@@ -136,22 +137,6 @@ function Paragraphs({ text }) {
   ))
 }
 
-// A feature's structured result (e.g. Screener rows): exactly the rows it returned.
-function ResultTable({ table }) {
-  return (
-    <div className={styles.resultWrap} data-testid="agent-result-table">
-      <table className={styles.resultTable}>
-        <thead><tr>{table.columns.map(c => <th key={c.key}>{c.label}</th>)}</tr></thead>
-        <tbody>
-          {table.rows.map((r, i) => (
-            <tr key={r[table.columns[0].key] ?? i}>{table.columns.map(c => <td key={c.key}>{r[c.key] ?? '—'}</td>)}</tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
 // Where the result lives in UCT (an in-app route); a plain link outside a router.
 function OpenLink({ link }) {
   const inRouter = useInRouterContext()
@@ -173,10 +158,14 @@ function Item({ it, agent, member, at, cont }) {
         </div>
       )
     case 'agent':
+      // ⭐ an answer VIEW (present.js) renders through the one presentation component
+      if (it.present) return <AgentSays at={at} cont={cont}><AgentResult view={it.present} /></AgentSays>
+      // ⛔ never an empty bubble (an older restored row, a blank reply)
+      if (!String(it.text || '').trim() && !it.table && !it.link) return null
       return (
         <AgentSays at={at} cont={cont}>
-          <div className={styles.bubble}><Paragraphs text={it.text} /></div>
-          {it.table && <ResultTable table={it.table} />}
+          {String(it.text || '').trim() && <div className={styles.bubble}><Paragraphs text={it.text} /></div>}
+          {it.table && <Rows table={it.table} />}
           {it.link && <OpenLink link={it.link} />}
           {it.sources?.length > 0 && (
             <div className={styles.sources}>
@@ -212,7 +201,7 @@ function Item({ it, agent, member, at, cont }) {
               <button type="button" className={styles.primary} onClick={agent.approve} disabled={agent.busy}>Apply</button>
               <button type="button" className={styles.ghost} onClick={agent.dismiss} disabled={agent.busy}>Dismiss</button>
             </div>
-          ) : <div className={styles.cardMeta}>{it.status === 'approved' ? 'Approved' : it.status === 'replaced' ? 'Replaced' : it.status === 'expired' ? 'Expired — ask again' : 'Dismissed'}</div>}
+          ) : <div className={styles.cardMeta}>{it.status === 'approved' ? 'Approved' : it.status === 'replaced' ? 'Replaced' : it.status === 'expired' ? 'Expired — ask again' : it.status === 'history' ? 'From an earlier session — not applied here; ask again to change it now' : 'Dismissed'}</div>}
         </div>
         </AgentSays>
       )
@@ -231,8 +220,10 @@ function Item({ it, agent, member, at, cont }) {
       )
     case 'refusal':
     case 'error':
+      if (!String(it.text || '').trim()) return null
       return <AgentSays at={at} cont={cont}><div className={`${styles.bubble} ${styles.refusal}`} role="status"><Paragraphs text={it.text} /></div></AgentSays>
     default:
+      if (!String(it.text || '').trim()) return null
       return <AgentSays at={at} cont={cont}><div className={styles.bubble}><Paragraphs text={it.text} /></div></AgentSays>
   }
 }

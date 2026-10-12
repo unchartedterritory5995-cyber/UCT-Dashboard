@@ -525,7 +525,7 @@ LOCAL_RESULT_NOTE = ("[UCT showed the member this result on their screen. Its fi
 #: saw, and the model's words on a local plan are never shown). UCT says so — deterministic text, no
 #: figures — instead of dropping the other part silently. Flagged `local_notice` so the browser shows it.
 LOCAL_NEWS_NOT_DONE = ("UCT's breadth answer for your request is shown here. I did not look up the news or "
-                       "current-events part of your message — nothing was searched. Ask that part on its own "
+                       "current-events part of your message — no web search was run. Ask that part on its own "
                        "and I'll look it up.")
 #: A MIXED request — a local-only lookup plus an EXPLANATION, interpretation or cause. The model never sees
 #: the figures, so it cannot comment on them; it is not asked to, and UCT never invents a cause. Said plainly.
@@ -534,7 +534,7 @@ LOCAL_EXPLAIN_NOT_DONE = ("UCT's breadth answer for your request is shown here. 
                           "never to me, so I can't comment on them. Ask what a measure means on its own and "
                           "I'll explain the measure.")
 LOCAL_NEWS_AND_EXPLAIN_NOT_DONE = ("UCT's breadth answer for your request is shown here. I did not look up the "
-                                   "news or current-events part of your message — nothing was searched — and I "
+                                   "news or current-events part of your message — no web search was run — and I "
                                    "did not explain or interpret these figures or analyse what caused them: "
                                    "breadth figures are shown only to you, never to me. Ask the news on its own "
                                    "and I'll look it up; ask what a measure means and I'll explain the measure.")
@@ -1035,6 +1035,10 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             # and no explanation of figures the model never saw. The lookup runs; the member is TOLD
             # which other part was not done — UCT's fixed words, never the model's.
             news = bool(wants or (isinstance(req, dict) and str(req.get("query") or "").strip()) or _NEWS_WORDS.search(msg))
+            # ⭐ the notice follows what the plan DOES: a news.* op answers the news part from UCT's
+            # stored feed (its card says so), so the member is never told it was not looked up
+            if any(isinstance(o, dict) and str(o.get("action") or "").startswith("news.") for o in env.get("ops") or []):
+                news = False
             notice = local_notice_for(news=news, explain=bool(_EXPLAIN_WORDS.search(msg)))
             if news:
                 wants = False

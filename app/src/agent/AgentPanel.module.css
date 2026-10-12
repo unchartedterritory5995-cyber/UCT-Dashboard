@@ -60,6 +60,9 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  /* answers size themselves by THIS column, not the window (AgentResult.module.css) */
+  container: agentlist / inline-size;
   padding: 12px 12px 4px;
   display: flex;
   flex-direction: column;
