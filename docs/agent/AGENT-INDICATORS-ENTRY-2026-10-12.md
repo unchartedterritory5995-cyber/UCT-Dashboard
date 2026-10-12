@@ -89,11 +89,43 @@ For each step note the receipt text, the `/api/agent/turn` and `/converse` count
    right chart and the new symbol.
 10. **Fallback** — a non-admin (or the flag off) → + Create Indicator opens the chart-side dock, unchanged.
 
+## Real-model acceptance — RESULTS (2026-10-12, owner-approved: Haiku 4.5, $0.10 total)
+
+Set-up: the real ChartsWorkspace + UCT Agent in `agent-harness.html?live=<port>&bars=ramp` (synthetic bars;
+layout/preference writes stay in-page). A local relay (`railway run` injected ONLY the Anthropic key into a
+minimal child env) served the Agent turn route (the router's conversation logic, research + background naming
+off) and the REAL `/api/user-definitions` router — `/converse` and every save gate — on a SCRATCH store,
+signed in as one local test admin. Both models pinned to `claude-haiku-4-5`; the builder's `max_tokens`
+lowered to 2048 for the check. One ceiling across both doors: before each call its worst case was reserved;
+it never tripped. **No production save, write, flag or data was touched.**
+
+**Spend: 6 model calls, $0.0716** — Agent planner 3 ($0.0134, $0.0176, $0.0104), indicator builder 3
+($0.0222 cache write, then $0.0042 and $0.0039 on the cached prompt).
+
+| # | Check | Result | Evidence |
+|---|---|---|---|
+| 1 | Create | **PASS** | Question + 4 doors, 0 calls; the answer → "Started “EMA 9 > EMA 20” (draft — not saved)": 1 builder call, **0 planner calls**, nothing written to a chart |
+| 2 | Preview | **PASS** | "Showing “EMA 9 > EMA 20” as a preview on Left chart (SPY) — a preview only, not saved." (1 planner call) |
+| 3 | Refine | **FAIL (as run — test order, not this branch)** | Run AFTER the saves to protect the budget. M3 clears the selected draft on every save (`setActive(null)`) and never guesses between ≥2 drafts, so "also require RSI above 50" was planned as a NEW draft ("Which chart is this indicator for?"). In the documented order the door's draft IS the selected one — now pinned by a regression test. Re-run needs ≈ $0.02 (budget left $0.028; the guard's worst-case reservation refused it) |
+| 4 | Approve + save | **PASS** | Named the draft → "You have 4 indicator drafts open — which one do you mean?" (M3 rule; 2 were empty drafts from the relay set-up failures) → chose it (no call) → proposal "Save “Trend Test” as a new indicator … then add it to Left chart (SPY)" → Apply → saved v1 (read back) + added |
+| 5 | Undo | **PASS** | typed "undo" → "Removed the Trend Test I added on Left chart (SPY)."; the saved definition stays; 0 calls |
+| 6 | Modify | **PASS** | Settings → "Modify with UCT Intelligence" on Trend One → "What would you like to change in “Trend One”?" (no doors, settings closed, no dock). "make the line blue" → an `edit:<defId>` draft (1 builder call, 0 planner); "save it" (fast path, 0 calls) → "Save a new version of “Trend One” … blue line" → Apply → "Saved “Trend One” (version 2)" — same id |
+| 7 | Cancel | **PASS** | "never mind" → "OK — nothing was built.", 0 calls |
+| 8 | Formula door | **PASS** | "Opened Formula on the chart." → the existing formula builder; its Save stored "Trend One" v1 through the real save route |
+| 9 | Context | **PASS** | Create on the RIGHT chart, switched it NVDA → AAPL in the chart UI, then answered → the builder request carried `{sym: AAPL, tf: D}`, revision 0 (a separate new draft) |
+| 10 | Fallback | **PASS** | Agent off → + Create Indicator opens the chart-side dock with Formula / Import / Library / Screenshot (its build path was verified earlier with the scripted builder) |
+
+Observations (existing M3 behaviour, not changed here — for the Indicators owner):
+- A first builder message that FAILS (here: the relay's missing cost-ledger table) leaves an empty
+  "Untitled draft" that later counts in "which one do you mean?".
+- After saving Trend One v2 the receipt says "It is not on a chart" although v1 is on the left chart.
+- Naming a draft ("the EMA 9 > EMA 20 draft") with several open still asks which one (by design: never a
+  silent pick).
+
 ## Remaining gaps (why the chart-side builder is NOT removed)
 
 - The Agent exists only on the Charts workspace and only for admins; Create Indicator also serves the cohort
   and other chart surfaces (pop-outs, Multi Chart, other pages). Removing the dock needs the Agent there first.
 - Formula / Import / Screenshot still open the existing dialogs (by design: one builder). Library opens the
   Chart Settings Indicators tab.
-- Real-model behaviour of the authoring message is unchanged M3 code but was exercised here only with a
-  scripted `/converse` double (no paid calls).
+- Real-model acceptance: 9 of 10 PASS (above); Refine needs a re-run in the documented order (≈ $0.02).
