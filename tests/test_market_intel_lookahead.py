@@ -225,3 +225,26 @@ def test_answer_lead_and_caveats_survive_a_collapsed_presentation(world, monkeyp
     refused = esa.answer(es.run({"condition": {"series": {"kind": "nope"}, "op": "below", "threshold": 1},
                                  "symbol": "QQQ", "horizons": [{"sessions": 1}]}))
     assert refused["status"] == "refused" and refused["lead"] == refused["text"] and refused["caveats"] == []
+
+
+def test_allowed_kinds_refuses_out_of_scope_kinds_before_any_read(world, monkeypatch):
+    """The Agent's owner-approved scope (breadth + technical) is enforced server-side: an econ or COT
+    condition — alone or inside a compound — is refused before any adapter is consulted."""
+    from api.services.market_intel import event_study_answer as esa, series_adapters as sa
+    touched = []
+    for kind in ("econ", "cot"):
+        d, ld = sa.ADAPTERS[kind]
+        monkeypatch.setitem(sa.ADAPTERS, kind, (lambda spec, d=d: touched.append("describe") or d(spec),
+                                                lambda spec, ld=ld: touched.append("load") or ld(spec)))
+    scope = ("breadth", "technical")
+    econ = {"series": ECON, "op": "on_release"}
+    cot = {"series": {"kind": "cot", "market": "GC", "group": "large_spec"}, "op": "below", "threshold": 0}
+    breadth = {"series": BREADTH, "op": "below", "threshold": 10}
+    for cond in (econ, cot, {"all": [breadth, econ]}, {"series": {"kind": None}, "op": "below", "threshold": 1}):
+        r = es.run({"condition": cond, "symbol": "QQQ", "horizons": [{"sessions": 1}]}, allowed_kinds=scope)
+        assert r["status"] == "refused" and r["reason"] == "kind_not_enabled", cond
+        assert "breadth, technical" in esa.answer(r)["text"]
+    assert touched == [] and world["breadth_calls"] == 0 and world["price_calls"] == 0
+    ok = es.run({"condition": breadth, "symbol": "QQQ", "horizons": [{"sessions": 1}]}, allowed_kinds=scope)
+    assert ok["status"] == "ok"
+    assert es.run({"condition": econ, "symbol": "QQQ", "horizons": [{"sessions": 1}]})["reason"] != "kind_not_enabled"

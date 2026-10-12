@@ -37,7 +37,7 @@ import concurrent.futures as _cf
 import math
 from datetime import date as _date, timedelta as _td
 from statistics import median
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 
 from api.services import session_calendar as _sc
 from api.services.market_intel import price_reads as _pr
@@ -114,10 +114,24 @@ def _validate_condition(cond: Any) -> tuple[Optional[dict], Optional[dict]]:
     return {"series": series, "op": cond["op"], "threshold": thr, "transform": transform}, None
 
 
-def validate(req: Any) -> tuple[Optional[dict], Optional[dict]]:
+def _kinds_of(cond: Any) -> list:
+    parts = cond.get("all") if isinstance(cond, dict) and "all" in cond else [cond]
+    return [(c.get("series") or {}).get("kind") if isinstance(c, dict) and isinstance(c.get("series"), dict) else None
+            for c in (parts if isinstance(parts, list) else [])]
+
+
+def validate(req: Any, *, allowed_kinds: Optional[Iterable[str]] = None) -> tuple[Optional[dict], Optional[dict]]:
+    """`allowed_kinds`: the caller's server-side scope (e.g. the Agent's owner-approved
+    {"breadth", "technical"}). A condition on any other kind is refused BEFORE any adapter is
+    consulted — nothing is described, read or loaded — whatever the model planned."""
     if not isinstance(req, dict):
         return None, _refused("bad_request", "The study request was not understood.")
     cond = req.get("condition")
+    if allowed_kinds is not None:
+        allowed = set(allowed_kinds)
+        off = [k for k in _kinds_of(cond) if k not in allowed]
+        if off:
+            return None, _refused("kind_not_enabled", f"Available here: {', '.join(sorted(allowed))}.")
     if isinstance(cond, dict) and "all" in cond:
         parts = cond.get("all")
         if not isinstance(parts, list) or not 2 <= len(parts) <= MAX_COMPOUND or len(cond) != 1:
@@ -536,9 +550,9 @@ def request_note(raw: Any) -> str:
             f"entry {ok['entry'].replace('_', ' ')}{', non-overlapping' if ok['non_overlapping'] else ''}{span})")
 
 
-def run(request: Any, *, deadline_s: float = DEADLINE_S) -> dict:
-    """Validate and run one event study. Never raises."""
-    req, refusal = validate(request)
+def run(request: Any, *, deadline_s: float = DEADLINE_S, allowed_kinds: Optional[Iterable[str]] = None) -> dict:
+    """Validate and run one event study. Never raises. `allowed_kinds`: see validate()."""
+    req, refusal = validate(request, allowed_kinds=allowed_kinds)
     if refusal:
         return refusal
     fut = _pool.submit(_study, req)

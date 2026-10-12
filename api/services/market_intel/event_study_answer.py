@@ -21,6 +21,7 @@ _REASON_TEXT = {
     "bad_request": "I couldn't read that study request.",
     "unsupported_universe": "Breadth studies cover US, NYSE and Nasdaq only.",
     "unknown_series": "That data series isn't available for studies.",
+    "kind_not_enabled": "Studies on that kind of data aren't enabled here yet.",
     "unknown_indicator": "That technical indicator isn't available for studies.",
     "bad_period": "That indicator period isn't valid.",
     "not_enough_history": "There isn't enough stored history for that study.",
