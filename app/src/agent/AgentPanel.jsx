@@ -186,7 +186,8 @@ function Item({ it, agent, member, at, cont }) {
             <div className={styles.choices}>
               {it.choices.map((c, i) => (
                 <button key={i} type="button" className={styles.choice} disabled={agent.busy}
-                  onClick={() => (c.ref ? agent.chooseTarget(c.ref, c.label) : agent.send(c.label, { answering: true }))}>{c.label}</button>
+                  data-door={c.door || undefined}
+                  onClick={() => (c.door ? agent.openDoor(c.door) : c.ref ? agent.chooseTarget(c.ref, c.label) : agent.send(c.label, { answering: true }))}>{c.label}</button>
               ))}
             </div>
           )}
@@ -260,7 +261,9 @@ function SearchResults({ results, query, active, setActive, onPick, member }) {
   )
 }
 
-export default function AgentPanel({ host, gridMode, onClose }) {
+// `request` (Indicators ⇄ Agent): `{id, chartRef, defId?, name?}` — the chart's Create Indicator /
+// Modify door opened the Agent; each NEW id asks once (useAgent.prompt) and focuses the composer.
+export default function AgentPanel({ host, gridMode, onClose, request = null }) {
   const member = useMember()
   // A new chat greets afresh (typing, new timestamp); messages after the greeting keep it.
   const [chatEpoch, setChatEpoch] = useState(0)
@@ -283,6 +286,14 @@ export default function AgentPanel({ host, gridMode, onClose }) {
   const inputRef = useRef(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
+  const askedRef = useRef(null)
+  const askAgent = agent.prompt
+  useEffect(() => {
+    if (!request || !request.id || askedRef.current === request.id || agent.restoring) return
+    askedRef.current = request.id
+    askAgent(request)
+    inputRef.current?.focus()
+  }, [request, agent.restoring, askAgent])
   // Follow the conversation: stay pinned to the newest line while the reader is at the bottom,
   // including when a line grows after it lands (welcome reveal, photos, the typing line's room).
   const stickRef = useRef(true)
