@@ -52,6 +52,9 @@ export const chunkRetry = {
 }
 
 const hasDefault = (mod) => !!mod && 'default' in mod
+// A failure that already had its one in-place retry; an outer importWithOneRetry (a loader that retries inside
+// lazyChunk) lets it through to the reload instead of fetching a third time.
+const spent = new WeakSet()
 
 /** `accept` says whether a module fetched under the retry name is the one the caller wants.
  *  Views pass nothing (a default export); a data chunk (a tour's steps) passes its own test. */
@@ -59,7 +62,7 @@ export function importWithOneRetry(load, waitMs = RETRY_WAIT_MS, accept = hasDef
   return load().catch((err) => {
     // Only a failed FETCH is worth asking for again. A module that loaded and then threw is a
     // bug, and a second evaluation would throw the same way.
-    if (!isChunkLoadError(err)) throw err
+    if (!isChunkLoadError(err) || spent.has(err)) throw err
     const specifier = retrySpecifier(err)
     return new Promise((resolve) => setTimeout(resolve, waitMs)).then(() => {
       if (!specifier) return load()
@@ -70,7 +73,7 @@ export function importWithOneRetry(load, waitMs = RETRY_WAIT_MS, accept = hasDef
         if (accept(mod)) return mod
         throw err
       })
-    })
+    }).catch((e) => { spent.add(Object(e)); throw e })
   })
 }
 

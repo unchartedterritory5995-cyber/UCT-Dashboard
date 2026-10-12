@@ -130,6 +130,8 @@ import { pasteTerminalCommand } from '../../lib/terminalCommandPaste'
 import lazyChunk from '../../lib/lazyChunk'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { CANVAS_EVENT, extraBlockCount, isTradeCanvasDoc } from '../../lib/tradeCanvas'
+import { STYLE_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
+import { loadStyle } from './styles/lazyStyles'
 import { createTradeCanvasNote, tradeCanvasEnabled } from '../../lib/tradeCanvasCreate'
 import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
@@ -164,6 +166,10 @@ const TradeCanvasBoard = lazyChunk(() => import('./TradeCanvasBoard'))
 // Wave 13 lane 13D — "what you wrote then": a resurfacing insight opens the note with
 // `?resurfaceVersion=<id>`. LAZY: only that door ever renders it.
 const ResurfaceVersionSheet = lazyChunk(() => import('./ResurfaceVersionSheet'))
+// Notebook P1 (spec P1.3): the "Update layout" offer, its previewed sheet, the /style chooser and the
+// "updated" confirmation, behind ONE lazy import (a second import of the same module costs first-open bytes).
+// Mounted only while journalStylesEnabled() -- a switch that is off never fetches it.
+const StyleHost = lazyChunk(() => loadStyle('StyleHost'))
 // The canvas's link-from-a-thesis offer, shown on the note the member picked:
 // "Add a link to <plan> at the end of this note?" -- nothing is written until
 // the member presses Add (an editor transaction on THIS note's own autosave).
@@ -949,6 +955,9 @@ export default function NoteEditorPage({
 
   // Wave C: version history / trust panel.
   const [historyOpen, setHistoryOpen] = useState(false)
+  // Notebook P1: how many times /style was pressed in THIS editor. The style host is fetched on demand: a styled
+  // note (the banner check) or the first /style; it answers the count itself once it is there.
+  const [styleAsk, setStyleAsk] = useState(false)   // false, then the number of presses
   // Restore is NOT reachable through the normal "note loaded" effects below
   // (both are gated on `[note?.id]` only -- a restore keeps the same note
   // id, so they never re-fire). This mirrors exactly what those effects
@@ -3626,6 +3635,7 @@ export default function NoteEditorPage({
     const onVoiceNote = () => openVoiceNote()
     // Wave 11 lane 11D: the slash menu's "Trade-plan canvas", same per-editor target.
     const onTradeCanvas = () => { createLinkedCanvas() }
+    const onStyle = () => setStyleAsk((n) => n + 1)
     let dom = null
     const detach = () => {
       if (dom) {
@@ -3634,6 +3644,7 @@ export default function NoteEditorPage({
         dom.removeEventListener(WRITING_HELP_EVENT, onWritingHelp)
         dom.removeEventListener(VOICE_NOTE_EVENT, onVoiceNote)
         dom.removeEventListener(CANVAS_EVENT, onTradeCanvas)
+        dom.removeEventListener(STYLE_EVENT, onStyle)
       }
       dom = null
     }
@@ -3648,6 +3659,7 @@ export default function NoteEditorPage({
       dom.addEventListener(WRITING_HELP_EVENT, onWritingHelp)
       dom.addEventListener(VOICE_NOTE_EVENT, onVoiceNote)
       dom.addEventListener(CANVAS_EVENT, onTradeCanvas)
+      dom.addEventListener(STYLE_EVENT, onStyle)
     }
     attach()
     editor.on('mount', attach)
@@ -4072,12 +4084,13 @@ export default function NoteEditorPage({
       && hydratedRef.current && !saveTimerRef.current && !retryTimerRef.current
       && !saveInFlightRef.current && unsentInEditor().length === 0,
     )
-    if (rereadInFlightRef.current || !noteId || pendingAdoption || pendingDraft || !editorIsClean()) return
+    if (rereadInFlightRef.current || !noteId || pendingAdoption || pendingDraft || !editorIsClean()) return false
     rereadInFlightRef.current = true
     try {
-      if (holdsUnsentWork(await unsentVerdict())) return
+      if (holdsUnsentWork(await unsentVerdict())) return false
       const fresh = (await refresh())?.note
-      if (!fresh || fresh.id !== noteId || !editorIsClean()) return
+      if (!fresh || fresh.id !== noteId) return
+      if (!editorIsClean()) return false
       // Our baseline is older than the server's revision -- PARSED, never string-compared, and an
       // unparseable revision on either side is not newer (lib/offline/baseline.js).
       if (!isSupersededBaseline(lastSavedRef.current.updatedAt, fresh.updatedAt)) return
@@ -5029,6 +5042,24 @@ export default function NoteEditorPage({
         {/* The ticker's refusal is said OUTSIDE the details region, so collapsing the details
             never hides a write that did not land (wave 10 F7). */}
         <SaveFailed message={tickerFailure} onDismiss={() => setTickerFailure(null)} />
+        {/* Notebook P1: the previewed "Update layout" offer, its sheet, /style and the confirmation (dark behind
+            the switch), fetched on demand: for a styled note, or once /style was pressed in this editor.
+            What only this editor can do is handed over as `api`; the host does the rest. */}
+        {journalStylesEnabled() && (note?.styleId || styleAsk) && (
+          <Suspense fallback={null}>
+            <StyleHost
+              note={note}
+              ask={styleAsk}
+              api={{
+                last: lastSavedRef,
+                send: sendPendingEdits,
+                reread: rereadCleanNoteRef,
+                adopt: adoptServerCopy,
+                dirty: unsentInEditor,
+              }}
+            />
+          </Suspense>
+        )}
         <div id={detailsRegionId} className={styles.detailsRegion} hidden={!detailsOpen}
           data-note-details="">
           {/* Wave 10 lane K2 (D-3): the tags sit with the note's other properties, under the

@@ -64,6 +64,8 @@ import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk from '../lib/lazyChunk'
+import { journalStylesEnabled } from '../lib/journalStylesFlag'
+import { loadStyle } from '../components/notebook/styles/lazyStyles'
 import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
 // Wave 14: every OTHER registered tour, beyond the base one above, runs through the generic
 // engine, whose gate (RegistryToursGate) is mounted ONCE in the app shell (components/Layout.jsx,
@@ -76,7 +78,6 @@ import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate
 import TourOfferDoor from '../components/notebook/onboarding/TourOfferDoor'
 import { GettingStartedSkipLink } from '../components/notebook/onboarding/keyboardDoors'
 import { OTHER_TOURS } from '../components/notebook/onboarding/tourRegistry'
-import { journalStylesEnabled } from '../lib/journalStylesFlag'
 
 // ── Wave 7 (lane I3): the views and dialogs a member opens ON PURPOSE load on demand ──
 // Graph, board, calendar, timeline and tasks are view modes; Import and Export are
@@ -123,6 +124,8 @@ function lazyDialog(load, label) {
 }
 
 const NoteGraphView = lazyView(() => import('../components/notebook/NoteGraphView'), 'graph')
+// Notebook P1 (spec P1.4): the kind picker at the top of the New-note sheet. Lazy; gate off = never rendered.
+const KindSection = lazyView(() => loadStyle('KindSection'), 'kinds')
 const NoteBoardView = lazyView(() => import('../components/notebook/NoteBoardView'), 'board')
 const NoteCalendarView = lazyView(() => import('../components/notebook/NoteCalendarView'), 'calendar')
 const NoteTimelineView = lazyView(() => import('../components/notebook/NoteTimelineView'), 'timeline')
@@ -414,6 +417,7 @@ export default function NotebookTab() {
   const [creating, setCreating] = useState(false)
   // App focus (= charts Group A) seeds a new entry's ticker.
   const { symbol: focusSymbol } = useAppFocus()
+  // false | true | 'kinds' (Notebook P1: "From a style" opens the sheet with focus on the first kind, not the search box)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   // Notebook P1: the Styles manager. `?styles=1` (the Settings card's link) asks to open it, once, and leaves the URL
@@ -1626,6 +1630,12 @@ export default function NotebookTab() {
     else runBulk(anyway.op, anyway.args || {}, anyway.ctx || {}, anyway.ids, { acceptUnchecked: true, continues: true })
   }
 
+  // Notebook P1: the kind picker for the New-note sheet. createNote seeds the ticker from app focus
+  // (`ticker || focusSymbol`), so a chart block gets the symbol the member was just charting.
+  // `stylesOn` is the switch read once above, beside the Styles manager's state.
+  // `focus` is asked for only inside the New-note sheet, never on the inline empty-notebook mount.
+  const kindSection = (focus) => (stylesOn ? <KindSection busy={creating} autoFocusFirst={focus} onCreate={createNote} /> : null)
+
   // Create a note. Blank note passes no title/body; a template seeds both
   // (plus its preset tags and, when known, the ticker). The actual network
   // calls live in lib/noteCreation.js (Wave H) so the Ticker Research
@@ -2285,6 +2295,7 @@ export default function NotebookTab() {
             // "Voice note" button calls (null while the voice gate is off, so the menu lists
             // no door that opens nothing).
             onOpenNewNoteSheet={() => setPickerOpen(true)}
+            onFromStyle={stylesOn ? () => setPickerOpen('kinds') : null}
             onStartVoiceNote={voiceOn ? () => startVoiceNote('record') : null}
             // P0.13: Home's search box steps aside while the panel's search is on screen.
             searchActive={sidebarSearching && sidebarOpen}
@@ -2602,7 +2613,7 @@ export default function NotebookTab() {
               </div>
             )}
             <div className={styles.emptyPicker}>
-              <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} />
+              <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} kindSection={kindSection(false)} />
             </div>
           </div>
         ) : (
@@ -2758,7 +2769,7 @@ export default function NotebookTab() {
             branches. Research Home's "New note" menu opens them, and a sheet mounted inside the
             list branch would make that door a dead button on Home (and beside an open note). */}
         <Sheet
-          open={pickerOpen}
+          open={!!pickerOpen}
           onClose={() => setPickerOpen(false)}
           title="New note"
           // F4 / A2R-08: named by its visible title (it had no name at all).
@@ -2792,7 +2803,7 @@ export default function NotebookTab() {
           )}
           {/* 13Q-5: autoFocus only in the Sheet dialog -- the inline empty-notebook
               mount below must never steal focus from a page load. */}
-          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} autoFocusSearch />
+          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} autoFocusSearch={pickerOpen !== 'kinds'} kindSection={kindSection(pickerOpen === 'kinds')} />
         </Sheet>
 
         {voiceNote && voiceOn && (
