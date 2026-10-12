@@ -288,12 +288,14 @@ export default function AgentPanel({ host, gridMode, onClose, request = null }) 
   useEffect(() => { inputRef.current?.focus() }, [])
   const askedRef = useRef(null)
   const askAgent = agent.prompt
+  // Asked once per door click — and only once the Agent is free (a door clicked mid-reply is asked
+  // when that reply lands, never dropped).
   useEffect(() => {
-    if (!request || !request.id || askedRef.current === request.id || agent.restoring) return
+    if (!request || !request.id || askedRef.current === request.id || agent.restoring || agent.busy) return
+    if (!askAgent(request)) return
     askedRef.current = request.id
-    askAgent(request)
     inputRef.current?.focus()
-  }, [request, agent.restoring, askAgent])
+  }, [request, agent.restoring, agent.busy, askAgent])
   // Follow the conversation: stay pinned to the newest line while the reader is at the bottom,
   // including when a line grows after it lands (welcome reveal, photos, the typing line's room).
   const stickRef = useRef(true)

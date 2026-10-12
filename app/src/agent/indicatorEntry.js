@@ -35,6 +35,20 @@ export function routeIndicatorAuthoring(request) {
   try { return route(request) === true } catch { return false }
 }
 
+/** The workspace's decision for one door request → the host's chart ref the Agent should take, or
+ *  null (⇒ the chart-side dock). Declined: no chart named; the phone app or Multi Chart (the Agent
+ *  either isn't shown there or refuses every message — the dock is the only working builder); a chart
+ *  the host can't see (popped out, floating, another board). The toolbar names a tab `chartId:tabId`;
+ *  the host names it `chartId~tabId`. */
+export function resolveAgentChart({ chartId, host, mobile = false, gridMode = false } = {}) {
+  if (!chartId || mobile || gridMode || !host?.charts?.read) return null
+  const raw = String(chartId)
+  for (const ref of [raw.replace(':', '~'), raw]) {
+    try { if (host.charts.read(ref)) return ref } catch { /* unreadable ⇒ not this one */ }
+  }
+  return null
+}
+
 /** The Agent's side: hold the intent the member's next message answers. */
 export function beginAuthoringIntent({ chartRef, defId = null, name = null } = {}) {
   if (!chartRef) return null

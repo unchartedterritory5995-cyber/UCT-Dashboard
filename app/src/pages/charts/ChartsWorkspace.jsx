@@ -18,7 +18,7 @@ import AgentDock from '../../agent/AgentDock'
 import { buildWorkspaceHost } from '../../agent/host'
 import { useInRouterContext } from 'react-router-dom'
 import AgentNavBridge from '../../agent/AgentNavBridge'
-import { setIndicatorAgentRoute } from '../../agent/indicatorEntry'
+import { setIndicatorAgentRoute, resolveAgentChart } from '../../agent/indicatorEntry'
 const loadAgentPanel = () => import('../../agent/AgentPanel')
 const AgentPanel = lazy(loadAgentPanel)
 // TERM-079 — the board's typed context channels (list-ref, symbol-set, range, …).
@@ -3067,15 +3067,16 @@ export default function ChartsWorkspace() {
   // ⭐ INDICATORS ⇄ AGENT (2026-10-12) — while the Agent is available here, a chart's Create Indicator /
   // Modify door opens the Agent on THAT chart (it asks what to build) instead of the chart-side dock.
   // The toolbar names its chart `chartId` or `chartId:tabId`; the host names it `chartId~tabId`. A
-  // chart the host can't see (a pop-out, the grid's own charts) is declined ⇒ the dock, as before.
+  // chart the host can't see (a pop-out, a float), the phone app and Multi Chart are declined ⇒ the dock.
   // `agent/indicatorEntry.js`.
   const [agentRequest, setAgentRequest] = useState(null)
   const agentRequestSeq = useRef(0)
+  const agentWhereRef = useRef({ mobile: false, gridMode: false })
+  agentWhereRef.current = { mobile: isMobile, gridMode }
   useEffect(() => {
     if (!agentAllowed) return undefined
     return setIndicatorAgentRoute(({ chartId, defId = null, name = null }) => {
-      const raw = String(chartId)
-      const ref = [raw.replace(':', '~'), raw].find(r => agentHost.charts.read(r))
+      const ref = resolveAgentChart({ chartId, host: agentHost, ...agentWhereRef.current })
       if (!ref) return false
       setAgentOpen(true)
       setAgentRequest({ id: ++agentRequestSeq.current, chartRef: ref, defId, name })

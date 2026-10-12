@@ -21,6 +21,7 @@ import { APP_THEME_BY_ID, applyAppTheme } from '../../styles/appThemes'
 import { setAgentFlag } from '../../agent/agentFlag'
 import ChartsWorkspace from '../../pages/charts/ChartsWorkspace'
 import { scriptedTurn } from './scriptedAgent'
+import ramp200 from '../../pages/parityBars/ramp200.json'
 import { setCreateIndicatorFlag } from '../../components/chart/builder/studio/createIndicatorFlag'
 import { parseFormula } from '../../components/chart/engine/ast/parse'
 
@@ -233,6 +234,12 @@ window.fetch = async (input, init) => {
   }
   // /api/user-definitions/converse — the indicator conversation, SCRIPTED (no model): "EMA <n>" or
   // "RSI <n>" builds that one line; anything else is an honest "unsupported". Logged in H.converse.
+  // ?bars=ramp — every bars request answered with the SYNTHETIC 200-bar ramp (no market data) and
+  // COUNTED in H.bars, so a layout change (e.g. resizing the Agent) can be checked for refetches.
+  if (params.get('bars') === 'ramp' && path.startsWith('/api/bars')) {
+    ;(H.bars = H.bars || []).push(path.split('?')[0])
+    return json({ bars: ramp200.bars })
+  }
   if (path === '/api/user-definitions/converse' && method === 'POST') {
     const body = JSON.parse(init.body)
     ;(H.converse = H.converse || []).push(body.message)

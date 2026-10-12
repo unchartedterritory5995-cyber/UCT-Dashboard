@@ -15,7 +15,7 @@ import { _simulateReload, STORAGE_KEY } from '../components/chart/builder/author
 import { _resetDraftPreview } from '../components/chart/builder/agentAuthoring'
 import {
   setIndicatorAgentRoute, routeIndicatorAuthoring, beginAuthoringIntent, peekAuthoringIntent,
-  takeAuthoringIntent, authoringPrompt, authoringOp, isCancelWords, openIndicatorDoor, _resetIndicatorEntry,
+  takeAuthoringIntent, authoringPrompt, authoringOp, isCancelWords, openIndicatorDoor, resolveAgentChart, _resetIndicatorEntry,
 } from './indicatorEntry'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -25,8 +25,8 @@ const PATCH = 'uct.authoring.patch/1'
 const P = (src) => { const r = parseFormula(src); if (!r.ok) throw new Error(src); return r.ast }
 
 let converseCalls, turnCalls
-function converse({ message, state }) {
-  converseCalls.push({ message, revision: state.revision })
+function converse({ message, state, gateCtx }) {
+  converseCalls.push({ message, revision: state.revision, symbol: gateCtx?.symbol || null })
   return { ok: true, disposition: 'change', turn: 'patch', reply: '',
     envelope: { contract: PATCH, baseRevision: state.revision, assumptions: [], disposition: 'change',
       ops: [{ op: 'create', name: 'EMA 20', placement: 'price', outputs: [{ key: 'ema', label: 'EMA 20', tree: P('ema(close, 20)') }] }] } }
@@ -34,10 +34,13 @@ function converse({ message, state }) {
 
 function makeHost(refs) {
   const store = Object.fromEntries(refs.map(r => [r, null]))
+  const syms = Object.fromEntries(refs.map(r => [r, 'NVDA']))
   const doors = []
-  const read = (ref) => (ref in store ? { ref, label: `Chart (${ref})`, position: null, symbol: 'NVDA', tf: 'D', stored: store[ref], cs: mergeChartSettings(store[ref] || {}), linkedCount: 0 } : null)
+  const read = (ref) => (ref in store ? { ref, label: `Chart (${ref})`, position: null, symbol: syms[ref], tf: 'D', stored: store[ref], cs: mergeChartSettings(store[ref] || {}), linkedCount: 0 } : null)
   return {
     doors,
+    setSymbol: (ref, sym) => { syms[ref] = sym },          // the member switches the chart's symbol
+    remove: (ref) => { delete store[ref]; delete syms[ref] }, // the chart leaves the board (layout switch)
     charts: {
       list: () => Object.keys(store).map(read), read,
       commit: (ref, patch) => { store[ref] = patch.settings; return true },
@@ -213,5 +216,96 @@ describe('Modify opens UCT Agent with the indicator selected', () => {
     expect(await screen.findByText(/I don.t know that indicator on your account/)).toBeTruthy()
     expect(converseCalls).toHaveLength(0)
     expect(turnCalls).toHaveLength(0)
+  })
+})
+
+describe('resolveAgentChart — which door requests the Agent takes (the rest get the dock)', () => {
+  const host = makeHost(['w1', 'w2~t1'])
+  it('the host’s own ref; a tab’s toolbar id `w:tab` is the host’s `w~tab`', () => {
+    expect(resolveAgentChart({ chartId: 'w1', host })).toBe('w1')
+    expect(resolveAgentChart({ chartId: 'w2:t1', host })).toBe('w2~t1')
+  })
+  it('⛔ declined: the phone app, Multi Chart, a chart the host can’t see (popped / floating / gone), no chart', () => {
+    expect(resolveAgentChart({ chartId: 'w1', host, mobile: true })).toBe(null)
+    expect(resolveAgentChart({ chartId: 'w1', host, gridMode: true })).toBe(null)
+    expect(resolveAgentChart({ chartId: 'w-popped', host })).toBe(null)
+    expect(resolveAgentChart({ chartId: null, host })).toBe(null)
+    expect(resolveAgentChart({ chartId: 'w1', host: { charts: { read: () => { throw new Error('x') } } } })).toBe(null)
+  })
+})
+
+describe('chart context while the question or a draft is open', () => {
+  const ask = (host, chartRef, m, id = 1) => (m ? m.rerender({ id, chartRef, defId: null, name: null }) : mount(host, { id, chartRef, defId: null, name: null }))
+  const answer = async (text) => {
+    await waitFor(() => expect(screen.getByLabelText('Message UCT Agent').disabled).toBe(false))
+    await act(async () => { type(text) })
+  }
+
+  it('the symbol is read when the member ANSWERS: switching the chart’s symbol first builds for the new one', async () => {
+    const host = makeHost(['c1', 'c2'])
+    mount(host, { id: 1, chartRef: 'c2', defId: null, name: null })
+    await screen.findByText('What indicator would you like to build?')
+    host.setSymbol('c2', 'AAPL')
+    await answer('plot the EMA 20 of close')
+    await waitFor(() => expect(converseCalls).toHaveLength(1))
+    expect(converseCalls[0].symbol).toBe('AAPL')
+  })
+
+  it('the chart left the board (layout switch) before the answer ⇒ the builder asks which chart — nothing is built', async () => {
+    const host = makeHost(['c1', 'c2'])
+    mount(host, { id: 1, chartRef: 'c2', defId: null, name: null })
+    await screen.findByText('What indicator would you like to build?')
+    host.remove('c2')
+    await answer('plot the EMA 20 of close')
+    expect(await screen.findByText(/That chart isn.t on the board/)).toBeTruthy()
+    expect(converseCalls).toHaveLength(0)
+    expect(turnCalls).toHaveLength(0)
+  })
+
+  it('Create Indicator on ANOTHER chart before answering: the newest door wins — the answer builds on that chart', async () => {
+    const host = makeHost(['c1', 'c2'])
+    host.setSymbol('c1', 'SPY')
+    const m = ask(host, 'c2')
+    await screen.findByText('What indicator would you like to build?')
+    ask(host, 'c1', m, 2)
+    await waitFor(() => expect(screen.getAllByText('What indicator would you like to build?')).toHaveLength(2))
+    await answer('plot the EMA 20 of close')
+    await waitFor(() => expect(converseCalls).toHaveLength(1))
+    expect(converseCalls[0].symbol).toBe('SPY')
+  })
+
+  it('a draft is open on one chart; Create Indicator on another starts a SEPARATE new draft there', async () => {
+    const host = makeHost(['c1', 'c2'])
+    host.setSymbol('c1', 'SPY')
+    const m = ask(host, 'c2')
+    await screen.findByText('What indicator would you like to build?')
+    await answer('plot the EMA 20 of close')
+    await screen.findByText(/Started .*\(draft — not saved\)/)
+    ask(host, 'c1', m, 2)
+    await waitFor(() => expect(screen.getAllByText('What indicator would you like to build?')).toHaveLength(2))
+    await answer('plot the EMA 20 of close')
+    await waitFor(() => expect(converseCalls).toHaveLength(2))
+    expect(converseCalls.map(c => [c.symbol, c.revision])).toEqual([['NVDA', 0], ['SPY', 0]])   // a fresh draft, not the first one continued
+  })
+})
+
+describe('a door clicked while the Agent is busy', () => {
+  it('is asked when the reply lands — never dropped', async () => {
+    const host = makeHost(['c1'])
+    let release, waiting = false
+    const gate = new Promise(r => { release = r })
+    const f0 = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init) => {
+      if (url === '/api/agent/turn') { waiting = true; await gate; return f0(url, init) }
+      return f0(url, init)
+    })
+    const m = mount(host, null)
+    await waitFor(() => expect(screen.getByLabelText('Message UCT Agent').disabled).toBe(false))
+    await act(async () => { type('what is an EMA, in plain words?') })
+    await waitFor(() => expect(waiting).toBe(true))                // the Agent is mid-reply
+    m.rerender({ id: 1, chartRef: 'c1', defId: null, name: null })
+    expect(screen.queryByText('What indicator would you like to build?')).toBeNull()
+    await act(async () => { release() })
+    expect(await screen.findByText('What indicator would you like to build?')).toBeTruthy()
   })
 })
