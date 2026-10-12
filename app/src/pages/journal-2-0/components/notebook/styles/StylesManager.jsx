@@ -4,8 +4,12 @@
 // ⛔ Everything here is a CREATING door: it renders nothing while journalStylesEnabled() is off, and the
 // hook fails closed on the same gate. A note that already holds a style's blocks is never affected.
 // ⛔ Offline (the list came from the saved copy): reading works, every write control is disabled.
-// ⛔ Every server sentence (a kind still in use, a refused name) is shown as the server wrote it.
-import { useState } from 'react'
+// ⛔ A sentence the SERVER worded (a kind still in use, a refused name) is shown as written; the browser's
+//    "Failed to fetch" and a bare "500" never are (./styleErrors.js).
+// Focus: opening the editor moves focus to its heading and scrolls it into view (the one-column phone layout
+// puts it far below the list); closing it returns focus to the button that opened it; after Delete focus
+// lands on Undo, after Undo on the restored row. The status line is sticky, so it is seen where the member is.
+import { useEffect, useRef, useState } from 'react'
 import useSWR, { mutate as globalMutate } from 'swr'
 import Sheet from '../../../../../components/mobile/Sheet'
 import UIcon, { UICON_NAMES } from '../../../../../components/ui/UIcon'
@@ -18,22 +22,31 @@ import {
   getMappingOffer, restoreJournalStyle, setDefaultJournalStyle, stylesOfKind, updateKind,
 } from '../../../lib/journalStyles'
 import StyleEditor from './StyleEditor'
+import { friendlyError } from './styleErrors'
 import styles from './StylesManager.module.css'
 
 const MAPPING_PREF = 'notebook_kind_mapping'
+const MAX_STYLE_NAME = 80                          // the server's cap on a style name
+const MAX_KIND_NAME = 40                           // note_kinds.MAX_KIND_NAME_CHARS
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
 const dismissed = (v) => String(v ?? '').replace(/^"|"$/g, '') === 'dismissed'
 const newDraftStyle = (kindId) => ({ id: null, name: '', kindId, outlineTemplateId: null, outlineBodyJson: null, blocks: [], properties: {} })
 const iconFor = (kind) => (UICON_NAMES.includes(kindIcon(kind)) ? kindIcon(kind) : 'document')
+const copyName = (name) => {
+  const suffix = ' copy'
+  return name.length + suffix.length > MAX_STYLE_NAME ? name.slice(0, MAX_STYLE_NAME - suffix.length) + suffix : name + suffix
+}
 
 export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const on = journalStylesEnabled()
   const { data, error, isLoading, mutate } = useJournalStyles({ enabled: open })
-  const { data: offerData, mutate: mutateOffer } = useSWR(
+  const { data: offerData } = useSWR(
     open && on ? 'journal-styles:mapping-offer' : null, () => getMappingOffer(), { shouldRetryOnError: false })
   const { prefs, setPref } = usePreferences()
 
   const [editing, setEditing] = useState(null)          // { style } while the editor is open
+  const [editorDirty, setEditorDirty] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [undo, setUndo] = useState(null)                // { id } of the style just deleted
   const [status, setStatus] = useState('')
   const [problem, setProblem] = useState('')
@@ -41,6 +54,38 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const [busy, setBusy] = useState(false)
   const [newKind, setNewKind] = useState({ name: '', icon: 'document' })
   const [renaming, setRenaming] = useState(null)        // { id, name }
+  const [confirmKind, setConfirmKind] = useState(null)  // id of the kind a Delete is waiting on
+  const [offerDone, setOfferDone] = useState(false)     // the offer was applied: never asked again this session
+
+  const editorHeadRef = useRef(null)
+  const openerRef = useRef(null)
+  const undoRef = useRef(null)
+  const keepEditingRef = useRef(null)
+  const rowEls = useRef({})
+  const pendingFocus = useRef(null)                     // { type: 'opener' | 'undo' | 'row', id? }
+
+  // The editor opened: bring it to the member. (On a phone it sits below the whole list.)
+  useEffect(() => {
+    const h = editorHeadRef.current
+    if (!editing || !h) return
+    h.focus()
+    h.scrollIntoView?.({ block: 'start' })
+  }, [editing])
+  useEffect(() => { if (confirmDiscard) keepEditingRef.current?.focus() }, [confirmDiscard])
+  // Focus a moved target once it exists (Undo appears, a restored row comes back, the opener is still there).
+  useEffect(() => {
+    const pf = pendingFocus.current
+    if (!pf) return
+    if (pf.type === 'opener') {
+      pendingFocus.current = null
+      if (openerRef.current?.isConnected) openerRef.current.focus()
+    } else if (pf.type === 'undo') {
+      if (undoRef.current) { pendingFocus.current = null; undoRef.current.focus() }
+    } else if (pf.type === 'row') {
+      const li = rowEls.current[pf.id]
+      if (li) { pendingFocus.current = null; (li.querySelector('button:not(:disabled)') || li).focus() }
+    }
+  })
 
   if (!on) return null
 
@@ -48,28 +93,42 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const offline = data?.fromCache === true
   const locked = busy || offline
   const offer = offerData?.offer
-  const showOffer = Boolean(offer) && !offline && !dismissed(prefs?.[MAPPING_PREF])
+  const showOffer = Boolean(offer) && !offline && !offerDone && !dismissed(prefs?.[MAPPING_PREF])
 
   /** Any action but Undo ends the Undo line ("kept until the next action or close"). */
   const run = async (fn, { keepUndo = false } = {}) => {
     setBusy(true); setProblem(''); setKindProblem(''); setStatus('')
+    pendingFocus.current = null
     if (!keepUndo) setUndo(null)
-    try { await fn() } catch (e) { setProblem(e.message || 'That did not work. Nothing was changed.') } finally { setBusy(false) }
+    try { await fn() } catch (e) { setProblem(friendlyError(e)) } finally { setBusy(false) }
   }
-  const close = () => { setUndo(null); setStatus(''); setProblem(''); setKindProblem(''); setEditing(null); onClose() }
+  const finish = () => {
+    setUndo(null); setStatus(''); setProblem(''); setKindProblem(''); setEditing(null); setConfirmDiscard(false); setConfirmKind(null)
+    onClose()
+  }
+  /** Closing over an editor with unsaved changes asks first, in the page (never window.confirm). */
+  const close = () => {
+    if (editing && editorDirty) { setConfirmDiscard(true); return }
+    finish()
+  }
+  const closeEditor = () => {
+    setEditing(null); setEditorDirty(false)
+    pendingFocus.current = { type: 'opener' }
+  }
 
-  const editStyle = (s) => run(async () => {
+  const openEditor = (style, opener) => { openerRef.current = opener || null; setEditing({ style }) }
+  const editStyle = (s, opener) => run(async () => {
     const out = await getJournalStyle(s.id)
-    setEditing({ style: out.style })
+    openEditor(out.style, opener)
   })
-  const duplicate = (s, { thenEdit = true } = {}) => run(async () => {
+  const duplicate = (s, opener, { thenEdit = true } = {}) => run(async () => {
     const full = (await getJournalStyle(s.id)).style
-    const body = { name: `${full.name} copy`, kindId: full.kindId, blocks: full.blocks || [], properties: full.properties || {} }
+    const body = { name: copyName(full.name), kindId: full.kindId, blocks: full.blocks || [], properties: full.properties || {} }
     if (full.outlineTemplateId) body.outlineTemplateId = full.outlineTemplateId
     if (full.outlineBodyJson) body.outlineBodyJson = full.outlineBodyJson
     const out = await createJournalStyle(body)
     await mutate()
-    if (thenEdit) setEditing({ style: out.style }); else setStatus('Style duplicated.')
+    if (thenEdit) openEditor(out.style, opener); else setStatus('Style duplicated.')
   })
   const makeDefault = (s) => run(async () => {
     await setDefaultJournalStyle(s.id)
@@ -79,18 +138,21 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const remove = (s) => run(async () => {
     await deleteJournalStyle(s.id)
     await mutate()
-    if (editing?.style?.id === s.id) setEditing(null)
+    if (editing?.style?.id === s.id) { setEditing(null); setEditorDirty(false) }
+    pendingFocus.current = { type: 'undo' }            // the row that held focus is gone: Undo is the next stop
     setUndo({ id: s.id })
   })
   const restore = () => run(async () => {
     await restoreJournalStyle(undo.id)
     await mutate()
+    pendingFocus.current = { type: 'row', id: undo.id }
     setUndo(null)
     setStatus('Style restored.')
   }, { keepUndo: true })
   const saved = (s) => {
-    setEditing(null); setUndo(null); setProblem('')
+    setUndo(null); setProblem('')
     setStatus(`Saved ${s?.name || 'the style'}.`)
+    closeEditor()
     mutate()
   }
 
@@ -100,7 +162,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     run(async () => {
       try {
         await createKind({ name: newKind.name.trim(), icon: newKind.icon })
-      } catch (err) { setKindProblem(err.message); return }
+      } catch (err) { setKindProblem(friendlyError(err)); return }
       setNewKind({ name: '', icon: 'document' })
       await mutate()
       setStatus('Kind added.')
@@ -111,27 +173,37 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     run(async () => {
       try {
         await updateKind(renaming.id, { name: renaming.name.trim() })
-      } catch (err) { setKindProblem(err.message); return }
+      } catch (err) { setKindProblem(friendlyError(err)); return }
       setRenaming(null)
       await mutate()
       setStatus('Kind renamed.')
     })
   }
   const removeKind = (k) => run(async () => {
+    setConfirmKind(null)
     let out
-    try { out = await deleteKind(k.id) } catch (err) { setKindProblem(err.message); return }       // the server's own sentence
+    try { out = await deleteKind(k.id) } catch (err) { setKindProblem(friendlyError(err)); return }       // the server's own sentence
     await mutate()
     const n = out?.purgedDeletedStyles || 0
     setStatus(n ? `Kind deleted. ${plural(n, 'style you had deleted', 'styles you had deleted')} for it ${n === 1 ? 'was' : 'were'} removed for good.` : 'Kind deleted.')
   })
 
   const applyOffer = () => run(async () => {
-    const out = await applyMappingOffer(Array.from(blockedNoteIds || []))
-    const skipped = (out.skipped || []).length
-    await mutateOffer()
+    const ids = Array.from(blockedNoteIds || [])
+    const asked = offer?.total ?? 0
+    const out = await applyMappingOffer(ids)
+    const count = out.count ?? (out.notes || []).length
+    const skipped = out.skipped || []
+    const lockedN = skipped.filter((s) => (s.reason ?? 'locked') === 'locked').length
+    // Held back for unsent offline work: what the response says, and whatever it left unaccounted for
+    // among the notes the offer counted (the excluded ids are never sent to the server's count).
+    const unsent = skipped.length - lockedN + (ids.length ? Math.max(0, asked - count - skipped.length) : 0)
+    setOfferDone(true)                                  // never ask again: the server still counts the notes it skipped
     globalMutate((k) => typeof k === 'string' && k.startsWith('/api/j2/notes'))
-    setStatus(`Set the kind on ${plural(out.count ?? (out.notes || []).length, 'note', 'notes')}.`
-      + (skipped ? ` ${plural(skipped, 'locked note was', 'locked notes were')} left as ${skipped === 1 ? 'it is' : 'they are'}.` : ''))
+    setStatus(
+      `Set the kind on ${plural(count, 'note', 'notes')}.`
+      + (lockedN ? ` ${plural(lockedN, 'locked note', 'locked notes')} ${lockedN === 1 ? 'was' : 'were'} left as ${lockedN === 1 ? 'it was' : 'they were'}.` : '')
+      + (unsent ? ` ${plural(unsent, 'note', 'notes')} with unsent changes ${unsent === 1 ? 'was' : 'were'} left for later.` : ''))
   })
   const notNow = () => { setPref(MAPPING_PREF, 'dismissed') }
 
@@ -145,13 +217,23 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
           A style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes notes you already made.
         </p>
 
-        <div role="status" aria-live="polite" className={styles.statusSlot}>
-          {undo ? (
-            <p className={styles.notice}>
-              <span>Style deleted.</span>
-              <button type="button" className={styles.btn} onClick={restore} disabled={busy}>Undo</button>
-            </p>
-          ) : status ? <p className={styles.notice}>{status}</p> : null}
+        <div className={styles.stickyTop}>
+          <div role="status" aria-live="polite">
+            {undo ? (
+              <p className={styles.notice}>
+                <span>Style deleted.</span>
+                <button type="button" ref={undoRef} className={styles.btn} onClick={restore} disabled={busy}>Undo</button>
+              </p>
+            ) : status ? <p className={styles.notice}>{status}</p> : null}
+          </div>
+          {confirmDiscard && (
+            <section className={styles.notice} aria-label="Unsaved changes">
+              <span>Discard your unsaved changes to this style?</span>
+              <button type="button" ref={keepEditingRef} className={styles.btn}
+                onClick={() => { setConfirmDiscard(false); document.getElementById('js-name')?.focus() }}>Keep editing</button>
+              <button type="button" className={`${styles.btn} ${styles.danger}`} onClick={finish}>Discard changes</button>
+            </section>
+          )}
         </div>
         {problem && <p role="alert" className={styles.error}>{problem}</p>}
         {offline && (
@@ -169,7 +251,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
         {isLoading && !data && <p className={styles.hint}>Loading your styles…</p>}
         {error && !data && (
           <p role="alert" className={styles.error}>
-            {error.message || 'Your styles could not be loaded.'}{' '}
+            {friendlyError(error)}{' '}
             <button type="button" className={styles.btn} onClick={() => mutate()}>Try again</button>
           </p>
         )}
@@ -178,7 +260,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
           <div className={styles.layout}>
             <div className={styles.listCol}>
               <button type="button" className={`${styles.btn}`} disabled={locked || !kinds.length}
-                onClick={() => { setUndo(null); setEditing({ style: newDraftStyle(kinds[0]?.id) }) }}>
+                onClick={(e) => { setUndo(null); openEditor(newDraftStyle(kinds[0]?.id), e.currentTarget) }}>
                 <UIcon name="plus" size={14} gold={false} /> New style
               </button>
 
@@ -192,7 +274,8 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                     {list.length === 0 ? <p className={styles.hint}>No styles for this kind yet.</p> : (
                       <ul className={styles.styleList}>
                         {list.map((s) => (
-                          <li key={s.id} className={styles.styleRow}>
+                          <li key={s.id} className={styles.styleRow} tabIndex={-1}
+                            ref={(el) => { if (el) rowEls.current[s.id] = el; else delete rowEls.current[s.id] }}>
                             <div className={styles.rowTop}>
                               <span className={styles.rowName}>{s.name}</span>
                               {s.isDefault && <span className={styles.badge}>Default</span>}
@@ -200,14 +283,14 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                             </div>
                             <div className={styles.rowActions}>
                               {s.builtin ? (
-                                <button type="button" className={styles.btn} disabled={locked} onClick={() => duplicate(s)}
+                                <button type="button" className={styles.btn} disabled={locked} onClick={(e) => duplicate(s, e.currentTarget)}
                                   aria-label={`Duplicate ${s.name} to edit`}>Duplicate to edit</button>
                               ) : (
-                                <button type="button" className={styles.btn} disabled={locked} onClick={() => editStyle(s)}
+                                <button type="button" className={styles.btn} disabled={locked} onClick={(e) => editStyle(s, e.currentTarget)}
                                   aria-label={`Edit ${s.name}`}>Edit</button>
                               )}
                               {!s.builtin && (
-                                <button type="button" className={styles.btn} disabled={locked} onClick={() => duplicate(s, { thenEdit: false })}
+                                <button type="button" className={styles.btn} disabled={locked} onClick={(e) => duplicate(s, e.currentTarget, { thenEdit: false })}
                                   aria-label={`Duplicate ${s.name}`}>Duplicate</button>
                               )}
                               {!s.isDefault && (
@@ -235,11 +318,20 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                     <li key={k.id} className={styles.kindRow}>
                       {renaming?.id === k.id ? (
                         <form className={styles.kindForm} onSubmit={saveRename} aria-label={`Rename ${k.name}`}>
-                          <input type="text" aria-label={`New name for ${k.name}`} value={renaming.name} maxLength={60}
+                          <input type="text" aria-label={`New name for ${k.name}`} value={renaming.name} maxLength={MAX_KIND_NAME}
                             onChange={(e) => setRenaming({ ...renaming, name: e.target.value })} />
                           <button type="submit" className={styles.btn} disabled={locked}>Save name</button>
                           <button type="button" className={styles.btn} onClick={() => setRenaming(null)}>Cancel</button>
                         </form>
+                      ) : confirmKind === k.id ? (
+                        <>
+                          <p className={styles.hint}>{`Delete the kind ${k.name}? Styles you deleted that used it are removed permanently.`}</p>
+                          <div className={styles.rowActions}>
+                            <button type="button" className={`${styles.btn} ${styles.danger}`} disabled={locked}
+                              onClick={() => removeKind(k)}>{`Yes, delete kind ${k.name}`}</button>
+                            <button type="button" className={styles.btn} onClick={() => setConfirmKind(null)}>{`Keep kind ${k.name}`}</button>
+                          </div>
+                        </>
                       ) : (
                         <>
                           <div className={styles.rowTop}>
@@ -250,7 +342,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                             <button type="button" className={styles.btn} disabled={locked} aria-label={`Rename ${k.name}`}
                               onClick={() => { setKindProblem(''); setRenaming({ id: k.id, name: k.name }) }}>Rename</button>
                             <button type="button" className={`${styles.btn} ${styles.danger}`} disabled={locked}
-                              aria-label={`Delete kind ${k.name}`} onClick={() => removeKind(k)}>Delete</button>
+                              aria-label={`Delete kind ${k.name}`} onClick={() => { setKindProblem(''); setConfirmKind(k.id) }}>Delete</button>
                           </div>
                         </>
                       )}
@@ -260,7 +352,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                 <form className={styles.kindForm} onSubmit={addKind} aria-label="Add a kind of note">
                   <div className={styles.field}>
                     <label htmlFor="js-kind-name">New kind name</label>
-                    <input id="js-kind-name" type="text" value={newKind.name} maxLength={60}
+                    <input id="js-kind-name" type="text" value={newKind.name} maxLength={MAX_KIND_NAME}
                       onChange={(e) => setNewKind({ ...newKind, name: e.target.value })} />
                   </div>
                   <div className={styles.field}>
@@ -278,9 +370,9 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
             <div className={styles.editorCol}>
               {editing ? (
                 <>
-                  <h3 className={styles.kindHead}>{editing.style.id ? 'Edit style' : 'New style'}</h3>
+                  <h3 className={styles.kindHead} tabIndex={-1} ref={editorHeadRef}>{editing.style.id ? 'Edit style' : 'New style'}</h3>
                   <StyleEditor key={editing.style.id || 'new'} style={editing.style} kinds={kinds} offline={offline}
-                    onSaved={saved} onCancel={() => setEditing(null)} />
+                    onSaved={saved} onCancel={closeEditor} onDirtyChange={setEditorDirty} />
                 </>
               ) : (
                 <p className={styles.hint}>Pick a style to edit, or make a new one.</p>

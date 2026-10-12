@@ -74,6 +74,24 @@ describe('journal styles surfaces (P1, lane C)', () => {
     screen.getByRole('button', { name: 'Set kinds' })
   })
 
+  axeSurface('styles-manager-kind-confirm', async () => {
+    installFetch(ROUTES())
+    render(<Providers><StylesManager open onClose={() => {}} /></Providers>)
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete kind Setups I trade' }))
+    await screen.findByText('Delete the kind Setups I trade? Styles you deleted that used it are removed permanently.')
+    screen.getByRole('button', { name: 'Yes, delete kind Setups I trade' })
+  })
+
+  axeSurface('styles-manager-discard', async () => {
+    installFetch(ROUTES())
+    render(<Providers><StylesManager open onClose={() => {}} /></Providers>)
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit My plan' }))
+    fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Half done' } })
+    await screen.findByText('Shown with NVDA, from your notes.', {}, { timeout: 3000 })      // let the preview land inside the test
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await screen.findByText('Discard your unsaved changes to this style?')
+  })
+
   axeSurface('settings-journal-styles', async () => {
     installFetch([])
     render(<Providers><JournalStylesCard /></Providers>)

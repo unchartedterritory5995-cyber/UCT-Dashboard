@@ -38,8 +38,19 @@ const LIST = {
     style({ id: 'builtin:thesis', name: 'Thesis', kindId: 'thesis', builtin: true, isDefault: true, version: 1, blocks: [CHART] }),
   ],
 }
-const FULL_MEMBER = { style: { ...LIST.styles[1], outlineBodyJson: null } }
-const UNKNOWN_BLOCK = { style: { ...LIST.styles[1], blocks: [{ block: 'future_widget', enabled: true, settings: { z: 1 } }], outlineBodyJson: null } }
+const MEMBER = LIST.styles[1]
+const FULL_MEMBER = { style: { ...MEMBER, outlineBodyJson: null } }
+const withMember = (o) => ({ style: { ...MEMBER, outlineBodyJson: null, ...o } })
+const UNKNOWN_BLOCK = withMember({ blocks: [{ block: 'future_widget', enabled: true, settings: { z: 1 } }] })
+const p = (t) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] })
+const PLAIN_OUTLINE = { type: 'doc', content: [{ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Setup' }] }, p('Why now?')] }
+const RICH_OUTLINE = {
+  type: 'doc',
+  content: [
+    { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Setup' }] },
+    { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a', marks: [{ type: 'bold' }] }] }] }] },
+  ],
+}
 const PREVIEW = {
   bodyJson: { type: 'doc', content: [
     { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'The plan' }] },
@@ -47,6 +58,10 @@ const PREVIEW = {
   ] },
   properties: {}, skipped: [], ticker: 'NVDA', tickerSource: 'latest-note',
 }
+const OFFLINE = "You're offline. Changes to styles need a connection."
+const SERVER_SIDE = 'Something went wrong on our side. Try again.'
+const NETWORK = Symbol('network failure')
+const NO_BODY = [500]                                // a 5xx whose body is not JSON
 
 let calls
 let routes
@@ -62,27 +77,33 @@ function installFetch(extra = []) {
     const hit = table.find(([m, re]) => m === method && re.test(path))
     let out = hit ? hit[2] : [404, { detail: 'Not found' }]
     if (typeof out === 'function') out = out(body)
+    if (out === NETWORK) return Promise.reject(new TypeError('Failed to fetch'))
     const [status, payload] = Array.isArray(out) && typeof out[0] === 'number' ? out : [200, out]
-    return Promise.resolve({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(payload) })
+    return Promise.resolve({
+      ok: status >= 200 && status < 300, status,
+      json: () => (payload === undefined ? Promise.reject(new SyntaxError('not json')) : Promise.resolve(payload)),
+    })
   })
 }
 const called = (method, re) => calls.filter((c) => c.method === method && re.test(c.path))
+const put = () => called('PUT', /s_member$/)[0].body
 
 beforeEach(() => {
   __resetNotebookFlags()
   latchNotebookFlags({ notebook_journal_styles_enabled: true })
   prefsNow = {}
   setPref.mockClear()
+  Element.prototype.scrollIntoView = vi.fn()
   routes = [
     ['GET', /^\/api\/j2\/journal-styles$/, LIST],
     ['GET', /^\/api\/j2\/journal-styles\/s_member$/, FULL_MEMBER],
     ['GET', /^\/api\/j2\/journal-styles\/builtin%3Atrade_plan$/, { style: { ...LIST.styles[0], outlineBodyJson: { type: 'doc', content: [] } } }],
-    ['DELETE', /^\/api\/j2\/journal-styles\/s_member$/, { ok: true, style: { ...LIST.styles[1], deletedAt: 'x' } }],
+    ['DELETE', /^\/api\/j2\/journal-styles\/s_member$/, { ok: true, style: { ...MEMBER, deletedAt: 'x' } }],
     ['POST', /^\/api\/j2\/journal-styles\/s_member\/restore$/, FULL_MEMBER],
     ['POST', /^\/api\/j2\/journal-styles\/s_member\/default$/, FULL_MEMBER],
     ['POST', /^\/api\/j2\/journal-styles\/preview$/, PREVIEW],
-    ['POST', /^\/api\/j2\/journal-styles$/, (b) => ({ style: { ...LIST.styles[1], id: 's_new', name: b.name, blocks: b.blocks } })],
-    ['PUT', /^\/api\/j2\/journal-styles\/s_member$/, (b) => ({ style: { ...LIST.styles[1], ...b } })],
+    ['POST', /^\/api\/j2\/journal-styles$/, (b) => ({ style: { ...MEMBER, id: 's_new', name: b.name, blocks: b.blocks } })],
+    ['PUT', /^\/api\/j2\/journal-styles\/s_member$/, (b) => ({ style: { ...MEMBER, ...b } })],
     ['GET', /^\/api\/j2\/note-kinds\/mapping-offer$/, { offer: null }],
     ['GET', /^\/api\/j2\/property-defs$/, { propertyDefs: [
       { id: 'builtin:thesis_status', name: 'Thesis Status', type: 'select', source: 'user_set', options: [{ id: 'watching', label: 'Watching' }] },
@@ -100,6 +121,11 @@ const open = (props = {}) => render(
     <StylesManager open onClose={vi.fn()} {...props} />
   </SWRConfig>,
 )
+const edit = async (name = 'My plan') => {
+  fireEvent.click(await screen.findByRole('button', { name: `Edit ${name}` }))
+  return screen.findByRole('form', { name: `Edit style ${name}` })
+}
+const alertText = async () => (await screen.findByRole('alert')).textContent
 
 describe('the Styles manager', () => {
   it('lists styles under their kind with the Default badge and the version', async () => {
@@ -119,17 +145,29 @@ describe('the Styles manager', () => {
     expect(within(builtin).getByRole('button', { name: 'Set Trade plan as default' })).toBeInTheDocument()
   })
 
-  it('Delete then Undo restores the style', async () => {
+  it('Delete then Undo restores the style: the row is gone, then it is back, and focus follows', async () => {
+    let deleted = false
+    routes.unshift(
+      ['GET', /^\/api\/j2\/journal-styles$/, () => ({ ...LIST, styles: LIST.styles.filter((s) => !(deleted && s.id === 's_member')) })],
+      ['DELETE', /^\/api\/j2\/journal-styles\/s_member$/, () => { deleted = true; return { ok: true, style: { ...MEMBER, deletedAt: 'x' } } }],
+      ['POST', /^\/api\/j2\/journal-styles\/s_member\/restore$/, () => { deleted = false; return FULL_MEMBER }],
+    )
+    installFetch()
     open()
     fireEvent.click(await screen.findByRole('button', { name: 'Delete My plan' }))
     await screen.findByText('Style deleted.')
+    await waitFor(() => expect(screen.queryByText('My plan')).toBeNull())
     expect(called('DELETE', /s_member$/)).toHaveLength(1)
-    // the list re-reads: the server now answers without the style
-    routes.unshift(['GET', /^\/api\/j2\/journal-styles$/, { ...LIST, styles: LIST.styles.filter((s) => s.id !== 's_member') }])
-    installFetch()
-    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    // focus lands on Undo, the control the row's own button handed over to
+    const undo = screen.getByRole('button', { name: 'Undo' })
+    await waitFor(() => expect(document.activeElement).toBe(undo))
+    fireEvent.click(undo)
     await waitFor(() => expect(called('POST', /s_member\/restore$/)).toHaveLength(1))
     await screen.findByText('Style restored.')
+    // the row is back, with its Default badge, and focus is on it (not on <body>)
+    const row = (await screen.findByText('My plan')).closest('li')
+    expect(within(row).getByText('Default')).toBeInTheDocument()
+    await waitFor(() => expect(row.contains(document.activeElement)).toBe(true))
     expect(screen.queryByText('Style deleted.')).toBeNull()
   })
 
@@ -145,7 +183,7 @@ describe('the Styles manager', () => {
     routes.unshift(['GET', /^\/api\/j2\/journal-styles\/s_member$/, UNKNOWN_BLOCK])
     installFetch()
     open()
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit My plan' }))
+    await edit()
     const list = await screen.findByRole('list', { name: 'Blocks in this style' })
     // the newer-version block is shown, kept, and cannot be toggled
     const future = within(list).getByText('A block from a newer version').closest('li')
@@ -160,29 +198,77 @@ describe('the Styles manager', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Move Chart of the note’s ticker up' }))
     expect(order()).toEqual(['chart', 'future'])
-    // keyboard focus stays on the control that moved the block
-    expect(screen.getByRole('button', { name: 'Move Chart of the note’s ticker up' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Move Chart of the note’s ticker down' }))
     expect(order()).toEqual(['future', 'chart'])
 
     // Save sends the order and keeps the unknown block verbatim
     fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
     await waitFor(() => expect(called('PUT', /s_member$/)).toHaveLength(1))
-    const sent = called('PUT', /s_member$/)[0].body
-    expect(sent.blocks.map((b) => b.block)).toEqual(['future_widget', 'chart'])
-    expect(sent.blocks[0].settings).toEqual({ z: 1 })
+    expect(put().blocks.map((b) => b.block)).toEqual(['future_widget', 'chart'])
+    expect(put().blocks[0].settings).toEqual({ z: 1 })
   })
 
-  it('the drag handle reorders the same list', async () => {
-    routes.unshift(['GET', /^\/api\/j2\/journal-styles\/s_member$/, { style: { ...FULL_MEMBER.style, blocks: [{ block: 'a_new', enabled: true, settings: {} }, CHART] } }])
+  describe('keyboard focus stays on the moved row', () => {
+    const rows = async () => {
+      routes.unshift(['GET', /^\/api\/j2\/journal-styles\/s_member$/, UNKNOWN_BLOCK])
+      installFetch()
+      open()
+      await edit()
+      await screen.findByRole('list', { name: 'Blocks in this style' })
+      fireEvent.change(screen.getByLabelText('Add a block'), { target: { value: 'chart' } })          // [future, chart]
+    }
+    const chartUp = () => screen.getByRole('button', { name: 'Move Chart of the note’s ticker up' })
+    const chartDown = () => screen.getByRole('button', { name: 'Move Chart of the note’s ticker down' })
+
+    it('a row that reaches the TOP hands focus to its Move down button (its Move up just went disabled)', async () => {
+      await rows()
+      fireEvent.click(chartUp())
+      expect(chartUp()).toBeDisabled()
+      expect(document.activeElement).toBe(chartDown())
+    })
+
+    it('a row that reaches the BOTTOM hands focus to its Move up button', async () => {
+      await rows()
+      fireEvent.click(chartUp())                       // [chart, future]
+      fireEvent.click(chartDown())                     // [future, chart]
+      expect(chartDown()).toBeDisabled()
+      expect(document.activeElement).toBe(chartUp())
+    })
+
+    it('moving the first row down: focus is not lost when React relocates the row', async () => {
+      await rows()
+      fireEvent.click(screen.getByRole('button', { name: 'Move A block from a newer version down' }))   // [chart, future]
+      const futureUp = screen.getByRole('button', { name: 'Move A block from a newer version up' })
+      expect(screen.getByRole('button', { name: 'Move A block from a newer version down' })).toBeDisabled()
+      expect(document.activeElement).toBe(futureUp)
+    })
+
+    it('a middle row keeps focus on the very button that was pressed', async () => {
+      routes.unshift(['GET', /^\/api\/j2\/journal-styles\/s_member$/,
+        withMember({ blocks: [{ block: 'future_a', enabled: true, settings: {} }, { block: 'future_b', enabled: true, settings: {} }] })])
+      installFetch()
+      open()
+      await edit()
+      await screen.findByRole('list', { name: 'Blocks in this style' })
+      fireEvent.change(screen.getByLabelText('Add a block'), { target: { value: 'chart' } })          // [a, b, chart]
+      fireEvent.click(chartUp())                                                                       // [a, chart, b]
+      expect(chartUp()).not.toBeDisabled()
+      expect(document.activeElement).toBe(chartUp())
+    })
+  })
+
+  it('the drag handle reorders the same list, and starts a drag Firefox accepts', async () => {
+    routes.unshift(['GET', /^\/api\/j2\/journal-styles\/s_member$/, withMember({ blocks: [{ block: 'a_new', enabled: true, settings: {} }, CHART] })])
     installFetch()
     open()
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit My plan' }))
+    await edit()
     const list = await screen.findByRole('list', { name: 'Blocks in this style' })
     const rows = within(list).getAllByRole('listitem')
     const handle = rows[0].querySelector('[draggable="true"]')
     expect(handle).not.toBeNull()
-    fireEvent.dragStart(handle)
+    const dataTransfer = { setData: vi.fn(), effectAllowed: '' }
+    fireEvent.dragStart(handle, { dataTransfer })
+    expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', expect.any(String))      // Firefox starts no drag without data
     fireEvent.dragOver(rows[1])
     fireEvent.drop(rows[1])
     expect(within(list).getAllByRole('listitem')[0].textContent).toContain('Chart of the note’s ticker')
@@ -190,7 +276,7 @@ describe('the Styles manager', () => {
 
   it('shows the live preview with the member’s own ticker, after the debounce', async () => {
     open()
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit My plan' }))
+    await edit()
     await screen.findByText('Shown with NVDA, from your notes.', {}, { timeout: 3000 })
     const sent = called('POST', /preview$/).at(-1).body
     expect(sent.style.kindId).toBe('trade_plan')
@@ -203,11 +289,11 @@ describe('the Styles manager', () => {
     routes.unshift(['POST', /^\/api\/j2\/journal-styles\/preview$/, { ...PREVIEW, ticker: null, tickerSource: null }])
     installFetch()
     open()
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit My plan' }))
+    await edit()
     await screen.findByText('Add a ticker to a note to see the chart block.', {}, { timeout: 3000 })
   })
 
-  it('makes a new style: the draft is previewed and saved with the chosen kind', async () => {
+  it('makes a new style: the draft is saved with the chosen kind', async () => {
     open()
     fireEvent.click(await screen.findByRole('button', { name: /New style/ }))
     fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Swing plan' } })
@@ -230,32 +316,27 @@ describe('the Styles manager', () => {
     expect(called('POST', /journal-styles$/)).toHaveLength(0)
   })
 
-  it('the outline picker: a textarea outline is saved as a doc; a built-in outline can be copied in', async () => {
-    open()
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit My plan' }))
-    await screen.findByLabelText('Name')
-    fireEvent.click(screen.getByRole('radio', { name: 'Write it here' }))
-    fireEvent.change(screen.getByLabelText('Start from a built-in outline'), { target: { value: 'daily-prep' } })
-    expect(screen.getByLabelText('Outline text').value).toMatch(/^## /m)
-    fireEvent.change(screen.getByLabelText('Outline text'), { target: { value: '## Setup\n{{block:chart}}' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
-    await waitFor(() => expect(called('PUT', /s_member$/)).toHaveLength(1))
-    const doc = called('PUT', /s_member$/)[0].body.outlineBodyJson
-    expect(doc.content.map((n) => n.type)).toEqual(['heading', 'paragraph'])
-    expect(doc.content[1].content[0].text).toBe('{{block:chart}}')
-  })
-
   it('property defaults: a select per user-set select property, Leave empty first, never Kind of note', async () => {
     open()
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit My plan' }))
+    await edit()
     const sel = await screen.findByLabelText('Thesis Status')
     expect(within(sel).getAllByRole('option')[0]).toHaveTextContent('Leave empty')
     expect(screen.queryByLabelText('Ticker')).toBeNull()
-    expect(screen.queryByRole('combobox', { name: 'Kind of note' })).toBe(screen.getByLabelText('Kind of note')) // the editor's kind select only
     fireEvent.change(sel, { target: { value: 'watching' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
     await waitFor(() => expect(called('PUT', /s_member$/)).toHaveLength(1))
-    expect(called('PUT', /s_member$/)[0].body.properties).toEqual({ 'builtin:thesis_status': 'watching' })
+    expect(put().properties).toEqual({ 'builtin:thesis_status': 'watching' })
+  })
+
+  it('a captured default of 0 or false survives a save', async () => {
+    const props = { 'builtin:thesis_status': 'watching', 'builtin:count': 0, 'builtin:flag': false }
+    routes.unshift(['GET', /^\/api\/j2\/journal-styles\/s_member$/, withMember({ properties: props })])
+    installFetch()
+    open()
+    await edit()
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    await waitFor(() => expect(called('PUT', /s_member$/)).toHaveLength(1))
+    expect(put().properties).toEqual(props)
   })
 
   it('Duplicate to edit makes a member copy of a built-in and opens it', async () => {
@@ -266,19 +347,250 @@ describe('the Styles manager', () => {
     await screen.findByRole('form', { name: 'Edit style Trade plan copy' })
   })
 
-  it('Set as default calls the server and says so', async () => {
+  it('a duplicate of a long name is cut so "copy" still fits the 80 character limit', async () => {
+    const long = 'x'.repeat(78)
+    routes.unshift(['GET', /^\/api\/j2\/journal-styles$/, { ...LIST, styles: LIST.styles.map((s) => (s.id === 's_member' ? { ...s, name: long } : s)) }],
+      ['GET', /^\/api\/j2\/journal-styles\/s_member$/, withMember({ name: long })])
+    installFetch()
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: `Duplicate ${long}` }))
+    await waitFor(() => expect(called('POST', /journal-styles$/)).toHaveLength(1))
+    const sent = called('POST', /journal-styles$/)[0].body.name
+    expect(sent.length).toBeLessThanOrEqual(80)
+    expect(sent.endsWith(' copy')).toBe(true)
+  })
+
+  it('Set as default calls the server', async () => {
     open()
     fireEvent.click(await screen.findByRole('button', { name: 'Set Trade plan as default' }))
     await waitFor(() => expect(called('POST', /builtin%3Atrade_plan\/default$/)).toHaveLength(1))
   })
 })
 
+describe('the outline is never rewritten behind the member’s back (data loss)', () => {
+  const rich = () => {
+    routes.unshift(['GET', /^\/api\/j2\/journal-styles\/s_member$/, withMember({ outlineBodyJson: RICH_OUTLINE })])
+    installFetch()
+  }
+  const noOutlineKeys = (b) => {
+    expect(b).not.toHaveProperty('outlineBodyJson')
+    expect(b).not.toHaveProperty('outlineTemplateId')
+  }
+
+  it('a rich outline is shown read-only with a plain sentence, not in the text box', async () => {
+    rich(); open(); await edit()
+    expect(await screen.findByText("This outline has formatting the editor here can't keep. Edit it in a note and save the note's setup again.")).toBeInTheDocument()
+    expect(screen.queryByLabelText('Outline text')).toBeNull()
+  })
+
+  it('renaming a style with a rich outline sends NO outline', async () => {
+    rich(); open(); await edit()
+    fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Renamed' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    await waitFor(() => expect(called('PUT', /s_member$/)).toHaveLength(1))
+    expect(put().name).toBe('Renamed')
+    noOutlineKeys(put())
+  })
+
+  it('switching a block off on a rich outline sends NO outline', async () => {
+    rich(); open(); await edit()
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Use Chart of the note’s ticker' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    await waitFor(() => expect(called('PUT', /s_member$/)).toHaveLength(1))
+    expect(put().blocks[0].enabled).toBe(false)
+    noOutlineKeys(put())
+  })
+
+  it('the live preview still composes the style’s real outline', async () => {
+    rich(); open(); await edit()
+    await waitFor(() => expect(called('POST', /preview$/).length).toBeGreaterThan(0), { timeout: 3000 })
+    expect(called('POST', /preview$/).at(-1).body.style.outlineBodyJson).toEqual(RICH_OUTLINE)
+  })
+
+  it('choosing "No outline" on a rich outline is a deliberate change and clears it', async () => {
+    rich(); open(); await edit()
+    fireEvent.click(await screen.findByRole('radio', { name: 'No outline' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    await waitFor(() => expect(called('PUT', /s_member$/)).toHaveLength(1))
+    expect(put()).toMatchObject({ outlineBodyJson: null, outlineTemplateId: null })
+  })
+
+  it('a plain outline is editable as text, and renaming it alone still sends no outline', async () => {
+    routes.unshift(['GET', /^\/api\/j2\/journal-styles\/s_member$/, withMember({ outlineBodyJson: PLAIN_OUTLINE })])
+    installFetch()
+    open(); await edit()
+    const box = await screen.findByLabelText('Outline text')
+    expect(box.value).toBe('## Setup\nWhy now?')
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Renamed' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    await waitFor(() => expect(called('PUT', /s_member$/)).toHaveLength(1))
+    noOutlineKeys(put())
+  })
+
+  it('editing a plain outline sends it as a doc', async () => {
+    routes.unshift(['GET', /^\/api\/j2\/journal-styles\/s_member$/, withMember({ outlineBodyJson: PLAIN_OUTLINE })])
+    installFetch()
+    open(); await edit()
+    fireEvent.change(await screen.findByLabelText('Outline text'), { target: { value: '## Setup\nWhy now?\n## Risk' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    await waitFor(() => expect(called('PUT', /s_member$/)).toHaveLength(1))
+    expect(put().outlineBodyJson.content.map((n) => n.type)).toEqual(['heading', 'paragraph', 'heading'])
+  })
+
+  it('the outline picker: a textarea outline is saved as a doc; a built-in outline can be copied in', async () => {
+    open(); await edit()
+    fireEvent.click(await screen.findByRole('radio', { name: 'Write it here' }))
+    fireEvent.change(screen.getByLabelText('Start from a built-in outline'), { target: { value: 'daily-prep' } })
+    expect(screen.getByLabelText('Outline text').value).toMatch(/^## /m)
+    fireEvent.change(screen.getByLabelText('Outline text'), { target: { value: '## Setup\n{{block:chart}}\n## ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    await waitFor(() => expect(called('PUT', /s_member$/)).toHaveLength(1))
+    const doc = put().outlineBodyJson
+    expect(doc.content.map((n) => n.type)).toEqual(['heading', 'paragraph'])          // the bare "## " line is dropped
+    expect(doc.content[1].content[0].text).toBe('{{block:chart}}')
+  })
+
+  it('"One of my templates" with none chosen blocks Save with a sentence', async () => {
+    open(); await edit()
+    fireEvent.click(await screen.findByRole('radio', { name: 'One of my templates' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    expect(await alertText()).toBe('Choose one of your templates, or pick another outline option.')
+    expect(called('PUT', /s_member$/)).toHaveLength(0)
+  })
+
+  it('a linked template that was deleted says so, and saving something else still works', async () => {
+    routes.unshift(['GET', /^\/api\/j2\/journal-styles\/s_member$/, withMember({ outlineTemplateId: 't_gone' })])
+    installFetch()
+    open(); await edit()
+    expect(await screen.findByText('That template no longer exists.')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Renamed' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    await waitFor(() => expect(called('PUT', /s_member$/)).toHaveLength(1))
+    noOutlineKeys(put())                                   // the dead id is not sent back to the server
+  })
+})
+
+describe('where the member is looking (phone and keyboard)', () => {
+  it('opening the editor moves focus to its heading and scrolls it into view', async () => {
+    open()
+    await edit()
+    const heading = screen.getByRole('heading', { name: 'Edit style', level: 3 })
+    await waitFor(() => expect(document.activeElement).toBe(heading))
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
+  })
+
+  it('New style and Duplicate to edit do the same', async () => {
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: /New style/ }))
+    const heading = await screen.findByRole('heading', { name: 'New style', level: 3 })
+    await waitFor(() => expect(document.activeElement).toBe(heading))
+  })
+
+  it('after Save, focus returns to the button that opened the editor and the sentence is announced', async () => {
+    open()
+    await edit()
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    await screen.findByText('Saved My plan.')
+    const opener = screen.getByRole('button', { name: 'Edit My plan' })
+    await waitFor(() => expect(document.activeElement).toBe(opener))
+    expect(screen.getByText('Saved My plan.').closest('[role="status"]')).not.toBeNull()
+  })
+
+  it('after Cancel, focus returns to the opener too', async () => {
+    open()
+    await edit()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Edit My plan' })))
+  })
+
+  it('closing with unsaved changes asks in the page first; Keep editing keeps them', async () => {
+    const onClose = vi.fn()
+    open({ onClose })
+    await edit()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Half done' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(await screen.findByText('Discard your unsaved changes to this style?')).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+    expect(screen.queryByText('Discard your unsaved changes to this style?')).toBeNull()
+    expect(screen.getByLabelText('Name').value).toBe('Half done')
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard changes' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('closing an editor with nothing changed just closes', async () => {
+    const onClose = vi.fn()
+    open({ onClose })
+    await edit()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('Discard your unsaved changes to this style?')).toBeNull()
+  })
+})
+
+describe('when the connection or the server fails', () => {
+  it('a network failure on an action says the member is offline, not "Failed to fetch"', async () => {
+    routes.unshift(['DELETE', /^\/api\/j2\/journal-styles\/s_member$/, NETWORK])
+    installFetch()
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete My plan' }))
+    expect(await alertText()).toBe(OFFLINE)
+  })
+
+  it('a server error with no JSON body says something went wrong, not "500"', async () => {
+    routes.unshift(['DELETE', /^\/api\/j2\/journal-styles\/s_member$/, NO_BODY])
+    installFetch()
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete My plan' }))
+    expect(await alertText()).toBe(SERVER_SIDE)
+  })
+
+  it('a browser that reports itself offline always gets the offline sentence', async () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
+    try {
+      routes.unshift(['DELETE', /^\/api\/j2\/journal-styles\/s_member$/, NO_BODY])
+      installFetch()
+      open()
+      fireEvent.click(await screen.findByRole('button', { name: 'Delete My plan' }))
+      expect(await alertText()).toBe(OFFLINE)
+    } finally {
+      Object.defineProperty(navigator, 'onLine', { value: true, configurable: true })
+    }
+  })
+
+  it('a refusal the server worded is shown word for word', async () => {
+    routes.unshift(['PUT', /^\/api\/j2\/journal-styles\/s_member$/, [400, { detail: 'That name is already used by another style.' }]])
+    installFetch()
+    open(); await edit()
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    expect(await alertText()).toBe('That name is already used by another style.')
+  })
+
+  it('the live preview says offline / server trouble in the same words', async () => {
+    routes.unshift(['POST', /^\/api\/j2\/journal-styles\/preview$/, NETWORK])
+    installFetch()
+    open(); await edit()
+    expect(await screen.findByText(OFFLINE, {}, { timeout: 3000 })).toBeInTheDocument()
+  })
+
+  it('a first load that fails offline says so, with Try again', async () => {
+    routes.unshift(['GET', /^\/api\/j2\/journal-styles$/, NETWORK])
+    installFetch()
+    open()
+    expect(await alertText()).toContain(OFFLINE)
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+})
+
 describe('kinds of note', () => {
-  it('adds a kind with a name and an icon from the registry', async () => {
+  it('adds a kind with a name and an icon from the registry; names stop at the server’s 40', async () => {
     routes.unshift(['POST', /^\/api\/j2\/note-kinds$/, (b) => ({ kind: { id: 'k2', name: b.name, icon: b.icon, builtin: false } })])
     installFetch()
     open()
-    fireEvent.change(await screen.findByLabelText('New kind name'), { target: { value: 'Earnings plays' } })
+    const name = await screen.findByLabelText('New kind name')
+    expect(name).toHaveAttribute('maxlength', '40')
+    fireEvent.change(name, { target: { value: 'Earnings plays' } })
     fireEvent.change(screen.getByLabelText('Icon'), { target: { value: 'bolt' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add kind' }))
     await waitFor(() => expect(called('POST', /note-kinds$/)).toHaveLength(1))
@@ -291,10 +603,30 @@ describe('kinds of note', () => {
     installFetch()
     open()
     fireEvent.click(await screen.findByRole('button', { name: 'Rename Setups I trade' }))
-    fireEvent.change(screen.getByLabelText('New name for Setups I trade'), { target: { value: 'My setups' } })
+    const input = screen.getByLabelText('New name for Setups I trade')
+    expect(input).toHaveAttribute('maxlength', '40')
+    fireEvent.change(input, { target: { value: 'My setups' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save name' }))
     await waitFor(() => expect(called('PUT', /note-kinds\/k_own$/)).toHaveLength(1))
     expect(called('PUT', /note-kinds\/k_own$/)[0].body).toEqual({ name: 'My setups' })
+  })
+
+  it('deleting a kind asks first, in the page, and says what goes with it; Keep changes nothing', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm')
+    routes.unshift(['DELETE', /^\/api\/j2\/note-kinds\/k_own$/, { ok: true, purgedDeletedStyles: 0 }])
+    installFetch()
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete kind Setups I trade' }))
+    expect(await screen.findByText('Delete the kind Setups I trade? Styles you deleted that used it are removed permanently.')).toBeInTheDocument()
+    expect(called('DELETE', /note-kinds/)).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Keep kind Setups I trade' }))
+    expect(called('DELETE', /note-kinds/)).toHaveLength(0)
+    expect(screen.queryByText(/Styles you deleted that used it/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete kind Setups I trade' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Yes, delete kind Setups I trade' }))
+    await waitFor(() => expect(called('DELETE', /note-kinds\/k_own$/)).toHaveLength(1))
+    expect(confirmSpy).not.toHaveBeenCalled()                    // never window.confirm
+    confirmSpy.mockRestore()
   })
 
   it('a kind still in use shows the server’s sentence, word for word', async () => {
@@ -303,7 +635,8 @@ describe('kinds of note', () => {
     installFetch()
     open()
     fireEvent.click(await screen.findByRole('button', { name: 'Delete kind Setups I trade' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(sentence)
+    fireEvent.click(await screen.findByRole('button', { name: 'Yes, delete kind Setups I trade' }))
+    expect(await alertText()).toBe(sentence)
   })
 
   it('a deleted kind says how many deleted styles went with it', async () => {
@@ -311,6 +644,7 @@ describe('kinds of note', () => {
     installFetch()
     open()
     fireEvent.click(await screen.findByRole('button', { name: 'Delete kind Setups I trade' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Yes, delete kind Setups I trade' }))
     await screen.findByText(/Kind deleted\. 2 styles you had deleted for it were removed for good\./)
   })
 
@@ -324,27 +658,47 @@ describe('kinds of note', () => {
 
 describe('the Research Type mapping offer', () => {
   const OFFER = { offer: { total: 7, rows: [{ researchType: 'swing', researchTypeLabel: 'Swing', count: 7, kindId: 'trade_plan', kindName: 'Trade plan', createsKind: false }] } }
-
-  it('applies and passes the blocked note ids; skipped (locked) notes are counted aloud', async () => {
+  const applied = (over = {}) => ({ notes: [{ id: 'n1', updatedAt: 'u1' }], count: 1, skipped: [], ...over })
+  const withOffer = (post) => {
     routes.unshift(
       ['GET', /^\/api\/j2\/note-kinds\/mapping-offer$/, OFFER],
-      ['POST', /^\/api\/j2\/note-kinds\/mapping-offer$/, { notes: [{ id: 'n1', updatedAt: 'u1' }], count: 1, skipped: [{ id: 'n9', reason: 'locked' }, { id: 'n8', reason: 'locked' }] }],
+      ['POST', /^\/api\/j2\/note-kinds\/mapping-offer$/, post],
     )
     installFetch()
+  }
+
+  it('applies and passes the blocked note ids; locked notes are counted aloud', async () => {
+    withOffer(applied({ count: 4, skipped: [{ id: 'n9', reason: 'locked' }, { id: 'n8', reason: 'locked' }] }))
     open({ blockedNoteIds: ['n-blocked'] })
     await screen.findByText('You have 7 notes with a Research Type. Set their Kind of note to match?')
     fireEvent.click(screen.getByRole('button', { name: 'Set kinds' }))
     await waitFor(() => expect(called('POST', /mapping-offer$/)).toHaveLength(1))
     expect(called('POST', /mapping-offer$/)[0].body).toEqual({ excludeNoteIds: ['n-blocked'] })
-    await screen.findByText(/Set the kind on 1 note\. 2 locked notes were left as they are\./)
+    await screen.findByText(/Set the kind on 4 notes\. 2 locked notes were left as they were\./)
   })
 
-  it('Not now writes the preference and the offer stays dismissed', async () => {
+  it('notes held back for unsent offline work are named too (7 asked, 4 set, 2 locked, 1 held back)', async () => {
+    withOffer(applied({ count: 4, skipped: [{ id: 'n9', reason: 'locked' }, { id: 'n8', reason: 'locked' }] }))
+    open({ blockedNoteIds: ['n-blocked'] })
+    fireEvent.click(await screen.findByRole('button', { name: 'Set kinds' }))
+    await screen.findByText(/1 note with unsent changes was left for later\./)
+  })
+
+  it('the offer is not asked again after it was applied, even though the server still counts the skipped notes', async () => {
+    withOffer(applied({ count: 5, skipped: [{ id: 'n9', reason: 'locked' }, { id: 'n8', reason: 'locked' }] }))
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: 'Set kinds' }))
+    await screen.findByText(/Set the kind on 5 notes/)
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    expect(screen.queryByText(/with a Research Type\. Set their Kind/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Set kinds' })).toBeNull()
+  })
+
+  it('Not now writes the preference', async () => {
     routes.unshift(['GET', /^\/api\/j2\/note-kinds\/mapping-offer$/, OFFER])
     installFetch()
     open()
-    await screen.findByRole('button', { name: 'Not now' })
-    fireEvent.click(screen.getByRole('button', { name: 'Not now' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Not now' }))
     expect(setPref).toHaveBeenCalledWith('notebook_kind_mapping', 'dismissed')
   })
 

@@ -2,6 +2,9 @@
 // and a live preview composed by the server from the member's own data. Native controls, visible labels.
 // ⛔ Reorder works by KEYBOARD (Move up / Move down buttons); the drag handle is an extra, never the only way.
 // ⛔ An unknown block id (a newer version's) is shown, kept, and can be reordered; it can't be toggled.
+// ⛔ THE OUTLINE IS NEVER REWRITTEN UNLESS THE MEMBER CHANGED IT. The PUT is a patch: outline keys are sent
+//    only when the member changed the outline choice or text. An outline plain text cannot hold faithfully
+//    (lists, marks, links, images, other headings) is shown read-only, never round-tripped through the box.
 // Cancel discards; Save calls createJournalStyle / updateJournalStyle and hands the saved style up.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../../../components/ui/UIcon'
@@ -12,12 +15,14 @@ import { BLOCK_KINDS, blockLabel, tfWord } from '../../../lib/journalBlocks'
 import { NOTE_KIND_PROPERTY } from '../../../lib/noteKinds'
 import { createJournalStyle, previewJournalStyle, updateJournalStyle } from '../../../lib/journalStyles'
 import { DocBody } from '../TemplatePreview'
-import { docToOutlineText, outlineTextToDoc } from './outlineText'
+import { docToOutlineText, outlineIsExpressible, outlineTextToDoc } from './outlineText'
+import { friendlyError } from './styleErrors'
 import styles from './StylesManager.module.css'
 
 const PREVIEW_DEBOUNCE_MS = 400
 const KNOWN = new Set(BLOCK_KINDS.map((k) => k.id))
 const kindOf = (id) => BLOCK_KINDS.find((k) => k.id === id)
+const READ_ONLY_OUTLINE = "This outline has formatting the editor here can't keep. Edit it in a note and save the note's setup again."
 
 /** The preview shows what the saved note would hold. A chart is a live widget, so here it is a line naming it. */
 function previewDoc(doc) {
@@ -34,35 +39,65 @@ function previewDoc(doc) {
   return walk(doc)
 }
 
-export default function StyleEditor({ style, kinds, onSaved, onCancel, offline = false }) {
+export default function StyleEditor({ style, kinds, onSaved, onCancel, offline = false, onDirtyChange }) {
   const isNew = !style?.id
+  const initialMode = style?.outlineTemplateId ? 'template' : style?.outlineBodyJson?.content?.length ? 'text' : 'none'
+  // A stored outline the text box cannot hold is shown read-only and kept exactly as it is.
+  const readOnlyOutline = initialMode === 'text' && !outlineIsExpressible(style?.outlineBodyJson)
+
   const [name, setName] = useState(style?.name || '')
   const [kindId, setKindId] = useState(style?.kindId || kinds[0]?.id || '')
-  const [mode, setMode] = useState(
-    style?.outlineTemplateId ? 'template' : style?.outlineBodyJson?.content?.length ? 'text' : 'none')
+  const [mode, setMode] = useState(initialMode)
   const [templateId, setTemplateId] = useState(style?.outlineTemplateId || '')
-  const [outlineText, setOutlineText] = useState(() => docToOutlineText(style?.outlineBodyJson))
+  const [outlineText, setOutlineText] = useState(() => (readOnlyOutline ? '' : docToOutlineText(style?.outlineBodyJson)))
   const [blocks, setBlocks] = useState(() => (style?.blocks || []).map((b) => ({ ...b, settings: { ...(b.settings || {}) } })))
   const [properties, setProperties] = useState(() => ({ ...(style?.properties || {}) }))
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [moved, setMoved] = useState('')                  // what a keyboard reorder says, for a screen reader
   const dragFrom = useRef(null)
-  const moveFocus = useRef(null)
+  const rowRefs = useRef({})
+  const pendingFocus = useRef(null)
 
   const { propertyDefs } = useJ2PropertyDefs()
-  const { templates: memberTemplates } = useMemberTemplates()
+  const { templates: memberTemplates, isLoading: templatesLoading, error: templatesError } = useMemberTemplates()
   const selectDefs = propertyDefs.filter((d) => d.type === 'select' && d.source === 'user_set' && d.id !== NOTE_KIND_PROPERTY)
+  const templateMissing = mode === 'template' && Boolean(templateId) && !templatesLoading && !templatesError
+    && !memberTemplates.some((t) => t.id === templateId)
 
-  // The body the server gets, for the preview and for Save alike (one function, never two shapes).
+  // ── what the outline is, and whether the member changed it ──
+  const outlineKeyOf = (m, tid, text) => (m === 'template' ? `template:${tid}` : m === 'text' ? (readOnlyOutline ? 'text-readonly' : `text:${text}`) : 'none')
+  const [initialOutlineKey] = useState(() => outlineKeyOf(initialMode, style?.outlineTemplateId || '', readOnlyOutline ? '' : docToOutlineText(style?.outlineBodyJson)))
+  const outlineKey = outlineKeyOf(mode, templateId, outlineText)
+  const outlineDirty = outlineKey !== initialOutlineKey
+  const outline = useMemo(() => {
+    if (!outlineDirty) return { tid: style?.outlineTemplateId ?? null, doc: style?.outlineBodyJson ?? null }
+    if (mode === 'template') return { tid: templateId || null, doc: null }
+    if (mode === 'text') {
+      const doc = outlineText.trim() ? outlineTextToDoc(outlineText) : null
+      return { tid: null, doc: doc && doc.content.length ? doc : null }
+    }
+    return { tid: null, doc: null }
+  }, [outlineDirty, mode, templateId, outlineText, style])
+
+  const cleanProperties = useMemo(
+    () => Object.fromEntries(Object.entries(properties).filter(([, v]) => v !== '' && v != null)),
+    [properties])
+  // The body the server previews: the style as it would be saved (the outline as it IS unless changed).
   const draftBody = useMemo(() => ({
     name: name.trim() || 'Draft',
     kindId,
-    outlineTemplateId: mode === 'template' && templateId ? templateId : null,
-    outlineBodyJson: mode === 'text' && outlineText.trim() ? outlineTextToDoc(outlineText) : null,
+    outlineTemplateId: outline.tid,
+    outlineBodyJson: outline.doc,
     blocks,
-    properties: Object.fromEntries(Object.entries(properties).filter(([, v]) => v)),
-  }), [name, kindId, mode, templateId, outlineText, blocks, properties])
+    properties: cleanProperties,
+  }), [name, kindId, outline, blocks, cleanProperties])
+
+  // ── has the member changed anything? (the manager asks before closing over unsaved work) ──
+  const sig = JSON.stringify([name, kindId, outlineKey, blocks, cleanProperties])
+  const [initialSig] = useState(() => sig)
+  useEffect(() => { onDirtyChange?.(sig !== initialSig) }, [sig, initialSig, onDirtyChange])
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
 
   // ── live preview ──
   const [preview, setPreview] = useState({ state: 'loading', data: null })
@@ -75,24 +110,36 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
     const t = setTimeout(() => {
       previewJournalStyle({ style: latest.current })
         .then((data) => { if (live) setPreview({ state: 'ok', data }) })
-        .catch((e) => { if (live) setPreview({ state: 'error', data: null, message: e.message }) })
+        .catch((e) => { if (live) setPreview({ state: 'error', data: null, message: friendlyError(e) }) })
     }, PREVIEW_DEBOUNCE_MS)
     return () => { live = false; clearTimeout(t) }
   }, [draftKey, kindId])
 
-  // After a keyboard move, focus stays on the button that moved the block.
+  // After a keyboard move, focus stays on the moved row. The pressed button can have just become disabled
+  // (the row reached an end of the list) and React relocates the row's element, so: the pressed button if
+  // it still works, else the row's other move button, else the row itself.
   useEffect(() => {
-    if (moveFocus.current) { moveFocus.current.focus(); moveFocus.current = null }
+    const pf = pendingFocus.current
+    if (!pf) return
+    pendingFocus.current = null
+    const li = rowRefs.current[pf.id]
+    if (!li) return
+    const up = li.querySelector('[data-move="up"]')
+    const down = li.querySelector('[data-move="down"]')
+    const pressed = pf.dir === 'up' ? up : down
+    const other = pf.dir === 'up' ? down : up
+    const target = (pressed && !pressed.disabled && pressed) || (other && !other.disabled && other) || li
+    target.focus()
   })
 
-  const move = (from, to, btn) => {
+  const move = (from, to, dir) => {
     if (to < 0 || to >= blocks.length || from === to) return
     const next = blocks.slice()
     const [item] = next.splice(from, 1)
     next.splice(to, 0, item)
     setBlocks(next)
     setMoved(`${blockLabel(item.block)} moved to position ${to + 1} of ${next.length}.`)
-    moveFocus.current = btn || null
+    pendingFocus.current = dir ? { id: item.block, dir } : null
   }
   const toggle = (i, on) => setBlocks((bs) => bs.map((b, j) => (j === i ? { ...b, enabled: on } : b)))
   const setSetting = (i, key, value) => setBlocks((bs) => bs.map((b, j) => (j === i ? { ...b, settings: { ...b.settings, [key]: value } } : b)))
@@ -112,13 +159,16 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
 
   const save = async () => {
     if (!name.trim()) { setError('Give the style a name.'); return }
+    if (mode === 'template' && !templateId) { setError('Choose one of your templates, or pick another outline option.'); return }
     setSaving(true); setError('')
     try {
-      const body = { ...draftBody, name: name.trim() }
+      // A patch: the outline goes only when it is new, or the member changed it.
+      const body = { name: name.trim(), kindId, blocks, properties: cleanProperties }
+      if (isNew || outlineDirty) { body.outlineTemplateId = outline.tid; body.outlineBodyJson = outline.doc }
       const out = isNew ? await createJournalStyle(body) : await updateJournalStyle(style.id, body)
       onSaved(out.style)
     } catch (e) {
-      setError(e.message || 'The style could not be saved.')
+      setError(friendlyError(e))
     } finally {
       setSaving(false)
     }
@@ -154,15 +204,18 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
             <label htmlFor="js-template">My template</label>
             <select id="js-template" value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
               <option value="">Choose a template</option>
+              {templateMissing && <option value={templateId}>A template that was deleted</option>}
               {memberTemplates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
-            {!memberTemplates.length && <p className={styles.hint}>You have no saved templates yet. Save a note as a template first.</p>}
+            {templateMissing && <p className={styles.hint}>That template no longer exists.</p>}
+            {!memberTemplates.length && !templateMissing && <p className={styles.hint}>You have no saved templates yet. Save a note as a template first.</p>}
           </div>
         )}
         <label className={styles.radio}>
           <input type="radio" name="js-outline" checked={mode === 'text'} onChange={() => setMode('text')} /> Write it here
         </label>
-        {mode === 'text' && (
+        {mode === 'text' && readOnlyOutline && <p className={styles.hint}>{READ_ONLY_OUTLINE}</p>}
+        {mode === 'text' && !readOnlyOutline && (
           <>
             <div className={styles.field}>
               <label htmlFor="js-outline-text">Outline text</label>
@@ -194,6 +247,8 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
             return (
               <li
                 key={b.block}
+                ref={(el) => { if (el) rowRefs.current[b.block] = el; else delete rowRefs.current[b.block] }}
+                tabIndex={-1}
                 className={styles.blockRow}
                 onDragOver={(e) => { if (dragFrom.current != null) e.preventDefault() }}
                 onDrop={(e) => {
@@ -203,7 +258,11 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
                   if (from != null) move(from, i)
                 }}
               >
-                <span className={styles.dragHandle} draggable onDragStart={() => { dragFrom.current = i }}
+                <span className={styles.dragHandle} draggable
+                  onDragStart={(e) => {
+                    dragFrom.current = i
+                    if (e.dataTransfer) { e.dataTransfer.setData('text/plain', String(i)); e.dataTransfer.effectAllowed = 'move' }   // Firefox starts no drag without data
+                  }}
                   onDragEnd={() => { dragFrom.current = null }} aria-hidden="true" title="Drag to reorder">
                   <UIcon name="menu" size={16} gold={false} />
                 </span>
@@ -220,12 +279,12 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
                   </select>
                 ))}
                 <span className={styles.blockMoves}>
-                  <button type="button" className={styles.iconBtn} aria-label={`Move ${label} up`} title="Move up"
-                    disabled={i === 0} onClick={(e) => move(i, i - 1, e.currentTarget)}>
+                  <button type="button" className={styles.iconBtn} aria-label={`Move ${label} up`} title="Move up" data-move="up"
+                    disabled={i === 0} onClick={() => move(i, i - 1, 'up')}>
                     <UIcon name="chevronUp" size={16} gold={false} />
                   </button>
-                  <button type="button" className={styles.iconBtn} aria-label={`Move ${label} down`} title="Move down"
-                    disabled={i === blocks.length - 1} onClick={(e) => move(i, i + 1, e.currentTarget)}>
+                  <button type="button" className={styles.iconBtn} aria-label={`Move ${label} down`} title="Move down" data-move="down"
+                    disabled={i === blocks.length - 1} onClick={() => move(i, i + 1, 'down')}>
                     <UIcon name="chevronDown" size={16} gold={false} />
                   </button>
                 </span>
@@ -249,7 +308,7 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
           {selectDefs.map((d) => (
             <div className={styles.field} key={d.id}>
               <label htmlFor={`js-prop-${d.id}`}>{d.name}</label>
-              <select id={`js-prop-${d.id}`} value={properties[d.id] || ''}
+              <select id={`js-prop-${d.id}`} value={properties[d.id] ?? ''}
                 onChange={(e) => setProperties((p) => ({ ...p, [d.id]: e.target.value }))}>
                 <option value="">Leave empty</option>
                 {(d.options || []).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
@@ -262,7 +321,7 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
       <section className={styles.preview} aria-labelledby="js-preview-h">
         <h4 id="js-preview-h">Preview</h4>
         {preview.state === 'error' ? (
-          <p role="alert" className={styles.error}>{preview.message || 'The preview could not be built.'}</p>
+          <p role="alert" className={styles.error}>{preview.message}</p>
         ) : !pv ? (
           <p className={styles.hint}>Building the preview…</p>
         ) : (
