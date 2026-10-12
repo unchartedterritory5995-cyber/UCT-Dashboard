@@ -319,10 +319,12 @@ const SERVER_LEDGER = {
   'api/services/journal_two/journal_styles.py':
     'apply_style_update: ONE update_note(expected_updated_at, style_stamp) under BEGIN IMMEDIATE behind '
     + 'POST /api/j2/notes/{id}/apply-style-update (Task 8\'s router; the dry run is a separate read, '
-    + 'GET /api/j2/notes/{id}/style-update-plan -> plan_style_update, which writes nothing). The compare-and-set is '
-    + 'against the client\'s baseUpdatedAt, else against the revision the call itself read the body at, so a write '
-    + 'landing in between is a 409, never overwritten; its client (lib/journalStyles.js applyStyleUpdate) lands the '
-    + 'returned note with settleNoteWrite and the editor adopts it (adoptServerCopy)',
+    + 'GET /api/j2/notes/{id}/style-update-plan -> plan_style_update, which writes nothing). 423 on a locked note '
+    + '(notes._refuse_if_locked); the compare-and-set is ALWAYS against the revision the call read the body at, and a '
+    + 'client baseUpdatedAt that is not that revision is a 409 before anything is written, so a write landing in '
+    + 'between is never overwritten; nothing to add and not switching writes nothing (no stamp-only revision); its '
+    + 'client (lib/journalStyles.js applyStyleUpdate) lands the returned note with settleNoteWrite and the editor '
+    + 'adopts it (adoptServerCopy)',
   // Wave 11 lane 11C ("Ask Notebook to do something"): a member-APPROVED batch, applied server-side change by
   // change through the member's own writers, each against the revision the member reviewed.
   'api/services/journal_two/ai_actions.py':

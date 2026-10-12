@@ -87,6 +87,15 @@ def _doc(*nodes: dict) -> dict:
     return {"type": "doc", "content": list(nodes)}
 
 
+def _never_empty(before: list, after: list) -> list:
+    """A nested container's children after a removal. ⛔ Never empty when it had children: every
+    container that can hold a block (blockquote, callout, column, toggleContent, a table cell:
+    `block+`; listItem / taskItem: `paragraph block*`) accepts a lone empty paragraph, and an emptied
+    one is a body the editor schema rejects (review I-1). Removals happen only among block children
+    (a widgetEmbed, a placeholder paragraph), so an inline-content node never reaches this empty."""
+    return after if (after or not before) else [{"type": "paragraph"}]
+
+
 # One built-in style per built-in kind. Versions are bumped BY HAND when an outline here changes,
 # which is what offers "update layout" to notes made from the older one.
 BUILTIN_STYLES: dict[str, dict] = {
@@ -187,7 +196,11 @@ def _clean_outline(raw: Any) -> dict | None:
         return None
     from api.services.journal_two import notes as notes_service
     try:
-        return notes_service._validate_body_json(raw)
+        body = notes_service._validate_body_json(raw)
+        # The same build check note creation runs (review M-8): an outline the editor could not
+        # build is refused here, not at the later styled create that would compose it.
+        notes_service._refuse_unbuildable(body)
+        return body
     except notes_service.NoteValidationError as e:
         raise StyleValidationError(f"The outline could not be saved: {e}") from e
 
@@ -403,6 +416,11 @@ def set_default(user_id: str, style_id: str, conn: sqlite3.Connection | None = N
             return None
         conn.execute("UPDATE j2_journal_styles SET is_default = 0 WHERE user_id = ? AND kind_id = ?"
                      " AND is_default = 1", (user_id, s["kindId"]))
+        # The member has now CHOSEN this kind's default (the built-in included, which is otherwise
+        # only the absence of a member default): a deleted style's remembered default is forgotten,
+        # so Undo restores it as a non-default rather than taking the choice back (review M-3).
+        conn.execute("UPDATE j2_journal_styles SET default_before_delete = 0 WHERE user_id = ? AND kind_id = ?"
+                     " AND deleted_at IS NOT NULL AND default_before_delete = 1", (user_id, s["kindId"]))
         if not s["builtin"]:
             conn.execute("UPDATE j2_journal_styles SET is_default = 1 WHERE id = ? AND user_id = ?",
                          (style_id, user_id))
@@ -434,18 +452,43 @@ def delete_style(user_id: str, style_id: str, conn: sqlite3.Connection | None = 
 
 
 def restore_style(user_id: str, style_id: str, conn: sqlite3.Connection | None = None) -> dict | None:
-    """Undo a delete. The default comes back only when no other style became the default meanwhile."""
+    """Undo a delete. The default comes back only when the member has not chosen another default for
+    that kind meanwhile (set_default forgets the remembered one) and none is set now.
+
+    ⛔ The check and the write are ONE locked unit (BEGIN IMMEDIATE, the notes idiom), and the
+    partial unique index's refusal is still caught: a default another writer set in between makes
+    this a non-default restore, never a 500 that leaves the style deleted (review M-3). A restore is
+    refused, not admitted past the cap, when the member is already at MAX_STYLES_PER_MEMBER."""
+    from api.services.journal_two import notes as notes_service
     owned = conn is None
     conn = conn or get_connection()
+    began = False
     try:
+        if not conn.in_transaction:
+            notes_service._begin_immediate(conn)
+            began = True
         r = _load_row(user_id, style_id, conn, include_deleted=True)
         if r is None or r["deleted_at"] is None:
+            if began:
+                conn.rollback()
             return get_style(user_id, style_id, conn) if r else None
+        n = conn.execute("SELECT COUNT(*) AS c FROM j2_journal_styles WHERE user_id = ? AND deleted_at IS NULL",
+                         (user_id,)).fetchone()["c"]
+        if n >= MAX_STYLES_PER_MEMBER:
+            raise StyleValidationError(f"You can keep up to {MAX_STYLES_PER_MEMBER} styles. Delete one first.")
         again = bool(r["default_before_delete"]) and _member_default(user_id, r["kind_id"], conn) is None
-        conn.execute("UPDATE j2_journal_styles SET deleted_at = NULL, is_default = ?, default_before_delete = 0,"
-                     " updated_at = ? WHERE id = ? AND user_id = ?", (1 if again else 0, _now(), style_id, user_id))
+        sql = ("UPDATE j2_journal_styles SET deleted_at = NULL, is_default = ?, default_before_delete = 0,"
+               " updated_at = ? WHERE id = ? AND user_id = ?")
+        try:
+            conn.execute(sql, (1 if again else 0, _now(), style_id, user_id))
+        except sqlite3.IntegrityError:
+            conn.execute(sql, (0, _now(), style_id, user_id))
         conn.commit()
         return get_style(user_id, style_id, conn)
+    except BaseException:
+        if began and conn.in_transaction:
+            conn.rollback()
+        raise
     finally:
         if owned:
             conn.close()
@@ -472,9 +515,15 @@ def default_style_for_kind(user_id: str, kind_id: str, conn: sqlite3.Connection 
 
 def create_style_from_note(user_id: str, note_id: str, name: Any, kind_id: Any = None,
                            conn: sqlite3.Connection | None = None) -> dict | None:
-    """"Save this note's setup as a style" (spec P1.4). The SERVER reads the note: every block node
-    becomes a block (with its settings) and a {{block:id}} placeholder where it stood; the rest of
-    the body is the outline; the note's user-set property values (not its kind) are the defaults."""
+    """"Save this note's setup as a style" (spec P1.4). The SERVER reads the note: the first node of
+    each known block becomes a block (with its settings); the rest of the body is the outline; the
+    note's user-set property values (not its kind) are the defaults.
+
+    A TOP-LEVEL block leaves a {{block:id}} placeholder where it stood. A NESTED one (in a column, a
+    callout, a list) leaves no placeholder -- the composer would only turn it into an empty paragraph
+    and put the block after the first heading -- and every embed leaves the outline; a container a
+    removal would empty keeps an empty paragraph (review I-1: two charts side by side must not
+    save an empty column)."""
     from api.services.journal_two import notes as notes_service
     owned = conn is None
     conn = conn or get_connection()
@@ -484,7 +533,7 @@ def create_style_from_note(user_id: str, note_id: str, name: Any, kind_id: Any =
             return None
         blocks, seen = [], set()
 
-        def strip(content: list) -> list:
+        def strip(content: list, top: bool) -> list:
             out = []
             for node in content:
                 if isinstance(node, dict) and node.get("type") == "widgetEmbed":
@@ -495,17 +544,18 @@ def create_style_from_note(user_id: str, note_id: str, name: Any, kind_id: Any =
                         spec = {s["key"]: s for s in _BLOCK_BY_ID[bid]["settings"]}
                         settings = {k: params[k] for k in spec if params.get(k) in spec[k]["options"]}
                         blocks.append({"block": bid, "enabled": True, "settings": settings})
-                        out.append(_ph(bid))
+                        if top:
+                            out.append(_ph(bid))
                     continue                                    # every embed leaves the outline
                 if isinstance(node, dict) and isinstance(node.get("content"), list):
-                    node = {**node, "content": strip(node["content"])}
+                    node = {**node, "content": _never_empty(node["content"], strip(node["content"], False))}
                 out.append(node)
             return out
 
         kind_prop = _nk().NOTE_KIND_PROPERTY
-        outline = {"type": "doc", "content": strip((note.get("bodyJson") or {}).get("content") or [])}
+        outline = {"type": "doc", "content": strip((note.get("bodyJson") or {}).get("content") or [], True)}
         props = _valid_defaults(user_id, note.get("propertiesJson") or {}, conn)
-        kind =kind_id or (note.get("propertiesJson") or {}).get(kind_prop) or note.get("kindId")
+        kind = kind_id or (note.get("propertiesJson") or {}).get(kind_prop) or note.get("kindId")
         return create_style(user_id, {"name": name if name else (note.get("title") or "My style"),
                                       "kindId": kind, "outlineBodyJson": outline, "blocks": blocks,
                                       "properties": props}, conn)
@@ -620,23 +670,33 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
                 return [_p(SKIP_SENTENCES[reason])] if reason in SKIP_SENTENCES else []
             return [node]
 
-        def walk(content: list) -> list:
+        def walk(content: list, top: bool) -> list:
             out = []
             for node in content:
                 bid = _placeholder_kind(node)
+                if bid is not None and bid not in enabled and bid not in disabled:
+                    # Review M-5: a placeholder for a block the style does not list is the member's
+                    # own text (an old template, a typed note): kept, and named, never removed.
+                    note_skip(bid, "not-in-style")
+                    out.append(node)
+                    continue
                 if bid is not None:
-                    if bid in enabled:
+                    if not top:
+                        # ⛔ Review I-1: a block is placed in place ONLY at the doc's top level. A
+                        # widgetEmbed is not valid as a list item's first child, and a drop could
+                        # empty a container; a nested placeholder becomes an empty paragraph (valid
+                        # in every container) and its block falls through to after the first heading.
+                        out.append({"type": "paragraph"})
+                    elif bid in enabled:
                         out.extend(build(enabled[bid]))
                         placed.add(bid)
-                    elif bid not in disabled:
-                        note_skip(bid, "unknown-block")
-                    continue
+                    continue                                # a disabled block's top-level placeholder vanishes
                 if isinstance(node, dict) and isinstance(node.get("content"), list):
-                    node = {**node, "content": walk(node["content"])}
+                    node = {**node, "content": _never_empty(node["content"], walk(node["content"], False))}
                 out.append(node)
             return out
 
-        doc["content"] = walk(doc.get("content") or [])
+        doc["content"] = walk(doc.get("content") or [], True)
         rest: list[dict] = []
         for bid, b in enabled.items():
             if bid not in placed:
@@ -726,23 +786,41 @@ def _is_empty(content: list) -> bool:
                and not n.get("content") for n in content or [])
 
 
+UNREADABLE_BODY_SENTENCE = "This note can't be updated: its saved text could not be read. Nothing was changed."
+
+
 def _raw_note(user_id: str, note_id: str, conn: sqlite3.Connection) -> tuple[sqlite3.Row, dict] | None:
     """The note row and its STORED body. Never the served body (`notes._served_body`), which can be
-    a withheld placeholder or an in-memory upgrade, and must never be written back as the note."""
+    a withheld placeholder or an in-memory upgrade, and must never be written back as the note.
+
+    ⛔ An absent body (empty) is an empty doc, as the serving path reads it. A body that cannot be
+    parsed, is not a doc, or has a non-list `content` is REFUSED (review M-1): reading it as empty
+    would let an update write a fresh outline over the stored bytes, the one path where "never removes
+    member text" could break; a non-list `content` would otherwise reach a slice and answer 500."""
     r = conn.execute("SELECT * FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
                      (note_id, user_id)).fetchone()
     if r is None:
         return None
+    raw = r["body_json"]
+    if not raw:
+        return r, {"type": "doc", "content": []}
     try:
-        body = json.loads(r["body_json"] or '{"type":"doc","content":[]}')
+        body = json.loads(raw)
     except (TypeError, ValueError):
-        body = {"type": "doc", "content": []}
-    if not isinstance(body, dict):
-        body = {"type": "doc", "content": []}
+        raise StyleValidationError(UNREADABLE_BODY_SENTENCE)
+    if not isinstance(body, dict) or body.get("type") != "doc":
+        raise StyleValidationError(UNREADABLE_BODY_SENTENCE)
+    if body.get("content") is None:
+        body["content"] = []
+    elif not isinstance(body["content"], list):
+        raise StyleValidationError(UNREADABLE_BODY_SENTENCE)
     return r, body
 
 
 def _plan(user_id: str, row: sqlite3.Row, body: dict, style_id: str | None, conn: sqlite3.Connection):
+    """(style, built, plan). `built` is [(block, node)] -- the nodes the write inserts. ⛔ Each block is
+    asked of ITS BUILDER (review M-6): a block whose builder cannot build it is skipped with the reason
+    the builder gives, so the plan and the write can never disagree about what lands."""
     target_id = style_id or row["style_id"]
     if not target_id:
         raise StyleValidationError("This note was not made from a style.")
@@ -752,29 +830,40 @@ def _plan(user_id: str, row: sqlite3.Row, body: dict, style_id: str | None, conn
     switching = target_id != row["style_id"]
     content = body.get("content") or []
     have = _present(content)
-    add, skipped = [], []
+    ctx = {"ticker": row["ticker"], "now": datetime.now(timezone.utc)}
+    built, skipped = [], []
     for b in style["blocks"]:
         if not b.get("enabled") or b["block"] in have:
             continue
-        if b["block"] not in BLOCK_BUILDERS:
+        builder = BLOCK_BUILDERS.get(b["block"])
+        if builder is None:
             skipped.append({"block": b["block"], "reason": "unknown-block"})
-        elif b["block"] == "chart" and not row["ticker"]:
-            skipped.append({"block": "chart", "reason": "needs-ticker"})
+            continue
+        node, reason = builder(b, ctx)
+        if node is None:
+            skipped.append({"block": b["block"], "reason": reason or "cannot-build"})
         else:
-            add.append(b)
+            built.append((b, node))
+    version_current = not switching and row["style_version"] == style["version"]
     plan = {"styleId": style["id"], "styleName": style["name"],
             "fromVersion": None if switching else row["style_version"], "toVersion": style["version"],
             "switching": switching, "insertsOutline": switching and _is_empty(content),
-            "add": [{"block": b["block"], "label": None} for b in add], "skipped": skipped,
-            "upToDate": (not switching and not add and row["style_version"] == style["version"])}
-    return style, add, plan
+            "add": [{"block": b["block"], "label": None} for b, _ in built], "skipped": skipped,
+            # Review M-4: two separate facts. `versionCurrent` = the note records the style's current
+            # version; `missingBlocks` = the update would add at least one block. `upToDate` is both.
+            "versionCurrent": version_current, "missingBlocks": bool(built),
+            "upToDate": version_current and not built,
+            # Review I-2: a locked note is never written; the client hides or disables the offer.
+            "locked": bool(row["locked"]) if "locked" in row.keys() else False}
+    return style, built, plan
 
 
 def plan_style_update(user_id: str, note_id: str, *, style_id: str | None = None,
                       conn: sqlite3.Connection | None = None) -> dict:
-    """The preview (dryRun): what an update would add, from which version to which. Writes nothing.
-    Raises StyleNotFound (no such live note for this member, or the style is gone, deleted
-    included) and StyleValidationError (the note was not made from a style and none was named)."""
+    """The preview (the dry run, served by Task 8 at GET /api/j2/notes/{id}/style-update-plan): what an
+    update would add, from which version to which. Writes nothing. Raises StyleNotFound (no such live
+    note for this member, or the style is gone, deleted included) and StyleValidationError (the note
+    was not made from a style and none was named, or its stored body cannot be read)."""
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -794,10 +883,14 @@ def apply_style_update(user_id: str, note_id: str, *, style_id: str | None = Non
     style, that style's composed outline), the kind when switching, and the style stamp, in ONE
     compare-and-set `notes.update_note`. Returns `(note, plan)`.
 
-    ⛔ The compare-and-set is against the client's `expected_updated_at` when sent, else against the
-    revision THIS call read the body at: the body is read before update_note takes its write lock,
-    so without that a second writer landing in between would be overwritten by our copy. A stale
-    base raises notes.NoteConflictError and writes nothing (the route answers CONFLICT_SENTENCE)."""
+    ⛔ A locked note is refused (`notes._refuse_if_locked` -> NoteLockedError, 423; ruling 149).
+    ⛔ The compare-and-set is ALWAYS against the revision this call read the body at (the body the
+    blocks are inserted into), and a client `expected_updated_at` that is not that revision is a
+    conflict at once (review M-2): the body is read before update_note takes its write lock, so a
+    second writer landing in between is a 409, never overwritten. notes.NoteConflictError writes
+    nothing (the route answers CONFLICT_SENTENCE).
+    ⛔ Nothing to add and not switching = NO write (review M-4): a stamp-only revision would make
+    every other tab rebase for nothing. The note is returned as it stands."""
     from api.services.journal_two import notes as notes_service
     owned = conn is None
     conn = conn or get_connection()
@@ -806,23 +899,25 @@ def apply_style_update(user_id: str, note_id: str, *, style_id: str | None = Non
         if got is None:
             raise StyleNotFound(note_id)
         row, body = got
-        style, add, plan = _plan(user_id, row, body, style_id, conn)
+        notes_service._refuse_if_locked(row)
+        if expected_updated_at is not None and expected_updated_at != row["updated_at"]:
+            raise notes_service.NoteConflictError("note changed since the client's baseline")
+        style, built, plan = _plan(user_id, row, body, style_id, conn)
+        if not plan["switching"] and not built:
+            return notes_service.get_note(user_id, note_id, conn=conn), plan
         patch: dict[str, Any] = {}
         if plan["insertsOutline"]:
             patch["bodyJson"] = compose(user_id, style, ticker=row["ticker"], conn=conn)["bodyJson"]
-        elif add:
-            ctx = {"ticker": row["ticker"], "now": datetime.now(timezone.utc)}
-            nodes = [BLOCK_BUILDERS[b["block"]](b, ctx)[0] for b in add]
+        elif built:
             new = copy.deepcopy(body)
-            i = _after_first_heading(new.setdefault("content", []))
-            new["content"][i:i] = [n for n in nodes if n is not None]
+            i = _after_first_heading(new["content"])
+            new["content"][i:i] = [node for _, node in built]
             patch["bodyJson"] = new
         if plan["switching"]:
             patch["properties"] = {_nk().NOTE_KIND_PROPERTY: style["kindId"]}
-        base = expected_updated_at if expected_updated_at is not None else row["updated_at"]
         try:
             note = notes_service.update_note(user_id, note_id, patch, conn=conn,
-                                             expected_updated_at=base, client_schema=None,
+                                             expected_updated_at=row["updated_at"], client_schema=None,
                                              style_stamp=(style["id"], style["version"]))
         except notes_service.NoteValidationError as e:
             raise StyleValidationError(str(e)) from e

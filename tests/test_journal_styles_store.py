@@ -169,6 +169,57 @@ def test_restore_does_not_steal_a_default_set_meanwhile(db_path):
     assert js.default_style_for_kind("u1", "trade_plan", None)["id"] == b["id"]
 
 
+def test_restore_does_not_take_the_default_back_after_the_member_chose_the_builtin(db_path):
+    """Review M-3: a built-in default is the ABSENCE of a member default, so choosing it while the style
+    was deleted left no trace; Undo then silently took the default back."""
+    from api.services.journal_two import journal_styles as js
+    s = _make()
+    js.set_default("u1", s["id"])
+    js.delete_style("u1", s["id"])
+    js.set_default("u1", "builtin:trade_plan")
+    back = js.restore_style("u1", s["id"])
+    assert back["isDefault"] is False
+    assert js.default_style_for_kind("u1", "trade_plan", None)["id"] == "builtin:trade_plan"
+
+
+def test_restore_under_a_concurrent_set_default_never_answers_500(db_path, monkeypatch):
+    """Review M-3: the default check and the write are one locked unit; and even if the check is stale
+    (another writer set a default in between), the unique index's refusal restores it as non-default."""
+    from api.services.journal_two import journal_styles as js
+    a, b = _make(name="A"), _make(name="B")
+    js.set_default("u1", a["id"])
+    js.delete_style("u1", a["id"])
+    conn = sqlite3.connect(db_path)                    # another writer: B becomes the default directly
+    conn.execute("UPDATE j2_journal_styles SET is_default = 1 WHERE id = ?", (b["id"],))
+    conn.commit()
+    conn.close()
+    with monkeypatch.context() as m:
+        m.setattr(js, "_member_default", lambda *args, **kw: None)            # a check that read too early
+        back = js.restore_style("u1", a["id"])
+    assert back["deletedAt"] is None and back["isDefault"] is False
+    assert js.default_style_for_kind("u1", "trade_plan", None)["id"] == b["id"]
+
+
+def test_restore_respects_the_style_cap(db_path, monkeypatch):
+    from api.services.journal_two import journal_styles as js
+    monkeypatch.setattr(js, "MAX_STYLES_PER_MEMBER", 2)
+    a = _make(name="A")
+    js.delete_style("u1", a["id"])
+    _make(name="B")
+    _make(name="C")
+    with pytest.raises(js.StyleValidationError):
+        js.restore_style("u1", a["id"])
+    assert js.get_style("u1", a["id"]) is None                                 # still deleted
+
+
+def test_an_outline_the_editor_cannot_build_is_refused(db_path):
+    """Review M-8: the same unbuildable-body check note creation runs (an empty text node)."""
+    from api.services.journal_two import journal_styles as js
+    with pytest.raises(js.StyleValidationError):
+        _make(outlineBodyJson={"type": "doc", "content": [{"type": "paragraph",
+                                                            "content": [{"type": "text", "text": ""}]}]})
+
+
 def test_builtins_are_read_only(db_path):
     from api.services.journal_two import journal_styles as js
     with pytest.raises(js.StyleValidationError):

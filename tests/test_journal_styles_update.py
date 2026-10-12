@@ -94,7 +94,7 @@ def test_a_block_already_in_the_note_is_not_added_twice(db_path):
     p = js.plan_style_update("u1", n["id"])
     assert (p["add"], p["upToDate"], p["toVersion"]) == ([], False, 3)
     note2, _ = js.apply_style_update("u1", n["id"], expected_updated_at=note["updatedAt"])
-    assert note2["bodyJson"] == note["bodyJson"] and note2["styleVersion"] == 3   # only the stamp moved
+    assert note2["bodyJson"] == note["bodyJson"]                                  # the chart is not doubled
 
 
 def test_a_stale_base_writes_nothing(db_path):
@@ -176,6 +176,135 @@ def test_a_deleted_style_or_a_missing_note_is_not_found(db_path):
         js.plan_style_update("u1", n["id"])
     with pytest.raises(js.StyleNotFound):
         js.apply_style_update("u1", n["id"], expected_updated_at=n["updatedAt"])
+
+
+def test_a_locked_note_is_refused_and_the_plan_says_so(db_path):
+    """Review I-2 (ruling 149): every server door that writes into an EXISTING note refuses a locked
+    one, through the one predicate notes._refuse_if_locked."""
+    from api.services.journal_two import journal_styles as js, notes
+    s, n = _note_from_v1()
+    locked = notes.update_note("u1", n["id"], {"locked": True})
+    assert js.plan_style_update("u1", n["id"])["locked"] is True
+    with pytest.raises(notes.NoteLockedError):
+        js.apply_style_update("u1", n["id"], expected_updated_at=locked["updatedAt"])
+    got = notes.get_note("u1", n["id"])
+    assert got["styleVersion"] == 1 and got["bodyJson"] == n["bodyJson"] and got["updatedAt"] == locked["updatedAt"]
+
+
+def test_an_unlocked_note_plans_unlocked(db_path):
+    from api.services.journal_two import journal_styles as js
+    s, n = _note_from_v1()
+    assert js.plan_style_update("u1", n["id"])["locked"] is False
+
+
+def _corrupt(db_path, note_id, raw):
+    import sqlite3
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("UPDATE j2_notes SET body_json = ? WHERE id = ?", (raw, note_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@pytest.mark.parametrize("raw", ["{not json", '{"type": "doc", "content": {"oops": 1}}', '"a string"',
+                                 '{"type": "paragraph", "content": []}'])
+def test_an_unreadable_stored_body_is_refused_never_overwritten(db_path, raw):
+    """Review M-1: an unparseable body, a non-list `content` or a non-doc is REFUSED (400), never
+    treated as empty and written over, never a 500."""
+    from api.services.journal_two import journal_styles as js, notes
+    n = notes.create_note("u1", {"title": "x", "ticker": "AMD"})
+    _corrupt(db_path, n["id"], raw)
+    with pytest.raises(js.StyleValidationError):
+        js.plan_style_update("u1", n["id"], style_id="builtin:watchlist_note")
+    with pytest.raises(js.StyleValidationError):
+        js.apply_style_update("u1", n["id"], style_id="builtin:watchlist_note")
+    import sqlite3
+    conn = sqlite3.connect(db_path)
+    try:
+        assert conn.execute("SELECT body_json FROM j2_notes WHERE id = ?", (n["id"],)).fetchone()[0] == raw
+    finally:
+        conn.close()
+
+
+def test_an_absent_stored_body_is_an_empty_note(db_path):
+    """`body_json` is NOT NULL; an empty string is the absent body, read as empty like the serving path."""
+    from api.services.journal_two import journal_styles as js, notes
+    n = notes.create_note("u1", {"title": "x", "ticker": "AMD"})
+    _corrupt(db_path, n["id"], "")
+    assert js.plan_style_update("u1", n["id"], style_id="builtin:watchlist_note")["insertsOutline"] is True
+
+
+def test_a_client_base_other_than_the_read_revision_conflicts_before_any_write(db_path, monkeypatch):
+    """Review M-2: the revision the body was derived from is the revision compared-and-set; a client
+    base that differs from it is a conflict right away, update_note is never reached."""
+    from api.services.journal_two import journal_styles as js, notes
+    s, n = _note_from_v1()
+
+    def must_not_write(*a, **kw):
+        raise AssertionError("update_note reached with a stale base")
+
+    monkeypatch.setattr(notes, "update_note", must_not_write)
+    with pytest.raises(notes.NoteConflictError):
+        js.apply_style_update("u1", n["id"], expected_updated_at="2000-01-01T00:00:00+00:00")
+
+
+def test_the_plan_separates_version_from_missing_blocks(db_path):
+    """Review M-4: `versionCurrent` and `missingBlocks` are separate facts; `upToDate` is both."""
+    from api.services.journal_two import journal_styles as js, notes
+    s, n = _note_from_v1()
+    p = js.plan_style_update("u1", n["id"])
+    assert (p["versionCurrent"], p["missingBlocks"], p["upToDate"]) == (False, True, False)
+    note, _ = js.apply_style_update("u1", n["id"], expected_updated_at=n["updatedAt"])
+    # The member deletes the chart on purpose at the CURRENT version: missing, but version current.
+    body = note["bodyJson"]
+    body["content"] = [x for x in body["content"] if x["type"] != "widgetEmbed"]
+    notes.update_note("u1", n["id"], {"bodyJson": body}, client_schema=4)
+    p = js.plan_style_update("u1", n["id"])
+    assert (p["versionCurrent"], p["missingBlocks"], p["upToDate"]) == (True, True, False)
+
+
+def test_apply_with_nothing_missing_writes_nothing(db_path):
+    """Review M-4: no stamp-only revision -- other tabs would have to rebase for nothing."""
+    from api.services.journal_two import journal_styles as js
+    s, n = _note_from_v1()
+    note, _ = js.apply_style_update("u1", n["id"], expected_updated_at=n["updatedAt"])
+    js.update_style("u1", s["id"], {"properties": {"builtin:confidence": "high"}})     # v3, adds no block
+    p = js.plan_style_update("u1", n["id"])
+    assert (p["versionCurrent"], p["missingBlocks"]) == (False, False)
+    again, plan = js.apply_style_update("u1", n["id"], expected_updated_at=note["updatedAt"])
+    assert again["updatedAt"] == note["updatedAt"] and again["styleVersion"] == 2 and plan["add"] == []
+
+
+def test_the_planner_asks_the_builder_whether_a_block_can_build(db_path, monkeypatch):
+    """Review M-6: one source of truth. A builder that cannot build (for its own reason) is skipped
+    with THAT reason in the plan, and the write never drops it silently."""
+    from api.services.journal_two import journal_styles as js
+    s, n = _note_from_v1()
+    monkeypatch.setitem(js.BLOCK_BUILDERS, "chart", lambda block, ctx: (None, "chart-source-down"))
+    p = js.plan_style_update("u1", n["id"])
+    assert p["add"] == [] and p["skipped"] == [{"block": "chart", "reason": "chart-source-down"}]
+
+
+def test_a_style_row_that_no_longer_exists_is_not_found_and_the_note_reads_unchanged(db_path):
+    """Ruling R11: note_kinds.delete_kind hard-deletes the member's SOFT-deleted styles of that kind,
+    so a note's style_id can name a row that is gone. Treated exactly like a soft-deleted style: no
+    update is offered (StyleNotFound -> 404, no banner), nothing is written, the note still reads."""
+    import sqlite3
+    from api.services.journal_two import journal_styles as js, notes
+    s, n = _note_from_v1()
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("DELETE FROM j2_journal_styles WHERE id = ?", (s["id"],))
+        conn.commit()
+    finally:
+        conn.close()
+    with pytest.raises(js.StyleNotFound):
+        js.plan_style_update("u1", n["id"])
+    with pytest.raises(js.StyleNotFound):
+        js.apply_style_update("u1", n["id"], expected_updated_at=n["updatedAt"])
+    got = notes.get_note("u1", n["id"])
+    assert (got["bodyJson"], got["updatedAt"], got["styleId"]) == (n["bodyJson"], n["updatedAt"], s["id"])
 
 
 def test_the_body_is_read_raw_from_the_row(db_path, monkeypatch):

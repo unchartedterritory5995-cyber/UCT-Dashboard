@@ -106,6 +106,21 @@ def test_an_unknown_block_is_skipped_and_named(db_path):
     assert _types(out["bodyJson"]) == ["paragraph"]                     # never an empty doc
 
 
+def test_a_hand_typed_placeholder_the_style_does_not_list_is_kept_as_text(db_path):
+    """Review M-5: a member's own `{{block:chart}}` (an old template, a typed note) is their text when
+    the style does not switch that block on. Kept, and reported as not-in-style, never unknown-block."""
+    from api.services.journal_two import journal_styles as js
+    s = js.create_style("u1", {"name": "x", "kindId": "thesis", "blocks": [],
+        "outlineBodyJson": {"type": "doc", "content": [
+            {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "H"}]},
+            {"type": "paragraph", "content": [{"type": "text", "text": "{{block:chart}}"}]},
+            {"type": "paragraph", "content": [{"type": "text", "text": "{{block:somethingNew}}"}]}]}})
+    out = js.compose("u1", js.get_style("u1", s["id"]), ticker="AMD", conn=None, now=NOW)
+    assert [_text(n) for n in out["bodyJson"]["content"]] == ["H", "{{block:chart}}", "{{block:somethingNew}}"]
+    assert out["skipped"] == [{"block": "chart", "reason": "not-in-style"},
+                              {"block": "somethingNew", "reason": "not-in-style"}]
+
+
 def test_compose_falls_back_when_the_linked_template_is_gone(db_path):
     from api.services.journal_two import journal_styles as js, note_templates, notes
     n = notes.create_note("u1", {"title": "t", "bodyJson": {"type": "doc", "content": [
