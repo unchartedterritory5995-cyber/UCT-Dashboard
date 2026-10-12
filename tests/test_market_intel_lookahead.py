@@ -34,6 +34,7 @@ def _et_unix(day: str, hhmm: str) -> int:
 
 @pytest.fixture
 def world(monkeypatch):
+    monkeypatch.setattr(es, "MAX_EVENTS_LISTED", 10 ** 9)     # compare EVERY event, not the latest 60
     return fx.install(monkeypatch)
 
 
