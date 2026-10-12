@@ -616,7 +616,10 @@ function PropertyControl({ prop, disabled, onChange, labelId, noteId = null }) {
     // properties are never something to fill in by hand). Not a form
     // control, so no aria-labelledby needed -- reading order already puts
     // the label span directly before it.
-    return <span className={styles.readonlyValue}>{value === null ? '—' : String(value)}</span>
+    // A read-only SELECT (a captured built-in, builtin:regime_at_write) stores its option ID; the member
+    // reads the option's LABEL (the house word: "amber" is shown as "Yellow"), never the raw id.
+    const option = type === 'select' && value != null ? (prop.options || []).find((o) => o.id === value) : null
+    return <span className={styles.readonlyValue}>{value === null ? '—' : (option ? option.label : String(value))}</span>
   }
   if (type === 'relation') {
     return (

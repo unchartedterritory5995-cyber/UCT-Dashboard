@@ -3268,12 +3268,15 @@ def create_note(
     daily_date: str | None = None,
     properties: dict[str, Any] | None = None,
     style_stamp: tuple[str | None, int | None, str] | None = None,
+    captured_properties: str = "drop",
 ) -> dict[str, Any]:
     """`daily_date` and `properties` are INTERNAL (never read from `payload`,
     so `POST /notes` cannot set them): the daily note is made in ONE insert,
     with its day and its template's property values, so there is no second
     write — no revision a caller would have to land. A second note for a day
     is refused by the database (`idx_j2_notes_daily`), as `sqlite3.IntegrityError`.
+    `captured_properties` is INTERNAL: `keep` only from the journal styles composer, the one
+    writer of a captured built-in (IR-S1); every other caller's `drop` ignores one.
     `style_stamp` is INTERNAL too (journal styles, P1): `(style_id, style_version, kind_id)`
     written in the same insert."""
     payload = payload or {}
@@ -3316,7 +3319,8 @@ def create_note(
                 set_note_properties, PropertyValidationError,
             )
             try:
-                properties_json = set_note_properties(user_id, new_id, properties, conn, replace=True)
+                properties_json = set_note_properties(user_id, new_id, properties, conn, replace=True,
+                                                      captured=captured_properties)
             except PropertyValidationError as e:
                 raise NoteValidationError(str(e)) from e
         stamp = style_stamp or (None, None, None)
@@ -3625,9 +3629,15 @@ def update_note(
     restored_from_version_id: str | None = None,
     client_schema: int | None = None,
     style_stamp: tuple[str, int] | None = None,
+    captured_properties: str = "drop",
 ) -> dict[str, Any] | None:
     """`style_stamp` is INTERNAL (journal styles, P1): `(style_id, style_version)` written in
     the SAME UPDATE as the body; never read from a PUT.
+
+    `captured_properties` is INTERNAL (IR-S1): the default `drop` is the member-write mode (a
+    captured built-in in `properties` is ignored, and a restore's `propertiesReplace` carries it
+    forward). `keep` is passed only by journal_styles.apply_style_update when it switches an EMPTY
+    note to a style (insertsOutline, create-equivalent, R-RC-1); never by a route.
 
     `client_schema` is the schema the CLIENT that sent this patch can read
     (`notebook_schema.declared_schema` of its `X-UCT-Notebook-Schema` header —
@@ -3764,7 +3774,8 @@ def update_note(
             if not isinstance(raw, dict):
                 raise NoteValidationError("properties must be an object")
             try:
-                new_properties_json = set_note_properties(user_id, note_id, raw, conn, replace=replace)
+                new_properties_json = set_note_properties(user_id, note_id, raw, conn, replace=replace,
+                                                          captured=captured_properties)
             except PropertyValidationError as e:
                 raise NoteValidationError(str(e)) from e
             sets.append("properties_json = ?"); params.append(new_properties_json)

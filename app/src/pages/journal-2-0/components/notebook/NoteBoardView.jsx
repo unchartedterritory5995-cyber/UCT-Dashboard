@@ -62,6 +62,17 @@ export function columnsFor(def) {
   ]
 }
 
+/**
+ * ⛔ R-W0-3: can a MEMBER set this property? Only then can a board move a note between its columns.
+ * A captured built-in (`builtin:regime_at_write`) is written once by the composer and the server drops
+ * a member write to it (IR-S1), so a board grouped by it is read-only: no move <select>, no drag, and
+ * `move()` refuses a drop. A def that names no source is a member's (every user-created def is
+ * `user_set`); only an explicit other source is read-only.
+ */
+export function membersCanSet(def) {
+  return !!def && (def.source === undefined || def.source === 'user_set')
+}
+
 /** Which column a note belongs in. An unknown option id reads as un-set. */
 export function columnIdFor(note, def) {
   // ⛔ `def` CAN BE NULL HERE. React runs every hook before the component's
@@ -204,8 +215,12 @@ export default function NoteBoardView({
     return out
   }, [notes, columns, def, overrideFor])
 
+  const movable = membersCanSet(def)
+
   const move = useCallback((note, toColumnId) => {
     if (!def || !note) return
+    // ⛔ R-W0-3: the drop handler reaches this directly, past the render guard below.
+    if (!membersCanSet(def)) return
     if (columnIdFor(note, def) === toColumnId) return
     // ⛔ The un-set column clears the property, so it sends null rather than
     // the sentinel string the UI uses to name that column.
@@ -262,6 +277,11 @@ export default function NoteBoardView({
         >
           {defs.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
+        {!movable ? (
+          <span className={styles.readOnlyNote}>
+            {`${def?.name || 'This property'} is recorded when a note is written, so notes can't be moved between these columns.`}
+          </span>
+        ) : null}
         {error ? <span className={styles.error} role="status">{error}</span> : null}
       </div>
 
@@ -310,7 +330,7 @@ export default function NoteBoardView({
                       key={n.id}
                       data-board-card-id={n.id}
                       className={`${styles.card} ${isBusy(n.id) ? styles.cardBusy : ''}`}
-                      draggable={!isBlocked}
+                      draggable={movable && !isBlocked}
                       onDragStart={(e) => { e.dataTransfer.setData('text/plain', n.id) }}
                     >
                       <button
@@ -327,9 +347,10 @@ export default function NoteBoardView({
                         // UX #15, 2026-09-22: this used to be text-only, the
                         // only one of the four note-list views with no icon.
                         <BlockedBadge className={styles.blocked} />
-                      ) : (
+                      ) : !movable ? null : (
                         /* The non-drag door. See the header: touch never fires
-                           HTML5 drag events, and drag-only fails WCAG 2.1.1. */
+                           HTML5 drag events, and drag-only fails WCAG 2.1.1.
+                           ⛔ R-W0-3: absent when the grouping is not member-settable. */
                         <label className={styles.moveWrap}>
                           <span className={styles.srOnly}>{`Move ${n.title || 'Untitled'} to`}</span>
                           <select
