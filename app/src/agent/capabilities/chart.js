@@ -34,6 +34,7 @@ import { CHART_DEFAULTS } from '../../components/chart/chartDefaults'
 import { chartTemplateSettings } from '../../components/chart/chartTemplateApply'
 import { makeTfCode, isValidTf, tfLabel as tfShort } from '../../components/chart/timeframes'
 import { pickComparisonColor } from '../../components/chart/comparisonUtils'
+import { isPronounToken } from '../nl/tickers'
 
 // The chart types and the timeframes UCT charts natively are the PRODUCT's lists
 // (chartDefaults.CHART_TYPE_OPTIONS, timeframes.NATIVE_TFS) — imported, never copied, so a new
@@ -362,7 +363,9 @@ const CAPABILITIES = [
       const m = /^\$([A-Za-z][A-Za-z0-9.]{0,9})$/.exec(raw)
         || /^(?:chart|open|show|load|pull up|put|switch to|go to)\s+\$?([A-Z][A-Z0-9.]{0,9})$/.exec(raw)
         || /^(?:change|switch|set)\s+(?:the\s+)?(?:symbol|ticker)\s+to\s+\$?([A-Za-z][A-Za-z0-9.]{0,9})$/i.exec(raw)
-      return m ? { symbol: m[1].toUpperCase() } : null
+      // ⛔ "change the ticker to it" / "$" aside, a pronoun is never a ticker (nl/tickers.js)
+      const typed = m && raw.includes(`$${m[1]}`) ? `$${m[1]}` : m?.[1]   // "$IT" is explicitly a ticker
+      return m && !isPronounToken(typed, said) ? { symbol: m[1].toUpperCase() } : null
     },
     // Async lookup BEFORE planning: an unknown ticker is refused, never charted blank.
     // Symbols that came from UCT itself (`trusted`: a screen's results, a saved

@@ -34,6 +34,7 @@
 
 import { registerCapability, registerTargetKind, registerContextProvider, isRef, SYMBOLS } from '../capabilities'
 import { unknownSymbols } from '../agentClient'
+import { isPronounToken } from '../nl/tickers'
 import { afterRender } from '../frames'
 import { MAX_TOP } from '../compose'
 // Each list's tickers ARE shown to the model (removing "TSLA from Momentum" needs it:
@@ -60,9 +61,13 @@ export function andList(xs) {
   return `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`
 }
 
-/** Split "RKLB, PLTR and ASTS" → ['RKLB','PLTR','ASTS']; null if anything isn't a ticker. */
-export function parseTickers(text) {
-  const parts = String(text || '').split(/\s*(?:,|\band\b|&|\+)\s*/i).map(s => s.trim().replace(/^\$/, '')).filter(Boolean)
+/** Split "RKLB, PLTR and ASTS" → ['RKLB','PLTR','ASTS']; null if anything isn't a ticker.
+ *  ⛔ A pronoun is never a ticker ("add it to Momentum" is NOT the symbol IT): the request then goes
+ *  to the model, which knows what "it" refers to. `raw` = the whole message, for capitals. */
+export function parseTickers(text, raw = text) {
+  const typed = String(text || '').split(/\s*(?:,|\band\b|&|\+)\s*/i).map(s => s.trim()).filter(Boolean)
+  if (typed.some(p => isPronounToken(p, raw))) return null
+  const parts = typed.map(s => s.replace(/^\$/, ''))
   if (!parts.length || parts.length > MAX_PER_REQUEST) return null
   if (!parts.every(p => /^[A-Za-z][A-Za-z0-9.]{0,9}$/.test(p))) return null
   return parts.map(p => p.toUpperCase())
@@ -418,7 +423,7 @@ export function registerWatchlistCapabilities() {
     fast: ({ raw, host }) => {
       const m = /^(?:please )?(?:add|put|throw|stick) (.+?) (?:to|in|into|on|onto) (.+?)[.!]?$/i.exec(String(raw).trim())
       if (!m || !host?.watchlists) return null
-      const syms = parseTickers(m[1])
+      const syms = parseTickers(m[1], raw)
       const l = syms && resolveList(host, m[2])
       return l ? { symbols: syms, __target: l.id } : null
     },
@@ -485,7 +490,7 @@ export function registerWatchlistCapabilities() {
     fast: ({ raw, host }) => {
       const m = /^(?:please )?(?:remove|delete|drop|take) (.+?) (?:from|off|off of|out of) (.+?)[.!]?$/i.exec(String(raw).trim())
       if (!m || !host?.watchlists) return null
-      const syms = parseTickers(m[1])
+      const syms = parseTickers(m[1], raw)
       const l = syms && resolveList(host, m[2])
       return l ? { symbols: syms, __target: l.id } : null
     },

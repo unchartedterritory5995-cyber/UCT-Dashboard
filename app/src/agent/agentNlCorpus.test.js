@@ -28,9 +28,8 @@ registerBuiltins()
 
 // Deterministic misfires present at the corpus baseline (2026-10-12, master 8179ab21be). Each is a
 // finding in docs/agent/nl-intent/ARCHITECTURE.md; removing one here once fixed keeps it fixed.
-const KNOWN_WRONG = new Set([
-  'ticker-09', // “add it to momentum” → watchlist.add ["IT"]: the pronoun parsed as the ticker IT (watchlist.js parseTickers)
-])
+// (2026-10-12 baseline had one: ticker-09 “add it to momentum” → the ticker IT — fixed, N1-safety.)
+const KNOWN_WRONG = new Set([])
 
 const KINDS = new Set(['act', 'propose', 'clarify', 'answer', 'unsupported', 'refuse', 'undo', 'dismiss', 'research'])
 const IDEALS = new Set(['fast', 'model', 'local-clarify'])
