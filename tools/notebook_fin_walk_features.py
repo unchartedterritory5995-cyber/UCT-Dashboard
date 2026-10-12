@@ -14,11 +14,13 @@ Never run on import; running it directly prints how to run the walk.
 from __future__ import annotations
 
 import json
+import math
 import re
 import sys
 import time
 import traceback
 from datetime import timedelta
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
@@ -36,7 +38,8 @@ PW = "LocalTest2026!"
 SAMPLE_SYMS = ["AAPL", "MSFT", "NVDA", "GOOGL", "TSLA", "AMZN"]
 ORDER = ["firstrun", "sample", "examples", "checklist", "offer", "gallery", "formulas", "chartplan", "positions", "board1",
          "transcript", "passed", "child", "resurface", "thesischips", "board2", "trades", "grading", "earnings", "discipline",
-         "vplaybook", "playbook", "reviews", "nokey", "layout", "tours1280", "tours820", "tours390", "whysave", "styles", "discover", "remove"]
+         "vplaybook", "playbook", "reviews", "nokey", "layout", "tours1280", "tours820", "tours390", "whysave", "styles", "blocks",
+         "discover", "remove"]
 
 CHECKLIST_JS = """() => { const hd = [...document.querySelectorAll('h3')].find(e => e.textContent.trim() === 'Get started');
   if (!hd) return null; const card = hd.closest('section');
@@ -46,6 +49,75 @@ CHECKLIST_JS = """() => { const hd = [...document.querySelectorAll('h3')].find(e
                     done: !!li.querySelector('[class*="doneLabel"]') })) } }"""
 
 MAIN_TEXT_JS = "() => (document.querySelector('[class*=\"_main_\"]') || document.body).innerText.trim().replace(/\\s+/g, ' ').slice(0, 900)"
+
+# ── Notebook P2a (Task 13): what the trader blocks step reads from the product's own files ──────────
+# The house sizing table (the ONE in-repo copy, IR-S10) and the regime's display words (the ONE map,
+# lib/blocks/regimeWords.js). Read, never restated: the walk sizes for the word the block SHOWS.
+HOUSE_SIZING = REPO / "app" / "src" / "constants" / "houseSizing.json"
+REGIME_WORDS_JS = REPO / "app" / "src" / "pages" / "journal-2-0" / "lib" / "blocks" / "regimeWords.js"
+# The trader blocks' group names (registry.js blockManifest labels) and their slash items (T12's titles).
+BLOCK_GROUPS = ("Pre-entry checklist", "Price stamps", "Position sizing")
+BLOCK_SLASH_ITEMS = (*BLOCK_GROUPS, "Market context")
+LOG_TRADE_CHECKLIST_PREF = "notebook_log_trade_checklist"   # lib/blocks/logTradeChecklist.js
+JOURNAL_STYLES_KEY = "notebook_journal_styles_enabled"     # lib/journalStylesFlag.js, the auth payload key
+SELECTED_ACCOUNT_KEY = "uct.j2.selectedAccountId"          # hooks/useJ2SelectedAccount.js
+
+# The line a price stamp lands under, followed at once by its fact card (financialFactNode's view).
+STAMP_FOLLOWS_JS = """line => { const pm = document.querySelector('.ProseMirror'); if (!pm) return false;
+  const kids = [...pm.children]; const i = kids.findIndex(e => e.tagName === 'P' && e.textContent.trim() === line);
+  const next = i >= 0 ? kids[i + 1] : null;
+  return !!next && (next.matches('[data-financial-fact]') || !!next.querySelector('[data-financial-fact]')) }"""
+
+
+def regime_words() -> dict:
+    """regimeWords.js's REGIME_WORDS, id -> the word a member reads ({'amber': 'Yellow', ...})."""
+    src = REGIME_WORDS_JS.read_text(encoding="utf-8")
+    m = re.search(r"REGIME_WORDS\s*=\s*Object\.freeze\(\{([^}]*)\}\)", src)
+    return dict(re.findall(r"(\w+)\s*:\s*'([^']*)'", m.group(1))) if m else {}
+
+
+def _round_pct(x: float) -> Decimal:
+    """houseSizing.js roundPct: two places, half UP, in decimal."""
+    return Decimal(repr(float(x))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def _js_number(d: Decimal) -> str:
+    """How JS prints a number in a template: 25 -> '25', 12.5 -> '12.5'."""
+    s = format(d, "f")
+    return s.rstrip("0").rstrip(".") if "." in s else s
+
+
+def _article(word: str) -> str:
+    return "an" if re.match(r"^[AEIOU]", str(word or ""), re.I) else "a"
+
+
+def house_size(entry: float, stop: float, account: float, grade: str, word: str | None) -> dict:
+    """lib/blocks/houseSizing.js houseSize, for the regime WORD the block shows, mapped to its id through
+    regimeWords.js and to the table key through houseSizing.json. Returns the lines the block then shows:
+    {"ok": True, "lines": [size line, shares line]}, a skip with its sentence, or {"ok": False, "code"}."""
+    table = json.loads(HOUSE_SIZING.read_text(encoding="utf-8"))
+    rid = {w: i for i, w in regime_words().items()}.get(word or "")
+    row = table["ceilingPct"].get(table["regimeWords"].get(rid or "", ""))
+    if row is None:
+        return {"ok": False, "code": "regime", "regime_id": rid}
+    if grade not in row:
+        return {"ok": False, "code": "grade", "regime_id": rid}
+    ceiling = row[grade]
+    if not ceiling > 0:
+        return {"ok": False, "code": "skip", "regime_id": rid,
+                "lines": [f"The house rules skip {_article(grade)} {grade} setup in {_article(word)} {word} market."]}
+    per_share = abs(entry - stop)
+    cap = table["maxAccountRiskPct"] * entry / per_share
+    whole = lambda q: max(0, math.floor(math.floor(q * 1e6 + 0.5) / 1e6))  # noqa: E731 -- wholeShares
+    if ceiling <= cap:
+        size, shares = ceiling, whole(account * ceiling / (100 * entry))
+    else:
+        size, shares = cap, whole(account * table["maxAccountRiskPct"] / (100 * per_share))
+    if shares < 1:
+        return {"ok": False, "code": "tooSmall", "regime_id": rid}
+    return {"ok": True, "regime_id": rid, "table_key": table["regimeWords"][rid],
+            "lines": [f"House size: {_js_number(_round_pct(size))}% of the account",
+                      f"{shares} {'share' if shares == 1 else 'shares'}"]}
 
 
 def toolbar_button(pg, frame, name, touch):
@@ -1968,15 +2040,20 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         finally:
             cA.close()
 
-    def save_landed(page, note_id, act, ceiling_ms=15000):
+    def save_landed(page, note_id, act, ceiling_ms=15000, carrying=None):
         """Run `act()` (the member's edit), then WAIT for the autosave's own answer: the PUT to
         /api/j2/notes/{note_id} that lands it, 2xx. Playwright's waiter, never a sampled poll
         (CLAUDE.md "SAMPLING WHERE A WAITER WAS AVAILABLE"); the ceiling only bounds it. Returns the
-        note the server holds after that PUT answered, or None when none landed inside the ceiling."""
+        note the server holds after that PUT answered, or None when none landed inside the ceiling.
+        `carrying` (P2a): a text the PUT's request body must hold -- the waiter for an edit made in
+        several steps, or one that lands after a read, is the PUT that carries its LAST part."""
         path = re.compile(rf"/api/j2/notes/{re.escape(str(note_id))}(\?|$)")
+
+        def landing(r):
+            return (r.request.method == "PUT" and bool(path.search(r.url)) and r.ok
+                    and (carrying is None or carrying in (r.request.post_data or "")))
         try:
-            with page.expect_response(lambda r: r.request.method == "PUT" and bool(path.search(r.url)) and r.ok,
-                                      timeout=ceiling_ms):
+            with page.expect_response(landing, timeout=ceiling_ms):
                 act()
         except PlaywrightTimeoutError:
             return None
@@ -2096,6 +2173,333 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         C.step(None, inst, "styles.coverage", "every journal-styles feature left a row", "PASS" if want <= seen else "FAIL",
                missing=sorted(want - seen), shot=False)
     run("styles", styles)
+
+    # ── Notebook P2a: trader blocks, at 1280 / 820 / 390 ────────────────────────────────────
+    def blocks():
+        # One account, picked: the sizing block sizes and the checklists list only for a SPECIFIC account
+        # (accountId != null, hooks/usePositionSizingSources.js), and every viewport's context inherits it.
+        def vcp_account():
+            listing = M.get(base + "/api/j2/accounts").json()        # shape per V13
+            acct = (listing.get("accounts") if isinstance(listing, dict) else listing)[0]["id"]
+            st = M.get(base + f"/api/j2/accounts/{acct}/settings").json()
+            st.update({"setups": ["VCP"], "setupRules": {"VCP": [{"id": "s1", "label": "Volume dry-up"}]}})
+            M.put(base + f"/api/j2/accounts/{acct}/settings", data=st)
+            return acct
+        acct_id = vcp_account()
+        C.goto(pg, base, "/journal/notebook", wait="main")
+        pg.evaluate("([k, id]) => localStorage.setItem(k, id)", [SELECTED_ACCOUNT_KEY, acct_id])
+        state = ctx.storage_state()
+
+        def at(vp):
+            if vp == "1280":
+                return pg, inst, None
+            c = C.new_ctx(browser, vp, storage=state)
+            return c.new_page(), C.Inst(c, cfg, vp), c
+
+        def note(title, nodes=()):
+            body = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": title}]}, *nodes]}
+            return M.post(base + "/api/j2/notes", data={"title": title, "bodyJson": body}).json()["note"]
+
+        def block(kind):
+            # The server builders' own node (tools/notebook_perf_harness.py trader_block_nodes): catalog
+            # defaults, searchText, a fresh embedId each call.
+            return next(n for n in h.trader_block_nodes() if n["attrs"]["widgetId"] == kind)
+
+        def new_line(p_):
+            p_.locator(".ProseMirror > p").first.click()
+            p_.keyboard.press("End")
+            p_.keyboard.press("Enter")
+
+        # blocks.slash-insert (each viewport): new note, type "/Pre-entry checklist", Enter; the group
+        #   "Pre-entry checklist" appears; at 820/390 its first control's box is >= 44 px tall.
+        def slash_insert():
+            for vp in ("1280", "820", "390"):
+                p, i, c = at(vp)
+                try:
+                    n = note(f"Blocks slash {vp}")
+                    C.goto(p, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
+                    new_line(p)
+                    # The FULL item name, never a bare prefix the /price command could also answer.
+                    p.keyboard.type("/Pre-entry checklist", delay=40)
+                    offered = C.vis_loc(p.get_by_role("option", name=re.compile(r"^Pre-entry checklist")), 10000)
+                    if offered:
+                        p.keyboard.press("Enter")
+                    group = p.get_by_role("group", name="Pre-entry checklist", exact=True)
+                    shown = offered and C.vis_loc(group, 15000)
+                    h_ = (group.first.locator("button, input, select, textarea").first
+                          .evaluate("e => e.getBoundingClientRect().height") if shown and vp != "1280" else None)
+                    ok = shown and (vp == "1280" or (h_ is not None and h_ >= 44))
+                    C.step(p, i, "blocks.slash-insert", f"/Pre-entry checklist then Enter inserts the checklist block ({vp})",
+                           "PASS" if ok else "FAIL", offered=offered, block=shown, first_control_height=h_)
+                finally:
+                    if c is not None:
+                        c.close()
+
+        # ── blocks.integrity-tick-leave (1280): spec §P2's P0.0 repro shape, written out ─────────
+        def tick_leave():
+            body = {"type": "doc", "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": "tick and leave"}]},
+                {"type": "widgetEmbed", "attrs": {"v": 1, "widgetId": "preEntryChecklist", "embedId": "walk-ck-1",
+                 "mode": "snapshot", "params": {"setup": "VCP", "includeRules": "no", "requireAll": "no", "checked": []},
+                 "searchText": "[pre-entry checklist]"}}]}
+            note_ = M.post(base + "/api/j2/notes", data={"title": "Tick and leave", "bodyJson": body}).json()["note"]
+            C.goto(pg, base, f"/journal/notebook?note={note_['id']}", wait=".ProseMirror")
+            box = pg.get_by_role("checkbox", name="Volume dry-up")
+            C.vis_loc(box, 15000)
+
+            def tick_and_leave():
+                box.check()
+                # An in-app navigation (the router hears popstate), started at once: the member leaving the note.
+                pg.evaluate("() => { history.pushState({}, '', '/journal/notebook?view=all');"
+                            " window.dispatchEvent(new PopStateEvent('popstate')) }")
+            landed = save_landed(pg, note_["id"], tick_and_leave)      # the waiter: the autosave's own PUT answer
+            ticked = bool(landed) and any(
+                (x.get("attrs") or {}).get("params", {}).get("checked") == ["s1"]
+                for x in landed["bodyJson"]["content"] if x.get("type") == "widgetEmbed")
+            conflicted = [x for x in C.notes_list(ctx, base) if "(conflicted copy)" in (x.get("title") or "")]
+            ok = ticked and not conflicted
+            C.step(pg, inst, "blocks.integrity-tick-leave",
+                   "Tick a checklist item and leave at once: the tick lands through autosave, no conflicted copy",
+                   "PASS" if ok else "FAIL", saved=bool(landed), ticked=ticked, conflicted=len(conflicted))
+
+        # blocks.price-stamp (1280): a note with a Price stamps block, switched on through the block's own
+        #   switch; "Long $NVDA" and Enter; the fact card follows the line, and Ctrl+Z removes it alone. In a
+        #   sandbox with no vendor the capture answers an error: then NOTHING was inserted, read after the
+        #   POST /api/j2/trader-blocks/price-stamp answer, and the row is INFO with that answer's status.
+        def price_stamp():
+            n = note("Price stamps walk", [block("priceStamps")])
+            C.goto(pg, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
+            group = pg.get_by_role("group", name="Price stamps", exact=True).first
+            switch = group.get_by_role("switch", name="Stamp prices as I write")
+            C.vis_loc(switch, 15000)
+            switch.click()
+            on = C.vis_loc(group.locator('[role="switch"][aria-checked="true"]'), 10000)
+            new_line(pg)
+            line = "Long $NVDA"
+            pg.keyboard.type(line, delay=40)
+            stamp_url = re.compile(r"/api/j2/trader-blocks/price-stamp(\?|$)")
+            answer = None
+            try:
+                with pg.expect_response(lambda r: r.request.method == "POST" and bool(stamp_url.search(r.url)),
+                                        timeout=10000) as got:
+                    pg.keyboard.press("Enter")
+                answer = got.value
+            except PlaywrightTimeoutError:
+                answer = None            # no answer inside the stamp's own 2 s budget: nothing may land
+            status = answer.status if answer is not None else None
+            cards = pg.locator(".ProseMirror [data-financial-fact]")
+            if answer is not None and answer.ok:
+                card = C.vis_loc(cards, 10000)
+                follows = pg.evaluate(STAMP_FOLLOWS_JS, line)
+                count = cards.count()
+                pg.keyboard.press("Control+z")
+                try:
+                    cards.first.wait_for(state="detached", timeout=10000)
+                    undone = True
+                except PlaywrightTimeoutError:
+                    undone = False
+                line_kept = pg.locator(".ProseMirror > p").filter(has_text=line).count() == 1
+                ok = on and card and follows and count == 1 and undone and line_kept
+                C.step(pg, inst, "blocks.price-stamp", "Price stamps on: a $NVDA line gets one fact card after it, and Ctrl+Z removes it alone",
+                       "PASS" if ok else "FAIL", switched_on=on, status=status, card=card, follows_line=follows,
+                       cards=count, undone=undone, line_kept=line_kept)
+            else:
+                inserted = cards.count()            # read AFTER the answer: a failed capture inserts nothing
+                detail = None
+                if answer is not None:
+                    try:
+                        detail = (answer.json() or {}).get("detail")
+                    except Exception:  # noqa: BLE001 -- not JSON; the status says enough
+                        detail = None
+                C.step(pg, inst, "blocks.price-stamp", "Price stamps on: the capture answered an error (no vendor here), and nothing was inserted",
+                       "INFO" if on and inserted == 0 else "FAIL", switched_on=on, status=status, detail=detail,
+                       inserted=inserted)
+
+        # blocks.sizing (1280): account size set through the settings route (V13) to 50,000; entry 100, stop 95,
+        #   grade A+; the size line matches houseSize's answer for the regime the block SHOWS; then the account
+        #   size back to the placeholder: "Set your account size in Settings." and no share line.
+        def sizing():
+            placeholder = json.loads(HOUSE_SIZING.read_text(encoding="utf-8"))["placeholderAccountSize"]
+
+            def account_size(v):
+                st = M.get(base + f"/api/j2/accounts/{acct_id}/settings").json()
+                st["accountSize"] = v
+                return M.put(base + f"/api/j2/accounts/{acct_id}/settings", data=st).status
+            set_status = account_size(50000)
+            n = note("Position sizing walk", [block("positionSizing")])
+            C.goto(pg, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
+            group = pg.get_by_role("group", name="Position sizing", exact=True).first
+            C.vis_loc(group.get_by_label("Entry", exact=True), 15000)
+
+            def enter_trade():
+                group.get_by_label("Entry", exact=True).fill("100")
+                group.get_by_label("Stop", exact=True).fill("95")
+                group.get_by_label("Setup grade", exact=True).select_option("A+")
+            landed = save_landed(pg, n["id"], enter_trade, carrying='"grade":"A+"')
+            regime_line = group.get_by_text(re.compile(r"^(Sized for an? \S+ market|The market regime is not known yet\.)"))
+            C.vis_loc(regime_line, 10000)
+            said = (regime_line.first.text_content() or "").strip() if regime_line.count() else ""
+            m_ = re.match(r"^Sized for an? (\S+) market", said)
+            word = m_.group(1) if m_ else None
+            want = house_size(100, 95, 50000, "A+", word)
+            lines_ok = all(C.vis_loc(group.get_by_text(t, exact=True), 10000) for t in want.get("lines") or [])
+            # No regime shown: houseSize sizes nothing (its own "regime" answer), so this half is INFO, never a PASS.
+            sized = None if want.get("code") == "regime" else (lines_ok and bool(want.get("lines")))
+            back_status = account_size(placeholder)
+            C.goto(pg, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")    # the block reads the size live
+            asks = C.vis_loc(group.get_by_text("Set your account size in Settings.", exact=True), 15000)
+            share_lists = group.get_by_role("list", name="Position size").count()
+            placeholder_ok = asks and share_lists == 0
+            verdict = ("FAIL" if not placeholder_ok or sized is False or not landed
+                       else "INFO" if sized is None else "PASS")
+            C.step(pg, inst, "blocks.sizing",
+                   "Position sizing at 50,000: the size line is houseSize's for the regime the block shows; at the placeholder it asks for a size",
+                   verdict, settings_put=set_status, saved=bool(landed), regime_shown=said, regime_word=word,
+                   expected=want, size_lines_shown=lines_ok, placeholder=placeholder, placeholder_put=back_status,
+                   asks_for_size=asks, share_lists=share_lists,
+                   why=None if sized is not None else "no regime is held here, so houseSize sizes nothing; the placeholder half still ran")
+
+        # blocks.market-context (1280): "/Market context" by slash; a marketcontext embed whose rows include
+        #   "Regime" and "VIX unavailable", and the saved body's params.readings has regime, spy, qqq, vix.
+        def market_context():
+            n = note("Market context walk")
+            C.goto(pg, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
+            new_line(pg)
+            pg.keyboard.type("/Market context", delay=40)
+            offered = C.vis_loc(pg.get_by_role("option", name=re.compile(r"^Market context")), 10000)
+            read = {}
+            mc_url = re.compile(r"/api/j2/trader-blocks/market-context(\?|$)")
+
+            def pick():
+                with pg.expect_response(lambda r: r.request.method == "GET" and bool(mc_url.search(r.url)),
+                                        timeout=15000) as got:
+                    pg.keyboard.press("Enter")
+                read["status"] = got.value.status
+            landed = save_landed(pg, n["id"], pick, carrying='"widgetId":"marketcontext"') if offered else None
+            embed = pg.locator('[data-widget-embed-view="marketcontext"]')
+            shown = C.vis_loc(embed, 15000)
+            text = (embed.first.text_content() or "") if shown else ""     # textContent: CSS may upper-case innerText
+            rows = {"Regime": "Regime" in text, "VIX unavailable": "VIX unavailable" in text}
+            stamp = next((x for x in ((landed or {}).get("bodyJson") or {}).get("content", [])
+                          if x.get("type") == "widgetEmbed" and (x.get("attrs") or {}).get("widgetId") == "marketcontext"), None)
+            keys = sorted((((stamp or {}).get("attrs") or {}).get("params", {}).get("readings") or {}).keys())
+            keys_ok = {"regime", "spy", "qqq", "vix"} <= set(keys)
+            ok = offered and shown and all(rows.values()) and keys_ok
+            C.step(pg, inst, "blocks.market-context", "/Market context stamps the market now: Regime and VIX rows, and the four readings saved",
+                   "PASS" if ok else "FAIL", offered=offered, read_status=read.get("status"), embed=shown, rows=rows,
+                   saved=bool(landed), readings_keys=keys)
+
+        # blocks.log-trade-checklist (1280 and 390): the preference set to "on" through the Settings select; Log
+        #   Trade -> Log closed trade, VCP; the group "Pre-entry checklist" shows; one tick, submit; the trade's
+        #   GET /api/j2/trades/{id}/adherence answers checkedRuleIds == ["s1"] (the IR-S7 path, end to end).
+        def log_trade():
+            pref_url = re.compile(r"/api/auth/preferences(\?|$)")
+            trades_url = re.compile(r"/api/j2/trades(\?|$)")
+            adherence_url = re.compile(r"/api/j2/trades/[^/]+/adherence(\?|$)")
+            for vp in ("1280", "390"):
+                p, i, c = at(vp)
+                try:
+                    C.goto(p, base, "/journal/notebook", wait="main")
+                    if vp != "1280":            # the phone Notebook folds the header tools (JournalLayout D2)
+                        p.get_by_role("button", name="Journal tools", exact=True).click()
+                    p.get_by_role("button", name="Open Portfolio Settings", exact=True).click()
+                    sel = p.get_by_role("combobox", name="Pre-entry checklist in Log Trade", exact=True)
+                    C.vis_loc(sel, 15000)
+
+                    def choose(value):
+                        with p.expect_response(lambda r: r.request.method == "POST" and bool(pref_url.search(r.url)) and r.ok,
+                                               timeout=15000):
+                            sel.select_option(value)
+                    was = sel.input_value()
+                    # The member's own change is the door under test, so both picks must BE changes: the walk
+                    # never leaves "on-warn" behind, so it differs from whatever the select holds (or loads
+                    # into mid-read), and "on" then differs from "on-warn".
+                    choose("on-warn")
+                    choose("on")
+                    p.get_by_role("dialog").filter(has=sel).get_by_role("button", name="Close", exact=True).first.click()
+                    sel.wait_for(state="detached", timeout=10000)
+                    p.get_by_role("button", name="Log Trade", exact=True).click()
+                    p.get_by_role("menuitem", name="Log closed trade", exact=True).click()
+                    add = p.get_by_role("button", name="Add Trade", exact=True)
+                    C.vis_loc(add, 15000)
+                    form = p.get_by_role("dialog").filter(has=add)
+                    form.get_by_role("combobox", name="Symbol").fill("NVDA")
+                    form.get_by_label("Shares").fill("10")
+                    form.get_by_label("Entry Price").fill("100")
+                    form.get_by_label("Exit Price").fill("110")
+                    form.locator("label").filter(has=p.get_by_text("Setup", exact=True)).locator("select").select_option("VCP")
+                    group = form.get_by_role("group", name="Pre-entry checklist", exact=True)
+                    shown = C.vis_loc(group, 15000)
+                    group.get_by_role("checkbox", name="Volume dry-up").check()
+                    with p.expect_response(lambda r: r.request.method == "POST" and bool(trades_url.search(r.url)),
+                                           timeout=20000) as made, \
+                         p.expect_response(lambda r: r.request.method == "PUT" and bool(adherence_url.search(r.url)),
+                                           timeout=20000) as ticks:
+                        add.click()
+                    trade_id = (made.value.json() or {}).get("id")
+                    adh = M.get(base + f"/api/j2/trades/{trade_id}/adherence")
+                    rec = adh.json() if adh.status == 200 else None
+                    ok = shown and (rec or {}).get("checkedRuleIds") == ["s1"]
+                    C.step(p, i, "blocks.log-trade-checklist",
+                           f"Log Trade with the checklist on: VCP's checklist shows, one tick lands on the trade ({vp})",
+                           "PASS" if ok else "FAIL", pref_was=was, checklist=shown, trade_status=made.value.status,
+                           tick_put_status=ticks.value.status, trade_id=trade_id, adherence_status=adh.status, adherence=rec)
+                finally:
+                    if c is not None:
+                        c.close()
+
+        # blocks.switch-off-renders (1280): a second member context whose /api/auth/me answers
+        #   notebook_journal_styles_enabled=false; a note holding all three blocks and a marketcontext stamp
+        #   renders every one, Price stamps says it needs the switch, and no block slash item is offered.
+        def switch_off():
+            c = C.new_ctx(browser, "1280", storage=state)
+
+            def styles_off(route):
+                r = route.fetch()
+                body = r.json()
+                body[JOURNAL_STYLES_KEY] = False
+                route.fulfill(response=r, json=body)
+            c.route(re.compile(r"/api/auth/me(\?|$)"), styles_off)
+            p, i = c.new_page(), C.Inst(c, cfg, "1280")
+            try:
+                n = note("Switch off walk", h.trader_block_nodes())
+                C.goto(p, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
+                groups = {g: C.vis_loc(p.get_by_role("group", name=g, exact=True), 15000) for g in BLOCK_GROUPS}
+                stamp = C.vis_loc(p.locator('[data-widget-embed-view="marketcontext"]'), 15000)
+                needs = C.vis_loc(p.get_by_text("This block needs Journal styles, which is not on for you.", exact=True), 10000)
+                new_line(p)
+                p.keyboard.type("/", delay=40)
+                menu = C.vis_loc(p.get_by_role("listbox", name="Insert block"), 10000)
+                offered = [t for t in BLOCK_SLASH_ITEMS if p.get_by_role("option", name=re.compile("^" + re.escape(t))).count()]
+                p.keyboard.press("Escape")
+                ok = all(groups.values()) and stamp and needs and menu and not offered
+                C.step(p, i, "blocks.switch-off-renders",
+                       "Journal styles off: every block and the stamp still render, Price stamps says why it is idle, no block is offered by slash",
+                       "PASS" if ok else "FAIL", groups=groups, stamp=stamp, needs_switch_sentence=needs, slash_menu=menu,
+                       block_items_offered=offered)
+            finally:
+                c.close()
+
+        rows = (("blocks.slash-insert", slash_insert), ("blocks.integrity-tick-leave", tick_leave),
+                ("blocks.price-stamp", price_stamp), ("blocks.sizing", sizing), ("blocks.market-context", market_context),
+                ("blocks.log-trade-checklist", log_trade), ("blocks.switch-off-renders", switch_off))
+        for feature, fn in rows:
+            try:
+                fn()
+            except h.SetupFailed:
+                raise
+            except Exception as e:  # noqa: BLE001 -- recorded, and the next row still runs
+                C.step(pg, inst, feature, "driver exception (the row did not finish)", "FAIL",
+                       error=f"{type(e).__name__}: {str(e)[:600]}", traceback=traceback.format_exc()[-1600:])
+        # blocks.coverage: every feature above left a row, at every viewport it is walked at.
+        want = {("blocks.slash-insert", vp) for vp in ("1280", "820", "390")} | {
+            ("blocks.log-trade-checklist", vp) for vp in ("1280", "390")} | {
+            (f, "1280") for f, _ in rows if f not in ("blocks.slash-insert", "blocks.log-trade-checklist")}
+        seen = {(s.get("feature"), s.get("viewport")) for s in C.REC["steps"] if s.get("config") == cfg}
+        missing = sorted(want - seen)
+        C.step(None, inst, "blocks.coverage", "every trader-blocks feature left a row at each of its viewports",
+               "PASS" if not missing else "FAIL", missing=[f"{f} @ {vp}" for f, vp in missing], shot=False)
+    run("blocks", blocks)
 
     def discover():
         doors = (("new-note-home", d_new_note_home), ("phone-toolbar-inside", d_phone_toolbar),
