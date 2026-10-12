@@ -720,3 +720,76 @@ def test_performance_on_a_long_history(world, monkeypatch):
     assert r["status"] == "ok" and r["counts"]["events_used"] > 600
     assert took < 4.0, f"study took {took:.2f}s"
     assert len(r["events"]) == es.MAX_EVENTS_LISTED and r["events_listed_truncated"]
+
+
+# ── adversarial: look-ahead, calendar, duplicates, staleness, end of history, boundary ──
+
+def test_a_release_after_the_close_is_not_acted_on_that_session(world, monkeypatch):
+    """An econ release at 16:30 ET is first knowable at the NEXT session's close."""
+    t = _et_unix("2024-01-17", "16:30")
+    _econ_world(monkeypatch, [["2023-12-01", "2023-12-31", t, -0.5, "V", 1]])
+    r = es.run(req(series={"kind": "econ", "symbol": "USCPIYOY"}, op="below", threshold=0, horizons=[{"sessions": 1}]))
+    assert [e["event_date"] for e in r["events"]] == ["2024-01-18"]
+    assert r["events"][0]["entry_date"] == "2024-01-18"            # never the 01-17 close
+
+
+def test_fundamental_is_unknown_between_period_end_and_filing(world, monkeypatch, tmp_path):
+    """Period end 2023-12-31, filed 2024-02-15: nothing may use it in January."""
+    import dataclasses
+    from api.services.fundamentals_pit import catalog as C, serving as F
+    from tests.fundamentals_pit.test_pipeline import _run
+    _run(tmp_path)
+    monkeypatch.setenv("FUNDAMENTALS_PIT_SOURCE", "db")
+    monkeypatch.setenv("FUNDAMENTALS_PIT_DB_PATH", str(tmp_path / "pit.db"))
+    F.clear_cache()
+    real = C.by_id()
+    monkeypatch.setattr(C, "by_id", lambda: {**real, "revenue_q": dataclasses.replace(real["revenue_q"], formula_eligible=True)})
+    r = es.run(req(series={"kind": "fundamental", "symbol": "TST", "metric": "revenue_q"}, op="above",
+                   threshold=100, episodes="all", horizons=[{"sessions": 1}]))
+    assert all(e["event_date"] >= "2024-02-15" for e in r["events"])
+
+
+def test_calendar_month_from_month_end_clamps_then_rolls_forward(world, monkeypatch):
+    i = S.index("2024-01-31")
+    fx.install(monkeypatch, rows=[(d, 5.0 if k == i else 50.0) for k, d in enumerate(S)])
+    r = es.run(req(horizons=[{"months": 1}, {"months": 2}]))
+    outs = r["events"][0]["returns"]
+    assert outs[0]["exit_date"] == "2024-02-29"           # Jan 31 + 1 month → Feb 29 (leap year), a session
+    assert outs[1]["exit_date"] == "2024-04-01"           # Jan 31 + 2 → Mar 31 (Sunday) → next session Apr 1
+
+
+def test_duplicate_rows_never_create_duplicate_events(world, monkeypatch):
+    rows = fx.breadth_rows()
+    rows = rows + [(S[10], 8.0), (S[50], 9.5)]            # the same sessions delivered twice
+    fx.install(monkeypatch, rows=sorted(rows))
+    r = es.run(req(episodes="all"))
+    dates = [e["event_date"] for e in r["events"]]
+    assert len(dates) == len(set(dates))
+
+
+def test_a_stale_point_in_time_value_stops_qualifying(world, monkeypatch):
+    """A weekly series that stops publishing (a lapse) must not keep 'qualifying' on old data."""
+    _pit_adapter(monkeypatch, "wk", [("2024-01-05", 5.0), ("2024-01-12", 5.0), ("2024-03-01", 5.0)], stale=14)
+    r = es.run(req(series={"kind": "wk"}, threshold=10, episodes="first", horizons=[{"sessions": 1}]))
+    # 01-05 starts a run; the value goes stale after 01-26 (14 days past 01-12) → gap → 03-01 is a new run
+    assert [e["event_date"] for e in r["events"]] == ["2024-01-05", "2024-03-01"]
+    assert r["counts"]["condition_gaps"] > 0
+
+
+def test_events_at_the_end_of_history_are_counted_incomplete_not_dropped(world, monkeypatch):
+    fx.install(monkeypatch, rows=[(d, 5.0 if i == len(S) - 1 else 50.0) for i, d in enumerate(S)])
+    r = es.run(req(horizons=[{"sessions": 1}]))
+    assert [e["event_date"] for e in r["events"]] == [S[-1]]
+    h = r["horizons"][0]
+    assert h["n"] == 0 and h["incomplete"] == 1
+
+
+def test_validated_request_echoes_nothing_but_what_was_asked(world):
+    """Boundary rail for the Agent's history placeholder: validate() output carries only the member's
+    own parameters and registry labels — no extra fields and no market values."""
+    raw = req(note="73.4567 leaked?", extra={"v": 73.4567}, symbol="qqq", threshold=10)
+    ok, err = es.validate(raw)
+    assert err is None
+    assert set(ok) == {"condition", "conditions", "symbol", "horizons", "episodes", "entry",
+                       "non_overlapping", "baseline", "start", "end"}
+    assert "73.4567" not in repr(ok) and ok["symbol"] == "QQQ"
