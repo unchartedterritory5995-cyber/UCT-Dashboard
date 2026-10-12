@@ -62,6 +62,11 @@ export const IMPORT_ALLOW = {
   // R-T6-3 (fix round 2): the app's ONE chunk-load-error predicate, so a block's Reload escalation
   // never restates it. The module also reloads the page for a ROUTE's stale chunk; no data, no writes.
   'app/src/utils/lazyWithRetry': "isChunkLoadError: the app's own stale-chunk predicate; no data, no writes",
+  // Task 7: the checklist's ONE read seam. It composes the Journal's settings, selected-account and
+  // rules SWR hooks and returns DATA ONLY (its return keys are pinned in useChecklistSources.test.js):
+  // the save / create / dismiss writes those hooks carry never reach a block file. It fetches nothing
+  // itself and is not a network module of its own.
+  'app/src/pages/journal-2-0/hooks/useChecklistSources': 'the checklist read seam: setups, setupRules and before-entry rules as data only; no write function is returned',
 }
 
 /**

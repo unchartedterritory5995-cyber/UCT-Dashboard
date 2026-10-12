@@ -10,6 +10,11 @@ import { vi, expect } from 'vitest'
 import { axeSurface } from './surface'
 
 vi.mock('@tiptap/react', () => ({ NodeViewWrapper: ({ children, ...p }) => <div {...p}>{children}</div> }))
+// Task 7 replaced the checklist stub with a body that reads settings and rules; here it reads a member
+// with no setups yet (its own states are audited in traderBlockChecklist.a11y.test.jsx).
+vi.mock('../hooks/useJ2Settings', () => ({ default: () => ({ settings: { setups: [], setupRules: {} } }) }))
+vi.mock('../hooks/useJ2SelectedAccount', () => ({ default: () => ({ accountId: 'a1' }) }))
+vi.mock('../hooks/useJournalRules', () => ({ default: () => ({ rules: [] }) }))
 import userEvent from '@testing-library/user-event'
 import BlockNodeView, { BLOCK_COMPONENTS } from '../components/notebook/blocks/BlockNodeView'
 import { BLOCK_ERROR_SENTENCE } from '../components/notebook/blocks/blockStates'
@@ -27,8 +32,11 @@ axeSurface('trader-block-platform', async () => {
     expect(await screen.findByRole('group', { name })).toBeTruthy()
     expect(screen.getByRole('button', { name: `Remove ${name}` })).toBeTruthy()
   }
-  // every stub body painted (an unloaded chunk would read as a clean, empty block)
-  expect(await screen.findAllByText('This block is being built.')).toHaveLength(3)
+  // every body painted (an unloaded chunk would read as a clean, empty block): the two stubs still
+  // stubs, and the checklist's real body inside its own named group
+  expect(await screen.findAllByText('This block is being built.')).toHaveLength(2)
+  const checklist = screen.getByRole('group', { name: 'Pre-entry checklist' })
+  expect(checklist.contains(await screen.findByText(/You have no setups yet/))).toBe(true)
 })
 
 axeSurface('trader-block-platform:error', async () => {
