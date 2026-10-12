@@ -7,29 +7,49 @@
 **Architecture:**
 - **Part a's platform, unchanged.** Every new block is a trader block exactly as part a defined it (`docs/superpowers/plans/2026-10-12-notebook-p2-trader-blocks-t1.md`): a registry manifest via `blockManifest`, a row in both catalogs, a server builder in `trader_blocks.BUILDERS`, a lazy body in `BLOCK_COMPONENTS`, state only through `setParams`.
 - **One new table, one new write door that is not a note door.** `j2_journal_rule_versions` records every change to a rule's words. Rules gain `before_entry` and `version`. The edit door (`PUT /api/j2/trader-blocks/rules/{id}`) writes rules, never a note; part a's door rail names it as an exception with that reason.
-- **Packs read; they never write the note on their own.** The four prep blocks and the review block read through one new read route each. A prep block freezes its reading into its own params on an explicit "Capture" (and the composer captures it at creation), like part a's market context.
+- **Packs read; they never write the note on their own.** The four prep blocks and the review block read through one new read route each. A prep block freezes its reading into its own params on an explicit "Capture now" and when the composer creates a note; like part a's market context stamp, it is never captured by "Update layout" (IR-S11, part b).
 - **M-7 is fixed where the stamp lives.** A note version records the style stamp it was taken at; a restore writes that stamp back in the same compare-and-set.
 
-**Tech Stack:** FastAPI + SQLite (`auth.db`, `j2_` tables), React + Vite, TipTap 2, vitest + Testing Library, acorn, pytest, Python Playwright, NVDA (the owner's box only, muted).
+**Tech Stack:** FastAPI + SQLite (`auth.db`, `j2_` tables), React + Vite, TipTap 3 (3.23.6), vitest + Testing Library, acorn, pytest, Python Playwright, NVDA (the owner's box only, muted).
 
 **Spec:** `docs/superpowers/specs/2026-10-11-notebook-journal-styles-design.md`, §P2 preamble and Tier 1 items 1 (the "before entry" half), 2, 6 and 7 (lines 219-262); §6; §7 decision 5; §8 ("P1 + P2 T1 (one release)"). Part a: `docs/superpowers/plans/2026-10-12-notebook-p2-trader-blocks-t1.md`. P1 ledger: `.superpowers/sdd/2026-10-11-notebook-p1-journal-styles-core/progress.md` (R25: "M-7 (restore keeps newer style_version) -> P2 notes").
 
-**Base:** `origin/master` after part a's PR is merged (or part a's branch tip `notebook-p2-blocks`, if part b starts before that merge; Task 0 records which). Worktree `C:\Users\Patrick\uct-worktrees\notebook-p2`, branch `notebook-p2b-rules`.
+**Base:** `origin/master` after part a's PR is merged (or part a's integration tip `notebook-p2-blocks`, if part b starts before that merge; Task 0 records which). Integration worktree `C:\Users\Patrick\uct-worktrees\notebook-p2b`, branch `notebook-p2b-rules`; one worktree and branch per lane (`notebook-p2b-<lane>`, the lane table below). Part a's worktrees are not reused (pre-flight N9).
+
+**Pre-flight:** part a's review (`.superpowers/sdd/2026-10-12-notebook-p2-trader-blocks-t1/preflight.md`) found structural defects that part b inherited (B1, B2, B3, B5, N9). The integrator's rulings apply here too; the ones below restate each as it applies to part b.
 
 ## Rulings this plan makes (each also in the PR body)
+
+Each reads **Ruling: what — why — cost if wrong.** The integrator's rulings (IR-*) are part a's, applied to part b; part a's Rulings section holds their full text.
+
+- **IR-B1 (part b).** Ruling: every `app/node_modules` junction in part b targets `C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules`, is created only after counting 377 entries there, and is removed only by Task 14 Step 5's non-recursive `cmd /c rmdir` procedure, which re-counts 377 after each removal — why: the old target `notebook-k\app\node_modules` does not exist, and a recursive delete through a junction empties the shared install — cost if wrong: every Notebook worktree loses vitest at once.
+- **IR-B2 (part b).** Ruling: the six part-b blocks are `block: true` capture-only kinds bound ONLY in `BLOCK_COMPONENTS`; Task 2 extends `registry.test.js`'s `IDS`, `BLOCK_IDS`, the three label maps and the defaults table in the same commit, and part a's binding rail ("exactly one `BLOCK_COMPONENTS` entry per block id, none for a non-block id") covers them unchanged — why: the registry pins every id and label, so an unlisted id is red — cost if wrong: a block bound in the embed host gets the embed toolbar and archive.
+- **IR-B3 (part b).** Ruling: Task 2 adds six `public_note_payload.MARKET_DATA_VENDORS` rows: `myRules`, `prepEarnings` (the member's own names), `prepMovers` (the member's watchlist), `prepLevels` (the member's plans) and `tradeReview` (the member's trade) are `private`; `prepWire` (the Morning Wire headline and the exposure rating) is `mixed`, like `aisearch` and `marketcontext` — why: `test_every_registered_widget_has_a_vendor_row` reds on an unlisted id, and these verdicts decide what a stranger sees in a shared note — cost if wrong: a shared note shows or hides a pack the owner would rule the other way (one row each to flip; owner decision O-b1).
+- **IR-B4 (part b).** Ruling: one worktree and branch per lane (`notebook-p2b-s`, `-m`, `-p`, `-a`, `-b`), the integrator merging into `notebook-p2b-rules` in the shared-files table's order; Task 2 (the six catalog rows, manifests, stubs and vendor rows every lane needs) is the W0 foundation — why: lanes in one tree share an index — cost if wrong: one lane commits another's staged file.
+- **IR-B5 (part b).** Ruling: Task 8 adds `rulesApi.js`'s own `WRITE_EXCEPTIONS` entry, keyed `{file: [{method, url, why}]}` (part a's IR-I b format), in the same commit that creates the file, with `editRule`'s `fetch` written as a literal URL template and an inline `{ method: 'PUT' }` so the rail can match it — why: the rail must be green at every task boundary, and an identifier for the options reads as an unexempt `?` write — cost if wrong: the rail reds, or is loosened to pass.
+- **IR-S11 (part b).** Ruling: a prep block offered to an OLDER note by "Update layout" arrives with no snapshot (its builder reads nothing when `ctx["mode"] == "update"`), and its "Capture now" is the member's own, dated act — why: the same rule as part a's market context: never stamp today's data into an older note automatically — cost if wrong: an older Daily prep note shows empty prep blocks until the member presses "Capture now".
+- **IR-S6 (part b).** Ruling: the Daily prep style's market context is part a's `marketcontext` stamp (the existing widget), not a new kind; `PrepWireBlock` reads `REGIME_WORDS` from `app/src/pages/charts/widgets/marketContextModel.js` (part a Task 9) — why: one market-context kind, one word table — cost if wrong: none beyond part a's.
+
+### This plan's rulings
 
 - **R-P2b-1, what a rule version is.** A new version is recorded when a rule's WORDS change (label or evidence). Marking a rule "before entry" moves where the rule shows, not what it says, and records no version. Creating a rule records v1. Cost if wrong: a member who expects "now checked before entry" to split before/after does not get that boundary.
 - **R-P2b-2, existing rules get v1 lazily.** A rule made before this release has no version row. The service writes its v1 (dated the rule's `created_at`) the first time it is edited or its versions are read, inside the same transaction. No boot-time migration over every member's rules. Cost if wrong: a read of an old rule's versions is a write; it is idempotent (`INSERT OR IGNORE` on `(rule_id, version)`).
 - **R-P2b-3, the before/after windows.** For version k, BEFORE is the window of version k-1 (for v1, every earlier trade) and AFTER is version k's own window (to the next version, or now). A trade belongs to a window by its entry day (ET date), the change day counting as AFTER. Trades come from the rule's account (all accounts when the rule has none), excluding `analytics_excluded` trades. Win rate, average R and adherence are printed with their sample sizes; under 10 trades the card says "too few trades to read as a rate" and shows counts, never a bare percentage (spec: "never a percentage on fewer than 10 trades without saying so").
 - **R-P2b-4, "the review drafts".** The spec says unticked pre-entry items carry "into the trade's adherence card and the review drafts". Part a carries them into the adherence card (R-P2-7). Here they carry into the post-trade review pack, the draft a member writes from the Post-trade review style. The wave-13 review drafts (`NOTEBOOK_REVIEW_DRAFTS_ENABLED`, daily/weekly/monthly) are not changed. Cost if wrong: a follow-up row adds the unticked count to the daily review draft.
 - **R-P2b-5, one review block.** The review pack is ONE block, `tradeReview`, with three parts (the trade card, the plan-vs-execution grade, the mistake and emotion tags) reading one linked trade, because all three answer for the same trade and one trade picker is the honest control. "What I'd do differently" stays the outline heading the built-in Post-trade review style already carries (`journal_styles.py`, `_h("What I'd do differently")`).
-- **R-P2b-6, the prep pack freezes.** A daily prep note is about that morning. Each prep block freezes what it read (with its as-of) at creation, or on the member's "Capture now", and shows "Capture again"; it never re-reads on open, so a note opened in a month still shows that morning.
+- **R-P2b-6, the prep pack freezes.** A daily prep note is about that morning. Each prep block freezes what it read (with its as-of) at creation, or on the member's "Capture now", and shows "Capture again"; it never re-reads on open, so a note opened in a month still shows that morning. An older note offered a prep block by "Update layout" gets it with no snapshot (IR-S11, part b).
 - **R-P2b-7, arming is one flip after both parts.** `NOTEBOOK_JOURNAL_STYLES_ENABLED` is armed once, after part b lands and the pre-arming checks pass (Task 15). NVDA runs against the sandbox before arming when the tool can sign in there (V9); otherwise it runs against production immediately after the flip, and any FAIL turns the flag back off first.
+
+## Owner decisions this plan surfaces (none blocks the build)
+
+- **O-b1.** The six vendor verdicts (IR-B3, part b): `prepWire` mixed, the other five private. Flip any row to change what a stranger sees in a shared note.
+- Part a's O-1 to O-5 stand; part b adds nothing to them.
 
 ## Global Constraints
 
-Part a's Global Constraints apply unchanged (names, paid, dark switch, creating-not-rendering, the INTEGRITY RULE, zero schema bumps, ONE-FACT rails, preference keys, gate read paths, key listeners, settle rule, tests, commits, hygiene, `C:\data`, at most 3 agents, mutation restores). In addition:
+Part a's Global Constraints apply unchanged, including its worktree rule (each lane only in its own worktree; `$WT` set in every command), its junction rule (IR-B1), and its meaning of "Expected: all pass" (every file in the run list, beyond the reds Task 0 recorded) (names, paid, dark switch, creating-not-rendering, the INTEGRITY RULE, zero schema bumps, ONE-FACT rails, preference keys, gate read paths, key listeners, settle rule, tests, commits, hygiene, `C:\data`, at most 3 agents, mutation restores). In addition:
 
+- **A11y per block (part a's S23).** Each body task (8, 10, 11) swaps its own stub's line in `a11y/notebookSurfaces.js` for its own recipe and adds that recipe's axe rail (`a11y/traderBlock<Name>.a11y.test.jsx`), as part a's Task 7 Step 5 does, and commits both with the body. `surfaceCoverage.test.js` joins each of those tasks' run lists.
 - **New table** `j2_journal_rule_versions`: classified in `api/services/address_space.py` (`EXEMPT`, "not-a-saved-object"), purged by `api/services/journal_two/account_purge.py`, and listed in `docs/account-deletion-manifest.md` regenerated with `python tools/account_deletion_manifest.py --write`, all in the task that adds it (Task 3).
 - **New columns** are additive with defaults (`j2_journal_rules.before_entry`, `.version`; `j2_note_versions.style_id`, `.style_version`, `.style_captured`), appended to `db.py`'s `_PHASE_2_ALTERS`. Nothing reads them as required.
 - Bytes: part b's first-open allowance is **+1,536 B** (six registry rows ≤ 1,024 B, six slash items ≤ 512 B). Everything else is lazy.
@@ -53,6 +73,8 @@ Part a's Global Constraints apply unchanged (names, paid, dark switch, creating-
 | `docs/notebook/p2b-verify-before-building.md` (new) | citations re-read; open items V1-V10 answered | 1 |
 | `api/services/journal_two/journal_styles.py` | six catalog rows; Daily prep v2, Post-trade review v2 | 2, 12 |
 | `J/lib/journalBlocks.js`, `src/widgets/registry.js` (+ test) | six client catalog rows, six manifests | 2 |
+| `api/services/journal_two/public_note_payload.py` | six vendor rows (IR-B3) | 2 |
+| `J/a11y/notebookSurfaces.js`, `J/a11y/traderBlocks.a11y.test.jsx`, one a11y rail per body | the six blocks in the a11y population | 2, 8, 10, 11 |
 | `B/blocks/BlockNodeView.jsx` + six stub bodies | six `BLOCK_COMPONENTS` entries | 2 |
 | `api/services/journal_two/db.py` | the versions table, the rule columns, the note-version columns | 3, 5 |
 | `api/services/journal_two/rule_versions.py` (new) | versions, edits, before/after | 3, 4 |
@@ -74,54 +96,109 @@ Part a's Global Constraints apply unchanged (names, paid, dark switch, creating-
 
 ## Lanes and waves
 
-| Wave | Lane | Tasks | Agent |
-|---|---|---|---|
-| W0 | F | 0, 1, 2 | one |
-| W1 | S (rules) | 3 → 4 | opus |
-| W1 | M (M-7) | 5 | opus |
-| W1 | P (packs, server) | 6 → 7 | opus |
-| W2 | A (rules, client) | 8 → 9 | opus |
-| W2 | B (packs, client) | 10 → 11 | sonnet |
-| W3 | integrator | 12 → 13 → 14 | controller + one agent |
-| W4 | integrator, at arming | 15 | controller (owner's box) |
+Every lane has its own worktree, branch, owner file and junction (IR-B4). `$WT` in every command is that lane's worktree; shell state does not persist between tool calls, so each command block sets it. Lane branches start from `notebook-p2b-rules` after the wave before them is merged into it.
 
-Files shared by more than one task:
+| Wave | Lane | Worktree (`$WT`) | Branch | Tasks | Agent |
+|---|---|---|---|---|---|
+| W0 | F (foundation) | `C:\Users\Patrick\uct-worktrees\notebook-p2b` | `notebook-p2b-rules` | 0, 1, 2 | controller |
+| W1 | S (rules) | `...\notebook-p2b-s` | `notebook-p2b-s` | 3 → 4 | opus |
+| W1 | M (M-7) | `...\notebook-p2b-m` | `notebook-p2b-m` | 5 | opus |
+| W1 | P (packs, server) | `...\notebook-p2b-p` | `notebook-p2b-p` | 6 → 7 | opus |
+| M1 | integrator | `...\notebook-p2b` | `notebook-p2b-rules` | merge M, then S, then P; regenerate fixtures once; re-run each lane's run lists | controller |
+| W2 | A (rules, client) | `...\notebook-p2b-a` | `notebook-p2b-a` | 8 → 9 | opus |
+| W2 | B (packs, client) | `...\notebook-p2b-b` | `notebook-p2b-b` | 10 → 11 | sonnet |
+| M2 | integrator | `...\notebook-p2b` | `notebook-p2b-rules` | merge A, then B; re-run each lane's run lists | controller |
+| W3 | integrator | `...\notebook-p2b` | `notebook-p2b-rules` | 12 → 13 → 14 | controller + one agent |
+| W4 | integrator, at arming | `...\notebook-p2b` | `notebook-p2b-rules` (merged) | 15 | controller (owner's box) |
 
-| File | Tasks | Resolution |
+At most three agents at once. The integrator merges with `git merge --no-ff <lane branch>` in its own worktree, reads every conflict, and re-runs the merged lanes' run lists in ITS session before the next wave.
+
+Files more than one task writes, and the merge order:
+
+| File | Tasks (wave) | Order and resolution |
 |---|---|---|
-| `db.py` (`_PHASE_2_ALTERS`) | 3, 5 | lanes S and M both APPEND; integrator merges (append-only) |
-| `notebook_journal_styles.py` | 3, 4, 6, 7 | S (3→4) and P (6→7) both append routes; integrator merges |
-| contract fixtures builder + dir | 3, 4, 6, 7 | same as above; regenerate once after the merge |
-| `trader_blocks.py` | 6, 7 | lane P, in order |
-| `journal_styles.py` | 2, 12 | W0 then W3 |
-| `registry.js`, `journalBlocks.js`, `BlockNodeView.jsx` | 2 only | rows and stubs in W0; 8, 10, 11 replace their own stub files |
-| `blockDoors.test.js` | 8 only | |
+| `db.py` (`_PHASE_2_ALTERS`) | 3 (W1 S), 5 (W1 M) | both APPEND; M1 merges M before S; an adjacent-line conflict keeps both lines |
+| `notebook_journal_styles.py` | 3, 4 (S), 6, 7 (P) | both lanes append routes; M1 merges S before P; keep both blocks |
+| contract fixtures builder + dir | 3, 4 (S), 6, 7 (P) | as above; after M1 the integrator regenerates the fixtures ONCE and commits the result |
+| `trader_blocks.py` | 2 (W0), 6, 7 (P) | 2 creates the part-b rows; lane P in order |
+| `journal_styles.py` | 2 (W0), 12 (W3) | sequential |
+| `registry.js`, `registry.test.js`, `journalBlocks.js`, `BlockNodeView.jsx`, `public_note_payload.py` | 2 only | rows, manifests, stubs and vendor rows in W0; 8, 10 and 11 replace their own stub files |
+| `blockDoors.test.js` | 8 only (W2 A) | |
+| `a11y/notebookSurfaces.js` | 2 (W0), 8, 9 (A), 10, 11 (B) | each task edits only its own files' lines; M2 merges A before B; an adjacent-line conflict keeps both sides |
 
 ---
 
-### Task 0: Worktree
+### Task 0: Worktrees, one per lane
 
-- [ ] **Step 1: Branch from the right base**
-
-If part a is merged: `git -C /c/Users/Patrick/uct-worktrees/notebook-p2 fetch origin && git -C /c/Users/Patrick/uct-worktrees/notebook-p2 switch -c notebook-p2b-rules origin/master`. If not: `git -C /c/Users/Patrick/uct-worktrees/notebook-p2 switch -c notebook-p2b-rules notebook-p2-blocks`, and the PR's base is then part a's branch. Record which in the PR body. The worktree, its owner file and its `node_modules` junction are part a's.
-
-- [ ] **Step 2: Baseline**
+- [ ] **Step 1: The base**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
-python -m pytest tests/test_trader_blocks.py tests/test_journal_styles_store.py tests/test_journal_styles_compose.py tests/test_journal_styles_update.py tests/test_notebook_journal_styles_router.py tests/test_notebook_contract_fixtures.py tests/test_address_space.py tests/test_account_deletion_manifest.py tests/test_journal_two_notes_versions_router.py -q > "$TEMP/p2b-baseline-py.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
+git -C /c/Users/Patrick/uct-worktrees/notebook-p1 fetch origin
+git -C /c/Users/Patrick/uct-worktrees/notebook-p1 log -1 --format='%h %s' origin/master
+```
+
+If part a's PR is merged (its merge commit is an ancestor of `origin/master`), the base is `origin/master`. If not, the base is `notebook-p2-blocks` and the PR's base is part a's branch. Record which in `docs/notebook/p2b-verify-before-building.md` §V1 and the PR body.
+
+- [ ] **Step 2: Create the integration worktree and the three W1 lane worktrees**
+
+```bash
+BASE=origin/master        # or notebook-p2-blocks, per Step 1
+for L in "notebook-p2b notebook-p2b-rules" "notebook-p2b-s notebook-p2b-s" "notebook-p2b-m notebook-p2b-m" "notebook-p2b-p notebook-p2b-p"; do
+  set -- $L
+  git -C /c/Users/Patrick/uct-worktrees/notebook-p1 worktree add -b "$2" "/c/Users/Patrick/uct-worktrees/$1" "$BASE"
+  printf 'session: <this session id>\ncreated: <YYYY-MM-DD>\nlane: %s\n' "$2" > "/c/Users/Patrick/uct-worktrees/$1/.uct-session-owner"
+  git -C "/c/Users/Patrick/uct-worktrees/$1" status --short --branch
+done
+```
+
+- [ ] **Step 3: Junction the shared install into each (PowerShell tool; IR-B1)**
+
+```powershell
+$target = 'C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules'
+$before = (Get-ChildItem $target -Force | Measure-Object).Count
+if ($before -ne 377) { throw "the shared install holds $before entries, expected 377: stop and report" }
+foreach ($w in 'notebook-p2b','notebook-p2b-s','notebook-p2b-m','notebook-p2b-p') {
+  $link = "C:\Users\Patrick\uct-worktrees\$w\app\node_modules"
+  New-Item -ItemType Junction -Path $link -Target $target | Out-Null
+  $i = Get-Item $link -Force
+  "{0} | {1} | {2}" -f $w, $i.LinkType, ($i.Target -join ',')
+}
+```
+
+Expected: four lines, each `Junction | C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules`. The W2 lanes (`notebook-p2b-a`, `-b`) are created the same way at M1, from `notebook-p2b-rules`.
+
+- [ ] **Step 4: Baseline (in the integration tree)**
+
+```bash
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT"
+python -m pytest tests/test_trader_blocks.py tests/test_trader_blocks_market_context.py tests/test_journal_styles_store.py tests/test_journal_styles_compose.py tests/test_journal_styles_update.py tests/test_notebook_journal_styles_router.py tests/test_notebook_contract_fixtures.py tests/test_address_space.py tests/test_account_deletion_manifest.py tests/test_journal_two_notes_versions_router.py tests/test_public_note_payload.py -q > "$TEMP/p2b-baseline-py.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2/app
-npx vitest run src/pages/journal-2-0/components/notebook/blocks src/pages/journal-2-0/lib/blocks src/widgets/registry.test.js src/pages/journal-2-0/components/insights/MyRulesList.test.jsx src/pages/journal-2-0/components/insights/PsychologySection.test.jsx > "$TEMP/p2b-baseline.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT/app"
+npx vitest run src/pages/journal-2-0/components/notebook/blocks src/pages/journal-2-0/lib/blocks src/widgets/registry.test.js src/pages/journal-2-0/components/insights/MyRulesList.test.jsx src/pages/journal-2-0/components/insights/PsychologySection.test.jsx src/pages/journal-2-0/a11y/surfaceCoverage.test.js > "$TEMP/p2b-baseline.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
-Read both totals. Record pre-existing reds by name.
+Read both totals. Record pre-existing reds by name; a later "all pass" means "no red beyond these".
+
+- [ ] **Step 5 (after Task 2 is committed): re-point the W1 lanes at the foundation**
+
+```bash
+for W in notebook-p2b-s notebook-p2b-m notebook-p2b-p; do
+  git -C "/c/Users/Patrick/uct-worktrees/$W" merge --ff-only notebook-p2b-rules
+  git -C "/c/Users/Patrick/uct-worktrees/$W" log -1 --format='%h %s'
+done
+```
+
+Expected: each prints Task 2's commit.
 
 ---
 
 ### Task 1: Verify before building, written down
+
+**Lane:** F, `$WT = /c/Users/Patrick/uct-worktrees/notebook-p2b`.
 
 **Files:**
 - Create: `docs/notebook/p2b-verify-before-building.md`
@@ -129,7 +206,8 @@ Read both totals. Record pre-existing reds by name.
 - [ ] **Step 1: Re-verify every citation**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT"
 grep -n "CREATE TABLE IF NOT EXISTS j2_journal_rules (" api/services/journal_two/db.py
 grep -n "def create_rule(" api/services/journal_two/journal_rules.py
 grep -n "def _row_to_dict(row: sqlite3.Row) -> dict\[str, Any\]:" api/services/journal_two/journal_rules.py
@@ -179,7 +257,8 @@ Each grep prints exactly one line; record each `file:line`.
 Create `docs/notebook/p2b-verify-before-building.md` (the measured `HEAD`, `§cite`, `§V1`-`§V10`), then:
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT"
 python tools/check_repo_hygiene.py
 git add docs/notebook/p2b-verify-before-building.md
 git commit -F - -- docs/notebook/p2b-verify-before-building.md <<'MSG'
@@ -192,29 +271,57 @@ MSG
 
 ---
 
-### Task 2: Catalog rows, registry manifests and stubs for the six part-b blocks
+### Task 2: Catalog rows, registry manifests, stubs and vendor rows for the six part-b blocks (W0 foundation)
+
+IR-B2, IR-B3, IR-B4 (part b). Everything the W1 and W2 lanes share lands here once.
+
+**Lane:** F, `$WT = /c/Users/Patrick/uct-worktrees/notebook-p2b`.
 
 **Files:**
 - Modify: `api/services/journal_two/journal_styles.py` (`BLOCK_KINDS`)
+- Modify: `api/services/journal_two/trader_blocks.py` (`BLOCK_IDS`, placeholder builders; the prep and review builders are Tasks 6 and 7)
 - Modify: `app/src/pages/journal-2-0/lib/journalBlocks.js`
-- Modify: `app/src/widgets/registry.js`, `registry.test.js`
+- Modify: `app/src/widgets/registry.js`, `registry.test.js` (`IDS`, `BLOCK_IDS`, the three label maps, the defaults table)
 - Modify: `app/src/pages/journal-2-0/components/notebook/blocks/BlockNodeView.jsx` (`BLOCK_COMPONENTS`)
 - Create: stub bodies `MyRulesBlock.jsx`, `PrepWireBlock.jsx`, `PrepEarningsBlock.jsx`, `PrepMoversBlock.jsx`, `PrepLevelsBlock.jsx`, `TradeReviewBlock.jsx`
-- Modify: `api/services/journal_two/trader_blocks.py` (`BLOCK_IDS`, builders for `myRules` only; the prep and review builders are Tasks 6 and 7)
+- Modify: `api/services/journal_two/public_note_payload.py` (six vendor rows)
+- Modify: `app/src/pages/journal-2-0/a11y/notebookSurfaces.js` (six lines), `a11y/traderBlocks.a11y.test.jsx` (the platform recipe renders all nine block ids)
+- Test: `tests/test_trader_blocks.py`
 
 **Interfaces:**
 - Block ids: `myRules`, `prepWire`, `prepEarnings`, `prepMovers`, `prepLevels`, `tradeReview`.
-- Catalog settings: `myRules` → none; `prepWire`/`prepEarnings`/`prepMovers`/`prepLevels` → none; `tradeReview` → none. `search`: `[my rules]`, `[morning wire and exposure]`, `[earnings for my names]`, `[my movers]`, `[key levels from my plans]`, `[post-trade review]`. Labels: "My rules", "Morning wire and exposure", "Earnings for my names", "My movers", "Key levels from my plans", "Post-trade review".
+- Catalog settings: none for any of the six. `search`: `[my rules]`, `[morning wire and exposure]`, `[earnings for my names]`, `[my movers]`, `[key levels from my plans]`, `[post-trade review]`. Labels: "My rules", "Morning wire and exposure", "Earnings for my names", "My movers", "Key levels from my plans", "Post-trade review".
 - Registry params: `myRules` → `[]`; each prep block → `[{key: 'snapshot', type: 'json'}]`; `tradeReview` → `[{key: 'tradeId', type: 'string'}]`.
-- Until Tasks 6/7 land, `trader_blocks.BUILDERS` must still cover every catalog id (the builder rail): Task 2 adds `myRules` (params `{}`) and, for the five others, a builder that makes the node with empty params (`snapshot` absent, `tradeId` ""), which Tasks 6 and 7 replace with capturing builders.
+- After this task: `trader_blocks.BLOCK_IDS` holds part a's three ids and these six (nine block ids); `registry.test.js` `BLOCK_IDS` the same nine in declaration order. The market context stays the existing `marketcontext` widget (not a block).
+- Until Tasks 6/7 land, `trader_blocks.BUILDERS` must still cover every catalog id (the builder rail): this task adds `myRules` (params `{}`) and, for the five others, a builder that makes the node with empty params (`snapshot` absent, `tradeId` ""), which Tasks 6 and 7 replace.
 
 - [ ] **Step 1: Failing tests**
 
-In `tests/test_trader_blocks.py`, change the parametrized id list in `test_each_builder_makes_a_body_the_editor_can_build` to all ten trader block ids, and in `test_every_trader_block_has_a_catalog_row_and_a_builder` nothing changes (it reads `tb.BLOCK_IDS`). In `registry.test.js`, extend `CAPTURE_ONLY` and the part-a `block` case's expected list to the ten ids in declaration order. Run both; expect FAIL.
+In `tests/test_trader_blocks.py`, change `test_every_trader_block_has_a_catalog_row_and_a_builder`'s first assertion to the nine ids:
+
+```python
+    assert tb.BLOCK_IDS == ("preEntryChecklist", "priceStamps", "positionSizing",
+                            "myRules", "prepWire", "prepEarnings", "prepMovers", "prepLevels", "tradeReview")
+```
+
+and the parametrized list of `test_each_builder_makes_a_body_the_editor_can_build` to those nine ids. In `registry.test.js`:
+
+1. append `'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview',` to `IDS` after part a's three block ids, and the same six to `BLOCK_IDS`;
+2. add to each of the three label maps after `positionSizing: …`:
+
+```js
+      myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
+      prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
+```
+
+3. add the six to the defaults table, each `{ w: 6, h: 4, minW: 3, minH: 2 }`.
+
+Part a's binding rail, the `block: true` branch of the drift rail, `paramsPlainText(id, {}) === blockSearch(id)` and the options rail all loop over `BLOCK_IDS`, so they cover the six without edits. `tests/test_public_note_payload.py` reds on the six ids until Step 3. Run; expect FAIL:
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
-python -m pytest tests/test_trader_blocks.py tests/test_journal_styles_store.py -q > "$TEMP/p2b-t2.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT"
+python -m pytest tests/test_trader_blocks.py tests/test_journal_styles_store.py tests/test_public_note_payload.py -q > "$TEMP/p2b-t2.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 - [ ] **Step 2: Server rows and placeholder builders**
@@ -231,14 +338,13 @@ Append to `journal_styles.BLOCK_KINDS`:
     {"id": "tradeReview", "search": "[post-trade review]", "settings": ()},
 ```
 
-In `trader_blocks.py`, extend `BLOCK_IDS` with the six ids and add to `BUILDERS`:
+In `trader_blocks.py`, extend `BLOCK_IDS` with the six ids (after part a's three) and add:
 
 ```python
 def _empty(block_id: str, params: dict | None = None):
     def build(block: dict, ctx: dict):
         return _node(block_id, dict(params or {}), ctx), None
     return build
-
 
 BUILDERS.update({
     "myRules": _empty("myRules"),
@@ -248,37 +354,61 @@ BUILDERS.update({
 })
 ```
 
-- [ ] **Step 3: Client rows, manifests, stubs**
+- [ ] **Step 3: Client rows, manifests, stubs, vendor rows, a11y lines**
 
-Append the six rows to `journalBlocks.js` `BLOCK_KINDS` (`settings: Object.freeze([])`, the labels and `search` above). Add six `blockManifest(...)` entries to `registry.js` after `positionSizing` with the params above and the `search` lines. Add six `lazyLeaf` entries to `BLOCK_COMPONENTS` and create each stub body exactly as part a's Task 6 stubs (`BlockEmpty title="This block is being built."`).
+Append the six rows to `journalBlocks.js` `BLOCK_KINDS` (`settings: Object.freeze([])`, the labels and `search` above). Add six `blockManifest(...)` entries to `registry.js` after `positionSizing` with the params above and the `search` lines. Add six `lazyLeaf` entries to `BLOCK_COMPONENTS` (one line per id: the binding rail fails on a doubled or missing key) and create each stub body exactly as part a's Task 6 stubs (`BlockEmpty title="This block is being built."`).
+
+In `public_note_payload.py` `MARKET_DATA_VENDORS`, after part a's three block rows (IR-B3):
+
+```python
+    # Notebook P2b blocks (IR-B3, part b): the member's own rules, names, watchlist, plans and trade are
+    # private; the Morning Wire headline and exposure rating are mixed, like marketcontext.
+    ("widgetEmbed", "myRules"): "private",
+    ("widgetEmbed", "prepWire"): "mixed",
+    ("widgetEmbed", "prepEarnings"): "private",
+    ("widgetEmbed", "prepMovers"): "private",
+    ("widgetEmbed", "prepLevels"): "private",
+    ("widgetEmbed", "tradeReview"): "private",
+```
+
+In `a11y/notebookSurfaces.js`, add a `{ coveredBy: 'trader-block-platform' }` line for each of the six stub files (each body task swaps its own line for its own recipe), and in `a11y/traderBlocks.a11y.test.jsx` extend the rendered id list and the asserted group names to all nine block ids.
 
 - [ ] **Step 4: Run, then commit**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
-python -m pytest tests/test_trader_blocks.py tests/test_journal_styles_store.py tests/test_trader_blocks_no_note_door.py -q > "$TEMP/p2b-t2.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT"
+python -m pytest tests/test_trader_blocks.py tests/test_journal_styles_store.py tests/test_trader_blocks_no_note_door.py tests/test_public_note_payload.py -q > "$TEMP/p2b-t2.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2/app
-npx vitest run src/widgets/registry.test.js src/pages/journal-2-0/components/notebook/blocks src/pages/journal-2-0/lib/blocks src/components/screener/reachable.test.js > "$TEMP/p2b-t2-js.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT/app"
+npx vitest run src/widgets/registry.test.js src/pages/journal-2-0/components/notebook/blocks src/pages/journal-2-0/lib/blocks src/components/screener/reachable.test.js src/pages/journal-2-0/a11y/traderBlocks.a11y.test.jsx src/pages/journal-2-0/a11y/surfaceCoverage.test.js > "$TEMP/p2b-t2-js.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
+Expected: all pass (beyond Task 0's recorded reds).
+
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT"
 python tools/check_repo_hygiene.py
-git add api/services/journal_two/journal_styles.py api/services/journal_two/trader_blocks.py app/src/pages/journal-2-0/lib/journalBlocks.js app/src/widgets/registry.js app/src/widgets/registry.test.js app/src/pages/journal-2-0/components/notebook/blocks tests/test_trader_blocks.py
-git commit -F - -- api/services/journal_two/journal_styles.py api/services/journal_two/trader_blocks.py app/src/pages/journal-2-0/lib/journalBlocks.js app/src/widgets/registry.js app/src/widgets/registry.test.js app/src/pages/journal-2-0/components/notebook/blocks tests/test_trader_blocks.py <<'MSG'
-feat(notebook): P2b block kinds -- six catalog rows, manifests and stub bodies
+git add api/services/journal_two/journal_styles.py api/services/journal_two/trader_blocks.py api/services/journal_two/public_note_payload.py app/src/pages/journal-2-0/lib/journalBlocks.js app/src/widgets/registry.js app/src/widgets/registry.test.js app/src/pages/journal-2-0/components/notebook/blocks app/src/pages/journal-2-0/a11y/notebookSurfaces.js app/src/pages/journal-2-0/a11y/traderBlocks.a11y.test.jsx tests/test_trader_blocks.py
+git commit -F - -- api/services/journal_two/journal_styles.py api/services/journal_two/trader_blocks.py api/services/journal_two/public_note_payload.py app/src/pages/journal-2-0/lib/journalBlocks.js app/src/widgets/registry.js app/src/widgets/registry.test.js app/src/pages/journal-2-0/components/notebook/blocks app/src/pages/journal-2-0/a11y/notebookSurfaces.js app/src/pages/journal-2-0/a11y/traderBlocks.a11y.test.jsx tests/test_trader_blocks.py <<'MSG'
+feat(notebook): P2b block kinds -- six catalog rows, manifests, stub bodies, vendor rows; bound in BLOCK_COMPONENTS only
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_016WSfoBTwnfA4irnCiBs3XZ
 MSG
 ```
 
+Then Task 0 Step 5 (re-point the W1 lanes).
+
 ---
 
 ### Task 3: Rule versions, "before entry", and the rule edit door
+
+**Lane:** S, `$WT = /c/Users/Patrick/uct-worktrees/notebook-p2b-s`.
 
 Spec §P2 item 2; R-P2b-1, R-P2b-2.
 
@@ -332,7 +462,6 @@ from fastapi.testclient import TestClient
 
 from api.middleware import auth_middleware as authmw
 
-
 @pytest.fixture
 def db_path(monkeypatch):
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
@@ -345,18 +474,15 @@ def db_path(monkeypatch):
     yield tmp.name
     os.unlink(tmp.name)
 
-
 def _rule(user="u1", label="No trades in the first 5 minutes"):
     from api.services.journal_two import journal_rules
     return journal_rules.create_rule(user, "a1", label)
-
 
 def test_create_records_v1(db_path):
     from api.services.journal_two import rule_versions as rv
     r = _rule()
     assert (r["version"], r["beforeEntry"]) == (1, False)
     assert [v["version"] for v in rv.list_versions("u1", r["id"])] == [1]
-
 
 def test_a_word_change_is_a_version_before_entry_is_not(db_path):
     from api.services.journal_two import rule_versions as rv
@@ -369,12 +495,10 @@ def test_a_word_change_is_a_version_before_entry_is_not(db_path):
     assert [(v["version"], v["label"], v["changeNote"]) for v in vs] == [
         (2, "No trades in the first 15 minutes", "too early"), (1, "No trades in the first 5 minutes", None)]
 
-
 def test_an_unchanged_label_is_no_version(db_path):
     from api.services.journal_two import rule_versions as rv
     r = _rule()
     assert rv.edit_rule("u1", r["id"], {"label": "No trades in the first 5 minutes"})["version"] == 1
-
 
 def test_a_rule_from_before_this_release_gets_v1_lazily(db_path):
     from api.services.auth_db import get_connection
@@ -387,26 +511,22 @@ def test_a_rule_from_before_this_release_gets_v1_lazily(db_path):
     assert [(v["version"], v["changedAt"]) for v in vs] == [(1, "2026-01-02T00:00:00+00:00")]
     assert rv.list_versions("u1", "old") == vs                         # idempotent
 
-
 def test_another_members_rule_is_none(db_path):
     from api.services.journal_two import rule_versions as rv
     r = _rule(user="u2")
     assert rv.edit_rule("u1", r["id"], {"label": "x"}) is None
     assert rv.list_versions("u1", r["id"]) is None
 
-
 def test_a_blank_label_is_refused(db_path):
     from api.services.journal_two import rule_versions as rv
     with pytest.raises(rv.RuleEditError):
         rv.edit_rule("u1", _rule()["id"], {"label": "   "})
-
 
 def test_the_rules_list_carries_before_entry(db_path):
     from api.services.journal_two import journal_rules, rule_versions as rv
     r = _rule()
     rv.edit_rule("u1", r["id"], {"beforeEntry": True})
     assert journal_rules.list_rules("u1", "a1")[0]["beforeEntry"] is True
-
 
 def test_routes(db_path):
     from api.routers import notebook_journal_styles as rt
@@ -427,7 +547,8 @@ Add to `tests/test_address_space.py`'s expectations nothing: its rail fails whil
 - [ ] **Step 2: Run to see them fail**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-s
+cd "$WT"
 python -m pytest tests/test_rule_versions.py tests/test_address_space.py tests/test_account_deletion_manifest.py -q > "$TEMP/p2b-t3.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
@@ -458,18 +579,14 @@ from api.services.auth_db import get_connection
 _LABEL_MAX = 200
 _NOTE_MAX = 500
 
-
 class RuleEditError(ValueError):
     pass
-
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
-
 def _rule_row(conn: sqlite3.Connection, user_id: str, rule_id: str):
     return conn.execute("SELECT * FROM j2_journal_rules WHERE id = ? AND user_id = ?", (rule_id, user_id)).fetchone()
-
 
 def _ensure_v1(conn: sqlite3.Connection, row: sqlite3.Row) -> None:
     """R-P2b-2: a rule made before this release gets its v1, dated its creation."""
@@ -477,12 +594,10 @@ def _ensure_v1(conn: sqlite3.Connection, row: sqlite3.Row) -> None:
                  " changed_at, change_note) VALUES (?, ?, ?, 1, ?, ?, ?, NULL)",
                  (uuid.uuid4().hex, row["user_id"], row["id"], row["label"], row["evidence"], row["created_at"]))
 
-
 def record_v1(conn: sqlite3.Connection, user_id: str, rule_id: str, label: str, evidence: str | None, at: str) -> None:
     conn.execute("INSERT OR IGNORE INTO j2_journal_rule_versions (id, user_id, rule_id, version, label, evidence,"
                  " changed_at, change_note) VALUES (?, ?, ?, 1, ?, ?, ?, NULL)",
                  (uuid.uuid4().hex, user_id, rule_id, label, evidence, at))
-
 
 def list_versions(user_id: str, rule_id: str, conn: sqlite3.Connection | None = None) -> list[dict] | None:
     owned = conn is None
@@ -500,7 +615,6 @@ def list_versions(user_id: str, rule_id: str, conn: sqlite3.Connection | None = 
     finally:
         if owned:
             conn.close()
-
 
 def edit_rule(user_id: str, rule_id: str, patch: dict[str, Any], conn: sqlite3.Connection | None = None) -> dict | None:
     from api.services.journal_two import journal_rules
@@ -565,7 +679,8 @@ In `journal_rules.py`: `create_rule` calls `rule_versions.record_v1(conn, user_i
 `account_purge.py`: add `"j2_journal_rule_versions",` to the table list beside `"j2_journal_rules",`. Then:
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-s
+cd "$WT"
 python tools/account_deletion_manifest.py --write > "$TEMP/p2b-manifest.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
@@ -591,7 +706,6 @@ def trader_edit_rule(rule_id: str, body: dict = Depends(paid_body), user: dict =
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     return rec
 
-
 @router.get("/trader-blocks/rules/{rule_id}/versions")
 def trader_rule_versions(rule_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     from api.services.journal_two import rule_versions
@@ -606,11 +720,20 @@ In the fixtures builder: create a rule for `who`, then record `trader-blocks.rul
 - [ ] **Step 6: Run**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-s
+cd "$WT"
 python -m pytest tests/test_rule_versions.py tests/test_address_space.py tests/test_account_deletion_manifest.py tests/test_notebook_journal_styles_router.py tests/test_notebook_contract_fixtures.py tests/test_journal_rules.py -q > "$TEMP/p2b-t3.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
-(`tests/test_journal_rules.py`: `ls tests | grep -i rule` and run every existing rules test file.) Expected: all pass. `test_address_space` may still name pre-existing master offenders (P1's ledger, R25: `agent_conversations`); those stay out of scope, by name.
+(`tests/test_journal_rules.py`: `git ls-files tests | grep -i rule` and run every existing rules test file.) Then the door census, because this task adds a `PUT` under `/api/j2` (part a's IR-I c):
+
+```bash
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-s
+cd "$WT/app"
+npx vitest run src/pages/journal-2-0/lib/offline/doorEnumeration.test.js > "$TEMP/p2b-t3-doors.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
+```
+
+Expected: all pass, and the census still names exactly SEVEN note-advancing functions (the new route writes rules). `test_address_space` may still name pre-existing master offenders (P1's ledger, R25: `agent_conversations`); those stay out of scope, by name.
 
 - [ ] **Step 7: Mutation-prove R-P2b-1**
 
@@ -619,7 +742,8 @@ Capture `rule_versions.py`. Change `if (label, evidence) != (row["label"], row["
 - [ ] **Step 8: Commit**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-s
+cd "$WT"
 python tools/check_repo_hygiene.py
 git add api/services/journal_two/db.py api/services/journal_two/rule_versions.py api/services/journal_two/journal_rules.py api/services/journal_two/account_purge.py docs/account-deletion-manifest.md api/services/address_space.py api/routers/notebook_journal_styles.py tools/notebook_contract_fixtures.py app/src/pages/journal-2-0/__fixtures__/contract tests/test_rule_versions.py
 git commit -F - -- api/services/journal_two/db.py api/services/journal_two/rule_versions.py api/services/journal_two/journal_rules.py api/services/journal_two/account_purge.py docs/account-deletion-manifest.md api/services/address_space.py api/routers/notebook_journal_styles.py tools/notebook_contract_fixtures.py app/src/pages/journal-2-0/__fixtures__/contract tests/test_rule_versions.py <<'MSG'
@@ -633,6 +757,8 @@ MSG
 ---
 
 ### Task 4: "Before / after this rule" — the numbers
+
+**Lane:** S, `$WT = /c/Users/Patrick/uct-worktrees/notebook-p2b-s`.
 
 Spec §P2 item 2; R-P2b-3; Review Focus 1 and 2.
 
@@ -661,7 +787,6 @@ import uuid
 
 import pytest
 
-
 @pytest.fixture
 def db_path(monkeypatch):
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
@@ -673,7 +798,6 @@ def db_path(monkeypatch):
     yield tmp.name
     os.unlink(tmp.name)
 
-
 def _trade(day, result, r=None, account="a1", user="u1", excluded=0):
     from api.services.auth_db import get_connection
     c = get_connection()
@@ -684,7 +808,6 @@ def _trade(day, result, r=None, account="a1", user="u1", excluded=0):
               " 1, 0.01, ?, 1, ?, '{}', 'now', ?, ?)", (tid, user, day, day, r, result, account, excluded))
     c.commit(); c.close()
     return tid
-
 
 def _rule_with_v2(changed_day):
     from api.services.auth_db import get_connection
@@ -701,7 +824,6 @@ def _rule_with_v2(changed_day):
     c.commit(); c.close()
     return r
 
-
 def test_windows_split_on_the_change_day(db_path):
     from api.services.journal_two import rule_versions as rv
     r = _rule_with_v2("2026-03-01")
@@ -717,7 +839,6 @@ def test_windows_split_on_the_change_day(db_path):
     assert (v2["after"]["trades"], v2["after"]["wins"], v2["after"]["avgR"]) == (3, 3, 2.0)
     assert v2["after"]["small"] is True and v2["after"]["winRate"] == 1.0
 
-
 def test_empty_and_partial_windows_say_so(db_path):
     from api.services.journal_two import rule_versions as rv
     r = _rule_with_v2("2026-03-01")
@@ -726,7 +847,6 @@ def test_empty_and_partial_windows_say_so(db_path):
     assert v2["before"] == {**v2["before"], "trades": 0, "winRate": None, "avgR": None, "adherence": None}
     assert (v2["after"]["trades"], v2["after"]["rCount"], v2["after"]["avgR"]) == (1, 0, None)
     assert v2["after"]["adherenceCount"] == 0 and v2["after"]["adherence"] is None
-
 
 def test_adherence_averages_only_trades_with_a_record(db_path):
     from api.services.journal_two import adherence_store, rule_versions as rv
@@ -737,7 +857,6 @@ def test_adherence_averages_only_trades_with_a_record(db_path):
     after = rv.before_after("u1", r["id"])["versions"][0]["after"]
     assert (after["adherenceCount"], after["adherence"]) == (1, 0.5)
 
-
 def test_versions_and_windows_follow_an_edit(db_path):
     from api.services.journal_two import rule_versions as rv
     r = _rule_with_v2("2026-03-01")
@@ -745,7 +864,6 @@ def test_versions_and_windows_follow_an_edit(db_path):
     got = rv.before_after("u1", r["id"])
     assert [v["version"] for v in got["versions"]] == [3, 2, 1]
     assert got["versions"][1]["after"]["to"] == got["versions"][0]["changedAt"]
-
 
 def test_another_members_rule_is_none(db_path):
     from api.services.journal_two import journal_rules, rule_versions as rv
@@ -755,7 +873,8 @@ def test_another_members_rule_is_none(db_path):
 - [ ] **Step 2: Run to see them fail**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-s
+cd "$WT"
 python -m pytest tests/test_rule_before_after.py -q > "$TEMP/p2b-t4.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
@@ -769,10 +888,8 @@ Append to `rule_versions.py`:
 # ── "Before / after this rule" (spec §P2 item 2; R-P2b-3) ───────────────────────────────────
 SMALL_SAMPLE = 10
 
-
 def _day(iso: str | None) -> str | None:
     return iso[:10] if iso else None
-
 
 def _window(conn, user_id: str, account_id: str | None, frm: str | None, to: str | None, adh: dict) -> dict:
     from api.services.journal_two.trade_refs import trade_ref_for_row
@@ -794,7 +911,6 @@ def _window(conn, user_id: str, account_id: str | None, frm: str | None, to: str
             "rCount": len(rs), "avgR": round(sum(rs) / len(rs), 2) if rs else None,
             "adherenceCount": len(ad), "adherence": round(sum(ad) / len(ad), 4) if ad else None,
             "small": n < SMALL_SAMPLE}
-
 
 def before_after(user_id: str, rule_id: str, conn: sqlite3.Connection | None = None) -> dict | None:
     from api.services.journal_two import adherence_store
@@ -842,19 +958,22 @@ Fixtures: add two closed trades for `who` around the rule's v2 and record `trade
 - [ ] **Step 4: Run, mutation-prove, commit**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-s
+cd "$WT"
 python tools/notebook_contract_fixtures.py > "$TEMP/p2b-t4-gen.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-s
+cd "$WT"
 python -m pytest tests/test_rule_before_after.py tests/test_rule_versions.py tests/test_notebook_journal_styles_router.py tests/test_notebook_contract_fixtures.py -q > "$TEMP/p2b-t4.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 Mutation: capture `rule_versions.py`; drop the `COALESCE(analytics_excluded, 0) = 0` clause; `test_windows_split_on_the_change_day` must FAIL. Restore by bytes; check the sha.
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-s
+cd "$WT"
 python tools/check_repo_hygiene.py
 git add api/services/journal_two/rule_versions.py api/routers/notebook_journal_styles.py tools/notebook_contract_fixtures.py app/src/pages/journal-2-0/__fixtures__/contract tests/test_rule_before_after.py
 git commit -F - -- api/services/journal_two/rule_versions.py api/routers/notebook_journal_styles.py tools/notebook_contract_fixtures.py app/src/pages/journal-2-0/__fixtures__/contract tests/test_rule_before_after.py <<'MSG'
@@ -868,6 +987,8 @@ MSG
 ---
 
 ### Task 5: M-7 — a version restore takes the style stamp back with the body
+
+**Lane:** M, `$WT = /c/Users/Patrick/uct-worktrees/notebook-p2b-m`.
 
 P1 final review M-7 (`final-review.md`): "`update_note` restores body/properties but not `style_version`, so a note restored to before 'Update layout' still records the newer version and is never offered the update again (only `/style` recovers it)." Part b adds blocks "Update layout" will add, so it is fixed now. Review Focus 3.
 
@@ -896,7 +1017,6 @@ import tempfile
 
 import pytest
 
-
 @pytest.fixture
 def db_path(monkeypatch):
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
@@ -908,7 +1028,6 @@ def db_path(monkeypatch):
     yield tmp.name
     os.unlink(tmp.name)
 
-
 def _note_updated_to_v2():
     from api.services.journal_two import journal_styles as js, notes
     s = js.create_style("u1", {"name": "S", "kindId": "thesis", "blocks": [],
@@ -918,7 +1037,6 @@ def _note_updated_to_v2():
     js.update_style("u1", s["id"], {"blocks": [{"block": "chart", "enabled": True, "settings": {"tf": "D"}}]})
     note, _ = js.apply_style_update("u1", n["id"], expected_updated_at=n["updatedAt"])
     return s, n, note
-
 
 def test_restoring_before_the_update_takes_the_version_back(db_path):
     from api.services.journal_two import journal_styles as js, notes
@@ -931,7 +1049,6 @@ def test_restoring_before_the_update_takes_the_version_back(db_path):
     plan = js.plan_style_update("u1", n["id"])
     assert plan["versionCurrent"] is False and plan["missingBlocks"] is True
 
-
 def test_a_restore_from_a_legacy_version_reoffers_the_update(db_path):
     from api.services.auth_db import get_connection
     from api.services.journal_two import journal_styles as js, notes
@@ -943,7 +1060,6 @@ def test_a_restore_from_a_legacy_version_reoffers_the_update(db_path):
     back = notes.restore_note_version("u1", n["id"], pre["id"], expected_updated_at=note["updatedAt"])
     assert (back["styleId"], back["styleVersion"]) == (s["id"], None)
     assert js.plan_style_update("u1", n["id"])["versionCurrent"] is False
-
 
 def test_a_note_never_made_from_a_style_restores_with_no_stamp(db_path):
     from api.services.journal_two import notes
@@ -959,7 +1075,8 @@ def test_a_note_never_made_from_a_style_restores_with_no_stamp(db_path):
 - [ ] **Step 2: Run to see them fail**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-m
+cd "$WT"
 python -m pytest tests/test_restore_style_stamp.py -q > "$TEMP/p2b-t5.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
@@ -1004,14 +1121,16 @@ and pass `style_stamp=stamp if (stamp[0] or (current and current["style_id"])) e
 - [ ] **Step 4: Run, mutation-prove, commit**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-m
+cd "$WT"
 python -m pytest tests/test_restore_style_stamp.py tests/test_journal_styles_update.py tests/test_journal_two_notes_versions_router.py tests/test_notes_cas_is_atomic.py tests/test_notes_answer_is_the_committed_row.py tests/test_regime_at_write.py -q > "$TEMP/p2b-t5.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 Mutation: capture `notes.py`; replace the restore's `style_stamp=...` argument with `style_stamp=None`. `test_restoring_before_the_update_takes_the_version_back` must FAIL. Restore by bytes; check the sha. Also run `app/src/pages/journal-2-0/lib/offline/doorEnumeration.test.js`: `restore_note_version` stays a wrapper of `update_note` and rail ① still names seven functions.
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-m
+cd "$WT"
 python tools/check_repo_hygiene.py
 git add api/services/journal_two/db.py api/services/journal_two/notes.py tests/test_restore_style_stamp.py
 git commit -F - -- api/services/journal_two/db.py api/services/journal_two/notes.py tests/test_restore_style_stamp.py <<'MSG'
@@ -1025,6 +1144,8 @@ MSG
 ---
 
 ### Task 6: The daily prep pack, server half
+
+**Lane:** P, `$WT = /c/Users/Patrick/uct-worktrees/notebook-p2b-p`.
 
 Spec §P2 item 6; R-P2b-6; Review Focus 5.
 
@@ -1041,7 +1162,7 @@ Spec §P2 item 6; R-P2b-6; Review Focus 5.
   - `movers`: `{"items": [{"symbol", "price", "changePct"}], "unquoted": int}` — top 8 by |change|
   - `levels`: `{"cards": [...]}` from `setups_board.build_cards` with cache-only prices, or `{"needs": "the active setups board"}` when `NOTEBOOK_SETUPS_BOARD_ENABLED` is off
 - `GET /api/j2/trader-blocks/prep/{part}` (404 for an unknown part).
-- Builders capture `prep_part(ctx["user_id"], part)` into `params.snapshot`. The composer's `ctx` gains `"user_id"` (compose already has `user_id`; add it to `ctx` in both `compose` and `_plan`).
+- Builders capture `prep_part(ctx["user_id"], part)` into `params.snapshot` when `ctx["mode"] == "create"`, and read nothing for `"update"` (IR-S11, part b). Part a's Task 1A already put `"user_id"` and `"mode"` in the composer's `ctx` (both `compose` and `_plan`).
 
 - [ ] **Step 1: Failing tests**
 
@@ -1052,7 +1173,6 @@ Spec §P2 item 6; R-P2b-6; Review Focus 5.
 from __future__ import annotations
 
 import pytest
-
 
 def test_each_part_labels_its_gap(monkeypatch):
     from api.services import engine
@@ -1068,7 +1188,6 @@ def test_each_part_labels_its_gap(monkeypatch):
     assert tb.prep_part("u1", "movers")["missing"] == "no_names"
     assert tb.prep_part("u1", "levels")["needs"] == "the active setups board"
 
-
 def test_earnings_are_the_members_names_only(monkeypatch):
     from api.services.cache import cache
     from api.services.journal_two import trader_blocks as tb
@@ -1076,7 +1195,6 @@ def test_earnings_are_the_members_names_only(monkeypatch):
     monkeypatch.setattr(tb, "_my_names", lambda uid: {"NVDA", "AMD"})
     got = tb.prep_part("u1", "earnings")
     assert (got["bmo"], got["amc"], got["missing"]) == (["NVDA"], ["AMD"], None)
-
 
 def test_movers_are_cached_quotes_sorted_by_size(monkeypatch):
     from api.services.journal_two import trader_blocks as tb
@@ -1086,7 +1204,6 @@ def test_movers_are_cached_quotes_sorted_by_size(monkeypatch):
     got = tb.prep_part("u1", "movers")
     assert [i["symbol"] for i in got["items"]] == ["AMD", "NVDA"] and got["unquoted"] == 1
 
-
 def test_wire_headline_is_the_first_sentence(monkeypatch):
     from api.services import engine
     from api.services.journal_two import regime, trader_blocks as tb
@@ -1094,7 +1211,6 @@ def test_wire_headline_is_the_first_sentence(monkeypatch):
     monkeypatch.setattr(regime, "_read_exposure", lambda: {"score": 95, "as_of": "2026-10-13"})
     got = tb.prep_part("u1", "wire")
     assert (got["headline"], got["regime"], got["exposure"]) == ("Tape is firm.", "green", 95.0)
-
 
 def test_unknown_part_raises():
     from api.services.journal_two import trader_blocks as tb
@@ -1107,7 +1223,8 @@ def test_unknown_part_raises():
 - [ ] **Step 2: Run to see them fail**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-p
+cd "$WT"
 python -m pytest tests/test_trader_blocks_prep.py -q > "$TEMP/p2b-t6.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
@@ -1121,7 +1238,6 @@ PREP_PARTS = ("wire", "earnings", "movers", "levels")
 PREP_BLOCK = {"wire": "prepWire", "earnings": "prepEarnings", "movers": "prepMovers", "levels": "prepLevels"}
 MOVERS_MAX = 8
 
-
 def _my_names(user_id: str) -> set[str]:
     from api.services import calendar_personalization
     try:
@@ -1129,10 +1245,8 @@ def _my_names(user_id: str) -> set[str]:
     except Exception:  # noqa: BLE001 -- never raises, by that module's own contract; belt and braces
         return set()
 
-
 def _base(part: str) -> dict:
     return {"part": part, "capturedAt": _iso(datetime.now(timezone.utc)), "missing": None, "detail": None}
-
 
 def _prep_wire(user_id: str) -> dict:
     from api.services import engine
@@ -1148,7 +1262,6 @@ def _prep_wire(user_id: str) -> dict:
         out.update(missing="no_wire", detail="The morning wire has not published yet today.")
     return out
 
-
 def _prep_earnings(user_id: str) -> dict:
     from api.services.cache import cache
     out = _base("earnings")
@@ -1161,7 +1274,6 @@ def _prep_earnings(user_id: str) -> dict:
     pick = lambda rows: [r.get("sym") for r in (rows or []) if r.get("sym") in mine]  # noqa: E731
     out.update(asOf=data.get("date") or None, bmo=pick(data.get("bmo")), amc=pick(data.get("amc")))
     return out
-
 
 def _prep_movers(user_id: str) -> dict:
     out = _base("movers")
@@ -1181,7 +1293,6 @@ def _prep_movers(user_id: str) -> dict:
     out.update(items=items[:MOVERS_MAX], unquoted=unquoted)
     return out
 
-
 def _prep_levels(user_id: str) -> dict:
     from api.services.auth_db import get_connection
     from api.services.notebook_flags import flag_on
@@ -1198,27 +1309,24 @@ def _prep_levels(user_id: str) -> dict:
         conn.close()
     return out
 
-
 _PREP = {"wire": _prep_wire, "earnings": _prep_earnings, "movers": _prep_movers, "levels": _prep_levels}
-
 
 def prep_part(user_id: str, part: str) -> dict:
     return _PREP[part](user_id)
 
-
 def _prep_builder(part: str):
     def build(block: dict, ctx: dict):
         uid = ctx.get("user_id")
-        return _node(PREP_BLOCK[part], {"snapshot": prep_part(uid, part)} if uid else {}, ctx), None
+        # IR-S11 (part b): an older note offered the block by "Update layout" gets it with no snapshot;
+        # never today's data in an older note. Its "Capture now" is the member's own, dated act.
+        capture = bool(uid) and ctx.get("mode") != "update"
+        return _node(PREP_BLOCK[part], {"snapshot": prep_part(uid, part)} if capture else {}, ctx), None
     return build
-
 
 BUILDERS.update({PREP_BLOCK[p]: _prep_builder(p) for p in PREP_PARTS})
 ```
 
 (`build_cards`' answer key for the cards and the `prices` map shape: per V4. `NOTEBOOK_SETUPS_BOARD_ENABLED` is read through the one flag parse, `flag_on`, as every Notebook gate is.)
-
-In `journal_styles.compose` and `_plan`, add `"user_id": user_id` to `ctx`.
 
 Route:
 
@@ -1237,17 +1345,20 @@ Fixtures: record `trader-blocks.prep.wire`, `.earnings`, `.movers`, `.levels` (2
 - [ ] **Step 4: Run, commit**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-p
+cd "$WT"
 python tools/notebook_contract_fixtures.py > "$TEMP/p2b-t6-gen.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-p
+cd "$WT"
 python -m pytest tests/test_trader_blocks_prep.py tests/test_trader_blocks.py tests/test_trader_blocks_no_note_door.py tests/test_journal_styles_compose.py tests/test_notebook_journal_styles_router.py tests/test_notebook_contract_fixtures.py -q > "$TEMP/p2b-t6.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-p
+cd "$WT"
 python tools/check_repo_hygiene.py
 git add api/services/journal_two/trader_blocks.py api/services/journal_two/journal_styles.py api/routers/notebook_journal_styles.py tools/notebook_contract_fixtures.py app/src/pages/journal-2-0/__fixtures__/contract tests/test_trader_blocks_prep.py
 git commit -F - -- api/services/journal_two/trader_blocks.py api/services/journal_two/journal_styles.py api/routers/notebook_journal_styles.py tools/notebook_contract_fixtures.py app/src/pages/journal-2-0/__fixtures__/contract tests/test_trader_blocks_prep.py <<'MSG'
@@ -1261,6 +1372,8 @@ MSG
 ---
 
 ### Task 7: The post-trade review pack, server half
+
+**Lane:** P, `$WT = /c/Users/Patrick/uct-worktrees/notebook-p2b-p`.
 
 Spec §P2 item 7; R-P2b-4, R-P2b-5; Review Focus 4.
 
@@ -1287,7 +1400,6 @@ import tempfile
 
 import pytest
 
-
 @pytest.fixture
 def db_path(monkeypatch):
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
@@ -1299,7 +1411,6 @@ def db_path(monkeypatch):
     yield tmp.name
     os.unlink(tmp.name)
 
-
 def _trade(user="u1", tid="t1"):
     from api.services.auth_db import get_connection
     c = get_connection()
@@ -1308,7 +1419,6 @@ def _trade(user="u1", tid="t1"):
               " created_at, mistake_tags, emotion_tags) VALUES (?, ?, 'p1', 'NVDA', 'Long', 1, 100, '2026-10-01', 110,"
               " '2026-10-05', 95, 10, 0.1, 2.0, 4, 'Win', '{}', 'now', '[\"chased\"]', '[\"calm\"]')", (tid, user))
     c.commit(); c.close()
-
 
 def test_review_carries_the_trade_tags_and_pre_entry(db_path, monkeypatch):
     from api.services.journal_two import adherence_store, trader_blocks as tb
@@ -1321,13 +1431,11 @@ def test_review_carries_the_trade_tags_and_pre_entry(db_path, monkeypatch):
     assert got["preEntry"]["checkedRuleIds"] == ["s1"] and got["preEntry"]["totalRules"] == 3
     assert got["planGrade"] == {"needs": "plan grading"}
 
-
 def test_review_of_a_missing_trade_is_404(db_path):
     from api.services.journal_two import trader_blocks as tb
     _trade(user="u2")
     assert tb.trade_review("u1", "t1") is None
     assert tb.trade_review("u1", "gone") is None
-
 
 def test_recent_closed_trades(db_path):
     from api.services.journal_two import trader_blocks as tb
@@ -1339,7 +1447,8 @@ def test_recent_closed_trades(db_path):
 - [ ] **Step 2: Run to see them fail; implement**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-p
+cd "$WT"
 python -m pytest tests/test_trader_blocks_review.py -q > "$TEMP/p2b-t7.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
@@ -1350,7 +1459,6 @@ Append to `trader_blocks.py`:
 _TRADE_KEYS = ("id", "symbol", "side", "entryDate", "exitDate", "entryPrice", "exitPrice", "rMultiple",
                "result", "setup", "pnlPercent")
 
-
 def recent_closed_trades(user_id: str, limit: int = 20) -> list[dict]:
     from api.services.auth_db import get_connection
     c = get_connection()
@@ -1360,7 +1468,6 @@ def recent_closed_trades(user_id: str, limit: int = 20) -> list[dict]:
         return [{"id": r["id"], "symbol": r["symbol"], "exitDate": r["exit_date"], "result": r["result"]} for r in rows]
     finally:
         c.close()
-
 
 def trade_review(user_id: str, trade_id: str) -> dict | None:
     from api.services.auth_db import get_connection
@@ -1396,7 +1503,6 @@ def trader_review_trades(user: dict = Depends(require_paid)) -> dict[str, Any]:
     from api.services.journal_two import trader_blocks
     return {"trades": trader_blocks.recent_closed_trades(user["id"])}
 
-
 @router.get("/trader-blocks/review/{trade_id}")
 def trader_review(trade_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     """Read-only (spec §P2 item 7). The review block reads its linked trade here."""
@@ -1412,17 +1518,20 @@ def trader_review(trade_id: str, user: dict = Depends(require_paid)) -> dict[str
 - [ ] **Step 3: Run, commit**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-p
+cd "$WT"
 python tools/notebook_contract_fixtures.py > "$TEMP/p2b-t7-gen.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-p
+cd "$WT"
 python -m pytest tests/test_trader_blocks_review.py tests/test_trader_blocks_no_note_door.py tests/test_notebook_journal_styles_router.py tests/test_notebook_contract_fixtures.py -q > "$TEMP/p2b-t7.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-p
+cd "$WT"
 python tools/check_repo_hygiene.py
 git add api/services/journal_two/trader_blocks.py api/routers/notebook_journal_styles.py tools/notebook_contract_fixtures.py app/src/pages/journal-2-0/__fixtures__/contract tests/test_trader_blocks_review.py
 git commit -F - -- api/services/journal_two/trader_blocks.py api/routers/notebook_journal_styles.py tools/notebook_contract_fixtures.py app/src/pages/journal-2-0/__fixtures__/contract tests/test_trader_blocks_review.py <<'MSG'
@@ -1436,6 +1545,8 @@ MSG
 ---
 
 ### Task 8: My rules block and the rule editor
+
+**Lane:** A, `$WT = /c/Users/Patrick/uct-worktrees/notebook-p2b-a`.
 
 Spec §P2 item 2 ("Shows your active rules ... rules gain 'v3 · changed Oct 2'").
 
@@ -1509,7 +1620,8 @@ The `useJournalRules` hook returns `mutate`? It returns `{rules, isLoading, erro
 - [ ] **Step 2: Run to see them fail; implement**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2/app
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-a
+cd "$WT/app"
 npx vitest run src/pages/journal-2-0/lib/blocks/rulesApi.test.js src/pages/journal-2-0/components/notebook/blocks/MyRulesBlock.test.jsx > "$TEMP/p2b-t8.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
@@ -1546,20 +1658,25 @@ export async function editRule(ruleId, patch) {
 In `blockDoors.test.js` `WRITE_EXCEPTIONS`, add:
 
 ```js
-  'app/src/pages/journal-2-0/lib/blocks/rulesApi.js':
-    'PUT /api/j2/trader-blocks/rules/{id} writes j2_journal_rules and j2_journal_rule_versions (part b '
-    + 'Task 3), never a note.',
+  'app/src/pages/journal-2-0/lib/blocks/rulesApi.js': [
+    { method: 'PUT', url: '/api/j2/trader-blocks/rules/\\{\\}',
+      why: 'Writes j2_journal_rules and j2_journal_rule_versions (part b Task 3), never a note.' },
+  ],
 ```
+
+(Part a's IR-I b format: `{file: [{method, url, why}]}`, matched on the call's literal method and URL. `editRule`'s `fetch` keeps its literal URL template and its inline `{ method: 'PUT', … }` object, so the rail can match it; an options variable would read as an unexempt `?` write. This entry lands in the same commit as `rulesApi.js` (IR-B5).)
 
 - [ ] **Step 3: Run, commit**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2/app
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-a
+cd "$WT/app"
 npx vitest run src/pages/journal-2-0/lib/blocks src/pages/journal-2-0/components/notebook/blocks src/pages/journal-2-0/components/insights/MyRulesList.test.jsx src/styles/tapFloor.test.js > "$TEMP/p2b-t8.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-a
+cd "$WT"
 python tools/check_repo_hygiene.py
 git add app/src/pages/journal-2-0/lib/blocks/rulesApi.js app/src/pages/journal-2-0/lib/blocks/rulesApi.test.js app/src/pages/journal-2-0/lib/blocks/blockDoors.test.js app/src/pages/journal-2-0/components/notebook/blocks/MyRulesBlock.jsx app/src/pages/journal-2-0/components/notebook/blocks/MyRulesBlock.test.jsx app/src/pages/journal-2-0/hooks/useJournalRules.js
 git commit -F - -- app/src/pages/journal-2-0/lib/blocks/rulesApi.js app/src/pages/journal-2-0/lib/blocks/rulesApi.test.js app/src/pages/journal-2-0/lib/blocks/blockDoors.test.js app/src/pages/journal-2-0/components/notebook/blocks/MyRulesBlock.jsx app/src/pages/journal-2-0/components/notebook/blocks/MyRulesBlock.test.jsx app/src/pages/journal-2-0/hooks/useJournalRules.js <<'MSG'
@@ -1573,6 +1690,8 @@ MSG
 ---
 
 ### Task 9: Insights — "Before / after this rule"
+
+**Lane:** A, `$WT = /c/Users/Patrick/uct-worktrees/notebook-p2b-a`.
 
 Spec §P2 item 2; R-P2b-3; Review Focus 2.
 
@@ -1619,7 +1738,8 @@ describe('windowLines (spec: never a percentage on fewer than 10 trades without 
 - [ ] **Step 2: Run to see them fail; implement**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2/app
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-a
+cd "$WT/app"
 npx vitest run src/pages/journal-2-0/lib/blocks/beforeAfterText.test.js src/pages/journal-2-0/components/insights/RuleBeforeAfterCard.test.jsx > "$TEMP/p2b-t9.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
@@ -1661,17 +1781,20 @@ with `const RuleBeforeAfterCard = lazyChunk(() => import('./RuleBeforeAfterCard'
 - [ ] **Step 3: Run, commit**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2/app
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-a
+cd "$WT/app"
 npx vitest run src/pages/journal-2-0/lib/blocks src/pages/journal-2-0/components/insights src/styles/tapFloor.test.js src/components/screener/reachable.test.js > "$TEMP/p2b-t9.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-a
+cd "$WT"
 python -m pytest tests/test_rule_before_after.py -q > "$TEMP/p2b-t9-py.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-a
+cd "$WT"
 python tools/check_repo_hygiene.py
 git add app/src/pages/journal-2-0/lib/blocks/beforeAfterText.js app/src/pages/journal-2-0/lib/blocks/beforeAfterText.test.js app/src/pages/journal-2-0/components/insights/RuleBeforeAfterCard.jsx app/src/pages/journal-2-0/components/insights/RuleBeforeAfterCard.module.css app/src/pages/journal-2-0/components/insights/RuleBeforeAfterCard.test.jsx app/src/pages/journal-2-0/components/insights/PsychologySection.jsx tests/test_rule_before_after.py
 git commit -F - -- app/src/pages/journal-2-0/lib/blocks/beforeAfterText.js app/src/pages/journal-2-0/lib/blocks/beforeAfterText.test.js app/src/pages/journal-2-0/components/insights/RuleBeforeAfterCard.jsx app/src/pages/journal-2-0/components/insights/RuleBeforeAfterCard.module.css app/src/pages/journal-2-0/components/insights/RuleBeforeAfterCard.test.jsx app/src/pages/journal-2-0/components/insights/PsychologySection.jsx tests/test_rule_before_after.py <<'MSG'
@@ -1685,6 +1808,8 @@ MSG
 ---
 
 ### Task 10: The four prep blocks
+
+**Lane:** B, `$WT = /c/Users/Patrick/uct-worktrees/notebook-p2b-b`.
 
 Spec §P2 item 6; R-P2b-6.
 
@@ -1748,7 +1873,8 @@ describe('prep blocks', () => {
 - [ ] **Step 2: Run to see them fail; implement**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2/app
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-b
+cd "$WT/app"
 npx vitest run src/pages/journal-2-0/components/notebook/blocks/PrepBlocks.test.jsx > "$TEMP/p2b-t10.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
@@ -1819,17 +1945,19 @@ export default function PrepMoversBlock(props) {
 }
 ```
 
-Write `PrepWireBlock` (headline; `Exposure {Math.round(exposure)} ({REGIME_WORDS[regime]})` using part a's `REGIME_WORDS` from `lib/blocks/marketContextFields.js`; the wire date), `PrepEarningsBlock` (the three sentences above), and `PrepLevelsBlock` (one `<li>` per card, from V4's card shape) in the same form.
+Write `PrepWireBlock` (headline; `Exposure {Math.round(exposure)} ({REGIME_WORDS[regime]})` using part a's `REGIME_WORDS`, imported from `app/src/pages/charts/widgets/marketContextModel.js` (`'../../../../charts/widgets/marketContextModel'` from `blocks/`; IR-S6, part b); the wire date), `PrepEarningsBlock` (the three sentences above), and `PrepLevelsBlock` (one `<li>` per card, from V4's card shape) in the same form.
 
 - [ ] **Step 3: Run, commit**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2/app
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-b
+cd "$WT/app"
 npx vitest run src/pages/journal-2-0/components/notebook/blocks src/pages/journal-2-0/lib/blocks > "$TEMP/p2b-t10.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-b
+cd "$WT"
 python tools/check_repo_hygiene.py
 git add app/src/pages/journal-2-0/components/notebook/blocks
 git commit -F - -- app/src/pages/journal-2-0/components/notebook/blocks <<'MSG'
@@ -1843,6 +1971,8 @@ MSG
 ---
 
 ### Task 11: The post-trade review block
+
+**Lane:** B, `$WT = /c/Users/Patrick/uct-worktrees/notebook-p2b-b`.
 
 Spec §P2 item 7; R-P2b-4, R-P2b-5; Review Focus 4.
 
@@ -1867,19 +1997,22 @@ Write each case in full.
 - [ ] **Step 2: Run to see them fail; implement; run; commit**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2/app
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-b
+cd "$WT/app"
 npx vitest run src/pages/journal-2-0/components/notebook/blocks/TradeReviewBlock.test.jsx > "$TEMP/p2b-t11.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 Implement `TradeReviewBlock.jsx` with `useSWR` reads of the two routes (the same `fetcher` idiom as `useJournalRules.js`), part a's `checklistItems`/`uncheckedItems`, `BlockNeedsSwitch`, `BlockEmpty`, and the `Blocks.module.css` classes. The trade page link: the Journal's trade route (read `grep -rn "path=\"trades/:" app/src/pages/journal-2-0` or the route `TradeDetailPage` is mounted at) — a `<Link>` named "Open the trade".
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2/app
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-b
+cd "$WT/app"
 npx vitest run src/pages/journal-2-0/components/notebook/blocks src/pages/journal-2-0/lib/blocks src/styles/tapFloor.test.js > "$TEMP/p2b-t11.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-b
+cd "$WT"
 python tools/check_repo_hygiene.py
 git add app/src/pages/journal-2-0/components/notebook/blocks/TradeReviewBlock.jsx app/src/pages/journal-2-0/components/notebook/blocks/TradeReviewBlock.test.jsx
 git commit -F - -- app/src/pages/journal-2-0/components/notebook/blocks/TradeReviewBlock.jsx app/src/pages/journal-2-0/components/notebook/blocks/TradeReviewBlock.test.jsx <<'MSG'
@@ -1893,6 +2026,8 @@ MSG
 ---
 
 ### Task 12: Daily prep v2, Post-trade review v2, and six slash items
+
+**Lane:** integrator (W3), `$WT = /c/Users/Patrick/uct-worktrees/notebook-p2b`.
 
 **Files:**
 - Modify: `api/services/journal_two/journal_styles.py` (`BUILTIN_STYLES["daily_prep"]`, `["post_trade_review"]`)
@@ -1908,7 +2043,7 @@ def test_daily_prep_v2_and_review_v2_hold_their_packs(db_path):
     from api.services.journal_two import journal_styles as js
     dp, pr = js.BUILTIN_STYLES["daily_prep"], js.BUILTIN_STYLES["post_trade_review"]
     assert dp["version"] == 2 and [b["block"] for b in dp["blocks"]] == [
-        "prepWire", "marketContext", "prepEarnings", "prepMovers", "prepLevels", "myRules"]
+        "prepWire", "marketcontext", "prepEarnings", "prepMovers", "prepLevels", "myRules"]
     assert pr["version"] == 2 and [b["block"] for b in pr["blocks"]] == ["chart", "tradeReview"]
 ```
 
@@ -1918,10 +2053,10 @@ In `SlashMenu.blocks.test.jsx`, extend `titles` with the six part-b labels. Run;
 
 ```python
     "daily_prep": {"name": "Daily prep", "version": 2, "properties": {},
-                   "blocks": [_blk("prepWire"), _blk("marketContext"), _blk("prepEarnings"), _blk("prepMovers"),
+                   "blocks": [_blk("prepWire"), _blk("marketcontext"), _blk("prepEarnings"), _blk("prepMovers"),
                               _blk("prepLevels"), _blk("myRules")],
                    "outline": _doc(
-        _h("The market"), _ph("prepWire"), _ph("marketContext"), _p("What is the tape telling me today?"),
+        _h("The market"), _ph("prepWire"), _ph("marketcontext"), _p("What is the tape telling me today?"),
         _h("Names on my list"), _ph("prepEarnings"), _ph("prepMovers"), _ph("prepLevels"),
         _p("Which setups are closest to a trigger?"),
         _h("My plan"), _ph("myRules"), _p("What will I do, and what will I not do?"))},
@@ -1936,29 +2071,33 @@ In `SlashMenu.blocks.test.jsx`, extend `titles` with the six part-b labels. Run;
         _h("What I'd do differently"), _p())},
 ```
 
-In `SlashMenu.jsx`, extend the part-a id list to the ten ids and `TRADING_BLOCKS` with the six labels.
+In `SlashMenu.jsx`, extend part a's block id list (`['preEntryChecklist', 'priceStamps', 'positionSizing']`) with the six part-b ids, and `TRADING_BLOCKS` with the six labels. (Part a's "Market context" item is the stamp, not a block, and is unchanged.)
 
 - [ ] **Step 3: Run, regenerate fixtures, commit**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT"
 python tools/notebook_contract_fixtures.py > "$TEMP/p2b-t12-gen.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT"
 python -m pytest tests/test_journal_styles_compose.py tests/test_journal_styles_store.py tests/test_journal_styles_update.py tests/test_notebook_contract_fixtures.py -q > "$TEMP/p2b-t12.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2/app
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT/app"
 npx vitest run src/pages/journal-2-0/components/notebook/SlashMenu.blocks.test.jsx src/pages/journal-2-0/components/notebook/SlashMenu.test.jsx src/pages/journal-2-0/components/notebook/styles src/pages/journal-2-0/lib/journalStyles.test.js > "$TEMP/p2b-t12-js.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 Read every changed fixture's diff (the two style versions and their blocks) before committing.
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT"
 python tools/check_repo_hygiene.py
 git add api/services/journal_two/journal_styles.py app/src/pages/journal-2-0/components/notebook/SlashMenu.jsx app/src/pages/journal-2-0/components/notebook/SlashMenu.blocks.test.jsx tests/test_journal_styles_compose.py tools/notebook_contract_fixtures.py app/src/pages/journal-2-0/__fixtures__/contract
 git commit -F - -- api/services/journal_two/journal_styles.py app/src/pages/journal-2-0/components/notebook/SlashMenu.jsx app/src/pages/journal-2-0/components/notebook/SlashMenu.blocks.test.jsx tests/test_journal_styles_compose.py tools/notebook_contract_fixtures.py app/src/pages/journal-2-0/__fixtures__/contract <<'MSG'
@@ -1973,10 +2112,12 @@ MSG
 
 ### Task 13: Walk steps, door rows, bytes, typing with one of every block
 
+**Lane:** integrator (W3), `$WT = /c/Users/Patrick/uct-worktrees/notebook-p2b`.
+
 **Files:**
 - Modify: `tools/notebook_fin_walk_features.py` (part a's `blocks()` step gains rows)
 - Modify: `tools/notebook_door_audit_doors.json` (rows 61 and 63, those the audit can drive)
-- Modify: `tools/notebook_perf_harness.py` (`--with-blocks` seeds all ten kinds)
+- Modify: `tools/notebook_perf_harness.py` (`--with-blocks` seeds the nine block kinds and a `marketcontext` stamp)
 - Modify: `tests/test_notebook_fin_walk_styles_step.py`
 - Create: `docs/notebook/evidence/fin-walk/<tip>/c2/`, `docs/notebook/evidence/door-audit-<stamp>/`, `docs/notebook/perf-runs/p2b/`
 
@@ -2003,7 +2144,8 @@ def test_the_blocks_step_names_every_part_b_row():
 and run:
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT"
 python -m pytest tests/test_notebook_fin_walk_styles_step.py -q > "$TEMP/p2b-t13-rails.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
@@ -2039,24 +2181,28 @@ Row 62, "Mark a rule before entry", is inside a note's My rules block, which the
 - [ ] **Step 3: Pure rails**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT"
 python -m pytest tests/test_notebook_door_audit.py -q > "$TEMP/p2b-t13-audit.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT"
 python tools/notebook_door_audit.py --self-check > "$TEMP/p2b-t13-selfcheck.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
 - [ ] **Step 4: Build and bytes**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2/app
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT/app"
 npm run build > "$TEMP/p2b-build.log" 2>&1; code=$?; echo "BUILD EXIT: $code"; exit $code
 ```
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT"
 python tools/notebook_perf_budgets.py --dist app/dist --json docs/notebook/perf-runs/p2b/bytes-after.json > "$TEMP/p2b-bytes.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
@@ -2064,7 +2210,7 @@ Expected: exit 0; the delta over part a's `docs/notebook/perf-runs/p2a/bytes-aft
 
 - [ ] **Step 5: Typing with one of every block (PowerShell tool, quiet box, memory printed first)**
 
-`--with-blocks` exists since part a; make it seed all ten kinds (its `--dry-run` case asserts ten). Then:
+`--with-blocks` exists since part a; make it seed the nine block kinds and the stamp (its `--dry-run` case asserts all ten nodes). Then:
 
 ```powershell
 python tools/notebook_perf_harness.py --boot --busy --with-blocks --sizes <part a V2's sizes> --opens 20 --chars 60 --json docs/notebook/perf-runs/p2b/blocks.json --md docs/notebook/perf-runs/p2b/blocks.md
@@ -2075,11 +2221,12 @@ Commit the raw JSON and log BEFORE comparing (R-RAW). Compare `typing_busy_per_c
 - [ ] **Step 6: Sandbox walk c2 and door audit (PowerShell for the data dir)**
 
 ```powershell
-python tools/notebook_fin_walk.py --config c2 --data-root 'C:\Users\Patrick\AppData\Local\Temp\nb-p2b-walk' --port 8134 --out 'C:\Users\Patrick\uct-worktrees\notebook-p2\docs\notebook\evidence\fin-walk\<tip>\c2' --tip <tip>
+python tools/notebook_fin_walk.py --config c2 --data-root 'C:\Users\Patrick\AppData\Local\Temp\nb-p2b-walk' --port 8134 --out 'C:\Users\Patrick\uct-worktrees\notebook-p2b\docs\notebook\evidence\fin-walk\<tip>\c2' --tip <tip>
 ```
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT"
 python tools/notebook_door_audit.py --base http://127.0.0.1:8134 --doors tools/notebook_door_audit_doors.json --out docs/notebook/evidence
 ```
 
@@ -2088,7 +2235,8 @@ Expected: 0 FAIL (every part-a row still PASS); rows 61 and 63 EASY or OK at 128
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT"
 python tools/check_repo_hygiene.py
 git add tools/notebook_fin_walk_features.py tools/notebook_door_audit_doors.json tools/notebook_perf_harness.py tests/test_notebook_fin_walk_styles_step.py docs/notebook/evidence docs/notebook/perf-runs/p2b
 git commit -F - -- tools/notebook_fin_walk_features.py tools/notebook_door_audit_doors.json tools/notebook_perf_harness.py tests/test_notebook_fin_walk_styles_step.py docs/notebook/evidence docs/notebook/perf-runs/p2b <<'MSG'
@@ -2101,28 +2249,31 @@ MSG
 
 ---
 
-### Task 14: Exit bar — gate, Python rails on the landing tree, PR
+### Task 14: Exit bar — gate, Python rails on the landing tree, PR, clean-up
+
+**Lane:** integrator (W3).
 
 - [ ] **Step 1: A gate worktree with a `notebook-*` branch name**
 
 ```bash
-SHA=$(git -C /c/Users/Patrick/uct-worktrees/notebook-p2 rev-parse HEAD)
-git -C /c/Users/Patrick/uct-worktrees/notebook-p2 worktree add -b notebook-p2b-gate /c/Users/Patrick/uct-worktrees/notebook-p2b-gate "$SHA"
-printf 'session: <this session id>\ncreated: <YYYY-MM-DD>\n' > /c/Users/Patrick/uct-worktrees/notebook-p2b-gate/.uct-session-owner
+SHA=$(git -C /c/Users/Patrick/uct-worktrees/notebook-p2b rev-parse HEAD)
+git -C /c/Users/Patrick/uct-worktrees/notebook-p2b worktree add -b notebook-p2b-gate /c/Users/Patrick/uct-worktrees/notebook-p2b-gate "$SHA"
+printf 'session: <this session id>\ncreated: <YYYY-MM-DD>\nlane: notebook-p2b-gate\n' > /c/Users/Patrick/uct-worktrees/notebook-p2b-gate/.uct-session-owner
 ```
 
+Then Task 0 Step 3's junction procedure for `notebook-p2b-gate` alone (count 377 first, create the junction, `Get-Item -Force` shows `Junction` and the `_nb-shared-install` target), and:
+
 ```powershell
-New-Item -ItemType Junction -Path C:\Users\Patrick\uct-worktrees\notebook-p2b-gate\app\node_modules -Target C:\Users\Patrick\uct-worktrees\notebook-k\app\node_modules
-Get-Item C:\Users\Patrick\uct-worktrees\notebook-p2b-gate\app\node_modules -Force | Select-Object LinkType, Target
 (Get-Counter '\Memory\Available MBytes').CounterSamples.CookedValue
 ```
 
-Expected: `LinkType Junction`; ≥ 8,000 MB available and no other gate running, otherwise wait.
+Expected: ≥ 8,000 MB available and no other gate running, otherwise wait.
 
 - [ ] **Step 2: Gate**
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2b-gate
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b-gate
+cd "$WT"
 python scripts/gate_shards.py --shards 6 --out docs/notebook/gate-runs/p2b-landing > "$TEMP/p2b-gate.log" 2>&1; code=$?; echo "GATE EXIT: $code"; exit $code
 ```
 
@@ -2130,18 +2281,19 @@ Read the manifest: totals, file-count reconciliation, `GATE EXIT`. An `INVALID-*
 
 - [ ] **Step 3: Python rails on the landing tree**
 
-Merge `origin/master` first if it moved (one merge, no rebase). Then:
+Merge `origin/master` into `notebook-p2b-rules` first if it moved (one merge, no rebase). Then:
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
-PYTHONIOENCODING=utf-8 python -m pytest tests/test_rule_versions.py tests/test_rule_before_after.py tests/test_restore_style_stamp.py tests/test_trader_blocks_prep.py tests/test_trader_blocks_review.py tests/test_trader_blocks.py tests/test_trader_blocks_pre_entry.py tests/test_trader_blocks_no_note_door.py tests/test_regime_at_write.py tests/test_notebook_fin_walk_styles_step.py tests/test_journal_styles_store.py tests/test_journal_styles_compose.py tests/test_journal_styles_create.py tests/test_journal_styles_update.py tests/test_notebook_journal_styles_router.py tests/test_notebook_contract_fixtures.py tests/test_journal_two_notes_versions_router.py tests/test_notes_cas_is_atomic.py tests/test_notes_answer_is_the_committed_row.py tests/test_notebook_door_audit.py tests/test_notebook_flags.py tests/test_address_space.py tests/test_account_deletion_manifest.py tests/test_gate_shards.py tests/test_user_definitions_auth.py tests/test_paywall_gate_free_tier.py -q > "$TEMP/p2b-py-landing.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT"
+PYTHONIOENCODING=utf-8 python -m pytest tests/test_rule_versions.py tests/test_rule_before_after.py tests/test_restore_style_stamp.py tests/test_trader_blocks_prep.py tests/test_trader_blocks_review.py tests/test_trader_blocks.py tests/test_trader_blocks_market_context.py tests/test_trader_blocks_pre_entry.py tests/test_trader_blocks_no_note_door.py tests/test_regime_at_write.py tests/test_house_sizing_table.py tests/test_public_note_payload.py tests/test_notebook_fin_walk_styles_step.py tests/test_journal_styles_store.py tests/test_journal_styles_compose.py tests/test_journal_styles_create.py tests/test_journal_styles_update.py tests/test_notebook_journal_styles_router.py tests/test_notebook_contract_fixtures.py tests/test_journal_two_notes_versions_router.py tests/test_notes_cas_is_atomic.py tests/test_notes_answer_is_the_committed_row.py tests/test_notebook_door_audit.py tests/test_notebook_flags.py tests/test_address_space.py tests/test_account_deletion_manifest.py tests/test_gate_shards.py tests/test_user_definitions_auth.py tests/test_paywall_gate_free_tier.py -q -rs > "$TEMP/p2b-py-landing.log" 2>&1; code=$?; echo "EXIT: $code"; exit $code
 ```
 
-(Add every existing rules test file `ls tests | grep -i rule` names.) Then `python tools/gate_carry_over.py --help` and run the carry-over check as it prints, against the gated tree and the landing tree. UNKNOWN is never a pass; a C1-C3 failure means re-gate.
+(Add every existing rules test file `git ls-files tests | grep -i rule` names.) Read the totals and the `-rs` skip summary (a SKIP of the house table comparison is "not compared", never a pass). Then `python tools/gate_carry_over.py --help` and run the carry-over check as it prints, against the gated tree and the landing tree. UNKNOWN is never a pass; a C1-C3 failure means re-gate.
 
 - [ ] **Step 4: PR body and report**
 
-Open the PR from `notebook-p2b-rules` (one master merge at a time; `web` SUCCESS before any other push). The body says: what shipped, dark; R-P2b-1 to R-P2b-7 with their costs; the new table and its purge, manifest and address-space rows; M-7 closed (with `blocks.restore-stamp`); the bytes and typing numbers; the walk and door-audit numbers (and which rows are walk-measured); that arming is Task 15 and has not happened. It ends with:
+Open the PR from `notebook-p2b-rules` (one master merge at a time; `web` SUCCESS before any other push). The body says: what shipped, dark; the IR-* (part b) and R-P2b-* rulings with their costs; owner decision O-b1; the new table and its purge, manifest and address-space rows; the six vendor rows; M-7 closed (with `blocks.restore-stamp`); the bytes and typing numbers; the walk and door-audit numbers (and which rows are walk-measured); that arming is Task 15 and has not happened. It ends with:
 
 ```
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
@@ -2151,19 +2303,46 @@ https://claude.ai/code/session_016WSfoBTwnfA4irnCiBs3XZ
 
 After merge, verify the deploy by its artifact: the deploy record's commit and `SUCCESS`, uptime ≥ 730 s, `python tools/hub_nav_smoke.py --auth`, `git merge-base --is-ancestor <merge sha> origin/production`. H15: a failing smoke means roll back first; INCONCLUSIVE is not FAILED.
 
-- [ ] **Step 5: Clean up the gate worktree** (its `.uct-session-owner` names this session)
+- [ ] **Step 5: Remove each lane worktree's junction (IR-B1) — PowerShell tool**
+
+Only worktrees whose `.uct-session-owner` names this session. Keep `notebook-p2b` until Task 15 is done.
 
 ```powershell
-cmd /c rmdir C:\Users\Patrick\uct-worktrees\notebook-p2b-gate\app\node_modules
+$target = 'C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules'
+$before = (Get-ChildItem $target -Force | Measure-Object).Count
+if ($before -ne 377) { throw "the shared install holds $before entries before removal, expected 377: stop and report" }
+foreach ($w in 'notebook-p2b-gate','notebook-p2b-s','notebook-p2b-m','notebook-p2b-p','notebook-p2b-a','notebook-p2b-b') {
+  $link = "C:\Users\Patrick\uct-worktrees\$w\app\node_modules"
+  if (-not (Test-Path $link)) { "{0}: no link" -f $w; continue }
+  $i = Get-Item $link -Force
+  if ($i.LinkType -ne 'Junction' -or ($i.Target -join '') -ne $target) { throw "$w: not our junction ($($i.LinkType) -> $($i.Target)): stop" }
+  cmd /c rmdir "$link"
+  $after = (Get-ChildItem $target -Force | Measure-Object).Count
+  if ($after -ne 377) { throw "after removing $w's link the shared install holds $after entries, expected 377: STOP" }
+  "{0}: link removed, target still 377" -f $w
+}
 ```
 
+⛔ Never `Remove-Item -Recurse`, `rm -rf` or `cmd //c` from Git Bash on a junction.
+
+- [ ] **Step 6: Remove the lane worktrees (this session's only)**
+
 ```bash
-git -C /c/Users/Patrick/uct-worktrees/notebook-p2 worktree remove /c/Users/Patrick/uct-worktrees/notebook-p2b-gate
+for W in notebook-p2b-gate notebook-p2b-s notebook-p2b-m notebook-p2b-p notebook-p2b-a notebook-p2b-b; do
+  P=/c/Users/Patrick/uct-worktrees/$W
+  grep -q "session: <this session id>" "$P/.uct-session-owner" || { echo "$W: not ours, left alone"; continue; }
+  test ! -e "$P/app/node_modules" || { echo "$W: node_modules still present, STOP"; exit 1; }
+  git -C /c/Users/Patrick/uct-worktrees/notebook-p2b worktree remove "$P"
+done
 ```
+
+After Task 15, remove `notebook-p2b`'s own junction with Step 5's procedure (its name alone in the list), then the worktree.
 
 ---
 
 ### Task 15: Pre-arming checks, NVDA, and arming (owner's box)
+
+**Lane:** integrator (W4), `$WT = /c/Users/Patrick/uct-worktrees/notebook-p2b`.
 
 R-P2b-7. Runs once, after part b's PR is merged and its deploy is verified.
 
@@ -2209,7 +2388,8 @@ On the owner's standing go (10/03): set `NOTEBOOK_JOURNAL_STYLES_ENABLED=1` on `
 In the same docs push: `docs/feature_flags.json` → `NOTEBOOK_JOURNAL_STYLES_ENABLED` `status: "armed"`, `where: "web"`, the flip timestamp in the note; the NVDA evidence (raw first, R-RAW); the memory/checkpoint update the session's rules require.
 
 ```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-p2
+WT=/c/Users/Patrick/uct-worktrees/notebook-p2b
+cd "$WT"
 python tools/check_repo_hygiene.py
 git add docs/notebook/screen-reader-pass.md docs/notebook/evidence/screen-reader docs/feature_flags.json
 git commit -F - -- docs/notebook/screen-reader-pass.md docs/notebook/evidence/screen-reader docs/feature_flags.json <<'MSG'
@@ -2223,6 +2403,8 @@ MSG
 ---
 
 ## Self-review (done at write time)
+
+**Structural fixes from part a's pre-flight, applied here:** per-lane worktrees `notebook-p2b-*` with their own owner files (IR-B4, N9); every junction to `_nb-shared-install`, removed only by the counted non-recursive procedure (IR-B1, Task 14); the six blocks in `registry.test.js`'s `IDS`/`BLOCK_IDS`/label maps/defaults and bound only in `BLOCK_COMPONENTS` (IR-B2, Task 2); six vendor rows (IR-B3, Task 2); `rulesApi.js`'s method+URL exception in its own commit (IR-B5, Task 8); prep blocks never captured on update (IR-S11, Task 6); the Daily prep stamp is the existing `marketcontext` (IR-S6, Task 12); the door census after Tasks 3 and 5.
 
 **Spec coverage (part b's share):**
 - Item 1, the "before entry" half → Task 3 (`beforeEntry` on the rule record, which part a's checklist reads) and Task 8 (the switch).
