@@ -1,0 +1,17 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "PUT /api/j2/trader-blocks/positions/nope/pre-entry",
+    "note": "A position id that does not exist.",
+    "path": "/api/j2/trader-blocks/positions/nope/pre-entry",
+    "requestBody": {
+      "checkedRuleIds": [],
+      "setup": null,
+      "totalRules": 0
+    },
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}

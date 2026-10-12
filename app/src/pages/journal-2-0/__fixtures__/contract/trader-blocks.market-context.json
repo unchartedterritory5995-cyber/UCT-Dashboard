@@ -1,0 +1,55 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/trader-blocks/market-context",
+    "note": "SPY from the live-price cache, QQQ a held daily bar's last close, VIX unavailable (part a).",
+    "path": "/api/j2/trader-blocks/market-context",
+    "status": 200
+  },
+  "body": {
+    "readings": {
+      "breadthScore": 58.3,
+      "distributionDays": 2,
+      "exposureDelta": 2.5,
+      "exposureScore": 72.5,
+      "marketPhase": "Uptrend",
+      "pctAbove200": 66.0,
+      "pctAbove50": 61.4,
+      "powerTrend": null,
+      "qqq": {
+        "asOf": "2026-10-02T20:00:00Z",
+        "missing": null,
+        "source": "last close",
+        "value": {
+          "changePct": 1.25,
+          "closed": true,
+          "price": 486.0
+        }
+      },
+      "regime": {
+        "asOf": "2026-10-05",
+        "missing": null,
+        "source": "journal_two.regime.get_current_regime",
+        "value": "amber"
+      },
+      "spy": {
+        "asOf": "2026-10-05T14:29:00Z",
+        "missing": null,
+        "source": "live price",
+        "value": {
+          "changePct": 0.42,
+          "closed": false,
+          "price": 601.25
+        }
+      },
+      "vix": {
+        "asOf": null,
+        "missing": "VIX unavailable",
+        "source": null,
+        "value": null
+      }
+    },
+    "updated": "10:30 AM ET",
+    "wireDate": "2026-10-05"
+  }
+}

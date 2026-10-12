@@ -113,9 +113,20 @@ BUILTIN_PROPERTY_DEFS: list[dict[str, Any]] = [
         "id": NOTE_KIND_PROPERTY, "name": "Kind of note", "type": "select", "source": "user_set",
         "options": [{"id": k["id"], "label": k["name"], "color": "gray"} for k in BUILTIN_NOTE_KINDS],
     },
+    # Notebook P2 (R-P2-6): the regime the note was WRITTEN in, captured once by the composer from its
+    # market context stamp. ⛔ source "captured": no member write sets or clears it (IR-S1).
+    {
+        "id": "builtin:regime_at_write", "name": "Regime when written", "type": "select", "source": "captured",
+        "options": [{"id": "green", "label": "Green", "color": "green"},
+                    {"id": "amber", "label": "Yellow", "color": "amber"},
+                    {"id": "orange", "label": "Orange", "color": "amber"},
+                    {"id": "red", "label": "Red", "color": "red"}],
+    },
 ]
 _BUILTIN_BY_ID = {d["id"]: d for d in BUILTIN_PROPERTY_DEFS}
 BUILTIN_USER_SET_IDS = frozenset(d["id"] for d in BUILTIN_PROPERTY_DEFS if d["source"] == "user_set")
+REGIME_AT_WRITE = "builtin:regime_at_write"
+BUILTIN_CAPTURED_IDS = frozenset(d["id"] for d in BUILTIN_PROPERTY_DEFS if d["source"] == "captured")
 
 
 def is_builtin_property_id(property_id: str) -> bool:
@@ -420,7 +431,7 @@ def validate_property_value(prop_def: dict[str, Any], value: Any) -> Any:
 
 def set_note_properties(
     user_id: str, note_id: str, patch: dict[str, Any], conn: sqlite3.Connection,
-    *, replace: bool = False,
+    *, replace: bool = False, captured: str = "drop",
 ) -> str | None:
     """MERGE `patch` (property_id -> value, value=None clears it) into a
     note's properties_json and return the new serialized JSON, or `None` when
@@ -442,16 +453,32 @@ def set_note_properties(
     to an old version must make the note's properties look EXACTLY like
     that snapshot, including clearing a property added after the snapshot
     was captured, which a merge would leave untouched (stacked on top of the
-    restored values instead of replaced by them)."""
-    current: dict[str, Any] = {}
-    if not replace:
+    restored values instead of replaced by them).
+
+    `captured` decides a captured built-in (IR-S1). `drop` (every member write, a template, a plain
+    create): a captured id in `patch` is ignored, and a `replace` carries the note's CURRENT captured
+    value forward, so no member write and no restore can set, change or clear it. `keep`: the journal
+    styles composer's create (and its create-equivalent, an empty note switched to a style), the
+    only writer."""
+    if captured not in ("drop", "keep"):
+        raise ValueError(f"unknown captured mode {captured!r}")
+    stored: dict[str, Any] = {}
+    if not replace or captured == "drop":
         row = conn.execute(
             "SELECT properties_json FROM j2_notes WHERE id = ? AND user_id = ?",
             (note_id, user_id),
         ).fetchone()
-        current = _parse_properties_json(row["properties_json"] if row else None)
+        stored = _parse_properties_json(row["properties_json"] if row else None)
+    current: dict[str, Any] = {} if replace else dict(stored)
+    if replace and captured == "drop":
+        # IR-S1: a restore replaces what the member set; a CAPTURED fact is not the member's.
+        current.update({k: v for k, v in stored.items() if k in BUILTIN_CAPTURED_IDS})
     for property_id, value in patch.items():
-        if is_builtin_property_id(property_id):
+        if property_id in BUILTIN_CAPTURED_IDS:
+            if captured != "keep":
+                continue                       # IR-S1: filtered before the write, in every form
+            prop_def = _builtin_def(user_id, property_id, conn)
+        elif is_builtin_property_id(property_id):
             if property_id not in BUILTIN_USER_SET_IDS:
                 raise PropertyValidationError(f"{property_id} is not a settable property")
             prop_def = _builtin_def(user_id, property_id, conn)
@@ -726,6 +753,12 @@ def property_filter_sql(
             continue
         if prop_def["source"] != "user_set":
             if strict:
+                if prop_def["source"] == "captured":
+                    # M-4: a captured property is not derived; it is recorded once, at writing time.
+                    raise PropertyValidationError(
+                        f"{prop_def['name']} is recorded when a note is written and cannot be filtered"
+                        " through property_filter"
+                    )
                 raise PropertyValidationError(
                     f"{prop_def['name']} is derived and cannot be filtered through property_filter"
                 )

@@ -1675,7 +1675,20 @@ def journal_styles(w: World) -> None:
         locked = notes_service.create_note(who, {"title": "Locked plan", "ticker": "MSFT"}, c,
                                            style_stamp=trade_plan_stamp)
         c.execute("UPDATE j2_notes SET locked = 1 WHERE id IN (?, ?)", (held["id"], locked["id"]))
+        # P2a pre-entry (R-P2-7, R-T5-1): an open position of this member's for Log Trade's ticks, one
+        # of theirs already partly closed (a trade carved from it: any exit refuses the write), and an
+        # open position of ANOTHER member's (the same 404 as a missing one).
+        for pid, owner, shares in (("pos-styles-1", who, 10), ("pos-styles-2", who, 6),
+                                   ("pos-styles-other", empty, 10)):
+            c.execute(
+                "INSERT INTO j2_positions (id, user_id, symbol, side, entry_date, shares, original_shares,"
+                " entry_price, stop_price, context_at_entry, created_at, updated_at, closed_at)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (pid, owner, "NVDA", "Long", "2026-10-02", shares, 10, 180.0, 170.0, "{}",
+                 "2026-10-02T14:00:00Z", "2026-10-02T14:00:00Z", None))
         c.commit()
+        add_trade(c, "styles-2", user=who, shares=4, entry=180.0, exit_=190.0, stop=170.0,
+                  entry_date="2026-10-02T14:00:00+00:00", exit_date="2026-10-03T15:00:00+00:00")
     finally:
         c.close()
     w.as_user(empty)
@@ -1758,6 +1771,37 @@ def journal_styles(w: World) -> None:
              note="One write: the chart after the first heading, the member's words untouched, the stamp moved.")
     w.record("notes.style-update-plan.up-to-date", "GET", f"{notes}/{styled['id']}/style-update-plan",
              case="success", expect=200)
+    # P2a market context stamp: its three sources stand in at trader_blocks' own seams (the wire's
+    # breadth, the regime field, and the cache-only quotes: SPY warm in the live-price cache, QQQ
+    # from a held daily bar's last close).
+    from api.services.journal_two import trader_blocks
+    w.p.setattr(trader_blocks, "_breadth", lambda: {
+        "market_phase": "Uptrend", "exposure": {"score": 72.5, "score_delta": 2.5}, "breadth_score": 58.3,
+        "distribution_days": 2, "pct_above_50ma": 61.4, "pct_above_200ma": 66.0, "wire_date": TODAY})
+    w.p.setattr(trader_blocks, "_regime_field", lambda memo: {
+        "value": "amber", "source": "journal_two.regime.get_current_regime", "asOf": TODAY,
+        "missing": None, "detail": None})
+    w.p.setattr(trader_blocks, "_quotes", lambda user_id, symbols, now=None: {
+        "SPY": {"price": 601.25, "change_pct": 0.42, "observed_at": int(FROZEN_NOW.timestamp()) - 60,
+                "market_closed": False},
+        "QQQ": {"price": 486.0, "change_pct": 1.25, "market_closed": True, "source": "last close",
+                "asOf": "2026-10-02T20:00:00Z"}})
+    w.as_user(who)
+    w.record("trader-blocks.market-context", "GET", "/api/j2/trader-blocks/market-context",
+             case="success", expect=200,
+             note="SPY from the live-price cache, QQQ a held daily bar's last close, VIX unavailable (part a).")
+    w.record("trader-blocks.pre-entry", "PUT", "/api/j2/trader-blocks/positions/pos-styles-1/pre-entry",
+             case="success", expect=200, json_body={"setup": "VCP", "checkedRuleIds": ["r1"], "totalRules": 2},
+             note="Log Trade's ticks for an open position: the adherence store under pos:<id>, never a note.")
+    w.record("trader-blocks.pre-entry.not-found", "PUT", "/api/j2/trader-blocks/positions/nope/pre-entry",
+             case="error", expect=404, json_body={"setup": None, "checkedRuleIds": [], "totalRules": 0},
+             note="A position id that does not exist.")
+    w.record("trader-blocks.pre-entry.other-member", "PUT", "/api/j2/trader-blocks/positions/pos-styles-other/pre-entry",
+             case="error", expect=404, json_body={"setup": None, "checkedRuleIds": [], "totalRules": 0},
+             note="Another member's open position: the same 404 as one that does not exist.")
+    w.record("trader-blocks.pre-entry.exited", "PUT", "/api/j2/trader-blocks/positions/pos-styles-2/pre-entry",
+             case="error", expect=409, json_body={"setup": "VCP", "checkedRuleIds": ["r1"], "totalRules": 2},
+             note="The member's own position, partly closed: any exit refuses the write; its rules go on the trade.")
     w.as_user(who, FREE)
     w.record("journal-styles.list.free-plan", "GET", base, case="error", expect=402)
 
