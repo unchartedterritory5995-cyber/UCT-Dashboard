@@ -1,5 +1,5 @@
 {
-  "_": "P1 shared fixture: the browser gate (evaluability.js, lane \"alert\") vs the server authority (alert_user_series._gate_lane + plot_admissions). Written by a generator from evaluability.js; tests/test_p1_truth_core.py drives the server over every case, p1.core.truth.test.js the browser. P2 (owner policy 7): `scalar` is PER OUTPUT -- 'multi plain + scalar :: a' and 'multi scalar + plain :: b' were deliberately moved from refused/scalar to supported (the scalar plot itself stays refused). PHASE 5: the alert lane SUPPLIES another symbol (alert_user_series._symbol_bars): a servable, unambiguous `sym` (at most 2 tickers) is supported; an ambiguous spelling is other-symbol:ambiguous and more than two is other-symbol:fan-out (withheld, per plot).",
+  "_": "P1 shared fixture: the browser gate (evaluability.js, lane \"alert\") vs the server authority (alert_user_series._gate_lane + plot_admissions). Written by a generator from evaluability.js; tests/test_p1_truth_core.py drives the server over every case, p1.core.truth.test.js the browser. P2 (owner policy 7): `scalar` is PER OUTPUT -- 'multi plain + scalar :: a' and 'multi scalar + plain :: b' were deliberately moved from refused/scalar to supported (the scalar plot itself stays refused). PHASE 5: the alert lane SUPPLIES another symbol (alert_user_series._symbol_bars): a servable, unambiguous `sym` (at most 2 tickers) is supported; an ambiguous spelling is other-symbol:ambiguous and more than two is other-symbol:fan-out (withheld, per plot). UIE PHASE 6 (OPEN-FINDINGS-2026-10 §1): an `hlines` plot is a level-line GUIDE, refused for ITSELF at gate `presentation` (per plot) — 'rsi + level lines (v2) :: rsi' is supported (it was refused/plot with every sibling), and a v1 document's guide no longer arms on the scan tree's number.",
   "cases": [
     {
       "name": "plain close > 100 :: value",
@@ -1157,6 +1157,225 @@
       "expect": {
         "status": "supported",
         "gate": null,
+        "codes": []
+      }
+    },
+    {
+      "name": "rsi + level lines (v2) :: rsi",
+      "definition": {
+        "id": "u_0000000000p6",
+        "name": "u_0000000000p6",
+        "version": 1,
+        "plots": [
+          {
+            "key": "rsi",
+            "style": "line"
+          },
+          {
+            "key": "ma",
+            "style": "line"
+          },
+          {
+            "key": "levels",
+            "style": "hlines",
+            "levels": [
+              70,
+              30
+            ]
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_0000000000p6",
+          "ast": {
+            "type": "series",
+            "name": "close"
+          },
+          "trees": {
+            "rsi": {
+              "type": "series",
+              "name": "close"
+            },
+            "ma": {
+              "type": "call",
+              "name": "sma",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 9
+                }
+              ]
+            }
+          },
+          "scanPlot": "rsi"
+        }
+      },
+      "plotKey": "rsi",
+      "expect": {
+        "status": "supported",
+        "gate": null,
+        "codes": []
+      }
+    },
+    {
+      "name": "rsi + level lines (v2) :: ma",
+      "definition": {
+        "id": "u_0000000000p6",
+        "name": "u_0000000000p6",
+        "version": 1,
+        "plots": [
+          {
+            "key": "rsi",
+            "style": "line"
+          },
+          {
+            "key": "ma",
+            "style": "line"
+          },
+          {
+            "key": "levels",
+            "style": "hlines",
+            "levels": [
+              70,
+              30
+            ]
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_0000000000p6",
+          "ast": {
+            "type": "series",
+            "name": "close"
+          },
+          "trees": {
+            "rsi": {
+              "type": "series",
+              "name": "close"
+            },
+            "ma": {
+              "type": "call",
+              "name": "sma",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 9
+                }
+              ]
+            }
+          },
+          "scanPlot": "rsi"
+        }
+      },
+      "plotKey": "ma",
+      "expect": {
+        "status": "supported",
+        "gate": null,
+        "codes": []
+      }
+    },
+    {
+      "name": "rsi + level lines (v2) :: levels",
+      "definition": {
+        "id": "u_0000000000p6",
+        "name": "u_0000000000p6",
+        "version": 1,
+        "plots": [
+          {
+            "key": "rsi",
+            "style": "line"
+          },
+          {
+            "key": "ma",
+            "style": "line"
+          },
+          {
+            "key": "levels",
+            "style": "hlines",
+            "levels": [
+              70,
+              30
+            ]
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_0000000000p6",
+          "ast": {
+            "type": "series",
+            "name": "close"
+          },
+          "trees": {
+            "rsi": {
+              "type": "series",
+              "name": "close"
+            },
+            "ma": {
+              "type": "call",
+              "name": "sma",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 9
+                }
+              ]
+            }
+          },
+          "scanPlot": "rsi"
+        }
+      },
+      "plotKey": "levels",
+      "expect": {
+        "status": "refused",
+        "gate": "presentation",
+        "codes": []
+      }
+    },
+    {
+      "name": "level lines on a single-tree (v1) document :: levels",
+      "definition": {
+        "id": "u_0000000000p7",
+        "name": "u_0000000000p7",
+        "version": 1,
+        "plots": [
+          {
+            "key": "value",
+            "style": "line"
+          },
+          {
+            "key": "levels",
+            "style": "hlines",
+            "levels": [
+              70,
+              30
+            ]
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_0000000000p7",
+          "ast": {
+            "type": "series",
+            "name": "close"
+          }
+        }
+      },
+      "plotKey": "levels",
+      "expect": {
+        "status": "refused",
+        "gate": "presentation",
         "codes": []
       }
     }

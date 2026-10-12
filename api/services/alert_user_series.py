@@ -84,6 +84,7 @@ GATES: tuple[str, ...] = (
     "plot",           # the document declares v2 and names no tree for THIS plot
     "withheld",       # the lane answers "no number" for this plot on EVERY bar
     "scalar",         # P0 0F: reads a current-only screener scalar (no history)
+    "presentation",   # UIE P6: an `hlines` guide plot — drawn at fixed levels, not a value
 )
 
 
@@ -147,6 +148,10 @@ REFUSAL_FRAGMENTS: Mapping[str, str] = {
     # `interpret` seeds it as a hole and the comparison collapses the hole to a
     # confident 0 (X23), so the alert armed and could never fire.
     "scalar": "reads a current-only screener value that has no bar history",
+    # ⭐ UIE PHASE 6 (OPEN-FINDINGS-2026-10 §1). An `hlines` plot is the 70/30 GUIDE drawn at fixed
+    # levels — presentation, not a value (save and lint already treat it as not data-bearing).
+    # Refused for ITSELF only, so "RSI with level lines" can alert on its RSI line.
+    "presentation": "is a level-line guide drawn at fixed values, not a value an alert can watch",
 }
 
 #: The SECOND repaint refusal — the acknowledgement half — kept deliberately
@@ -537,6 +542,17 @@ def _make_value_fn(def_id: str, plot_key: str,
     real number from a real bar.
     """
     from api.services import user_definitions
+
+    # ⭐ UIE PHASE 6 — A LEVEL-LINE GUIDE IS NOT A VALUE, decided BEFORE any tree is looked up (a v2
+    # document carries no tree for it, which used to raise `plot` and refuse every sibling with it).
+    # The same test `user_definitions` uses for "not data-bearing": the plot's declared style.
+    declared = next((p for p in (definition.get("plots") or [])
+                     if isinstance(p, Mapping) and str(p.get("key")) == str(plot_key)), None)
+    if declared is not None and declared.get("style") == "hlines":
+        raise AdmissionRefused(
+            "presentation",
+            f"{def_id}.{plot_key}: {def_id!r}'s plot {plot_key!r} {REFUSAL_FRAGMENTS['presentation']} — "
+            "alert on one of the definition's other plots instead (its line, not its guides).")
 
     compute = definition.get("compute") or {}
     # W1b — a plot evaluates ITS tree; the scan alias is a tree-less document's.
@@ -1009,7 +1025,8 @@ def _gate_cross_lane(definition: Mapping[str, Any], def_id: str,
 #: admissible. `withheld` since C45; `scalar` since P2 (evaluability is per
 #: output: a scalar-reading plot stays refused, a valid SERIES/CONDITION sibling
 #: of it is not taken down). Mirrored by `evaluability.js` ALERT_PER_PLOT_GATES.
-PER_PLOT_GATES = frozenset({"withheld", "scalar"})
+#: ⭐ UIE P6: `presentation` (an `hlines` guide) too — the guide is refused for itself only.
+PER_PLOT_GATES = frozenset({"withheld", "scalar", "presentation"})
 
 
 def plot_admissions(def_id: str, definition: Mapping[str, Any]) -> tuple:

@@ -235,7 +235,16 @@ function alertPlotRefusal(compute, key) {
 
 /** The alert lane's gates that refuse ONE plot, not the definition
  *  (`alert_user_series.PER_PLOT_GATES`). */
-const ALERT_PER_PLOT_GATES = new Set(['withheld', 'scalar'])
+const ALERT_PER_PLOT_GATES = new Set(['withheld', 'scalar', 'presentation'])
+
+/** ⭐ UIE PHASE 6 (OPEN-FINDINGS-2026-10 §1) — an `hlines` plot is a level-line GUIDE (presentation,
+ *  not a value): refused for itself only, decided before any tree lookup. Mirrors
+ *  `alert_user_series._make_value_fn`'s `presentation` gate. */
+function isGuidePlot(def, key) {
+  const p = (Array.isArray(def && def.plots) ? def.plots : []).find((x) => isObj(x) && String(x.key) === String(key))
+  return !!p && p.style === 'hlines'
+}
+const alertPlotGate = (def, compute, key) => (isGuidePlot(def, key) ? { gate: 'presentation', codes: [] } : alertPlotRefusal(compute, key))
 
 const ALERT_SENTENCE = {
   lane: 'This output is not a formula, and the alert lane admits only formulas.',
@@ -243,6 +252,8 @@ const ALERT_SENTENCE = {
     + 'cannot tell which number to watch.',
   scalar: 'It reads a current-only screener value that has no bar history, so an alert on it would '
     + 'arm and never fire. It works as a screen.',
+  presentation: 'These are level lines — a guide drawn at fixed values, not a value that moves — so there is '
+    + 'nothing for an alert to watch. Alert on the indicator\'s own line instead (for example, RSI crossing above 70).',
   withheld: 'It reads a series the alert lane is never handed (a timeframe below the chart, or another '
     + 'symbol it cannot load: an ambiguous spelling, or more than two), so an alert on it would arm and never fire.',
 }
@@ -265,7 +276,7 @@ function alertAnswer(def, key, base) {
   // scalar-reading plot stays refused, its valid SERIES/CONDITION siblings are
   // admitted. Mirrors `alert_user_series.PER_PLOT_GATES`.
   for (const k of keys) {
-    const r = alertPlotRefusal(compute, k)
+    const r = alertPlotGate(def, compute, k)
     if (r && !ALERT_PER_PLOT_GATES.has(r.gate)) {
       return answer(base, { status: STATUS.REFUSED, authority: 'server', final: true, gate: r.gate,
         guard: `alert:${r.gate}`, codes: r.codes,
@@ -278,7 +289,7 @@ function alertAnswer(def, key, base) {
     return answer(base, { status: STATUS.REFUSED, authority: 'server', final: true, gate: 'definition',
       guard: GATE_GUARDS.UNDECLARED, codes: [], reason: 'This definition declares no such plot.' })
   }
-  const own = alertPlotRefusal(compute, key)
+  const own = alertPlotGate(def, compute, key)
   if (own) {
     return answer(base, { status: STATUS.REFUSED, authority: 'server', final: true, gate: own.gate,
       guard: `alert:${own.gate}`, codes: own.codes, reason: ALERT_SENTENCE[own.gate] })
