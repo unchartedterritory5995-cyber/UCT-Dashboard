@@ -73,7 +73,17 @@ function buildDefaultStop(mode, barBuffer, barBufferUnit, fixedAmount, fixedPerc
 }
 
 // `noSpecificAccount`: useJ2Settings' own name for accountId == null (R-M2-1 b), when Save cannot write.
-export default function PortfolioSettingsModal({ settings, onSave, onClose, accountName, noSpecificAccount }) {
+// `noAccountReason`: useJ2Settings' WHY (R-M2-2 M-2); the banner says the true reason, never "the Default
+// account's settings" (with no account selected the settings read are the legacy row, not any account's).
+const NO_ACCOUNT_LINES = {
+  all: 'All Accounts is selected. Settings belong to one account: switch to a single account in the header selector to edit them.',
+  pending: 'Your accounts are still loading. Settings can be saved once one account is selected.',
+  'accounts-error': "Your accounts couldn't load, so these settings can't be saved right now.",
+  'no-accounts': "You don't have a Journal account yet, so these settings can't be saved.",
+}
+const NO_ACCOUNT_FALLBACK = 'Select a single account in the header selector to edit its settings.'
+
+export default function PortfolioSettingsModal({ settings, onSave, onClose, accountName, noSpecificAccount, noAccountReason }) {
   // Local form state seeded from props.settings. Saving writes this
   // back through useJ2Settings.save(). Cancel discards local state.
   const [accountSize, setAccountSize] = useState(settings?.accountSize ?? 100_000)
@@ -401,14 +411,13 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
           </button>
         </div>
         {noSpecificAccount && (
-          <div style={{
+          <div role="status" style={{
             margin: '12px 20px 0', padding: '10px 14px',
             background: 'var(--warn-bg)', border: '1px solid var(--warn-border)',
             color: 'var(--warn)', borderRadius: 8, fontSize: 12,
           }}>
-            <strong>All Accounts mode</strong> — showing the Default account's
-            settings as a fallback. Switch to a single account in the header
-            selector to edit settings.
+            {(noAccountReason && Object.hasOwn(NO_ACCOUNT_LINES, noAccountReason))
+              ? NO_ACCOUNT_LINES[noAccountReason] : NO_ACCOUNT_FALLBACK}
           </div>
         )}
 

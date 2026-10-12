@@ -37,18 +37,29 @@ describe('PortfolioSettingsModal', () => {
   })
 
   // R-M2-1 (b): the prop is `noSpecificAccount` (accountId == null), never a second `isAllAccounts`.
-  it('with no specific account selected: the banner shows and Save is disabled', () => {
+  // R-M2-2 M-2: the banner's sentence is chosen by WHY no account is selected (`noAccountReason`, from
+  // useJ2Settings), and it never claims to show "the Default account's settings" (they are the legacy row).
+  it.each([
+    ['all', 'All Accounts is selected. Settings belong to one account: switch to a single account in the header selector to edit them.'],
+    ['pending', 'Your accounts are still loading. Settings can be saved once one account is selected.'],
+    ['accounts-error', "Your accounts couldn't load, so these settings can't be saved right now."],
+    ['no-accounts', "You don't have a Journal account yet, so these settings can't be saved."],
+    [undefined, 'Select a single account in the header selector to edit its settings.'],
+  ])('no specific account, reason %s: its own sentence, Save disabled', (reason, sentence) => {
     render(
-      <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} noSpecificAccount />,
+      <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} noSpecificAccount
+        noAccountReason={reason} />,
     )
-    expect(screen.getByText('All Accounts mode')).toBeInTheDocument()
+    expect(screen.getByRole('status').textContent).toBe(sentence)
+    expect(screen.queryByText(/Default account/)).toBeNull()
     expect(screen.getByRole('button', { name: 'Save Settings' })).toBeDisabled()
   })
   it('with one account selected: no banner, and Save is enabled', () => {
     render(
-      <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} noSpecificAccount={false} />,
+      <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} noSpecificAccount={false}
+        noAccountReason={null} />,
     )
-    expect(screen.queryByText('All Accounts mode')).toBeNull()
+    expect(screen.queryByRole('status')).toBeNull()
     expect(screen.getByRole('button', { name: 'Save Settings' })).not.toBeDisabled()
   })
 

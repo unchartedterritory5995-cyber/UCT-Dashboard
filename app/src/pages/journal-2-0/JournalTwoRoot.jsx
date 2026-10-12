@@ -51,7 +51,7 @@ export default function JournalTwoRoot() {
   // Best-effort: refresh broker-synced trades when the journal opens
   // (server-side cooldown keeps this cheap; no-op if broker sync unconfigured).
   useBrokerSync()
-  const { settings, isLoading, error, save, accountName, noSpecificAccount } = useJ2Settings()
+  const { settings, isLoading, error, save, accountName, noSpecificAccount, noAccountReason } = useJ2Settings()
   const { accountId } = useJ2SelectedAccount()
   const { unviewed } = useJ2UnviewedEOD(accountId)
   const { markViewed } = useJ2EODRecaps(accountId)
@@ -227,6 +227,7 @@ export default function JournalTwoRoot() {
           onClose={closeSettings}
           accountName={accountName}
           noSpecificAccount={noSpecificAccount}
+          noAccountReason={noAccountReason}
         />
       )}
 
