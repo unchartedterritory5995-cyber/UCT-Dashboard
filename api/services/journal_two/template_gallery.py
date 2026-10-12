@@ -283,7 +283,9 @@ def property_definitions(user_id: str, raw: str | None, conn: sqlite3.Connection
         if len(out) >= MAX_PROPERTY_DEFS:
             break
         if np.is_builtin_property_id(property_id):
-            if property_id in np.BUILTIN_USER_SET_IDS:
+            # Kind of note carries no value into a gallery entry (never a value) and its name would
+            # surface a feature that may still be dark, so it is left out of the listing.
+            if property_id in np.BUILTIN_USER_SET_IDS and property_id != "builtin:note_kind":
                 d = np._BUILTIN_BY_ID[property_id]
                 out.append({"builtinId": property_id, "name": d["name"], "type": d["type"]})
             continue

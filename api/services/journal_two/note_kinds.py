@@ -9,8 +9,10 @@ Two facts, two places, never one restated:
   * the `builtin:note_kind` property is the note's CURRENT kind, the one views, filters and boards
     group by. It is set at creation, editable like any select, and is the only thing grouping reads.
 
-A kind in use (a live note's current kind, or a live style's kind) cannot be deleted: the member
-moves those first. There is no soft delete for kinds, so there is never an orphaned value.
+A kind in use cannot be deleted: a note's current kind counts whether the note is live OR in Trash,
+and a style's kind counts whether the style is live OR soft-deleted, because restoring either would
+bring back a dead id. The member moves (or empties) those first. There is no soft delete for kinds,
+so no restore path can orphan a value. The check and the DELETE share one write lock.
 """
 from __future__ import annotations
 
@@ -135,9 +137,14 @@ def create_kind(user_id: str, name: Any, icon: Any = None, conn: sqlite3.Connect
         if n >= MAX_KINDS_PER_MEMBER:
             raise KindValidationError(f"You can keep up to {MAX_KINDS_PER_MEMBER} kinds of note.")
         kid = MEMBER_KIND_PREFIX + uuid.uuid4().hex
-        conn.execute("INSERT INTO j2_note_kinds (id, user_id, name, icon, sort_order, created_at)"
-                     " VALUES (?, ?, ?, ?, ?, ?)", (kid, user_id, clean, ic, n, _now()))
-        conn.commit()
+        try:
+            conn.execute("INSERT INTO j2_note_kinds (id, user_id, name, icon, sort_order, created_at)"
+                         " VALUES (?, ?, ?, ?, ?, ?)", (kid, user_id, clean, ic, n, _now()))
+            conn.commit()
+        except sqlite3.IntegrityError:
+            # Lost a same-name race (a double-clicked button): the unique index is the authority.
+            conn.rollback()
+            raise KindValidationError(f"There is already a kind called {clean}.")
         return get_kind(user_id, kid, conn)
     finally:
         if owned:
@@ -175,45 +182,77 @@ def update_kind(user_id: str, kind_id: str, *, name: Any = None, icon: Any = Non
             conn.close()
 
 
-def _uses(user_id: str, kind_id: str, conn: sqlite3.Connection) -> tuple[int, int]:
-    notes_n = 0
-    for r in conn.execute("SELECT properties_json FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL"
-                          " AND properties_json IS NOT NULL", (user_id,)):
-        try:
-            if json.loads(r["properties_json"]).get(NOTE_KIND_PROPERTY) == kind_id:
-                notes_n += 1
-        except (TypeError, ValueError, AttributeError):
-            continue
-    styles_n = 0
+_KIND_PATH = '$."' + NOTE_KIND_PROPERTY + '"'
+
+
+def _uses(user_id: str, kind_id: str, conn: sqlite3.Connection) -> tuple[int, int, int, int]:
+    """(notes holding it, of which in Trash, styles holding it, of which soft-deleted).
+
+    Trashed notes and soft-deleted styles COUNT: restoring either must never bring back a dead id.
+    The note scan is one SQL statement (`json_extract`, guarded by `json_valid` so one unreadable row
+    cannot block every delete)."""
+    r = conn.execute(
+        "SELECT COUNT(*) AS n, COALESCE(SUM(deleted_at IS NOT NULL), 0) AS t FROM j2_notes"
+        " WHERE user_id = ? AND properties_json IS NOT NULL"
+        " AND CASE WHEN json_valid(properties_json) THEN json_extract(properties_json, ?) END = ?",
+        (user_id, _KIND_PATH, kind_id)).fetchone()
+    styles_n = styles_deleted = 0
     has_styles = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='j2_journal_styles'").fetchone()
     if has_styles:
-        styles_n = conn.execute("SELECT COUNT(*) AS c FROM j2_journal_styles WHERE user_id = ? AND kind_id = ?"
-                                " AND deleted_at IS NULL", (user_id, kind_id)).fetchone()["c"]
-    return notes_n, styles_n
+        s = conn.execute(
+            "SELECT COUNT(*) AS n, COALESCE(SUM(deleted_at IS NOT NULL), 0) AS d FROM j2_journal_styles"
+            " WHERE user_id = ? AND kind_id = ?", (user_id, kind_id)).fetchone()
+        styles_n, styles_deleted = s["n"], s["d"]
+    return r["n"], r["t"], styles_n, styles_deleted
 
 
 def delete_kind(user_id: str, kind_id: str, conn: sqlite3.Connection | None = None) -> bool:
     if kind_id in BUILTIN_KIND_IDS:
         raise KindValidationError("Built-in kinds can't be deleted.")
+    from api.services.journal_two.notes import _begin_immediate
     owned = conn is None
     conn = conn or get_connection()
+    started = not conn.in_transaction
     try:
+        if started:
+            _begin_immediate(conn)       # the in-use read and the DELETE share one write lock
         if get_kind(user_id, kind_id, conn) is None:
+            if started:
+                conn.rollback()
             return False
-        notes_n, styles_n = _uses(user_id, kind_id, conn)
+        notes_n, notes_trashed, styles_n, styles_deleted = _uses(user_id, kind_id, conn)
         if notes_n or styles_n:
             parts = []
             if notes_n:
-                parts.append(f"{notes_n} note{'s' if notes_n != 1 else ''}")
+                parts.append(f"{notes_n} note{'s' if notes_n != 1 else ''}"
+                             + (f" ({notes_trashed} in Trash)" if notes_trashed else ""))
             if styles_n:
-                parts.append(f"{styles_n} style{'s' if styles_n != 1 else ''}")
+                parts.append(f"{styles_n} style{'s' if styles_n != 1 else ''}"
+                             + (f" ({styles_deleted} deleted)" if styles_deleted else ""))
+            if started:
+                conn.rollback()
             raise KindInUse(f"This kind is used by {' and '.join(parts)}. Move them to another kind first.")
         conn.execute("DELETE FROM j2_note_kinds WHERE id = ? AND user_id = ?", (kind_id, user_id))
         conn.commit()
         return True
+    except BaseException:
+        if started and conn.in_transaction:
+            conn.rollback()
+        raise
     finally:
         if owned:
             conn.close()
+
+
+def offered(defs: list[dict]) -> list[dict]:
+    """Property definitions a door may OFFER or SUGGEST (autofill, AI organise; the client applies the
+    same rule to Add property and the board's group-by). While journal styles are off, Kind of note is
+    not offered through any door; an existing value still renders (spec P1.7c). The switch is read the
+    way journal_styles reads it, per call."""
+    from api.services.journal_two import journal_styles
+    if journal_styles.enabled():
+        return list(defs)
+    return [d for d in defs if d.get("id") != NOTE_KIND_PROPERTY]
 
 
 def kind_options(user_id: str, conn: sqlite3.Connection) -> list[dict]:
@@ -221,9 +260,9 @@ def kind_options(user_id: str, conn: sqlite3.Connection) -> list[dict]:
     return [{"id": k["id"], "label": k["name"], "color": "gray"} for k in list_kinds(user_id, conn)]
 
 
-def _unmapped(user_id: str, conn: sqlite3.Connection) -> list[tuple[str, str]]:
+def _unmapped(user_id: str, conn: sqlite3.Connection) -> list[tuple[str, str, bool]]:
     out = []
-    for r in conn.execute("SELECT id, properties_json FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL"
+    for r in conn.execute("SELECT id, properties_json, locked FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL"
                           " AND properties_json IS NOT NULL ORDER BY created_at, rowid", (user_id,)):
         try:
             props = json.loads(r["properties_json"])
@@ -231,7 +270,7 @@ def _unmapped(user_id: str, conn: sqlite3.Connection) -> list[tuple[str, str]]:
             continue
         rt = props.get("builtin:research_type") if isinstance(props, dict) else None
         if rt in RESEARCH_TYPE_TO_KIND and not props.get(NOTE_KIND_PROPERTY):
-            out.append((r["id"], rt))
+            out.append((r["id"], rt, bool(r["locked"])))
     return out
 
 
@@ -247,7 +286,7 @@ def mapping_offer(user_id: str, conn: sqlite3.Connection | None = None) -> dict 
     conn = conn or get_connection()
     try:
         counts: dict[str, int] = {}
-        for _nid, rt in _unmapped(user_id, conn):
+        for _nid, rt, _locked in _unmapped(user_id, conn):
             counts[rt] = counts.get(rt, 0) + 1
         if not counts:
             return None
@@ -269,16 +308,26 @@ def mapping_offer(user_id: str, conn: sqlite3.Connection | None = None) -> dict 
             conn.close()
 
 
-def apply_mapping(user_id: str, exclude_note_ids: Any = (), conn: sqlite3.Connection | None = None) -> list[dict]:
+def apply_mapping(user_id: str, exclude_note_ids: Any = (), conn: sqlite3.Connection | None = None,
+                  skipped_out: list | None = None) -> list[dict]:
     """Set Kind of note from Research Type on every unmapped note not in `exclude_note_ids` (the
     client excludes notes holding unsent offline work). Each write goes through notes.update_note
-    and moves that note's revision; the caller lands every returned {id, updatedAt}."""
+    and moves that note's revision; the caller lands every returned {id, updatedAt}.
+    A LOCKED note is never written to: it is appended to `skipped_out` as {id, reason: "locked"}."""
     from api.services.journal_two import notes as notes_service
     skip = {x for x in (exclude_note_ids or []) if isinstance(x, str)}
     owned = conn is None
     conn = conn or get_connection()
     try:
-        pending = [(nid, rt) for nid, rt in _unmapped(user_id, conn) if nid not in skip]
+        pending = []
+        for nid, rt, locked in _unmapped(user_id, conn):
+            if nid in skip:
+                continue
+            if locked:
+                if skipped_out is not None:
+                    skipped_out.append({"id": nid, "reason": "locked"})
+                continue
+            pending.append((nid, rt))
         if not pending:
             return []
         sector = _sector_kind(user_id, conn)
