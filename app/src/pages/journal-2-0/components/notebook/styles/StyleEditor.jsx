@@ -13,7 +13,7 @@ import { useMemberTemplates } from '../../../lib/memberTemplates'
 import { TEMPLATES } from '../../../lib/notebookTemplates'
 import { BLOCK_KINDS, blockLabel, tfWord } from '../../../lib/journalBlocks'
 import { NOTE_KIND_PROPERTY } from '../../../lib/noteKinds'
-import { createJournalStyle, previewJournalStyle, updateJournalStyle } from '../../../lib/journalStyles'
+import { createJournalStyle, MAX_STYLE_NAME_CHARS, previewJournalStyle, updateJournalStyle } from '../../../lib/journalStyles'
 import { DocBody } from '../TemplatePreview'
 import { docToOutlineText, outlineIsExpressible, outlineTextToDoc } from './outlineText'
 import { reportError } from './styleErrors'
@@ -182,7 +182,7 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
     <form className={styles.editor} onSubmit={(e) => { e.preventDefault(); save() }} aria-label={isNew ? 'New style' : `Edit style ${style.name}`}>
       <div className={styles.field}>
         <label htmlFor="js-name">Name</label>
-        <input id="js-name" type="text" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
+        <input id="js-name" type="text" value={name} maxLength={MAX_STYLE_NAME_CHARS} onChange={(e) => setName(e.target.value)} />
       </div>
       <div className={styles.field}>
         <label htmlFor="js-kind">Kind of note</label>

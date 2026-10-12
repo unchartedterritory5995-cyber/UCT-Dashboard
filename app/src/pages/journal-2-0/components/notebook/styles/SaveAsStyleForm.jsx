@@ -4,11 +4,23 @@
 // unsent, nothing is copied. Lazy chunk (NoteMenuActions lazyChunk).
 import { useEffect, useRef, useState } from 'react'
 import useJournalStyles from '../../../hooks/useJournalStyles'
-import { createJournalStyle } from '../../../lib/journalStyles'
+import { createJournalStyle, MAX_STYLE_NAME_CHARS } from '../../../lib/journalStyles'
 import { NOTE_KIND_PROPERTY } from '../../../lib/noteKinds'
+import { blockLabel } from '../../../lib/journalBlocks'
+import { WIDGET_REGISTRY } from '../../../../../widgets/registry'
+import { reportError } from './styleErrors'
 import styles from './SaveAsStyleForm.module.css'
 
 export const UNSENT_BEFORE_STYLE = 'Some words are still saving. Try again in a moment.'
+const SAVE_FAILED = "Couldn't save this style. Nothing was saved."
+
+// Review M-4: what the server left out of the style (`leftOut`), said in one plain sentence. A widget is named by
+// its own label (KindSection's rule), else as a block from a newer version.
+const WHY = { repeat: 'a style holds each block once' }
+const widgetName = (id) => (id && WIDGET_REGISTRY[id]?.labels?.header) || blockLabel(id)
+const leftOutSentence = (items) => (items?.length
+  ? ` Left out: ${items.map((x) => `${x.reason === 'repeat' ? 'another ' : ''}${widgetName(x.widgetId)} (${WHY[x.reason] || 'not a style block yet'})`).join(', ')}.`
+  : '')
 
 /**
  * @param onBeforeSave  `() => Promise<boolean>`; true once the server holds every word the editor has.
@@ -17,7 +29,8 @@ export const UNSENT_BEFORE_STYLE = 'Some words are still saving. Try again in a 
 export default function SaveAsStyleForm({ note, onBeforeSave, onDone }) {
   const { data, error: listError, mutate } = useJournalStyles()
   const [phase, setPhase] = useState('checking')        // checking | form
-  const [name, setName] = useState(note?.title || '')
+  // `maxLength` does not trim an initial value: the seed is cut to the server's cap (review M-5).
+  const [name, setName] = useState((note?.title || '').slice(0, MAX_STYLE_NAME_CHARS))
   const [picked, setPicked] = useState(null)             // null = the member has not touched the select
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -62,9 +75,9 @@ export default function SaveAsStyleForm({ note, onBeforeSave, onDone }) {
         ...(picked && picked !== defaultKind ? { kindId: picked } : {}),
       })
       mutate()
-      onDone?.(`Saved as the style “${out?.style?.name || name.trim() || note.title || 'Untitled style'}”.`)
+      onDone?.(`Saved as the style “${out?.style?.name || name.trim() || note.title || 'Untitled style'}”.${leftOutSentence(out?.leftOut)}`)
     } catch (err) {
-      setError(err?.status ? (err.message || "Couldn't save this style. Nothing was saved.") : "Couldn't save this style. Nothing was saved.")
+      setError(reportError(err, SAVE_FAILED))                    // never a bare "500" (review M-2)
     } finally {
       setBusy(false)
     }
@@ -75,7 +88,7 @@ export default function SaveAsStyleForm({ note, onBeforeSave, onDone }) {
     <form className={styles.form} onSubmit={submit}>
       <label className={styles.field}>
         <span className={styles.label}>Style name</span>
-        <input className={styles.input} value={name} onChange={(e) => setName(e.target.value)} maxLength={80} autoFocus autoComplete="off" />
+        <input className={styles.input} value={name} onChange={(e) => setName(e.target.value)} maxLength={MAX_STYLE_NAME_CHARS} autoFocus autoComplete="off" />
       </label>
       <label className={styles.field}>
         <span className={styles.label}>Kind of note</span>

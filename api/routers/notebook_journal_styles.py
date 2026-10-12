@@ -122,8 +122,12 @@ def create_style_endpoint(body: dict = Depends(paid_body), user: dict = Depends(
         if body.get("fromNoteId") is not None:
             if not isinstance(body["fromNoteId"], str):
                 raise HTTPException(status_code=400, detail="fromNoteId must be text")
-            s = js.create_style_from_note(user["id"], body["fromNoteId"], body.get("name"), body.get("kindId"))
-            return {"style": _found(s)}
+            left: list = []
+            s = js.create_style_from_note(user["id"], body["fromNoteId"], body.get("name"), body.get("kindId"),
+                                          left_out=left)
+            # `leftOut` (review M-4, additive): each widget that did not become a block, so the confirmation
+            # names it rather than dropping it silently.
+            return {"style": _found(s), "leftOut": left}
         return {"style": js.create_style(user["id"], body)}
     except (js.StyleValidationError, nk.KindValidationError) as e:
         raise _bad(e)

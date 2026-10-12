@@ -90,6 +90,17 @@ describe('New note: pick a kind', () => {
     expect(screen.queryByRole('button', { name: 'Use this template' })).toBeNull()
   })
 
+  // Final review M-2: lib/journalStyles sets the message to the bare status when a 5xx body is not JSON.
+  it('a preview whose 5xx body is not JSON never shows a bare status code', async () => {
+    renderSection()
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
+    globalThis.fetch.mockImplementation(async () => ({ ok: false, status: 500, json: async () => { throw new SyntaxError('not json') } }))
+    fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain("Couldn't build the preview.")
+    expect(alert.textContent).not.toMatch(/\b500\b/)
+  })
+
   // Round 2, I2: with the switch on, a block the app KNOWS is described by its name; only a block this
   // bundle truly does not know is "from a newer version".
   it('previews a known widget by its own name, a truly unknown one as a newer-version block', async () => {

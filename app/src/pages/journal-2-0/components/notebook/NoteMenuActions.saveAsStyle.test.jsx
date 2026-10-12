@@ -18,6 +18,8 @@ vi.mock('../../lib/journalStyles', async (importOriginal) => ({
 import NoteMenuActions from './NoteMenuActions'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { BUILTIN_NOTE_KINDS } from '../../lib/noteKinds'
+import { MAX_STYLE_NAME_CHARS } from '../../lib/journalStyles'
+import { contractBody } from '../../__fixtures__/contract'
 
 const LIST = { kinds: BUILTIN_NOTE_KINDS.map((k) => ({ ...k, builtin: true })), styles: [], blockKinds: [] }
 const NOTE = { id: 'n1', title: 'NVDA plan', kindId: 'trade_plan' }
@@ -140,6 +142,54 @@ describe('Save this note\'s setup as a style', () => {
     await screen.findByRole('textbox', { name: 'Style name' })
     fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
     expect((await screen.findByRole('alert')).textContent).toContain('Journal styles require a paid plan')
+  })
+
+  // Final review M-2: a 5xx whose body is not JSON reaches here with the bare status as its message.
+  it('a 5xx with no sentence never shows a bare status code', async () => {
+    createJournalStyle.mockRejectedValue(Object.assign(new Error('500'), { status: 500 }))
+    renderMenu()
+    fireEvent.click(await screen.findByRole('button', BTN, { timeout: 5000 }))
+    await screen.findByRole('textbox', { name: 'Style name' })
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toBe("Couldn't save this style. Nothing was saved.")
+  })
+
+  // Final review M-4: the server returns what saving the setup left out; the confirmation names it.
+  // The answer is the server's own (the generated contract fixture), never typed here.
+  it('names what was left out, in one plain sentence', async () => {
+    const answer = contractBody('journal-styles.create.from-note')
+    expect(answer.leftOut.length).toBeGreaterThan(0)                    // non-vacuity: the fixture leaves things out
+    createJournalStyle.mockResolvedValue(answer)
+    renderMenu()
+    fireEvent.click(await screen.findByRole('button', BTN, { timeout: 5000 }))
+    await screen.findByRole('textbox', { name: 'Style name' })
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    expect(await screen.findByText(
+      `Saved as the style “${answer.style.name}”. Left out: Fundamentals (not a style block yet), another Chart (a style holds each block once).`,
+    )).toBeInTheDocument()
+  })
+
+  it('says nothing about leaving out when nothing was', async () => {
+    createJournalStyle.mockResolvedValue({ style: { id: 's9', name: 'Mine' }, leftOut: [] })
+    renderMenu()
+    fireEvent.click(await screen.findByRole('button', BTN, { timeout: 5000 }))
+    await screen.findByRole('textbox', { name: 'Style name' })
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    expect(await screen.findByText('Saved as the style “Mine”.')).toBeInTheDocument()
+  })
+
+  // Final review M-5: `maxLength` does not trim an initial value, so a long title reached the server's cap.
+  it('a title longer than the server allows is cut to the cap when it seeds the name', async () => {
+    const title = 'A'.repeat(MAX_STYLE_NAME_CHARS + 25)
+    renderMenu({ note: { ...NOTE, title } })
+    fireEvent.click(await screen.findByRole('button', BTN, { timeout: 5000 }))
+    const name = await screen.findByRole('textbox', { name: 'Style name' })
+    expect(name).toHaveValue('A'.repeat(MAX_STYLE_NAME_CHARS))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save style' })).not.toBeDisabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    await screen.findByText(/^Saved as the style/)
+    expect(createJournalStyle).toHaveBeenCalledWith({ fromNoteId: 'n1', name: 'A'.repeat(MAX_STYLE_NAME_CHARS) })
   })
 
   it('Cancel closes the form without creating anything', async () => {

@@ -19,6 +19,9 @@ import { offlineEnabled } from './offline/offlineFlag'
 import { getCurrentAccountId } from './offline/currentAccount'
 
 export const STYLES_URL = '/api/j2/journal-styles'
+/** The server's cap on a style's name (journal_styles.MAX_STYLE_NAME_CHARS), pinned by
+ *  tests/test_journal_styles_store.py. The one client copy: every name field and seed reads it. */
+export const MAX_STYLE_NAME_CHARS = 80
 export const STYLES_CACHE_KEY = 'journal-styles:v1'
 const KINDS_URL = '/api/j2/note-kinds'
 const NOTES_URL = '/api/j2/notes'

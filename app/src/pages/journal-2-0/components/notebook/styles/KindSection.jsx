@@ -11,6 +11,7 @@ import { kindIcon } from '../../../lib/noteKinds'
 import { BLOCK_KINDS, blockLabel, tfWord } from '../../../lib/journalBlocks'
 import { WIDGET_REGISTRY } from '../../../../../widgets/registry'
 import TemplatePreview from '../TemplatePreview'
+import { reportError } from './styleErrors'
 import styles from './KindSection.module.css'
 
 const iconOf = (k) => (UICON_NAMES.includes(kindIcon(k)) ? kindIcon(k) : 'document')
@@ -48,7 +49,7 @@ export default function KindSection({ onCreate, busy = false, autoFocusFirst = f
       const out = await previewJournalStyle({ styleId: style.id })
       setPreview({ style, loading: false, body: labelled(out.bodyJson), ticker: out.ticker })
     } catch (e) {
-      setPreview({ style, loading: false, error: e.message || "Couldn't build the preview." })
+      setPreview({ style, loading: false, error: reportError(e, "Couldn't build the preview.") })   // never a bare "500" (M-2)
     }
   }
   // A create needs the network (the server composes the note); offline says so instead of failing late.

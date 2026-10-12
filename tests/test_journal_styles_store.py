@@ -47,6 +47,18 @@ def test_the_client_block_catalog_equals_the_server_catalog():
     assert shape(client) == shape(js.BLOCK_KINDS)
 
 
+def test_the_client_name_cap_is_the_servers():
+    """Review M-5: lib/journalStyles.js holds the ONE client copy of the style-name cap (every name field and
+    the Save-as-style seed read it). It imports browser modules, so Node cannot evaluate it raw: the
+    declaration is READ from the file, and must be exactly one."""
+    import re
+    from api.services.journal_two import journal_styles as js
+    src = Path("app/src/pages/journal-2-0/lib/journalStyles.js").read_text(encoding="utf-8")
+    found = re.findall(r"^export const MAX_STYLE_NAME_CHARS = (\d+)$", src, flags=re.M)
+    assert len(found) == 1, found                                        # non-vacuity: one declaration
+    assert int(found[0]) == js.MAX_STYLE_NAME_CHARS
+
+
 def test_every_builtin_kind_has_a_builtin_style_and_its_blocks_are_known():
     from api.services.journal_two import journal_styles as js, note_kinds as nk
     assert set(js.BUILTIN_STYLES) == nk.BUILTIN_KIND_IDS
@@ -236,6 +248,30 @@ def test_save_a_notes_setup_as_a_style(db_path):
     assert "{{block:chart}}" in texts and "My words" in texts
     assert full["properties"] == {"builtin:confidence": "high"}
     assert js.create_style_from_note("u2", n["id"], "x") is None          # not their note
+
+
+def test_saving_a_notes_setup_names_every_widget_it_left_out(db_path):
+    """Final review M-4: every widgetEmbed leaves the outline, and only the first of each known block becomes
+    a block. What did not (a widget that is not a style block yet, a second chart) is RETURNED, once each,
+    in the order met, so the confirmation can say so instead of dropping it silently."""
+    from api.services.journal_two import journal_styles as js, notes
+    def embed(widget, **attrs):
+        return {"type": "widgetEmbed", "attrs": {"v": 1, "widgetId": widget, "params": {"symbol": "NVDA"}, **attrs}}
+    body = {"type": "doc", "content": [
+        {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Setup"}]},
+        embed("chart"), embed("fundamentals"), embed("chart", embedId="second"),
+        {"type": "blockquote", "content": [embed("fundamentals", embedId="nested")]},
+        {"type": "paragraph", "content": [{"type": "text", "text": "My words"}]}]}
+    n = notes.create_note("u1", {"title": "NVDA plan", "bodyJson": body})
+    left: list = []
+    s = js.create_style_from_note("u1", n["id"], "From my note", "trade_plan", left_out=left)
+    assert [b["block"] for b in s["blocks"]] == ["chart"]
+    assert left == [{"widgetId": "fundamentals", "reason": "not-a-style-block"},
+                    {"widgetId": "chart", "reason": "repeat"}]
+    clean: list = []
+    plain = notes.create_note("u1", {"title": "x", "bodyJson": {"type": "doc", "content": [embed("chart")]}})
+    js.create_style_from_note("u1", plain["id"], "Plain", "trade_plan", left_out=clean)
+    assert clean == []                                             # CONTROL: nothing left out, nothing said
 
 
 def test_saving_a_note_whose_property_was_deleted_leaves_that_value_out(db_path):

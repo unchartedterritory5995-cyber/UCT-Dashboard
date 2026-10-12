@@ -14,8 +14,12 @@ import Sheet from '../../../../../components/mobile/Sheet'
 import { blockLabel } from '../../../lib/journalBlocks'
 import { applyStyleUpdate, planStyleUpdate } from '../../../lib/journalStyles'
 import useJournalStyles from '../../../hooks/useJournalStyles'
+import { friendlyError, reportError } from './styleErrors'
 import styles from './StyleUpdateSheet.module.css'
 
+// ⛔ Review M-6: a 409's detail is the SERVER's plain string (journal_styles.CONFLICT_SENTENCE) and is shown as
+// it is. This copy is only the fallback for a 409 with no body, pinned to the server's recorded answer
+// (`notes.apply-style-update.stale`) by NoteEditorPage.styleUpdate.test.jsx.
 export const STALE_SENTENCE = 'This note changed since you opened it. Nothing was added.'
 export const LOCKED_SENTENCE = 'This note is locked. Unlock it to change its layout.'
 export const STILL_SAVING_SENTENCE = 'Some words are still saving. Try again in a moment.'
@@ -28,11 +32,12 @@ const SKIP_WORDS = {
 }
 const skipWords = (reason) => SKIP_WORDS[reason] || 'it could not be added'
 
+// Review M-2: every other refusal goes through styleErrors (a bare "500" is never shown).
 const sentenceFor = (e) => {
-  if (e?.status === 409) return STALE_SENTENCE
+  if (e?.status === 409) return friendlyError(e, STALE_SENTENCE)
   if (e?.status === 423) return LOCKED_SENTENCE
   if (e?.status === 404) return GONE_SENTENCE
-  return e?.status ? (e.message || FAILED_SENTENCE) : FAILED_SENTENCE
+  return reportError(e, FAILED_SENTENCE)
 }
 
 /**

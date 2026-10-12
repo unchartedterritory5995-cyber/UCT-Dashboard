@@ -11,6 +11,16 @@
     "status": 200
   },
   "body": {
+    "leftOut": [
+      {
+        "reason": "not-a-style-block",
+        "widgetId": "fundamentals"
+      },
+      {
+        "reason": "repeat",
+        "widgetId": "chart"
+      }
+    ],
     "style": {
       "blocks": [
         {

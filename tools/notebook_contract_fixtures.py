@@ -1662,7 +1662,13 @@ def journal_styles(w: World) -> None:
                                          properties={"builtin:research_type": "earnings_play"})
         src = notes_service.create_note(who, {"title": "Setup to save", "ticker": "AMD", "bodyJson": doc(
             {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Setup"}]},
-            chart_block("AMD", [], embed_id="emb-styles-1"), para("My words"))}, c)
+            chart_block("AMD", [], embed_id="emb-styles-1"), para("My words"),
+            # Review M-4: what saving the setup LEAVES OUT is recorded (`leftOut`): a widget that is not a
+            # style block, and a second chart (a style holds each block once).
+            {"type": "widgetEmbed", "attrs": {"v": 1, "widgetId": "fundamentals", "params": {"symbol": "AMD"},
+                                              "embedId": "emb-styles-2", "mode": "live",
+                                              "capturedAt": "2026-09-28T15:00:00Z"}},
+            chart_block("AMD", [], embed_id="emb-styles-3", tf="W"))}, c)
         styled = notes_service.create_note(who, {"title": "MSFT plan", "ticker": "MSFT", "bodyJson": doc(
             {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "The setup"}]},
             para("My words"))}, c, properties={"builtin:note_kind": "trade_plan"}, style_stamp=trade_plan_stamp)

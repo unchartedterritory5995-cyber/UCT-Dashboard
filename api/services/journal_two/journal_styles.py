@@ -553,7 +553,7 @@ def default_style_for_kind(user_id: str, kind_id: str, conn: sqlite3.Connection 
 
 
 def create_style_from_note(user_id: str, note_id: str, name: Any, kind_id: Any = None,
-                           conn: sqlite3.Connection | None = None) -> dict | None:
+                           conn: sqlite3.Connection | None = None, left_out: list | None = None) -> dict | None:
     """"Save this note's setup as a style" (spec P1.4). The SERVER reads the note: the first node of
     each known block becomes a block (with its settings); the rest of the body is the outline; the
     note's user-set property values (not its kind) are the defaults.
@@ -562,7 +562,11 @@ def create_style_from_note(user_id: str, note_id: str, name: Any, kind_id: Any =
     callout, a list) leaves no placeholder -- the composer would only turn it into an empty paragraph
     and put the block after the first heading -- and every embed leaves the outline; a container a
     removal would empty keeps an empty paragraph (review I-1: two charts side by side must not
-    save an empty column)."""
+    save an empty column).
+
+    `left_out` (review M-4), when given, receives each embed that did NOT become a block, once per
+    (widgetId, reason) in the order met: {"widgetId", "reason": "not-a-style-block" | "repeat"} (a
+    widget that is not a style block yet; a second copy of a block the style already holds)."""
     from api.services.journal_two import notes as notes_service
     owned = conn is None
     conn = conn or get_connection()
@@ -571,6 +575,11 @@ def create_style_from_note(user_id: str, note_id: str, name: Any, kind_id: Any =
         if note is None:
             return None
         blocks, seen = [], set()
+
+        def leave_out(bid: Any, reason: str) -> None:
+            entry = {"widgetId": bid if isinstance(bid, str) else None, "reason": reason}
+            if left_out is not None and entry not in left_out:
+                left_out.append(entry)
 
         def strip(content: list, top: bool) -> list:
             out = []
@@ -585,6 +594,8 @@ def create_style_from_note(user_id: str, note_id: str, name: Any, kind_id: Any =
                         blocks.append({"block": bid, "enabled": True, "settings": settings})
                         if top:
                             out.append(_ph(bid))
+                    else:
+                        leave_out(bid, "repeat" if isinstance(bid, str) and bid in seen else "not-a-style-block")
                     continue                                    # every embed leaves the outline
                 if isinstance(node, dict) and isinstance(node.get("content"), list):
                     node = {**node, "content": _never_empty(node["content"], strip(node["content"], False))}

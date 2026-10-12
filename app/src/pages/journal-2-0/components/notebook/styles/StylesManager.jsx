@@ -20,7 +20,8 @@ import { journalStylesEnabled } from '../../../lib/journalStylesFlag'
 import { kindIcon } from '../../../lib/noteKinds'
 import {
   applyMappingOffer, createJournalStyle, createKind, deleteJournalStyle, deleteKind, getJournalStyle,
-  getMappingOffer, restoreJournalStyle, setDefaultJournalStyle, stylesOfKind, updateKind,
+  getMappingOffer, MAX_STYLE_NAME_CHARS as MAX_STYLE_NAME, restoreJournalStyle, setDefaultJournalStyle, stylesOfKind,
+  updateKind,
 } from '../../../lib/journalStyles'
 import StyleEditor from './StyleEditor'
 import { friendlyError, logIfUnexpected, reportError } from './styleErrors'
@@ -28,7 +29,6 @@ import { markOfferApplied, offerApplied } from './offerApplied'
 import styles from './StylesManager.module.css'
 
 const MAPPING_PREF = 'notebook_kind_mapping'
-const MAX_STYLE_NAME = 80                          // the server's cap on a style name
 const MAX_KIND_NAME = 40                           // note_kinds.MAX_KIND_NAME_CHARS
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
 const dismissed = (v) => String(v ?? '').replace(/^"|"$/g, '') === 'dismissed'

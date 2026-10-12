@@ -16,11 +16,13 @@ const isNetworkFailure = (e) => e instanceof TypeError && NETWORK_WORDS.test(Str
 /** A status-less error that is not the network: a bug in our own code. */
 export const isUnexpected = (e) => !offlineNow() && !e?.status && !isNetworkFailure(e)
 
-export function friendlyError(e) {
+/** `fallback` replaces the generic "on our side" sentence where a surface has a more exact one
+ *  ("Couldn't update this note. Nothing was added."); offline and the server's own words win either way. */
+export function friendlyError(e, fallback = SERVER_SIDE_SENTENCE) {
   if (offlineNow()) return OFFLINE_SENTENCE
   const message = String(e?.message || '').trim()
-  if (!e?.status) return isNetworkFailure(e) ? OFFLINE_SENTENCE : SERVER_SIDE_SENTENCE      // lib/journalStyles.call: a network failure has no status
-  if (!message || /^\d{3}$/.test(message)) return SERVER_SIDE_SENTENCE                     // a body that was not JSON
+  if (!e?.status) return isNetworkFailure(e) ? OFFLINE_SENTENCE : fallback      // lib/journalStyles.call: a network failure has no status
+  if (!message || /^\d{3}$/.test(message)) return fallback                     // a body that was not JSON
   return message
 }
 
@@ -30,7 +32,7 @@ export function logIfUnexpected(e) {
 }
 
 /** The words for a caught error, logging it if it is a bug of ours. */
-export function reportError(e) {
+export function reportError(e, fallback) {
   logIfUnexpected(e)
-  return friendlyError(e)
+  return friendlyError(e, fallback)
 }

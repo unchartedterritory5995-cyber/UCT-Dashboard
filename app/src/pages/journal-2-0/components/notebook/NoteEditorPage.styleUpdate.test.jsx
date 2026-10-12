@@ -48,6 +48,8 @@ vi.mock('../../lib/journalStyles', async (importOriginal) => ({
 
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { STYLE_EVENT } from '../../lib/journalStylesFlag'
+import { STALE_SENTENCE } from './styles/StyleUpdateSheet'
+import { contractBody } from '../../__fixtures__/contract'
 
 const KINDS = [{ id: 'weekend_prep', name: 'Weekend prep', builtin: true }, { id: 'trade_plan', name: 'Trade plan', builtin: true }]
 const style = (over = {}) => ({
@@ -190,6 +192,40 @@ describe('styleUpdate.staleBase', () => {
     await waitFor(() => expect(planStyleUpdate.mock.calls.length).toBe(before + 1))
   })
 
+  // Final review M-6: the 409's detail is the SERVER's plain string, shown as it is; the sheet's own copy is
+  // only the fallback for a 409 with no body, and that fallback is pinned to the server's recorded answer.
+  it('a 409 shows the server\'s own sentence', async () => {
+    NOTE = { ...baseNote(), id: 'n5' }
+    applyStyleUpdate.mockRejectedValue(Object.assign(new Error('Someone else saved this note just now. Nothing was added.'), { status: 409 }))
+    await renderEditor('n5')
+    const dialog = await openSheet()
+    await within(dialog).findByText('Will be added')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
+    expect(await within(dialog).findByText('Someone else saved this note just now. Nothing was added.')).toBeTruthy()
+  })
+
+  it('a 409 with no body falls back to the stale sentence, which is the server\'s recorded one', async () => {
+    expect(STALE_SENTENCE).toBe(contractBody('notes.apply-style-update.stale').detail)
+    NOTE = { ...baseNote(), id: 'n6' }
+    applyStyleUpdate.mockRejectedValue(Object.assign(new Error('409'), { status: 409 }))
+    await renderEditor('n6')
+    const dialog = await openSheet()
+    await within(dialog).findByText('Will be added')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
+    expect(await within(dialog).findByText(STALE_SENTENCE)).toBeTruthy()
+  })
+
+  // Final review M-2: lib/journalStyles sets the message to the bare status when a 5xx body is not JSON.
+  it('a 5xx with no sentence never shows a bare status code', async () => {
+    applyStyleUpdate.mockRejectedValue(Object.assign(new Error('500'), { status: 500 }))
+    await renderEditor()
+    const dialog = await openSheet()
+    await within(dialog).findByText('Will be added')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
+    expect(await within(dialog).findByText("Couldn't update this note. Nothing was added.")).toBeTruthy()
+    expect(within(dialog).queryByText('500')).toBeNull()
+  })
+
   it('a locked note (423) gets a plain locked sentence', async () => {
     applyStyleUpdate.mockRejectedValue(Object.assign(new Error('locked'), { status: 423 }))
     await renderEditor()
@@ -202,7 +238,8 @@ describe('styleUpdate.staleBase', () => {
 
 // Round 2 (review I3): after a 409 the base must be able to move, or "Check again" is a dead end.
 describe('styleUpdate.checkAgain', () => {
-  const STALE = Object.assign(new Error('x'), { status: 409 })
+  // The server's recorded 409 (M-6: its detail is what the sheet shows).
+  const STALE = Object.assign(new Error(contractBody('notes.apply-style-update.stale').detail), { status: 409 })
   const FRESH = () => ({ ...NOTE, updatedAt: '2026-01-09T00:00:00Z' })
 
   it('409, then Check again re-reads the note so the base is the server\'s, then Apply succeeds with it', async () => {
