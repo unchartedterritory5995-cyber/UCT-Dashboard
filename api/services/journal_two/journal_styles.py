@@ -696,3 +696,139 @@ def preview(user_id: str, payload: Any, conn: sqlite3.Connection | None = None) 
     finally:
         if owned:
             conn.close()
+
+
+# ── "Update layout to vN" (spec P1.3) ───────────────────────────────────────────────────────
+# Snapshot semantics: editing a style never rewrites a note. Updating one is an explicit,
+# previewed action that only ADDS the target style's enabled blocks the note lacks (after the first
+# heading), never removes or reorders the member's text, and is ONE compare-and-set write that
+# carries the style stamp. A block is "present" when a widgetEmbed with its widgetId is anywhere in
+# the body (docs/notebook/p1-verify-before-building.md §a).
+
+CONFLICT_SENTENCE = "This note changed since you opened it. Nothing was added."
+
+
+def _present(content: list) -> set[str]:
+    found, stack = set(), list(content or [])
+    while stack:
+        n = stack.pop()
+        if not isinstance(n, dict):
+            continue
+        if n.get("type") == "widgetEmbed" and isinstance((n.get("attrs") or {}).get("widgetId"), str):
+            found.add(n["attrs"]["widgetId"])
+        if isinstance(n.get("content"), list):
+            stack.extend(n["content"])
+    return found
+
+
+def _is_empty(content: list) -> bool:
+    return all(isinstance(n, dict) and n.get("type") == "paragraph" and not _plain(n).strip()
+               and not n.get("content") for n in content or [])
+
+
+def _raw_note(user_id: str, note_id: str, conn: sqlite3.Connection) -> tuple[sqlite3.Row, dict] | None:
+    """The note row and its STORED body. Never the served body (`notes._served_body`), which can be
+    a withheld placeholder or an in-memory upgrade, and must never be written back as the note."""
+    r = conn.execute("SELECT * FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+                     (note_id, user_id)).fetchone()
+    if r is None:
+        return None
+    try:
+        body = json.loads(r["body_json"] or '{"type":"doc","content":[]}')
+    except (TypeError, ValueError):
+        body = {"type": "doc", "content": []}
+    if not isinstance(body, dict):
+        body = {"type": "doc", "content": []}
+    return r, body
+
+
+def _plan(user_id: str, row: sqlite3.Row, body: dict, style_id: str | None, conn: sqlite3.Connection):
+    target_id = style_id or row["style_id"]
+    if not target_id:
+        raise StyleValidationError("This note was not made from a style.")
+    style = get_style(user_id, target_id, conn)
+    if style is None:
+        raise StyleNotFound(target_id)
+    switching = target_id != row["style_id"]
+    content = body.get("content") or []
+    have = _present(content)
+    add, skipped = [], []
+    for b in style["blocks"]:
+        if not b.get("enabled") or b["block"] in have:
+            continue
+        if b["block"] not in BLOCK_BUILDERS:
+            skipped.append({"block": b["block"], "reason": "unknown-block"})
+        elif b["block"] == "chart" and not row["ticker"]:
+            skipped.append({"block": "chart", "reason": "needs-ticker"})
+        else:
+            add.append(b)
+    plan = {"styleId": style["id"], "styleName": style["name"],
+            "fromVersion": None if switching else row["style_version"], "toVersion": style["version"],
+            "switching": switching, "insertsOutline": switching and _is_empty(content),
+            "add": [{"block": b["block"], "label": None} for b in add], "skipped": skipped,
+            "upToDate": (not switching and not add and row["style_version"] == style["version"])}
+    return style, add, plan
+
+
+def plan_style_update(user_id: str, note_id: str, *, style_id: str | None = None,
+                      conn: sqlite3.Connection | None = None) -> dict:
+    """The preview (dryRun): what an update would add, from which version to which. Writes nothing.
+    Raises StyleNotFound (no such live note for this member, or the style is gone, deleted
+    included) and StyleValidationError (the note was not made from a style and none was named)."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        got = _raw_note(user_id, note_id, conn)
+        if got is None:
+            raise StyleNotFound(note_id)
+        return _plan(user_id, got[0], got[1], style_id, conn)[2]
+    finally:
+        if owned:
+            conn.close()
+
+
+def apply_style_update(user_id: str, note_id: str, *, style_id: str | None = None,
+                       expected_updated_at: str | None = None,
+                       conn: sqlite3.Connection | None = None) -> tuple[dict, dict]:
+    """The one write: missing blocks after the first heading (or, when switching an EMPTY note to a
+    style, that style's composed outline), the kind when switching, and the style stamp, in ONE
+    compare-and-set `notes.update_note`. Returns `(note, plan)`.
+
+    ⛔ The compare-and-set is against the client's `expected_updated_at` when sent, else against the
+    revision THIS call read the body at: the body is read before update_note takes its write lock,
+    so without that a second writer landing in between would be overwritten by our copy. A stale
+    base raises notes.NoteConflictError and writes nothing (the route answers CONFLICT_SENTENCE)."""
+    from api.services.journal_two import notes as notes_service
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        got = _raw_note(user_id, note_id, conn)
+        if got is None:
+            raise StyleNotFound(note_id)
+        row, body = got
+        style, add, plan = _plan(user_id, row, body, style_id, conn)
+        patch: dict[str, Any] = {}
+        if plan["insertsOutline"]:
+            patch["bodyJson"] = compose(user_id, style, ticker=row["ticker"], conn=conn)["bodyJson"]
+        elif add:
+            ctx = {"ticker": row["ticker"], "now": datetime.now(timezone.utc)}
+            nodes = [BLOCK_BUILDERS[b["block"]](b, ctx)[0] for b in add]
+            new = copy.deepcopy(body)
+            i = _after_first_heading(new.setdefault("content", []))
+            new["content"][i:i] = [n for n in nodes if n is not None]
+            patch["bodyJson"] = new
+        if plan["switching"]:
+            patch["properties"] = {_nk().NOTE_KIND_PROPERTY: style["kindId"]}
+        base = expected_updated_at if expected_updated_at is not None else row["updated_at"]
+        try:
+            note = notes_service.update_note(user_id, note_id, patch, conn=conn,
+                                             expected_updated_at=base, client_schema=None,
+                                             style_stamp=(style["id"], style["version"]))
+        except notes_service.NoteValidationError as e:
+            raise StyleValidationError(str(e)) from e
+        if note is None:
+            raise StyleNotFound(note_id)
+        return note, plan
+    finally:
+        if owned:
+            conn.close()

@@ -1,0 +1,194 @@
+"""Update layout (spec P1.3): adds missing blocks only, never removes or reorders the member's text,
+one compare-and-set write with the style stamp in it.
+
+The route (`POST /api/j2/notes/{id}/apply-style-update`) belongs to Task 8's router and is not
+built in this lane; these rails pin the SERVICE it calls. `_styled_note` makes a note the way
+Task 9's `create_styled_note` does (compose, then ONE insert with the properties and the stamp)."""
+from __future__ import annotations
+
+import importlib
+import os
+import tempfile
+
+import pytest
+
+from tests._journal_styles_kind_stub import install as _install_kind_stubs
+
+
+@pytest.fixture(autouse=True)
+def _kinds(monkeypatch):
+    """Task 4/5 stand-ins while lane A2 is built without them; a no-op once they exist."""
+    _install_kind_stubs(monkeypatch)
+
+
+@pytest.fixture
+def db_path(monkeypatch):
+    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmp.close()
+    monkeypatch.setenv("AUTH_DB_PATH", tmp.name)
+    from api.services import auth_db
+    importlib.reload(auth_db)
+    auth_db.init_db()
+    yield tmp.name
+    os.unlink(tmp.name)
+
+
+def _styled_note(user, style_id, ticker):
+    from api.services.journal_two import journal_styles as js, notes
+    style = js.get_style(user, style_id)
+    composed = js.compose(user, style, ticker=ticker, conn=None)
+    return notes.create_note(user, {"title": "styled", "ticker": ticker, "bodyJson": composed["bodyJson"]},
+                             properties=composed["properties"],
+                             style_stamp=(composed["styleId"], composed["styleVersion"], composed["kindId"]))
+
+
+def _note_from_v1(user="u1", ticker="NVDA"):
+    from api.services.journal_two import journal_styles as js, notes
+    s = js.create_style(user, {"name": "Mine", "kindId": "thesis", "blocks": [],
+        "outlineBodyJson": {"type": "doc", "content": [
+            {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Thesis"}]},
+            {"type": "paragraph", "content": [{"type": "text", "text": "prompt"}]}]}})
+    n = _styled_note(user, s["id"], ticker)
+    body = n["bodyJson"]
+    body["content"].append({"type": "paragraph", "content": [{"type": "text", "text": "MY WORDS"}]})
+    n = notes.update_note(user, n["id"], {"bodyJson": body}, client_schema=4)
+    js.update_style(user, s["id"], {"blocks": [{"block": "chart", "enabled": True, "settings": {"tf": "W"}}]})
+    return s, n
+
+
+def test_plan_names_the_missing_block_and_versions(db_path):
+    from api.services.journal_two import journal_styles as js
+    s, n = _note_from_v1()
+    p = js.plan_style_update("u1", n["id"])
+    assert (p["fromVersion"], p["toVersion"], p["switching"], p["upToDate"]) == (1, 2, False, False)
+    assert p["add"] == [{"block": "chart", "label": None}]
+    assert (p["styleId"], p["styleName"], p["insertsOutline"], p["skipped"]) == (s["id"], "Mine", False, [])
+
+
+def test_a_plan_writes_nothing(db_path):
+    from api.services.journal_two import journal_styles as js, notes
+    s, n = _note_from_v1()
+    js.plan_style_update("u1", n["id"])
+    after = notes.get_note("u1", n["id"])
+    assert (after["updatedAt"], after["styleVersion"], after["bodyJson"]) == (n["updatedAt"], 1, n["bodyJson"])
+
+
+def test_apply_adds_after_the_heading_keeps_every_word_and_stamps(db_path):
+    from api.services.journal_two import journal_styles as js
+    s, n = _note_from_v1()
+    before = [x for x in n["bodyJson"]["content"]]
+    note, plan = js.apply_style_update("u1", n["id"], expected_updated_at=n["updatedAt"])
+    after = note["bodyJson"]["content"]
+    assert after[1]["type"] == "widgetEmbed" and after[1]["attrs"]["params"]["tf"] == "W"
+    assert after[1]["attrs"]["params"]["symbol"] == "NVDA"
+    assert [x for x in after if x["type"] != "widgetEmbed"] == before           # nothing removed or moved
+    assert (note["styleId"], note["styleVersion"]) == (s["id"], 2)
+    assert js.plan_style_update("u1", n["id"])["upToDate"] is True
+
+
+def test_a_block_already_in_the_note_is_not_added_twice(db_path):
+    from api.services.journal_two import journal_styles as js
+    s, n = _note_from_v1()
+    note, _ = js.apply_style_update("u1", n["id"], expected_updated_at=n["updatedAt"])
+    js.update_style("u1", s["id"], {"properties": {"builtin:confidence": "high"}})       # v3, no new block
+    p = js.plan_style_update("u1", n["id"])
+    assert (p["add"], p["upToDate"], p["toVersion"]) == ([], False, 3)
+    note2, _ = js.apply_style_update("u1", n["id"], expected_updated_at=note["updatedAt"])
+    assert note2["bodyJson"] == note["bodyJson"] and note2["styleVersion"] == 3   # only the stamp moved
+
+
+def test_a_stale_base_writes_nothing(db_path):
+    from api.services.journal_two import journal_styles as js, notes
+    s, n = _note_from_v1()
+    with pytest.raises(notes.NoteConflictError):
+        js.apply_style_update("u1", n["id"], expected_updated_at="2000-01-01T00:00:00+00:00")
+    got = notes.get_note("u1", n["id"])
+    assert got["styleVersion"] == 1 and got["bodyJson"] == n["bodyJson"]
+
+
+def test_a_write_between_the_read_and_the_update_is_never_overwritten(db_path, monkeypatch):
+    """⛔ No client baseline sent: the service still compares-and-sets against the revision IT read,
+    so a second writer landing between that read and the write is a 409, never a clobber."""
+    from api.services.journal_two import journal_styles as js, notes
+    s, n = _note_from_v1()
+    real = js._raw_note
+
+    def read_then_someone_types(user_id, note_id, conn):
+        got = real(user_id, note_id, conn)
+        body = notes.get_note("u1", n["id"])["bodyJson"]
+        body["content"].append({"type": "paragraph", "content": [{"type": "text", "text": "TYPED IN ANOTHER TAB"}]})
+        notes.update_note("u1", n["id"], {"bodyJson": body}, client_schema=4)
+        return got
+
+    monkeypatch.setattr(js, "_raw_note", read_then_someone_types)
+    with pytest.raises(notes.NoteConflictError):
+        js.apply_style_update("u1", n["id"])
+    texts = [c.get("content", [{}])[0].get("text") for c in notes.get_note("u1", n["id"])["bodyJson"]["content"]
+             if c.get("content")]
+    assert "TYPED IN ANOTHER TAB" in texts and "MY WORDS" in texts
+
+
+def test_switching_sets_the_kind_and_an_empty_note_gets_the_outline(db_path):
+    from api.services.journal_two import journal_styles as js, notes
+    n = notes.create_note("u1", {"title": "empty", "ticker": "AMD"})
+    note, plan = js.apply_style_update("u1", n["id"], style_id="builtin:watchlist_note",
+                                       expected_updated_at=n["updatedAt"])
+    assert plan["switching"] is True and plan["insertsOutline"] is True and plan["fromVersion"] is None
+    assert note["propertiesJson"]["builtin:note_kind"] == "watchlist_note"
+    assert note["bodyJson"]["content"][0]["type"] == "heading"
+    assert any(x["type"] == "widgetEmbed" for x in note["bodyJson"]["content"])
+    assert (note["styleId"], note["styleVersion"]) == ("builtin:watchlist_note", 1)
+
+
+def test_switching_a_note_with_words_only_adds_blocks(db_path):
+    from api.services.journal_two import journal_styles as js, notes
+    words = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "mine"}]}]}
+    n = notes.create_note("u1", {"title": "x", "ticker": "AMD", "bodyJson": words})
+    note, plan = js.apply_style_update("u1", n["id"], style_id="builtin:thesis", expected_updated_at=n["updatedAt"])
+    assert plan["insertsOutline"] is False
+    assert [x["type"] for x in note["bodyJson"]["content"]] == ["widgetEmbed", "paragraph"]   # no heading: first
+    assert note["bodyJson"]["content"][1] == words["content"][0]
+
+
+def test_a_chart_needs_a_ticker_and_is_skipped_without_one(db_path):
+    from api.services.journal_two import journal_styles as js
+    s, n = _note_from_v1(ticker=None)
+    p = js.plan_style_update("u1", n["id"])
+    assert p["add"] == [] and p["skipped"] == [{"block": "chart", "reason": "needs-ticker"}]
+
+
+def test_a_note_not_made_from_a_style_needs_a_style_id(db_path):
+    from api.services.journal_two import journal_styles as js, notes
+    n = notes.create_note("u1", {"title": "x"})
+    with pytest.raises(js.StyleValidationError):
+        js.plan_style_update("u1", n["id"])
+
+
+def test_a_deleted_style_or_a_missing_note_is_not_found(db_path):
+    from api.services.journal_two import journal_styles as js
+    s, n = _note_from_v1()
+    with pytest.raises(js.StyleNotFound):
+        js.plan_style_update("u1", "no-such-note")
+    with pytest.raises(js.StyleNotFound):
+        js.plan_style_update("u2", n["id"])                                       # not their note
+    js.delete_style("u1", s["id"])
+    with pytest.raises(js.StyleNotFound):
+        js.plan_style_update("u1", n["id"])
+    with pytest.raises(js.StyleNotFound):
+        js.apply_style_update("u1", n["id"], expected_updated_at=n["updatedAt"])
+
+
+def test_the_body_is_read_raw_from_the_row(db_path, monkeypatch):
+    """The planner reads `body_json` itself, never get_note's SERVED body (which can differ: a
+    withheld placeholder, an upgraded sample). With the served body blanked, the chart already in
+    the stored body must still count as present, and an apply must still keep every stored word."""
+    from api.services.journal_two import journal_styles as js, notes
+    s, n = _note_from_v1()
+    note, _ = js.apply_style_update("u1", n["id"], expected_updated_at=n["updatedAt"])
+    js.update_style("u1", s["id"], {"properties": {"builtin:confidence": "low"}})
+    stored = note["bodyJson"]
+    with monkeypatch.context() as m:
+        m.setattr(notes, "_served_body", lambda row: {"type": "doc", "content": []})
+        assert js.plan_style_update("u1", n["id"])["add"] == []
+        js.apply_style_update("u1", n["id"], expected_updated_at=note["updatedAt"])
+    assert notes.get_note("u1", n["id"])["bodyJson"] == stored

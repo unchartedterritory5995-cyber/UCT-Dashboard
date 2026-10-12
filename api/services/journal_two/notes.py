@@ -3624,8 +3624,12 @@ def update_note(
     force_version: bool = False,
     restored_from_version_id: str | None = None,
     client_schema: int | None = None,
+    style_stamp: tuple[str, int] | None = None,
 ) -> dict[str, Any] | None:
-    """`client_schema` is the schema the CLIENT that sent this patch can read
+    """`style_stamp` is INTERNAL (journal styles, P1): `(style_id, style_version)` written in
+    the SAME UPDATE as the body; never read from a PUT.
+
+    `client_schema` is the schema the CLIENT that sent this patch can read
     (`notebook_schema.declared_schema` of its `X-UCT-Notebook-Schema` header —
     0 when absent). A body write from a client older than the STORED body is
     refused with `NotebookSchemaTooOld` before anything else is checked: that
@@ -3764,6 +3768,9 @@ def update_note(
             except PropertyValidationError as e:
                 raise NoteValidationError(str(e)) from e
             sets.append("properties_json = ?"); params.append(new_properties_json)
+        if style_stamp is not None:
+            sets.append("style_id = ?"); params.append(style_stamp[0])
+            sets.append("style_version = ?"); params.append(style_stamp[1])
 
         if not sets:
             if began:

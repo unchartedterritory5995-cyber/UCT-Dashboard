@@ -314,6 +314,15 @@ const SERVER_LEDGER = {
     + 'its notes are trashed by sample_notebook.py\'s own pre-checked removal (their ids are recorded with the sample\'s), '
     + 'and its own remove() touches only non-note rows (a passed setup, an insight; a trade or entry context only '
     + 'for a preference recorded by the earlier version -- no trade is seeded)',
+  // Notebook P1 (journal styles, lane A2 Task 10): "Update layout to vN". Task 9 (create_styled_note, a
+  // create_note for a NEW note behind journal_two's POST /api/j2/notes {styleId|kindId}) extends this row.
+  'api/services/journal_two/journal_styles.py':
+    'apply_style_update: ONE update_note(expected_updated_at, style_stamp) under BEGIN IMMEDIATE behind '
+    + 'POST /api/j2/notes/{id}/apply-style-update (Task 8\'s router; the dry run is a separate read, '
+    + 'GET /api/j2/notes/{id}/style-update-plan -> plan_style_update, which writes nothing). The compare-and-set is '
+    + 'against the client\'s baseUpdatedAt, else against the revision the call itself read the body at, so a write '
+    + 'landing in between is a 409, never overwritten; its client (lib/journalStyles.js applyStyleUpdate) lands the '
+    + 'returned note with settleNoteWrite and the editor adopts it (adoptServerCopy)',
   // Wave 11 lane 11C ("Ask Notebook to do something"): a member-APPROVED batch, applied server-side change by
   // change through the member's own writers, each against the revision the member reviewed.
   'api/services/journal_two/ai_actions.py':
@@ -730,6 +739,17 @@ const DOOR_CLASSIFICATION = {
     why: 'seeds NEW example notes nobody holds and writes only those fresh ids inside the same call; removal is '
       + 'the sample notebook\'s own pre-checked trash over the same recorded ids, so unsent words are never trashed.',
     evidence: ['tests/test_sample_notebook_examples.py', 'tests/test_sample_notebook.py'],
+  },
+  'api/services/journal_two/journal_styles.py': {
+    class: FORK,
+    why: 'apply_style_update inserts missing blocks AFTER THE FIRST HEADING (or, switching an empty note, the style\'s '
+      + 'outline, which may carry an instruction paragraph): not a tail append of server-appended types, so '
+      + 'appendedServerNodes (positional, tail only) cannot prove APPEND_ONLY and a tab holding unsent words 409s into '
+      + 'a BODY_REWRITE and forks -- both survive. A stamp-only or kind-only update leaves the body byte-identical '
+      + '(METADATA_ONLY, rebased). One compare-and-set under BEGIN IMMEDIATE, against the revision the call read when '
+      + 'the client sent no base (tests/test_journal_styles_update.py, the read-then-type race).',
+    evidence: ['tests/test_journal_styles_update.py', 'app/src/pages/journal-2-0/lib/offline/ownerReconcile.test.js',
+      'tests/test_notes_cas_is_atomic.py'],
   },
   'api/services/journal_two/note_connectors/engine.py': {
     class: FORK,
