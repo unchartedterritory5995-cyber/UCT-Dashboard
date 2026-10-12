@@ -74,7 +74,10 @@ NOT done — unless a `news.*` op answered it from UCT's stored feed, whose card
     unchanged (D5). A comparison's newest tile is labelled "Latest close".
   - The finalized-only note ("2026-10-09 isn't finalized in UCT's breadth data yet") remains for
     finalized answers. Finalization normally runs one session behind, by design.
-  - Kill switch: `AGENT_BREADTH_CURRENT=0` (default on). If the dependency is absent, answers fall back to finalized.
+  - ⛔ DEFAULT OFF: active only with `AGENT_BREADTH_CURRENT=1` (or true / on / yes) after an approved
+    enablement. ON with the dependency or feed unavailable → "No current breadth reading is available right now".
+    Obvious wording is routed deterministically (no model call). Activation, smoke plan, future
+    live-vs-historical comparisons: `docs/agent/BREADTH-CURRENT-RELEASE.md`.
   - ⛔ Isolation is unchanged: current values travel only on the browser-only breadth route into the
     member's LOCAL row. The model's history note names the measures and says "the current reading";
     it never carries a value.

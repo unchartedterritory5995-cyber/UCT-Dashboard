@@ -159,7 +159,8 @@ function safeCorrected(r) {
   if (r.kind !== 'ops') return false                                   // confirm / subset / dismiss: never on a guess
   return r.ops.every(o => {
     const c = getCapability(o.action)
-    return c && (c.risk || 'local') === 'local' && c.reversible !== false && !SYMBOL_ACTIONS.has(o.action)
+    // a capability may refuse guessed readings outright (`fastCorrect: false`): only its exact wording is local
+    return c && c.fastCorrect !== false && (c.risk || 'local') === 'local' && c.reversible !== false && !SYMBOL_ACTIONS.has(o.action)
   })
 }
 export function fastParse(text, opts = {}) {

@@ -123,7 +123,8 @@ describe('3 · the panel: the member sees UCT\'s answer; the model never gets it
     const { say } = await mount()
     await loadBreadthDates()
     envelopes.push((b) => plan([{ action: 'breadth.show', target: refOf(b, 'breadth'), args: REQ }], 'It was about 73.5% on Friday.'))
-    await say('what % of US stocks are above their 50-day?')
+    // (worded so the MODEL plans it — the obvious wording is planned locally: agentBreadthFast.test.jsx)
+    await say('roughly what share of US stocks sit above their 50-day, would you say?')
     await screen.findByText(/73\.5% on 2026-10-09/, {}, { timeout: 6000 })
     expect(screen.getByTestId('agent-transcript').textContent).not.toMatch(/It was about 73\.5% on Friday/)   // model words dropped
     expect(breadthBodies).toEqual([REQ])

@@ -20,7 +20,11 @@ Rules (from the contract; this module only APPLIES them):
 /api/agent/breadth route; its result goes to the member's transcript as a LOCAL row (turn.LOCAL_ONLY_ACTIONS),
 never into a model request, plan, replayed history or chat naming. Nothing here is logged but statuses.
 
-Kill switch: AGENT_BREADTH_CURRENT=0 restores finalized-only answers (default on; no flag change needed).
+⛔ DEFAULT OFF (owner 2026-10-12): only an explicit, approved enablement turns this on —
+AGENT_BREADTH_CURRENT=1 (also true / on / yes, any case). Missing, empty or anything else = OFF, and
+present-tense answers are the finalized close exactly as before this feature. When ON but the Breadth
+dependency or its feed is unavailable, the member is told there is no current reading; a finalized
+close is shown only as dated historical context.
 """
 from __future__ import annotations
 
@@ -34,11 +38,15 @@ from api.services.market_intel import breadth_answer as _ba
 log = logging.getLogger(__name__)
 
 LIVE_STATUSES = ("intraday", "provisional")
-UNAVAILABLE = "A live breadth reading isn't available right now, so this is the latest finalized close."
+UNAVAILABLE = "No current breadth reading is available right now — this is the latest finalized close, shown as historical context."
+
+
+ON_VALUES = ("1", "true", "on", "yes")
 
 
 def enabled() -> bool:
-    return os.environ.get("AGENT_BREADTH_CURRENT", "1").strip().lower() not in ("0", "false", "off", "no")
+    """Explicit opt-in only: AGENT_BREADTH_CURRENT ∈ ON_VALUES (case-insensitive). Default OFF."""
+    return os.environ.get("AGENT_BREADTH_CURRENT", "").strip().lower() in ON_VALUES
 
 
 def wants_current(req: Any) -> bool:
@@ -92,8 +100,10 @@ def overlay(res: dict, answer: dict, view: Optional[dict], reading: Optional[Cal
     reading = reading or _reader()
     mets = [m for m in res.get("metrics") or [] if isinstance(m, dict)]
     ok = [m for m in mets if m.get("status") == "ok"]
-    if not reading or not ok:
+    if not ok:
         return answer.get("text") or "", view, {}
+    if not reading:
+        reading = _no_reading                    # the dependency is absent: every measure is "no current reading"
     uni_key = res.get("universe") or (res.get("request") or {}).get("universe")
     uni = res.get("universe_label") or ""
     picks = {}
@@ -139,3 +149,7 @@ def overlay(res: dict, answer: dict, view: Optional[dict], reading: Optional[Cal
     if parts:
         new["note"] = " ".join(parts)
     return text, new, statuses
+
+
+def _no_reading(_universe: str, _metric: str) -> dict:
+    return {"ok": False, "current": False, "stale_reason": "breadth_current unavailable"}

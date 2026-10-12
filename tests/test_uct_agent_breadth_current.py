@@ -64,7 +64,7 @@ def live(monkeypatch):
         state.calls.append((universe, metric))
         return bc.choose(universe, metric, state.now, state.payload, {FIN: 25.6, "2026-10-07": 24.0})
     monkeypatch.setattr(breadth_now, "_reader", lambda: reading)
-    monkeypatch.delenv("AGENT_BREADTH_CURRENT", raising=False)
+    monkeypatch.setenv("AGENT_BREADTH_CURRENT", "1")            # ⛔ default OFF: these tests enable it explicitly
     return state
 
 
@@ -196,15 +196,41 @@ def test_MARKET_OPEN_yesterdays_close_is_not_now(client, live):
 
 # ═══ switches ══════════════════════════════════════════════════════════════════════════════════════
 
-def test_KILL_SWITCH_restores_finalized_answers(client, live, monkeypatch):
-    monkeypatch.setenv("AGENT_BREADTH_CURRENT", "0")
-    p = ask(client)["present"]
-    assert live.calls == [] and p["value"] == "25.6%"
+@pytest.mark.parametrize("value", [None, "", "   ", "0", "false", "off", "no", "OFF", "enabled", "2", "tru"])
+def test_FLAG_default_OFF_missing_empty_disabled_or_malformed_is_finalized_exactly_as_before(client, live, monkeypatch, value):
+    if value is None:
+        monkeypatch.delenv("AGENT_BREADTH_CURRENT", raising=False)
+    else:
+        monkeypatch.setenv("AGENT_BREADTH_CURRENT", value)
+    assert breadth_now.enabled() is False
+    b = ask(client)
+    assert live.calls == []                                                     # the live service is never asked
+    assert b["present"]["value"] == "25.6%" and b["present"]["note"].startswith(f"As of {FIN} close")
+    assert breadth_now.UNAVAILABLE not in b["present"]["note"] and "Intraday" not in json.dumps(b)
+    assert "Latest finalized close (for history" not in b["text"]               # the pre-feature answer, unchanged
 
 
-def test_DEPENDENCY_MISSING_falls_back_to_finalized(client, live, monkeypatch):
+@pytest.mark.parametrize("value", ["1", "true", "TRUE", "on", "On", "yes", " 1 "])
+def test_FLAG_explicit_enablement_turns_it_on(client, live, monkeypatch, value):
+    monkeypatch.setenv("AGENT_BREADTH_CURRENT", value)
+    assert breadth_now.enabled() is True
+    assert ask(client)["present"]["note"] == "Intraday · 11:51 AM ET"
+
+
+def test_FLAG_ships_OFF_in_code():
+    import inspect
+    src = inspect.getsource(breadth_now.enabled)
+    assert 'os.environ.get("AGENT_BREADTH_CURRENT", "")' in src and "ON_VALUES" in src
+
+
+def test_DEPENDENCY_MISSING_says_there_is_no_current_reading(client, live, monkeypatch):
+    """Enabled, but the Breadth service is absent: never a silent finalized answer posing as current."""
     monkeypatch.setattr(breadth_now, "_reader", lambda: None)
-    assert ask(client)["present"]["value"] == "25.6%"
+    p = ask(client)["present"]
+    assert p["value"] == "25.6%" and p["note"].startswith(f"As of {FIN} close")   # dated historical context
+    assert f". {breadth_now.UNAVAILABLE}" in p["note"]
+    o = client.post("/api/agent/breadth", json={**BASE, "mode": "value", "metrics": []}).json()["present"]
+    assert breadth_now.UNAVAILABLE in o["note"] and "Intraday" not in json.dumps(o)
 
 
 def test_A_READING_FAULT_never_costs_the_answer(client, live, monkeypatch):
@@ -263,3 +289,44 @@ def test_LABEL_is_the_market_data_time_never_the_compute_time(client, live):
     live.payload = live_payload("2026-10-12T11:51:30-04:00", data_as_of="2026-10-12T11:49:10-04:00")
     p = ask(client)["present"]
     assert p["note"] == "Intraday · 11:49 AM ET"                                 # the snapshot's time, not 11:51
+
+
+# ═══ the Breadth endpoints stay ops-only; the Agent reads the service IN-PROCESS only ═════════════
+
+@pytest.mark.parametrize("path", ["/api/breadth-monitor/current?universe=us&metric=pct_above_50sma",
+                                  "/api/breadth-monitor/pipeline"])
+@pytest.mark.parametrize("secret,header", [
+    ("s3cret-test", None), ("s3cret-test", "Bearer "), ("s3cret-test", "Bearer wrong"),
+    ("", "Bearer "), ("", None),                                                # unset secret → closed for everyone
+])
+def test_ENDPOINTS_the_breadth_reading_routes_refuse_without_the_push_secret(monkeypatch, path, secret, header):
+    from api.routers import breadth_monitor
+    monkeypatch.setenv("PUSH_SECRET", secret)
+    app = FastAPI()
+    app.include_router(breadth_monitor.router)
+    r = TestClient(app).get(path, headers={"Authorization": header} if header is not None else {})
+    assert r.status_code == 401
+
+
+def test_ENDPOINTS_the_agent_never_calls_them_over_http():
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parents[1]
+    files = [*(root / "api/services/uct_agent").glob("*.py"), root / "api/routers/uct_agent.py",
+             *(root / "app/src/agent").rglob("*.js"), *(root / "app/src/agent").rglob("*.jsx")]
+    hits = [str(f) for f in files if "breadth-monitor" in f.read_text(encoding="utf-8", errors="ignore")]
+    assert hits == []
+    src = (root / "api/services/uct_agent/breadth_now.py").read_text(encoding="utf-8")
+    assert "from api.services import breadth_current" in src                   # in-process
+    for client in ("requests", "httpx", "urllib", "aiohttp", "http.client"):
+        assert f"import {client}" not in src and f"from {client}" not in src
+
+
+def test_ENDPOINTS_the_agent_route_that_reads_it_is_admin_gated():
+    """By object identity on the route's dependency tree (as test_exposed_routes_gated does)."""
+    route = next(r for r in rx.router.routes if getattr(r, "path", None) == "/api/agent/breadth")
+
+    def deps(d):
+        for x in d.dependencies:
+            yield x.call
+            yield from deps(x)
+    assert rx.require_admin_dark in set(deps(route.dependant))

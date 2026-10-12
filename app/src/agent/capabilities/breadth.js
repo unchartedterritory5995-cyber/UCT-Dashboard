@@ -105,6 +105,41 @@ async function answerBreadth(args) {
   return { text: b.text, table, ...(present ? { present } : {}) }
 }
 
+// ── DETERMINISTIC routing for the OBVIOUS breadth questions (the fast path's own mechanism) ─────────
+// "How's breadth today?", "What % of stocks are above their 50-day?", "... at the close?" are planned
+// here with no model call — the SAME registry op, through the same planner / policy / runtime and the
+// same local-only answer. Strict whole-message wording only: a date, a weekday, "yesterday", a second
+// request or any other word → the model plans it, as before. Values never pass through here.
+const SMA_PERIODS = new Set([5, 10, 20, 40, 50, 100, 150, 200])
+const WHEN_NOW = '(?: (?:right now|now|today|currently|at the moment|so far today|this (?:morning|afternoon)))?'
+const AT_CLOSE = ' (?:at|as of|on) (?:the )?(?:latest |last |most recent )?close'
+const UNI_WORD = '(us|u\\.s\\.|nyse|nasdaq)'
+const UNI_PRE = `(?:${UNI_WORD} )?`
+const UNI_POST = `(?: (?:on|for|in|across) (?:the )?${UNI_WORD}(?: stocks)?)?`
+const ASK = "(?:(?:what(?:'s| is| are| was)?|how(?:'s| is)|show(?: me)?|give me|tell me) )?"
+const OVERVIEW_RE = new RegExp(`^${ASK}(?:the )?${UNI_PRE}(?:market )?breadth(?: (?:look(?:ing)?|like|doing))*${UNI_POST}(${WHEN_NOW}|${AT_CLOSE})$`)
+const PCT_RE = new RegExp(`^${ASK}(?:the )?(?:percent(?:age)?|%|pct) (?:of )?${UNI_PRE}(?:stocks )?(?:that are |are |were )?above (?:their |the |its )?(\\d+)(?:[\\s-]*(?:day|d))?(?: (?:moving average|ma|sma|simple moving average|day moving average))?${UNI_POST}(${WHEN_NOW}|${AT_CLOSE})$`)
+const uniOf = (...ws) => {
+  const w = ws.find(Boolean)
+  return !w || w === 'u.s.' ? 'us' : w
+}
+export function breadthFast(raw) {
+  const t = String(raw || '').toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/[?.!]+$/g, '').replace(/\s+/g, ' ').trim()
+  if (!t || t.length > 120) return null
+  const base = { date: null, compare_date: null, start: null, end: null }
+  let m = OVERVIEW_RE.exec(t)
+  if (m) {
+    return { mode: 'value', universe: uniOf(m[1], m[2]), metrics: [], ...base, basis: /close$/.test(m[3] || '') ? 'close' : null }
+  }
+  m = PCT_RE.exec(t)
+  if (m) {
+    const n = Number(m[2])
+    if (!SMA_PERIODS.has(n)) return null
+    return { mode: 'value', universe: uniOf(m[1], m[3]), metrics: [`pct_above_${n}sma`], ...base, basis: /close$/.test(m[4] || '') ? 'close' : null }
+  }
+  return null
+}
+
 const nullableDate = { type: ['string', 'null'] }
 let registered = false
 export function registerBreadthCapabilities() {
@@ -151,6 +186,10 @@ export function registerBreadthCapabilities() {
       required: ['mode', 'universe', 'metrics', 'date', 'compare_date', 'start', 'end', 'basis'],
       additionalProperties: false,
     },
+    fastWhole: true,
+    // market data is never fetched on a guessed spelling ("whats bredth like" → the model plans it)
+    fastCorrect: false,
+    fast: ({ raw }) => breadthFast(raw),
     answer: (_snap, args) => answerBreadth(args),
   })
 }
