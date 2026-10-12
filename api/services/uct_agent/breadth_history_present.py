@@ -28,12 +28,15 @@ def _condition(req: dict) -> str:
 
 
 def _coverage_line(res: dict, answer: dict) -> str:
+    """One short provenance line (cards show ≤ 160 characters); MI's full caveats stay in the details text."""
     cov = res.get("coverage") or {}
     n = cov.get("sessions_searched")
+    gaps = int((res.get("gaps") or {}).get("count") or 0)
     line = (f"Finalized daily closes, {cov.get('searched_start')} – {cov.get('searched_end')}"
-            + (f" ({n:,} sessions searched)." if isinstance(n, int) else "."))
-    caveats = [str(c).strip() for c in (answer.get("caveats") or []) if str(c or "").strip()]
-    return " ".join([line, *caveats])[:400]
+            + (f", {n:,} sessions" if isinstance(n, int) else "") + ".")
+    if gaps:
+        line += f" {gaps} missing session{'s' if gaps != 1 else ''} break{'' if gaps != 1 else 's'} stretches."
+    return line
 
 
 def _episode_items(req: dict, ep: dict, cov: dict) -> list[dict]:

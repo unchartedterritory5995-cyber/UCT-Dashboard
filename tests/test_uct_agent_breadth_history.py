@@ -97,6 +97,16 @@ def test_ROUTE_every_find_has_a_view(client, world, kw, kind, check):
     assert check(p)
 
 
+def test_VIEW_provenance_fits_the_card_and_the_full_caveats_stay_in_details(client, world):
+    for kw in ({"op": "below", "level": 30, "find": "last"}, {"op": "below", "level": 30, "find": "count"},
+               {"op": "below", "level": 30, "find": "last_episode"}, {"op": "below", "level": 1, "find": "last"}):
+        b = search(client, **kw)
+        line = b["present"].get("source") or b["present"].get("note")
+        assert len(line) <= 160, line                                          # cards show ≤ 160 characters
+        assert "missing session" in line                                       # the synthetic world has a gap
+        assert "break a stretch" in b["text"]                                  # MI's full caveat, under Details
+
+
 @pytest.mark.parametrize("kw,says", [
     ({"op": "below", "level": 150, "find": "last"}, "isn't a possible value"),
     ({"op": "crosses_below", "level": 20, "find": "episodes"}, None),
