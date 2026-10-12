@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { _resetAgentConfig } from './agentClient'
+import { makeBoard } from './__fixtures__/board'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 import AgentPanel from './AgentPanel'
@@ -33,8 +34,9 @@ function install({ plainTurn = env('answer', 'Plain answer.') } = {}) {
 const send = (ev) => streamCtl.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(ev)}\n\n`))
 const close = () => streamCtl.close()
 
-async function open() {
-  render(<AgentPanel host={host} onClose={() => {}} />)
+async function open(h = host) {
+  const view = render(<AgentPanel host={h} onClose={() => {}} />)
+  open.view = view
   await waitFor(() => expect(urls).toContain('/api/agent/config'))
   await new Promise(r => setTimeout(r, 0))
   return screen.getByLabelText('Message UCT Agent')
@@ -135,5 +137,43 @@ describe('UCT Agent streaming', () => {
     streamCtl.error(new Error('network'))
     await waitFor(() => expect(screen.getByText(/connection to UCT dropped/)).toBeTruthy())
     expect(screen.queryByText('Part before the drop')).toBeNull()
+  })
+
+  it('closing the sidebar mid-stream (the panel unmounts): nothing throws, nothing renders after', async () => {
+    install()
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    ask(await open(), 'explain RSI divergence in detail')
+    await waitFor(() => expect(streamCtl).not.toBeNull())
+    send({ t: 'delta', text: 'Part before closing' })
+    await waitFor(() => expect(screen.getByText('Part before closing')).toBeTruthy())
+    open.view.unmount()                                    // AgentDock returns null when closed
+    send({ t: 'delta', text: ' and after' })
+    send(final(env('answer', 'Part before closing and after.')))
+    close()
+    await new Promise(r => setTimeout(r, 120))             // past the 50 ms repaint timer
+    expect(document.body.textContent).not.toMatch(/Part before closing/)
+    expect(errors.mock.calls.filter(c => /unmounted|act\(/.test(String(c[0])))).toEqual([])
+  })
+
+  it('a stream that ends as a PLAN: no streamed line stays, and the plan runs exactly once', async () => {
+    install()
+    const board = makeBoard([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20, opts: {} }], { A: 'AAPL' })
+    let commits = 0
+    const commit = board.host.charts.commit
+    board.host.charts.commit = (...a) => { commits += 1; return commit(...a) }
+    board.host.persist = async () => ({ ok: true })
+    const box = await open(board.host)
+    ask(box, 'could you make this weekly please, thanks')
+    await waitFor(() => expect(streamCtl).not.toBeNull())
+    send({ t: 'delta', text: 'Part of a reply' })              // (the server never streams a plan; defence in depth)
+    await waitFor(() => expect(screen.getByText('Part of a reply')).toBeTruthy())
+    send(final(env('apply', '', { ops: [{ action: 'chart.setTimeframe', target: 'c1', args: { timeframe: 'W' } }] })))
+    close()
+    await waitFor(() => expect(screen.queryByTestId('agent-typing')).toBeNull())
+    await waitFor(() => expect(screen.getByTestId('agent-receipt')).toBeTruthy())
+    expect(screen.queryByText('Part of a reply')).toBeNull()
+    expect(commits).toBe(1)
+    expect(board.state.widgets[0].opts.tf).toBe('W')
+    expect(screen.getAllByTestId('agent-receipt')).toHaveLength(1)
   })
 })
