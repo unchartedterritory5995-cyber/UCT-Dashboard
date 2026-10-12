@@ -1,6 +1,9 @@
 """UCT Agent -- /api/agent/*  (ADMIN-ONLY while dark, 2026-10-07)
 
   POST /api/agent/turn                     one model turn -> structured envelope
+  POST /api/agent/turn/stream              the same turn as text/event-stream (an answer streams when
+                                           UCT_AGENT_STREAM is on; the final event is /turn's JSON)
+  GET  /api/agent/config                   {stream}: does this server stream turns (UCT_AGENT_STREAM)
   POST /api/agent/record                   record what the BROWSER did (fast-path
                                            turns, receipts, refusals, undo) + telemetry
   GET  /api/agent/conversations            the member's chats, newest first
@@ -24,12 +27,15 @@ from __future__ import annotations
 import json
 import logging
 import os
+import queue
+import threading
 import time
 from datetime import datetime
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from api.middleware import auth_middleware
@@ -131,6 +137,67 @@ NO_TITLE_YET = "(no name yet)"
 
 @router.post("/api/agent/turn")
 def agent_turn(body: TurnIn, background: BackgroundTasks, user: dict = Depends(require_admin_dark)):
+    return _turn(body, background, user)
+
+
+#: STREAMING (2026-10-12, latency) — OFF unless set to 1/true/on/yes. Off, /api/agent/turn/stream sends
+#: ONLY the final result (the same JSON /api/agent/turn returns), so the browser's behaviour is unchanged;
+#: on, an answer's reply streams as it is written and a web search is announced (turn.ReplyStream's gate).
+STREAM_ENV = "UCT_AGENT_STREAM"
+
+
+def streaming_enabled() -> bool:
+    return str(os.environ.get(STREAM_ENV) or "").strip().lower() in ("1", "true", "on", "yes")
+
+
+@router.get("/api/agent/config")
+def agent_config(user: dict = Depends(require_admin_dark)):
+    """What the browser needs to know about this server's Agent: whether turns stream (flags only)."""
+    return {"stream": streaming_enabled()}
+
+
+@router.post("/api/agent/turn/stream")
+def agent_turn_stream(body: TurnIn, background: BackgroundTasks, user: dict = Depends(require_admin_dark)):
+    """The same turn as POST /api/agent/turn, as text/event-stream `data:` events:
+      {"t": "delta", "text"}        part of an ANSWER's reply, as written (streaming on only)
+      {"t": "retract"}              drop the streamed text: a web search follows (streaming on only)
+      {"t": "status", "stage"}      "research": a web search started (streaming on only)
+      {"t": "final", ...}           exactly /api/agent/turn's JSON — the authority, always last
+      {"t": "error", "status", "detail"}   what /api/agent/turn would have raised
+    The turn runs in a worker thread; this generator only relays its events. Nothing in an event is
+    logged; a plan's words, research results and local-only values never ride one."""
+    events: queue.Queue = queue.Queue()
+    on_event = (lambda e: events.put(("event", e))) if streaming_enabled() else None
+
+    def work() -> None:
+        try:
+            events.put(("final", _turn(body, background, user, on_event=on_event)))
+        except HTTPException as e:
+            events.put(("error", {"status": e.status_code, "detail": e.detail if isinstance(e.detail, str) else FAILED}))
+        except Exception:  # noqa: BLE001 -- the member gets a sentence, never a broken stream
+            log.exception("[uct-agent] streamed turn failed")
+            events.put(("error", {"status": 500, "detail": FAILED}))
+        finally:
+            events.put(None)
+
+    threading.Thread(target=work, name="uct-agent-turn", daemon=True).start()
+
+    def gen():
+        yield ": open\n\n"                       # flush the headers now (first visible byte)
+        while True:
+            item = events.get()
+            if item is None:
+                return
+            kind, payload = item
+            ev = payload if kind == "event" else {"t": kind, **payload}
+            yield f"data: {json.dumps(ev, separators=(',', ':'))}\n\n"
+
+    return StreamingResponse(gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"},
+                             background=background)
+
+
+def _turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None) -> dict:
     from api.services import ai_population_cap
     from api.services.uct_agent import store, turn as agent
     t0 = time.perf_counter()
@@ -169,7 +236,7 @@ def agent_turn(body: TurnIn, background: BackgroundTasks, user: dict = Depends(r
                              capabilities=body.capabilities,
                              pending=body.pending, recent_outcome=body.recentOutcome,
                              manifest_version=body.manifestVersion, routing=body.routing,
-                             conversation_title=nameable)
+                             conversation_title=nameable, on_event=on_event)
     except agent.TurnError as e:
         _give_back(uid)
         store.add_turn(uid, cid, "outcome", f"Refused: {e}", {"kind": "error"})
@@ -188,16 +255,15 @@ def agent_turn(body: TurnIn, background: BackgroundTasks, user: dict = Depends(r
     except Exception:  # noqa: BLE001 -- the answer stands; only its transcript row is lost
         log.exception("[uct-agent] could not store the agent turn")
         turn_id = None
+    # ⭐ LATENCY: the chat's name and the telemetry row are written AFTER the reply is sent (background
+    # tasks, in order); the transcript row above stays before it — the next turn's history needs it.
     title = out.get("title")
     if title and nameable and title != nameable and title != (info or {}).get("title"):
-        try:
-            store.set_auto_title(uid, cid, title)       # refuses by itself over a member's own name
-        except Exception:  # noqa: BLE001 -- the reply stands; only the name update is lost
-            log.exception("[uct-agent] could not store the conversation title")
+        background.add_task(_set_title, uid, cid, title)
     elif nameable == NO_TITLE_YET and not env.get("need_groups"):
         # Still unnamed and the turn gave no name: one small naming call after the reply is sent.
         background.add_task(_name_unnamed, uid, cid)
-    store.record_telemetry(uid, cid, {
+    background.add_task(store.record_telemetry, uid, cid, {
         # routing in the existing columns: path model | routed | reroute; disposition need_groups
         "path": "reroute" if body.reroute else ("routed" if body.routing else "model"),
         "disposition": "need_groups" if env.get("need_groups") else env["disposition"],
@@ -218,6 +284,14 @@ def agent_turn(body: TurnIn, background: BackgroundTasks, user: dict = Depends(r
                                                    "latency_ms", "research_calls", "citations", "model_calls",
                                                    "cache_read_tokens", "cache_write_tokens")},
                       "stages": stages}}
+
+
+def _set_title(uid: int, cid: str, title: str) -> None:
+    from api.services.uct_agent import store
+    try:
+        store.set_auto_title(uid, cid, title)           # refuses by itself over a member's own name
+    except Exception:  # noqa: BLE001 -- the reply stands; only the name update is lost
+        log.exception("[uct-agent] could not store the conversation title")
 
 
 def _name_unnamed(uid: int, cid: str) -> None:

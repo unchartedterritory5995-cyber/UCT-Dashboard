@@ -435,7 +435,7 @@ export default function AgentPanel({ host, gridMode, onClose }) {
         {typing && (
           <div className={styles.typingLine} role="status" aria-live="polite" data-testid="agent-typing">
             <span className={styles.typingDots} aria-hidden="true"><i /><i /><i /></span>
-            <span><b>UCT Agent</b> is typing…</span>
+            <span><b>UCT Agent</b> {agent.activity === 'research' ? 'is looking that up on the web…' : 'is typing…'}</span>
           </div>
         )}
         <div className={styles.bar}>

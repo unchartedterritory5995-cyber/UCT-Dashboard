@@ -146,6 +146,17 @@ const CATEGORIES = [
   ['approval-apply', ['do it', null, ['delete the Swing watchlist', deleteList('Swing')]], ['do it', null, ['delete the Old Ideas watchlist', deleteList('Old Ideas')]]],
 ]
 
+// ⛔ REGRESSION BUDGETS — the most serial network waits before the first useful output, and the exact
+// model calls, per category (warm). A change that adds a wait or a model call to one of these fails here.
+// Deterministic commands: the cross-session board read + the save acknowledgement (2) — a symbol's
+// ticker check runs BESIDE the board read; an indicator change is saved once (its own commit).
+const BUDGET = {
+  timeframe: { hops: 2, model: 0 }, symbol: { hops: 2, model: 0 }, indicator: { hops: 2, model: 0 }, undo: { hops: 2, model: 0 },
+  'breadth-current': { hops: 1, model: 0 }, 'breadth-historical': { hops: 2, model: 1 }, 'market-data': { hops: 2, model: 1 },
+  research: { hops: 1, model: 1 }, explain: { hops: 2, model: 1 }, clarify: { hops: 1, model: 1 }, approval: { hops: 1, model: 1 },
+  'approval-apply': { hops: 0, model: 0 },
+}
+
 const rows = []
 beforeEach(() => {
   screenerMod._resetScreenerCache()
@@ -231,6 +242,10 @@ describe('UCT Agent latency benchmark', () => {
         const r = await say(box, text, model)
         rows.push({ mode: STREAM ? 'stream' : 'plain', cat, temp, ...r })
         expect(r.output).not.toBeNull()                   // every request produced a useful output
+        if (temp === 'warm') {
+          expect(r.modelCalls).toBe(BUDGET[cat].model)
+          expect(r.hops).toBeLessThanOrEqual(BUDGET[cat].hops)
+        }
       }
       cleanup()
     }, 30000)

@@ -9231,6 +9231,7 @@ def _is_gzip_exempt(path: str) -> bool:
         or path.startswith("/api/live/massive/stream")  # flow SSE
         or path == "/api/community/chat/stream"          # Floor live-chat SSE
         or path == "/api/ai-search/stream"               # AI Search token stream
+        or path == "/api/agent/turn/stream"              # UCT Agent turn (answer streaming)
         or path == "/api/j2/ask/stream"                  # unified Ask token stream
         or (path.startswith("/api/j2/notes/") and path.endswith("/ask/stream"))  # legacy Ask Current Note URL
         or (path.startswith("/api/j2/notes/") and path.endswith("/writing-help/stream"))  # wave 7 editor writing help (SSE)

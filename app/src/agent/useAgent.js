@@ -35,7 +35,7 @@ import { traceStart, mark, traceEnd, turnStart, turnPath, turnVisible, turnOutpu
 import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT } from './capabilities'
 import { registerBuiltins } from './builtins'
 import { routeManifest, routingEnabled } from './routing'
-import { agentTurn, agentRecord, agentConversation } from './agentClient'
+import { agentTurn, agentTurnStream, serverStreams, loadAgentConfig, agentRecord, agentConversation } from './agentClient'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
 import { presentOf, compactViews, itemsFromTurns } from './present'
 
@@ -163,6 +163,13 @@ async function confirmDrawings(host, refs) {
   return { ok: true }
 }
 const drawingRefsOfPlan = (plan) => (plan?.plans || []).filter(p => p.kind === 'drawing' && p.changed).map(p => p.ref)
+// ⭐ LATENCY: a target kind whose commit ALREADY saved its change and read it back (`persistsInCommit`,
+// e.g. indicator edits) needs no second, identical board write after it. Only when every changed
+// target is such a kind; anything else is saved exactly as before.
+const selfSaved = (items) => {
+  const changed = (items || []).filter(p => p && p.changed !== false)
+  return changed.length > 0 && changed.every(p => getTargetKind(p.kind)?.persistsInCommit === true)
+}
 async function persistBoard(host, ops) {
   if (!host?.persist || boardEpoch(host, ops) == null) return { ok: true }
   try {
@@ -262,6 +269,51 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     setItems(xs => [...xs, { id: nid(), at: Date.now(), ...item }])
   }, [])
   const patchItem = useCallback((id, patch) => setItems(xs => xs.map(x => (x.id === id ? { ...x, ...patch } : x))), [])
+  // What the Agent is doing while the member waits, beyond "typing" ('research' = a web search runs).
+  const [activity, setActivity] = useState(null)
+  // ⭐ STREAMING (server flag UCT_AGENT_STREAM): an ANSWER's reply appears while it is being written, as
+  // ONE provisional line — repainted at most every 50 ms, replaced by the final envelope's reply (the
+  // authority) when the turn ends as an answer, removed when it does not or when a web search follows
+  // (`retract`). The server sends text only through its gate (turn.ReplyStream): never a plan's words,
+  // never a local-only result.
+  const streamLine = useCallback(() => {
+    let id = null
+    let text = ''
+    let timer = null
+    const stop = () => { if (timer) { clearTimeout(timer); timer = null } }
+    const remove = (gone) => setItems(xs => xs.filter(x => x.id !== gone))
+    return {
+      onEvent(e) {
+        if (e?.t === 'delta' && typeof e.text === 'string') {
+          text += e.text
+          if (!id) {
+            id = nid()
+            mark('turn:first-delta')
+            setActivity(null)
+            push({ id, role: 'agent', text, streaming: true })
+          } else if (!timer) {
+            timer = setTimeout(() => { timer = null; if (id) patchItem(id, { text }) }, 50)
+          }
+        } else if (e?.t === 'retract') {
+          stop()
+          if (id) remove(id)
+          id = null; text = ''
+        } else if (e?.t === 'status' && e.stage === 'research') {
+          setActivity('research')
+        }
+      },
+      // `final` ({text, sources}): the answer takes the streamed line's place → true. null: removed → false.
+      settle(final) {
+        stop()
+        const had = id
+        id = null; text = ''
+        if (!had) return false
+        if (final && String(final.text || '').trim()) { patchItem(had, { ...final, streaming: false }); return true }
+        remove(had)
+        return false
+      },
+    }
+  }, [push, patchItem])
 
   // Reopen the remembered conversation (transcript only; proposals and undo are per session).
   // ⭐ MERGED, never replaced: the composer stays usable while this loads, and a
@@ -282,8 +334,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     return () => { alive = false }
   }, [setConversationId])
 
-  // Features warm their data (catalogs) once the Agent is open.
-  useEffect(() => { runWarmups(host) }, [host])
+  // Features warm their data (catalogs) once the Agent is open; so does the server's streaming flag.
+  useEffect(() => { runWarmups(host); loadAgentConfig() }, [host])
 
   useEffect(() => {
     let mark = null
@@ -345,9 +397,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     }
     // ⛔ Another window/device may have changed this member's board (one shared,
     // last-write-wins preference): never write over it (host.boardInSync).
-    const boardStillOurs = async (ops) => {
+    // `early`: the same check already started (LATENCY: beside planning's own lookups, see below)
+    const boardStillOurs = async (ops, early = null) => {
       if (!host?.boardInSync || boardEpoch(host, ops) == null) return true
-      const s = await host.boardInSync()
+      const s = await (early || host.boardInSync())
       mark('board:synced', s.ok ? 'ok' : 'changed')
       if (s.ok) return true
       const text = `I didn't change anything: ${s.reason}. Reload this page to see the current board, then ask again.`
@@ -487,6 +540,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     }
     // ⛔ F6: an Apply plans from what was approved (the seals), never from a fresh read
     const pendingLists = Object.assign({}, ...ops.map(o => o.pendingLists || {}))
+    // ⭐ LATENCY: a change that will be applied reads the server's board for the cross-session check NOW,
+    // beside the lookups planning waits on (a ticker search), not after them — one network wait less.
+    // The SAME check and the same refusal, still before anything is written; a plan that ends up
+    // proposed or refused never uses it (one wasted read at most).
+    const earlySync = (suggested === 'apply' || suggested === 'approved') && !composing && host?.boardInSync && boardEpoch(host, ops) != null
+      ? host.boardInSync() : null
+    earlySync?.catch(() => {})                 // awaited below; never an unhandled rejection meanwhile
     const env = { ...(await prepareOps(ops)), ...(suggested === 'approved' ? { approved: true, approval: approval || [] } : {}), ...(Object.keys(pendingLists).length ? { pendingLists } : {}) }
     mark('prepared')
     // A read in THIS request (a screen just run) is visible to the writes after it ("find … and save it"):
@@ -538,7 +598,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     // An expansion is always proposed first (it creates several widgets at once).
     const mode = repeatOfInterrupted ? 'propose' : (suggested === 'approved' ? 'apply' : (expansion ? 'propose' : decideMode(suggested, plan)))
     // Any write to the board is preceded by the cross-session check (once per Apply).
-    if (mode !== 'propose' && !composed && !(await boardStillOurs(ops))) return
+    if (mode !== 'propose' && !composed && !(await boardStillOurs(ops, earlySync))) return
     if (mode === 'propose') {
       const pid = nid()
       // The proposal keeps the UNEXPANDED request: Apply expands it again from scratch.
@@ -571,7 +631,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         if (res.undo) res.undo.lines = expansion.lines
       }
       // Persistence acknowledgment (board changes): the receipt and its Undo wait for the server.
-      saved = res.ok ? await persistBoard(host, ops) : { ok: true }
+      saved = res.ok ? (selfSaved(plan.plans) ? { ok: true } : await persistBoard(host, ops)) : { ok: true }
       if (res.ok && saved.ok) saved = await confirmDrawings(host, drawingRefsOfPlan(plan))
     } finally {
       // Reached an outcome (even a thrown one): no longer in flight. Only a reload/close skips this.
@@ -717,7 +777,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (res.ok) {
       undoRef.current = stack.filter(e => e.id !== entry.id)
       setItems(xs => xs.map(x => (x.undoId === entry.id ? { ...x, undone: true } : x)))
-      let saved = entry.epoch != null && host?.persist
+      let saved = entry.epoch != null && host?.persist && !selfSaved(entry.items)
         ? await (async () => { try { const r = await host.persist(); return r && r.ok ? { ok: true } : { ok: false, reason: (r && r.reason) || 'not-saved' } } catch { return { ok: false, reason: 'not-saved' } } })()
         : { ok: true }
       if (saved.ok) saved = await confirmDrawings(host, entry.items.filter(it => it.kind === 'drawing').map(it => it.ref))
@@ -936,10 +996,14 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         // Transaction-local aliases (new1…) are not context refs: they pass through.
         ? { ops: p.ops.map(o => ({ ...o, target: back[o.target] || o.target })) }
         : null
-      const ask = (r, extra = {}) => agentTurn({
-        conversationId: conversationRef.current, message: text, voice, pending,
-        context, capabilities: r.manifest, manifestVersion: MANIFEST_VERSION, routing: r.routing, ...extra,
-      })
+      const live = streamLine()
+      const ask = (r, extra = {}) => {
+        const b = {
+          conversationId: conversationRef.current, message: text, voice, pending,
+          context, capabilities: r.manifest, manifestVersion: MANIFEST_VERSION, routing: r.routing, ...extra,
+        }
+        return serverStreams() ? agentTurnStream(b, live.onEvent) : agentTurn(b)
+      }
       mark('turn:sent')
       let res = await ask(routed)
       mark('turn:received', res.ok ? stagesOf(res.data) : res.status || 'error')
@@ -949,6 +1013,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         // The groups the model needs come first; whatever no longer fits the budget is dropped
         // from THIS request (named, not sent). If a needed group itself cannot fit, stop honestly.
         routed = routeManifest(full, text, routeOpts, need)
+        live.settle(null)
         if (!need.every(g => routed.routing?.selected?.includes(g) || !routed.routing)) {
           push({ role: 'agent', text: 'That touches too many parts of UCT for one request. Try asking for one part at a time.' })
           return
@@ -960,16 +1025,20 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         res = await ask(routed, { conversationId: res.data.conversationId, reroute: true })
         mark('reroute:received', res.ok ? stagesOf(res.data) : res.status || 'error')
         if (res.ok && (res.data.envelope?.need_groups || []).length) {
+          live.settle(null)
           push({ role: 'agent', text: 'That needs more of UCT than I can plan in one step. Try asking for one part at a time.' })
           return
         }
       }
-      if (!res.ok) { push({ role: 'error', text: res.error }); return }
+      if (!res.ok) { live.settle(null); push({ role: 'error', text: res.error }); return }
       if (res.data.conversationId !== conversationRef.current) setConversationId(res.data.conversationId)
       const env = res.data.envelope
       const sources = res.data.usage?.citations || []
-      if (env.disposition === 'answer' || env.disposition === 'unsupported') {
-        push({ role: 'agent', text: env.reply, sources })
+      const talk = env.disposition === 'answer' || env.disposition === 'unsupported'
+      // the final reply replaces whatever streamed (or the streamed line goes, for anything else)
+      const streamed = live.settle(talk ? { text: env.reply, sources } : null)
+      if (talk) {
+        if (!streamed) push({ role: 'agent', text: env.reply, sources })
         return
       }
       if (env.disposition === 'clarify') {
@@ -1019,9 +1088,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     } finally {
       lockRef.current = false
       setBusy(false)
+      setActivity(null)
       turnEnd()
     }
-  }, [push, gridMode, host, record, doUndo, approve, dismiss, execute, setConversationId, patchItem, capCtx])
+  }, [push, gridMode, host, record, doUndo, approve, dismiss, execute, setConversationId, patchItem, capCtx, streamLine])
 
   const newChat = useCallback(() => {
     setConversationId(null)
@@ -1040,7 +1110,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const canUndo = (undoId) => undoRef.current.some(e => e.id === undoId)
 
   return {
-    items, busy, restoring, conversationId, send, newChat, openConversation,
+    items, busy, activity, restoring, conversationId, send, newChat, openConversation,
     undo: exclusive((undoId) => doUndo(undoId, { member: null })),
     approve: exclusive(() => approve(null, { member: null })), dismiss: () => { if (!lockRef.current) dismiss({ member: null }) },
     chooseTarget: exclusive(chooseTarget), canUndo,
