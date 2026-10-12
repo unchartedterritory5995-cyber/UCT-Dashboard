@@ -11,7 +11,8 @@
       "chart",
       "preEntryChecklist",
       "priceStamps",
-      "positionSizing"
+      "positionSizing",
+      "marketcontext"
     ],
     "kinds": [
       {

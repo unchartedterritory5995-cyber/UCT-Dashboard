@@ -10,6 +10,7 @@ fixtures `journal-styles.*` and `note-kinds.*`, tools/notebook_contract_fixtures
   DELETE /api/j2/journal-styles/{style_id}              soft delete (Undo = restore)
   POST   /api/j2/journal-styles/{style_id}/restore      undo a delete
   POST   /api/j2/journal-styles/{style_id}/default      make it its kind's default
+  GET    /api/j2/trader-blocks/market-context           the readings a market context stamp freezes (P2a)
   GET    /api/j2/note-kinds                             built-in and member kinds
   POST   /api/j2/note-kinds                             a member kind
   PUT    /api/j2/note-kinds/{kind_id}                   rename / icon / order
@@ -176,6 +177,18 @@ def restore_style_endpoint(style_id: str, user: dict = Depends(require_paid)) ->
 @router.post("/journal-styles/{style_id}/default")
 def default_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     return {"style": _found(js.set_default(user["id"], style_id))}
+
+
+# ── trader blocks (P2a) ──────────────────────────────────────────────────────────────
+
+@router.get("/trader-blocks/market-context")
+def trader_market_context(user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """Read-only (spec §P2 item 3): the params a hand-inserted market context stamp freezes, captured
+    now and dated as such (R-P2-8). Every gap is a sentence. Cache-only, like the composer's read
+    (R-W0-1): it never waits on a vendor."""
+    from datetime import datetime, timezone
+    from api.services.journal_two import trader_blocks
+    return trader_blocks.market_context_params({}, user_id=user["id"], now=datetime.now(timezone.utc))
 
 
 # ── kinds ────────────────────────────────────────────────────────────────────────────

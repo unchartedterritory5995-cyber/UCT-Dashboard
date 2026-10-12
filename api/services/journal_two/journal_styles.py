@@ -58,6 +58,9 @@ BLOCK_KINDS: tuple[dict, ...] = (
         {"key": "on", "options": ("no", "yes"), "default": "no"},)},
     {"id": "positionSizing", "search": "[position sizing]", "settings": (
         {"key": "grade", "options": ("A", "A+", "B"), "default": "A"},)},
+    # The market context stamp is the EXISTING marketcontext capture widget (IR-S6). No `search`.
+    {"id": "marketcontext", "settings": (
+        {"key": "fields", "options": ("all", "regime", "indexes"), "default": "all"},)},
 )
 KNOWN_BLOCKS = frozenset(k["id"] for k in BLOCK_KINDS)
 _BLOCK_BY_ID = {k["id"]: k for k in BLOCK_KINDS}
