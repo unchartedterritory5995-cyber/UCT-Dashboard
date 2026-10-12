@@ -162,9 +162,9 @@ def test_the_footer_social_row_links_the_approved_accounts_with_labels():
 def test_the_owner_is_named_patrick_tsdr_everywhere():
     html = PAGE.read_text(encoding="utf-8")
     # The X handle keeps its name; every other mention carries "Patrick (TSDR)".
-    # 11 since 2026-10-11: the hero image alt names "Patrick and Bracco", as the image labels do.
+    # 12 since 2026-10-12: the hero image alt names "Patrick (TSDR) and Bracco", as the image labels now do.
     rest = html.replace("TSDR_Trading", "").replace("TSDR Trading on", "")
-    assert rest.count("TSDR") == rest.count("Patrick (TSDR)") == 11, (rest.count("TSDR"), rest.count("Patrick (TSDR)"))
+    assert rest.count("TSDR") == rest.count("Patrick (TSDR)") == 12, (rest.count("TSDR"), rest.count("Patrick (TSDR)"))
     assert "TSDR (Patrick)" not in html
     p = _parsed()
     for desc in (_meta(p, name="description"), _meta(p, property="og:description"), _meta(p, name="twitter:description")):
@@ -572,8 +572,8 @@ V4_INTRO = [
     "Every market morning at 9 AM ET, half an hour before the 9:30 open, co-founders Patrick (TSDR) "
     "and Bracco go live on Zoom. They lay out the game plan and the stocks they are watching and ready "
     "to trade, then trade the open on screen "
-    "share and talk through every decision. Around them: five traders, an options flow team, and a "
-    "productive, helpful and focused main chat.",
+    "share and talk through every decision. Around them: Elite Swing Traders, Manrav, Jersace, Alex Jones "
+    "and an options flow team of three, and a productive, helpful and focused main chat.",
 ]
 V4_TIMELINE = [
     ("At 9 AM ET.", "The Zoom link drops in the live Zoom links channel."),
@@ -649,7 +649,7 @@ def test_v4_intro_is_two_locked_paragraphs_and_keeps_the_cta_lines():
     assert _blocks("p", "lede") == V4_INTRO
     hero = _norm(_hero())
     assert "Use code JOINUCT for a nice discount to join the group." in hero
-    assert "4.9 stars from 173 reviews on Whop." in hero
+    assert "4.9 stars from 180 reviews on Whop." in hero
     assert "Join the live trading room" in hero
 
 

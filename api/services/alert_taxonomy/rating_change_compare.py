@@ -53,6 +53,16 @@ from api.services.alert_taxonomy import rating_change as _rc
 FLAG = "ALERT_TAXONOMY_RATING_CHANGE_DARK_ENABLED"
 MIN_SESSIONS_FOR_VERDICT = 5
 DEFAULT_MAX_TICKERS = 150
+# The sweep shares fmp_client's one bucket (120/min) with every member page. A cold
+# cache (any redeploy) makes each ticker a live /stable/grades call, and 150 back to
+# back emptied the bucket on 2026-10-12: 21-88 of 150 refused per sweep for the
+# sweep, and members' FMP reads refused in the same minute. So, the
+# research_panel_warm rule: a live fetch starts only while the bucket holds at least
+# FMP_RESERVE_TOKENS, and the pass gives up at BUDGET_SECONDS (well inside its 30
+# minute cadence); names it never reached count as could_not_evaluate.
+FMP_RESERVE_TOKENS = 60.0
+RESERVE_POLL_SECONDS = 2.0
+BUDGET_SECONDS = 600.0
 PREFIX = "shadow:"
 
 AGREED = "agreed"
@@ -274,20 +284,44 @@ def cohort_tickers() -> list[str]:
     return ranked[:max_tickers()]
 
 
+def _fmp_tokens() -> float:
+    """Tokens on the shared FMP bucket now; +inf when it cannot be read."""
+    try:
+        from api.services import fmp_client
+        return float(fmp_client.tokens_available())
+    except Exception:  # noqa: BLE001
+        return float("inf")
+
+
 def run_dark_sweep(*, now: Optional[float] = None, db_path: str | None = None,
                    tickers: Optional[list[str]] = None,
-                   fetch: Optional[Callable[[str], dict]] = None) -> dict[str, Any]:
+                   fetch: Optional[Callable[[str], dict]] = None,
+                   fmp_tokens: Optional[Callable[[], float]] = None,
+                   sleep: Callable[[float], None] = time.sleep,
+                   clock: Callable[[], float] = time.monotonic) -> dict[str, Any]:
     """One forward tick of the shadow log. Records spans and a heartbeat only:
     no fire, no delivery, no member predicate is read or written."""
     if not is_enabled():
         return {"enabled": False, "evaluated": 0, "could_not_evaluate": 0}
     at = time.time() if now is None else now
     day = market_date(at)
+    if fmp_tokens is None:
+        # an injected fetch is not FMP's business; the live one is
+        fmp_tokens = _fmp_tokens if fetch is None else (lambda: float("inf"))
     fetch = fetch or _rc._default_fetch
     names = cohort_tickers() if tickers is None else list(tickers)
     totals = {AGREED: 0, NEW_ONLY: 0, LEGACY_ONLY: 0}
-    evaluated = failed = 0
-    for t in names:
+    evaluated = failed = waits = 0
+    stopped = None
+    start = clock()
+    for i, t in enumerate(names):
+        while fmp_tokens() < FMP_RESERVE_TOKENS and clock() - start <= BUDGET_SECONDS:
+            waits += 1
+            sleep(RESERVE_POLL_SECONDS)
+        if clock() - start > BUDGET_SECONDS:
+            stopped = "budget"
+            failed += len(names) - i
+            break
         try:
             res = fetch(t)
         except Exception as e:  # noqa: BLE001 - one bad ticker never aborts the sweep
@@ -301,7 +335,7 @@ def run_dark_sweep(*, now: Optional[float] = None, db_path: str | None = None,
             totals[k] += tally[k]
     beat(day, now=at, db_path=db_path)
     return {"enabled": True, "market_date": day, "evaluated": evaluated,
-            "could_not_evaluate": failed, **totals}
+            "could_not_evaluate": failed, **totals, "fmp_waits": waits, "stopped": stopped}
 
 
 def report(predicate_id: str, *, db_path: str | None = None) -> dict[str, Any]:

@@ -232,7 +232,7 @@ async def sync_now(
         async def _bg():
             try:
                 await broker_sync_engine.sync_all_for_user(
-                    uid, full=full, cooldown_seconds=cooldown)
+                    uid, full=full, cooldown_seconds=cooldown, off_loop=True)
             except Exception:
                 import logging
                 logging.getLogger(__name__).exception("[broker] background sync failed")
@@ -241,7 +241,7 @@ async def sync_now(
         return {"status": "started", "background": True}
 
     results = await broker_sync_engine.sync_all_for_user(
-        user["id"], full=full, cooldown_seconds=cooldown)
+        user["id"], full=full, cooldown_seconds=cooldown, off_loop=True)
     return {"results": results}
 
 
@@ -865,4 +865,6 @@ async def broker_service_sync_all(user_id: str, *, refresh_first: bool = False) 
             _begin_warming(user_id)
         except Exception:
             pass  # best-effort — the sync below still covers known accounts
-    return await broker_sync_engine.sync_all_for_user(user_id)
+    # off_loop: the webhook workers run on the web pod's shared request loop
+    # (see sync.sync_account for the measured cost of syncing on it).
+    return await broker_sync_engine.sync_all_for_user(user_id, off_loop=True)

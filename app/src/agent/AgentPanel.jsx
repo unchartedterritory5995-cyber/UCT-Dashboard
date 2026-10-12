@@ -20,7 +20,10 @@ import AgentHistory from './AgentHistory'
 import VoiceInputButton from '../pages/journal-2-0/components/VoiceInputButton'
 import compassMark from '../components/intro/assets/compass-mark.png'
 import { HeadIcon, AgentAvatar, MemberAvatar, SenderLine, Hl } from './agentUi'
+import AgentResult, { Rows } from './AgentResult'
 import styles from './AgentPanel.module.css'
+// structured answers take the column's width (a single figure and prose stay as small as they are)
+const WIDE_VIEWS = new Set(['comparison', 'metrics', 'range', 'table', 'headlines'])
 
 // Welcome: the Agent's first text — a moment of "typing", then a left-side bubble stamped with
 // the time the chat opened, and a few quick replies (a tap sends that text as-is).
@@ -59,11 +62,11 @@ function useMember() {
   return { id: user?.id ?? null, name: (user?.display_name || '').trim() || 'User' }
 }
 
-function AgentSays({ children, testId, at, cont }) {
+function AgentSays({ children, testId, at, cont, wide }) {
   return (
     <div className={`${styles.agentRow} ${cont ? styles.cont : ''}`} data-testid={testId}>
       {cont ? <span className={styles.avatarGap} aria-hidden="true" /> : <AgentAvatar />}
-      <div className={styles.agentCol}>
+      <div className={`${styles.agentCol} ${wide ? styles.wideCol : ''}`}>
         {!cont && <SenderLine name="UCT Agent" at={at} />}
         {children}
       </div>
@@ -136,22 +139,6 @@ function Paragraphs({ text }) {
   ))
 }
 
-// A feature's structured result (e.g. Screener rows): exactly the rows it returned.
-function ResultTable({ table }) {
-  return (
-    <div className={styles.resultWrap} data-testid="agent-result-table">
-      <table className={styles.resultTable}>
-        <thead><tr>{table.columns.map(c => <th key={c.key}>{c.label}</th>)}</tr></thead>
-        <tbody>
-          {table.rows.map((r, i) => (
-            <tr key={r[table.columns[0].key] ?? i}>{table.columns.map(c => <td key={c.key}>{r[c.key] ?? '—'}</td>)}</tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
 // Where the result lives in UCT (an in-app route); a plain link outside a router.
 function OpenLink({ link }) {
   const inRouter = useInRouterContext()
@@ -173,10 +160,14 @@ function Item({ it, agent, member, at, cont }) {
         </div>
       )
     case 'agent':
+      // ⭐ an answer VIEW (present.js) renders through the one presentation component
+      if (it.present) return <AgentSays at={at} cont={cont} wide={WIDE_VIEWS.has(it.present.kind)}><AgentResult view={it.present} /></AgentSays>
+      // ⛔ never an empty bubble (an older restored row, a blank reply)
+      if (!String(it.text || '').trim() && !it.table && !it.link) return null
       return (
         <AgentSays at={at} cont={cont}>
-          <div className={styles.bubble}><Paragraphs text={it.text} /></div>
-          {it.table && <ResultTable table={it.table} />}
+          {String(it.text || '').trim() && <div className={styles.bubble}><Paragraphs text={it.text} /></div>}
+          {it.table && <Rows table={it.table} />}
           {it.link && <OpenLink link={it.link} />}
           {it.sources?.length > 0 && (
             <div className={styles.sources}>
@@ -195,7 +186,8 @@ function Item({ it, agent, member, at, cont }) {
             <div className={styles.choices}>
               {it.choices.map((c, i) => (
                 <button key={i} type="button" className={styles.choice} disabled={agent.busy}
-                  onClick={() => (c.ref ? agent.chooseTarget(c.ref, c.label) : agent.send(c.label, { answering: true }))}>{c.label}</button>
+                  data-door={c.door || undefined}
+                  onClick={() => (c.door ? agent.openDoor(c.door) : c.ref ? agent.chooseTarget(c.ref, c.label) : agent.send(c.label, { answering: true }))}>{c.label}</button>
               ))}
             </div>
           )}
@@ -212,7 +204,7 @@ function Item({ it, agent, member, at, cont }) {
               <button type="button" className={styles.primary} onClick={agent.approve} disabled={agent.busy}>Apply</button>
               <button type="button" className={styles.ghost} onClick={agent.dismiss} disabled={agent.busy}>Dismiss</button>
             </div>
-          ) : <div className={styles.cardMeta}>{it.status === 'approved' ? 'Approved' : it.status === 'replaced' ? 'Replaced' : it.status === 'expired' ? 'Expired — ask again' : 'Dismissed'}</div>}
+          ) : <div className={styles.cardMeta}>{it.status === 'approved' ? 'Approved' : it.status === 'replaced' ? 'Replaced' : it.status === 'expired' ? 'Expired — ask again' : it.status === 'history' ? 'From an earlier session — not applied here; ask again to change it now' : 'Dismissed'}</div>}
         </div>
         </AgentSays>
       )
@@ -231,8 +223,10 @@ function Item({ it, agent, member, at, cont }) {
       )
     case 'refusal':
     case 'error':
+      if (!String(it.text || '').trim()) return null
       return <AgentSays at={at} cont={cont}><div className={`${styles.bubble} ${styles.refusal}`} role="status"><Paragraphs text={it.text} /></div></AgentSays>
     default:
+      if (!String(it.text || '').trim()) return null
       return <AgentSays at={at} cont={cont}><div className={styles.bubble}><Paragraphs text={it.text} /></div></AgentSays>
   }
 }
@@ -267,7 +261,9 @@ function SearchResults({ results, query, active, setActive, onPick, member }) {
   )
 }
 
-export default function AgentPanel({ host, gridMode, onClose }) {
+// `request` (Indicators ⇄ Agent): `{id, chartRef, defId?, name?}` — the chart's Create Indicator /
+// Modify door opened the Agent; each NEW id asks once (useAgent.prompt) and focuses the composer.
+export default function AgentPanel({ host, gridMode, onClose, request = null }) {
   const member = useMember()
   // A new chat greets afresh (typing, new timestamp); messages after the greeting keep it.
   const [chatEpoch, setChatEpoch] = useState(0)
@@ -290,6 +286,16 @@ export default function AgentPanel({ host, gridMode, onClose }) {
   const inputRef = useRef(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
+  const askedRef = useRef(null)
+  const askAgent = agent.prompt
+  // Asked once per door click — and only once the Agent is free (a door clicked mid-reply is asked
+  // when that reply lands, never dropped).
+  useEffect(() => {
+    if (!request || !request.id || askedRef.current === request.id || agent.restoring || agent.busy) return
+    if (!askAgent(request)) return
+    askedRef.current = request.id
+    inputRef.current?.focus()
+  }, [request, agent.restoring, agent.busy, askAgent])
   // Follow the conversation: stay pinned to the newest line while the reader is at the bottom,
   // including when a line grows after it lands (welcome reveal, photos, the typing line's room).
   const stickRef = useRef(true)
@@ -442,7 +448,7 @@ export default function AgentPanel({ host, gridMode, onClose }) {
         {typing && (
           <div className={styles.typingLine} role="status" aria-live="polite" data-testid="agent-typing">
             <span className={styles.typingDots} aria-hidden="true"><i /><i /><i /></span>
-            <span><b>UCT Agent</b> is typing…</span>
+            <span><b>UCT Agent</b> {agent.activity === 'research' ? 'is looking that up on the web…' : 'is typing…'}</span>
           </div>
         )}
         <div className={styles.bar}>

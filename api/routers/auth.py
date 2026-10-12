@@ -401,6 +401,7 @@ _RESEARCH_DEPTH_SURFACES = (
     ("ftd_dataset_enabled", "ftd_dataset"),
     ("mention_series_enabled", "mention_series"),
     ("broker_estimates_enabled", "broker_estimates"),
+    ("congress_trades_enabled", "congress_trades"),
 )
 
 # Lane R Depth panels that the /terminal shell does NOT yet reach by a function code.
@@ -3093,7 +3094,7 @@ def enforce_board_bound(user_id, key: str, value) -> None:
 
 
 @router.get("/preferences")
-def get_preferences(response: Response, user: dict = Depends(get_current_user)):
+def get_preferences(response: Response, user: dict = Depends(get_current_user), keys: Optional[str] = None):
     # TERM-021 READ-NEW. Flag off, `read_prefs` hands back the SAME dict before any I/O and no
     # header is set: the response is byte-for-byte what it was. Armed, the board's keys come from
     # the document head (falling back to this store, never to a default) and the header says
@@ -3105,6 +3106,12 @@ def get_preferences(response: Response, user: dict = Depends(get_current_user)):
         prefs, stamp = workspace_doc_store.read_prefs(user["id"], prefs, set_user_preference, board)
         if stamp is not None:
             response.headers[_WORKSPACE_DOC_HEADERS[board]] = stamp
+    # `?keys=a,b` (UCT Agent's cross-session board check, 2026-10-12): only those keys, read EXACTLY as
+    # above (same store, same document head, same headers) — just not the whole blob over the wire.
+    # Absent → the full response, byte-for-byte unchanged.
+    if keys is not None:
+        wanted = {k.strip() for k in keys.split(",")[:16] if k.strip()}
+        prefs = {k: v for k, v in prefs.items() if k in wanted}
     return prefs
 
 

@@ -152,7 +152,7 @@ def test_today_is_a_live_row_from_the_snapshot(market, monkeypatch):
     last = market["closes"][:, -1]
     prices = {t: float(last[i] * 1.01) for i, t in enumerate(market["tickers"])}   # everything up 1 %
     vols = {t: 1e5 for t in market["tickers"]}
-    monkeypatch.setattr(blu, "_snapshot", lambda: (prices, vols, None, {}, {}))
+    monkeypatch.setattr(blu, "_snapshot", lambda: (prices, vols, None, {}, {}, None))
     p = blu.compute(force=True)
     for u in blu.UNIVERSES:
         rows = p["universes"][u]["rows"]
@@ -162,13 +162,25 @@ def test_today_is_a_live_row_from_the_snapshot(market, monkeypatch):
         assert rows[0]["metrics"]["declining"] == 0 + BIAS["declining"]
 
 
+def _fresh_payload(universe, rows, data_as_of):
+    """(2026-10-12) a payload whose live row is FRESH by the shared rule (vendor data time)."""
+    return {"ok": True, "data_as_of": data_as_of,
+            "universes": {universe: {"ok": True, "rows": rows}}}
+
+
 def test_library_bars_append_only_after_the_canonical_end(monkeypatch):
-    monkeypatch.setattr(blu, "rows_for", lambda u: [
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    p = _fresh_payload("us", [
         {"date": "2026-10-06", "final": True, "metrics": {"pct_above_50sma": 99.0}},
         {"date": "2026-10-07", "final": True, "metrics": {"pct_above_50sma": 30.0}},
-        {"date": "2026-10-08", "final": False, "metrics": {"pct_above_50sma": 28.5}}])
+        {"date": "2026-10-08", "final": False, "metrics": {"pct_above_50sma": 28.5}}],
+        "2026-10-08T11:00:00-04:00")
+    monkeypatch.setattr(blu, "serving", lambda: True)
+    monkeypatch.setattr(blu, "payload", lambda cached_only=True: p)
     body = [{"t": "2026-10-06", "o": 30, "h": 31, "l": 29, "c": 31.0, "v": 0}]
-    out = blu.append_library_bars(body, "us", "pct_above_50sma")
+    out = blu.append_library_bars(body, "us", "pct_above_50sma",
+                                  now=datetime(2026, 10, 8, 11, 1, tzinfo=ZoneInfo("America/New_York")))
     assert [b["t"] for b in out] == ["2026-10-06", "2026-10-07", "2026-10-08"]
     assert out[0] is body[0], "canonical bars are never rewritten"
     assert out[1] == {"t": "2026-10-07", "o": 31.0, "h": 31.0, "l": 30.0, "c": 30.0, "v": 0}
@@ -430,9 +442,12 @@ def test_recorded_session_draws_as_an_observed_candle(tmp_path, monkeypatch):
             {"date": "2026-10-12", "final": False, "metrics": {"pct_above_50sma": v}}]}}}
     for v in (30.0, 35.4, 27.2, 29.0, 28.1, 29.6):
         blu._record_intraday(payload(v))
-    monkeypatch.setattr(blu, "rows_for", lambda u: payload(29.6)["universes"]["nyse"]["rows"])
+    live = dict(payload(29.6), data_as_of="2026-10-12T10:59:30-04:00")
+    monkeypatch.setattr(blu, "serving", lambda: True)
+    monkeypatch.setattr(blu, "payload", lambda cached_only=True: live)
     body = [{"t": "2026-10-09", "o": 25.0, "h": 26.0, "l": 24.0, "c": 25.5, "v": 0}]
-    bar = blu.append_library_bars(body, "nyse", "pct_above_50sma")[-1]
+    bar = blu.append_library_bars(body, "nyse", "pct_above_50sma",
+                                  now=datetime(2026, 10, 12, 11, 0, tzinfo=ZoneInfo("America/New_York")))[-1]
     assert bar == {"t": "2026-10-12", "o": 30.0, "h": 35.4, "l": 27.2, "c": 29.6, "v": 0, "ohlc": 1}
     # a restart keeps the morning (persisted), and an unrecorded session stays a body
     blu._intra.clear(); blu._intra_loaded["done"] = False

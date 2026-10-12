@@ -77,6 +77,7 @@ import styles from './ChartToolbar.module.css'
 import Input from '../ui/Input'
 import Select from '../ui/Select'
 import Checkbox from '../ui/Checkbox'
+import { routeIndicatorAuthoring } from '../../agent/indicatorEntry'
 
 // ─── SVG icon factory ────────────────────────────────────────────────────────
 const I = (children) => (
@@ -1270,11 +1271,30 @@ function ChartToolbar({
       if (!canModifyWithIntelligence) return false
       const row = rowFor(opts)
       if (opts && (opts.defId || opts.row) && !row) return false
+      // ⭐ INDICATORS ⇄ AGENT (2026-10-12): where UCT Agent is available (the Charts workspace registers
+      // the route — admin-only, the Agent's own gate), Create Indicator / Modify open the Agent on THIS
+      // chart instead of the chart-side dock. No route (another page, a member without the Agent) ⇒ the
+      // dock, exactly as before. `agent/indicatorEntry.js`.
+      if (routeIndicatorAuthoring({ chartId, defId: row ? row.def_id : null,
+        name: (row && row.definition && row.definition.meta && row.definition.meta.name) || null })) {
+        setLibraryOpen(false)
+        setBuilderOpen(false)
+        return true
+      }
       setLibraryOpen(false)
       setBuilderOpen(false)
       setCreateSeed(null)
       setCreateEditRow(row)
       setCreateOpen(true)
+      return true
+    },
+    // ⭐ INDICATORS ⇄ AGENT — the existing builder's doors, opened for UCT Agent on this chart
+    openIndicatorDoor: (door) => {
+      if (!canManageIndicators) return false
+      if (door === 'library') { if (typeof onOpenLibrary !== 'function') return false; setCreateOpen(false); onOpenLibrary(); return true }
+      if (!['formula', 'pine', 'image'].includes(door)) return false
+      setCreateOpen(false)
+      openBuilder(door)
       return true
     },
     // ⭐ AGENT M1 — the same door for UCT Agent, with a STRUCTURED answer and an
@@ -1388,7 +1408,7 @@ function ChartToolbar({
       setAlertPopoverOpen(true)
       return true
     },
-  }), [canManageIndicators, currentSym, openBuilder, onStudioPreview, rowFor, chartSettings, onUpdateSettings, canModifyWithIntelligence, createOpen, createEditRow, studioScope, chartId, agentPreviewToken])
+  }), [canManageIndicators, currentSym, openBuilder, onStudioPreview, rowFor, chartSettings, onUpdateSettings, canModifyWithIntelligence, createOpen, createEditRow, studioScope, chartId, agentPreviewToken, onOpenLibrary])
 
   // Comparison symbols update handler: merge into chartSettings via onUpdateSettings
   const cs = chartSettings

@@ -137,3 +137,42 @@ def test_the_population_is_STOCKS_most_held_first_and_spans_the_alphabet(monkeyp
     monkeypatch.setenv("RATING_CHANGE_SHADOW_MAX_TICKERS", "500")
     full = set(rcc.cohort_tickers())
     assert {"BRK.B", "BF-B", "XOM"} <= full and not full & set(junk)
+
+
+def test_the_sweep_WAITS_for_member_headroom_on_the_shared_FMP_bucket(db, monkeypatch):
+    # 2026-10-12: a cold-cache sweep spent the whole 120/min bucket, so the sweep's own
+    # fetches and members' FMP reads were refused. A fetch starts only above the reserve.
+    monkeypatch.setenv(rcc.FLAG, "1")
+    bucket = {"tokens": 61.0}
+    slept = []
+
+    def fetch(t):
+        bucket["tokens"] -= 1
+        return {"items": BASE}
+
+    def sleep(s):
+        slept.append(s)
+        bucket["tokens"] += 2 * s                 # 120/min refill
+
+    out = rcc.run_dark_sweep(tickers=["NVDA", "AAPL", "MSFT"], fetch=fetch, db_path=db,
+                             fmp_tokens=lambda: bucket["tokens"], sleep=sleep,
+                             clock=lambda: 0.0)
+    assert out["evaluated"] == 3 and out["could_not_evaluate"] == 0
+    assert out["fmp_waits"] >= 1 and out["stopped"] is None
+    assert bucket["tokens"] >= rcc.FMP_RESERVE_TOKENS - 1   # never dipped into members' half
+
+
+def test_a_starved_sweep_stops_at_its_budget_and_counts_the_rest(db, monkeypatch):
+    monkeypatch.setenv(rcc.FLAG, "1")
+    t = {"now": 0.0}
+
+    def sleep(s):
+        t["now"] += s
+
+    out = rcc.run_dark_sweep(tickers=["NVDA", "AAPL"], fetch=lambda s: {"items": BASE},
+                             db_path=db, fmp_tokens=lambda: 0.0, sleep=sleep,
+                             clock=lambda: t["now"])
+    assert out["stopped"] == "budget"
+    assert out["evaluated"] == 0 and out["could_not_evaluate"] == 2
+    assert t["now"] <= rcc.BUDGET_SECONDS + rcc.RESERVE_POLL_SECONDS
+    assert rcc.heartbeat(db_path=db)["ticks"] == 1           # a starved sweep still beats

@@ -6413,15 +6413,6 @@ async def lifespan(app: FastAPI):
                 except Exception as _e:
                     logging.getLogger(__name__).debug(
                         "[breadth-live] sample tick skipped: %s", _e)
-                # ⭐ US / NYSE / Nasdaq live breadth rides the same clock: a cheap stale-check
-                # that kicks ONE background refresh (reusing the snapshot just fetched above).
-                try:
-                    from api.services import breadth_live_universes as _blu
-                    if _blu.serving():
-                        _blu.payload(cached_only=True)
-                except Exception as _e:
-                    logging.getLogger(__name__).debug(
-                        "[breadth-live-universes] tick skipped: %s", _e)
 
             _scheduler.add_job(
                 _breadth_live_sample,
@@ -6431,6 +6422,29 @@ async def lifespan(app: FastAPI):
                 coalesce=True, misfire_grace_time=30, replace_existing=True)
             logging.getLogger(__name__).info(
                 "[startup] breadth-live intraday sampler scheduled (weekdays 9-16 ET, 1/min)")
+
+            # ⭐ (2026-10-12 incident) US / NYSE / Nasdaq live breadth gets its OWN minute job.
+            # Its kick used to ride at the end of the UCT sampler above; on 2026-10-12 that job
+            # sat ~25 min in the UCT chart rebuild, APScheduler skipped every later minute
+            # (max_instances=1) and these universes went unrefreshed 13:41->14:31 ET. `tick()`
+            # is a stale-check that kicks at most ONE background refresh (the module's own
+            # in-flight guard prevents overlap) plus the market-hours health alert.
+            def _breadth_live_universes_tick():
+                try:
+                    from api.services import breadth_live_universes as _blu
+                    _blu.tick()
+                except Exception as _e:
+                    logging.getLogger(__name__).debug(
+                        "[breadth-live-universes] tick skipped: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_live_universes_tick,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9-16", minute="*",
+                                    timezone=_ET),
+                id="breadth_live_universes_tick", max_instances=1,
+                coalesce=True, misfire_grace_time=30, replace_existing=True)
+            logging.getLogger(__name__).info(
+                "[startup] breadth live-universes tick scheduled (weekdays 9-16 ET, 1/min, own job)")
         except Exception:
             logging.getLogger(__name__).exception(
                 "[startup] failed to schedule breadth-live intraday sampler")
@@ -6511,6 +6525,13 @@ async def lifespan(app: FastAPI):
                     breadth_health.run(morning=morning)
                 except Exception as _e:
                     logging.getLogger(__name__).warning("[breadth-health] run failed: %s", _e)
+                # (2026-10-12) which pipeline stage is any recent session stuck at — collection
+                # (no EOD row) or finalization (collected + next-session row, still not final)
+                try:
+                    from api.services import breadth_pipeline
+                    breadth_pipeline.check()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[breadth-pipeline] check failed: %s", _e)
 
             _scheduler.add_job(
                 _breadth_eod_row_check,
@@ -9224,6 +9245,7 @@ def _is_gzip_exempt(path: str) -> bool:
         or path.startswith("/api/live/massive/stream")  # flow SSE
         or path == "/api/community/chat/stream"          # Floor live-chat SSE
         or path == "/api/ai-search/stream"               # AI Search token stream
+        or path == "/api/agent/turn/stream"              # UCT Agent turn (answer streaming)
         or path == "/api/j2/ask/stream"                  # unified Ask token stream
         or (path.startswith("/api/j2/notes/") and path.endswith("/ask/stream"))  # legacy Ask Current Note URL
         or (path.startswith("/api/j2/notes/") and path.endswith("/writing-help/stream"))  # wave 7 editor writing help (SSE)
@@ -9477,6 +9499,12 @@ app.include_router(scans_router.router)
 # started in the lifespan below (dark behind NHNL_SCANNER_ENABLED).
 from api.routers import nhnl as nhnl_router
 app.include_router(nhnl_router.router)
+# ── Time & Sales (COV-08 / FT-077, the T&S half): the live trade tape per security, over the
+# T prints bar_stream already receives. Paid stream + admin status, per-handler-gated. Dark
+# behind TIME_AND_SALES_ENABLED: unset, the stream answers one `unavailable` event and nothing
+# subscribes, listens or runs (api/services/time_and_sales.py).
+from api.routers import time_and_sales as time_and_sales_router
+app.include_router(time_and_sales_router.router)
 from api.routers import volume_scan as volume_scan_router
 app.include_router(volume_scan_router.router)
 from api.routers import scatter as scatter_router
@@ -9830,6 +9858,8 @@ from api.routers import research_cov as research_cov_router  # noqa: E402  (COV-
 app.include_router(research_cov_router.router)
 from api.routers import research_depth as research_depth_router  # noqa: E402  (lane gaps-research, dark per surface)
 app.include_router(research_depth_router.router)
+from api.routers import congress_trades as congress_trades_router  # noqa: E402  (COV-12/FT-067, dark)
+app.include_router(congress_trades_router.router)
 from api.routers import news_depth as news_depth_router  # noqa: E402  (Lane R D-6/7/8, dark per surface)
 app.include_router(news_depth_router.router)
 from api.routers import research_notices as research_notices_router  # noqa: E402  (lane R D-11/D-12, dark per surface)

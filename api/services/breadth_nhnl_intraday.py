@@ -436,9 +436,18 @@ def report_block(series_name: str, d: str, reason: str) -> None:
 SPLITS_KEEP = 5000
 
 
+#: ⛔ (2026-10-12 incident) An explicit per-request bound. `massive._typed_get` hands its
+#: `timeout` straight to httpx, and httpx 0.28 reads an explicit `timeout=None` as NO timeout
+#: (connect, read, write and pool) — so this lookup, which sits on the live refresh path via
+#: `todays_splits`, could wait forever. Scoped to this call on purpose: the shared default is
+#: used by unrelated callers (options flow) and is not changed here.
+SPLITS_TIMEOUT_S = 10.0
+
+
 def _split_rows(from_iso: str, to_iso: str) -> list:
     """Raw split rows in [from_iso, to_iso]. RAISES on a provider failure — a missed split
-    is a silent year-long distortion, so the sweep stops and retries instead."""
+    is a silent year-long distortion, so the sweep stops and retries instead. A request that
+    exceeds SPLITS_TIMEOUT_S raises like any other provider failure."""
     from api.services import massive_adapter
     out = []
     a = _date.fromisoformat(from_iso)
@@ -450,7 +459,7 @@ def _split_rows(from_iso: str, to_iso: str) -> list:
             params={"execution_date.gte": a.isoformat(), "execution_date.lte": end.isoformat(),
                     "limit": 1000},
             data_class="reference", activity="breadth_nhnl_intraday.splits",
-            max_pages=40).value or []
+            max_pages=40, timeout=SPLITS_TIMEOUT_S).value or []
         a = end + _td(days=1)
     return out
 

@@ -72,6 +72,11 @@ WINDOW_END = (11, 0)
 MARKET_OPEN = (9, 30)
 #: The first window. Earlier Wednesdays are not windows.
 FIRST_WINDOW = _dt.date(2026, 10, 14)
+#: One-off windows besides the weekly Wednesday, same 09:00-11:00 ET bounds and
+#: the same bar. 2026-10-13 is an owner ruling of 2026-10-12 ("just do it now"):
+#: a second attempt in the first week, so one disturbed window does not cost a
+#: week. Each is a window for the reader, the scheduler and the deploy freeze.
+EXTRA_WINDOW_DAYS = frozenset({_dt.date(2026, 10, 13)})
 
 #: T-4's bar: ">= 104 min on one pod across the open plus a heavy job".
 MIN_SPAN_MIN = 104.0
@@ -131,7 +136,7 @@ def window_bounds(day: _dt.date) -> tuple[_dt.datetime, _dt.datetime]:
 
 
 def is_window_day(day: _dt.date) -> bool:
-    return day.weekday() == WINDOW_WEEKDAY and day >= FIRST_WINDOW
+    return (day.weekday() == WINDOW_WEEKDAY and day >= FIRST_WINDOW) or day in EXTRA_WINDOW_DAYS
 
 
 def in_window(now: _dt.datetime | None = None) -> bool:
@@ -142,7 +147,7 @@ def in_window(now: _dt.datetime | None = None) -> bool:
     need the same answer anyway.
     """
     now = (now or _dt.datetime.now(_dt.timezone.utc)).astimezone(_et())
-    if now.weekday() != WINDOW_WEEKDAY:
+    if now.weekday() != WINDOW_WEEKDAY and now.date() not in EXTRA_WINDOW_DAYS:
         return False
     start, end = window_bounds(now.date())
     return start <= now < end
@@ -152,7 +157,8 @@ def latest_window_day(now: _dt.datetime | None = None) -> _dt.date:
     """The most recent window day on or before `now` (ET)."""
     now = (now or _dt.datetime.now(_dt.timezone.utc)).astimezone(_et())
     d = now.date()
-    return d - _dt.timedelta(days=(d.weekday() - WINDOW_WEEKDAY) % 7)
+    wed = d - _dt.timedelta(days=(d.weekday() - WINDOW_WEEKDAY) % 7)
+    return max([wed] + [x for x in EXTRA_WINDOW_DAYS if x <= d])
 
 
 def trading_day(day: _dt.date) -> bool | None:
@@ -698,9 +704,9 @@ def status(now: _dt.datetime | None = None) -> dict:
     now = (now or _dt.datetime.now(_dt.timezone.utc)).astimezone(_et())
     day = latest_window_day(now)
     nxt = day if (is_window_day(day) and now < window_bounds(day)[1]) else \
-        day + _dt.timedelta(days=7)
+        day + _dt.timedelta(days=1)
     while not is_window_day(nxt):
-        nxt += _dt.timedelta(days=7)
+        nxt += _dt.timedelta(days=1)
     rows = read_rows(day.isoformat()) if is_window_day(day) else []
     return {"enabled": is_enabled(), "now_et": now.isoformat(), "in_window": in_window(now),
             "next_window": nxt.isoformat(), "current_window": day.isoformat(),
@@ -715,6 +721,12 @@ JOB_IDS = ("measurement_window_sample", "measurement_window_sample_close",
            "measurement_window_bars_gate", "measurement_window_finalize")
 
 
+#: The cron days: Wednesday plus every extra window's weekday. Each job re-checks
+#: `is_window_day`, so a Tuesday that is not an extra window does nothing.
+_CRON_DAYS = ",".join(sorted({"wed"} | {("mon", "tue", "wed", "thu", "fri", "sat", "sun")[d.weekday()]
+                                         for d in EXTRA_WINDOW_DAYS}))
+
+
 def register(scheduler, boot_ts: float | None = None) -> None:
     """Add the four jobs. Each one is a no-op outside its window and when the
     kill switch is off, so they register unconditionally."""
@@ -723,19 +735,19 @@ def register(scheduler, boot_ts: float | None = None) -> None:
         _BOOT_TS = float(boot_ts)
     from apscheduler.triggers.cron import CronTrigger
     et = _et()
-    scheduler.add_job(take_sample, trigger=CronTrigger(day_of_week="wed", hour="9-10",
+    scheduler.add_job(take_sample, trigger=CronTrigger(day_of_week=_CRON_DAYS, hour="9-10",
                       minute="*", second=5, timezone=et),
                       id="measurement_window_sample", max_instances=1, coalesce=True,
                       replace_existing=True)
-    scheduler.add_job(take_sample, trigger=CronTrigger(day_of_week="wed", hour=11, minute=0,
+    scheduler.add_job(take_sample, trigger=CronTrigger(day_of_week=_CRON_DAYS, hour=11, minute=0,
                       second=5, timezone=et),
                       id="measurement_window_sample_close", max_instances=1, coalesce=True,
                       replace_existing=True)
-    scheduler.add_job(run_bars_gate, trigger=CronTrigger(day_of_week="wed", hour=GATE_AT[0],
+    scheduler.add_job(run_bars_gate, trigger=CronTrigger(day_of_week=_CRON_DAYS, hour=GATE_AT[0],
                       minute=GATE_AT[1], timezone=et),
                       id="measurement_window_bars_gate", max_instances=1, coalesce=True,
                       misfire_grace_time=600, replace_existing=True)
-    scheduler.add_job(finalize, trigger=CronTrigger(day_of_week="wed", hour="11,13",
+    scheduler.add_job(finalize, trigger=CronTrigger(day_of_week=_CRON_DAYS, hour="11,13",
                       minute="1,10,30", timezone=et),
                       id="measurement_window_finalize", max_instances=1, coalesce=True,
                       replace_existing=True)

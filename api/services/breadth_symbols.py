@@ -1358,14 +1358,16 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
     # producer has not finalised yet plus today's developing bar. BREADTH_LIVE_UNIVERSES=0
     # turns it off, and then a PIT universe ends at its last sealed day.
     body = daily or []
+    live_state = None
     if universe == DEFAULT_UNIVERSE:
         body = _append_today_candle(body, metric)
     else:
         try:
             from api.services import breadth_live_universes as _blu
-            body = _blu.append_library_bars(body, universe, metric)
+            live_state = {}
+            body = _blu.append_library_bars(body, universe, metric, state_out=live_state)
         except Exception:
-            pass
+            live_state = None
     series = _resample(body, tf)
 
     try:
@@ -1377,7 +1379,12 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
     out = series or []
     if bars and len(out) > bars:
         out = out[-bars:]
-    return {"ticker": req_sym, "tf": tf, "bars": out}
+    res = {"ticker": req_sym, "tf": tf, "bars": out}
+    if live_state:
+        # (2026-10-12) what happened to today's developing bar on a US / NYSE / Nasdaq series:
+        # drawn, withheld (stale / carried / unstamped — `reason` says which) or none. Additive.
+        res["live"] = live_state
+    return res
 
 
 # ── Web-side warm loop (keeps the ~40 breadth series hot in the cache) ────────

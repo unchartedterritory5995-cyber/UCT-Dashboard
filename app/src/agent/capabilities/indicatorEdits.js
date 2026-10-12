@@ -167,22 +167,22 @@ export function receiptLine(receipt, chart) {
   if (receipt.op === 'undo') {
     if (receipt.undoOf === 'remove') {
       const back = severText(receipt.restored)
-      return `Restored ${name}${where} with its original identity${back.length ? ` and reconnected ${back.join(', ')}` : ''} (saved).`
+      return `Restored ${name}${where} with its original identity${back.length ? ` and reconnected ${back.join(', ')}` : ''}.`
     }
-    if (receipt.undoOf === 'add') return `Removed the ${name} I added${where} (saved).`
-    return `Put ${name}${where} back to ${receipt.visible ? 'shown' : 'hidden'} (saved).`
+    if (receipt.undoOf === 'add') return `Removed the ${name} I added${where}.`
+    return `Put ${name}${where} back to ${receipt.visible ? 'shown' : 'hidden'}.`
   }
   if (receipt.op === 'add') {
     // ⭐ PHASE 2.5 — the settings AS STORED (the confirmed receipt's own `inputs`), never the
     // words the member used.
     const set = receipt.inputs ? settingsPhrase(receipt.defId, receipt.inputs) : ''
-    return `Added ${name}${where}${set ? ` — ${set}` : ''} (saved).`
+    return `Added ${name}${where}${set ? ` — ${set}` : ''}.`
   }
   if (receipt.op === 'remove') {
     const cut = severText(receipt.severed)
-    return `Removed ${name}${where} (saved)${cut.length ? ` — disconnected ${cut.join(', ')}` : ''}.`
+    return `Removed ${name}${where}${cut.length ? ` — disconnected ${cut.join(', ')}` : ''}.`
   }
-  return `${receipt.visible ? 'Showed' : 'Hid'} ${name}${where} (saved).`
+  return `${receipt.visible ? 'Showed' : 'Hid'} ${name}${where}.`
 }
 
 // ── proposal-time plans (§14.4): a proposal's Apply re-plans; the pins must be the ones
@@ -251,6 +251,8 @@ export const indicatorEditsKind = {
   },
   // `confirmIndicatorMutation` already verified the read-back inside commit.
   landed: () => true,
+  // commit() above already persisted and read back the change: the runtime adds no second board write
+  persistsInCommit: true,
   // Undo exists only when the interface minted a token on confirmation — held as returned.
   undoPatch: (item) => (item.undoData ? { undo: item.undoData } : null),
   // Staleness is the interface's (pins re-checked at apply / undo), not a whole-settings hash:

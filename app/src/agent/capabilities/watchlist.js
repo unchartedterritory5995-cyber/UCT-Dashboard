@@ -34,6 +34,8 @@
 
 import { registerCapability, registerTargetKind, registerContextProvider, isRef, SYMBOLS } from '../capabilities'
 import { unknownSymbols } from '../agentClient'
+import { isPronounToken, groundSymbols, groundingOf, resolvedTicker, candidatesText } from '../nl/tickers'
+import { matchName } from '../nl/match'
 import { afterRender } from '../frames'
 import { MAX_TOP } from '../compose'
 // Each list's tickers ARE shown to the model (removing "TSLA from Momentum" needs it:
@@ -60,9 +62,13 @@ export function andList(xs) {
   return `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`
 }
 
-/** Split "RKLB, PLTR and ASTS" → ['RKLB','PLTR','ASTS']; null if anything isn't a ticker. */
-export function parseTickers(text) {
-  const parts = String(text || '').split(/\s*(?:,|\band\b|&|\+)\s*/i).map(s => s.trim().replace(/^\$/, '')).filter(Boolean)
+/** Split "RKLB, PLTR and ASTS" → ['RKLB','PLTR','ASTS']; null if anything isn't a ticker.
+ *  ⛔ A pronoun is never a ticker ("add it to Momentum" is NOT the symbol IT): the request then goes
+ *  to the model, which knows what "it" refers to. `raw` = the whole message, for capitals. */
+export function parseTickers(text, raw = text) {
+  const typed = String(text || '').split(/\s*(?:,|\band\b|&|\+)\s*/i).map(s => s.trim()).filter(Boolean)
+  if (typed.some(p => isPronounToken(p, raw))) return null
+  const parts = typed.map(s => s.replace(/^\$/, ''))
   if (!parts.length || parts.length > MAX_PER_REQUEST) return null
   if (!parts.every(p => /^[A-Za-z][A-Za-z0-9.]{0,9}$/.test(p))) return null
   return parts.map(p => p.toUpperCase())
@@ -79,7 +85,7 @@ const listsOf = (host) => (host?.watchlists ? host.watchlists.snapshot() : [])
 const sigOf = (items) => JSON.stringify(items.map(i => [i.id, i.sym]))
 
 /** One list by name (exact, case/quote-insensitive), or the one visible list for "my/this/the watchlist". */
-function resolveList(host, phrase) {
+function resolveList(host, phrase, { level = 'safe' } = {}) {
   const lists = listsOf(host)
   const p = norm(phrase).replace(/ (watch ?list|list)$/, '')
   if (/^(my|this|the|our)? ?(watch ?list|list)?$/.test(norm(phrase)) || /^(my|this|the)$/.test(p)) {
@@ -89,7 +95,13 @@ function resolveList(host, phrase) {
     return !shown.length && lists.length === 1 ? lists[0] : null
   }
   const hits = lists.filter(l => norm(l.name) === p || norm(l.name) === norm(phrase))
-  return hits.length === 1 ? hits[0] : null
+  if (hits.length) return hits.length === 1 ? hits[0] : null
+  // NL N2: a TYPO in the list's own name ("my momentm watchlist", "my swig list"). ONE clear match
+  // only; a tie or nothing close → null (the model, which sees the real names, decides or asks).
+  // `level: 'strict'` for high-impact actions (rename — still a proposal naming the real list).
+  if (!level) return null
+  const f = matchName(p.replace(/^(?:my|the|our) /, ''), lists.map(l => l.name), { level })
+  return f.kind === 'fuzzy' ? lists.find(l => l.name === f.name) : null
 }
 
 /** A list by its name ("Software Stocks", "my Momentum list"), or null if none / several. */
@@ -418,15 +430,21 @@ export function registerWatchlistCapabilities() {
     fast: ({ raw, host }) => {
       const m = /^(?:please )?(?:add|put|throw|stick) (.+?) (?:to|in|into|on|onto) (.+?)[.!]?$/i.exec(String(raw).trim())
       if (!m || !host?.watchlists) return null
-      const syms = parseTickers(m[1])
+      const syms = parseTickers(m[1], raw)
       const l = syms && resolveList(host, m[2])
       return l ? { symbols: syms, __target: l.id } : null
     },
     // Model-typed tickers are looked up; a screen's results (`trusted` — they came
     // from UCT's own Screener) and pending references are not.
+    // NL N4: a symbol that is not a ticker is tried ONCE as an exact company name through the same
+    // ticker search ("add nvidia to momentum" → NVDA, said in the receipt); several companies → asked.
     async prepare(ops) {
       const syms = [...new Set(ops.filter(o => !o.trusted && Array.isArray(o.args?.symbols)).flatMap(o => o.args.symbols.map(upper)).filter(Boolean))]
-      return syms.length ? { unknownSymbols: await unknownSymbols(syms) } : {}
+      if (!syms.length) return {}
+      const unknown = await unknownSymbols(syms)
+      if (!unknown.size) return { unknownSymbols: unknown }
+      const g = await groundSymbols([...unknown])
+      return { unknownSymbols: g.unknown, ambiguousSymbols: g.ambiguous, namedSymbols: g.named }
     },
     check(st, { symbols }, env) {
       const bad = editProblem(st, env)
@@ -440,7 +458,9 @@ export function registerWatchlistCapabilities() {
       if (!syms.length) return 'Which tickers?'
       const max = env?.trusted ? MAX_TRUSTED : MAX_PER_REQUEST
       if (syms.length > max) return `That's more than ${max.toLocaleString()} tickers at once — split it up.`
-      const odd = syms.find(s => !TICKER.test(s))
+      const vague = syms.find(s => env?.ambiguousSymbols?.has(s))
+      if (vague) return `“${vague}” could be ${candidatesText(vague)} — which one? Say the ticker. Nothing was added.`
+      const odd = syms.find(s => !TICKER.test(s) && !env?.namedSymbols?.has(s))
       if (odd) return `“${odd}” doesn't look like a ticker.`
       const unknown = syms.filter(s => env?.unknownSymbols?.has(s))
       if (unknown.length) return `UCT has no symbol ${andList(unknown.map(s => `“${s}”`))} — nothing was added.`
@@ -452,12 +472,13 @@ export function registerWatchlistCapabilities() {
       if (isRef(symbols)) return { ...st, addFrom: symbols }
       const have = new Set([...st.symbols, ...st.add])
       const add = []; const skipped = [...st.skipped]
-      for (const s of [...new Set((symbols || []).map(upper))]) (have.has(s) ? skipped : add).push(s)
+      // (a company name the ticker search resolved exactly is added as its ticker — NL N4)
+      for (const s of [...new Set((symbols || []).map(x => resolvedTicker(upper(x))))]) (have.has(s) ? skipped : add).push(s)
       if (!add.length) return st          // nothing new: a no-op, said as one
       return { ...st, add: [...st.add, ...add], skipped }
     },
     noop: (st, _a, { symbols }) => `${andList((symbols || []).map(upper))} ${(symbols || []).length === 1 ? 'is' : 'are'} already in ${quote(st.name)}`,
-    describe(b, a) {
+    describe(b, a, args) {
       if (a.addFrom && !b.addFrom) return a.addFrom.top == null ? `Add all of its results to ${quote(a.name)}` : `Add the top ${a.addFrom.top} of its results to ${quote(a.name)}`
       if (!a.add.length) return null
       // A long add is counted, not listed — the watchlist itself is the record.
@@ -465,7 +486,10 @@ export function registerWatchlistCapabilities() {
       const skip = !a.skipped.length ? ''
         : a.skipped.length > 3 ? ` · ${a.skipped.length} were already there`
           : ` · ${andList(a.skipped)} ${a.skipped.length === 1 ? 'was' : 'were'} already there`
-      return `Added ${what} to ${quote(a.name)}${skip}`
+      // NL N4: company names resolved to tickers are named ("NVIDIA" = NVDA, NVIDIA Corporation)
+      const named = (Array.isArray(args?.symbols) ? args.symbols : []).map(s => groundingOf(upper(s))).filter(g => g?.kind === 'name')
+      const from = named.length ? ` (${named.map(g => `“${g.input}” = ${g.ticker}, ${g.name}`).join('; ')})` : ''
+      return `Added ${what} to ${quote(a.name)}${from}${skip}`
     },
   })
 
@@ -485,7 +509,7 @@ export function registerWatchlistCapabilities() {
     fast: ({ raw, host }) => {
       const m = /^(?:please )?(?:remove|delete|drop|take) (.+?) (?:from|off|off of|out of) (.+?)[.!]?$/i.exec(String(raw).trim())
       if (!m || !host?.watchlists) return null
-      const syms = parseTickers(m[1])
+      const syms = parseTickers(m[1], raw)
       const l = syms && resolveList(host, m[2])
       return l ? { symbols: syms, __target: l.id } : null
     },
@@ -605,7 +629,7 @@ export function registerWatchlistCapabilities() {
     fast: ({ raw, host }) => {
       const m = /^(?:please )?rename (?:my |the )?(.+?) to (.+?)[.!]?$/i.exec(String(raw).trim())
       if (!m || !host?.watchlists) return null
-      const l = resolveList(host, m[1])
+      const l = resolveList(host, m[1], { level: 'strict' })
       const name = m[2].replace(/^[“"'‘]|[”"'’]$/g, '').trim()
       return l && name ? { name, __target: l.id } : null
     },

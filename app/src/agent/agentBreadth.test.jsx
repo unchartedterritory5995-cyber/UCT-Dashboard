@@ -20,7 +20,7 @@ const SENTINELS = ['73.4567', '73.457', '73.46', '73.5']
 const leaked = (o) => SENTINELS.filter(s => JSON.stringify(o).includes(s))
 const ANSWER = { status: 'ok', text: 'US · % Above 50-Day: 73.5% on 2026-10-09. Prior session 2026-10-08: 61.0%.\nSource: UCT Breadth — US.',
   table: { columns: [{ key: 'metric', label: 'Measure' }, { key: 'value', label: 'Value' }], rows: [{ metric: '% Above 50-Day', value: '73.5%' }] } }
-const REQ = { mode: 'value', universe: 'us', metrics: ['pct_above_50sma'], date: null, compare_date: null, start: null, end: null }
+const REQ = { mode: 'value', universe: 'us', metrics: ['pct_above_50sma'], date: null, compare_date: null, start: null, end: null, basis: null }
 const CTX = { surface: 'charts', createIndicator: true }
 
 let envelopes, turnBodies, records, breadthBodies, datesBody
@@ -78,6 +78,13 @@ describe('1 · the capability: local only, closed args, dates-only context', () 
     expect(shapeError('breadth.show', { ...REQ, universe: 'uct' })).toMatch(/isn't an option/)
   })
 
+  it('basis: null = present tense (UCT\'s current reading), "close" = an explicit close; nothing else', () => {
+    expect(shapeError('breadth.show', { ...REQ, basis: 'close' })).toBeNull()
+    expect(shapeError('breadth.show', { ...REQ, basis: 'live' })).toMatch(/isn't an option/)
+    const { basis: _b, ...noBasis } = REQ
+    expect(shapeError('breadth.show', noBasis)).toMatch(/Missing/)
+  })
+
   it('the context section carries DATES ONLY — anything else the dates route returns is dropped', async () => {
     datesBody = { today_et: '2026-10-11', latest_finalized: { us: '2026-10-09', nyse: 73.4567, nasdaq: '73.5%' }, value: 73.4567 }
     await loadBreadthDates()
@@ -116,13 +123,17 @@ describe('3 · the panel: the member sees UCT\'s answer; the model never gets it
     const { say } = await mount()
     await loadBreadthDates()
     envelopes.push((b) => plan([{ action: 'breadth.show', target: refOf(b, 'breadth'), args: REQ }], 'It was about 73.5% on Friday.'))
-    await say('what % of US stocks are above their 50-day?')
+    // (worded so the MODEL plans it — the obvious wording is planned locally: agentBreadthFast.test.jsx)
+    await say('roughly what share of US stocks sit above their 50-day, would you say?')
     await screen.findByText(/73\.5% on 2026-10-09/, {}, { timeout: 6000 })
     expect(screen.getByTestId('agent-transcript').textContent).not.toMatch(/It was about 73\.5% on Friday/)   // model words dropped
     expect(breadthBodies).toEqual([REQ])
     await waitFor(() => expect(records.some(r => r.outcomeData?.kind === 'answered')).toBe(true), { timeout: 6000 })
     const row = records.find(r => r.outcomeData?.kind === 'answered')
-    expect(row.outcomeData).toEqual({ kind: 'answered', actions: ['breadth.show'], local: true, requests: [REQ] })
+    expect(row.outcomeData).toMatchObject({ kind: 'answered', actions: ['breadth.show'], local: true, requests: [REQ] })
+    // the member's transcript keeps the answer's VIEW (restored on reload); the server never replays it
+    expect(Object.keys(row.outcomeData).sort()).toEqual(['actions', 'kind', 'local', 'requests', 'views'])
+    expect(row.outcomeData.views).toHaveLength(1)
     expect(row.outcome).toMatch(/73\.5%/)                                          // the member's history keeps it
 
     envelopes.push({ disposition: 'answer', reply: 'Ask me for another date.', question: null, unsupported_category: null, ops: [] })
@@ -135,7 +146,7 @@ describe('3 · the panel: the member sees UCT\'s answer; the model never gets it
   })
 
   it('MIXED breadth + news: the breadth answer AND UCT\'s notice that the news part was not done are both shown', async () => {
-    const NOTICE = 'UCT\'s breadth answer for your request is shown here. I did not look up the news or current-events part of your message — nothing was searched. Ask that part on its own and I\'ll look it up.'
+    const NOTICE = 'UCT\'s breadth answer for your request is shown here. I did not look up the news or current-events part of your message — no web search was run. Ask that part on its own and I\'ll look it up.'
     const { say } = await mount()
     envelopes.push((b) => ({ ...plan([{ action: 'breadth.show', target: refOf(b, 'breadth'), args: REQ }], NOTICE), local_notice: true }))
     await say('what % of US stocks are above the 50-day, and the latest NVDA news?')

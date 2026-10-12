@@ -199,7 +199,7 @@ async def test_sync_all_indirection_refreshes_accounts_first(env, monkeypatch):
         calls.append(("refresh", user_id))
         return []
 
-    async def fake_sync(user_id):
+    async def fake_sync(user_id, **kw):  # kw: off_loop (request-loop callers)
         calls.append(("sync", user_id))
         return {}
 
