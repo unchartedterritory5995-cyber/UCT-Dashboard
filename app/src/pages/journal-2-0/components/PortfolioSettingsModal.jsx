@@ -667,7 +667,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
               ].map(({ key, tint, placeholder }) => (
                 <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 90 }}>
                   <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.5, color: tint }}>
-                    {regimeWord(key).toUpperCase()}
+                    {(regimeWord(key) || 'Unknown').toUpperCase()}
                   </span>
                   <input
                     type="number"

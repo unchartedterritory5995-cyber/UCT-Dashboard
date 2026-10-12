@@ -35,7 +35,8 @@ describe('AddPositionModal regime banner (O8)', () => {
   it('names the amber regime YELLOW', () => {
     regimeNow.value = 'amber'
     render(<AddPositionModal settings={SETTINGS} onSave={vi.fn()} onClose={vi.fn()} />)
-    expect(banner().textContent).toContain('Regime is YELLOW.')
+    // The sentence boundary is part of the copy: "YELLOW.Default" was a shipped-looking defect.
+    expect(banner().textContent).toContain('Regime is YELLOW. Default size scaled to')
     expect(banner().textContent).not.toMatch(/amber/i)
   })
 
