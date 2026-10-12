@@ -507,19 +507,110 @@ _OUTCOME_LABEL = {
 }
 
 
+# ── ⛔ LOCAL-RESULT BOUNDARY (Market Intelligence breadth slice 1, owner 2026-10-11) ──────────────
+# Some answers are LOCAL ONLY: UCT reads the values from its own services and shows them to the
+# member, and they must NEVER reach a model — not as history, context, recent outcome or a plan's
+# reply (uct-mi-phase0/LOCAL-RESULT-BOUNDARY-CONTRACT.md). The model may only PLAN such a lookup
+# (validated args); it never sees what came back. The stored transcript keeps the member's answer —
+# the member reads it — and THIS is the one place that decides what a stored row may say to a model.
+#: Actions whose results are local only. Decided by NAME on the server (never trusted from the
+#: browser alone); the browser's `localOnly` flag on the same capabilities is a second signal.
+LOCAL_ONLY_ACTIONS = frozenset({"breadth.show"})
+LOCAL_RESULT_NOTE = ("[UCT showed the member this result on their screen. Its figures are shown ONLY to "
+                     "the member and are never given to you: do not state, estimate or repeat any value "
+                     "from it. To answer about it again, plan the same lookup.]")
+#: A stored outcome row this server cannot read (no data, or data of the wrong shape): it may have
+#: held a local result, so it is replaced — FAIL CLOSED, never replayed on the chance it is safe.
+UNREADABLE_OUTCOME = "[UCT] (an earlier UCT message that is not repeated here)"
+
+
+def _row_actions(data) -> list | None:
+    """The `actions` a stored row names, [] when it names none, None when the shape is unreadable."""
+    if not isinstance(data, dict):
+        return None
+    acts = data.get("actions", [])
+    if not isinstance(acts, list) or not all(isinstance(a, str) for a in acts):
+        return None
+    return acts
+
+
+def _envelope_actions(data) -> list | None:
+    """The ops' actions of a stored AGENT row's envelope; [] when none; None when unreadable."""
+    if not isinstance(data, dict) or "envelope" not in data:
+        return []
+    env = data.get("envelope")
+    if not isinstance(env, dict):
+        return None
+    ops = env.get("ops") or []
+    if not isinstance(ops, list):
+        return None
+    return [o.get("action") if isinstance(o, dict) else None for o in ops]
+
+
+def is_local_row(t: dict) -> bool:
+    """Did this stored row carry (or may it have carried) a LOCAL-ONLY result? Fail closed."""
+    data = t.get("data")
+    if t.get("role") == "outcome":
+        acts = _row_actions(data)
+        if acts is None:
+            return True                                    # unreadable: treat as local
+        return bool(LOCAL_ONLY_ACTIONS.intersection(acts)) or (isinstance(data, dict) and data.get("local") is True)
+    if t.get("role") == "agent":
+        acts = _envelope_actions(data)
+        return acts is None or bool(LOCAL_ONLY_ACTIONS.intersection(a for a in acts if a))
+    return False                                           # the member's own words are never censored
+
+
+def _local_requests(data) -> str:
+    """What the member ASKED for, rebuilt from validated request args only (enums and ISO dates —
+    no value can pass validation). Anything that does not validate is left out."""
+    reqs = data.get("requests") if isinstance(data, dict) else None
+    if not isinstance(reqs, list):
+        return ""
+    try:
+        from api.services.market_intel import breadth_reads
+    except Exception:  # noqa: BLE001 -- the note stands on its own
+        return ""
+    parts = []
+    for r in reqs[:4]:
+        ok, _err = breadth_reads.validate(r) if isinstance(r, dict) else (None, None)
+        if not ok:
+            continue
+        when = {"value": f"on {ok.get('date') or 'the latest finalized session'}",
+                "compare": f"{ok.get('date') or 'the latest finalized session'} vs {ok.get('compare_date')}",
+                "series": f"from {ok.get('start')} to {ok.get('end') or 'the latest finalized session'}"}[ok["mode"]]
+        parts.append(f"breadth lookup ({ok['universe'].upper()}: {', '.join(ok['metrics'])}; {when})")
+    return ("The member asked for: " + "; ".join(parts) + ".") if parts else ""
+
+
+def outcome_for_model(t: dict) -> str:
+    """The text a stored OUTCOME row may contribute to a model request — the ONLY door for one."""
+    data = t.get("data")
+    if _row_actions(data) is None:
+        return UNREADABLE_OUTCOME
+    if is_local_row(t):
+        asked = _local_requests(data)
+        return f"{LOCAL_RESULT_NOTE} {asked}".strip()
+    # Label what UCT ACTUALLY did. A proposal was never executed, so it
+    # must not read as "[UCT executed]" in the model's memory.
+    label = _OUTCOME_LABEL.get(data.get("kind"), "[UCT]")
+    return f"{label} {t['text']}"
+
+
 def history_messages(turns: list[dict]) -> list[dict]:
     """Rebuild alternating user/assistant messages from stored rows. An
     `outcome` row (what UCT actually did) is appended to the agent side, so
-    the model's memory of a turn is the receipt, not its own request."""
+    the model's memory of a turn is the receipt, not its own request.
+    ⛔ Local-only results never pass (outcome_for_model / is_local_row)."""
     msgs: list[dict] = []
     for t in turns[-HISTORY_TURNS * 3:]:
         role = "user" if t["role"] == "member" else "assistant"
         if t["role"] == "outcome":
-            # Label what UCT ACTUALLY did. A proposal was never executed, so it
-            # must not read as "[UCT executed]" in the model's memory.
-            kind = (t.get("data") or {}).get("kind") if isinstance(t.get("data"), dict) else None
-            label = _OUTCOME_LABEL.get(kind, "[UCT]")
-            text = f"{label} {t['text']}"
+            text = outcome_for_model(t)
+        elif t["role"] == "agent" and is_local_row(t):
+            # the planning reply of a local-only lookup (blanked when stored; an older or garbled
+            # row is left out here too) — the outcome row's note stands for the turn
+            text = ""
         else:
             text = t["text"]
         if not text:
@@ -742,6 +833,11 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         # so the next turn's history does not believe it either. (Shape only in the log.)
         log.warning("uct_agent claim without action: replaced a %d-char answer", len(reply))
         reply = NOTHING_DONE
+    if disp in MUTATING and any(o.get("action") in LOCAL_ONLY_ACTIONS for o in ops):
+        # ⛔ LOCAL-RESULT BOUNDARY: the model planned a lookup whose figures it never sees, so any
+        # figure in its reply is invented. UCT's own answer is the reply; this text is not shown,
+        # stored or replayed.
+        reply = ""
     return {
         "disposition": disp,
         "reply": reply,
@@ -817,7 +913,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     blocks = [_block("workspace_context", context or {})]
     if pending:
         blocks.append(_block("pending_proposal", pending))
-    if recent_outcome:
+    if recent_outcome and not any(is_local_row(t) for t in (history or []) if isinstance(t, dict)):
+        # ⛔ LOCAL-RESULT BOUNDARY: free text from the browser about the last outcome could repeat a
+        # local result's figures; in a conversation that holds one, it is dropped (fail closed).
         blocks.append(_block("recent_outcome", recent_outcome))
     if conversation_title:
         blocks.append(_block("conversation_title", conversation_title))
