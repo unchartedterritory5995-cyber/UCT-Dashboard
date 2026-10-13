@@ -9,7 +9,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { parseFormula } from '../ast/parse'
 import * as registry from '../nativeRegistry'
-import { removeInstance, setIndicatorEnabled } from '../instanceControls'
+import { removeInstance, setIndicatorEnabled, removeDefinition } from '../instanceControls'
 import { infoValuesOf } from '../infoValues'
 import { resolveInfoValue, INFO_VALUE_STATES, INFO_VALUE_GUARDS } from '../infoValueResolve'
 import { newAuthoringState, applyTurn, compactView } from '../../builder/authoring'
@@ -63,8 +63,16 @@ describe('P2 ui — item 18: a conversational info value is a REFERENCE, and del
     expect(r).toMatchObject({ state: INFO_VALUE_STATES.BROKEN, guard: INFO_VALUE_GUARDS.DELETED, text: 'unavailable' })
     expect(r.value).toBeUndefined()
     // and the definition-level delete door severs it too
-    const off = setIndicatorEnabled(att.settings, stored.storedDoc.id, false, registry)
+    // A1 (D3): that door is removeDefinition now — the toggle hides
+    const off = removeDefinition(att.settings, stored.storedDoc.id, registry)
     expect(infoValuesOf(off)[0].severed).toBe(true)
+    // ⭐ A1 (D3, O3): the definition TOGGLE hides — the reference is KEPT, connected, and ON
+    // brings back the very same settings
+    const hidden = setIndicatorEnabled(att.settings, stored.storedDoc.id, false, registry)
+    expect(infoValuesOf(hidden), 'a definition hide severed the info value').toEqual(refs)
+    const shown = setIndicatorEnabled(hidden, stored.storedDoc.id, true, registry)
+    expect(JSON.stringify(shown)).toBe(JSON.stringify(att.settings))
+    expect(resolveInfoValue(shown, infoValuesOf(shown)[0], { registry }).state).not.toBe(INFO_VALUE_STATES.BROKEN)
   })
 
   it('18x ASKED an info value on an output that the conversation later REMOVED before save; DID cancel the request with the output, so nothing dangling is requested (EXACT)', async () => {
