@@ -25,13 +25,17 @@ import { BLOCK_ERROR_SENTENCE } from '../components/notebook/blocks/blockStates'
 const editor = { isEditable: true, storage: { uctJournalWidgets: { noteId: 'n1' } } }
 const node = (widgetId, params = {}) => ({ attrs: { widgetId, params, searchText: `[${widgetId}]` } })
 
+const PART_B = ['My rules', 'Morning wire and exposure', 'Earnings for my names', 'My movers',
+  'Key levels from my plans', 'Post-trade review']
+
 axeSurface('trader-block-platform', async () => {
   render(<div>
-    {['preEntryChecklist', 'priceStamps', 'positionSizing'].map((id) => (
+    {['preEntryChecklist', 'priceStamps', 'positionSizing',
+      'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview'].map((id) => (
       <BlockNodeView key={id} node={node(id)} editor={editor} updateAttributes={() => {}} deleteNode={() => {}} />
     ))}
   </div>)
-  for (const name of ['Pre-entry checklist', 'Price stamps', 'Position sizing']) {
+  for (const name of ['Pre-entry checklist', 'Price stamps', 'Position sizing', ...PART_B]) {
     expect(await screen.findByRole('group', { name })).toBeTruthy()
     expect(screen.getByRole('button', { name: `Remove ${name}` })).toBeTruthy()
   }
@@ -44,7 +48,11 @@ axeSurface('trader-block-platform', async () => {
   expect(await group('Pre-entry checklist').findByText(/You have no setups yet/)).toBeTruthy()
   expect(await group('Price stamps').findByRole('switch', { name: 'Stamp prices as I write' })).toBeTruthy()
   expect(await group('Position sizing').findByRole('spinbutton', { name: 'Entry' })).toBeTruthy()
-  expect(screen.queryByText('This block is being built.')).toBeNull()
+  for (const name of ['Pre-entry checklist', 'Price stamps', 'Position sizing']) {
+    expect(group(name).queryByText('This block is being built.')).toBeNull()
+  }
+  // P2b Task 2: part b's six are stubs until their body tasks (8, 10, 11); each must still paint.
+  for (const name of PART_B) expect(await group(name).findByText('This block is being built.')).toBeTruthy()
 })
 
 axeSurface('trader-block-platform:error', async () => {

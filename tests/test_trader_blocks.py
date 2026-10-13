@@ -27,14 +27,16 @@ CTX = {"ticker": None, "now": NOW, "memo": {}, "mode": "create", "user_id": "u1"
 
 def test_every_trader_block_has_a_catalog_row_and_a_builder():
     from api.services.journal_two import journal_styles as js, trader_blocks as tb
-    assert tb.BLOCK_IDS == ("preEntryChecklist", "priceStamps", "positionSizing")
+    assert tb.BLOCK_IDS == ("preEntryChecklist", "priceStamps", "positionSizing",
+                            "myRules", "prepWire", "prepEarnings", "prepMovers", "prepLevels", "tradeReview")
     assert set(tb.BLOCK_IDS) <= js.KNOWN_BLOCKS
     assert set(js.BLOCK_BUILDERS) == js.KNOWN_BLOCKS
     for bid in tb.BLOCK_IDS:
         assert js._BLOCK_BY_ID[bid]["search"].startswith("[")
 
 
-@pytest.mark.parametrize("bid", ["preEntryChecklist", "priceStamps", "positionSizing"])
+@pytest.mark.parametrize("bid", ["preEntryChecklist", "priceStamps", "positionSizing",
+                                 "myRules", "prepWire", "prepEarnings", "prepMovers", "prepLevels", "tradeReview"])
 def test_each_builder_makes_a_body_the_editor_can_build(bid, monkeypatch, db_path):
     from api.services.journal_two import journal_styles as js, notes, regime
     monkeypatch.setattr(regime, "_read_exposure", lambda: None)          # hermetic: no wire read

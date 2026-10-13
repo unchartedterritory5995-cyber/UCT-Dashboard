@@ -15,9 +15,11 @@ import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable
 
-#: The three P2a blocks (`block: true` in the client registry, bound in BLOCK_COMPONENTS). The market
-#: context is NOT one: it is the existing `marketcontext` capture widget (Task 3, IR-S6).
-BLOCK_IDS = ("preEntryChecklist", "priceStamps", "positionSizing")
+#: The trader blocks (`block: true` in the client registry, bound in BLOCK_COMPONENTS): part a's three,
+#: then part b's six. The market context is NOT one: it is the existing `marketcontext` capture widget
+#: (Task 3, IR-S6).
+BLOCK_IDS = ("preEntryChecklist", "priceStamps", "positionSizing",
+             "myRules", "prepWire", "prepEarnings", "prepMovers", "prepLevels", "tradeReview")
 
 #: The regime ids regime.classify_regime answers (journal_two/regime.py), in severity order.
 REGIME_IDS = ("green", "amber", "orange", "red")
@@ -84,6 +86,22 @@ BUILDERS: dict[str, Callable[[dict, dict], tuple[dict | None, str | None]]] = {
     "priceStamps": build_price_stamps,
     "positionSizing": build_position_sizing,
 }
+
+
+def _empty(block_id: str, params: dict | None = None):
+    """Part b's placeholder builders (P2b Task 2): the node with empty params. Tasks 6 and 7 replace
+    the prep and review ones; `myRules` keeps this one (it holds no params)."""
+    def build(block: dict, ctx: dict):
+        return _node(block_id, dict(params or {}), ctx), None
+    return build
+
+
+BUILDERS.update({
+    "myRules": _empty("myRules"),
+    "prepWire": _empty("prepWire"), "prepEarnings": _empty("prepEarnings"),
+    "prepMovers": _empty("prepMovers"), "prepLevels": _empty("prepLevels"),
+    "tradeReview": _empty("tradeReview", {"tradeId": ""}),
+})
 
 
 # ── The market context stamp (spec §P2 item 3) on the EXISTING marketcontext widget (IR-S6) ─────

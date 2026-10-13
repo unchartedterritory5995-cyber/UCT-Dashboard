@@ -203,6 +203,14 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     ("widgetEmbed", "preEntryChecklist"): "private",
     ("widgetEmbed", "priceStamps"): "massive",
     ("widgetEmbed", "positionSizing"): "private",
+    # Notebook P2b blocks (IR-B3, part b): the member's own rules, names, watchlist, plans and trade are
+    # private; the Morning Wire headline and exposure rating are mixed, like marketcontext.
+    ("widgetEmbed", "myRules"): "private",
+    ("widgetEmbed", "prepWire"): "mixed",
+    ("widgetEmbed", "prepEarnings"): "private",
+    ("widgetEmbed", "prepMovers"): "private",
+    ("widgetEmbed", "prepLevels"): "private",
+    ("widgetEmbed", "tradeReview"): "private",
     # financialFact -- by the fact's recorded source.
     ("financialFact", "fmp"): "fmp",
     ("financialFact", "finnhub"): "finnhub",

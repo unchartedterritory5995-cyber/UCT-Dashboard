@@ -887,6 +887,23 @@ const PANEL_MANIFESTS = {
     { key: 'regimeId', type: 'enum', options: ['green', 'amber', 'orange', 'red'] },
     { key: 'regimeAsOf', type: 'string' },
   ], '[position sizing]'),
+  // P2 Tier 1 (part b): capture-only blocks bound in BLOCK_COMPONENTS only (IR-B2, part b).
+  myRules: blockManifest('My rules', [], '[my rules]'),
+  prepWire: blockManifest('Morning wire and exposure', [
+    { key: 'snapshot', type: 'json' },
+  ], '[morning wire and exposure]'),
+  prepEarnings: blockManifest('Earnings for my names', [
+    { key: 'snapshot', type: 'json' },
+  ], '[earnings for my names]'),
+  prepMovers: blockManifest('My movers', [
+    { key: 'snapshot', type: 'json' },
+  ], '[my movers]'),
+  prepLevels: blockManifest('Key levels from my plans', [
+    { key: 'snapshot', type: 'json' },
+  ], '[key levels from my plans]'),
+  tradeReview: blockManifest('Post-trade review', [
+    { key: 'tradeId', type: 'string' },
+  ], '[post-trade review]'),
 }
 
 export const WIDGET_REGISTRY = deepFreeze(Object.fromEntries(

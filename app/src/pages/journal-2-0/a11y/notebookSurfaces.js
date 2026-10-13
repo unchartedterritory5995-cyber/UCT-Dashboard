@@ -188,6 +188,13 @@ export const SURFACES = Object.freeze({
   'components/notebook/blocks/PreEntryChecklistBlock.jsx': { recipe: 'trader-block-checklist' },
   'components/notebook/blocks/PriceStampsBlock.jsx': { recipe: 'trader-block-stamps' },
   'components/notebook/blocks/PositionSizingBlock.jsx': { recipe: 'trader-block-sizing' },
+  // P2b Task 2 stubs: each body task (8, 10, 11) swaps its own line for its own recipe.
+  'components/notebook/blocks/MyRulesBlock.jsx': { coveredBy: 'trader-block-platform' },
+  'components/notebook/blocks/PrepWireBlock.jsx': { coveredBy: 'trader-block-platform' },
+  'components/notebook/blocks/PrepEarningsBlock.jsx': { coveredBy: 'trader-block-platform' },
+  'components/notebook/blocks/PrepMoversBlock.jsx': { coveredBy: 'trader-block-platform' },
+  'components/notebook/blocks/PrepLevelsBlock.jsx': { coveredBy: 'trader-block-platform' },
+  'components/notebook/blocks/TradeReviewBlock.jsx': { coveredBy: 'trader-block-platform' },
 
   // ── documents ──────────────────────────────────────────────────────────────
   'components/notebook/DocumentPreviewSheet.jsx': { recipe: 'document-preview-pdf' },

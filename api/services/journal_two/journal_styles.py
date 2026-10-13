@@ -59,6 +59,13 @@ BLOCK_KINDS: tuple[dict, ...] = (
         {"key": "on", "options": ("no", "yes"), "default": "no"},)},
     {"id": "positionSizing", "search": "[position sizing]", "settings": (
         {"key": "grade", "options": ("A", "A+", "B"), "default": "A"},)},
+    # P2 Tier 1 (part b).
+    {"id": "myRules", "search": "[my rules]", "settings": ()},
+    {"id": "prepWire", "search": "[morning wire and exposure]", "settings": ()},
+    {"id": "prepEarnings", "search": "[earnings for my names]", "settings": ()},
+    {"id": "prepMovers", "search": "[my movers]", "settings": ()},
+    {"id": "prepLevels", "search": "[key levels from my plans]", "settings": ()},
+    {"id": "tradeReview", "search": "[post-trade review]", "settings": ()},
     # The market context stamp is the EXISTING marketcontext capture widget (IR-S6). No `search`.
     {"id": "marketcontext", "settings": (
         {"key": "fields", "options": ("all", "regime", "indexes"), "default": "all"},)},
