@@ -39,7 +39,7 @@ import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalT
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
 import {
-  CONTEXT_ROWS, readingsFrom, finite, SOURCED_ROWS, sourcedText, presetFor, UNCAPTURED_SENTENCE,
+  CONTEXT_ROWS, readingsFrom, finite, SOURCED_ROWS, sourcedText, presetFor, uncapturedSentence,
 } from './marketContextModel'
 import styles from './MarketContextWidget.module.css'
 
@@ -71,7 +71,10 @@ export default function MarketContextWidget({
   // options today, so the /charts binding passes none (the aisearch idiom:
   // a widget receives what it uses, and growing a setting is a DECISION the
   // registry rail makes visible).
-  frozen = null, readOnly = false, journalDoor = true,
+  // R-T12-C (I-1): `frozen.uncapturedReason` picks the uncaptured sentence, and `captureDoor` is the
+  // note host's own "Capture now" (MarketContextEmbed), shown under that sentence. The widget never
+  // reads or writes for it: the board passes none, and the host decides when to offer one.
+  frozen = null, readOnly = false, journalDoor = true, captureDoor = null,
 }) {
   const { data } = useMobileSWR(frozen ? null : BREADTH_URL, fetcher, {
     refreshInterval: 300_000, dedupingInterval: 60_000, revalidateOnFocus: false,
@@ -146,8 +149,9 @@ export default function MarketContextWidget({
 
       {uncaptured && (
         // IR-S11: never today's market in an older note, and never a capture date for one.
-        <div className={styles.hint} role="status">{UNCAPTURED_SENTENCE}</div>
+        <div className={styles.hint} role="status">{uncapturedSentence(frozen?.uncapturedReason)}</div>
       )}
+      {uncaptured && captureDoor}
 
       {!readings && !uncaptured && (
         <div className={styles.hint}>

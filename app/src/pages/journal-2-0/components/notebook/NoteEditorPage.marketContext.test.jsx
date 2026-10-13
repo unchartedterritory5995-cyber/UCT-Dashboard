@@ -105,3 +105,59 @@ describe('Market context: a failed read is said, in the note\'s own toast', () =
     expect(screen.queryByText(SENTENCE)).toBeNull()
   })
 })
+
+// R-T12-C fix round, I-1: the WIRE, end to end in the real editor page. A stamp the create could not
+// read in time ({uncaptured: true, reason: "budget"}, the backend's shape) offers "Capture now", and the
+// click lands the readings IN THE NOTE (the node's params) through the embed's setParams: nothing on
+// the path is mocked but the read itself.
+const BUDGET = 'The market could not be read in time when this note was made.'
+const budgetStamp = () => ({ type: 'widgetEmbed', attrs: {
+  v: 1, widgetId: 'marketcontext', embedId: 'mc-budget', mode: 'snapshot',
+  params: { uncaptured: true, reason: 'budget', fields: 'all' },
+  capturedAt: null, annotations: [], caption: null, layout: { width: 'full', height: null }, fallback: null,
+} })
+
+describe('Market context: the budget stamp\'s Capture now writes into the note', () => {
+  // The setup's IntersectionObserver never reports, so an embed would stay below the fold forever; this
+  // one says every observed block is in view, which is what mounts the embed's real renderer.
+  beforeEach(() => {
+    vi.stubGlobal('IntersectionObserver', class {
+      constructor(cb) { this.cb = cb }
+      observe(target) { this.cb([{ isIntersecting: true, target }], this) }
+      unobserve() {}
+      disconnect() {}
+      takeRecords() { return [] }
+    })
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('the click lands the readings in the node, the stamp keeps its preset, and the sentence goes', async () => {
+    const READ = { readings: { marketPhase: 'Uptrend', exposureScore: 72.5, powerTrend: null }, wireDate: '2026-10-12', updated: '10:30 AM ET' }
+    routeFetch(async () => ({ ok: true, status: 200, json: async () => READ }))
+    NOTE = { ...note(), bodyJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Plan ' }] }, budgetStamp()] } }
+    const ed = await renderEditor()
+    expect(await screen.findByText(BUDGET)).toBeTruthy()
+    expect(mcCalls()).toHaveLength(0)                       // never on mount
+    const button = await screen.findByRole('button', { name: 'Capture now' })
+    await act(async () => { button.click() })
+    await waitFor(() => expect(stamps(ed)[0].attrs.params.readings).toEqual(READ.readings))
+    const params = stamps(ed)[0].attrs.params
+    expect(params.fields).toBe('all')
+    expect(params.wireDate).toBe('2026-10-12')
+    expect(params.uncaptured).toBeUndefined()
+    expect(params.reason).toBeUndefined()
+    expect(mcCalls()).toHaveLength(1)
+    await waitFor(() => expect(screen.queryByText(BUDGET)).toBeNull())
+    expect(screen.queryByRole('button', { name: 'Capture now' })).toBeNull()
+  })
+
+  it('CONTROL: the "Update layout" stamp (no reason) shows its old sentence and no Capture now', async () => {
+    routeFetch(async () => ({ ok: true, status: 200, json: async () => ({}) }))
+    const stamp = budgetStamp()
+    delete stamp.attrs.params.reason
+    NOTE = { ...note(), bodyJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Plan ' }] }, stamp] } }
+    await renderEditor()
+    expect(await screen.findByText('Market context is captured when a note is created. This note was written before it had one.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Capture now' })).toBeNull()
+  })
+})

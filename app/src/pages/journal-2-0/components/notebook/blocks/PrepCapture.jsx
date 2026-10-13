@@ -10,7 +10,8 @@ import { useState } from 'react'
 import { BlockNeedsSwitch } from './blockStates'
 import styles from './Blocks.module.css'
 
-const FAILED = "This couldn't be read just now. Nothing was changed."
+// Exported (R-T12-C fix round, I-1): the market context stamp's own "Capture now" says the same words.
+export const FAILED = "This couldn't be read just now. Nothing was changed."
 
 /** "Oct 5, 2026, 10:30 AM" in New York, or null for a time that cannot be read. */
 function easternTime(iso) {
@@ -43,7 +44,8 @@ export default function PrepCapture({ part, params, setParams, editable, childre
   if (snap?.needs) body = <BlockNeedsSwitch what={snap.needs} />
   else if (snap?.missing) body = <p className={styles.muted}>{snap.detail}</p>
   else if (snap) body = children(snap)
-  else if (!editable) body = <p className={styles.muted}>Not captured yet.</p>
+  // M-4 (R-T12-C fix round): an empty block says why for an editor too, above its "Capture now".
+  else body = <p className={styles.muted}>Not captured yet.</p>
   return (
     <div>
       {body}

@@ -9,6 +9,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   sourcedText, presetFor, FIELD_SETS, SOURCED_ROWS, REGIME_WORDS, CONTEXT_ROWS, UNCAPTURED_SENTENCE,
+  UNCAPTURED_BUDGET_SENTENCE, uncapturedSentence,
 } from './marketContextModel'
 import { BLOCK_KINDS } from '../../journal-2-0/lib/journalBlocks'
 import PRICE_AS_OF_WORDING from './priceAsOfWording.fixture.json'
@@ -119,6 +120,14 @@ describe('the stamp\'s wording (Task 9 rulings)', () => {
 
   it('the uncaptured sentence, verbatim (IR-S11)', () => {
     expect(UNCAPTURED_SENTENCE).toBe('Market context is captured when a note is created. This note was written before it had one.')
+  })
+
+  it('R-T12-C: the budget stamp has its own sentence; only exactly reason "budget" picks it', () => {
+    expect(UNCAPTURED_BUDGET_SENTENCE).toBe('The market could not be read in time when this note was made.')
+    expect(uncapturedSentence('budget')).toBe(UNCAPTURED_BUDGET_SENTENCE)
+    for (const other of [undefined, null, '', 'Budget', 'update', 'constructor']) {
+      expect(uncapturedSentence(other), String(other)).toBe(UNCAPTURED_SENTENCE)
+    }
   })
 })
 

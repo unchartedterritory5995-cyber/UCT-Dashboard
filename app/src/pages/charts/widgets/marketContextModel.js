@@ -65,6 +65,13 @@ export const FIELD_SETS = Object.freeze({
   indexes: { context: [], sourced: ['spy', 'qqq', 'vix'] },
 })
 export const UNCAPTURED_SENTENCE = 'Market context is captured when a note is created. This note was written before it had one.'
+// R-T12-C (fix round, I-1): a NEW note whose create ran out of its read budget gets the stamp uncaptured
+// with `reason: "budget"`. UNCAPTURED_SENTENCE would be false there (the note had a stamp from its
+// first second), so it says what did happen. The "Update layout" stamp carries no reason and keeps the old words.
+export const UNCAPTURED_BUDGET_SENTENCE = 'The market could not be read in time when this note was made.'
+
+/** The sentence an uncaptured stamp shows: the budget one only for exactly `reason: "budget"`. */
+export const uncapturedSentence = (reason) => (reason === 'budget' ? UNCAPTURED_BUDGET_SENTENCE : UNCAPTURED_SENTENCE)
 
 /** The preset a stored `fields` names; an unknown one (a newer version's) shows everything. */
 export const presetFor = (fields) =>
