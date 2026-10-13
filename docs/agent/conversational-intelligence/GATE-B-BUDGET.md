@@ -2,6 +2,23 @@
 
 The owner asked whether the $15/day budget can hold "Agent ≤ $5, combined ≤ $15, no increase, no reduction of existing allocations, no silent overruns". **It cannot, as stated.** The constraints conflict arithmetically. The options are below; the choice is a product decision.
 
+## ✅ OWNER DECISION (2026-10-13): Option D — two separate budgets
+
+| Budget | Daily cap | Covers | Enforcement |
+|---|---|---|---|
+| **UCT Agent** | **$5** (`UCT_AGENT_BUDGET_USD`) | Every paid UCT Agent call: turn, schema retry, research, after-research call, reroute, chat naming | Its own ledger, with atomic worst-case reservations; fails closed |
+| **Shared AI budget** | **$15** (`CATALYST_COST_HARD_CAP`), $4 interactive + $11 background, unchanged | The features in §1 only: catalyst synthesis and its support jobs, call recaps, sector reads, the indicator builder and vision | Existing floor checks, unchanged |
+
+**Combined potential maximum across these covered features: $20/day** ($15 + $5), plus the shared budget's existing one-call overshoot per lane.
+
+**What the Agent does with the shared budget:**
+- It stops paid inference when the shared $15 is spent, as well as at its own $5. That check is read-only.
+- It never adds to the shared budget, and it never reduces another feature's allocation.
+
+**Neither budget is site-wide.** The other paid AI features keep their own caps, or have none. That is a separate follow-up: `FOLLOWUP-PAID-AI-PATHS.md`.
+
+**Not changed by this decision:** other allocations, member access (still admin-only), and paid calls (none made).
+
 ## 1. What the $15 actually covers (it is NOT site-wide)
 
 The "$15" is the catalyst ledger (`api/services/catalyst/cost_guard.py`, table `catalyst_cost_log` in catalysts.db). It is split by lane:

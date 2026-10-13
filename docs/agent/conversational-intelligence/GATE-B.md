@@ -1,5 +1,7 @@
 # Gate B — Phase 0 implementation report (2026-10-13)
 
+> **Owner decision (2026-10-13): Option D.** Two separate budgets: the Agent's own **$5/day** and the shared **$15/day** (catalyst ledger), with a combined potential maximum of **$20/day** across their covered features. Neither is site-wide. See GATE-B-BUDGET.md and FOLLOWUP-PAID-AI-PATHS.md. The release candidate is branch `release/agent-gate-b`, rebased onto master `2d4c93293c`; see GATE-B-RELEASE-READINESS.md.
+
 Branch `feat/agent-conversational-intelligence` (C:/w/aconv), based on `fdba4c997d`. **Local only.** Nothing has been pushed or deployed, and no paid model calls were made.
 
 ## Commits
