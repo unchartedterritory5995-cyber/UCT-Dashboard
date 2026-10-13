@@ -16,6 +16,13 @@ import { registerCapability, registerTargetKind, registerContextProvider, regist
 
 //: Mirrors market_intel.breadth_reads (tests/test_uct_agent_breadth.py pins them equal).
 export const BREADTH_UNIVERSES = ['us', 'nyse', 'nasdaq']
+//: The member may name UCT's own universe. UCT Breadth has it, but the Agent's breadth reads (MI slice 1)
+//: and the current-reading contract cover US / NYSE / Nasdaq only (UCT's live row is anchored to the
+//: Yahoo-sourced collector — licensing note T-75/L2). So `uct` is a valid CHOICE that is answered
+//: locally with what is true — never "UCT doesn't have that", never a guess, never a web search.
+export const AGENT_UNIVERSES = [...BREADTH_UNIVERSES, 'uct']
+export const UCT_UNIVERSE_ANSWER = 'Breadth for UCT’s own universe is on the Breadth page — UCT Agent can’t read it yet. '
+  + 'UCT Agent answers breadth for US, NYSE and Nasdaq stocks (current readings and finalized history).'
 export const BREADTH_METRICS = [
   'pct_above_5sma', 'pct_above_10sma', 'pct_above_20sma', 'pct_above_40sma', 'pct_above_50sma',
   'pct_above_100sma', 'pct_above_150sma', 'pct_above_200sma',
@@ -80,7 +87,20 @@ export const breadthKind = {
   fingerprint: () => 'breadth',
 }
 
+// ── the member's last breadth SUBJECT (names only — a measure key, a universe, the last search's
+// args; never a value): "that", "it", "same thing for Nasdaq", "what about last year?" resolve
+// against it deterministically. In-memory, per page; the model path still has the history note.
+let subject = null
+export function rememberBreadthSubject(s) { subject = s && typeof s === 'object' ? { ...s } : null }
+export const lastBreadthSubject = () => subject
+export const breadthToday = () => dates.today_et
+export function _resetBreadthSubject() { subject = null }
+
 async function answerBreadth(args) {
+  if (Array.isArray(args?.metrics)) {
+    rememberBreadthSubject({ kind: 'show', universe: args.universe, metric: args.metrics.length === 1 ? args.metrics[0] : null, show: args })
+  }
+  if (args?.universe === 'uct') return { text: UCT_UNIVERSE_ANSWER, link: { href: '/breadth', label: 'Open Breadth' } }
   let r
   try {
     r = await fetch('/api/agent/breadth', {
@@ -113,19 +133,36 @@ async function answerBreadth(args) {
 const SMA_PERIODS = new Set([5, 10, 20, 40, 50, 100, 150, 200])
 const WHEN_NOW = '(?: (?:right now|now|today|currently|at the moment|so far today|this (?:morning|afternoon)))?'
 const AT_CLOSE = ' (?:at|as of|on) (?:the )?(?:latest |last |most recent )?close'
-const UNI_WORD = '(us|u\\.s\\.|nyse|nasdaq)'
+const UNI_WORD = '(us|u\\.s\\.|nyse|nasdaq|uct)'
 const UNI_PRE = `(?:${UNI_WORD} )?`
 const UNI_POST = `(?: (?:on|for|in|across) (?:the )?${UNI_WORD}(?: stocks)?)?`
 const ASK = "(?:(?:what(?:'s| is| are| was)?|how(?:'s| is)|show(?: me)?|give me|tell me) )?"
 const OVERVIEW_RE = new RegExp(`^${ASK}(?:the )?${UNI_PRE}(?:market )?breadth(?: (?:look(?:ing)?|like|doing))*${UNI_POST}(${WHEN_NOW}|${AT_CLOSE})$`)
-const PCT_RE = new RegExp(`^${ASK}(?:the )?(?:percent(?:age)?|%|pct) (?:of )?${UNI_PRE}(?:stocks )?(?:that are |are |were )?above (?:their |the |its )?(\\d+)(?:[\\s-]*(?:day|d))?(?: (?:moving average|ma|sma|simple moving average|day moving average))?${UNI_POST}(${WHEN_NOW}|${AT_CLOSE})$`)
+const PCT_RE = new RegExp(`^${ASK}(?:the )?(?:percent(?:age)?|%|pct) (?:of )?${UNI_PRE}(?:stocks )?(?:that are |are |were )?above (?:their |the |its )?(\\d+)(?:[\\s-]*(?:day|d))?(?:[\\s-]*(?:simple moving average|moving average|sma|dma|ma))?${UNI_POST}(${WHEN_NOW}|${AT_CLOSE})$`)
 const uniOf = (...ws) => {
   const w = ws.find(Boolean)
   return !w || w === 'u.s.' ? 'us' : w
 }
+// "What was the lowest NYSE:A200 reading in 2022?" / "highest US 200sma in 2020" → series over that
+// calendar year (MI's own range summary: low / high with their dates). A named PERIOD that is not a
+// year ("the 2022 bear market") is left to the model, which asks for the dates it cannot resolve.
+const LOWHIGH_RE = new RegExp(`^(?:what (?:was|is|were) )?(?:the )?(lowest|highest|low|high|minimum|maximum|min|max) (?:reading |value |level )?(?:(?:for|of|on) )?(?:the )?(?:${UNI_WORD}\\s*:?\\s*)?(?:a(\\d+)|(\\d+)[\\s-]*(?:day|d)?[\\s-]*(?:sma|dma|ma|moving average))(?: reading)?(?: (?:on|for) the ${UNI_WORD})? (?:in|during) (\\d{4})$`)
+const SAME_SHOW_RE = new RegExp(`^(?:and )?(?:the )?same (?:thing |question )?(?:for|on) (?:the )?${UNI_WORD}(?: stocks)?$`)
 export function breadthFast(raw) {
   const t = String(raw || '').toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/[?.!]+$/g, '').replace(/\s+/g, ' ').trim()
   if (!t || t.length > 120) return null
+  // "same thing for Nasdaq" after a READING: the same request, one universe changed (a search → breadth.history)
+  const lh = LOWHIGH_RE.exec(t)
+  if (lh) {
+    const n = Number(lh[3] || lh[4]), y = Number(lh[6])
+    if (!SMA_PERIODS.has(n) || !(y >= 1990 && y <= 2100)) return null
+    const thisYear = Number(String(dates.today_et || new Date().toISOString()).slice(0, 4))
+    if (y > thisYear) return null
+    return { mode: 'series', universe: uniOf(lh[2], lh[5]), metrics: [`pct_above_${n}sma`], date: null, compare_date: null,
+      start: `${y}-01-01`, end: y === thisYear ? null : `${y}-12-31`, basis: null }
+  }
+  const same = SAME_SHOW_RE.exec(t)
+  if (same) return subject?.kind === 'show' && subject.show ? { ...subject.show, universe: uniOf(same[1]) } : null
   const base = { date: null, compare_date: null, start: null, end: null }
   let m = OVERVIEW_RE.exec(t)
   if (m) {
@@ -168,7 +205,7 @@ export function registerBreadthCapabilities() {
     localOnly: true,
     summary: 'Look up MARKET BREADTH from UCT\'s own data (US, NYSE, Nasdaq): the current reading (live in the session), a finalized value on a date, two dates compared, or a range summarised — % above a moving average, new highs/lows, advance/decline, Stage 2/4 counts. '
       + 'UCT shows the figures to the member; you never see them. Use this (disposition apply, research null) — never state breadth figures yourself.',
-    hints: 'target = breadth entry ref. universe us (default) | nyse | nasdaq. metrics 1–4 keys; [] = general overview. '
+    hints: 'target = breadth entry ref. universe us (default) | nyse | nasdaq | uct. metrics 1–4 keys; [] = general overview. '
       + 'value: date null = now (live); basis "close" only if a close is asked, else null. '
       + 'compare: compare_date required, date null = latest close. series: start required, end null = latest. '
       + 'Dates YYYY-MM-DD else null, from today_et / latest_finalized. '
@@ -177,7 +214,7 @@ export function registerBreadthCapabilities() {
       type: 'object',
       properties: {
         mode: { type: 'string', enum: ['value', 'compare', 'series'] },
-        universe: { type: 'string', enum: BREADTH_UNIVERSES },
+        universe: { type: 'string', enum: AGENT_UNIVERSES },
         metrics: { type: 'array', items: { type: 'string', enum: BREADTH_METRICS } },
         date: nullableDate, compare_date: nullableDate, start: nullableDate, end: nullableDate,
         // "close" = the member asked for a closing / end-of-day value (finalized); null = present tense

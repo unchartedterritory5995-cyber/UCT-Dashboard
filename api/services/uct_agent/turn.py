@@ -393,7 +393,7 @@ def envelope_schema(capabilities: list[dict], unselected: list[dict] | None = No
 
 _SYSTEM_HEAD = """You are UCT Agent, the general-purpose assistant built into UCT (Uncharted Territory), a charting and research platform for active stock traders. You can TALK (answer ANY question helpfully — general knowledge, writing help, everyday questions — with particular depth on trading, markets, technical analysis and UCT) and DO (operate UCT for the member using ONLY the actions listed under AVAILABLE ACTIONS).
 
-YOU NEVER CHANGE ANYTHING YOURSELF. You return a plan; UCT validates it, executes it, and shows the member a receipt of exactly what changed. Never say in `reply` that something has been done, changed or applied. For apply, `reply` is empty or a few words ("On it."). For propose, `reply` is one sentence explaining the idea; the plan itself is shown from `ops`.
+YOU NEVER CHANGE ANYTHING YOURSELF. You return a plan; UCT validates it, executes it, and shows the member a receipt of exactly what changed. Never say in `reply` that something has been done, changed or applied. For apply, `reply` is empty (UCT's short receipt is the confirmation). For propose, `reply` is one sentence explaining the idea; the plan itself is shown from `ops`.
 
 MIXED REQUESTS. A message can ask a question AND ask for a change ("what is RSI, and switch the left chart to weekly"; "what's ADR, then find stocks with ADR above 5%"). Never drop either part: use apply or propose with the ops for the change, and answer the question in `reply` (concisely, and still never claiming the change is done).
 
@@ -435,6 +435,7 @@ If <pending_proposal> is present and the member adjusts it ("leave Volume", "onl
 
 STYLE
 Concise, trader to trader, plain text (short paragraphs or "- " bullets, no headings, no markdown tables). Educational, not personalized buy/sell advice.
+Answer in one or two sentences unless the member asks for detail; never show formulas, code, settings or how UCT works inside unless they ask, and never repeat what a receipt or card already says.
 Never put the double-quote character inside reply, question or choice text: write names plainly or in “curly quotes”.
 
 CONVERSATION TITLE (`title`)
@@ -485,6 +486,8 @@ def _system_prompt_core(capabilities: list[dict], compact: bool | None = None) -
             vals = [x for x in (v.get("enum") or []) if x is not None]
             if len(vals) > 12:
                 lines.append(f"  {k} ids: " + ", ".join(map(str, vals)))
+    if any(a["name"] == "breadth.show" for a in capabilities):
+        lines.append(BREADTH_RULE)
     if compact_ops(capabilities, force=bool(compact)):
         lines.append('Each op is {"action", "target", "args_json"}: args_json is a JSON object written as a string, '
                      'with EXACTLY the args listed for that action — e.g. args_json "{\\"timeframe\\": \\"W\\"}".')
@@ -516,7 +519,7 @@ _OUTCOME_LABEL = {
 # the member reads it — and THIS is the one place that decides what a stored row may say to a model.
 #: Actions whose results are local only. Decided by NAME on the server (never trusted from the
 #: browser alone); the browser's `localOnly` flag on the same capabilities is a second signal.
-LOCAL_ONLY_ACTIONS = frozenset({"breadth.show"})
+LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history"})
 LOCAL_RESULT_NOTE = ("[UCT showed the member this result on their screen. Its figures are shown ONLY to "
                      "the member and are never given to you: do not state, estimate or repeat any value "
                      "from it. To answer about it again, plan the same lookup.]")
@@ -538,6 +541,47 @@ LOCAL_NEWS_AND_EXPLAIN_NOT_DONE = ("UCT's breadth answer for your request is sho
                                    "did not explain or interpret these figures or analyse what caused them: "
                                    "breadth figures are shown only to you, never to me. Ask the news on its own "
                                    "and I'll look it up; ask what a measure means and I'll explain the measure.")
+#: (2026-10-12 production bug) "what percent of nasdaq stocks above 50sma right now" was answered from a
+#: forced WEB search ("UCT's breadth data covers the whole US market…", external links). A breadth
+#: question is answered by UCT's own breadth.show — never by research, never from memory.
+BREADTH_RULE = ("MARKET BREADTH (% of US / NYSE / Nasdaq stocks above a moving average — shorthand such as 50sma, "
+                "200 dma, 50-day MA — new highs/lows, advance/decline, Stage 2/4; now, today, at the close or on a date): "
+                "plan breadth.show. HISTORY (when it was last / first below or above a level, crossings, how many "
+                "times, episodes, how long they lasted — including a follow-up about \"that\" reading): plan "
+                "breadth.history. Never research breadth, never answer it from memory, never say UCT lacks historical "
+                "breadth or NYSE / Nasdaq breadth, and never tell the member to scroll a chart. Lowest / highest in a "
+                "period: breadth.show mode series. A named period you cannot turn into dates with certainty (\"the "
+                "2022 bear market\"): ask for its start and end dates (disposition clarify) — never guess them.")
+#: The MEMBER's words ask a breadth question (mirrors app/src/agent/routing.js `breadth`; words only).
+_BREADTH_Q = re.compile(
+    r"\bbreadth\b"
+    r"|\b(percent(age)?|pct|share|portion|how many|what %)\b.{0,60}\b(above|below|over|under)\b.{0,20}\b\d+\s*-?\s*(day|d|dma|sma|ema|ma|week)?\b"
+    r"|%\s*(of\s+)?(all\s+)?(us\s+|nyse\s+|nasdaq\s+|uct\s+)?(stocks|names|issues)\b"
+    r"|\bnew\s+(52[- ]week\s+|52w\s+|20[- ]day\s+)?(highs?|lows?)\b|\bnet new (highs?|lows?)\b"
+    r"|\badvance[- /]decline\b|\badvancers?\b|\bdecliners?\b|\bstage ?[24] (counts?|stocks|names)\b|\bmarket internals\b",
+    re.I)
+
+
+#: A HISTORY follow-up's own words ("when was the last time THAT was below 10%?", "how often has it
+#: happened?", "how long did it last?") — a breadth question only right after a breadth answer.
+_HISTORY_FOLLOWUP = re.compile(r"\b(last|first|most recent) time\b|\bhow (many times|often)\b|\bhow long did\b|"
+                               r"\bcross(ed|es)? (above|below)\b|\b(below|above|under|over) \d+(\.\d+)?\s*%|"
+                               r"\bsame (thing|question|search)? ?(for|on)\b|\bwhat about (last year|this year|(in )?\d{4})\b", re.I)
+
+
+def _last_breadth_row(history) -> bool:
+    """Was the conversation's most recent UCT outcome a breadth result (show or history)?"""
+    for t in reversed(history or []):
+        if isinstance(t, dict) and t.get("role") == "outcome":
+            acts = _row_actions(t.get("data")) or []
+            return any(str(a or "").startswith("breadth.") for a in acts)
+    return False
+
+
+def is_breadth_question(message: str) -> bool:
+    return bool(_BREADTH_Q.search(message or ""))
+
+
 #: Every notice UCT may give on a local plan — the ONLY agent text of such a plan ever shown or replayed.
 LOCAL_NOTICES = frozenset({LOCAL_NEWS_NOT_DONE, LOCAL_EXPLAIN_NOT_DONE, LOCAL_NEWS_AND_EXPLAIN_NOT_DONE})
 #: News / current-events words in the MEMBER's message (not "today": "breadth today" is a breadth question).
@@ -606,6 +650,19 @@ def is_local_row(t: dict) -> bool:
     return False                                           # the member's own words are never censored
 
 
+def _history_note(args) -> str:
+    """A breadth.history request, described by Market Intelligence's own value-free note (built only
+    from its validate(): enums, dates and the member's own threshold) — or nothing."""
+    if not isinstance(args, dict):
+        return ""
+    try:
+        from api.services.market_intel import breadth_events
+        note = breadth_events.request_note(args)
+    except Exception:  # noqa: BLE001 -- the dependency absent / the args invalid: say nothing
+        return ""
+    return str(note or "")[:300]
+
+
 def _local_requests(data) -> str:
     """What the member ASKED for, rebuilt from validated request args only (enums and ISO dates —
     no value can pass validation). Anything that does not validate is left out."""
@@ -624,6 +681,9 @@ def _local_requests(data) -> str:
             r = {**r, "metrics": list(OVERVIEW_METRICS)}
         ok, _err = breadth_reads.validate(r) if isinstance(r, dict) else (None, None)
         if not ok:
+            note = _history_note(r)
+            if note:
+                parts.append(note)
             continue
         # present tense (no date, not an explicit close) is UCT's CURRENT reading — say so, never a value
         now = "the current reading" if r.get("basis") != "close" else "the latest finalized close"
@@ -1159,8 +1219,13 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         # Research rides with a CHANGE only when the member's own words ask a question (a mixed
         # request); a plain command never triggers research, whatever the model asks for.
         disp = env.get("disposition") if isinstance(env, dict) else None
+        breadth_q = bool({"breadth.show", "breadth.history"} & cap_names) and (
+            is_breadth_question(msg) or (_HISTORY_FOLLOWUP.search(msg) and _last_breadth_row(history)))
+        if breadth_q and isinstance(req, dict) and not (_NEWS_WORDS.search(msg) or _EXPLAIN_WORDS.search(msg)):
+            req = None                # ⛔ a breadth LOOKUP is UCT's own data: never the web
+            usage["breadth_research_blocked"] = True
         if (round_ == 0 and disp == "answer" and not (isinstance(req, dict) and str(req.get("query") or "").strip())
-                and _needs_current_facts(msg)):
+                and not breadth_q and _needs_current_facts(msg)):
             # A clearly time-sensitive external question answered from memory: look it up once,
             # with the member's own words as the query (never the model's answer).
             req = {"query": msg, "recency": "week"}

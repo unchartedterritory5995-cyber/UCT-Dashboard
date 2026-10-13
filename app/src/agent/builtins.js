@@ -21,6 +21,7 @@ import { registerIndicatorCapabilities } from './capabilities/indicators'
 import { registerIndicatorEditCapabilities } from './capabilities/indicatorEdits'
 import { registerIndicatorAuthoringCapabilities } from './capabilities/indicatorAuthoring'
 import { registerBreadthCapabilities } from './capabilities/breadth'
+import { registerBreadthHistoryCapability } from './capabilities/breadthHistory'
 
 let done = false
 export function registerBuiltins() {
@@ -35,6 +36,7 @@ export function registerBuiltins() {
   registerAlertCapabilities()
   registerStockCapabilities()
   registerBreadthCapabilities()
+  registerBreadthHistoryCapability()
   registerSettingsCapabilities()
   registerAppCapabilities()
   registerNewsCapabilities()

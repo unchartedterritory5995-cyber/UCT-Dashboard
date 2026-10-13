@@ -223,14 +223,13 @@ describe('UCT Agent panel', () => {
     expect(turnBodies).toHaveLength(0)
   })
 
-  it('fast path "both charts" is a multi-target plan → a PROPOSAL, nothing changes until approved', async () => {
+  // OWNER 2026-10-12: an explicit change on both charts runs at once — no second click
+  it('fast path "both charts" (explicit, reversible) runs on both charts with no card', async () => {
     const host = makeHost([{ ref: 'w1', label: 'Left chart (SPY)', position: 'left' }, { ref: 'w2', label: 'Right chart (SPY)', position: 'right' }])
     render(<AgentPanel host={host} onClose={() => {}} />)
     type('hide volume on both charts')
-    await screen.findByTestId('agent-proposal')
-    expect(host.commits).toHaveLength(0)
-    type('do it')
     await screen.findByTestId('agent-receipt')
+    expect(screen.queryByTestId('agent-proposal')).toBeNull()
     expect(host.raw('w1').stored.volume.visible).toBe(false)
     expect(host.raw('w2').stored.volume.visible).toBe(false)
     expect(turnBodies).toHaveLength(0)

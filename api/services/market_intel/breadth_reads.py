@@ -249,6 +249,31 @@ def _meta(metric: str) -> dict:
             "unit": m.get("unit"), "domain": m.get("domain")}
 
 
+def sealed_series(universe: str, metric: str) -> dict:
+    """The full FINALIZED daily series of one published (universe, metric) — for analytics that
+    need every session (Slice 2 event studies). Same rules as `read()`: the universe authority's
+    sealed watermark, provisional sessions dropped, catalogue-domain validation. Never raises.
+
+    `{"status":"ok", "rows":[(YYYY-MM-DD, value), …] ascending, "coverage":{…}}` or a refusal /
+    unavailable dict. ⛔ LOCAL ONLY — the values never go to a model."""
+    universe = str(universe or "").strip().lower()
+    if universe not in SLICE1_UNIVERSES:
+        return _refused("unsupported_universe", "Breadth here covers US, NYSE and Nasdaq stocks only.",
+                        universe=universe or None)
+    if metric not in SLICE1_METRICS:
+        return _refused("unknown_metric", "That breadth measure isn't available here.", metric=metric)
+    try:
+        cov, err = _coverage(universe)
+        if err:
+            return err
+        rows, err = _sealed_series(universe, metric, cov["last"])
+        if err:
+            return err
+        return {"status": "ok", "rows": rows, "coverage": cov}
+    except Exception:
+        return _unavailable("read_failed", "The breadth series could not be read.", metric=metric)
+
+
 def _sessions_after(last: str, requested: str) -> bool:
     """Is there an NYSE trading day in (last, requested]? (the shared market calendar, not a weekday guess)"""
     from api.services import session_calendar as _sc

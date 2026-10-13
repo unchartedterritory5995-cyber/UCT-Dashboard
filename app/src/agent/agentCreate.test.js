@@ -50,14 +50,14 @@ describe('widget.add (single)', () => {
 })
 
 describe('compound creation: several charts, each configured, one transaction', () => {
-  it('HAPPY PATH: 4 charts, all 5-minute, SPY/QQQ/NVDA/TSLA — proposal, exactly four, one Undo', async () => {
+  it('HAPPY PATH: 4 charts, all 5-minute, SPY/QQQ/NVDA/TSLA — explicit, so it runs (no card), exactly four, one Undo', async () => {
     // An empty board: the product's own placement puts four charts in empty
     // space (two columns). The existing link group A keeps its symbol.
     const { host, state } = makeBoard([])
     const before = JSON.stringify(state.widgets)
     const p = wsPlan(host, build(['SPY', 'QQQ', 'NVDA', 'TSLA']))
     expect(p.ok).toBe(true)
-    expect(decideMode('apply', p)).toBe('propose')
+    expect(decideMode('apply', p)).toBe('apply')            // owner 2026-10-12: explicit + reversible → no second click
     expect(p.lines).toEqual([
       'Added 4 Charts (not linked — each keeps its own symbol)',
       'All 4 new: Switched timeframe to 5 minutes',

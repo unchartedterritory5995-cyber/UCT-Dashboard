@@ -13,6 +13,7 @@
   GET  /api/agent/search?q=                find words across the member's own chats (History)
   POST /api/agent/session-stats            latest completed session close/volume/dollar volume (read-only)
   POST /api/agent/breadth                  a historical breadth lookup, answered LOCALLY (read-only, no model)
+  POST /api/agent/breadth/history          a historical breadth SEARCH (MI breadth_events), answered LOCALLY
   GET  /api/agent/breadth/dates            today (ET) + latest finalized session per universe (dates only)
 
 Nothing here mutates a workspace: the browser executes the deterministic
@@ -438,6 +439,32 @@ def agent_breadth(body: Any = Body(...), user: dict = Depends(require_admin_dark
         except Exception:  # noqa: BLE001 -- the finalized answer stands
             log.exception("[uct-agent] present-tense breadth failed; finalized answer shown")
     return {"status": out.get("status"), "text": text, "table": out.get("table"), "present": present}
+
+
+@router.post("/api/agent/breadth/history")
+def agent_breadth_history(body: Any = Body(...), user: dict = Depends(require_admin_dark)):
+    """A historical breadth SEARCH (breadth.history), answered LOCALLY — read-only, never a model call.
+    Market Intelligence's `breadth_events` runs the condition over the finalized daily series the
+    breadth charts draw (`breadth_reads.sealed_series`); this route only adds the member's view.
+    ⛔ Member channel only: the result is a local row the server replays as a value-free note."""
+    import json as _json
+    if len(_json.dumps(body, default=str)) > BREADTH_MAX_BODY:
+        raise HTTPException(status_code=400, detail="that breadth request is too large")
+    try:
+        from api.services.market_intel import breadth_events
+    except Exception:  # noqa: BLE001 -- the MI module not deployed: an honest refusal, never a guess
+        return {"status": "unavailable", "table": None, "present": None,
+                "text": "UCT's historical breadth search isn't available yet, so nothing was searched."}
+    from api.services.uct_agent import breadth_history_present
+    result = breadth_events.run(body)
+    out = breadth_events.answer(result)
+    log.info("[uct-agent] breadth history status=%s", out.get("status"))          # never a value
+    try:
+        present = breadth_history_present.view_of(result, out)
+    except Exception:  # noqa: BLE001 -- presentation never costs the member the answer itself
+        log.exception("[uct-agent] breadth history view failed; the browser derives one")
+        present = None
+    return {"status": out.get("status"), "text": out.get("text"), "table": out.get("table"), "present": present}
 
 
 @router.get("/api/agent/breadth/dates")

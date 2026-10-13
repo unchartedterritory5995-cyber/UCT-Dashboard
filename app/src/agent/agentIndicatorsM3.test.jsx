@@ -157,7 +157,7 @@ describe('⭐ the six-line conversation — one draft, one lineage, typed outcom
     // 1 — "Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA."
     const r1 = await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.')])
     expect(r1.res.ok).toBe(true)
-    expect(r1.res.lines[0]).toMatch(/^Started .* \(draft — not saved\)\.$/)      // a NEW draft is started, not "updated"
+    expect(r1.res.lines[0]).toMatch(/^Draft ready \(not saved yet\): .+\. Want me to apply it or change anything\?$/)      // a NEW draft (owner 2026-10-12: one short line)
     expect(r1.res.undo).toBeTruthy()                                    // an applied change has the exact Undo
     const ref = activeRef(h)
     expect(ref).toMatch(/^draft:create:/)
@@ -174,7 +174,7 @@ describe('⭐ the six-line conversation — one draft, one lineage, typed outcom
 
     // 3 — "Okay, also require RSI to be above 50."  (same draft: the model saw revision 1 of the SAME lineage)
     const r3 = await run(h, [say(ref, 'Okay, also require RSI to be above 50.')])
-    expect(r3.res.lines[0]).toMatch(/^Updated .* \(draft — not saved\)\.$/)
+    expect(r3.res.lines[0]).toMatch(/^Draft updated \(not saved yet\): .+\. Want me to apply it or change anything\?$/)
     expect(calls.map(c => c.revision)).toEqual([0, 1, 1])
     expect(drafts(h)[0].status.revision).toBe(2)
     expect(drafts(h)[0].status.lines.join(' ')).toMatch(/rsi/i)
@@ -203,8 +203,8 @@ describe('⭐ the six-line conversation — one draft, one lineage, typed outcom
     const sealed = await propose(h, ops6)
     const proposal = sealed.plan
     const shown = proposal.lines.join(' | ')
-    expect(shown).toMatch(/Save .* as a new indicator as “Bullish Trend” \(renamed first — a name-only step\) \(draft revision 3\) — then add it to Left chart \(NVDA\), each separately/)
-    expect(shown).toMatch(/The builder's summary: /)
+    expect(shown).toMatch(/Save “Bullish Trend” as a new indicator and add it to Left chart \(NVDA\)/)
+    expect(shown).not.toMatch(/The builder's summary: /)                // owner 2026-10-12: the card is short
     expect(stored).toEqual([])                                          // proposing writes nothing
     // Apply re-plans (as useAgent's approve does) — FROM the seal of what the member SAW
     const r6 = await approve(h, sealed)
@@ -212,7 +212,8 @@ describe('⭐ the six-line conversation — one draft, one lineage, typed outcom
     expect(stored).toHaveLength(1)
     const saved = [...server.values()][0]
     expect(saved.definition.meta.name).toBe('Bullish Trend')
-    expect(r6.lines.join(' ')).toMatch(/Saved “Bullish Trend” \(version 1, a new indicator\) — confirmed by reading it back/)
+    // owner 2026-10-12: one short, honest line (the add's receipt names it on the chart)
+    expect(r6.lines.join(' ')).toMatch(/Saved to your indicators — that’s permanent; Undo takes it off the chart, the saved indicator stays\./)
     expect(r6.undo).toBe(null)                                          // a saved version has no Undo (D7)
     expect(r6.lines.join(' ')).not.toMatch(/No chart is open here/)    // Save attaches nothing; the add reports itself
     expect(r6.followUps).toEqual([{ action: 'indicator.add', target: 'ixe:L', args: { defId: saved.def_id, inputs: null }, awaitDefinition: { defId: saved.def_id, version: 1, name: 'Bullish Trend' } }])
@@ -342,7 +343,6 @@ describe('Save — the exact draft and revision the member approved', () => {
     const ref = await start(h)
     const ops = [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: null } }]
     const proposal = await propose(h, ops)
-    expect(proposal.card[0]).toMatch(/\(draft revision 1\)/)
     await run(h, [say(ref, 'Okay, also require RSI to be above 50.')])      // revision 2 now
     const res = await approve(h, proposal)
     expect(res.ok).toBe(false)
@@ -350,7 +350,8 @@ describe('Save — the exact draft and revision the member approved', () => {
     expect(stored).toEqual([])
     // asked again → a NEW proposal on the current revision
     const again = await plan(h, ops)
-    expect(again.lines[0]).toMatch(/\(draft revision 2\)/)
+    expect(again.ok).toBe(true)
+    expect(again.plans[0].after.ops.find(o => o.type === 'save').pinRevision).toBe(2)     // pinned to the CURRENT revision
   })
   it('the store accepts but the read-back fails → saved-unconfirmed, never "Saved"', async () => {
     const h = host([L])
@@ -478,14 +479,13 @@ describe('⭐ repaint acknowledgement — exact text, exact revision, approved, 
     const proposal = await plan(h, saveOp(ref, ['L']))
     expect(proposal.ok).toBe(true)
     expect(getCapability('indicator.saveDraft').risk).toBe('confirm')            // never applied unapproved
-    expect(proposal.lines[0]).toContain('(draft revision 1)')
     expect(proposal.lines[0]).toContain(`You are also acknowledging: ${st.ackText[0]}`)
     expect(stored).toEqual([])
     const res = await commitPlan(h, await plan(h, saveOp(ref, ['L'])), { env: {}, ctx: CTX })   // Apply = approval
     expect(res.ok, JSON.stringify(res.failed)).toBe(true)
     expect(stored).toHaveLength(1)
     expect(stored[0].opts).toMatchObject({ previewAcked: true })                 // the store got the acknowledgement
-    expect(res.lines[0]).toMatch(/^Saved “.*” \(version 1, a new indicator\)/)
+    expect(res.lines[0]).toMatch(/^Saved (“.*” )?to your indicators/)
     expect(res.followUps).toHaveLength(1)
   })
   it('the revision changes before Apply → refused: no Save, no success receipt, no chart add', async () => {
@@ -517,7 +517,6 @@ describe('⭐ repaint acknowledgement — exact text, exact revision, approved, 
     expect(stored).toEqual([])
     // asked again → a NEW proposal that shows the new acknowledgement and revision
     const again = await plan(h, saveOp(ref, ['L']))
-    expect(again.lines[0]).toContain(`(draft revision ${now.revision})`)
     expect(again.lines[0]).toContain(now.ackText[0])
   })
   it('"Save it as X" on a repainting draft: the rename changes the acknowledgement text, so it is refused and re-proposed', async () => {
@@ -623,7 +622,7 @@ describe('⭐ typed rename — the specialist’s renameOnly marker is the only 
     expect(res.ok, JSON.stringify(res.failed)).toBe(true)
     expect(calls.length).toBe(n)                                                  // no model call for the name
     expect(res.lines[0]).toBe('Renamed it to “Bullish Trend” (draft).')
-    expect(res.lines[1]).toMatch(/^Saved “Bullish Trend” \(version 1, a new indicator\)/)
+    expect(res.lines[1]).toMatch(/^Saved (“Bullish Trend” )?to your indicators/)
     expect([...server.values()][0].definition.meta.name).toBe('Bullish Trend')
   })
   it('the draft moved after the proposal → renameDraft refuses (stale-revision): nothing renamed or saved', async () => {
@@ -735,10 +734,10 @@ describe('edit an existing saved indicator; a saved definition is never saved tw
     expect(st).toMatchObject({ mode: 'edit', defId: row.def_id, baseVersion: 1, chartRef: 'L' })
     const ref = activeRef(h)
     const p = await plan(h, [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: null } }])
-    expect(p.lines[0]).toMatch(/^Save a new version of “Trend One”/)
+    expect(p.lines[0]).toMatch(/^This updates “Trend One” everywhere it’s used — save version 2/)
     const res = await commitPlan(h, await plan(h, [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: null } }]), { env: {}, ctx: CTX })
     expect(res.ok, JSON.stringify(res.failed)).toBe(true)
-    expect(res.lines[0]).toMatch(/^Saved “Trend One” \(version 2\)/)
+    expect(res.lines[0]).toMatch(/^(Updated “Trend One” to version 2|Saved “Trend One” to your indicators)/)
     expect(server.get(row.def_id).version).toBe(2)
     expect(stored.at(-1)).toMatchObject({ defId: row.def_id, opts: { baseVersion: 1 } })
   })

@@ -4828,3 +4828,21 @@ which is mounted on `web` in `api/main.py`. Flow-worker calls none of them; no e
 constant or transport line in `fmp_client.py` changed, so flow-worker running the older file
 lacks only code it never invokes. No marker bump (a flow-worker restart drops the OPRA socket for
 zero behavioural difference).
+
+## Breadth NH/NL Option B — forward capture (observational) · 2026-10-12 · owner-approved direction
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED / ADDITIVE, safe; NO marker bump** (owner: "written not-exercised exception, no unnecessary marker bump") |
+| stranded files | `api/services/breadth_live_universes.py`, `api/services/breadth_nhnl_validation.py` (`tools/flow_worker_watch_coverage.py`) |
+
+The diff deletes **0** lines under `api/`. `breadth_nhnl_validation.py` is a NEW module, and the only
+change to `breadth_live_universes.py` is six lines APPENDED inside `tick()` (three are comments). Its caller is
+`api/main.py`'s web scheduler job `breadth_live_universes_tick`, and `api/main.py` is outside flow-worker's
+closure. `report()`'s only caller is `api/routers/breadth_monitor.py`, which is also outside it. Flow-worker
+reaches these modules only through the static chain `flow_gap_autofill -> liveflow_monitor -> bars_fetch ->
+breadth_monitor -> breadth_symbols -> breadth_live_universes`, whose real edge is the constant
+`bars_fetch._NYSE_HOLIDAYS_YYYYMMDD`. It never calls `tick()`, `capture()` or `report()`. None of
+`worker_main`, `bars_api_main`, `breadth_v2_producer_main`, `terminal_next_monitor_main` or
+`flow_worker_main` reaches `api/main.py`, so the capture runs on **web only**. No marker bump: a
+flow-worker restart drops the OPRA socket for zero behavioural difference.

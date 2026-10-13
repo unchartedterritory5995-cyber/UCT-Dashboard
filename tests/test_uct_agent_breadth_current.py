@@ -100,13 +100,15 @@ def test_NOW_the_general_overview_labels_each_measure_its_own_way(client, live):
     assert notes["% of Stocks Above 200-Day MA"] == ("41.5%", "Intraday · 11:51 AM ET")
     assert notes["Net Advancers (Daily)"] == ("+812", "Intraday · 11:51 AM ET · approximate count")
     v, n = notes["Net New 52-Week Highs-Lows"]
-    assert n == "Finalized close · Oct 8 (finalized only)" and v != "+99"          # never the live NH/NL
+    assert n == "Finalized close · Oct 8 (today’s reading not yet validated)" and v != "+99"   # never the live NH/NL
     assert p["note"] == "Each measure shows its own time and status."
 
 
 def test_NOW_a_new_highs_question_is_finalized_only_and_says_so(client, live):
     p = ask(client, metrics=["net_new_high_low"])["present"]
-    assert p["note"] == "Finalized close · Oct 8 (finalized only). This measure is published from finalized closes only."
+    assert p["note"] == ("Finalized close · Oct 8. Today’s reading of this measure isn’t validated for UCT Agent yet, "
+                         "so this is the latest finalized close.")
+    assert "published from finalized closes only" not in p["note"]          # untrue while the chart draws a provisional bar
     assert p["value"] != "+99"
 
 
@@ -334,3 +336,22 @@ def test_ENDPOINTS_the_agent_route_that_reads_it_is_admin_gated():
             yield x.call
             yield from deps(x)
     assert rx.require_admin_dark in set(deps(route.dependant))
+
+
+# ═══ Option B readiness (owner 2026-10-12): once Breadth PROMOTES NH/NL after its grade passes, the
+#     Agent shows today's provisional NH/NL with no Agent change — and not one minute before ═══════════
+
+def test_NHNL_promoted_tier_is_shown_with_its_own_label(client, live, monkeypatch):
+    monkeypatch.setattr(bc, "UNVALIDATED_LIVE", tuple(m for m in bc.UNVALIDATED_LIVE if m != "net_new_high_low"))
+    monkeypatch.setattr(bc, "APPROXIMATE_LIVE", (*bc.APPROXIMATE_LIVE, "net_new_high_low"))
+    live.now = datetime(2026, 10, 12, 17, 20, tzinfo=ET)                         # after the close, as reported
+    live.payload = live_payload("2026-10-12T16:10:00-04:00", data_as_of="2026-10-12T16:00:30-04:00")
+    p = ask(client, metrics=["net_new_high_low"])["present"]
+    assert p["value"] == "+99" and p["note"] == "Provisional close · Oct 12 · approximate count"
+
+
+def test_NHNL_unpromoted_never_shows_the_provisional_value(client, live):
+    live.now = datetime(2026, 10, 12, 17, 20, tzinfo=ET)
+    live.payload = live_payload("2026-10-12T16:10:00-04:00", data_as_of="2026-10-12T16:00:30-04:00")
+    p = ask(client, metrics=["net_new_high_low"])["present"]
+    assert p["value"] != "+99" and "isn’t validated for UCT Agent yet" in p["note"]

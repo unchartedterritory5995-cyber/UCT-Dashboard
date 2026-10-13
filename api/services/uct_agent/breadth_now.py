@@ -79,7 +79,12 @@ def _choice(m: dict, r: Any) -> dict:
     r = r if isinstance(r, dict) else {}
     tier = r.get("accuracy_tier")
     if tier == "finalized_only":
-        return {**fin, "kind": "finalized_only", "note": f"{fin['note']} (finalized only)"}
+        # Two different truths (2026-10-12 owner review): a measure with NO live reading at all, and one
+        # whose live/provisional reading exists (the chart may draw it) but is NOT YET VALIDATED for the
+        # Agent (the NH/NL family until Breadth's grade passes). Never "finalized only" for the second.
+        unvalidated = _unvalidated(m.get("metric"))
+        return {**fin, "kind": "finalized_only", "unvalidated": unvalidated,
+                "note": f"{fin['note']} ({'today’s reading not yet validated' if unvalidated else 'finalized only'})"}
     v = r.get("value")
     if (r.get("ok") and r.get("current") is True and r.get("status") in LIVE_STATUSES
             and isinstance(v, (int, float)) and r.get("label")
@@ -135,7 +140,8 @@ def overlay(res: dict, answer: dict, view: Optional[dict], reading: Optional[Cal
         m, p = ok[0], picks[ok[0]["metric"]]
         new = {"kind": "value", "value": p["value"], "label": f"{uni} · {m['label']}", "note": p["note"]}
         if p["kind"] == "finalized_only":
-            new["note"] = f"{p['note']}. This measure is published from finalized closes only."
+            new["note"] = (f"{fin_note(p)}. Today’s reading of this measure isn’t validated for UCT Agent yet, so this is the latest finalized close."
+                           if p.get("unvalidated") else f"{fin_note(p)}. This measure has no live reading; this is the latest finalized close.")
         return text, new, statuses
     notes = {p["note"] for p in picks.values()}
     new = {"kind": "metrics", "title": (view or {}).get("title") or uni,
@@ -149,6 +155,20 @@ def overlay(res: dict, answer: dict, view: Optional[dict], reading: Optional[Cal
     if parts:
         new["note"] = " ".join(parts)
     return text, new, statuses
+
+
+def _unvalidated(metric) -> bool:
+    """Is this a measure whose current reading exists but is not yet validated for the Agent?"""
+    try:
+        from api.services import breadth_current
+        return metric in breadth_current.UNVALIDATED_LIVE
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def fin_note(p: dict) -> str:
+    """The card's dated finalized label without its parenthetical ("Finalized close · Oct 9")."""
+    return str(p.get("note") or "").split(" (", 1)[0]
 
 
 def _no_reading(_universe: str, _metric: str) -> dict:

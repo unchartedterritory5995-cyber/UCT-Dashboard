@@ -79,8 +79,9 @@ function matchClause(raw, host) {
     if (args) {
       // A capability that resolved its own target against real state names it as
       // `__target`; it becomes the op's target (still re-validated by the planner).
-      const { __target, ...rest } = args
-      hits.push(__target ? { action: name, args: rest, target: __target } : { action: name, args: rest })
+      // `__explicit`: the capability read the member's OWN words as an explicit request (policy.js explicitOk)
+      const { __target, __explicit, ...rest } = args
+      hits.push({ action: name, args: rest, ...(__target ? { target: __target } : {}), ...(__explicit === true ? { explicit: true } : {}) })
     }
   }
   return hits.length === 1 ? hits[0] : null      // ambiguous phrase -> let the model decide
@@ -97,8 +98,9 @@ function matchWhole(text, host) {
     if (!cap.fastWhole || typeof cap.fast !== 'function') continue
     const args = cap.fast({ raw: String(text).trim(), lower, core: lower, host })
     if (args) {
-      const { __target, ...rest } = args
-      hits.push(__target ? { action: name, args: rest, target: __target } : { action: name, args: rest })
+      // `__explicit`: the capability read the member's OWN words as an explicit request (policy.js explicitOk)
+      const { __target, __explicit, ...rest } = args
+      hits.push({ action: name, args: rest, ...(__target ? { target: __target } : {}), ...(__explicit === true ? { explicit: true } : {}) })
     }
   }
   return hits.length === 1 ? hits[0] : null
@@ -182,12 +184,26 @@ export function fastParse(text, opts = {}) {
   return safeCorrected(r) ? { ...r, corrected: changes } : null
 }
 // the fast path's own phrase words, registered with the lexicon (it cannot import this module)
-const LEXICON_SOURCES = () => [LEAD.source, TAIL.source, ...CANON.map(([re]) => re.source), POS_RE.source, ALL_RE.source, fastParseExact.toString()]
+// (every function holding phrase words is listed — the control words must stay known words, or a typo
+// of "cancel" could be read as the only other word near it)
+const LEXICON_SOURCES = () => [LEAD.source, TAIL.source, ...CANON.map(([re]) => re.source), POS_RE.source, ALL_RE.source,
+  fastParseExact.toString(), controlWord.toString(), capabilityPhrases.toString()]
 setBaseSources(LEXICON_SOURCES)
 
-function fastParseExact(text, { host = null } = {}) {
+function fastParseExact(text, { host = null, controlWords = true } = {}) {
   const t = clean(String(text || ''))
   if (!t || t.length > 160) return null
+  // `controlWords: false` (OWNER 2026-10-12): "apply it" with NO proposal waiting is not an approval —
+  // the panel then asks the capability phrases instead (e.g. apply the indicator draft)
+  if (controlWords) {
+    const ctl = controlWord(t)
+    if (ctl) return ctl
+  }
+  return capabilityPhrases(text, host)
+}
+
+/** undo / confirm / dismiss / "just the first N" — the universal control words, or null */
+function controlWord(t) {
   // M3: "Actually, undo that last change." — a leading filler word never changes what Undo means
   const u = t.replace(/^(?:(?:actually|ok|okay|oops|wait|sorry|hmm|hm|ah|no),?\s+)+(?=(?:undo|revert|reverse|go back|put it back|take (?:that|it) back)\b)/, '')
   if (/^(undo|undo (that|it|this|the last (one|change|action|thing))|(revert|reverse)( that| it| this)?|(undo|revert|reverse) (the |my )?last (one|change|action|thing)|go back|put it back|take (that|it) back)$/.test(u)) return { kind: 'undo' }
@@ -202,6 +218,11 @@ function fastParseExact(text, { host = null } = {}) {
     const n = Number(sub[4]) || WORDNUM[sub[4]]
     if (n > 0) return { kind: 'subset', count: n }
   }
+  return null
+}
+
+/** Capability phrases: whole-sentence ones first, then clause by clause (all or nothing). */
+function capabilityPhrases(text, host) {
   const whole = matchWhole(text, host)
   if (whole) return { kind: 'ops', ops: [whole], target: null }
   const { text: rest, target } = extractTarget(text, host)

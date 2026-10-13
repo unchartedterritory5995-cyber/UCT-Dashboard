@@ -64,10 +64,14 @@ export const GROUPS = [
   // MARKET INTELLIGENCE breadth slice 1 (2026-10-11): historical breadth QUESTIONS. "breadth" alone is
   // a question — except a request to GO TO the breadth page / monitor, which stays navigation
   // (settings group). The lookahead is anchored at the start of the message (no lookbehind).
-  { id: 'breadth', title: 'Market breadth history (US, NYSE, Nasdaq: % of stocks above moving averages, new highs/lows, advance/decline, Stage 2/4)', domains: ['breadth'],
+  { id: 'breadth', title: 'Market breadth now and history (US, NYSE, Nasdaq: % of stocks above moving averages, new highs/lows, advance/decline, Stage 2/4)', domains: ['breadth'],
     words: [/^(?!.*\b(open|go to|take me to|navigate to|bring up|pull up|switch to)\b.*\bbreadth\b.*\b(page|monitor|dashboard|tab|screen)\b).*\bbreadth\b/,
       /\b(percent|pct|share|portion|how many|what %|what percent)\b.*\b(above|below|over|under)\b.*\b\d+[- ]?(day|d|dma|sma|ema|week)\b/,
-      /% (of )?(all )?(us |nyse |nasdaq )?(stocks|names|issues)\b/,
+      /% (of )?(all )?(us |nyse |nasdaq |uct )?(stocks|names|issues)\b/,
+      /\b(us|nyse|nasdaq|uct) (stocks|names|issues) (are |were )?above\b/,
+      /\b(?:(?:us|nyse|nasdaq|uct)\s*:?\s*)?a(?:5|10|20|40|50|100|150|200)\b/,
+      /\b(last|first|most recent) time\b.*\b(below|above|under|over|cross(?:ed|es)?)\b/, /\bhow (?:many times|often)\b.*\b(below|above|under|over|cross)/,
+      /\bcross(?:ed|es)? (above|below) \d+(\.\d+)?\s*%/, /\b(below|above)[\s-]*\d+(\.\d+)?\s*%[\s-]*(episode|stretch|streak|run)\b/,
       /\bnew (52[- ]week |52w |20[- ]day )?(highs?|lows?)\b/, /\bnet new (highs?|lows?)\b|\bhighs? (minus|vs\.?|versus) lows?\b/,
       /\badvance[- /]decline\b|\badvancers?\b|\bdecliners?\b|\ba\/d (line|ratio|numbers?)\b|\badvancing (issues|stocks)\b/,
       /\bstage ?[24] (counts?|stocks|names)\b/, /\b(up|down) 4%/, /\bmarket internals\b/] },
