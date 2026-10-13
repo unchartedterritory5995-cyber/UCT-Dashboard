@@ -217,6 +217,23 @@ def test_the_fallback_reads_the_position_id_from_the_trade_object_only(db_path, 
     assert client.get("/api/j2/trades/t1/adherence").json()["checkedRuleIds"] == ["r1"]
 
 
+def test_the_route_reads_through_the_one_join(db_path, monkeypatch):
+    """R-PF-N7: the adherence card, the before / after numbers and the trade review must never disagree
+    about a Log-Trade-ticked trade, so the route asks trader_blocks.adherence_of_trade rather than
+    keeping a copy of its fallback. Proved by moving the join: a stand-in answers, and the route serves it."""
+    from api.services.journal_two import trader_blocks
+    _position(pid="p1")
+    _trade(tid="t1", position_id="p1")
+    seen = []
+    def stand_in(lookup, trade_ref, position_id):
+        seen.append((trade_ref, position_id))
+        return {"checkedRuleIds": ["from-the-join"]}
+    monkeypatch.setattr(trader_blocks, "adherence_of_trade", stand_in)
+    got = _trades_app().get("/api/j2/trades/t1/adherence")
+    assert got.json() == {"checkedRuleIds": ["from-the-join"]}
+    assert seen == [("id:t1", "p1")]
+
+
 def test_a_manual_trades_sentinel_position_reads_nothing(db_path):
     """A manual trade carries positionId 'manual-<uuid>' (trades.py), which no j2_positions row has,
     so save_pre_entry can never have written its pos: record: the read answers null."""

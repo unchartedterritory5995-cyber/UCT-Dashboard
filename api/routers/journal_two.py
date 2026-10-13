@@ -1013,19 +1013,16 @@ def get_trade_adherence_route(
     """The stored rule-adherence record for a trade, or null when none exists
     yet. Resolves the trade → its stable ref first (404 if the trade is gone /
     not the caller's)."""
-    from api.services.journal_two import adherence_store
+    from api.services.journal_two import adherence_store, trader_blocks
     detail = trades_service.get_trade_detail(user["id"], trade_id)
     if detail is None:
         raise HTTPException(status_code=404, detail="Trade not found")
-    own = adherence_store.get_adherence(user["id"], detail["tradeRef"])
     trade = detail.get("trade")
+    # The id is read from detail["trade"] only (V6). The fallback to the ticks made in Log Trade while
+    # the position was open (R-P2-7) is THE one join (R-PF-N7), never a copy here.
     position_id = trade.get("positionId") if isinstance(trade, dict) else None
-    if own is None and isinstance(position_id, str) and position_id:
-        # Notebook P2 (R-P2-7): the ticks made in Log Trade while the position was open. The id is
-        # read from detail["trade"] only (V6); the read is this member's, like the trade's own.
-        from api.services.journal_two import trader_blocks
-        return adherence_store.get_adherence(user["id"], trader_blocks.pre_entry_ref(position_id))
-    return own
+    return trader_blocks.adherence_of_trade(
+        lambda ref: adherence_store.get_adherence(user["id"], ref), detail["tradeRef"], position_id)
 
 
 @router.put("/trades/{trade_id}/adherence")
