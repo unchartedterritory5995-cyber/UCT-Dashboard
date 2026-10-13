@@ -639,7 +639,7 @@ export function registerIndicatorEditCapabilities() {
       const moved = (preview.dependents || []).length ? ` — ${severText(preview.dependents).join(', ')} will read the new settings` : ''
       return `Change ${preview.name} to ${preview.nameAfter} on ${a.chart}${moved}`
     },
-    noop: () => 'It already has those settings — nothing changed.',
+    noop: () => 'it already has those settings',
   })
 
   for (const [name, visible] of [['indicator.show', true], ['indicator.hide', false]]) {

@@ -1,0 +1,9 @@
+UCT Agent3:46 PMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?
+User3:46 PMfind strong semis
+UCT Agent3:46 PMStrong semis: 5 matches.TickerNVDAAVGOAMDMUQCOM
+User3:46 PMopen the second one
+UCT Agent3:46 PMWhich chart?Chart LChart R
+User3:46 PMChart R
+UCT Agent3:46 PMChanged symbol to AVGO
+User3:46 PMmake it weekly
+UCT Agent3:46 PMSwitched timeframe to Weekly
