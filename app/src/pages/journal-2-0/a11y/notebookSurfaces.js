@@ -190,11 +190,14 @@ export const SURFACES = Object.freeze({
   'components/notebook/blocks/PositionSizingBlock.jsx': { recipe: 'trader-block-sizing' },
   // P2b Task 2 stubs: each body task (8, 10, 11) swaps its own line for its own recipe.
   'components/notebook/blocks/MyRulesBlock.jsx': { coveredBy: 'trader-block-platform' },
-  'components/notebook/blocks/PrepWireBlock.jsx': { coveredBy: 'trader-block-platform' },
-  'components/notebook/blocks/PrepEarningsBlock.jsx': { coveredBy: 'trader-block-platform' },
-  'components/notebook/blocks/PrepMoversBlock.jsx': { coveredBy: 'trader-block-platform' },
-  'components/notebook/blocks/PrepLevelsBlock.jsx': { coveredBy: 'trader-block-platform' },
-  'components/notebook/blocks/TradeReviewBlock.jsx': { coveredBy: 'trader-block-platform' },
+  // P2b Task 10: the four prep blocks and the frame they share (Capture now / Capture again, the failure
+  // line); rail a11y/traderBlockPrep.a11y.test.jsx. Task 11: the review block; rail traderBlockReview.
+  'components/notebook/blocks/PrepWireBlock.jsx': { recipe: 'trader-block-prep' },
+  'components/notebook/blocks/PrepEarningsBlock.jsx': { recipe: 'trader-block-prep' },
+  'components/notebook/blocks/PrepMoversBlock.jsx': { recipe: 'trader-block-prep' },
+  'components/notebook/blocks/PrepLevelsBlock.jsx': { recipe: 'trader-block-prep' },
+  'components/notebook/blocks/PrepCapture.jsx': { coveredBy: 'trader-block-prep' },
+  'components/notebook/blocks/TradeReviewBlock.jsx': { recipe: 'trader-block-review' },
 
   // ── documents ──────────────────────────────────────────────────────────────
   'components/notebook/DocumentPreviewSheet.jsx': { recipe: 'document-preview-pdf' },

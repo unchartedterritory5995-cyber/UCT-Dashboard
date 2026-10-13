@@ -6,6 +6,7 @@
 .muted { color: var(--text-muted); font-size: 13px; margin: 4px 0; }
 .empty { display: grid; gap: 6px; }
 .emptyTitle { margin: 0; font-size: 13px; }
+.list { margin: 4px 0; padding-left: 18px; font-size: 13px; }
 .error { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; }
 .row { display: flex; align-items: center; gap: 8px; min-height: 32px; }
 .tap { min-height: 32px; }

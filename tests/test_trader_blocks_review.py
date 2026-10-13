@@ -60,6 +60,22 @@ def test_review_carries_the_trade_tags_and_pre_entry(db_path, monkeypatch):
     assert got["planGrade"] == {"needs": "plan grading"}
 
 
+def test_review_names_the_account_the_trade_belongs_to(db_path):
+    """The block resolves a setup's checklist labels against ONE account's settings, so it must be told
+    which account the trade is in: a checklist read from another account would name the wrong items."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import trader_blocks as tb
+    _trade()
+    c = get_connection()
+    c.execute("UPDATE j2_trades SET account_id = 'acct-7' WHERE id = 't1'")
+    c.commit()
+    c.close()
+    assert tb.trade_review("u1", "t1")["accountId"] == "acct-7"
+    _trade(tid="t2", position="p2")                                    # CONTROL: a trade with no account
+    assert tb.trade_review("u1", "t2")["accountId"] is None
+    assert tb.trade_review("u1", "t1")["accountId"] == "acct-7"        # and the first is unchanged
+
+
 def test_the_trades_own_adherence_record_wins_over_the_pre_entry_one(db_path):
     from api.services.journal_two import adherence_store, trader_blocks as tb
     _trade()

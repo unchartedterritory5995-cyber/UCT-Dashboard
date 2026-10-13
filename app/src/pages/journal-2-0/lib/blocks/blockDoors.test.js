@@ -91,6 +91,11 @@ export const IMPORT_ALLOW = {
   'app/src/lib/tickerResolver': "resolveCashtags, the line's $TICKER (a parser over a bundled JSON); no network",
   // T14 gate fix (formControls.census): the price stamps toggle is the app's ONE on/off control.
   'app/src/components/ui/Switch': 'the shared switch primitive: a button and its knob, no imports, no network, no writes',
+  // P2b Task 11 (post-trade review): two GET reads through useSWR, each with a fetcher written in the block
+  // file itself (so rule ① scans every request it can make), the trade page link, and the plan grade's words.
+  swr: 'useSWR: cache and revalidation around a fetcher the block file writes itself, which rule ① scans; it sends nothing of its own',
+  'react-router-dom': "Link: the review block's way to the trade page (navigation, no network, no writes)",
+  'app/src/pages/journal-2-0/lib/planGradeText': "the plan grade's words (verdict, detail, price format): pure functions shared with the trade page's card, no imports, no network",
 }
 
 /**
@@ -101,6 +106,10 @@ export const IMPORT_ALLOW = {
  */
 export const IMPORT_NAMES = {
   'app/src/utils/lazyWithRetry': ['isChunkLoadError'],
+  // P2b Task 11: only what the review block uses (useSWR, Link), so `mutate` (a global cache write) or a
+  // navigation hook cannot slip in under the same allow-list row.
+  swr: ['default'],
+  'react-router-dom': ['Link'],
 }
 
 /**
@@ -576,7 +585,9 @@ describe('⛔⛔ no block owns a second write door', () => {
   })
   it('CONTROL — ④ an import outside the allow-list is seen, by name; a sibling block file and a listed module are not', () => {
     const f = 'app/src/pages/journal-2-0/components/notebook/blocks/X.jsx'
-    expect(problemsIn(f, "import useSWR from 'swr'")).toEqual([`UNLISTED ${f}: swr`])
+    // (a package nobody listed; `swr` was this example until the review block listed it, Task 11)
+    expect(problemsIn(f, "import axios from 'axios'")).toEqual([`UNLISTED ${f}: axios`])
+    expect(problemsIn(f, "import useSWR from 'swr'")).toEqual([])
     expect(problemsIn(f, "import { jsonGet } from '../../../lib/api'")).toEqual([`UNLISTED ${f}: ../../../lib/api`])
     expect(problemsIn(f, "export { x } from '../../../hooks/useJ2Trades'")).toEqual([`UNLISTED ${f}: ../../../hooks/useJ2Trades`])
     expect(problemsIn(f, "const A = () => import('../SomeEmbed')")).toEqual([`UNLISTED ${f}: ../SomeEmbed`])
@@ -703,6 +714,15 @@ describe('⛔⛔ no block owns a second write door', () => {
     expect(problemsIn(f, `// import lazyWithRetry from '${m}'\nconst k = 1`)).toEqual([])
     // every name-limited module is also an allow-listed one
     for (const id of Object.keys(IMPORT_NAMES)) expect(Object.hasOwn(IMPORT_ALLOW, id), id).toBe(true)
+  })
+  it('CONTROL — P2b Task 11: swr gives a block only useSWR, react-router-dom only Link', () => {
+    const f = 'app/src/pages/journal-2-0/components/notebook/blocks/X.jsx'
+    expect(problemsIn(f, "import useSWR from 'swr'")).toEqual([])
+    expect(problemsIn(f, "import { mutate } from 'swr'")).toEqual([`NAMES ${f}: swr (mutate)`])
+    expect(problemsIn(f, "import useSWR, { mutate } from 'swr'")).toEqual([`NAMES ${f}: swr (mutate)`])
+    expect(problemsIn(f, "import { Link } from 'react-router-dom'")).toEqual([])
+    expect(problemsIn(f, "import { Link, useNavigate } from 'react-router-dom'")).toEqual([`NAMES ${f}: react-router-dom (useNavigate)`])
+    expect(problemsIn(f, "import * as R from 'react-router-dom'")).toEqual([`NAMES ${f}: react-router-dom (*)`])
   })
   it('⑤ every read seam (an IMPORT_ALLOW entry under hooks/) is scanned with its OWN rules: nothing found', () => {
     const seams = seamIds()

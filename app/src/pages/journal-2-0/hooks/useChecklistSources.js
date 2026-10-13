@@ -18,7 +18,9 @@
  * and `settingsState` names the reason, the same one `rulesState` carries.
  *
  * @param {{ wantRules: boolean }} opts  false: the rules are never fetched (null account).
- * @returns {{ settings: object|undefined,
+ * `accountId` is the SELECTED account (null with none selected): the settings above are that account's, so
+ * a reader of a record from another account (the post-trade review) compares against it.
+ * @returns {{ settings: object|undefined, accountId: string|null,
  *             settingsState: 'loading'|'error'|'ready'|'no-account'|'no-accounts'|'accounts-error',
  *             retrySettings: () => void, rules: object[],
  *             rulesState: 'off'|'loading'|'no-account'|'no-accounts'|'accounts-error'|'error'|'ready' }}
@@ -30,7 +32,7 @@ import useJournalRules from './useJournalRules'
 
 /** The ONE copy of this seam's return shape. useChecklistSources.test.js reads it, and
  *  lib/blocks/blockDoors.test.js (⑤) requires the literal return below to carry exactly these keys. */
-export const RETURN_KEYS = Object.freeze(['settings', 'settingsState', 'retrySettings', 'rules', 'rulesState'])
+export const RETURN_KEYS = Object.freeze(['settings', 'settingsState', 'retrySettings', 'rules', 'rulesState', 'accountId'])
 
 export default function useChecklistSources({ wantRules }) {
   const { settings, isLoading: settingsLoading, error: settingsError, refresh } = useJ2Settings()
@@ -83,5 +85,6 @@ export default function useChecklistSources({ wantRules }) {
     retrySettings,
     rules: rulesState === 'ready' && Array.isArray(rules) ? rules : [],
     rulesState,
+    accountId: accountId || null,
   }
 }

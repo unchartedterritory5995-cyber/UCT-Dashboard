@@ -6,7 +6,7 @@
 // so the whole composition (the named group, its Remove button, then the error state with "Try again")
 // is audited -- not a hand-built frame. An empty screen cannot pass as a clean one in either.
 import { render, screen, within } from '@testing-library/react'
-import { vi, expect } from 'vitest'
+import { vi, expect, afterEach } from 'vitest'
 import { axeSurface } from './surface'
 
 vi.mock('@tiptap/react', () => ({ NodeViewWrapper: ({ children, ...p }) => <div {...p}>{children}</div> }))
@@ -21,14 +21,22 @@ vi.mock('../hooks/useJournalRules', () => ({ default: () => ({ rules: [] }) }))
 import userEvent from '@testing-library/user-event'
 import BlockNodeView, { BLOCK_COMPONENTS } from '../components/notebook/blocks/BlockNodeView'
 import { BLOCK_ERROR_SENTENCE } from '../components/notebook/blocks/blockStates'
+import { contractBody } from '../__fixtures__/contract'
+
+// A failed assertion in the recipe must not leave the stubbed fetch behind for the next recipe.
+afterEach(() => vi.unstubAllGlobals())
 
 const editor = { isEditable: true, storage: { uctJournalWidgets: { noteId: 'n1' } } }
 const node = (widgetId, params = {}) => ({ attrs: { widgetId, params, searchText: `[${widgetId}]` } })
 
-const PART_B = ['My rules', 'Morning wire and exposure', 'Earnings for my names', 'My movers',
-  'Key levels from my plans', 'Post-trade review']
+// P2b: part b's bodies are stubs until their own tasks. Task 10 flipped the four prep blocks and Task 11
+// the review block, so each of those has a real expectation below instead of the stub sentence.
+const PART_B = ['My rules']
+const PREP_BLOCKS = ['Morning wire and exposure', 'Earnings for my names', 'My movers', 'Key levels from my plans']
 
 axeSurface('trader-block-platform', async () => {
+  // The review block, with no trade picked, reads the member's closed trades (the REAL server answer).
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => contractBody('trader-blocks.review.trades') })))
   render(<div>
     {['preEntryChecklist', 'priceStamps', 'positionSizing',
       'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview'].map((id) => (
@@ -51,8 +59,16 @@ axeSurface('trader-block-platform', async () => {
   for (const name of ['Pre-entry checklist', 'Price stamps', 'Position sizing']) {
     expect(group(name).queryByText('This block is being built.')).toBeNull()
   }
-  // P2b Task 2: part b's six are stubs until their body tasks (8, 10, 11); each must still paint.
+  // P2b Task 2: part b's stubs each paint until their body task replaces them (Task 8: My rules).
   for (const name of PART_B) expect(await group(name).findByText('This block is being built.')).toBeTruthy()
+  // P2b Task 10: an uncaptured prep block offers "Capture now" and has read nothing (never on mount).
+  for (const name of PREP_BLOCKS) {
+    expect(await group(name).findByRole('button', { name: 'Capture now' })).toBeTruthy()
+    expect(group(name).queryByText('This block is being built.')).toBeNull()
+  }
+  // P2b Task 11: the review block, with no trade picked, lists the closed trades to pick from.
+  expect(await group('Post-trade review').findByRole('combobox', { name: 'Trade to review' })).toBeTruthy()
+  expect(group('Post-trade review').queryByText('This block is being built.')).toBeNull()
 })
 
 axeSurface('trader-block-platform:error', async () => {

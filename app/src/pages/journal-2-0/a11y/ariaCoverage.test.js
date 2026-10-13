@@ -36,6 +36,8 @@ export const EXEMPT = Object.freeze({
     'one line of plain text (word count, reading time) read as text; deliberately NOT a live region, which would talk over typing',
   'components/notebook/TranscriptDoors.jsx':
     'a native <button> named by its visible text ("Save from a transcript") plus a host that mounts SaveTranscriptPassage (itself a named dialog); no markup that needs aria',
+  'components/notebook/blocks/PrepWireBlock.jsx':
+    'plain paragraphs of text (headline, exposure, wire date) inside PrepCapture, which carries the status line and the named Capture button; the group around the block is named by BlockNodeView',
 })
 
 /** Another lane's file in the population. Classified, but its staleness is the
