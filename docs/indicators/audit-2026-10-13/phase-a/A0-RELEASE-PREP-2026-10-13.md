@@ -92,7 +92,7 @@ The published `ci-results` records were replayed through master's `tools/ci_inve
 | 37491758202 | NO_NEW_FAILURES | NO_NEW_FAILURES | **INVALID** — "vitest collected 0 with no totals line — the frontend suite did not finish" |
 | 37614383913 | NO_NEW_FAILURES | NEW_FAILURES | **INVALID** (same reason) |
 | 37680294140 | NO_NEW_FAILURES | NEW_FAILURES | **INVALID** (same reason) |
-| 38145431236 | NO_NEW_FAILURES | (replay still running at writing) | — |
+| 38145431236 | NO_NEW_FAILURES | NO_NEW_FAILURES | **INVALID** (same reason) |
 
 Across the last 110 published runs, 4 were green with vitest = 0, and 0 were green with vitest present.
 
