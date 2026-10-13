@@ -12,6 +12,12 @@
       "preEntryChecklist",
       "priceStamps",
       "positionSizing",
+      "myRules",
+      "prepWire",
+      "prepEarnings",
+      "prepMovers",
+      "prepLevels",
+      "tradeReview",
       "marketcontext"
     ],
     "kinds": [

@@ -1894,6 +1894,60 @@ def shared_constants(w: World) -> None:
                  "reportReasons": list(template_gallery.REPORT_REASONS)}}
 
 
+@builder
+def trader_prep_review(w: World) -> None:
+    """P2b lane P: the daily prep pack's capture read (Task 6) and the post-trade review reads
+    (Task 7). Self-contained, appended last (lane merge order S before P). Every source stands in
+    at trader_blocks' own seams; the journal_styles builder's market-context stand-ins are reset
+    here so these answers never depend on builder order."""
+    from api.services import engine
+    from api.services.cache import cache
+    from api.services.journal_two import trader_blocks
+    who = w.member("prep", "Pat Prep")
+    w.as_user(who)
+    prep = "/api/j2/trader-blocks/prep"
+    # The fixture world's empty caches: every part's "missing" shape (the setups board is on in this
+    # world, so an empty board is its `no_setups` gap; `levels.off` is the switch's `needs`).
+    w.p.setattr(engine, "get_rundown", lambda: {})
+    w.p.setattr(trader_blocks, "_breadth", lambda: {})
+    w.p.setattr(trader_blocks, "_regime_field", lambda memo: {"missing": "wire_unavailable"})
+    w.p.setattr(trader_blocks, "_my_names", lambda uid: set())
+    w.p.setattr(trader_blocks, "_cached_quote", lambda sym, now=None: None)
+    cache.invalidate(engine.EARNINGS_CACHE_KEY)
+    for part in ("wire", "earnings", "movers", "levels"):
+        w.record(f"trader-blocks.prep.{part}", "GET", f"{prep}/{part}", case="empty", expect=200,
+                 note="Nothing held yet: the part names its gap (`missing`) and says it (`detail`).")
+    w.p.setenv("NOTEBOOK_SETUPS_BOARD_ENABLED", "0")
+    w.record("trader-blocks.prep.levels.off", "GET", f"{prep}/levels", case="success", expect=200,
+             note="The setups board is off: the part says what it needs.")
+    w.p.setenv("NOTEBOOK_SETUPS_BOARD_ENABLED", "1")
+    w.record("trader-blocks.prep.unknown", "GET", f"{prep}/nope", case="error", expect=404)
+    # Held sources: the wire's narrative, the regime and exposure; three of the member's names report
+    # today; four names, three with a cached price (one with no provable change) and one with none.
+    w.p.setattr(engine, "get_rundown", lambda: {"date": TODAY, "html": (
+        '<div class="rd-sections"><div class="rd-agenda"><span>TODAY\'S FOCUS</span><ul><li>NVDA · pullback'
+        ' to the 21-EMA</li></ul></div><p>Chips led the drag and that is carrying over. Breadth is thin.</p></div>')})
+    w.p.setattr(trader_blocks, "_breadth", lambda: {"exposure": {"score": 72.5}, "wire_date": TODAY})
+    w.p.setattr(trader_blocks, "_regime_field", lambda memo: {
+        "value": "amber", "source": "journal_two.regime.get_current_regime", "asOf": TODAY,
+        "missing": None, "detail": None})
+    w.record("trader-blocks.prep.wire.held", "GET", f"{prep}/wire", case="success", expect=200,
+             note="The narrative's first sentence (never the TODAY'S FOCUS heading), the regime id, the exposure.")
+    w.p.setattr(trader_blocks, "_my_names", lambda uid: {"NVDA", "AMD", "TSLA", "MSFT"})
+    cache.set(engine.EARNINGS_CACHE_KEY, {"bmo": [{"sym": "NVDA"}, {"sym": "XOM"}], "amc": [{"sym": "AMD"}],
+                                          "amc_tonight": [{"sym": "TSLA"}]}, ttl=600)
+    w.record("trader-blocks.prep.earnings.mine", "GET", f"{prep}/earnings", case="success", expect=200,
+             note="Only the member's names: XOM reports too and is not theirs.")
+    cache.invalidate(engine.EARNINGS_CACHE_KEY)
+    quotes = {"NVDA": {"price": 182.5, "change_pct": 3.1, "source": "live price", "asOf": "2026-10-05T14:29:00Z"},
+              "AMD": {"price": 160.25, "change_pct": -4.2, "source": "last close", "asOf": "2026-10-02T20:00:00Z"},
+              "MSFT": {"price": 412.5, "change_pct": None, "source": "last close", "asOf": "2026-10-02T20:00:00Z"}}
+    w.p.setattr(trader_blocks, "_cached_quote", lambda sym, now=None: quotes.get(sym))
+    w.record("trader-blocks.prep.movers.mine", "GET", f"{prep}/movers", case="success", expect=200,
+             note="Sorted by the size of the move; MSFT's change is unavailable (null, never 0); TSLA has no price.")
+    w.as_user(MEMBER)
+
+
 # ── normalising, writing, checking ────────────────────────────────────────────────────────────
 
 #: Every value the normaliser rewrote in the last run (for `--explain`, and for the rail).

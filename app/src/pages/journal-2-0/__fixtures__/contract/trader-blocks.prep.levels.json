@@ -1,0 +1,17 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/trader-blocks/prep/levels",
+    "note": "Nothing held yet: the part names its gap (`missing`) and says it (`detail`).",
+    "path": "/api/j2/trader-blocks/prep/levels",
+    "status": 200
+  },
+  "body": {
+    "capturedAt": "2026-10-05T14:30:00Z",
+    "cards": [],
+    "detail": "No setups on your board yet. Draw a plan's entry on a chart to see its levels here.",
+    "missing": "no_setups",
+    "part": "levels",
+    "total": 0
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/trader-blocks/prep/movers",
+    "note": "Sorted by the size of the move; MSFT's change is unavailable (null, never 0); TSLA has no price.",
+    "path": "/api/j2/trader-blocks/prep/movers",
+    "status": 200
+  },
+  "body": {
+    "capturedAt": "2026-10-05T14:30:00Z",
+    "detail": null,
+    "items": [
+      {
+        "asOf": "2026-10-02T20:00:00Z",
+        "changePct": -4.2,
+        "price": 160.25,
+        "source": "last close",
+        "symbol": "AMD"
+      },
+      {
+        "asOf": "2026-10-05T14:29:00Z",
+        "changePct": 3.1,
+        "price": 182.5,
+        "source": "live price",
+        "symbol": "NVDA"
+      },
+      {
+        "asOf": "2026-10-02T20:00:00Z",
+        "changePct": null,
+        "price": 412.5,
+        "source": "last close",
+        "symbol": "MSFT"
+      }
+    ],
+    "missing": null,
+    "part": "movers",
+    "unquoted": 1
+  }
+}

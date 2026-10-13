@@ -89,8 +89,9 @@ BUILDERS: dict[str, Callable[[dict, dict], tuple[dict | None, str | None]]] = {
 
 
 def _empty(block_id: str, params: dict | None = None):
-    """Part b's placeholder builders (P2b Task 2): the node with empty params. Tasks 6 and 7 replace
-    the prep and review ones; `myRules` keeps this one (it holds no params)."""
+    """Part b's placeholder builders (P2b Task 2): the node with empty params. `myRules` keeps this
+    one (it holds no params) and so does `tradeReview` (the member picks the trade, Task 7); the four
+    prep blocks capture (Task 6, `_prep_builder` below)."""
     def build(block: dict, ctx: dict):
         return _node(block_id, dict(params or {}), ctx), None
     return build
@@ -98,8 +99,6 @@ def _empty(block_id: str, params: dict | None = None):
 
 BUILDERS.update({
     "myRules": _empty("myRules"),
-    "prepWire": _empty("prepWire"), "prepEarnings": _empty("prepEarnings"),
-    "prepMovers": _empty("prepMovers"), "prepLevels": _empty("prepLevels"),
     "tradeReview": _empty("tradeReview", {"tradeId": ""}),
 })
 
@@ -516,3 +515,210 @@ def save_pre_entry(user_id: str, position_id: str, setup: str | None, checked: l
         if c.in_transaction:
             c.rollback()
         c.close()
+
+
+# ── The daily prep pack (spec §P2 item 6; R-P2b-6) ─────────────────────────────────────────
+# Four parts, each a frozen snapshot the member captures (a NEW note captures on create; an older
+# note offered the block by "Update layout" gets it uncaptured, IR-S11 part b). Every gap is named:
+# a `missing` code and a `detail` sentence, never an empty block that reads as "nothing happened".
+# ⛔ CACHE-ONLY (R-W0-1, pre-flight B5): quotes through `_cached_quote` (the market context's own
+# classified cache read, never `price_stamp_quote`, which asks the vendor); the regime through the
+# held gate `_regime_field`; the earnings list from the engine's cache key, never a build.
+# ⛔ N10: a read that raises is a snapshot with `missing: "source_error"`, never a failed note.
+PREP_PARTS = ("wire", "earnings", "movers", "levels")
+PREP_BLOCK = {"wire": "prepWire", "earnings": "prepEarnings", "movers": "prepMovers", "levels": "prepLevels"}
+MOVERS_MAX = 8
+
+#: The sentence for each gap code (the client shows `detail`; the code is for rails and logic).
+PREP_GAPS = {
+    "no_wire": "The morning wire has not published yet today.",
+    "no_earnings_yet": "Today's earnings list has not been loaded yet. Capture again in a few minutes.",
+    "no_names": "Add names to a watchlist, flag them, or hold a position to see them here.",
+    "no_quotes": "None of your names has a price yet. Capture again in a few minutes.",
+    "no_setups": "No setups on your board yet. Draw a plan's entry on a chart to see its levels here.",
+    "source_error": "This could not be read just now. Capture again in a moment.",
+}
+#: What the levels part needs when the setups board is off (BlockNeedsSwitch's `what`).
+LEVELS_NEEDS = "the active setups board"
+
+
+def _my_names(user_id: str) -> set[str]:
+    """The MEMBER's own names: open positions, watchlists, flagged (member_interest's per-source
+    reads, local auth.db). N11: `all_mine` also unions the UCT 20, which is the firm's list, not the
+    member's, so it is left out here; the sources are derived from member_interest.SOURCES."""
+    from api.services import member_interest
+    try:
+        by_source = member_interest.interest_for(user_id).get("by_source") or {}
+    except Exception:  # noqa: BLE001 -- interest_for never raises by its own contract; belt and braces
+        return set()
+    out: set[str] = set()
+    for name in member_interest.SOURCES:
+        if name != "uct20":
+            out |= {str(s).upper() for s in (by_source.get(name) or ()) if s}
+    return out
+
+
+def _cached_quote(sym: str, now: datetime | None = None) -> dict | None:
+    """One symbol's price CACHE-ONLY (pre-flight B5): `_quotes` (live_prices' shared per-ticker cache,
+    else a held daily bar's last close) classified by `_index_field`, the market context's own rules.
+    {price, change_pct, source, asOf}, or None when nothing classifies. A change the row cannot prove
+    is None ("change unavailable", R-T3-5), never 0.0."""
+    now = now or datetime.now(timezone.utc)
+    field = _index_field(sym, _quotes("", (sym,), now).get(sym), now)
+    if field["missing"]:
+        return None
+    v = field["value"]
+    return {"price": v["price"], "change_pct": v["changePct"], "source": field["source"], "asOf": field["asOf"]}
+
+
+def _base(part: str, now: datetime) -> dict:
+    return {"part": part, "capturedAt": _iso(now), "missing": None, "detail": None}
+
+
+def _gap(out: dict, code: str) -> dict:
+    out.update(missing=code, detail=PREP_GAPS[code])
+    return out
+
+
+def _headline(html: str) -> str | None:
+    """The wire's headline: the narrative's FIRST SENTENCE (pre-flight N13). The briefing text is
+    rundown_speech's (the read-aloud's one extractor); `.rd-sections` opens with the TODAY'S FOCUS
+    heading and its bullet lines, none of which ends a sentence, so the first unit that does (and is
+    not shouting) is the narrative's first sentence."""
+    from api.services.rundown_speech import extract_rundown_speech_text, split_sentences
+    for unit in split_sentences(extract_rundown_speech_text(html or "")):
+        if unit[-1] in ".!?" and any(ch.islower() for ch in unit):
+            return unit
+    return None
+
+
+def _prep_wire(user_id: str, now: datetime, memo: dict) -> dict:
+    """The wire's headline, the regime (the held gate, R-M2-1 d: the same reading every block of the
+    compose stamps) and the exposure (the held breadth, dated by the reading or else the wire run)."""
+    from api.services import engine
+    out = _base("wire", now)
+    r = engine.get_rundown() or {}
+    headline = _headline(r.get("html") or "") if r.get("html") else None
+    field = _regime_field(memo)
+    regime_id = field.get("value") if field.get("value") in REGIME_IDS else None
+    breadth = _breadth()
+    exp = breadth.get("exposure") if isinstance(breadth.get("exposure"), dict) else {}
+    score = _round1(exp.get("score"))
+    as_of = exp.get("as_of") or exp.get("date") or breadth.get("wire_date") or field.get("asOf")
+    out.update(headline=headline, wireDate=r.get("date") or None, regime=regime_id, exposure=score,
+               exposureAsOf=(as_of or None) if score is not None else None)
+    if headline is None and regime_id is None and score is None:
+        _gap(out, "no_wire")
+    return out
+
+
+def _prep_earnings(user_id: str, now: datetime, memo: dict) -> dict:
+    """Today's reporters among the member's names, from the engine's earnings CACHE only (never a
+    build: engine.get_earnings goes to the vendors). `bmo` before today's open, `amc` last night after
+    the close, `amcTonight` after today's close (engine.py's three buckets)."""
+    from api.services import engine
+    from api.services.cache import cache
+    out = _base("earnings", now)
+    out.update(asOf=None, bmo=[], amc=[], amcTonight=[])
+    data = cache.get(engine.EARNINGS_CACHE_KEY)
+    if not isinstance(data, dict) or not data:
+        return _gap(out, "no_earnings_yet")
+    mine = _my_names(user_id)
+    if not mine:
+        return _gap(out, "no_names")
+
+    def pick(rows: Any) -> list[str]:
+        seen: list[str] = []
+        for row in rows if isinstance(rows, list) else []:
+            sym = str(row.get("sym") or "").upper() if isinstance(row, dict) else ""
+            if sym in mine and sym not in seen:
+                seen.append(sym)
+        return seen
+    out.update(asOf=data.get("date") or None, bmo=pick(data.get("bmo")), amc=pick(data.get("amc")),
+               amcTonight=pick(data.get("amc_tonight")))
+    return out
+
+
+def _prep_movers(user_id: str, now: datetime, memo: dict) -> dict:
+    """The member's names, CACHED quotes only, the top MOVERS_MAX by the size of the move. A name with a
+    price and no provable change is listed after every move ("change unavailable"); a name with no
+    price at all is counted in `unquoted`."""
+    out = _base("movers", now)
+    out.update(items=[], unquoted=0)
+    names = sorted(_my_names(user_id))
+    if not names:
+        return _gap(out, "no_names")
+    items, unquoted = [], 0
+    for sym in names:
+        q = _cached_quote(sym, now)
+        if q and _num(q.get("price")) is not None:
+            items.append({"symbol": sym, "price": q["price"], "changePct": _num(q.get("change_pct")),
+                          "source": q.get("source"), "asOf": q.get("asOf")})
+        else:
+            unquoted += 1
+    items.sort(key=lambda i: (i["changePct"] is None, -abs(i["changePct"] or 0.0), i["symbol"]))
+    out.update(items=items[:MOVERS_MAX], unquoted=unquoted)
+    if not items:
+        _gap(out, "no_quotes")
+    return out
+
+
+def _prep_levels(user_id: str, now: datetime, memo: dict) -> dict:
+    """The member's setups board, its prices CACHE-ONLY (the `prices` seam, so the board's own
+    reader never runs). N12: sample (example) cards are never frozen into a member's note; one board
+    page at most, with the member's own total. Off, it says what it needs."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import setups_board
+    out = _base("levels", now)
+    if not setups_board.enabled():
+        out.update(needs=LEVELS_NEEDS)
+        return out
+
+    def prices(symbols) -> dict:
+        return {s: q for s in symbols if (q := _cached_quote(s, now))}
+    conn = get_connection()
+    try:
+        board = setups_board.build_cards(conn, user_id, prices=prices)
+    finally:
+        conn.close()
+    own = [c for c in (board.get("cards") or []) if not c.get("example")]
+    out.update(cards=own[:setups_board.PAGE_SIZE], total=len(own))
+    if not own:
+        _gap(out, "no_setups")
+    return out
+
+
+#: part -> the reader's NAME, resolved per call so a module patch reaches it (late binding).
+_PREP_READERS = {"wire": "_prep_wire", "earnings": "_prep_earnings", "movers": "_prep_movers",
+                 "levels": "_prep_levels"}
+
+
+def prep_part(user_id: str, part: str, *, now: datetime | None = None, memo: dict | None = None) -> dict:
+    """One prep part's snapshot: `{part, capturedAt, missing, detail, ...}`. KeyError for an unknown
+    part (the route's 404). A read that raises is that part's `source_error` gap, never an exception
+    (N10): one unreadable cache never fails a Daily prep note create, nor the Capture now route."""
+    reader = globals()[_PREP_READERS[part]]
+    now = now or datetime.now(timezone.utc)
+    try:
+        return reader(user_id, now, memo if memo is not None else {})
+    except Exception:  # noqa: BLE001 -- an unreadable source is a named gap, never a failed note
+        import logging
+        logging.getLogger(__name__).warning("[trader_blocks] prep %s unreadable", part, exc_info=True)
+        return _gap(_base(part, now), "source_error")
+
+
+def _prep_builder(part: str):
+    block_id = PREP_BLOCK[part]
+
+    def build(block: dict, ctx: dict):
+        uid = ctx.get("user_id")
+        # IR-S11 (part b): an older note offered the block by "Update layout" gets it with no snapshot
+        # and reads nothing; never today's data in an older note. Its "Capture now" is the member's own act.
+        if not uid or ctx.get("mode") == "update":
+            return _node(block_id, {}, ctx), None
+        snap = prep_part(uid, part, now=ctx["now"], memo=ctx.setdefault("memo", {}))
+        return _node(block_id, {"snapshot": snap}, ctx), None
+    return build
+
+
+BUILDERS.update({PREP_BLOCK[p]: _prep_builder(p) for p in PREP_PARTS})

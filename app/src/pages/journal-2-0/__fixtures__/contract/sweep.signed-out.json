@@ -253,6 +253,12 @@
       },
       "status": 401
     },
+    "GET /api/j2/trader-blocks/prep/{part}": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "PATCH /api/j2/template-gallery/admin/items/{gallery_id}": {
       "body": {
         "detail": "Not authenticated"

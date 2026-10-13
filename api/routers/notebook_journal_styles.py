@@ -365,3 +365,17 @@ def apply_style_update_endpoint(note_id: str, body: dict = Depends(paid_body),
     # The note as journal_two serves every note: an over-deep stored body is withheld, never sent.
     from api.routers.journal_two import _servable_note
     return {"note": _servable_note(note), "plan": plan}
+
+
+# ── trader blocks (P2b, lane P): the daily prep pack and the post-trade review ───────────
+#   GET    /api/j2/trader-blocks/prep/{part}       one prep part, captured now (Task 6); 404 unknown part
+# Read-only. Self-contained block, appended last (lane merge order S before P).
+
+@router.get("/trader-blocks/prep/{part}")
+def trader_prep(part: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """Read-only (spec §P2 item 6): one prep part's snapshot for the block's "Capture now". Caches
+    only (R-W0-1); each gap is named, and a read that raises is that part's gap, never a 500 (N10)."""
+    from api.services.journal_two import trader_blocks
+    if part not in trader_blocks.PREP_PARTS:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    return trader_blocks.prep_part(user["id"], part)

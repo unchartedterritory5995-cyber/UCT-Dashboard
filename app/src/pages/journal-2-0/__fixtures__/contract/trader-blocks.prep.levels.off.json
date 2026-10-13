@@ -1,0 +1,16 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/trader-blocks/prep/levels",
+    "note": "The setups board is off: the part says what it needs.",
+    "path": "/api/j2/trader-blocks/prep/levels",
+    "status": 200
+  },
+  "body": {
+    "capturedAt": "2026-10-05T14:30:00Z",
+    "detail": null,
+    "missing": null,
+    "needs": "the active setups board",
+    "part": "levels"
+  }
+}
