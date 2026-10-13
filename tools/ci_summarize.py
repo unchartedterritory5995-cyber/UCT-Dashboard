@@ -43,8 +43,16 @@ OK, FAIL = 0, 1
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 _V_FILES = re.compile(r"Test Files\s+(?:(\d+)\s+failed\D+)?(?:(\d+)\s+passed\D+)?\((\d+)\)")
-_V_TESTS = re.compile(r"Tests\s+(?:(\d+)\s+failed\D+)?(?:(\d+)\s+passed\D+)?"
-                      r"(?:(\d+)\s+skipped\D+)?\((\d+)\)")
+# ⚰️⚰️ INDICATORS A0 (2026-10-13) — THE POSITIONAL PATTERN LOST EVERY RUN SINCE 2026-10-06.
+# It expected `failed | passed | skipped (N)` in that order and nothing else, so the first
+# `it.todo` in the tree (227d5fa946, 10-06) made vitest print
+#     Tests  20 failed | 45683 passed | 128 skipped | 1 todo (45832)
+# which it could not match — and a COMPLETE 45,832-test run (PR #322's, 92 min) was
+# published as `collected 0, no totals line`. The line is now read as a body of
+# `<n> <word>` counts in ANY order (like the pytest line below), with the total in
+# parentheses; at least one count word is required, or it is not a totals line.
+_V_TESTS_LINE = re.compile(r"^[ \t]*Tests[ \t]+(?P<body>[^\n(]*?)\((?P<total>\d+)\)[ \t]*$", re.M)
+_V_COUNT_WORDS = ("failed", "passed", "skipped", "todo")
 _V_DUR = re.compile(r"Duration\s+([\d.]+)s")
 _V_FAILFILE = re.compile(r"(?:FAIL|❯)\s+(\S+\.(?:test|spec)\.[jt]sx?)")
 
@@ -80,11 +88,15 @@ def summarize(suite: str, text: str) -> dict:
            "runner_line": ""}
 
     if suite == "vitest":
-        m = _V_TESTS.search(text)
-        if m:
+        lines = [m for m in _V_TESTS_LINE.finditer(text)
+                 if any(re.search(r"\d+\s+\b%s\b" % w, m.group("body")) for w in _V_COUNT_WORDS)]
+        if lines:
+            m = lines[-1]                      # the LAST totals line wins, as for pytest
+            body = m.group("body")
             out["totals_line_found"] = True
-            out["failed"], out["passed"] = _i(m.group(1)), _i(m.group(2))
-            out["skipped"], out["collected"] = _i(m.group(3)), _i(m.group(4))
+            out["failed"], out["passed"] = _count(body, "failed"), _count(body, "passed")
+            out["skipped"] = _count(body, "skipped") + _count(body, "todo")
+            out["collected"] = _i(m.group("total"))
         d = _V_DUR.search(text)
         if d:
             out["wall_s"] = float(d.group(1))
@@ -154,6 +166,20 @@ def _self_check() -> int:
     s = summarize("vitest", red_v)
     show("DIRTY vitest: failed_files is non-empty",
          (s["failed"], s["failed_files"]), (2, ["src/pages/Thing.test.jsx"]))
+
+    # ⚰️ INDICATORS A0 — THE REAL LINE THAT WAS LOST, verbatim from PR #322's run 38425180250.
+    real_v = ("\x1b[2m Test Files \x1b[22m \x1b[1m\x1b[31m20 failed\x1b[39m\x1b[22m | 3303 passed | 31 skipped (3354)\n"
+              "\x1b[2m      Tests \x1b[22m \x1b[1m\x1b[31m20 failed\x1b[39m\x1b[22m | 45683 passed | 128 skipped | 1 todo (45832)\n"
+              "\x1b[2m   Duration \x1b[22m 5512.70s\n")
+    s = summarize("vitest", real_v)
+    show("a `todo` count no longer hides the totals line",
+         (s["totals_line_found"], s["collected"], s["failed"], s["passed"], s["skipped"]),
+         (True, 45832, 20, 45683, 129))
+    s = summarize("vitest", "      Tests  3 todo | 5 passed (8)\n   Duration  1.0s\n")
+    show("count ORDER does not matter", (s["passed"], s["skipped"], s["collected"]), (5, 3, 8))
+    # ⛔ CONTROL: a test NAME containing "Tests" and a parenthesised number is not a totals line.
+    s = summarize("vitest", "  ✓ Tests for the (42) case\n")
+    show("CONTROL: prose with a (number) is NOT a totals line", s["totals_line_found"], False)
 
     s = summarize("vitest", "no totals here at all\n")
     show("EMPTY vitest: zero collected is NOT a pass",
