@@ -1089,8 +1089,16 @@ def _mark_read_failed() -> None:
     _read_state.failed = True
 
 
+def _since(rows, since: str):
+    """`rows` ({date: ...}) restricted to dates >= `since`; `rows` itself when unbounded."""
+    if not since or not isinstance(rows, dict):
+        return rows
+    return {d: v for d, v in rows.items() if d >= since}
+
+
 def _history_stored(metric: str, limit: int = 6000,
-                    universe: str = DEFAULT_UNIVERSE, with_source: bool = False) -> dict:
+                    universe: str = DEFAULT_UNIVERSE, with_source: bool = False,
+                    *, since: str = "") -> dict:
     """{ 'YYYY-MM-DD': {o,h,l,c} } for a metric, newest `limit` days — TRUSTED sources
     only. A breadth metric's true intraday high/low can only come from sampling the actual
     value through the day (the live accumulator); daily-bar 'reconstruct' rows assume every
@@ -1098,7 +1106,13 @@ def _history_stored(metric: str, limit: int = 6000,
     any error (callers fall back to close-to-close bodies).
 
     `with_source=True` adds each row's `src` (its store source) — OPT-IN provenance for the
-    chart's observed-OHLC mark (`OBSERVED_OHLC_SOURCES`). Off, the row shape is unchanged."""
+    chart's observed-OHLC mark (`OBSERVED_OHLC_SOURCES`). Off, the row shape is unchanged.
+
+    `since` (YYYY-MM-DD, keyword-only) keeps only dates on or after it: the SAME rows the
+    unbounded read returns for those dates, without fetching the rest. ⛔ WHY (2026-10-13):
+    the Monitor's 20/150-SMA overlay read 2 x 4,723 rows to fill ~200 dates, and on a busy
+    web pod every fetched row costs a GIL hand-off (~4-7 ms measured), so that overlay alone
+    was 30-60 s of a cold Breadth read. Within the newest `limit` rows the bound is exact."""
     if not metric:
         return {}
     # ⭐ EXCHANGE AUTHORITY (NYSE / NASDAQ, breadth_exchange_authority): when in force it answers
@@ -1109,7 +1123,7 @@ def _history_stored(metric: str, limit: int = 6000,
     except Exception:
         _ex = {} if str(universe or "").strip().lower() in ("nyse", "nasdaq") and             (os.environ.get("BREADTH_AUTHORITY_EXCH") or "").strip().lower() == "v1" else None
     if _ex is not None:
-        return _ex
+        return _since(_ex, since)
     # ⭐ BREADTH AUTHORITY: a universe V2 owns is answered by the seam (breadth_authority),
     # never by this store. None = not owned → the V1 store below, unchanged.
     try:
@@ -1119,18 +1133,22 @@ def _history_stored(metric: str, limit: int = 6000,
         _v2 = None
         _mark_read_failed()            # the seam failed: the V1 rows below are a fallback
     if _v2 is not None:
-        return _v2
+        return _since(_v2, since)
     _ensure_init()
     out: dict = {}
     qmarks = ",".join("?" * len(_TRUSTED_SOURCES))
+    sql = (f"SELECT date, o, h, l, c, source FROM breadth_daily_ohlc "
+           f"WHERE universe=? AND metric=? AND source IN ({qmarks}) "
+           f"ORDER BY date DESC LIMIT ?")
+    args = (_uni(universe), metric, *_TRUSTED_SOURCES, int(limit))
+    if since:
+        # The bound sits OUTSIDE the newest-`limit` read, which stays verbatim as the
+        # subquery, so `since` can only drop dates from it, never add one.
+        sql = f"SELECT date, o, h, l, c, source FROM ({sql}) WHERE date >= ? ORDER BY date DESC"
+        args = (*args, since)
     try:
         with _conn() as c:
-            for (d, o, h, l, cl, src) in c.execute(
-                f"SELECT date, o, h, l, c, source FROM breadth_daily_ohlc "
-                f"WHERE universe=? AND metric=? AND source IN ({qmarks}) "
-                f"ORDER BY date DESC LIMIT ?",
-                (_uni(universe), metric, *_TRUSTED_SOURCES, int(limit)),
-            ).fetchall():
+            for (d, o, h, l, cl, src) in c.execute(sql, args).fetchall():
                 out[d] = {"o": o, "h": h, "l": l, "c": cl}
                 if with_source:
                     out[d]["src"] = src
@@ -1220,12 +1238,21 @@ def distinct_dates() -> list:
     bypassed the writer hooks AND the boot rebuild has not run, which the watermark
     reports through `stale_reconstructed_dates()` and the audit names by date — that
     is the mechanism for a gap, not a silent per-request re-scan.
+
+    ⛔ ONE ROW, NOT 4,725 (2026-10-13). Every row a cursor hands back to Python costs a
+    GIL hand-off, and on a busy web pod each hand-off waits out the switch interval:
+    this list measured ~7 s inside a Breadth read (merged_dates) and 6-16 s as the
+    ▶-step lookup (`next_trading_day`, uncached, on every teleported window), against
+    9 ms for the same rows on a quiet process. `group_concat` returns the dates as one
+    string; ISO dates hold no comma, and the result is sorted here, so the list is
+    identical to the old ORDER BY read.
     """
     _ensure_init()
     try:
         with _conn() as c:
-            rows = [r[0] for r in c.execute(
-                "SELECT date FROM breadth_reconstructed_daily ORDER BY date ASC").fetchall()]
+            row = c.execute(
+                "SELECT group_concat(date, ',') FROM breadth_reconstructed_daily").fetchone()
+        rows = sorted(row[0].split(",")) if row and row[0] else []
         if rows:
             return rows
     except Exception:
@@ -1279,6 +1306,30 @@ def metric_before(metric: str, before: str,
             ).fetchall()}
     except Exception:
         return {}
+
+
+def metric_sum_before(metric: str, before: str, exclude=(),
+                      universe: str = DEFAULT_UNIVERSE):
+    """SUM of `metric`'s TRUSTED closes strictly before `before`, skipping `exclude`
+    dates — `metric_before`'s rows summed inside SQLite, so the caller gets ONE row
+    instead of one per session (each a GIL hand-off on a busy pod; see
+    `distinct_dates`). None when there is nothing to sum, or when `exclude` is too
+    long for one statement (callers then use `metric_before`)."""
+    if not metric or not before:
+        return None
+    ex = list(exclude or ())
+    if len(ex) > 800:
+        return None
+    _ensure_init()
+    qmarks = ",".join("?" * len(_TRUSTED_SOURCES))
+    not_in = (" AND date NOT IN (%s)" % ",".join("?" * len(ex))) if ex else ""
+    with _conn() as c:
+        row = c.execute(
+            f"SELECT COUNT(c), SUM(c) FROM breadth_daily_ohlc "
+            f"WHERE universe=? AND metric=? AND date < ? AND source IN ({qmarks}){not_in}",
+            (_uni(universe), metric, before, *_TRUSTED_SOURCES, *ex),
+        ).fetchone()
+    return row[1] if row and row[0] else 0
 
 
 def backfill_from_intraday(days: int = 8) -> dict:
