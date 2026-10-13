@@ -27,6 +27,7 @@
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import { afterRender } from '../frames'
 import { lastCreatedList, resolveListByName } from './watchlist'
+import { namesAnotherKind } from '../nl/collisions'
 import { labelMap } from '../../widgets/registry'
 import { boardProblems, fillGaps, tileWidgets, ARRANGE_PATTERNS } from '../../pages/charts/placement/arrange'
 import { BASE_GROUPS, EXTRA_GROUPS, NOT_LINKED, isExtraGroup, linkGroups } from '../../pages/charts/colorGroups'
@@ -474,6 +475,9 @@ export function registerBoardCapabilities() {
         || /^(?:please )?(?:open|load|pull up|bring up) (?:my |the )?(.+)$/.exec(lower)
       if (!m) return null
       const l = resolveListByName(host, m[1])
+      // ⛔ Gate B: "open swing" when "swing" ALSO names a layout ("Swing Board") or a saved screen —
+      // never picked here; the model path sees both and asks. Saying "watchlist" removes the doubt.
+      if (l && !/(?:watch ?list|list)\b/.test(lower) && namesAnotherKind(host, m[1], 'watchlist')) return null
       return l ? { list: l.id } : null
     },
     check(st, { list }, env) {

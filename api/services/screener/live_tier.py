@@ -1007,17 +1007,57 @@ def _finish(receipt: dict, t0: float) -> dict:
     return receipt
 
 
+#: [fingerprint, rows] of the last full anchor read. See `_read_anchor_rows`.
+_ANCHOR_CACHE: list = []
+
+
+def anchor_cache_enabled() -> bool:
+    """Kill switch for the anchor cache. Default ON; read per call."""
+    return os.environ.get("SCREENER_LIVE_ANCHOR_CACHE", "1").strip().lower() not in (
+        "0", "false", "no", "off")
+
+
+def _anchor_fingerprint(conn) -> tuple:
+    """Changes whenever `screener_rows` is rewritten, and costs ONE row.
+
+    Its only writer is `snapshot_db.upsert_rows` (INSERT OR REPLACE), which gives
+    every written row a new rowid and the build's `built_at`, so a rebuild moves
+    `MAX(rowid)` even when the count and the newest `built_at` do not.
+    """
+    r = conn.execute(
+        "SELECT COUNT(*), MAX(rowid), MAX(built_at) FROM screener_rows").fetchone()
+    return (snapshot_db.get_db_path(),) + tuple(r)
+
+
 def _read_anchor_rows(*, busy_timeout_ms: int = 5000) -> list[dict]:
-    """The anchors for every row, in ONE query, read from a snapshot that is
-    not being rewritten underneath us (we hold the build lock).
+    """The anchors for every row, read from a snapshot that is not being
+    rewritten underneath us (we hold the build lock).
+
+    ⭐ CACHED BETWEEN SWEEPS (2026-10-13). The anchors come from the 03:00 build
+    and do not change during the session, yet re-reading all ~11,000 rows cost
+    `sqlite_anchor_read_ms` ~30,000 of a ~41,000 ms sweep, every minute: each row
+    fetched into Python is a GIL hand-off, and on the busy web pod that starved
+    every request. A one-row fingerprint now decides whether the full read is
+    needed; any rebuild changes it. The rows are only ever read (`sanity_reason`
+    and `derive_row` copy out of them), so sharing the list between sweeps is
+    safe. Kill switch `SCREENER_LIVE_ANCHOR_CACHE=0`.
 
     ``busy_timeout_ms`` — see ``snapshot_db.connect``; R72's instrumented
     sweep passes 0 so it can time the busy-wait itself.
     """
     cols = ", ".join(f'"{c}"' for c in READ_COLUMNS)
     with snapshot_db.connect(busy_timeout_ms=busy_timeout_ms) as conn:
-        return [dict(r) for r in
+        if not anchor_cache_enabled():
+            _ANCHOR_CACHE.clear()
+            return [dict(r) for r in
+                    conn.execute(f"SELECT {cols} FROM screener_rows")]
+        fp = _anchor_fingerprint(conn)
+        if _ANCHOR_CACHE and _ANCHOR_CACHE[0] == fp:
+            return _ANCHOR_CACHE[1]
+        rows = [dict(r) for r in
                 conn.execute(f"SELECT {cols} FROM screener_rows")]
+        _ANCHOR_CACHE[:] = [fp, rows]
+        return rows
 
 
 # --------------------------------------------------------------------------- #

@@ -47,6 +47,16 @@ const CANON = [
   [/\b(\w+) (?:indicator|study)\b/g, '$1'],
   // conversational lead-ins and "that chart" (the chart just changed — on a one-chart board, the chart)
   [/^(?:(?:now|ok|okay|and|then|also|alright|great|cool),?\s+)+/, ''],
+  // ⭐ Gate B (0C): politeness and filler carry no meaning — "can you show me the weekly", "monthly view
+  // please", "hide the rsi for now", "add macd pls". A request phrased as a QUESTION about state ("can
+  // you see my rsi") is not touched: only a request verb or a timeframe follows the lead-in.
+  [/\b(?:pls|plz)\b/g, 'please'],
+  [/^(?:(?:hey|so|actually|um|uh),?\s+)+/, ''],
+  [/^(?:can|could|would|will) (?:you|u) (?:please )?(?=(?:show|give|add|remove|hide|switch|change|go|set|make|turn|put|open|load|pull up|bring up)\b)/, ''],
+  [/^(?:please )?(?:show me|give me|let me see|lemme see|can i (?:get|see)|i want|i'?d like)(?: it (?:on|in))? (?:the |a |an )?(?=(?:weekly|daily|monthly|hourly|\d+ (?:minute|hour))\b(?! (?:chart|data|bars?) of\b))/, ''],
+  [/(?:,?\s+(?:please|for now|real quick|quickly|thanks|thank you|thx|ty))+$/, ''],
+  // "… on it / on there / on here": the chart being talked about — the same as "on the chart" below
+  [/\s+(?:on|onto) (?:it|there|here)$/, ' on the chart'],
   [/\bthat chart\b/g, 'the chart'],
   // verbs: add-type / remove-type synonyms (only unambiguous ones)
   [/^(?:please )?(?:throw|stick|slap|pop|plop|plot|load up|put up)\b/, 'add'],

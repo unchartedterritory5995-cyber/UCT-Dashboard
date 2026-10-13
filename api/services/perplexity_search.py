@@ -203,7 +203,8 @@ _PPLX_PRICES = {   # $/1M tokens (input, output)
 }
 
 
-def _record_cost(model: str, usage: dict | None, surface: str) -> None:
+def _record_cost(model: str, usage: dict | None, surface: str) -> float | None:
+    """Ledgers one call and returns its cost (None when it could not be priced)."""
     try:
         u = usage or {}
         tin = int(u.get("prompt_tokens") or 0)
@@ -215,8 +216,9 @@ def _record_cost(model: str, usage: dict | None, surface: str) -> None:
         narrative_cost_guard.record(
             f"pplx:{surface}", model,
             input_tokens=tin, output_tokens=tout, cost_usd=round(cost, 6))
+        return round(cost, 6)
     except Exception:
-        pass
+        return None
 
 # Retry budget for transient upstream failures (429 / 5xx) on the blocking
 # path: up to 3 retries (4 attempts total), exponential backoff. Bounded so
@@ -395,6 +397,7 @@ def web_search(
     cost_surface: str = "perplexity",
     allow_stale: bool = False,
     cache_ttl_override: int | None = None,
+    return_cost: bool = False,
 ) -> dict[str, Any]:
     """Synthesized web answer with citations.
 
@@ -550,11 +553,16 @@ def web_search(
     _SEARCH_CACHE.set(cache_key, dict(result), ttl)
     if not history:   # threaded answers are context-shaped — never shadowed
         _save_shadow(model, domain_pack, query, result)
-    _record_cost(model, data.get("usage"), cost_surface)
+    cost = _record_cost(model, data.get("usage"), cost_surface)
     _usage = data.get("usage") or {}
     _log_call(cost_surface, model, resolved_mode, ok=True,
              tokens_in=int(_usage.get("prompt_tokens") or 0),
              tokens_out=int(_usage.get("completion_tokens") or 0))
+    # ⭐ OPT-IN (`return_cost=True`, UCT Agent's spend ledger only): this call's own cost rides on the
+    # RETURNED dict, never the cache and never any other caller's result — every other caller (AI Search,
+    # voice, catalysts…) gets exactly the dict it always got, so no member-facing response changes shape.
+    if return_cost and cost is not None:
+        return {**result, "cost_usd": cost}
     return result
 
 

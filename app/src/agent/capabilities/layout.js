@@ -34,6 +34,7 @@
 //
 // ⛔ Not here, deliberately: deleting the open layout, and overwrite of any kind.
 
+import { namesAnotherKind } from '../nl/collisions'
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import { hasUsableDraft } from './indicatorAuthoring'
 import { afterRender } from '../frames'
@@ -369,6 +370,9 @@ export function registerLayoutCapabilities() {
         const c = layoutCandidates(entries, phrase)
         if (c.length) return c.length === 1 ? { layout: String(c[0].id) } : { layout: phrase }
       }
+      // ⛔ Gate B: a bare name that ALSO names a watchlist or saved screen is not claimed here
+      // (the model path sees both and asks); "… layout" removes the doubt and was handled above.
+      if (namesAnotherKind(host, phrase, 'layout')) return null
       const hit = resolveName(entries, phrase)
       if (hit) return { layout: String(hit.id) }
       // NL N2: a TYPO in a layout's own name ("open swng board") — one clear match opens (switching

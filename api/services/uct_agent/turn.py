@@ -764,14 +764,21 @@ def _ms(t0: float) -> int:
     return int((time.perf_counter() - t0) * 1000)
 
 
-def _research(query: str, recency: str) -> dict:
+def _web_search(query: str, recency: str) -> dict:
     from api.services.perplexity_search import web_search
-    res = web_search(query=query[:400], max_tokens=600, mode="fast",
-                     recency=None if recency == "any" else recency,
-                     domain_pack="finance", cost_surface="uct_agent") or {}
+    return web_search(query=query[:400], max_tokens=600, mode="fast",
+                      recency=None if recency == "any" else recency,
+                      domain_pack="finance", cost_surface="uct_agent", return_cost=True) or {}
+
+
+def _research(query: str, recency: str) -> dict:
+    """A web lookup shaped for the model: {answer, citations}, plus `cached` / `cost_usd` for the
+    spend ledger (budget.Meter.research) — those two are stripped before the model sees anything."""
+    res = _web_search(query, recency)
     if res.get("error"):
         return {"answer": "research unavailable right now", "citations": []}
-    return {"answer": str(res.get("answer") or "")[:2400], "citations": list(res.get("citations") or [])[:6]}
+    return {"answer": str(res.get("answer") or "")[:2400], "citations": list(res.get("citations") or [])[:6],
+            "cached": bool(res.get("cached")), "cost_usd": res.get("cost_usd")}
 
 
 def _default_caller(**kwargs):
@@ -886,6 +893,24 @@ class ReplyStream:
             self.sent = len(text)
 
 
+RESEARCH_STEP_LIMIT = ("I'd need to look that up, but this request has used its AI steps, so I haven't. "
+                       "Ask it again on its own and I'll check current information.")
+RESEARCH_NOT_RUN = ("I couldn't look that up right now, so I haven't answered from memory. "
+                    "Please ask again later.")
+
+
+def _budget_refusal(e: BaseException) -> bool:
+    from api.services.uct_agent.budget import BudgetRefused
+    return isinstance(e, BudgetRefused)
+
+
+def _paid(meter, category: str, fn: Callable[..., Any], **kwargs) -> Any:
+    """Every paid Messages call goes through here: with a meter (the /turn route) it is admitted
+    against the Agent's dollar cap, the site-wide cap and the request's call ceiling FIRST
+    (budget.BudgetRefused otherwise), then settled from its usage. Without one (scripts) it runs."""
+    return meter.call(category, fn, **kwargs) if meter is not None else fn(**kwargs)
+
+
 def _record_cost(resp) -> float:
     try:
         from api.services import narrative_cost_guard
@@ -980,7 +1005,7 @@ _NAME_SCHEMA = {"type": "object", "properties": {"title": {"type": ["string", "n
                 "required": ["title"], "additionalProperties": False}
 
 
-def name_conversation(turns: list[dict], caller: Callable | None = None) -> str | None:
+def name_conversation(turns: list[dict], caller: Callable | None = None, meter=None) -> str | None:
     """A name for a chat from its stored turns (member words + the Agent's replies), or None."""
     lines = []
     for t in turns[-16:]:
@@ -991,7 +1016,8 @@ def name_conversation(turns: list[dict], caller: Callable | None = None) -> str 
     if not any(ln.startswith("Member:") for ln in lines):
         return None
     caller = caller or _default_caller
-    resp = caller(
+    resp = _paid(
+        meter, "title", caller,
         model=model(), max_tokens=64, system=_NAME_SYSTEM,
         output_config={"format": {"type": "json_schema", "schema": _NAME_SCHEMA}},
         messages=[{"role": "user", "content": _block("conversation", "\n".join(lines))}],
@@ -1129,14 +1155,17 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
              pending: dict | None = None, recent_outcome: str | None = None,
              caller: Callable[..., Any] | None = None, manifest_version: int | None = None,
              routing: dict | None = None, conversation_title: str | None = None,
-             on_event: Callable[[dict], None] | None = None, stream_caller: Callable[..., Any] | None = None) -> dict:
+             on_event: Callable[[dict], None] | None = None, stream_caller: Callable[..., Any] | None = None,
+             meter=None, reroute: bool = False) -> dict:
     """Returns {envelope, usage, title}. Raises TurnError with a member sentence.
     `on_event` (streaming, optional): receives {"t": "delta", "text"} for an answer's reply as it is
     written (ReplyStream's gate), {"t": "retract"} when streamed text will not be the answer after all
     (research follows), and {"t": "status", "stage": "research"} when a web search starts. Nothing else —
     never a plan's words, never research results, never values from a local-only lookup.
     `conversation_title`: the chat's current name, passed ONLY while the Agent may still name it
-    (never after the member renamed it); `title` is the model's cleaned suggestion or None."""
+    (never after the member renamed it); `title` is the model's cleaned suggestion or None.
+    `meter` (budget.Meter, the /turn route): every paid call is admitted and settled through it;
+    `reroute` names this request's first call as its reroute in the spend ledger."""
     t_build = time.perf_counter()
     msg = (message or "").strip()
     if not msg:
@@ -1193,22 +1222,25 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                           allowed=(round_ > 0 or not forced_research) and pre_research is None)
               if streaming and stream_caller is not None else None)
         call = (lambda **kw: stream_caller(rs.feed, **kw)) if rs is not None else caller
+        category = ("reroute" if reroute else "turn") if round_ == 0 else "after_research"
         try:
-            resp = call(
+            resp = _paid(
+                meter, category, call,
                 model=model(), max_tokens=MAX_TOKENS,
                 system=[{"type": "text", "text": sysprompt, "cache_control": {"type": "ephemeral"}}],
                 output_config={"format": {"type": "json_schema", "schema": schema}},
                 messages=messages,
             )
         except Exception as e:  # noqa: BLE001 — anything but a schema refusal is re-raised unchanged
-            if compact or round_ != 0 or not _schema_refused(e):
+            if compact or round_ != 0 or not _schema_refused(e) or _budget_refusal(e):
                 raise
             log.warning("[uct-agent] embedded-args schema refused by the model API (%d actions); retrying once compact", len(caps))
             usage["schema_fallback"] = True
             compact = True
             schema = envelope_schema(caps, unselected, compact)
             sysprompt = system_prompt(caps, unselected, compact)
-            resp = call(
+            resp = _paid(
+                meter, "schema_retry", call,
                 model=model(), max_tokens=MAX_TOKENS,
                 system=[{"type": "text", "text": sysprompt, "cache_control": {"type": "ephemeral"}}],
                 output_config={"format": {"type": "json_schema", "schema": schema}},
@@ -1263,6 +1295,37 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             if news:
                 wants = False
                 usage["local_research_skipped"] = True
+        researched = None
+        if wants and meter is not None:
+            # ⭐ PHASE 0A/0B: research is followed by one more model call, so it runs only when the request
+            # has a call left and the budget admits the search itself. Otherwise NOTHING is looked up and the
+            # member is told so in UCT's words — never an answer from memory presented as current.
+            skip = None
+            if meter.calls_left() < 1:
+                skip = ("call_limit", RESEARCH_STEP_LIMIT)
+            else:
+                if streaming:
+                    if rs is not None and rs.streamed:
+                        on_event({"t": "retract"})
+                        rs = None
+                    on_event({"t": "status", "stage": "research"})
+                t_research = time.perf_counter()
+                try:
+                    q, rec = str(req["query"]), str(req.get("recency") or "any")
+                    researched = meter.research(lambda: _research(q, rec))
+                except Exception as e:  # noqa: BLE001 — only a budget refusal is handled here
+                    if not _budget_refusal(e):
+                        raise
+                    skip = (e.reason, RESEARCH_NOT_RUN)
+                usage["stages"]["research"] = _ms(t_research)
+            if skip:
+                wants = False
+                usage["research_skipped"] = skip[0]
+                if streaming and rs is not None and rs.streamed:
+                    on_event({"t": "retract"})
+                env = {**env, "reply": skip[1], "research": None, "question": None}
+                if env.get("disposition") == "clarify":
+                    env["disposition"] = "answer"
         if wants:
             # A MIXED request (question needing research + a change): the change was planned in
             # THIS call, from the member's words alone, before any web text existed — it is
@@ -1273,13 +1336,17 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                     planned = expand_compact_ops(env, caps)
                 pre_research = {"disposition": env["disposition"], "ops": list(planned.get("ops") or [])}
             usage["research_calls"] += 1
-            if streaming:
-                if rs is not None and rs.streamed:
-                    on_event({"t": "retract"})    # what streamed was a placeholder, not the answer
-                on_event({"t": "status", "stage": "research"})
-            t_research = time.perf_counter()
-            r = _research(str(req["query"]), str(req.get("recency") or "any"))
-            usage["stages"]["research"] = _ms(t_research)
+            if researched is not None:
+                r = researched                    # metered above
+            else:
+                if streaming:
+                    if rs is not None and rs.streamed:
+                        on_event({"t": "retract"})    # what streamed was a placeholder, not the answer
+                    on_event({"t": "status", "stage": "research"})
+                t_research = time.perf_counter()
+                r = _research(str(req["query"]), str(req.get("recency") or "any"))
+                usage["stages"]["research"] = _ms(t_research)
+            r = {"answer": r.get("answer", ""), "citations": list(r.get("citations") or [])}   # ledger fields never reach the model
             usage["citations"].extend(r["citations"])
             messages = messages + [
                 {"role": "assistant", "content": text},

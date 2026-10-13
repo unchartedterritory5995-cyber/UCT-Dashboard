@@ -12,6 +12,8 @@
 //                               ambiguous (the member must choose); none → unknown. Never a guess.
 //   groundingOf(input)          the cached verdict for one input (sync — for check/apply/describe)
 
+import { editDistance } from './match'
+
 // Words that point at something already in the conversation. Several are also real tickers (IT, ALL,
 // ONE, ME…), which is exactly why a lowercase pronoun must never become one.
 export const PRONOUNS = new Set([
@@ -72,7 +74,7 @@ export async function groundSymbols(inputs, { fetchFn = (u, o) => fetch(u, o) } 
         const tickers = [...new Map(exact.map(x => [String(x.ticker).toUpperCase(), x])).values()]
         v = tickers.length === 1 ? { kind: 'name', ticker: String(tickers[0].ticker).toUpperCase(), name: tickers[0].name }
           : tickers.length > 1 ? { kind: 'ambiguous', candidates: tickers.slice(0, 5).map(x => ({ ticker: String(x.ticker).toUpperCase(), name: x.name })) }
-            : { kind: 'unknown' }
+            : { kind: 'unknown', suggestion: await nearTicker(key, rows, fetchFn) }
       }
       VERDICTS.set(key, { ...v, input: raw, at: Date.now() })
     }
@@ -81,6 +83,28 @@ export async function groundSymbols(inputs, { fetchFn = (u, o) => fetch(u, o) } 
     else if (v.kind === 'unknown') out.unknown.add(key)
   }))
   return out
+}
+
+// ── Gate B (owner 2026-10-13): "pull up amzon" ──
+// An unknown ticker is still REFUSED (never charted, never silently swapped for another security).
+// The refusal may SUGGEST one real ticker from UCT's own ticker search that is exactly one edit away
+// ("AMZON" → AMZN): one clear candidate only, and only as words — the member says it to act.
+async function nearTicker(key, rows, fetchFn) {
+  if (key.length < 3 || !/^[A-Z][A-Z0-9.]*$/.test(key)) return null
+  let pool = rows
+  if (!pool.some(x => editDistance(String(x.ticker).toUpperCase(), key, 1) <= 1)) {
+    try { pool = (await search(key.slice(0, 3), fetchFn)).filter(x => !x.delisted && !x.breadth && x.type !== 'economic' && x.ticker) } catch { pool = [] }
+  }
+  const near = [...new Map(pool.filter(x => editDistance(String(x.ticker).toUpperCase(), key, 1) === 1)
+    .map(x => [String(x.ticker).toUpperCase(), x])).values()]
+  return near.length === 1 ? { ticker: String(near[0].ticker).toUpperCase(), name: near[0].name || null } : null
+}
+
+/** " Did you mean AMZN (Amazon.com Inc)?" for an unknown input with one clear near ticker, else "". */
+export function suggestionText(input) {
+  const g = groundingOf(input)
+  const s = g?.kind === 'unknown' ? g.suggestion : null
+  return s ? ` Did you mean ${s.ticker}${s.name ? ` (${s.name})` : ''}?` : ''
 }
 
 /** The ticker an input stands for (itself, or the company it names), for apply. */
