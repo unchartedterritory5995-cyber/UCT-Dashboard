@@ -6,7 +6,7 @@
 // so the whole composition (the named group, its Remove button, then the error state with "Try again")
 // is audited -- not a hand-built frame. An empty screen cannot pass as a clean one in either.
 import { render, screen, within } from '@testing-library/react'
-import { vi, expect } from 'vitest'
+import { vi, expect, afterEach } from 'vitest'
 import { axeSurface } from './surface'
 
 vi.mock('@tiptap/react', () => ({ NodeViewWrapper: ({ children, ...p }) => <div {...p}>{children}</div> }))
@@ -22,6 +22,9 @@ import userEvent from '@testing-library/user-event'
 import BlockNodeView, { BLOCK_COMPONENTS } from '../components/notebook/blocks/BlockNodeView'
 import { BLOCK_ERROR_SENTENCE } from '../components/notebook/blocks/blockStates'
 import { contractBody } from '../__fixtures__/contract'
+
+// A failed assertion in the recipe must not leave the stubbed fetch behind for the next recipe.
+afterEach(() => vi.unstubAllGlobals())
 
 const editor = { isEditable: true, storage: { uctJournalWidgets: { noteId: 'n1' } } }
 const node = (widgetId, params = {}) => ({ attrs: { widgetId, params, searchText: `[${widgetId}]` } })
@@ -66,7 +69,6 @@ axeSurface('trader-block-platform', async () => {
   // P2b Task 11: the review block, with no trade picked, lists the closed trades to pick from.
   expect(await group('Post-trade review').findByRole('combobox', { name: 'Trade to review' })).toBeTruthy()
   expect(group('Post-trade review').queryByText('This block is being built.')).toBeNull()
-  vi.unstubAllGlobals()
 })
 
 axeSurface('trader-block-platform:error', async () => {

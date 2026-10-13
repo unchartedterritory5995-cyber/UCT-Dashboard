@@ -788,7 +788,8 @@ def _review_trade_id(conn, user_id: str, key: str) -> str | None:
 
 def trade_review(user_id: str, trade_key: str) -> dict | None:
     """`{"trade": {_TRADE_KEYS..., tradeRef}, "tags": {"mistakes", "emotions"}, "preEntry": {setup,
-    checkedRuleIds, totalRules} | None, "planGrade": <grade_payload> | {"needs": "plan grading"}}`; None
+    checkedRuleIds, totalRules} | None, "accountId": <the trade's account> | None, "planGrade":
+    <grade_payload> | {"needs": "plan grading"}}`; None
     when the key names no trade of this member's (the route's 404, the same for another member's)."""
     from api.services.auth_db import get_connection
     from api.services.journal_two import plan_grading
@@ -813,6 +814,9 @@ def trade_review(user_id: str, trade_key: str) -> dict | None:
                 "tags": {"mistakes": t.get("mistakeTags") or [], "emotions": t.get("emotionTags") or []},
                 "preEntry": ({"setup": pre.get("setup"), "checkedRuleIds": pre.get("checkedRuleIds") or [],
                               "totalRules": pre.get("totalRules") or 0} if pre else None),
+                # The account the trade is in: the block names a checklist's items from ONE account's
+                # settings, so it must know whether the member's selected account is this one.
+                "accountId": t.get("accountId"),
                 "planGrade": grade}
     finally:
         c.close()

@@ -8,7 +8,11 @@
 // ⛔ A checklist is the member's own discipline record: "not ticked" names only items the member's
 // current settings still resolve, through the ONE copy of that logic (lib/blocks/checklistItems) and the
 // block read seam, which refuses the legacy settings row when no single account is selected (C-1).
-// Every failed or pending read says so in words of its own, and "gone" (a 404) is never "couldn't load".
+// ⛔ And it only names items it can stand behind: a trade in ANOTHER account, or a checklist that no
+// longer holds the items the trade ticked, gets a sentence saying so instead of a list that could name the
+// wrong items. Every failed or pending read says so in words of its own, and "gone" (a 404) is never
+// "couldn't load".
+import { useState } from 'react'
 import useSWR from 'swr'
 import { Link } from 'react-router-dom'
 import useChecklistSources from '../../../hooks/useChecklistSources'
@@ -45,24 +49,34 @@ const PLAN_LINES = {
   needs_pick: "More than one plan could be this trade's. Pick the one you traded on the trade's page.",
 }
 
+/** The editor refused the write (setParams answered false): said, never swallowed. */
+function NotSaved() {
+  return <p role="status" className={styles.muted}>That choice couldn't be saved. Nothing was changed.</p>
+}
+
 function TradePicker({ setParams }) {
+  const [notSaved, setNotSaved] = useState(false)
   const { data, error, isLoading, mutate } = useSWR(TRADES_URL, fetcher, SWR_OPTIONS)
   if (isLoading) return <BlockLoading />
   if (error) return <BlockError onRetry={() => mutate()} />
   const trades = (Array.isArray(data?.trades) ? data.trades : []).filter((t) => t?.tradeRef || t?.id)
   if (!trades.length) return <BlockEmpty title="You have no closed trades to review yet." />
   return (
-    <label className={styles.row}>
-      <span>Trade to review</span>
-      <select aria-label="Trade to review" className={styles.tap} value="" onChange={(e) => setParams({ tradeId: e.target.value })}>
-        <option value="" disabled>Pick a trade</option>
-        {trades.map((t) => {
-          const key = t.tradeRef || t.id
-          const closed = shortDay(t.exitDate)
-          return <option key={key} value={key}>{[t.symbol, closed && `closed ${closed}`, t.result].filter(Boolean).join(' · ')}</option>
-        })}
-      </select>
-    </label>
+    <>
+      <label className={styles.row}>
+        <span>Trade to review</span>
+        <select aria-label="Trade to review" className={styles.tap} value=""
+          onChange={(e) => setNotSaved(setParams({ tradeId: e.target.value }) === false)}>
+          <option value="" disabled>Pick a trade</option>
+          {trades.map((t) => {
+            const key = t.tradeRef || t.id
+            const closed = shortDay(t.exitDate)
+            return <option key={key} value={key}>{[t.symbol, closed && `closed ${closed}`, t.result].filter(Boolean).join(' · ')}</option>
+          })}
+        </select>
+      </label>
+      {notSaved && <NotSaved />}
+    </>
   )
 }
 
@@ -95,13 +109,24 @@ function Tags({ tags }) {
   )
 }
 
-/** The items of the trade's setup checklist that were not ticked before entry. */
-function Unticked({ preEntry, settings, settingsState }) {
+/** The items of the trade's setup checklist that were not ticked before entry.
+ *  `tradeAccountId` is the account the trade is in; `accountId` the member's selected one, whose settings
+ *  `settings` are. A tick the checklist can no longer resolve (a `rule:` id is a rule, not a setup item)
+ *  means the checklist changed after the trade, and then a list of "not ticked" would be a guess. */
+function Unticked({ preEntry, settings, settingsState, tradeAccountId, accountId }) {
   if (!preEntry) return <p className={styles.muted}>No pre-entry checklist was recorded for this trade.</p>
+  if (tradeAccountId && accountId && tradeAccountId !== accountId) {
+    return <p className={styles.muted}>This trade is in another account. Switch to that account to see its checklist.</p>
+  }
   if (settingsState === 'loading') return <p className={styles.muted}>Loading your checklist…</p>
   if (settingsState === 'error') return <p className={styles.muted}>Your checklist couldn't load, so the items not ticked aren't listed here.</p>
   if (Object.hasOwn(CHECKLIST_ACCOUNT_LINES, settingsState)) return <p className={styles.muted}>{CHECKLIST_ACCOUNT_LINES[settingsState]}</p>
   const items = checklistItems({ settings, rules: [], setup: preEntry.setup, includeRules: 'no' })
+  const known = new Set(items.map((i) => i.id))
+  const ticked = Array.isArray(preEntry.checkedRuleIds) ? preEntry.checkedRuleIds : []
+  if (ticked.some((id) => !String(id).startsWith('rule:') && !known.has(id))) {
+    return <p className={styles.muted}>This setup's checklist has changed since this trade.</p>
+  }
   if (!items.length) return null
   const missed = uncheckedItems(items, preEntry.checkedRuleIds)
   return (
@@ -113,17 +138,20 @@ function Unticked({ preEntry, settings, settingsState }) {
 }
 
 function TradeReview({ tradeId, setParams, editable }) {
+  const [notSaved, setNotSaved] = useState(false)
   const { data, error, isLoading, mutate } = useSWR(`/api/j2/trader-blocks/review/${encodeURIComponent(tradeId)}`, fetcher, SWR_OPTIONS)
-  const { settings, settingsState } = useChecklistSources({ wantRules: false })
+  const { settings, settingsState, accountId } = useChecklistSources({ wantRules: false })
   if (isLoading) return <BlockLoading />
   if (error?.status === 404) {
     return (
       <BlockEmpty title="This trade is no longer in your journal.">
         {editable && (
-          <button type="button" className={`btn btn-ghost ${styles.tap}`} onClick={() => setParams({ tradeId: '' })}>
+          <button type="button" className={`btn btn-ghost ${styles.tap}`}
+            onClick={() => setNotSaved(setParams({ tradeId: '' }) === false)}>
             Pick another trade
           </button>
         )}
+        {notSaved && <NotSaved />}
       </BlockEmpty>
     )
   }
@@ -137,7 +165,8 @@ function TradeReview({ tradeId, setParams, editable }) {
       <p className={styles.muted}>{numbers.join(' · ')}</p>
       <PlanGrade grade={data.planGrade} />
       <Tags tags={data.tags} />
-      <Unticked preEntry={data.preEntry} settings={settings} settingsState={settingsState} />
+      <Unticked preEntry={data.preEntry} settings={settings} settingsState={settingsState}
+        tradeAccountId={data.accountId} accountId={accountId} />
       <Link className={`btn btn-ghost ${styles.tap}`} to={`/journal-2-0/trade/${encodeURIComponent(t.id)}`}>Open the trade</Link>
     </div>
   )

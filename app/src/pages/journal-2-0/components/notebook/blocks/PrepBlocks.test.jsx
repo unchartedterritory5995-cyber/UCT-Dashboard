@@ -225,27 +225,44 @@ describe('my movers', () => {
     expect(screen.queryByText(/had no quote/)).toBeNull()
   })
 
-  it('one name with no quote reads in the singular', () => {
+  it('the unquoted count is printed as the snapshot gives it', () => {
     render(<PrepMoversBlock params={{ snapshot: { ...movers(), unquoted: 2 } }} setParams={vi.fn()} editable={false} />)
     expect(screen.getByText('2 of your names had no quote.')).toBeTruthy()
   })
 })
 
 describe('key levels from my plans', () => {
-  it('one line per card: symbol, where it stands, the distance to the entry, and its levels', () => {
-    const snap = levels(3)
+  const lines = (snap) => {
     render(<PrepLevelsBlock params={{ snapshot: snap }} setParams={vi.fn()} editable={false} />)
-    const rows = screen.getAllByRole('listitem')
-    expect(rows).toHaveLength(3)
-    const first = snap.cards[0]
-    expect(first.symbol).toBe('SBAM')
-    expect(rows[0].textContent).toContain('SBAM')
-    expect(rows[0].textContent).toContain('Waiting')
-    expect(rows[0].textContent).toContain('0.67% to the entry · 0.10R')     // the board's own distance sentence
-    expect(rows[0].textContent).toContain('Entry $150.00')
-    expect(rows[0].textContent).toContain('Stop $140.00')
-    expect(rows[0].textContent).not.toContain('Target')                      // none drawn: not invented
-    expect(rows[1].textContent).toContain('Triggered · 0.94% through the entry')
+    return screen.getAllByRole('listitem').map((li) => li.textContent)
+  }
+
+  it('one line per card, the WHOLE line: symbol, where it stands, the distance, the levels the plan drew', () => {
+    // the setups board's real cards: SBAM waiting, SBTR triggered, SBTS short waiting, SBNV tagged and with a target,
+    // SBME watching with no stop, SBIN through the stop, SBNP with no price
+    expect(lines(levels(7))).toEqual([
+      'SBAM · Waiting · 0.67% to the entry · 0.10R · Entry $150.00 · Stop $140.00',
+      'SBTR · Triggered · 0.94% through the entry · 0.20R · Entry $105.00 · Stop $100.00',
+      'SBTS · Waiting · 2.44% to the entry · 0.50R · Entry $200.00 · Stop $210.00',
+      'SBNV · Breakout · Waiting · 2.94% to the entry · 0.60R · Entry $105.00 · Stop $100.00 · Target $120.00',
+      'SBME · Watching · 7.69% to the entry · Entry $700.00',
+      'SBIN · Through the stop · 5.00% from the entry · 1.00R · Entry $105.00 · Stop $100.00',
+      'SBNP · No price yet · Entry $20.00 · Stop $18.00',
+    ])
+  })
+
+  it('the setup the plan was tagged with leads the line; CONTROL: a card without one has no gap or placeholder', () => {
+    const tagged = levels(4).cards[3]
+    expect(tagged.setupTag).toBe('Breakout')
+    const untagged = levels(1).cards[0]
+    expect(untagged.setupTag).toBeNull()
+    expect(lines({ ...levels(1), cards: [{ ...untagged, setupTag: 'VCP' }] })[0]).toMatch(/^SBAM · VCP · Waiting · /)
+  })
+
+  it('a card without a tag reads exactly as it did (no "null", no empty segment)', () => {
+    const [line] = lines(levels(1))
+    expect(line).toBe('SBAM · Waiting · 0.67% to the entry · 0.10R · Entry $150.00 · Stop $140.00')
+    expect(line).not.toMatch(/null|undefined|· ·/)
   })
 
   it('a page shorter than the member total says so; CONTROL: a whole board does not', () => {

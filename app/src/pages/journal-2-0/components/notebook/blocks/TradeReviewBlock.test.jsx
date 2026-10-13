@@ -33,6 +33,9 @@ import TradeReviewBlock from './TradeReviewBlock'
 const REVIEW = () => contractBody('trader-blocks.review')                  // unplanned, VCP, ticked s1
 const NO_GRADING = () => contractBody('trader-blocks.review.no-grading')   // planGrade { needs }
 const GONE = 'This trade is no longer in your journal.'
+const ANOTHER_ACCOUNT = 'This trade is in another account. Switch to that account to see its checklist.'
+const CHANGED = "This setup's checklist has changed since this trade."
+const NOT_SAVED = "That choice couldn't be saved. Nothing was changed."
 
 /** A fake server: the first route whose suffix ends the URL answers; anything else is a loud error. */
 function serve(routes) {
@@ -76,6 +79,18 @@ describe('no trade picked', () => {
     fireEvent.change(select, { target: { value: 'ext:FP-REVIEW-2' } })
     expect(setParams).toHaveBeenLastCalledWith({ tradeId: 'ext:FP-REVIEW-2' })
     expect(globalThis.fetch).toHaveBeenCalledTimes(1)                       // the list only, no review read
+  })
+
+  it('a pick the editor refused (setParams answers false) is said, not swallowed; CONTROL: a pick that lands is not', async () => {
+    serve({ '/review/trades': contractResponse('trader-blocks.review.trades') })
+    const setParams = vi.fn(() => false)
+    renderBlock({ setParams })
+    const select = await screen.findByRole('combobox', { name: 'Trade to review' })
+    fireEvent.change(select, { target: { value: 'id:review-1' } })
+    expect((await screen.findByRole('status')).textContent).toBe(NOT_SAVED)
+    setParams.mockImplementation(() => true)
+    fireEvent.change(select, { target: { value: 'id:review-1' } })
+    await waitFor(() => expect(screen.queryByText(NOT_SAVED)).toBeNull())
   })
 
   it('a reader sees "No trade linked yet." and no picker, and nothing is read', () => {
@@ -197,12 +212,68 @@ describe('the pre-entry items', () => {
     expect(screen.queryByText(/Not ticked/)).toBeNull()
   })
 
-  it('a setup that has since lost its checklist lists nothing it cannot resolve', async () => {
+  it('a setup that has since lost its checklist cannot be listed, and says why', async () => {
     SETTINGS = { setups: ['VCP'], setupRules: {} }
-    serve({ '/review/review-1': json(REVIEW()) })
+    serve({ '/review/review-1': json(REVIEW()) })                       // the trade ticked s1, which is gone
+    renderBlock({ params: { tradeId: 'review-1' } })
+    expect(await screen.findByText(CHANGED)).toBeTruthy()
+    expect(screen.queryByText(/Not ticked|were ticked/)).toBeNull()
+  })
+
+  it('a setup with no checklist and no ticks recorded has nothing to say either way', async () => {
+    SETTINGS = { setups: ['VCP'], setupRules: {} }
+    const r = REVIEW()
+    serve({ '/review/review-1': json({ ...r, preEntry: { ...r.preEntry, checkedRuleIds: [] } }) })
     renderBlock({ params: { tradeId: 'review-1' } })
     expect(await screen.findByText('Mistakes: chased')).toBeTruthy()
-    expect(screen.queryByText(/Not ticked|were ticked/)).toBeNull()
+    expect(screen.queryByText(/Not ticked|were ticked|changed/)).toBeNull()
+  })
+})
+
+describe('the list is only printed when it can be stood behind', () => {
+  it('a trade in ANOTHER account prints no list, and says to switch', async () => {
+    serve({ '/review/review-1': json({ ...REVIEW(), accountId: 'a2' }) })   // the selected account is a1
+    renderBlock({ params: { tradeId: 'review-1' } })
+    expect(await screen.findByText(ANOTHER_ACCOUNT)).toBeTruthy()
+    expect(screen.queryByText(/Not ticked/)).toBeNull()
+    expect(screen.getByText('Mistakes: chased')).toBeTruthy()            // the rest of the review still reads
+  })
+
+  it('CONTROL: the same trade in the SELECTED account still lists what was not ticked', async () => {
+    serve({ '/review/review-1': json({ ...REVIEW(), accountId: 'a1' }) })
+    renderBlock({ params: { tradeId: 'review-1' } })
+    expect(await screen.findByText('Not ticked before entry: Tight closes')).toBeTruthy()
+    expect(screen.queryByText(ANOTHER_ACCOUNT)).toBeNull()
+  })
+
+  it('CONTROL: a payload that names no account (an older answer) is not called another account', async () => {
+    const { accountId, ...older } = REVIEW()    // eslint-disable-line no-unused-vars
+    serve({ '/review/review-1': json(older) })
+    renderBlock({ params: { tradeId: 'review-1' } })
+    expect(await screen.findByText('Not ticked before entry: Tight closes')).toBeTruthy()
+  })
+
+  it('a tick the checklist can no longer resolve prints no list, and says the checklist changed', async () => {
+    const r = REVIEW()
+    serve({ '/review/review-1': json({ ...r, preEntry: { ...r.preEntry, checkedRuleIds: ['s1', 'an-item-since-removed'] } }) })
+    renderBlock({ params: { tradeId: 'review-1' } })
+    expect(await screen.findByText(CHANGED)).toBeTruthy()
+    expect(screen.queryByText(/Not ticked/)).toBeNull()
+  })
+
+  it('CONTROL: a `rule:` tick is a rule, not a setup item, so it does not make the checklist "changed"', async () => {
+    const r = REVIEW()
+    serve({ '/review/review-1': json({ ...r, preEntry: { ...r.preEntry, checkedRuleIds: ['s1', 'rule:r9'] } }) })
+    renderBlock({ params: { tradeId: 'review-1' } })
+    expect(await screen.findByText('Not ticked before entry: Tight closes')).toBeTruthy()
+    expect(screen.queryByText(CHANGED)).toBeNull()
+  })
+
+  it('CONTROL: an unchanged checklist (every tick resolves) lists as before', async () => {
+    serve({ '/review/review-1': json(REVIEW()) })
+    renderBlock({ params: { tradeId: 'review-1' } })
+    expect(await screen.findByText('Not ticked before entry: Tight closes')).toBeTruthy()
+    expect(screen.queryByText(CHANGED)).toBeNull()
   })
 })
 
@@ -215,6 +286,13 @@ describe('a trade that is gone, or cannot be read', () => {
     expect(screen.queryByText(BLOCK_ERROR_SENTENCE)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Pick another trade' }))
     expect(setParams).toHaveBeenCalledWith({ tradeId: '' })
+  })
+
+  it('a "Pick another trade" the editor refused is said, not swallowed', async () => {
+    serve({ '/review/t1': contractResponse('trader-blocks.review.not-found') })
+    renderBlock({ params: { tradeId: 't1' }, setParams: vi.fn(() => false) })
+    fireEvent.click(await screen.findByRole('button', { name: 'Pick another trade' }))
+    expect((await screen.findByRole('status')).textContent).toBe(NOT_SAVED)
   })
 
   it('a reader is told the same and offered no button', async () => {

@@ -20,3 +20,12 @@ export function distanceText(card) {
 export const STATE_LABEL = {
   waiting: 'Waiting', watching: 'Watching', triggered: 'Triggered', invalidated: 'Invalidated', no_price: 'No price',
 }
+
+/** Where a card stands, said once: the state's word followed by the distance sentence, except where the
+ *  sentence already carries the state ("Triggered · 0.94% through the entry", "Through the stop · …",
+ *  "No price yet"), which stands alone. Pure. */
+export function stateAndDistance(card) {
+  const d = distanceText(card)
+  const carried = d === 'No price yet' || card?.state === 'triggered' || card?.state === 'invalidated'
+  return carried ? d : `${STATE_LABEL[card?.state] || card?.state} · ${d}`
+}

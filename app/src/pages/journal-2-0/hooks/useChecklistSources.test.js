@@ -37,6 +37,11 @@ describe('useChecklistSources', () => {
     expect(result.current.settingsState).toBe('ready')
     expect(result.current.rulesState).toBe('ready')
   })
+  it('names the selected account the settings belong to; none selected is null', () => {
+    expect(renderHook(() => useChecklistSources({ wantRules: false })).result.current.accountId).toBe('a1')
+    ACCOUNT_RET = { accountId: null, isAllAccounts: true, accounts: [{ id: 'a1' }] }
+    expect(renderHook(() => useChecklistSources({ wantRules: false })).result.current.accountId).toBeNull()
+  })
   it('asks for the rules of the selected account only when they are wanted', () => {
     renderHook(() => useChecklistSources({ wantRules: true }))
     expect(rulesCalls).toContain('a1')
