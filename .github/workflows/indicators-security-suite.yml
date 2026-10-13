@@ -16,8 +16,12 @@
 # proved, BEFORE any change to formula execution is promoted.
 #
 # ⭐ THE RUNTIME IS THE PRODUCTION BASE: `python:3.12-slim-bookworm` (Dockerfile.web's
-# runtime stage) and Node 20.18.0 (Dockerfile.web's pin), the same container pattern
-# as ocr-linux-cert.yml. No secrets, no network beyond package installs, no database
+# runtime stage), the same container pattern as ocr-linux-cert.yml.
+# ⚠️ NODE IS 20.19.0, NOT DOCKERFILE.WEB'S 20.18.0, AND THAT IS MEASURED. Production uses
+# Node only to BUILD; the test toolchain (jsdom -> html-encoding-sniffer -> @exodus/bytes,
+# an ES module) needs `require(esm)`, unflagged from 20.19.0. On 20.18.0 the first run of
+# this job (PR #322, run 38425180457) started 2 of 18 frontend files: 16 died with
+# ERR_REQUIRE_ESM before running a test, and the step still read green. No secrets, no network beyond package installs, no database
 # but the per-test temp files the suites create themselves.
 #
 # ⛔ ONE DESELECT, NAMED: `test_user_definitions_auth::…PER_ROUTER…` asserts that every
@@ -83,7 +87,7 @@ jobs:
     container:
       image: python:3.12-slim-bookworm
     env:
-      NODE_VERSION: '20.18.0'
+      NODE_VERSION: '20.19.0'
     steps:
       - name: The runtime the web image installs
         run: |
@@ -125,18 +129,29 @@ jobs:
 
       - name: Frontend security rails
         working-directory: app
+        shell: bash
         run: |
-          set -eux
+          # ⛔ pipefail: without it `| tee` hands the step tee's exit code, and a vitest run
+          # whose workers never started still exits 0 here (PR #322, run 38425180457).
+          set -euxo pipefail
           E=src/components/chart/engine
-          npx vitest run --reporter=default \
-            $E/ast/budget.test.js $E/ast/parse.deepTree.test.js $E/ast/interpret.test.js $E/ast/parse.test.js \
-            $E/ast/closedTable.test.js $E/ast/stringEscapes.test.js $E/ast/sharedBudget.test.js $E/ast/paramIds.test.js \
-            $E/__tests__/objectColour.test.js $E/__tests__/objectTableDom.test.js \
-            $E/__tests__/presentationColourSinks.test.jsx \
-            $E/runtime/__tests__/runtimeHardeningP1.test.js $E/runtime/__tests__/runtimeLimitsAcceptance.test.js \
-            $E/runtime/__tests__/runtimePaneSafety.test.jsx $E/runtime/__tests__/runtimeAsync.test.js \
-            $E/__tests__/runtimeKillSwitch.test.js $E/__tests__/runtimeSwitchOn.test.js \
-            $E/__tests__/pineRuntimeFrontendGate.test.js 2>&1 | tee ../vitest-security.log
-          # ⛔ A run without a totals line is not a run (the full-suite lesson, F-CI).
-          grep -E "Test Files .* passed" ../vitest-security.log
-          if grep -E "Test Files .* failed" ../vitest-security.log; then exit 1; fi
+          FILES=(
+            $E/ast/budget.test.js $E/ast/parse.deepTree.test.js $E/ast/interpret.test.js $E/ast/parse.test.js
+            $E/ast/closedTable.test.js $E/ast/stringEscapes.test.js $E/ast/sharedBudget.test.js $E/ast/paramIds.test.js
+            $E/__tests__/objectColour.test.js $E/__tests__/objectTableDom.test.js
+            $E/__tests__/presentationColourSinks.test.jsx
+            $E/runtime/__tests__/runtimeHardeningP1.test.js $E/runtime/__tests__/runtimeLimitsAcceptance.test.js
+            $E/runtime/__tests__/runtimePaneSafety.test.jsx $E/runtime/__tests__/runtimeAsync.test.js
+            $E/__tests__/runtimeKillSwitch.test.js $E/__tests__/runtimeSwitchOn.test.js
+            $E/__tests__/pineRuntimeFrontendGate.test.js
+          )
+          npx vitest run --reporter=default "${FILES[@]}" 2>&1 | tee ../vitest-security.log
+          # ⛔ A run is complete only when EVERY named file ran and passed — a "passed" totals
+          # line alone matched "2 passed (2)" while 16 files never started.
+          N=${#FILES[@]}
+          CLEAN=$(sed 's/\x1b\[[0-9;]*m//g' ../vitest-security.log)
+          if echo "$CLEAN" | grep -qE "Unhandled Error|Failed to start"; then
+            echo "::error::vitest reported unhandled errors — files did not run"; exit 1
+          fi
+          echo "$CLEAN" | grep -qE "Test Files +${N} passed \(${N}\)" || {
+            echo "::error::expected Test Files ${N} passed (${N})"; exit 1; }
