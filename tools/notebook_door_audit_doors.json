@@ -552,5 +552,56 @@
       "text": "Integrator ruling R-T13-5: a once-per-member setting, kept in Portfolio Settings' TRADE SETUPS section beside the per-setup checklists it switches on, so the choice sits with the rules it shows. Measured one press (two at 390, behind Journal tools), labelled and uncovered, but 3.74 screens down the modal at 1280 and 3.96 at 390: past the one-scroll line. Owner call: accept, or add a way in from Log Trade itself (follow-up F-CHECKLIST-DOOR, carried to P2b's pre-flight)."
     },
     "note": "The member's opt-in (PortfolioSettingsModal, shown only while journal styles are on), reached from the Journal header's settings gear. At 390 the Notebook folds the header tools behind \"Journal tools\" (JournalLayout D2), so that press comes first. Reachability read from the source, not measured; unmeasured when added. Row 58 (the checklist in Log Trade itself) needs this opt-in set, which no seed does, so the walk measures it (blocks.log-trade-checklist); row 60 (Update layout on a v1 Trade plan note) needs a seeded v1 note, which no seed makes, so the walk's styles update row measures it."
+  },
+  {
+    "feature": "Before / after this rule (P2b)",
+    "audit_row": 61,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "click": "link|Insights"
+      },
+      {
+        "click": "button|Psychology"
+      }
+    ],
+    "target": {
+      "role": "combobox",
+      "name": "Rule"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    "unmeasurable_here": true,
+    "reason": {
+      "verdict": "NOT_MEASURED",
+      "text": "The card mounts only for a member with one Journal account selected, at least one tagged trade (PsychologySection shows the tagging pitch card instead) and at least one active rule (RuleBeforeAfterCard renders nothing with no rules). The audit's members are fresh with the sample notebook only, and its one seed is find_similar, so none of the three holds here. The walk measures this door instead (blocks.before-after, 1280 and 390). A rule-and-tagged-trade seed would make it measurable here, as row 42's seed did for its door."
+    },
+    "note": "The card's rule picker, under My rules in Insights' Psychology section. Reached from Research Home (every row loads there): the Journal section link Insights (a NavLink, role link, in the desktop nav and in the phone nav), then the Psychology section button. The brief's first step was tab|Insights and its path /journal; the Journal sections are links, not tabs, and the audit only loads /journal/notebook."
+  },
+  {
+    "feature": "New Daily prep note (P2b)",
+    "audit_row": 63,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "click": "button|More ways to start a note"
+      },
+      {
+        "click": "menuitem|From a style"
+      }
+    ],
+    "target": {
+      "role": "button",
+      "name": "New Daily prep"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    "note": "The P1 kind picker's Daily prep button (KindSection.jsx, aria-label \"New \" + the kind's name); the note it makes holds the prep pack (Daily prep v2). Reached the way row 55 reaches the menu."
   }
 ]
