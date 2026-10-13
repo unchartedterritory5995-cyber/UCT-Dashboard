@@ -34,7 +34,7 @@ import { CHART_DEFAULTS } from '../../components/chart/chartDefaults'
 import { chartTemplateSettings } from '../../components/chart/chartTemplateApply'
 import { makeTfCode, isValidTf, tfLabel as tfShort } from '../../components/chart/timeframes'
 import { pickComparisonColor } from '../../components/chart/comparisonUtils'
-import { isPronounToken, groundSymbols, groundingOf, resolvedTicker, candidatesText } from '../nl/tickers'
+import { isPronounToken, groundSymbols, groundingOf, resolvedTicker, candidatesText, suggestionText } from '../nl/tickers'
 import { plainSymbolWord } from '../nl/lexicon'
 import { matchName } from '../nl/match'
 
@@ -393,7 +393,7 @@ const CAPABILITIES = [
       if (env?.ambiguousSymbols?.has(s)) return `“${String(symbol).trim()}” could be ${candidatesText(s)} — which one? Say the ticker.`
       if (env?.namedSymbols?.has(s)) return null                       // an exact company name → its one ticker
       if (!/^[A-Z0-9.$:^_\-/]{1,24}$/.test(s)) return `“${symbol}” doesn't look like a ticker.`
-      if (env?.unknownSymbols?.has(s)) return `UCT has no symbol “${s}”.`
+      if (env?.unknownSymbols?.has(s)) return `UCT has no symbol “${s}”.${suggestionText(s)}`
       return null
     },
     apply(st, { symbol }) {

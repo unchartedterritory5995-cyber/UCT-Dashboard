@@ -73,6 +73,22 @@ function targetOf(host, ops, fast, text) {
   return list.length === 1 ? { label: list[0].label, ref: list[0].ref } : { ask: true }
 }
 
+// ⭐ The planner's symbol check (chart.setSymbol / chart.compare / watchlist.* `prepare`) asks UCT's ticker
+// search before anything runs: an unknown ticker is REFUSED, never charted. Offline, the tickers UCT knows
+// are approximated by every symbol the fixtures and the expected plans use; a fast plan naming any other
+// symbol is scored `fast-refuses` (safe: nothing changes), not as an action.
+const SYMBOL_ACTIONS = new Set(['chart.setSymbol', 'chart.compare', 'watchlist.add', 'watchlist.remove', 'widget.addCharts'])
+const KNOWN_TICKERS = new Set()
+const collectSyms = (v) => {
+  if (typeof v === 'string' && /^[A-Z][A-Z0-9.^]{0,9}$/.test(v)) KNOWN_TICKERS.add(v)
+  else if (Array.isArray(v)) v.forEach(collectSyms)
+  else if (v && typeof v === 'object') Object.values(v).forEach(collectSyms)
+}
+Object.values(corpus.fixtures).forEach(fx => fx.charts.forEach(c => KNOWN_TICKERS.add(c.symbol)))
+for (const c of [...corpus.cases, ...heldout.cases]) for (const o of [...(c.expect.ops || []), ...(c.expect.alt || []).flat()]) collectSyms(o.args)
+const unknownSymbolIn = (ops) => ops.some(o => SYMBOL_ACTIONS.has(o.action)
+  && [o.args?.symbol, ...(o.args?.symbols || [])].filter(Boolean).some(s => !KNOWN_TICKERS.has(String(s).toUpperCase())))
+
 const MANIFEST = Array.isArray(manifestGolden) ? manifestGolden : (manifestGolden.capabilities || [])
 const LIMITS = { limit: manifestContract.limits?.maxCapabilities ?? 60, budget: manifestContract.routingThreshold ?? 55 }
 
@@ -87,7 +103,10 @@ export function measureCase(c) {
   if (c.pending && e.ideal === 'local-clarify') row.outcome = 'not-measured'
   else if (!fast) row.outcome = c.needsState ? 'needs-state' : 'to-model'
   else if (fast.kind === 'error') row.outcome = 'fast-WRONG'
-  else if (fast.kind === 'ops') {
+  else if (fast.kind === 'ops' && unknownSymbolIn(fast.ops)) {
+    row.outcome = 'fast-refuses'                // the symbol check refuses before planning: no change
+    row.detail = fast.ops.map(o => `${o.action} ${JSON.stringify(o.args)}`).join(' ; ')
+  } else if (fast.kind === 'ops') {
     const tgt0 = targetOf(host, fast.ops, fast, c.text)
     const got = tgt0.all ? tgt0.all.flatMap(() => fast.ops) : fast.ops
     row.detail = fast.ops.map(o => `${o.action} ${JSON.stringify(o.args)}`).join(' ; ')
@@ -114,7 +133,7 @@ export function measureCase(c) {
   const sent = r.routing ? r.routing.selected : [...new Set(MANIFEST.map(m => groupOfAction(m.name)).filter(Boolean))]
   row.routing = !need.length ? null : need.every(x => sent.includes(x)) ? 'ok' : 'MISS'
   // model calls this case would cost today (0 = deterministic; +1 for the reroute a routing miss forces)
-  row.modelCalls = row.outcome === 'fast-correct' || row.outcome === 'fast-asks' || row.outcome === 'fast-WRONG' ? 0
+  row.modelCalls = ['fast-correct', 'fast-asks', 'fast-WRONG', 'fast-refuses'].includes(row.outcome) ? 0
     : 1 + (row.routing === 'MISS' ? 1 : 0)
   return row
 }
@@ -124,7 +143,7 @@ export function summarize(rows) {
   const idealFast = rows.filter(r => r.ideal === 'fast')
   const reached = idealFast.filter(r => r.outcome === 'fast-correct')
   const expectAct = rows.filter(r => r.kind !== 'clarify')
-  const decided = rows.filter(r => r.outcome?.startsWith('fast'))
+  const decided = rows.filter(r => r.outcome?.startsWith('fast') && r.outcome !== 'fast-refuses')
   const ms = rows.map(r => r.ms).sort((a, b) => a - b)
   const q = (p) => ms.length ? +ms[Math.min(ms.length - 1, Math.floor(p * ms.length))].toFixed(2) : 0
   const routed = rows.filter(r => r.routing)
@@ -137,6 +156,7 @@ export function summarize(rows) {
     deterministicAccuracy: decided.length ? +(decided.filter(r => r.outcome === 'fast-correct').length / decided.length).toFixed(3) : null,
     wrongActions: rows.filter(r => r.outcome === 'fast-WRONG').length,
     unnecessaryClarifications: expectAct.filter(r => r.outcome === 'fast-asks').length,
+    safeRefusals: rows.filter(r => r.outcome === 'fast-refuses').length,
     toModel: rows.filter(r => r.modelCalls > 0).length,
     modelCallsPerCase: +(rows.reduce((a, r) => a + r.modelCalls, 0) / n).toFixed(3),
     routingChecked: routed.length,
@@ -157,7 +177,7 @@ describe('conversational intelligence — layer A baseline (deterministic, free)
       adversarial: summarize(held.filter(r => r.split === 'adversarial')),
       rows: [...dev, ...held],
     }
-    const line = (k, s) => `${k.padEnd(12)} n=${s.cases} fast ${s.idealFastReached}/${s.idealFast} (${s.deterministicCoverage}) · det.acc ${s.deterministicAccuracy} · WRONG ${s.wrongActions} · needless-ask ${s.unnecessaryClarifications} · →model ${s.toModel} · calls/case ${s.modelCallsPerCase} · route MISS ${s.routingMiss}/${s.routingChecked} · fastParse p50 ${s.fastParseMs.p50}ms p95 ${s.fastParseMs.p95}ms`
+    const line = (k, s) => `${k.padEnd(12)} n=${s.cases} fast ${s.idealFastReached}/${s.idealFast} (${s.deterministicCoverage}) · det.acc ${s.deterministicAccuracy} · WRONG ${s.wrongActions} · refused ${s.safeRefusals} · needless-ask ${s.unnecessaryClarifications} · →model ${s.toModel} · calls/case ${s.modelCallsPerCase} · route MISS ${s.routingMiss}/${s.routingChecked} · fastParse p50 ${s.fastParseMs.p50}ms p95 ${s.fastParseMs.p95}ms`
     console.log(`\n── layer A ──\n${line('dev', report.dev)}\n${line('heldout', report.heldout)}\n${line('adversarial', report.adversarial)}\n` +
       'WRONG: ' + report.rows.filter(r => r.outcome === 'fast-WRONG').map(r => `${r.id} “${r.text}” → ${r.detail}`).join(' | ') + '\n')
     if (globalThis.process?.env?.AGENT_EVAL_OUT) fs.writeFileSync(globalThis.process.env.AGENT_EVAL_OUT, JSON.stringify(report, null, 2))
