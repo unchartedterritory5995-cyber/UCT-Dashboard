@@ -1,0 +1,13 @@
+UCT Agent3:46 PMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?
+User3:46 PMfind strong semis
+UCT Agent3:46 PMStrong semis: 5 matches.TickerNVDAAVGOAMDMUQCOM
+User3:46 PMopen the third one
+UCT Agent3:46 PMChanged symbol to AMD
+User3:46 PMcompare it to the others
+UCT Agent3:46 PMComparing AMD with NVDA, AVGO, MU, QCOMUndone
+User3:46 PMundo
+UCT Agent3:46 PMUndid: Comparing AMD with NVDA, AVGO, MU, QCOM
+User3:46 PMopen the 9th one
+UCT Agent3:46 PM“Strong semis” showed 5 — pick a number from 1 to 5.
+User3:46 PMpull up the last one
+UCT Agent3:46 PMChanged symbol to QCOM
