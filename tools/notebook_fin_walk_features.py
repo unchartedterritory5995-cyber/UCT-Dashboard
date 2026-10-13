@@ -19,9 +19,10 @@ import re
 import sys
 import time
 import traceback
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
@@ -61,6 +62,11 @@ BLOCK_SLASH_ITEMS = (*BLOCK_GROUPS, "Market context")
 LOG_TRADE_CHECKLIST_PREF = "notebook_log_trade_checklist"   # lib/blocks/logTradeChecklist.js
 JOURNAL_STYLES_KEY = "notebook_journal_styles_enabled"     # lib/journalStylesFlag.js, the auth payload key
 SELECTED_ACCOUNT_KEY = "uct.j2.selectedAccountId"          # hooks/useJ2SelectedAccount.js
+# Notebook P2b (Task 13): the four prep blocks' group names (lib/journalBlocks.js labels, the name
+# BlockNodeView gives its role="group") and the part each one captures (trader_blocks.PREP_BLOCK).
+PREP_GROUPS = {"prepWire": ("Morning wire and exposure", "wire"), "prepEarnings": ("Earnings for my names", "earnings"),
+               "prepMovers": ("My movers", "movers"), "prepLevels": ("Key levels from my plans", "levels")}
+ET = ZoneInfo("America/New_York")
 
 # The line a price stamp lands under, followed at once by its fact card (financialFactNode's view).
 STAMP_FOLLOWS_JS = """line => { const pm = document.querySelector('.ProseMirror'); if (!pm) return false;
@@ -2489,9 +2495,420 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             finally:
                 c.close()
 
+        # ── Notebook P2b (Task 13): My rules, before / after, the two packs, the restore stamp ──────
+        # Shared by the part-b rows: the rule blocks.my-rules makes at 1280 (at its second version and
+        # switched on before entry), which before-after and review-pack read. A row that runs without it
+        # makes one the same way, through the same routes (`ensure_rule`).
+        P2B: dict = {}
+        rules_url = f"/api/j2/accounts/{acct_id}/rules"            # journal_two.py create / list_journal_rule_route
+        rule_url = "/api/j2/trader-blocks/rules/{}"                  # notebook_journal_styles.py trader_edit_rule
+
+        def et_day(iso):
+            """lib/blocks/rulesApi.js versionLine's day: 'Oct 2', the New York calendar day of `iso`."""
+            d = datetime.fromisoformat(str(iso).replace("Z", "+00:00")).astimezone(ET)
+            return f"{d:%b} {d.day}"
+
+        def et_minute(iso):
+            """PrepCapture.jsx easternTime: dateStyle medium, timeStyle short, in New York."""
+            d = datetime.fromisoformat(str(iso).replace("Z", "+00:00")).astimezone(ET)
+            return f"{d:%b} {d.day}, {d.year}, {d.hour % 12 or 12}:{d:%M} {'AM' if d.hour < 12 else 'PM'}"
+
+        def spaced(text):
+            """`text` as a whole-line pattern whose spaces also match the narrow and no-break spaces Intl
+            prints (before AM/PM, in current Chromium)."""
+            return re.compile("^" + r"[\s  ]+".join(re.escape(w) for w in text.split(" ")) + "$")
+
+        def embed_of(node, wid):
+            """The attrs of the first widgetEmbed `wid` anywhere under `node` (a doc, or a request body
+            holding one), or None."""
+            if isinstance(node, dict):
+                if node.get("type") == "widgetEmbed" and (node.get("attrs") or {}).get("widgetId") == wid:
+                    return node["attrs"]
+                kids = list(node.values())
+            elif isinstance(node, list):
+                kids = node
+            else:
+                return None
+            for k in kids:
+                got = embed_of(k, wid)
+                if got is not None:
+                    return got
+            return None
+
+        def snapshot_of(doc, wid):
+            return ((embed_of(doc, wid) or {}).get("params") or {}).get("snapshot")
+
+        def rule_now(rule_id):
+            r = M.get(base + rules_url)
+            listing = r.json() if r.ok else []
+            return next((x for x in (listing if isinstance(listing, list) else []) if x.get("id") == rule_id), None)
+
+        def ensure_rule(i_):
+            have = P2B.get("rule")
+            if have and (rule_now(have["id"]) or {}).get("version") == 2:
+                return have
+            label = "Walk rule: buy only the first pullback"
+            _, made = C.api(ctx, i_, "POST", base, rules_url, {"label": "Walk rule: no chasing gaps", "evidence": "Made by the walk"})
+            rid = made["id"]
+            C.api(ctx, i_, "PUT", base, rule_url.format(rid), {"label": label, "changeNote": "Made by the walk"})
+            C.api(ctx, i_, "PUT", base, rule_url.format(rid), {"beforeEntry": True})
+            P2B["rule"] = {"id": rid, "label": label, "made_by": "ensure_rule (the routes)"}
+            return P2B["rule"]
+
+        def close_trade(i_, pid, shares, exit_price):
+            """Close a position through the member's own route (POST /api/j2/positions/{id}/close), with one
+            mistake tag and one emotion tag on the trade it writes."""
+            st, closed = C.api(ctx, i_, "POST", base, f"/api/j2/positions/{pid}/close",
+                               {"shares": shares, "exitPrice": exit_price, "exitDate": datetime.now(timezone.utc).isoformat(),
+                                "mistakeTags": ["early_exit"], "emotionTags": ["calm"]})
+            return st, ((closed or {}).get("trade") if isinstance(closed, dict) else None) or {}
+
+        def new_from_kind(p_, kind_name):
+            """Research Home's New note caret -> From a style -> the kind (the door styles.new-from-kind walks).
+            Returns (note id, the create's status), the id read off the create's own answer."""
+            C.goto(p_, base, "/journal/notebook", wait="main")
+            caret = p_.locator('[data-tour="new-note-home"]').get_by_role("button", name="More ways to start a note", exact=True)
+            C.vis_loc(caret, 30000)
+            caret.first.click()
+            p_.get_by_role("menuitem", name="From a style").first.click()
+            kinds = p_.get_by_role("group", name="Start from a kind of note")
+            C.vis_loc(kinds, 15000)
+            create = re.compile(r"/api/j2/notes(\?|$)")
+            with p_.expect_response(lambda r: r.request.method == "POST" and bool(create.search(r.url)), timeout=30000) as made:
+                kinds.get_by_role("button", name=f"New {kind_name}", exact=True).first.click()
+            C.vis_loc(p_.locator(".ProseMirror").first, 20000)
+            try:
+                nid = ((made.value.json() or {}).get("note") or {}).get("id")
+            except Exception:  # noqa: BLE001 -- not JSON; the page's own URL names the note it opened
+                nid = None
+            if not nid:
+                m_ = re.search(r"[?&]note=([^&#]+)", p_.url)
+                nid = m_.group(1) if m_ else None
+            return nid, made.value.status
+
+        # blocks.my-rules (1280 and 390): a rule made through POST /api/j2/accounts/{id}/rules; a note with a
+        #   My rules block shows "v1 · made <day>"; Edit -> new words and a change note -> Save; the line reads
+        #   "v2 · changed <day>"; the "before entry" switch on; a part-a checklist block in ANOTHER note
+        #   (setup VCP, rules included) now lists the rule (the checklist reads `beforeEntry`).
+        def my_rules():
+            for vp in ("1280", "390"):
+                p, i, c = at(vp)
+                try:
+                    v1_label, v2_label = f"Walk rule {vp}: no chasing gaps", f"Walk rule {vp}: buy only the first pullback"
+                    made_status, made = C.api(ctx, i, "POST", base, rules_url, {"label": v1_label, "evidence": "Gaps kept failing"})
+                    rid = made.get("id") if isinstance(made, dict) else None
+                    v1_line = f"v1 · made {et_day(made['changedAt'])}" if rid else None
+                    n = note(f"My rules walk {vp}", [block("myRules")])
+                    C.goto(p, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
+                    group = p.get_by_role("group", name="My rules", exact=True).first
+                    row1 = group.locator("li").filter(has_text=v1_label)
+                    v1_shown = bool(rid) and C.vis_loc(row1.get_by_text(v1_line, exact=True), 15000)
+                    rule_put = re.compile(rf"/api/j2/trader-blocks/rules/{re.escape(str(rid))}(\?|$)")
+                    edit_status = switch_status = v2_line = None
+                    if v1_shown:
+                        row1.get_by_role("button", name=f"Edit '{v1_label}'", exact=True).click()
+                        form = group.get_by_role("form", name=f"Edit '{v1_label}'")
+                        C.vis_loc(form, 10000)
+                        form.get_by_label("Rule", exact=True).fill(v2_label)
+                        form.get_by_label("What changed?", exact=True).fill("The first pullback held where the gaps failed")
+                        with p.expect_response(lambda r: r.request.method == "PUT" and bool(rule_put.search(r.url)),
+                                               timeout=15000) as saved:
+                            form.get_by_role("button", name="Save", exact=True).click()
+                        edit_status = saved.value.status
+                        if saved.value.ok:
+                            v2_line = f"v2 · changed {et_day(saved.value.json()['changedAt'])}"
+                    row2 = group.locator("li").filter(has_text=v2_label)
+                    v2_shown = bool(v2_line) and C.vis_loc(row2.get_by_text(v2_line, exact=True), 15000)
+                    switched_on = False
+                    if v2_shown:
+                        with p.expect_response(lambda r: r.request.method == "PUT" and bool(rule_put.search(r.url)),
+                                               timeout=15000) as flipped:
+                            row2.get_by_role("switch", name=f"Check '{v2_label}' before entry", exact=True).click()
+                        switch_status = flipped.value.status
+                        switched_on = C.vis_loc(row2.locator('[role="switch"][aria-checked="true"]'), 10000)
+                    held = rule_now(rid) if rid else None
+                    listed = False
+                    if switched_on:
+                        ck = block("preEntryChecklist")
+                        ck["attrs"]["params"]["setup"] = "VCP"          # catalog defaults otherwise: includeRules "yes"
+                        n2 = note(f"Checklist reads the rule {vp}", [ck])
+                        C.goto(p, base, f"/journal/notebook?note={n2['id']}", wait=".ProseMirror")
+                        checklist = p.get_by_role("group", name="Pre-entry checklist", exact=True).first
+                        listed = C.vis_loc(checklist.get_by_role("checkbox", name=v2_label, exact=True), 15000)
+                    if vp == "1280" and switched_on:
+                        P2B["rule"] = {"id": rid, "label": v2_label, "made_by": "blocks.my-rules at 1280"}
+                    ok = (v1_shown and edit_status == 200 and v2_shown and switch_status == 200 and switched_on and listed
+                          and (held or {}).get("version") == 2 and (held or {}).get("beforeEntry") is True
+                          and (held or {}).get("label") == v2_label)
+                    C.step(p, i, "blocks.my-rules",
+                           f"My rules: a rule shows v1, its words edited to v2, switched on before entry, and another note's checklist lists it ({vp})",
+                           "PASS" if ok else "FAIL", rule_status=made_status, rule_id=rid, v1_line=v1_line, v1_shown=v1_shown,
+                           edit_status=edit_status, v2_line=v2_line, v2_shown=v2_shown, switch_status=switch_status,
+                           switched_on=switched_on, rule_held=held, checklist_lists_rule=listed)
+                finally:
+                    if c is not None:
+                        c.close()
+
+        # blocks.before-after (1280 and 390): Insights › Psychology shows "Before / after this rule" with the rule
+        #   picked; each window the server marks small (1 to 9 trades) shows windowLines' sentence for it. The
+        #   walk member's sample is small: a tagged closed trade entered today is seeded through the routes, so
+        #   the Psychology panels mount (they need a tagged trade) and a window holds at least one trade.
+        def before_after():
+            rule = ensure_rule(inst)
+            now = datetime.now(timezone.utc)
+            pos_status, pos = C.api(ctx, inst, "POST", base, "/api/j2/positions",
+                                    {"symbol": "AAPL", "side": "Long", "entryDate": (now - timedelta(minutes=2)).isoformat(),
+                                     "shares": 5, "entryPrice": 100, "setup": "VCP", "accountId": acct_id})
+            pid = pos.get("id") if isinstance(pos, dict) else None
+            close_status, trade = close_trade(inst, pid, 5, 104) if pid else (None, {})
+            r = M.get(base + f"/api/j2/trader-blocks/rules/{rule['id']}/before-after")
+            ba = r.json() if r.ok else {}
+            want_lines = [(v.get("version"), f"{w['wins']} of {w['trades']} won (too few trades to read as a rate)")
+                          for v in ba.get("versions") or [] for w in (v.get("before") or {}, v.get("after") or {})
+                          if w.get("small") is True and (w.get("trades") or 0) > 0]
+            for vp in ("1280", "390"):
+                p, i, c = at(vp)
+                try:
+                    C.goto(p, base, "/journal/notebook", wait="main")
+                    p.get_by_role("link", name="Insights", exact=True).filter(visible=True).first.click()
+                    nav = p.get_by_role("navigation", name="Insights sections")
+                    C.vis_loc(nav, 20000)
+                    nav.get_by_role("button", name="Psychology", exact=True).click()
+                    card = p.get_by_role("region", name="Before / after this rule")
+                    shown = C.vis_loc(card, 20000)
+                    picked = None
+                    lines = {}
+                    if shown:
+                        picker = card.get_by_role("combobox", name="Rule", exact=True)
+                        picker.select_option(label=rule["label"])
+                        picked = picker.input_value()
+                        for ver, line in want_lines:
+                            region = card.get_by_role("region", name=f"Version {ver}", exact=True)
+                            lines[f"v{ver}: {line}"] = C.vis_loc(region.get_by_text(line, exact=True), 15000)
+                    ok = shown and picked == rule["id"] and bool(want_lines) and all(lines.values())
+                    C.step(p, i, "blocks.before-after",
+                           f"Insights › Psychology: Before / after this rule, the rule picked, each small window reads 'too few trades to read as a rate' ({vp})",
+                           "PASS" if ok else "FAIL", rule=rule, seeded_position_status=pos_status, seeded_close_status=close_status,
+                           seeded_trade_id=trade.get("id"), before_after_status=r.status, windows=ba.get("versions"),
+                           card=shown, picked=picked, small_window_lines=lines,
+                           why=None if want_lines else "the server marked no window small with a trade in it")
+                finally:
+                    if c is not None:
+                        c.close()
+
+        # blocks.prep-pack (1280, 820 and 390): New note -> Daily prep makes a note holding the four prep
+        #   blocks, each frozen (a snapshot captured at create) or naming its gap; "Capture again" on the wire
+        #   block captures anew, the note saves the new snapshot, and the "Captured" line reads its time.
+        def prep_pack():
+            wire_get = re.compile(r"/api/j2/trader-blocks/prep/wire(\?|$)")
+            for vp in ("1280", "820", "390"):
+                p, i, c = at(vp)
+                try:
+                    nid, create_status = new_from_kind(p, "Daily prep")
+                    held = note_json(nid) if nid else {}
+                    parts = {}
+                    for wid, (name, part) in PREP_GROUPS.items():
+                        group = p.get_by_role("group", name=name, exact=True).first
+                        snap = snapshot_of(held.get("bodyJson"), wid)
+                        rec = {"group": C.vis_loc(group, 20000), "frozen": isinstance(snap, dict) and snap.get("part") == part}
+                        if rec["frozen"]:
+                            rec.update(missing=snap.get("missing"), needs=snap.get("needs"))
+                            if snap.get("needs"):
+                                rec["names_gap"] = C.vis_loc(group.get_by_text(
+                                    f"This block needs {snap['needs']}, which is not on for you.", exact=True), 10000)
+                            elif snap.get("missing"):
+                                rec["names_gap"] = C.vis_loc(group.get_by_text(snap.get("detail") or "", exact=True), 10000)
+                            rec["captured_line"] = C.vis_loc(group.get_by_text(spaced(f"Captured {et_minute(snap['capturedAt'])} ET")), 10000)
+                        rec["ok"] = bool(rec["group"] and rec["frozen"] and rec.get("captured_line") and rec.get("names_gap", True))
+                        parts[wid] = rec
+                    old_at = (snapshot_of(held.get("bodyJson"), "prepWire") or {}).get("capturedAt")
+                    note_put = re.compile(rf"/api/j2/notes/{re.escape(str(nid))}(\?|$)")
+
+                    def recaptured(r):
+                        """The autosave PUT whose body carries a wire snapshot that is not the create's."""
+                        if not (r.request.method == "PUT" and note_put.search(r.url) and r.ok):
+                            return False
+                        try:
+                            at_ = (snapshot_of(json.loads(r.request.post_data or "null"), "prepWire") or {}).get("capturedAt")
+                        except ValueError:
+                            return False
+                        return bool(at_) and at_ != old_at
+                    wire = p.get_by_role("group", name=PREP_GROUPS["prepWire"][0], exact=True).first
+                    get_status = new_at = None
+                    if old_at:
+                        with p.expect_response(recaptured, timeout=20000) as put, \
+                             p.expect_response(lambda r: r.request.method == "GET" and bool(wire_get.search(r.url)), timeout=15000) as got:
+                            wire.get_by_role("button", name="Capture again", exact=True).click()
+                        get_status = got.value.status
+                        new_at = (snapshot_of(json.loads(put.value.request.post_data or "null"), "prepWire") or {}).get("capturedAt")
+                    later = bool(new_at) and (datetime.fromisoformat(new_at.replace("Z", "+00:00"))
+                                              > datetime.fromisoformat(old_at.replace("Z", "+00:00")))
+                    line_after = f"Captured {et_minute(new_at)} ET" if new_at else None
+                    moved = bool(line_after) and C.vis_loc(wire.get_by_text(spaced(line_after)), 10000)
+                    ok = (create_status in (200, 201) and all(x["ok"] for x in parts.values())
+                          and get_status == 200 and later and moved)
+                    C.step(p, i, "blocks.prep-pack",
+                           f"New note -> Daily prep holds the four prep blocks, each frozen or naming its gap; Capture again moves the wire's Captured line ({vp})",
+                           "PASS" if ok else "FAIL", note_id=nid, create_status=create_status, parts=parts,
+                           captured_before=old_at, capture_get_status=get_status, captured_after=new_at, later=later,
+                           line_before=f"Captured {et_minute(old_at)} ET" if old_at else None, line_after=line_after,
+                           line_shown=moved)
+                finally:
+                    if c is not None:
+                        c.close()
+
+        # blocks.review-pack (1280 and 390): Log Trade -> Log open position with the checklist on, one item of
+        #   two ticked (the rule; VCP's own item left); the position closed (POST /api/j2/positions/{id}/close,
+        #   with a mistake and an emotion tag); New note -> Post-trade review; the trade picked; the card, the
+        #   tags lines and "Not ticked before entry: <VCP's item>" show.
+        def review_pack():
+            rule = ensure_rule(inst)
+            # One item of two: VCP's own item and this rule. Every OTHER rule comes off "before entry" (the
+            # my-rules row made one per viewport), and the member's Log Trade opt-in is set to "on".
+            listing = M.get(base + rules_url).json()
+            for x in listing if isinstance(listing, list) else []:
+                if x.get("id") != rule["id"] and x.get("beforeEntry"):
+                    C.api(ctx, inst, "PUT", base, rule_url.format(x["id"]), {"beforeEntry": False})
+            if not (rule_now(rule["id"]) or {}).get("beforeEntry"):
+                C.api(ctx, inst, "PUT", base, rule_url.format(rule["id"]), {"beforeEntry": True})
+            pref_status, _ = C.api(ctx, inst, "POST", base, "/api/auth/preferences", {"key": LOG_TRADE_CHECKLIST_PREF, "value": "on"})
+            vcp_items = (M.get(base + f"/api/j2/accounts/{acct_id}/settings").json().get("setupRules") or {}).get("VCP") or []
+            positions = re.compile(r"/api/j2/positions(\?|$)")
+            pre_entry = re.compile(r"/api/j2/trader-blocks/positions/[^/]+/pre-entry(\?|$)")
+            for vp in ("1280", "390"):
+                p, i, c = at(vp)
+                try:
+                    C.goto(p, base, "/journal/notebook", wait="main")
+                    log_btn = p.get_by_role("button", name="Log Trade", exact=True).filter(visible=True)
+                    if not C.vis_loc(log_btn, 8000):          # the phone folds the header tools (JournalLayout D2)
+                        p.get_by_role("button", name="Journal tools", exact=True).click()
+                        C.vis_loc(log_btn, 10000)
+                    log_btn.first.click()
+                    p.get_by_role("menuitem", name="Log open position", exact=True).click()
+                    add = p.get_by_role("button", name="Add Position", exact=True)
+                    C.vis_loc(add, 15000)
+                    form = p.get_by_role("dialog").filter(has=add)
+                    form.get_by_role("combobox", name="Symbol").fill("MSFT")
+                    form.get_by_label("Shares").fill("10")
+                    form.get_by_label("Entry Price").fill("100")
+                    form.locator("label").filter(has=p.get_by_text("Setup", exact=True)).locator("select").select_option("VCP")
+                    checklist = form.get_by_role("group", name="Pre-entry checklist", exact=True)
+                    rule_box = checklist.get_by_role("checkbox", name=rule["label"], exact=True)
+                    shown = C.vis_loc(rule_box, 15000)
+                    items = checklist.get_by_role("checkbox").count() if shown else 0     # the group renders its items at once
+                    rule_box.check()
+                    with p.expect_response(lambda r: r.request.method == "POST" and bool(positions.search(r.url)),
+                                           timeout=20000) as made, \
+                         p.expect_response(lambda r: r.request.method == "PUT" and bool(pre_entry.search(r.url)),
+                                           timeout=20000) as ticks:
+                        add.click()
+                    pid = (made.value.json() or {}).get("id")
+                    close_status, trade = close_trade(i, pid, 10, 110) if pid else (None, {})
+                    picker_rows = M.get(base + "/api/j2/trader-blocks/review/trades").json().get("trades") or []
+                    ref = next((t.get("tradeRef") or t.get("id") for t in picker_rows if t.get("id") == trade.get("id")), None)
+                    review = M.get(base + f"/api/j2/trader-blocks/review/{ref}").json() if ref else {}
+                    t_ = review.get("trade") or {}
+                    pre = review.get("preEntry") or {}
+                    title = " · ".join(x for x in (t_.get("symbol"), t_.get("side"), t_.get("result")) if x)
+                    tags = review.get("tags") or {}
+                    tag_lines = [f"{k}: {', '.join(s.replace('_', ' ') for s in tags.get(key) or [])}"
+                                 for k, key in (("Mistakes", "mistakes"), ("Emotions", "emotions")) if tags.get(key)]
+                    missed = [x.get("label") for x in vcp_items if x.get("id") not in (pre.get("checkedRuleIds") or [])]
+                    not_ticked = f"Not ticked before entry: {', '.join(missed)}" if missed else None
+                    nid, create_status = new_from_kind(p, "Post-trade review")
+                    group = p.get_by_role("group", name="Post-trade review", exact=True).first
+                    picker = group.get_by_role("combobox", name="Trade to review", exact=True)
+                    offered = C.vis_loc(picker, 20000)
+                    landed = (save_landed(p, nid, lambda: picker.select_option(value=ref), carrying=f'"tradeId":"{ref}"')
+                              if offered and nid and ref else None)
+                    card = bool(title) and C.vis_loc(group.get_by_text(title, exact=True), 15000)
+                    tags_shown = {line: C.vis_loc(group.get_by_text(line, exact=True), 10000) for line in tag_lines}
+                    unticked = bool(not_ticked) and C.vis_loc(group.get_by_text(not_ticked, exact=True), 10000)
+                    one_of_two = items == 2 and pre.get("checkedRuleIds") == [f"rule:{rule['id']}"] and pre.get("totalRules") == 2
+                    ok = (one_of_two and close_status == 200 and landed is not None and card and len(tag_lines) == 2
+                          and all(tags_shown.values()) and unticked)
+                    C.step(p, i, "blocks.review-pack",
+                           f"Log an open position (one checklist item of two ticked), close it, New note -> Post-trade review, pick it: card, tags, not-ticked line ({vp})",
+                           "PASS" if ok else "FAIL", rule=rule, pref_status=pref_status, checklist_items=items,
+                           position_status=made.value.status, position_id=pid, pre_entry_status=ticks.value.status,
+                           close_status=close_status, trade_id=trade.get("id"), trade_ref=ref, pre_entry=pre,
+                           note_id=nid, create_status=create_status, picker=offered, saved=landed is not None,
+                           card_title=title, card=card, tags_shown=tags_shown, not_ticked_line=not_ticked, not_ticked_shown=unticked)
+                finally:
+                    if c is not None:
+                        c.close()
+
+        # blocks.restore-stamp (1280): a note made from a member style at v1; the style edited to v2 (My rules
+        #   switched on: a block added) through PUT /api/j2/journal-styles/{id}; the banner's Review update ->
+        #   Apply lands v2; History -> restore the version from before the update; the banner offers
+        #   "Update layout to v2?" again (M-7: the stamp goes back with the body).
+        def restore_stamp():
+            rules_block = lambda on: [{"block": "myRules", "enabled": on, "settings": {"which": "active"}}]  # noqa: E731
+            style_status, made = C.api(ctx, inst, "POST", base, "/api/j2/journal-styles",
+                                       {"name": "Walk restore stamp", "kindId": "thesis", "blocks": rules_block(False)})
+            style = (made or {}).get("style") or {} if isinstance(made, dict) else {}
+            sid, v1 = style.get("id"), style.get("version")
+            note_status, nbody = C.api(ctx, inst, "POST", base, "/api/j2/notes", {"styleId": sid, "title": "Restore stamp walk"})
+            n = ((nbody or {}).get("note") if isinstance(nbody, dict) else None) or {}
+            put_status, upd = C.api(ctx, inst, "PUT", base, f"/api/j2/journal-styles/{sid}", {"blocks": rules_block(True)})
+            v2 = (((upd or {}).get("style") if isinstance(upd, dict) else None) or {}).get("version")
+            banner = re.compile(re.escape(f"Update layout to v{v2}?"))
+            C.goto(pg, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
+            offered = C.vis_loc(pg.get_by_text(banner), 15000)
+            apply_status = None
+            if offered:
+                pg.get_by_role("button", name="Review update").click()
+                # The apply's own answer, never the banner hiding (integrator ruling R-T13-1).
+                with pg.expect_response(lambda r: "/apply-style-update" in r.url and r.request.method == "POST",
+                                        timeout=30000) as applied:
+                    pg.get_by_role("button", name="Apply").click()
+                apply_status = applied.value.status
+                pg.get_by_text(banner).first.wait_for(state="hidden", timeout=15000)
+            after_apply = note_json(n["id"])
+            applied_ok = after_apply.get("styleVersion") == v2 and embed_of(after_apply.get("bodyJson"), "myRules") is not None
+            versions = M.get(base + f"/api/j2/notes/{n['id']}/versions").json().get("versions") or []
+            idx = next((k for k, v in enumerate(versions)
+                        if v.get("styleCaptured") and v.get("styleId") == sid and v.get("styleVersion") == v1), None)
+            restore_status = None
+            if applied_ok and idx is not None:
+                pg.get_by_role("button", name="More note actions").first.click()
+                pg.get_by_role("button", name="Version history", exact=True).first.click()
+                sheet = pg.get_by_role("dialog", name="Version history")
+                earlier = sheet.get_by_role("list", name="Earlier versions").get_by_role("button")
+                C.vis_loc(earlier, 15000)
+                earlier.nth(idx).click()                 # the list is the versions route's, newest first
+                sheet.get_by_role("button", name="Restore this version", exact=True).click()
+                restore = re.compile(rf"/api/j2/notes/{re.escape(n['id'])}/versions/{re.escape(versions[idx]['id'])}/restore(\?|$)")
+                with pg.expect_response(lambda r: r.request.method == "POST" and bool(restore.search(r.url)),
+                                        timeout=20000) as restored:
+                    pg.get_by_role("button", name="Restore", exact=True).last.click()      # the confirm's own button
+                restore_status = restored.value.status
+                C.vis_loc(sheet.get_by_text(re.compile(r"^Restored\.")), 10000)
+                pg.keyboard.press("Escape")
+            after_restore = note_json(n["id"])
+            in_place = bool(restore_status) and C.vis_loc(pg.get_by_text(banner), 15000)
+            after_reload = None
+            if restore_status == 200 and not in_place:     # the note page re-read, as a member's next visit
+                C.goto(pg, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
+                after_reload = C.vis_loc(pg.get_by_text(banner), 15000)
+            ok = (offered and apply_status == 200 and applied_ok and restore_status == 200
+                  and after_restore.get("styleVersion") == v1 and embed_of(after_restore.get("bodyJson"), "myRules") is None
+                  and (in_place or bool(after_reload)))
+            C.step(pg, inst, "blocks.restore-stamp",
+                   "A v1 note updated to v2, then History restores the version before the update: the banner offers the update again",
+                   "PASS" if ok else "FAIL", style_status=style_status, style_id=sid, v1=v1, note_status=note_status,
+                   style_put_status=put_status, v2=v2, banner=offered, apply_status=apply_status,
+                   after_apply={"styleVersion": after_apply.get("styleVersion"), "myRules": applied_ok},
+                   versions=versions, restored_index=idx, restore_status=restore_status,
+                   after_restore={"styleVersion": after_restore.get("styleVersion"),
+                                  "myRules": embed_of(after_restore.get("bodyJson"), "myRules") is not None},
+                   banner_again_in_place=in_place, banner_again_after_reload=after_reload)
+
         rows = (("blocks.slash-insert", slash_insert), ("blocks.integrity-tick-leave", tick_leave),
                 ("blocks.price-stamp", price_stamp), ("blocks.sizing", sizing), ("blocks.market-context", market_context),
-                ("blocks.log-trade-checklist", log_trade), ("blocks.switch-off-renders", switch_off))
+                ("blocks.log-trade-checklist", log_trade), ("blocks.switch-off-renders", switch_off),
+                ("blocks.my-rules", my_rules), ("blocks.before-after", before_after), ("blocks.prep-pack", prep_pack),
+                ("blocks.review-pack", review_pack), ("blocks.restore-stamp", restore_stamp))
         for feature, fn in rows:
             try:
                 fn()
@@ -2500,14 +2917,21 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             except Exception as e:  # noqa: BLE001 -- recorded, and the next row still runs
                 C.step(pg, inst, feature, "driver exception (the row did not finish)", "FAIL",
                        error=f"{type(e).__name__}: {str(e)[:600]}", traceback=traceback.format_exc()[-1600:])
-        # blocks.coverage: every feature above left a row, at every viewport it is walked at.
-        want = {("blocks.slash-insert", vp) for vp in ("1280", "820", "390")} | {
-            ("blocks.log-trade-checklist", vp) for vp in ("1280", "390")} | {
-            (f, "1280") for f, _ in rows if f not in ("blocks.slash-insert", "blocks.log-trade-checklist")}
+        # blocks.coverage: every feature, part a's and part b's, left a row at every viewport it is walked at.
+        # Typed here rather than read off `rows`, so a row dropped from that tuple is MISSING, not unwanted.
+        walked_at = {"blocks.slash-insert": ("1280", "820", "390"), "blocks.integrity-tick-leave": ("1280",),
+                     "blocks.price-stamp": ("1280",), "blocks.sizing": ("1280",), "blocks.market-context": ("1280",),
+                     "blocks.log-trade-checklist": ("1280", "390"), "blocks.switch-off-renders": ("1280",),
+                     "blocks.my-rules": ("1280", "390"), "blocks.before-after": ("1280", "390"),
+                     "blocks.prep-pack": ("1280", "820", "390"), "blocks.review-pack": ("1280", "390"),
+                     "blocks.restore-stamp": ("1280",)}
+        want = {(f, vp) for f, vps in walked_at.items() for vp in vps}
         seen = {(s.get("feature"), s.get("viewport")) for s in C.REC["steps"] if s.get("config") == cfg}
         missing = sorted(want - seen)
-        C.step(None, inst, "blocks.coverage", "every trader-blocks feature left a row at each of its viewports",
-               "PASS" if not missing else "FAIL", missing=[f"{f} @ {vp}" for f, vp in missing], shot=False)
+        unlisted = sorted(f for f, _ in rows if f not in walked_at)
+        C.step(None, inst, "blocks.coverage", "every trader-blocks feature (part a and part b) left a row at each of its viewports",
+               "PASS" if not missing and not unlisted else "FAIL", missing=[f"{f} @ {vp}" for f, vp in missing],
+               rows_not_in_coverage=unlisted, shot=False)
     run("blocks", blocks)
 
     def discover():
