@@ -816,11 +816,18 @@ function mergeChartSettingsRaw(userSettings) {
     // `scope` belongs to the INSTANCE, inside `indicatorInstances` (which passes
     // through as an array), and never to the blob: a top-level `scope` would be
     // one chart id for a settings object that every chart reads.
-    const liveStoredDefIds = new Set(
-      normalizeInstances(stored, engineRegistry).kept
+    // ⭐ A1.4 (owner Q5) — a stored record that cannot be shown counts as "stored" too, so the
+    // fold never seeds a DEFAULT copy under its name (see StockChart's draw filter).
+    const _storedNorm = normalizeInstances(stored, engineRegistry)
+    const _droppedStored = _storedNorm.dropped
+      .map(d => d && d.inst)
+      .filter(inst => inst && typeof inst === 'object' && typeof inst.instanceId === 'string' && inst.instanceId)
+    const liveStoredDefIds = new Set([
+      ..._storedNorm.kept
         .filter(i => instanceScope(i) === undefined)
         .map(i => i.defId),
-    )
+      ..._droppedStored.filter(i => typeof i.defId === 'string' && instanceScope(i) === undefined).map(i => i.defId),
+    ])
     const seeded = migrateLegacyToInstances(
       { indicatorInstances: stored,
         indicators: _legacyIndicators,
@@ -835,7 +842,13 @@ function mergeChartSettingsRaw(userSettings) {
     // preserves that order in `kept`. Tombstones come back on the end — they draw
     // nothing and reserve nothing, so their position carries no meaning, and
     // keeping them is what makes "off" survive the migration.
-    out.indicatorInstances = removed.length ? [...kept, ...removed] : kept
+    // ⭐ A1.4 (PA3 D12) — a stored record this fold cannot validate is KEPT RAW, never
+    // discarded: the fold runs once (it stamps v2), so dropping it here lost it for good. The
+    // chart then names it ("can't be shown") and offers Repair or Remove. A blob with no such
+    // record folds exactly as before.
+    const keptIds = new Set(kept.map(i => i && i.instanceId))
+    const rawKept = _droppedStored.filter(i => !keptIds.has(i.instanceId))
+    out.indicatorInstances = (removed.length || rawKept.length) ? [...kept, ...rawKept, ...removed] : kept
   }
   return out
 }

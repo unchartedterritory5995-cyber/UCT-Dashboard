@@ -973,20 +973,20 @@ describe('legacy suppression — an engine instance stands its legacy block down
     expect(rsiSeries()).toHaveLength(0)
   })
 
-  it('an instance the VALIDATOR drops never erases the indicator from the chart', () => {
-    // `bogus` is not a declared RSI input, so `normalizeInstances` drops the whole
-    // record. THE CLAIM IS UNCHANGED — a record nobody is going to draw must not
-    // be what decides the indicator disappears — but at Flip B the thing that
-    // saves it is the read-time migrator rather than the legacy block: the toggle
-    // still says RSI is on, so a projected `legacy:rsi` draws it exactly once.
-    draw({
-      ...RSI_ON,
-      indicatorInstances: [{ ...RSI_INSTANCE, inputs: { ...RSI_INSTANCE.inputs, bogus: 1 } }],
-    })
-    expect(rsiSeries(), 'RSI vanished, or was drawn twice').toHaveLength(1)
-    const bound = H.binderApis[0].bindings()
-    expect(bound).toHaveLength(1)
-    expect(bound[0].key, 'the DROPPED instance is what drew it').toContain('legacy:rsi')
+  it('⭐ A1.4 (owner Q5) — an instance the VALIDATOR drops is NAMED, never silently SUBSTITUTED', () => {
+    // `bogus` is not a declared RSI input, so `normalizeInstances` drops the whole record.
+    // ⚰️ Until A1.4 a projected DEFAULT `legacy:rsi` was drawn in its place — the member saw
+    // "RSI 14" where their own RSI had been, with nothing to say it was not theirs. Owner Q5
+    // (2026-10-13) replaced that substitution with the explicit notice: nothing is drawn under
+    // the name, the chart says "can't be shown", and Repair restores THEIR settings.
+    // ⛔ STILL TRUE: it is never drawn twice, and never from the unvalidated record.
+    const record = { ...RSI_INSTANCE, inputs: { ...RSI_INSTANCE.inputs, bogus: 1 } }
+    draw({ ...RSI_ON, indicatorInstances: [record] })
+    expect(rsiSeries(), 'a default RSI was substituted for the broken one').toHaveLength(0)
+    expect(bound().filter((b) => b.key.includes('rsi')), 'the binder bound something for RSI').toHaveLength(0)
+    const notice = document.querySelector('[data-testid="unavailable-chip"]')
+    expect(notice, 'the chart did not say the indicator cannot be shown').toBeTruthy()
+    expect(notice.textContent).toMatch(/1 indicator can.t be shown/)
   })
 
   it('…and with the toggle OFF too, it draws nothing rather than a broken series', () => {

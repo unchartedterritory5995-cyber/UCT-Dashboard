@@ -66,7 +66,7 @@
 // re-add, which `mergeSettingsOverride` already understands.
 
 import { validateInputValue } from './defSchema'
-import { legacyInstanceId, newInstanceId, stackRank } from './instances'
+import { legacyInstanceId, newInstanceId, stackRank, normalizeInstances } from './instances'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 import { getDefinition } from './nativeRegistry'
 import {
@@ -528,6 +528,43 @@ export function groupMemberIds(cs, instanceId) {
  * chart draws it — the exact disagreement the write-through mirror exists to
  * prevent.
  */
+/**
+ * ⭐ A1.4 — REMOVE a stored record that cannot be shown (`unavailableInstances`): a deleted
+ * or refused formula, a removed or out-of-range input, a damaged record. The same delete as
+ * `removeInstance` — tombstone (with its group), sever every dependent source and info value,
+ * mirror false when no live copy remains — which reaches the record because `findInstance`
+ * asks only "not a tombstone", never "valid". Returns `cs` by identity for an unknown id.
+ */
+export function removeUnavailable(cs, instanceId, registry) {
+  return removeInstance(cs, instanceId, registry)
+}
+
+/**
+ * ⭐ A1.4 — REPAIR a record whose definition still exists but whose inputs no longer fit it:
+ * every input the definition stopped declaring is deleted, and every value it would now reject
+ * is deleted (so the declared default applies). Everything else — placement, timeframe,
+ * presentation, visibility, the other inputs — is kept. Refused BY IDENTITY when the
+ * definition is unknown or the repaired record would still not validate.
+ */
+export function repairInstance(cs, instanceId, registry) {
+  const list = Array.isArray(cs?.indicatorInstances) ? cs.indicatorInstances : []
+  const at = list.findIndex(i => isLiveInstance(i) && i.instanceId === instanceId)
+  if (at < 0) return cs
+  const inst = list[at]
+  const def = resolveRegistry(registry)(inst.defId)
+  if (!def) return cs
+  const declared = declaredInputs(def)
+  const inputs = { ...(inst.inputs && typeof inst.inputs === 'object' && !Array.isArray(inst.inputs) ? inst.inputs : {}) }
+  for (const k of Object.keys(inputs)) {
+    if (!declared.has(k) || !checkInstanceInput(def, k, inputs[k]).ok) delete inputs[k]
+  }
+  const repaired = { ...inst, inputs }
+  if (normalizeInstances([repaired], registry).kept.length !== 1) return cs
+  const next = list.slice()
+  next[at] = repaired
+  return withInstances(cs, next, registry)
+}
+
 export function removeInstance(cs, instanceId, registry) {
   const inst = findInstance(cs, instanceId)
   if (!inst) return cs

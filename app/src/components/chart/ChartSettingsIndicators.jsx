@@ -86,6 +86,7 @@ import useSymbolDiscovery from './useSymbolDiscovery'
 // in it and no second `setIndicatorEnabled` call.
 import { matches, isRowOn, toggledRow, rowVisibility } from './IndicatorLibraryDialog'
 import IndicatorHistoryButtons from './IndicatorHistoryButtons'
+import UnavailableIndicators from './UnavailableIndicators'
 import { legacyInstanceId } from './engine/instances'
 import {
   addInstance, removeInstance, setIndicatorEnabled, setInstanceHidden, findInstance,
@@ -3693,6 +3694,13 @@ export default function ChartSettingsIndicators({
             )}
             {mode !== 'arrange' && (
               <IndicatorTemplatesBar settings={settings} onChange={onChange} registry={registry} />
+            )}
+            {/* ⭐ A1.4 — the stored indicators this chart cannot show, with Repair / Remove /
+                Keep (and Open in Builder where this host can open the editor). */}
+            {mode !== 'arrange' && (
+              <UnavailableIndicators variant="group" cs={settings} registry={registry} write={onChange}
+                surfaceKey={historyKey || 'global'} userId={historyUserId}
+                onOpenBuilder={definitionDoors && typeof definitionDoors.editFormula === 'function' ? (id) => definitionDoors.editFormula(id) : null} />
             )}
           </div>
         )}
