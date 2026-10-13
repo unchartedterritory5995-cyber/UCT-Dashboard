@@ -1,9 +1,9 @@
 """UCT Agent spend ledger -- a HARD daily dollar cap with worst-case reservations (Phase 0A, owner 2026-10-13).
 
 OWNER DECISION (Gate A, option 1): UCT Agent has its OWN hard cap ($5 per ET day,
-UCT_AGENT_BUDGET_USD) and ALSO stops paid inference once the site-wide ledger
+UCT_AGENT_BUDGET_USD) and ALSO stops paid inference once the SHARED $15 AI ledger
 (`catalyst.cost_guard`, $15 per ET day) is spent. Agent spend is NOT written into the
-site-wide ledger -- the indicator builder, image and catalyst-synthesis budgets are
+shared ledger -- the indicator builder, image and catalyst-synthesis budgets are
 untouched -- so the Agent can never push another feature over its own limit.
 
 HOW THE AGENT CAP HOLDS UNDER CONCURRENCY
@@ -66,7 +66,7 @@ RESEARCH_ATTEMPTS = 4
 
 AGENT_EXHAUSTED = ("UCT Agent has reached today's AI budget, so I can't interpret new requests until tomorrow. "
                    "Charts, breadth and other instant commands still work.")
-SITE_EXHAUSTED = ("UCT's AI budget for today has been reached, so UCT Agent can't interpret new requests until "
+SITE_EXHAUSTED = ("UCT's shared AI budget for today has been reached, so UCT Agent can't interpret new requests until "
                   "tomorrow. Charts, breadth and other instant commands still work.")
 UNAVAILABLE = ("UCT Agent can't check its AI budget right now, so nothing was sent and nothing changed. "
                "Instant commands still work. Please try again shortly.")
@@ -221,9 +221,12 @@ def calls_used(request_id: int) -> int:
     return int(row[0]) if row else 0
 
 
-# ── the site-wide ledger (read-only) ────────────────────────────────────────────────────────────
+# ── the SHARED $15 ledger (read-only) ────────────────────────────────────────────────────────────
 def site_spend_usd() -> tuple[float, float]:
-    """(today's site-wide spend, the site-wide hard cap) from catalyst.cost_guard. READ-ONLY.
+    """(today's spend, the hard cap) of the SHARED $15 ledger (catalyst.cost_guard). READ-ONLY.
+    ⛔ NOT site-wide: it covers catalyst synthesis + its support jobs, call recaps, sector reads and the
+    indicator builder / vision (docs/agent/conversational-intelligence/GATE-B-BUDGET.md); other paid AI
+    features have their own caps or none.
     The Agent never writes there (owner, option 1)."""
     import sqlite3
     from api.services.catalyst import cost_guard, store as catalyst_store
@@ -248,7 +251,7 @@ def reserve(*, user_id: Any, request_id: int | None, category: str, model: str, 
     try:
         site_spent, site_cap = (site_reader or site_spend_usd)()
     except Exception:  # noqa: BLE001 -- fail closed: no paid call without a readable site ledger
-        log.exception("[uct-agent budget] site-wide ledger unreadable; paid call refused")
+        log.exception("[uct-agent budget] shared $15 ledger unreadable; paid call refused")
         raise BudgetRefused("unavailable", UNAVAILABLE)
     if site_spent >= site_cap:
         raise BudgetRefused("site_cap", SITE_EXHAUSTED)

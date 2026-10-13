@@ -15,7 +15,7 @@
   POST /api/agent/breadth                  a historical breadth lookup, answered LOCALLY (read-only, no model)
   POST /api/agent/breadth/history          a historical breadth SEARCH (MI breadth_events), answered LOCALLY
   GET  /api/agent/breadth/dates            today (ET) + latest finalized session per universe (dates only)
-  GET  /api/agent/budget                   today's Agent AI spend vs its $ cap and the site-wide cap (aggregates)
+  GET  /api/agent/budget                   today's Agent AI spend vs its $ cap and the shared $15 cap (aggregates)
 
 Nothing here mutates a workspace: the browser executes the deterministic
 actions and reports the outcome back through /record. Paid (402) AND admin (403)
@@ -385,7 +385,7 @@ def _name_unnamed(uid: int, cid: str, request_id: int | None = None) -> None:
 
 @router.get("/api/agent/budget")
 def agent_budget(user: dict = Depends(require_admin_dark)):
-    """Today's Agent AI spend against its cap and the site-wide cap: aggregates only."""
+    """Today's Agent AI spend against its cap and the shared $15 cap (not site-wide): aggregates only."""
     from api.services.uct_agent import budget
     return budget.state()
 
