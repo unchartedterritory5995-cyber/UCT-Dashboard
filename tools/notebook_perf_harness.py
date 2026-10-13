@@ -561,17 +561,21 @@ def paragraphs_doc(n: int, tag: str) -> tuple[dict, str]:
     return {"type": "doc", "content": content}, marker
 
 
-#: Notebook P2a (Task 13): the trader blocks and the market context stamp `--with-blocks` seeds, in the
-#: order they go in. The three block ids are trader_blocks.BLOCK_IDS; the dry run proves this list is it.
-TRADER_BLOCK_KINDS = ("preEntryChecklist", "priceStamps", "positionSizing", "marketcontext")
+#: The trader blocks and the market context stamp `--with-blocks` seeds, in the order they go in: the
+#: nine block ids (part a's three, P2a Task 13; part b's six, P2b Task 13), then the stamp. The block
+#: ids are trader_blocks.BLOCK_IDS, in its order; the dry run proves this list is exactly that.
+TRADER_BLOCK_KINDS = ("preEntryChecklist", "priceStamps", "positionSizing",
+                      "myRules", "prepWire", "prepEarnings", "prepMovers", "prepLevels", "tradeReview",
+                      "marketcontext")
 
 
 def trader_block_nodes() -> list[dict]:
     """One widgetEmbed of every trader block kind and one market context stamp, built by the SERVER's
     own builders (api/services/journal_two/trader_blocks.py BUILDERS) in "update" mode: each block at
-    its catalog defaults with its searchText, and the stamp UNCAPTURED ({"uncaptured": True, "fields":
-    "all"}), so building them reads no market data and writes nothing. Imported at call time: the
-    harness itself stays importable without the app on the path."""
+    its catalog defaults with its searchText, the four prep blocks with NO snapshot (an "Update layout"
+    block reads nothing, IR-S11), the review block with no trade, and the stamp UNCAPTURED
+    ({"uncaptured": True, "fields": "all"}), so building them reads no market data and writes nothing.
+    Imported at call time: the harness itself stays importable without the app on the path."""
     if str(REPO) not in sys.path:
         sys.path.insert(0, str(REPO))
     from datetime import datetime, timezone
@@ -1110,9 +1114,10 @@ def dry_run() -> int:
     assert above_cap_busy_rows[0]["budget_ms"] is None, above_cap_busy_rows
     doc, marker = paragraphs_doc(1000, "dry")
     assert len(doc["content"]) == 1000 and doc["content"][-1]["content"][0]["text"] == marker
-    # P2a Task 13, `--with-blocks`: the seeded doc carries all four -- every trader block and the
-    # market context stamp -- as its second node onward, shaped by the server's builders. Checked
-    # against the server's catalog (journal_styles.BLOCK_KINDS) and BLOCK_IDS, never a typed copy.
+    # P2a + P2b Task 13, `--with-blocks`: the seeded doc carries all ten nodes -- the nine trader
+    # blocks and the market context stamp -- as its second node onward, shaped by the server's
+    # builders. Checked against the server's catalog (journal_styles.BLOCK_KINDS) and BLOCK_IDS (its
+    # ORDER too), never a typed copy.
     plain, _ = seed_doc(5, "dry")
     assert len(plain["content"]) == 5 and all(x["type"] == "paragraph" for x in plain["content"]), plain
     bdoc, bmarker = seed_doc(5, "dry", with_blocks=True)
@@ -1120,10 +1125,10 @@ def dry_run() -> int:
     seeded = bdoc["content"][1:1 + len(TRADER_BLOCK_KINDS)]
     kinds = [x["attrs"]["widgetId"] for x in seeded if x["type"] == "widgetEmbed"]
     assert kinds == list(TRADER_BLOCK_KINDS), kinds
-    assert set(kinds) == {*tb.BLOCK_IDS, "marketcontext"} and len(kinds) == 4, kinds
-    assert bdoc["content"][0]["type"] == "paragraph" and len(bdoc["content"]) == 5 + 4, bdoc["content"]
+    assert kinds == [*tb.BLOCK_IDS, "marketcontext"] and len(tb.BLOCK_IDS) == 9 and len(kinds) == 10, kinds
+    assert bdoc["content"][0]["type"] == "paragraph" and len(bdoc["content"]) == 5 + 10, bdoc["content"]
     assert bdoc["content"][-1]["content"][0]["text"] == bmarker, "the open still waits for the last paragraph"
-    assert len({x["attrs"]["embedId"] for x in seeded}) == 4, "every embed needs its own embedId"
+    assert len({x["attrs"]["embedId"] for x in seeded}) == 10, "every embed needs its own embedId"
     for x in seeded:
         a, kind = x["attrs"], x["attrs"]["widgetId"]
         assert a["v"] == 1 and a["mode"] == "snapshot" and isinstance(a["embedId"], str) and a["embedId"], a
@@ -1133,6 +1138,10 @@ def dry_run() -> int:
             assert a["searchText"] == js._BLOCK_BY_ID[kind]["search"], a
         else:
             assert a["params"] == {"uncaptured": True, "fields": "all"} and "searchText" not in a, a
+        if kind in tb.PREP_BLOCK.values():
+            assert a["params"] == {}, ("an update-mode prep block captures nothing", a)
+    assert seeded[kinds.index("tradeReview")]["attrs"]["params"] == {"tradeId": ""}, "the review block names no trade"
+    assert seeded[kinds.index("myRules")]["attrs"]["params"] == {"which": "active"}, "My rules at its catalog default"
     # a clean, --busy-backed run: nothing breaches, nothing is inconclusive.
     ok = summarize({1000: [100.0] * 20, 2000: [400.0] * 20}, {1000: [3.0] * 60, 2000: [9.0] * 60},
                    {1000: 60, 2000: 60}, busy_ms={1000: [5.0] * 20, 2000: [10.0] * 20},
@@ -1201,8 +1210,8 @@ def dry_run() -> int:
           "--busy or an unclean trace is INCONCLUSIVE, the paragraph cap is honoured), "
           "the integrity reader tells CLEAN, INCOMPLETE, NOT CLEAN and MISSING apart, and "
           "keystroke-busy windows sum top-level task time with idle gaps excluded and a "
-          "boundary-straddling task split correctly, and --with-blocks seeds all four trader "
-          "blocks as the second node onward")
+          "boundary-straddling task split correctly, and --with-blocks seeds the nine trader "
+          "blocks and the market context stamp as the second node onward")
     return 0
 
 
