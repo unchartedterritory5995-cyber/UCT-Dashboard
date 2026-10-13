@@ -154,3 +154,56 @@ def test_a_guard_failure_never_costs_the_sign_in(db, monkeypatch):
 ])
 def test_network_of(ip, net):
     assert session_guard.network_of(ip) == net
+
+
+# -- cross-network kick alert (owner ask 2026-10-12) -------------------------
+
+def _kick_alerts(sent):
+    return [m for m in sent if m.startswith("Device limit kick")]
+
+
+def test_a_kick_from_another_network_alerts_the_owner(db):
+    uid = _user("kick@example.com")
+    auth_service.create_session(uid, user_agent="Chrome A", ip_address="10.0.0.1")
+    _age_sessions(uid)
+    auth_service.create_session(uid, user_agent="Chrome A", ip_address="10.0.0.2")
+    _age_sessions(uid)
+    auth_service.create_session(uid, user_agent="Safari B", ip_address="203.0.113.9")
+    alerts = _kick_alerts(db)
+    assert len(alerts) == 1
+    assert "kick@example.com" in alerts[0]
+    assert "203.0.113.9" in alerts[0] and "10.0.0.1" in alerts[0]
+    assert "Safari B" in alerts[0] and "Chrome A" in alerts[0]
+
+
+def test_a_kick_on_the_same_network_is_quiet(db):
+    uid = _user()
+    for ip in ("10.0.0.1", "10.0.0.2", "10.0.0.3"):  # one /24: one household
+        auth_service.create_session(uid, ip_address=ip)
+        _age_sessions(uid)
+    assert _kick_alerts(db) == []
+
+
+def test_no_kick_means_no_alert_even_across_networks(db):
+    uid = _user()
+    auth_service.create_session(uid, ip_address="10.0.0.1")
+    auth_service.create_session(uid, ip_address="203.0.113.9")  # 2 devices: nobody signed out
+    assert _kick_alerts(db) == []
+
+
+def test_the_kick_alert_fires_once_per_account_per_hour(db):
+    uid = _user()
+    for ip in ("10.0.0.1", "10.0.1.1", "10.0.2.1", "10.0.3.1"):
+        auth_service.create_session(uid, ip_address=ip)
+        _age_sessions(uid)
+    assert len(_kick_alerts(db)) == 1
+
+
+def test_the_kick_alert_obeys_the_sharing_kill_switch(db, monkeypatch):
+    monkeypatch.setenv("SESSION_SHARING_GUARD_ENABLED", "0")
+    uid = _user()
+    for ip in ("10.0.0.1", "10.0.1.1", "10.0.2.1"):
+        auth_service.create_session(uid, ip_address=ip)
+        _age_sessions(uid)
+    assert _kick_alerts(db) == []
+    assert len(_tokens(uid)) == 2, "the device limit itself still applies"

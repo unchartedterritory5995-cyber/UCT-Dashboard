@@ -6,7 +6,7 @@ export default function Terms() {
     <div className={styles.page}>
       <Link to="/" className={styles.backLink}>&larr; Back to home</Link>
       <h1 className={styles.heading}>Terms of Service</h1>
-      <p className={styles.subheading}>Last updated: October 8, 2026</p>
+      <p className={styles.subheading}>Last updated: October 12, 2026</p>
 
       <div className={styles.prose}>
         <h2>1. Acceptance of Terms</h2>
@@ -43,9 +43,9 @@ export default function Terms() {
         <p>
           One subscription is for one person. An account may be signed in on at most two
           devices at a time; signing in on another device signs out the one used least
-          recently. We monitor sign-in activity, and an account that is signed in from many
-          different locations in a short period may be signed out of its other devices and
-          suspended for credential sharing.
+          recently. We monitor sign-in activity, including the network each sign-in comes from.
+          An account that is signed in from many different locations in a short period is
+          signed out of its other devices and reviewed for credential sharing.
         </p>
 
         <h2>4. Payment and Refunds</h2>
