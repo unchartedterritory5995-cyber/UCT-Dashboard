@@ -7,6 +7,7 @@
 // changes is in this effect's deps, so it cannot loop (H14); PriceStampsBlock.lifecycle.test.jsx rails
 // that in a real EditorContent (one transaction each way, then nothing for 600 ms).
 import { useEffect } from 'react'
+import Switch from '../../../../../components/ui/Switch'
 import { journalStylesEnabled } from '../../../lib/journalStylesFlag'
 import { attachPriceStamps } from '../../../lib/blocks/priceStamps'
 import { BlockNeedsSwitch } from './blockStates'
@@ -19,11 +20,12 @@ export default function PriceStampsBlock({ params, setParams, editable, editor }
     [editor, on, switchOn, editable])
   return (
     <div className={styles.empty}>
-      <button type="button" role="switch" aria-checked={on} aria-label="Stamp prices as I write"
-        className={`btn btn-ghost ${styles.tap}`} disabled={!editable || !switchOn}
-        onClick={() => setParams({ on: on ? 'no' : 'yes' })}>
-        {on ? 'Price stamps: on' : 'Price stamps: off'}
-      </button>
+      <label className={styles.row}>
+        <Switch checked={on} aria-label="Stamp prices as I write" disabled={!editable || !switchOn}
+          onClick={() => setParams({ on: on ? 'no' : 'yes' })}
+          className={styles.switch} checkedClassName={styles.switchOn} knobClassName={styles.knob} />
+        <span>{on ? 'Price stamps: on' : 'Price stamps: off'}</span>
+      </label>
       {switchOn
         ? <p className={styles.muted}>Write $NVDA and press Enter: the price is added below the line a moment later, and stays as it was. Outside market hours it is the last close, with its date.</p>
         : <BlockNeedsSwitch what="Journal styles" />}

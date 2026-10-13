@@ -9,6 +9,12 @@
 .error { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; }
 .row { display: flex; align-items: center; gap: 8px; min-height: 32px; }
 .tap { min-height: 32px; }
+.switch { position: relative; flex: none; width: 34px; height: 18px; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-elevated); cursor: pointer; }
+.switch:disabled { cursor: default; opacity: .6; }
+.switchOn { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 25%, transparent); }
+.knob { position: absolute; top: 1px; left: 1px; width: 14px; height: 14px; border-radius: 50%; background: var(--text-muted); transition: transform .15s ease; }
+.switchOn .knob { transform: translateX(16px); background: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .knob { transition: none; } }
 @media (max-width: 1024px) {
   .row, .tap { min-height: var(--tap-min); }
 }
