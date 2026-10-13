@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { TIER1_IDS, TIER1_COLUMNS, TIER1_CHIPS } from './tier1Library.fixture'
-import { render, cleanup, act, fireEvent } from '@testing-library/react'
+import { _resetShareClaimForTests } from '../../../../lib/chartDeepLink'
+import { render, cleanup, act, fireEvent, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
@@ -641,7 +642,10 @@ describe('Flip B — the right-click menu is a control surface too', () => {
 // the ENGINE KEYS and are unaffected; the derivation's own gate lives in
 // `stockChartWiring.test.jsx` → *"B4 Task 5 — the share link is derived"*.
 describe('Flip B — a shared chart link carries what now decides the picture', () => {
+  // A1.3: the share param is claimed ONCE per page load (`claimShareState`) — each case is a
+  // fresh page load, so the latch is reset.
   const applyState = (state) => {
+    _resetShareClaimForTests()
     window.history.replaceState({}, '', `?state=${chartStateToUrl(state)}`)
     const persisted = []
     const view = render(
@@ -705,6 +709,60 @@ describe('Flip B — a shared chart link carries what now decides the picture', 
     cleanup(); H.reset()
     draw(next)
     expect(rsiSeries(), 'the shared "off" did not survive the trip').toHaveLength(0)
+  })
+
+  // ⭐ A1.3 (D6, owner Q6) — a shared chart never SILENTLY replaces the member's indicators.
+  const liveIds = (cs) => (cs.indicatorInstances || []).filter((i) => i && !i.deleted && !String(i.instanceId).startsWith('ovl:')).map((i) => i.instanceId).sort()
+  const mineRsi = { instanceId: 'inst:rsi:7', defId: 'rsi', inputs: { period: 7 }, hidden: false }
+  const theirLink = {
+    sym: 'AAPL', tf: 'D', chartType: 'line',
+    indicators: { rsi: { enabled: true } },
+    indicatorInstances: [{ instanceId: 'legacy:rsi', defId: 'rsi', inputs: { period: 21 }, hidden: false }],
+  }
+  const applyOver = (mine, state) => {
+    _resetShareClaimForTests()
+    window.history.replaceState({}, '', `?state=${chartStateToUrl(state)}`)
+    const persisted = []
+    const view = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+        settingsOverride={noDefaultAverages({ indicators: { rsi: { enabled: true } }, indicatorInstances: mine })}
+        onSettingsPersist={(s) => persisted.push(s)} />,
+    )
+    return { view, persisted }
+  }
+
+  it('A1.3 — the member HAS indicators: the look applies, the chart ASKS, and Keep mine writes no indicator', () => {
+    const { persisted } = applyOver([mineRsi], theirLink)
+    const prompt = document.querySelector('[data-testid="shared-indicators-prompt"]')
+    expect(prompt, 'no "Use theirs / Keep mine" prompt').toBeTruthy()
+    expect(prompt.textContent).toMatch(/1 indicator\./)
+    expect(persisted.length, 'the look half was not applied').toBeGreaterThan(0)
+    expect(persisted.at(-1).chartType).toBe('line')
+    expect(liveIds(persisted.at(-1)), 'the indicators were replaced before the member chose').toEqual(['inst:rsi:7'])
+    expect(window.location.search, 'the share param was not stripped').toBe('')
+    const n = persisted.length
+    act(() => { fireEvent.click(within(prompt).getByRole('button', { name: 'Keep mine' })) })
+    expect(persisted.length, 'Keep mine wrote something').toBe(n)
+    expect(document.querySelector('[data-testid="shared-indicators-prompt"]')).toBeNull()
+  })
+
+  it('A1.3 — Use theirs replaces with the sender\'s list', () => {
+    const { persisted } = applyOver([mineRsi], theirLink)
+    const prompt = document.querySelector('[data-testid="shared-indicators-prompt"]')
+    act(() => { fireEvent.click(within(prompt).getByRole('button', { name: 'Use theirs' })) })
+    expect(liveIds(persisted.at(-1))).toEqual(['legacy:rsi'])
+  })
+
+  it('A1.3 — ONE chart applies a link, never every chart on the page', () => {
+    _resetShareClaimForTests()
+    window.history.replaceState({}, '', `?state=${chartStateToUrl(theirLink)}`)
+    const a = []; const b = []
+    render(<>
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={noDefaultAverages({})} onSettingsPersist={(s) => a.push(s)} />
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={noDefaultAverages({})} onSettingsPersist={(s) => b.push(s)} />
+    </>)
+    const applied = [a, b].filter((w) => w.some((s) => s.chartType === 'line'))
+    expect(applied, 'the link applied to every chart on the page').toHaveLength(1)
   })
 
   it('the SENDER reads the enabled bits through the flip-aware reader, not the raw toggle', () => {

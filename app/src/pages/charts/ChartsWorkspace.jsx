@@ -1608,7 +1608,8 @@ export default function ChartsWorkspace() {
     if (link.tf) applyTfToCharts(link.tf)
     try {
       const rest = stripChartsLink(window.location.search)
-      window.history.replaceState({}, '', `${window.location.pathname}${rest}`)
+      // ⭐ A1.3 (R4): keep `history.state` (the router's key/index) — `{}` wiped it.
+      window.history.replaceState(window.history.state, '', `${window.location.pathname}${rest}`)
     } catch { /* history unavailable — lingering params are harmless */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefsLoading])
