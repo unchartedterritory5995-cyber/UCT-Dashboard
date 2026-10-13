@@ -1,4 +1,4 @@
-"""UCT Agent Phase 0A/0B — the hard dollar cap, the site-wide stop, the call ceiling and the rate
+"""UCT Agent Phase 0A/0B — the hard dollar cap, the shared-$15 stop, the call ceiling and the rate
 limits (owner Gate A decisions, 2026-10-13). No model is ever called: every caller here is a stub."""
 from __future__ import annotations
 
@@ -183,12 +183,12 @@ def test_CAP_fails_closed_when_the_ledger_is_unusable(clean, monkeypatch):
     assert e.value.reason == "unavailable"
 
 
-# ═══ the site-wide stop (read-only) ═════════════════════════════════════════════════════════════
+# ═══ the shared $15 stop (read-only) ═════════════════════════════════════════════════════════════
 def test_SITE_the_agent_stops_when_the_site_ledger_is_spent_and_never_writes_to_it(clean):
     with pytest.raises(budget.BudgetRefused) as e:
         budget.reserve(user_id="u", request_id=None, category="turn", model="m", worst_usd=0.01,
                        site_reader=lambda: (15.0, 15.0))
-    assert e.value.reason == "site_cap" and "UCT's AI budget" in e.value.sentence
+    assert e.value.reason == "site_cap" and "UCT's shared AI budget" in e.value.sentence
     with pytest.raises(budget.BudgetRefused) as e:
         budget.reserve(user_id="u", request_id=None, category="turn", model="m", worst_usd=0.01,
                        site_reader=lambda: (_ for _ in ()).throw(OSError("catalysts.db")))
@@ -350,3 +350,33 @@ def test_RATE_a_daily_cap_refusal_does_not_use_a_window_place(client, monkeypatc
     assert client.post("/api/agent/turn", json={"message": "one"}).status_code == 200
     for _ in range(3):
         assert client.post("/api/agent/turn", json={"message": "more"}).json()["detail"] == "You've reached today's UCT Agent limit."
+
+
+# ═══ delayed settlement ═════════════════════════════════════════════════════════════════════════
+def test_SETTLE_a_call_that_settles_after_et_midnight_charges_the_day_it_was_admitted(clean, monkeypatch):
+    monkeypatch.setattr(budget, "et_day", lambda: "2026-10-13")
+    rid = budget.reserve(user_id="u", request_id=None, category="turn", model="m", worst_usd=0.5, site_reader=ZERO_SITE)
+    monkeypatch.setattr(budget, "et_day", lambda: "2026-10-14")          # the reply arrives after midnight
+    budget.settle(rid, actual_usd=0.01)
+    assert budget.state("2026-10-13")["settled_usd"] == pytest.approx(0.01)
+    assert budget.state("2026-10-14")["committed_usd"] == 0              # the new day starts clean
+
+
+def test_SETTLE_is_idempotent_and_a_release_after_settle_changes_nothing(clean):
+    rid = budget.reserve(user_id="u", request_id=None, category="turn", model="m", worst_usd=0.5, site_reader=ZERO_SITE)
+    assert budget.settle(rid, actual_usd=0.02) == pytest.approx(0.02)
+    assert budget.settle(rid, actual_usd=0.40) == 0.0                    # a second settle is ignored
+    budget.release(rid)                                                   # and cannot un-charge it
+    st = budget.state()
+    assert st["settled_usd"] == pytest.approx(0.02) and st["calls"]["released"] == 0
+
+
+def test_SETTLE_a_failed_settle_leaves_the_worst_case_counting(clean, monkeypatch):
+    monkeypatch.setenv("UCT_AGENT_BUDGET_USD", "1")
+    rid = budget.reserve(user_id="u", request_id=None, category="turn", model="m", worst_usd=0.8, site_reader=ZERO_SITE)
+    with monkeypatch.context() as mp:
+        mp.setattr(budget, "_connect", lambda: (_ for _ in ()).throw(OSError("disk")))
+        assert budget.settle(rid, actual_usd=0.01) == 0.0                # never raises into the request
+    assert budget.state()["reserved_usd"] == pytest.approx(0.8)         # still held at its worst case
+    with pytest.raises(budget.BudgetRefused):
+        budget.reserve(user_id="u", request_id=None, category="turn", model="m", worst_usd=0.3, site_reader=ZERO_SITE)

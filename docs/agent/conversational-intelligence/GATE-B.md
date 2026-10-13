@@ -6,7 +6,7 @@ Branch `feat/agent-conversational-intelligence` (C:/w/aconv), based on `fdba4c99
 | Commit | What |
 |---|---|
 | `24dc391fb2` | Gate A: baseline harness, held-out v1, design, vocabulary proposals |
-| `1c4bbc9111` | 0A/0B server: spend ledger with worst-case reservations, site-wide stop, 2-call ceiling, rate limits, `GET /api/agent/budget` |
+| `1c4bbc9111` | 0A/0B server: spend ledger with worst-case reservations, shared-$15 stop, 2-call ceiling, rate limits, `GET /api/agent/budget` |
 | `8bfca051f8` | Safety: name collisions never picked instantly ("open swing", "remove momentum"); unknown tickers get a suggestion, never a substitute ("amzon") |
 | `4a8368b094` | 0C: meaning-preserving normaliser, soft trading vocabulary, live-name and typo-aware routing; held-out v2; before/after JSON |
 | `02ed717f1d` | Panel test: paid-inference refusals while instant commands keep working |
@@ -20,7 +20,7 @@ Branch `feat/agent-conversational-intelligence` (C:/w/aconv), based on `fdba4c99
   - A reservation that is never settled (the process died) keeps counting at its worst case.
   - A provider HTTP error response (nothing generated, nothing billed) releases the reservation.
 - **Fails closed:** if the ledger can't be read or written, the paid call is refused.
-- **Site-wide stop:** the Agent refuses paid calls once the catalyst ledger total reaches `CATALYST_COST_HARD_CAP` ($15). This is a read-only check. Agent spend is never written to that ledger, so the indicator-builder, image and synthesis budgets are untouched.
+- **Shared $15 stop (NOT site-wide; see GATE-B-BUDGET.md):** the Agent refuses paid calls once the catalyst ledger total reaches `CATALYST_COST_HARD_CAP` ($15). This is a read-only check. Agent spend is never written to that ledger, so the indicator-builder, image and synthesis budgets are untouched.
 - **Tracked per call:** model, category, input / output / cache-read / cache-write tokens, estimated and actual cost, and outcome.
 - **Admin view:** `GET /api/agent/budget` (aggregates only).
 
@@ -82,7 +82,7 @@ Branch `feat/agent-conversational-intelligence` (C:/w/aconv), based on `fdba4c99
   - `agentGateBSafety.test.js` (8) and `agentBudgetExhausted.test.jsx` (4) are new.
 
 ## Known limitations
-1. **"Site-wide" means the catalyst ledger's $15.** Other surfaces that log to the narrative ledger (Perplexity callers, AI Search, the market narrative and others) were already outside the $15 before this work. Worst-case AI exposure per day is therefore $15 plus the existing one-call overshoots, plus at most $5 for the Agent.
+1. **The $15 is the shared catalyst ledger, not site-wide** (GATE-B-BUDGET.md).** Other surfaces that log to the narrative ledger (Perplexity callers, AI Search, the market narrative and others) were already outside the $15 before this work. Worst-case AI exposure per day is therefore $15 plus the existing one-call overshoots, plus at most $5 for the Agent.
 2. **Other features' in-flight calls are invisible to the site check.** The Agent sees their spend only once they record it. Because Agent spend never enters that ledger, the Agent cannot push the site total over $15; it can only finish an already-admitted call after the total crosses.
 3. **Reservations are deliberately large.** A typical turn reserves about $0.04–0.06 against an actual $0.007–0.014. The only visible effect is that the Agent stops a few cents before $5 exactly.
 4. **Fail-closed means an outage of the model path** if the Agent store or catalysts.db can't be read. Instant commands keep working.

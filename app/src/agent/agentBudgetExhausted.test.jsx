@@ -1,5 +1,5 @@
 // UCT Agent — Gate B (Phase 0A/0B, owner 2026-10-13): when paid inference is unavailable — the Agent's
-// own $5 budget or the site-wide AI budget is spent, the member is rate-limited, or another request is
+// own $5 budget or the shared $15 AI budget is spent, the member is rate-limited, or another request is
 // still in flight — the server refuses BEFORE any model call with ONE plain sentence (budget.py /
 // limits.py). The panel shows that sentence as it is, changes nothing, and every instant command keeps
 // working: deterministic paths never touch the budget. Scripted server; no network, no model.
@@ -14,7 +14,7 @@ registerBuiltins()
 
 const SENTENCES = {
   agent: "UCT Agent has reached today's AI budget, so I can't interpret new requests until tomorrow. Charts, breadth and other instant commands still work.",
-  site: "UCT's AI budget for today has been reached, so UCT Agent can't interpret new requests until tomorrow. Charts, breadth and other instant commands still work.",
+  site: "UCT's shared AI budget for today has been reached, so UCT Agent can't interpret new requests until tomorrow. Charts, breadth and other instant commands still work.",
   rate: "You're sending requests faster than UCT Agent can take them. Please wait a moment and try again.",
   inflight: 'UCT Agent is still working on your last request. Wait for it to finish, then try again.',
 }
