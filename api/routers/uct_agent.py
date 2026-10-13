@@ -15,6 +15,7 @@
   POST /api/agent/breadth                  a historical breadth lookup, answered LOCALLY (read-only, no model)
   POST /api/agent/breadth/history          a historical breadth SEARCH (MI breadth_events), answered LOCALLY
   GET  /api/agent/breadth/dates            today (ET) + latest finalized session per universe (dates only)
+  GET  /api/agent/budget                   today's Agent AI spend vs its $ cap and the site-wide cap (aggregates)
 
 Nothing here mutates a workspace: the browser executes the deterministic
 actions and reports the outcome back through /record. Paid (402) AND admin (403)
@@ -220,21 +221,58 @@ def agent_turn_stream(body: TurnIn, background: BackgroundTasks, user: dict = De
 
 
 def _turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None) -> dict:
+    """⭐ PHASE 0B ADMISSION, in order: the member's in-flight slot and the request-rate windows
+    (limits.py — a reroute continues its request and takes no new window place), then the existing
+    daily count, the opt-in dollar env cap and the population cap, then the member REQUEST that every
+    paid call of this turn counts against (budget.py: at most 2 calls, and the $ caps per call)."""
+    from api.services.uct_agent import limits
+    uid = user["id"]
+    try:
+        slot = limits.admit(uid, new_request=not body.reroute)
+    except limits.Refused as e:
+        raise HTTPException(status_code=429, detail=e.sentence, headers={"Retry-After": str(e.retry_after)})
+    try:
+        return _admitted_turn(body, background, user, on_event)
+    finally:
+        limits.done(slot)
+
+
+def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None) -> dict:
     from api.services import ai_population_cap
-    from api.services.uct_agent import store, turn as agent
+    from api.services.uct_agent import budget, limits, store, turn as agent
     t0 = time.perf_counter()
     uid = user["id"]
+
+    def window_back():
+        if not body.reroute:
+            limits.give_back(uid)
+
     if not _take(uid):
+        window_back()
         raise HTTPException(status_code=429, detail="You've reached today's UCT Agent limit.")
     if over_cost_cap():
         _give_back(uid)
+        window_back()
         raise HTTPException(status_code=429, detail="UCT Agent's spending limit for today has been reached.")
     refusal = ai_population_cap.admit("uct_agent")
     if refusal:
         _give_back(uid)
+        window_back()
         raise HTTPException(status_code=429, detail=refusal)
     try:
+        request_id = budget.open_request(uid, body.conversationId, body.message, reroute=body.reroute)
+    except Exception:  # noqa: BLE001 -- no request ledger, no paid call (fails closed)
+        log.exception("[uct-agent] request ledger unavailable before the model call")
+        _give_back(uid)
+        raise HTTPException(status_code=503, detail=budget.UNAVAILABLE)
+    if request_id is None:
+        # a reroute with no request to continue: never a fresh, unmetered call
+        _give_back(uid)
+        raise HTTPException(status_code=400, detail="That follow-up has expired. Ask again.")
+    try:
         cid = store.ensure_conversation(uid, body.conversationId, body.message)
+        if cid != body.conversationId:
+            budget.attach_conversation(request_id, cid)
         history = store.get_turns(uid, cid) or []
         if body.reroute and history and history[-1].get("role") == "member" and history[-1].get("text") == body.message:
             history = history[:-1]        # the same message, asked again with more actions
@@ -258,7 +296,15 @@ def _turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None) 
                              capabilities=body.capabilities,
                              pending=body.pending, recent_outcome=body.recentOutcome,
                              manifest_version=body.manifestVersion, routing=body.routing,
-                             conversation_title=nameable, on_event=on_event)
+                             conversation_title=nameable, on_event=on_event,
+                             meter=budget.Meter(user_id=uid, request_id=request_id), reroute=body.reroute)
+    except budget.BudgetRefused as e:
+        # refused BEFORE a paid call: nothing was sent, nothing changed; the day's count is given back
+        _give_back(uid)
+        log.info("[uct-agent] paid call refused reason=%s", e.reason)
+        store.add_turn(uid, cid, "outcome", e.sentence, {"kind": "error"})
+        raise HTTPException(status_code=503 if e.reason == "unavailable" else (400 if e.reason == "call_limit" else 429),
+                            detail=e.sentence)
     except agent.TurnError as e:
         _give_back(uid)
         store.add_turn(uid, cid, "outcome", f"Refused: {e}", {"kind": "error"})
@@ -285,7 +331,7 @@ def _turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None) 
         background.add_task(_set_title, uid, cid, title)
     elif nameable == NO_TITLE_YET and not env.get("need_groups"):
         # Still unnamed and the turn gave no name: one small naming call after the reply is sent.
-        background.add_task(_name_unnamed, uid, cid)
+        background.add_task(_name_unnamed, uid, cid, request_id)
     background.add_task(store.record_telemetry, uid, cid, {
         # routing in the existing columns: path model | routed | reroute; disposition need_groups
         "path": "reroute" if body.reroute else ("routed" if body.routing else "model"),
@@ -317,18 +363,31 @@ def _set_title(uid: int, cid: str, title: str) -> None:
         log.exception("[uct-agent] could not store the conversation title")
 
 
-def _name_unnamed(uid: int, cid: str) -> None:
+def _name_unnamed(uid: int, cid: str, request_id: int | None = None) -> None:
     """Background: name a chat that is still on its first message. Never over the member's own
-    name (the store refuses that) or over a name the Agent gave it meanwhile."""
-    from api.services.uct_agent import store, turn as agent
+    name (the store refuses that) or over a name the Agent gave it meanwhile. The naming call is
+    one of its request's calls (budget.py): a request that used both is not named this turn."""
+    from api.services.uct_agent import budget, store, turn as agent
     try:
         if over_cost_cap() or (store.title_info(uid, cid) or {}).get("source") is not None:
             return
-        title = agent.name_conversation(store.get_turns(uid, cid) or [])
+        try:
+            title = agent.name_conversation(store.get_turns(uid, cid) or [],
+                                            meter=budget.Meter(user_id=uid, request_id=request_id))
+        except budget.BudgetRefused as e:
+            log.info("[uct-agent] naming skipped reason=%s", e.reason)
+            return
         if title and (store.title_info(uid, cid) or {}).get("source") is None:
             store.set_auto_title(uid, cid, title)
     except Exception:  # noqa: BLE001 -- naming is a nicety; the chat keeps its first-message name
         log.exception("[uct-agent] background naming failed")
+
+
+@router.get("/api/agent/budget")
+def agent_budget(user: dict = Depends(require_admin_dark)):
+    """Today's Agent AI spend against its cap and the site-wide cap: aggregates only."""
+    from api.services.uct_agent import budget
+    return budget.state()
 
 
 @router.post("/api/agent/record")
