@@ -70,6 +70,12 @@ def stalled(monkeypatch, request):
     probe's fail mode). Returns the call log."""
     calls: list[str] = []
     dead = request.param == "dead"
+    # engine's process-wide caches (a rundown, a breadth) would let a stalled read be skipped depending on
+    # which test ran first; every stalled run starts from a cold engine.
+    from api.services.cache import cache
+    for key in ("wire_data", "breadth", "rundown"):
+        cache.invalidate(key)
+    request.addfinalizer(lambda: [cache.invalidate(k) for k in ("wire_data", "breadth", "rundown")])
     for mod_name, attr in LEGS:
         mod = importlib.import_module(mod_name)
         real = getattr(mod, attr)
@@ -255,10 +261,20 @@ def test_the_dry_run_on_an_empty_note_makes_no_read_at_all(db_path, small_budget
     assert took < BUDGET, took
 
 
-def test_switching_an_empty_note_with_every_read_stalled_runs_on_ONE_clock(db_path, small_budget, stalled):
+def test_switching_an_empty_note_with_every_read_stalled_runs_on_ONE_clock(
+        db_path, small_budget, stalled, monkeypatch):
     """Review I-2: the write is bounded by ONE budget (compose's) plus the stated margin, and what ran
-    out lands uncaptured exactly as a create's does."""
-    from api.services.journal_two import journal_styles as js
+    out lands uncaptured exactly as a create's does. The clocks are COUNTED (each start_budget that set
+    a deadline on a memo that had none), because a stall count depends on what engine's caches held."""
+    from api.services.journal_two import journal_styles as js, trader_blocks as tb
+    clocks: list[int] = []
+    real_start = tb.start_budget
+
+    def start(memo):
+        if tb._DEADLINE not in memo:
+            clocks.append(id(memo))
+        return real_start(memo)
+    monkeypatch.setattr(tb, "start_budget", start)
     n = _empty_note()
     t0 = time.monotonic()
     note, plan = js.apply_style_update("u1", n["id"], style_id="builtin:daily_prep",
@@ -266,9 +282,7 @@ def test_switching_an_empty_note_with_every_read_stalled_runs_on_ONE_clock(db_pa
     took = time.monotonic() - t0
     assert stalled, "non-vacuity: compose reached the stalled reads"
     assert took < BUDGET + MARGIN, (took, stalled)
-    # ONE clock: only the chain already running when the single budget ran out was paid. A second clock
-    # (the plan's builders reading too) pays a second chain, which the time margin alone could absorb.
-    assert len(stalled) <= LONGEST_CHAIN, stalled
+    assert len(clocks) == 1, clocks                                             # ONE clock per request
     blocks = _embeds(note)
     for wid in PREP:
         assert "snapshot" not in blocks[wid]["params"], wid
