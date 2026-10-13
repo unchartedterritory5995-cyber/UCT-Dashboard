@@ -35,6 +35,8 @@ import { traceStart, mark, traceEnd, turnStart, turnPath, turnVisible, turnOutpu
 import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT } from './capabilities'
 import { registerBuiltins } from './builtins'
 import { routeManifest, routingEnabled, routingNames } from './routing'
+import { createMemory, tickersOfAnswer } from './memory'
+import { resolveReference, subjectTarget } from './references'
 import { correctTypos, lexiconFor } from './nl/lexicon'
 import { agentTurn, agentTurnStream, serverStreams, loadAgentConfig, agentRecord, agentConversation } from './agentClient'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
@@ -83,6 +85,17 @@ export function translateRefs(ops, refMap) {
   })
 }
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
+// GATE C: a committed plan → session memory, every target as its CHART ref (a kind's `groupOf`), with
+// the chart's symbol after the change. Never throws (memory is a convenience, not a gate).
+function rememberChange(memory, host, ops) {
+  try {
+    const asChart = (o) => { const k = getTargetKind(getCapability(o.action)?.target); return k?.groupOf ? (k.groupOf(o.target) ?? o.target) : o.target }
+    const clean = (ops || []).filter(o => o?.action && typeof o.target === 'string').map(o => ({ ...o, target: asChart(o) }))
+    const refs = [...new Set(clean.map(o => o.target))]
+    const sym = refs.length === 1 ? host?.charts?.read?.(refs[0])?.symbol || null : null
+    memory?.noteChange({ ops: clean, epoch: epochOf(host), chartSymbol: sym })
+  } catch { /* memory is best-effort */ }
+}
 // Which board the host is showing (null for hosts without layouts).
 const epochOf = (host) => (typeof host?.epoch === 'function' ? host.epoch() : null)
 // A proposal is pinned to the board only if it touches something ON the board.
@@ -256,6 +269,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const undoRef = useRef([])                // newest last
   const lastActionsRef = useRef([])         // actions of the last plan (routing keeps follow-ups' groups)
   const saidRef = useRef('')                // the member's words this turn (how much an answer shows)
+  const memoryRef = useRef(null)            // GATE C session memory (agent/memory.js) — this chat only
+  if (!memoryRef.current) memoryRef.current = createMemory()
   const [, force] = useState(0)
   const rerender = () => force(n => n + 1)
 
@@ -504,6 +519,12 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // ⭐ ONE presentation contract (present.js): each answer → the smallest view that carries it,
       // shaped by the member's own request (concise by default, depth when asked).
       const views = answers.map(a => presentOf(a, { message: saidRef.current }))
+      // ⭐ GATE C session memory: a table of tickers UCT showed, in the order shown ("open the third one").
+      // Never a local-only answer (its rows stay in the browser only, as before).
+      queries.forEach((o, i) => {
+        const syms = getCapability(o.action)?.localOnly ? null : tickersOfAnswer(answers[i])
+        if (syms) memoryRef.current.noteResults({ source: o.action, label: answers[i]?.title || null, symbols: syms })
+      })
       answers.forEach((a, i) => push(views[i] ? { role: 'agent', present: views[i], text: a.text || '' } : { role: 'agent', text: a.text, table: a.table || null, link: a.link || null }))
       const text = answers.map(a => a.text).filter(Boolean).join('\n\n')
       // the member's transcript keeps the views (restored on reload); never read into a model request
@@ -672,6 +693,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // "switch to weekly" on a board of several charts never leaves them guessing which one changed
       if (!holdForAdd) push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: [...(onTarget ? [onTarget] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
+      // ⭐ GATE C session memory: what was ACTUALLY committed (targets as chart refs) — "do the same on the
+      // right one", "put a 20 EMA on it" resolve from here (agent/references.js), re-validated on use
+      rememberChange(memoryRef.current, host, ops)
       if (next.length) return { followUps: next, ...(holdForAdd ? { held: { lines, used: false } } : {}) }
     } else {
       // a failure that carries its own complete sentence (`say`) is said as-is — never wrapped twice
@@ -909,7 +933,20 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // A choice clicked under the MODEL's own question answers that question:
       // it goes back to the model (which has the conversation), never through the
       // fast path, which would act on the bare label ("Hide volume") out of context.
-      const fast = answering ? null : fastParse(text, { host })
+      // ⭐ GATE C REFERENCES (agent/references.js): "open the third one", "compare it to the others", "do
+      // the same on the right one" — from session memory, re-validated against the live board. Never while
+      // a question or an authoring answer is waiting (those words answer THAT). A reference that cannot hold
+      // is said plainly (`say`); one it cannot read goes on to the instant path / the model as before.
+      const epochNow = epochOf(host)
+      const memRef = (answering || pendingRef.current || peekAuthoringIntent()) ? null
+        : resolveReference(text, { host, memory: memoryRef.current, epoch: epochNow })
+      if (memRef?.kind === 'say') {
+        push({ role: 'agent', text: memRef.text })
+        record({ member: text, outcome: memRef.text, outcomeData: { kind: 'reference-refused' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+        return
+      }
+      // "put a 20 EMA on it" with several charts and no click: `it` = the chart this conversation last changed
+      const fast = answering ? null : subjectTarget(memRef || fastParse(text, { host }), text, { host, memory: memoryRef.current, epoch: epochNow })
       if (fast?.kind === 'undo') return await doUndo(null, { member: text, voice })
       if (fast?.kind === 'confirm' && pendingRef.current?.kind === 'proposal') return await approve(null, { member: text, voice })
       if (fast?.kind === 'subset' && pendingRef.current?.kind === 'proposal') return await approve(fast.count, { member: text, voice })
@@ -1049,10 +1086,18 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         ? { ops: p.ops.map(o => ({ ...o, target: back[o.target] || o.target })) }
         : null
       const live = streamLine()
+      // ⭐ GATE C: what this chat showed and did (tickers in the order shown, the last change's actions), so a
+      // follow-up the instant path could not read still reaches the model with its referent. Never values.
+      const memoryFor = () => {
+        const m = memoryRef.current.forModel()
+        if (!m) return null
+        return m.subject_chart ? { ...m, subject_chart: back[m.subject_chart] || null } : m
+      }
       const ask = (r, extra = {}) => {
+        const mem = memoryFor()
         const b = {
           conversationId: conversationRef.current, message: text, voice, pending,
-          context, capabilities: r.manifest, manifestVersion: MANIFEST_VERSION, routing: r.routing, ...extra,
+          context: mem ? { ...context, conversation_memory: mem } : context, capabilities: r.manifest, manifestVersion: MANIFEST_VERSION, routing: r.routing, ...extra,
         }
         return serverStreams() ? agentTurnStream(b, live.onEvent) : agentTurn(b)
       }
@@ -1174,6 +1219,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const newChat = useCallback(() => {
     setConversationId(null)
     pendingRef.current = null
+    memoryRef.current.clear()             // GATE C: memory belongs to one chat
     setItems([])
   }, [setConversationId])
 
@@ -1181,6 +1227,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     const conv = await agentConversation(id)
     if (!conv) return
     pendingRef.current = null
+    memoryRef.current.clear()             // a reopened chat's old rows are history, not live references
     setConversationId(id)
     setItems(itemsFromTurns(conv.turns))
   }, [setConversationId])
