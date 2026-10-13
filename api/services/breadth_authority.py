@@ -752,11 +752,43 @@ def _frozen_metric(universe: str, metric: str) -> dict:
     return hit
 
 
-def _live_universe(universe: str) -> dict:
-    """{date: {metric: (o, h, l, c, source)}} of VALIDATED live publications for `universe`."""
-    p = live_replica_path()
-    if not os.path.exists(p):
+#: ⭐ (2026-10-13) Same reason as `breadth_exchange_authority.TAIL_FAST_MAX`: a small-limit history
+#: reads the newest `limit` frozen rows newest-first instead of the metric's whole slice. The
+#: frozen rows are only those ≤ FROZEN_END, so the newest `limit` of frozen ∪ live is always inside
+#: (frozen tail) ∪ live. Identical rows to the full path (tested); nothing memoised.
+TAIL_FAST_MAX = 60
+
+
+def _frozen_tail(universe: str, metric: str, limit: int) -> dict:
+    if _load_frozen() is None:
         return {}
+    c = sqlite3.connect("file:%s?mode=ro&immutable=1" % frozen_path(), uri=True)
+    try:
+        return {d: (o, h, l, cl, s) for d, o, h, l, cl, s in c.execute(
+            "SELECT date, o, h, l, c, source FROM breadth_daily_ohlc WHERE universe=? AND metric=? "
+            "ORDER BY date DESC LIMIT ?", (universe, metric, limit))}
+    finally:
+        c.close()
+
+
+_LIVE_MEMO: dict = {}
+
+
+def _live_universe(universe: str) -> dict:
+    """{date: {metric: (o, h, l, c, source)}} of VALIDATED live publications for `universe`.
+
+    (2026-10-13) Memoised on the live replica's identity (inode, size, mtime): the sync loop
+    replaces the file on every publication, which changes the key, so a read is never stale —
+    it just stops re-reading an unchanged file on every history call."""
+    p = live_replica_path()
+    try:
+        st = os.stat(p)
+    except OSError:
+        return {}
+    key = (universe, st.st_ino, st.st_size, st.st_mtime_ns)
+    hit = _LIVE_MEMO.get(key)
+    if hit is not None:
+        return hit
     out: dict = {}
     c = sqlite3.connect("file:%s?mode=ro" % p, uri=True)
     try:
@@ -767,6 +799,9 @@ def _live_universe(universe: str) -> dict:
             out.setdefault(d, {})[m] = (o, h, l, cl, s)
     finally:
         c.close()
+    if len(_LIVE_MEMO) > 8:
+        _LIVE_MEMO.clear()
+    _LIVE_MEMO[key] = out
     return out
 
 
@@ -782,7 +817,9 @@ def universe_history(metric: str, universe: Optional[str], limit: int = 6000,
     u = US_UNIVERSE
     if metric in US_WITHHELD or metric not in V2_METRICS:
         return {}
-    rows = {d: r for d, r in _frozen_metric(u, metric).items()}
+    small = bool(limit) and 0 < int(limit) <= TAIL_FAST_MAX
+    rows = {d: r for d, r in (_frozen_tail(u, metric, int(limit)) if small
+                              else _frozen_metric(u, metric)).items()}
     for d, byd in _live_universe(u).items():
         if metric in byd and d > FROZEN_END:
             rows[d] = byd[metric]

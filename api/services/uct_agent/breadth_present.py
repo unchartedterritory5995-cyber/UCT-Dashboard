@@ -155,6 +155,82 @@ def view_of(res: Any, answer: dict) -> Optional[dict]:
     return None
 
 
+# ── "% BELOW a moving average" (post-release 2026-10-13: "what % of US stocks are below the 50sma") ────────
+# UCT stores ONE measure: % of stocks ABOVE the moving average — strictly close > MA, over the names with
+# enough history for the window, rounded to 0.1 (breadth_live._pct; the finalized series is the same
+# measure). Its complement is therefore the share AT OR BELOW the average: 100 − above, over the same
+# denominator. No second dataset, nothing invented: the measure's own values, complemented and SAID so.
+BELOW_WORDS = ("Above", "At or Below")
+BELOW_REFUSAL = ("The share below a moving average is shown for a current or dated reading, or a list of recent "
+                 "sessions. For comparisons and ranges, ask about the share above it.")
+
+
+def below_ok(req: Any) -> bool:
+    """A "% below" request UCT can answer exactly: a reading (mode value) or a list of recent sessions
+    (mode rows) of % above-MA measures only — each row its own complement."""
+    mets = req.get("metrics") if isinstance(req, dict) else None
+    return (isinstance(req, dict) and req.get("mode") in ("value", "rows") and isinstance(mets, list) and bool(mets)
+            and all(isinstance(m, str) and m.startswith("pct_above_") for m in mets))
+
+
+def _below(v: Any) -> Any:
+    return round(100.0 - float(v), 1) if isinstance(v, (int, float)) and not isinstance(v, bool) else v
+
+
+def complement(res: Any) -> Any:
+    """MI's value-mode result as the share AT OR BELOW each moving average (value and prior value)."""
+    if not isinstance(res, dict):
+        return res
+    out = {**res, "metrics": []}
+    for m in res.get("metrics") or []:
+        if isinstance(m, dict) and str(m.get("metric") or "").startswith("pct_above_"):
+            m = {**m, "label": str(m.get("label") or "").replace(*BELOW_WORDS)}
+            if m.get("status") == "ok":
+                m["value"] = _below(m.get("value"))
+                if m.get("prior_value") is not None:
+                    m["prior_value"] = _below(m["prior_value"])
+        out["metrics"].append(m)
+    return out
+
+
+def complement_reading(reading):
+    """The current-reading contract's reader, complemented the same way (None stays None)."""
+    if reading is None:
+        return None
+
+    def read(universe, metric):
+        r = reading(universe, metric)
+        if not isinstance(r, dict) or not str(metric).startswith("pct_above_"):
+            return r
+        out = {**r}
+        if isinstance(r.get("value"), (int, float)):
+            out["value"] = _below(r["value"])
+        lc = r.get("latest_completed")
+        if isinstance(lc, dict) and isinstance(lc.get("value"), (int, float)):
+            out["latest_completed"] = {**lc, "value": _below(lc["value"])}
+        return out
+    return read
+
+
+# ── OPEN CHART (2026-10-13): the chart series a breadth card represents ───────────────────────────
+# The breadth registry is the authority: `symbol_for` names the (universe, measure) series and
+# `resolve` (published only) says a member can actually chart it — the same symbols /charts serves.
+# ⛔ Never the opposite measure: the share AT OR BELOW an average has no published series, so a
+# "below" card gets no chart (charting % above under that card would show the opposite).
+def chart_target(universe: Any, metric: Any, side: Any = None) -> Optional[dict]:
+    """`{"symbol", "label"}` for one published (universe, measure) series, or None. Never raises."""
+    if side == "below" or not isinstance(universe, str) or not isinstance(metric, str):
+        return None
+    try:
+        from api.services import breadth_symbols as _bs
+        sym = _bs.symbol_for(universe, metric)
+        if not sym or not _bs.resolve(sym):
+            return None
+    except Exception:  # noqa: BLE001 -- no target is the safe answer
+        return None
+    return {"symbol": str(sym).upper(), "label": str(sym)}
+
+
 def _chrono(m: dict) -> tuple[dict, dict, float]:
     """(earlier, later, later − earlier) for a compared measure, whatever order the request named them.
     MI's `change` is current − other; when `current` is the EARLIER session it is negated — the same

@@ -35,6 +35,14 @@ const table = (t, n = 60) => (t && Array.isArray(t.columns) && Array.isArray(t.r
   ? { columns: t.columns.slice(0, 8).map(c => ({ key: String(c.key), label: str(c.label, 60) })), rows: t.rows.slice(0, n) }
   : null)
 const link = (l) => (l && typeof l.href === 'string' && l.href.startsWith('/') ? { href: l.href, label: str(l.label, 80) || 'Open' } : null)
+// OPEN CHART (2026-10-13): the chart series / instrument a card represents, set by the CAPABILITY from
+// what it answered (a ticker, a published breadth series) — never derived from the card's words.
+// Shape only here; the chart's own symbol check runs again when the member opens it.
+export const CHART_SYMBOL = /^[A-Z0-9.$:^_\-/]{1,24}$/
+export const chartTarget = (c) => {
+  const s = c && typeof c.symbol === 'string' ? c.symbol.trim().toUpperCase() : ''
+  return CHART_SYMBOL.test(s) ? { symbol: s, label: str(c.label, 60) || s } : null
+}
 
 // The member's words ask for depth: then the full answer is shown, not just its lead.
 const DETAIL_WORDS = /\b(why|how come|explain\w*|in detail|detailed|details|methodolog\w*|how (is|was|are|do|does) (it|that|this|they) (calculated|computed|measured|defined)|walk me through|step by step|tutorial|break (it|that) down|full (list|table|breakdown|answer)|all (the )?(rows|fields|details)|everything|show (me )?the table)\b/i
@@ -85,6 +93,7 @@ export function presentOf(answer, { message = '' } = {}) {
   const full = String(a.text || '').trim()
   const tbl = table(a.table)
   const lnk = link(a.link)
+  const chart = chartTarget(a.chart)
   const p = a.present && VIEW_KINDS.includes(a.present.kind) ? a.present : null
   let view
   if (p) {
@@ -129,6 +138,7 @@ export function presentOf(answer, { message = '' } = {}) {
   if (p && tbl && view.kind !== 'table' && view.kind !== 'headlines' && !det.table) det.table = tbl
   if (Object.keys(det).length) view.details = det
   if (lnk) view.link = lnk
+  if (chart && view.kind !== 'error') view.chart = chart
   if (Array.isArray(a.sources) && a.sources.length) view.sources = a.sources.filter(s => typeof s === 'string').slice(0, 5)
   return isView(view) ? view : (full ? { kind: 'text', text: full } : null)
 }

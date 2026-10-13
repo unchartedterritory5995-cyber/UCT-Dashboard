@@ -39,6 +39,14 @@ def db_path(monkeypatch):
     from api.services import auth_db
     importlib.reload(auth_db)
     auth_db.init_db()
+    # The built-ins compose with readers of process-wide state (the held wire and breadth, the live-price
+    # cache). Pin each to its "nothing held" answer so the pinned fixture cannot move with whatever an
+    # earlier test or the developer's box left behind. This file judges node STRUCTURE; the params are
+    # opaque to the schema.
+    from api.services.journal_two import trader_blocks as tb
+    monkeypatch.setattr(tb, "_breadth", lambda: {})
+    monkeypatch.setattr(tb, "_regime_field", lambda memo: {"missing": "wire_unavailable"})
+    monkeypatch.setattr(tb, "_quotes", lambda *a, **k: {})
     yield tmp.name
     os.unlink(tmp.name)
 

@@ -156,7 +156,9 @@ def test_ROUTE_answers_the_member_with_the_real_figure(client, world, monkeypatc
     b = r.json()
     assert b["status"] == "ok" and "73.5%" in b["text"] and SESSION in b["text"]      # the member sees it
     assert b["table"]["rows"][0]["value"] == "73.5%"
-    assert set(b) == {"status", "text", "table", "present"}                          # nothing else rides along
+    assert set(b) <= {"status", "text", "table", "present", "chart"}                 # nothing else rides along
+    # (2026-10-13) OPEN CHART: a published series NAME from the registry — never a value
+    assert "chart" not in b or (set(b["chart"]) == {"symbol", "label"} and "73.5" not in str(b["chart"]))
     assert b["present"] == {"kind": "value", "value": "73.5%", "label": "US · % of Stocks Above 50-Day MA", "note": "As of 2026-10-09 close"}
 
 

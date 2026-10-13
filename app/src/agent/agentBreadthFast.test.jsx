@@ -14,7 +14,7 @@ vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: ()
 import AgentPanel from './AgentPanel'
 registerBuiltins()
 
-const ARGS = (metrics, basis = null, universe = 'us') => ({ mode: 'value', universe, metrics, date: null, compare_date: null, start: null, end: null, basis })
+const ARGS = (metrics, basis = null, universe = 'us') => ({ mode: 'value', universe, metrics, date: null, compare_date: null, start: null, end: null, basis, side: null, sessions: null })
 
 describe('the phrases: obvious wording only', () => {
   it.each([

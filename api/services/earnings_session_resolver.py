@@ -351,14 +351,17 @@ def parse_announcement(text: str) -> tuple[str, str] | None:
 
 
 def _press_fetch(sym: str) -> list:
-    import requests
-    key = os.environ.get("FMP_API_KEY", "")
-    if not key:
+    # Through the shared FMP client (its budget, and errors that never carry the key in
+    # their text, unlike requests' HTTPError, which names the full URL). No key and an
+    # empty list both read as "no releases", as before; any other failure still raises.
+    from api.services import fmp_client
+    try:
+        res = fmp_client.get_news_press_releases(sym, limit=25, timeout=8)
+    except (fmp_client.FMPNotConfigured, fmp_client.FMPNotFound):
         return []
-    r = requests.get("https://financialmodelingprep.com/stable/news/press-releases",
-                     params={"symbols": sym, "limit": 25, "apikey": key}, timeout=8)
-    r.raise_for_status()
-    return r.json() or []
+    if res.degraded:
+        raise RuntimeError(f"FMP press releases unavailable ({res.degraded})")
+    return res.value or []
 
 
 _RESULT_TITLE = re.compile(r"\b(reports?|announces?|posts?|delivers?)\b.*\b(results|earnings|net income)\b"

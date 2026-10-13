@@ -14,7 +14,8 @@
 // "same thing for Nasdaq" and "what about last year?" re-run the last search with one thing changed.
 
 import { registerCapability } from '../capabilities'
-import { BREADTH_UNIVERSES, BREADTH_METRICS, UCT_UNIVERSE_ANSWER, AGENT_UNIVERSES, lastBreadthSubject, rememberBreadthSubject, breadthToday } from './breadth'
+import { BREADTH_UNIVERSES, BREADTH_METRICS, UCT_UNIVERSE_ANSWER, AGENT_UNIVERSES, lastBreadthSubject, rememberBreadthSubject, breadthToday, UNI_SWITCH_RE } from './breadth'
+import { chartTarget } from '../present'
 
 export const HISTORY_OPS = ['below', 'at_or_below', 'above', 'at_or_above', 'crosses_below', 'crosses_above']
 export const HISTORY_FINDS = ['last', 'first', 'count', 'episodes', 'longest', 'last_episode']
@@ -43,7 +44,8 @@ async function answerHistory(args) {
   const t = b.table
   const table = t && Array.isArray(t.columns) && Array.isArray(t.rows) ? { columns: t.columns, rows: t.rows } : null
   const present = b.present && typeof b.present === 'object' ? b.present : null
-  return { text: b.text, table, ...(present ? { present } : {}) }
+  const chart = chartTarget(b.chart)
+  return { text: b.text, table, ...(present ? { present } : {}), ...(chart ? { chart } : {}) }
 }
 
 // ── deterministic wording ─────────────────────────────────────────────────────────────────────────
@@ -65,6 +67,22 @@ const COUNT_RE = new RegExp(`^how (?:many times|often) (?:has|did|have) ${MEASUR
 const EPISODE_RE = new RegExp(`^how long did the (last|longest) (below|under|above|over)[\\s-]*${LEVEL}[\\s-]*(?:episode|stretch|streak|run|period) last$`)
 const SAME_RE = new RegExp(`^(?:and )?(?:the )?same (?:thing |question |search )?(?:for|on) (?:the )?${UNI}(?: stocks)?$`)
 const LASTYEAR_RE = /^(?:and |ok,? )?what about (last year|this year|(?:in )?(\d{4}))$/
+// ── post-release 2026-10-13 ("how long did it stay below 10%?" reached the model) ──
+// the episode follow-up: "how long did it stay below 10%", "how long did that last", "how long was it under 10%"
+const STAY_RE = new RegExp(`^(?:and |so |ok,? )?(?:how long|for how long|how many (?:sessions|days|trading days)) (?:did|was|has|had) (?:it|that|this|the reading|(?:that|the) (?:episode|stretch|streak|run|period))(?: (?:stay|stayed|remain|remained|last|lasted|been|go on))?(?: (?:there|down there|up there))?(?: (below|under|above|over) ${LEVEL})?(?: for)?$`)
+// counted wording: "when was the last time fewer than 10% (of US stocks) were above (the 200sma | it)",
+// "... more than 90% were below the 50-day"
+const QUANT = '(more than|over|greater than|at least|fewer than|less than|under|at most|no more than)'
+const QUANT_RE = new RegExp(`^(?:when (?:was|is) )?(?:the )?(last|first|most recent) time (?:that )?${QUANT} ${LEVEL} (?:of )?(?:${UNI} )?(?:stocks |names )?(?:were|was|closed) (above|over|below|under) ?(?:(?:the |their )?(\\d+)[\\s-]*(?:day|d)?[\\s-]*(?:sma|dma|ma|moving average)?|it|that)?(?: (?:on|for|in) the ${UNI})?$`)
+const Q_OP = { 'more than': 'above', over: 'above', 'greater than': 'above', 'at least': 'at_or_above',
+  'fewer than': 'below', 'less than': 'below', under: 'below', 'at most': 'at_or_below', 'no more than': 'at_or_below' }
+// a condition on the share AT OR BELOW the MA (= 100 − the share above, the stored measure) as the same
+// condition on the stored measure: below% > X ⇔ above < 100 − X; ≥ ⇔ ≤; crossings swap direction
+const INVERT = { below: 'above', above: 'below', at_or_below: 'at_or_above', at_or_above: 'at_or_below',
+  crosses_below: 'crosses_above', crosses_above: 'crosses_below' }
+const inverted = (op, level) => ({ op: INVERT[op], level: Number((100 - level).toFixed(4)) })
+// the condition of a remembered search, as a plain side (an episode is a run of sessions on one side)
+const sideOfOp = (op) => (op === 'crosses_below' ? 'below' : op === 'crosses_above' ? 'above' : op)
 
 const clean = (raw) => String(raw || '').toLowerCase().replace(/[‘’]/g, "'").replace(/[?.!]+$/g, '').replace(/\s+/g, ' ').trim()
 const uniOf = (w) => (!w ? null : w === 'u.s.' ? 'us' : w)
@@ -75,7 +93,7 @@ function measureOf(m, offset) {
   const subj = lastBreadthSubject()
   if (pronoun) {
     if (!subj?.metric || !BREADTH_UNIVERSES.concat('uct').includes(subj.universe)) return null
-    return { universe: subj.universe, metric: subj.metric }
+    return { universe: subj.universe, metric: subj.metric, below: subj.kind === 'show' && subj.show?.side === 'below' }
   }
   const n = Number(nA || nB)
   if (!MA_PERIODS.has(n)) return null
@@ -85,6 +103,7 @@ function measureOf(m, offset) {
 }
 
 const base = (universe, metric) => ({ universe, metric, aggregation: 'daily', start: null, end: null })
+const cond = (s, op, level) => (s?.below ? inverted(op, level) : { op, level })
 
 export function breadthHistoryFast(raw) {
   const t = clean(raw)
@@ -94,22 +113,22 @@ export function breadthHistoryFast(raw) {
     const s = measureOf(m, 2); if (!s) return null
     const side = m[8]
     const op = side.startsWith('at or') ? side.replace(/ /g, '_').replace('at_or_', 'at_or_') : SIDE[side]
-    return { ...base(s.universe, s.metric), op, level: Number(m[9]), find: m[1] === 'first' ? 'first' : 'last' }
+    return { ...base(s.universe, s.metric), ...cond(s, op, Number(m[9])), find: m[1] === 'first' ? 'first' : 'last' }
   }
   m = LAST_RE2.exec(t)
   if (m) {
     const s = measureOf(m, 1); if (!s) return null
-    return { ...base(s.universe, s.metric), op: SIDE[m[7]], level: Number(m[8]), find: 'last' }
+    return { ...base(s.universe, s.metric), ...cond(s, SIDE[m[7]], Number(m[8])), find: 'last' }
   }
   m = CROSS_RE.exec(t)
   if (m) {
     const s = measureOf(m, 1); if (!s) return null
-    return { ...base(s.universe, s.metric), op: `crosses_${SIDE[m[8]]}`, level: Number(m[9]), find: m[7] === 'first' ? 'first' : 'last' }
+    return { ...base(s.universe, s.metric), ...cond(s, `crosses_${SIDE[m[8]]}`, Number(m[9])), find: m[7] === 'first' ? 'first' : 'last' }
   }
   m = COUNT_RE.exec(t)
   if (m) {
     const s = measureOf(m, 1); if (!s) return null
-    return { ...base(s.universe, s.metric), op: SIDE[m[7]], level: Number(m[8]), find: 'count', ...(m[9] ? { start: `${m[9]}-01-01` } : {}) }
+    return { ...base(s.universe, s.metric), ...cond(s, SIDE[m[7]], Number(m[8])), find: 'count', ...(m[9] ? { start: `${m[9]}-01-01` } : {}) }
   }
   m = EPISODE_RE.exec(t)
   if (m) {
@@ -117,9 +136,33 @@ export function breadthHistoryFast(raw) {
     if (!subj?.metric) return null
     return { ...base(subj.universe, subj.metric), op: SIDE[m[2]], level: Number(m[3]), find: m[1] === 'longest' ? 'longest' : 'last_episode' }
   }
+  m = QUANT_RE.exec(t)
+  if (m) {
+    // [1] last/first [2] quantifier [3] level [4] universe [5] above/below [6] MA period [7] universe
+    const subj = lastBreadthSubject()
+    const n = m[6] ? Number(m[6]) : null
+    if (n != null && !MA_PERIODS.has(n)) return null
+    const metric = n != null ? `pct_above_${n}sma` : subj?.metric
+    if (!metric || !/^pct_above_\d+sma$/.test(metric) || !BREADTH_METRICS.includes(metric)) return null
+    const universe = uniOf(m[4] || m[7]) || subj?.universe || 'us'
+    const op = Q_OP[m[2]], level = Number(m[3])
+    const c = SIDE[m[5]] === 'below' ? inverted(op, level) : { op, level }
+    return { ...base(universe, metric), ...c, find: m[1] === 'first' ? 'first' : 'last' }
+  }
+  m = STAY_RE.exec(t)
+  if (m) {
+    // the run of sessions on one side: the remembered search's (its dates kept), or the side named here
+    const subj = lastBreadthSubject()
+    if (!subj?.metric || !BREADTH_UNIVERSES.concat('uct').includes(subj.universe)) return null
+    const h = subj.kind === 'history' && subj.history ? subj.history : null
+    let c = m[1] ? { op: SIDE[m[1]], level: Number(m[2]) } : h ? { op: sideOfOp(h.op), level: h.level } : null
+    if (!c) return null                                              // "how long?" with no condition anywhere
+    if (m[1] && subj.kind === 'show' && subj.show?.side === 'below') c = inverted(c.op, c.level)
+    return { ...base(subj.universe, subj.metric), ...(h ? { start: h.start, end: h.end } : {}), ...c, find: 'last_episode' }
+  }
   const subj = lastBreadthSubject()
   if (subj?.kind === 'history' && subj.history) {
-    m = SAME_RE.exec(t)
+    m = SAME_RE.exec(t) || UNI_SWITCH_RE.exec(t)
     if (m) return { ...subj.history, universe: uniOf(m[1]) }
     m = LASTYEAR_RE.exec(t)
     if (m) {

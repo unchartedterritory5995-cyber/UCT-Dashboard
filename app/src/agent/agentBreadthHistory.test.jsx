@@ -17,7 +17,7 @@ import AgentPanel from './AgentPanel'
 registerBuiltins()
 
 const H = (universe, metric, op, level, find, extra = {}) => ({ universe, metric, aggregation: 'daily', start: null, end: null, op, level, find, ...extra })
-const SHOW_A200 = { mode: 'value', universe: 'us', metrics: ['pct_above_200sma'], date: null, compare_date: null, start: null, end: null, basis: null }
+const SHOW_A200 = { mode: 'value', universe: 'us', metrics: ['pct_above_200sma'], date: null, compare_date: null, start: null, end: null, basis: null, side: null, sessions: null }
 
 describe('the capability: local-only, closed args, one detector (MI)', () => {
   it('breadth.history is a localOnly QUERY with a closed schema inside the manifest limits', () => {
@@ -94,7 +94,7 @@ describe('lowest / highest in a year → breadth.show series (MI\'s own range su
     ['lowest nasdaq a50 in 2022', 'nasdaq', 'pct_above_50sma', '2022'],
   ])('%s', (q, universe, metric, y) => {
     expect(breadthFast(q)).toEqual({ mode: 'series', universe, metrics: [metric], date: null, compare_date: null,
-      start: `${y}-01-01`, end: `${y}-12-31`, basis: null })
+      start: `${y}-01-01`, end: `${y}-12-31`, basis: null, side: null, sessions: null })
   })
   it('a named period that is not a calendar year is the model\'s (it asks for the dates)', () => {
     expect(breadthFast('What was the highest reading for US:A200 during the 2022 bear market?')).toBeNull()

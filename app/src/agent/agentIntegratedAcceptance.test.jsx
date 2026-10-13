@@ -28,7 +28,7 @@ beforeEach(() => {
       // the only model turn: "net new highs/lows today for US, Nasdaq and NYSE" → three breadth.show ops
       const ref = body.context.breadth[0].ref
       const ops = ['us', 'nasdaq', 'nyse'].map(u => ({ action: 'breadth.show', target: ref,
-        args: { mode: 'value', universe: u, metrics: ['net_new_high_low'], date: null, compare_date: null, start: null, end: null, basis: null } }))
+        args: { mode: 'value', universe: u, metrics: ['net_new_high_low'], date: null, compare_date: null, start: null, end: null, basis: null, side: null, sessions: null } }))
       return json({ conversationId: 'c1', envelope: { disposition: 'apply', reply: '', question: null, ops, unsupported_category: null }, usage: {} })
     }
     if (url === '/api/agent/record') { records.push(body); return json({ conversationId: 'c1' }) }
