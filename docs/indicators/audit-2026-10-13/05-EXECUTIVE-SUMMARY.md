@@ -101,7 +101,7 @@ I confirmed P0-1, P0-2, P0-4 and P0-6 in the code myself. P0-4 is also confirmed
 |---|---|
 | P0-1 | TC2000 `STOC` imports with its inputs in the wrong order. Values are wrong, and the label says "Exact import" |
 | P0-2 | thinkScript weekly and monthly reads inside functions compute on daily bars. The label says "the values are the same" |
-| P0-3 | Pine `ta.cum` is drawn over loaded bars only, with no disclosure. The paste box refuses it for exactly that reason |
+| P0-3 | Pine `ta.cum` is drawn over loaded bars only. The paste box says "Not supported" while the chart attaches it with a weak badge. (Corrected in the Phase A follow-up: a badge exists, but it is incomplete) |
 | P0-4 | The Ichimoku cloud isn't projected forward and has no fill. Cloud alerts inherit the error. The code calls this a "preserved quirk" awaiting owner sign-off |
 | P0-5 | The "Last value horizontal" plot style just draws a normal line |
 | P0-6 | Turning an indicator off from several surfaces deletes every copy of it and its settings, with no undo |

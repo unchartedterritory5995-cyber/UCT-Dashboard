@@ -28,7 +28,7 @@
 |---|---|---|---|---|
 | P0-1 | **P0** | TC2000 `STOC` imports with swapped arguments; wrong values labelled "Exact import" | S (+migration) | WS6 G1 |
 | P0-2 | **P0** | thinkScript weekly/monthly reads wrapped in functions/offsets compute on daily bars; labelled "the values are the same" | M | WS6 G2 |
-| P0-3 | **P0** | Pine `ta.cum` drawn over loaded bars only; the paste box refuses it for that very reason; the chart door accepts it silently | S–M | WS5 G1 |
+| P0-3 | **P0** (corrected 10-13, see Phase A PA2) | Pine `ta.cum` is drawn over loaded bars only. The paste box says "Not supported" while the chart door attaches it. A `window_dependent` chart badge exists, but it does not say the value differs from TradingView, needs no acknowledgement, and is missing when `cum`/`isfirst` appears only in a colour or drawing | S–M | WS5 G1, PA2 |
 | P0-4 | **P0**\* | Ichimoku Senkou spans not projected forward, and no cloud fill. Chart and cloud alerts disagree with every vendor | M (+alert migration) | WS1 D-1 |
 | P0-5 | **P0**\* | Plot style "Last value horizontal" is offered but draws a normal line | S | WS2 G2 |
 | P0-6 | **P0**\* | Turning an indicator off (Library row, Ctrl+I/O/B, Alt+U, right-click submenu, Settings list) deletes **every** instance and its settings. No undo | M | WS3 G1 |
@@ -106,7 +106,16 @@
 - **Complexity:** M. Lift the wrapper to the enclosing expression, and add a value-checked test against an independent weekly SMA.
 - **Dependency:** confirm thinkorswim secondary-aggregation semantics against one captured value.
 
-### P0-3 — Pine `ta.cum` over loaded bars, undisclosed
+### P0-3 — Pine `ta.cum` over loaded bars, contradictory disclosure
+
+> **Correction (Phase A follow-up, PA2):** the chart door is not fully silent. It saves `meta.requirementTags: ['window_dependent']`, which renders a badge on the builder pane and on the member's chart (`AttachedPineDisclosures.jsx:154-170`, tested by `attachedPineDisclosures.test.jsx`). The remaining defects are:
+> - the paste box says "Not supported" directly above the attach button;
+> - the badge gives a bar count, not a date, and never says the value differs from TradingView;
+> - no acknowledgement is required;
+> - there is no badge when `cum`/`isfirst` appears only in a colour column or a drawing (12 captures).
+>
+> The original text below is kept for the record.
+
 - **Evidence:**
   - `pine.js:12678-12686` (deliberate host `cum`).
   - `vendorHarness.c29BarCounters.test.js:59-61` skips the assertion.
