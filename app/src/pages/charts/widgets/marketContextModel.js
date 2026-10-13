@@ -73,6 +73,14 @@ export const UNCAPTURED_BUDGET_SENTENCE = 'The market could not be read in time 
 /** The sentence an uncaptured stamp shows: the budget one only for exactly `reason: "budget"`. */
 export const uncapturedSentence = (reason) => (reason === 'budget' ? UNCAPTURED_BUDGET_SENTENCE : UNCAPTURED_SENTENCE)
 
+/** A capture time in the stamp builder's own form, trader_blocks._iso: `dt.astimezone(utc).isoformat()`
+ *  with "+00:00" written "Z". Python's isoformat gives six fraction digits when there is a fraction and
+ *  none when there is not; a JS Date holds milliseconds, so they are written as six digits. */
+export function captureIso(date) {
+  const s = date.toISOString()                       // YYYY-MM-DDTHH:MM:SS.mmmZ, always UTC
+  return date.getUTCMilliseconds() ? s.replace(/\.(\d{3})Z$/, '.$1000Z') : s.replace(/\.\d{3}Z$/, 'Z')
+}
+
 /** The preset a stored `fields` names; an unknown one (a newer version's) shows everything. */
 export const presetFor = (fields) =>
   (typeof fields === 'string' && Object.prototype.hasOwnProperty.call(FIELD_SETS, fields) ? FIELD_SETS[fields] : FIELD_SETS.all)

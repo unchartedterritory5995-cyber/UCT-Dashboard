@@ -16,11 +16,16 @@ export function useBlockParams({ attrs, updateAttributes, editable }) {
     seen.current = attrs?.params
     latest.current = attrs?.params || {}
   }
-  return useCallback((patch) => {
+  // R-T12-C fix round 1: an optional `{ capturedAt }` rides the SAME updateAttributes call (one
+  // transaction, never two). Only the market context stamp's "Capture now" passes it: a stamp is a
+  // dated reading. Every block calls setParams(patch) alone, so its write is exactly what it was.
+  return useCallback((patch, opts) => {
     if (!editable || typeof updateAttributes !== 'function') return false
     const params = { ...latest.current, ...patch }
     latest.current = params
-    updateAttributes({ params, searchText: paramsPlainText(attrs.widgetId, params) })
+    const next = { params, searchText: paramsPlainText(attrs.widgetId, params) }
+    if (typeof opts?.capturedAt === 'string' && opts.capturedAt) next.capturedAt = opts.capturedAt
+    updateAttributes(next)
     return true
   }, [editable, updateAttributes, attrs?.widgetId])
 }

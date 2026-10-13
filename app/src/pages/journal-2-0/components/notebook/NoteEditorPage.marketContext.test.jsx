@@ -9,6 +9,7 @@ import { render, screen, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../lib/offline/notebookFlags'
+import { contractBody } from '../../__fixtures__/contract'
 
 Range.prototype.getClientRects = () => []
 Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -149,6 +150,43 @@ describe('Market context: the budget stamp\'s Capture now writes into the note',
     expect(mcCalls()).toHaveLength(1)
     await waitFor(() => expect(screen.queryByText(BUDGET)).toBeNull())
     expect(screen.queryByRole('button', { name: 'Capture now' })).toBeNull()
+  })
+
+  it('fix round 1: the capture is DATED — capturedAt lands in the same node, and the caption says "· captured <day>"', async () => {
+    const READ = { readings: { marketPhase: 'Uptrend', powerTrend: null }, wireDate: '2026-10-12', updated: '10:30 AM ET' }
+    routeFetch(async () => ({ ok: true, status: 200, json: async () => READ }))
+    NOTE = { ...note(), bodyJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Plan ' }] }, budgetStamp()] } }
+    const ed = await renderEditor()
+    const before = await screen.findByRole('figure')
+    expect(before.getAttribute('aria-label')).toBe('Market Context — not captured')     // no date before
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    const t0 = Date.now()
+    await act(async () => { (await screen.findByRole('button', { name: 'Capture now' })).click() })
+    await waitFor(() => expect(stamps(ed)[0].attrs.params.readings).toEqual(READ.readings))
+    const at = stamps(ed)[0].attrs.capturedAt
+    expect(at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{6})?Z$/)              // trader_blocks._iso's form
+    expect(Math.abs(new Date(at).getTime() - t0)).toBeLessThan(60_000)
+    // the rendered caption (the figure's name, the words its archived image uses for alt)
+    await waitFor(() => expect(screen.getByRole('figure').getAttribute('aria-label')).toMatch(new RegExp(`· captured ${today}$`)))
+  })
+
+  it('CONTROL (fix round 1): a prep block\'s Capture now lands its snapshot and leaves capturedAt exactly as it was', async () => {
+    const WIRE = '/api/j2/trader-blocks/prep/wire'
+    const snap = contractBody('trader-blocks.prep.wire.held')
+    global.fetch = vi.fn(async (url) => (String(url) === WIRE
+      ? { ok: true, status: 200, json: async () => snap } : { ok: true, status: 200, json: async () => ({}) }))
+    const block = { type: 'widgetEmbed', attrs: {
+      v: 1, widgetId: 'prepWire', embedId: 'pw1', mode: 'snapshot', params: {},
+      capturedAt: '2026-10-05T14:00:00Z', annotations: [], caption: null, layout: { width: 'full', height: null }, fallback: null,
+    } }
+    NOTE = { ...note(), bodyJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Prep ' }] }, block] } }
+    const ed = await renderEditor()
+    const node = () => ed.getJSON().content.find((n) => n.type === 'widgetEmbed' && n.attrs.widgetId === 'prepWire')
+    // the block body is its own lazy chunk (BlockNodeView), so its first load can take a moment
+    const button = await screen.findByRole('button', { name: 'Capture now' }, { timeout: 8000 })
+    await act(async () => { button.click() })
+    await waitFor(() => expect(node().attrs.params.snapshot).toEqual(snap))           // non-vacuity: it wrote
+    expect(node().attrs.capturedAt).toBe('2026-10-05T14:00:00Z')
   })
 
   it('CONTROL: the "Update layout" stamp (no reason) shows its old sentence and no Capture now', async () => {

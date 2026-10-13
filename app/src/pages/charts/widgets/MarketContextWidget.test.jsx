@@ -450,6 +450,8 @@ describe('R-T12-C: the budget stamp', () => {
     expect(patch).toEqual({ readings: body.readings, wireDate: body.wireDate, updated: body.updated,
       uncaptured: undefined, reason: undefined })
     expect('fields' in patch).toBe(false)              // setParams merges: the stamp's own `fields` stays
+    // fix round 1: the capture time rides the same call, in trader_blocks._iso's form
+    expect(setParams.mock.calls[0][1]).toEqual({ capturedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{6})?Z$/) })
     await waitFor(() => expect(screen.getByRole('button', { name: 'Capture now' }).disabled).toBe(false))
     expect(screen.queryByText(CAPTURE_FAILED)).toBeNull()
   })

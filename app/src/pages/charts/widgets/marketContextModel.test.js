@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   sourcedText, presetFor, FIELD_SETS, SOURCED_ROWS, REGIME_WORDS, CONTEXT_ROWS, UNCAPTURED_SENTENCE,
-  UNCAPTURED_BUDGET_SENTENCE, uncapturedSentence,
+  UNCAPTURED_BUDGET_SENTENCE, uncapturedSentence, captureIso,
 } from './marketContextModel'
 import { BLOCK_KINDS } from '../../journal-2-0/lib/journalBlocks'
 import PRICE_AS_OF_WORDING from './priceAsOfWording.fixture.json'
@@ -120,6 +120,14 @@ describe('the stamp\'s wording (Task 9 rulings)', () => {
 
   it('the uncaptured sentence, verbatim (IR-S11)', () => {
     expect(UNCAPTURED_SENTENCE).toBe('Market context is captured when a note is created. This note was written before it had one.')
+  })
+
+  it('fix round 1: captureIso writes the stamp builder\'s format (trader_blocks._iso: UTC, "Z", Python isoformat)', () => {
+    // isoformat of 17:26:00.123 UTC is "2026-10-13T17:26:00.123000+00:00", written with "Z"
+    expect(captureIso(new Date(Date.UTC(2026, 9, 13, 17, 26, 0, 123)))).toBe('2026-10-13T17:26:00.123000Z')
+    // and with no fraction isoformat writes none
+    expect(captureIso(new Date(Date.UTC(2026, 9, 13, 17, 26, 0, 0)))).toBe('2026-10-13T17:26:00Z')
+    expect(captureIso(new Date(Date.UTC(2026, 0, 2, 3, 4, 5, 7)))).toBe('2026-01-02T03:04:05.007000Z')
   })
 
   it('R-T12-C: the budget stamp has its own sentence; only exactly reason "budget" picks it', () => {

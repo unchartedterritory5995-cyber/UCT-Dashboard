@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { WorkspaceContext } from '../../../charts/WorkspaceContext'
 import MarketContextWidget from '../../../charts/widgets/MarketContextWidget'
+import { captureIso } from '../../../charts/widgets/marketContextModel'
 import { frozenWorkspaceValue } from './frozenWorkspace'
 import { embedAutoCaption } from '../../lib/widgetEmbedCore'
 import { FAILED } from './blocks/PrepCapture'
@@ -29,10 +30,12 @@ function CaptureNow({ setParams }) {
       const r = body?.readings
       if (!r || typeof r !== 'object' || Array.isArray(r)) throw new Error('no readings')
       // The stamp's own `fields` stays; `uncaptured` and `reason` go (an undefined key is not saved).
+      // Fix round 1: the capture time rides the SAME write (a stamp is a dated reading), in the
+      // server builder's format, so the caption says "· captured <day>" like every other stamp.
       const landed = setParams({
         readings: r, wireDate: body.wireDate ?? null, updated: body.updated ?? null,
         uncaptured: undefined, reason: undefined,
-      })
+      }, { capturedAt: captureIso(new Date()) })
       if (landed === false) setFailed(true)
     } catch {
       setFailed(true)
