@@ -12,6 +12,8 @@
 //   add        → `instanceControls.addInstance`  (Add to Chart: `createFromResult` → addInstance)
 //   remove     → `instanceControls.removeInstance` (Chart Settings ✕, legend chip Delete)
 //   show/hide  → `instanceControls.setInstanceHidden` (Chart Settings eye, legend chip eye)
+//   setInputs  → `instanceControls.setInstanceInput` / `setIndicatorInput` (the settings rows' own two
+//                doors, routed as `indicatorRegistry.applyRowPatch` routes them) — Gate C, in-place edit
 // This file only RECORDS what the writer changed, so the change can be verified after
 // persistence and undone exactly.
 //
@@ -19,7 +21,8 @@
 // settings through the chart's one persist path and hands the read-back to
 // `confirmIndicatorMutation`; nothing here claims a save it did not see.
 
-import { addInstance, removeInstance, setInstanceHidden, findInstance, groupMemberIds, setInstanceInput, checkInstanceInput, inputSpecOf } from '../engine/instanceControls'
+import { addInstance, removeInstance, setInstanceHidden, findInstance, groupMemberIds, setInstanceInput, setIndicatorInput, checkInstanceInput, inputSpecOf } from '../engine/instanceControls'
+import { legacyInstanceId } from '../engine/instances'
 import { sourceInputsOf, sourceDependsOn, instanceLabel } from '../engine/sourceRef'
 import { infoValuesOf } from '../engine/infoValues'
 import { adoptOverlayAverages } from '../maAdoption'
@@ -29,7 +32,7 @@ import { STUDIO_PREVIEW_DEF_ID } from './studio/chartPreview'
 import { instancesOf, instanceFingerprint } from './agentSeams'
 
 export const MUTATION_CONTRACT = 'uct.indicators.mutation/1'
-export const MUTATION_OPS = Object.freeze(['add', 'remove', 'setVisible'])
+export const MUTATION_OPS = Object.freeze(['add', 'remove', 'setVisible', 'setInputs'])
 
 /** Every refusal this interface returns. Stable strings: receipts and tests pin them. */
 export const REASONS = Object.freeze({
@@ -106,6 +109,61 @@ function addWithInputs(view, defId, inputs, registry) {
   }
   const stored = findInstance(next, ids[0]).inputs || {}
   return { ok: true, cs: next, ids, inputs: Object.fromEntries(Object.keys(inputs).map((k) => [k, stored[k]])) }
+}
+
+/**
+ * ⭐ GATE C — "MAKE IT A 9" / "CHANGE THAT TO AN EMA": edit ONE live instance's inputs in place,
+ * through the canonical writers only, routed exactly as the settings rows route them
+ * (`indicatorRegistry.applyRowPatch`): a user-added instance (`inst:<defId>:<n>`) through
+ * `setInstanceInput`; the fold's `legacy:<defId>` through `setIndicatorInput` (which keeps the
+ * `cs.indicators.<defId>` mirror in step). Each value is first asked of `checkInstanceInput` (declared
+ * key, coerced type, bounds, `options` for every enum input). ⛔ Every key lands or the whole edit is
+ * refused (`bad-input`, naming the first that cannot); a request that changes nothing is `no-change`.
+ * Per INSTANCE (never the group); visibility is never touched.
+ * @returns `{ok:true, cs, before, after}` (the requested keys, as they were / as stored) | refusal
+ */
+function setInputsWith(view, instanceId, inputs, registry) {
+  const inst = findInstance(view, instanceId)
+  if (!inst || isInstanceTombstone(inst)) return refuse(REASONS.NOT_FOUND)
+  if (!isObj(inputs) || !Object.keys(inputs).length) return refuse(REASONS.BAD_REQUEST)
+  const def = getDefOf(registry)(inst.defId)
+  if (!def) return refuse(REASONS.UNKNOWN_DEFINITION)
+  const declaredDefault = (key) => ((def.inputs || []).find((i) => i && i.key === key) || {}).default
+  const current = (key) => { const v = (inst.inputs || {})[key]; return v === undefined ? declaredDefault(key) : v }
+  const checked = []
+  for (const [key, value] of Object.entries(inputs)) {
+    const c = checkInstanceInput(def, key, value)
+    if (!c.ok) return refuse(REASONS.BAD_INPUT, { key, value, why: c.why, input: inputSpecOf(c.spec) })
+    checked.push([key, c])
+  }
+  if (checked.every(([key, c]) => same(current(key), c.value))) return refuse(REASONS.NO_CHANGE)
+  const legacy = instanceId === legacyInstanceId(inst.defId)
+  let next = view
+  for (const [key, c] of checked) {
+    next = legacy ? setIndicatorInput(next, inst.defId, key, c.value, registry) : setInstanceInput(next, instanceId, key, c.value, registry)
+    if (((findInstance(next, instanceId) || {}).inputs || {})[key] !== c.value) {
+      return refuse(REASONS.BAD_INPUT, { key, value: inputs[key], why: 'the settings writer refused it', input: inputSpecOf(c.spec) })
+    }
+  }
+  const stored = findInstance(next, instanceId).inputs || {}
+  return { ok: true, cs: next,
+    before: Object.fromEntries(checked.map(([k]) => [k, current(k)])),
+    after: Object.fromEntries(checked.map(([k]) => [k, stored[k]])) }
+}
+
+/** Which definitions an edit may touch — the SAME rule as `add`: built-ins and the member's own saved
+ *  definitions; never the studio preview, never an `econp:` companion. */
+function checkEditableDefinition(defId, instanceId, ctx) {
+  if (typeof defId !== 'string' || !defId) return refuse(REASONS.BAD_REQUEST)
+  if (defId.includes(STUDIO_PREVIEW_DEF_ID) || String(instanceId || '').includes(STUDIO_PREVIEW_DEF_ID)) return refuse(REASONS.UNKNOWN_DEFINITION)
+  if (defId.startsWith('econp:') || String(instanceId || '').startsWith('econp:')) return refuse(REASONS.UNKNOWN_DEFINITION)
+  if (!getDefOf(ctx && ctx.registry)(defId)) return refuse(REASONS.UNKNOWN_DEFINITION)
+  if (USER_DEF.test(defId)) {
+    const ids = ctx && ctx.ownedDefinitionIds
+    const owned = new Set(Array.isArray(ids) ? ids : [...(ids || [])])
+    if (!owned.has(defId)) return refuse(REASONS.UNKNOWN_DEFINITION)
+  }
+  return { ok: true }
 }
 
 
@@ -380,6 +438,22 @@ export function planIndicatorMutation(cs, request, ctx) {
 
   const t = resolveIndicatorTarget(view, registry, { instanceId: req.instanceId })
   if (!t.ok) return t
+  if (req.op === 'setInputs') {
+    // per INSTANCE: pins, record and Undo cover this instance only (never its group)
+    const inst = findInstance(view, t.instanceId)
+    const editable = checkEditableDefinition(inst.defId, t.instanceId, ctx)
+    if (!editable.ok) return editable
+    const made = setInputsWith(view, t.instanceId, req.inputs, registry)
+    if (!made.ok) return made
+    const one = [t.instanceId]
+    const deps = dependentsOf(view, one, registry)
+    // the name is the legend's own, read AFTER the change (maType drives it: "EMA 20" → "SMA 20")
+    const nameAfter = instanceLabel(getDefOf(registry)(inst.defId), findInstance(made.cs, t.instanceId)) || t.name
+    return { ok: true, plan: { ...base, args: { instanceId: t.instanceId, inputs: { ...req.inputs } },
+      target: { ids: one, defId: inst.defId },
+      pins: { groupFingerprint: groupFingerprint(view, one), dependents: deps },
+      preview: { name: t.name, nameAfter, inputs: { before: made.before, after: made.after }, severs: [], dependents: deps } } }
+  }
   const ids = groupOf(view, t.instanceId)
   const inst = findInstance(view, t.instanceId)
   if (req.op === 'setVisible') {
@@ -407,7 +481,10 @@ function revalidate(view, plan, ctx) {
   }
   const ids = plan.target.ids
   if (!findInstance(view, plan.args.instanceId)) return refuse(REASONS.NOT_FOUND)
-  if (!same(groupOf(view, plan.args.instanceId), ids)) return refuse(REASONS.CHANGED_WHILE_WORKING, { what: 'group' })
+  if (plan.op === 'setInputs') {
+    const editable = checkEditableDefinition(plan.target.defId, plan.args.instanceId, ctx)
+    if (!editable.ok) return refuse(REASONS.PERMISSION_CHANGED, { was: editable.reason })
+  } else if (!same(groupOf(view, plan.args.instanceId), ids)) return refuse(REASONS.CHANGED_WHILE_WORKING, { what: 'group' })
   if (groupFingerprint(view, ids) !== plan.pins.groupFingerprint) return refuse(REASONS.CHANGED_WHILE_WORKING, { what: 'indicator' })
   if (!same(dependentsOf(view, ids, ctx.registry), plan.pins.dependents)) return refuse(REASONS.CHANGED_WHILE_WORKING, { what: 'dependents' })
   return { ok: true }
@@ -453,6 +530,13 @@ export function applyIndicatorMutation(cs, plan, ctx) {
     if (!r.ok) return r
     return { ok: true, cs: r.cs, pending: pendingFor('remove', plan, view, r.cs, r.record, registry, { name: plan.preview.name, severed: plan.preview.severs }) }
   }
+  if (plan.op === 'setInputs') {
+    const made = setInputsWith(view, plan.args.instanceId, plan.args.inputs, registry)
+    if (!made.ok) return made
+    const record = recordOf(plan.target.ids, view, made.cs)
+    return { ok: true, cs: made.cs, pending: pendingFor('setInputs', plan, view, made.cs, record, registry,
+      { name: plan.preview.nameAfter || plan.preview.name, inputs: { before: made.before, after: made.after } }) }
+  }
   const next = setInstanceHidden(view, plan.args.instanceId, !plan.args.visible, registry)
   if (next === view) return refuse(REASONS.WRITER_REFUSED)
   const record = recordOf(plan.target.ids, view, next)
@@ -478,6 +562,7 @@ export function confirmIndicatorMutation(persisted, pending, ctx) {
     ...(pending.undoOf ? { undoOf: pending.undoOf } : {}),
     ...(pending.op === 'setVisible' ? { visible: pending.visible } : {}),
     ...(pending.op === 'add' && pending.inputs && !pending.undoOf ? { inputs: { ...pending.inputs } } : {}),
+    ...(pending.op === 'setInputs' && pending.inputs ? { inputs: { before: { ...pending.inputs.before }, after: { ...pending.inputs.after } } } : {}),
     ...(pending.op === 'remove' && !pending.undoOf ? { severed: (pending.severed || []).map((d) => ({ ...d })) } : {}),
     ...(pending.restored ? { restored: pending.restored.map((d) => ({ ...d })) } : {}),
     chartId: (ctx && ctx.chartId) ?? null,
@@ -512,6 +597,14 @@ export function undoIndicatorMutation(cs, undo, ctx) {
   if (c.canManage !== true) return refuse(REASONS.PERMISSION_CHANGED, { was: REASONS.READONLY })
   const plan = { target: { defId: undo.defId } }
 
+  if (undo.op === 'setInputs') {
+    // exact or refused: the instance must still be exactly as the edit left it
+    if (groupFingerprint(view, undo.ids) !== undo.groupFingerprintAfter) return refuse(REASONS.RESTORE_CONFLICT, { path: ['indicatorInstances'] })
+    const r = revert(view, undo.record)
+    if (!r.ok) return r
+    const record = recordOf(undo.ids, view, r.cs)
+    return { ok: true, cs: r.cs, pending: pendingFor('setInputs', plan, view, r.cs, record, c.registry, { name: undo.name, undoOf: 'setInputs' }) }
+  }
   if (undo.op === 'remove' || undo.op === 'setVisible') {
     if (undo.op === 'setVisible' && groupFingerprint(view, undo.ids) !== undo.groupFingerprintAfter) {
       return refuse(REASONS.RESTORE_CONFLICT, { path: ['indicatorInstances'] })
