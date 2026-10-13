@@ -1,0 +1,10 @@
+// WS5 audit corpus - written for this audit (UCT, 2026-10-13). Not a TradingView community script.
+//@version=5
+indicator("Linear Regression Slope (audit)")
+len = input.int(20, "Length")
+lr = ta.linreg(close, len, 0)
+lrPrev = ta.linreg(close, len, 1)
+slope = lr - lrPrev
+k = ta.kama(close, 10)
+plot(slope, "Slope", color = color.teal)
+plot(k, "KAMA", color = color.orange)

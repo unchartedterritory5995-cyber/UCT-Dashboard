@@ -1,0 +1,7 @@
+// WS5 audit corpus - written for this audit (UCT, 2026-10-13). Not a TradingView community script.
+//@version=5
+indicator("Inside Day Highlighter (audit)", overlay = true)
+inside = high < high[1] and low > low[1]
+barcolor(inside ? color.yellow : na)
+plotshape(inside, "Inside", style = shape.triangleup, location = location.belowbar, color = color.yellow, size = size.small)
+alertcondition(inside, "Inside day", "Inside day on {{ticker}}")

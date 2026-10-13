@@ -1,0 +1,13 @@
+// WS5 audit corpus - written for this audit (UCT, 2026-10-13). Not a TradingView community script.
+//@version=5
+indicator("Pivot Marks (audit)", overlay = true, max_labels_count = 100, max_lines_count = 100)
+left = input.int(5, "Left")
+right = input.int(5, "Right")
+ph = ta.pivothigh(high, left, right)
+pl = ta.pivotlow(low, left, right)
+if not na(ph)
+    label.new(bar_index - right, ph, str.tostring(ph, format.mintick), style = label.style_label_down, color = color.red, textcolor = color.white)
+    line.new(bar_index - right, ph, bar_index, ph, color = color.red, extend = extend.right)
+if not na(pl)
+    label.new(bar_index - right, pl, str.tostring(pl, format.mintick), style = label.style_label_up, color = color.green, textcolor = color.white)
+plot(ta.sma(close, 20), "SMA 20", color = color.gray)

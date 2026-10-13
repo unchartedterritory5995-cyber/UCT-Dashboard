@@ -1,0 +1,4498 @@
+[
+ {
+  "id": "v3",
+  "group": "version",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "v4",
+  "group": "version",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "v5",
+  "group": "version",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "v6",
+  "group": "version",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "noversion",
+  "group": "version",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ind_overlay",
+  "group": "indicator",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "price",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ind_precision",
+  "group": "indicator",
+  "parse": true,
+  "importVerdict": "disclosed",
+  "importReason": "differences in how it is drawn only; the values are the same",
+  "importNotes": [
+   "pine:chart-only: `precision =` on `indicator()` sets how a chart formats or scales the value; this engine draws the value in its own form"
+  ],
+  "importOutputs": [
+   "plot:sma(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ind_mbb",
+  "group": "indicator",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ind_format",
+  "group": "indicator",
+  "parse": true,
+  "importVerdict": "disclosed",
+  "importReason": "differences in how it is drawn only; the values are the same",
+  "importNotes": [
+   "pine:chart-only: `format =` on `indicator()` sets how a chart formats or scales the value; this engine draws the value in its own format,"
+  ],
+  "importOutputs": [
+   "plot:100 * (close - close[10]) / close[10]"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   590
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ind_timeframe",
+  "group": "indicator",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and anot",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close, 10)"
+  ],
+  "host": "REF pine:request this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchm",
+  "runtime": "ok: value=442"
+ },
+ {
+  "id": "in_int",
+  "group": "input",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:rsi(close, 14)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [
+    "n"
+   ],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   586
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "in_float_mult",
+  "group": "input",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close, 20) + m * stdev(close, 20)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [
+    "m"
+   ],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   581
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "in_bool",
+  "group": "input",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:b ? sma(close, 20) : 0 / 0"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [
+    "b"
+   ],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   581
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "in_source_hl2",
+  "group": "input",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma((high + low) / 2, 20)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   581
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "in_string_opts",
+  "group": "input",
+  "parse": true,
+  "importVerdict": "disclosed",
+  "importReason": "differences in how it is drawn only; the values are the same",
+  "importNotes": [
+   "pine:input-kind: this Pine input carries a default the engine grammar cannot hold — `input.string` — in a timeframe position this folds e"
+  ],
+  "importOutputs": [
+   "plot:sma(close, 20)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   581
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "in_color",
+  "group": "input",
+  "parse": true,
+  "importVerdict": "disclosed",
+  "importReason": "differences in how it is drawn only; the values are the same",
+  "importNotes": [
+   "pine:input-kind: this Pine input carries a default the engine grammar cannot hold — `input.color`"
+  ],
+  "importOutputs": [
+   "plot:sma(close, 20)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   581
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "in_timeframe",
+  "group": "input",
+  "parse": true,
+  "importVerdict": "disclosed",
+  "importReason": "1 difference can change a value or when it appears",
+  "importNotes": [
+   "pine:input-kind: this Pine input carries a default the engine grammar cannot hold — `input.timeframe` — 158 uses across 61 files, of whic"
+  ],
+  "importOutputs": [
+   "plot:tf(close, 'W')"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [
+    "This script reads a higher timeframe with request.security (lookahead off). UCT shows a weekly or mo"
+   ],
+   "kind": "ast"
+  },
+  "execute": [
+   595
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "in_symbol",
+  "group": "input",
+  "parse": true,
+  "importVerdict": "disclosed",
+  "importReason": "differences in how it is drawn only; the values are the same",
+  "importNotes": [
+   "pine:input-kind: this Pine input carries a default the engine grammar cannot hold — `input.symbol`"
+  ],
+  "importOutputs": [
+   "plot:sym('SPY', close)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "in_session",
+  "group": "input",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "`time` is a SESSION CLOCK — `time(<timeframe>, <session>)` answers whether a bar falls inside a session window, read from the time the bar OPENS. A chart pane s",
+  "importNotes": [
+   "pine:input-kind: this Pine input carries a default the engine grammar cannot hold — `input.session` — a session string has no carrier in "
+  ],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "in_enum_v6",
+  "group": "input",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine input carries a default the engine grammar cannot hold — `input.enum`",
+  "importNotes": [
+   "pine:type: a user-defined type is outside the node shapes this engine stores"
+  ],
+  "importOutputs": [
+   "plot:REF pine:input-kind"
+  ],
+  "host": "REF pine:input-kind this Pine input carries a default the engine grammar cannot hold — `input.enum`",
+  "runtime": "declined pine:statement: pine:statement — this Pine line is not a shape the translator reads"
+ },
+ {
+  "id": "var_counter",
+  "group": "state",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running ",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:state"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   0
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "var_reseed",
+  "group": "state",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running ",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:state"
+  ],
+  "host": "REF pine:state this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one",
+  "runtime": "ok: value=416"
+ },
+ {
+  "id": "varip",
+  "group": "state",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running ",
+  "importNotes": [
+   "pine:state: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `a",
+   "pine:state: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `a"
+  ],
+  "importOutputs": [
+   "plot:REF pine:state"
+  ],
+  "host": "REF pine:state this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one",
+  "runtime": "declined runtime:varip: runtime:varip — varip — intrabar persistence, which a closed-bar runtime cannot reproduce"
+ },
+ {
+  "id": "if_block",
+  "group": "control",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close > open ? 1 : -1"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "if_expr",
+  "group": "control",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close > open ? 1 : -1"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "switch",
+  "group": "control",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "a Pine block spans several statements and this engine stores a single expression — `switch`, and this one's subject is not a value the script fixes, so every ar",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:block"
+  ],
+  "host": "REF pine:block a Pine block spans several statements and this engine stores a single expression — `switch`, and this one's subject is not a value the scrip",
+  "runtime": "ok: value=371"
+ },
+ {
+  "id": "ternary",
+  "group": "control",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close > open ? high : low"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "for_sum",
+  "group": "control",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "a name that is reassigned later cannot be folded into one expression — `s` — a running total built inside a `for` is not folded into one expression on this lane",
+  "importNotes": [
+   "pine:block: a Pine block spans several statements and this engine stores a single expression"
+  ],
+  "importOutputs": [
+   "plot:REF pine:reassign"
+  ],
+  "host": "REF pine:reassign a name that is reassigned later cannot be folded into one expression — `s` — a running total built inside a `for` is not folded into one exp",
+  "runtime": "ok: value=442"
+ },
+ {
+  "id": "for_in_array",
+  "group": "control",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "a name that is reassigned later cannot be folded into one expression — s",
+  "importNotes": [
+   "pine:vector: `a` is an array this engine reads as a PLAN-TIME VECTOR of `inferred` slots, rebuilt each bar — its size and every index",
+   "pine:block: a Pine block spans several statements and this engine stores a single expression"
+  ],
+  "importOutputs": [
+   "plot:REF pine:reassign"
+  ],
+  "host": "REF pine:reassign a name that is reassigned later cannot be folded into one expression — s",
+  "runtime": "declined runtime:loop: runtime:loop — a loop — the runtime has no iteration yet — `for … in`"
+ },
+ {
+  "id": "while",
+  "group": "control",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "a name that is reassigned later cannot be folded into one expression — s",
+  "importNotes": [
+   "pine:block: a Pine block spans several statements and this engine stores a single expression"
+  ],
+  "importOutputs": [
+   "plot:REF pine:reassign"
+  ],
+  "host": "REF pine:reassign a name that is reassigned later cannot be folded into one expression — s",
+  "runtime": "ok: value=447"
+ },
+ {
+  "id": "fn_inline",
+  "group": "functions",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close, 10) * 2"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "fn_block",
+  "group": "functions",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:(sma(close, 10) + ema(close, 10)) / 2"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "fn_tuple",
+  "group": "functions",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine call answers with several values at once and a column carries one — `a` — `f` returns one value, and 2 names were given",
+  "importNotes": [
+   "pine:tuple: this Pine call answers with several values at once and a column carries one — `f` returns one value, and 2 names were gi"
+  ],
+  "importOutputs": [
+   "plot:REF pine:tuple"
+  ],
+  "host": "REF pine:tuple this Pine call answers with several values at once and a column carries one — `a` — `f` returns one value, and 2 names were given",
+  "runtime": "ok: value=326"
+ },
+ {
+  "id": "method",
+  "group": "functions",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine built-in names something the engine grammar does not hold — `close.twice`",
+  "importNotes": [
+   "pine:type: a user-defined type is outside the node shapes this engine stores"
+  ],
+  "importOutputs": [
+   "plot:REF pine:builtin"
+  ],
+  "host": "REF pine:builtin this Pine built-in names something the engine grammar does not hold — `close.twice`",
+  "runtime": "declined pine:builtin: pine:builtin — this Pine built-in names something the engine grammar does not hold — `close.twice`"
+ },
+ {
+  "id": "array_basic",
+  "group": "collections",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "an array, a matrix or a map is outside the expression grammar this engine runs — `a` — its slots are written while the script runs, so this lane cannot read one",
+  "importNotes": [
+   "pine:vector: `a` is an array this engine reads as a PLAN-TIME VECTOR of `float` slots, persisting across bars — its size and every in",
+   "pine:statement: this Pine line is not a shape the translator reads"
+  ],
+  "importOutputs": [
+   "plot:REF pine:collection"
+  ],
+  "host": "REF pine:collection an array, a matrix or a map is outside the expression grammar this engine runs — `a` — its slots are written while the script runs, so this ",
+  "runtime": "ok: value=442"
+ },
+ {
+  "id": "map",
+  "group": "collections",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "an array, a matrix or a map is outside the expression grammar this engine runs — `map.get`",
+  "importNotes": [
+   "pine:statement: this Pine line is not a shape the translator reads",
+   "pine:collection: an array, a matrix or a map is outside the expression grammar this engine runs — `map.new`"
+  ],
+  "importOutputs": [
+   "plot:REF pine:collection"
+  ],
+  "host": "REF pine:collection an array, a matrix or a map is outside the expression grammar this engine runs — `map.get`",
+  "runtime": "declined runtime:array: runtime:array — an array or collection operation — the runtime has no collections yet — `map.new`"
+ },
+ {
+  "id": "matrix",
+  "group": "collections",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "an array, a matrix or a map is outside the expression grammar this engine runs — `matrix.sum`",
+  "importNotes": [
+   "pine:collection: an array, a matrix or a map is outside the expression grammar this engine runs — `matrix.new`"
+  ],
+  "importOutputs": [
+   "plot:REF pine:collection"
+  ],
+  "host": "REF pine:collection an array, a matrix or a map is outside the expression grammar this engine runs — `matrix.sum`",
+  "runtime": "declined runtime:array: runtime:array — an array or collection operation — the runtime has no collections yet — `matrix.new`"
+ },
+ {
+  "id": "udt",
+  "group": "types",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "a user-defined type is outside the node shapes this engine stores — `p.v`",
+  "importNotes": [
+   "pine:type: a user-defined type is outside the node shapes this engine stores",
+   "pine:type: a user-defined type is outside the node shapes this engine stores — `P.new`"
+  ],
+  "importOutputs": [
+   "plot:REF pine:type"
+  ],
+  "host": "REF pine:type a user-defined type is outside the node shapes this engine stores — `p.v`",
+  "runtime": "ok: value=451"
+ },
+ {
+  "id": "import_lib",
+  "group": "libraries",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "importing another script pulls in code this engine never sees — the library `TradingView/ta/7` is not in this engine's library registry, so its code cannot be c",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:builtin"
+  ],
+  "host": "REF pine:module importing another script pulls in code this engine never sees — the library `TradingView/ta/7` is not in this engine's library registry, so ",
+  "runtime": "declined runtime:library: runtime:library — a Pine library import — this lane compiles the script it is given, not a library graph — `import Tradi"
+ },
+ {
+  "id": "na_fns",
+  "group": "na",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:nz(close[1], close) + (na(close[2]) ? 0 : 1)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "fixnan",
+  "group": "na",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this fills a gap by carrying an earlier bar's value forward, which needs a per-bar memory this grammar has no node for. `na` and `nz` themselves do translate — ",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:na"
+  ],
+  "host": "REF pine:na this fills a gap by carrying an earlier bar's value forward, which needs a per-bar memory this grammar has no node for. `na` and `nz` themse",
+  "runtime": "ok: value=450"
+ },
+ {
+  "id": "hist_literal",
+  "group": "history",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close - close[5]"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   595
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "hist_var",
+  "group": "history",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close, 5) - sma(close, 5)[2]"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   594
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "hist_dynamic",
+  "group": "history",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close - close[5]"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   595
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "hist_series_offset",
+  "group": "history",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "a bar offset has to be a plain whole number written into the script — this one does not reduce to a whole number, so the window it opens would depend on a value",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:offset-literal"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "math_mix",
+  "group": "math",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:abs(close - open) + max(high, low) - min(open, close) + round(close) + pow(2, 2)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "math_avg_sum",
+  "group": "math",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:(open + close) / 2 + sum(close, 5)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   596
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "math_round_mintick",
+  "group": "math",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "`syminfo.mintick` is served on the chart pane and not on a screen: the symbol's minimum price increment differs per symbol, and a screen evaluates one definitio",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:builtin"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   "ERR a value that a symbol settles reached the evaluator unsettle"
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "math_random",
+  "group": "math",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `math.random`. This table declares abs, accum, adx, aroonDown, aroonUp, atan, atr, atrPine, avw",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `math.random`. This table declares abs, accum, adx, aroonDown, aroonUp, ata",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `math.random`. This table declares abs,"
+ },
+ {
+  "id": "str_in_plot",
+  "group": "str",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine built-in names something the engine grammar does not hold — `str.length`",
+  "importNotes": [
+   "pine:builtin: this Pine built-in names something the engine grammar does not hold — `str.tostring`"
+  ],
+  "importOutputs": [
+   "plot:REF pine:builtin"
+  ],
+  "host": "REF pine:builtin this Pine built-in names something the engine grammar does not hold — `str.length`",
+  "runtime": "declined pine:builtin: pine:builtin — this Pine built-in names something the engine grammar does not hold — `str.length`"
+ },
+ {
+  "id": "sec_sym_spy",
+  "group": "request",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sym('SPY', close)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "sec_w_off",
+  "group": "request",
+  "parse": true,
+  "importVerdict": "disclosed",
+  "importReason": "1 difference can change a value or when it appears",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:tf(close, 'W')"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [
+    "This script reads a higher timeframe with request.security (lookahead off). UCT shows a weekly or mo"
+   ],
+   "kind": "ast"
+  },
+  "execute": [
+   595
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "sec_w_on",
+  "group": "request",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:tf_live(close, 'W')"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "sec_w_gaps",
+  "group": "request",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and anot",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:request"
+  ],
+  "host": "REF pine:request this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchm",
+  "runtime": "declined runtime:request: 1 `request.security` reads another symbol or timeframe, and this pane holds only the chart's own bars, so it is not draw"
+ },
+ {
+  "id": "sec_lower",
+  "group": "request",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and anot",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:request"
+  ],
+  "host": "REF pine:request this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchm",
+  "runtime": "declined lower-tf:store-unmeasured: lower-tf:store-unmeasured — lower-tf:store-unmeasured — `60` is below this chart's timeframe, so it reads intraday bars "
+ },
+ {
+  "id": "sec_lower_tf",
+  "group": "request",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "an array, a matrix or a map is outside the expression grammar this engine runs — `a` is read as an array here and nothing in this script creates it, so there ar",
+  "importNotes": [
+   "pine:request: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (l"
+  ],
+  "importOutputs": [
+   "plot:REF pine:collection"
+  ],
+  "host": "REF pine:collection an array, a matrix or a map is outside the expression grammar this engine runs — `a` is read as an array here and nothing in this script cre",
+  "runtime": "declined pine:request: pine:request — this request could not be resolved to one symbol and one servable timeframe. The engine reads another sym"
+ },
+ {
+  "id": "sec_tuple",
+  "group": "request",
+  "parse": true,
+  "importVerdict": "disclosed",
+  "importReason": "1 difference can change a value or when it appears",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:tf(high, 'W') - tf(low, 'W')"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [
+    "This script reads a higher timeframe with request.security (lookahead off). UCT shows a weekly or mo"
+   ],
+   "kind": "ast"
+  },
+  "execute": [
+   595
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "req_financial",
+  "group": "request",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and anot",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:request"
+  ],
+  "host": "REF pine:request this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchm",
+  "runtime": "declined pine:request: pine:request — this request could not be resolved to one symbol and one servable timeframe. The engine reads another sym"
+ },
+ {
+  "id": "req_earnings",
+  "group": "request",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and anot",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:request"
+  ],
+  "host": "REF pine:request this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchm",
+  "runtime": "declined pine:request: pine:request — this request could not be resolved to one symbol and one servable timeframe. The engine reads another sym"
+ },
+ {
+  "id": "req_dividends",
+  "group": "request",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and anot",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:request"
+  ],
+  "host": "REF pine:request this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchm",
+  "runtime": "declined pine:request: pine:request — this request could not be resolved to one symbol and one servable timeframe. The engine reads another sym"
+ },
+ {
+  "id": "req_economic",
+  "group": "request",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and anot",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:request"
+  ],
+  "host": "REF pine:request this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchm",
+  "runtime": "declined pine:request: pine:request — this request could not be resolved to one symbol and one servable timeframe. The engine reads another sym"
+ },
+ {
+  "id": "tf_vars",
+  "group": "timeframe",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:isintraday ? 1 : isdaily ? 2 : 3"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "tf_multiplier",
+  "group": "timeframe",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "every column this script would offer holds the same number on every bar, so there is nothing here a chart or a screen could move on",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:1"
+  ],
+  "host": "REF  this script declares nothing a chart can draw",
+  "runtime": "declined : "
+ },
+ {
+  "id": "tf_in_seconds",
+  "group": "timeframe",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "every column this script would offer holds the same number on every bar, so there is nothing here a chart or a screen could move on",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:86400"
+  ],
+  "host": "REF  this script declares nothing a chart can draw",
+  "runtime": "declined : "
+ },
+ {
+  "id": "time_dow",
+  "group": "time",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:dayofweek == 2 ? 1 : 0"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "time_hour",
+  "group": "time",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:hour"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "time_session",
+  "group": "time",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "`time` is a SESSION CLOCK — `time(<timeframe>, <session>)` answers whether a bar falls inside a session window, read from the time the bar OPENS. A chart pane s",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "time_timestamp",
+  "group": "time",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `timestamp`. This table declares abs, accum, adx, aroonDown, aroonUp, atan, atr, atrPine, avwap",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `timestamp`. This table declares abs, accum, adx, aroonDown, aroonUp, atan,",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `timestamp`. This table declares abs, a"
+ },
+ {
+  "id": "bs_confirmed",
+  "group": "barstate",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   0
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "bs_islast",
+  "group": "barstate",
+  "parse": true,
+  "importVerdict": "disclosed",
+  "importReason": "1 difference can change a value or when it appears",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:islast ? close : 0 / 0"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   1
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "bs_isfirst",
+  "group": "barstate",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this value depends on how much history was loaded, so the same script would answer differently for the same stock on the same day — `barstate.isfirst` is the OL",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:window-dependent"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "bs_isnew",
+  "group": "barstate",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "`barstate.isnew` is a Pine built-in this engine holds no COLUMN for, though it holds its siblings: requires per-tick evaluation. `barstate.isnew` is true on the",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:builtin"
+  ],
+  "host": "REF pine:builtin `barstate.isnew` is a Pine built-in this engine holds no COLUMN for, though it holds its siblings: requires per-tick evaluation. `barstate.i",
+  "runtime": "declined pine:builtin: pine:builtin — `barstate.isnew` is a Pine built-in this engine holds no COLUMN for, though it holds its siblings: requir"
+ },
+ {
+  "id": "bs_isrealtime",
+  "group": "barstate",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "every column this script would offer holds the same number on every bar, so there is nothing here a chart or a screen could move on",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:0"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   0
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plot_color_series",
+  "group": "plot",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line/dyncol"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plot_linewidth",
+  "group": "plot",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plot_hist",
+  "group": "plot",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close - open"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "histogram"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plot_columns",
+  "group": "plot",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close - open"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "histogram"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plot_circles",
+  "group": "plot",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "markers"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plot_step",
+  "group": "plot",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "stepline"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plot_area",
+  "group": "plot",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "area"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plot_cross",
+  "group": "plot",
+  "parse": true,
+  "importVerdict": "disclosed",
+  "importReason": "differences in how it is drawn only; the values are the same",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plot_trackprice",
+  "group": "plot",
+  "parse": true,
+  "importVerdict": "disclosed",
+  "importReason": "differences in how it is drawn only; the values are the same",
+  "importNotes": [
+   "pine:chart-only: `trackprice =` on `plot` changes how a chart draws the plot (a price line across the scale); this engine draws the whole"
+  ],
+  "importOutputs": [
+   "plot:close"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plot_offset_pos",
+  "group": "plot",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close, 10)[5]"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   586
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plot_offset_neg",
+  "group": "plot",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line/displace-3"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plot_display_none",
+  "group": "plot",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close",
+   "plot:open"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plot_display_dw",
+  "group": "plot",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plot_show_last",
+  "group": "plot",
+  "parse": true,
+  "importVerdict": "disclosed",
+  "importReason": "differences in how it is drawn only; the values are the same",
+  "importNotes": [
+   "pine:chart-only: `show_last =` on `plot` changes how a chart draws the plot (only its last bars); this engine draws the whole plot withou"
+  ],
+  "importOutputs": [
+   "plot:close"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plot_transp_v4",
+  "group": "plot",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plotshape",
+  "group": "shapes",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plotshape:crossOver(close, sma(close, 10))"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "markers/marker:arrowUp"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   590
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plotchar",
+  "group": "shapes",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plotchar:close > open"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "markers/marker:circle"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plotarrow",
+  "group": "shapes",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plotarrow:close - open"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "plotcandle",
+  "group": "shapes",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "every column this script would offer is an unchanged price series it draws with, so its meaning lives in colouring this engine does not carry yet",
+  "importNotes": [],
+  "importOutputs": [
+   "plotcandle:open",
+   "plotcandle:high",
+   "plotcandle:low",
+   "plotcandle:close"
+  ],
+  "host": "REF  this script declares nothing a chart can draw",
+  "runtime": "declined : "
+ },
+ {
+  "id": "plotbar",
+  "group": "shapes",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "every column this script would offer is an unchanged price series it draws with, so its meaning lives in colouring this engine does not carry yet",
+  "importNotes": [],
+  "importOutputs": [
+   "plotbar:open",
+   "plotbar:high",
+   "plotbar:low",
+   "plotbar:close"
+  ],
+  "host": "REF  this script declares nothing a chart can draw",
+  "runtime": "declined : "
+ },
+ {
+  "id": "hline_plain",
+  "group": "levels",
+  "parse": true,
+  "importVerdict": "disclosed",
+  "importReason": "differences in how it is drawn only; the values are the same",
+  "importNotes": [
+   "pine:chart-only: `hline` draws a horizontal level; this door carries it as a level line for a chart, and a screen reads plot() and alertc"
+  ],
+  "importOutputs": [
+   "plot:rsi(close, 14)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   586
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "hline_named_fill",
+  "group": "levels",
+  "parse": true,
+  "importVerdict": "disclosed",
+  "importReason": "differences in how it is drawn only; the values are the same",
+  "importNotes": [
+   "pine:chart-only: `hline` draws a horizontal level; assigned to a name it is not carried, and a screen reads plot() and alertcondition() a",
+   "pine:chart-only: `hline` draws a horizontal level; assigned to a name it is not carried, and a screen reads plot() and alertcondition() a",
+   "pine:chart-only: `fill` shades the band between two plots; its two edges are not both plots this door carries, so it is not carried, and "
+  ],
+  "importOutputs": [
+   "plot:rsi(close, 14)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   586
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "fill_plots",
+  "group": "levels",
+  "parse": true,
+  "importVerdict": "disclosed",
+  "importReason": "differences in how it is drawn only; the values are the same",
+  "importNotes": [
+   "pine:chart-only: `fill` shades the band between two plots; this door carries it as that band for a chart, and a screen reads plot() and a"
+  ],
+  "importOutputs": [
+   "plot:high",
+   "plot:low"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line/fill",
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600,
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "fill_gradient",
+  "group": "levels",
+  "parse": true,
+  "importVerdict": "disclosed",
+  "importReason": "differences in how it is drawn only; the values are the same",
+  "importNotes": [
+   "pine:chart-only: `fill` shades the band between two plots; this door carries it as that band for a chart, and a screen reads plot() and a"
+  ],
+  "importOutputs": [
+   "plot:high",
+   "plot:low"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line/fill",
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600,
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "bgcolor",
+  "group": "paints",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "the pasted script offers no plot and no alert condition to filter on",
+  "importNotes": [
+   "pine:chart-only: `bgcolor` paints a chart's background; this door does not carry it, and a screen reads plot() and alertcondition() and n"
+  ],
+  "importOutputs": [],
+  "host": "ok",
+  "render": {
+   "plots": [],
+   "levels": 0,
+   "paints": [
+    "bgcolor"
+   ],
+   "objects": 0,
+   "placement": "price",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [],
+  "save": "ok"
+ },
+ {
+  "id": "barcolor",
+  "group": "paints",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "the pasted script offers no plot and no alert condition to filter on",
+  "importNotes": [
+   "pine:chart-only: `barcolor` paints a chart's candles; this door does not carry it, and a screen reads plot() and alertcondition() and not"
+  ],
+  "importOutputs": [],
+  "host": "ok",
+  "render": {
+   "plots": [],
+   "levels": 0,
+   "paints": [
+    "barcolor"
+   ],
+   "objects": 0,
+   "placement": "price",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [],
+  "save": "ok"
+ },
+ {
+  "id": "obj_line",
+  "group": "objects",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this script draws objects — a table, labels or boxes — and offers no plot or alert condition, so there is nothing to filter a scan on",
+  "importNotes": [],
+  "importOutputs": [],
+  "host": "ok",
+  "render": {
+   "plots": [],
+   "levels": 0,
+   "paints": [],
+   "objects": 1,
+   "placement": "price",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [],
+  "save": "ok"
+ },
+ {
+  "id": "obj_label_text",
+  "group": "objects",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this script draws objects — a table, labels or boxes — and offers no plot or alert condition, so there is nothing to filter a scan on",
+  "importNotes": [],
+  "importOutputs": [],
+  "host": "ok",
+  "render": {
+   "plots": [],
+   "levels": 0,
+   "paints": [],
+   "objects": 1,
+   "placement": "price",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [],
+  "save": "ok"
+ },
+ {
+  "id": "obj_box",
+  "group": "objects",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this script draws objects — a table, labels or boxes — and offers no plot or alert condition, so there is nothing to filter a scan on",
+  "importNotes": [],
+  "importOutputs": [],
+  "host": "ok",
+  "render": {
+   "plots": [],
+   "levels": 0,
+   "paints": [],
+   "objects": 1,
+   "placement": "price",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [],
+  "save": "ok"
+ },
+ {
+  "id": "obj_table",
+  "group": "objects",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this script draws objects — a table, labels or boxes — and offers no plot or alert condition, so there is nothing to filter a scan on",
+  "importNotes": [
+   "pine:drawing: a drawing object paints on a chart and answers with no number — `table.new`"
+  ],
+  "importOutputs": [],
+  "host": "ok",
+  "render": {
+   "plots": [],
+   "levels": 0,
+   "paints": [],
+   "objects": 2,
+   "placement": "price",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [],
+  "save": "ok"
+ },
+ {
+  "id": "obj_polyline",
+  "group": "objects",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "the pasted script offers no plot and no alert condition to filter on",
+  "importNotes": [
+   "pine:block: a Pine block spans several statements and this engine stores a single expression — `for`"
+  ],
+  "importOutputs": [],
+  "host": "REF pine:no-output the pasted script offers no plot and no alert condition to filter on",
+  "runtime": "declined runtime:call-undeclared-builtin-state: runtime:call-undeclared-builtin-state — a builtin fed by a mutable value that the CLOSED TABLE does not declare at all —"
+ },
+ {
+  "id": "obj_linefill",
+  "group": "objects",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this script draws objects — a table, labels or boxes — and offers no plot or alert condition, so there is nothing to filter a scan on",
+  "importNotes": [],
+  "importOutputs": [],
+  "host": "ok",
+  "render": {
+   "plots": [],
+   "levels": 0,
+   "paints": [],
+   "objects": 5,
+   "placement": "price",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [],
+  "save": "ok"
+ },
+ {
+  "id": "obj_pool_delete",
+  "group": "objects",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this script draws objects — a table, labels or boxes — and offers no plot or alert condition, so there is nothing to filter a scan on",
+  "importNotes": [
+   "pine:statement: this Pine line is not a shape the translator reads"
+  ],
+  "importOutputs": [],
+  "host": "ok",
+  "render": {
+   "plots": [],
+   "levels": 0,
+   "paints": [],
+   "objects": 2,
+   "placement": "price",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [],
+  "save": "ok"
+ },
+ {
+  "id": "col_new",
+  "group": "color",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "col_rgb",
+  "group": "color",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "col_gradient",
+  "group": "color",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:rsi(close, 14)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line/dyncol"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   586
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "col_components",
+  "group": "color",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "every column this script would offer holds the same number on every bar, so there is nothing here a chart or a screen could move on",
+  "importNotes": [
+   "pine:colour-value: a colour cannot be a value in a screened column — `color.red`"
+  ],
+  "importOutputs": [
+   "plot:255"
+  ],
+  "host": "REF  this script declares nothing a chart can draw",
+  "runtime": "declined : "
+ },
+ {
+  "id": "alertcondition",
+  "group": "alerts",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close",
+   "alertcondition:crossOver(close, sma(close, 10))"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [
+    "This script's alert condition 'Cross' is available under Alerts; it is not drawn on the chart."
+   ],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "alert_fn",
+  "group": "alerts",
+  "parse": true,
+  "importVerdict": "disclosed",
+  "importReason": "differences in how it is drawn only; the values are the same",
+  "importNotes": [
+   "pine:chart-only: `alert()` sends an alert on TradingView and draws nothing; this door delivers no script's `alert()`, and a screen reads "
+  ],
+  "importOutputs": [
+   "plot:close"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "strategy_decl",
+  "group": "strategy",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "a strategy places orders to be backtested, and a screen filters symbols",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "price",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "strategy_value_in_ind",
+  "group": "strategy",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not si",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:strategy-call"
+  ],
+  "host": "REF pine:strategy-call a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which thi",
+  "runtime": "declined pine:strategy-call: pine:strategy-call — a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strat"
+ },
+ {
+  "id": "runtime_error",
+  "group": "errors",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [
+    "n"
+   ],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "syminfo_mintick",
+  "group": "syminfo",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "`syminfo.mintick` is served on the chart pane and not on a screen: the symbol's minimum price increment differs per symbol, and a screen evaluates one definitio",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:builtin"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   "ERR a value that a symbol settles reached the evaluator unsettle"
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "syminfo_type",
+  "group": "syminfo",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "`syminfo.type` is a Pine built-in this engine holds no VALUE for, though it holds its sibling `syminfo.ticker`: what kind of instrument the symbol is (`stock`, ",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:builtin"
+  ],
+  "host": "REF pine:builtin `syminfo.type` is a Pine built-in this engine holds no VALUE for, though it holds its sibling `syminfo.ticker`: what kind of instrument the ",
+  "runtime": "declined pine:builtin: pine:builtin — `syminfo.type` is a Pine built-in this engine holds no VALUE for, though it holds its sibling `syminfo.ti"
+ },
+ {
+  "id": "ta:ta.sma(close, 10)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.ema(close, 10)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:ema(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.wma(close, 10)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:wma(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.rma(close, 10)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:rma(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.hma(close, 10)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:hma(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   589
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.vwma(close, 10)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close * volume, 10) / sma(volume, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.alma(close, 9, 0.85, 6)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.alma`. This table declares abs, accum, adx, aroonDown, aroonUp, atan, atr, atrPine, avwap, ",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.alma`. This table declares abs, accum, adx, aroonDown, aroonUp, atan, a",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.alma`. This table declares abs, acc"
+ },
+ {
+  "id": "ta:ta.swma(close)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.swma` — did you mean `sma` or `wma`?. This table declares abs, accum, adx, aroonDown, aroon",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.swma` — did you mean `sma` or `wma`?. This table declares abs, accum, a",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.swma` — did you mean `sma` or `wma`"
+ },
+ {
+  "id": "ta:ta.linreg(close, 10, 0)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sum(close, 10) / 10 + (10 * wma(close, 10) - sum(close, 10)) * 0.3"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.stdev(close, 10)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:stdev(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.variance(close, 10)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.variance`, and this table has RULED on that name: ALREADY EXPRESSIBLE: `stdev(x, n) * stdev",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.variance`, and this table has RULED on that name: ALREADY EXPRESSIBLE: ",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.variance`, and this table has RULED"
+ },
+ {
+  "id": "ta:ta.dev(close, 10)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:dev(close, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.rsi(close, 14)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:rsi(close, 14)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   586
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.cci(hlc3, 20)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:cci(high, low, close, 20)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   581
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.cci(close, 20)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this table states what kind each argument is and never what role it plays, so several price series cannot be matched onto it by position — `ta.cci` takes a SOUR",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:role-order"
+  ],
+  "host": "REF pine:role-order this table states what kind each argument is and never what role it plays, so several price series cannot be matched onto it by position — `",
+  "runtime": "declined pine:role-order: pine:role-order — this table states what kind each argument is and never what role it plays, so several price series can"
+ },
+ {
+  "id": "ta:ta.mfi(hlc3, 14)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:mfiPine(high, low, close, volume, 14)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   587
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.cmo(close, 9)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.cmo`. This table declares abs, accum, adx, aroonDown, aroonUp, atan, atr, atrPine, avwap, b",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.cmo`. This table declares abs, accum, adx, aroonDown, aroonUp, atan, at",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.cmo`. This table declares abs, accu"
+ },
+ {
+  "id": "ta:ta.mom(close, 10)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:close - close[10]"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   590
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.roc(close, 10)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:100 * (close - close[10]) / close[10]"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   590
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.stoch(close, high, low, 14)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:stoch(high, low, close, 14)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   587
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.tsi(close, 13, 25)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.tsi` — did you mean `rsi`?. This table declares abs, accum, adx, aroonDown, aroonUp, atan, ",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.tsi` — did you mean `rsi`?. This table declares abs, accum, adx, aroonD",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.tsi` — did you mean `rsi`?. This ta"
+ },
+ {
+  "id": "ta:ta.wpr(14)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:williamsR(high, low, close, 14)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   587
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.atr(14)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:atrPine(high, low, close, 14)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   587
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.tr",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:max(high - low, max(abs(high - close[1]), abs(low - close[1])))"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   599
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.tr(true)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:na(close[1]) ? high - low : max(high - low, max(abs(high - close[1]), abs(low - "
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.bbw(close, 20, 2)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:bbw(close, 20, 2)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   581
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.kcw(close, 20, 2)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:2 * (2 * ema(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 20"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   580
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.highest(high, 10)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:highest(high, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.lowest(low, 10)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:lowest(low, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.highestbars(high, 10)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:-highestbars(high, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.lowestbars(low, 10)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:-lowestbars(low, 10)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   591
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.pivothigh(high, 5, 5)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:pivothigh(high, 5, 5)[5]"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   39
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.pivotlow(low, 5, 5)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:pivotlow(low, 5, 5)[5]"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   43
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.crossover(close, open) ? 1 : 0",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:crossOver(close, open) ? 1 : 0"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   599
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.crossunder(close, open) ? 1 : 0",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:crossUnder(close, open) ? 1 : 0"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   599
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.cross(close, open) ? 1 : 0",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:crossOver(close, open) || crossUnder(close, open) ? 1 : 0"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   599
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.change(close)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:change(close)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   599
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.rising(close, 3) ? 1 : 0",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:rising(close, 3) ? 1 : 0"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   597
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.falling(close, 3) ? 1 : 0",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:falling(close, 3) ? 1 : 0"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   597
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.barssince(close > open)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "`ta.barssince` is the number of bars since a condition was last true, UNBOUNDED. This table declares `barssince(condition, n)`, and it is NOT the same function:",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function `ta.barssince` is the number of bars since a condition was last true, UNBOUNDED. This table declares `barssince(condition, n)`, and it is NO",
+  "runtime": "ok: value=450"
+ },
+ {
+  "id": "ta:ta.valuewhen(close > open, close, 0)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:valuewhenOccurrence(close > open, close, 0)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   596
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.cum(volume)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "`ta.cum` is a running total from the first bar, and `cum` names no anchor — a translator that picked one would be inventing the single number the whole answer t",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.vwap",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:vwap()"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.vwap(hlc3)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:vwap()"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   600
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.obv",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.obv`, and this table has RULED on that name: CUMULATIVE FROM THE FIRST BAR, WITH NO ABSOLUT",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.obv`, and this table has RULED on that name: CUMULATIVE FROM THE FIRST ",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.obv`, and this table has RULED on t"
+ },
+ {
+  "id": "ta:ta.accdist",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.accdist`, and this table has RULED on that name: THE SAME SHAPE AS `obv` AND `pvt` — cumula",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.accdist`, and this table has RULED on that name: THE SAME SHAPE AS `obv",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.accdist`, and this table has RULED "
+ },
+ {
+  "id": "ta:ta.correlation(close, open, 20)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:(sma(close * open, 20) - sma(close, 20) * sma(open, 20)) / (stdev(close, 20) * s"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   581
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.percentrank(close, 20)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:percentrank(close, 20)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   580
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.percentile_linear_interpolation(close, 20, 50)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:percentileLinearInterpolation(close, 20, 50)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   581
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.percentile_nearest_rank(close, 20, 50)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.percentile_nearest_rank`. This table declares abs, accum, adx, aroonDown, aroonUp, atan, at",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.percentile_nearest_rank`. This table declares abs, accum, adx, aroonDow",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.percentile_nearest_rank`. This tabl"
+ },
+ {
+  "id": "ta:ta.median(close, 20)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:median(close, 20)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   581
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.mode(close, 20)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.mode` — did you mean `mod`?. This table declares abs, accum, adx, aroonDown, aroonUp, atan,",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.mode` — did you mean `mod`?. This table declares abs, accum, adx, aroon",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.mode` — did you mean `mod`?. This t"
+ },
+ {
+  "id": "ta:ta.range(close, 20)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.range` — did you mean `change`?. This table declares abs, accum, adx, aroonDown, aroonUp, a",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.range` — did you mean `change`?. This table declares abs, accum, adx, a",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.range` — did you mean `change`?. Th"
+ },
+ {
+  "id": "ta:ta.sar(0.02, 0.02, 0.2)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.sar`, and this table has RULED on that name: STATEFUL, PATH-DEPENDENT, AND WITH NO PERIOD A",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.sar`, and this table has RULED on that name: STATEFUL, PATH-DEPENDENT, ",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.sar`, and this table has RULED on t"
+ },
+ {
+  "id": "ta:ta.iii",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.iii`. This table declares abs, accum, adx, aroonDown, aroonUp, atan, atr, atrPine, avwap, b",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.iii`. This table declares abs, accum, adx, aroonDown, aroonUp, atan, at",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.iii`. This table declares abs, accu"
+ },
+ {
+  "id": "ta:ta.nvi",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.nvi`, and this table has RULED on that name: A DIFFERENT SHAPE FROM `obv`/`pvt`/`accdist`, ",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.nvi`, and this table has RULED on that name: A DIFFERENT SHAPE FROM `ob",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.nvi`, and this table has RULED on t"
+ },
+ {
+  "id": "ta:ta.pvi",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.pvi`, and this table has RULED on that name: THE EXACT MIRROR OF `nvi` — condition inverted",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.pvi`, and this table has RULED on that name: THE EXACT MIRROR OF `nvi` ",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.pvi`, and this table has RULED on t"
+ },
+ {
+  "id": "ta:ta.pvt",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.pvt`, and this table has RULED on that name: THE SAME SHAPE AS `obv`, AND FOR THE SAME REAS",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.pvt`, and this table has RULED on that name: THE SAME SHAPE AS `obv`, A",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.pvt`, and this table has RULED on t"
+ },
+ {
+  "id": "ta:ta.wad",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.wad`. This table declares abs, accum, adx, aroonDown, aroonUp, atan, atr, atrPine, avwap, b",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.wad`. This table declares abs, accum, adx, aroonDown, aroonUp, atan, at",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.wad`. This table declares abs, accu"
+ },
+ {
+  "id": "ta:ta.wvad",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.wvad`. This table declares abs, accum, adx, aroonDown, aroonUp, atan, atr, atrPine, avwap, ",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.wvad`. This table declares abs, accum, adx, aroonDown, aroonUp, atan, a",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.wvad`. This table declares abs, acc"
+ },
+ {
+  "id": "ta:ta.cog(close, 10)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine function maps to nothing the engine grammar declares — `ta.cog` — did you mean `cos`?. This table declares abs, accum, adx, aroonDown, aroonUp, atan, ",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:function"
+  ],
+  "host": "REF pine:function this Pine function maps to nothing the engine grammar declares — `ta.cog` — did you mean `cos`?. This table declares abs, accum, adx, aroonD",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.cog` — did you mean `cos`?. This ta"
+ },
+ {
+  "id": "ta:ta.max(close)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "`ta.max` was given 1 argument and Pine's own signature takes 2 — this engine reads the call in Pine's shape before mapping it onto the table, so the count has t",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:arity"
+  ],
+  "host": "REF pine:arity `ta.max` was given 1 argument and Pine's own signature takes 2 — this engine reads the call in Pine's shape before mapping it onto the table",
+  "runtime": "declined pine:arity: pine:arity — `ta.max` was given 1 argument and Pine's own signature takes 2 — this engine reads the call in Pine's shape"
+ },
+ {
+  "id": "ta:ta.min(close)",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "`ta.min` was given 1 argument and Pine's own signature takes 2 — this engine reads the call in Pine's shape before mapping it onto the table, so the count has t",
+  "importNotes": [],
+  "importOutputs": [
+   "plot:REF pine:arity"
+  ],
+  "host": "REF pine:arity `ta.min` was given 1 argument and Pine's own signature takes 2 — this engine reads the call in Pine's shape before mapping it onto the table",
+  "runtime": "declined pine:arity: pine:arity — `ta.min` was given 1 argument and Pine's own signature takes 2 — this engine reads the call in Pine's shape"
+ },
+ {
+  "id": "ta:ta.macd",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:macd(close, 12, 26)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   575
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.bb",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:sma(close, 20) + 2 * stdev(close, 20)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   581
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.kc",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:ema(close, 20) + 2 * ema(max(high - low, max(abs(high - close[1]), abs(low - clo"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   580
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.dmi",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "exact",
+  "importReason": null,
+  "importNotes": [],
+  "importOutputs": [
+   "plot:adx(high, low, close, 14)"
+  ],
+  "host": "ok",
+  "render": {
+   "plots": [
+    "line"
+   ],
+   "levels": 0,
+   "paints": [],
+   "objects": 0,
+   "placement": "pane",
+   "inputs": [],
+   "params": [],
+   "notes": [],
+   "kind": "ast"
+  },
+  "execute": [
+   573
+  ],
+  "save": "ok"
+ },
+ {
+  "id": "ta:ta.supertrend",
+  "group": "ta",
+  "parse": true,
+  "importVerdict": "unsupported",
+  "importReason": "this Pine call answers with several values at once and a column carries one — `a` — `ta.supertrend` carries state that depends on its own previous value — the b",
+  "importNotes": [
+   "pine:tuple: this Pine call answers with several values at once and a column carries one — `ta.supertrend` carries state that depends"
+  ],
+  "importOutputs": [
+   "plot:REF pine:tuple"
+  ],
+  "host": "REF pine:tuple this Pine call answers with several values at once and a column carries one — `a` — `ta.supertrend` carries state that depends on its own pr",
+  "runtime": "declined pine:function: pine:function — this Pine function maps to nothing the engine grammar declares — `ta.supertrend`, and this table has RUL"
+ }
+]

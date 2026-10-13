@@ -1,0 +1,3055 @@
+{
+ "01-ema-ribbon.json": {
+  "import": {
+   "ok": true,
+   "version": 5,
+   "declaration": "indicator",
+   "outcome": {
+    "verdict": "exact",
+    "label": "Exact import",
+    "reason": null,
+    "missing": [],
+    "semantic": [],
+    "presentation": [],
+    "info": [
+     {
+      "name": "line 3",
+      "note": "the indicator() declaration decides how a chart draws, and a screen reads none of it",
+      "line": 3
+     }
+    ]
+   },
+   "refusal": null,
+   "outputs": [
+    {
+     "kind": "plot",
+     "title": "EMA Fast",
+     "formula": "ema(close, 8)",
+     "refusal": null,
+     "fixedInputs": [
+      {
+       "name": "src",
+       "title": "Source",
+       "folded": "close"
+      }
+     ],
+     "pasteInputs": [
+      {
+       "name": "len1",
+       "folded": "8"
+      }
+     ],
+     "memberInputs": []
+    },
+    {
+     "kind": "plot",
+     "title": "EMA Mid",
+     "formula": "ema(close, 21)",
+     "refusal": null,
+     "fixedInputs": [
+      {
+       "name": "src",
+       "title": "Source",
+       "folded": "close"
+      }
+     ],
+     "pasteInputs": [
+      {
+       "name": "len2",
+       "folded": "21"
+      }
+     ],
+     "memberInputs": []
+    },
+    {
+     "kind": "plot",
+     "title": "EMA Slow",
+     "formula": "ema(close, 55)",
+     "refusal": null,
+     "fixedInputs": [
+      {
+       "name": "src",
+       "title": "Source",
+       "folded": "close"
+      }
+     ],
+     "pasteInputs": [
+      {
+       "name": "len3",
+       "folded": "55"
+      }
+     ],
+     "memberInputs": []
+    }
+   ]
+  },
+  "pane": {
+   "ok": true,
+   "guard": null,
+   "reason": null,
+   "notes": [],
+   "definition": {
+    "meta": {
+     "name": "EMA Ribbon (audit)",
+     "shortName": "EMA Ribbon",
+     "category": "Custom",
+     "description": "the 8-bar exponential average of close",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live",
+     "disclosures": [],
+     "requirementTags": [],
+     "recurrenceOrigin": "pine",
+     "naConditionFalse": true
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#00897B"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out2Color",
+      "type": "color",
+      "label": "EMA Mid colour",
+      "default": "#FF9800"
+     },
+     {
+      "key": "out2Width",
+      "type": "int",
+      "label": "EMA Mid width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out3Color",
+      "type": "color",
+      "label": "EMA Slow colour",
+      "default": "#FF5252"
+     },
+     {
+      "key": "out3Width",
+      "type": "int",
+      "label": "EMA Slow width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "value",
+      "label": "EMA Fast",
+      "style": "line",
+      "color": "$color",
+      "opacity": 1
+     },
+     {
+      "key": "out2",
+      "label": "EMA Mid",
+      "style": "line",
+      "color": "$out2Color"
+     },
+     {
+      "key": "out3",
+      "label": "EMA Slow",
+      "style": "line",
+      "color": "$out3Color"
+     }
+    ],
+    "objects": null,
+    "computeKind": "ast",
+    "computeKeys": [
+     "kind",
+     "fn",
+     "rev",
+     "ast",
+     "source",
+     "paramManifest",
+     "trees",
+     "treesHash",
+     "scanPlot",
+     "sources"
+    ],
+    "paramManifest": {
+     "__uct_param_1001": {
+      "sourceName": "len1",
+      "title": "Fast",
+      "type": "int",
+      "default": 8,
+      "min": null,
+      "max": null,
+      "step": null,
+      "options": null,
+      "locators": [
+       {
+        "treeIndex": "value",
+        "astPath": [
+         "args",
+         1
+        ]
+       }
+      ]
+     },
+     "__uct_param_1002": {
+      "sourceName": "len2",
+      "title": "Mid",
+      "type": "int",
+      "default": 21,
+      "min": null,
+      "max": null,
+      "step": null,
+      "options": null,
+      "locators": [
+       {
+        "treeIndex": "out2",
+        "astPath": [
+         "args",
+         1
+        ]
+       }
+      ]
+     },
+     "__uct_param_1003": {
+      "sourceName": "len3",
+      "title": "Slow",
+      "type": "int",
+      "default": 55,
+      "min": null,
+      "max": null,
+      "step": null,
+      "options": null,
+      "locators": [
+       {
+        "treeIndex": "out3",
+        "astPath": [
+         "args",
+         1
+        ]
+       }
+      ]
+     }
+    },
+    "keys": [
+     "schemaVersion",
+     "id",
+     "version",
+     "compute",
+     "meta",
+     "placement",
+     "inputs",
+     "plots"
+    ]
+   }
+  },
+  "numeric": {
+   "EMA Fast": {
+    "finite": 1493,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "EMA Mid": {
+    "finite": 1480,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "EMA Slow": {
+    "finite": 1446,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:EMA Fast": {
+    "finite": 1493,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:EMA Mid": {
+    "finite": 1480,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:EMA Slow": {
+    "finite": 1446,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   }
+  }
+ },
+ "02-rsi-levels-fill.json": {
+  "import": {
+   "ok": true,
+   "version": 5,
+   "declaration": "indicator",
+   "outcome": {
+    "verdict": "disclosed",
+    "label": "Imported, with disclosed differences",
+    "reason": "differences in how it is drawn only; the values are the same",
+    "missing": [],
+    "semantic": [],
+    "presentation": [
+     {
+      "name": "line 3",
+      "note": "`precision =` on `indicator()` sets how a chart formats or scales the value; this engine draws the value in its own format, so it is listed here and not carried. The value itself is unchanged.",
+      "line": 3
+     },
+     {
+      "name": "line 9",
+      "note": "`hline` draws a horizontal level; assigned to a name it is not carried, and a screen reads plot() and alertcondition() and nothing else, so a screen built from this script does not read it either",
+      "line": 9
+     },
+     {
+      "name": "line 10",
+      "note": "`hline` draws a horizontal level; assigned to a name it is not carried, and a screen reads plot() and alertcondition() and nothing else, so a screen built from this script does not read it either",
+      "line": 10
+     },
+     {
+      "name": "line 11",
+      "note": "`fill` shades the band between two plots; its two edges are not both plots this door carries, so it is not carried, and a screen reads plot() and alertcondition() and nothing else, so a screen built from this script does not read it either",
+      "line": 11
+     }
+    ],
+    "info": [
+     {
+      "name": "line 3",
+      "note": "the indicator() declaration decides how a chart draws, and a screen reads none of it",
+      "line": 3
+     }
+    ]
+   },
+   "refusal": null,
+   "outputs": [
+    {
+     "kind": "plot",
+     "title": "RSI",
+     "formula": "rsi(close, 14)",
+     "refusal": null,
+     "fixedInputs": [],
+     "pasteInputs": [
+      {
+       "name": "length",
+       "folded": "14"
+      }
+     ],
+     "memberInputs": []
+    }
+   ]
+  },
+  "pane": {
+   "ok": true,
+   "guard": null,
+   "reason": null,
+   "notes": [],
+   "definition": {
+    "meta": {
+     "name": "RSI with Bands (audit)",
+     "shortName": "RSI with",
+     "category": "Custom",
+     "description": "the 14-bar RSI of close",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live",
+     "disclosures": [],
+     "requirementTags": [],
+     "recurrenceOrigin": "pine",
+     "naConditionFalse": true
+    },
+    "placement": {
+     "target": "pane",
+     "pane": {
+      "height": 0.25
+     }
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#9C27B0"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "value",
+      "label": "RSI",
+      "style": "line",
+      "color": "$color"
+     }
+    ],
+    "objects": null,
+    "computeKind": "ast",
+    "computeKeys": [
+     "kind",
+     "fn",
+     "rev",
+     "ast",
+     "source",
+     "paramManifest"
+    ],
+    "paramManifest": {
+     "__uct_param_1001": {
+      "sourceName": "length",
+      "title": "Length",
+      "type": "int",
+      "default": 14,
+      "min": 1,
+      "max": null,
+      "step": null,
+      "options": null,
+      "locators": [
+       {
+        "treeIndex": null,
+        "astPath": [
+         "args",
+         1
+        ]
+       }
+      ]
+     }
+    },
+    "keys": [
+     "schemaVersion",
+     "id",
+     "version",
+     "compute",
+     "meta",
+     "placement",
+     "inputs",
+     "plots"
+    ]
+   }
+  },
+  "numeric": {
+   "RSI": {
+    "finite": 1486,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 9.560568887214777e-16,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:RSI": {
+    "finite": 1486,
+    "vsRef": {
+     "worstRel": 9.560568887214777e-16,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   }
+  }
+ },
+ "03-macd-histogram.json": {
+  "import": {
+   "ok": true,
+   "version": 5,
+   "declaration": "indicator",
+   "outcome": {
+    "verdict": "disclosed",
+    "label": "Imported, with disclosed differences",
+    "reason": "differences in how it is drawn only; the values are the same",
+    "missing": [],
+    "semantic": [],
+    "presentation": [
+     {
+      "name": "line 12",
+      "note": "`hline` draws a horizontal level; this door carries it as a level line for a chart, and a screen reads plot() and alertcondition() and nothing else, so a screen built from this script does not read it",
+      "line": 12
+     },
+     {
+      "name": "line 8",
+      "note": "a colour cannot be a value in a screened column — `color.lime`",
+      "line": 8
+     }
+    ],
+    "info": [
+     {
+      "name": "line 3",
+      "note": "the indicator() declaration decides how a chart draws, and a screen reads none of it",
+      "line": 3
+     }
+    ]
+   },
+   "refusal": null,
+   "outputs": [
+    {
+     "kind": "plot",
+     "title": "Histogram",
+     "formula": "macd(close, 12, 26) - ema(macd(close, 12, 26), 9)",
+     "refusal": null,
+     "fixedInputs": [],
+     "pasteInputs": [
+      {
+       "name": "fastLen",
+       "folded": "12"
+      },
+      {
+       "name": "slowLen",
+       "folded": "26"
+      },
+      {
+       "name": "sigLen",
+       "folded": "9"
+      }
+     ],
+     "memberInputs": []
+    },
+    {
+     "kind": "plot",
+     "title": "MACD",
+     "formula": "macd(close, 12, 26)",
+     "refusal": null,
+     "fixedInputs": [],
+     "pasteInputs": [
+      {
+       "name": "fastLen",
+       "folded": "12"
+      },
+      {
+       "name": "slowLen",
+       "folded": "26"
+      }
+     ],
+     "memberInputs": []
+    },
+    {
+     "kind": "plot",
+     "title": "Signal",
+     "formula": "ema(macd(close, 12, 26), 9)",
+     "refusal": null,
+     "fixedInputs": [],
+     "pasteInputs": [
+      {
+       "name": "fastLen",
+       "folded": "12"
+      },
+      {
+       "name": "slowLen",
+       "folded": "26"
+      },
+      {
+       "name": "sigLen",
+       "folded": "9"
+      }
+     ],
+     "memberInputs": []
+    }
+   ]
+  },
+  "pane": {
+   "ok": true,
+   "guard": null,
+   "reason": null,
+   "notes": [],
+   "definition": {
+    "meta": {
+     "name": "MACD Colored (audit)",
+     "shortName": "MACD Colored",
+     "category": "Custom",
+     "description": "(the 12/26 MACD line of close) minus (the 9-bar exponential average of (the 12/26 MACD line of close))",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live",
+     "disclosures": [],
+     "requirementTags": [],
+     "recurrenceOrigin": "pine",
+     "naConditionFalse": true
+    },
+    "placement": {
+     "target": "pane",
+     "pane": {
+      "height": 0.25
+     }
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out2Color",
+      "type": "color",
+      "label": "MACD colour",
+      "default": "#2962FF"
+     },
+     {
+      "key": "out2Width",
+      "type": "int",
+      "label": "MACD width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out3Color",
+      "type": "color",
+      "label": "Signal colour",
+      "default": "#FF9800"
+     },
+     {
+      "key": "out3Width",
+      "type": "int",
+      "label": "Signal width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out4Color",
+      "type": "color",
+      "label": "out4 colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "out4Width",
+      "type": "int",
+      "label": "out4 width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "value",
+      "label": "Histogram",
+      "style": "histogram",
+      "color": "$color",
+      "colorMode": "column:out4",
+      "colorPalette": [
+       "#00E676",
+       "#4CAF50",
+       "#FF5252",
+       "#880E4F"
+      ]
+     },
+     {
+      "key": "out2",
+      "label": "MACD",
+      "style": "line",
+      "color": "$out2Color"
+     },
+     {
+      "key": "out3",
+      "label": "Signal",
+      "style": "line",
+      "color": "$out3Color"
+     },
+     {
+      "key": "out4",
+      "label": "out4",
+      "style": "line",
+      "color": "$out4Color",
+      "hidden": true
+     }
+    ],
+    "objects": null,
+    "computeKind": "ast",
+    "computeKeys": [
+     "kind",
+     "fn",
+     "rev",
+     "ast",
+     "source",
+     "paramManifest",
+     "trees",
+     "treesHash",
+     "scanPlot",
+     "sources"
+    ],
+    "paramManifest": {
+     "__uct_param_1001": {
+      "sourceName": "fastLen",
+      "title": "Fast",
+      "type": "int",
+      "default": 12,
+      "min": null,
+      "max": null,
+      "step": null,
+      "options": null,
+      "locators": [
+       {
+        "treeIndex": "value",
+        "astPath": [
+         "args",
+         0,
+         "args",
+         1
+        ]
+       },
+       {
+        "treeIndex": "value",
+        "astPath": [
+         "args",
+         1,
+         "args",
+         0,
+         "args",
+         1
+        ]
+       },
+       {
+        "treeIndex": "out2",
+        "astPath": [
+         "args",
+         1
+        ]
+       },
+       {
+        "treeIndex": "out3",
+        "astPath": [
+         "args",
+         0,
+         "args",
+         1
+        ]
+       }
+      ]
+     },
+     "__uct_param_1002": {
+      "sourceName": "slowLen",
+      "title": "Slow",
+      "type": "int",
+      "default": 26,
+      "min": null,
+      "max": null,
+      "step": null,
+      "options": null,
+      "locators": [
+       {
+        "treeIndex": "value",
+        "astPath": [
+         "args",
+         0,
+         "args",
+         2
+        ]
+       },
+       {
+        "treeIndex": "value",
+        "astPath": [
+         "args",
+         1,
+         "args",
+         0,
+         "args",
+         2
+        ]
+       },
+       {
+        "treeIndex": "out2",
+        "astPath": [
+         "args",
+         2
+        ]
+       },
+       {
+        "treeIndex": "out3",
+        "astPath": [
+         "args",
+         0,
+         "args",
+         2
+        ]
+       }
+      ]
+     },
+     "__uct_param_1003": {
+      "sourceName": "sigLen",
+      "title": "Signal",
+      "type": "int",
+      "default": 9,
+      "min": null,
+      "max": null,
+      "step": null,
+      "options": null,
+      "locators": [
+       {
+        "treeIndex": "value",
+        "astPath": [
+         "args",
+         1,
+         "args",
+         1
+        ]
+       },
+       {
+        "treeIndex": "out3",
+        "astPath": [
+         "args",
+         1
+        ]
+       }
+      ]
+     }
+    },
+    "keys": [
+     "schemaVersion",
+     "id",
+     "version",
+     "compute",
+     "meta",
+     "placement",
+     "inputs",
+     "plots"
+    ]
+   }
+  },
+  "numeric": {
+   "Histogram": {
+    "finite": 1467,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "MACD": {
+    "finite": 1475,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "Signal": {
+    "finite": 1467,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:Histogram": {
+    "finite": 1467,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:MACD": {
+    "finite": 1475,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:Signal": {
+    "finite": 1467,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   }
+  }
+ },
+ "04-bollinger-fill.json": {
+  "import": {
+   "ok": true,
+   "version": 5,
+   "declaration": "indicator",
+   "outcome": {
+    "verdict": "disclosed",
+    "label": "Imported, with disclosed differences",
+    "reason": "differences in how it is drawn only; the values are the same",
+    "missing": [],
+    "semantic": [],
+    "presentation": [
+     {
+      "name": "line 13",
+      "note": "`fill` shades the band between two plots; this door carries it as that band for a chart, and a screen reads plot() and alertcondition() and nothing else, so a screen built from this script does not read it",
+      "line": 13
+     }
+    ],
+    "info": [
+     {
+      "name": "line 3",
+      "note": "the indicator() declaration decides how a chart draws, and a screen reads none of it",
+      "line": 3
+     }
+    ]
+   },
+   "refusal": null,
+   "outputs": [
+    {
+     "kind": "plot",
+     "title": "Basis",
+     "formula": "sma(close, 20)",
+     "refusal": null,
+     "fixedInputs": [],
+     "pasteInputs": [
+      {
+       "name": "length",
+       "folded": "20"
+      }
+     ],
+     "memberInputs": []
+    },
+    {
+     "kind": "plot",
+     "title": "Upper",
+     "formula": "sma(close, 20) + mult * stdev(close, 20)",
+     "refusal": null,
+     "fixedInputs": [],
+     "pasteInputs": [
+      {
+       "name": "length",
+       "folded": "20"
+      }
+     ],
+     "memberInputs": [
+      {
+       "key": "mult",
+       "label": "StdDev",
+       "default": 2
+      }
+     ]
+    },
+    {
+     "kind": "plot",
+     "title": "Lower",
+     "formula": "sma(close, 20) - mult * stdev(close, 20)",
+     "refusal": null,
+     "fixedInputs": [],
+     "pasteInputs": [
+      {
+       "name": "length",
+       "folded": "20"
+      }
+     ],
+     "memberInputs": [
+      {
+       "key": "mult",
+       "label": "StdDev",
+       "default": 2
+      }
+     ]
+    }
+   ]
+  },
+  "pane": {
+   "ok": true,
+   "guard": null,
+   "reason": null,
+   "notes": [],
+   "definition": {
+    "meta": {
+     "name": "Bollinger (audit)",
+     "shortName": "Bollinger",
+     "category": "Custom",
+     "description": "the 20-bar average of close",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live",
+     "disclosures": [],
+     "requirementTags": [],
+     "recurrenceOrigin": "pine",
+     "naConditionFalse": true
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#FF9800"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out2Color",
+      "type": "color",
+      "label": "Upper colour",
+      "default": "#2962FF"
+     },
+     {
+      "key": "out2Width",
+      "type": "int",
+      "label": "Upper width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out3Color",
+      "type": "color",
+      "label": "Lower colour",
+      "default": "#2962FF"
+     },
+     {
+      "key": "out3Width",
+      "type": "int",
+      "label": "Lower width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "mult",
+      "type": "float",
+      "label": "StdDev",
+      "default": 2
+     }
+    ],
+    "plots": [
+     {
+      "key": "value",
+      "label": "Basis",
+      "style": "line",
+      "color": "$color"
+     },
+     {
+      "key": "out2",
+      "label": "Upper",
+      "style": "line",
+      "color": "$out2Color",
+      "fill": {
+       "with": "out3"
+      },
+      "fillColor": "#2962FF",
+      "fillOpacity": 0.15000000000000002
+     },
+     {
+      "key": "out3",
+      "label": "Lower",
+      "style": "line",
+      "color": "$out3Color"
+     }
+    ],
+    "objects": null,
+    "computeKind": "ast",
+    "computeKeys": [
+     "kind",
+     "fn",
+     "rev",
+     "ast",
+     "source",
+     "paramManifest",
+     "trees",
+     "treesHash",
+     "scanPlot",
+     "sources"
+    ],
+    "paramManifest": {
+     "__uct_param_1001": {
+      "sourceName": "length",
+      "title": "Length",
+      "type": "int",
+      "default": 20,
+      "min": null,
+      "max": null,
+      "step": null,
+      "options": null,
+      "locators": [
+       {
+        "treeIndex": "value",
+        "astPath": [
+         "args",
+         1
+        ]
+       },
+       {
+        "treeIndex": "out2",
+        "astPath": [
+         "args",
+         0,
+         "args",
+         1
+        ]
+       },
+       {
+        "treeIndex": "out2",
+        "astPath": [
+         "args",
+         1,
+         "args",
+         1,
+         "args",
+         1
+        ]
+       },
+       {
+        "treeIndex": "out3",
+        "astPath": [
+         "args",
+         0,
+         "args",
+         1
+        ]
+       },
+       {
+        "treeIndex": "out3",
+        "astPath": [
+         "args",
+         1,
+         "args",
+         1,
+         "args",
+         1
+        ]
+       }
+      ]
+     }
+    },
+    "keys": [
+     "schemaVersion",
+     "id",
+     "version",
+     "compute",
+     "meta",
+     "placement",
+     "inputs",
+     "plots"
+    ]
+   }
+  },
+  "numeric": {
+   "Basis": {
+    "finite": 1481,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "Upper": {
+    "finite": "unknown name \"mult\" — this table declares open, high, low, close, volume, above_50sma, adr_pct, adr_pct_1w, atr_ext_sma50, atr_pct, avg_body, avg_body_pct_5, avg_range, avg_volume_30d, base_relation_count, beta, blended_growth, body_pct, candle_recent_bars_ago, candle_score, chg_from_open_pct, chg_pct_1d, chg_pct_1m, chg_pct_1w, chg_pct_1y, chg_pct_ytd, close_cv_pct, close_position, consecutive_down, consecutive_up, current_ratio, days_to_earnings, debt_to_equity, dist_20d_high_pct, dist_20d_low_pct, dist_52w_high_pct, dist_52w_low_pct, dist_ath_pct, dividend_yield, dollar_vol_30d, dollar_vol_1d, downgrades_30d, dp_level_dist_pct, dp_notional_1d, dp_notional_5d, dp_prints_1d, ema10_rising, ema20_rising, ema_stack_intact, ema_touch_count, eps_growth, eps_next_5y_growth, eps_next_y_growth, eps_past_5y_growth, float_pct, float_shares, gap_pct, gross_margin, higher_lows_run, hvc_52w, implied_move_pct, in_uct20, index_dow, index_ndx, index_r2k, index_sp500, inside_bar_run, insider_cluster_days, insider_own_pct, insider_trans_pct, inst_pct, inst_trans_pct, ipo_age_days, is_etf, is_leveraged, last_report_move_pct, lower_wick_pct, lt_debt_to_capital, market_cap, narrow_bar, net_margin, new_52w_high, new_ath, nr7, op_margin, opt_bull_pct_1d, opt_net_premium_1d, opt_net_premium_5d, optionable, p_fcf, p_ocf, pattern_engine_conf, pattern_engine_dir, pattern_engine_flat_base, pattern_engine_vcp, pattern_entry_dist_pct, pattern_expectancy_r, pattern_stop_dist_pct, payout_ratio, pb, pct_vs_ema20, pct_vs_sma20, pct_vs_sma200, pct_vs_sma50, pe_fwd, pe_ttm, peg, pole_pct, prev_day_close, prev_day_high, prev_day_low, prev_day_open, price, ps, pt_target, pt_upside_pct, pullback_depth_pct, quick_ratio, rating_eps, rating_growth, rating_smr, rating_value, rev_growth, roa, roe, roic, rs_rank, rs_return, rsi14, sales_past_5y_growth, sector_rs_pct, shares_outstanding, short_float_pct, short_ratio, shortable, tight_consolidation, uct_composite, upgrades_30d, upper_wick_pct, vol_nweek_low, vol_ratio, vol_updown_ratio, wide_bar",
+    "hidden": false
+   },
+   "Lower": {
+    "finite": "unknown name \"mult\" — this table declares open, high, low, close, volume, above_50sma, adr_pct, adr_pct_1w, atr_ext_sma50, atr_pct, avg_body, avg_body_pct_5, avg_range, avg_volume_30d, base_relation_count, beta, blended_growth, body_pct, candle_recent_bars_ago, candle_score, chg_from_open_pct, chg_pct_1d, chg_pct_1m, chg_pct_1w, chg_pct_1y, chg_pct_ytd, close_cv_pct, close_position, consecutive_down, consecutive_up, current_ratio, days_to_earnings, debt_to_equity, dist_20d_high_pct, dist_20d_low_pct, dist_52w_high_pct, dist_52w_low_pct, dist_ath_pct, dividend_yield, dollar_vol_30d, dollar_vol_1d, downgrades_30d, dp_level_dist_pct, dp_notional_1d, dp_notional_5d, dp_prints_1d, ema10_rising, ema20_rising, ema_stack_intact, ema_touch_count, eps_growth, eps_next_5y_growth, eps_next_y_growth, eps_past_5y_growth, float_pct, float_shares, gap_pct, gross_margin, higher_lows_run, hvc_52w, implied_move_pct, in_uct20, index_dow, index_ndx, index_r2k, index_sp500, inside_bar_run, insider_cluster_days, insider_own_pct, insider_trans_pct, inst_pct, inst_trans_pct, ipo_age_days, is_etf, is_leveraged, last_report_move_pct, lower_wick_pct, lt_debt_to_capital, market_cap, narrow_bar, net_margin, new_52w_high, new_ath, nr7, op_margin, opt_bull_pct_1d, opt_net_premium_1d, opt_net_premium_5d, optionable, p_fcf, p_ocf, pattern_engine_conf, pattern_engine_dir, pattern_engine_flat_base, pattern_engine_vcp, pattern_entry_dist_pct, pattern_expectancy_r, pattern_stop_dist_pct, payout_ratio, pb, pct_vs_ema20, pct_vs_sma20, pct_vs_sma200, pct_vs_sma50, pe_fwd, pe_ttm, peg, pole_pct, prev_day_close, prev_day_high, prev_day_low, prev_day_open, price, ps, pt_target, pt_upside_pct, pullback_depth_pct, quick_ratio, rating_eps, rating_growth, rating_smr, rating_value, rev_growth, roa, roe, roic, rs_rank, rs_return, rsi14, sales_past_5y_growth, sector_rs_pct, shares_outstanding, short_float_pct, short_ratio, shortable, tight_consolidation, uct_composite, upgrades_30d, upper_wick_pct, vol_nweek_low, vol_ratio, vol_updown_ratio, wide_bar",
+    "hidden": false
+   },
+   "import:Basis": {
+    "finite": 1481,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:Upper": {
+    "finite": "unknown name \"mult\" — this table declares open, high, low, close, volume, above_50sma, adr_pct, adr_pct_1w, atr_ext_sma50, atr_pct, avg_body, avg_body_pct_5, avg_range, avg_volume_30d, base_relation_count, beta, blended_growth, body_pct, candle_recent_bars_ago, candle_score, chg_from_open_pct, chg_pct_1d, chg_pct_1m, chg_pct_1w, chg_pct_1y, chg_pct_ytd, close_cv_pct, close_position, consecutive_down, consecutive_up, current_ratio, days_to_earnings, debt_to_equity, dist_20d_high_pct, dist_20d_low_pct, dist_52w_high_pct, dist_52w_low_pct, dist_ath_pct, dividend_yield, dollar_vol_30d, dollar_vol_1d, downgrades_30d, dp_level_dist_pct, dp_notional_1d, dp_notional_5d, dp_prints_1d, ema10_rising, ema20_rising, ema_stack_intact, ema_touch_count, eps_growth, eps_next_5y_growth, eps_next_y_growth, eps_past_5y_growth, float_pct, float_shares, gap_pct, gross_margin, higher_lows_run, hvc_52w, implied_move_pct, in_uct20, index_dow, index_ndx, index_r2k, index_sp500, inside_bar_run, insider_cluster_days, insider_own_pct, insider_trans_pct, inst_pct, inst_trans_pct, ipo_age_days, is_etf, is_leveraged, last_report_move_pct, lower_wick_pct, lt_debt_to_capital, market_cap, narrow_bar, net_margin, new_52w_high, new_ath, nr7, op_margin, opt_bull_pct_1d, opt_net_premium_1d, opt_net_premium_5d, optionable, p_fcf, p_ocf, pattern_engine_conf, pattern_engine_dir, pattern_engine_flat_base, pattern_engine_vcp, pattern_entry_dist_pct, pattern_expectancy_r, pattern_stop_dist_pct, payout_ratio, pb, pct_vs_ema20, pct_vs_sma20, pct_vs_sma200, pct_vs_sma50, pe_fwd, pe_ttm, peg, pole_pct, prev_day_close, prev_day_high, prev_day_low, prev_day_open, price, ps, pt_target, pt_upside_pct, pullback_depth_pct, quick_ratio, rating_eps, rating_growth, rating_smr, rating_value, rev_growth, roa, roe, roic, rs_rank, rs_return, rsi14, sales_past_5y_growth, sector_rs_pct, shares_outstanding, short_float_pct, short_ratio, shortable, tight_consolidation, uct_composite, upgrades_30d, upper_wick_pct, vol_nweek_low, vol_ratio, vol_updown_ratio, wide_bar"
+   },
+   "import:Lower": {
+    "finite": "unknown name \"mult\" — this table declares open, high, low, close, volume, above_50sma, adr_pct, adr_pct_1w, atr_ext_sma50, atr_pct, avg_body, avg_body_pct_5, avg_range, avg_volume_30d, base_relation_count, beta, blended_growth, body_pct, candle_recent_bars_ago, candle_score, chg_from_open_pct, chg_pct_1d, chg_pct_1m, chg_pct_1w, chg_pct_1y, chg_pct_ytd, close_cv_pct, close_position, consecutive_down, consecutive_up, current_ratio, days_to_earnings, debt_to_equity, dist_20d_high_pct, dist_20d_low_pct, dist_52w_high_pct, dist_52w_low_pct, dist_ath_pct, dividend_yield, dollar_vol_30d, dollar_vol_1d, downgrades_30d, dp_level_dist_pct, dp_notional_1d, dp_notional_5d, dp_prints_1d, ema10_rising, ema20_rising, ema_stack_intact, ema_touch_count, eps_growth, eps_next_5y_growth, eps_next_y_growth, eps_past_5y_growth, float_pct, float_shares, gap_pct, gross_margin, higher_lows_run, hvc_52w, implied_move_pct, in_uct20, index_dow, index_ndx, index_r2k, index_sp500, inside_bar_run, insider_cluster_days, insider_own_pct, insider_trans_pct, inst_pct, inst_trans_pct, ipo_age_days, is_etf, is_leveraged, last_report_move_pct, lower_wick_pct, lt_debt_to_capital, market_cap, narrow_bar, net_margin, new_52w_high, new_ath, nr7, op_margin, opt_bull_pct_1d, opt_net_premium_1d, opt_net_premium_5d, optionable, p_fcf, p_ocf, pattern_engine_conf, pattern_engine_dir, pattern_engine_flat_base, pattern_engine_vcp, pattern_entry_dist_pct, pattern_expectancy_r, pattern_stop_dist_pct, payout_ratio, pb, pct_vs_ema20, pct_vs_sma20, pct_vs_sma200, pct_vs_sma50, pe_fwd, pe_ttm, peg, pole_pct, prev_day_close, prev_day_high, prev_day_low, prev_day_open, price, ps, pt_target, pt_upside_pct, pullback_depth_pct, quick_ratio, rating_eps, rating_growth, rating_smr, rating_value, rev_growth, roa, roe, roic, rs_rank, rs_return, rsi14, sales_past_5y_growth, sector_rs_pct, shares_outstanding, short_float_pct, short_ratio, shortable, tight_consolidation, uct_composite, upgrades_30d, upper_wick_pct, vol_nweek_low, vol_ratio, vol_updown_ratio, wide_bar"
+   }
+  }
+ },
+ "05-supertrend-var.json": {
+  "import": {
+   "ok": false,
+   "version": 5,
+   "declaration": "indicator",
+   "outcome": {
+    "verdict": "unsupported",
+    "label": "Not supported",
+    "reason": "this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `dnBand` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total. THIS ENGINE DOES DECLARE A BOUNDED FORM: `lowest(<that value>, <bars>)` — the lowest over a window you name. Stating the window is what makes the answer the same tomorrow — an all-time value moves with however many bars were fetched.",
+    "missing": [],
+    "semantic": [],
+    "presentation": [],
+    "info": []
+   },
+   "refusal": {
+    "guard": "pine:state",
+    "message": "this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `dnBand` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total. THIS ENGINE DOES DECLARE A BOUNDED FORM: `lowest(<that value>, <bars>)` — the lowest over a window you name. Stating the window is what makes the answer the same tomorrow — an all-time value moves with however many bars were fetched.",
+    "line": 11
+   },
+   "outputs": [
+    {
+     "kind": "plot",
+     "title": null,
+     "formula": null,
+     "refusal": {
+      "guard": "pine:state",
+      "message": "this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `dnBand` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total. THIS ENGINE DOES DECLARE A BOUNDED FORM: `lowest(<that value>, <bars>)` — the lowest over a window you name. Stating the window is what makes the answer the same tomorrow — an all-time value moves with however many bars were fetched."
+     },
+     "fixedInputs": [],
+     "pasteInputs": [],
+     "memberInputs": []
+    }
+   ]
+  },
+  "pane": {
+   "ok": false,
+   "guard": "pine:state",
+   "reason": "this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `dnBand` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total. THIS ENGINE DOES DECLARE A BOUNDED FORM: `lowest(<that value>, <bars>)` — the lowest over a window you name. Stating the window is what makes the answer the same tomorrow — an all-time value moves with however many bars were fetched.",
+   "notes": [],
+   "definition": null
+  },
+  "numeric": {}
+ },
+ "06-inside-day.json": {
+  "import": {
+   "ok": true,
+   "version": 5,
+   "declaration": "indicator",
+   "outcome": {
+    "verdict": "disclosed",
+    "label": "Imported, with disclosed differences",
+    "reason": "differences in how it is drawn only; the values are the same",
+    "missing": [],
+    "semantic": [],
+    "presentation": [
+     {
+      "name": "line 5",
+      "note": "`barcolor` paints a chart's candles; this door does not carry it, and a screen reads plot() and alertcondition() and nothing else, so a screen built from this script does not read it either",
+      "line": 5
+     }
+    ],
+    "info": [
+     {
+      "name": "alertcondition",
+      "note": "This script's alert condition 'Inside day' is available under Alerts; it is not drawn on the chart.",
+      "line": 7
+     },
+     {
+      "name": "line 3",
+      "note": "the indicator() declaration decides how a chart draws, and a screen reads none of it",
+      "line": 3
+     }
+    ]
+   },
+   "refusal": null,
+   "outputs": [
+    {
+     "kind": "plotshape",
+     "title": "Inside",
+     "formula": "high < high[1] && low > low[1]",
+     "refusal": null,
+     "fixedInputs": [],
+     "pasteInputs": [],
+     "memberInputs": []
+    },
+    {
+     "kind": "alertcondition",
+     "title": "Inside day",
+     "formula": "high < high[1] && low > low[1]",
+     "refusal": null,
+     "fixedInputs": [],
+     "pasteInputs": [],
+     "memberInputs": []
+    }
+   ]
+  },
+  "pane": {
+   "ok": true,
+   "guard": null,
+   "reason": null,
+   "notes": [
+    {
+     "name": "alertcondition",
+     "note": "This script's alert condition 'Inside day' is available under Alerts; it is not drawn on the chart."
+    }
+   ],
+   "definition": {
+    "meta": {
+     "name": "Inside Day Highlighter (audit)",
+     "shortName": "Inside Day",
+     "category": "Custom",
+     "description": "(1 when high is less than (high 1 bar ago) and 0 otherwise) and (1 when low is greater than (low 1 bar ago) and 0 otherwise)",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live",
+     "disclosures": [
+      {
+       "name": "alertcondition",
+       "note": "This script's alert condition 'Inside day' is available under Alerts; it is not drawn on the chart."
+      }
+     ],
+     "requirementTags": [],
+     "recurrenceOrigin": "pine",
+     "naConditionFalse": true
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#FFEB3B"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out2Color",
+      "type": "color",
+      "label": "out2 colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "out2Width",
+      "type": "int",
+      "label": "out2 width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "value",
+      "label": "Inside",
+      "style": "markers",
+      "color": "$color",
+      "marker": {
+       "shape": "arrowUp",
+       "pineShape": "shape.triangleup",
+       "shapeApprox": true,
+       "position": "belowBar",
+       "size": 0.8
+      }
+     },
+     {
+      "key": "out2",
+      "label": "out2",
+      "style": "line",
+      "color": "$out2Color",
+      "hidden": true
+     }
+    ],
+    "paints": [
+     {
+      "kind": "barcolor",
+      "line": 5,
+      "colorMode": "column:out2",
+      "colorPalette": [
+       "#FFEB3B",
+       "rgba(0, 0, 0, 0)"
+      ]
+     }
+    ],
+    "objects": null,
+    "computeKind": "ast",
+    "computeKeys": [
+     "kind",
+     "fn",
+     "rev",
+     "ast",
+     "source",
+     "trees",
+     "treesHash",
+     "scanPlot",
+     "sources"
+    ],
+    "keys": [
+     "schemaVersion",
+     "id",
+     "version",
+     "compute",
+     "meta",
+     "placement",
+     "inputs",
+     "plots",
+     "paints"
+    ]
+   }
+  },
+  "numeric": {
+   "Inside": {
+    "finite": 1500,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "Inside day": {
+    "finite": 1500,
+    "hidden": false
+   },
+   "import:Inside": {
+    "finite": 1500,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:Inside day": {
+    "finite": 1500
+   }
+  }
+ },
+ "07-rs-vs-spy.json": {
+  "import": {
+   "ok": true,
+   "version": 5,
+   "declaration": "indicator",
+   "outcome": {
+    "verdict": "disclosed",
+    "label": "Imported, with disclosed differences",
+    "reason": "differences in how it is drawn only; the values are the same",
+    "missing": [],
+    "semantic": [],
+    "presentation": [
+     {
+      "name": "line 4",
+      "note": "this Pine input carries a default the engine grammar cannot hold — `input.symbol`",
+      "line": 4
+     }
+    ],
+    "info": [
+     {
+      "name": "line 3",
+      "note": "the indicator() declaration decides how a chart draws, and a screen reads none of it",
+      "line": 3
+     }
+    ]
+   },
+   "refusal": null,
+   "outputs": [
+    {
+     "kind": "plot",
+     "title": "RS Line",
+     "formula": "close / sym('SPY', close) * 100",
+     "refusal": null,
+     "fixedInputs": [
+      {
+       "name": "input.symbol",
+       "title": null,
+       "folded": "'SPY'"
+      }
+     ],
+     "pasteInputs": [],
+     "memberInputs": []
+    },
+    {
+     "kind": "plot",
+     "title": "RS MA",
+     "formula": "sma(close / sym('SPY', close) * 100, 50)",
+     "refusal": null,
+     "fixedInputs": [
+      {
+       "name": "input.symbol",
+       "title": null,
+       "folded": "'SPY'"
+      }
+     ],
+     "pasteInputs": [
+      {
+       "name": "smaLen",
+       "folded": "50"
+      }
+     ],
+     "memberInputs": []
+    }
+   ]
+  },
+  "pane": {
+   "ok": true,
+   "guard": null,
+   "reason": null,
+   "notes": [],
+   "definition": {
+    "meta": {
+     "name": "Relative Strength vs SPY (audit)",
+     "shortName": "Relative",
+     "category": "Custom",
+     "description": "(close divided by (SPY’s close)) times 100",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live",
+     "disclosures": [],
+     "requirementTags": [],
+     "recurrenceOrigin": "pine",
+     "naConditionFalse": true,
+     "otherSymbols": [
+      {
+       "ticker": "SPY",
+       "spellings": [
+        ""
+       ]
+      }
+     ]
+    },
+    "placement": {
+     "target": "pane",
+     "pane": {
+      "height": 0.25
+     }
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#2962FF"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out2Color",
+      "type": "color",
+      "label": "RS MA colour",
+      "default": "#787B86"
+     },
+     {
+      "key": "out2Width",
+      "type": "int",
+      "label": "RS MA width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "value",
+      "label": "RS Line",
+      "style": "line",
+      "color": "$color"
+     },
+     {
+      "key": "out2",
+      "label": "RS MA",
+      "style": "line",
+      "color": "$out2Color"
+     }
+    ],
+    "objects": null,
+    "computeKind": "ast",
+    "computeKeys": [
+     "kind",
+     "fn",
+     "rev",
+     "ast",
+     "source",
+     "paramManifest",
+     "trees",
+     "treesHash",
+     "scanPlot",
+     "sources"
+    ],
+    "paramManifest": {
+     "__uct_param_1002": {
+      "sourceName": "smaLen",
+      "title": "RS MA",
+      "type": "int",
+      "default": 50,
+      "min": null,
+      "max": null,
+      "step": null,
+      "options": null,
+      "locators": [
+       {
+        "treeIndex": "out2",
+        "astPath": [
+         "args",
+         1
+        ]
+       }
+      ]
+     }
+    },
+    "keys": [
+     "schemaVersion",
+     "id",
+     "version",
+     "compute",
+     "meta",
+     "placement",
+     "inputs",
+     "plots"
+    ]
+   }
+  },
+  "numeric": {
+   "RS Line": {
+    "finite": 1500,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "RS MA": {
+    "finite": 1451,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:RS Line": {
+    "finite": 1500,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:RS MA": {
+    "finite": 1451,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   }
+  }
+ },
+ "08-mtf-ema.json": {
+  "import": {
+   "ok": true,
+   "version": 5,
+   "declaration": "indicator",
+   "outcome": {
+    "verdict": "disclosed",
+    "label": "Imported, with disclosed differences",
+    "reason": "differences in how it is drawn only; the values are the same",
+    "missing": [],
+    "semantic": [],
+    "presentation": [
+     {
+      "name": "line 4",
+      "note": "this Pine input carries a default the engine grammar cannot hold — `input.timeframe` — 158 uses across 61 files, of which 97 reach `request.security` — multi-timeframe reads are item (c)'s. In a timeframe position this still folds to its default; only the 9-use value-position residue is retired, which is under the threshold",
+      "line": 4
+     }
+    ],
+    "info": [
+     {
+      "name": "line 3",
+      "note": "the indicator() declaration decides how a chart draws, and a screen reads none of it",
+      "line": 3
+     }
+    ]
+   },
+   "refusal": null,
+   "outputs": [
+    {
+     "kind": "plot",
+     "title": "HTF EMA",
+     "formula": "tf_live(ema(close, 10)[1], 'W')",
+     "refusal": null,
+     "fixedInputs": [
+      {
+       "name": "input.timeframe",
+       "title": null,
+       "folded": "'W'"
+      }
+     ],
+     "pasteInputs": [
+      {
+       "name": "len",
+       "folded": "10"
+      }
+     ],
+     "memberInputs": []
+    }
+   ]
+  },
+  "pane": {
+   "ok": true,
+   "guard": null,
+   "reason": null,
+   "notes": [],
+   "definition": {
+    "meta": {
+     "name": "Weekly EMA on Daily (audit)",
+     "shortName": "Weekly EMA",
+     "category": "Custom",
+     "description": "(0 divided by 0) when (1 when 86400 does not equal the length of one bar of the chart's timeframe, in seconds -- 60 times the minutes on an intraday chart, 86400 on daily, 604800 on weekly and 2628003 on monthly, the same value on every bar; blank when no timeframe was given. This engine's answer for Pine's timeframe.in_seconds() on the chart's own timeframe, and the grid the session clock time(timeframe.period, session) is read on and 0 otherwise) is not zero, (((the 10-bar exponential average of close) 1 bar ago) so far this week) when it is zero, and nothing while it is unknown",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "preview-repaints",
+     "freshness": "live",
+     "disclosures": [],
+     "requirementTags": [],
+     "recurrenceOrigin": "pine",
+     "naConditionFalse": true
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#E040FB"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "value",
+      "label": "HTF EMA",
+      "style": "line",
+      "color": "$color"
+     }
+    ],
+    "objects": null,
+    "computeKind": "ast",
+    "computeKeys": [
+     "kind",
+     "fn",
+     "rev",
+     "ast",
+     "source",
+     "paramManifest"
+    ],
+    "paramManifest": {
+     "__uct_param_1002": {
+      "sourceName": "len",
+      "title": "EMA length",
+      "type": "int",
+      "default": 10,
+      "min": null,
+      "max": null,
+      "step": null,
+      "options": null,
+      "locators": [
+       {
+        "treeIndex": null,
+        "astPath": [
+         "args",
+         2,
+         "args",
+         0,
+         "args",
+         0,
+         "args",
+         1
+        ]
+       }
+      ]
+     }
+    },
+    "keys": [
+     "schemaVersion",
+     "id",
+     "version",
+     "compute",
+     "meta",
+     "placement",
+     "inputs",
+     "plots"
+    ]
+   }
+  },
+  "numeric": {
+   "HTF EMA": {
+    "finite": 1450,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:HTF EMA": {
+    "finite": 1450,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   }
+  }
+ },
+ "09-volume-spike-bg.json": {
+  "import": {
+   "ok": false,
+   "version": 5,
+   "declaration": "indicator",
+   "outcome": {
+    "verdict": "unsupported",
+    "label": "Not supported",
+    "reason": "the pasted script offers no plot and no alert condition to filter on",
+    "missing": [],
+    "semantic": [],
+    "presentation": [],
+    "info": []
+   },
+   "refusal": {
+    "guard": "pine:no-output",
+    "message": "the pasted script offers no plot and no alert condition to filter on",
+    "line": null
+   },
+   "outputs": []
+  },
+  "pane": {
+   "ok": true,
+   "guard": null,
+   "reason": null,
+   "notes": [],
+   "definition": {
+    "meta": {
+     "name": "Volume Spike (audit)",
+     "shortName": "Volume",
+     "category": "Custom",
+     "description": "0 when (1 when volume is greater than ((the 20-bar average of volume) times 2) and 0 otherwise) is not zero, 1 when it is zero, and nothing while it is unknown",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live",
+     "disclosures": [],
+     "requirementTags": [],
+     "recurrenceOrigin": "pine",
+     "naConditionFalse": true
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "value",
+      "label": "Volume",
+      "style": "line",
+      "color": "$color",
+      "hidden": true
+     }
+    ],
+    "paints": [
+     {
+      "kind": "bgcolor",
+      "line": 8,
+      "title": "Spike",
+      "opacity": 0.19999999999999996,
+      "colorMode": "column:value",
+      "colorPalette": [
+       "#FF9800",
+       "rgba(0, 0, 0, 0)"
+      ]
+     }
+    ],
+    "objects": null,
+    "computeKind": "ast",
+    "computeKeys": [
+     "kind",
+     "fn",
+     "rev",
+     "ast",
+     "source"
+    ],
+    "keys": [
+     "schemaVersion",
+     "id",
+     "version",
+     "compute",
+     "meta",
+     "placement",
+     "inputs",
+     "plots",
+     "paints"
+    ]
+   }
+  },
+  "numeric": {}
+ },
+ "10-atr-trailing-stop.json": {
+  "import": {
+   "ok": false,
+   "version": 5,
+   "declaration": "indicator",
+   "outcome": {
+    "verdict": "unsupported",
+    "label": "Not supported",
+    "reason": "this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `trail` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total. THIS ENGINE DOES DECLARE A BOUNDED FORM: `lowest(<that value>, <bars>)` — the lowest over a window you name. Stating the window is what makes the answer the same tomorrow — an all-time value moves with however many bars were fetched.",
+    "missing": [],
+    "semantic": [],
+    "presentation": [],
+    "info": []
+   },
+   "refusal": {
+    "guard": "pine:state",
+    "message": "this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `trail` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total. THIS ENGINE DOES DECLARE A BOUNDED FORM: `lowest(<that value>, <bars>)` — the lowest over a window you name. Stating the window is what makes the answer the same tomorrow — an all-time value moves with however many bars were fetched.",
+    "line": 7
+   },
+   "outputs": [
+    {
+     "kind": "plot",
+     "title": null,
+     "formula": null,
+     "refusal": {
+      "guard": "pine:state",
+      "message": "this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `trail` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total. THIS ENGINE DOES DECLARE A BOUNDED FORM: `lowest(<that value>, <bars>)` — the lowest over a window you name. Stating the window is what makes the answer the same tomorrow — an all-time value moves with however many bars were fetched."
+     },
+     "fixedInputs": [],
+     "pasteInputs": [],
+     "memberInputs": []
+    }
+   ]
+  },
+  "pane": {
+   "ok": false,
+   "guard": "pine:state",
+   "reason": "this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `trail` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total. THIS ENGINE DOES DECLARE A BOUNDED FORM: `lowest(<that value>, <bars>)` — the lowest over a window you name. Stating the window is what makes the answer the same tomorrow — an all-time value moves with however many bars were fetched.",
+   "notes": [],
+   "definition": null
+  },
+  "numeric": {}
+ },
+ "11-pivots-labels-lines.json": {
+  "import": {
+   "ok": true,
+   "version": 5,
+   "declaration": "indicator",
+   "outcome": {
+    "verdict": "exact",
+    "label": "Exact import",
+    "reason": null,
+    "missing": [],
+    "semantic": [],
+    "presentation": [],
+    "info": [
+     {
+      "name": "line 3",
+      "note": "the indicator() declaration decides how a chart draws, and a screen reads none of it",
+      "line": 3
+     }
+    ]
+   },
+   "refusal": null,
+   "outputs": [
+    {
+     "kind": "plot",
+     "title": "SMA 20",
+     "formula": "sma(close, 20)",
+     "refusal": null,
+     "fixedInputs": [],
+     "pasteInputs": [],
+     "memberInputs": []
+    }
+   ]
+  },
+  "pane": {
+   "ok": true,
+   "guard": null,
+   "reason": null,
+   "notes": [],
+   "definition": {
+    "meta": {
+     "name": "Pivot Marks (audit)",
+     "shortName": "Pivot Marks",
+     "category": "Custom",
+     "description": "the 20-bar average of close",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live",
+     "disclosures": [],
+     "requirementTags": [],
+     "recurrenceOrigin": "pine",
+     "naConditionFalse": true
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#787B86"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "value",
+      "label": "SMA 20",
+      "style": "line",
+      "color": "$color"
+     }
+    ],
+    "objects": {
+     "ops": 3
+    },
+    "computeKind": "ast",
+    "computeKeys": [
+     "kind",
+     "fn",
+     "rev",
+     "ast",
+     "source"
+    ],
+    "keys": [
+     "schemaVersion",
+     "id",
+     "version",
+     "objects",
+     "compute",
+     "meta",
+     "placement",
+     "inputs",
+     "plots"
+    ]
+   }
+  },
+  "numeric": {
+   "SMA 20": {
+    "finite": 1481,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:SMA 20": {
+    "finite": 1481,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   }
+  }
+ },
+ "12-input-heavy.json": {
+  "import": {
+   "ok": true,
+   "version": 5,
+   "declaration": "indicator",
+   "outcome": {
+    "verdict": "disclosed",
+    "label": "Imported, with disclosed differences",
+    "reason": "differences in how it is drawn only; the values are the same",
+    "missing": [],
+    "semantic": [],
+    "presentation": [
+     {
+      "name": "line 4",
+      "note": "this Pine input carries a default the engine grammar cannot hold — `input.string` — in a timeframe position this folds exactly as `input.timeframe` does and adds no separate mechanism — 14 uses across 3 files",
+      "line": 4
+     },
+     {
+      "name": "line 9",
+      "note": "this Pine input carries a default the engine grammar cannot hold — `input.color`",
+      "line": 9
+     }
+    ],
+    "info": [
+     {
+      "name": "line 3",
+      "note": "the indicator() declaration decides how a chart draws, and a screen reads none of it",
+      "line": 3
+     }
+    ]
+   },
+   "refusal": null,
+   "outputs": [
+    {
+     "kind": "plot",
+     "title": "MA",
+     "formula": "ema(close, 30)",
+     "refusal": null,
+     "fixedInputs": [
+      {
+       "name": "src",
+       "title": "Source",
+       "folded": "close"
+      }
+     ],
+     "pasteInputs": [
+      {
+       "name": "len",
+       "folded": "30"
+      }
+     ],
+     "memberInputs": []
+    },
+    {
+     "kind": "plot",
+     "title": "Upper",
+     "formula": "showBand ? ema(close, 30) * (1 + bandPct / 100) : 0 / 0",
+     "refusal": null,
+     "fixedInputs": [
+      {
+       "name": "src",
+       "title": "Source",
+       "folded": "close"
+      }
+     ],
+     "pasteInputs": [
+      {
+       "name": "len",
+       "folded": "30"
+      }
+     ],
+     "memberInputs": [
+      {
+       "key": "showBand",
+       "label": "Show band",
+       "default": 1
+      },
+      {
+       "key": "bandPct",
+       "label": "Band %",
+       "default": 1.5
+      }
+     ]
+    },
+    {
+     "kind": "plot",
+     "title": "Lower",
+     "formula": "showBand ? ema(close, 30) * (1 - bandPct / 100) : 0 / 0",
+     "refusal": null,
+     "fixedInputs": [
+      {
+       "name": "src",
+       "title": "Source",
+       "folded": "close"
+      }
+     ],
+     "pasteInputs": [
+      {
+       "name": "len",
+       "folded": "30"
+      }
+     ],
+     "memberInputs": [
+      {
+       "key": "showBand",
+       "label": "Show band",
+       "default": 1
+      },
+      {
+       "key": "bandPct",
+       "label": "Band %",
+       "default": 1.5
+      }
+     ]
+    }
+   ]
+  },
+  "pane": {
+   "ok": true,
+   "guard": null,
+   "reason": null,
+   "notes": [],
+   "definition": {
+    "meta": {
+     "name": "Configurable MA (audit)",
+     "shortName": "Configurable",
+     "category": "Custom",
+     "description": "the 30-bar exponential average of close",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live",
+     "disclosures": [],
+     "requirementTags": [],
+     "recurrenceOrigin": "pine",
+     "naConditionFalse": true
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#00BCD4"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out2Color",
+      "type": "color",
+      "label": "Upper colour",
+      "default": "#787B86"
+     },
+     {
+      "key": "out2Width",
+      "type": "int",
+      "label": "Upper width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out3Color",
+      "type": "color",
+      "label": "Lower colour",
+      "default": "#787B86"
+     },
+     {
+      "key": "out3Width",
+      "type": "int",
+      "label": "Lower width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "showBand",
+      "type": "int",
+      "label": "Show band",
+      "default": 1
+     },
+     {
+      "key": "bandPct",
+      "type": "float",
+      "label": "Band %",
+      "default": 1.5
+     }
+    ],
+    "plots": [
+     {
+      "key": "value",
+      "label": "MA",
+      "style": "line",
+      "color": "$color"
+     },
+     {
+      "key": "out2",
+      "label": "Upper",
+      "style": "line",
+      "color": "$out2Color"
+     },
+     {
+      "key": "out3",
+      "label": "Lower",
+      "style": "line",
+      "color": "$out3Color"
+     }
+    ],
+    "objects": null,
+    "computeKind": "ast",
+    "computeKeys": [
+     "kind",
+     "fn",
+     "rev",
+     "ast",
+     "source",
+     "paramManifest",
+     "trees",
+     "treesHash",
+     "scanPlot",
+     "sources"
+    ],
+    "paramManifest": {
+     "__uct_param_1003": {
+      "sourceName": "len",
+      "title": "Length",
+      "type": "int",
+      "default": 30,
+      "min": 2,
+      "max": 400,
+      "step": null,
+      "options": null,
+      "locators": [
+       {
+        "treeIndex": "value",
+        "astPath": [
+         "args",
+         1
+        ]
+       },
+       {
+        "treeIndex": "out2",
+        "astPath": [
+         "args",
+         1,
+         "args",
+         0,
+         "args",
+         1
+        ]
+       },
+       {
+        "treeIndex": "out3",
+        "astPath": [
+         "args",
+         1,
+         "args",
+         0,
+         "args",
+         1
+        ]
+       }
+      ]
+     }
+    },
+    "keys": [
+     "schemaVersion",
+     "id",
+     "version",
+     "compute",
+     "meta",
+     "placement",
+     "inputs",
+     "plots"
+    ]
+   }
+  },
+  "numeric": {
+   "MA": {
+    "finite": 1471,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "Upper": {
+    "finite": "unknown name \"showBand\" — this table declares open, high, low, close, volume, above_50sma, adr_pct, adr_pct_1w, atr_ext_sma50, atr_pct, avg_body, avg_body_pct_5, avg_range, avg_volume_30d, base_relation_count, beta, blended_growth, body_pct, candle_recent_bars_ago, candle_score, chg_from_open_pct, chg_pct_1d, chg_pct_1m, chg_pct_1w, chg_pct_1y, chg_pct_ytd, close_cv_pct, close_position, consecutive_down, consecutive_up, current_ratio, days_to_earnings, debt_to_equity, dist_20d_high_pct, dist_20d_low_pct, dist_52w_high_pct, dist_52w_low_pct, dist_ath_pct, dividend_yield, dollar_vol_30d, dollar_vol_1d, downgrades_30d, dp_level_dist_pct, dp_notional_1d, dp_notional_5d, dp_prints_1d, ema10_rising, ema20_rising, ema_stack_intact, ema_touch_count, eps_growth, eps_next_5y_growth, eps_next_y_growth, eps_past_5y_growth, float_pct, float_shares, gap_pct, gross_margin, higher_lows_run, hvc_52w, implied_move_pct, in_uct20, index_dow, index_ndx, index_r2k, index_sp500, inside_bar_run, insider_cluster_days, insider_own_pct, insider_trans_pct, inst_pct, inst_trans_pct, ipo_age_days, is_etf, is_leveraged, last_report_move_pct, lower_wick_pct, lt_debt_to_capital, market_cap, narrow_bar, net_margin, new_52w_high, new_ath, nr7, op_margin, opt_bull_pct_1d, opt_net_premium_1d, opt_net_premium_5d, optionable, p_fcf, p_ocf, pattern_engine_conf, pattern_engine_dir, pattern_engine_flat_base, pattern_engine_vcp, pattern_entry_dist_pct, pattern_expectancy_r, pattern_stop_dist_pct, payout_ratio, pb, pct_vs_ema20, pct_vs_sma20, pct_vs_sma200, pct_vs_sma50, pe_fwd, pe_ttm, peg, pole_pct, prev_day_close, prev_day_high, prev_day_low, prev_day_open, price, ps, pt_target, pt_upside_pct, pullback_depth_pct, quick_ratio, rating_eps, rating_growth, rating_smr, rating_value, rev_growth, roa, roe, roic, rs_rank, rs_return, rsi14, sales_past_5y_growth, sector_rs_pct, shares_outstanding, short_float_pct, short_ratio, shortable, tight_consolidation, uct_composite, upgrades_30d, upper_wick_pct, vol_nweek_low, vol_ratio, vol_updown_ratio, wide_bar",
+    "hidden": false
+   },
+   "Lower": {
+    "finite": "unknown name \"showBand\" — this table declares open, high, low, close, volume, above_50sma, adr_pct, adr_pct_1w, atr_ext_sma50, atr_pct, avg_body, avg_body_pct_5, avg_range, avg_volume_30d, base_relation_count, beta, blended_growth, body_pct, candle_recent_bars_ago, candle_score, chg_from_open_pct, chg_pct_1d, chg_pct_1m, chg_pct_1w, chg_pct_1y, chg_pct_ytd, close_cv_pct, close_position, consecutive_down, consecutive_up, current_ratio, days_to_earnings, debt_to_equity, dist_20d_high_pct, dist_20d_low_pct, dist_52w_high_pct, dist_52w_low_pct, dist_ath_pct, dividend_yield, dollar_vol_30d, dollar_vol_1d, downgrades_30d, dp_level_dist_pct, dp_notional_1d, dp_notional_5d, dp_prints_1d, ema10_rising, ema20_rising, ema_stack_intact, ema_touch_count, eps_growth, eps_next_5y_growth, eps_next_y_growth, eps_past_5y_growth, float_pct, float_shares, gap_pct, gross_margin, higher_lows_run, hvc_52w, implied_move_pct, in_uct20, index_dow, index_ndx, index_r2k, index_sp500, inside_bar_run, insider_cluster_days, insider_own_pct, insider_trans_pct, inst_pct, inst_trans_pct, ipo_age_days, is_etf, is_leveraged, last_report_move_pct, lower_wick_pct, lt_debt_to_capital, market_cap, narrow_bar, net_margin, new_52w_high, new_ath, nr7, op_margin, opt_bull_pct_1d, opt_net_premium_1d, opt_net_premium_5d, optionable, p_fcf, p_ocf, pattern_engine_conf, pattern_engine_dir, pattern_engine_flat_base, pattern_engine_vcp, pattern_entry_dist_pct, pattern_expectancy_r, pattern_stop_dist_pct, payout_ratio, pb, pct_vs_ema20, pct_vs_sma20, pct_vs_sma200, pct_vs_sma50, pe_fwd, pe_ttm, peg, pole_pct, prev_day_close, prev_day_high, prev_day_low, prev_day_open, price, ps, pt_target, pt_upside_pct, pullback_depth_pct, quick_ratio, rating_eps, rating_growth, rating_smr, rating_value, rev_growth, roa, roe, roic, rs_rank, rs_return, rsi14, sales_past_5y_growth, sector_rs_pct, shares_outstanding, short_float_pct, short_ratio, shortable, tight_consolidation, uct_composite, upgrades_30d, upper_wick_pct, vol_nweek_low, vol_ratio, vol_updown_ratio, wide_bar",
+    "hidden": false
+   },
+   "import:MA": {
+    "finite": 1471,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:Upper": {
+    "finite": "unknown name \"showBand\" — this table declares open, high, low, close, volume, above_50sma, adr_pct, adr_pct_1w, atr_ext_sma50, atr_pct, avg_body, avg_body_pct_5, avg_range, avg_volume_30d, base_relation_count, beta, blended_growth, body_pct, candle_recent_bars_ago, candle_score, chg_from_open_pct, chg_pct_1d, chg_pct_1m, chg_pct_1w, chg_pct_1y, chg_pct_ytd, close_cv_pct, close_position, consecutive_down, consecutive_up, current_ratio, days_to_earnings, debt_to_equity, dist_20d_high_pct, dist_20d_low_pct, dist_52w_high_pct, dist_52w_low_pct, dist_ath_pct, dividend_yield, dollar_vol_30d, dollar_vol_1d, downgrades_30d, dp_level_dist_pct, dp_notional_1d, dp_notional_5d, dp_prints_1d, ema10_rising, ema20_rising, ema_stack_intact, ema_touch_count, eps_growth, eps_next_5y_growth, eps_next_y_growth, eps_past_5y_growth, float_pct, float_shares, gap_pct, gross_margin, higher_lows_run, hvc_52w, implied_move_pct, in_uct20, index_dow, index_ndx, index_r2k, index_sp500, inside_bar_run, insider_cluster_days, insider_own_pct, insider_trans_pct, inst_pct, inst_trans_pct, ipo_age_days, is_etf, is_leveraged, last_report_move_pct, lower_wick_pct, lt_debt_to_capital, market_cap, narrow_bar, net_margin, new_52w_high, new_ath, nr7, op_margin, opt_bull_pct_1d, opt_net_premium_1d, opt_net_premium_5d, optionable, p_fcf, p_ocf, pattern_engine_conf, pattern_engine_dir, pattern_engine_flat_base, pattern_engine_vcp, pattern_entry_dist_pct, pattern_expectancy_r, pattern_stop_dist_pct, payout_ratio, pb, pct_vs_ema20, pct_vs_sma20, pct_vs_sma200, pct_vs_sma50, pe_fwd, pe_ttm, peg, pole_pct, prev_day_close, prev_day_high, prev_day_low, prev_day_open, price, ps, pt_target, pt_upside_pct, pullback_depth_pct, quick_ratio, rating_eps, rating_growth, rating_smr, rating_value, rev_growth, roa, roe, roic, rs_rank, rs_return, rsi14, sales_past_5y_growth, sector_rs_pct, shares_outstanding, short_float_pct, short_ratio, shortable, tight_consolidation, uct_composite, upgrades_30d, upper_wick_pct, vol_nweek_low, vol_ratio, vol_updown_ratio, wide_bar"
+   },
+   "import:Lower": {
+    "finite": "unknown name \"showBand\" — this table declares open, high, low, close, volume, above_50sma, adr_pct, adr_pct_1w, atr_ext_sma50, atr_pct, avg_body, avg_body_pct_5, avg_range, avg_volume_30d, base_relation_count, beta, blended_growth, body_pct, candle_recent_bars_ago, candle_score, chg_from_open_pct, chg_pct_1d, chg_pct_1m, chg_pct_1w, chg_pct_1y, chg_pct_ytd, close_cv_pct, close_position, consecutive_down, consecutive_up, current_ratio, days_to_earnings, debt_to_equity, dist_20d_high_pct, dist_20d_low_pct, dist_52w_high_pct, dist_52w_low_pct, dist_ath_pct, dividend_yield, dollar_vol_30d, dollar_vol_1d, downgrades_30d, dp_level_dist_pct, dp_notional_1d, dp_notional_5d, dp_prints_1d, ema10_rising, ema20_rising, ema_stack_intact, ema_touch_count, eps_growth, eps_next_5y_growth, eps_next_y_growth, eps_past_5y_growth, float_pct, float_shares, gap_pct, gross_margin, higher_lows_run, hvc_52w, implied_move_pct, in_uct20, index_dow, index_ndx, index_r2k, index_sp500, inside_bar_run, insider_cluster_days, insider_own_pct, insider_trans_pct, inst_pct, inst_trans_pct, ipo_age_days, is_etf, is_leveraged, last_report_move_pct, lower_wick_pct, lt_debt_to_capital, market_cap, narrow_bar, net_margin, new_52w_high, new_ath, nr7, op_margin, opt_bull_pct_1d, opt_net_premium_1d, opt_net_premium_5d, optionable, p_fcf, p_ocf, pattern_engine_conf, pattern_engine_dir, pattern_engine_flat_base, pattern_engine_vcp, pattern_entry_dist_pct, pattern_expectancy_r, pattern_stop_dist_pct, payout_ratio, pb, pct_vs_ema20, pct_vs_sma20, pct_vs_sma200, pct_vs_sma50, pe_fwd, pe_ttm, peg, pole_pct, prev_day_close, prev_day_high, prev_day_low, prev_day_open, price, ps, pt_target, pt_upside_pct, pullback_depth_pct, quick_ratio, rating_eps, rating_growth, rating_smr, rating_value, rev_growth, roa, roe, roic, rs_rank, rs_return, rsi14, sales_past_5y_growth, sector_rs_pct, shares_outstanding, short_float_pct, short_ratio, shortable, tight_consolidation, uct_composite, upgrades_30d, upper_wick_pct, vol_nweek_low, vol_ratio, vol_updown_ratio, wide_bar"
+   }
+  }
+ },
+ "13-table-dashboard.json": {
+  "import": {
+   "ok": false,
+   "version": 5,
+   "declaration": "indicator",
+   "outcome": {
+    "verdict": "unsupported",
+    "label": "Not supported",
+    "reason": "this script draws objects — a table, labels or boxes — and offers no plot or alert condition, so there is nothing to filter a scan on",
+    "missing": [],
+    "semantic": [],
+    "presentation": [],
+    "info": []
+   },
+   "refusal": {
+    "guard": "pine:objects-only",
+    "message": "this script draws objects — a table, labels or boxes — and offers no plot or alert condition, so there is nothing to filter a scan on",
+    "line": null
+   },
+   "outputs": []
+  },
+  "pane": {
+   "ok": true,
+   "guard": null,
+   "reason": null,
+   "notes": [],
+   "definition": {
+    "meta": {
+     "name": "Stats Table (audit)",
+     "shortName": "Stats Table",
+     "category": "Custom",
+     "description": "",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live",
+     "disclosures": [],
+     "requirementTags": [],
+     "recurrenceOrigin": "pine",
+     "naConditionFalse": true
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "value",
+      "label": "Stats Table",
+      "style": "line",
+      "color": "$color",
+      "hidden": true
+     }
+    ],
+    "objects": {
+     "ops": 7
+    },
+    "computeKind": "ast",
+    "computeKeys": [
+     "kind",
+     "fn",
+     "rev",
+     "ast",
+     "source"
+    ],
+    "keys": [
+     "schemaVersion",
+     "id",
+     "version",
+     "objects",
+     "compute",
+     "meta",
+     "placement",
+     "inputs",
+     "plots"
+    ]
+   }
+  },
+  "numeric": {}
+ },
+ "14-strategy.json": {
+  "import": {
+   "ok": false,
+   "version": 5,
+   "declaration": null,
+   "outcome": {
+    "verdict": "unsupported",
+    "label": "Not supported",
+    "reason": "a strategy places orders to be backtested, and a screen filters symbols",
+    "missing": [],
+    "semantic": [],
+    "presentation": [],
+    "info": []
+   },
+   "refusal": {
+    "guard": "pine:declaration-strategy",
+    "message": "a strategy places orders to be backtested, and a screen filters symbols",
+    "line": 3
+   },
+   "outputs": [
+    {
+     "kind": "plot",
+     "title": "Fast",
+     "formula": "sma(close, 10)",
+     "refusal": null,
+     "fixedInputs": [],
+     "pasteInputs": [],
+     "memberInputs": []
+    },
+    {
+     "kind": "plot",
+     "title": "Slow",
+     "formula": "sma(close, 30)",
+     "refusal": null,
+     "fixedInputs": [],
+     "pasteInputs": [],
+     "memberInputs": []
+    }
+   ]
+  },
+  "pane": {
+   "ok": true,
+   "guard": null,
+   "reason": null,
+   "notes": [],
+   "definition": {
+    "meta": {
+     "name": "SMA Cross Strategy (audit)",
+     "shortName": "SMA Cross",
+     "category": "Custom",
+     "description": "the 10-bar average of close",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live",
+     "disclosures": [],
+     "requirementTags": [],
+     "recurrenceOrigin": "pine",
+     "naConditionFalse": true
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#4CAF50"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out2Color",
+      "type": "color",
+      "label": "Slow colour",
+      "default": "#FF5252"
+     },
+     {
+      "key": "out2Width",
+      "type": "int",
+      "label": "Slow width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "value",
+      "label": "Fast",
+      "style": "line",
+      "color": "$color"
+     },
+     {
+      "key": "out2",
+      "label": "Slow",
+      "style": "line",
+      "color": "$out2Color"
+     }
+    ],
+    "objects": null,
+    "computeKind": "ast",
+    "computeKeys": [
+     "kind",
+     "fn",
+     "rev",
+     "ast",
+     "source",
+     "trees",
+     "treesHash",
+     "scanPlot",
+     "sources"
+    ],
+    "keys": [
+     "schemaVersion",
+     "id",
+     "version",
+     "compute",
+     "meta",
+     "placement",
+     "inputs",
+     "plots"
+    ]
+   }
+  },
+  "numeric": {
+   "Fast": {
+    "finite": 1491,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "Slow": {
+    "finite": 1471,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:Fast": {
+    "finite": 1491,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:Slow": {
+    "finite": 1471,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   }
+  }
+ },
+ "15-v4-legacy.json": {
+  "import": {
+   "ok": true,
+   "version": 4,
+   "declaration": "study",
+   "outcome": {
+    "verdict": "disclosed",
+    "label": "Imported, with disclosed differences",
+    "reason": "differences in how it is drawn only; the values are the same",
+    "missing": [],
+    "semantic": [],
+    "presentation": [
+     {
+      "name": "line 10",
+      "note": "`hline` draws a horizontal level; this door carries it as a level line for a chart, and a screen reads plot() and alertcondition() and nothing else, so a screen built from this script does not read it",
+      "line": 10
+     }
+    ],
+    "info": [
+     {
+      "name": "line 3",
+      "note": "the indicator() declaration decides how a chart draws, and a screen reads none of it",
+      "line": 3
+     }
+    ]
+   },
+   "refusal": null,
+   "outputs": [
+    {
+     "kind": "plot",
+     "title": "Momentum",
+     "formula": "close - close[10]",
+     "refusal": null,
+     "fixedInputs": [],
+     "pasteInputs": [
+      {
+       "name": "len",
+       "folded": "10"
+      }
+     ],
+     "memberInputs": []
+    },
+    {
+     "kind": "plot",
+     "title": "Signal",
+     "formula": "sma(close - close[10], 3)",
+     "refusal": null,
+     "fixedInputs": [],
+     "pasteInputs": [
+      {
+       "name": "len",
+       "folded": "10"
+      },
+      {
+       "name": "smooth",
+       "folded": "3"
+      }
+     ],
+     "memberInputs": []
+    }
+   ]
+  },
+  "pane": {
+   "ok": true,
+   "guard": null,
+   "reason": null,
+   "notes": [],
+   "definition": {
+    "meta": {
+     "name": "Legacy Momentum (audit)",
+     "shortName": "Legacy",
+     "category": "Custom",
+     "description": "close minus (close 10 bars ago)",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live",
+     "disclosures": [],
+     "requirementTags": [],
+     "recurrenceOrigin": "pine",
+     "naConditionFalse": true
+    },
+    "placement": {
+     "target": "pane",
+     "pane": {
+      "height": 0.25
+     }
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#2196F3"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out2Color",
+      "type": "color",
+      "label": "Signal colour",
+      "default": "#FF9800"
+     },
+     {
+      "key": "out2Width",
+      "type": "int",
+      "label": "Signal width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "value",
+      "label": "Momentum",
+      "style": "line",
+      "color": "$color"
+     },
+     {
+      "key": "out2",
+      "label": "Signal",
+      "style": "line",
+      "color": "$out2Color"
+     }
+    ],
+    "objects": null,
+    "computeKind": "ast",
+    "computeKeys": [
+     "kind",
+     "fn",
+     "rev",
+     "ast",
+     "source",
+     "paramManifest",
+     "trees",
+     "treesHash",
+     "scanPlot",
+     "sources"
+    ],
+    "paramManifest": {
+     "__uct_param_1002": {
+      "sourceName": "smooth",
+      "title": "Smooth",
+      "type": "int",
+      "default": 3,
+      "min": null,
+      "max": null,
+      "step": null,
+      "options": null,
+      "locators": [
+       {
+        "treeIndex": "out2",
+        "astPath": [
+         "args",
+         1
+        ]
+       }
+      ]
+     }
+    },
+    "keys": [
+     "schemaVersion",
+     "id",
+     "version",
+     "compute",
+     "meta",
+     "placement",
+     "inputs",
+     "plots"
+    ]
+   }
+  },
+  "numeric": {
+   "Momentum": {
+    "finite": 1490,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "Signal": {
+    "finite": 1488,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:Momentum": {
+    "finite": 1490,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:Signal": {
+    "finite": 1488,
+    "vsRef": {
+     "worstRel": 0,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   }
+  }
+ },
+ "16-missing-function.json": {
+  "import": {
+   "ok": true,
+   "version": 5,
+   "declaration": "indicator",
+   "outcome": {
+    "verdict": "partial",
+    "label": "Partial import",
+    "reason": "not imported: the output on line 10",
+    "missing": [
+     {
+      "name": "the output on line 10",
+      "guard": "pine:function",
+      "message": "this Pine function maps to nothing the engine grammar declares — `ta.kama`. This table declares abs, accum, adx, aroonDown, aroonUp, atan, atr, atrPine, avwap, barsAgo, barssince, bbw, bop, cci, ceil, change, cos, crossOver, crossUnder, cum, cumFrom, dev, donchianLower, donchianMiddle, donchianUpper, ema, exp, falling, floor, highest, highestbars, hma, ichimokuChikou, ichimokuKijun, ichimokuSpanA, ichimokuSpanB, ichimokuTenkan, idiv, ln, log10, lowest, lowestbars, macd, max, median, mfi, mfiPine, min, minusDI, mod, na, nz, obvN, percentileLinearInterpolation, percentrank, pivothigh, pivotlow, plusDI, pow, pvtN, rising, rma, round, rsi, sign, sin, sinh, sma, sqrt, stdev, stoch, sum, tan, valuewhen, valuewhenOccurrence, vwap, vwapOf, williamsR, wma"
+     }
+    ],
+    "semantic": [],
+    "presentation": [],
+    "info": [
+     {
+      "name": "line 3",
+      "note": "the indicator() declaration decides how a chart draws, and a screen reads none of it",
+      "line": 3
+     }
+    ]
+   },
+   "refusal": null,
+   "outputs": [
+    {
+     "kind": "plot",
+     "title": "Slope",
+     "formula": "sum(close, 20) / 20 + (20 * wma(close, 20) - sum(close, 20)) * 0.15 - (sum(close, 20) / 20 + (20 * wma(close, 20) - sum(close, 20)) * 0.13421052631578947)",
+     "refusal": null,
+     "fixedInputs": [
+      {
+       "name": "len",
+       "title": "Length",
+       "folded": "20"
+      }
+     ],
+     "pasteInputs": [],
+     "memberInputs": []
+    },
+    {
+     "kind": "plot",
+     "title": null,
+     "formula": null,
+     "refusal": {
+      "guard": "pine:function",
+      "message": "this Pine function maps to nothing the engine grammar declares — `ta.kama`. This table declares abs, accum, adx, aroonDown, aroonUp, atan, atr, atrPine, avwap, barsAgo, barssince, bbw, bop, cci, ceil, change, cos, crossOver, crossUnder, cum, cumFrom, dev, donchianLower, donchianMiddle, donchianUpper, ema, exp, falling, floor, highest, highestbars, hma, ichimokuChikou, ichimokuKijun, ichimokuSpanA, ichimokuSpanB, ichimokuTenkan, idiv, ln, log10, lowest, lowestbars, macd, max, median, mfi, mfiPine, min, minusDI, mod, na, nz, obvN, percentileLinearInterpolation, percentrank, pivothigh, pivotlow, plusDI, pow, pvtN, rising, rma, round, rsi, sign, sin, sinh, sma, sqrt, stdev, stoch, sum, tan, valuewhen, valuewhenOccurrence, vwap, vwapOf, williamsR, wma"
+     },
+     "fixedInputs": [],
+     "pasteInputs": [],
+     "memberInputs": []
+    }
+   ]
+  },
+  "pane": {
+   "ok": false,
+   "guard": "pine:function",
+   "reason": "this Pine function maps to nothing the engine grammar declares — `ta.kama`. This table declares abs, accum, adx, aroonDown, aroonUp, atan, atr, atrPine, avwap, barsAgo, barssince, bbw, bop, cci, ceil, change, cos, crossOver, crossUnder, cum, cumFrom, dev, donchianLower, donchianMiddle, donchianUpper, ema, exp, falling, floor, highest, highestbars, hma, ichimokuChikou, ichimokuKijun, ichimokuSpanA, ichimokuSpanB, ichimokuTenkan, idiv, ln, log10, lowest, lowestbars, macd, max, median, mfi, mfiPine, min, minusDI, mod, na, nz, obvN, percentileLinearInterpolation, percentrank, pivothigh, pivotlow, plusDI, pow, pvtN, rising, rma, round, rsi, sign, sin, sinh, sma, sqrt, stdev, stoch, sum, tan, valuewhen, valuewhenOccurrence, vwap, vwapOf, williamsR, wma",
+   "notes": [],
+   "definition": null
+  },
+  "numeric": {
+   "Slope": {
+    "finite": 1481,
+    "hidden": false,
+    "vsRef": {
+     "worstRel": 3.478489918870567e-11,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   },
+   "import:Slope": {
+    "finite": 1481,
+    "vsRef": {
+     "worstRel": 3.478489918870567e-11,
+     "compared": 1200,
+     "naMismatch": 0
+    }
+   }
+  }
+ }
+}

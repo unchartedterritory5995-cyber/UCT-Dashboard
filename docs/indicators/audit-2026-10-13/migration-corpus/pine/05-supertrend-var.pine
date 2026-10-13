@@ -1,0 +1,17 @@
+// WS5 audit corpus - written for this audit (UCT, 2026-10-13). Not a TradingView community script.
+//@version=5
+indicator("Supertrend State (audit)", overlay = true)
+atrLen = input.int(10, "ATR Length")
+factor = input.float(3.0, "Factor")
+atr = ta.atr(atrLen)
+hl = (high + low) / 2
+upBasic = hl - factor * atr
+dnBasic = hl + factor * atr
+var float upBand = na
+var float dnBand = na
+var int dir = 1
+upBand := na(upBand[1]) ? upBasic : (close[1] > upBand[1] ? math.max(upBasic, upBand[1]) : upBasic)
+dnBand := na(dnBand[1]) ? dnBasic : (close[1] < dnBand[1] ? math.min(dnBasic, dnBand[1]) : dnBasic)
+dir := dir == -1 and close > dnBand[1] ? 1 : dir == 1 and close < upBand[1] ? -1 : dir
+st = dir == 1 ? upBand : dnBand
+plot(st, "Supertrend", color = dir == 1 ? color.green : color.red, linewidth = 2)

@@ -1,0 +1,10 @@
+// WS5 audit corpus - written for this audit (UCT, 2026-10-13). Not a TradingView community script.
+//@version=4
+study("Legacy Momentum (audit)", overlay=false)
+len = input(10, title="Length", type=input.integer)
+smooth = input(3, title="Smooth", type=input.integer)
+mom = close - close[len]
+sig = sma(mom, smooth)
+plot(mom, title="Momentum", color=color.blue)
+plot(sig, title="Signal", color=color.orange)
+hline(0, color=color.gray)
