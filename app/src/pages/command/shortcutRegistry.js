@@ -151,6 +151,28 @@ const decl = (d) => Object.freeze({ type: 'keydown', ...d, chord: Object.freeze(
  * the behaviour contract it inherits. `why` records where the rule came from.
  */
 export const SHORTCUTS = Object.freeze([
+  // ── the indicator Undo toast (components/chart/IndicatorUndoToast.jsx, Indicators A1.2) ──
+  decl({
+    id: 'indicators.undo',
+    chord: { keys: ['z'], fold: true, mod: 'either', shift: false, alt: false },
+    target: 'window', capture: true, inEditable: false, repeat: false,
+    why: 'Ctrl/Cmd+Z undoes the indicator change the visible "RSI hidden · Undo" toast names. '
+      + 'Registered ONLY while that toast shows (one toast owns it at a time), in the capture '
+      + 'phase so it runs ahead of the drawing layer\'s bubble-phase Ctrl+Z; never in a text field '
+      + 'or an open modal, so native text undo and the builder win. No toast, no binding.',
+  }),
+  decl({
+    id: 'indicators.redo',
+    chord: { keys: ['z'], fold: true, mod: 'either', shift: true, alt: false },
+    target: 'window', capture: true, inEditable: false, repeat: false,
+    why: 'Ctrl/Cmd+Shift+Z redoes it, only while the toast shows "Undone · Redo".',
+  }),
+  decl({
+    id: 'indicators.redoY',
+    chord: { keys: ['y'], fold: true, mod: 'either', alt: false },
+    target: 'window', capture: true, inEditable: false, repeat: false,
+    why: 'Ctrl/Cmd+Y — the other redo chord — under the same rule as indicators.redo.',
+  }),
   // ── the command palette (components/CommandPalette.jsx) ──────────────────
   decl({
     id: 'palette.toggle',

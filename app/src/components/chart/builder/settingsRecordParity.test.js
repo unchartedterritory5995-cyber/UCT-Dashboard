@@ -159,3 +159,64 @@ describe('A1.0 — settingsRecord is byte-identical to the pre-move helpers', ()
     expect(checked).toBe(400)
   })
 })
+
+// ⭐ A1.2 — the Agent's condition for building on A1.0 (2026-10-13): element granularity and
+// splice-undo are OPT-IN through `record.granularity`, a field Agent records never carry.
+describe('A1.2 — element granularity is opt-in; Agent records keep today\'s path', () => {
+  it('an Agent record (no `granularity`) is byte-identical to the frozen helpers and reverts through them', () => {
+    const cs = norm(chart())
+    for (const [name, stepFn] of Object.entries(STEPS)) {
+      const next = norm(view(stepFn(cs)))
+      const rec = live.changeRecord(cs, next)
+      expect('granularity' in rec, `${name}: an Agent record never carries granularity`).toBe(false)
+      expect(bytes(rec)).toBe(bytes(frozen.changeRecord(cs, next)))
+      expect(bytes(liveRevert(next, rec))).toBe(bytes(frozenRevert(next, rec)))
+    }
+  })
+
+  it('a leaf record handed a FOREIGN granularity value still takes the leaf path (only "element" opts in)', () => {
+    const cs = norm(chart())
+    const next = norm(view(STEPS.hideRsi(cs)))
+    const rec = { ...live.changeRecord(cs, next), granularity: 'leaf' }
+    expect(bytes(live.revertRecord(next, rec))).toBe(bytes(live.revertRecord(next, live.changeRecord(cs, next))))
+  })
+
+  it('element records: undo and redo are byte-identical after the persisted read, for every writer', () => {
+    const cs = norm(chart())
+    for (const [name, stepFn] of Object.entries(STEPS)) {
+      const next = norm(view(stepFn(cs)))
+      const rec = live.elementRecord(cs, next)
+      expect(rec.granularity).toBe(live.ELEMENT)
+      const undone = live.revertRecord(next, rec)
+      expect(undone.ok, `${name}: undo`).toBe(true)
+      expect(bytes(norm(undone.cs)), `${name}: undo is byte-exact`).toBe(bytes(cs))
+      const redone = live.revertRecord(undone.cs, live.invertRecord(rec))
+      expect(redone.ok, `${name}: redo`).toBe(true)
+      expect(bytes(norm(redone.cs)), `${name}: redo is byte-exact`).toBe(bytes(next))
+    }
+  })
+
+  it('element records: an ADD undoes by splicing the element out (the leaf mode refuses that)', () => {
+    const cs = norm(chart())
+    const next = norm(view(STEPS.addStoch(cs)))
+    expect(live.revertRecord(next, live.elementRecord(cs, next)).ok).toBe(true)
+    // the same change as a leaf record, applied to a chart where the add happened, is fine —
+    // but the leaf mode cannot re-ADD a removed element on redo; element mode can:
+    const rec = live.elementRecord(cs, next)
+    const undone = live.revertRecord(next, rec).cs
+    expect(bytes(norm(live.revertRecord(undone, live.invertRecord(rec)).cs))).toBe(bytes(next))
+  })
+
+  it('element records refuse — never partially — when a recorded element changed since', () => {
+    const cs = norm(chart())
+    const next = norm(view(STEPS.hideRsi(cs)))
+    const rec = live.elementRecord(cs, next)
+    const moved = norm(view(STEPS.rsiPeriod(next)))
+    const r = live.revertRecord(moved, rec)
+    expect(r.ok).toBe(false)
+    expect(r.path[1]).toEqual({ instanceId: 'inst:rsi:1' })
+    // …and an edit to ANOTHER instance does not block it
+    const other = norm(view(STEPS.maPeriod(next)))
+    expect(live.revertRecord(other, rec).ok).toBe(true)
+  })
+})

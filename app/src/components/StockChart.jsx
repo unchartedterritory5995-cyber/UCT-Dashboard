@@ -1,7 +1,7 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
-import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from 'react'
+import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, useId } from 'react'
 import { createPortal } from 'react-dom'
 import isModalOpen from '../utils/modalOpen'
 import { uid } from '../utils/uid'
@@ -163,6 +163,9 @@ import { usePatternDetections } from '../hooks/usePatternDetections'
 import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
 import { useInstalledUserDefinitions } from '../hooks/useUserDefinitions'
 import { useIsPaid } from '../context/AuthContext'
+import useHistoryUserId from './chart/useHistoryUserId'
+import IndicatorUndoToast from './chart/IndicatorUndoToast'
+import { recordIndicatorChange, indicatorHistoryKey as historyKeyFor } from './chart/indicatorHistoryStore'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStore'
 import useRealtimeBars from '../hooks/useRealtimeBars'
@@ -2560,6 +2563,10 @@ export default function StockChart({
   // (`charts_workspace_layout`, `multichart_state`); a surface without one
   // passes nothing and stays global.
   chartId = null,
+  // ⭐ A1.2 — the indicator Undo stack this chart records into and toasts from. A host with
+  // its own sink and a stable id passes `chart:<id>` (ChartPane); absent, an isolated
+  // surface gets a per-mount key and a global-writing one shares `global`.
+  indicatorHistoryKey: indicatorHistoryKeyProp = null,
   // Optional host ref filled with the mounted ChartToolbar's imperative API
   // ({ openIndicatorLibrary, openAlerts }) so external chrome — the phone bottom
   // toolbar's ƒx sheet — can open the SAME IndicatorLibraryDialog / alert
@@ -5087,6 +5094,12 @@ export default function StockChart({
     setRepeatMode(val)
     try { localStorage.setItem('uct-draw-repeat', val ? 'true' : 'false') } catch {}
   }, [])
+  // ⭐ A1.2 — WHO AND WHERE for the indicator Undo stack (see `indicatorHistoryStore`).
+  const historyUserId = useHistoryUserId()
+  const _mountId = useId()
+  const historyKey = indicatorHistoryKeyProp || historyKeyFor({ isolated: !!onSettingsPersist, mountId: _mountId })
+  // An Undo/Redo writes through this same function and must not record itself.
+  const suppressHistoryRef = useRef(false)
   const handleUpdateChartSettings = useCallback((incoming) => {
     // Guard the persist boundary against an invalid MA overlay period (0/neg/NaN/
     // >500) BEFORE it can be written by ANY edit path — the crash-safety complement
@@ -5113,6 +5126,12 @@ export default function StockChart({
     // `newSettings` is already the fully-merged settings ({...cs, ...change}), so
     // it's exactly what the tab should store — no override-restore dance needed
     // (the tab IS the authoritative blob, not a partial over global).
+    // ⭐ A1.2 — RECORD a member's indicator change (hide / show / add / remove) on this
+    // chart's Undo stack. Cheap when the instance list did not move (no read-back).
+    // Input edits, pane drags and every non-indicator write record nothing.
+    if (!suppressHistoryRef.current && newSettings && !Object.is(newSettings.indicatorInstances, cs.indicatorInstances)) {
+      try { recordIndicatorChange(historyKey, cs, newSettings, { userId: historyUserId, labelOf: labelFor, origin: chartId }) } catch { /* recording never blocks a write */ }
+    }
     if (onSettingsPersist) { onSettingsPersist(newSettings); return }
     // Every settings write site spreads {...cs}, which carries any per-instance
     // settingsOverride — restore overridden top-level keys from the
@@ -5131,8 +5150,13 @@ export default function StockChart({
       }
     }
     setPref('chart_settings', JSON.stringify(persisted))
-  }, [setPref, settingsOverride, csBase, cs, onSettingsPersist, _econId, csMerged])
+  }, [setPref, settingsOverride, csBase, cs, onSettingsPersist, _econId, csMerged, historyKey, historyUserId, chartId])
   updateSettingsRef.current = handleUpdateChartSettings
+  // The Undo toast's sink: the chart's own writer, with recording suppressed.
+  const writeFromHistory = useCallback((next) => {
+    suppressHistoryRef.current = true
+    try { handleUpdateChartSettings(next) } finally { suppressHistoryRef.current = false }
+  }, [handleUpdateChartSettings])
 
   // ═══ chart-UX-walls TASK 4 — EVERY CHIP ACTION, THROUGH ONE WRITER ════════
   //
@@ -19868,6 +19892,11 @@ export default function StockChart({
             >{l.name || l.title || `List ${l.id}`}</button>
           ))}
         </div>
+      )}
+      {/* ⭐ A1.2 — "RSI hidden (2) · Undo" (indicatorHistoryStore). Read-only mounts
+          (no drawing tools) persist nothing a member chose, so they get no toast. */}
+      {showDrawingTools && (
+        <IndicatorUndoToast surfaceKey={historyKey} userId={historyUserId} chartId={chartId} cs={cs} write={writeFromHistory} />
       )}
       {/* Brief action toast (add-to-list, alert). */}
       {chartToast && (
