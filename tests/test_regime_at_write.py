@@ -354,6 +354,60 @@ def test_a_create_reads_the_regime_from_held_state_only(db_path, monkeypatch):
     assert REGIME not in (n["propertiesJson"] or {})
 
 
+# ── R-T12-C: a Daily prep note (builtin v2, which holds the stamp) made through create_styled_note ──
+# The cases above make the note from a member style built for the test. These go through the door
+# POST /api/j2/notes uses for `kindId: "daily_prep"`, so the builtin outline, its prep pack (which
+# reads the SAME regime through the compose memo) and the stamp are all the real ones.
+
+def _daily_prep(user="u1"):
+    from api.services.journal_two import journal_styles as js
+    n, _ = js.create_styled_note(user, {"kindId": "daily_prep", "title": "Prep"})
+    return n
+
+
+def _embed(note, widget_id):
+    stack = list((note["bodyJson"] or {}).get("content") or [])
+    while stack:
+        n = stack.pop(0)
+        if isinstance(n, dict) and n.get("type") == "widgetEmbed" and n["attrs"].get("widgetId") == widget_id:
+            return n["attrs"]
+        if isinstance(n, dict) and isinstance(n.get("content"), list):
+            stack[0:0] = n["content"]
+    return None
+
+
+def test_a_daily_prep_create_stamps_the_regime_its_builder_froze(db_path, regime):
+    """The stored property IS the reading the note's own market context builder froze (amber, dated by
+    the regime's own wire date), not a default and not a second read."""
+    regime["regime"] = {**regime["regime"], "value": "amber", "asOf": "2026-10-09"}
+    n = _daily_prep()
+    assert (n["styleId"], n["styleVersion"]) == ("builtin:daily_prep", 2)       # the builtin v2 door
+    stamp = _stamp(n)
+    assert stamp is not None and stamp["capturedAt"]                             # a CREATE: it captured
+    assert stamp["params"]["readings"]["regime"]["value"] == "amber"
+    assert stamp["params"]["readings"]["regime"]["asOf"] == "2026-10-09"
+    assert n["propertiesJson"][REGIME] == "amber"                                # == what the builder froze
+    assert _embed(n, "prepWire")["params"]["snapshot"]["regime"] == "amber"      # one reading per compose
+
+
+@pytest.mark.parametrize("failure", ["raises", "source_error"])
+def test_a_daily_prep_create_whose_regime_read_fails_stores_no_regime(db_path, regime, monkeypatch, failure):
+    """The regime read fails (the read raises, or answers source_error): the note is still made and
+    the stamp still lands, carrying its sentence, and the property is ABSENT, never a guessed value."""
+    from api.services.journal_two import trader_blocks as tb
+    if failure == "raises":
+        def unreadable(memo):
+            raise RuntimeError("regime store unreadable")
+        monkeypatch.setattr(tb, "_regime_field", unreadable)
+    else:
+        regime["regime"] = {"missing": "source_error"}
+    n = _daily_prep()
+    reading = _stamp(n)["params"]["readings"]["regime"]
+    assert reading["value"] is None and reading["missing"]                       # a sentence, not a value
+    assert REGIME not in (n["propertiesJson"] or {})
+    assert n["propertiesJson"]["builtin:note_kind"] == "daily_prep"              # non-vacuity: props written
+
+
 # ── S1 / M-1, in code: only notes.py and the composer ever pass a captured mode, in ANY form ────
 
 ROOT = Path(__file__).resolve().parents[1]
