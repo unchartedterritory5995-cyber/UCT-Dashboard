@@ -927,6 +927,14 @@ def tick(now: Optional[datetime] = None) -> dict:
             if res.get("computed"):
                 budget -= 1
             results.append(res)
+            if res.get("status") == "written":
+                # (2026-10-13) the row an evening alert said was missing / pending has landed:
+                # one "resolved" post — only if an alert actually went out for this session.
+                try:
+                    from api.services import breadth_alerts
+                    breadth_alerts.resolve_eod_row(d)
+                except Exception as e:            # noqa: BLE001 - an alert never stops a write
+                    print(f"[breadth-eod] resolve alert failed: {e}")
             if budget > 0 and not server_writes(d):
                 # the server-universe parallel run (graded the same way)
                 try:
