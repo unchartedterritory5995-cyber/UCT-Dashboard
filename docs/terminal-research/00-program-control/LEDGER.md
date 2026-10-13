@@ -4846,3 +4846,20 @@ breadth_monitor -> breadth_symbols -> breadth_live_universes`, whose real edge i
 `worker_main`, `bars_api_main`, `breadth_v2_producer_main`, `terminal_next_monitor_main` or
 `flow_worker_main` reaches `api/main.py`, so the capture runs on **web only**. No marker bump: a
 flow-worker restart drops the OPRA socket for zero behavioural difference.
+
+## Breadth EOD alert: pending vs missing, plus resolution · `70c9709671` · 2026-10-13 · owner-approved
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** (the written exception, as for the NH/NL capture) |
+| stranded files | `api/services/breadth_alerts.py`, `api/services/breadth_eod_source.py` (`tools/flow_worker_watch_coverage.py`) |
+
+`breadth_alerts.check_eod_row` is rewritten in place (11 deleted `api/` lines, all inside it). `resolve_eod_row`
+is new, plus a 7-line hook in `breadth_eod_source.tick()` after a `written` result.
+
+- **Callers.** The only caller of `check_eod_row` is the 21:30/09:45 job in `api/main.py`. `tick()` runs only in
+  the `breadth_eod_source` thread, started from `api/main.py` (web startup). `api/main.py`, `api/routers/push.py`
+  and the breadth routes are all outside flow-worker's closure. Flow-worker reaches these modules only through the
+  static chain via `bars_fetch`, whose real edge is the constant `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD`. It never
+  calls any changed function.
+- **No marker bump.** A flow-worker restart drops the OPRA socket for zero behavioural difference.
