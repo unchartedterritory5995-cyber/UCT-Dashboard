@@ -365,3 +365,46 @@ def apply_style_update_endpoint(note_id: str, body: dict = Depends(paid_body),
     # The note as journal_two serves every note: an over-deep stored body is withheld, never sent.
     from api.routers.journal_two import _servable_note
     return {"note": _servable_note(note), "plan": plan}
+
+
+# ── trader blocks: rules, versions, before / after (P2b, lane S) ─────────────────────
+# Self-contained block (P2b merge note: lane P appends its own routes beside it). Routes:
+#   PUT /api/j2/trader-blocks/rules/{rule_id}                  edit the words (a new version) or the
+#                                                              before-entry switch (never a version);
+#                                                              400 blank label or a wrong type, 404
+#                                                              another member's rule (spec §P2 item 2)
+#   GET /api/j2/trader-blocks/rules/{rule_id}/versions         newest first; 404 another member's rule
+#   GET /api/j2/trader-blocks/rules/{rule_id}/before-after     each version's before / after windows
+#                                                              (R-P2b-3); 404 another member's rule or
+#                                                              a dismissed one
+
+@router.put("/trader-blocks/rules/{rule_id}")
+def trader_edit_rule(rule_id: str, body: dict = Depends(paid_body), user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """Spec §P2 item 2. Writes the rule and its version history, never a note."""
+    from api.services.journal_two import rule_versions
+    try:
+        rec = rule_versions.edit_rule(user["id"], rule_id, body)
+    except rule_versions.RuleEditError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if rec is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    return rec
+
+
+@router.get("/trader-blocks/rules/{rule_id}/versions")
+def trader_rule_versions(rule_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    from api.services.journal_two import rule_versions
+    vs = rule_versions.list_versions(user["id"], rule_id)
+    if vs is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    return {"versions": vs}
+
+
+@router.get("/trader-blocks/rules/{rule_id}/before-after")
+def trader_rule_before_after(rule_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """Read-only. Sample sizes always; `small` below rule_versions.SMALL_SAMPLE (spec §P2 item 2)."""
+    from api.services.journal_two import rule_versions
+    got = rule_versions.before_after(user["id"], rule_id)
+    if got is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    return got

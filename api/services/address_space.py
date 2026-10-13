@@ -199,6 +199,8 @@ EXEMPT: dict[str, str] = {
     "j2_accounts": "not-a-saved-object: a trading account is a setting, chosen inside the Journal",
     "trading_accounts": "not-a-saved-object: Journal 1.0 trading account setting",
     "j2_journal_rules": "not-a-saved-object: a rule is a checklist line inside the Journal",
+    "j2_journal_rule_versions": "not-a-saved-object: a rule version is history of a rule, reached from the "
+                                "rule (Notebook P2)",
     "j2_capture_tokens": "not-a-saved-object: a credential; its label must never become an address",
     "j2_obsidian_devices": "not-a-saved-object: a paired device credential",
     "j2_trade_attachments": "not-a-saved-object: an attachment belongs to its trade",
