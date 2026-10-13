@@ -135,10 +135,16 @@ BUILTIN_STYLES: dict[str, dict] = {
         _ph("preEntryChecklist"),
         _h("Entry, stop and target"), _p("Entry:"), _p("Stop:"), _p("Target:"),
         _h("Size and risk"), _ph("positionSizing"), _p("How much am I risking, and is it within my rules?"))},
-    "daily_prep": {"name": "Daily prep", "version": 1, "properties": {}, "blocks": [], "outline": _doc(
-        _h("The market"), _p("What is the tape telling me today?"),
-        _h("Names on my list"), _p("Which setups are closest to a trigger?"),
-        _h("My plan"), _p("What will I do, and what will I not do?"))},
+    # v2 (Notebook P2b, Task 12): the prep pack, the stamp and My rules. A v1 note gains them only
+    # through "Update layout", which ADDS them uncaptured (IR-S11, R-RC-1).
+    "daily_prep": {"name": "Daily prep", "version": 2, "properties": {},
+                   "blocks": [_blk("prepWire"), _blk("marketcontext"), _blk("prepEarnings"), _blk("prepMovers"),
+                              _blk("prepLevels"), _blk("myRules")],
+                   "outline": _doc(
+        _h("The market"), _ph("prepWire"), _ph("marketcontext"), _p("What is the tape telling me today?"),
+        _h("Names on my list"), _ph("prepEarnings"), _ph("prepMovers"), _ph("prepLevels"),
+        _p("Which setups are closest to a trigger?"),
+        _h("My plan"), _ph("myRules"), _p("What will I do, and what will I not do?"))},
     "weekend_prep": {"name": "Weekend prep", "version": 1, "properties": {}, "blocks": [], "outline": _doc(
         _h("The week behind"), _p("What worked and what did not?"),
         _h("Leading groups"), _p("Where is the strength?"),
@@ -147,9 +153,11 @@ BUILTIN_STYLES: dict[str, dict] = {
         _h("What the market expects"), _p("Consensus, and the move the options price in:"), _ph("chart"),
         _h("My view"), _p("What would surprise the market?"),
         _h("The plan around the report"), _p("Hold, trim, or wait?"))},
-    "post_trade_review": {"name": "Post-trade review", "version": 1, "properties": {}, "blocks": [_chart("D")],
+    # v2 (Notebook P2b, Task 12): the review block, above the chart it explains.
+    "post_trade_review": {"name": "Post-trade review", "version": 2, "properties": {},
+                          "blocks": [_chart("D"), _blk("tradeReview")],
                           "outline": _doc(
-        _h("What happened"), _p("Entry, exit and result:"), _ph("chart"),
+        _h("What happened"), _ph("tradeReview"), _p("Entry, exit and result:"), _ph("chart"),
         _h("Did I follow my plan?"), _p("Where did I follow it, and where did I not?"),
         _h("What I'd do differently"), _p())},
     "weekly_review": {"name": "Weekly review", "version": 1, "properties": {}, "blocks": [], "outline": _doc(

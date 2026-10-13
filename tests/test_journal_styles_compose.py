@@ -308,3 +308,59 @@ def test_a_v1_trade_plan_note_gets_the_p2a_blocks_and_an_UNCAPTURED_stamp(db_pat
     assert len([x for x in _embeds(note["bodyJson"]) if x["attrs"]["widgetId"] == "chart"]) == 1
     assert (note["styleId"], note["styleVersion"]) == ("builtin:trade_plan", 2)
     assert js.plan_style_update("u1", n["id"])["upToDate"] is True
+
+
+DAILY_PREP_V2 = ["prepWire", "marketcontext", "prepEarnings", "prepMovers", "prepLevels", "myRules"]
+
+
+def test_daily_prep_v2_and_review_v2_hold_their_packs(db_path, monkeypatch):
+    """P2b Task 12: Daily prep v2 carries the prep pack, My rules and the stamp; Post-trade review v2
+    carries the review block beside its chart. Each block sits at its own placeholder, in outline order."""
+    from api.services.journal_two import journal_styles as js
+    from api.services.journal_two import trader_blocks as tb
+    _green(monkeypatch)
+    monkeypatch.setattr(tb, "prep_part", lambda uid, part, **k: {"part": part, "missing": None})
+    dp, pr = js.BUILTIN_STYLES["daily_prep"], js.BUILTIN_STYLES["post_trade_review"]
+    assert dp["version"] == 2 and [b["block"] for b in dp["blocks"]] == DAILY_PREP_V2
+    assert pr["version"] == 2 and [b["block"] for b in pr["blocks"]] == ["chart", "tradeReview"]
+    for s in (dp, pr):
+        assert all(b["enabled"] for b in s["blocks"])
+        for b in s["blocks"]:
+            if b["block"] != "chart":   # the ONE copy of each block's defaults is BLOCK_KINDS
+                assert b["settings"] == {x["key"]: x["default"] for x in js._BLOCK_BY_ID[b["block"]]["settings"]}, b
+    out = js.compose("u1", js.get_style("u1", "builtin:daily_prep"), ticker=None, conn=None)
+    assert [n["attrs"]["widgetId"] for n in _embeds(out["bodyJson"])] == DAILY_PREP_V2
+    assert not any("{{block:" in _text(n) for n in out["bodyJson"]["content"])
+    content = out["bodyJson"]["content"]
+    assert _text(content[content.index(_by_id(out["bodyJson"], "prepEarnings")) - 1]) == "Names on my list"
+    assert _text(content[content.index(_by_id(out["bodyJson"], "myRules")) - 1]) == "My plan"
+    assert out["styleVersion"] == 2
+    out = js.compose("u1", js.get_style("u1", "builtin:post_trade_review"), ticker="NVDA", conn=None)
+    assert [n["attrs"]["widgetId"] for n in _embeds(out["bodyJson"])] == ["tradeReview", "chart"]
+    assert not any("{{block:" in _text(n) for n in out["bodyJson"]["content"])
+    assert out["styleVersion"] == 2
+
+
+def test_a_v1_daily_prep_note_gets_the_pack_EMPTY_and_keeps_every_word(db_path, monkeypatch):
+    """IR-S11 (part b): 'Update layout to v2' on a Daily prep note written under v1 adds the six blocks
+    with no snapshot and no captured stamp -- never today's data in an older note -- and only ADDS."""
+    from api.services.journal_two import journal_styles as js, notes, trader_blocks as tb
+    _green(monkeypatch)
+    v1 = {"type": "doc", "content": [
+        js._h("The market"), js._p("Tape looked heavy at the open."),
+        js._h("Names on my list"), js._p("NVDA, AMD"), js._h("My plan"), js._p("No chasing.")]}
+    n = notes.create_note("u1", {"title": "old prep", "bodyJson": v1}, style_stamp=("builtin:daily_prep", 1, "daily_prep"))
+    before = n["bodyJson"]["content"]
+    plan = js.plan_style_update("u1", n["id"])
+    assert (plan["fromVersion"], plan["toVersion"], plan["mode"]) == (1, 2, "update")
+    assert sorted(a["block"] for a in plan["add"]) == sorted(DAILY_PREP_V2)
+    monkeypatch.setattr(tb, "prep_part", lambda *a, **k: pytest.fail("an update must not read a prep part"))
+    monkeypatch.setattr(tb, "market_context_params", lambda *a, **k: pytest.fail("an update must not capture"))
+    note, _ = js.apply_style_update("u1", n["id"], expected_updated_at=n["updatedAt"])
+    body = note["bodyJson"]
+    assert sorted(x["attrs"]["widgetId"] for x in _embeds(body)) == sorted(DAILY_PREP_V2)
+    for wid in ("prepWire", "prepEarnings", "prepMovers", "prepLevels"):
+        assert "snapshot" not in _by_id(body, wid)["attrs"]["params"], wid
+    assert _by_id(body, "marketcontext")["attrs"]["capturedAt"] is None
+    assert [x for x in body["content"] if x in before] == before
+    assert (note["styleId"], note["styleVersion"]) == ("builtin:daily_prep", 2)

@@ -293,6 +293,13 @@ export const ITEMS = [
   traderItem('preEntryChecklist'),
   traderItem('priceStamps'),
   traderItem('positionSizing'),
+  // P2b Task 12: My rules, the Daily prep pack and the post-trade review block.
+  traderItem('myRules'),
+  traderItem('prepWire'),
+  traderItem('prepEarnings'),
+  traderItem('prepMovers'),
+  traderItem('prepLevels'),
+  traderItem('tradeReview'),
   traderItem('marketcontext', {
     // R-P2-8: a member's own stamp, captured NOW; it never sets builtin:regime_at_write. ⛔ R-RC-4:
     // the typed command leaves the note BEFORE the read is awaited (the /price rule). A failed read

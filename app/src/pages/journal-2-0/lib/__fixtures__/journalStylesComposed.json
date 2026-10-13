@@ -27,6 +27,93 @@
         "type": "heading"
       },
       {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "snapshot": {
+              "capturedAt": "2026-10-11T14:30:00Z",
+              "detail": "The morning wire has not published yet today.",
+              "exposure": null,
+              "exposureAsOf": null,
+              "headline": null,
+              "missing": "no_wire",
+              "part": "wire",
+              "regime": null,
+              "wireDate": null
+            }
+          },
+          "searchText": "[morning wire and exposure]",
+          "v": 1,
+          "widgetId": "prepWire"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "fields": "all",
+            "readings": {
+              "breadthScore": null,
+              "distributionDays": null,
+              "exposureDelta": null,
+              "exposureScore": null,
+              "marketPhase": null,
+              "pctAbove200": null,
+              "pctAbove50": null,
+              "powerTrend": null,
+              "qqq": {
+                "asOf": null,
+                "missing": "No QQQ quote could be read just now.",
+                "source": null,
+                "value": null
+              },
+              "regime": {
+                "asOf": null,
+                "missing": "The morning wire has not published an exposure rating yet.",
+                "source": null,
+                "value": null
+              },
+              "spy": {
+                "asOf": null,
+                "missing": "No SPY quote could be read just now.",
+                "source": null,
+                "value": null
+              },
+              "vix": {
+                "asOf": null,
+                "missing": "VIX unavailable",
+                "source": null,
+                "value": null
+              }
+            },
+            "updated": "10:30 AM ET",
+            "wireDate": null
+          },
+          "v": 1,
+          "widgetId": "marketcontext"
+        },
+        "type": "widgetEmbed"
+      },
+      {
         "content": [
           {
             "text": "What is the tape telling me today?",
@@ -48,6 +135,93 @@
         "type": "heading"
       },
       {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "snapshot": {
+              "amc": [],
+              "amcTonight": [],
+              "asOf": null,
+              "bmo": [],
+              "capturedAt": "2026-10-11T14:30:00Z",
+              "detail": "Today's earnings list has not been loaded yet. Capture again in a few minutes.",
+              "missing": "no_earnings_yet",
+              "part": "earnings"
+            }
+          },
+          "searchText": "[earnings for my names]",
+          "v": 1,
+          "widgetId": "prepEarnings"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "snapshot": {
+              "capturedAt": "2026-10-11T14:30:00Z",
+              "detail": "Add names to a watchlist, flag them, or hold a position to see them here.",
+              "items": [],
+              "missing": "no_names",
+              "part": "movers",
+              "scanned": 0,
+              "total": 0,
+              "unquoted": 0
+            }
+          },
+          "searchText": "[my movers]",
+          "v": 1,
+          "widgetId": "prepMovers"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "snapshot": {
+              "capturedAt": "2026-10-11T14:30:00Z",
+              "detail": null,
+              "missing": null,
+              "needs": "the active setups board",
+              "part": "levels"
+            }
+          },
+          "searchText": "[key levels from my plans]",
+          "v": 1,
+          "widgetId": "prepLevels"
+        },
+        "type": "widgetEmbed"
+      },
+      {
         "content": [
           {
             "text": "Which setups are closest to a trigger?",
@@ -67,6 +241,25 @@
           }
         ],
         "type": "heading"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {},
+          "searchText": "[my rules]",
+          "v": 1,
+          "widgetId": "myRules"
+        },
+        "type": "widgetEmbed"
       },
       {
         "content": [
@@ -95,6 +288,93 @@
         "type": "heading"
       },
       {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "snapshot": {
+              "capturedAt": "2026-10-11T14:30:00Z",
+              "detail": "The morning wire has not published yet today.",
+              "exposure": null,
+              "exposureAsOf": null,
+              "headline": null,
+              "missing": "no_wire",
+              "part": "wire",
+              "regime": null,
+              "wireDate": null
+            }
+          },
+          "searchText": "[morning wire and exposure]",
+          "v": 1,
+          "widgetId": "prepWire"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "fields": "all",
+            "readings": {
+              "breadthScore": null,
+              "distributionDays": null,
+              "exposureDelta": null,
+              "exposureScore": null,
+              "marketPhase": null,
+              "pctAbove200": null,
+              "pctAbove50": null,
+              "powerTrend": null,
+              "qqq": {
+                "asOf": null,
+                "missing": "No QQQ quote could be read just now.",
+                "source": null,
+                "value": null
+              },
+              "regime": {
+                "asOf": null,
+                "missing": "The morning wire has not published an exposure rating yet.",
+                "source": null,
+                "value": null
+              },
+              "spy": {
+                "asOf": null,
+                "missing": "No SPY quote could be read just now.",
+                "source": null,
+                "value": null
+              },
+              "vix": {
+                "asOf": null,
+                "missing": "VIX unavailable",
+                "source": null,
+                "value": null
+              }
+            },
+            "updated": "10:30 AM ET",
+            "wireDate": null
+          },
+          "v": 1,
+          "widgetId": "marketcontext"
+        },
+        "type": "widgetEmbed"
+      },
+      {
         "content": [
           {
             "text": "What is the tape telling me today?",
@@ -116,6 +396,93 @@
         "type": "heading"
       },
       {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "snapshot": {
+              "amc": [],
+              "amcTonight": [],
+              "asOf": null,
+              "bmo": [],
+              "capturedAt": "2026-10-11T14:30:00Z",
+              "detail": "Today's earnings list has not been loaded yet. Capture again in a few minutes.",
+              "missing": "no_earnings_yet",
+              "part": "earnings"
+            }
+          },
+          "searchText": "[earnings for my names]",
+          "v": 1,
+          "widgetId": "prepEarnings"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "snapshot": {
+              "capturedAt": "2026-10-11T14:30:00Z",
+              "detail": "Add names to a watchlist, flag them, or hold a position to see them here.",
+              "items": [],
+              "missing": "no_names",
+              "part": "movers",
+              "scanned": 0,
+              "total": 0,
+              "unquoted": 0
+            }
+          },
+          "searchText": "[my movers]",
+          "v": 1,
+          "widgetId": "prepMovers"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "snapshot": {
+              "capturedAt": "2026-10-11T14:30:00Z",
+              "detail": null,
+              "missing": null,
+              "needs": "the active setups board",
+              "part": "levels"
+            }
+          },
+          "searchText": "[key levels from my plans]",
+          "v": 1,
+          "widgetId": "prepLevels"
+        },
+        "type": "widgetEmbed"
+      },
+      {
         "content": [
           {
             "text": "Which setups are closest to a trigger?",
@@ -135,6 +502,25 @@
           }
         ],
         "type": "heading"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {},
+          "searchText": "[my rules]",
+          "v": 1,
+          "widgetId": "myRules"
+        },
+        "type": "widgetEmbed"
       },
       {
         "content": [
@@ -330,6 +716,27 @@
         "type": "heading"
       },
       {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "tradeId": ""
+          },
+          "searchText": "[post-trade review]",
+          "v": 1,
+          "widgetId": "tradeReview"
+        },
+        "type": "widgetEmbed"
+      },
+      {
         "content": [
           {
             "text": "Entry, exit and result:",
@@ -412,6 +819,27 @@
           }
         ],
         "type": "heading"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "tradeId": ""
+          },
+          "searchText": "[post-trade review]",
+          "v": 1,
+          "widgetId": "tradeReview"
+        },
+        "type": "widgetEmbed"
       },
       {
         "content": [
@@ -628,6 +1056,62 @@
         "type": "heading"
       },
       {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "fields": "all",
+            "readings": {
+              "breadthScore": null,
+              "distributionDays": null,
+              "exposureDelta": null,
+              "exposureScore": null,
+              "marketPhase": null,
+              "pctAbove200": null,
+              "pctAbove50": null,
+              "powerTrend": null,
+              "qqq": {
+                "asOf": null,
+                "missing": "No QQQ quote could be read just now.",
+                "source": null,
+                "value": null
+              },
+              "regime": {
+                "asOf": null,
+                "missing": "The morning wire has not published an exposure rating yet.",
+                "source": null,
+                "value": null
+              },
+              "spy": {
+                "asOf": null,
+                "missing": "No SPY quote could be read just now.",
+                "source": null,
+                "value": null
+              },
+              "vix": {
+                "asOf": null,
+                "missing": "VIX unavailable",
+                "source": null,
+                "value": null
+              }
+            },
+            "updated": "10:30 AM ET",
+            "wireDate": null
+          },
+          "v": 1,
+          "widgetId": "marketcontext"
+        },
+        "type": "widgetEmbed"
+      },
+      {
         "content": [
           {
             "text": "What is the pattern, and why now?",
@@ -655,6 +1139,30 @@
           },
           "v": 1,
           "widgetId": "chart"
+        },
+        "type": "widgetEmbed"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "checked": [],
+            "includeRules": "yes",
+            "requireAll": "no",
+            "setup": ""
+          },
+          "searchText": "[pre-entry checklist]",
+          "v": 1,
+          "widgetId": "preEntryChecklist"
         },
         "type": "widgetEmbed"
       },
@@ -710,6 +1218,27 @@
         "type": "heading"
       },
       {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "grade": "A"
+          },
+          "searchText": "[position sizing]",
+          "v": 1,
+          "widgetId": "positionSizing"
+        },
+        "type": "widgetEmbed"
+      },
+      {
         "content": [
           {
             "text": "How much am I risking, and is it within my rules?",
@@ -736,6 +1265,62 @@
         "type": "heading"
       },
       {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "fields": "all",
+            "readings": {
+              "breadthScore": null,
+              "distributionDays": null,
+              "exposureDelta": null,
+              "exposureScore": null,
+              "marketPhase": null,
+              "pctAbove200": null,
+              "pctAbove50": null,
+              "powerTrend": null,
+              "qqq": {
+                "asOf": null,
+                "missing": "No QQQ quote could be read just now.",
+                "source": null,
+                "value": null
+              },
+              "regime": {
+                "asOf": null,
+                "missing": "The morning wire has not published an exposure rating yet.",
+                "source": null,
+                "value": null
+              },
+              "spy": {
+                "asOf": null,
+                "missing": "No SPY quote could be read just now.",
+                "source": null,
+                "value": null
+              },
+              "vix": {
+                "asOf": null,
+                "missing": "VIX unavailable",
+                "source": null,
+                "value": null
+              }
+            },
+            "updated": "10:30 AM ET",
+            "wireDate": null
+          },
+          "v": 1,
+          "widgetId": "marketcontext"
+        },
+        "type": "widgetEmbed"
+      },
+      {
         "content": [
           {
             "text": "What is the pattern, and why now?",
@@ -752,6 +1337,30 @@
           }
         ],
         "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "checked": [],
+            "includeRules": "yes",
+            "requireAll": "no",
+            "setup": ""
+          },
+          "searchText": "[pre-entry checklist]",
+          "v": 1,
+          "widgetId": "preEntryChecklist"
+        },
+        "type": "widgetEmbed"
       },
       {
         "attrs": {
@@ -803,6 +1412,27 @@
           }
         ],
         "type": "heading"
+      },
+      {
+        "attrs": {
+          "annotations": [],
+          "caption": null,
+          "capturedAt": "2026-10-11T14:30:00Z",
+          "embedId": "EMBED",
+          "fallback": null,
+          "layout": {
+            "height": null,
+            "width": "full"
+          },
+          "mode": "snapshot",
+          "params": {
+            "grade": "A"
+          },
+          "searchText": "[position sizing]",
+          "v": 1,
+          "widgetId": "positionSizing"
+        },
+        "type": "widgetEmbed"
       },
       {
         "content": [
