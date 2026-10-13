@@ -702,8 +702,11 @@ def _apply_extra_ma(result_asc: list) -> None:
         want = [r for r in result_asc if r.get("date") and any(r.get(k) is None for k in _EXTRA_MA)]
         if not want:
             return
+        # Only the dates this window fills: the unbounded read fetched ~4,700 rows per
+        # metric to use ~200, each a GIL hand-off on a busy pod (see `_history_stored`).
+        since = min(r["date"] for r in want)
         for k in _EXTRA_MA:
-            hist = bdo._history_stored(k, limit=8000) or {}
+            hist = bdo._history_stored(k, limit=8000, since=since) or {}
             for r in want:
                 if r.get(k) is None:
                     v = (hist.get(r["date"]) or {}).get("c")
@@ -920,6 +923,18 @@ def _adv_decline_seed_before(oldest: str) -> float:
                     coll[d] = v
     except Exception:
         pass
+    # ⛔ SUMMED INSIDE SQLITE (2026-10-13): `metric_before` hands back ~4,400 rows, and on
+    # a busy web pod each fetched row waits out a GIL switch interval, so this seed alone
+    # measured 12.8-16.9 s of a cold deep read (8 ms on a quiet process). Excluding the
+    # collector's dates in SQL is the same "collector wins" merge; every stored
+    # adv_decline is a whole number, so the sum is exact in any order.
+    try:
+        from api.services import breadth_daily_ohlc as ohlc
+        recon_sum = ohlc.metric_sum_before("adv_decline", oldest, exclude=list(coll))
+    except Exception:
+        recon_sum = None
+    if recon_sum is not None:
+        return recon_sum + sum(coll.values())
     recon: dict = {}
     try:
         from api.services import breadth_daily_ohlc as ohlc
