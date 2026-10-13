@@ -1,0 +1,26 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/trader-blocks/rules/a51b58c085874577ad8c5db3d46dcef2/versions",
+    "path": "/api/j2/trader-blocks/rules/a51b58c085874577ad8c5db3d46dcef2/versions",
+    "status": 200
+  },
+  "body": {
+    "versions": [
+      {
+        "changeNote": "Five minutes was too early.",
+        "changedAt": "2026-10-05T14:30:00+00:00",
+        "evidence": null,
+        "label": "No trades in the first 15 minutes",
+        "version": 2
+      },
+      {
+        "changeNote": null,
+        "changedAt": "2026-09-01T14:00:00+00:00",
+        "evidence": null,
+        "label": "No trades in the first 5 minutes",
+        "version": 1
+      }
+    ]
+  }
+}

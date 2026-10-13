@@ -1,0 +1,26 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "PUT /api/j2/trader-blocks/rules/a51b58c085874577ad8c5db3d46dcef2",
+    "note": "Before entry says where the rule shows, not what it says: still version 2, changedAt unmoved.",
+    "path": "/api/j2/trader-blocks/rules/a51b58c085874577ad8c5db3d46dcef2",
+    "requestBody": {
+      "beforeEntry": true
+    },
+    "status": 200
+  },
+  "body": {
+    "accountId": "acct-rules",
+    "beforeEntry": true,
+    "changedAt": "2026-10-05T14:30:00+00:00",
+    "createdAt": "2026-09-01T14:00:00+00:00",
+    "evidence": null,
+    "id": "a51b58c085874577ad8c5db3d46dcef2",
+    "label": "No trades in the first 15 minutes",
+    "sourceId": null,
+    "sourceType": "manual",
+    "status": "active",
+    "updatedAt": "2026-10-05T14:30:00+00:00",
+    "version": 2
+  }
+}

@@ -47,6 +47,7 @@ _DIRECT_USER_TABLES = (
     "j2_interventions",
     "j2_profile_suggestions",
     "j2_journal_rules",
+    "j2_journal_rule_versions",
     "j2_unified_coach_state",
     "j2_weekly_email_log",
     # Notebook

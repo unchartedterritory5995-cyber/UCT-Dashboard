@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/trader-blocks/rules/nope/versions",
+    "note": "Not this member's rule (or no such rule): the same 404.",
+    "path": "/api/j2/trader-blocks/rules/nope/versions",
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}

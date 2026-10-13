@@ -253,6 +253,12 @@
       },
       "status": 401
     },
+    "GET /api/j2/trader-blocks/rules/{rule_id}/versions": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "PATCH /api/j2/template-gallery/admin/items/{gallery_id}": {
       "body": {
         "detail": "Not authenticated"
@@ -416,6 +422,12 @@
       "status": 401
     },
     "PUT /api/j2/trader-blocks/positions/{position_id}/pre-entry": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "PUT /api/j2/trader-blocks/rules/{rule_id}": {
       "body": {
         "detail": "Not authenticated"
       },

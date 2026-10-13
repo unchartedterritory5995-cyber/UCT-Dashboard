@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "PUT /api/j2/trader-blocks/rules/a51b58c085874577ad8c5db3d46dcef2",
+    "note": "A rule needs words: nothing is written.",
+    "path": "/api/j2/trader-blocks/rules/a51b58c085874577ad8c5db3d46dcef2",
+    "requestBody": {
+      "label": "   "
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "A rule needs words."
+  }
+}

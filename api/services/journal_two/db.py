@@ -381,6 +381,23 @@ CREATE TABLE IF NOT EXISTS j2_journal_rules (
 CREATE INDEX IF NOT EXISTS idx_j2_journal_rules_user_account_status
     ON j2_journal_rules(user_id, account_id, status);
 
+-- Notebook P2 (spec §P2 item 2; R-P2b-1, R-P2b-2): a rule's history. A version is recorded when
+-- the rule's WORDS change (label or evidence), v1 when it is made (or lazily, dated its creation,
+-- for a rule made before this release). "Before entry" is a column on the rule, never a version.
+-- ⛔ user-scoped: purged with the account (account_purge._DIRECT_USER_TABLES).
+CREATE TABLE IF NOT EXISTS j2_journal_rule_versions (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    rule_id     TEXT NOT NULL,
+    version     INTEGER NOT NULL,
+    label       TEXT NOT NULL,
+    evidence    TEXT,
+    changed_at  TEXT NOT NULL,
+    change_note TEXT,
+    UNIQUE (rule_id, version)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_rule_versions_user_rule ON j2_journal_rule_versions(user_id, rule_id);
+
 -- Unified Coach State: holds user-level coach identity + profile for
 -- "All Accounts" mode. Each user has at most one row. Separate from
 -- per-account fields in j2_accounts to allow account-agnostic coaching.
@@ -2066,6 +2083,11 @@ _PHASE_2_ALTERS = [
     )""",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_note_kinds_user_name"
     " ON j2_note_kinds(user_id, name COLLATE NOCASE)",
+    # Notebook P2 (spec §P2 item 2): "before entry" says where a rule shows (Log Trade's checklist),
+    # not what it says, so it is a column and never a version. `version` is the CURRENT version
+    # number (j2_journal_rule_versions holds the history). Additive; every existing rule reads 0 / 1.
+    "ALTER TABLE j2_journal_rules ADD COLUMN before_entry INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE j2_journal_rules ADD COLUMN version INTEGER NOT NULL DEFAULT 1",
 ]
 
 # ── Wave 7 (lane I): the Notebook's read-path indexes ──────────────────────────

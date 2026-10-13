@@ -253,6 +253,12 @@
       },
       "status": 404
     },
+    "GET /api/j2/trader-blocks/rules/{rule_id}/versions": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
     "PATCH /api/j2/template-gallery/admin/items/{gallery_id}": {
       "body": {
         "detail": "Not found"
@@ -416,6 +422,12 @@
       "status": 404
     },
     "PUT /api/j2/trader-blocks/positions/{position_id}/pre-entry": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "PUT /api/j2/trader-blocks/rules/{rule_id}": {
       "body": {
         "detail": "Not found"
       },

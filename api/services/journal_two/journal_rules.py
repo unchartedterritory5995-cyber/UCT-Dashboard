@@ -46,10 +46,16 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
+def _row_to_dict(row: sqlite3.Row, conn: sqlite3.Connection | None = None) -> dict[str, Any]:
     """camelCase view of a rule row for the frontend. Deliberately omits
-    user_id (internal scoping key, never surfaced)."""
-    return {
+    user_id (internal scoping key, never surfaced).
+
+    Notebook P2 (spec §P2 item 2): `beforeEntry`, `version` and `changedAt`, the
+    day the CURRENT version's words were written. With `conn` it is read from the
+    version row (rule_versions.current_changed_at), because a later before-entry
+    toggle moves updated_at but not the words (R-PF-N4); without one, the fallback
+    is updated_at for a changed rule and created_at for v1."""
+    out = {
         "id": row["id"],
         "accountId": row["account_id"],
         "label": row["label"],
@@ -60,6 +66,17 @@ def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
     }
+    keys = row.keys()
+    out["beforeEntry"] = bool(row["before_entry"]) if "before_entry" in keys else False
+    out["version"] = int(row["version"]) if "version" in keys and row["version"] is not None else 1
+    changed = None
+    if conn is not None:
+        from api.services.journal_two import rule_versions
+        changed = rule_versions.current_changed_at(conn, row)
+    if changed is None:
+        changed = row["updated_at"] if out["version"] > 1 else row["created_at"]
+    out["changedAt"] = changed
+    return out
 
 
 def create_rule(
@@ -100,6 +117,9 @@ def create_rule(
                 st, source_id, now, now,
             ),
         )
+        # Notebook P2 (R-P2b-1): the rule's words as made are its v1, in the same commit.
+        from api.services.journal_two import rule_versions
+        rule_versions.record_v1(conn, user_id, rule_id, clean_label, evidence, now)
         conn.commit()
     finally:
         if own:
@@ -115,6 +135,9 @@ def create_rule(
         "status": "active",
         "createdAt": now,
         "updatedAt": now,
+        "beforeEntry": False,
+        "version": 1,
+        "changedAt": now,
     }
 
 
@@ -141,7 +164,7 @@ def list_rules(
             params.append(status)
         sql += " ORDER BY created_at DESC, rowid DESC"
         rows = conn.execute(sql, params).fetchall()
-        return [_row_to_dict(r) for r in rows]
+        return [_row_to_dict(r, conn) for r in rows]
     finally:
         if own:
             conn.close()
@@ -173,7 +196,7 @@ def dismiss_rule(
             "SELECT * FROM j2_journal_rules WHERE id = ? AND user_id = ?",
             (rule_id, user_id),
         ).fetchone()
-        return _row_to_dict(row) if row is not None else None
+        return _row_to_dict(row, conn) if row is not None else None
     finally:
         if own:
             conn.close()

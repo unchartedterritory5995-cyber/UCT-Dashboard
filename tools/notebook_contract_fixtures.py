@@ -1848,6 +1848,39 @@ def journal_styles(w: World) -> None:
 
 
 @builder
+def trader_rules(w: World) -> None:
+    """Notebook P2b (spec §P2 item 2; R-P2b-1..3), lane S: a rule's edit door, its version history
+    and its before / after numbers. A member of its own, so no other builder's rules or trades show
+    up here; recorded after every other surface's builder, so their ids do not move."""
+    from api.services.journal_two import journal_rules
+    who = w.member("rules", "Rory Rules")
+    made = "2026-09-01T14:00:00+00:00"           # a month before the frozen today, so v2 has a before
+    c = w.conn()
+    try:
+        rule = journal_rules.create_rule(who, "acct-rules", "No trades in the first 5 minutes", conn=c)
+        c.execute("UPDATE j2_journal_rules SET created_at = ?, updated_at = ? WHERE id = ?", (made, made, rule["id"]))
+        c.execute("UPDATE j2_journal_rule_versions SET changed_at = ? WHERE rule_id = ? AND version = 1",
+                  (made, rule["id"]))
+        c.commit()
+    finally:
+        c.close()
+    base = f"/api/j2/trader-blocks/rules/{rule['id']}"
+    w.as_user(who)
+    w.record("trader-blocks.rules.edit", "PUT", base, case="success", expect=200,
+             json_body={"label": "No trades in the first 15 minutes", "changeNote": "Five minutes was too early."},
+             note="The words changed: version 2, dated now, with the member's note.")
+    w.record("trader-blocks.rules.edit.before-entry", "PUT", base, case="success", expect=200,
+             json_body={"beforeEntry": True},
+             note="Before entry says where the rule shows, not what it says: still version 2, changedAt unmoved.")
+    w.record("trader-blocks.rules.edit.blank", "PUT", base, case="error", expect=400, json_body={"label": "   "},
+             note="A rule needs words: nothing is written.")
+    w.record("trader-blocks.rules.versions", "GET", f"{base}/versions", case="success", expect=200)
+    w.record("trader-blocks.rules.versions.not-found", "GET", "/api/j2/trader-blocks/rules/nope/versions",
+             case="error", expect=404, note="Not this member's rule (or no such rule): the same 404.")
+    w.as_user(MEMBER)
+
+
+@builder
 def sweeps(w: World) -> None:
     """Two answers every route gives, in one file each: signed out with the flags on (401), and
     signed out with every flag off (the one 404, BEFORE the session is read)."""
