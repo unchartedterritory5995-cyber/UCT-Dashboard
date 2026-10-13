@@ -32,4 +32,8 @@ describe('A1.3b — layout-apply Undo', () => {
     const plan = planLayoutUndo(snap(), { id: 2, name: 'Day' })
     expect(layoutUndoDecision(plan, snap({ active: { id: 2, name: 'Day' }, unsaved: true })).reason).toBe('unsaved-now')
   })
+  it('ids compare as strings (the Dock passes numbers AND strings)', () => {
+    const plan = planLayoutUndo(snap(), { id: '2', name: 'Day' })
+    expect(layoutUndoDecision(plan, snap({ active: { id: 2, name: 'Day' }, entries: entries.map((e) => ({ ...e, id: String(e.id) })) })).ok).toBe(true)
+  })
 })

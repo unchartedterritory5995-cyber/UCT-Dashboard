@@ -13,7 +13,9 @@
 //    switch back would discard.
 // Pure: no React, no storage. The snapshot is the workspace's own (`agentLayoutsRef`).
 
-const sigOf = (entries) => JSON.stringify((Array.isArray(entries) ? entries : []).map((e) => [e && e.id, e && e.name]))
+// Layout ids reach the Dock as numbers AND strings — compare as strings, as layout.js does.
+const idEq = (a, b) => a != null && b != null && String(a) === String(b)
+const sigOf = (entries) => JSON.stringify((Array.isArray(entries) ? entries : []).map((e) => [e && e.id != null ? String(e.id) : null, e && e.name]))
 
 /** What to remember when the member opens `to` from the board described by `snap`. */
 export function planLayoutUndo(snap, to) {
@@ -37,12 +39,12 @@ export const LAYOUT_UNDO_SENTENCES = Object.freeze({
 export function layoutUndoDecision(plan, snapNow) {
   const refuse = (reason) => ({ ok: false, reason, sentence: LAYOUT_UNDO_SENTENCES[reason] })
   if (!plan || !plan.to) return refuse('changed')
-  if (!plan.from || plan.from.id === plan.to.id) return refuse('no-previous')
+  if (!plan.from || idEq(plan.from.id, plan.to.id)) return refuse('no-previous')
   if (plan.discarded) return refuse('discarded')
   const s = snapNow || {}
-  if (!s.active || s.active.id !== plan.to.id) return refuse('changed')
+  if (!s.active || !idEq(s.active.id, plan.to.id)) return refuse('changed')
   if (sigOf(s.entries) !== plan.entriesSig) return refuse('changed')
-  if (!(Array.isArray(s.entries) && s.entries.some((e) => e && e.id === plan.from.id))) return refuse('changed')
+  if (!(Array.isArray(s.entries) && s.entries.some((e) => e && idEq(e.id, plan.from.id)))) return refuse('changed')
   if (s.unsaved) return refuse('unsaved-now')
   return { ok: true, open: plan.from }
 }
