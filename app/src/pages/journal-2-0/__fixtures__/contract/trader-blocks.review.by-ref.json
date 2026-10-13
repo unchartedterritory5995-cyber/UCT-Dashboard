@@ -1,0 +1,44 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/trader-blocks/review/ext:FP-REVIEW-2",
+    "note": "A broker trade by its stable ref, which survives the resync that reissues its row id.",
+    "path": "/api/j2/trader-blocks/review/ext:FP-REVIEW-2",
+    "status": 200
+  },
+  "body": {
+    "planGrade": {
+      "candidates": [],
+      "checks": null,
+      "dateOnly": false,
+      "entryDay": "2026-09-10",
+      "labels": [],
+      "plan": null,
+      "setupChip": null,
+      "side": "Long",
+      "status": "unplanned",
+      "symbol": "AMD",
+      "tradeId": "review-2",
+      "tradeRef": "ext:FP-REVIEW-2"
+    },
+    "preEntry": null,
+    "tags": {
+      "emotions": [],
+      "mistakes": []
+    },
+    "trade": {
+      "entryDate": "2026-09-10T14:30:00+00:00",
+      "entryPrice": 100.0,
+      "exitDate": "2026-09-30T15:00:00+00:00",
+      "exitPrice": 95.0,
+      "id": "review-2",
+      "pnlPercent": -0.05,
+      "rMultiple": -1.0,
+      "result": "Loss",
+      "setup": null,
+      "side": "Long",
+      "symbol": "AMD",
+      "tradeRef": "ext:FP-REVIEW-2"
+    }
+  }
+}

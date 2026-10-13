@@ -1,0 +1,27 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/trader-blocks/review/trades",
+    "note": "Newest exit first; each row's tradeRef is what the block stores (a broker trade's is ext:).",
+    "path": "/api/j2/trader-blocks/review/trades",
+    "status": 200
+  },
+  "body": {
+    "trades": [
+      {
+        "exitDate": "2026-10-02T15:00:00+00:00",
+        "id": "review-1",
+        "result": "Win",
+        "symbol": "NVDA",
+        "tradeRef": "id:review-1"
+      },
+      {
+        "exitDate": "2026-09-30T15:00:00+00:00",
+        "id": "review-2",
+        "result": "Loss",
+        "symbol": "AMD",
+        "tradeRef": "ext:FP-REVIEW-2"
+      }
+    ]
+  }
+}

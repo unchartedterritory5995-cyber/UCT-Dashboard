@@ -722,3 +722,82 @@ def _prep_builder(part: str):
 
 
 BUILDERS.update({PREP_BLOCK[p]: _prep_builder(p) for p in PREP_PARTS})
+
+
+# ── The post-trade review pack (spec §P2 item 7; R-P2b-4, R-P2b-5) ──────────────────────────
+# One read for the review block: the trade, its tags, the rules ticked before entry and the plan
+# grade (or what it needs). Read-only, like every trader-blocks read: the block stores only the trade
+# it names, through an editor transaction (`tradeReview`'s builder stays Task 2's empty one).
+# ⛔ B6: get_trade_detail answers {"trade": {...}, "tradeRef": ...}; everything is read from the trade.
+# ⛔ N15: a j2_trades uuid is reissued on every broker resync, so the review also takes the STABLE ref
+# (`id:<row id>` / `ext:<external id>`, trade_refs.trade_ref_for_row) and the trade list carries it.
+_TRADE_KEYS = ("id", "symbol", "side", "entryDate", "exitDate", "entryPrice", "exitPrice", "rMultiple",
+               "result", "setup", "pnlPercent")
+#: What the plan grade needs when its switch is off (BlockNeedsSwitch's `what`).
+PLAN_GRADE_NEEDS = "plan grading"
+
+
+def adherence_for_trade(user_id: str, trade_ref: str, position_id: Any, conn=None) -> dict | None:
+    """The rules ticked for a closed trade: its own adherence record (keyed on the stable trade ref),
+    else the position's pre-entry record from Log Trade, under `pre_entry_ref(position_id)` (the ONE
+    spelling; pre-flight N7 / N29: the ONE helper for this fallback). Never writes."""
+    from api.services.journal_two import adherence_store
+    own = adherence_store.get_adherence(user_id, trade_ref, conn=conn)
+    if own is None and isinstance(position_id, str) and position_id:
+        return adherence_store.get_adherence(user_id, pre_entry_ref(position_id), conn=conn)
+    return own
+
+
+def recent_closed_trades(user_id: str, limit: int = 20) -> list[dict]:
+    """The member's closed trades, newest exit first, for the review block's picker: `{id, tradeRef,
+    symbol, exitDate, result}`. `tradeRef` is what a note should store (N15)."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two.trade_refs import trade_ref_for_row
+    c = get_connection()
+    try:
+        rows = c.execute("SELECT * FROM j2_trades WHERE user_id = ? ORDER BY exit_date DESC, rowid DESC LIMIT ?",
+                         (user_id, int(limit))).fetchall()
+        return [{"id": r["id"], "tradeRef": trade_ref_for_row(r), "symbol": r["symbol"],
+                 "exitDate": r["exit_date"], "result": r["result"]} for r in rows]
+    finally:
+        c.close()
+
+
+def _review_trade_id(conn, user_id: str, key: str) -> str | None:
+    """A review key is a trade's stable ref (`id:` / `ext:`) or, as Task 2's `tradeId` param, its row id.
+    A ref must BE that trade's stable ref: a broker row's ref is `ext:`, never `id:<a uuid a resync
+    reissues>`."""
+    from api.services.journal_two.trade_refs import resolve_trade_by_ref, trade_ref_for_row
+    if key.startswith(("id:", "ext:")):
+        row = resolve_trade_by_ref(user_id, key, conn)
+        return row["id"] if row is not None and trade_ref_for_row(row) == key else None
+    return key
+
+
+def trade_review(user_id: str, trade_key: str) -> dict | None:
+    """`{"trade": {_TRADE_KEYS..., tradeRef}, "tags": {"mistakes", "emotions"}, "preEntry": {setup,
+    checkedRuleIds, totalRules} | None, "planGrade": <grade_payload> | {"needs": "plan grading"}}`; None
+    when the key names no trade of this member's (the route's 404, the same for another member's)."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import plan_grading
+    from api.services.journal_two import trades as trades_service
+    c = get_connection()
+    try:
+        trade_id = _review_trade_id(c, user_id, trade_key) if isinstance(trade_key, str) and trade_key else None
+        detail = trades_service.get_trade_detail(user_id, trade_id, conn=c) if trade_id else None
+        if detail is None:
+            return None
+        t = detail["trade"]
+        pre = adherence_for_trade(user_id, detail["tradeRef"], t.get("positionId"), conn=c)
+        if plan_grading.enabled():
+            row = plan_grading.get_trade(c, user_id, t["id"])
+            grade = plan_grading.grade_payload(c, user_id, row) if row is not None else None
+        else:
+            grade = {"needs": PLAN_GRADE_NEEDS}
+        return {"trade": {**{k: t.get(k) for k in _TRADE_KEYS}, "tradeRef": detail["tradeRef"]},
+                "tags": {"mistakes": t.get("mistakeTags") or [], "emotions": t.get("emotionTags") or []},
+                "preEntry": ({"setup": pre.get("setup"), "checkedRuleIds": pre.get("checkedRuleIds") or [],
+                              "totalRules": pre.get("totalRules") or 0} if pre else None),
+                "planGrade": grade}
+    finally:
+        c.close()

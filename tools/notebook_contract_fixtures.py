@@ -1945,6 +1945,38 @@ def trader_prep_review(w: World) -> None:
     w.p.setattr(trader_blocks, "_cached_quote", lambda sym, now=None: quotes.get(sym))
     w.record("trader-blocks.prep.movers.mine", "GET", f"{prep}/movers", case="success", expect=200,
              note="Sorted by the size of the move; MSFT's change is unavailable (null, never 0); TSLA has no price.")
+
+    # Task 7: the post-trade review. Two closed trades of this member's (a manual one with tags and the
+    # rules ticked in Log Trade, under pos:<position>; a broker one, listed by its ext: ref), and one of
+    # another member's (the same 404 as a missing trade).
+    from api.services.journal_two import adherence_store
+    reviewer, stranger = w.member("trade-review", "Rae Review"), w.member("trade-review-other")
+    c = w.conn()
+    try:
+        add_trade(c, "review-1", user=reviewer, symbol="NVDA", setup="VCP", exit_date="2026-10-02T15:00:00+00:00")
+        c.execute("UPDATE j2_trades SET mistake_tags = ?, emotion_tags = ? WHERE id = ?",
+                  ('["chased"]', '["calm"]', "review-1"))
+        add_trade(c, "review-2", user=reviewer, symbol="AMD", exit_=95.0, source="broker", external_id="FP-REVIEW-2",
+                  exit_date="2026-09-30T15:00:00+00:00")
+        add_trade(c, "review-other", user=stranger, symbol="TSLA")
+        c.commit()
+    finally:
+        c.close()
+    adherence_store.upsert_adherence(reviewer, trader_blocks.pre_entry_ref("pos-review-1"), "VCP", ["s1"], 2)
+    review = "/api/j2/trader-blocks/review"
+    w.as_user(reviewer)
+    w.record("trader-blocks.review.trades", "GET", f"{review}/trades", case="success", expect=200,
+             note="Newest exit first; each row's tradeRef is what the block stores (a broker trade's is ext:).")
+    w.record("trader-blocks.review", "GET", f"{review}/review-1", case="success", expect=200,
+             note="The trade, its tags, the rules ticked before entry (Log Trade's pos: record), the plan grade.")
+    w.record("trader-blocks.review.by-ref", "GET", f"{review}/ext:FP-REVIEW-2", case="success", expect=200,
+             note="A broker trade by its stable ref, which survives the resync that reissues its row id.")
+    w.p.setenv("NOTEBOOK_PLAN_GRADING_ENABLED", "0")
+    w.record("trader-blocks.review.no-grading", "GET", f"{review}/review-1", case="success", expect=200,
+             note="Plan grading is off: the grade says what it needs.")
+    w.p.setenv("NOTEBOOK_PLAN_GRADING_ENABLED", "1")
+    w.record("trader-blocks.review.not-found", "GET", f"{review}/review-other", case="error", expect=404,
+             note="Another member's trade: the same 404 as one that does not exist.")
     w.as_user(MEMBER)
 
 

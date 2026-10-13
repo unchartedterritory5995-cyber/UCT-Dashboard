@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/trader-blocks/review/review-other",
+    "note": "Another member's trade: the same 404 as one that does not exist.",
+    "path": "/api/j2/trader-blocks/review/review-other",
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}

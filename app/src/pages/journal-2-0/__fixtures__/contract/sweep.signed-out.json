@@ -259,6 +259,18 @@
       },
       "status": 401
     },
+    "GET /api/j2/trader-blocks/review/trades": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "GET /api/j2/trader-blocks/review/{trade_key}": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "PATCH /api/j2/template-gallery/admin/items/{gallery_id}": {
       "body": {
         "detail": "Not authenticated"
