@@ -93,6 +93,7 @@
     "src/hub/sections/chartDrawDoor.test.jsx > D-01 — the Draw action > ⛔⛔ arms the REAL trendline tool — the drawbar tile a thumb taps reads pressed",
     "src/hub/sections/chartDrawDoor.test.jsx > selectTool refuses instead of no-opping > returns false for a tool id no button owns, and arms nothing",
     "src/hub/sections/chartDrawDoor.test.jsx > selectTool refuses instead of no-opping > returns false on a read-only mount, where nothing would draw",
+    "src/lib/panelContract.rail.test.js > TERM-024 (a) — transport construction is confined to the pools > no NEW module constructs a transport outside the pools",
     "src/pages/CotData.smoke.test.jsx > CotData — one fetch per symbol, lookback slices client-side > fetches the full history once, the SPY proxy once, and shows the 1Y slice with the rail",
     "src/pages/CotData.smoke.test.jsx > CotData — one fetch per symbol, lookback slices client-side > switching lookback re-slices without another request",
     "src/pages/Login.totp.test.jsx > Login 2FA challenge step > a requires_totp response swaps to the code step and verifies",
@@ -173,6 +174,8 @@
     "src/pages/screener/shell/ScannerShell.review.test.jsx > the screener hands its order to the review > ⛔ an EMPTY screen offers a disabled door, and publishes nothing",
     "src/pages/screener/shell/ScannerShell.review.test.jsx > the screener hands its order to the review > ⛔⛔ WITH THE LIVE RE-SORT ON, THE REVIEW WALKS THE LIVE ORDER",
     "src/pages/screener/shell/ScannerShell.review.test.jsx > the screener hands its order to the review > 🔴 the review door is ON the toolbar, and it publishes the rendered order",
+    "src/pages/terminal/formControls.terminal.test.js > terminal-mounted surfaces use the ui form-control kit > no native <select> remains",
+    "src/pages/terminal/panelProvenance.rail.test.js > TERM-019 — every terminal panel says where its numbers came from > EXEMPT is shrink-only: every entry is in the population, still non-adopting, and says why",
     "src/surfaces/manifest.test.js > S1 CP1 — the surface manifest is derived, not typed > every Layout-hosted route has a declaration",
     "src/utils/jsonFetcher.test.js > no shipped surface parses a response it never checked > NO NEW SURFACE joins the list — and a healed one must leave it"
   ],
@@ -324,6 +327,33 @@
       "fix": "node tools/hub_surface_matrix.mjs > docs/plans/joystick/surface-matrix.md (replace everything below the GENERATED marker)",
       "why_not_fixed_here": "⛔ DELIBERATELY NOT RUN. A Notebook change set editing `docs/plans/joystick/` is the rule-12 shape inverted, and `hub/rule12Paths.test.js` fires on any change set touching those paths. Running the one-line fix would trade one red for a different one and put this workstream's name on the joystick's artifact.",
       "verified_by": "six-shard detached gate 2026-09-17T23-24-19 on bfb7c010343a8f626cffa8e0f6617e196525aa39; tree hash identical at both ends; 1399 files on disk reconciling with 1399 summed",
+      "provisional": false
+    },
+    {
+      "added": "src/lib/panelContract.rail.test.js > TERM-024 (a) — transport construction is confined to the pools > no NEW module constructs a transport outside the pools",
+      "added_at": "2026-10-12",
+      "added_in": "docs/notebook/gate-runs/p2a-landing/2026-10-12T19-20-59.md",
+      "why": "MASTER'S. It names app/src/pages/terminal/panels/TimeSalesPanel.jsx (line 60), a terminal file the Notebook P2a branch does not touch, and the line is identical on master. Run ALONE on a pristine master worktree it fails at 499f4ecd07 and again at b66c823873.",
+      "owner": "the UCT Terminal (TERMINAL-NEXT) workstream",
+      "verified_by": "npx vitest run src/lib/panelContract.rail.test.js on worktree notebook-p2-masterprobe at 499f4ecd07 and at b66c823873: fails both times",
+      "provisional": false
+    },
+    {
+      "added": "src/pages/terminal/formControls.terminal.test.js > terminal-mounted surfaces use the ui form-control kit > no native <select> remains",
+      "added_at": "2026-10-12",
+      "added_in": "docs/notebook/gate-runs/p2a-landing/2026-10-12T19-20-59.md",
+      "why": "MASTER'S. A terminal rail over terminal files; the P2a branch's diff touches nothing under app/src/pages/terminal/. Run ALONE on a pristine master worktree it fails at 499f4ecd07 and again at b66c823873.",
+      "owner": "the UCT Terminal (TERMINAL-NEXT) workstream",
+      "verified_by": "npx vitest run src/pages/terminal/formControls.terminal.test.js on worktree notebook-p2-masterprobe at 499f4ecd07 and at b66c823873: fails both times",
+      "provisional": false
+    },
+    {
+      "added": "src/pages/terminal/panelProvenance.rail.test.js > TERM-019 — every terminal panel says where its numbers came from > EXEMPT is shrink-only: every entry is in the population, still non-adopting, and says why",
+      "added_at": "2026-10-12",
+      "added_in": "docs/notebook/gate-runs/p2a-landing/2026-10-12T19-20-59.md",
+      "why": "MASTER'S. A terminal rail over terminal panels; the P2a branch's diff touches nothing under app/src/pages/terminal/. Run ALONE on a pristine master worktree it fails at 499f4ecd07 and again at b66c823873.",
+      "owner": "the UCT Terminal (TERMINAL-NEXT) workstream",
+      "verified_by": "npx vitest run src/pages/terminal/panelProvenance.rail.test.js on worktree notebook-p2-masterprobe at 499f4ecd07 and at b66c823873: fails both times",
       "provisional": false
     }
   ],
