@@ -206,8 +206,6 @@ const PANELS = [
 export const EXEMPT = {
   'app/src/pages/terminal/panels/HelpPanel.jsx':
     'no-sourced-value: the function list, key bindings and board help — text the terminal itself owns',
-  'app/src/pages/terminal/panels/MyResearchPanel.jsx':
-    "no-sourced-value: the member's own research notes (the Notebook workspace); nothing in it is market data",
   'app/src/pages/terminal/panels/ChartPanel.jsx':
     'blocked: the bars and their last-bar time live inside StockChart / components/chart/**, which this lane may not edit; the chart draws its own time axis, so the adapter cannot honestly report an as-of it never sees',
 }
