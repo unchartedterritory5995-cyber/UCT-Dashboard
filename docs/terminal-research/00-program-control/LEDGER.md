@@ -4880,3 +4880,19 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` constant edge.
 - **No marker bump.** A flow-worker restart drops the OPRA socket for zero behavioural difference.
 - **Released with** the Agent's Open chart / timing commit (Agent files are outside flow-worker's closure).
+
+## Breadth: warm the exact first history read + memoise the live replica read · `613176029c` · 2026-10-13
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: EQUIVALENT OUTPUT / NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/breadth_authority.py`, `api/services/breadth_symbols.py` |
+
+- **`breadth_authority._live_universe`.** Memoised on the live replica's (inode, size, mtime). It returns the
+  same dict for an unchanged file and re-reads after every replacement (tested), so its output is identical
+  for every caller on every service.
+- **The boot warm-up.** Lives in `breadth_symbols.start_breadth_warm`, called only from `api/main.py` (web).
+- **Flow-worker.** Reaches these modules only through the `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` constant
+  edge. 5 deleted `api/` lines, each a line rewritten in place (the existence check → `os.stat`, and the
+  old warm-up body).
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
