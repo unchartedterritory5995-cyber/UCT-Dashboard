@@ -14,6 +14,7 @@ import { mergeChartSettings, mergeSettingsOverride, CHART_DEFAULTS, instanceTomb
 import { noDefaultAverages } from './__fixtures__/adoptedAverages'
 import * as engineRegistry from './engine/nativeRegistry'
 import { ENGINE_OWNED } from './engine/flipState'
+import { removeDefinition, HIDDEN_VIA_DEFINITION } from './engine/instanceControls'
 
 // VWAP was the first indicator folded out of the old flat `indicators` map and into
 // the registry-driven Indicators tab, and at B3 Task 12 it became the first one
@@ -182,12 +183,33 @@ describe('the row is a CONTROL DOOR — one reader, one writer', () => {
     expect(next.indicators.vwap.enabled).toBe(true)
   })
 
-  it('turning it OFF TOMBSTONES — the mirror alone would come back on the next paint', () => {
+  // A1 (D3): the tombstoning OFF moved verbatim to `removeDefinition` — pinned there.
+  it('REMOVING it (removeDefinition) TOMBSTONES — the mirror alone would come back on the next paint', () => {
     const on = applyRowPatch(vwapRow(off), { enabled: true }, off, engineRegistry)
-    const next = applyRowPatch(vwapRow(on), { enabled: false }, on, engineRegistry)
+    const next = removeDefinition(on, 'vwap', engineRegistry)
     expect(next.indicators.vwap.enabled).toBe(false)
     expect(next.indicatorInstances.some((i) => i.instanceId === 'legacy:vwap' && i.deleted === true)).toBe(true)
     expect(readEnabled(vwapRow(next))).toBe(false)
+  })
+
+  // ⭐ A1 (D3, owner-approved 2026-10-13): the row's OFF HIDES — instance and inputs kept,
+  // mirror untouched (it means "exists"), and ON brings back the very same blob.
+  it('⭐ A1 (D3) — turning it OFF from the row HIDES the instance, and the box reads OFF', () => {
+    const on = applyRowPatch(vwapRow(off), { enabled: true }, off, engineRegistry)
+    const edited = applyRowPatch(vwapRow(on), { opacity: 40 }, on, engineRegistry)
+    const next = applyRowPatch(vwapRow(edited), { enabled: false }, edited, engineRegistry)
+    expect(next.indicatorInstances.filter((i) => i.deleted === true), 'a hide tombstoned').toEqual([])
+    const kept = next.indicatorInstances.find((i) => i.instanceId === 'legacy:vwap')
+    expect(kept).toEqual({ ...edited.indicatorInstances.find((i) => i.instanceId === 'legacy:vwap'),
+      hidden: true, hiddenVia: HIDDEN_VIA_DEFINITION })
+    expect(next.indicators.vwap.enabled, '⛔ a hide wrote the mirror').toBe(true)
+    const back = applyRowPatch(vwapRow(next), { enabled: true }, next, engineRegistry)
+    expect(JSON.stringify(back)).toBe(JSON.stringify(edited))
+    // ⛔ LAST, ON PURPOSE: the row's checkbox must read the DIRECTION
+    // (`definitionVisibility`), not "exists" — or the box stays ticked over a hidden
+    // VWAP and unticking it again is an identity no-op: stuck.
+    expect(readEnabled(vwapRow(next)), 'the box stayed ticked over a hidden VWAP — a click would hide it again, stuck')
+      .toBe(false)
   })
 
   it('⭐ an opacity edit reaches the STORED INSTANCE, which the raw mirror write never did', () => {

@@ -71,7 +71,7 @@ import {
   catalogRows, userCatalogRows, catalogGeneration, userRefusalRows, REFUSED_CATEGORY,
   BUILT_IN_ROWS,
 } from './indicatorCatalog'
-import { isIndicatorEnabled, setIndicatorEnabled, addInstance } from './engine/instanceControls'
+import { isIndicatorEnabled, setIndicatorEnabled, addInstance, definitionVisibility } from './engine/instanceControls'
 // The blob-shape readers for the two BUILT-IN rows. They are not instances and
 // not settings slices, so `instanceControls` cannot answer for them — see
 // `isRowOn` below, and `chartDefaults`'s tombstone header for why removal is a
@@ -120,6 +120,18 @@ export function isRowOn(row, settings) {
   return row.carvedOut
     ? settings?.indicators?.[row.id]?.enabled === true
     : isIndicatorEnabled(settings, row.id, ENGINE_OWNED)
+}
+
+/** ⭐ A1 (D3) — what the row's CHECKMARK and its click DIRECTION read: `absent`, `shown`
+ *  or `hidden` (`definitionVisibility`), with `live` / `visible` counts for "2 of 3".
+ *  `isRowOn` keeps its "exists" meaning for every other caller. Built-in and carved-out
+ *  rows have no hidden state: `shown` when on, `absent` when off. */
+export function rowVisibility(row, settings) {
+  if (row.builtIn || row.carvedOut) {
+    const on = isRowOn(row, settings)
+    return { state: on ? 'shown' : 'absent', live: 0, visible: 0, partial: false }
+  }
+  return definitionVisibility(settings, row.id, ENGINE_OWNED)
 }
 
 /** The settings blob after flipping one catalog row — the ONE write every
@@ -183,7 +195,11 @@ export function toggledRow(row, settings, registry) {
   // precise door (its own row). So the row ADDS, on or not.
   const def = typeof registry?.getDefinition === 'function' ? registry.getDefinition(row.id) : null
   if (def && def.meta && def.meta.addOnly === true) return addInstance(settings, row.id, registry)
-  return setIndicatorEnabled(settings, row.id, !on, registry)
+  // ⭐ A1 (D3): the direction comes from VISIBILITY, not existence — a click on a shown
+  // row HIDES it (kept, with its settings), a click on a hidden row shows exactly what
+  // was hidden, and an absent row is added. Deleting every instance is Chart Settings'
+  // "Remove all", never this row.
+  return setIndicatorEnabled(settings, row.id, rowVisibility(row, settings).state !== 'shown', registry)
 }
 
 // 🔴 …AND SINCE THIS FIX, THE MEMBER CAN AUTHOR ONE FROM HERE — `onCreateFormula`.
@@ -485,7 +501,9 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                 // one chart is legitimate (§32), so the row keeps offering.
                 // ⭐ AND SO IS A RESTORE ROW — `discoveryCatalog.libraryRowFor`.
                 const creates = symbolRows.byKey.has(row.key) || row.restores === true
-                const on = creates ? false : isRowOn(row, settings)
+                const vis = creates ? null : rowVisibility(row, settings)
+                const on = !!vis && vis.state === 'shown'
+                const hiddenRow = !!vis && vis.state === 'hidden'
                 return (
                   <li
                     key={row.key || row.id}
@@ -507,7 +525,10 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(row) }
                     }}
                   >
-                    <span className={styles.check} aria-hidden="true">{on ? '✓' : ''}</span>
+                    <span className={styles.check} aria-hidden="true"
+                      title={vis && vis.partial ? `${vis.visible} of ${vis.live} shown` : undefined}>
+                      {on ? (vis.partial ? '✓◐' : '✓') : hiddenRow ? '○' : ''}
+                    </span>
                     <span className={styles.main}>
                       <span className={styles.titleRow}>
                         {/* The LONG name here — `meta.name`. Menus, region titles
@@ -519,6 +540,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                             distinction for a member who cannot see it, and the
                             heading scrolls out of view on a long list. */}
                         {row.userDefined && <span className={styles.mine}>Your formula</span>}
+                        {hiddenRow && <span className={styles.pill} data-testid="row-hidden">Hidden</span>}
                         {row.sessionOnly && <span className={styles.pill}>Intraday only</span>}
                         {/* ⭐⭐ THE LINTER'S MEASUREMENT, PER PLOT — never the
                             definition's declared badge. See `repaintNotice`. */}

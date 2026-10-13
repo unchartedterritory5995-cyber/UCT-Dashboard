@@ -14,6 +14,10 @@
 // (`!@legacy:rsi::rsi`, "Source unavailable") — the same pattern as the header's
 // info values (`severed: true`).
 //
+// ⭐ A1 (D3, owner-approved 2026-10-13): `setIndicatorEnabled(false)` now HIDES and severs
+// nothing (decision O3: dependents are kept). The definition DELETE moved, verbatim, to
+// `removeDefinition`, and every delete → re-add case below drives that door explicitly.
+//
 // Each case: ASKED / CLAIMED / DID, and its class.
 
 import { describe, it, expect, beforeEach } from 'vitest'
@@ -21,7 +25,8 @@ import * as registry from '../nativeRegistry'
 import { mergeChartSettings } from '../../chartDefaults'
 import { createBinder } from '../binder'
 import {
-  setIndicatorEnabled, removeInstance, addInstance, setInstanceInput, findInstance,
+  setIndicatorEnabled, removeInstance, addInstance, setInstanceInput, findInstance, removeDefinition,
+  HIDDEN_VIA_DEFINITION,
 } from '../instanceControls'
 import {
   instanceSource, parseSource, isSeveredSource, sourceDependsOn, severReferencesTo,
@@ -105,9 +110,10 @@ describe('the fixture is real', () => {
 })
 
 describe('⛔⛔ delete → re-add under the SAME id never reconnects the MA', () => {
-  it('ASKED turn RSI off, then on again (setIndicatorEnabled revives `legacy:rsi`) · CLAIMED the MA does not adopt the new RSI · DID sever it — UNAVAILABLE (was: SILENT RECONNECT)', () => {
+  // A1 (D3): the toggle HIDES now, so the delete in this scenario is explicit — removeDefinition.
+  it('ASKED delete RSI (removeDefinition), then turn it on again (setIndicatorEnabled rebuilds `legacy:rsi`) · CLAIMED the MA does not adopt the new RSI · DID sever it — UNAVAILABLE (was: SILENT RECONNECT)', () => {
     const { cs, maId } = chartWithMaOverRsi()
-    const off = setIndicatorEnabled(cs, 'rsi', false, registry)
+    const off = removeDefinition(cs, 'rsi', registry)
     const on = setIndicatorEnabled(off, 'rsi', true, registry)
     // the re-add really did mint the very same id — this is the hazard
     expect(findInstance(on, 'legacy:rsi')).toBeTruthy()
@@ -132,10 +138,23 @@ describe('⛔⛔ delete → re-add under the SAME id never reconnects the MA', (
 
   it('ASKED re-point the MA explicitly after the re-add · CLAIMED the member\'s explicit choice reconnects it · DID — EXACT', () => {
     const { cs, maId } = chartWithMaOverRsi()
-    const on = setIndicatorEnabled(setIndicatorEnabled(cs, 'rsi', false, registry), 'rsi', true, registry)
+    // A1 (D3): delete → re-add, so the delete is explicit (removeDefinition)
+    const on = setIndicatorEnabled(removeDefinition(cs, 'rsi', registry), 'rsi', true, registry)
     const repaired = setInstanceInput(on, maId, 'source', RSI_SRC, registry)
     expect(maSource(repaired, maId)).toBe(RSI_SRC)
     expect(maValues(repaired, maId).filter((v) => v.length).length).toBe(2)
+  })
+
+  // ⭐ A1 (D3, decision O3): a definition HIDE is not a delete — the MA is KEPT connected.
+  it('ASKED turn RSI off with the definition toggle, then on · CLAIMED a hide keeps the MA reading RSI (O3) · DID — never severed, byte-identical after ON', () => {
+    const { cs, maId } = chartWithMaOverRsi()
+    const off = setIndicatorEnabled(cs, 'rsi', false, registry)
+    expect(findInstance(off, 'legacy:rsi')).toMatchObject({ hidden: true, hiddenVia: HIDDEN_VIA_DEFINITION })
+    expect(maSource(off, maId), 'a definition hide severed the MA').toBe(RSI_SRC)
+    expect(findInstance(off, maId), 'the hide touched the dependent').toEqual(findInstance(cs, maId))
+    const on = setIndicatorEnabled(off, 'rsi', true, registry)
+    expect(JSON.stringify(on), 'ON after a hide is not byte-identical').toBe(JSON.stringify(cs))
+    expect(maValues(on, maId).filter((v) => v.length).length).toBe(2)
   })
 
   it('ASKED add a SECOND RSI after deleting one (`inst:rsi:N`) · CLAIMED never the deleted id · DID (control: the tombstone holds the id)', () => {
@@ -153,7 +172,8 @@ describe('⛔⛔ delete → re-add under the SAME id never reconnects the MA', (
 describe('persistence — the gravestone is ordinary, durable chart-settings state', () => {
   it('ASKED save → reload the severed blob · CLAIMED the marker survives `mergeChartSettings` unchanged, and the blob gains no other key · DID', () => {
     const { cs, maId } = chartWithMaOverRsi()
-    const off = setIndicatorEnabled(cs, 'rsi', false, registry)
+    // A1 (D3): the severing door is removeDefinition (the toggle hides and severs nothing)
+    const off = removeDefinition(cs, 'rsi', registry)
     const reread = mergeChartSettings(JSON.stringify(off))
     expect(maSource(reread, maId)).toBe(`!${RSI_SRC}`)
     expect(JSON.stringify(mergeChartSettings(JSON.stringify(reread)))).toBe(JSON.stringify(reread))
@@ -164,7 +184,8 @@ describe('persistence — the gravestone is ordinary, durable chart-settings sta
   it('ASKED delete an instance nothing reads · CLAIMED nothing else moves (identity for the dependents) · DID', () => {
     const { cs, maId } = chartWithMaOverRsi()
     const macd = setIndicatorEnabled(cs, 'macd', true, registry)
-    const off = setIndicatorEnabled(macd, 'macd', false, registry)
+    // A1 (D3): "delete" is removeDefinition — the toggle would only hide (and trivially pass)
+    const off = removeDefinition(macd, 'macd', registry)
     expect(maSource(off, maId)).toBe(RSI_SRC)
     expect(findInstance(off, maId)).toBe(findInstance(macd, maId))
     expect(severReferencesTo(macd, 'legacy:macd', registry.getDefinition)).toBe(macd)

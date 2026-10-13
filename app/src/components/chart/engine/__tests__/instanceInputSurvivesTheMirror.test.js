@@ -37,7 +37,8 @@
 import { describe, it, expect } from 'vitest'
 import { CHART_DEFAULTS, mergeChartSettings as mergeChartSettingsReal } from '../../chartDefaults'
 import {
-  setIndicatorEnabled, setInstanceInput, findInstance, addInstance, removeInstance,
+  setIndicatorEnabled, setInstanceInput, findInstance, addInstance, removeInstance, removeDefinition,
+  HIDDEN_VIA_DEFINITION,
 } from '../instanceControls'
 import { legacyInstanceId } from '../instances'
 import { migrateLegacyToInstances } from '../instances'
@@ -204,11 +205,27 @@ describe('the write door still refuses what it always refused', () => {
     expect(out).toBe(on)
   })
 
+  // A1 (D3): the toggle no longer tombstones — the DELETE that does is removeDefinition.
   it('a tombstoned instance is not revived by a write to it', () => {
     const def = numericDefs()[0].def
     const on = setIndicatorEnabled(mergeChartSettings(null), def.id, true, engineRegistry)
-    const off = setIndicatorEnabled(on, def.id, false, engineRegistry)
+    const off = removeDefinition(on, def.id, engineRegistry)
     expect(setInstanceInput(off, legacyInstanceId(def.id), numericDefs()[0].input.key, 7, engineRegistry)).toBe(off)
+  })
+
+  // ⭐ A1 (D3, R1): a definition-HIDDEN instance is still an instance — a write to it lands,
+  // and it does NOT un-hide it (the member edited a value, he did not ask to see it).
+  it('⭐ A1 (D3) — a write to a definition-HIDDEN instance lands and leaves it hidden', () => {
+    const { def, input } = numericDefs()[0]
+    const on = setIndicatorEnabled(mergeChartSettings(null), def.id, true, engineRegistry)
+    const off = setIndicatorEnabled(on, def.id, false, engineRegistry)
+    const id = legacyInstanceId(def.id)
+    expect(findInstance(off, id), 'the hide deleted the instance').toBeTruthy()
+    const wrote = setInstanceInput(off, id, input.key, 7, engineRegistry)
+    expect(wrote, 'the write to a hidden instance was refused').not.toBe(off)
+    expect(findInstance(wrote, id).inputs[input.key]).toBe(7)
+    expect(findInstance(wrote, id).hidden, 'an input edit un-hid a definition-hidden row').toBe(true)
+    expect(findInstance(wrote, id).hiddenVia).toBe(HIDDEN_VIA_DEFINITION)
   })
 
   it('CHART_DEFAULTS is not mutated by any of this', () => {

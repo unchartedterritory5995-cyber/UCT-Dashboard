@@ -4,9 +4,9 @@ import UIcon from '../../../components/ui/UIcon'
 import haptics from '../../../components/mobile/haptics'
 import * as engineRegistry from '../../../components/chart/engine/nativeRegistry'
 import { catalogRows, userCatalogRows, catalogGeneration } from '../../../components/chart/indicatorCatalog'
-import { isRowOn, toggledRow } from '../../../components/chart/IndicatorLibraryDialog'
+import { isRowOn, toggledRow, rowVisibility } from '../../../components/chart/IndicatorLibraryDialog'
 import { fieldFromInput } from '../../../components/chart/indicatorRegistry'
-import { setInstanceInput } from '../../../components/chart/engine/instanceControls'
+import { setInstanceInput, removeInstance } from '../../../components/chart/engine/instanceControls'
 import { isInstanceTombstone } from '../../../components/chart/instanceShape'
 import styles from './MobileCharts.module.css'
 
@@ -274,8 +274,11 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
 
         <div className={styles.sectionLabel}>Studies</div>
         {studyRows.map((r) => {
-          const on = isRowOn(r, cs)
-          const editable = on && !r.carvedOut && liveInstanceOf(cs, r.id)
+          // ⭐ A1 (D3/D5): the switch shows VISIBILITY; a hidden study keeps its row (and its
+          // editor) and the switch shows it again. `isRowOn` ("exists") still gates editing.
+          const vis = rowVisibility(r, cs)
+          const on = vis.state === 'shown'
+          const editable = isRowOn(r, cs) && !r.carvedOut && liveInstanceOf(cs, r.id)
           return (
             <div key={r.id} className={styles.indRow}>
               <button
@@ -287,6 +290,7 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
                 <span className={styles.indName}>
                   {r.name}
                   {r.sessionOnly && <span className={styles.indNote}> · intraday</span>}
+                  {vis.state === 'hidden' && <span className={styles.indNote}> · hidden</span>}
                 </span>
                 {editable && <span className={styles.rowRight}><UIcon name="chevronRight" size={13} gold={false} /></span>}
               </button>
@@ -438,8 +442,14 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
               type="button"
               className={`${styles.row} ${styles.removeRow}`}
               onClick={() => {
-                const r = studyRows.find((x) => x.id === editing.defId)
-                if (r) toggleStudy(r)
+                // ⭐ A1 (D6): remove THE INSTANCE THIS EDITOR SHOWS — never every copy of the
+                // definition (the old `toggleStudy` here deleted all of them).
+                const inst = editInstanceOf(editing.defId, editing.instanceId)
+                if (inst) {
+                  haptics.tap()
+                  const next = removeInstance(cs, inst.instanceId, engineRegistry)
+                  if (next !== cs) onWrite({ ...next, preset: 'custom' })
+                }
                 setEditing(null)
               }}
             >
