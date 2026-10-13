@@ -41,14 +41,9 @@
           "params": {
             "snapshot": {
               "capturedAt": "2026-10-11T14:30:00Z",
-              "detail": "The morning wire has not published yet today.",
-              "exposure": null,
-              "exposureAsOf": null,
-              "headline": null,
-              "missing": "no_wire",
-              "part": "wire",
-              "regime": null,
-              "wireDate": null
+              "detail": "This could not be read just now. Capture again in a moment.",
+              "missing": "source_error",
+              "part": "wire"
             }
           },
           "searchText": "[morning wire and exposure]",
@@ -148,13 +143,9 @@
           "mode": "snapshot",
           "params": {
             "snapshot": {
-              "amc": [],
-              "amcTonight": [],
-              "asOf": null,
-              "bmo": [],
               "capturedAt": "2026-10-11T14:30:00Z",
-              "detail": "Today's earnings list has not been loaded yet. Capture again in a few minutes.",
-              "missing": "no_earnings_yet",
+              "detail": "This could not be read just now. Capture again in a moment.",
+              "missing": "source_error",
               "part": "earnings"
             }
           },
@@ -179,13 +170,9 @@
           "params": {
             "snapshot": {
               "capturedAt": "2026-10-11T14:30:00Z",
-              "detail": "Add names to a watchlist, flag them, or hold a position to see them here.",
-              "items": [],
-              "missing": "no_names",
-              "part": "movers",
-              "scanned": 0,
-              "total": 0,
-              "unquoted": 0
+              "detail": "This could not be read just now. Capture again in a moment.",
+              "missing": "source_error",
+              "part": "movers"
             }
           },
           "searchText": "[my movers]",
@@ -209,9 +196,8 @@
           "params": {
             "snapshot": {
               "capturedAt": "2026-10-11T14:30:00Z",
-              "detail": null,
-              "missing": null,
-              "needs": "the active setups board",
+              "detail": "This could not be read just now. Capture again in a moment.",
+              "missing": "source_error",
               "part": "levels"
             }
           },
@@ -254,7 +240,9 @@
             "width": "full"
           },
           "mode": "snapshot",
-          "params": {},
+          "params": {
+            "which": "active"
+          },
           "searchText": "[my rules]",
           "v": 1,
           "widgetId": "myRules"
@@ -302,14 +290,9 @@
           "params": {
             "snapshot": {
               "capturedAt": "2026-10-11T14:30:00Z",
-              "detail": "The morning wire has not published yet today.",
-              "exposure": null,
-              "exposureAsOf": null,
-              "headline": null,
-              "missing": "no_wire",
-              "part": "wire",
-              "regime": null,
-              "wireDate": null
+              "detail": "This could not be read just now. Capture again in a moment.",
+              "missing": "source_error",
+              "part": "wire"
             }
           },
           "searchText": "[morning wire and exposure]",
@@ -409,13 +392,9 @@
           "mode": "snapshot",
           "params": {
             "snapshot": {
-              "amc": [],
-              "amcTonight": [],
-              "asOf": null,
-              "bmo": [],
               "capturedAt": "2026-10-11T14:30:00Z",
-              "detail": "Today's earnings list has not been loaded yet. Capture again in a few minutes.",
-              "missing": "no_earnings_yet",
+              "detail": "This could not be read just now. Capture again in a moment.",
+              "missing": "source_error",
               "part": "earnings"
             }
           },
@@ -440,13 +419,9 @@
           "params": {
             "snapshot": {
               "capturedAt": "2026-10-11T14:30:00Z",
-              "detail": "Add names to a watchlist, flag them, or hold a position to see them here.",
-              "items": [],
-              "missing": "no_names",
-              "part": "movers",
-              "scanned": 0,
-              "total": 0,
-              "unquoted": 0
+              "detail": "This could not be read just now. Capture again in a moment.",
+              "missing": "source_error",
+              "part": "movers"
             }
           },
           "searchText": "[my movers]",
@@ -470,9 +445,8 @@
           "params": {
             "snapshot": {
               "capturedAt": "2026-10-11T14:30:00Z",
-              "detail": null,
-              "missing": null,
-              "needs": "the active setups board",
+              "detail": "This could not be read just now. Capture again in a moment.",
+              "missing": "source_error",
               "part": "levels"
             }
           },
@@ -515,7 +489,9 @@
             "width": "full"
           },
           "mode": "snapshot",
-          "params": {},
+          "params": {
+            "which": "active"
+          },
           "searchText": "[my rules]",
           "v": 1,
           "widgetId": "myRules"

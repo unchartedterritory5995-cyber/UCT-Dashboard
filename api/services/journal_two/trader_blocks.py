@@ -89,16 +89,22 @@ BUILDERS: dict[str, Callable[[dict, dict], tuple[dict | None, str | None]]] = {
 
 
 def _empty(block_id: str, params: dict | None = None):
-    """Part b's placeholder builders (P2b Task 2): the node with empty params. `myRules` keeps this
-    one (it holds no params) and so does `tradeReview` (the member picks the trade, Task 7); the four
-    prep blocks capture (Task 6, `_prep_builder` below)."""
+    """Part b's placeholder builders (P2b Task 2): the node with fixed params. `tradeReview` keeps this
+    one (the member picks the trade, Task 7); the four prep blocks capture (Task 6, `_prep_builder`
+    below)."""
     def build(block: dict, ctx: dict):
         return _node(block_id, dict(params or {}), ctx), None
     return build
 
 
+def build_my_rules(block: dict, ctx: dict):
+    """The block reads `params.which` (MyRulesBlock.jsx), so the style's setting goes onto the node --
+    the same stored shape the slash path's normalizeParams writes (Task 12 review, finding 5)."""
+    return _node("myRules", {"which": _settings(block).get("which", "active")}, ctx), None
+
+
 BUILDERS.update({
-    "myRules": _empty("myRules"),
+    "myRules": build_my_rules,
     "tradeReview": _empty("tradeReview", {"tradeId": ""}),
 })
 

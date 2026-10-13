@@ -358,9 +358,51 @@ def test_a_v1_daily_prep_note_gets_the_pack_EMPTY_and_keeps_every_word(db_path, 
     monkeypatch.setattr(tb, "market_context_params", lambda *a, **k: pytest.fail("an update must not capture"))
     note, _ = js.apply_style_update("u1", n["id"], expected_updated_at=n["updatedAt"])
     body = note["bodyJson"]
-    assert sorted(x["attrs"]["widgetId"] for x in _embeds(body)) == sorted(DAILY_PREP_V2)
+    # Update mode adds the missing blocks as one run, in the style's order, right after the first heading.
+    assert [x["attrs"]["widgetId"] for x in _embeds(body)] == DAILY_PREP_V2
+    first = body["content"].index(_embeds(body)[0])
+    assert body["content"][first - 1] == before[0] and body["content"][first:first + 6] == _embeds(body)
     for wid in ("prepWire", "prepEarnings", "prepMovers", "prepLevels"):
         assert "snapshot" not in _by_id(body, wid)["attrs"]["params"], wid
     assert _by_id(body, "marketcontext")["attrs"]["capturedAt"] is None
     assert [x for x in body["content"] if x in before] == before
     assert (note["styleId"], note["styleVersion"]) == ("builtin:daily_prep", 2)
+    assert js.plan_style_update("u1", n["id"])["upToDate"] is True
+
+
+def test_a_v1_post_trade_review_note_gains_an_unpicked_review_block(db_path, monkeypatch):
+    """Post-trade review v2's update offers a v1 note the review block with no trade picked, and only ADDS
+    (its chart is not doubled)."""
+    from api.services.journal_two import journal_styles as js, notes
+    _green(monkeypatch)
+    v1 = {"type": "doc", "content": [
+        js._h("What happened"), js._p("Entry, exit and result:"),
+        js._build_chart({"settings": {"tf": "D"}}, {"ticker": "NVDA", "now": NOW})[0],
+        js._h("Did I follow my plan?"), js._p("Mostly.")]}
+    n = notes.create_note("u1", {"title": "old review", "ticker": "NVDA", "bodyJson": v1},
+                          style_stamp=("builtin:post_trade_review", 1, "post_trade_review"))
+    before = n["bodyJson"]["content"]
+    plan = js.plan_style_update("u1", n["id"])
+    assert (plan["fromVersion"], plan["toVersion"], plan["mode"]) == (1, 2, "update")
+    assert [a["block"] for a in plan["add"]] == ["tradeReview"]
+    note, _ = js.apply_style_update("u1", n["id"], expected_updated_at=n["updatedAt"])
+    body = note["bodyJson"]
+    assert _by_id(body, "tradeReview")["attrs"]["params"] == {"tradeId": ""}
+    assert len([x for x in _embeds(body) if x["attrs"]["widgetId"] == "chart"]) == 1
+    assert [x for x in body["content"] if x in before] == before
+    assert (note["styleId"], note["styleVersion"]) == ("builtin:post_trade_review", 2)
+    assert js.plan_style_update("u1", n["id"])["upToDate"] is True
+
+
+def test_a_my_rules_block_keeps_its_style_setting(db_path):
+    """The block reads params.which (MyRulesBlock.jsx); a style that shows ALL rules must compose to that,
+    not to the empty params the default happens to cover."""
+    from api.services.journal_two import journal_styles as js
+    style = {"id": None, "builtin": False, "version": None, "name": "x", "kindId": "thesis",
+             "outlineTemplateId": None, "outlineBodyJson": js._doc(js._h("Rules"), js._ph("myRules")),
+             "blocks": [{"block": "myRules", "enabled": True, "settings": {"which": "all"}}], "properties": {}}
+    out = js.compose("u1", style, ticker=None, conn=None, now=NOW)
+    assert _by_id(out["bodyJson"], "myRules")["attrs"]["params"] == {"which": "all"}
+    style["blocks"][0]["settings"] = {}
+    out = js.compose("u1", style, ticker=None, conn=None, now=NOW)
+    assert _by_id(out["bodyJson"], "myRules")["attrs"]["params"] == {"which": "active"}

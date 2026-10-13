@@ -51,6 +51,12 @@ describe('P2a slash items', () => {
       'Post-trade review', 'Market context'])
   })
 
+  it('the six part-b rows each carry their own description', () => {
+    const descs = PART_B_IDS.map((id) => ITEMS.find((i) => i.title === label(id)).description)
+    expect(new Set(descs).size).toBe(PART_B_IDS.length)
+    expect(descs).not.toContain('A trader block')
+  })
+
   it('every slash title is unique, so a typed title names exactly one item', () => {
     for (const t of titles) expect(ITEMS.filter((i) => i.title === t).length, t).toBe(1)
   })
