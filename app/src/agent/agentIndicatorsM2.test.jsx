@@ -192,7 +192,9 @@ describe('M2 targets: multiple charts, duplicate names, exact identity', () => {
     expect(instancesOf(two, registry).filter(i => i.name === name)).toHaveLength(2)
     const p = await plan(h, [op('indicator.hide', 'L', { instance: name })])
     expect(p.ok).toBe(false)
-    expect(p.refusals[0].reason).toMatch(/More than one indicator .* matches that — .*inst:rsi:1.*inst:rsi:2/)
+    // Gate C: the legend's own names (two of the same name told apart by legend order), never internal ids
+    expect(p.refusals[0].reason).toMatch(/More than one indicator .* matches that — .*\(the first in the legend\) or .*\(the second in the legend\)\. Say which one\./)
+    expect(p.refusals[0].reason).not.toMatch(/inst:/)
     const { res } = await run(h, [op('indicator.hide', 'L', { instance: 'inst:rsi:2' })])
     expect(res.ok).toBe(true)
     const rows = instancesOf(load(h.store.L), registry)

@@ -132,8 +132,15 @@ export function refusalSentence(res, { chart = 'that chart', op = null } = {}) {
     case REASONS.UNSUPPORTED_DEFINITION: return 'That indicator can’t be added this way. Classic overlay averages and Volume Profile are added from Chart Settings.'
     case REASONS.NOT_FOUND: return `That indicator isn't on ${chart} any more.`
     case REASONS.AMBIGUOUS: {
-      const names = (res.detail?.candidates || []).map(c => `${c.name} (${c.instanceId})`)
-      return `More than one indicator on ${chart} matches that — ${names.join(', ')}. Say which one.`
+      // the legend's own names, never internal ids; two with the SAME name are told apart by legend order
+      const cands = res.detail?.candidates || []
+      const seen = {}
+      const names = cands.map(c => {
+        const same = cands.filter(x => x.name === c.name).length
+        seen[c.name] = (seen[c.name] || 0) + 1
+        return same > 1 ? `${c.name} (the ${['first', 'second', 'third', 'fourth', 'fifth'][seen[c.name] - 1] || `#${seen[c.name]}`} in the legend)` : c.name
+      })
+      return `More than one indicator on ${chart} matches that — ${names.length > 1 ? `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}` : names[0]}. Say which one.`
     }
     case REASONS.WRITER_REFUSED: return 'UCT refused that change (the indicator’s own rules), so nothing changed.'
     case REASONS.NO_CHANGE: return op === 'setVisible' ? 'It is already in that state.' : 'Nothing to change.'
@@ -624,6 +631,9 @@ export function registerIndicatorEditCapabilities() {
       if (!ins.ok) return refusalSentence({ reason: REASONS.BAD_INPUT, detail: { why: ins.why } }, { op: 'setInputs' })
       if (!ins.inputs) return 'Which setting should I change, and to what?'
       const t = targetOf(st, instance)
+      // "change the 21 to a 9" with no 21 on the chart: say what was looked for, not "isn't there any more"
+      const len = /^#(\d{1,4})/.exec(String(instance || ''))
+      if (!t.ok && len && t.reason === REASONS.NOT_FOUND) return `No indicator on ${st.chart} shows ${len[1]}. Say which one to change.`
       if (!t.ok) return refusalSentence(t, { chart: st.chart })
       return oneChange(st) || planCheck(st, { op: 'setInputs', instanceId: t.instanceId, inputs: ins.inputs })
     },
