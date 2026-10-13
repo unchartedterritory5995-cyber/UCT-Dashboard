@@ -1,0 +1,7 @@
+// WS5 audit corpus - written for this audit (UCT, 2026-10-13). Not a TradingView community script.
+//@version=5
+indicator("Weekly EMA on Daily (audit)", overlay = true)
+tf = input.timeframe("W", "Higher timeframe")
+len = input.int(10, "EMA length")
+htfEma = request.security(syminfo.tickerid, tf, ta.ema(close, len)[1], lookahead = barmerge.lookahead_on)
+plot(htfEma, "HTF EMA", color = color.fuchsia, linewidth = 2)

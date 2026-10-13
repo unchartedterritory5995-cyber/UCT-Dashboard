@@ -1,0 +1,18 @@
+// WS5 audit corpus - written for this audit (UCT, 2026-10-13). Not a TradingView community script.
+//@version=5
+indicator("ATR Trailing Stop (audit)", overlay = true)
+atrLen = input.int(14, "ATR Length")
+mult = input.float(2.5, "Multiplier")
+loss = mult * ta.atr(atrLen)
+var float trail = na
+if na(trail)
+    trail := close - loss
+else if close > trail and close[1] > trail
+    trail := math.max(trail, close - loss)
+else if close < trail and close[1] < trail
+    trail := math.min(trail, close + loss)
+else if close > trail
+    trail := close - loss
+else
+    trail := close + loss
+plot(trail, "Trail", color = close > trail ? color.green : color.red)

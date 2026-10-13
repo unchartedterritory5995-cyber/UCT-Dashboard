@@ -1,0 +1,8 @@
+// WS5 audit corpus - written for this audit (UCT, 2026-10-13). Not a TradingView community script.
+//@version=5
+indicator("Volume Spike (audit)", overlay = true)
+len = input.int(20, "Average length")
+mult = input.float(2.0, "Spike multiple")
+avgVol = ta.sma(volume, len)
+spike = volume > avgVol * mult
+bgcolor(spike ? color.new(color.orange, 80) : na, title = "Spike")

@@ -1,0 +1,13 @@
+// WS5 audit corpus - written for this audit (UCT, 2026-10-13). Not a TradingView community script.
+//@version=5
+indicator("EMA Ribbon (audit)", overlay = true)
+len1 = input.int(8, "Fast")
+len2 = input.int(21, "Mid")
+len3 = input.int(55, "Slow")
+src = input.source(close, "Source")
+e1 = ta.ema(src, len1)
+e2 = ta.ema(src, len2)
+e3 = ta.ema(src, len3)
+plot(e1, "EMA Fast", color = color.new(color.teal, 0), linewidth = 1)
+plot(e2, "EMA Mid", color = color.orange, linewidth = 2)
+plot(e3, "EMA Slow", color = color.red, linewidth = 3)

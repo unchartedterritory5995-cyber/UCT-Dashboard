@@ -1,0 +1,14 @@
+// WS5 audit corpus - written for this audit (UCT, 2026-10-13). Not a TradingView community script.
+//@version=5
+indicator("Stats Table (audit)", overlay = true)
+r = ta.rsi(close, 14)
+a = ta.atr(14)
+chg = (close - close[1]) / close[1] * 100
+var table t = table.new(position.top_right, 2, 3, bgcolor = color.new(color.black, 20), border_width = 1)
+if barstate.islast
+    table.cell(t, 0, 0, "RSI", text_color = color.white)
+    table.cell(t, 1, 0, str.tostring(r, "#.##"), text_color = r > 70 ? color.red : r < 30 ? color.green : color.white)
+    table.cell(t, 0, 1, "ATR", text_color = color.white)
+    table.cell(t, 1, 1, str.tostring(a, "#.##"), text_color = color.white)
+    table.cell(t, 0, 2, "Chg %", text_color = color.white)
+    table.cell(t, 1, 2, str.tostring(chg, "#.##") + "%", text_color = chg >= 0 ? color.green : color.red)

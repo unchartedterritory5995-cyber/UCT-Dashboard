@@ -1,0 +1,12 @@
+// WS5 audit corpus - written for this audit (UCT, 2026-10-13). Not a TradingView community script.
+//@version=5
+indicator("MACD Colored (audit)")
+fastLen = input.int(12, "Fast")
+slowLen = input.int(26, "Slow")
+sigLen = input.int(9, "Signal")
+[macdLine, signalLine, hist] = ta.macd(close, fastLen, slowLen, sigLen)
+histColor = hist >= 0 ? (hist > hist[1] ? color.lime : color.green) : (hist < hist[1] ? color.red : color.maroon)
+plot(hist, "Histogram", color = histColor, style = plot.style_columns)
+plot(macdLine, "MACD", color = color.blue)
+plot(signalLine, "Signal", color = color.orange)
+hline(0, "Zero", color = color.gray)

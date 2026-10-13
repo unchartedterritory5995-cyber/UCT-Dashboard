@@ -1,0 +1,11 @@
+// WS5 audit corpus - written for this audit (UCT, 2026-10-13). Not a TradingView community script.
+//@version=5
+strategy("SMA Cross Strategy (audit)", overlay = true, initial_capital = 10000)
+fast = ta.sma(close, 10)
+slow = ta.sma(close, 30)
+if ta.crossover(fast, slow)
+    strategy.entry("Long", strategy.long)
+if ta.crossunder(fast, slow)
+    strategy.close("Long")
+plot(fast, "Fast", color = color.green)
+plot(slow, "Slow", color = color.red)

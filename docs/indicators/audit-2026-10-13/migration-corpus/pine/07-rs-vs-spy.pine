@@ -1,0 +1,9 @@
+// WS5 audit corpus - written for this audit (UCT, 2026-10-13). Not a TradingView community script.
+//@version=5
+indicator("Relative Strength vs SPY (audit)")
+bench = input.symbol("SPY", "Benchmark")
+smaLen = input.int(50, "RS MA")
+benchClose = request.security(bench, timeframe.period, close)
+rs = close / benchClose * 100
+plot(rs, "RS Line", color = color.blue)
+plot(ta.sma(rs, smaLen), "RS MA", color = color.gray)

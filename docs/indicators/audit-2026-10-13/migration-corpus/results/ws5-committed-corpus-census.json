@@ -1,0 +1,3449 @@
+[
+ {
+  "f": "3-level-zigzag-semafor__3078.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:function",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:request-with-state"
+ },
+ {
+  "f": "4c-nyse-market-breadth-ratio__722410befd.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:request",
+  "host": false,
+  "hostGuard": "pine:request",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:request"
+ },
+ {
+  "f": "72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt.pine",
+  "strategy": true,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": false,
+  "hostGuard": "pine:statement",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:statement"
+ },
+ {
+  "f": "ad-line-of-sp-sectors__af306a4359.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:request",
+  "host": false,
+  "hostGuard": "pine:request",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:history-expression"
+ },
+ {
+  "f": "adaptive-trend-following-suite-alpha-extract__d615e5a027.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:block",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:history-expression"
+ },
+ {
+  "f": "adx-and-di-for-v4__932.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:state",
+  "host": false,
+  "hostGuard": "pine:state",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "runtime"
+ },
+ {
+  "f": "ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48.pine",
+  "strategy": true,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": false,
+  "hostGuard": "pine:request",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:request"
+ },
+ {
+  "f": "all-chart-patterns-theeccentrictrader__03e4633d31.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:tuple",
+  "host": false,
+  "hostGuard": "pine:tuple",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:call-windowed-state"
+ },
+ {
+  "f": "artemis-oscillator-pro__ea1097ca9e.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 9,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "asianrange-and-killzones__ef41eb5ad6.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:statement"
+ },
+ {
+  "f": "atr-bands__ad60b125e6.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 4,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "atr-god-strategy-by-tradesmart__4369755a29.pine",
+  "strategy": true,
+  "version": null,
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": false,
+  "hostGuard": "pine:block",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:history-expression"
+ },
+ {
+  "f": "atr-stepped-pdf-ma-loxx__9b90a3f7bb.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:block",
+  "host": false,
+  "hostGuard": "pine:block",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "runtime"
+ },
+ {
+  "f": "atr-stop-loss-indicator__LOfv1FvRhL.pine",
+  "strategy": false,
+  "version": null,
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "atr-support-and-resistance__3e9ddb38c4.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 3,
+   "objects": true,
+   "paints": 1
+  }
+ },
+ {
+  "f": "atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 3,
+  "drawn": {
+   "plots": 3,
+   "objects": false,
+   "paints": 1
+  }
+ },
+ {
+  "f": "atr-trailing-stoploss-strategy__oayb1wVXkZ.pine",
+  "strategy": true,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": false,
+  "hostGuard": "pine:statement",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:statement"
+ },
+ {
+  "f": "atr-trailing-stoploss__2JLLfrGRHg.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:function",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 2,
+  "drawn": {
+   "plots": 1,
+   "objects": false,
+   "paints": 1
+  }
+ },
+ {
+  "f": "atr-trend-bands-misu__a34d44410a.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "auto-harmonic-patterns-open-source__ca6022754b.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:builtin"
+ },
+ {
+  "f": "auto-trendline-dojiemoji__c21f83602c.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "partial",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 3,
+  "drawn": {
+   "plots": 2,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "average-day-range-adr-pivots__38b8c996e9.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 2,
+  "drawn": {
+   "plots": 4,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "banknifty-mcclellan-oscillator__A2qCyYWwcs.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:request",
+  "host": false,
+  "hostGuard": "pine:request",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:history-expression"
+ },
+ {
+  "f": "bigbeluga-smart-money-concepts__e41b7abd03.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:constant-only",
+  "host": false,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:null"
+ },
+ {
+  "f": "black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "blackflag-fts__GdkmXaTINI.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:function-def",
+  "host": false,
+  "hostGuard": "pine:function-def",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:arity"
+ },
+ {
+  "f": "bolingger-bands-inside-bar-boxes__3294017d4f.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:reassign",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:varip"
+ },
+ {
+  "f": "bollinger-band-width-percentile__03JuGF728K.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:collection",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:statement"
+ },
+ {
+  "f": "boom-hunter-entry-point-screener-alerts__0fc5982548.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:function-def",
+  "host": false,
+  "hostGuard": "pine:function-def",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:call-undeclared-builtin-state"
+ },
+ {
+  "f": "breaks-and-retests-hg__ddba061af8.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:na",
+  "host": false,
+  "hostGuard": "pine:na",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:expression-statement"
+ },
+ {
+  "f": "btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 3,
+  "drawn": {
+   "plots": 5,
+   "objects": false,
+   "paints": 8
+  }
+ },
+ {
+  "f": "bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "buy-monday-exit-tuesday__8f2f69cc99.pine",
+  "strategy": true,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": false,
+  "hostGuard": "pine:strategy-call",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:strategy-call"
+ },
+ {
+  "f": "camarilla-screener__UsBJPF3MkA.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:constant-only",
+  "host": false,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:null"
+ },
+ {
+  "f": "camarilla__jw9faob08r.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:window",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:call-undeclared-builtin-state"
+ },
+ {
+  "f": "candelacharts-equal-highslows-eqheql__4485a6c447.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:type",
+  "host": false,
+  "hostGuard": "pine:type",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:loop"
+ },
+ {
+  "f": "candlestick-patterns-identified-update-1-17-26__1082.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 15,
+  "drawn": {
+   "plots": 15,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "candlestick-patterns-on-backtest__c85b9d3ec6.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "cc-yata__bd898a1af0.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:timeout",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "runtime"
+ },
+ {
+  "f": "cdc-btc-rainbow-road__d880789793.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 13,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:function",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:call-undeclared-builtin-state"
+ },
+ {
+  "f": "chart-vwap__804099ca2f.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "contraction-box-doji-lines__1486658151.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "correlation-matrix__dzN3DMCFJL.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:statement"
+ },
+ {
+  "f": "cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:request",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:request"
+ },
+ {
+  "f": "cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 11,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "cumulative-volume-delta__K07lTKE3tP.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 4,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "cumulative-volume-delta__c772250751.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:function",
+  "host": false,
+  "hostGuard": "pine:request",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:request"
+ },
+ {
+  "f": "cvd-cumulative-volume-delta-candles__fb6471a4d9.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "cvd-cumulative-volume-delta-chart__84da7a14bf.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "deadband-hysteresis-filter-backquant__3fb3d09595.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:state",
+  "host": false,
+  "hostGuard": "pine:state",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "runtime"
+ },
+ {
+  "f": "delta-imbalance-map-joat__b80f337fb3.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:reassign",
+  "host": false,
+  "hostGuard": "pine:reassign",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:block-value"
+ },
+ {
+  "f": "delta-rsi-oscillator-strategy__z4Yj46FVTX.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:tuple",
+  "host": false,
+  "hostGuard": "pine:tuple",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "runtime"
+ },
+ {
+  "f": "delta-volume-candles-lucf__qADnaAfCPp.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "delta-volume-v21-by-kernel-phi__uP24atP4R0.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:request",
+  "host": false,
+  "hostGuard": "pine:request",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:call-undeclared-builtin-state"
+ },
+ {
+  "f": "deviation-scaled-moving-average-w-dsl-loxx__878af32b43.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "donchian-channels__5df15aaa23.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 11,
+  "drawn": {
+   "plots": 9,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "double-topbottom-ultimate-os__bd013ff4f5.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:collection",
+  "host": false,
+  "hostGuard": "pine:collection",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:directive"
+ },
+ {
+  "f": "dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 2,
+  "drawn": {
+   "plots": 1,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "elliot-wave-detector-pro__ce1cc9553e.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:collection",
+  "host": false,
+  "hostGuard": "pine:collection",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:builtin"
+ },
+ {
+  "f": "elliott-wave-3-finder-v2__451cecfc9d.pine",
+  "strategy": false,
+  "version": null,
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 1,
+   "objects": false,
+   "paints": 2
+  }
+ },
+ {
+  "f": "ema-92150-vwap-macd-rsi-pro-v6__014bfba33d.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:state",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:varip"
+ },
+ {
+  "f": "ema-ribbon-trend-filter-strixedge__737f5c58ad.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 10,
+  "drawn": {
+   "plots": 13,
+   "objects": true,
+   "paints": 2
+  }
+ },
+ {
+  "f": "engulfingcandle__0df91dc775.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "exact",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 2,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "extrapolated-pivot-connector__vROeQSQlNs.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 2,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "fair-value-gap__1048fa103a.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": false,
+  "hostGuard": "pine:object-removal-lost",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:call-undeclared-builtin-state"
+ },
+ {
+  "f": "fib-retracement__8XcLscnekw.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "fibonacci-dolphintradebot__d93b208611.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:collection",
+  "host": false,
+  "hostGuard": "pine:collection",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "runtime"
+ },
+ {
+  "f": "fibonacci-pivot-points-cc__p8DQ3RIR97.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 3,
+  "drawn": {
+   "plots": 7,
+   "objects": true,
+   "paints": 1
+  }
+ },
+ {
+  "f": "fibonacci-retracement-mtflog__54a8dbfa8e.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:statement",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:statement"
+ },
+ {
+  "f": "fibonacci-retracement-statistics-by-volprofex__999c924fce.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": false,
+  "hostGuard": "pine:object-removal-lost",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:call-conversion-state"
+ },
+ {
+  "f": "flawless-victory-strategy__1BVZuaaWOU.pine",
+  "strategy": true,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": false,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:null"
+ },
+ {
+  "f": "footprint-iq-pro-tradingiq__3b96428a77.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:statement"
+ },
+ {
+  "f": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated__578addf606.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:block-value"
+ },
+ {
+  "f": "fvg-trend__21e364f2ed.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:state",
+  "host": false,
+  "hostGuard": "pine:state",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "runtime"
+ },
+ {
+  "f": "fx-market-sessions__3KZoMPYziy.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "heat-map-seasons__53acdf3223.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 1,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "heikin-ashi-supertrend__2fb7267210.pine",
+  "strategy": true,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor__f91c76bdec.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:cycle",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:presentation"
+ },
+ {
+  "f": "high-low-open-mid-ranges__5715509e0b.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:constant-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "higher-time-frame-fair-value-gap-zeroherotrading__202f1347b8.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:builtin"
+ },
+ {
+  "f": "highlow-channel-swing__e3692e253c.pine",
+  "strategy": true,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": false,
+  "hostGuard": "pine:function",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:function"
+ },
+ {
+  "f": "htf-candle-footprint-cartel-console__ca3ff4e904.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "htf-liquidity-dashboard-tfo__ec8f8316a4.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "ict-institutional-order-flow-fadi__25d4834579.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": false,
+  "hostGuard": "pine:object-removal-lost",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:history-dynamic-offset"
+ },
+ {
+  "f": "ict-ipda-look-back__f85b4c8956.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "ict-killzone-index-version__28962c02dd.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:function"
+ },
+ {
+  "f": "ict-killzones-pivots-tfo__d0b8be94f1.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:constant-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "ict-turtle-soup-flux-charts__053c3e6056.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:reassign",
+  "host": false,
+  "hostGuard": "pine:reassign",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:window"
+ },
+ {
+  "f": "implied-volatility-suite__CdN3hioOVl.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 1,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:function",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:statement"
+ },
+ {
+  "f": "inside-bar-boxes__2f747d848b.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:reassign",
+  "host": false,
+  "hostGuard": "pine:reassign",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:varip"
+ },
+ {
+  "f": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:state",
+  "host": false,
+  "hostGuard": "pine:state",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "runtime"
+ },
+ {
+  "f": "inside-bar-strategy-w-sl__b39f395d5d.pine",
+  "strategy": true,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": false,
+  "hostGuard": "pine:arity",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:collection"
+ },
+ {
+  "f": "institutional-smc-order-flow-matrix-pro__0b30cae0e6.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 4,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "ipda-standard-deviations-dexterlab-x-tfo-x-toodegrees__7366c2d2c0.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:call-undeclared-builtin-state"
+ },
+ {
+  "f": "k-clustering__8e82f5aa4b.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "kalman-price-filter-backquant__47a601e4bc.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:block",
+  "host": false,
+  "hostGuard": "pine:block",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "runtime"
+ },
+ {
+  "f": "kalman-psar-backquant__0a389f529b.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "keltner-center-of-gravity-channel__e4a81d76f6.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 12,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "keltner-channels-bands__T5FsnX45Dn.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 7,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "kernel-channel-backquant__d8c4b7f75c.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:block",
+  "host": false,
+  "hostGuard": "pine:block",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:presentation"
+ },
+ {
+  "f": "linear-regression-channel-200__243d67c804.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:tuple",
+  "host": false,
+  "hostGuard": "pine:tuple",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:directive"
+ },
+ {
+  "f": "linear-regression-channel-breakout-strategy__3a1cf28800.pine",
+  "strategy": true,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:strategy-call"
+ },
+ {
+  "f": "linear-regression-channel-tradingfinder-existing-trend-lines__33338cdbd6.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "linear-regression-channel__jiDgL4o6Qx.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:tuple",
+  "host": false,
+  "hostGuard": "pine:tuple",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "runtime"
+ },
+ {
+  "f": "liquidation-levels__pi4nVOJgbV.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 10,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "liquidity-engulfing-candles-upslidedown__0a521d089c.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 3,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "liquidity-engulfing-displacement-msf__58824c94f0.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:builtin",
+  "host": false,
+  "hostGuard": "pine:builtin",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:lower-tf:store-unmeasured"
+ },
+ {
+  "f": "liquidity-heatmap-nephew-sam__7628c72c3d.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "liquidity-levels-sonarlab__bba13c46c4.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:block",
+  "host": false,
+  "hostGuard": "pine:block",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:statement"
+ },
+ {
+  "f": "liquidity-pools__fa7b28e733.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 4,
+  "drawn": {
+   "plots": 2,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99.pine",
+  "strategy": true,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 6,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "macd-with-filter-visual-backtest-module-sample__kuNU8uQsIH.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:function-def",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:text-value"
+ },
+ {
+  "f": "machine-learning-knn-based-strategy__lj1Gjlbycb.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:collection",
+  "host": false,
+  "hostGuard": "pine:collection",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:input-kind"
+ },
+ {
+  "f": "machine-learning-logistic-regression-v3__TDlqz0q9TN.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:request",
+  "host": false,
+  "hostGuard": "pine:request",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:history-expression"
+ },
+ {
+  "f": "machine-learning-lorentzian-classification__21f5ec5277.pine",
+  "strategy": false,
+  "version": null,
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "machine-learning-lorentzian-classification__5c7960db26.pine",
+  "strategy": true,
+  "version": null,
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "machine-learning-moving-average-backquant__4d7ff59e68.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:reassign",
+  "host": false,
+  "hostGuard": "pine:reassign",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:role-order"
+ },
+ {
+  "f": "machine-learning-rsi-bullvision__50b4566edd.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "madrid-moving-average-ribbon__1025.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 18,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "makuchaku039s-trade-tools-fair-value-gaps__b951deedc8.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "market-profile-with-tpo__b2b119d8ab.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": false,
+  "hostGuard": "pine:object-removal-lost",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:builtin"
+ },
+ {
+  "f": "market-sessions-and-volume-profile-by-leviathan__c85c28c18a.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:request"
+ },
+ {
+  "f": "market-structure-break-order-block__3a1fb6197f.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:collection",
+  "host": false,
+  "hostGuard": "pine:collection",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:history-dynamic-offset"
+ },
+ {
+  "f": "market-structure-by-leviathan__9ca1dae1ac.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "market-structure-inducements-ict-tradinfinder-choch-bos-sweeps__7569f1043e.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:history-expression"
+ },
+ {
+  "f": "market-structure-trend-targets-chartprime__d3c06abad6.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:statement",
+  "host": false,
+  "hostGuard": "pine:statement",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:function"
+ },
+ {
+  "f": "mcclellan-indicators__29fdf0235d.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 1,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "mgi-levels-suite__285168ddfb.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:function"
+ },
+ {
+  "f": "momentum-based-zigzag__38d39d2d6c.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:function",
+  "host": false,
+  "hostGuard": "pine:function",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:history-expression"
+ },
+ {
+  "f": "momentum-volatility-scanner__4d1deaa855.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 7,
+  "drawn": {
+   "plots": 9,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "moving-averages-as-support-resistance-mtf__gcBksfRvvy.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:reassign",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:call-undeclared-builtin-state"
+ },
+ {
+  "f": "mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:request",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:lower-tf:store-unmeasured"
+ },
+ {
+  "f": "mtf-key-levels-support-and-resistance__29f470a089.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:builtin",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 4,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "mtf-watchlist-charts-anan__3453680ea1.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:call-undeclared-builtin-state"
+ },
+ {
+  "f": "multi-timeframe-fvg-tfo__adbed9f590.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:lower-tf:lookahead"
+ },
+ {
+  "f": "multi-timeframe-rsi-buy-sell-strategy-tradedots__1375ad2640.pine",
+  "strategy": true,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": false,
+  "hostGuard": "pine:request",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:lower-tf:store-unmeasured"
+ },
+ {
+  "f": "multi-timeframe-supply-demand-zones__a98a2ab367.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "multi-timeframe-trend-indicator__fa4022ecf5.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:request",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:request"
+ },
+ {
+  "f": "multicator-table__486858895c.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "partial",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 7,
+  "drawn": {
+   "plots": 24,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "multiple-mtf-moving-average-xdecow__aArjfk9ShG.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:builtin",
+  "host": false,
+  "hostGuard": "pine:builtin",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:request-with-state"
+ },
+ {
+  "f": "nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125.pine",
+  "strategy": false,
+  "version": null,
+  "imp": "unsupported",
+  "impGuard": "pine:block",
+  "host": false,
+  "hostGuard": "pine:block",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "runtime"
+ },
+ {
+  "f": "neural-network-buy-and-sell-signals__fbbb11d0c7.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:state",
+  "host": false,
+  "hostGuard": "pine:state",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:history-expression"
+ },
+ {
+  "f": "nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:block",
+  "host": false,
+  "hostGuard": "pine:block",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:statement"
+ },
+ {
+  "f": "nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:block",
+  "host": false,
+  "hostGuard": "pine:block",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:collection"
+ },
+ {
+  "f": "one-indicator-multiple-max-40-checked-symbols-and-quotinfinitequot-num__015bb66e64.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:function"
+ },
+ {
+  "f": "one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:block",
+  "host": false,
+  "hostGuard": "pine:block",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:array"
+ },
+ {
+  "f": "open-interest-profile-fixed-range-by-leviathan__875691ab51.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:input-kind",
+  "host": false,
+  "hostGuard": "pine:input-kind",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:input-kind"
+ },
+ {
+  "f": "open-interest-suite-aggregated-by-leviathan__44b150b3df.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:request",
+  "host": false,
+  "hostGuard": "pine:request",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:function"
+ },
+ {
+  "f": "opening-range-initial-balance-opening-price__4a7416ab01.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:function",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 14,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84.pine",
+  "strategy": true,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 5,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "optimized-trend-tracker__ZhWiFvtpwE.pine",
+  "strategy": true,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": false,
+  "hostGuard": "pine:function-def",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:history-dynamic-offset"
+ },
+ {
+  "f": "options-max-pain-calculator-backquant__c904837c16.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "order-block-finder__fVSb3j0I87.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:reassign",
+  "host": false,
+  "hostGuard": "pine:reassign",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:call-undeclared-builtin-state"
+ },
+ {
+  "f": "order-blocks__b324078711.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "runtime"
+ },
+ {
+  "f": "pa-zigzag-fibonacci-fan__2001.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 9,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "parabolic-sar__xoeoPMOWGJ.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:timeout",
+  "host": false,
+  "hostGuard": "pine:timeout",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "runtime"
+ },
+ {
+  "f": "pivot-high-low-points__hoTsDQRY3L.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 2,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "pivot-point-supertrend__HN4w1eNW3B.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 3,
+  "drawn": {
+   "plots": 8,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "pivot-trendlines-with-breaks-hg__f1464ad5b7.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "pmax-explorer__jN9HBNhynF.pine",
+  "strategy": true,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 7,
+  "drawn": {
+   "plots": 6,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "poor-man039s-volume-profile__ZnFTCYyvGJ.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "position-size-calc__a42db1a620.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "position-size-calculator__28sGm8JqI3.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 3,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "power-of-3-ict-01-tradingfinder-amd-ict-smc-accumulations__c8dd500862.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:builtin"
+ },
+ {
+  "f": "previous-day-high-and-low-separators-dailyweekly__0ef3e35a9d.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:call-undeclared-builtin-state"
+ },
+ {
+  "f": "previous-n-daysweeksmonths-high-low__78f5b05522.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:request",
+  "host": false,
+  "hostGuard": "pine:request",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:request"
+ },
+ {
+  "f": "price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 2,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "pro-trading-art-double-top-bottom-with-alert__5321f25fcb.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "qqe-signals__EhBrwQPjZ1.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "exact",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 2,
+  "drawn": {
+   "plots": 2,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "range-filter-bs-signals__eCVFctFlqp.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:collection",
+  "host": false,
+  "hostGuard": "pine:collection",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:history-dynamic-offset"
+ },
+ {
+  "f": "range-filter-dw__pshyCmQSql.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:collection",
+  "host": false,
+  "hostGuard": "pine:collection",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:array"
+ },
+ {
+  "f": "rate-of-change__5efd12f955.pine",
+  "strategy": false,
+  "version": null,
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "relative-volume-at-time__gei8CBKbc5.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:text-value",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:input-state"
+ },
+ {
+  "f": "relative-volume__LnFmPEoFXQ.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:function",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:function"
+ },
+ {
+  "f": "renderingnature-smc-reversal-engine-v71__f8734584d9.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:text-value",
+  "host": false,
+  "hostGuard": "pine:text-value",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:input-kind"
+ },
+ {
+  "f": "renko-candles-overlay__d76a18d49e.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:collection",
+  "host": false,
+  "hostGuard": "pine:collection",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "runtime"
+ },
+ {
+  "f": "reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA.pine",
+  "strategy": false,
+  "version": null,
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 7,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "rolling-vwap__043320bb57.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "rsi-horizontal-resistance-levels__a3f8454f81.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "rsi-swing-indicator__CVZdVmg7ib.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "rsi-trendlines-with-breakouts-hg__033f4cab46.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "rsi-vwap-indicator__pTI5ZVw9n4.pine",
+  "strategy": true,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 1,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "rvol__05fcd9e160.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 2,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "scalping-strategy-with-williams-r-macd-and-sma-1-minute-only__e247952471.pine",
+  "strategy": true,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:builtin"
+ },
+ {
+  "f": "screener-mean-reversion-channel__nTK2sHWDlB.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:function"
+ },
+ {
+  "f": "sector-rotation__0fca060bf4.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 1,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:function",
+  "host": false,
+  "hostGuard": "pine:function",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:statement"
+ },
+ {
+  "f": "session-hilo__WM2g5GtC4h.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:input-kind",
+  "host": false,
+  "hostGuard": "pine:input-kind",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:statement"
+ },
+ {
+  "f": "session-tpo-profile__41088ef96d.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:statement"
+ },
+ {
+  "f": "sessions__2677.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:function",
+  "host": false,
+  "hostGuard": "pine:function",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:statement"
+ },
+ {
+  "f": "smart-money-breakout-channels-algoalpha__8c2d234156.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "smart-money-breakouts-chartprime__ea79c79a67.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:na",
+  "host": false,
+  "hostGuard": "pine:na",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:statement"
+ },
+ {
+  "f": "smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "smart-money-concepts-by-welotrades__0bff41a2e5.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:function",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:input-kind"
+ },
+ {
+  "f": "smart-money-interest-index-algoalpha__effdd7852c.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:function",
+  "host": false,
+  "hostGuard": "pine:function",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:function"
+ },
+ {
+  "f": "smart-money-volume-activity-algoalpha__699c36ad31.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:reassign",
+  "host": false,
+  "hostGuard": "pine:reassign",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:builtin"
+ },
+ {
+  "f": "smart-money-volume-index-algoalpha__6663950b80.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:function",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:function"
+ },
+ {
+  "f": "smarter-snr__ac98ab25d5.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:window",
+  "host": false,
+  "hostGuard": "pine:builtin",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:builtin"
+ },
+ {
+  "f": "smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:state",
+  "host": false,
+  "hostGuard": "pine:state",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:input-kind"
+ },
+ {
+  "f": "smoothed-gaussian-trend-filter-algoalpha__69de2e99a0.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:state",
+  "host": false,
+  "hostGuard": "pine:state",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:fill-gradient"
+ },
+ {
+  "f": "smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 4,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "smt-divergence-ict-killzones__c932d56665.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:reassign",
+  "host": false,
+  "hostGuard": "pine:reassign",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:statement"
+ },
+ {
+  "f": "sonarlab-order-blocks__0df0d45ee6.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "std-filtered-adaptive-exponential-hull-moving-average-loxx__6046c21764.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "stop-loss-and-take-profit-in-example__YlblCbts4x.pine",
+  "strategy": true,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": false,
+  "hostGuard": "pine:strategy-call",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:strategy-call"
+ },
+ {
+  "f": "stop-loss-clustering-breakouts-kioseff-trading__c6388de20b.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "strength-of-divergence-across-multiple-indicators__ff2ae4fdab.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "strong-start-rvol-dashboard__36140b1cbe.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": false,
+  "hostGuard": "pine:object-removal-lost",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:no-output"
+ },
+ {
+  "f": "sub__1xYROVYMlX.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:request",
+  "host": false,
+  "hostGuard": "pine:request",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:request"
+ },
+ {
+  "f": "supertrend-explorer__V4MsmtCeKs.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 4,
+  "drawn": {
+   "plots": 6,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "supertrend-strategy__rcRbtoBiKG.pine",
+  "strategy": true,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 6,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "supply-demand-mtf-flux-charts__7fb4bff229.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:reassign",
+  "host": false,
+  "hostGuard": "pine:reassign",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:input-kind"
+ },
+ {
+  "f": "support-and-resistance-logistic-regression-flux-charts__9d844269d6.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:reassign",
+  "host": false,
+  "hostGuard": "pine:reassign",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:loop"
+ },
+ {
+  "f": "support-and-resistance-multi-time-frame__Ph230jpfC9.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 2,
+  "drawn": {
+   "plots": 6,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "support-and-resistance__1505.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:na",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:function-global-state"
+ },
+ {
+  "f": "support-and-resistance__UgNPprOr8h.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "exact",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 2,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "support-and-resistance__c4792aabd0.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:history-dynamic-offset"
+ },
+ {
+  "f": "support-resistance-mtf-flux-charts__dd04862677.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:type",
+  "host": false,
+  "hostGuard": "pine:type",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:array"
+ },
+ {
+  "f": "swing-highlow-zigzag-chartprime__c53f5bc4e2.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:constant-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "swing-points-and-liquidity-by-leviathan__919c1fd9c6.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:request",
+  "host": false,
+  "hostGuard": "pine:request",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:request"
+ },
+ {
+  "f": "take-profit-multi-timeframe__8c16588ae9.pine",
+  "strategy": true,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": false,
+  "hostGuard": "pine:request",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:strategy-call"
+ },
+ {
+  "f": "tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:request"
+ },
+ {
+  "f": "tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy.pine",
+  "strategy": true,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 2,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "tradingview-alerts-to-mt4-mt5-strategy-example__LclqojYSOA.pine",
+  "strategy": true,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 2,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "trailing-take-profit-trailing-stop-loss__41jwaH1ikz.pine",
+  "strategy": true,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "trend-duration-forecast-chartprime__2c5c233f31.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 1,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "trend-levels-chartprime__90a5bf4ab1.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:window",
+  "host": false,
+  "hostGuard": "pine:window",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:function"
+ },
+ {
+  "f": "trend-line-harrybot__vMv5yOQxcA.pine",
+  "strategy": false,
+  "version": null,
+  "imp": "unsupported",
+  "impGuard": "pine:block",
+  "host": false,
+  "hostGuard": "pine:block",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:block"
+ },
+ {
+  "f": "trend-lines-supports-and-resistances__413ee2ee3b.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 2,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "trend-targets-algoalpha__92ff5628d7.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:state",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "runtime"
+ },
+ {
+  "f": "trendline-pivots-quantvue__3dc9be8b73.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": false,
+  "hostGuard": "pine:object-removal-lost",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:loop"
+ },
+ {
+  "f": "trendlines__43QQg9nDN0.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "exact",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 2,
+  "drawn": {
+   "plots": 8,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "trendlinesample__61d59f90bc.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:conditional-history"
+ },
+ {
+  "f": "twin-range-filter__xF3L2PeXm7.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "exact",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 2,
+  "drawn": {
+   "plots": 2,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "ultimate-pivot-points__vRWbsbkQGe.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 3,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "vdubus-pattern-gen-v2-restored-refined__66dc68412e.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "visualizing-displacement-tfo__5b861441c2.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:nothing-drawn"
+ },
+ {
+  "f": "volatility-coil-edge-bullbyte__604f0fd1c6.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:reassign",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:history-dynamic-offset"
+ },
+ {
+  "f": "volatility-stop-mtf__K5XG42uHV9.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "volatility-trend-score-backquant__0794882a37.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:type",
+  "host": false,
+  "hostGuard": "pine:type",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:presentation"
+ },
+ {
+  "f": "vold-market-breadth__9c5cde9557.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:objects-only",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "volume-delta-hapharmonic__d5748870fd.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:type",
+  "host": false,
+  "hostGuard": "pine:type",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:builtin"
+ },
+ {
+  "f": "volume-delta-oi-delta-kioseff-trading__9056fd6b37.pine",
+  "strategy": false,
+  "version": null,
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:request"
+ },
+ {
+  "f": "volume-divergence-by-mm__cvG2Djaryv.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:block",
+  "host": false,
+  "hostGuard": "pine:block",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:call-windowed-state"
+ },
+ {
+  "f": "volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "volume-open-interest-footprint-by-leviathan__f84b8fc7c4.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:builtin"
+ },
+ {
+  "f": "volume-profile-auto-line-v2__b0e947fd20.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:call-undeclared-builtin-state"
+ },
+ {
+  "f": "volume-profile-bar-magnified-order-blocks-jacobmagleby__3b3ebba156.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:tuple",
+  "host": false,
+  "hostGuard": "pine:tuple",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:request"
+ },
+ {
+  "f": "volume-profile-plus__91ff446fe0.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:module",
+  "host": false,
+  "hostGuard": "pine:module",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:library"
+ },
+ {
+  "f": "volume-profile-v054beta__PNSKf75832.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:statement"
+ },
+ {
+  "f": "volume-profile__X0dKLxdLh4.pine",
+  "strategy": false,
+  "version": "6",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 1,
+  "drawn": {
+   "plots": 0,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "volume-spikes-growing-volume-signals-with-alerts-scanner__8e706f448f.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 4,
+  "drawn": {
+   "plots": 2,
+   "objects": true,
+   "paints": 1
+  }
+ },
+ {
+  "f": "volume-suite-by-leviathan__48da793360.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:tuple",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:call-windowed-state"
+ },
+ {
+  "f": "volumized-order-blocks-flux-charts__1675b2b8e3.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:builtin"
+ },
+ {
+  "f": "vwap-fibo-dev-extensions-strategy__mR2vfyGjUv.pine",
+  "strategy": true,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:declaration-strategy",
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 5,
+   "objects": false,
+   "paints": 0
+  }
+ },
+ {
+  "f": "williams-fractal-trailing-stops__UOOIN5REYl.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:reassign",
+  "host": false,
+  "hostGuard": "pine:reassign",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:text-value"
+ },
+ {
+  "f": "wyckoff-accumulation-distribution__d9ae726e21.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "partial",
+  "impGuard": null,
+  "host": false,
+  "hostGuard": "pine:state",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "runtime"
+ },
+ {
+  "f": "zero-lag-ma-trend-levels-chartprime__0ded7d1e36.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "disclosed",
+  "impGuard": null,
+  "host": true,
+  "hostGuard": null,
+  "hostNotes": 0,
+  "drawn": {
+   "plots": 4,
+   "objects": true,
+   "paints": 0
+  }
+ },
+ {
+  "f": "zigzag-ma-pattern-recognition__1302.pine",
+  "strategy": false,
+  "version": "5",
+  "imp": "unsupported",
+  "impGuard": "pine:function",
+  "host": false,
+  "hostGuard": "pine:function",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:pine:function"
+ },
+ {
+  "f": "zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp.pine",
+  "strategy": false,
+  "version": "4",
+  "imp": "unsupported",
+  "impGuard": "pine:no-output",
+  "host": false,
+  "hostGuard": "pine:no-output",
+  "hostNotes": 0,
+  "drawn": null,
+  "rt": "no:runtime:history-dynamic-offset"
+ }
+]

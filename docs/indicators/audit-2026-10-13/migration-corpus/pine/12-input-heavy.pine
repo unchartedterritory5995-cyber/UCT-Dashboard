@@ -1,0 +1,13 @@
+// WS5 audit corpus - written for this audit (UCT, 2026-10-13). Not a TradingView community script.
+//@version=5
+indicator("Configurable MA (audit)", overlay = true)
+maType = input.string("EMA", "MA type", options = ["SMA", "EMA", "WMA", "RMA"])
+src = input.source(close, "Source")
+len = input.int(30, "Length", minval = 2, maxval = 400)
+showBand = input.bool(true, "Show band")
+bandPct = input.float(1.5, "Band %", step = 0.1)
+lineCol = input.color(color.aqua, "Line colour")
+ma = maType == "SMA" ? ta.sma(src, len) : maType == "EMA" ? ta.ema(src, len) : maType == "WMA" ? ta.wma(src, len) : ta.rma(src, len)
+plot(ma, "MA", color = lineCol, linewidth = 2)
+plot(showBand ? ma * (1 + bandPct / 100) : na, "Upper", color = color.gray)
+plot(showBand ? ma * (1 - bandPct / 100) : na, "Lower", color = color.gray)

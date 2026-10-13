@@ -1,0 +1,11 @@
+// WS5 audit corpus - written for this audit (UCT, 2026-10-13). Not a TradingView community script.
+//@version=5
+indicator("RSI with Bands (audit)", precision = 2)
+length = input.int(14, "Length", minval = 1)
+ob = input.float(70, "Overbought")
+os = input.float(30, "Oversold")
+r = ta.rsi(close, length)
+plot(r, "RSI", color = color.purple)
+h1 = hline(ob, "OB", color = color.red, linestyle = hline.style_dashed)
+h2 = hline(os, "OS", color = color.green, linestyle = hline.style_dashed)
+fill(h1, h2, color = color.new(color.purple, 90), title = "Band")
