@@ -21,16 +21,19 @@ vi.mock('../hooks/useJournalRules', () => ({ default: () => ({ rules: [] }) }))
 import userEvent from '@testing-library/user-event'
 import BlockNodeView, { BLOCK_COMPONENTS } from '../components/notebook/blocks/BlockNodeView'
 import { BLOCK_ERROR_SENTENCE } from '../components/notebook/blocks/blockStates'
+import { contractBody } from '../__fixtures__/contract'
 
 const editor = { isEditable: true, storage: { uctJournalWidgets: { noteId: 'n1' } } }
 const node = (widgetId, params = {}) => ({ attrs: { widgetId, params, searchText: `[${widgetId}]` } })
 
-// P2b: part b's bodies are stubs until their own tasks. Task 10 flipped the four prep blocks, so each of
-// those has a real expectation below instead of the stub sentence.
-const PART_B = ['My rules', 'Post-trade review']
+// P2b: part b's bodies are stubs until their own tasks. Task 10 flipped the four prep blocks and Task 11
+// the review block, so each of those has a real expectation below instead of the stub sentence.
+const PART_B = ['My rules']
 const PREP_BLOCKS = ['Morning wire and exposure', 'Earnings for my names', 'My movers', 'Key levels from my plans']
 
 axeSurface('trader-block-platform', async () => {
+  // The review block, with no trade picked, reads the member's closed trades (the REAL server answer).
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => contractBody('trader-blocks.review.trades') })))
   render(<div>
     {['preEntryChecklist', 'priceStamps', 'positionSizing',
       'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview'].map((id) => (
@@ -60,6 +63,10 @@ axeSurface('trader-block-platform', async () => {
     expect(await group(name).findByRole('button', { name: 'Capture now' })).toBeTruthy()
     expect(group(name).queryByText('This block is being built.')).toBeNull()
   }
+  // P2b Task 11: the review block, with no trade picked, lists the closed trades to pick from.
+  expect(await group('Post-trade review').findByRole('combobox', { name: 'Trade to review' })).toBeTruthy()
+  expect(group('Post-trade review').queryByText('This block is being built.')).toBeNull()
+  vi.unstubAllGlobals()
 })
 
 axeSurface('trader-block-platform:error', async () => {
