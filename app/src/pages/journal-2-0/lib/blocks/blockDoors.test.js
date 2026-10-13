@@ -89,6 +89,8 @@ export const IMPORT_ALLOW = {
   '@tiptap/pm/history': 'closeHistory, so a stamp is its own undo step; no network',
   'app/src/pages/journal-2-0/lib/journalStylesFlag': 'journalStylesEnabled, the latched S24 switch the stamp and its body obey; reads no network',
   'app/src/lib/tickerResolver': "resolveCashtags, the line's $TICKER (a parser over a bundled JSON); no network",
+  // T14 gate fix (formControls.census): the price stamps toggle is the app's ONE on/off control.
+  'app/src/components/ui/Switch': 'the shared switch primitive: a button and its knob, no imports, no network, no writes',
 }
 
 /**
