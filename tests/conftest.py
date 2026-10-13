@@ -169,6 +169,27 @@ def _isolate_signal_ledger(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _reset_uct_agent_meters():
+    """UCT Agent's request-rate windows, in-flight leases and spend ledger live in its store,
+    which one test process shares: without this, a file that sends more than 20 turns a minute
+    would be rate-limited by the tests before it. Looked up via sys.modules (no forced import)."""
+    import sys
+
+    def _clear():
+        for name in ("api.services.uct_agent.limits", "api.services.uct_agent.budget"):
+            mod = sys.modules.get(name)
+            if mod is not None:
+                try:
+                    mod._reset_for_test()
+                except Exception:  # noqa: BLE001 -- a store a test replaced may be gone
+                    pass
+
+    _clear()
+    yield
+    _clear()
+
+
+@pytest.fixture(autouse=True)
 def _reset_calendar_serve_stale():
     """Clear the Calendar's serve-stale slots between tests.
 
