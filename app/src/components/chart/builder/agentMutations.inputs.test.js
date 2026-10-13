@@ -165,3 +165,140 @@ describe('⭐ discovery: the catalog exposes each definition\'s declared inputs'
     }
   })
 })
+
+
+// ═══ ⭐ GATE C — `setInputs`: edit ONE live instance's inputs in place ("make it a 9", "change that to an
+// SMA"), through the settings rows' own two doors, exact Undo. Drafted by Agent for Indicators' review. ═══
+describe('⭐ setInputs — in-place edit through the canonical writers', () => {
+  const ema20 = () => { const cs = chart(); return { cs, id: 'ovl:1' } }             // the default chart's EMA 20
+  const instOf = (cs, id) => findInstance(cs, id)
+
+  it('"make it a 9" → period 9 in place: same instance, maType kept, receipt and preview name it', () => {
+    const { cs, id } = ema20()
+    const r = run(cs, { op: 'setInputs', instanceId: id, inputs: { period: 9 } })
+    expect(instOf(r.cs, id).inputs).toMatchObject({ period: 9, maType: 'ema' })
+    expect((r.cs.indicatorInstances || []).length).toBe((cs.indicatorInstances || []).length)   // no new instance
+    expect(r.receipt.inputs).toEqual({ before: { period: 20 }, after: { period: 9 } })
+    expect(r.plan.preview.inputs).toEqual({ before: { period: 20 }, after: { period: 9 } })
+    expect(r.plan.preview.nameAfter).toMatch(/9/)
+    expect(r.plan.target.ids).toEqual([id])                                         // per instance
+  })
+
+  it('"change that to an SMA" → maType sma; the name is the legend own, read after the change', () => {
+    const { cs, id } = ema20()
+    const r = run(cs, { op: 'setInputs', instanceId: id, inputs: { maType: 'sma' } })
+    expect(instOf(r.cs, id).inputs).toMatchObject({ period: 20, maType: 'sma' })
+    expect(r.plan.preview.name).not.toBe(r.plan.preview.nameAfter)
+    expect(r.receipt.name).toBe(r.plan.preview.nameAfter)
+  })
+
+  it('partial edit: MACD fast only — slow and signal untouched', () => {
+    const cs0 = chart()
+    const added = run(cs0, { op: 'add', defId: 'macd' })
+    const id = added.receipt.instanceIds[0]
+    const before = instOf(added.cs, id).inputs || {}
+    const r = run(added.cs, { op: 'setInputs', instanceId: id, inputs: { fastPeriod: 8 } })
+    const after = instOf(r.cs, id).inputs
+    expect(after.fastPeriod).toBe(8)
+    expect(after.slowPeriod).toBe(before.slowPeriod)
+    expect(after.signalPeriod).toBe(before.signalPeriod)
+  })
+
+  it('every enum input refuses a value outside its options (bad-input names the key); never partial', () => {
+    const rows = catalogRows(registry).filter((row) => (row.inputs || []).some((i) => Array.isArray(i.options)))
+    expect(rows.length).toBeGreaterThan(0)
+    let checked = 0
+    for (const row of rows) {
+      const cs0 = chart()
+      const cs = addInstance(cs0, row.id, registry)
+      const inst = (cs.indicatorInstances || []).find((i) => i.defId === row.id && !(cs0.indicatorInstances || []).some((x) => x.instanceId === i.instanceId))
+      if (!inst) continue                                                            // a definition addInstance does not add
+      for (const spec of row.inputs.filter((i) => Array.isArray(i.options))) {
+        const p = planIndicatorMutation(cs, { op: 'setInputs', instanceId: inst.instanceId, inputs: { [spec.key]: '__not_an_option__' } }, ctx())
+        expect(p.ok, `${row.id}.${spec.key}`).toBe(false)
+        expect(p.reason).toBe(REASONS.BAD_INPUT)
+        expect(p.detail.key).toBe(spec.key)
+        checked += 1
+      }
+    }
+    expect(checked).toBeGreaterThan(3)
+    // one good key + one bad key → refused whole, nothing written
+    const { cs, id } = ema20()
+    const p = planIndicatorMutation(cs, { op: 'setInputs', instanceId: id, inputs: { period: 9, maType: 'nope' } }, ctx())
+    expect(p).toMatchObject({ ok: false, reason: REASONS.BAD_INPUT })
+    expect(p.detail.key).toBe('maType')
+  })
+
+  it('out of range, wrong type and unknown keys refuse with the input spec', () => {
+    const { cs, id } = ema20()
+    for (const bad of [{ period: 0 }, { period: 100000 }, { period: 7.5 }, { period: 'nine' }, { length: 9 }]) {
+      const p = planIndicatorMutation(cs, { op: 'setInputs', instanceId: id, inputs: bad }, ctx())
+      expect(p.ok, JSON.stringify(bad)).toBe(false)
+      expect(p.reason).toBe(REASONS.BAD_INPUT)
+    }
+    expect(planIndicatorMutation(cs, { op: 'setInputs', instanceId: id, inputs: {} }, ctx()).reason).toBe(REASONS.BAD_REQUEST)
+  })
+
+  it('already that value → no-change ("Already 9"); an unknown instance → not-found', () => {
+    const { cs, id } = ema20()
+    expect(planIndicatorMutation(cs, { op: 'setInputs', instanceId: id, inputs: { period: 20 } }, ctx()).reason).toBe(REASONS.NO_CHANGE)
+    expect(planIndicatorMutation(cs, { op: 'setInputs', instanceId: 'inst:nope:9', inputs: { period: 9 } }, ctx()).reason).toBe(REASONS.NOT_FOUND)
+  })
+
+  it('a hidden instance stays hidden after an edit (visibility untouched)', () => {
+    const { cs: cs0, id } = ema20()
+    const hid = run(cs0, { op: 'setVisible', instanceId: id, visible: false })
+    const before = instOf(hid.cs, id)
+    const r = run(hid.cs, { op: 'setInputs', instanceId: id, inputs: { period: 9 } })
+    const after = instOf(r.cs, id)
+    expect(after.hidden).toBe(true)
+    expect(after.hiddenVia).toEqual(before.hiddenVia)
+  })
+
+  it('legacy vs user-added routing: legacy:<defId> keeps the cs.indicators mirror in step; inst: does not touch it', () => {
+    const legacy = view(mergeChartSettings(JSON.stringify({ indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } },
+      indicatorInstances: [{ instanceId: 'legacy:rsi', defId: 'rsi', defVersion: 1, inputs: { period: 14, color: '#7b68ee' }, placement: { target: 'pane' }, hidden: false }] })))
+    const lid = (legacy.indicatorInstances || []).find((i) => i.defId === 'rsi')?.instanceId
+    expect(lid).toMatch(/^legacy:/)
+    const r = run(legacy, { op: 'setInputs', instanceId: lid, inputs: { period: 7 } })
+    expect(instOf(r.cs, lid).inputs.period).toBe(7)
+    expect(r.cs.indicators.rsi.period).toBe(7)                                    // the mirror moved with it
+    const added = run(chart(), { op: 'add', defId: 'rsi' })
+    const iid = added.receipt.instanceIds[0]
+    expect(iid).toMatch(/^inst:/)
+    const mirrorBefore = json(added.cs.indicators || {})
+    const r2 = run(added.cs, { op: 'setInputs', instanceId: iid, inputs: { period: 3 } })
+    expect(instOf(r2.cs, iid).inputs.period).toBe(3)
+    expect(r2.cs.indicators || {}).toEqual(mirrorBefore)                           // per-instance door: mirror untouched
+  })
+
+  it('Undo is byte-exact after the persisted read; a later edit makes it refuse (stale fingerprint)', () => {
+    const { cs, id } = ema20()
+    const persisted0 = json(cs)
+    const r = run(cs, { op: 'setInputs', instanceId: id, inputs: { period: 9, maType: 'sma' } })
+    const u = undoIndicatorMutation(r.cs, r.undo, ctx())
+    expect(u.ok).toBe(true)
+    const back = json(u.cs)
+    expect(confirmIndicatorMutation(back, u.pending, ctx()).status).toBe('confirmed')
+    expect(mergeChartSettings(JSON.stringify(back))).toEqual(mergeChartSettings(JSON.stringify(persisted0)))
+    // stale: the member changed it again by hand → Undo refuses, nothing written
+    const r2 = run(cs, { op: 'setInputs', instanceId: id, inputs: { period: 9 } })
+    const moved = json(setInstanceInput(r2.cs, id, 'period', 12, registry))
+    expect(undoIndicatorMutation(moved, r2.undo, ctx())).toMatchObject({ ok: false, reason: REASONS.RESTORE_CONFLICT })
+    expect(r2.undo.record.granularity).toBeUndefined()                              // Agent records never carry it
+  })
+
+  it('apply refuses if the instance changed between plan and apply (pinned fingerprint)', () => {
+    const { cs, id } = ema20()
+    const p = planIndicatorMutation(cs, { op: 'setInputs', instanceId: id, inputs: { period: 9 } }, ctx())
+    const moved = setInstanceInput(cs, id, 'period', 30, registry)
+    expect(applyIndicatorMutation(moved, p.plan, ctx())).toMatchObject({ ok: false, reason: REASONS.CHANGED_WHILE_WORKING })
+  })
+
+  it('permission: a read-only chart refuses; access lost between plan and apply refuses', () => {
+    const { cs, id } = ema20()
+    expect(planIndicatorMutation(cs, { op: 'setInputs', instanceId: id, inputs: { period: 9 } }, ctx({ canManage: false })).reason).toBe(REASONS.READONLY)
+    const p = planIndicatorMutation(cs, { op: 'setInputs', instanceId: id, inputs: { period: 9 } }, ctx())
+    expect(applyIndicatorMutation(cs, p.plan, ctx({ canManage: false }))).toMatchObject({ ok: false, reason: REASONS.PERMISSION_CHANGED })
+  })
+})
