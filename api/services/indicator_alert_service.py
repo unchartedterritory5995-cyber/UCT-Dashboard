@@ -1450,7 +1450,12 @@ def _walk_instance_ids(node: Any, out: set) -> None:
     """
     if isinstance(node, dict):
         value = node.get("instanceId")
-        if isinstance(value, str) and value:
+        # ⛔ A0 (2026-10-13) — A TOMBSTONE IS NOT A LIVE INSTANCE. The chart records a
+        # removal as `{instanceId, deleted: true}` (`instanceShape.js`), so it still
+        # carries the id. Counted as alive, it meant deleting an alerted indicator never
+        # flagged its alert as orphaned — the exact silence this sweep exists to end.
+        # A re-add writes `deleted: false` (or a full instance), which IS counted.
+        if isinstance(value, str) and value and node.get("deleted") is not True:
             out.add(value)
         for child in node.values():
             _walk_instance_ids(child, out)

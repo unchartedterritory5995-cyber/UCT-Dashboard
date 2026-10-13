@@ -83,6 +83,7 @@ def _doc(graph=None, scan="value", def_id=DEF_ID):
     trees = cg.expand_graph(g)
     return {
         "id": def_id,
+        "version": 1,
         "plots": _plots(*sorted(trees)),
         "compute": {
             "kind": "ast",
@@ -101,6 +102,7 @@ def _inlined_equivalent(def_id=DEF_ID, period=20):
     from api.services.user_definitions import ast_hash
     return {
         "id": def_id,
+        "version": 1,
         "plots": _plots(*sorted(trees)),
         "compute": {
             "kind": "ast",
@@ -623,6 +625,7 @@ def _v1_doc(period=14, def_id=DEF_ID, max_=200):
     trees = cg.expand_graph(_graph(period))
     return {
         "id": def_id,
+        "version": 1,
         "plots": _plots(*sorted(trees)),
         "compute": {
             "kind": "ast",

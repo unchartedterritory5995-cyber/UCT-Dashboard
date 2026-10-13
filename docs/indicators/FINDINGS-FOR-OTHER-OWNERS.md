@@ -38,3 +38,28 @@ and instances of definitions that were deleted. After a reload the drill chart d
 them, so the live settings come from elsewhere; this copy is misleading to anyone (or any
 tool) that reads the stored blob as the chart's state. Harmless to members today.
 No restructuring was done for this.
+
+## 3. Three screener routers share one 402 sentence (Indicators Phase A0, 2026-10-13)
+
+**Owner:** Screener (`api/routers/screener.py`, `screener_nl.py`, `screen_promote.py`).
+
+`tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER_and_this_task_invented_no_shared_one`
+asserts every router's `require_paid` carries its OWN 402 sentence, so "which surface refused
+me" is answerable from the message. Since 2026-10-02 the three screener routers all say "The
+screener requires a paid plan". Red on master on every platform. It is not formula code, so
+the Indicators security-suite workflow (`.github/workflows/indicators-security-suite.yml`)
+deselects exactly this one test, by name, until it is fixed. Remove the deselect then.
+
+## 4. Screen alerts on definitions saved since 2026-10-06 cannot fire (Indicators Phase A0)
+
+**Owner:** Screener alerts (`api/services/screener/screen_alerts.py`,
+`app/src/pages/screener/` subscribe call, `useScreenAlerts.js`). Fix is owner-gated
+(Phase A2 plan, decision O6) because it switches on alerts that have been silent.
+
+The screener UI subscribes with the definition's bare tree hash (`row.ast_hash`). Since
+definition semantics 2 (2026-10-06) the nightly sweep files a semantics-2 definition's
+results under `<hash>~s2` (`user_definitions.result_identity`), so the subscription reads a
+key nothing writes to and never fires. An EDIT of a subscribed formula disconnects it the
+same way (its results move to the new tree's hash). Detection, read-only and counts-only:
+`api/services/screener/screen_alert_integrity.summary()` (tests:
+`tests/test_screen_alert_disconnected_detection.py`). Nothing was re-keyed.
