@@ -2820,11 +2820,19 @@ export default function ChartsWorkspace() {
   // ⭐ A1.3b (owner Q7) — "Switched to “Day” · Undo" for a MEMBER's layout open (the Dock and the
   // Layouts menu; never the Agent's, which keeps its own Undo with the same rules —
   // `layoutUndo.js`). The board snapshot is taken BEFORE the switch.
-  const [layoutUndo, setLayoutUndo] = useState(null)   // { plan, note }
+  // ⛔ A remembered open is SHOWN only once the board has actually switched to it — an open
+  // can be a no-op (a layout with no widgets, a refused board size, an unknown entry), and the
+  // toast must never say "Switched to “X”" when nothing switched (Agent review, 2026-10-13).
+  const [layoutUndo, setLayoutUndo] = useState(null)   // { plan, note, shown, at }
   const rememberLayoutOpen = useCallback((to) => {
     if (!to || to.id == null || to.id === dockActiveId) return
-    setLayoutUndo({ plan: planLayoutUndo(agentLayoutsRef.current, to), note: null })
+    setLayoutUndo({ plan: planLayoutUndo(agentLayoutsRef.current, to), note: null, shown: false, at: Date.now() })
   }, [dockActiveId])
+  useEffect(() => {
+    if (layoutUndo && !layoutUndo.shown && layoutUndo.plan.to && dockActiveId === layoutUndo.plan.to.id) {
+      setLayoutUndo({ ...layoutUndo, shown: true })
+    }
+  }, [dockActiveId, layoutUndo])
   const memberDockOpen = useCallback((entry) => {
     rememberLayoutOpen(entry)
     handleDockOpen(entry)
@@ -2838,7 +2846,8 @@ export default function ChartsWorkspace() {
   }, [layoutUndo, handleDockOpen])
   useEffect(() => {
     if (!layoutUndo) return undefined
-    const t = setTimeout(() => setLayoutUndo(null), layoutUndo.note ? 6000 : 10000)
+    // an open that never landed is forgotten quickly; a shown toast stays 10 s (6 s for a refusal)
+    const t = setTimeout(() => setLayoutUndo(null), !layoutUndo.shown ? 4000 : layoutUndo.note ? 6000 : 10000)
     return () => clearTimeout(t)
   }, [layoutUndo])
 
@@ -3384,7 +3393,7 @@ export default function ChartsWorkspace() {
             Nothing is removed from an over-bound board; it simply cannot grow. */}
         {/* ⭐ A1.3b — a member's layout open, undoable under the Agent's rules. When the
             switch discarded unsaved board state, it says so and offers NO Undo. */}
-        {layoutUndo && layoutUndo.plan.to && (
+        {layoutUndo && layoutUndo.shown && layoutUndo.plan.to && (
           <div className={styles.boardBoundStatus} role="status" data-testid="layout-undo-toast">
             <span>
               {layoutUndo.note || (layoutUndo.plan.discarded
