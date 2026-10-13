@@ -541,6 +541,10 @@ def save_pre_entry(user_id: str, position_id: str, setup: str | None, checked: l
 PREP_PARTS = ("wire", "earnings", "movers", "levels")
 PREP_BLOCK = {"wire": "prepWire", "earnings": "prepEarnings", "movers": "prepMovers", "levels": "prepLevels"}
 MOVERS_MAX = 8
+#: How many of the member's names the movers part reads. A name the live cache misses is a bar-store
+#: read, on the request path and inside a Daily prep note create, so the scan is bounded; the snapshot
+#: carries `scanned` and `total` so a bounded scan is said, never hidden. Names go in _my_names' order.
+MOVERS_SCAN_MAX = 200
 
 #: The sentence for each gap code (the client shows `detail`; the code is for rails and logic).
 PREP_GAPS = {
@@ -555,20 +559,23 @@ PREP_GAPS = {
 LEVELS_NEEDS = "the active setups board"
 
 
-def _my_names(user_id: str) -> set[str]:
+def _my_names(user_id: str) -> list[str]:
     """The MEMBER's own names: open positions, watchlists, flagged (member_interest's per-source
     reads, local auth.db). N11: `all_mine` also unions the UCT 20, which is the firm's list, not the
-    member's, so it is left out here; the sources are derived from member_interest.SOURCES."""
+    member's, so it is left out here; the sources are derived from member_interest.SOURCES.
+    Ordered and deduplicated: by member_interest's source order (positions first), then by name, so a
+    bounded reader (the movers scan) reads the names that matter most first."""
     from api.services import member_interest
     try:
         by_source = member_interest.interest_for(user_id).get("by_source") or {}
     except Exception:  # noqa: BLE001 -- interest_for never raises by its own contract; belt and braces
-        return set()
-    out: set[str] = set()
+        return []
+    out: dict[str, None] = {}
     for name in member_interest.SOURCES:
         if name != "uct20":
-            out |= {str(s).upper() for s in (by_source.get(name) or ()) if s}
-    return out
+            for sym in sorted({str(s).upper() for s in (by_source.get(name) or ()) if s}):
+                out.setdefault(sym, None)
+    return list(out)
 
 
 def _cached_quote(sym: str, now: datetime | None = None) -> dict | None:
@@ -636,7 +643,7 @@ def _prep_earnings(user_id: str, now: datetime, memo: dict) -> dict:
     data = cache.get(engine.EARNINGS_CACHE_KEY)
     if not isinstance(data, dict) or not data:
         return _gap(out, "no_earnings_yet")
-    mine = _my_names(user_id)
+    mine = set(_my_names(user_id))
     if not mine:
         return _gap(out, "no_names")
 
@@ -655,14 +662,17 @@ def _prep_earnings(user_id: str, now: datetime, memo: dict) -> dict:
 def _prep_movers(user_id: str, now: datetime, memo: dict) -> dict:
     """The member's names, CACHED quotes only, the top MOVERS_MAX by the size of the move. A name with a
     price and no provable change is listed after every move ("change unavailable"); a name with no
-    price at all is counted in `unquoted`."""
+    price at all is counted in `unquoted`. At most MOVERS_SCAN_MAX names are read (`scanned` of
+    `total`), in _my_names' order."""
     out = _base("movers", now)
-    out.update(items=[], unquoted=0)
-    names = sorted(_my_names(user_id))
+    names = list(dict.fromkeys(_my_names(user_id)))
+    out.update(items=[], unquoted=0, scanned=0, total=len(names))
     if not names:
         return _gap(out, "no_names")
+    scan = names[:MOVERS_SCAN_MAX]
+    out.update(scanned=len(scan))
     items, unquoted = [], 0
-    for sym in names:
+    for sym in scan:
         q = _cached_quote(sym, now)
         if q and _num(q.get("price")) is not None:
             items.append({"symbol": sym, "price": q["price"], "changePct": _num(q.get("change_pct")),

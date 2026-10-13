@@ -12,6 +12,8 @@
     "items": [],
     "missing": "no_names",
     "part": "movers",
+    "scanned": 0,
+    "total": 0,
     "unquoted": 0
   }
 }

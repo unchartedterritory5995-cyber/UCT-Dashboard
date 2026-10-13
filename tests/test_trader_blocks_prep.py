@@ -125,8 +125,23 @@ def test_my_names_are_the_members_own_never_the_uct20(monkeypatch):
     monkeypatch.setattr(member_interest, "interest_for", lambda uid: {
         "by_source": {"positions": {"NVDA"}, "watchlist": {"AMD"}, "flagged": {"TSLA"}, "uct20": {"PLTR"}},
         "all_mine": {"NVDA", "AMD", "TSLA", "PLTR"}, "entities": {}})
-    assert tb._my_names("u1") == {"NVDA", "AMD", "TSLA"}
+    got = tb._my_names("u1")
+    assert set(got) == {"NVDA", "AMD", "TSLA"} and len(got) == 3
     assert "uct20" in member_interest.SOURCES                  # non-vacuity: the source being left out exists
+    # in member_interest's own source order (positions first), never a retyped list
+    want = [next(iter({"positions": {"NVDA"}, "watchlist": {"AMD"}, "flagged": {"TSLA"}}[s]))
+            for s in member_interest.SOURCES if s != "uct20"]
+    assert got == want and got[0] == "NVDA"
+
+
+def test_my_names_are_deduped_and_ordered_within_a_source(monkeypatch):
+    from api.services import member_interest
+    from api.services.journal_two import trader_blocks as tb
+    monkeypatch.setattr(member_interest, "interest_for", lambda uid: {
+        "by_source": {"positions": {"nvda", "AMD"}, "watchlist": {"AMD", "ZM", "BA"}, "flagged": set(), "uct20": set()},
+        "all_mine": set(), "entities": {}})
+    got = tb._my_names("u1")
+    assert got[:2] == ["AMD", "NVDA"] and sorted(got[2:]) == got[2:] and len(got) == len(set(got)) == 4
 
 
 # ── movers ────────────────────────────────────────────────────────────────────────────────
@@ -158,6 +173,29 @@ def test_movers_keep_the_top_eight_by_size(monkeypatch):
     got = tb.prep_part("u1", "movers", now=NOW)
     assert len(got["items"]) == tb.MOVERS_MAX == 8
     assert [i["symbol"] for i in got["items"]] == [f"S{i:02d}" for i in range(11, 3, -1)]
+
+
+def test_movers_read_a_bounded_number_of_names_in_priority_order(monkeypatch):
+    """A name the live cache misses is a bar-store read, on the request path and inside a Daily prep note
+    create. A member with a thousand watchlist names must not cost a thousand reads: the scan stops at
+    MOVERS_SCAN_MAX, takes the names in _my_names' order (positions first), and says how many it read."""
+    from api.services.journal_two import trader_blocks as tb
+    names = [f"N{i:04d}" for i in range(tb.MOVERS_SCAN_MAX + 37)]
+    seen: list[str] = []
+    monkeypatch.setattr(tb, "_my_names", lambda uid: names)
+    monkeypatch.setattr(tb, "_cached_quote", lambda s, now=None: seen.append(s) or _q(10, 1.0))
+    got = tb.prep_part("u1", "movers", now=NOW)
+    assert seen == names[:tb.MOVERS_SCAN_MAX]
+    assert (got["scanned"], got["total"]) == (tb.MOVERS_SCAN_MAX, len(names))
+    assert len(got["items"]) == tb.MOVERS_MAX and got["missing"] is None
+
+
+def test_movers_under_the_cap_read_every_name(monkeypatch):
+    from api.services.journal_two import trader_blocks as tb
+    monkeypatch.setattr(tb, "_my_names", lambda uid: ["NVDA", "AMD"])
+    monkeypatch.setattr(tb, "_cached_quote", lambda s, now=None: _q(10, 1.0))
+    got = tb.prep_part("u1", "movers", now=NOW)
+    assert (got["scanned"], got["total"]) == (2, 2)
 
 
 def test_movers_with_no_quote_at_all_say_so(monkeypatch):
