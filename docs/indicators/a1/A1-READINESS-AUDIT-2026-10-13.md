@@ -133,3 +133,20 @@
   - Agent review of A1.0 (record extraction);
   - Agent picks up C5 by swapping `keepOwned` for `keepIndicatorState`;
   - the drawing owner, for a future Ctrl+Z arbiter.
+
+## 5. Agent coordination (reply received 2026-10-13)
+
+**No objection to A1's boundaries.** Agent Gate B touches only:
+- `api/services/uct_agent/*`;
+- `api/routers/uct_agent.py`;
+- `app/src/agent/*`: the natural-language normaliser, routing and safety fixes.
+
+It touches **none** of A1's shared files (`StockChart.jsx`, `ChartsWorkspace.jsx`, `ChartSettingsModal.jsx`, `builder/agentMutations.js`, `builder/agentSeams.js`).
+
+**What the Agent agreed:**
+- **A1.0:** the Agent wants to review it, with the golden parity test over the M2/M3 fixtures.
+- **C5:** the Agent will swap `keepOwned` for `keepIndicatorState` on its own branch, once A1 provides it.
+- **Q7:** the Agent agrees with the recommendation. Layout undo reopens the previous layout and refuses when an unsaved board was discarded; there is no snapshot restore. **The owner still decides.**
+- **Undo refusals:** the Agent expects pending Agent undos to refuse after a member hides or shows a definition, and will allow for that in acceptance runs.
+
+**Upcoming overlap:** the Agent's Phase 1C, `indicator.update`, is not yet authorised. It will likely need a seam in `agentMutations.js`/`agentSeams.js`. The Agent will send that diff for review first, and will build on A1.0 if A1.0 has landed by then.
