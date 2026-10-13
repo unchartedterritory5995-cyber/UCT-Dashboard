@@ -36,21 +36,28 @@ let applying = 0
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 const keyOf = (userId, surfaceKey) => `${userId || 'anon'}:${surfaceKey}`
-const storageKey = (userId, surfaceKey) => `${HISTORY_KEY_PREFIX}${userId || 'anon'}:${surfaceKey}`
-const indexKey = (userId) => `${HISTORY_KEY_PREFIX}index:${userId || 'anon'}`
+// Storage NAMES below are the part after the prefix; every storage call spells the prefix
+// literally (`uct.indicators.history.v1:…`) so the persistence census resolves the key
+// (`lib/persistence/persistenceManifest.json`, entry `uct.indicators.history.v1:*`).
+const storageKey = (userId, surfaceKey) => `${userId || 'anon'}:${surfaceKey}`
+const indexKey = (userId) => `index:${userId || 'anon'}`
 
 function storage() {
   try { return typeof window !== 'undefined' && window.sessionStorage ? window.sessionStorage : null } catch { return null }
 }
-function readJson(key) {
+function readJson(name) {
   const s = storage()
   if (!s) return null
-  try { const raw = s.getItem(key); return raw ? JSON.parse(raw) : null } catch { return null }
+  try { const raw = s.getItem(`uct.indicators.history.v1:${name}`); return raw ? JSON.parse(raw) : null } catch { return null }
 }
-function writeRaw(key, value) {
+function writeRaw(name, value) {
   const s = storage()
   if (!s) return false
-  try { if (value === null) s.removeItem(key); else s.setItem(key, value); return true } catch { return false }
+  try {
+    if (value === null) s.removeItem(`uct.indicators.history.v1:${name}`)
+    else s.setItem(`uct.indicators.history.v1:${name}`, value)
+    return true
+  } catch { return false }
 }
 
 /** The surface a chart's history belongs to.
@@ -90,7 +97,7 @@ function persist(userId, surfaceKey, st) {
   }
   if (!writeRaw(key, text)) return
   // ⛔ TOTAL CAP across this member's surfaces: evict the least recently used surface.
-  const idx = (readJson(indexKey(userId)) || []).filter((e) => isObj(e) && typeof e.key === 'string' && e.key.startsWith(HISTORY_KEY_PREFIX))
+  const idx = (readJson(indexKey(userId)) || []).filter((e) => isObj(e) && typeof e.key === 'string' && !e.key.startsWith('index:'))
   const now = Date.now()
   const next = [...idx.filter((e) => e.key !== key), { key, bytes: text.length, at: now }].sort((a, b) => a.at - b.at)
   let total = next.reduce((n, e) => n + (e.bytes || 0), 0)
@@ -145,11 +152,18 @@ export function describeIndicatorChange(before, after, labelOf) {
  */
 export function recordIndicatorChange(surfaceKey, before, after, opts = {}) {
   if (applying) return null
-  const what = describeIndicatorChange(before, after, opts.labelOf)
+  // ⭐ A1.3 — a bulk write (Restore Defaults, a preset, a template, a share link) names itself
+  // (`opts.label` + `opts.kind`) and is recorded whatever it changed; anything else is
+  // recorded only when it hides, shows, adds or removes an indicator.
+  const what = opts.label ? { kind: opts.kind || 'bulk', label: opts.label } : describeIndicatorChange(before, after, opts.labelOf)
   if (!what) return null
   const record = recordOf(before, after)
   if (!record) return null
   const st = load(opts.userId, surfaceKey)
+  // ⛔ ONE CHANGE, ONE ENTRY. A bulk write recorded by its door and then again by the generic
+  // sink it writes through is the same record twice; the second is dropped.
+  const top = st.past[st.past.length - 1]
+  if (top && JSON.stringify(top.record) === JSON.stringify(record) && Date.now() - top.at < 5000) return top
   const entry = {
     id: `h${Date.now().toString(36)}${(seq++).toString(36)}`, label: what.label, kind: what.kind,
     origin: opts.origin ?? null, at: Date.now(), toast: opts.toast !== false, record,
