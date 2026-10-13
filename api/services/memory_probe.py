@@ -154,7 +154,14 @@ _JOB_MEM_LOCK = threading.Lock()
 #: (its `max_seconds` may predate any window), so a reader asking "which jobs ran
 #: between 09:00 and 11:00, and how heavy was each run" needs the runs themselves.
 #: Read by `api/services/measurement_window.py` (TERM-007's heavy-job condition).
-_JOB_RUNS: "deque[tuple[float, str, float, float | None]]" = deque(maxlen=4000)
+_JOB_RUNS: "deque[tuple[float, str, float, float | None, float | None]]" = deque(maxlen=4000)
+
+#: Per-job CPU seconds (the job thread's own `time.thread_time`), cumulative since
+#: pod start. Wall time cannot tell a job that BURNS the GIL from one that only
+#: WAITS for it behind another job (2026-10-13: the breadth sampler logged 74 s
+#: wall for under 1 s of work while the screener live tier held the CPU), so the
+#: ranking that names the pod's CPU hogs has to be CPU time.
+_JOB_CPU: dict[str, dict] = {}
 
 
 def recent_job_runs(since_ts: float, until_ts: float | None = None) -> list[dict]:
@@ -163,20 +170,31 @@ def recent_job_runs(since_ts: float, until_ts: float | None = None) -> list[dict
         with _JOB_MEM_LOCK:
             runs = list(_JOB_RUNS)
         return [{"job": j, "ended_at": round(t, 1), "seconds": round(s, 2),
-                 "rss_delta_mb": d}
-                for t, j, s, d in runs
+                 "rss_delta_mb": d,
+                 "cpu_seconds": round(c, 2) if c is not None else None}
+                for t, j, s, d, c in runs
                 if t > since_ts and (until_ts is None or t <= until_ts)]
     except Exception:
         return []
 
 
-def record_job(job_id: str, before, after, seconds: float) -> None:
-    """Record one job execution's RSS delta. Never raises."""
+def record_job(job_id: str, before, after, seconds: float,
+               cpu_seconds: float | None = None) -> None:
+    """Record one job execution's RSS delta and CPU time. Never raises."""
     try:
         d_run = (round(after - before, 1)
                  if before is not None and after is not None else None)
+        cpu = float(cpu_seconds) if cpu_seconds is not None else None
         with _JOB_MEM_LOCK:
-            _JOB_RUNS.append((time.time(), job_id, float(seconds), d_run))
+            _JOB_RUNS.append((time.time(), job_id, float(seconds), d_run, cpu))
+            if cpu is not None:
+                row = _JOB_CPU.setdefault(job_id, {
+                    "calls": 0, "cpu_seconds": 0.0, "wall_seconds": 0.0,
+                    "max_cpu_seconds": 0.0})
+                row["calls"] += 1
+                row["cpu_seconds"] = round(row["cpu_seconds"] + cpu, 2)
+                row["wall_seconds"] = round(row["wall_seconds"] + float(seconds), 2)
+                row["max_cpu_seconds"] = round(max(row["max_cpu_seconds"], cpu), 2)
     except Exception:
         pass
     try:
@@ -205,6 +223,14 @@ def job_memory_report(limit: int = 15) -> list[dict]:
     return rows[:limit]
 
 
+def job_cpu_report(limit: int = 25) -> list[dict]:
+    """Jobs ranked by total CPU seconds since pod start."""
+    with _JOB_MEM_LOCK:
+        rows = [dict(v, job=k) for k, v in _JOB_CPU.items()]
+    rows.sort(key=lambda r: r["cpu_seconds"], reverse=True)
+    return rows[:limit]
+
+
 def instrument_scheduler(scheduler) -> None:
     """Wrap `scheduler.add_job` so EVERY job records its RSS delta.
 
@@ -224,10 +250,12 @@ def instrument_scheduler(scheduler) -> None:
         def wrapped(*fa, **fkw):
             before = _rss_mb()
             t0 = time.monotonic()
+            c0 = time.thread_time()
             try:
                 return func(*fa, **fkw)
             finally:
-                record_job(job_id, before, _rss_mb(), time.monotonic() - t0)
+                record_job(job_id, before, _rss_mb(), time.monotonic() - t0,
+                           time.thread_time() - c0)
 
         try:
             wrapped.__name__ = getattr(func, "__name__", "job")
@@ -327,6 +355,8 @@ def snapshot(deep: bool = False) -> dict:
         # Which scheduled job made RSS jump, ranked by worst single delta. This
         # is what turns "some job allocated 4.6 GB" into a name.
         "jobs_by_rss_delta": job_memory_report(),
+        # Which scheduled job burns the CPU, ranked by total thread CPU time.
+        "jobs_by_cpu": job_cpu_report(),
         "deep": deep,
         "note": "byte figures are ESTIMATES extrapolated from a bounded sample",
     }
