@@ -199,9 +199,15 @@ def complement_reading(reading):
 
     def read(universe, metric):
         r = reading(universe, metric)
-        if isinstance(r, dict) and str(metric).startswith("pct_above_") and isinstance(r.get("value"), (int, float)):
-            return {**r, "value": _below(r["value"])}
-        return r
+        if not isinstance(r, dict) or not str(metric).startswith("pct_above_"):
+            return r
+        out = {**r}
+        if isinstance(r.get("value"), (int, float)):
+            out["value"] = _below(r["value"])
+        lc = r.get("latest_completed")
+        if isinstance(lc, dict) and isinstance(lc.get("value"), (int, float)):
+            out["latest_completed"] = {**lc, "value": _below(lc["value"])}
+        return out
     return read
 
 

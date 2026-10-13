@@ -33,7 +33,8 @@ series. The S&P 500 is not one of these universes.
   - Finalized: "As of <date> close".
   - Current: the contract's label ("Intraday · 11:51 AM ET", "Provisional close · Oct 12"), built from the vendor's data time and never from compute time.
 - **Status.** Live (intraday), provisional close, finalized, or unavailable.
-  - When the requested session's reading is unavailable, the card says so: "No current breadth reading is available right now — this is the latest finalized close, shown as historical context."
+  - When no current reading exists, the card shows Breadth's **newest completed session** (`latest_completed`, 2026-10-13 incident) with its own label ("Provisional close · Oct 12" / "Finalized close · Oct 9") and: "Live breadth isn't available right now, so this is the latest completed session — not a current reading." Never "now", "live" or "intraday". It is used only when `current` is False, only if it is no older than MI's finalized close and, for a finalized session, newer than it; NH/NL (finalized-only) never take a provisional session.
+  - When neither exists (or Breadth's field is absent or malformed), the card says: "No current breadth reading is available right now — this is the latest finalized close, shown as historical context."
   - A finalized answer that lags the last completed session names the sessions not yet finalized (dates only).
   - An older reading is never presented as today's.
 - **History searches** also state:
