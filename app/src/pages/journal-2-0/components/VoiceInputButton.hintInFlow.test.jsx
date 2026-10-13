@@ -94,7 +94,7 @@ describe('VoiceInputButton hintInFlow -- the hint takes its own place', () => {
     }
   })
 
-  it('control: without the prop the hint still floats above the mic (the other four callers)', () => {
+  it('control: without the prop the hint still floats above the mic (the callers that keep the float)', () => {
     render(<VoiceInputButton onTranscript={() => {}} />)
     const h = hint()
     expect(h.style.position).toBe('absolute')
@@ -120,5 +120,25 @@ describe('the Notebook editor opts in', () => {
     const [m] = tags
     const line = code.slice(0, m.index).split('\n').length
     expect(/\shintInFlow(\s|\/|>|=\{true\})/.test(m[0]), `NoteEditorPage.jsx:${line} -- ${m[0]}`).toBe(true)
+  })
+})
+
+describe('Add Position opts in (the P2b checklist sits above its Notes mic)', () => {
+  // The floating hint hung over the pre-entry checklist's second item and took the click
+  // (c2 walk at e1b1540e22, blocks.review-pack). The prop must lead the tag: the arrow
+  // in onTranscript holds a `>` that ends this tag pattern early.
+  const FILE = join(process.cwd(), 'src', 'pages', 'journal-2-0', 'components', 'AddPositionModal.jsx')
+  const src = readFileSync(FILE, 'utf8')
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, ''))
+  const tags = [...code.matchAll(/<VoiceInputButton\b[^>]*>/g)]
+
+  it('non-vacuity: AddPositionModal renders exactly one VoiceInputButton', () => {
+    expect(tags.length).toBe(1)
+  })
+
+  it('and that one passes hintInFlow', () => {
+    const [m] = tags
+    const line = code.slice(0, m.index).split('\n').length
+    expect(/\shintInFlow(\s|\/|>|=\{true\})/.test(m[0]), `AddPositionModal.jsx:${line} -- ${m[0]}`).toBe(true)
   })
 })
