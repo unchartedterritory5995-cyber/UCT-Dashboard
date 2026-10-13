@@ -5,8 +5,11 @@
  * one rule write a block file may make, named in lib/blocks/blockDoors.test.js WRITE_EXCEPTIONS).
  * useJournalRules also carries create and dismiss, and a block may hold no second write door
  * (spec §P2 integrity rule), so the block imports this module instead of the hooks. It hands back
- * DATA and one re-read: `refresh` asks the server again (SWR's `mutate()` with no argument, which
- * writes nothing), so an edited rule reaches every reader of the list, the pre-entry checklist too.
+ * DATA, one re-read and one cache write: `refresh` asks the server again (SWR's `mutate()` with no
+ * argument), and `showSaved(rule)` puts the rule the server just answered with into the cached list
+ * at once, then re-reads (fix round 1, m6: the switch moves before the re-read answers). Neither
+ * writes to the server; the one rule write is rulesApi.editRule. The re-read is what carries an edited
+ * rule to every reader of the list, the pre-entry checklist too.
  *
  * ⛔ C-1 (preflight D8): with no SPECIFIC account selected there is no rule list to read, and
  * "You have no rules yet" would be false. `rulesState` says why instead, in the states the
@@ -18,7 +21,7 @@
  * @param {{ which?: 'active'|'all' }} opts
  * @returns {{ rules: object[],
  *             rulesState: 'loading'|'no-account'|'no-accounts'|'accounts-error'|'error'|'ready',
- *             refresh: () => void }}
+ *             refresh: () => void, showSaved: (rule: object) => void }}
  */
 import { useCallback, useEffect, useRef } from 'react'
 import useJ2SelectedAccount from './useJ2SelectedAccount'
@@ -27,7 +30,7 @@ import { selectedAccountState } from './useChecklistSources'
 
 /** The ONE copy of this seam's return shape. useMyRulesSources.test.js reads it, and
  *  lib/blocks/blockDoors.test.js (⑤) requires the literal return below to carry exactly these keys. */
-export const RETURN_KEYS = Object.freeze(['rules', 'rulesState', 'refresh'])
+export const RETURN_KEYS = Object.freeze(['rules', 'rulesState', 'refresh', 'showSaved'])
 
 const NO_RULES = []
 
@@ -57,6 +60,15 @@ export default function useMyRulesSources({ which = 'active' } = {}) {
     if (typeof m?.mutate === 'function') m.mutate()
     if (typeof m?.mutateDismissed === 'function') m.mutateDismissed()
   }, [])
+  // m6: the server's answer for one rule, merged into the cached active list, then a re-read.
+  const showSaved = useCallback((saved) => {
+    const m = mutateRef.current
+    if (!saved?.id || typeof m?.mutate !== 'function') return refresh()
+    m.mutate((cur) => (Array.isArray(cur) ? cur.map((r) => (r.id === saved.id ? { ...r, ...saved } : r)) : cur),
+      { revalidate: true })
+    if (typeof m.mutateDismissed === 'function') m.mutateDismissed()
+    return undefined
+  }, [refresh])
 
   let shown = NO_RULES
   if (rulesState === 'ready') {
@@ -68,5 +80,6 @@ export default function useMyRulesSources({ which = 'active' } = {}) {
     rules: shown,
     rulesState,
     refresh,
+    showSaved,
   }
 }

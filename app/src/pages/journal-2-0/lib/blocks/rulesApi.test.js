@@ -1,6 +1,6 @@
 // The rule edit door (Notebook P2b, Task 8; spec §P2 item 2). It writes RULES, never a note.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { DISMISSED_SENTENCE, editRule, versionLine } from './rulesApi'
+import { DISMISSED_SENTENCE, UNAVAILABLE_SENTENCE, editRule, versionLine } from './rulesApi'
 
 const realFetch = globalThis.fetch
 beforeEach(() => { globalThis.fetch = vi.fn() })
@@ -27,12 +27,20 @@ describe('rulesApi', () => {
     expect(globalThis.fetch).toHaveBeenCalledWith('/api/j2/trader-blocks/rules/r1', expect.objectContaining({ method: 'PUT' }))
     expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toEqual({ label: '' })
   })
-  it('editRule: a 404 is a dismissed rule, said in words (ruling R-M1-1), never the status code', async () => {
-    globalThis.fetch = vi.fn(async () => ({ ok: false, status: 404, json: async () => ({ detail: 'Not found' }) }))
+  it('editRule: a 404 the server marks rule_dismissed is a dismissed rule, said in words (R-M1-1, R-T8-1)', async () => {
+    globalThis.fetch = vi.fn(async () => ({ ok: false, status: 404, json: async () => ({ detail: 'rule_dismissed' }) }))
     const got = await editRule('r1', { beforeEntry: true })
-    expect(got).toEqual({ ok: false, error: DISMISSED_SENTENCE, dismissed: true })
-    expect(DISMISSED_SENTENCE).toBe('This rule was dismissed. Restore it to edit it.')
-    expect(got.error).not.toMatch(/404|Not found/)
+    expect(got).toEqual({ ok: false, error: DISMISSED_SENTENCE, gone: true })
+    expect(DISMISSED_SENTENCE).toBe("This rule was dismissed, so it can't be edited.")
+    expect(got.error).not.toMatch(/404|rule_dismissed/)
+  })
+  it('editRule (m2): any other 404 (another member\'s rule, a missing one, the switch off) is never called dismissed', async () => {
+    for (const body of [{ detail: 'Not found' }, {}]) {
+      globalThis.fetch = vi.fn(async () => ({ ok: false, status: 404, json: async () => body }))
+      const got = await editRule('r1', { beforeEntry: true })
+      expect(got).toEqual({ ok: false, error: UNAVAILABLE_SENTENCE, gone: true })
+    }
+    expect(UNAVAILABLE_SENTENCE).toBe("This rule isn't available to edit.")
   })
   it('editRule: success hands back the saved rule', async () => {
     const saved = { id: 'r 1', label: 'Wait', version: 2 }

@@ -25,6 +25,13 @@ describe('windowLines (spec: never a percentage on fewer than 10 trades without 
     expect(windowLines(w({ adherenceCount: 10, adherence: 0.5 })).adherence).toBe('50% of checklist items followed (over 10 trades)')
     expect(windowLines(w({ adherenceCount: 9, adherence: 0.5 })).adherence).toMatch(/too few to read as a rate/)
   })
+  it('m5: with no `small` from the server, the sample decides (n < 10 is small)', () => {
+    const noFlag = (o) => { const x = w(o); delete x.small; return x }
+    expect(windowLines(noFlag({ trades: 7, wins: 4, winRate: 4 / 7 })).winRate).toBe('4 of 7 won (too few trades to read as a rate)')
+    expect(windowLines(noFlag({ trades: 12, wins: 6, winRate: 0.5 })).winRate).toBe('50% won (6 of 12 trades)')
+    // CONTROL: the server's own answer still wins when it gives one
+    expect(windowLines(w({ trades: 12, wins: 6, winRate: 0.5, small: true })).winRate).toBe('6 of 12 won (too few trades to read as a rate)')
+  })
   it('a losing average reads with its sign, and no window at all reads as empty', () => {
     expect(windowLines(w({ trades: 3, rCount: 3, avgR: -0.5 })).avgR).toBe('-0.50 R average (over 3 trades)')
     expect(windowLines(null)).toEqual({ winRate: 'No trades', avgR: 'No R recorded', adherence: 'No checklist record' })

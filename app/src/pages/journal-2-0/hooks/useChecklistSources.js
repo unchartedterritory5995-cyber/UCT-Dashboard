@@ -36,8 +36,8 @@ export const RETURN_KEYS = Object.freeze(['settings', 'settingsState', 'retrySet
  * WHY no specific account is selected, or null when one is (M-3): accounts failed, still loading,
  * "All Accounts" chosen, no account at all, or the first pick not made yet (a frame between accounts
  * arriving and the selection effect). Only "All Accounts" is "no-account"; the pending first pick
- * reads as loading. The ONE copy: the My rules seam (useMyRulesSources.js) asks this too (P2b
- * ruling R-PF-B8), so the two blocks can never disagree about whose rules are on screen.
+ * reads as loading. Shared by the two read seams (this one and useMyRulesSources.js, P2b ruling
+ * R-PF-B8), so those blocks agree; useJ2Settings.js's noAccountReason still restates it in its own words.
  * @param {{ accountId: string|null, isLoading: boolean, isAllAccounts: boolean, accountsError: any,
  *           accounts: object[] }} selected  useJ2SelectedAccount()'s own fields
  * @returns {null|'loading'|'no-account'|'no-accounts'|'accounts-error'}

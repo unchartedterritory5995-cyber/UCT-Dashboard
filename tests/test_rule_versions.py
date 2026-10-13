@@ -74,7 +74,9 @@ def test_a_dismissed_rule_cannot_be_edited(db_path):
     r = _rule()
     assert rv.edit_rule("u1", r["id"], {"beforeEntry": True}) is not None         # control: a live rule edits
     journal_rules.dismiss_rule("u1", r["id"])
-    assert rv.edit_rule("u1", r["id"], {"label": "Changed", "beforeEntry": False}) is None
+    # Fix round 1 (m2): a dismissed rule is its own answer, so the route can say WHY it is a 404.
+    with pytest.raises(rv.RuleDismissed):
+        rv.edit_rule("u1", r["id"], {"label": "Changed", "beforeEntry": False})
     from api.services.auth_db import get_connection
     c = get_connection()
     try:
@@ -140,3 +142,36 @@ def test_routes(db_path):
     theirs = _rule(user="u2")
     assert c.get(f"/api/j2/trader-blocks/rules/{theirs['id']}/versions").status_code == 404
     assert c.get("/api/j2/trader-blocks/rules/nope/versions").status_code == 404
+
+
+def test_the_edit_route_says_why_a_rule_is_not_editable(db_path):
+    """Fix round 1 (m2): the client says "dismissed" only when the server says so. A dismissed rule
+    answers 404 with detail "rule_dismissed"; another member's rule, a missing one and the switch being
+    off keep the router's plain "Not found"."""
+    from api.routers import notebook_journal_styles as rt
+    from api.services.journal_two import journal_rules
+    app = FastAPI()
+    app.include_router(rt.router)
+    app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "u1", "role": "member", "plan": "pro"}
+    c = TestClient(app)
+    mine = _rule()
+    journal_rules.dismiss_rule("u1", mine["id"])
+    got = c.put(f"/api/j2/trader-blocks/rules/{mine['id']}", json={"beforeEntry": True})
+    assert (got.status_code, got.json()["detail"]) == (404, "rule_dismissed")
+    theirs = _rule(user="u2")
+    journal_rules.dismiss_rule("u2", theirs["id"])
+    for rid in (theirs["id"], "nope"):
+        got = c.put(f"/api/j2/trader-blocks/rules/{rid}", json={"beforeEntry": True})
+        assert (got.status_code, got.json()["detail"]) == (404, rt.NOT_FOUND), rid
+
+
+def test_the_edit_route_with_the_switch_off_is_a_plain_not_found(db_path, monkeypatch):
+    from api.routers import notebook_journal_styles as rt
+    app = FastAPI()
+    app.include_router(rt.router)
+    app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "u1", "role": "member", "plan": "pro"}
+    c = TestClient(app)
+    r = _rule()
+    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "0")
+    got = c.put(f"/api/j2/trader-blocks/rules/{r['id']}", json={"beforeEntry": True})
+    assert (got.status_code, got.json()["detail"]) == (404, rt.NOT_FOUND)

@@ -5,9 +5,13 @@
 // `changedAt` is the current version's day, never a before-entry toggle's, R-PF-N4).
 const DAY = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' })
 
-/** Ruling R-M1-1: the route answers 404 for a dismissed rule (and for one that is not the member's,
- *  which a member's own list never holds). Said in words, never as a status code. */
-export const DISMISSED_SENTENCE = 'This rule was dismissed. Restore it to edit it.'
+/** Ruling R-M1-1: the route answers 404 for a dismissed rule, with detail `rule_dismissed` (fix round 1,
+ *  m2). Said in words, never as a status code; no restore exists, so the words promise none (R-T8-1). */
+export const DISMISSED_SENTENCE = "This rule was dismissed, so it can't be edited."
+/** Every other 404 (another member's rule, a missing one, the Journal styles switch off): never
+ *  called dismissed, because the server did not say so. */
+export const UNAVAILABLE_SENTENCE = "This rule isn't available to edit."
+const DISMISSED_DETAIL = 'rule_dismissed'
 const FAILED_SENTENCE = 'The rule could not be saved. Nothing changed.'
 const OFFLINE_SENTENCE = 'You are offline. The rule was not saved.'
 
@@ -18,7 +22,8 @@ export function versionLine(rule) {
   return day ? `v${v} · ${v > 1 ? 'changed' : 'made'} ${day}` : `v${v}`
 }
 
-/** @returns {Promise<{ok: true, rule: object} | {ok: false, error: string, dismissed?: true}>} */
+/** `gone`: the server will not edit this rule (a 404 of either kind), so the caller re-reads its list.
+ *  @returns {Promise<{ok: true, rule: object} | {ok: false, error: string, gone?: true}>} */
 export async function editRule(ruleId, patch) {
   try {
     const res = await fetch(`/api/j2/trader-blocks/rules/${encodeURIComponent(ruleId)}`, {
@@ -26,7 +31,9 @@ export async function editRule(ruleId, patch) {
       body: JSON.stringify(patch),
     })
     const data = await res.json().catch(() => ({}))
-    if (res.status === 404) return { ok: false, error: DISMISSED_SENTENCE, dismissed: true }
+    if (res.status === 404) {
+      return { ok: false, error: data?.detail === DISMISSED_DETAIL ? DISMISSED_SENTENCE : UNAVAILABLE_SENTENCE, gone: true }
+    }
     if (!res.ok) return { ok: false, error: typeof data?.detail === 'string' ? data.detail : FAILED_SENTENCE }
     return { ok: true, rule: data }
   } catch {

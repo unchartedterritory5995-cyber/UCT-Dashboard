@@ -99,7 +99,7 @@ export const IMPORT_ALLOW = {
   'app/src/components/ui/Switch': 'the shared switch primitive: a button and its knob, no imports, no network, no writes',
   // P2b Task 8 (ruling R-PF-B8): the My rules block's ONE read seam. Its write is rulesApi.js (a block
   // file, WRITE_EXCEPTIONS above); the seam hands back the rules, their state and a re-read only.
-  'app/src/pages/journal-2-0/hooks/useMyRulesSources': 'the My rules read seam: the selected account\'s rules, their state and one re-read; create and dismiss are unreachable (members)',
+  'app/src/pages/journal-2-0/hooks/useMyRulesSources': 'the My rules read seam: the selected account\'s rules, their state, one re-read and the saved rule shown at once (an SWR cache write, never a server write); create and dismiss are unreachable (members)',
 }
 
 /**

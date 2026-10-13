@@ -38,7 +38,7 @@ const focusKey = (kind, id) => `${kind}:${id}`
 
 export default function MyRulesBlock({ params, editable }) {
   const which = setting(params, 'which')
-  const { rules, rulesState, refresh } = useMyRulesSources({ which })
+  const { rules, rulesState, refresh, showSaved } = useMyRulesSources({ which })
   const [editing, setEditing] = useState(null)   // { id, label, evidence, note } of the open form
   const [busy, setBusy] = useState(null)         // the id of the rule whose write is in flight
   const [status, setStatus] = useState('')
@@ -65,11 +65,11 @@ export default function MyRulesBlock({ params, editable }) {
     setBusy(null)
     if (res.ok) {
       onSaved?.()
-      refresh()
+      showSaved(res.rule)   // m6: the saved rule on screen at once, then the re-read
       return
     }
     setStatus(res.error)
-    if (res.dismissed) {
+    if (res.gone) {
       setEditing((e) => (e?.id === rule.id ? null : e))
       refresh()
     }

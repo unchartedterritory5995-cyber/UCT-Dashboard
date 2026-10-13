@@ -157,6 +157,7 @@ def test_route(db_path):
     journal_rules.dismiss_rule("u1", r["id"])
     assert c.get(f"/api/j2/trader-blocks/rules/{r['id']}/before-after").status_code == 404
 
+
 def test_the_client_small_sample_is_the_servers():
     """Task 9 (R-PF-N19): beforeAfterText.js's SMALL and rule_versions.SMALL_SAMPLE are one fact in two
     files. The client line is read with a multi-line anchor (re.M); exactly one match (non-vacuity)."""

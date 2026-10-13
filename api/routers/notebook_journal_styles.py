@@ -60,6 +60,8 @@ from api.services.journal_two import notes as notes_service
 MAX_BODY_BYTES = 512_000
 TOO_LARGE_SENTENCE = "Request too large"
 NOT_FOUND = "Not found"
+#: A dismissed rule's edit (fix round 1, m2): read by rulesApi.editRule, which says it in words.
+RULE_DISMISSED = "rule_dismissed"
 # Integrator ruling (review M1): the base revision is required. Without it a caller that lands the
 # answer would record as its own a revision that may fold in another writer's change it never saw.
 BASE_REQUIRED_SENTENCE = "Send baseUpdatedAt, the revision of the note you are looking at."
@@ -386,6 +388,10 @@ def trader_edit_rule(rule_id: str, body: dict = Depends(paid_body), user: dict =
         rec = rule_versions.edit_rule(user["id"], rule_id, body)
     except rule_versions.RuleEditError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except rule_versions.RuleDismissed:
+        # Fix round 1 (m2): the client says "dismissed" only for this detail; every other 404 here
+        # (another member's rule, a missing one, the switch off) keeps the plain NOT_FOUND.
+        raise HTTPException(status_code=404, detail=RULE_DISMISSED)
     if rec is None:
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     return rec

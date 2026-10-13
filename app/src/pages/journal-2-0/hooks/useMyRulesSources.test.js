@@ -52,6 +52,19 @@ describe('useMyRulesSources', () => {
     expect(mutate).toHaveBeenCalledWith()
     expect(mutateDismissed).not.toHaveBeenCalled()
   })
+  it('m6: showSaved merges the server\'s answer into the cached list, then re-reads; it writes no server', () => {
+    const { result } = renderHook(() => useMyRulesSources())
+    result.current.showSaved({ id: 'r1', beforeEntry: true })
+    expect(mutate).toHaveBeenCalledTimes(1)
+    const [update, opts] = mutate.mock.calls[0]
+    expect(opts).toEqual({ revalidate: true })
+    expect(update([{ id: 'r1', beforeEntry: false, label: 'a' }, { id: 'r2', beforeEntry: false }]))
+      .toEqual([{ id: 'r1', beforeEntry: true, label: 'a' }, { id: 'r2', beforeEntry: false }])
+    // no saved rule on hand: a plain re-read
+    mutate.mockClear()
+    result.current.showSaved(undefined)
+    expect(mutate).toHaveBeenCalledWith()
+  })
   it('"active" asks for the selected account\'s active rules and never the dismissed ones', () => {
     renderHook(() => useMyRulesSources({ which: 'active' }))
     expect(calls).toContainEqual(['a1', 'active'])

@@ -276,9 +276,6 @@ def test_adherence_counts_before_entry_rule_ticks_with_the_setup_items(db_conn):
     upsert_adherence("u_pb", f"id:{t2}", "VCP", ["s1", "rule:x1"], 3, db_conn)         # 2/3
     vcp = _by_setup(playbook_stats.get_playbook_stats("u_pb", acc["id"], conn=db_conn))["VCP"]
     assert vcp["adherence"] == round((1.0 + 2 / 3) / 2, 4)
-    # CONTROL: had the rule been left out of the set (the card's old write), the same ticks read 1.0
-    # and 0.5 -- a different number for the same trades, which is what one set prevents.
-    assert vcp["adherence"] != round((1.0 + 0.5) / 2, 4)
     assert vcp["adherenceCoverage"] == {"eligible": 2, "computed": 2}
 
 

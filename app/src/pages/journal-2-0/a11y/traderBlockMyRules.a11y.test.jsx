@@ -47,16 +47,16 @@ axeSurface('trader-block-my-rules', async () => {
 
 axeSurface('trader-block-my-rules:empty', async () => {
   const realFetch = globalThis.fetch
-  globalThis.fetch = vi.fn(async () => ({ ok: false, status: 404, json: async () => ({ detail: 'Not found' }) }))
+  globalThis.fetch = vi.fn(async () => ({ ok: false, status: 404, json: async () => ({ detail: 'rule_dismissed' }) }))
   try {
     state.rules = [RULES[1]]
     const { rerender } = render(<MyRulesBlock params={{}} setParams={() => true} editable />)
     fireEvent.click(screen.getByRole('switch', { name: "Check 'No adds to a loser' before entry" }))
-    await waitFor(() => expect(screen.getByRole('status').textContent).toBe('This rule was dismissed. Restore it to edit it.'))
+    await waitFor(() => expect(screen.getByRole('status').textContent).toBe("This rule was dismissed, so it can't be edited."))
     state.rules = []
     rerender(<MyRulesBlock params={{}} setParams={() => true} editable />)
     expect(screen.getByText('You have no rules yet. Turn a recurring mistake into a rule from Insights, then it shows here.')).toBeTruthy()
-    expect(screen.getByRole('status').textContent).toBe('This rule was dismissed. Restore it to edit it.')
+    expect(screen.getByRole('status').textContent).toBe("This rule was dismissed, so it can't be edited.")
   } finally {
     globalThis.fetch = realFetch
   }
