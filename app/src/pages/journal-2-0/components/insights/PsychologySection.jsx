@@ -33,14 +33,28 @@
  * emoji: every glyph is a <UIcon>.
  */
 
-import { useCallback, useState } from 'react'
+import { Component, Suspense, useCallback, useState } from 'react'
 import { useSWRConfig } from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
+import { journalStylesEnabled } from '../../lib/journalStylesFlag'
+import { lazyLeaf } from '../../lib/lazyChunk'
 import ConfidenceStat from '../analytics/ConfidenceStat'
 import RapidTagFlow from '../psychology/RapidTagFlow'
 import MakeRuleButton from './MakeRuleButton'
 import MyRulesList from './MyRulesList'
 import styles from './PsychologySection.module.css'
+
+// Notebook P2b Task 9: "Before / after this rule", its own chunk, only while Journal styles is on.
+// ⛔ `lazyLeaf` behind a boundary that renders nothing (pre-flight I9), never `lazyChunk`: a second
+// chunk failure under lazyChunk reloads the page, or lands on the route's error screen, for one
+// optional card. A card that cannot load is simply absent; the rest of Insights stands.
+const RuleBeforeAfterCard = lazyLeaf(() => import('./RuleBeforeAfterCard'))
+
+class QuietBoundary extends Component {
+  constructor(props) { super(props); this.state = { failed: false } }
+  static getDerivedStateFromError() { return { failed: true } }
+  render() { return this.state.failed ? null : this.props.children }
+}
 
 const CONF_MIN = 10 // canonical confidence threshold — win rate grayed below it
 const THIN_SAMPLE = 3 // emotions with fewer than this are dimmed + annotated
@@ -132,6 +146,11 @@ export default function PsychologySection({ analytics, accountId, onStartRapidTa
             <RevengePanel revenge={revenge} dismissed={dismissed} onDismiss={dismiss} />
           </div>
           <MyRulesList accountId={accountId} />
+          {journalStylesEnabled() && accountId && (
+            <QuietBoundary>
+              <Suspense fallback={null}><RuleBeforeAfterCard accountId={accountId} /></Suspense>
+            </QuietBoundary>
+          )}
         </>
       )}
 
