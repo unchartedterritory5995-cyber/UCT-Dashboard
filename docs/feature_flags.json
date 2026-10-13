@@ -2524,6 +2524,12 @@
       ],
       "note": "Armed 2026-09-02 on web. Decided rather than left pending: the surface was complete and its safety property was verified against real data before the flip, not assumed. Measured read-only over C:/data/bars.db: 30 symbols x 2024-01-01..2026-06-30 returned a closed coverage receipt (18750 bars in window, 18750 answered, 0 not computable) and reported NO EDGE for close > sma(close,50) - 53.7% strategy against a 53.9% baseline - which is the behaviour of a backtester that is not flattering itself. The lookahead refusal fires by name on every screen reading a scalar we hold no history of (rs_rank, market_cap, pe_ttm), including a bar formula ANDed with one. Bounded and gated: require_paid, INLINE_MAX_SYMBOLS=50 above which it queues off the request thread, and a 1.2M-cell ceiling. The auth rail (tests/test_screener_auth_surface.py) SKIPS while the flag is off, so it was run with the flag on before arming: 213 backtest tests pass in both states, 0 skipped when on. Rollback is this variable alone."
     },
+    "SESSION_SHARING_GUARD_ENABLED": {
+      "status": "armed",
+      "since": "2026-10-12",
+      "where": [],
+      "note": "OD-SEAT (2026-10-12 audit): the account-sharing alarm, ON by default (so the AST gate index does not list it under `flags`). When one account signs in from too many distinct networks (/24 IPv4, /48 IPv6) within 24 h it records a 'sharing_flagged' activity row and alerts Discord; it never blocks a sign-in. Set on no service. 0 / false / no / off turns it off (kill switch). Declared under `flags` (it is a gate) although default ON: no service sets it, and the code default is the decision."
+    },
     "SHORT_INTEREST_SOURCE": {
       "status": "armed",
       "since": "2026-09-29",
@@ -3158,6 +3164,14 @@
   },
   "knobs": {
     "_readme": "X-16 (TERMINAL-NEXT ledger hygiene, 2026-10-02). Env vars that DECIDE behaviour but that `flags` cannot hold, because its rail admits only names the AST index classifies as a gate (ENABLED/DISABLE/_ON), a visibility flag or a *_MODE_FLAGS entry: a CUTOVER switch, a SAMPLE RATE, and a gate that lives in ANOTHER REPO. Each row says where it is read and what its unset value does. tests/test_flag_ledger_knobs.py holds every `repo: uct-dashboard` row to the AST scan (a name the code no longer reads fails) and every row to the same status vocabulary as `flags`.",
+    "SESSION_DEVICE_LIMIT": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/session_guard.py::device_limit (read per call at sign-in from auth_service; integer >= 0; blank or unparseable means the default)",
+      "kind": "config",
+      "status": "armed",
+      "default": "2",
+      "note": "OD-SEAT (2026-10-12 audit): how many signed-in devices one member account keeps. The default IS the decision: 2, set on no service. A sign-in beyond the limit signs the account's oldest other sessions out (enforce_device_limit); accounts on @uctintelligence.internal are exempt. 0 turns the limit off (kill switch, read per call). The Terms say an account 'may be suspended' for sharing; the code never suspends, it signs devices out and alerts."
+    },
     "SOCIAL_TEXT_RETENTION_DAYS": {
       "repo": "uct-dashboard",
       "read_at": "api/services/social_polarity.py::retention_days (read per call; integer days, >= 1; blank or unparseable means the default)",

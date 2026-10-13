@@ -57,7 +57,11 @@ def _int_env(name: str, default: int) -> int:
 
 
 def device_limit() -> int:
-    return max(0, _int_env("SESSION_DEVICE_LIMIT", 2))
+    # Read by literal name so the flag-ledger scan sees it (docs/feature_flags.json knobs).
+    try:
+        return max(0, int(str(os.environ.get("SESSION_DEVICE_LIMIT", "2")).strip()))
+    except (TypeError, ValueError):
+        return 2
 
 
 def sharing_guard_enabled() -> bool:
