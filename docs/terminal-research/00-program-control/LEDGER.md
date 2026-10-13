@@ -4863,3 +4863,20 @@ is new, plus a 7-line hook in `breadth_eod_source.tick()` after a `written` resu
   static chain via `bars_fetch`, whose real edge is the constant `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD`. It never
   calls any changed function.
 - **No marker bump.** A flow-worker restart drops the OPRA socket for zero behavioural difference.
+
+## Breadth small-limit history fast path · `db928ff34b` · 2026-10-13
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: EQUIVALENT OUTPUT / NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/breadth_authority.py`, `breadth_exchange_authority.py`, `breadth_current.py`, `breadth_symbols.py` (`tools/flow_worker_watch_coverage.py`) |
+
+`universe_history(limit <= 60)` in both authorities now reads the newest rows newest-first. Its output is identical to the full
+read for every caller on every service (94 equivalence tests). Larger limits (e.g. market_indicators' default 6000) take
+the unchanged full path. There are 2 deleted `api/` lines, both the rewritten row-source line in each `universe_history`.
+
+- **Callers.** The boot verification is in `start_breadth_warm`, called only from `api/main.py` (web). `reading()`'s
+  `history_ms` log runs only from the Agent/ops routes on web. Flow-worker reaches these modules only through the
+  `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` constant edge.
+- **No marker bump.** A flow-worker restart drops the OPRA socket for zero behavioural difference.
+- **Released with** the Agent's Open chart / timing commit (Agent files are outside flow-worker's closure).
