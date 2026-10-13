@@ -119,7 +119,10 @@ describe('Gate C — "make it a 9": the SAME indicator changes, exactly undone',
     await say('add a 21 sma')
     await waitFor(() => expect(live(h)).toHaveLength(2))
     await say('change the 21 to a 10')                                   // two "21"s on the chart → never guessed
-    await waitFor(() => expect(transcript()).toMatch(/More than one indicator/))
+    await waitFor(() => expect(transcript()).toMatch(/More than one indicator on Chart \(QQQ\) matches that — EMA 21 or SMA 21\. Say which one\./))
+    expect(transcript()).not.toMatch(/inst:/)                            // no internal ids in chat
+    await say('change the 33 to a 9')
+    await waitFor(() => expect(transcript()).toMatch(/No indicator on Chart \(QQQ\) shows 33\. Say which one to change\./))
     expect(live(h).map(i => i.inputs.period)).toEqual([21, 21])
     save()
   }, 60000)
