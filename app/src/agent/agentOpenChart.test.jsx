@@ -1,4 +1,4 @@
-// OPEN CHART on Agent metric cards (owner 2026-10-13). The card carries a TYPED target set by the
+// OPEN CHART on Agent metric cards (owner 2026-10-13; rev. 2: REUSE a chart — one switches, several ask, none adds). The card carries a TYPED target set by the
 // capability from what it answered (a ticker; a PUBLISHED breadth series from the server's registry) —
 // never read from the card's words. Opening runs the EXISTING widget.addCharts op: one new chart born
 // on that series, unlinked, nothing existing changes, receipt + Undo. A series already on the board is
@@ -102,68 +102,157 @@ describe('owner’s four-question sequence — deterministic, no model, one requ
   }, 40000)
 })
 
-describe('Open chart — opens the exact series on a NEW chart; the workspace is preserved', () => {
-  it('Nasdaq A50 → one new chart born on NASDAQ:A50; existing charts untouched; Undo removes only it', async () => {
-    const { board, say, idle } = mount()
-    await say('what % of nasdaq stocks are above the 50 day')
-    await waitFor(() => expect(chartButtons()).toHaveLength(1), { timeout: 8000 })
+// boards: one chart (with room beside it), one chart filling the board, no chart (a watchlist only)
+const ONE = [{ id: 'l', type: 'chart', x: 0, y: 0, w: 8, h: 20, color: 'B' }]
+const ONE_FULL = [{ id: 'l', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'B' }]
+const NONE = [{ id: 'w', type: 'watchlist', x: 0, y: 0, w: 6, h: 20 }]
+const askNasdaq = async (say) => {
+  await say('what % of nasdaq stocks are above the 50 day')
+  await waitFor(() => expect(chartButtons()).toHaveLength(1), { timeout: 8000 })
+}
+const choiceButtons = () => [...(screen.queryAllByTestId('agent-question').at(-1)?.querySelectorAll('button') || [])]
+
+describe('Open chart REUSES a chart — one chart switches, several ask, none adds', () => {
+  it('ONE chart: it switches to NASDAQ:A50 at once — same widget, place, size, timeframe; no approval; Undo restores QQQ', async () => {
+    const { board, say, idle } = mount(ONE, { B: 'QQQ' })
+    board.state.widgets[0].opts = { tf: 'W' }
+    await askNasdaq(say)
     const before = JSON.stringify(board.state.widgets)
     fireEvent.click(chartButtons()[0])
-    await waitFor(() => expect(charts(board)).toEqual(['NVDA', 'NVDA', 'NASDAQ:A50']), { timeout: 8000 })
-    // the two charts that were there: same ids, places, links and settings
-    expect(JSON.stringify(board.state.widgets.slice(0, 2))).toBe(before)
-    const added = board.state.widgets[2]
-    expect(added).toMatchObject({ type: 'chart', color: 'N' })                     // born unlinked on its own series
-    expect(screen.queryAllByTestId('agent-proposal')).toHaveLength(0)            // the click IS the request
-    expect(searches).toContain('NASDAQ:A50')                                      // checked like any symbol
+    await waitFor(() => expect(charts(board)).toEqual(['NASDAQ:A50']), { timeout: 8000 })
+    expect(JSON.stringify(board.state.widgets)).toBe(before)                     // the widget itself is untouched
+    expect(board.host.charts.list()[0].tf).toBe('W')
+    expect(board.state.addCalls || []).toHaveLength(0)                            // nothing created
+    expect(screen.queryAllByTestId('agent-proposal')).toHaveLength(0)            // no approval card
+    expect(screen.queryAllByTestId('agent-question')).toHaveLength(0)            // nothing asked
+    await waitFor(() => expect(screen.queryAllByTestId('agent-receipt').map(r => r.textContent).join(' ')).toMatch(/NASDAQ:A50/), { timeout: 8000 })
+    expect(searches).toContain('NASDAQ:A50')                                      // the symbol check ran
     expect(turns).toHaveLength(0)
     await idle()
     fireEvent.change(screen.getByLabelText('Message UCT Agent'), { target: { value: 'undo' } })
     fireEvent.keyDown(screen.getByLabelText('Message UCT Agent'), { key: 'Enter' })
-    await waitFor(() => expect(charts(board)).toEqual(['NVDA', 'NVDA']), { timeout: 8000 })
+    await waitFor(() => expect(charts(board)).toEqual(['QQQ']), { timeout: 8000 })
     expect(JSON.stringify(board.state.widgets)).toBe(before)
   }, 30000)
 
-  it('a FULL board: refused with the workspace’s own reason — nothing resized, moved or replaced', async () => {
-    const { board, say } = mount([{ id: 'l', type: 'chart', x: 0, y: 0, w: 12, h: 20 }, { id: 'r', type: 'chart', x: 12, y: 0, w: 12, h: 20 }])
-    await say('what % of nasdaq stocks are above the 50 day')
+  it('ONE chart on a FULL board: the switch still succeeds (nothing to place)', async () => {
+    const { board, say } = mount(ONE_FULL, { B: 'QQQ' })
+    await askNasdaq(say)
+    fireEvent.click(chartButtons()[0])
+    await waitFor(() => expect(charts(board)).toEqual(['NASDAQ:A50']), { timeout: 8000 })
+    expect(board.state.widgets).toHaveLength(1)
+    expect(transcript()).not.toMatch(/no empty space/)
+  }, 20000)
+
+  it('SEVERAL charts: asks which — labelled by place and symbol, plus Cancel; only the one picked changes', async () => {
+    const { board, say } = mount(TWO, { A: 'NVDA' })
+    board.state.widgets[1].color = 'C'; board.state.groupSyms.C = 'SPY'
+    await askNasdaq(say)
+    fireEvent.click(chartButtons()[0])
+    await waitFor(() => expect(screen.queryAllByTestId('agent-question')).toHaveLength(1), { timeout: 8000 })
+    expect(screen.getByTestId('agent-question').textContent).toMatch(/Which chart should show NASDAQ:A50\?/)
+    const labels = choiceButtons().map(b => b.textContent)
+    expect(labels).toHaveLength(3)
+    expect(labels[0]).toMatch(/NVDA/); expect(labels[1]).toMatch(/SPY/); expect(labels[2]).toBe('Cancel')
+    expect(charts(board)).toEqual(['NVDA', 'SPY'])                                 // nothing changes before the pick
+    fireEvent.click(choiceButtons()[1])
+    await waitFor(() => expect(charts(board)).toEqual(['NVDA', 'NASDAQ:A50']), { timeout: 8000 })
+    expect(board.state.widgets).toHaveLength(2)
+    expect(turns).toHaveLength(0)
+  }, 30000)
+
+  it('SEVERAL charts on the SAME ticker: every choice is distinct; the picked one alone changes', async () => {
+    const W = [{ id: 'a', type: 'chart', x: 0, y: 0, w: 8, h: 20, color: 'N' }, { id: 'b', type: 'chart', x: 8, y: 0, w: 8, h: 20, color: 'N' }]
+    const { board, say } = mount(W, { 'N:a': 'QQQ', 'N:b': 'QQQ' })
+    await askNasdaq(say)
+    fireEvent.click(chartButtons()[0])
+    await waitFor(() => expect(screen.queryAllByTestId('agent-question')).toHaveLength(1), { timeout: 8000 })
+    const labels = choiceButtons().slice(0, -1).map(b => b.textContent)
+    expect(new Set(labels).size).toBe(2)
+    fireEvent.click(choiceButtons()[0])
+    await waitFor(() => expect(charts(board)).toEqual(['NASDAQ:A50', 'QQQ']), { timeout: 8000 })
+  }, 30000)
+
+  it('Cancel: nothing changes, and a later message is not read as a pick', async () => {
+    const { board, say } = mount(TWO, { A: 'NVDA' })
+    await askNasdaq(say)
+    const before = JSON.stringify(board.state)
+    fireEvent.click(chartButtons()[0])
+    await waitFor(() => expect(choiceButtons().length).toBe(3), { timeout: 8000 })
+    fireEvent.click(choiceButtons()[2])
+    await waitFor(() => expect(transcript()).toMatch(/Okay — nothing changed\./), { timeout: 8000 })
+    expect(JSON.stringify(board.state)).toBe(before)
+  }, 20000)
+
+  it('NO chart: one new chart is added through the safe add; a full board with no chart is refused, unchanged', async () => {
+    const { board, say } = mount(NONE)
+    await askNasdaq(say)
+    fireEvent.click(chartButtons()[0])
+    await waitFor(() => expect(charts(board)).toEqual(['NASDAQ:A50']), { timeout: 8000 })
+    expect(board.state.widgets).toHaveLength(2)
+    cleanup()
+    const full = mount([{ id: 'w', type: 'watchlist', x: 0, y: 0, w: 24, h: 20 }])
+    await askNasdaq(full.say)
+    const before = JSON.stringify(full.board.state.widgets)
+    fireEvent.click(chartButtons()[0])
+    await waitFor(() => expect(transcript()).toMatch(/no empty space for a Chart/), { timeout: 8000 })
+    expect(JSON.stringify(full.board.state.widgets)).toBe(before)
+  }, 30000)
+
+  it('a series already on the board: said, nothing changes (no duplicate)', async () => {
+    const { board, say } = mount(TWO, { A: 'NASDAQ:A50' })
+    await askNasdaq(say)
+    const before = JSON.stringify(board.state)
+    fireEvent.click(chartButtons()[0])
+    await waitFor(() => expect(transcript()).toMatch(/NASDAQ:A50 is already on your board/), { timeout: 8000 })
+    expect(JSON.stringify(board.state)).toBe(before)
+  }, 20000)
+
+  it('a PROTECTED layout (Main Trading): refused before any question — nothing changes', async () => {
+    const board = makeBoard(TWO, { A: 'NVDA' }, { layouts: { entries: [{ id: 1, name: 'Main Trading' }], active: 1 } })
+    render(<AgentPanel host={board.host} onClose={() => {}} />)
+    const box = screen.getByLabelText('Message UCT Agent')
+    fireEvent.change(box, { target: { value: 'what % of nasdaq stocks are above the 50 day' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
     await waitFor(() => expect(chartButtons()).toHaveLength(1), { timeout: 8000 })
     const before = JSON.stringify(board.state.widgets)
     fireEvent.click(chartButtons()[0])
-    await waitFor(() => expect(transcript()).toMatch(/no empty space for a Chart/), { timeout: 8000 })
+    await waitFor(() => expect(transcript()).toMatch(/protected layout/), { timeout: 8000 })
+    expect(screen.queryAllByTestId('agent-question')).toHaveLength(0)
     expect(JSON.stringify(board.state.widgets)).toBe(before)
-    expect(transcript()).not.toMatch(/Created/)
+    expect(charts(board)).toEqual(['NVDA', 'NVDA'])
   }, 20000)
 
-  it('a series already on the board is not opened twice — said, nothing added', async () => {
-    const { board, say } = mount([{ id: 'l', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'B' }], { B: 'US:A50' })
-    await say('what % of us stocks are above the 50 day')
-    await waitFor(() => expect(chartButtons()).toHaveLength(1), { timeout: 8000 })
-    fireEvent.click(chartButtons()[0])
-    await waitFor(() => expect(transcript()).toMatch(/US:A50 is already on your board/), { timeout: 8000 })
-    expect(board.state.widgets).toHaveLength(1)
-    expect(board.state.addCalls || []).toHaveLength(0)
-  }, 20000)
-
-  it('a history search opens the same measure’s series', async () => {
-    const { board, say } = mount()
-    await say('when was the last time nyse a200 was below 10%')
-    await waitFor(() => expect(chartButtons()).toHaveLength(1), { timeout: 8000 })
-    fireEvent.click(chartButtons()[0])
-    await waitFor(() => expect(charts(board)).toContain('NYSE:A200'), { timeout: 8000 })
-  }, 20000)
-
-  it('a series UCT does not know (a stale / restored card) is refused by the symbol check — no blank chart', async () => {
-    const { board, say } = mount()
-    SERIES['us:pct_above_50sma'] = 'US:GONE'                          // the registry answered a series search no longer knows
+  it('a series UCT does not know (a stale / restored card) is refused by the symbol check — the chart keeps its symbol', async () => {
+    const { board, say } = mount(ONE, { B: 'QQQ' })
+    SERIES['us:pct_above_50sma'] = 'US:GONE'
     try {
       await say('what % of us stocks are above the 50 day')
       await waitFor(() => expect(chartButtons()).toHaveLength(1), { timeout: 8000 })
       fireEvent.click(chartButtons()[0])
       await waitFor(() => expect(transcript()).toMatch(/UCT has no symbol “US:GONE”/), { timeout: 8000 })
-      expect(charts(board)).toEqual(['NVDA', 'NVDA'])
+      expect(charts(board)).toEqual(['QQQ'])
     } finally { SERIES['us:pct_above_50sma'] = 'US:A50' }
   }, 20000)
+
+  it('a history search opens the searched measure’s series', async () => {
+    const { board, say } = mount(ONE, { B: 'QQQ' })
+    await say('when was the last time nyse a200 was below 10%')
+    await waitFor(() => expect(chartButtons()).toHaveLength(1), { timeout: 8000 })
+    fireEvent.click(chartButtons()[0])
+    await waitFor(() => expect(charts(board)).toEqual(['NYSE:A200']), { timeout: 8000 })
+  }, 20000)
+
+  it('an EXPLICIT new-chart request keeps the add: "Open NASDAQ:A50 in a new chart" → a new chart (the add’s own proposal)', async () => {
+    const { board, say, idle } = mount(ONE, { B: 'QQQ' })
+    await say('Open NASDAQ:A50 in a new chart')
+    await waitFor(() => expect(screen.queryAllByTestId('agent-proposal')).toHaveLength(1), { timeout: 8000 })
+    expect(screen.getByTestId('agent-proposal').textContent).toMatch(/Create a chart: NASDAQ:A50/)
+    await idle()
+    await say('do it')
+    await waitFor(() => expect(charts(board)).toEqual(['QQQ', 'NASDAQ:A50']), { timeout: 8000 })
+    expect(turns).toHaveLength(0)
+  }, 30000)
 })
 
 describe('the card — when the action shows, and what it carries', () => {
@@ -184,6 +273,43 @@ describe('the card — when the action shows, and what it carries', () => {
     rerender(<AgentResult view={v({ chart: { symbol: 'NASDAQ:A50' } })} onOpenChart={onOpen} busy />)
     expect(chartButtons()[0].disabled).toBe(true)
   })
+  it('the footer: metric cards get the divider row (Details left, Open chart right); prose cards keep their layout', () => {
+    const onOpen = vi.fn()
+    const { rerender, container } = render(<AgentResult view={v({ chart: { symbol: 'NASDAQ:A50' }, details: { text: 'full answer' } })} onOpenChart={onOpen} />)
+    const foot = screen.getByTestId('agent-result-foot')
+    expect(foot.firstElementChild.getAttribute('data-testid')).toBe('agent-result-details')   // Details first (left)
+    expect(foot.lastElementChild.getAttribute('data-testid')).toBe('agent-open-chart')         // the button last (right)
+    // Details still opens
+    const det = screen.getByTestId('agent-result-details')
+    fireEvent.click(det.querySelector('summary'))
+    expect(det.open).toBe(true)
+    expect(det.textContent).toMatch(/full answer/)
+    // a metric card with Details only (e.g. "% at or below"): the same footer, no button
+    rerender(<AgentResult view={v({ details: { text: 'x' } })} onOpenChart={onOpen} />)
+    expect(screen.getByTestId('agent-result-foot')).toBeTruthy()
+    expect(chartButtons()).toHaveLength(0)
+    // a prose answer: unchanged (no footer row)
+    rerender(<AgentResult view={{ kind: 'text', text: 'hello', details: { text: 'more' } }} onOpenChart={onOpen} />)
+    expect(screen.queryByTestId('agent-result-foot')).toBeNull()
+    void container
+  })
+
+  it('the button: disabled while the panel is busy; "Opening…" (and disabled) while its own click runs', async () => {
+    let release
+    const onOpen = vi.fn(() => new Promise(r => { release = r }))
+    render(<AgentResult view={v({ chart: { symbol: 'NASDAQ:A50' } })} onOpenChart={onOpen} />)
+    const b = chartButtons()[0]
+    expect(b.textContent).toBe('Open chart')
+    fireEvent.click(b)
+    await waitFor(() => expect(chartButtons()[0].textContent).toBe('Opening…'))
+    expect(chartButtons()[0].disabled).toBe(true)
+    expect(chartButtons()[0].getAttribute('aria-busy')).toBe('true')
+    release()
+    await waitFor(() => expect(chartButtons()[0].textContent).toBe('Open chart'))
+    expect(chartButtons()[0].disabled).toBe(false)
+    expect(onOpen).toHaveBeenCalledTimes(1)
+  })
+
   it('presentOf keeps the capability’s target — never one guessed from the text', () => {
     expect(presentOf({ text: 'NVDA is up', present: { kind: 'value', value: '1', label: 'NVDA' } }).chart).toBeUndefined()
     expect(presentOf({ text: 'x', chart: { symbol: 'nvda' }, present: { kind: 'value', value: '1', label: 'x' } }).chart).toEqual({ symbol: 'NVDA', label: 'NVDA' })
@@ -207,11 +333,11 @@ describe('stock answers chart their ticker', () => {
       if (u.includes('QQQ')) { profileCalls.push(u); return json({ ticker: 'QQQ', name: 'Invesco QQQ', market_cap: 1, price: 1 }) }
       return json({ conversations: [] })
     })
-    const { board, say } = mount()
+    const { board, say } = mount([{ id: 'l', type: 'chart', x: 0, y: 0, w: 8, h: 20, color: 'B' }], { B: 'NVDA' })
     await say('tell me about QQQ')
     await waitFor(() => expect(chartButtons().length).toBeGreaterThan(0), { timeout: 8000 })
     expect(chartButtons()[0].getAttribute('aria-label')).toBe('Open chart: QQQ')
     fireEvent.click(chartButtons()[0])
-    await waitFor(() => expect(charts(board)).toContain('QQQ'), { timeout: 8000 })
+    await waitFor(() => expect(charts(board)).toEqual(['QQQ']), { timeout: 8000 })
   }, 20000)
 })

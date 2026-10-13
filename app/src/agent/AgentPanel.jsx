@@ -187,7 +187,8 @@ function Item({ it, agent, member, at, cont }) {
               {it.choices.map((c, i) => (
                 <button key={i} type="button" className={styles.choice} disabled={agent.busy}
                   data-door={c.door || undefined}
-                  onClick={() => (c.door ? agent.openDoor(c.door) : c.ref ? agent.chooseTarget(c.ref, c.label) : agent.send(c.label, { answering: true }))}>{c.label}</button>
+                  data-cancel={c.cancel ? 'true' : undefined}
+                  onClick={() => (c.cancel ? agent.dismiss() : c.door ? agent.openDoor(c.door) : c.ref ? agent.chooseTarget(c.ref, c.label) : agent.send(c.label, { answering: true }))}>{c.label}</button>
               ))}
             </div>
           )}
