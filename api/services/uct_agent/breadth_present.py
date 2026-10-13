@@ -155,6 +155,56 @@ def view_of(res: Any, answer: dict) -> Optional[dict]:
     return None
 
 
+# ── "% BELOW a moving average" (post-release 2026-10-13: "what % of US stocks are below the 50sma") ────────
+# UCT stores ONE measure: % of stocks ABOVE the moving average — strictly close > MA, over the names with
+# enough history for the window, rounded to 0.1 (breadth_live._pct; the finalized series is the same
+# measure). Its complement is therefore the share AT OR BELOW the average: 100 − above, over the same
+# denominator. No second dataset, nothing invented: the measure's own values, complemented and SAID so.
+BELOW_WORDS = ("Above", "At or Below")
+BELOW_REFUSAL = ("The share below a moving average is shown for a current or dated reading. For comparisons "
+                 "and ranges, ask about the share above it.")
+
+
+def below_ok(req: Any) -> bool:
+    """A "% below" request UCT can answer exactly: one reading (mode value) of % above-MA measures only."""
+    mets = req.get("metrics") if isinstance(req, dict) else None
+    return (isinstance(req, dict) and req.get("mode") == "value" and isinstance(mets, list) and bool(mets)
+            and all(isinstance(m, str) and m.startswith("pct_above_") for m in mets))
+
+
+def _below(v: Any) -> Any:
+    return round(100.0 - float(v), 1) if isinstance(v, (int, float)) and not isinstance(v, bool) else v
+
+
+def complement(res: Any) -> Any:
+    """MI's value-mode result as the share AT OR BELOW each moving average (value and prior value)."""
+    if not isinstance(res, dict):
+        return res
+    out = {**res, "metrics": []}
+    for m in res.get("metrics") or []:
+        if isinstance(m, dict) and str(m.get("metric") or "").startswith("pct_above_"):
+            m = {**m, "label": str(m.get("label") or "").replace(*BELOW_WORDS)}
+            if m.get("status") == "ok":
+                m["value"] = _below(m.get("value"))
+                if m.get("prior_value") is not None:
+                    m["prior_value"] = _below(m["prior_value"])
+        out["metrics"].append(m)
+    return out
+
+
+def complement_reading(reading):
+    """The current-reading contract's reader, complemented the same way (None stays None)."""
+    if reading is None:
+        return None
+
+    def read(universe, metric):
+        r = reading(universe, metric)
+        if isinstance(r, dict) and str(metric).startswith("pct_above_") and isinstance(r.get("value"), (int, float)):
+            return {**r, "value": _below(r["value"])}
+        return r
+    return read
+
+
 def _chrono(m: dict) -> tuple[dict, dict, float]:
     """(earlier, later, later − earlier) for a compared measure, whatever order the request named them.
     MI's `change` is current − other; when `current` is the EARLIER session it is negated — the same
