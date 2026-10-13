@@ -30,6 +30,9 @@ const stacks = new Map()          // `${userId}:${surfaceKey}` → { past: [], f
 const listeners = new Set()
 let version = 0
 let seq = 0
+// ⛔ An Undo/Redo writes through the surface's own sink — which, for the Chart Settings modal
+// and the phone sheet, is the same sink that RECORDS. While one is applying, nothing records.
+let applying = 0
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 const keyOf = (userId, surfaceKey) => `${userId || 'anon'}:${surfaceKey}`
@@ -141,6 +144,7 @@ export function describeIndicatorChange(before, after, labelOf) {
  * @param {{userId?:string, labelOf?:(defId)=>string, origin?:string|null, toast?:boolean}} opts
  */
 export function recordIndicatorChange(surfaceKey, before, after, opts = {}) {
+  if (applying) return null
   const what = describeIndicatorChange(before, after, opts.labelOf)
   if (!what) return null
   const record = recordOf(before, after)
@@ -169,7 +173,8 @@ export function undoIndicatorChange(surfaceKey, cs, write, { userId } = {}) {
   if (!entry) return { ok: false, reason: 'empty' }
   const r = applyUndo(cs, entry.record)
   if (!r.ok) return { ...r, entry }
-  write(r.cs)
+  applying++
+  try { write(r.cs) } finally { applying-- }
   st.past = st.past.slice(0, -1)
   st.future = [...st.future, entry]
   persist(userId, surfaceKey, st)
@@ -184,7 +189,8 @@ export function redoIndicatorChange(surfaceKey, cs, write, { userId } = {}) {
   if (!entry) return { ok: false, reason: 'empty' }
   const r = applyRedo(cs, entry.record)
   if (!r.ok) return { ...r, entry }
-  write(r.cs)
+  applying++
+  try { write(r.cs) } finally { applying-- }
   st.future = st.future.slice(0, -1)
   st.past = [...st.past, entry]
   persist(userId, surfaceKey, st)

@@ -85,6 +85,7 @@ import useSymbolDiscovery from './useSymbolDiscovery'
 // See the header — this is the reuse, and it is why this file has no `q.trim()`
 // in it and no second `setIndicatorEnabled` call.
 import { matches, isRowOn, toggledRow, rowVisibility } from './IndicatorLibraryDialog'
+import IndicatorHistoryButtons from './IndicatorHistoryButtons'
 import { legacyInstanceId } from './engine/instances'
 import {
   addInstance, removeInstance, setIndicatorEnabled, setInstanceHidden, findInstance,
@@ -277,6 +278,9 @@ export default function ChartSettingsIndicators({
   settings,
   onChange,
   registry,
+  // ⭐ A1.2 — the chart's indicator Undo stack (`indicatorHistoryStore`); absent ⇒ no buttons.
+  historyKey = null,
+  historyUserId = null,
   onRowPatch,
   colorSwatch,
   volumeRef,
@@ -3606,6 +3610,9 @@ export default function ChartSettingsIndicators({
                 >Done</button>
               ) : (
                 <>
+                  {/* ⭐ A1.2 — Undo / Redo for this chart's indicator changes (the toast's
+                      stack). It is the door that works while this modal covers the toast. */}
+                  <IndicatorHistoryButtons surfaceKey={historyKey} userId={historyUserId} cs={settings} write={onChange} />
                   {/* ⛔ OFFERED ONLY WHEN THERE IS SOMETHING TO ARRANGE. One pane
                       cannot be restacked, and a control that cannot act is not a
                       control. */}

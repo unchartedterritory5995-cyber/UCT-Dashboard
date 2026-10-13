@@ -1179,6 +1179,8 @@ function ChartPane({
            `movePane` resolving an order with no `volume` key to cross. */
         volumeOpts={{ volumeSeparatePane: true, blankVolume: false }}
         onChange={updateFromSettingsModal}
+        historyKey={indicatorHistoryKey}
+        historyUserId={historyUserId}
         onApplyThemeAll={onApplyThemeAll}
         onApplyThemeAllWidgets={onApplyThemeAllWidgets}
         onAdjustWatermark={onAdjustWatermark ? () => { onAdjustWatermark(); setSettingsOpen(false) } : null}

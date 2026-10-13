@@ -286,6 +286,8 @@ const CROSSHAIR_MODE_LABELS = {
 
 export default function ChartSettingsModal({
   open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor, themeVars = null,
+  // ⭐ A1.2 — the chart's indicator Undo stack, for the Indicators tab's Undo / Redo.
+  historyKey = null, historyUserId = null,
   // Optional: apply a UCT theme to EVERY chart in the layout at once. Supplied by
   // the Charts workspace (via ChartPane); when absent, the themes gallery offers
   // only "this chart".
@@ -1267,6 +1269,8 @@ export default function ChartSettingsModal({
             rows={indRows}
             settings={settings}
             onChange={onChange}
+            historyKey={historyKey}
+            historyUserId={historyUserId}
             registry={engineRegistry}
             onRowPatch={setRow}
             colorSwatch={colorSwatch}

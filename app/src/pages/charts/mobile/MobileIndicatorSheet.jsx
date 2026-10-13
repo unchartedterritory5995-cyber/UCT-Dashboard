@@ -7,6 +7,7 @@ import { catalogRows, userCatalogRows, catalogGeneration } from '../../../compon
 import { isRowOn, toggledRow, rowVisibility } from '../../../components/chart/IndicatorLibraryDialog'
 import { fieldFromInput } from '../../../components/chart/indicatorRegistry'
 import { setInstanceInput, removeInstance } from '../../../components/chart/engine/instanceControls'
+import IndicatorHistoryButtons from '../../../components/chart/IndicatorHistoryButtons'
 import { isInstanceTombstone } from '../../../components/chart/instanceShape'
 import styles from './MobileCharts.module.css'
 
@@ -145,7 +146,7 @@ import { safeCssColour } from '../../../components/chart/engine/objectColour'
 
 const QUICK_STUDY_IDS = ['rsi', 'macd', 'bb', 'vwap', 'atr', 'stoch']
 
-export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBrowseLibrary, onOpenSettings, className = '', initialEditing = null }) {
+export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBrowseLibrary, onOpenSettings, className = '', initialEditing = null, historyKey = null, historyUserId = null }) {
   const overlays = averageSlotView(cs)
   // Wave 8: tap a row's NAME to edit its parameters in a stacked mini-sheet —
   // period/color without the trip through the desktop settings modal.
@@ -242,6 +243,12 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
     <>
     <Sheet open={open} onClose={onClose} variant="bottom-sheet" title="Indicators" ariaLabel="Indicators" className={className}>
       <div className={styles.sheetList}>
+        {/* ⭐ A1.2 — Undo / Redo for this chart's indicator changes (absent without a key). */}
+        {historyKey && (
+          <div className={styles.sectionLabel} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <IndicatorHistoryButtons surfaceKey={historyKey} userId={historyUserId} cs={cs} write={onWrite} />
+          </div>
+        )}
         <div className={styles.sectionLabel}>Moving averages</div>
         {/* ⛔ INDEX FIRST, FILTER SECOND — `toggleMa(i)` / `patchMa(i, …)` address
             the slot in the STORED array, so `i` must stay the real index. A moving
