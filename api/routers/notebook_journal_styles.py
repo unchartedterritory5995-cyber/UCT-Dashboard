@@ -374,6 +374,9 @@ def apply_style_update_endpoint(note_id: str, body: dict = Depends(paid_body),
 #                                                              400 blank label or a wrong type, 404
 #                                                              another member's rule (spec §P2 item 2)
 #   GET /api/j2/trader-blocks/rules/{rule_id}/versions         newest first; 404 another member's rule
+#   GET /api/j2/trader-blocks/rules/{rule_id}/before-after     each version's before / after windows
+#                                                              (R-P2b-3); 404 another member's rule or
+#                                                              a dismissed one
 
 @router.put("/trader-blocks/rules/{rule_id}")
 def trader_edit_rule(rule_id: str, body: dict = Depends(paid_body), user: dict = Depends(require_paid)) -> dict[str, Any]:
@@ -395,3 +398,13 @@ def trader_rule_versions(rule_id: str, user: dict = Depends(require_paid)) -> di
     if vs is None:
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     return {"versions": vs}
+
+
+@router.get("/trader-blocks/rules/{rule_id}/before-after")
+def trader_rule_before_after(rule_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """Read-only. Sample sizes always; `small` below rule_versions.SMALL_SAMPLE (spec §P2 item 2)."""
+    from api.services.journal_two import rule_versions
+    got = rule_versions.before_after(user["id"], rule_id)
+    if got is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    return got

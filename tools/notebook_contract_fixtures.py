@@ -1877,6 +1877,23 @@ def trader_rules(w: World) -> None:
     w.record("trader-blocks.rules.versions", "GET", f"{base}/versions", case="success", expect=200)
     w.record("trader-blocks.rules.versions.not-found", "GET", "/api/j2/trader-blocks/rules/nope/versions",
              case="error", expect=404, note="Not this member's rule (or no such rule): the same 404.")
+    # Task 4 (R-P2b-3): two closed trades in the rule's account, one either side of v2's day (today,
+    # written through the door above), the first with a ticked checklist.
+    from api.services.journal_two import adherence_store
+    c = w.conn()
+    try:
+        add_trade(c, "rules-before", user=who, entry=100.0, exit_=95.0, stop=97.5, account_id="acct-rules",
+                  entry_date="2026-09-15T14:30:00+00:00", exit_date="2026-09-16T15:00:00+00:00")
+        add_trade(c, "rules-after", user=who, entry=100.0, exit_=104.0, stop=98.0, account_id="acct-rules",
+                  entry_date="2026-10-05T13:35:00+00:00", exit_date="2026-10-05T14:10:00+00:00")
+        adherence_store.upsert_adherence(who, "id:rules-before", "VCP", ["r1"], 2, conn=c)
+    finally:
+        c.close()
+    w.record("trader-blocks.rules.before-after", "GET", f"{base}/before-after", case="success", expect=200,
+             note="Version 2 split on its ET day: one trade before (with a ticked checklist), one after. "
+                  "Both windows are small samples, so the client shows counts, never a bare rate.")
+    w.record("trader-blocks.rules.before-after.not-found", "GET", "/api/j2/trader-blocks/rules/nope/before-after",
+             case="error", expect=404, note="Not this member's rule, no such rule, or a dismissed one: the same 404.")
     w.as_user(MEMBER)
 
 

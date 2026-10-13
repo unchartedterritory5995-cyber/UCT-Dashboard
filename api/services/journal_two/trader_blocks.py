@@ -479,6 +479,19 @@ def pre_entry_ref(position_id: str) -> str:
     return PRE_ENTRY_PREFIX + position_id
 
 
+def adherence_of_trade(lookup: Callable[[str], dict | None], trade_ref: str,
+                       position_id: str | None) -> dict | None:
+    """A closed trade's adherence record: its own (by its stable trade ref), else the ticks made in
+    Log Trade while its position was open (pre_entry_ref). THE one join (R-PF-N7): the before / after
+    numbers (rule_versions.before_after) and the trade review read it through here, so the two can
+    never disagree about a Log-Trade-ticked trade. `lookup` answers one ref: `dict.get` over
+    adherence_store.list_adherence_for_user, or a get_adherence call."""
+    own = lookup(trade_ref)
+    if own is None and isinstance(position_id, str) and position_id:
+        return lookup(pre_entry_ref(position_id))
+    return own
+
+
 #: The 409 sentence (R-T5-1): the position already has an exit, so its ticks belong on the trade.
 PRE_ENTRY_EXITED_SENTENCE = ("This trade is already closed or partly closed. "
                              "Record its rules on the trade instead.")

@@ -253,6 +253,12 @@
       },
       "status": 404
     },
+    "GET /api/j2/trader-blocks/rules/{rule_id}/before-after": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
     "GET /api/j2/trader-blocks/rules/{rule_id}/versions": {
       "body": {
         "detail": "Not found"

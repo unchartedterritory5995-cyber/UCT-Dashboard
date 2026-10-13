@@ -137,3 +137,70 @@ def edit_rule(user_id: str, rule_id: str, patch: dict[str, Any], conn: sqlite3.C
     finally:
         if owned:
             conn.close()
+
+
+# ── "Before / after this rule" (spec §P2 item 2; R-P2b-3) ───────────────────────────────────
+SMALL_SAMPLE = 10
+
+
+def _day(iso: str | None) -> str | None:
+    """The ET trading day of a stored stamp (R-PF-N6): a change made at 21:00 ET is stamped the next
+    UTC day, and R-P2b-3 splits on the member's day. One spelling for a version's change and a
+    trade's entry: journal_two.timeutil.compute_trading_day_et (a bare date is its own day)."""
+    from api.services.journal_two.timeutil import compute_trading_day_et
+    return compute_trading_day_et(iso) if iso else None
+
+
+def _window(trades: list[tuple[str | None, sqlite3.Row]], frm: str | None, to: str | None, adh: dict) -> dict:
+    """One window, [from's day, to's day). `trades` is (ET entry day, row), already scoped to the
+    member, the rule's account and analytics. Sample sizes always; `small` below SMALL_SAMPLE."""
+    from api.services.journal_two.trade_refs import trade_ref_for_row
+    from api.services.journal_two.trader_blocks import adherence_of_trade
+    lo, hi = _day(frm), _day(to)
+    rows = [r for day, r in trades if day is not None and (lo is None or day >= lo) and (hi is None or day < hi)]
+    wins = sum(1 for r in rows if r["result"] == "Win")
+    rs = [float(r["r_multiple"]) for r in rows if r["r_multiple"] is not None]
+    recs = (adherence_of_trade(adh.get, trade_ref_for_row(r), r["position_id"]) for r in rows)
+    ad = [rec["adherencePct"] for rec in recs if rec is not None and rec.get("adherencePct") is not None]
+    n = len(rows)
+    return {"from": frm, "to": to, "trades": n, "wins": wins,
+            "winRate": (wins / n) if n else None,
+            "rCount": len(rs), "avgR": round(sum(rs) / len(rs), 2) if rs else None,
+            "adherenceCount": len(ad), "adherence": round(sum(ad) / len(ad), 4) if ad else None,
+            "small": n < SMALL_SAMPLE}
+
+
+def before_after(user_id: str, rule_id: str, conn: sqlite3.Connection | None = None) -> dict | None:
+    """Every version's before and after windows, newest version first. None (the route's 404) for
+    another member's rule, a missing one, or a DISMISSED one (R-PF-N20: the client's "It may have
+    been dismissed" must be true). Read-only apart from the lazy v1 (R-P2b-2)."""
+    from api.services.journal_two import adherence_store
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = _rule_row(conn, user_id, rule_id)
+        if row is None or row["status"] == "dismissed":
+            return None
+        _ensure_v1(conn, row)
+        conn.commit()
+        vs = conn.execute("SELECT * FROM j2_journal_rule_versions WHERE user_id = ? AND rule_id = ?"
+                          " ORDER BY version", (user_id, rule_id)).fetchall()
+        # B4: the store answers {trade_ref: record}, never a list.
+        adh = adherence_store.list_adherence_for_user(user_id, conn=conn)
+        sql = ["SELECT * FROM j2_trades WHERE user_id = ? AND COALESCE(analytics_excluded, 0) = 0"]
+        params: list = [user_id]
+        if row["account_id"]:
+            sql.append("AND account_id = ?")
+            params.append(row["account_id"])
+        trades = [(_day(t["entry_date"]), t) for t in conn.execute(" ".join(sql), params).fetchall()]
+        out = []
+        for i, v in enumerate(vs):
+            prev_start = vs[i - 1]["changed_at"] if i > 0 else None
+            nxt = vs[i + 1]["changed_at"] if i + 1 < len(vs) else None
+            out.append({"version": v["version"], "label": v["label"], "changedAt": v["changed_at"],
+                        "before": _window(trades, prev_start, v["changed_at"], adh),
+                        "after": _window(trades, v["changed_at"], nxt, adh)})
+        return {"ruleId": rule_id, "accountId": row["account_id"], "versions": list(reversed(out))}
+    finally:
+        if owned:
+            conn.close()
