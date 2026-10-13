@@ -194,6 +194,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/blocks/PrepEarningsBlock.jsx': { coveredBy: 'trader-block-platform' },
   'components/notebook/blocks/PrepMoversBlock.jsx': { coveredBy: 'trader-block-platform' },
   'components/notebook/blocks/PrepLevelsBlock.jsx': { coveredBy: 'trader-block-platform' },
+  // P2b Task 10: the frame the four prep blocks share (Capture now / Capture again, the failure line).
+  'components/notebook/blocks/PrepCapture.jsx': { coveredBy: 'trader-block-platform' },
   'components/notebook/blocks/TradeReviewBlock.jsx': { coveredBy: 'trader-block-platform' },
 
   // ── documents ──────────────────────────────────────────────────────────────

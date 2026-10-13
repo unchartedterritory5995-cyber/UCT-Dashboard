@@ -25,8 +25,10 @@ import { BLOCK_ERROR_SENTENCE } from '../components/notebook/blocks/blockStates'
 const editor = { isEditable: true, storage: { uctJournalWidgets: { noteId: 'n1' } } }
 const node = (widgetId, params = {}) => ({ attrs: { widgetId, params, searchText: `[${widgetId}]` } })
 
-const PART_B = ['My rules', 'Morning wire and exposure', 'Earnings for my names', 'My movers',
-  'Key levels from my plans', 'Post-trade review']
+// P2b: part b's bodies are stubs until their own tasks. Task 10 flipped the four prep blocks, so each of
+// those has a real expectation below instead of the stub sentence.
+const PART_B = ['My rules', 'Post-trade review']
+const PREP_BLOCKS = ['Morning wire and exposure', 'Earnings for my names', 'My movers', 'Key levels from my plans']
 
 axeSurface('trader-block-platform', async () => {
   render(<div>
@@ -51,8 +53,13 @@ axeSurface('trader-block-platform', async () => {
   for (const name of ['Pre-entry checklist', 'Price stamps', 'Position sizing']) {
     expect(group(name).queryByText('This block is being built.')).toBeNull()
   }
-  // P2b Task 2: part b's six are stubs until their body tasks (8, 10, 11); each must still paint.
+  // P2b Task 2: part b's stubs each paint until their body task replaces them (Task 8: My rules).
   for (const name of PART_B) expect(await group(name).findByText('This block is being built.')).toBeTruthy()
+  // P2b Task 10: an uncaptured prep block offers "Capture now" and has read nothing (never on mount).
+  for (const name of PREP_BLOCKS) {
+    expect(await group(name).findByRole('button', { name: 'Capture now' })).toBeTruthy()
+    expect(group(name).queryByText('This block is being built.')).toBeNull()
+  }
 })
 
 axeSurface('trader-block-platform:error', async () => {
