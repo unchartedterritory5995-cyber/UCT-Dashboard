@@ -397,7 +397,6 @@ def web_search(
     cost_surface: str = "perplexity",
     allow_stale: bool = False,
     cache_ttl_override: int | None = None,
-    return_cost: bool = False,
 ) -> dict[str, Any]:
     """Synthesized web answer with citations.
 
@@ -558,12 +557,9 @@ def web_search(
     _log_call(cost_surface, model, resolved_mode, ok=True,
              tokens_in=int(_usage.get("prompt_tokens") or 0),
              tokens_out=int(_usage.get("completion_tokens") or 0))
-    # ⭐ OPT-IN (`return_cost=True`, UCT Agent's spend ledger only): this call's own cost rides on the
-    # RETURNED dict, never the cache and never any other caller's result — every other caller (AI Search,
-    # voice, catalysts…) gets exactly the dict it always got, so no member-facing response changes shape.
-    if return_cost and cost is not None:
-        return {**result, "cost_usd": cost}
-    return result
+    # this call's own cost rides on the RETURNED dict only (never the cache): a caller with a hard
+    # dollar cap (UCT Agent's spend ledger) settles its reservation from it
+    return {**result, "cost_usd": cost} if cost is not None else result
 
 
 # Match a think block whether or not it is closed — an UNTERMINATED <think>
