@@ -235,3 +235,15 @@ test('A1.3b — Dock open → "Switched to …" → Undo reopens the previous la
   expect(modelCalls).toBe(0)
 }, 30000)
 
+// ⛔ Agent review (2026-10-13): an open that does NOT switch the board (a layout with no
+// widgets — applyTemplate returns early) must never say "Switched to …".
+test('A1.3b — a Dock open that does not land shows NO toast', async () => {
+  const EMPTY = { id: 4, name: 'Empty Board', scope: 'user', groups: null, layout: { cols: 24 } }
+  library = { global: [FIRM], mine: [MAIN, SWING, MACRO, EMPTY] }
+  mount(MAIN)
+  await act(async () => { dockButton('Empty Board').click() })
+  await new Promise((r) => setTimeout(r, 300))
+  expect(activeId()).toBe(1)
+  expect(screen.queryByTestId('layout-undo-toast')).toBeNull()
+}, 30000)
+
