@@ -48,7 +48,7 @@ def db_path(monkeypatch):
     monkeypatch.setattr(tb, "_regime_field", lambda memo: {"missing": "wire_unavailable"})
     monkeypatch.setattr(tb, "_quotes", lambda *a, **k: {})
     monkeypatch.setattr(tb, "prep_part",
-                        lambda uid, part, *, now=None, memo=None: tb._gap(tb._base(part, now), "source_error"))
+                        lambda uid, part, *, now=None, memo=None, **_k: tb._gap(tb._base(part, now), "source_error"))
     yield tmp.name
     os.unlink(tmp.name)
 

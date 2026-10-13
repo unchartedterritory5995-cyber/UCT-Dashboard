@@ -745,6 +745,10 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
     try:
         ctx = {"ticker": ticker, "now": now or datetime.now(timezone.utc), "memo": {}, "mode": mode,
                "user_id": user_id}
+        if mode == "create":
+            # R-T12-C: ONE read budget for every block this create builds (trader_blocks owns the number).
+            # A block still to read when it runs out lands uncaptured; an update reads nothing anyway.
+            _tb.start_budget(ctx["memo"])
         doc = _outline_doc(user_id, style, conn)
         enabled: dict[str, dict] = {}
         disabled: set[str] = set()

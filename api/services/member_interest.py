@@ -172,7 +172,7 @@ def weight_buckets_payload() -> list[dict]:
             for b, w in sorted(_BUCKET_WEIGHT.items())]
 
 
-def interest_for(user_id: str) -> dict:
+def interest_for(user_id: str, *, before_source=None) -> dict:
     """The member's entities, each carrying its weight and why it is there.
 
     Returns:
@@ -186,6 +186,10 @@ def interest_for(user_id: str) -> dict:
     `all_mine`, and every entity's `because[]` -- it is never allowed to
     blank the OTHER sources' answers, matching
     `calendar_personalization.py`'s original stated contract verbatim.
+
+    `before_source(name)`, when given, is called before each source is read, OUTSIDE the per-source
+    catch, so it may stop the read by raising (R-T12-C: trader_blocks' read budget on a note create).
+    Every other caller passes none and gets exactly the old behaviour.
     """
     # Built HERE, inside the call, NOT as a module-level constant: a dict
     # built once at import time would capture the ORIGINAL function objects
@@ -204,6 +208,8 @@ def interest_for(user_id: str) -> dict:
     }
     by_source: dict[str, set] = {}
     for name in SOURCES:
+        if before_source is not None:
+            before_source(name)
         try:
             by_source[name] = source_fns[name](user_id)
         except Exception as e:

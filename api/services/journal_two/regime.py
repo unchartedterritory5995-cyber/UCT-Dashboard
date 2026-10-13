@@ -88,8 +88,14 @@ def _read_exposure() -> dict | None:
 
 def get_current_regime() -> dict[str, Any]:
     """Return current regime label + raw score, or null fields."""
-    exp = _read_exposure()
-    if exp is None:
+    return regime_from_exposure(_read_exposure())
+
+
+def regime_from_exposure(exp: dict | None) -> dict[str, Any]:
+    """get_current_regime's answer for an exposure block the caller already holds (the ONE place the
+    label, score and date are derived from it). R-T12-C: trader_blocks' held-only regime read passes
+    the HELD breadth payload's exposure here, so a note create never asks the default get_breadth."""
+    if not isinstance(exp, dict) or exp.get("score") is None:
         return {"regime": None, "score": None, "source": None, "asOf": None}
     return {
         "regime": classify_regime(exp.get("score")),

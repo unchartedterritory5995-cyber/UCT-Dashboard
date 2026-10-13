@@ -91,7 +91,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 from api.services.journal_two.timeutil import compute_trading_day_et
 from api.services.notebook_flags import flag_on
@@ -325,22 +325,26 @@ def _wire_breadth() -> dict:
     return payload if isinstance(payload, dict) else {}
 
 
+def regime_fields_from(now: dict, wire_date: Callable[[], Any]) -> tuple[dict, dict]:
+    """The (regime, exposure) fields for a get_current_regime-shaped answer: the ONE place they are
+    shaped and DATED (R-W0-2). `wire_date` is asked only when the exposure block carries no date of its
+    own: the normalised block has none, and the payload's wire_date is that run's date. Shared by
+    _regime_fields (the default breadth) and trader_blocks._regime_field (the HELD breadth, R-T12-C)."""
+    as_of = now.get("asOf")
+    if as_of is None and now.get("regime") is not None:
+        as_of = wire_date()
+    if now.get("regime") is None or now.get("score") is None:
+        return (_missing(SRC_REGIME, "wire_unavailable"), _missing(SRC_EXPOSURE, "wire_unavailable"))
+    return (_field(now["regime"], SRC_REGIME, as_of), _field(float(now["score"]), SRC_EXPOSURE, as_of))
+
+
 def _regime_fields(memo: dict) -> tuple[dict, dict]:
     if "regime" in memo:
         return memo["regime"]
     from api.services.journal_two import regime as regime_service
     try:
-        now = regime_service.get_current_regime() or {}
-        as_of = now.get("asOf")
-        if as_of is None and now.get("regime") is not None:
-            # get_current_regime reads engine.get_breadth()["exposure"], whose normalised
-            # block carries no date; the payload's own wire_date is that run's date.
-            as_of = _wire_breadth().get("wire_date")
-        if now.get("regime") is None or now.get("score") is None:
-            out = (_missing(SRC_REGIME, "wire_unavailable"), _missing(SRC_EXPOSURE, "wire_unavailable"))
-        else:
-            out = (_field(now["regime"], SRC_REGIME, as_of),
-                   _field(float(now["score"]), SRC_EXPOSURE, as_of))
+        out = regime_fields_from(regime_service.get_current_regime() or {},
+                                 lambda: _wire_breadth().get("wire_date"))
     except Exception:  # noqa: BLE001
         log.warning("[entry_context] regime unreadable", exc_info=True)
         out = (_missing(SRC_REGIME, "source_error"), _missing(SRC_EXPOSURE, "source_error"))
