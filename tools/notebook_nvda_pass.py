@@ -452,7 +452,7 @@ def block_params(widget_id: str, kinds: dict) -> dict:
                                       "requireAll": d.get("requireAll", "no"), "checked": []},   # :46-49
         "priceStamps": lambda: {"on": d.get("on", "no")},                                        # :52-53
         "positionSizing": lambda: {"grade": d.get("grade", "A")},                                # :72, unstamped
-        "myRules": lambda: {},                                                                   # :100-101
+        "myRules": lambda: {"which": d.get("which", "active")},                                  # :100-103
         "prepWire": lambda: {},                                                                  # :740-741
         "tradeReview": lambda: {"tradeId": ""},                                                  # :102
     }[widget_id]()
