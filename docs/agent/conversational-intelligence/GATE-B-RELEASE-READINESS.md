@@ -3,9 +3,9 @@
 **Verdict: READY FOR AUTHORIZATION.** Nothing has been pushed, merged or deployed. No paid inference has been run.
 
 ## Candidate
-- **Branch:** `release/agent-gate-b` (C:/w/aconv), at **`a54180de5d`**.
+- **Branch:** `release/agent-gate-b` (C:/w/aconv). Push its **head** (the last code commit is `a54180de5d`; only this report follows it).
 - **Base:** cut from current master **`2d4c93293c`** (= production). It is a **fast-forward** (verified 16:26 ET).
-- **Contents:** 11 commits, Gate B only. No Gate C file is in it; Gate C lives on `feat/agent-conv-gate-c` and is a separate release.
+- **Contents:** 11 commits plus this report, Gate B only. No Gate C file is in it; Gate C lives on `feat/agent-conv-gate-c` and is a separate release.
 
 | Commit | What |
 |---|---|
@@ -54,7 +54,7 @@
 ## Release steps (when authorised)
 1. `git fetch`; confirm `origin/master` is still `2d4c93293c` (else re-cut the candidate and re-run the checks).
 2. In a Railway-linked worktree: run `python tools/pre_push_guard.py` **on its own** (not piped). It has not been run yet, because it needs the Railway link.
-3. `git push origin a54180de5d:refs/heads/master`.
+3. `git push origin <release/agent-gate-b head sha>:refs/heads/master`.
 4. Run the master deploy gate, then the promote-production workflow. Check **`promoted: yes`**, not only "success".
 5. **⚠ Deploy freeze: Wednesday 09:00–11:00 ET** (tomorrow, 2026-10-14). Release outside it, or with your explicit override.
 6. **Verify:**
