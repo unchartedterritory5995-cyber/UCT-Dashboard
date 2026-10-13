@@ -673,8 +673,10 @@ const CAPABILITIES = [
     args: { type: 'object', properties: {
       add: { type: 'array', items: { type: 'string' } }, remove: { type: 'array', items: { type: 'string' } }, clear: { type: 'boolean' },
     }, required: ['add', 'remove', 'clear'], additionalProperties: false },
+    // (`trusted`: tickers UCT itself showed — a screen's rows, Gate C "compare it to the others" — are
+    // not looked up again, exactly as chart.setSymbol; anything the member or the model typed still is)
     async prepare(ops) {
-      const syms = ops.flatMap(o => (o.args?.add || []).map(x => String(x || '').trim().toUpperCase())).filter(Boolean)
+      const syms = ops.filter(o => !o.trusted).flatMap(o => (o.args?.add || []).map(x => String(x || '').trim().toUpperCase())).filter(Boolean)
       return syms.length ? { unknownSymbols: await unknownSymbols(syms) } : {}
     },
     check(st, { add, remove, clear }, env) {
