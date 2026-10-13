@@ -126,7 +126,7 @@ import { prepareArrangement, settleArrangement } from './chart/engine/paneRealiz
 // `@<self>`, and never kept the legacy `volumeOverlayIndicators` mirror in step.
 // The canonical writer does all four. See `instanceControls.setInstanceDisplayTarget`.
 import {
-  setIndicatorEnabled, isIndicatorEnabled, findInstance,
+  setIndicatorEnabled, isIndicatorEnabled, findInstance, definitionVisibility,
   setInstanceHidden, removeInstance, duplicateInstance,
   setInstanceDisplayTarget,
 } from './chart/engine/instanceControls'
@@ -5800,6 +5800,10 @@ export default function StockChart({
     // "Hide RSI" would clear the mirror while the instance kept drawing. One
     // reader (`indEnabled`) and one writer (`setIndEnabled`) for every door.
     const indEnabled = (key) => isIndicatorEnabled(cs, key, ENGINE_OWNED)
+    // ⭐ A1 (D3): a toggle's CHECKMARK and DIRECTION read visibility — "exists" (above)
+    // still decides which entries are listed, so a hidden study stays in the menu and
+    // can be shown again. Off hides (kept, with its settings); it never deletes.
+    const indVis = (key) => (ENGINE_OWNED.has(key) ? definitionVisibility(cs, key, ENGINE_OWNED).state : (indEnabled(key) ? 'shown' : 'absent'))
     const setIndEnabled = (key, on) => {
       if (ENGINE_OWNED.has(key)) {
         const next = setIndicatorEnabled(cs, key, on, engineRegistry)
@@ -5831,8 +5835,10 @@ export default function StockChart({
         // adding one is the Add Indicator library's job, by category and search.
         .filter((row) => engineRegistry.getDefinition(row.id)?.meta?.quickMenu !== false || indEnabled(row.id))
         .map((row) => ({
-          id: 'ind-' + row.id, label: row.shortName, kind: 'toggle', checked: indEnabled(row.id),
-          onSelect: () => setIndEnabled(row.id, !indEnabled(row.id)),
+          id: 'ind-' + row.id,
+          label: indVis(row.id) === 'hidden' ? `${row.shortName} (hidden)` : row.shortName,
+          kind: 'toggle', checked: indVis(row.id) === 'shown',
+          onSelect: () => setIndEnabled(row.id, indVis(row.id) !== 'shown'),
         })),
     }
     // "Overlay on volume": a PANE oscillator that is currently ON. `placement.target`
@@ -5924,7 +5930,22 @@ export default function StockChart({
           }]
         : []
       secs.push({ id: 'region', title: label, items: [
-        { id: 'i-hide', label: `Hide ${label}`, kind: 'toggle', checked: true, onSelect: () => setIndEnabled(key, false) },
+        // ⭐ A1 (D3/C2): HIDE THE PANE'S OWN COPY. The pane is keyed by its host instance;
+        // hiding it hides only that copy (its group follows). Without a host (band mode)
+        // it is the definition hide — never a delete.
+        (() => {
+          const host = region.hostKey ? findInstance(cs, region.hostKey) : null
+          if (!host) return { id: 'i-hide', label: `Hide ${label}`, kind: 'toggle', checked: true, onSelect: () => setIndEnabled(key, false) }
+          const n = siblings.indexOf(host.instanceId)
+          const suffix = sibSuffixes && n >= 0 ? sibSuffixes[n] : ''
+          return {
+            id: 'i-hide', label: `${host.hidden ? 'Show' : 'Hide'} ${label}${suffix}`, kind: 'toggle', checked: !host.hidden,
+            onSelect: () => {
+              const next = setInstanceHidden(cs, host.instanceId, !host.hidden, engineRegistry)
+              if (next !== cs) handleUpdateChartSettings(next)
+            },
+          }
+        })(),
         ...settingsRow,
         ...alertRow,
       ] })
@@ -8694,7 +8715,9 @@ export default function StockChart({
   // reads the flag it has always read. Writing the raw flag is what made Alt+U
   // tick a box over a chart that disagreed (B3 Task 11).
   const toggleIndicatorById = useCallback((defId) => {
-    const on = isIndicatorEnabled(cs, defId, ENGINE_OWNED)
+    // ⭐ A1 (D3): the chord's direction is VISIBILITY — a shown study hides (kept), a
+    // hidden one shows exactly what was hidden, an absent one is added.
+    const on = definitionVisibility(cs, defId, ENGINE_OWNED).state === 'shown'
     const next = setIndicatorEnabled(cs, defId, !on, engineRegistry)
     if (next !== cs) handleUpdateChartSettings(next)
   }, [cs, handleUpdateChartSettings])
@@ -17184,13 +17207,17 @@ export default function StockChart({
         const _defByKey = (_layout && _layout.defByKey) || null
         const keyAt = new Map(_layout.panes.map(
           (p) => [p.index, (_defByKey && _defByKey.get(p.key)) || p.key]))
+        // ⭐ A1 (C2): …and the HOST INSTANCE id itself, carried beside the defId, so the
+        // region's "Hide" can address the copy that was right-clicked.
+        const hostAt = new Map(_layout.panes.map(
+          (p) => [p.index, (_defByKey && _defByKey.has(p.key)) ? p.key : null]))
         region = resolveChartRegionFromPanes({
           x: px, y: py, width: rect.width, height: rect.height,
           axisWidth, timeAxisHeight,
           panes: livePanes.map((p, i) => {
             let h = 0
             try { h = p.getHeight() } catch { h = 0 }
-            return { key: keyAt.get(i) || null, height: h }
+            return { key: keyAt.get(i) || null, hostKey: hostAt.get(i) || null, height: h }
           }),
           pane0Bands: { volume: _layout.pane0.volumeMargins || undefined },
           separatorHeight: _layout.separatorPx,

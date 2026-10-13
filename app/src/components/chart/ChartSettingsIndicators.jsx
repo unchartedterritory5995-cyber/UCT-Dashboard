@@ -84,7 +84,7 @@ import useSymbolDiscovery from './useSymbolDiscovery'
 // ⛔ THE SEARCH AND THE ADD, IMPORTED FROM THE DIALOG THAT ALREADY OWNS THEM.
 // See the header — this is the reuse, and it is why this file has no `q.trim()`
 // in it and no second `setIndicatorEnabled` call.
-import { matches, isRowOn, toggledRow } from './IndicatorLibraryDialog'
+import { matches, isRowOn, toggledRow, rowVisibility } from './IndicatorLibraryDialog'
 import { legacyInstanceId } from './engine/instances'
 import {
   addInstance, removeInstance, setIndicatorEnabled, setInstanceHidden, findInstance,
@@ -769,7 +769,9 @@ export default function ChartSettingsIndicators({
   // carved-out sections — the same order the panes and the legend read. This
   // filters; it never sorts.
   const activeRows = useMemo(
-    () => (rows || []).filter((r) => isFixtureRow(r) || readEnabled(r)),
+    // ⭐ A1 (D3): an engine row is LISTED while it EXISTS (`row.exists`), hidden or not —
+    // `enabled` now means "shown", and a hidden indicator must stay findable here.
+    () => (rows || []).filter((r) => isFixtureRow(r) || (r.engineOwned && typeof r.exists === 'boolean' ? r.exists : readEnabled(r))),
     [rows],
   )
 
@@ -3079,6 +3081,9 @@ export default function ChartSettingsIndicators({
     const isFeature = row.kind === 'feature'
     const creates = !isFeature && (resultByKey.has(row.key) || row.restores === true)
     const on = isFeature ? !!row.enabled : (creates ? false : isRowOn(row, settings))
+    // ⭐ A1 (D8): an indicator that EXISTS but is entirely hidden says so — it is on the
+    // chart (its rows are in the list above, each with its eye), not drawing.
+    const hiddenDef = on && !isFeature && !creates && rowVisibility(row, settings).state === 'hidden'
     // ⛔ DISCOVERY IS NOT CHARTABILITY. The facade reports what the SERVER already
     // said — a delisted ticker, an index the bars route will not serve — and
     // `createFromResult` refuses those by identity. A row that looked live and did
@@ -3139,6 +3144,7 @@ export default function ChartSettingsIndicators({
             {row.userDefined && !on && (
               <span className={styles.resPill} data-testid="your-indicator-status">Not on this chart</span>
             )}
+            {hiddenDef && <span className={styles.resPill} data-testid="result-hidden">Hidden</span>}
             {row.sessionOnly && <span className={styles.resPill}>Intraday only</span>}
             {/* The LINTER's measurement, per plot — never the definition's own
                 declared claim. Same read the library row makes. */}

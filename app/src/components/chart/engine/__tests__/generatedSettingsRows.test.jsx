@@ -6,7 +6,7 @@ import {
 } from '../../indicatorRegistry'
 import { mergeChartSettings as mergeChartSettingsReal, CHART_DEFAULTS } from '../../chartDefaults'
 import { CARVED_OUT_ROWS, NOT_IN_BLOB } from '../../indicatorCatalog'
-import { isIndicatorEnabled } from '../instanceControls'
+import { isIndicatorEnabled, removeDefinition, HIDDEN_VIA_DEFINITION } from '../instanceControls'
 import { ENGINE_OWNED } from '../flipState'
 import * as engineRegistry from '../nativeRegistry'
 import { computeIchimoku } from '../../indicators'
@@ -290,12 +290,32 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
       .toEqual(settings.indicatorInstances)
   })
 
+  // A1 (D3): the tombstone is written by `removeDefinition` now — the row's OFF hides.
   it('reads OFF over a tombstone the legacy mirror still calls on, for every flipped id', () => {
     for (const id of ENGINE_OWNED) {
       const on = mergeChartSettings(JSON.stringify({ indicators: { [id]: { enabled: true } } }))
-      const off = applyRowPatch(rowById(id, on), { enabled: false }, on, engineRegistry)
+      const off = removeDefinition(on, id, engineRegistry)
       expect(off.indicatorInstances.some((i) => i.instanceId === `legacy:${id}` && i.deleted === true), id).toBe(true)
       expect(readEnabled(rowById(id, off)), `${id} ticked a box over a chart with no line`).toBe(false)
+    }
+  })
+
+  // ⭐ A1 (D3, owner-approved 2026-10-13): the row's OFF HIDES — nothing tombstoned, the
+  // mirror untouched — and the box must read OFF over the hidden line, or unticking it
+  // again is an identity no-op and the row is stuck.
+  it('⭐ A1 (D3) — the row\'s OFF hides (no tombstone, mirror kept) and reads OFF, for every flipped id', () => {
+    for (const id of ENGINE_OWNED) {
+      const on = mergeChartSettings(JSON.stringify({ indicators: { [id]: { enabled: true } } }))
+      const off = applyRowPatch(rowById(id, on), { enabled: false }, on, engineRegistry)
+      // (the fixture's own `ovl:<i>` tombstones — `noDefaultAverages` — are not this write's)
+      expect(off.indicatorInstances.filter((i) => i && i.deleted === true),
+        `${id}: a hide tombstoned`).toEqual(on.indicatorInstances.filter((i) => i && i.deleted === true))
+      const mine = off.indicatorInstances.filter((i) => i && i.defId === id)
+      expect(mine.length > 0 && mine.every((i) => i.hidden === true && i.hiddenVia === HIDDEN_VIA_DEFINITION),
+        `${id}: OFF left a visible instance`).toBe(true)
+      expect(off.indicators, `${id}: a hide wrote the mirror`).toEqual(on.indicators)
+      expect(readEnabled(rowById(id, off)), `${id} ticked a box over a hidden line — a click would hide it again, stuck`)
+        .toBe(false)
     }
   })
 })
@@ -404,13 +424,27 @@ describe('⭐ TASK 6 — one row per LIVE INSTANCE, and each row edits its own',
     const cs = TWO_RSI()
     const rows = rsiRows(cs)
     expect(rows.every(r => r.enabled), 'the rows disagree about whether RSI is on').toBe(true)
-    const off = applyRowPatch(rows[1], { enabled: false }, cs, engineRegistry)
-    const live = (off.indicatorInstances || []).filter(i => i && i.defId === 'rsi' && !i.deleted)
-    expect(live, 'turning "RSI" off left one of the two RSIs drawing under an unticked box')
+    // A1 (D3): the DELETE half of this contract is `removeDefinition` — every RSI goes.
+    const removed = removeDefinition(cs, 'rsi', engineRegistry)
+    const live = (removed.indicatorInstances || []).filter(i => i && i.defId === 'rsi' && !i.deleted)
+    expect(live, 'removing "RSI" left one of the two RSIs drawing under an unticked box')
       .toEqual([])
-    expect(off.indicators.rsi.enabled).toBe(false)
-    expect(readEnabled(listAllIndicators(off, engineRegistry, {}).find(r => r.defId === 'rsi')))
+    expect(removed.indicators.rsi.enabled).toBe(false)
+    expect(readEnabled(listAllIndicators(removed, engineRegistry, {}).find(r => r.defId === 'rsi')))
       .toBe(false)
+
+    // ⭐ A1 (D3): and the toggle on ONE instance row HIDES BOTH — still per-DEFINITION,
+    // now a hide: nothing deleted, inputs kept, the mirror untouched.
+    const off = applyRowPatch(rows[1], { enabled: false }, cs, engineRegistry)
+    const drawing = (off.indicatorInstances || []).filter(i => i && i.defId === 'rsi' && !i.deleted && i.hidden !== true)
+    expect(drawing, 'turning "RSI" off left one of the two RSIs drawing under an unticked box')
+      .toEqual([])
+    expect(off.indicatorInstances.filter(i => i && i.defId === 'rsi'))
+      .toEqual(cs.indicatorInstances.map(i => ({ ...i, hidden: true, hiddenVia: HIDDEN_VIA_DEFINITION })))
+    expect(off.indicators.rsi, 'a hide wrote the mirror').toEqual(cs.indicators.rsi)
+    // ⛔ LAST: every row of the definition must read OFF over the hidden pair
+    expect(rsiRows(off).map(r => readEnabled(r)), 'a box stayed ticked over two hidden RSIs — stuck')
+      .toEqual([false, false])
   })
 
   it('a TOMBSTONED instance gets no row of its own', () => {

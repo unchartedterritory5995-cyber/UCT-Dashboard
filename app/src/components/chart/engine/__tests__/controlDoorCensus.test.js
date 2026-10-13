@@ -506,8 +506,19 @@ describe('the control-door census — how many doors, and whether an eighth exis
       expect((on.indicatorInstances || []).some(i => i && i.defId === def.id && !i.deleted),
         `${def.id}: setIndicatorEnabled wrote no instance`).toBe(true)
 
-      const off = setIndicatorEnabled(on, def.id, false, engineRegistry)
-      expect(off.indicators[def.id].enabled, `${def.id}: turning it off left the MIRROR on`).toBe(false)
+      // A1 (D3): the DELETE that moves the mirror is `removeDefinition` now — the toggle hides.
+      const off = theWriter.removeDefinition(on, def.id, engineRegistry)
+      expect(off.indicators[def.id].enabled, `${def.id}: removing it left the MIRROR on`).toBe(false)
+
+      // ⭐ A1 (D3): and the toggle's OFF is a HIDE — the instance is kept, so the mirror
+      // ("an instance exists") must NOT move, and ON brings the same blob back.
+      const hidden = setIndicatorEnabled(on, def.id, false, engineRegistry)
+      expect(hidden.indicators[def.id].enabled, `${def.id}: a definition HIDE wrote the MIRROR`).toBe(true)
+      const kept = (hidden.indicatorInstances || []).filter(i => i && i.defId === def.id && !i.deleted)
+      expect(kept.length > 0 && kept.every(i => i.hidden === true && i.hiddenVia === theWriter.HIDDEN_VIA_DEFINITION),
+        `${def.id}: OFF left a visible instance or deleted one`).toBe(true)
+      expect(JSON.stringify(setIndicatorEnabled(hidden, def.id, true, engineRegistry)),
+        `${def.id}: ON after a hide is not byte-identical to before it`).toBe(JSON.stringify(on))
 
       // ── and the one the settings rows + the voice bus go through ──
       const viaRow = applyRowPatch({ engineOwned: true, defId: def.id }, { enabled: true }, base, engineRegistry)
@@ -928,6 +939,38 @@ describe('the control-door census — how many doors, and whether an eighth exis
     expect(LEDGER.filter(([f]) => !SHIPPED.some(s => s.file === f)).map(([f]) => f),
       'a ledgered caller is not in the walked file set — the equality above is comparing ' +
       'a typed name against a scan that cannot see it').toEqual([])
+  })
+
+  // ⭐ A1 (D3/D4) — THE DEFINITION-LEVEL EXPORTS A1 ADDED ARE NOT A NINTH DOOR, AND THIS
+  // SAYS WHO MAY CALL THEM. `removeDefinition` is the pre-A1 OFF moved verbatim (the
+  // definition DELETE); `ensureLegacyInstance` is the pre-A1 ON; `definitionVisibility`
+  // is a READER (the toggles' checkmark and direction). Neither writer has a shipped
+  // caller outside `instanceControls` yet — the "Remove all N" surface (D4) that will
+  // call `removeDefinition` must be ledgered here, with its reason, when it lands.
+  it('⭐ A1 — removeDefinition / ensureLegacyInstance / definitionVisibility have exactly the callers this census names', () => {
+    const A1 = {
+      removeDefinition: [],
+      ensureLegacyInstance: [],
+      definitionVisibility: [
+        // the right-click Indicators ▸ checkmarks + the chord/phone direction (D3)
+        'app/src/components/StockChart.jsx',
+        // the Library row's checkmark and the direction of its click (D3)
+        'app/src/components/chart/IndicatorLibraryDialog.jsx',
+        // the generated settings row's `enabled` (its switch reads OFF over a hidden
+        // indicator, or unticking it again is an identity no-op — stuck); `exists` keeps
+        // the old answer for listing (D3)
+        'app/src/components/chart/indicatorRegistry.js',
+      ],
+    }
+    expect(Object.keys(A1).filter(n => typeof theWriter[n] !== 'function'),
+      'an A1 export was renamed or removed — the scan below would look for a name nothing has').toEqual([])
+    for (const [name, ledger] of Object.entries(A1)) {
+      const re = new RegExp('\\b' + name + '\\s*\\(')
+      const callers = SHIPPED.filter(f => f.file !== THE_WRITER && re.test(f.src)).map(f => f.file).sort()
+      expect(callers, `${name}: the caller set moved — ledger the surface WITH ITS REASON`).toEqual([...ledger].sort())
+      // ⛔ positive control: the pattern matches inside the module that defines it
+      expect(re.test(SHIPPED.find(f => f.file === THE_WRITER).src), `${name}: the pattern rotted`).toBe(true)
+    }
   })
 })
 
