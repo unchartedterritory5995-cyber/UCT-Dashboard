@@ -23,11 +23,13 @@ export const ROUTING_VERSION = 1
 /** Action groups, keyed by capability DOMAIN (the name prefix). Titles are shown to the model. */
 export const GROUPS = [
   { id: 'charts', title: 'Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume', domains: ['chart', 'volume'],
-    words: [/\bcharts?\b/, /\b(timeframe|daily|weekly|monthly|intraday|\d+ ?(min|minute|hour|hr)s?|1h|4h)\b/, /\b(candles?|candlesticks?|hollow|bars|hlc|line chart|area chart|heikin)\b/,
+    // Gate B vocabulary (soft): an overlay or a symbol swap said without "compare" / "chart"
+    vocab: [/\b(next to (this|it)|on top of (this|it)|swap \$?[a-z]{1,5} (for|with)|instead of \$?[a-z]{1,5})\b/],
+    words: [/\bcharts?\b/, /\b(timeframe|daily|weekly|monthly|hourly|intraday|\d+ ?(min|minute|hour|hr)s?|1h|4h)\b/, /\b(candles?|candlesticks?|hollow|bars|hlc|line chart|area chart|heikin)\b/,
       /\b(log|logarithmic|percent|linear) scale\b|\bscale\b/, /\b(extended|pre-?market|post-?market|regular hours|rth)\b/, /\b(theme|colou?rs?|background|grid|crosshair|legend|watermark|labels?|markers?|countdown|swing|thin bars|invert|template|defaults?|tabs?|compare|versus|against|overlay|go to|scroll|as it looked|custom (time ?frame|interval))\b/,
       /\bvolume\b/] },
   { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)', domains: ['widget'],
-    words: [/\bwidgets?\b/, /\bworkspaces?\b/, /\bboard\b/, /\b(add|open|close|remove|delete)\b.*\bcharts?\b/, /\b(move|resize|arrange|rearrange|swap|wider|narrower|taller|shorter|bigger|smaller|fill|side by side|grid of|left|right|top|bottom)\b/,
+    words: [/\bwidgets?\b/, /\bworkspaces?\b/, /\bboard\b/, /\b(another|new|one more|second|extra) chart\b/, /\b(add|open|close|remove|delete)\b.*\bcharts?\b/, /\b(move|resize|arrange|rearrange|swap|wider|narrower|taller|shorter|bigger|smaller|fill|side by side|grid of|left|right|top|bottom)\b/,
       /\b(link|unlink|colou?r group)\b/, /\btabs?\b/] },
   // Split from 'workspace' (2026-10-09): a whole-group packer packs better with smaller groups, and
   // saved layouts are their own concept ("open my Swing layout", "save this").
@@ -37,13 +39,15 @@ export const GROUPS = [
   // indicators word AND a charts word routes BOTH; the hints decide.
   { id: 'indicators', title: 'Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)', domains: ['indicator'],
     words: [/\bindicators?\b/, /\b(rsi|macd|ema|sma|vwap|atr|bollinger|keltner|stochastic|supertrend|regression|correlation|momentum|oscillator|histogram)\b/,
+      // "what's on this chart", "do i have the 50 on here", "a weekly 10 line": the chart's indicators
+      /\bwhat'?s on (this|the|my) chart\b|\b(have|got) the \d+ on\b|\b\d+ (line|ma|average)\b/,
       /\b(build|make|create|write|code)\b.*\b(indicator|study|signal|formula)\b/, /\b(when|whenever|if)\b.*\b(cross(es)?|above|below)\b/,
       // a colour RULE ("colour the candles by trend"), not a colour ("colour the candles green")
       /\b(colou?r|paint|highlight|shade)\w*\b.*\bby (trend|momentum|strength|signal|condition)\b/,
       // INDICATORS M3: the authoring draft ("show me the preview", "save the draft")
       /\b(preview|draft)\b/] },
   { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, restyle, remove, list)', domains: ['drawing'],
-    words: [/\bdraw\w*\b/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
+    words: [/\bdraw\w*\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
   { id: 'lists', title: 'Watchlists (show, create, rename, add, remove, clear, delete)', domains: ['watchlist'],
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],
@@ -56,11 +60,20 @@ export const GROUPS = [
       /\b(strongest|weakest|best|worst|top|bottom|leading|lagging|top[- ]rated|highest[- ]rated)(?:[- ]performing)?\s+(?:[a-z0-9&.-]+\s+){0,2}?(stocks|names|tickers|equities|performers|movers|setups)\b/,
       /\b(relative strength|rs rank|rs leaders?|market leaders?|strength leaders?|leaders and laggards)\b/,
       /\b(leaders?|leading) (stocks|names)\b|\b(stocks|names) leading\b/,
-      /\btop (momentum|performing|performers?|gainers?|losers?|movers?)\b|\bmomentum (stocks|names|leaders?)\b/] },
+      /\btop (momentum|performing|performers?|gainers?|losers?|movers?)\b|\bmomentum (stocks|names|leaders?)\b/],
+    // ⭐ Gate B (0C): TRADING VOCABULARY that names a SCREEN without the word "screen" (soft, see
+    // selectGroups). Routing only: it changes which actions the model SEES first, never what a word
+    // means (meanings are Phase 1B) and never drops a group that would otherwise have been sent.
+    vocab: [/\b(semis|semiconductors?|semi conductors?|chips?|chip stocks|biotechs?|software (stocks|names)|banks|miners|small[- ]?caps?|mid[- ]?caps?|large[- ]?caps?|mega[- ]?caps?|ipos?|etfs)\b/,
+      /\b(gainers?|losers?|movers?|gap(ped|ping|s)? (up|down)|new highs?|near (the )?highs?|all[- ]time highs?|pull(ing|s)?[- ]?backs?|pulling back|tagging|tight (bases?|flags?|ranges?)|bases?|flags?|breakouts?|unusual volume|big volume|leaders?|leading groups?|laggards?|acting well|working)\b/,
+      /\b(over|under|above|below) \$?\d+ (bucks|dollars)\b|\b\d+ (million|mil|m|billion|bn?) (a day|dollar volume)\b|\bliquid (names|stocks)\b/,
+      /\b(sort (it|them|that|by)|only the ones|same thing but|just (the )?(large|small|mid)[- ]?caps)\b/] },
   { id: 'alerts', title: 'Price alerts (list, create, delete)', domains: ['alert'],
     words: [/\balerts?\b/, /\b(notify|ping|tell) me\b/, /\b(crosses|breaks|hits)\b/] },
   { id: 'data', title: 'Stock information and news (profile, earnings, comparisons, news, catalysts)', domains: ['stock', 'news'],
-    words: [/\b(news|headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do)\b/] },
+    words: [/\b(news|headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do)\b/],
+    // Gate B vocabulary (soft): "when does nvda report", "anything new on tesla", "stack up on valuation"
+    vocab: [/\b(reports?|reporting|valuation|stacks? up|anything new (on|with)|what'?s (going on|happening) with|why did .+ (gap|move|drop|fall|jump|rally|sell off))\b/] },
   // MARKET INTELLIGENCE breadth slice 1 (2026-10-11): historical breadth QUESTIONS. "breadth" alone is
   // a question — except a request to GO TO the breadth page / monitor, which stays navigation
   // (settings group). The lookahead is anchored at the start of the message (no lookbehind).
@@ -97,28 +110,66 @@ export function routingEnabled() {
  * proposal and of the last change, so follow-ups ("only the first two", "do the same on the
  * right") keep their groups. Returns { selected: [ids], matched: bool }.
  */
-export function selectGroups(message, { pendingActions = [], recentActions = [] } = {}) {
+// ⭐ Gate B (0C): the member's OWN names route too — "open swing board", "put the first 3 in swing",
+// "take smci off momentum": a layout / watchlist / saved screen named in the message (whole words,
+// from live state the caller passes in) brings its group. Pure: nothing here reads state.
+const NAME_GROUPS = { layouts: 'layouts', watchlists: 'lists', screens: 'screener' }
+const normWords = (s) => ` ${String(s || '').toLowerCase().replace(/[^a-z0-9$&+.\- ]+/g, ' ').replace(/\s+/g, ' ').trim()} `
+function namedGroups(q, names) {
+  const out = new Set()
+  const text = normWords(q)
+  for (const [kind, id] of Object.entries(NAME_GROUPS)) {
+    for (const n of names?.[kind] || []) {
+      const w = normWords(n).trim()
+      if (w.length >= 3 && text.includes(` ${w} `)) { out.add(id); break }
+    }
+  }
+  return out
+}
+
+/** The member's live names for routing, read from the host (never throws; a source that can't be read is empty). */
+export function routingNames(host) {
+  const read = (fn) => { try { return fn() || [] } catch { return [] } }
+  return {
+    layouts: read(() => host?.layouts?.snapshot?.()?.entries?.map(e => e.name)),
+    watchlists: read(() => host?.watchlists?.snapshot?.()?.map(l => l.name)),
+    screens: read(() => host?.savedScreens?.snapshot?.()?.map(s => s.name)),
+  }
+}
+
+export function selectGroups(message, { pendingActions = [], recentActions = [], names = null, correct = null } = {}) {
   const raw = String(message || '')
   const q = raw.toLowerCase()
   const always = GROUPS.filter(g => g.always).map(g => g.id)
   const hits = new Set()
+  // ⭐ Gate B (0C): typo-corrected readings route too ("earnigns date for amd", "opne swng board") —
+  // `correct` is the caller's lexicon correction (nl/lexicon.js). Routing only adds groups the model
+  // may SEE; nothing here acts on a correction.
+  let texts = [q]
+  try { if (typeof correct === 'function') texts = [q, ...(correct(raw) || []).map(t => String(t).toLowerCase())] } catch { texts = [q] }
   for (const g of GROUPS) {
     if (g.always) continue
-    if (g.words.some(re => re.test(q))) hits.add(g.id)
+    if (texts.some(t => g.words.some(re => re.test(t)))) hits.add(g.id)
   }
+  for (const t of texts) for (const id of namedGroups(t, names)) hits.add(id)
   // "put NVDA on the left", "Switch to AMD": a ticker-shaped word (case-sensitive, on the raw
   // text) after a show/switch verb is a chart symbol request.
   if (SYMBOL_VERB.test(q) && tickerWords(raw).length) hits.add('charts')
   const followUps = [...new Set([...pendingActions, ...recentActions].map(groupOfAction).filter(Boolean))]
   const matched = hits.size > 0
+  // ⭐ Gate B (0C) SOFT VOCABULARY: when no group's own words matched, trading vocabulary ("semis",
+  // "pulling back", "when does nvda report") moves its groups to the FRONT of the catalog order — it
+  // never narrows the request: nothing recognised still means every group is a candidate (and the
+  // full manifest when it fits). When a group's own words DID match, vocabulary adds nothing.
+  const soft = matched ? [] : GROUPS.filter(g => !g.always && (g.vocab || []).some(re => texts.some(t => re.test(t)))).map(g => g.id)
   // PRIORITY order (Batch 6): always-on, then follow-ups, then the message's own groups (catalog
   // order). routeManifest packs them in this order under the per-request budget. When NOTHING was
   // recognised, every group is a candidate in catalog order (charts first — the page's own
   // controls), so a catalog bigger than one request still sends as much as fits, not just the
   // always-on group; the rest are named and the model can ask for them.
-  const own = matched ? GROUPS.map(g => g.id).filter(id => hits.has(id)) : GROUPS.map(g => g.id)
+  const own = matched ? GROUPS.map(g => g.id).filter(id => hits.has(id)) : [...soft, ...GROUPS.map(g => g.id)]
   const priority = [...new Set([...always, ...followUps, ...own])]
-  return { selected: GROUPS.map(g => g.id).filter(id => priority.includes(id)), priority, matched }
+  return { selected: GROUPS.map(g => g.id).filter(id => priority.includes(id)), priority, matched, soft }
 }
 
 /**

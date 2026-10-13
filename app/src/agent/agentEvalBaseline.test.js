@@ -15,11 +15,14 @@ import path from 'node:path'
 import corpus from './__fixtures__/nlIntent/corpus.json'
 import { registerBuiltins } from './builtins'
 import { fastParse, matchPosition } from './fastPath'
-import { routeManifest, groupOfAction } from './routing'
+import * as routing from './routing'
+import { correctTypos, lexiconFor } from './nl/lexicon'
+const { routeManifest, groupOfAction } = routing
 import manifestGolden from './contract/manifest.golden.json'
 import manifestContract from './contract/manifest.contract.json'
 import { getCapability, getTargetKind } from './capabilities'
 import { resolveDeictic } from './deixis'
+import { planOps, collectTargets } from './executor'
 import { buildChartSource } from './host'
 import { makeBoard } from './__fixtures__/board'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
@@ -28,6 +31,9 @@ registerBuiltins()
 
 const HELDOUT_PATH = path.resolve(__dirname, '__fixtures__/nlIntent/heldout-v1.json')
 const heldout = fs.existsSync(HELDOUT_PATH) ? JSON.parse(fs.readFileSync(HELDOUT_PATH, 'utf8')) : { cases: [] }
+// v2 (2026-10-13, Gate B): written by a second agent AFTER v1 had informed routing vocabulary — the clean test of generalisation
+const HELDOUT2_PATH = path.resolve(__dirname, '__fixtures__/nlIntent/heldout-v2.json')
+const heldout2 = fs.existsSync(HELDOUT2_PATH) ? JSON.parse(fs.readFileSync(HELDOUT2_PATH, 'utf8')) : { cases: [] }
 
 function hostFor(fxName) {
   const fx = corpus.fixtures[fxName]
@@ -85,9 +91,24 @@ const collectSyms = (v) => {
   else if (v && typeof v === 'object') Object.values(v).forEach(collectSyms)
 }
 Object.values(corpus.fixtures).forEach(fx => fx.charts.forEach(c => KNOWN_TICKERS.add(c.symbol)))
-for (const c of [...corpus.cases, ...heldout.cases]) for (const o of [...(c.expect.ops || []), ...(c.expect.alt || []).flat()]) collectSyms(o.args)
+for (const c of [...corpus.cases, ...heldout.cases, ...heldout2.cases]) for (const o of [...(c.expect.ops || []), ...(c.expect.alt || []).flat()]) collectSyms(o.args)
 const unknownSymbolIn = (ops) => ops.some(o => SYMBOL_ACTIONS.has(o.action)
   && [o.args?.symbol, ...(o.args?.symbols || [])].filter(Boolean).some(s => !KNOWN_TICKERS.has(String(s).toUpperCase())))
+
+// The real planner (executor.planOps) over the fixture board, every op on the one target its kind has
+// (or the target the capability resolved). Ambiguous targets are never planned here (they ask).
+function plannerRefuses(host, fast) {
+  const kinds = [...new Set(fast.ops.map(o => getCapability(o.action)?.target).filter(Boolean))]
+  const ops = []
+  for (const o of fast.ops) {
+    if (o.target) { ops.push(o); continue }
+    const kind = getTargetKind(getCapability(o.action)?.target)
+    const list = kind ? kind.list(host) : []
+    if (list.length !== 1) return false
+    ops.push({ ...o, target: list[0].ref })
+  }
+  try { return planOps(collectTargets(host, kinds), ops).ok === false } catch { return false }
+}
 
 const MANIFEST = Array.isArray(manifestGolden) ? manifestGolden : (manifestGolden.capabilities || [])
 const LIMITS = { limit: manifestContract.limits?.maxCapabilities ?? 60, budget: manifestContract.routingThreshold ?? 55 }
@@ -126,10 +147,15 @@ export function measureCase(c) {
     const ok = (want && fast.kind === want) || (fast.kind === 'subset' && /first/.test(c.text)) || (fast.kind === 'confirm' && e.kind === 'refuse')
     row.outcome = ok ? 'fast-correct' : 'fast-WRONG'
   }
+  // ⭐ A would-be WRONG instant plan that the REAL planner refuses (capability `check`, e.g. "rename UCT
+  // Default" — built-in; "save as Day Trading" — never overwrites) changes nothing: scored fast-refuses.
+  if (row.outcome === 'fast-WRONG' && fast?.kind === 'ops' && plannerRefuses(host, fast)) row.outcome = 'fast-refuses'
   // routing coverage — the groups the expected plan needs, among the routed groups
   const need = e.groups || [...new Set((e.ops || []).map(o => groupOfAction(o.a)).filter(Boolean))]
   // exactly what the browser would send: the real routeManifest over the real manifest and limits
-  const r = routeManifest(MANIFEST, c.text, { limit: LIMITS.limit, budget: LIMITS.budget })
+  // the SAME options the panel passes (useAgent): live names + typo readings when this build has them
+  const live = typeof routing.routingNames === 'function' ? { names: routing.routingNames(host), correct: (t) => (correctTypos(t, lexiconFor(host)) || []).map(v => v.text) } : {}
+  const r = routeManifest(MANIFEST, c.text, { limit: LIMITS.limit, budget: LIMITS.budget, ...live })
   const sent = r.routing ? r.routing.selected : [...new Set(MANIFEST.map(m => groupOfAction(m.name)).filter(Boolean))]
   row.routing = !need.length ? null : need.every(x => sent.includes(x)) ? 'ok' : 'MISS'
   // model calls this case would cost today (0 = deterministic; +1 for the reroute a routing miss forces)
@@ -170,20 +196,23 @@ describe('conversational intelligence — layer A baseline (deterministic, free)
   it('scores the dev corpus and the held-out set; never a NEW deterministic misfire', () => {
     const dev = corpus.cases.map(measureCase)
     const held = heldout.cases.map(c => measureCase({ ...c, split: c.split || 'heldout' }))
+    const held2 = heldout2.cases.map(c => measureCase({ ...c, split: (c.split || 'heldout') === 'adversarial' ? 'adversarial2' : 'heldout2' }))
     const report = {
       at: new Date().toISOString(),
       dev: summarize(dev),
       heldout: summarize(held.filter(r => r.split === 'heldout')),
       adversarial: summarize(held.filter(r => r.split === 'adversarial')),
-      rows: [...dev, ...held],
+      heldout2: summarize(held2.filter(r => r.split === 'heldout2')),
+      adversarial2: summarize(held2.filter(r => r.split === 'adversarial2')),
+      rows: [...dev, ...held, ...held2],
     }
     const line = (k, s) => `${k.padEnd(12)} n=${s.cases} fast ${s.idealFastReached}/${s.idealFast} (${s.deterministicCoverage}) · det.acc ${s.deterministicAccuracy} · WRONG ${s.wrongActions} · refused ${s.safeRefusals} · needless-ask ${s.unnecessaryClarifications} · →model ${s.toModel} · calls/case ${s.modelCallsPerCase} · route MISS ${s.routingMiss}/${s.routingChecked} · fastParse p50 ${s.fastParseMs.p50}ms p95 ${s.fastParseMs.p95}ms`
-    console.log(`\n── layer A ──\n${line('dev', report.dev)}\n${line('heldout', report.heldout)}\n${line('adversarial', report.adversarial)}\n` +
+    console.log(`\n── layer A ──\n${line('dev', report.dev)}\n${line('heldout', report.heldout)}\n${line('adversarial', report.adversarial)}\n${line('heldout2', report.heldout2)}\n${line('adversarial2', report.adversarial2)}\n` +
       'WRONG: ' + report.rows.filter(r => r.outcome === 'fast-WRONG').map(r => `${r.id} “${r.text}” → ${r.detail}`).join(' | ') + '\n')
     if (globalThis.process?.env?.AGENT_EVAL_OUT) fs.writeFileSync(globalThis.process.env.AGENT_EVAL_OUT, JSON.stringify(report, null, 2))
     // the dev corpus already pins "no new misfire" (agentNlCorpus.test.js); here the held-out set is MEASURED,
     // and a later phase may only lower its WRONG count (BASELINE_WRONG is updated by hand with evidence)
     const BASELINE_WRONG = Number(globalThis.process?.env?.AGENT_EVAL_BASELINE_WRONG ?? Infinity)
-    expect(report.heldout.wrongActions + report.adversarial.wrongActions).toBeLessThanOrEqual(BASELINE_WRONG)
+    expect(report.heldout.wrongActions + report.adversarial.wrongActions + report.heldout2.wrongActions + report.adversarial2.wrongActions).toBeLessThanOrEqual(BASELINE_WRONG)
   })
 })
