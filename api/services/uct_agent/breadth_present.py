@@ -205,6 +205,25 @@ def complement_reading(reading):
     return read
 
 
+# ── OPEN CHART (2026-10-13): the chart series a breadth card represents ───────────────────────────
+# The breadth registry is the authority: `symbol_for` names the (universe, measure) series and
+# `resolve` (published only) says a member can actually chart it — the same symbols /charts serves.
+# ⛔ Never the opposite measure: the share AT OR BELOW an average has no published series, so a
+# "below" card gets no chart (charting % above under that card would show the opposite).
+def chart_target(universe: Any, metric: Any, side: Any = None) -> Optional[dict]:
+    """`{"symbol", "label"}` for one published (universe, measure) series, or None. Never raises."""
+    if side == "below" or not isinstance(universe, str) or not isinstance(metric, str):
+        return None
+    try:
+        from api.services import breadth_symbols as _bs
+        sym = _bs.symbol_for(universe, metric)
+        if not sym or not _bs.resolve(sym):
+            return None
+    except Exception:  # noqa: BLE001 -- no target is the safe answer
+        return None
+    return {"symbol": str(sym).upper(), "label": str(sym)}
+
+
 def _chrono(m: dict) -> tuple[dict, dict, float]:
     """(earlier, later, later − earlier) for a compared measure, whatever order the request named them.
     MI's `change` is current − other; when `current` is the EARLIER session it is negated — the same

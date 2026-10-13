@@ -48,6 +48,8 @@ const stamp = (sec) => {
 }
 const NA = 'not available'
 const researchLink = (sym) => ({ href: `/research/${encodeURIComponent(sym)}`, label: `Open ${sym} in Research` })
+// OPEN CHART: the instrument this answer is about (stocks, ETFs, indexes — whatever the ticker charts)
+const chartOf = (sym) => ({ symbol: sym, label: sym })
 const badSymbol = (s) => `“${s}” doesn't look like a ticker.`
 const notFound = (sym, e) => (e?.status === 404 ? `UCT has no data for “${sym}”.` : `I couldn't read UCT's data for ${sym} right now (${e?.message || 'error'}).`)
 
@@ -98,7 +100,7 @@ export async function answerProfile({ symbol }) {
     { label: 'Sector', value: f.sector ? `${f.sector}${f.industry ? ` / ${f.industry}` : ''}` : null, aka: ['sector', 'industry'] },
   ].filter(x => x.value)
   return {
-    text: lines.join('\n'), link: researchLink(sym),
+    text: lines.join('\n'), link: researchLink(sym), chart: chartOf(sym),
     present: { kind: 'metrics', title: `${sym} — ${f.name || sym}`, short: sym, items: fig },
   }
 }
@@ -130,7 +132,7 @@ export async function answerEarnings({ symbol }) {
   } else lines.push(`Next report date: ${NA} in UCT's earnings data.`)
   const at = num(e?.meta?.retrieved_at) ? stamp(e.meta.retrieved_at) : null
   lines.push(`Source: UCT earnings data${at ? `, retrieved ${at}` : ''}. Estimates are consensus figures; actuals are as reported.`)
-  return { text: lines.join('\n'), link: researchLink(sym) }
+  return { text: lines.join('\n'), link: researchLink(sym), chart: chartOf(sym) }
 }
 
 const CMP_ROWS = [

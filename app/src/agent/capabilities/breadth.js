@@ -13,6 +13,7 @@
 // the member's breadth charts use. Finalized end-of-day only; nothing is invented or substituted.
 
 import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup } from '../capabilities'
+import { chartTarget } from '../present'
 
 //: Mirrors market_intel.breadth_reads (tests/test_uct_agent_breadth.py pins them equal).
 export const BREADTH_UNIVERSES = ['us', 'nyse', 'nasdaq']
@@ -122,7 +123,9 @@ async function answerBreadth(args) {
   const table = t && Array.isArray(t.columns) && Array.isArray(t.rows) ? { columns: t.columns, rows: t.rows } : null
   // `present`: the server's concise view of the same answer (present.js); text + table become details
   const present = b.present && typeof b.present === 'object' ? b.present : null
-  return { text: b.text, table, ...(present ? { present } : {}) }
+  // OPEN CHART: the published series this answer read (the server's registry decides; none for "below")
+  const chart = chartTarget(b.chart)
+  return { text: b.text, table, ...(present ? { present } : {}), ...(chart ? { chart } : {}) }
 }
 
 // ── DETERMINISTIC routing for the OBVIOUS breadth questions (the fast path's own mechanism) ─────────

@@ -161,7 +161,7 @@ function Item({ it, agent, member, at, cont }) {
       )
     case 'agent':
       // ⭐ an answer VIEW (present.js) renders through the one presentation component
-      if (it.present) return <AgentSays at={at} cont={cont} wide={WIDE_VIEWS.has(it.present.kind)}><AgentResult view={it.present} /></AgentSays>
+      if (it.present) return <AgentSays at={at} cont={cont} wide={WIDE_VIEWS.has(it.present.kind)}><AgentResult view={it.present} onOpenChart={agent.openChart} busy={agent.busy} /></AgentSays>
       // ⛔ never an empty bubble (an older restored row, a blank reply)
       if (!String(it.text || '').trim() && !it.table && !it.link) return null
       return (

@@ -37,7 +37,7 @@ import { registerBuiltins } from './builtins'
 import { routeManifest, routingEnabled } from './routing'
 import { agentTurn, agentTurnStream, serverStreams, loadAgentConfig, agentRecord, agentConversation } from './agentClient'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
-import { presentOf, compactViews, itemsFromTurns } from './present'
+import { presentOf, compactViews, itemsFromTurns, chartTarget } from './present'
 // ⭐ INDICATORS ⇄ AGENT (2026-10-12): the chart's Create Indicator / Modify doors open the Agent; the
 // member's answer to its question runs the existing `indicator.draft` for that chart. See indicatorEntry.js.
 import { beginAuthoringIntent, takeAuthoringIntent, peekAuthoringIntent, clearAuthoringIntent, authoringPrompt, authoringOp, isCancelWords, INDICATOR_DOORS, openIndicatorDoor } from './indicatorEntry'
@@ -1184,11 +1184,37 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
 
   const canUndo = (undoId) => undoRef.current.some(e => e.id === undoId)
 
+  // ⭐ OPEN CHART (2026-10-13). A card's own typed target (present.chartTarget — set by the capability
+  // from what it answered) opens through the SAME op as "open a QQQ chart": widget.addCharts → a NEW chart
+  // born on that symbol, unlinked; nothing existing changes; receipt + Undo; the protected-layout rules
+  // and the symbol check (ticker search, breadth series included) apply as for any request. A chart that
+  // already shows it is left as it is — said, nothing added (no duplicate widget).
+  const openChart = useCallback(async (raw) => {
+    const target = chartTarget(raw)
+    if (!target) return
+    const sym = target.symbol
+    const shown = (() => { try { return host?.charts?.list?.() || [] } catch { return [] } })()
+      .find(c => String(c?.symbol || '').toUpperCase() === sym)
+    const member = `Open chart: ${target.label}`
+    if (shown) {
+      const t = `${target.label} is already on your board (${shown.label || 'a chart'}), so nothing was added.`
+      push({ role: 'agent', text: t })
+      record({ member, outcome: t, outcomeData: { kind: 'chart-already-open' }, telemetry: { path: 'card' } })
+      return
+    }
+    lastActionsRef.current = ['widget.addCharts']
+    // The click IS the approval of exactly this: ONE new chart on this ONE series (an expansion is
+    // otherwise proposed first). `approved` re-plans and re-validates like an Apply — the room check,
+    // the symbol check and the born-unlinked rule all still decide; nothing is skipped.
+    return execute([{ action: 'widget.addCharts', target: 'workspace', args: { symbols: [sym], timeframe: null, chart_type: null, exact: null } }],
+      { path: 'card', mode: 'approved', member, voice: false })
+  }, [host, push, record, execute])
+
   return {
     items, busy, activity, restoring, conversationId, send, newChat, openConversation,
     undo: exclusive((undoId) => doUndo(undoId, { member: null })),
     approve: exclusive(() => approve(null, { member: null })), dismiss: () => { if (!lockRef.current) dismiss({ member: null }) },
-    chooseTarget: exclusive(chooseTarget), canUndo,
+    chooseTarget: exclusive(chooseTarget), canUndo, openChart: exclusive(openChart),
     prompt, openDoor,
     hasPending: !!pendingRef.current,
   }
