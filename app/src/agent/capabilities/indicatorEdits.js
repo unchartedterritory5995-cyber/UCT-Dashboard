@@ -439,12 +439,13 @@ export function registerIndicatorEditCapabilities() {
     // Phase 2 — "remove RSI", "get rid of the RSI": the indicator KIND named exactly; which instance
     // is decided on the chart (exactly one of that kind, else refused with the real names). Still
     // a proposal (risk confirm).
-    fast: ({ lower, host }) => {
+    fast: ({ raw, lower, host }) => {
       const m = /^(?:please )?remove(?: the| my)? (.+?)(?: from the chart)?$/.exec(lower)
       const defId = m ? defIdOfWords(m[1]) : null
       // ⛔ Gate B: "remove momentum" with a Momentum WATCHLIST (or layout / saved screen) is not read
-      // as the indicator here — the model path sees both and asks. "the momentum indicator" is explicit.
-      if (defId && !/\b(?:indicator|study)\b/.test(lower) && namedKinds(host, m[1]).size) return null
+      // as the indicator here — the model path sees both and asks. "the momentum indicator" is explicit
+      // (read from the member's own words: the normaliser drops the word "indicator").
+      if (defId && !/\b(?:indicator|study)\b/i.test(String(raw || '')) && namedKinds(host, m[1]).size) return null
       return defId ? { instance: defId } : null
     },
     check(st, { instance }) {

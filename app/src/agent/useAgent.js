@@ -34,7 +34,8 @@ import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expand
 import { traceStart, mark, traceEnd, turnStart, turnPath, turnVisible, turnOutput, turnOutputMs, turnEnd } from './trace'
 import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT } from './capabilities'
 import { registerBuiltins } from './builtins'
-import { routeManifest, routingEnabled } from './routing'
+import { routeManifest, routingEnabled, routingNames } from './routing'
+import { correctTypos, lexiconFor } from './nl/lexicon'
 import { agentTurn, agentTurnStream, serverStreams, loadAgentConfig, agentRecord, agentConversation } from './agentClient'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
 import { presentOf, compactViews, itemsFromTurns, chartTarget } from './present'
@@ -1030,7 +1031,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const manageIndicators = (() => { try { return host?.charts?.list().some(c => host.charts.canManageIndicators?.(c.ref) === true) } catch { return false } })()
       const full = manifestFor({ ...capCtx, manageIndicators })
       // limit = the server's per-request maximum; budget = what one routed request may carry.
-      const routeOpts = { enabled: routingEnabled(), pendingActions: p?.kind === 'proposal' ? p.ops.map(o => o.action) : [], recentActions: lastActionsRef.current, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold }
+      // Gate B (0C): the member's live names and the lexicon's typo readings route too (routing.js)
+      const routeOpts = { enabled: routingEnabled(), pendingActions: p?.kind === 'proposal' ? p.ops.map(o => o.action) : [], recentActions: lastActionsRef.current, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold,
+        names: routingNames(host), correct: (t) => (correctTypos(t, lexiconFor(host)) || []).map(v => v.text) }
       let routed = routeManifest(full, text, routeOpts)
       mark('route', routed.routing ? `${routed.manifest.length}/${full.length}` : 'full')
       // Data that can change outside this panel is re-read first (bounded) — Phase 2: only for the
