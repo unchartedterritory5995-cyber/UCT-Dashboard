@@ -102,6 +102,9 @@ export function setAt(root, path, value) {
  * Never partial: a refusal writes nothing.
  */
 export function revertRecord(cs, record) {
+  // ⭐ A1.2: an ELEMENT record (the Indicators undo stack's) takes its own path. A record
+  // without `granularity` — every Agent record — runs the code below, unchanged.
+  if (record && record.granularity === ELEMENT) return revertElementRecord(cs, record)
   for (const p of record.paths) {
     if (!holds(cs, p)) return { ok: false, path: p.path }
   }
@@ -111,6 +114,106 @@ export function revertRecord(cs, record) {
     for (const p of record.paths) if (p.order) next = reorderAt(next, p, p.order.before)
   } catch {
     return { ok: false, path: null }
+  }
+  return { ok: true, cs: next }
+}
+
+// ─── A1.2 · ELEMENT granularity (opt-in; Agent records never carry it) ────────
+//
+// The Indicators undo stack records `indicatorInstances` ONE WHOLE ELEMENT per path
+// (`['indicatorInstances', {instanceId}]`), so reverting writes the stored element back
+// verbatim — byte-identical after the persisted read, where a leaf `setAt` would rebuild
+// the element's key order. An element may be ABSENT on either side: `before: undefined`
+// is an add (undo splices it out), `after: undefined` a removal (undo puts it back, in
+// its recorded place). Every other changed top-level key is one whole-value path.
+// Exactness is the leaf mode's: every path must still hold its `after`, compared
+// canonically, or nothing is written.
+
+export const ELEMENT = 'element'
+const LIST_KEY = 'indicatorInstances'
+
+const idList = (arr) => {
+  if (arr === undefined) return []
+  if (!Array.isArray(arr)) return null
+  const ids = arr.map((e) => (isObj(e) && typeof e.instanceId === 'string' ? e.instanceId : null))
+  return ids.every(Boolean) && new Set(ids).size === ids.length ? ids : null
+}
+
+/** `{granularity:'element', paths}` — what `next` changed relative to `prev`, element-wise
+ *  for the instance list, whole-value for every other top-level key. */
+export function elementRecord(prev, next) {
+  const a = isObj(prev) ? prev : {}
+  const b = isObj(next) ? next : {}
+  const paths = []
+  for (const k of [...new Set([...Object.keys(a), ...Object.keys(b)])].sort()) {
+    if (same(a[k], b[k])) continue
+    const ka = k === LIST_KEY ? idList(a[k]) : null
+    const kb = k === LIST_KEY ? idList(b[k]) : null
+    if (ka && kb) {
+      const ea = new Map((a[k] || []).map((e) => [e.instanceId, e]))
+      const eb = new Map((b[k] || []).map((e) => [e.instanceId, e]))
+      for (const id of [...new Set([...ka, ...kb])].sort()) {
+        if (!same(ea.get(id), eb.get(id))) paths.push({ path: [k, { instanceId: id }], before: clone(ea.get(id)), after: clone(eb.get(id)) })
+      }
+      if (!same(ka, kb)) paths.push({ path: [k], order: { before: ka, after: kb } })
+      continue
+    }
+    paths.push({ path: [k], before: clone(a[k]), after: clone(b[k]) })
+  }
+  return { granularity: ELEMENT, paths }
+}
+
+/** The same record, the other way round (Redo is the Undo of the inverse). */
+export function invertRecord(record) {
+  return {
+    ...record,
+    paths: record.paths.map((p) => (p.order
+      ? { path: p.path, order: { before: p.order.after, after: p.order.before } }
+      : { path: p.path, before: p.after, after: p.before })),
+  }
+}
+
+/** The recorded order's ids as they sit NOW (absent ones dropped). */
+const elementOrderNow = (root, entry) => {
+  const arr = getAt(root, entry.path)
+  const want = new Set(entry.order.after)
+  return Array.isArray(arr) ? arr.map((e) => (isObj(e) ? e.instanceId : null)).filter((id) => want.has(id)) : []
+}
+// ⭐ ORDER NEVER REFUSES. A chart's VIEW of its list can be ordered differently from the
+// blob it wrote (an override surface merges the base list first), so an order entry that no
+// longer matches is drift, not a conflict: the elements are what Undo must get exactly
+// right. The recorded order is restored when it still holds, and otherwise left as it is.
+const orderHolds = (root, entry) => same(elementOrderNow(root, entry),
+  entry.order.after.filter((id) => getAt(root, [...entry.path, { instanceId: id }]) !== undefined))
+const elementHolds = (root, entry) => (entry.order ? true : same(getAt(root, entry.path), entry.after))
+
+function putElement(root, path, value) {
+  const [k, seg] = path
+  const arr = Array.isArray(root[k]) ? root[k] : []
+  const i = arr.findIndex((e) => isObj(e) && e.instanceId === seg.instanceId)
+  const copy = arr.slice()
+  if (value === undefined) { if (i >= 0) copy.splice(i, 1) } else if (i >= 0) copy[i] = clone(value); else copy.push(clone(value))
+  return { ...root, [k]: copy }
+}
+
+function revertElementRecord(cs, record) {
+  if (!isObj(cs) || !Array.isArray(record.paths)) return { ok: false, path: null }
+  for (const p of record.paths) {
+    if (!elementHolds(cs, p)) return { ok: false, path: p.path }
+  }
+  const orderOk = new Set(record.paths.filter((p) => p.order && orderHolds(cs, p)))
+  let next = { ...cs }
+  for (const p of record.paths) {
+    if (p.order) continue
+    if (p.path.length === 2 && isObj(p.path[1])) next = putElement(next, p.path, p.before)
+    else if (p.before === undefined) { const { [p.path[0]]: _gone, ...rest } = next; next = rest } else next = { ...next, [p.path[0]]: clone(p.before) }
+  }
+  for (const p of record.paths) {
+    if (!p.order || !orderOk.has(p)) continue
+    const arr = Array.isArray(next[p.path[0]]) ? next[p.path[0]] : []
+    const byId = new Map(arr.map((e) => [e.instanceId, e]))
+    const recorded = new Set(p.order.before)
+    next = { ...next, [p.path[0]]: [...p.order.before.filter((id) => byId.has(id)).map((id) => byId.get(id)), ...arr.filter((e) => !recorded.has(e.instanceId))] }
   }
   return { ok: true, cs: next }
 }
