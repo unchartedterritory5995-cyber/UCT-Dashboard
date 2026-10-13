@@ -10,7 +10,7 @@
  * on UI STATE — the open-layout pointer the workspace persisted and the Dock's aria-current — and
  * the model is never called (the test fails on any /api/agent/turn).
  */
-import { render, screen, act, fireEvent, waitFor, cleanup } from '@testing-library/react'
+import { render, screen, act, fireEvent, waitFor, cleanup, within } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
 import { vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
@@ -220,3 +220,18 @@ test('navigation is not Undo: "undo" after a non-layout change still reverses th
   expect(await screen.findByText(/nothing of mine to undo/, {}, { timeout: 15000 })).toBeTruthy()
   expect(activeId()).toBe(2)
 }, 45000)
+
+// ⭐ A1.3b (owner Q7) — a MEMBER's layout open is undoable with the Agent's rules: Undo
+// reopens the previous saved layout (here MAIN, an own layout that auto-saves, so nothing
+// was discarded).
+test('A1.3b — Dock open → "Switched to …" → Undo reopens the previous layout', async () => {
+  mount(MAIN)
+  await act(async () => { dockButton('Swing Board').click() })
+  await waitFor(() => expect(activeId()).toBe(2))
+  const toast = await screen.findByTestId('layout-undo-toast')
+  expect(toast.textContent).toMatch(/^Switched to “Swing Board”/)
+  await act(async () => { within(toast).getByRole('button', { name: 'Undo' }).click() })
+  await waitFor(() => expect(activeId()).toBe(1))
+  expect(modelCalls).toBe(0)
+}, 30000)
+
