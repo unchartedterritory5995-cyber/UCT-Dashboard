@@ -1,0 +1,17 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/trader-blocks/prep/movers",
+    "note": "Nothing held yet: the part names its gap (`missing`) and says it (`detail`).",
+    "path": "/api/j2/trader-blocks/prep/movers",
+    "status": 200
+  },
+  "body": {
+    "capturedAt": "2026-10-05T14:30:00Z",
+    "detail": "Add names to a watchlist, flag them, or hold a position to see them here.",
+    "items": [],
+    "missing": "no_names",
+    "part": "movers",
+    "unquoted": 0
+  }
+}

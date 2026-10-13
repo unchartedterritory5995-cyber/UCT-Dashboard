@@ -408,3 +408,37 @@ def trader_rule_before_after(rule_id: str, user: dict = Depends(require_paid)) -
     if got is None:
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     return got
+
+
+# ── trader blocks (P2b, lane P): the daily prep pack and the post-trade review ───────────
+#   GET    /api/j2/trader-blocks/prep/{part}       one prep part, captured now (Task 6); 404 unknown part
+#   GET    /api/j2/trader-blocks/review/trades     the member's closed trades, newest exit first (Task 7)
+#   GET    /api/j2/trader-blocks/review/{trade}    one trade's review: a stable ref (id:/ext:) or a row id;
+#                                                  404 when it is not the caller's (Task 7)
+# Read-only. Self-contained block, appended last (lane merge order S before P).
+
+@router.get("/trader-blocks/prep/{part}")
+def trader_prep(part: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """Read-only (spec §P2 item 6): one prep part's snapshot for the block's "Capture now". Caches
+    only (R-W0-1); each gap is named, and a read that raises is that part's gap, never a 500 (N10)."""
+    from api.services.journal_two import trader_blocks
+    if part not in trader_blocks.PREP_PARTS:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    return trader_blocks.prep_part(user["id"], part)
+
+
+# `/review/trades` is declared BEFORE `/review/{trade_key}`, so "trades" is never read as a trade.
+@router.get("/trader-blocks/review/trades")
+def trader_review_trades(user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """Read-only (spec §P2 item 7): the review block's trade picker. Each row carries its stable
+    `tradeRef`, which is what the block stores (pre-flight N15)."""
+    from api.services.journal_two import trader_blocks
+    return {"trades": trader_blocks.recent_closed_trades(user["id"])}
+
+
+@router.get("/trader-blocks/review/{trade_key}")
+def trader_review(trade_key: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """Read-only (spec §P2 item 7): the trade, its tags, the rules ticked before entry, the plan grade
+    or what it needs. Another member's trade is the same 404 as one that does not exist."""
+    from api.services.journal_two import trader_blocks
+    return _found(trader_blocks.trade_review(user["id"], trade_key))

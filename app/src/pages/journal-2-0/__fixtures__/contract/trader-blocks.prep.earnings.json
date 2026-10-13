@@ -1,0 +1,19 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/trader-blocks/prep/earnings",
+    "note": "Nothing held yet: the part names its gap (`missing`) and says it (`detail`).",
+    "path": "/api/j2/trader-blocks/prep/earnings",
+    "status": 200
+  },
+  "body": {
+    "amc": [],
+    "amcTonight": [],
+    "asOf": null,
+    "bmo": [],
+    "capturedAt": "2026-10-05T14:30:00Z",
+    "detail": "Today's earnings list has not been loaded yet. Capture again in a few minutes.",
+    "missing": "no_earnings_yet",
+    "part": "earnings"
+  }
+}
