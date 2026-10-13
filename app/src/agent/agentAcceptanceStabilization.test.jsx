@@ -162,7 +162,7 @@ describe('4 · general breadth + mixed intent through the panel', () => {
   it('"What\'s breadth today and the latest NVDA news?" → the breadth overview AND 5 headlines; no limit refusal', async () => {
     const say = mount()
     envelopes.push((b) => ({ disposition: 'apply', reply: '', question: null, unsupported_category: null, ops: [
-      { action: 'breadth.show', target: b.context.breadth[0].ref, args: { mode: 'value', universe: 'us', metrics: [], date: null, compare_date: null, start: null, end: null, basis: null, side: null } },
+      { action: 'breadth.show', target: b.context.breadth[0].ref, args: { mode: 'value', universe: 'us', metrics: [], date: null, compare_date: null, start: null, end: null, basis: null, side: null, sessions: null } },
       { action: 'news.latest', target: b.context.stockData[0].ref, args: { symbol: 'NVDA', limit: null } },
     ] }))
     await say("What's breadth today and the latest NVDA news?")
@@ -188,7 +188,7 @@ describe('4 · general breadth + mixed intent through the panel', () => {
       ? new Response(JSON.stringify({ detail: 'breadth store unavailable' }), { status: 503, headers: { 'content-type': 'application/json' } })
       : orig(url, init)))
     envelopes.push((b) => ({ disposition: 'apply', reply: '', question: null, unsupported_category: null, ops: [
-      { action: 'breadth.show', target: b.context.breadth[0].ref, args: { mode: 'value', universe: 'us', metrics: [], date: null, compare_date: null, start: null, end: null, basis: null, side: null } },
+      { action: 'breadth.show', target: b.context.breadth[0].ref, args: { mode: 'value', universe: 'us', metrics: [], date: null, compare_date: null, start: null, end: null, basis: null, side: null, sessions: null } },
       { action: 'news.latest', target: b.context.stockData[0].ref, args: { symbol: 'NVDA', limit: null } },
     ] }))
     await say("What's breadth today and the latest NVDA news?")

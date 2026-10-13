@@ -161,14 +161,15 @@ def view_of(res: Any, answer: dict) -> Optional[dict]:
 # measure). Its complement is therefore the share AT OR BELOW the average: 100 − above, over the same
 # denominator. No second dataset, nothing invented: the measure's own values, complemented and SAID so.
 BELOW_WORDS = ("Above", "At or Below")
-BELOW_REFUSAL = ("The share below a moving average is shown for a current or dated reading. For comparisons "
-                 "and ranges, ask about the share above it.")
+BELOW_REFUSAL = ("The share below a moving average is shown for a current or dated reading, or a list of recent "
+                 "sessions. For comparisons and ranges, ask about the share above it.")
 
 
 def below_ok(req: Any) -> bool:
-    """A "% below" request UCT can answer exactly: one reading (mode value) of % above-MA measures only."""
+    """A "% below" request UCT can answer exactly: a reading (mode value) or a list of recent sessions
+    (mode rows) of % above-MA measures only — each row its own complement."""
     mets = req.get("metrics") if isinstance(req, dict) else None
-    return (isinstance(req, dict) and req.get("mode") == "value" and isinstance(mets, list) and bool(mets)
+    return (isinstance(req, dict) and req.get("mode") in ("value", "rows") and isinstance(mets, list) and bool(mets)
             and all(isinstance(m, str) and m.startswith("pct_above_") for m in mets))
 
 
@@ -199,9 +200,15 @@ def complement_reading(reading):
 
     def read(universe, metric):
         r = reading(universe, metric)
-        if isinstance(r, dict) and str(metric).startswith("pct_above_") and isinstance(r.get("value"), (int, float)):
-            return {**r, "value": _below(r["value"])}
-        return r
+        if not isinstance(r, dict) or not str(metric).startswith("pct_above_"):
+            return r
+        out = {**r}
+        if isinstance(r.get("value"), (int, float)):
+            out["value"] = _below(r["value"])
+        lc = r.get("latest_completed")
+        if isinstance(lc, dict) and isinstance(lc.get("value"), (int, float)):
+            out["latest_completed"] = {**lc, "value": _below(lc["value"])}
+        return out
     return read
 
 

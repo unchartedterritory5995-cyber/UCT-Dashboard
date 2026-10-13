@@ -577,6 +577,65 @@ def _stage(name: str) -> None:
     _progress.update(stage=name, at=time.time())
 
 
+#: The built state persisted per session (`L`) so a restarted process can restore it (above).
+STATE_PATH = os.path.join(os.environ.get("DATA_DIR", "/data"), "breadth_live_universes_state.pkl")
+#: Bump when `_build_state`'s output shape or meaning changes: an older file is then ignored.
+STATE_VERSION = 1
+#: A persisted state older than this is ignored (a stale membership must never outlive a day).
+STATE_MAX_AGE_S = 20 * 3600
+
+
+def _state_path() -> Optional[str]:
+    """The state file, or None inside a test run that did not name its own (a test must never
+    read or write the real volume's file — same rule as `_record_intraday`)."""
+    explicit = os.environ.get("BREADTH_LIVE_UNIVERSES_STATE_PATH")
+    if explicit:
+        return explicit
+    return None if "PYTEST_CURRENT_TEST" in os.environ else STATE_PATH
+
+
+def _save_state(st: dict) -> None:
+    """Persist the built state atomically. Best-effort: a failed save only costs a rebuild."""
+    import pickle
+    path = _state_path()
+    if not path:
+        return
+    try:
+        tmp = path + ".tmp"
+        with open(tmp, "wb") as fh:
+            pickle.dump({"version": STATE_VERSION, "L": st["L"], "saved_at": time.time(),
+                         "state": st}, fh, protocol=pickle.HIGHEST_PROTOCOL)
+        os.replace(tmp, path)
+    except Exception as e:                       # noqa: BLE001
+        _log.warning("[breadth_live_universes] state save failed: %s", e)
+
+
+def _restore_state(L: int) -> Optional[dict]:
+    """The persisted state for session `L`, or None (absent, other session, other version, too
+    old, unreadable). Never raises. Reads only this module's own file on the data volume."""
+    import pickle
+    path = _state_path()
+    if not path:
+        return None
+    try:
+        with open(path, "rb") as fh:
+            rec = pickle.load(fh)
+    except Exception:
+        return None
+    try:
+        if (rec.get("version") != STATE_VERSION or rec.get("L") != L
+                or time.time() - float(rec.get("saved_at") or 0) > STATE_MAX_AGE_S):
+            return None
+        st = rec["state"]
+        if st.get("L") != L or not st.get("dates") or not st.get("members"):
+            return None
+    except Exception:
+        return None
+    _log.info("[breadth_live_universes] state restored for L=%s (saved %.0fs ago)",
+              _iso(L), time.time() - float(rec["saved_at"]))
+    return st
+
+
 def _close_rows(st: dict, k: int) -> dict:
     """The method at the CLOSE of `st['dates'][k]`, per universe (levels from the prior k sessions)."""
     from api.services import breadth_live as bl
@@ -646,12 +705,23 @@ def compute(force: bool = False) -> dict:
         return {"ok": False, "reason": "no completed session in bars.db"}
     st = _state.get("value")
     if force or not st or st["L"] != L:
-        if not force and _process_uptime() < BOOT_GRACE_SECONDS:
-            return {"ok": False, "reason": "boot grace: no state build in the first %ss of a process"
-                    % BOOT_GRACE_SECONDS}
-        st = _build_state(L)
-        if st is None:
-            return {"ok": False, "reason": "frame unavailable (members or bars.db too thin)"}
+        # ⭐ (2026-10-13 incident) A RESTART RESTORES, IT DOES NOT REBUILD. After every web deploy
+        # the live readings went dark ~12 min (BOOT_GRACE_SECONDS, then a ~2 min cold build): on
+        # 2026-10-13 the Agent answered "no current reading" at 10:20 ET, 16 min after a deploy.
+        # The built state for session L is persisted; a new process loads it (a cheap file read,
+        # not the CPU-heavy build the grace protects boot from) and serves live data again on its
+        # first tick. Only when no valid persisted state exists does the grace + build apply.
+        restored = None if force else _restore_state(L)
+        if restored is not None:
+            st = restored
+        else:
+            if not force and _process_uptime() < BOOT_GRACE_SECONDS:
+                return {"ok": False, "reason": "boot grace: no state build in the first %ss of a process"
+                        % BOOT_GRACE_SECONDS}
+            st = _build_state(L)
+            if st is None:
+                return {"ok": False, "reason": "frame unavailable (members or bars.db too thin)"}
+            _save_state(st)
         _state["value"] = st
         _state["close_rows"] = {}
     dates = st["dates"]

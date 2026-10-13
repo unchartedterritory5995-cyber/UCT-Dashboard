@@ -184,13 +184,35 @@ def choose(universe: str, metric: str, now: datetime, payload: Optional[dict],
     fin = ({"session": fin_dates[-1], "value": _finite(finalized[fin_dates[-1]]),
             "status": "finalized"} if fin_dates else None)
 
+    # ⭐ (2026-10-13 incident) THE NEWEST COMPLETED SESSION, never an older one standing in for it.
+    # At 10:20 ET on 2026-10-13 no current reading existed (post-restart) and the answer fell back
+    # to Oct 9 finalized while Oct 12's provisional close (closing bars, a COMPLETED session) was
+    # in the payload. `latest_completed` = the newer of the newest provisional completed row and
+    # the newest finalized value — what a consumer shows, clearly labelled, when `current` is
+    # False. Same eligibility gates as the live pick (tier, payload/universe ok, population).
+    prov = None
+    if not reasons or (live is not None):
+        for r in reversed((u.get("rows") or []) if (p.get("ok") and u.get("ok")) else []):
+            v = _finite((r.get("metrics") or {}).get(metric))
+            if v is None or metric in FINALIZED_ONLY or metric in UNVALIDATED_LIVE:
+                continue
+            # a completed session by the shared rule: a closing-bars row, or today's row once
+            # its vendor data time has passed the close
+            if row_observation(p, r, now)["status"] == "provisional":
+                prov = {"session": r.get("date"), "value": v, "status": "provisional"}
+                break
+    newest = max((x for x in (prov, fin) if x), key=lambda x: x["session"], default=None)
+    latest_completed = (dict(newest, label=_label(newest["status"], newest["session"], None))
+                        if newest else None)
+
     pick = None
     if live and (not fin or live["session"] > fin["session"]):
         pick = live
     elif fin:
         pick = fin
     if pick is None:
-        return dict(out, ok=False, current=False, stale_reason="; ".join(reasons) or "no reading")
+        return dict(out, ok=False, current=False, latest_completed=latest_completed,
+                    stale_reason="; ".join(reasons) or "no reading")
 
     is_live = pick is live
     age = (now - observed).total_seconds() if (is_live and observed) else None
@@ -215,17 +237,15 @@ def choose(universe: str, metric: str, now: datetime, payload: Optional[dict],
     if not current and pick["session"] != want:
         reasons.append(f"newest reading is for {pick['session']}, not {want}")
     res["current"] = current
+    res["latest_completed"] = latest_completed
     res["stale_reason"] = None if current else ("; ".join(reasons) or "not current")
     res["label"] = _label(pick["status"], pick["session"], observed if is_live else None)
     return res
 
 
-def reading(universe: str, metric: str, now: Optional[datetime] = None) -> dict:
-    """The contract call. Never computes inline; never raises."""
-    u = (universe or "").strip().lower()
-    if u not in UNIVERSES:
-        return {"ok": False, "current": False, "stale_reason": f"unknown universe {universe!r}"}
-    now = now or datetime.now(_ET)
+def _inputs(u: str, metric: str) -> tuple:
+    """(payload, finalized) — the two sources every present-tense / completed-session answer
+    reads: the cached live payload (never computed inline) and the canonical history tail."""
     payload = None
     try:
         from api.services import breadth_live_universes as blu
@@ -246,7 +266,76 @@ def reading(universe: str, metric: str, now: Optional[datetime] = None) -> dict:
         finalized = {}
     _log.info("[breadth_current] reading %s/%s history_ms=%d", u, metric,
               round((time.monotonic() - t0) * 1000))      # value-free: a duration only
+    return payload, finalized
+
+
+def reading(universe: str, metric: str, now: Optional[datetime] = None) -> dict:
+    """The contract call. Never computes inline; never raises."""
+    u = (universe or "").strip().lower()
+    if u not in UNIVERSES:
+        return {"ok": False, "current": False, "stale_reason": f"unknown universe {universe!r}"}
+    now = now or datetime.now(_ET)
+    payload, finalized = _inputs(u, metric)
     try:
         return choose(u, metric, now, payload, finalized)
     except Exception as e:                       # noqa: BLE001
         return {"ok": False, "current": False, "stale_reason": f"selection failed: {e}"}
+
+
+# ── completed sessions after the finalized watermark (2026-10-13, owner-approved) ────────────
+
+def select_completed(universe: str, metric: str, now: datetime, payload: Optional[dict],
+                     finalized: dict) -> dict:
+    """Pure: the COMPLETED provisional sessions strictly after the newest finalized session,
+    newest first — exactly the completed rows the charts draw (same payload, same
+    `row_observation` rule), so a dated / close / range answer can use them, labelled.
+
+    ⛔ Never today's in-progress row (a today row counts only once its vendor data time has
+    passed the close); never a stale / unstamped one; never for FINALIZED_ONLY or
+    UNVALIDATED_LIVE measures; never when the payload, the universe or its population is not
+    usable. Empty `sessions` always carries a `reason`."""
+    fin_dates = sorted(d for d, v in (finalized or {}).items() if _finite(v) is not None)
+    out = {"ok": True, "universe": universe, "metric": metric,
+           "finalized_through": fin_dates[-1] if fin_dates else None, "sessions": [], "reason": None}
+    if metric in FINALIZED_ONLY or metric in UNVALIDATED_LIVE:
+        return dict(out, reason="measure is finalized-only")
+    p = payload or {}
+    u = (p.get("universes") or {}).get(universe) or {}
+    if not p.get("ok"):
+        return dict(out, ok=False, reason=f"live breadth unavailable ({p.get('reason') or 'no payload'})")
+    if not u.get("ok"):
+        return dict(out, ok=False, reason=f"live {universe} unavailable ({u.get('reason') or 'not ok'})")
+    if u.get("population_drift") is None or abs(u["population_drift"]) > MAX_POPULATION_DRIFT:
+        return dict(out, ok=False, reason="live population does not reconcile with the canonical universe")
+    sessions = []
+    for r in u.get("rows") or []:
+        v = _finite((r.get("metrics") or {}).get(metric))
+        d = r.get("date")
+        if v is None or not d or (out["finalized_through"] and d <= out["finalized_through"]):
+            continue
+        obs = row_observation(p, r, now)
+        if obs["status"] != "provisional":
+            continue                              # today's in-progress (or stale) row
+        sessions.append({"session": d, "value": v, "status": "provisional",
+                         "observation_basis": obs["basis"],
+                         "observed_at": obs["observed"].isoformat() if obs["observed"] else None,
+                         "label": _label("provisional", d, None)})
+    sessions.sort(key=lambda x: x["session"], reverse=True)
+    if not sessions:
+        out["reason"] = "no completed session after the finalized watermark"
+    out["sessions"] = sessions
+    return out
+
+
+def completed_sessions(universe: str, metric: str, now: Optional[datetime] = None) -> dict:
+    """The contract call for completed provisional sessions. Never computes inline; never raises.
+    Value-bearing like `reading()` — same model-isolation rules; no new public route."""
+    u = (universe or "").strip().lower()
+    if u not in UNIVERSES:
+        return {"ok": False, "sessions": [], "reason": f"unknown universe {universe!r}"}
+    now = now or datetime.now(_ET)
+    payload, finalized = _inputs(u, metric)
+    try:
+        return select_completed(u, metric, now, payload, finalized)
+    except Exception as e:                       # noqa: BLE001
+        return {"ok": False, "sessions": [], "reason": f"selection failed: {e}"}

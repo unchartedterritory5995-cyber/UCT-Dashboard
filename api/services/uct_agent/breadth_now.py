@@ -40,6 +40,10 @@ log = logging.getLogger(__name__)
 
 LIVE_STATUSES = ("intraday", "provisional")
 UNAVAILABLE = "No current breadth reading is available right now — this is the latest finalized close, shown as historical context."
+#: (2026-10-13 incident) no current reading → Breadth's NEWEST COMPLETED session (`latest_completed`), said
+#: as exactly that — never live, intraday or today. Its own label carries the session and its status.
+NOT_CURRENT = "Live breadth isn't available right now, so this is the latest completed session — not a current reading."
+COMPLETED_STATUSES = ("provisional", "finalized")
 
 
 ON_VALUES = ("1", "true", "on", "yes")
@@ -73,8 +77,31 @@ def _day(iso: Optional[str]) -> str:
         return str(iso or "")
 
 
+def _completed(m: dict, r: dict) -> Optional[dict]:
+    """Breadth's `latest_completed` for this measure, when it is valid and no older than MI's finalized
+    session — its value, session, status and label exactly as supplied (nothing recomputed or inferred)."""
+    lc = r.get("latest_completed")
+    if not isinstance(lc, dict):
+        return None
+    v, session, status, label = lc.get("value"), lc.get("session"), lc.get("status"), lc.get("label")
+    if (not isinstance(v, (int, float)) or isinstance(v, bool) or not isinstance(session, str) or not session
+            or status not in COMPLETED_STATUSES or not isinstance(label, str) or not label.strip()):
+        return None
+    try:
+        _date.fromisoformat(session)
+    except ValueError:
+        return None
+    if session < str(m.get("as_of") or ""):
+        return None                      # never older than the finalized close already in hand
+    if status == "finalized" and session == str(m.get("as_of") or ""):
+        return None                      # the SAME finalized close MI read: the fallback says it as before
+    return {"value": _ba.fmt_value(m.get("unit"), m.get("domain"), float(v)), "note": label.strip(),
+            "live": False, "kind": "latest_completed", "status": status, "session": session}
+
+
 def _choice(m: dict, r: Any) -> dict:
-    """One measure: {value, note, live, kind} — `kind` is live / finalized_only / fallback."""
+    """One measure: {value, note, live, kind} — `kind` is live / finalized_only / current_finalized /
+    latest_completed / fallback."""
     fin = {"value": _ba.fmt_value(m.get("unit"), m.get("domain"), m["value"]),
            "note": f"Finalized close · {_day(m.get('as_of'))}", "live": False}
     r = r if isinstance(r, dict) else {}
@@ -96,6 +123,12 @@ def _choice(m: dict, r: Any) -> dict:
     # current but FINALIZED (e.g. the expected session already finalized): the same canonical close
     if r.get("ok") and r.get("current") is True and r.get("status") == "finalized" and r.get("session") == m.get("as_of"):
         return {**fin, "kind": "current_finalized"}
+    # NOT CURRENT (2026-10-13 incident: Oct 9 finalized was shown while Oct 12's close existed): Breadth's
+    # newest completed session, labelled as such. Absent / malformed → the finalized fallback, as before.
+    if r.get("current") is not True:
+        done = _completed(m, r)
+        if done:
+            return done
     return {**fin, "kind": "fallback"}
 
 
@@ -135,10 +168,16 @@ def overlay(res: dict, answer: dict, view: Optional[dict], reading: Optional[Cal
 
     missing = [m for m in mets if m.get("status") != "ok"]
     fallback = any(p["kind"] == "fallback" for p in picks.values())
-    lines = [f"{uni} breadth now:" if uni else "Breadth now:"]
+    completed = any(p["kind"] == "latest_completed" for p in picks.values())
+    anything_now = any(p["kind"] in ("live", "current_finalized") for p in picks.values())
+    # never "now" over readings that are not current
+    head = "breadth now:" if anything_now else "breadth — latest completed session:"
+    lines = [f"{uni} {head}" if uni else head[0].upper() + head[1:]]
     lines += [f"{m['label']}: {picks[m['metric']]['value']} — {picks[m['metric']]['note']}" for m in ok]
     if fallback:
         lines.append("Measures marked “Finalized close” have no current live reading right now.")
+    if completed:
+        lines.append(NOT_CURRENT)
     lines += ["", "Latest finalized close (for history and closing questions):", str(answer.get("text") or "")]
     text = "\n".join(lines).strip()
 
@@ -148,6 +187,8 @@ def overlay(res: dict, answer: dict, view: Optional[dict], reading: Optional[Cal
         if p["kind"] == "finalized_only":
             new["note"] = (f"{fin_note(p)}. Today’s reading of this measure isn’t validated for UCT Agent yet, so this is the latest finalized close."
                            if p.get("unvalidated") else f"{fin_note(p)}. This measure has no live reading; this is the latest finalized close.")
+        elif p["kind"] == "latest_completed":
+            new["note"] = f"{p['note']}. {NOT_CURRENT}"
         return text, new, statuses
     notes = {p["note"] for p in picks.values()}
     new = {"kind": "metrics", "title": (view or {}).get("title") or uni,
@@ -158,6 +199,8 @@ def overlay(res: dict, answer: dict, view: Optional[dict], reading: Optional[Cal
         parts.append("Each measure shows its own time and status.")
     if fallback:
         parts.append("A live reading isn't available right now for the measures marked “Finalized close”.")
+    if completed:
+        parts.append(NOT_CURRENT)
     if parts:
         new["note"] = " ".join(parts)
     return text, new, statuses

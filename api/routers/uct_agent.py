@@ -448,6 +448,18 @@ def agent_breadth(body: Any = Body(...), user: dict = Depends(require_admin_dark
     if below and not breadth_present.below_ok(body):
         why = breadth_present.BELOW_REFUSAL
         return {"status": "refused", "text": why, "table": None, "present": {"kind": "error", "text": why}}
+    # ONE selection policy (uct_agent.breadth_select, owner 2026-10-13, D5 amended): "the last N sessions"
+    # is answered there (finalized rows + completed provisional sessions, each with its status)
+    from api.services.uct_agent import breadth_select
+    if isinstance(body, dict) and body.get("mode") == "rows":
+        got = breadth_select.rows(body, below=below)
+        log.info("[uct-agent] breadth rows status=%s", got.get("status"))                # never a value
+        mets = body.get("metrics")
+        chart = (breadth_present.chart_target(body.get("universe"), mets[0], "below" if below else None)
+                 if got.get("status") == "ok" and isinstance(mets, list) and len(mets) == 1 else None)
+        return {**got, **({"chart": chart} if chart else {})}
+    if isinstance(body, dict) and "sessions" in body:
+        body = {k: v for k, v in body.items() if k != "sessions"}           # the rows mode's own field
     res = breadth_reads.read(body)
     if below:
         res = breadth_present.complement(res)
@@ -471,11 +483,19 @@ def agent_breadth(body: Any = Body(...), user: dict = Depends(require_admin_dark
                 res, out, present, reading=breadth_present.complement_reading(breadth_now._reader()) if below else None)
         except Exception:  # noqa: BLE001 -- the finalized answer stands
             log.exception("[uct-agent] present-tense breadth failed; finalized answer shown")
+    status = out.get("status")
+    # LATEST CLOSE / A DATED SESSION (D5 amended): the newest completed session, or that exact session,
+    # as a clearly labelled provisional close when it is not finalized yet — never another date
+    if breadth_select.when_of(body) in ("latest_close", "session"):
+        try:
+            status, text, present, _kinds = breadth_select.close_overlay(body, res, out, present, below=below)
+        except Exception:  # noqa: BLE001 -- the finalized answer (or its refusal) stands
+            log.exception("[uct-agent] completed-session selection failed; finalized answer shown")
     # OPEN CHART: one measure answered → its published chart series (never for "below" or an overview)
     mets = body.get("metrics") if isinstance(body, dict) else None
     chart = (breadth_present.chart_target(body.get("universe"), mets[0], "below" if below else None)
-             if out.get("status") in ("ok", "partial") and isinstance(mets, list) and len(mets) == 1 else None)
-    return {"status": out.get("status"), "text": text, "table": out.get("table"), "present": present,
+             if status in ("ok", "partial") and isinstance(mets, list) and len(mets) == 1 else None)
+    return {"status": status, "text": text, "table": out.get("table"), "present": present,
             **({"chart": chart} if chart else {})}
 
 
@@ -493,7 +513,13 @@ def agent_breadth_history(body: Any = Body(...), user: dict = Depends(require_ad
     except Exception:  # noqa: BLE001 -- the MI module not deployed: an honest refusal, never a guess
         return {"status": "unavailable", "table": None, "present": None,
                 "text": "UCT's historical breadth search isn't available yet, so nothing was searched."}
-    from api.services.uct_agent import breadth_history_present
+    from api.services.uct_agent import breadth_history_present, breadth_select
+    # (2026-10-13 audit) an always-true condition is not a search ("history above 0%" was invented for
+    # "show me the last 30 days"): said, with the way to see the readings themselves
+    why = breadth_select.trivial_condition(body)
+    if why:
+        log.info("[uct-agent] breadth history status=refused reason=trivial_condition")
+        return {"status": "refused", "text": why, "table": None, "present": {"kind": "error", "text": why}}
     result = breadth_events.run(body)
     out = breadth_events.answer(result)
     log.info("[uct-agent] breadth history status=%s", out.get("status"))          # never a value

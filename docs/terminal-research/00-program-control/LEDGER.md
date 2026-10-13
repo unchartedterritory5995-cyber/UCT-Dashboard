@@ -4896,3 +4896,36 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   edge. 5 deleted `api/` lines, each a line rewritten in place (the existence check → `os.stat`, and the
   old warm-up body).
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Breadth: restore the live state after a restart + `latest_completed` · `79ffd4d541` (+ Agent `c3a2d6adb6`) · 2026-10-13
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/breadth_live_universes.py`, `api/services/breadth_current.py` |
+
+- **What runs the new code.** `compute()` (state restore/save) runs only through `refresh()` / `payload()`. Its callers
+  are web's `breadth_live_universes_tick` job (`api/main.py`), the breadth routes, the Agent's `reading()`, and the
+  chart serve path (`breadth_symbols.append_library_bars` via `api/routers/bars.serve_bars`, i.e. web and
+  **bars-api**, each with its own `/data` volume and its own state file). `breadth_current.choose()` /
+  `latest_completed` run only from the Agent and ops routes on web.
+- **Flow-worker.** None of those callers is in flow-worker's closure. It reaches these modules only through the
+  `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` constant edge.
+- **Deleted lines.** 7 deleted `api/` lines, each rewritten in place (the state-build branch of `compute()`, two
+  `choose()` returns).
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Breadth `completed_sessions()` + Agent single selection policy · `212c4a0705` (+ Agent `0099f7e77d`) · 2026-10-13
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED / ADDITIVE, safe; NO marker bump** |
+| stranded file | `api/services/breadth_current.py` |
+
+- **Additive.** `select_completed()` / `completed_sessions()` are new, and their only caller is
+  `api/services/uct_agent/breadth_select.py`, reached from the Agent routes on web.
+- **Refactor.** `reading()` now reads its two sources through a new `_inputs()`: the same calls, moved, with
+  no behaviour change (103 contract tests unchanged and green). The deleted `api/` lines are that move.
+- **Flow-worker.** Reaches `breadth_current` only through the `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` constant
+  edge and never calls it.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.

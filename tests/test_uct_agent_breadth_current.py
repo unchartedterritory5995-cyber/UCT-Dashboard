@@ -133,18 +133,35 @@ def test_CLOSE_an_explicit_closing_question_is_the_dated_finalized_close(client,
 
 # ═══ stale / unavailable → said, with the finalized close as dated context ═══════════════════════
 
+# (2026-10-13 incident) NOT CURRENT, two different truths — never "now" either way:
+#   · a completed session NEWER than the finalized close exists in the payload (Fri Oct 9's closing row
+#     while Oct 8 is the last finalized) → Breadth's `latest_completed`, labelled "Provisional close · Oct 9"
+#     + the not-current sentence (at 10:20 ET on Oct 13 the Agent showed Oct 9 finalized instead of Oct 12);
+#   · no usable live data at all → the finalized close, said as before.
 @pytest.mark.parametrize("payload", [
     live_payload("2026-10-12T10:00:00-04:00"),                                  # 112 minutes old mid-session
     # ⛔ recomputed seconds ago over a 15-minute-DELAYED snapshot: the data time decides, never compute time
     live_payload("2026-10-12T11:51:30-04:00", data_as_of="2026-10-12T11:36:30-04:00"),
     live_payload("2026-10-12T11:51:30-04:00", data_as_of=None),                 # data time unknown
+    # … or the last good payload is CARRIED from disk — its market data is old, so never "now"
+    dict(live_payload("2026-10-12T09:40:00-04:00"), carried=True, carried_from="2026-10-12T09:40:00-04:00"),
+])
+def test_STALE_a_newer_completed_session_is_shown_as_that_never_as_now(client, live, payload):
+    live.payload = payload
+    b = ask(client)
+    p = b["present"]
+    assert p["value"] == "60.2%"                                                # Fri Oct 9's completed close
+    assert p["note"] == f"Provisional close · Oct 9. {breadth_now.NOT_CURRENT}"
+    assert "Intraday" not in json.dumps(b) and not any(s in json.dumps(b) for s in LIVE_LEAKS)   # never today's
+    assert "breadth now:" not in b["text"] and "latest completed session" in b["text"]
+
+
+@pytest.mark.parametrize("payload", [
     live_payload("2026-10-12T11:51:30-04:00", ok=False),                        # engine down
     live_payload("2026-10-12T11:51:30-04:00", drift=0.2),                       # population doesn't reconcile
     None,                                                                       # no payload at all
     # ⭐ POST-RESTART WARM-UP (~10–12 min after a web deploy): boot grace refuses to build …
     {"ok": False, "reason": "boot grace: no state build in the first 600s of a process"},
-    # … or the last good payload is CARRIED from disk — its market data is old, so never "now"
-    dict(live_payload("2026-10-12T09:40:00-04:00"), carried=True, carried_from="2026-10-12T09:40:00-04:00"),
 ])
 def test_STALE_or_UNAVAILABLE_is_said_and_never_shown_as_now(client, live, payload):
     live.payload = payload
@@ -197,7 +214,9 @@ def test_MARKET_OPEN_yesterdays_close_is_not_now(client, live):
     live.now = datetime(2026, 10, 12, 9, 45, tzinfo=ET)
     live.payload = live_payload("2026-10-09T16:10:00-04:00", today="2026-10-09", final_today=True)
     p = ask(client)["present"]
-    assert p["value"] == "25.6%" and breadth_now.UNAVAILABLE in p["note"]
+    # Friday's completed close (its row carries the sentinel here), said as exactly that — never "now"
+    assert p["value"] == "61.2%" and p["note"] == f"Provisional close · Oct 9. {breadth_now.NOT_CURRENT}"
+    assert "Intraday" not in p["note"]
 
 
 # ═══ switches ══════════════════════════════════════════════════════════════════════════════════════
