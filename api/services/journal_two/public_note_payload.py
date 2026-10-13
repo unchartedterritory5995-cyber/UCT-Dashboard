@@ -197,6 +197,12 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     ("widgetEmbed", "screener"): "mixed",
     ("widgetEmbed", "cot"): "mixed",
     ("widgetEmbed", "modelbook"): "mixed",
+    # Notebook P2a trader blocks (IR-B3). The checklist and the sizer hold the member's own setups,
+    # rules, prices and account; a price-stamps block is a switch over Massive price facts, so it
+    # follows ("financialFact", "massive") below. The market context stamp is "marketcontext" above.
+    ("widgetEmbed", "preEntryChecklist"): "private",
+    ("widgetEmbed", "priceStamps"): "massive",
+    ("widgetEmbed", "positionSizing"): "private",
     # financialFact -- by the fact's recorded source.
     ("financialFact", "fmp"): "fmp",
     ("financialFact", "finnhub"): "finnhub",

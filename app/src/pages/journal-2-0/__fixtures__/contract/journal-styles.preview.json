@@ -25,6 +25,66 @@
           "type": "heading"
         },
         {
+          "attrs": {
+            "annotations": [],
+            "caption": null,
+            "capturedAt": "2026-10-05T14:30:00Z",
+            "embedId": "9062a1c0fdc24f32992e7909dafe9e34",
+            "fallback": null,
+            "layout": {
+              "height": null,
+              "width": "full"
+            },
+            "mode": "snapshot",
+            "params": {
+              "fields": "all",
+              "readings": {
+                "breadthScore": null,
+                "distributionDays": null,
+                "exposureDelta": null,
+                "exposureScore": null,
+                "marketPhase": null,
+                "pctAbove200": null,
+                "pctAbove50": null,
+                "powerTrend": null,
+                "qqq": {
+                  "asOf": null,
+                  "missing": "No QQQ quote could be read just now.",
+                  "source": null,
+                  "value": null
+                },
+                "regime": {
+                  "asOf": null,
+                  "missing": "The regime could not be read just now.",
+                  "source": null,
+                  "value": null
+                },
+                "spy": {
+                  "asOf": "2026-10-02T20:00:00Z",
+                  "missing": null,
+                  "source": "last close",
+                  "value": {
+                    "changePct": 0.1912,
+                    "closed": true,
+                    "price": 524.0
+                  }
+                },
+                "vix": {
+                  "asOf": null,
+                  "missing": "VIX unavailable",
+                  "source": null,
+                  "value": null
+                }
+              },
+              "updated": "10:30 AM ET",
+              "wireDate": null
+            },
+            "v": 1,
+            "widgetId": "marketcontext"
+          },
+          "type": "widgetEmbed"
+        },
+        {
           "content": [
             {
               "text": "What is the pattern, and why now?",
@@ -38,7 +98,7 @@
             "annotations": [],
             "caption": null,
             "capturedAt": "2026-10-05T14:30:00Z",
-            "embedId": "9062a1c0fdc24f32992e7909dafe9e34",
+            "embedId": "4ba0d9fb109341f7b9f01140e19ac259",
             "fallback": null,
             "layout": {
               "height": null,
@@ -52,6 +112,30 @@
             },
             "v": 1,
             "widgetId": "chart"
+          },
+          "type": "widgetEmbed"
+        },
+        {
+          "attrs": {
+            "annotations": [],
+            "caption": null,
+            "capturedAt": "2026-10-05T14:30:00Z",
+            "embedId": "a2a23e8a91394c0aa9c19b8738d3a11d",
+            "fallback": null,
+            "layout": {
+              "height": null,
+              "width": "full"
+            },
+            "mode": "snapshot",
+            "params": {
+              "checked": [],
+              "includeRules": "yes",
+              "requireAll": "no",
+              "setup": ""
+            },
+            "searchText": "[pre-entry checklist]",
+            "v": 1,
+            "widgetId": "preEntryChecklist"
           },
           "type": "widgetEmbed"
         },
@@ -107,6 +191,27 @@
           "type": "heading"
         },
         {
+          "attrs": {
+            "annotations": [],
+            "caption": null,
+            "capturedAt": "2026-10-05T14:30:00Z",
+            "embedId": "d421c43dd2494f959d8cfacbbb776528",
+            "fallback": null,
+            "layout": {
+              "height": null,
+              "width": "full"
+            },
+            "mode": "snapshot",
+            "params": {
+              "grade": "A"
+            },
+            "searchText": "[position sizing]",
+            "v": 1,
+            "widgetId": "positionSizing"
+          },
+          "type": "widgetEmbed"
+        },
+        {
           "content": [
             {
               "text": "How much am I risking, and is it within my rules?",
@@ -118,6 +223,7 @@
       ],
       "type": "doc"
     },
+    "mode": "create",
     "properties": {
       "builtin:note_kind": "trade_plan"
     },

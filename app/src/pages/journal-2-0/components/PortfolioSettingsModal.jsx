@@ -8,6 +8,9 @@ import styles from './PortfolioSettingsModal.module.css'
 import NoTradeWindowsEditor from './NoTradeWindowsEditor'
 import UIcon from '../../../components/ui/UIcon'
 import { uid } from '../../../utils/uid'
+import usePreferences from '../../../hooks/usePreferences'
+import { journalStylesEnabled } from '../lib/journalStylesFlag'
+import { regimeWord } from '../lib/blocks/regimeWords'
 
 const STOP_MODES = [
   {
@@ -70,7 +73,18 @@ function buildDefaultStop(mode, barBuffer, barBufferUnit, fixedAmount, fixedPerc
   }
 }
 
-export default function PortfolioSettingsModal({ settings, onSave, onClose, accountName, isAllAccounts }) {
+// `noSpecificAccount`: useJ2Settings' own name for accountId == null (R-M2-1 b), when Save cannot write.
+// `noAccountReason`: useJ2Settings' WHY (R-M2-2 M-2); the banner says the true reason, never "the Default
+// account's settings" (with no account selected the settings read are the legacy row, not any account's).
+const NO_ACCOUNT_LINES = {
+  all: 'All Accounts is selected. Settings belong to one account: switch to a single account in the header selector to edit them.',
+  pending: 'Your accounts are still loading. Settings can be saved once one account is selected.',
+  'accounts-error': "Your accounts couldn't load, so these settings can't be saved right now.",
+  'no-accounts': "You don't have a Journal account yet, so these settings can't be saved.",
+}
+const NO_ACCOUNT_FALLBACK = 'Select a single account in the header selector to edit its settings.'
+
+export default function PortfolioSettingsModal({ settings, onSave, onClose, accountName, noSpecificAccount, noAccountReason }) {
   // Local form state seeded from props.settings. Saving writes this
   // back through useJ2Settings.save(). Cancel discards local state.
   const [accountSize, setAccountSize] = useState(settings?.accountSize ?? 100_000)
@@ -93,6 +107,19 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
   const [beUnit, setBeUnit] = useState(settings?.breakevenRange?.unit ?? '$')
   const [beValue, setBeValue] = useState(settings?.breakevenRange?.value ?? 0)
   const [setups, setSetups] = useState(settings?.setups ?? [])
+  // Notebook P2a (Task 8): Log Trade's pre-entry checklist, opted into per member. A preference, not
+  // an account setting, so it is saved the moment it changes (not by Save Settings), and only offered
+  // while the journal styles switch is on.
+  const stylesOn = journalStylesEnabled()
+  const { prefs, setPref } = usePreferences(stylesOn)
+  const [checklistPrefFailed, setChecklistPrefFailed] = useState(false)
+  const checklistPref = ['on', 'on-warn'].includes(prefs?.notebook_log_trade_checklist)
+    ? prefs.notebook_log_trade_checklist : 'off'
+  const chooseChecklist = useCallback(async (value) => {
+    setChecklistPrefFailed(false)
+    const kept = await setPref('notebook_log_trade_checklist', value)
+    if (kept === false) setChecklistPrefFailed(true)
+  }, [setPref])
   const [newSetup, setNewSetup] = useState('')
   // P5-A2: per-setup rule LABELS — the checklist template each trade of that
   // setup is graded against later. Shape: { [setupName]: [{id, label}] }.
@@ -384,15 +411,14 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
             ×
           </button>
         </div>
-        {isAllAccounts && (
-          <div style={{
+        {noSpecificAccount && (
+          <div role="status" style={{
             margin: '12px 20px 0', padding: '10px 14px',
             background: 'var(--warn-bg)', border: '1px solid var(--warn-border)',
             color: 'var(--warn)', borderRadius: 8, fontSize: 12,
           }}>
-            <strong>All Accounts mode</strong> — showing the Default account's
-            settings as a fallback. Switch to a single account in the header
-            selector to edit settings.
+            {(noAccountReason && Object.hasOwn(NO_ACCOUNT_LINES, noAccountReason))
+              ? NO_ACCOUNT_LINES[noAccountReason] : NO_ACCOUNT_FALLBACK}
           </div>
         )}
 
@@ -643,14 +669,14 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, margin: '8px 0' }}>
               {[
-                { key: 'green', label: 'GREEN', tint: '#22c55e', placeholder: '1.0' },
-                { key: 'amber', label: 'AMBER', tint: '#fbbf24', placeholder: '0.75' },
-                { key: 'orange', label: 'ORANGE', tint: '#fb923c', placeholder: '0.5' },
-                { key: 'red', label: 'RED', tint: '#ef4444', placeholder: '0' },
-              ].map(({ key, label, tint, placeholder }) => (
+                { key: 'green', tint: '#22c55e', placeholder: '1.0' },
+                { key: 'amber', tint: '#fbbf24', placeholder: '0.75' },
+                { key: 'orange', tint: '#fb923c', placeholder: '0.5' },
+                { key: 'red', tint: '#ef4444', placeholder: '0' },
+              ].map(({ key, tint, placeholder }) => (
                 <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 90 }}>
                   <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.5, color: tint }}>
-                    {label}
+                    {(regimeWord(key) || 'Unknown').toUpperCase()}
                   </span>
                   <input
                     type="number"
@@ -1068,6 +1094,28 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
                 })}
               </div>
             )}
+            {stylesOn && (
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>Pre-entry checklist in Log Trade</span>
+                <select
+                  aria-label="Pre-entry checklist in Log Trade"
+                  className={styles.select}
+                  value={checklistPref}
+                  onChange={(e) => chooseChecklist(e.target.value)}
+                >
+                  <option value="off">Off</option>
+                  <option value="on">Show it</option>
+                  <option value="on-warn">Show it, and warn until every item is ticked</option>
+                </select>
+                <span className={styles.helper}>
+                  Shows the setup&apos;s checklist when you log a trade with Log Trade. The warning
+                  never stops you logging. Saved as soon as you pick it.
+                </span>
+                {checklistPrefFailed && (
+                  <span className={styles.helper} role="alert">Couldn&apos;t save this choice. Try again.</span>
+                )}
+              </label>
+            )}
           </section>
 
           {/* COMMUNITY SHARING */}
@@ -1194,8 +1242,8 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
             type="button"
             className="btn btn-primary"
             onClick={handleSave}
-            disabled={saving || isAllAccounts}
-            title={isAllAccounts ? 'Select a single account to save settings' : ''}
+            disabled={saving || noSpecificAccount}
+            title={noSpecificAccount ? 'Select a single account to save settings' : ''}
           >
             {saving ? 'Saving…' : 'Save Settings'}
           </button>

@@ -9,7 +9,7 @@ import { MemoryRouter, Routes, Route, Link, useNavigate } from 'react-router-dom
 
 vi.mock('../../context/AuthContext', () => ({ useIsPaid: () => true, useAuth: () => ({ isPaid: true }) }))
 vi.mock('./hooks/useJ2Settings', () => ({
-  default: () => ({ settings: { setups: [] }, isLoading: false, error: null, save: vi.fn(), accountName: 'Default', isAllAccounts: false }),
+  default: () => ({ settings: { setups: [] }, isLoading: false, error: null, save: vi.fn(), accountName: 'Default', noSpecificAccount: false }),
 }))
 vi.mock('./hooks/useBrokerSync', () => ({ default: () => {} }))
 vi.mock('./components/accounts/AccountSelector', () => ({ default: () => <div data-testid="account-selector" /> }))

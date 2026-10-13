@@ -46,7 +46,7 @@ vi.mock('../hooks/useJ2Settings', () => ({
     error: null,
     save: vi.fn(),
     accountName: 'Default',
-    isAllAccounts: false,
+    noSpecificAccount: false,
   }),
 }))
 vi.mock('../hooks/useBrokerSync', () => ({ default: () => {} }))

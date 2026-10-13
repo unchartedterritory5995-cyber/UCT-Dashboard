@@ -230,6 +230,9 @@ def _llm_verdict(
         from api.services.journal_two import regime as regime_service
         info = regime_service.get_current_regime() or {}
         regime_label = info.get("regime")
+        # F-O8-SERVER: the model reads the member word (amber's is Yellow); a value
+        # the map does not know passes through as before.
+        regime_label = regime_service.regime_word(regime_label) or regime_label
     except Exception:
         pass
 

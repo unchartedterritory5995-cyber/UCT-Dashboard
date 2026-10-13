@@ -1,0 +1,19 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "PUT /api/j2/trader-blocks/positions/pos-styles-2/pre-entry",
+    "note": "The member's own position, partly closed: any exit refuses the write; its rules go on the trade.",
+    "path": "/api/j2/trader-blocks/positions/pos-styles-2/pre-entry",
+    "requestBody": {
+      "checkedRuleIds": [
+        "r1"
+      ],
+      "setup": "VCP",
+      "totalRules": 2
+    },
+    "status": 409
+  },
+  "body": {
+    "detail": "This trade is already closed or partly closed. Record its rules on the trade instead."
+  }
+}

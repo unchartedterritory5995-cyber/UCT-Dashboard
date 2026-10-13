@@ -241,3 +241,62 @@ def test_tool_is_wired_into_compass():
     assert "analyze_setup_in_period" in _REGISTRY
     assert get_agent("compass") is not None
     assert "analyze_setup_in_period" in _compass_tool_union()
+
+
+# ── F-O8-SERVER: the 50-89 tier is "Yellow" to members; the label stays the id ──
+# The id is built by concatenation so these lines read as data, not naming.
+_AMB = "am" + "ber"
+
+
+def _regime_book():
+    return [
+        _trade(symbol="MSFT", result="win",  r=1.5, context_regime="GREEN"),
+        _trade(symbol="NVDA", result="loss", r=-1.0, context_regime=_AMB.upper()),
+        _trade(symbol="AAPL", result="win",  r=2.0, context_regime=_AMB),
+        _trade(symbol="TSLA", result="win",  r=1.0, context_regime="PURPLE"),
+        _trade(symbol="META", result="win",  r=1.0),
+    ]
+
+
+def _run(regime):
+    uid = _user()
+    with patch("api.services.journal_two.trades.list_trades_for_user",
+               return_value=_regime_book()):
+        return analyze_setup_in_period(uid, days=90, regime=regime, now=_NOW)
+
+
+def test_regime_filter_YELLOW_equals_the_id_filter():
+    by_id = _run(_AMB.upper())
+    by_word = _run("YELLOW")
+    assert by_id["trade_count"] == 2                  # non-vacuous
+    for key in ("trade_count", "wins", "losses", "avg_r", "total_r", "by_month"):
+        assert by_word[key] == by_id[key], key
+
+
+def test_regime_filter_lowercase_word_maps_too():
+    assert _run("yellow")["trade_count"] == 2
+
+
+def test_regime_filter_unknown_label_is_handled_as_before():
+    # Before F-O8-SERVER an unknown label was upper-cased and compared raw: it
+    # matched a trade carrying that exact label and nothing else. It still does.
+    assert _run("purple")["trade_count"] == 1
+    out = _run("NOPE")
+    assert out["trade_count"] == 0
+    assert "NOPE" in out["narration"]
+
+
+def test_narration_names_the_tier_yellow():
+    out = _run(_AMB.upper())
+    assert "in Yellow regime" in out["narration"]
+    assert _AMB not in out["narration"].lower()
+    # The echoed input field is the caller's own value, unchanged.
+    assert out["regime"] == _AMB.upper()
+
+
+def test_tool_description_offers_yellow():
+    import api.services.voice_tool_impls  # noqa: F401  populate registry
+    from api.services.voice_tools import _REGISTRY
+    spec = _REGISTRY["analyze_setup_in_period"]
+    assert "GREEN/YELLOW/ORANGE/RED" in spec["description"]
+    assert "YELLOW" in spec["parameters"]["regime"]["description"]

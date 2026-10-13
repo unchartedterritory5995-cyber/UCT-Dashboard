@@ -191,7 +191,7 @@ const COMPASS_VOICES = [
 ]
 
 const COMPASS_VOICE_SAMPLE =
-  "Hey — I'm Compass. Breadth score is sixty-five, regime is amber, " +
+  "Hey — I'm Compass. Breadth score is sixty-five, regime is yellow, " +
   "and you're three trades into the week. Ask me anything."
 
 function CompassVoicePicker({ value, onChange, enabled }) {

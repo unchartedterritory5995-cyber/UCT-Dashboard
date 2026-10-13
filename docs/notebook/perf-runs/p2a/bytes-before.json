@@ -1,0 +1,46 @@
+{
+  "budgets": "C:\\Users\\Patrick\\uct-worktrees\\notebook-p2-base\\docs\\notebook\\perf-budgets.json",
+  "breaches": [],
+  "bytes": {
+    "notebook_first_open": {
+      "bytes": 2238770,
+      "max": 2260793,
+      "baseline": 2153137,
+      "chunks": 61,
+      "largest": [
+        [
+          "assets/index-DhaRQ2IW.js",
+          570765
+        ],
+        [
+          "assets/vendor-react-BrA_wePN.js",
+          378377
+        ],
+        [
+          "assets/NotebookFlagGate-CB6iU8QY.js",
+          344087
+        ],
+        [
+          "assets/tiptap-B_CAvmUA.js",
+          275793
+        ],
+        [
+          "assets/index-C0mroGc0.js",
+          216080
+        ],
+        [
+          "assets/askInsert-DhU4zQhn.js",
+          96982
+        ],
+        [
+          "assets/FolderSidebar-CZrogvxV.js",
+          44347
+        ],
+        [
+          "assets/CapturedSourceSheet-BRw9ZZ98.js",
+          27764
+        ]
+      ]
+    }
+  }
+}

@@ -29,6 +29,70 @@
             "type": "heading"
           },
           {
+            "attrs": {
+              "annotations": [],
+              "caption": null,
+              "capturedAt": "2026-10-05T14:30:00Z",
+              "embedId": "b960969baf444c9fab942e2569348438",
+              "fallback": null,
+              "layout": {
+                "height": null,
+                "width": "full"
+              },
+              "mode": "snapshot",
+              "params": {
+                "fields": "all",
+                "readings": {
+                  "breadthScore": 58.3,
+                  "distributionDays": 2,
+                  "exposureDelta": 2.5,
+                  "exposureScore": 72.5,
+                  "marketPhase": "Uptrend",
+                  "pctAbove200": 66.0,
+                  "pctAbove50": 61.4,
+                  "powerTrend": null,
+                  "qqq": {
+                    "asOf": "2026-10-02T20:00:00Z",
+                    "missing": null,
+                    "source": "last close",
+                    "value": {
+                      "changePct": 1.25,
+                      "closed": true,
+                      "price": 486.0
+                    }
+                  },
+                  "regime": {
+                    "asOf": "2026-10-05",
+                    "missing": null,
+                    "source": "journal_two.regime.get_current_regime",
+                    "value": "amber"
+                  },
+                  "spy": {
+                    "asOf": "2026-10-05T14:29:00Z",
+                    "missing": null,
+                    "source": "live price",
+                    "value": {
+                      "changePct": 0.42,
+                      "closed": false,
+                      "price": 601.25
+                    }
+                  },
+                  "vix": {
+                    "asOf": null,
+                    "missing": "VIX unavailable",
+                    "source": null,
+                    "value": null
+                  }
+                },
+                "updated": "10:30 AM ET",
+                "wireDate": "2026-10-05"
+              },
+              "v": 1,
+              "widgetId": "marketcontext"
+            },
+            "type": "widgetEmbed"
+          },
+          {
             "content": [
               {
                 "text": "What is the pattern, and why now?",
@@ -42,7 +106,7 @@
               "annotations": [],
               "caption": null,
               "capturedAt": "2026-10-05T14:30:00Z",
-              "embedId": "a28df6efa7a04dba954e79bb1277d59c",
+              "embedId": "84605430a6dc421e85d5beefc6ddde2c",
               "fallback": null,
               "layout": {
                 "height": null,
@@ -56,6 +120,30 @@
               },
               "v": 1,
               "widgetId": "chart"
+            },
+            "type": "widgetEmbed"
+          },
+          {
+            "attrs": {
+              "annotations": [],
+              "caption": null,
+              "capturedAt": "2026-10-05T14:30:00Z",
+              "embedId": "7eb6eef614c34292924f89173c0e7e08",
+              "fallback": null,
+              "layout": {
+                "height": null,
+                "width": "full"
+              },
+              "mode": "snapshot",
+              "params": {
+                "checked": [],
+                "includeRules": "yes",
+                "requireAll": "no",
+                "setup": ""
+              },
+              "searchText": "[pre-entry checklist]",
+              "v": 1,
+              "widgetId": "preEntryChecklist"
             },
             "type": "widgetEmbed"
           },
@@ -111,6 +199,29 @@
             "type": "heading"
           },
           {
+            "attrs": {
+              "annotations": [],
+              "caption": null,
+              "capturedAt": "2026-10-05T14:30:00Z",
+              "embedId": "e5fe1d29ca374cd9b2f8e1ad65ce4b85",
+              "fallback": null,
+              "layout": {
+                "height": null,
+                "width": "full"
+              },
+              "mode": "snapshot",
+              "params": {
+                "grade": "A",
+                "regimeAsOf": "2026-10-05",
+                "regimeId": "amber"
+              },
+              "searchText": "[position sizing]",
+              "v": 1,
+              "widgetId": "positionSizing"
+            },
+            "type": "widgetEmbed"
+          },
+          {
             "content": [
               {
                 "text": "How much am I risking, and is it within my rules?",
@@ -122,21 +233,22 @@
         ],
         "type": "doc"
       },
-      "bodyPlain": "The setup What is the pattern, and why now? [widget] Entry, stop and target Entry: Stop: Target: Size and risk How much am I risking, and is it within my rules?",
+      "bodyPlain": "The setup [widget] What is the pattern, and why now? [widget] [pre-entry checklist] Entry, stop and target Entry: Stop: Target: Size and risk [position sizing] How much am I risking, and is it within my rules?",
       "createdAt": "2026-10-05T14:30:00+00:00",
       "dailyDate": null,
       "deletedAt": null,
       "firstImageUrl": null,
       "folderId": null,
       "heroImageUrl": null,
-      "id": "28170f6d91464636a644b85d3dca2711",
+      "id": "c4bf54bf82b742efbb701a4947836755",
       "kindId": "trade_plan",
       "locked": false,
       "propertiesJson": {
-        "builtin:note_kind": "trade_plan"
+        "builtin:note_kind": "trade_plan",
+        "builtin:regime_at_write": "amber"
       },
       "styleId": "builtin:trade_plan",
-      "styleVersion": 1,
+      "styleVersion": 2,
       "subtitle": null,
       "tags": [],
       "ticker": "NVDA",

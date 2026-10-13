@@ -78,7 +78,11 @@ def test_signed_out_is_401_and_free_is_402(client):
 def test_list_create_get_update_default_delete_restore(client):
     _as(client)
     listing = client.get("/api/j2/journal-styles").json()
-    assert listing["blockKinds"] == ["chart"] and len(listing["kinds"]) == 8
+    # P2a Task 1A adds the three trader blocks to the catalog, in catalog order; Task 3 the market
+    # context stamp (the existing marketcontext widget).
+    assert listing["blockKinds"] == ["chart", "preEntryChecklist", "priceStamps", "positionSizing",
+                                     "marketcontext"]
+    assert len(listing["kinds"]) == 8
     s = client.post("/api/j2/journal-styles", json={"name": "Mine", "kindId": "trade_plan",
                     "blocks": [{"block": "chart", "enabled": True, "settings": {"tf": "D"}}]}).json()["style"]
     assert client.get(f"/api/j2/journal-styles/{s['id']}").json()["style"]["name"] == "Mine"
@@ -197,7 +201,9 @@ def test_style_update_plan_and_apply(client):
     _as(client)
     n = _note()
     plan = client.get(f"/api/j2/notes/{n['id']}/style-update-plan").json()["plan"]
-    assert plan["add"] == [{"block": "chart", "label": None}]
+    # The built-in Trade plan at v2 (P2a Task 12): an empty v1 note lacks every one of its blocks.
+    assert plan["add"] == [{"block": b, "label": None}
+                           for b in ["chart", "preEntryChecklist", "positionSizing", "marketcontext"]]
     assert {"locked", "versionCurrent", "missingBlocks", "upToDate"} <= set(plan)
     r = client.post(f"/api/j2/notes/{n['id']}/apply-style-update", json={"baseUpdatedAt": n["updatedAt"]})
     assert r.status_code == 200

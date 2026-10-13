@@ -26,6 +26,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two import sample_marker
 
 NOTE_KIND_PROPERTY = "builtin:note_kind"
 MEMBER_KIND_PREFIX = "k_"
@@ -201,7 +202,10 @@ def _uses(user_id: str, kind_id: str, conn: sqlite3.Connection) -> tuple[int, in
 
     Trashed notes COUNT (restoring one must never bring back a dead id); soft-deleted styles do not
     (delete_kind purges them with the kind). The note scan is one SQL statement (`json_extract`, guarded
-    by `json_valid` so one unreadable row cannot block every delete)."""
+    by `json_valid` so one unreadable row cannot block every delete).
+    ⛔ A SAMPLE note COUNTS here, on purpose (tests/test_sample_never_feeds_real_numbers.py): this is a
+    hold on the value, not a statistic. A sample is a real row the member can set a kind on; deleting the
+    kind under it would leave that note holding a dead id."""
     r = conn.execute(
         "SELECT COUNT(*) AS n, COALESCE(SUM(deleted_at IS NOT NULL), 0) AS t FROM j2_notes"
         " WHERE user_id = ? AND properties_json IS NOT NULL"
@@ -277,9 +281,13 @@ def kind_options(user_id: str, conn: sqlite3.Connection) -> list[dict]:
 
 
 def _unmapped(user_id: str, conn: sqlite3.Connection) -> list[tuple[str, str, bool]]:
+    """The notes the mapping offer counts and its apply writes, ONE list so the two never disagree.
+    ⛔ Never a sample note (sample_marker): the offer is a count shown to the member, made once, and an
+    example carrying a Research Type must not make it, size it, or be written by it."""
     out = []
     for r in conn.execute("SELECT id, properties_json, locked FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL"
-                          " AND properties_json IS NOT NULL ORDER BY created_at, rowid", (user_id,)):
+                          " AND properties_json IS NOT NULL AND " + sample_marker.not_sample_sql()
+                          + " ORDER BY created_at, rowid", (user_id,)):
         try:
             props = json.loads(r["properties_json"])
         except (TypeError, ValueError):

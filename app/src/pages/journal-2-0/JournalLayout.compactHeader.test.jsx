@@ -25,7 +25,7 @@ vi.mock('../../context/AuthContext', () => ({
 vi.mock('./hooks/useJ2Settings', () => ({
   default: () => ({
     settings: { setups: [] }, isLoading: false, error: null, save: vi.fn(),
-    accountName: 'Default', isAllAccounts: false,
+    accountName: 'Default', noSpecificAccount: false,
   }),
 }))
 vi.mock('./hooks/useBrokerSync', () => ({ default: () => {} }))

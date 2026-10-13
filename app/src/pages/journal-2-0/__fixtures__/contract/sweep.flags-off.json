@@ -247,6 +247,12 @@
       },
       "status": 404
     },
+    "GET /api/j2/trader-blocks/market-context": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
     "PATCH /api/j2/template-gallery/admin/items/{gallery_id}": {
       "body": {
         "detail": "Not found"
@@ -379,6 +385,12 @@
       },
       "status": 404
     },
+    "POST /api/j2/trader-blocks/price-stamp": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
     "PUT /api/j2/entry-context/why": {
       "body": {
         "detail": "Not found"
@@ -400,6 +412,12 @@
     "PUT /api/j2/onboarding/tours/{tour_id}": {
       "body": {
         "detail": "Not Found"
+      },
+      "status": 404
+    },
+    "PUT /api/j2/trader-blocks/positions/{position_id}/pre-entry": {
+      "body": {
+        "detail": "Not found"
       },
       "status": 404
     }

@@ -14,12 +14,14 @@ const jsxIn = (rel) => readdirSync(join(J2_DIR, rel))
   .map((f) => (rel ? `${rel}/${f}` : f))
 
 /** Top-level components/notebook/*.jsx, the export/ and import/ subfolders,
+ *  and components/notebook/blocks/ (Notebook P2 trader blocks),
  *  tabs/NotebookTab.jsx and the three Notebook Settings cards; never a test. */
 export function derivePopulation() {
   return [
     ...jsxIn('components/notebook'),
     ...jsxIn('components/notebook/export'),
     ...jsxIn('components/notebook/import'),
+    ...jsxIn('components/notebook/blocks'),
     'tabs/NotebookTab.jsx',
     'components/PersonalApiCard.jsx',
     'components/InboundEmailCard.jsx',

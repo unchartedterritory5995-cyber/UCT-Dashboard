@@ -67,7 +67,7 @@ def test_kind_makes_a_note_in_the_default_style(client):
     r = client.post("/api/j2/notes", json={"kindId": "trade_plan", "ticker": "NVDA"})
     assert r.status_code == 200
     n = r.json()["note"]
-    assert (n["styleId"], n["styleVersion"], n["kindId"]) == ("builtin:trade_plan", 1, "trade_plan")
+    assert (n["styleId"], n["styleVersion"], n["kindId"]) == ("builtin:trade_plan", 2, "trade_plan")
     assert n["propertiesJson"]["builtin:note_kind"] == "trade_plan"
     assert any(x["type"] == "widgetEmbed" for x in n["bodyJson"]["content"])
     assert r.json()["skippedBlocks"] == []
@@ -85,7 +85,7 @@ def test_a_styled_create_is_ONE_insert_with_no_second_revision(client):
                         (n["id"],)).fetchone()
     finally:
         c.close()
-    assert (row[0], row[1], row[2]) == ("builtin:trade_plan", 1, "trade_plan")
+    assert (row[0], row[1], row[2]) == ("builtin:trade_plan", 2, "trade_plan")
     assert '"builtin:note_kind": "trade_plan"' in row[3]
 
 

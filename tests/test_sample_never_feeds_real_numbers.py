@@ -345,6 +345,41 @@ def test_control_the_members_own_tagged_chart_is_a_template(conn, seeded):
     assert [t["noteId"] for t in similar_matches.templates_for(conn, U1)] == [own]
 
 
+# ── journal styles (Notebook P1): the kind-mapping offer and the preview's ticker ───────────
+
+def test_a_sample_is_never_counted_in_the_kind_mapping_offer_nor_written_by_it(conn, seeded):
+    """The offer is a count shown to the member ("N notes carry a Research Type"), offered once.
+    An example note carrying a Research Type must not make it, size it, or be written by it."""
+    from api.services.journal_two import note_kinds
+    notes.update_note(U1, seeded["thesis"], {"properties": {"builtin:research_type": "long_thesis"}}, conn=conn)
+    assert note_kinds.NOTE_KIND_PROPERTY not in notes.get_note(U1, seeded["thesis"], conn=conn)["propertiesJson"], \
+        "the sample already holds a kind; this test would prove nothing"
+    assert note_kinds.mapping_offer(U1, conn) is None, "a sample was offered for kind mapping"
+    assert note_kinds.apply_mapping(U1, conn=conn) == []
+    assert note_kinds.NOTE_KIND_PROPERTY not in notes.get_note(U1, seeded["thesis"], conn=conn)["propertiesJson"]
+    # Control: the member's own note with the same Research Type IS offered, and is the only one written.
+    own = own_note(conn, U1, "My NVDA thesis", sample_examples._thesis_note_body("NVDA", 110.0), ticker="NVDA")
+    notes.update_note(U1, own, {"properties": {"builtin:research_type": "long_thesis"}}, conn=conn)
+    offer = note_kinds.mapping_offer(U1, conn)
+    assert offer["total"] == 1 and [(r["researchType"], r["count"]) for r in offer["rows"]] == [("long_thesis", 1)]
+    assert [d["id"] for d in note_kinds.apply_mapping(U1, conn=conn)] == [own]
+
+
+def test_a_sample_ticker_is_never_the_previews_latest_note_ticker(conn, seeded):
+    """The style preview fills in "your latest note's" ticker. An example ticker is not one the
+    member wrote about."""
+    from api.services.journal_two import journal_styles
+    sample_ticker = conn.execute("SELECT ticker FROM j2_notes WHERE id = ?", (seeded["thesis"],)).fetchone()[0]
+    assert sample_ticker, "the sample thesis names no ticker; this test would prove nothing"
+    out = journal_styles.preview(U1, {"styleId": "builtin:watchlist_note"}, conn=conn)
+    assert out["ticker"] is None and out["tickerSource"] is None, "a sample's ticker was the member's latest"
+    # Control: the member's own note is the latest-note ticker, even when a sample was touched after it.
+    own_note(conn, U1, "My MSFT setup", sample_examples._thesis_note_body("MSFT", 395.0), ticker="MSFT")
+    notes.update_note(U1, seeded["thesis"], {"title": "Thesis: example -- edited"}, conn=conn)
+    out = journal_styles.preview(U1, {"styleId": "builtin:watchlist_note"}, conn=conn)
+    assert out["ticker"] == "MSFT" and out["tickerSource"] == "latest-note"
+
+
 # ── the ledger rail: every reader of a note table is accounted for ──────────────────────────
 
 NOTE_TABLES = ("j2_notes", "j2_notes_fts", "j2_note_levels", "j2_chart_blocks", "j2_note_embeds",
@@ -364,6 +399,10 @@ GUARDED = {
     "api/services/journal_two/setups_board.py": "the board's count: an example card is shown, marked, and not counted",
     "api/services/journal_two/visual_playbook.py": "the playbook's count, facets and slice numbers: an example card "
                                                     "is shown, marked, and in none of them",
+    "api/services/journal_two/note_kinds.py": "the kind-mapping offer's count and the notes its apply writes; the "
+                                               "delete-kind hold counts a sample on purpose (a value it holds)",
+    "api/services/journal_two/journal_styles.py": "the style preview's \"your latest note's\" ticker; a style "
+                                                   "update reads the one note the member opened",
 }
 
 #: Readers that do NOT turn a note into a fact about the member, each with the reason.
@@ -388,6 +427,8 @@ EXEMPT = {
     "api/services/user_playbook/service.py": "titles of notes the member linked to a playbook entry by hand",
     "api/routers/journal_two.py": _NOTE_ITSELF,
     "api/routers/notebook_chart_alerts.py": "reads one chart block of a note the member has open, on their click",
+    "api/routers/notebook_journal_styles.py": "the price-stamp route's ownership check on the one note the member "
+                                              "is typing in; a yes/no, never a count",
 }
 for _name in ("ai_actions", "ask_retrieval", "attachment_gc", "capture_destinations", "document_ocr",
               "document_search", "excerpt_search", "note_computed", "note_connectors/engine", "note_mentions",

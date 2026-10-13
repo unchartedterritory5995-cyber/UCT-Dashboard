@@ -578,3 +578,56 @@ def test_without_the_shim_the_launcher_dies_before_its_checkpoint(tmp_path, monk
     finally:
         box.stop(grace_s=30)
     assert h.read_integrity(box.integrity_path(), ALL)["status"] == "INCOMPLETE"
+
+
+# ── Notebook P2a Task 13: `--with-blocks` (spec §6's typing re-measure) ──────────────────────
+
+def test_seed_with_blocks_posts_every_trader_block_as_the_second_node():
+    """`_seed` hands the flag to the doc it posts: each seeded note (every size and the small one)
+    carries the four kinds right after its first paragraph. Without the flag, paragraphs only."""
+    class Req:
+        def __init__(self):
+            self.bodies = []
+
+        def post(self, url, data):
+            self.bodies.append(data["bodyJson"])
+
+            class R:
+                status = 200
+
+                @staticmethod
+                def json():
+                    return {"note": {"id": f"n{len(self.bodies)}"}}
+            return R()
+
+    on, off = Req(), Req()
+    h._seed(on, "http://x", [7], "t", with_blocks=True)
+    h._seed(off, "http://x", [7], "t")
+    assert len(on.bodies) == 2 and len(off.bodies) == 2          # the 7-paragraph note and the small one
+    for body in on.bodies:
+        kinds = [x["attrs"]["widgetId"] for x in body["content"][1:5]]
+        assert kinds == list(h.TRADER_BLOCK_KINDS), kinds
+        assert body["content"][0]["type"] == "paragraph" and body["content"][-1]["type"] == "paragraph"
+    assert all(x["type"] == "paragraph" for body in off.bodies for x in body["content"])
+
+
+def test_with_blocks_reaches_the_live_run_and_the_record(tmp_path, monkeypatch, capsys):
+    """The CLI flag is WIRED: `run_live` receives `with_blocks=True` and the JSON records it. The
+    control run without the flag passes no such argument and records False."""
+    seen = []
+
+    def live(base, sizes, opens, chars, attribution=None, busy=None, **kw):
+        seen.append(kw)
+        return _canned_live(base, sizes, opens, chars, attribution=attribution, busy=busy)
+
+    monkeypatch.setattr(h, "run_live", live)
+    nonce = sid.mint()
+    log = _write_log(tmp_path / "integrity.md", ALL, nonce)
+    for flag, out in ((["--with-blocks"], tmp_path / "on.json"), ([], tmp_path / "off.json")):
+        with _fake_base(nonce) as base:
+            rc = h.main(["--base", base, "--integrity-log", log, "--shutdown-wait", "0", "--sizes", "1000",
+                         "--busy", *flag, "--json", str(out)])
+        assert rc == 0, capsys.readouterr().out
+    assert seen == [{"with_blocks": True}, {}], seen
+    assert json.loads((tmp_path / "on.json").read_text(encoding="utf-8"))["with_blocks"] is True
+    assert json.loads((tmp_path / "off.json").read_text(encoding="utf-8"))["with_blocks"] is False

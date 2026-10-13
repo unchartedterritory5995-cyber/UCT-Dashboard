@@ -1,7 +1,20 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import PortfolioSettingsModal from './PortfolioSettingsModal'
+
+// Notebook P2a, Task 8: the Log Trade checklist's opt-in lives here, behind the journal styles switch.
+// The cases that predate it run with the switch off (its default), so they never see the control.
+const p2a = vi.hoisted(() => ({ styles: false, pref: undefined, setPref: null }))
+vi.mock('../lib/journalStylesFlag', async (orig) => ({ ...(await orig()), journalStylesEnabled: () => p2a.styles }))
+vi.mock('../../../hooks/usePreferences', async (orig) => ({
+  ...(await orig()),
+  default: () => ({
+    prefs: p2a.pref === undefined ? {} : { notebook_log_trade_checklist: p2a.pref },
+    setPref: (...a) => p2a.setPref(...a),
+    loading: false,
+  }),
+}))
 
 const baseSettings = {
   id: 's1',
@@ -21,6 +34,33 @@ describe('PortfolioSettingsModal', () => {
       <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />,
     )
     expect(screen.getByRole('heading', { name: /Settings/ })).toBeInTheDocument()
+  })
+
+  // R-M2-1 (b): the prop is `noSpecificAccount` (accountId == null), never a second `isAllAccounts`.
+  // R-M2-2 M-2: the banner's sentence is chosen by WHY no account is selected (`noAccountReason`, from
+  // useJ2Settings), and it never claims to show "the Default account's settings" (they are the legacy row).
+  it.each([
+    ['all', 'All Accounts is selected. Settings belong to one account: switch to a single account in the header selector to edit them.'],
+    ['pending', 'Your accounts are still loading. Settings can be saved once one account is selected.'],
+    ['accounts-error', "Your accounts couldn't load, so these settings can't be saved right now."],
+    ['no-accounts', "You don't have a Journal account yet, so these settings can't be saved."],
+    [undefined, 'Select a single account in the header selector to edit its settings.'],
+  ])('no specific account, reason %s: its own sentence, Save disabled', (reason, sentence) => {
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} noSpecificAccount
+        noAccountReason={reason} />,
+    )
+    expect(screen.getByRole('status').textContent).toBe(sentence)
+    expect(screen.queryByText(/Default account/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Save Settings' })).toBeDisabled()
+  })
+  it('with one account selected: no banner, and Save is enabled', () => {
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} noSpecificAccount={false}
+        noAccountReason={null} />,
+    )
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Save Settings' })).not.toBeDisabled()
   })
 
   it('shows the pre-populated account size', () => {
@@ -260,11 +300,17 @@ describe('PortfolioSettingsModal', () => {
     await user.clear(orangeInputEl)
     await user.type(orangeInputEl, '0.5')
 
+    // O8: the `amber` multiplier is labelled with the house word; the stored key stays `amber`.
+    expect(screen.queryByLabelText(/AMBER/i)).toBeNull()
+    const yellowInputEl = screen.getByLabelText(/YELLOW/i)
+    await user.clear(yellowInputEl)
+    await user.type(yellowInputEl, '0.75')
+
     await user.click(screen.getByRole('button', { name: 'Save Settings' }))
 
     expect(onSave).toHaveBeenCalledTimes(1)
     const payload = onSave.mock.calls[0][0]
-    expect(payload.regimeSizeMultipliers).toEqual({ green: 1.0, orange: 0.5 })
+    expect(payload.regimeSizeMultipliers).toEqual({ green: 1.0, amber: 0.75, orange: 0.5 })
   })
 
   it('Phase E seeded mistake taxonomy ships in the save payload', async () => {
@@ -385,5 +431,53 @@ describe('PortfolioSettingsModal', () => {
     await user.click(screen.getByRole('button', { name: 'Save Settings' }))
     const payload = onSave.mock.calls[0][0]
     expect(payload.setupRules).toEqual({})
+  })
+})
+
+// ── Notebook P2a, Task 8: "Pre-entry checklist in Log Trade" ─────────────────────────────────────
+describe('PortfolioSettingsModal: the Log Trade checklist opt-in (P2a)', () => {
+  const NAME = 'Pre-entry checklist in Log Trade'
+  afterEach(() => { p2a.styles = false; p2a.pref = undefined; p2a.setPref = null })
+
+  it('is absent with the journal styles switch off', () => {
+    p2a.styles = false
+    p2a.setPref = vi.fn(async () => true)
+    render(<PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />)
+    expect(screen.queryByRole('combobox', { name: NAME })).toBeNull()
+    expect(screen.queryByText(NAME)).toBeNull()
+  })
+
+  it('with the switch on: Off by default, and each choice writes the literal key with that value', async () => {
+    p2a.styles = true
+    p2a.setPref = vi.fn(async () => true)
+    const user = userEvent.setup({ delay: null })
+    render(<PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />)
+    const select = screen.getByRole('combobox', { name: NAME })
+    expect(select.value).toBe('off')
+    expect([...select.options].map((o) => [o.value, o.textContent])).toEqual([
+      ['off', 'Off'], ['on', 'Show it'], ['on-warn', 'Show it, and warn until every item is ticked'],
+    ])
+    await user.selectOptions(select, 'on')
+    expect(p2a.setPref).toHaveBeenLastCalledWith('notebook_log_trade_checklist', 'on')
+    await user.selectOptions(select, 'on-warn')
+    expect(p2a.setPref).toHaveBeenLastCalledWith('notebook_log_trade_checklist', 'on-warn')
+    expect(p2a.setPref).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows the stored choice', () => {
+    p2a.styles = true
+    p2a.pref = 'on-warn'
+    p2a.setPref = vi.fn(async () => true)
+    render(<PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />)
+    expect(screen.getByRole('combobox', { name: NAME }).value).toBe('on-warn')
+  })
+
+  it('a choice the server did not keep says so, in words', async () => {
+    p2a.styles = true
+    p2a.setPref = vi.fn(async () => false)
+    const user = userEvent.setup({ delay: null })
+    render(<PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />)
+    await user.selectOptions(screen.getByRole('combobox', { name: NAME }), 'on')
+    expect((await screen.findByText("Couldn't save this choice. Try again.")).getAttribute('role')).toBe('alert')
   })
 })

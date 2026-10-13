@@ -33,6 +33,20 @@ describe('RegimeSection', () => {
     expect(screen.getByText('40%')).toBeInTheDocument()
   })
 
+  // O8: one word for the regime. The bucket key stays `amber`; the member reads Yellow (regimeWords.js).
+  it('O8: the amber bucket reads Yellow in its row and in the help list, and an id the map does not hold reads Unknown', () => {
+    const data = { regime: { byRegime: [
+      { regime: 'amber', tradeCount: 12, winRate: 0.5, avgR: 0.1, expectancy: 10 },
+      { regime: 'constructor', tradeCount: 3, winRate: 0.3, avgR: -0.1, expectancy: -5 },
+    ], unknownCount: 0 } }
+    const { container } = renderSection(data)
+    expect(screen.getByText('Yellow')).toBeInTheDocument()
+    expect(screen.getByText('Unknown')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /what is exposure backdrop/i }))
+    expect(screen.getAllByText('Yellow').length).toBe(2)               // the row and the help list
+    expect(container.textContent).not.toMatch(/amber|constructor|undefined|function/i)
+  })
+
   it('grays a bucket with n<10 and leaves a confident one un-dimmed', () => {
     renderSection()
     // n=24 green → confident, NOT dimmed.

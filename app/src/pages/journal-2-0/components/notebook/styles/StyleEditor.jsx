@@ -11,7 +11,7 @@ import UIcon from '../../../../../components/ui/UIcon'
 import useJ2PropertyDefs from '../../../hooks/useJ2PropertyDefs'
 import { useMemberTemplates } from '../../../lib/memberTemplates'
 import { TEMPLATES } from '../../../lib/notebookTemplates'
-import { BLOCK_KINDS, blockLabel, tfWord } from '../../../lib/journalBlocks'
+import { BLOCK_KINDS, blockLabel, optionWord, tfWord } from '../../../lib/journalBlocks'
 import { NOTE_KIND_PROPERTY } from '../../../lib/noteKinds'
 import { createJournalStyle, MAX_STYLE_NAME_CHARS, previewJournalStyle, updateJournalStyle } from '../../../lib/journalStyles'
 import { DocBody } from '../TemplatePreview'
@@ -275,7 +275,7 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
                 {kind?.settings.map((s) => (
                   <select key={s.key} value={b.settings[s.key] ?? s.default} aria-label={`${s.label} for ${label}`}
                     onChange={(e) => setSetting(i, s.key, e.target.value)}>
-                    {s.options.map((o) => <option key={o} value={o}>{tfWord(o)}</option>)}
+                    {s.options.map((o) => <option key={o} value={o}>{optionWord(s, o)}</option>)}
                   </select>
                 ))}
                 <span className={styles.blockMoves}>

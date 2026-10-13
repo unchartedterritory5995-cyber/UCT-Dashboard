@@ -1,0 +1,36 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/trader-blocks/price-stamp",
+    "note": "One price fact row for a stamped line in the member's own live note, with its source and as-of.",
+    "path": "/api/j2/trader-blocks/price-stamp",
+    "requestBody": {
+      "noteId": "3f852852cd854488b72ffac1c3f104b6",
+      "ticker": "MSFT"
+    },
+    "status": 200
+  },
+  "body": {
+    "fact": {
+      "asOfLabel": "Last close, Oct 2, 2026, 4:00 PM ET",
+      "caption": null,
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "currency": "USD",
+      "entityId": null,
+      "factLabel": "Price",
+      "factType": "price",
+      "id": "0523452c3c91481c96e3541df2513df7",
+      "noteId": "3f852852cd854488b72ffac1c3f104b6",
+      "observedAt": "2026-10-05T14:30:00+00:00",
+      "period": null,
+      "rightsClass": "independent",
+      "source": "massive",
+      "sourceAsOf": "2026-10-02T20:00:00Z",
+      "sourceRef": "last close",
+      "temporalMode": "live_and_snapshot",
+      "ticker": "MSFT",
+      "unit": "usd_per_share",
+      "value": 412.5
+    }
+  }
+}

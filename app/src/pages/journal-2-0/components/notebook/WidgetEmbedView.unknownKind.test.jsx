@@ -89,3 +89,45 @@ describe('a block this bundle does not know', () => {
     expect(screen.queryByRole('button', { name: /reload/i })).toBeNull()
   })
 })
+
+// Notebook P2a: a trader block is dispatched to blocks/BlockNodeView, never the embed chrome.
+const BLOCK = {
+  v: 1, widgetId: 'priceStamps', embedId: 'b1', mode: 'snapshot', params: { on: 'no' }, searchText: '[price stamps]',
+}
+
+describe('a trader block (P2a)', () => {
+  it('P2a: a trader block goes to BlockNodeView, never the embed chrome', async () => {
+    const updateAttributes = vi.fn()
+    const { container } = render(
+      <WidgetEmbedView node={{ attrs: BLOCK }} selected={false} editor={editor()} updateAttributes={updateAttributes} />,
+    )
+    expect(await screen.findByRole('group', { name: 'Price stamps' })).toBeTruthy()
+    expect(screen.queryByRole('toolbar')).toBeNull()               // no embed toolbar of any name
+    expect(screen.queryByText(UNKNOWN_BLOCK_SENTENCE)).toBeNull()  // and not the newer-version card
+    expect(screen.queryByText('snapshot image not captured yet')).toBeNull()
+    expect(container.querySelector('[data-widget-embed-view="priceStamps"]')).not.toBeNull()
+    expect(updateAttributes).not.toHaveBeenCalled()               // rendering a block writes nothing
+  })
+
+  it('P2a: a block whose chunk fails to load shows its own line, never a crashed note (S15)', async () => {
+    // A stale BlockNodeView chunk after a deploy: the import rejects. A fresh WidgetEmbedView is
+    // imported AFTER the mock so its lazy import resolves to the failing module.
+    vi.resetModules()
+    vi.doMock('./blocks/BlockNodeView', () => { throw new Error('chunk') })
+    try {
+      const { default: FreshEmbedView } = await import('./WidgetEmbedView')
+      const { container } = render(
+        <FreshEmbedView node={{ attrs: BLOCK }} selected={false} editor={editor()} updateAttributes={vi.fn()} />,
+      )
+      expect(await screen.findByText('[price stamps]')).toBeTruthy()
+      // the block's OWN failure line, from the dispatcher's boundary -- not the newer-version card,
+      // which shows the same line for an id this bundle does not know
+      expect(container.querySelector('[data-widget-embed-view="block-failed"]')).not.toBeNull()
+      expect(screen.queryByText(UNKNOWN_BLOCK_SENTENCE)).toBeNull()
+      expect(screen.queryByRole('group', { name: 'Price stamps' })).toBeNull()
+    } finally {
+      vi.doUnmock('./blocks/BlockNodeView')
+      vi.resetModules()
+    }
+  })
+})

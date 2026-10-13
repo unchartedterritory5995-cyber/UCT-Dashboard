@@ -103,7 +103,7 @@ export default function JournalLayout() {
   // trade placed a minute ago is already here (budget-shared with the
   // background sweep; market hours only).
   useInstantFills({ enabled: isPaid })
-  const { settings, isLoading, error, save, accountName, isAllAccounts } = useJ2Settings()
+  const { settings, isLoading, error, save, accountName, noSpecificAccount, noAccountReason } = useJ2Settings()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { pathname } = useLocation()
@@ -406,7 +406,8 @@ export default function JournalLayout() {
             onSave={save}
             onClose={closeSettings}
             accountName={accountName}
-            isAllAccounts={isAllAccounts}
+            noSpecificAccount={noSpecificAccount}
+            noAccountReason={noAccountReason}
           />
         </Suspense>
       )}

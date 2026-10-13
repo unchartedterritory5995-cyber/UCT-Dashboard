@@ -2,7 +2,7 @@
   "_contract": {
     "case": "success",
     "endpoint": "GET /api/j2/notes/3f852852cd854488b72ffac1c3f104b6/style-update-plan",
-    "note": "A Trade plan note with no chart yet: the update would add the chart block.",
+    "note": "A Trade plan note made at v1 with none of its blocks yet: the update to v2 adds all four (chart, pre-entry checklist, position sizing, market context), uncaptured.",
     "path": "/api/j2/notes/3f852852cd854488b72ffac1c3f104b6/style-update-plan",
     "status": 200
   },
@@ -12,19 +12,32 @@
         {
           "block": "chart",
           "label": null
+        },
+        {
+          "block": "preEntryChecklist",
+          "label": null
+        },
+        {
+          "block": "positionSizing",
+          "label": null
+        },
+        {
+          "block": "marketcontext",
+          "label": null
         }
       ],
       "fromVersion": 1,
       "insertsOutline": false,
       "locked": false,
       "missingBlocks": true,
+      "mode": "update",
       "skipped": [],
       "styleId": "builtin:trade_plan",
       "styleName": "Trade plan",
       "switching": false,
-      "toVersion": 1,
+      "toVersion": 2,
       "upToDate": false,
-      "versionCurrent": true
+      "versionCurrent": false
     }
   }
 }

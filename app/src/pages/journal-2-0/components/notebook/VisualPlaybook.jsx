@@ -33,6 +33,7 @@ import PoliteStatus from './PoliteStatus'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { SETUP_FAMILIES, canonicalSetupTag, tagsInFamily } from '../../lib/setupTagMap'
 import { FIELD_LABELS, formatFingerprintValue } from '../../lib/fingerprintChecklist'
+import { regimeWord } from '../../lib/blocks/regimeWords'
 import styles from './VisualPlaybook.module.css'
 
 export const VISUAL_PLAYBOOK_FLAG = 'notebook_visual_playbook_enabled'
@@ -48,8 +49,9 @@ export const RANGE_INPUTS = Object.freeze([
 
 const CARD_FIELDS = ['rs_rank', 'base_depth_pct', 'adr_pct', 'pole_pct']
 const OUTCOME_WORDS = { win: 'Win', loss: 'Loss', breakeven: 'Breakeven', none: 'No trade linked' }
-const REGIME_WORDS = { green: 'Green', amber: 'Amber', orange: 'Orange', red: 'Red' }
-const regimeWord = (r) => REGIME_WORDS[r] || r
+// O8: the regime's word is lib/blocks/regimeWords.js's (amber is read as Yellow), by own key. An id that
+// map does not hold is not a regime this client can name: it is "Unknown", never the raw id.
+const regimeLabel = (r) => regimeWord(r) ?? 'Unknown'
 
 async function getJson(url) {
   const res = await fetch(url, { credentials: 'include' })
@@ -137,7 +139,7 @@ function Card({ card }) {
         <p className={styles.cardMeta}>{card.asOf} · {card.timeframe}{card.fingerprintAsOf ? ` · fingerprint ${card.fingerprintAsOf}` : ' · not fingerprinted yet'}</p>
         {card.regime && (
           <p className={styles.cardMeta} data-testid="playbook-card-regime">
-            {card.regime.value ? `Regime at entry: ${regimeWord(card.regime.value)}` : 'Regime at entry: not known'}
+            {card.regime.value ? `Regime at entry: ${regimeWord(card.regime.value) ?? 'not known'}` : 'Regime at entry: not known'}
           </p>
         )}
         <ul className={styles.cardFields} aria-label="Fingerprint" data-tour="vp-card-fields">
@@ -237,7 +239,7 @@ export function VisualPlaybookBody({ initialSetup = null, landOnSetup = false })
             <select value={regime} onChange={(e) => setRegime(e.target.value)} aria-describedby="vp-regime-why">
               <option value="">Any regime</option>
               {(regimeInfo.values || []).map((r) => (
-                <option key={r} value={r}>{regimeWord(r)} ({regimeInfo.facets?.[r] ?? 0})</option>
+                <option key={r} value={r}>{regimeLabel(r)} ({regimeInfo.facets?.[r] ?? 0})</option>
               ))}
             </select>
             <span id="vp-regime-why" className={styles.hint}>The regime frozen on the trade's entry day.</span>

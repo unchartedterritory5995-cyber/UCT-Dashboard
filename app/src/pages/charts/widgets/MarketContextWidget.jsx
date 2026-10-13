@@ -38,7 +38,9 @@ import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
-import { CONTEXT_ROWS, readingsFrom, finite } from './marketContextModel'
+import {
+  CONTEXT_ROWS, readingsFrom, finite, SOURCED_ROWS, sourcedText, presetFor, UNCAPTURED_SENTENCE,
+} from './marketContextModel'
 import styles from './MarketContextWidget.module.css'
 
 // ⭐ The fetcher stamps the moment the payload LANDED — the wire payload dates
@@ -50,6 +52,9 @@ const fetcher = (url) => fetchSnapshot(url)
 
 const BREADTH_URL = '/api/breadth'
 
+// The property name is builtin:regime_at_write's (note_properties.py).
+const BOARD_DOOR = 'To see your notes by the regime they were written in, open your notes as a Board and group by "Regime when written".'
+
 function fmtEtTime(ms) {
   try {
     return new Date(ms).toLocaleTimeString('en-US', {
@@ -60,7 +65,9 @@ function fmtEtTime(ms) {
 
 export default function MarketContextWidget({
   // Frozen-embed mode (journal host): `frozen` carries {readings, wireDate,
-  // updated} — the captured market state verbatim. There are no per-widget
+  // updated, fields, uncaptured} — the captured market state verbatim (Notebook
+  // P2a: `fields` names the stamp's preset; `uncaptured` marks a stamp a note
+  // gained after it was written, which holds nothing by rule). There are no per-widget
   // options today, so the /charts binding passes none (the aisearch idiom:
   // a widget receives what it uses, and growing a setting is a DECISION the
   // registry rail makes visible).
@@ -74,6 +81,10 @@ export default function MarketContextWidget({
     if (frozen) return (frozen.readings && typeof frozen.readings === 'object') ? frozen.readings : null
     return data ? readingsFrom(data) : null
   }, [frozen, data])
+
+  // The board (no `frozen`) shows every row it always did: FIELD_SETS.all.
+  const preset = presetFor(frozen?.fields)
+  const uncaptured = frozen?.uncaptured === true
 
   const wireDate = frozen
     ? (frozen.wireDate || null)
@@ -133,7 +144,12 @@ export default function MarketContextWidget({
         )}
       </div>
 
-      {!readings && (
+      {uncaptured && (
+        // IR-S11: never today's market in an older note, and never a capture date for one.
+        <div className={styles.hint} role="status">{UNCAPTURED_SENTENCE}</div>
+      )}
+
+      {!readings && !uncaptured && (
         <div className={styles.hint}>
           {frozen ? 'No market context was captured.' : (data === undefined ? 'Loading market context…' : 'No market context yet.')}
         </div>
@@ -141,7 +157,7 @@ export default function MarketContextWidget({
 
       {readings && (
         <div className={styles.list}>
-          {CONTEXT_ROWS.map((r) => {
+          {CONTEXT_ROWS.filter((r) => preset.context.includes(r.key)).map((r) => {
             const v = readings[r.key]
             // `== null` on purpose (the TradesTable idiom): an absent reading
             // and a deliberately-null one both render the em dash.
@@ -160,14 +176,33 @@ export default function MarketContextWidget({
               </div>
             )
           })}
+          {/* `readings[r.key] !== undefined` keeps an older capture (and the board) exactly as before. */}
+          {SOURCED_ROWS.filter((r) => preset.sourced.includes(r.key) && readings[r.key] !== undefined).map((r) => {
+            const s = sourcedText(r.key, readings[r.key])
+            return (
+              <div key={r.key} className={styles.row}>
+                <span className={styles.rowLabel}>{r.label}</span>
+                <span className={styles.sourced}>
+                  <span className={`${styles.rowValue} ${s.missing ? styles.dash : ''}`}>{s.text}</span>
+                  {s.asOfText && <span className={styles.rowSource}>{s.asOfText}</span>}
+                </span>
+              </div>
+            )
+          })}
+          {frozen && preset.sourced.includes('regime') && readings.regime?.value && (
+            // R-P2-6 / V8: the words V8 found for opening the board grouped by this property.
+            <div className={styles.hint}>{BOARD_DOOR}</div>
+          )}
         </div>
       )}
 
-      <div className={styles.footer}>
-        <span className={styles.footerUpdated}>
-          {wireDate ? `Wire ${wireDate}` : 'Wire —'}{updated ? ` · updated ${updated}` : ''}
-        </span>
-      </div>
+      {!uncaptured && (
+        <div className={styles.footer}>
+          <span className={styles.footerUpdated}>
+            {wireDate ? `Wire ${wireDate}` : 'Wire —'}{updated ? ` · updated ${updated}` : ''}
+          </span>
+        </div>
+      )}
     </div>
   )
 }

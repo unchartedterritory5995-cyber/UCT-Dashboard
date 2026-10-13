@@ -131,6 +131,9 @@ const BASELINE_KEYS = {
   // Notebook P1 (journal styles, 2026-10-12): the kind-mapping offer's "Not now". StylesManager writes the
   // one string 'dismissed', so a scalar. Made literal at the call site, as notebook_sample/notebook_tour were.
   notebook_kind_mapping: 'scalar',
+  // Notebook P2a (trader blocks, 2026-10-12): Log Trade's pre-entry checklist opt-in. PortfolioSettingsModal
+  // writes one of three strings ('off' / 'on' / 'on-warn'), so a scalar. Literal at the call site.
+  notebook_log_trade_checklist: 'scalar',
   // ⭐ S5 CP2 sweep 2026-09-29 (fix/master-reds): notebook_sample/notebook_tour
   // were opaque setPref sites (SAMPLE_PREF/TOUR_PREF, ResearchHome.jsx /
   // NotebookTour.jsx) made literal at the call site rather than baselined —

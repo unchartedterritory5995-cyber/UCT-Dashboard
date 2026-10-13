@@ -7,7 +7,7 @@ THREE CONFIGURATIONS, each on its own sandbox boot (scripts/hub_sandbox_boot.py 
   c1  every Notebook flag OFF except those the ledger (docs/feature_flags.json) records as armed
       on web today. No wave 12-15 surface may appear anywhere, and the product must work
       (create a note, type, reload, find it, delete it).
-  c2  c1's flags plus every wave 11-14 switch (formulas, template gallery, the fourteen wave-13
+  c2  c1's flags plus every wave 11-14 switch (formulas, template gallery, the wave-13
       switches, NOTEBOOK_GETTING_STARTED_ENABLED). Fresh empty account: first run, the sample
       notebook, the Get started list, the offer and What's new, every feature's main path, all
       tours at 1280 and 390, then the sample removed in one click.
@@ -73,8 +73,9 @@ CAL_FILE = "fin-walk-sandbox-calendar.json"
 # Sandbox degradation every lane's sandbox already serves (13X's list, reused, not widened).
 BENIGN = ("/api/j2/broker/sync", "/api/stream/bars", "/api/live-prices", "warm=1", "/api/stream/prices")
 
-# The seventeen switches waves 11-14 add and production has not armed. Read against the ledger at
-# run time (`flag_sets`), so a name that is not a real flag refuses the run.
+# The switches waves 11-14 and P1/P2 add and production has not armed (count them from the list,
+# never from this line). Read against the ledger at run time (`flag_sets`), so a name that is not a
+# real flag refuses the run.
 WAVE_FLAGS = [
     "NOTEBOOK_FORMULAS_ENABLED", "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
     "NOTEBOOK_TA_FINGERPRINT_ENABLED", "NOTEBOOK_PLAN_GRADING_ENABLED", "NOTEBOOK_ENTRY_CONTEXT_ENABLED",

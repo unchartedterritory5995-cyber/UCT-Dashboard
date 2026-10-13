@@ -444,6 +444,18 @@
       "files": []
     },
     {
+      "key": "notebook_log_trade_checklist",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Journal",
+      "kind": "setting",
+      "label": "Pre-entry checklist in Log Trade",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/journal-2-0/components/PortfolioSettingsModal.jsx"
+      ]
+    },
+    {
       "key": "notebook_sample",
       "store": "server-preference",
       "scope": "cross-device",

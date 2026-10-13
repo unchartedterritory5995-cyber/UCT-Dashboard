@@ -561,6 +561,52 @@ def paragraphs_doc(n: int, tag: str) -> tuple[dict, str]:
     return {"type": "doc", "content": content}, marker
 
 
+#: Notebook P2a (Task 13): the trader blocks and the market context stamp `--with-blocks` seeds, in the
+#: order they go in. The three block ids are trader_blocks.BLOCK_IDS; the dry run proves this list is it.
+TRADER_BLOCK_KINDS = ("preEntryChecklist", "priceStamps", "positionSizing", "marketcontext")
+
+
+def trader_block_nodes() -> list[dict]:
+    """One widgetEmbed of every trader block kind and one market context stamp, built by the SERVER's
+    own builders (api/services/journal_two/trader_blocks.py BUILDERS) in "update" mode: each block at
+    its catalog defaults with its searchText, and the stamp UNCAPTURED ({"uncaptured": True, "fields":
+    "all"}), so building them reads no market data and writes nothing. Imported at call time: the
+    harness itself stays importable without the app on the path."""
+    return _server_json(
+        "from datetime import datetime, timezone\n"
+        "from api.services.journal_two import trader_blocks as tb\n"
+        "ctx = {'now': datetime.now(timezone.utc), 'mode': 'update', 'memo': {}}\n"
+        f"OUT = [tb.BUILDERS[k]({{'block': k, 'settings': {{}}}}, ctx)[0] for k in {list(TRADER_BLOCK_KINDS)!r}]\n")
+
+
+def _server_json(code: str):
+    """Run `code` (which sets OUT) in a CHILD Python and return OUT, JSON-decoded.
+
+    ⛔ This driver never imports api.* in its own process (tests/test_notebook_ai_actions.py
+    test_the_walk_driver_never_imports_api): it drives a sandbox from outside, and an api import runs
+    the app's import-time readers here. The child imports the repo-root `conftest` FIRST, which pins
+    every shared-data path to a throwaway sandbox and arms the shared-root tripwire, and only then the app.
+    The answer is the child's LAST stdout line."""
+    prog = ("import json, sys\n"
+            f"sys.path.insert(0, {str(REPO)!r})\n"
+            "import conftest  # noqa: F401 -- pins data paths + arms the shared-root tripwire before any api import\n"
+            + code + "print(json.dumps(OUT, default=str))\n")
+    r = subprocess.run([sys.executable, "-c", prog], cwd=str(REPO), capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", timeout=180)
+    if r.returncode != 0:
+        raise RuntimeError(f"server helper failed (exit {r.returncode}): {r.stderr.strip()[-800:]}")
+    return json.loads(r.stdout.strip().splitlines()[-1])
+
+
+def seed_doc(n: int, tag: str, with_blocks: bool = False) -> tuple[dict, str]:
+    """`paragraphs_doc`, and with `with_blocks` the trader blocks and the stamp go in as the doc's
+    SECOND node onward (spec §6's typing re-measure: the same note, with blocks in it)."""
+    doc, marker = paragraphs_doc(n, tag)
+    if with_blocks:
+        doc["content"][1:1] = trader_block_nodes()
+    return doc, marker
+
+
 def refuse_shared_root(data_dir: str) -> str | None:
     """Why `data_dir` is refused, or None. Resolves it first: a relative or drive-relative
     spelling must not slip past a string compare."""
@@ -891,10 +937,10 @@ def _provision(admin_req, member_req, base: str, *, member: tuple[str, str, str]
                          "-- every notebook route would redirect and every number would be a redirect")
 
 
-def _seed(req, base: str, sizes: list[int], run: str) -> dict[int, tuple[str, str]]:
+def _seed(req, base: str, sizes: list[int], run: str, with_blocks: bool = False) -> dict[int, tuple[str, str]]:
     out = {}
     for n in sizes + [3]:
-        doc, marker = paragraphs_doc(n, f"{run}-{n}")
+        doc, marker = seed_doc(n, f"{run}-{n}", with_blocks)
         r = req.post(base + "/api/j2/notes", data={"title": f"perf {run} {n}", "bodyJson": doc})
         if r.status not in (200, 201):
             raise SetupFailed(f"seeding a {n}-paragraph note failed: HTTP {r.status} {r.text()[:200]}")
@@ -923,8 +969,12 @@ def _dismiss_intro(pg) -> None:
 
 
 def run_live(base: str, sizes: list[int], opens: int, chars: int,
-             attribution: dict | None = None, busy: dict | None = None) -> tuple[dict, dict, dict, list[str]]:
-    """`attribution`, when given a dict, is filled with each size's per-keystroke breakdown
+             attribution: dict | None = None, busy: dict | None = None,
+             with_blocks: bool = False) -> tuple[dict, dict, dict, list[str]]:
+    """`with_blocks` (CLI `--with-blocks`, P2a Task 13): every seeded note carries the trader blocks
+    and the market context stamp as its second node onward (`seed_doc`); everything else is unchanged.
+
+    `attribution`, when given a dict, is filled with each size's per-keystroke breakdown
     (`summarize_attribution`), taken in a SECOND typing pass after the timed one, so the
     budget reading never runs through the wrappers.
 
@@ -956,7 +1006,7 @@ def run_live(base: str, sizes: list[int], opens: int, chars: int,
         if attribution is not None:
             ctx.add_init_script(ATTRIBUTION_INIT_JS)
         _provision(admin_ctx.request, ctx.request, base)
-        notes = _seed(ctx.request, base, sizes, run)
+        notes = _seed(ctx.request, base, sizes, run, with_blocks)
         pg = ctx.new_page()
         pg.on("pageerror", lambda e: errors.append(str(e)[:300]))
         small_id, small_marker = notes[3]
@@ -1078,6 +1128,33 @@ def dry_run() -> int:
     assert above_cap_busy_rows[0]["budget_ms"] is None, above_cap_busy_rows
     doc, marker = paragraphs_doc(1000, "dry")
     assert len(doc["content"]) == 1000 and doc["content"][-1]["content"][0]["text"] == marker
+    # P2a Task 13, `--with-blocks`: the seeded doc carries all four -- every trader block and the
+    # market context stamp -- as its second node onward, shaped by the server's builders. Checked
+    # against the server's catalog (journal_styles.BLOCK_KINDS) and BLOCK_IDS, never a typed copy.
+    plain, _ = seed_doc(5, "dry")
+    assert len(plain["content"]) == 5 and all(x["type"] == "paragraph" for x in plain["content"]), plain
+    bdoc, bmarker = seed_doc(5, "dry", with_blocks=True)
+    cat = _server_json(
+        "from api.services.journal_two import journal_styles as js, trader_blocks as tb\n"
+        "OUT = {'block_ids': list(tb.BLOCK_IDS), 'kinds': {k: {'search': v.get('search'),"
+        " 'settings': [dict(s) for s in v['settings']]} for k, v in js._BLOCK_BY_ID.items()}}\n")
+    block_ids, by_id = set(cat["block_ids"]), cat["kinds"]
+    seeded = bdoc["content"][1:1 + len(TRADER_BLOCK_KINDS)]
+    kinds = [x["attrs"]["widgetId"] for x in seeded if x["type"] == "widgetEmbed"]
+    assert kinds == list(TRADER_BLOCK_KINDS), kinds
+    assert set(kinds) == {*block_ids, "marketcontext"} and len(kinds) == 4, kinds
+    assert bdoc["content"][0]["type"] == "paragraph" and len(bdoc["content"]) == 5 + 4, bdoc["content"]
+    assert bdoc["content"][-1]["content"][0]["text"] == bmarker, "the open still waits for the last paragraph"
+    assert len({x["attrs"]["embedId"] for x in seeded}) == 4, "every embed needs its own embedId"
+    for x in seeded:
+        a, kind = x["attrs"], x["attrs"]["widgetId"]
+        assert a["v"] == 1 and a["mode"] == "snapshot" and isinstance(a["embedId"], str) and a["embedId"], a
+        for s in by_id[kind]["settings"]:
+            assert a["params"].get(s["key"]) == s["default"], (kind, s["key"], a["params"])
+        if kind in block_ids:
+            assert a["searchText"] == by_id[kind]["search"], a
+        else:
+            assert a["params"] == {"uncaptured": True, "fields": "all"} and "searchText" not in a, a
     # a clean, --busy-backed run: nothing breaches, nothing is inconclusive.
     ok = summarize({1000: [100.0] * 20, 2000: [400.0] * 20}, {1000: [3.0] * 60, 2000: [9.0] * 60},
                    {1000: 60, 2000: 60}, busy_ms={1000: [5.0] * 20, 2000: [10.0] * 20},
@@ -1146,7 +1223,8 @@ def dry_run() -> int:
           "--busy or an unclean trace is INCONCLUSIVE, the paragraph cap is honoured), "
           "the integrity reader tells CLEAN, INCOMPLETE, NOT CLEAN and MISSING apart, and "
           "keystroke-busy windows sum top-level task time with idle gaps excluded and a "
-          "boundary-straddling task split correctly")
+          "boundary-straddling task split correctly, and --with-blocks seeds all four trader "
+          "blocks as the second node onward")
     return 0
 
 
@@ -1227,6 +1305,9 @@ def main(argv: list[str] | None = None) -> int:
                          "INCONCLUSIVE. For a clean reading do not combine with --attribute -- "
                          "combined, the trace is not clean and the typing verdict is also "
                          "INCONCLUSIVE (TY4 brief; D24)")
+    ap.add_argument("--with-blocks", action="store_true",
+                    help="seed every note with one of each trader block and a market context stamp as "
+                         "its second node onward (Notebook P2a, spec §6's typing re-measure)")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args(argv)
     if args.dry_run:
@@ -1238,6 +1319,8 @@ def main(argv: list[str] | None = None) -> int:
         live_kw["attribution"] = attr
     if busy is not None:
         live_kw["busy"] = busy
+    if args.with_blocks:
+        live_kw["with_blocks"] = True
     try:
         sizes = [int(x) for x in args.sizes.split(",") if x.strip()]
     except ValueError:
@@ -1319,7 +1402,8 @@ def main(argv: list[str] | None = None) -> int:
     sha = subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True,
                          text=True).stdout.strip() or None
     out = {"tool": "tools/notebook_perf_harness.py", "git_head": sha, "base": base,
-           "sizes": sizes, "opens": args.opens, "chars": args.chars, "integrity": integ}
+           "sizes": sizes, "opens": args.opens, "chars": args.chars, "with_blocks": bool(args.with_blocks),
+           "integrity": integ}
     if not_run:
         # Not a measurement at all, so not INCONCLUSIVE (2) and never "a budget breached" (1).
         out.update({"timings": "WITHHELD", "not_run": not_run})

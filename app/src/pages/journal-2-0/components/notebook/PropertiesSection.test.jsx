@@ -53,6 +53,27 @@ describe('PropertiesSection', () => {
     expect(screen.queryByRole('textbox')).toBeNull() // never an editable input
   })
 
+  it('a captured built-in renders its option label and offers no editor and no Add', () => {
+    // builtin:regime_at_write (source "captured"): its stored value is the option ID ("amber"), and the
+    // house word is the option LABEL ("Yellow"). It is never editable and never offered to add.
+    const regime = {
+      id: 'builtin:regime_at_write', name: 'Regime when written', type: 'select', source: 'captured',
+      options: [{ id: 'green', label: 'Green' }, { id: 'amber', label: 'Yellow' }, { id: 'red', label: 'Red' }],
+    }
+    notePropsResult = { properties: [{ ...regime, value: 'amber' }], isLoading: false, refresh: vi.fn() }
+    render(<PropertiesSection noteId="n1" updateNote={updateNoteSpy} />)
+    expect(screen.getByText('Regime when written')).toBeTruthy()
+    expect(screen.getByText('Yellow')).toBeTruthy()
+    expect(screen.queryByText('amber')).toBeNull()
+    expect(screen.queryByRole('combobox')).toBeNull()
+    expect(screen.queryByRole('textbox')).toBeNull()
+    // Unset, it is not offered in the picker either.
+    notePropsResult = { properties: [{ ...regime, value: null }], isLoading: false, refresh: vi.fn() }
+    render(<PropertiesSection noteId="n2" updateNote={updateNoteSpy} />)
+    fireEvent.click(screen.getAllByText('Add property').at(-1))
+    expect(screen.queryByRole('button', { name: 'Regime when written' })).toBeNull()
+  })
+
   it('a select property with a value renders a native select the member can change', async () => {
     notePropsResult = {
       properties: [

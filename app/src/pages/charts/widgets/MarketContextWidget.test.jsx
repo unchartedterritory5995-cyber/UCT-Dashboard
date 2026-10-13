@@ -19,8 +19,14 @@ import { readingsFrom } from './marketContextModel'
 import MarketContextEmbed from '../../journal-2-0/components/notebook/MarketContextEmbed'
 
 const mockData = vi.fn()
+// Every key the widget asks the data hook for. A frozen stamp must ask for NONE
+// (a null key is SWR's "do not fetch").
+const mockSwrKeys = []
 vi.mock('../../../hooks/useMobileSWR', () => ({
-  default: () => ({ data: mockData(), mutate: vi.fn(), isValidating: false }),
+  default: (key) => {
+    mockSwrKeys.push(key)
+    return { data: mockData(), mutate: vi.fn(), isValidating: false }
+  },
 }))
 
 const sendMock = vi.fn(async () => 'Saved to Today’s note')
@@ -71,6 +77,7 @@ const rowOf = (label) => screen.getByText(label).closest('div')
 beforeEach(() => {
   sendMock.mockClear()
   mockData.mockReset()
+  mockSwrKeys.length = 0
 })
 
 // ── What the member reads ───────────────────────────────────────────────────
@@ -238,4 +245,149 @@ test('CONTROL — the embed rail fails when the frozen readings are not rendered
   render(<MarketContextEmbed attrs={FROZEN_ATTRS} height={280} />)
   expect(screen.queryByText('No market context was captured.')).not.toBeInTheDocument()
   expect(rowOf('UCT Exposure')).toHaveTextContent('112')
+})
+
+// ── Notebook P2a: the market context STAMP (Task 9) ─────────────────────────
+// A note's frozen capture (IR-S6): the wire rows plus four sourced fields, each
+// {value, source, asOf, missing}. Every assertion reads the RENDERED text.
+
+const P2A_STAMP = {
+  marketPhase: 'Uptrend', exposureScore: 32, exposureDelta: -4, breadthScore: 47.6, distributionDays: 3,
+  pctAbove50: 41.3, pctAbove200: 55, powerTrend: null,
+  regime: { value: 'orange', source: 'UCT Exposure Rating', asOf: '2026-10-13', missing: null },
+  spy: { value: { price: 600.5, changePct: -0.42, closed: false }, source: 'live price', asOf: '2026-10-13T17:26:00Z', missing: null },
+  qqq: { value: null, source: null, asOf: null, missing: 'No QQQ quote could be read just now.' },
+  vix: { value: null, source: null, asOf: null, missing: 'VIX unavailable' },
+}
+
+test('P2a stamp: the regime, SPY, QQQ and VIX rows render after the wire rows, each with its time or its sentence', () => {
+  render(<MarketContextWidget frozen={{ readings: P2A_STAMP, wireDate: '2026-10-13', updated: '1:26 PM ET', fields: 'all' }} readOnly journalDoor={false} />)
+  expect(screen.getByText('Orange')).toBeTruthy()
+  expect(screen.getByText('600.50 (-0.42%) · as of 1:26 PM ET')).toBeTruthy()
+  expect(screen.getByText('No QQQ quote could be read just now.')).toBeTruthy()
+  expect(screen.getByText('VIX unavailable')).toBeTruthy()
+  expect(screen.getByText('Market phase')).toBeTruthy()
+})
+
+test('P2a stamp: the indexes preset shows SPY, QQQ and VIX only', () => {
+  render(<MarketContextWidget frozen={{ readings: P2A_STAMP, fields: 'indexes' }} readOnly journalDoor={false} />)
+  expect(screen.queryByText('Market phase')).toBeNull()
+  expect(screen.queryByText('Orange')).toBeNull()
+  expect(screen.getByText('VIX unavailable')).toBeTruthy()
+})
+
+test('P2a: an older capture (no stamp keys) renders exactly the rows it always did', () => {
+  const OLD = { marketPhase: 'Uptrend', exposureScore: 32, breadthScore: 47.6, powerTrend: null }
+  render(<MarketContextWidget frozen={{ readings: OLD }} readOnly journalDoor={false} />)
+  expect(screen.queryByText('Regime')).toBeNull()
+  expect(screen.queryByText('SPY')).toBeNull()
+  expect(screen.queryByText('VIX')).toBeNull()
+})
+
+test('P2a: an uncaptured stamp says why it is empty, and offers no capture (IR-S11)', () => {
+  render(<MarketContextWidget frozen={{ readings: null, uncaptured: true, fields: 'all' }} readOnly journalDoor={false} />)
+  expect(screen.getByText('Market context is captured when a note is created. This note was written before it had one.')).toBeTruthy()
+  expect(screen.queryByRole('button')).toBeNull()
+})
+
+test('P2a stamp: each stored field renders its value, its source wording and its date', () => {
+  render(<MarketContextWidget frozen={{ readings: P2A_STAMP, wireDate: '2026-10-13', fields: 'all' }} readOnly journalDoor={false} />)
+  expect(rowOf('Regime')).toHaveTextContent('Orange')
+  expect(rowOf('Regime')).toHaveTextContent('UCT Exposure Rating, as of 2026-10-13')
+  expect(rowOf('SPY')).toHaveTextContent('600.50 (-0.42%) · as of 1:26 PM ET')
+  expect(rowOf('SPY')).toHaveTextContent('Live price, Oct 13, 2026, 1:26 PM ET')
+  expect(rowOf('QQQ')).toHaveTextContent('No QQQ quote could be read just now.')
+  expect(rowOf('VIX')).toHaveTextContent('VIX unavailable')
+})
+
+test('P2a stamp: a closed index row says last close and its session close, in ET', () => {
+  const closed = { ...P2A_STAMP, qqq: { value: { price: 500, changePct: 1, closed: true }, source: 'last close', asOf: '2026-10-09T20:00:00Z', missing: null } }
+  render(<MarketContextWidget frozen={{ readings: closed, fields: 'indexes' }} readOnly journalDoor={false} />)
+  expect(rowOf('QQQ')).toHaveTextContent('500.00 (+1.00%) · last close')
+  expect(rowOf('QQQ')).toHaveTextContent('Last close, Oct 9, 2026, 4:00 PM ET')
+})
+
+test('P2a stamp (R-T3-5): an unavailable change says so — never 0.00%, never blank', () => {
+  const noChange = { ...P2A_STAMP, spy: { value: { price: 600.5, changePct: null, closed: false }, source: 'live price', asOf: '2026-10-13T17:26:00Z', missing: null } }
+  render(<MarketContextWidget frozen={{ readings: noChange, fields: 'indexes' }} readOnly journalDoor={false} />)
+  expect(rowOf('SPY')).toHaveTextContent('600.50 · change unavailable · as of 1:26 PM ET')
+  expect(rowOf('SPY')).not.toHaveTextContent('0.00%')
+})
+
+test('P2a stamp: the regime\'s internal source is worded for members, never rendered raw', () => {
+  const raw = { ...P2A_STAMP, regime: { value: 'amber', source: 'journal_two.regime.get_current_regime', asOf: '2026-10-13', missing: null } }
+  render(<MarketContextWidget frozen={{ readings: raw, fields: 'regime' }} readOnly journalDoor={false} />)
+  expect(rowOf('Regime')).toHaveTextContent('Yellow')
+  expect(rowOf('Regime')).toHaveTextContent('UCT Exposure Rating, as of 2026-10-13')
+  expect(screen.queryByText(/journal_two|get_current_regime/)).toBeNull()
+  expect(document.body.innerHTML).not.toMatch(/journal_two/)
+})
+
+test('P2a stamp: the regime preset shows the wire rows and the regime, and no index row', () => {
+  render(<MarketContextWidget frozen={{ readings: P2A_STAMP, fields: 'regime' }} readOnly journalDoor={false} />)
+  expect(screen.getByText('Market phase')).toBeTruthy()
+  expect(rowOf('Regime')).toHaveTextContent('Orange')
+  expect(screen.queryByText('SPY')).toBeNull()
+  expect(screen.queryByText('VIX unavailable')).toBeNull()
+})
+
+test('P2a stamp: the board door sentence names the property, and only where a regime row shows', () => {
+  const HINT = 'To see your notes by the regime they were written in, open your notes as a Board and group by "Regime when written".'
+  const { unmount } = render(<MarketContextWidget frozen={{ readings: P2A_STAMP, fields: 'all' }} readOnly journalDoor={false} />)
+  expect(screen.getByText(HINT)).toBeTruthy()
+  unmount()
+  render(<MarketContextWidget frozen={{ readings: P2A_STAMP, fields: 'indexes' }} readOnly journalDoor={false} />)
+  expect(screen.queryByText(HINT)).toBeNull()
+})
+
+test('P2a stamp: a frozen stamp NEVER asks for live data to fill a gap', () => {
+  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response('{}'))
+  try {
+    mockData.mockReturnValue(OTHER_BREADTH)
+    render(<MarketContextWidget frozen={{ readings: P2A_STAMP, fields: 'all' }} readOnly journalDoor={false} />)
+    expect(mockSwrKeys.length).toBeGreaterThan(0)                         // non-vacuity: the hook was asked
+    expect(mockSwrKeys.every((k) => k === null)).toBe(true)
+    expect(fetchSpy).not.toHaveBeenCalled()
+    // The QQQ gap stays its sentence; nothing from the live payload leaks in.
+    expect(screen.getByText('No QQQ quote could be read just now.')).toBeTruthy()
+    expect(screen.queryByText('Correction')).toBeNull()
+  } finally {
+    fetchSpy.mockRestore()
+  }
+})
+
+test('CONTROL — the live board DOES ask for the wire (the no-fetch rail can fail)', () => {
+  mockData.mockReturnValue(BREADTH)
+  render(<Wrap />)
+  expect(mockSwrKeys).toContain('/api/breadth')
+})
+
+test('P2a: the board (no frozen capture) renders no sourced row and no board-door sentence', () => {
+  mockData.mockReturnValue({ ...BREADTH, regime: { value: 'red' }, spy: { value: { price: 1 } } })
+  render(<Wrap />)
+  expect(screen.queryByText('Regime')).toBeNull()
+  expect(screen.queryByText('SPY')).toBeNull()
+  expect(screen.queryByText(/Regime when written/)).toBeNull()
+  expect(screen.getByText('Market phase')).toBeTruthy()
+})
+
+test('P2a embed: the note embed passes the preset through', () => {
+  mockData.mockReturnValue(OTHER_BREADTH)
+  render(<MarketContextEmbed attrs={{ widgetId: 'marketcontext', capturedAt: '2026-10-13T17:26:00Z',
+    params: { readings: P2A_STAMP, wireDate: '2026-10-13', updated: '1:26 PM ET', fields: 'indexes' } }} height={280} />)
+  expect(screen.queryByText('Market phase')).toBeNull()
+  expect(rowOf('SPY')).toHaveTextContent('600.50 (-0.42%) · as of 1:26 PM ET')
+})
+
+test('P2a embed: an uncaptured node (capturedAt null) says why, and renders no capture date anywhere', () => {
+  mockData.mockReturnValue(OTHER_BREADTH)
+  render(<MarketContextEmbed attrs={{ widgetId: 'marketcontext', capturedAt: null,
+    params: { uncaptured: true, fields: 'all' } }} height={280} />)
+  expect(screen.getByText('Market context is captured when a note is created. This note was written before it had one.')).toBeTruthy()
+  expect(screen.queryByText('No market context was captured.')).toBeNull()
+  expect(screen.queryByText(/Wire/)).toBeNull()
+  const fig = screen.getByRole('figure')
+  expect(fig.getAttribute('aria-label')).toBe('Market Context — not captured')
+  expect(document.body.textContent).not.toMatch(/captured \w{3} \d/)
+  expect(mockSwrKeys.every((k) => k === null)).toBe(true)
 })

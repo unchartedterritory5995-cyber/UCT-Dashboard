@@ -110,6 +110,8 @@ export default function LogTradeButton() {
     mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/analytics'))
     setToast({ message: `Logged ${res.symbol} closed trade`, tone: 'success' })
     navigate('/journal/trades?seg=closed')
+    // Notebook P2a (IR-S7): AddTradeModal saves the pre-entry checklist under this row's id.
+    return res
   }, [resolveAccountId, mutate, navigate])
 
   return (
@@ -160,6 +162,7 @@ export default function LogTradeButton() {
         <Suspense fallback={null}>
           <AddPositionModal
             settings={settings}
+            preEntryChecklist
             onSave={handleCreatePosition}
             onClose={closeModal}
             accountName={acctName}
@@ -170,6 +173,7 @@ export default function LogTradeButton() {
         <Suspense fallback={null}>
           <AddTradeModal
             settings={settings}
+            preEntryChecklist
             onSave={handleCreateTrade}
             onClose={closeModal}
             accountName={acctName}

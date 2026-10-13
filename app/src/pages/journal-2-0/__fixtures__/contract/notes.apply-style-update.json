@@ -32,7 +32,7 @@
               "annotations": [],
               "caption": null,
               "capturedAt": "2026-10-05T14:30:00Z",
-              "embedId": "d4acda978d844b9ebe18d62a1fd54a72",
+              "embedId": "72455e848a824472994e9c345b1acab0",
               "fallback": null,
               "layout": {
                 "height": null,
@@ -50,6 +50,72 @@
             "type": "widgetEmbed"
           },
           {
+            "attrs": {
+              "annotations": [],
+              "caption": null,
+              "capturedAt": "2026-10-05T14:30:00Z",
+              "embedId": "85b219c774ce4359aa34834d70931c73",
+              "fallback": null,
+              "layout": {
+                "height": null,
+                "width": "full"
+              },
+              "mode": "snapshot",
+              "params": {
+                "checked": [],
+                "includeRules": "yes",
+                "requireAll": "no",
+                "setup": ""
+              },
+              "searchText": "[pre-entry checklist]",
+              "v": 1,
+              "widgetId": "preEntryChecklist"
+            },
+            "type": "widgetEmbed"
+          },
+          {
+            "attrs": {
+              "annotations": [],
+              "caption": null,
+              "capturedAt": "2026-10-05T14:30:00Z",
+              "embedId": "b8e9e0937bbf4c57be026fe1abc967db",
+              "fallback": null,
+              "layout": {
+                "height": null,
+                "width": "full"
+              },
+              "mode": "snapshot",
+              "params": {
+                "grade": "A"
+              },
+              "searchText": "[position sizing]",
+              "v": 1,
+              "widgetId": "positionSizing"
+            },
+            "type": "widgetEmbed"
+          },
+          {
+            "attrs": {
+              "annotations": [],
+              "caption": null,
+              "capturedAt": null,
+              "embedId": "895a6d7cbcc741d3a39cf4353b8fece3",
+              "fallback": null,
+              "layout": {
+                "height": null,
+                "width": "full"
+              },
+              "mode": "snapshot",
+              "params": {
+                "fields": "all",
+                "uncaptured": true
+              },
+              "v": 1,
+              "widgetId": "marketcontext"
+            },
+            "type": "widgetEmbed"
+          },
+          {
             "content": [
               {
                 "text": "My words",
@@ -61,7 +127,7 @@
         ],
         "type": "doc"
       },
-      "bodyPlain": "The setup [widget] My words",
+      "bodyPlain": "The setup [widget] [pre-entry checklist] [position sizing] [widget] My words",
       "createdAt": "2026-10-05T14:30:00+00:00",
       "dailyDate": null,
       "deletedAt": null,
@@ -75,7 +141,7 @@
         "builtin:note_kind": "trade_plan"
       },
       "styleId": "builtin:trade_plan",
-      "styleVersion": 1,
+      "styleVersion": 2,
       "subtitle": null,
       "tags": [],
       "ticker": "MSFT",
@@ -88,19 +154,32 @@
         {
           "block": "chart",
           "label": null
+        },
+        {
+          "block": "preEntryChecklist",
+          "label": null
+        },
+        {
+          "block": "positionSizing",
+          "label": null
+        },
+        {
+          "block": "marketcontext",
+          "label": null
         }
       ],
       "fromVersion": 1,
       "insertsOutline": false,
       "locked": false,
       "missingBlocks": true,
+      "mode": "update",
       "skipped": [],
       "styleId": "builtin:trade_plan",
       "styleName": "Trade plan",
       "switching": false,
-      "toVersion": 1,
+      "toVersion": 2,
       "upToDate": false,
-      "versionCurrent": true
+      "versionCurrent": false
     }
   }
 }
