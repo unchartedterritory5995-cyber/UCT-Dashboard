@@ -100,7 +100,8 @@ def edit_rule(user_id: str, rule_id: str, patch: dict[str, Any], conn: sqlite3.C
     try:
         notes_service._begin_immediate(conn)
         row = _rule_row(conn, user_id, rule_id)
-        if row is None:
+        # Ruling R-M1-1: a dismissed rule has left the member's list, so it answers like before_after.
+        if row is None or row["status"] == "dismissed":
             conn.rollback()
             return None
         _ensure_v1(conn, row)

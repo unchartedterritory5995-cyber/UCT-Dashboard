@@ -67,6 +67,24 @@ def test_another_members_rule_is_none(db_path):
     assert rv.edit_rule("u1", r["id"], {"label": "x"}) is None
     assert rv.list_versions("u1", r["id"]) is None
 
+def test_a_dismissed_rule_cannot_be_edited(db_path):
+    """Ruling R-M1-1 (M1): a dismissed rule has left the member's list, so editing it answers like
+    before_after does (R-PF-N20): None, the router's 404, and no version or switch is written."""
+    from api.services.journal_two import journal_rules, rule_versions as rv
+    r = _rule()
+    assert rv.edit_rule("u1", r["id"], {"beforeEntry": True}) is not None         # control: a live rule edits
+    journal_rules.dismiss_rule("u1", r["id"])
+    assert rv.edit_rule("u1", r["id"], {"label": "Changed", "beforeEntry": False}) is None
+    from api.services.auth_db import get_connection
+    c = get_connection()
+    try:
+        row = c.execute("SELECT label, before_entry, version FROM j2_journal_rules WHERE id = ?", (r["id"],)).fetchone()
+        n = c.execute("SELECT COUNT(*) FROM j2_journal_rule_versions WHERE rule_id = ?", (r["id"],)).fetchone()[0]
+    finally:
+        c.close()
+    assert (row["label"], row["before_entry"], row["version"]) == (r["label"], 1, 1) and n == 1
+
+
 def test_a_blank_label_is_refused(db_path):
     from api.services.journal_two import rule_versions as rv
     with pytest.raises(rv.RuleEditError):
