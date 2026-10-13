@@ -12,6 +12,7 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import corpus from './__fixtures__/nlIntent/corpus.json'
 import { registerBuiltins } from './builtins'
 import { fastParse, matchPosition } from './fastPath'
@@ -29,10 +30,11 @@ import { mergeChartSettings } from '../components/chart/chartDefaults'
 
 registerBuiltins()
 
-const HELDOUT_PATH = path.resolve(__dirname, '__fixtures__/nlIntent/heldout-v1.json')
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+const HELDOUT_PATH = path.resolve(HERE, '__fixtures__/nlIntent/heldout-v1.json')
 const heldout = fs.existsSync(HELDOUT_PATH) ? JSON.parse(fs.readFileSync(HELDOUT_PATH, 'utf8')) : { cases: [] }
 // v2 (2026-10-13, Gate B): written by a second agent AFTER v1 had informed routing vocabulary — the clean test of generalisation
-const HELDOUT2_PATH = path.resolve(__dirname, '__fixtures__/nlIntent/heldout-v2.json')
+const HELDOUT2_PATH = path.resolve(HERE, '__fixtures__/nlIntent/heldout-v2.json')
 const heldout2 = fs.existsSync(HELDOUT2_PATH) ? JSON.parse(fs.readFileSync(HELDOUT2_PATH, 'utf8')) : { cases: [] }
 
 function hostFor(fxName) {
