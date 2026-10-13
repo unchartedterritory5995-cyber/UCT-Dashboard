@@ -4914,3 +4914,18 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
 - **Deleted lines.** 7 deleted `api/` lines, each rewritten in place (the state-build branch of `compute()`, two
   `choose()` returns).
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Breadth `completed_sessions()` + Agent single selection policy · `212c4a0705` (+ Agent `0099f7e77d`) · 2026-10-13
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED / ADDITIVE, safe; NO marker bump** |
+| stranded file | `api/services/breadth_current.py` |
+
+- **Additive.** `select_completed()` / `completed_sessions()` are new, and their only caller is
+  `api/services/uct_agent/breadth_select.py`, reached from the Agent routes on web.
+- **Refactor.** `reading()` now reads its two sources through a new `_inputs()`: the same calls, moved, with
+  no behaviour change (103 contract tests unchanged and green). The deleted `api/` lines are that move.
+- **Flow-worker.** Reaches `breadth_current` only through the `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` constant
+  edge and never calls it.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
