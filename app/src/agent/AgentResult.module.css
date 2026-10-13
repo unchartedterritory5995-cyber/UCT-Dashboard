@@ -102,3 +102,12 @@
   .compare .pair dd { text-align: right; font-size: 14px; }
   .compare .pairNote { display: inline; margin: 0 0 0 6px; }
 }
+
+/* OPEN CHART — a quiet action at the card's bottom right, on the Details line (no extra row) */
+.foot { display: flex; align-items: flex-start; gap: 10px; margin-top: 8px; }
+.foot .details { margin-top: 0; flex: 1 1 auto; min-width: 0; }
+.chartAction { margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 1px 2px;
+  font: inherit; font-size: 11.5px; line-height: 1.4; color: var(--text-muted); background: none; border: 0; border-radius: 4px; cursor: pointer; }
+.chartAction:hover:not(:disabled) { color: var(--text-bright); }
+.chartAction:focus-visible { outline: 1px solid var(--border); outline-offset: 2px; }
+.chartAction:disabled { opacity: 0.5; cursor: default; }

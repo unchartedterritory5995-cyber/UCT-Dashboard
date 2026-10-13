@@ -28,12 +28,15 @@ When it is False, `stale_reason` says why — the caller must not present it as 
 """
 from __future__ import annotations
 
+import logging
 import math
+import time
 from datetime import date, datetime, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
 
 _ET = ZoneInfo("America/New_York")
+_log = logging.getLogger("breadth_current")
 
 UNIVERSES = ("us", "nyse", "nasdaq")
 #: An intraday payload older than this during market hours is not "now" (refresh is 55 s).
@@ -233,6 +236,7 @@ def reading(universe: str, metric: str, now: Optional[datetime] = None) -> dict:
     except Exception as e:                       # noqa: BLE001
         payload = {"ok": False, "reason": f"live read failed: {e}"}
     finalized: dict = {}
+    t0 = time.monotonic()
     try:
         from api.services import breadth_daily_ohlc as store
         for d, r in (store.history(metric, limit=15, universe=u) or {}).items():
@@ -240,6 +244,8 @@ def reading(universe: str, metric: str, now: Optional[datetime] = None) -> dict:
                 finalized[d] = r["c"]
     except Exception:                            # noqa: BLE001
         finalized = {}
+    _log.info("[breadth_current] reading %s/%s history_ms=%d", u, metric,
+              round((time.monotonic() - t0) * 1000))      # value-free: a duration only
     try:
         return choose(u, metric, now, payload, finalized)
     except Exception as e:                       # noqa: BLE001

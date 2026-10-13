@@ -453,6 +453,37 @@ def _rows(universe: str, metric: str) -> dict:
     return hit
 
 
+#: ⭐ (2026-10-13) A SMALL-LIMIT READ NEVER LOADS A METRIC'S WHOLE HISTORY. The Agent's present-tense
+#: reading asks for the newest 15 sessions; `_rows` reads every row of the metric back to START
+#: with `WHERE universe=? AND metric=?` on PRIMARY KEY (universe, date, metric) — a walk of the
+#: universe's whole slice (every metric, every date) — and a cold one after every deploy (~9 s per
+#: metric measured in production, 2026-10-13). The tail walks the same index newest-first and stops
+#: after `limit` matches. Identical rows to `tail(_rows(...))` (tested); nothing memoised.
+TAIL_FAST_MAX = 60
+
+
+def _tail_rows(universe: str, metric: str, limit: int) -> dict:
+    """The newest `limit` rows of `_rows(universe, metric)` without reading the rest."""
+    v = _view()
+    if v is None:
+        return {}
+    out: dict = {}
+    for path, cond in ((v["paths"]["live"], "date>?"), (v["paths"]["historical"], "date<=?")):
+        need = limit - len(out)
+        if need <= 0:
+            break
+        c = _ro(path)
+        try:
+            for d, o, h, l, cl, s in c.execute(
+                    "SELECT date, o, h, l, c, source FROM breadth_daily_ohlc WHERE universe=? AND metric=? AND "
+                    + cond + " AND date>=? ORDER BY date DESC LIMIT ?",
+                    (universe, metric, FROZEN_END, START[universe], need)):
+                out[d] = (o, h, l, cl, s)
+        finally:
+            c.close()
+    return out
+
+
 def universe_history(metric: str, universe: Optional[str], limit: int = 6000,
                      with_source: bool = False) -> Optional[dict]:
     """`breadth_daily_ohlc.history` for nyse/nasdaq under this authority; None when not in force (callers
@@ -460,7 +491,7 @@ def universe_history(metric: str, universe: Optional[str], limit: int = 6000,
     u = (universe or "").strip().lower()
     if u not in UNIVERSES or mode() != "v1":
         return None
-    rows = _rows(u, metric)
+    rows = _tail_rows(u, metric, int(limit)) if limit and 0 < int(limit) <= TAIL_FAST_MAX else _rows(u, metric)
     keep = sorted(rows)[-int(limit):] if limit else sorted(rows)
     out = {d: {"o": rows[d][0], "h": rows[d][1], "l": rows[d][2], "c": rows[d][3]} for d in keep}
     if with_source:

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from datetime import date as _date
 from typing import Any, Callable, Optional
 
@@ -112,14 +113,19 @@ def overlay(res: dict, answer: dict, view: Optional[dict], reading: Optional[Cal
     uni_key = res.get("universe") or (res.get("request") or {}).get("universe")
     uni = res.get("universe_label") or ""
     picks = {}
+    t0 = time.perf_counter()
     for m in ok:
         try:
             r = reading(uni_key, m["metric"])
         except Exception:  # noqa: BLE001 -- the contract says never raises; a fault is "unavailable"
             r = None
         picks[m["metric"]] = _choice(m, r)
+    # (2026-10-13) the current-reading contract's own time, per request: a cold measure cost 9–10 s in
+    # production (Breadth's per-measure history read). Timing and counts only — never a value.
+    reading_ms = round((time.perf_counter() - t0) * 1000)
     statuses = {k: (p["kind"], p.get("status")) for k, p in picks.items()}
-    log.info("[uct-agent] breadth present-tense kinds=%s", sorted({p["kind"] for p in picks.values()}))
+    log.info("[uct-agent] breadth present-tense kinds=%s measures=%d reading_ms=%d",
+             sorted({p["kind"] for p in picks.values()}), len(picks), reading_ms)
     if all(p["kind"] == "fallback" for p in picks.values()):
         # nothing current: the finalized answer as before (dated), with the reason said once
         if view and view.get("kind") in ("value", "metrics"):

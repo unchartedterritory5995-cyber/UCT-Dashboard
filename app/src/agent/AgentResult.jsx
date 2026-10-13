@@ -6,6 +6,7 @@
 import { useState } from 'react'
 import { Link, useInRouterContext } from 'react-router-dom'
 import styles from './AgentResult.module.css'
+import { chartTarget } from './present'
 
 function Prose({ text }) {
   return String(text || '').split(/\n{2,}/).map((p, i) => (
@@ -94,11 +95,24 @@ function Details({ details, sources }) {
   )
 }
 
+/** OPEN CHART: shown only when the card carries a valid target AND the panel can open charts. */
+function OpenChart({ target, onOpen, disabled }) {
+  return (
+    <button type="button" className={styles.chartAction} onClick={() => onOpen(target)} disabled={disabled}
+      data-testid="agent-open-chart" aria-label={`Open chart: ${target.label}`} title={`Open ${target.label} on a new chart`}>
+      <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">
+        <path d="M2 13.5h12M3.5 11l3-3.5 2.5 2 4-5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      Open chart
+    </button>
+  )
+}
+
 // structured views use the column's width (so their figures sit side by side); a single figure and
 // short prose stay as compact as their content
 const FULL = new Set(['comparison', 'metrics', 'range', 'table', 'headlines'])
 
-export default function AgentResult({ view }) {
+export default function AgentResult({ view, onOpenChart = null, busy = false }) {
   const body = (() => {
     switch (view.kind) {
       case 'value':
@@ -134,7 +148,16 @@ export default function AgentResult({ view }) {
       {extraText && <Prose text={view.text} />}
       {view.source && <div className={styles.source}>{view.source}</div>}
       {view.trimmed && <p className={styles.muted}>Showing the first rows that were kept with this conversation.</p>}
-      <Details details={view.details} sources={view.sources} />
+      {(() => {
+        const target = onOpenChart && view.kind !== 'error' ? chartTarget(view.chart) : null
+        if (!target) return <Details details={view.details} sources={view.sources} />
+        return (
+          <div className={styles.foot}>
+            <Details details={view.details} sources={view.sources} />
+            <OpenChart target={target} onOpen={onOpenChart} disabled={busy} />
+          </div>
+        )
+      })()}
       {view.link && <OpenLink link={view.link} />}
     </div>
   )

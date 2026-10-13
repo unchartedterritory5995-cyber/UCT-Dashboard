@@ -1636,6 +1636,18 @@ def start_breadth_warm(interval_seconds: int = 90) -> None:
     day. (Was ~40×3 TFs rebuilt every cycle, which never converged.)"""
     def _loop():
         time.sleep(20)   # let boot settle
+        # ⭐ (2026-10-13) Verify the V2 and exchange authorities ONCE, here, off the request path:
+        # the first touch hashes each replica (SHA-256) and counts its rows — seconds on a cold
+        # volume — and was being paid by the first Agent / chart request after every deploy.
+        try:
+            from api.services import breadth_authority as _ba
+            from api.services import breadth_exchange_authority as _ea
+            t0 = time.time()
+            _ba.available()
+            _ea.available()
+            _log.info("[breadth_symbols] authorities verified in %.1fs", time.time() - t0)
+        except Exception:
+            _log.warning("[breadth_symbols] authority warm-up failed (requests will verify)")
         while True:
             try:
                 warm_breadth()
