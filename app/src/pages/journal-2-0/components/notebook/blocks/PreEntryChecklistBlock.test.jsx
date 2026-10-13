@@ -64,11 +64,12 @@ describe('PreEntryChecklistBlock', () => {
     expect(box.checked).toBe(true)
     expect(box.disabled).toBe(true)
   })
-  it('includeRules yes with no before-entry rules says so, and points at no control that does not exist yet', () => {
+  // R-T7-2 (carried to P2b Task 8, N17): the pointer lands in the SAME commit as the control it names,
+  // the My rules block's "Before entry" switch.
+  it('includeRules yes with no before-entry rules says so, and points at the My rules block\'s switch', () => {
     RULES = [{ id: 'r1', label: 'x', beforeEntry: false }]
     render(<PreEntryChecklistBlock params={base} setParams={vi.fn()} editable />)
-    expect(screen.getByText('No rules are marked "before entry" yet, so none are listed here.')).toBeTruthy()
-    expect(screen.queryByText(/My rules/)).toBeNull()
+    expect(screen.getByText('No rules are marked "before entry" yet, so none are listed here. Turn on "Before entry" for a rule in a My rules block.')).toBeTruthy()
   })
   it('keyboard: Space on a focused checkbox ticks it through setParams', () => {
     const setParams = vi.fn(() => true)

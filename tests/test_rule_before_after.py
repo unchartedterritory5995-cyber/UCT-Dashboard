@@ -156,3 +156,17 @@ def test_route(db_path):
     assert c.get(f"/api/j2/trader-blocks/rules/{theirs['id']}/before-after").status_code == 404
     journal_rules.dismiss_rule("u1", r["id"])
     assert c.get(f"/api/j2/trader-blocks/rules/{r['id']}/before-after").status_code == 404
+
+
+def test_the_client_small_sample_is_the_servers():
+    """Task 9 (R-PF-N19): beforeAfterText.js's SMALL and rule_versions.SMALL_SAMPLE are one fact in two
+    files. The client line is read with a multi-line anchor (re.M); exactly one match (non-vacuity)."""
+    import re
+    from pathlib import Path
+    from api.services.journal_two import rule_versions as rv
+    src = (Path(__file__).resolve().parents[1] / "app/src/pages/journal-2-0/lib/blocks/beforeAfterText.js").read_text(encoding="utf-8")
+    found = re.findall(r"^const SMALL = (\d+)$", src, re.M)
+    assert len(found) == 1, found
+    assert int(found[0]) == rv.SMALL_SAMPLE
+    # CONTROL: without re.M the anchor reads only the file's first line, so the flag is load-bearing
+    assert re.findall(r"^const SMALL = (\d+)$", src) == []

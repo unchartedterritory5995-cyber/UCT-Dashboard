@@ -189,7 +189,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/blocks/PriceStampsBlock.jsx': { recipe: 'trader-block-stamps' },
   'components/notebook/blocks/PositionSizingBlock.jsx': { recipe: 'trader-block-sizing' },
   // P2b Task 2 stubs: each body task (8, 10, 11) swaps its own line for its own recipe.
-  'components/notebook/blocks/MyRulesBlock.jsx': { coveredBy: 'trader-block-platform' },
+  // Task 8: the My rules body (rail a11y/traderBlockMyRules.a11y.test.jsx).
+  'components/notebook/blocks/MyRulesBlock.jsx': { recipe: 'trader-block-my-rules' },
   // P2b Task 10: the four prep blocks and the frame they share (Capture now / Capture again, the failure
   // line); rail a11y/traderBlockPrep.a11y.test.jsx. Task 11: the review block; rail traderBlockReview.
   'components/notebook/blocks/PrepWireBlock.jsx': { recipe: 'trader-block-prep' },

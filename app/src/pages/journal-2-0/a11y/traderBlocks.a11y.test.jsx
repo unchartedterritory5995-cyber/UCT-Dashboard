@@ -29,10 +29,10 @@ afterEach(() => vi.unstubAllGlobals())
 const editor = { isEditable: true, storage: { uctJournalWidgets: { noteId: 'n1' } } }
 const node = (widgetId, params = {}) => ({ attrs: { widgetId, params, searchText: `[${widgetId}]` } })
 
-// P2b: part b's bodies are stubs until their own tasks. Task 10 flipped the four prep blocks and Task 11
-// the review block, so each of those has a real expectation below instead of the stub sentence.
-const PART_B = ['My rules']
+// P2b: since M2 every part b body is real (Task 8 My rules, Task 10 the four prep blocks, Task 11 the
+// review block), so each has a real expectation below and none may still say the stub sentence.
 const PREP_BLOCKS = ['Morning wire and exposure', 'Earnings for my names', 'My movers', 'Key levels from my plans']
+const PART_B = ['My rules', ...PREP_BLOCKS, 'Post-trade review']
 
 axeSurface('trader-block-platform', async () => {
   // The review block, with no trade picked, reads the member's closed trades (the REAL server answer).
@@ -59,16 +59,17 @@ axeSurface('trader-block-platform', async () => {
   for (const name of ['Pre-entry checklist', 'Price stamps', 'Position sizing']) {
     expect(group(name).queryByText('This block is being built.')).toBeNull()
   }
-  // P2b Task 2: part b's stubs each paint until their body task replaces them (Task 8: My rules).
-  for (const name of PART_B) expect(await group(name).findByText('This block is being built.')).toBeTruthy()
+  // P2b Task 8: My rules has its real body (no rules here, so its empty state); its own states have a
+  // recipe in traderBlockMyRules.a11y.test.jsx. R-PF-B3: each body task flipped its own group here.
+  expect(await group('My rules').findByText(/You have no rules yet/)).toBeTruthy()
   // P2b Task 10: an uncaptured prep block offers "Capture now" and has read nothing (never on mount).
   for (const name of PREP_BLOCKS) {
     expect(await group(name).findByRole('button', { name: 'Capture now' })).toBeTruthy()
-    expect(group(name).queryByText('This block is being built.')).toBeNull()
   }
   // P2b Task 11: the review block, with no trade picked, lists the closed trades to pick from.
   expect(await group('Post-trade review').findByRole('combobox', { name: 'Trade to review' })).toBeTruthy()
-  expect(group('Post-trade review').queryByText('This block is being built.')).toBeNull()
+  // M2: no part b body still says the stub sentence.
+  for (const name of PART_B) expect(group(name).queryByText('This block is being built.')).toBeNull()
 })
 
 axeSurface('trader-block-platform:error', async () => {

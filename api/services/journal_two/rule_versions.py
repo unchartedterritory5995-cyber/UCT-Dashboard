@@ -27,6 +27,12 @@ class RuleEditError(ValueError):
     pass
 
 
+class RuleDismissed(LookupError):
+    """The member's own rule, dismissed (ruling R-M1-1): it cannot be edited. Its own answer, so the
+    route can name the reason (detail "rule_dismissed") where another member's rule or a missing one
+    stays a plain not-found (fix round 1, m2)."""
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -100,10 +106,14 @@ def edit_rule(user_id: str, rule_id: str, patch: dict[str, Any], conn: sqlite3.C
     try:
         notes_service._begin_immediate(conn)
         row = _rule_row(conn, user_id, rule_id)
-        # Ruling R-M1-1: a dismissed rule has left the member's list, so it answers like before_after.
-        if row is None or row["status"] == "dismissed":
+        # Ruling R-M1-1: a dismissed rule has left the member's list, so it is never edited. Not the
+        # member's (or missing) is None; the member's own dismissed rule says so (fix round 1, m2).
+        if row is None:
             conn.rollback()
             return None
+        if row["status"] == "dismissed":
+            conn.rollback()
+            raise RuleDismissed(rule_id)
         _ensure_v1(conn, row)
         label, evidence = row["label"], row["evidence"]
         if "label" in patch:

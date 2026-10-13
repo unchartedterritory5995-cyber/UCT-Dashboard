@@ -6,7 +6,12 @@
  * rule (a reminder). SUGGESTION-ONLY — it just stores + lists rules; it does NOT
  * change any trading behavior.
  *
- * Returns `{rules, isLoading, error, create(payload), dismiss(ruleId)}`:
+ * Returns `{rules, isLoading, error, mutate, create(payload), dismiss(ruleId)}`:
+ *   - `mutate` is SWR's own: `mutate()` re-reads the list (Notebook P2b Task 8: a rule edited
+ *     through rulesApi.editRule reaches every subscriber this way, the My rules block and the
+ *     pre-entry checklist alike).
+ *   - `status` (default 'active') is the list asked for; the My rules block's "All rules" setting
+ *     also reads 'dismissed'. Only those two are asked for.
  *   - `create({label, evidence?, sourceType?, sourceId?})` POSTs
  *     `/accounts/{accountId}/rules`, then `mutate()`s so the new rule appears in
  *     every subscriber's list (MakeRuleButton + MyRulesList share this SWR key).
@@ -27,9 +32,9 @@ const fetcher = (url) =>
     return r.json()
   })
 
-export default function useJournalRules(accountId) {
+export default function useJournalRules(accountId, status = 'active') {
   const url = accountId
-    ? `/api/j2/accounts/${encodeURIComponent(accountId)}/rules?status=active`
+    ? `/api/j2/accounts/${encodeURIComponent(accountId)}/rules?status=${status === 'dismissed' ? 'dismissed' : 'active'}`
     : null
 
   const { data, error, isLoading, mutate } = useSWR(url, fetcher, {
@@ -93,6 +98,7 @@ export default function useJournalRules(accountId) {
     rules,
     isLoading: !!url && isLoading,
     error,
+    mutate,
     create,
     dismiss,
   }

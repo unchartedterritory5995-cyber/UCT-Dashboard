@@ -9,9 +9,14 @@
 // lib/blocks/blockDoors.test.js), and with no single account selected it lists nothing: the settings
 // served then are not one account's (C-1), so no setup or rule is shown as the member's own.
 // A tick keeps another setup's ticks (R-T7-2 I-2); changing setup never touches them.
+// ⛔ N-4 (P2b Task 8, ruling R-PF-B9): a before-entry rule (`rule:<id>`) sits in EVERY setup's list, so
+// a rule ticked on one setup's list is in `checked` when another setup is on screen. A list the member
+// has not touched saves nothing (R-O7-1), so it shows nothing ticked either: the screen never shows a
+// tick the record will not hold. Once the member ticks or unticks a box here, the carried rule tick is
+// this list's too, shown before the trade is logged, and the member can untick it.
 import { useEffect } from 'react'
 import useChecklistSources from '../hooks/useChecklistSources'
-import { CHECKLIST_ACCOUNT_LINES, checklistItems, toggleChecked, uncheckedItems } from '../lib/blocks/checklistItems'
+import { CHECKLIST_ACCOUNT_LINES, RULE_PREFIX, checklistItems, toggleChecked, uncheckedItems } from '../lib/blocks/checklistItems'
 import { softWarning } from '../lib/blocks/logTradeChecklist'
 import styles from './notebook/blocks/Blocks.module.css'
 
@@ -20,8 +25,8 @@ const ACCOUNT_LINES = { loading: LOADING, ...CHECKLIST_ACCOUNT_LINES }
 const NO_IDS = []
 
 // N-3 (R-T8-2): `disabled` while the dialog shows a failed save, so the boxes stay exactly what
-// "Try again" re-sends.
-export default function LogTradeChecklist({ setup, requireAll, checked, onChange, onItems, disabled = false }) {
+// "Try again" re-sends. N-4: `touched` is whether the member has answered THIS setup's list.
+export default function LogTradeChecklist({ setup, requireAll, checked, onChange, onItems, disabled = false, touched = true }) {
   const { settings, settingsState, retrySettings, rules, rulesState } = useChecklistSources({ wantRules: true })
   // One account's data, read: its settings are in, and its rules answered (or failed, which leaves
   // the setup's own items standing). Any other rules state is "no single account" or still loading.
@@ -62,8 +67,10 @@ export default function LogTradeChecklist({ setup, requireAll, checked, onChange
   const ticked = Array.isArray(checked) ? checked : NO_IDS
   const shown = new Set(items.map((i) => i.id))
   const kept = ticked.filter((id) => !shown.has(id))
-  const on = new Set(ticked)
-  const warn = softWarning({ requireAll, unticked: uncheckedItems(items, ticked).length })
+  // N-4: on a list not yet answered, a carried rule tick is not shown (and not counted by the warning).
+  const visible = touched ? ticked : ticked.filter((id) => !id.startsWith(RULE_PREFIX))
+  const on = new Set(visible)
+  const warn = softWarning({ requireAll, unticked: uncheckedItems(items, visible).length })
 
   return (
     <div role="group" aria-label="Pre-entry checklist" className={styles.empty}>
