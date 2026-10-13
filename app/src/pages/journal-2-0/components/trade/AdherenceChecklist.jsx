@@ -25,7 +25,8 @@
  * ⛔ Fix round 1, R-T8-2: a stored record is never silently re-scored. Until the
  * member answers a box on THIS card, the summary is the record's own count, total
  * and percentage. A before-entry rule the record does not hold (switched on since,
- * or never ticked) sits in its own group, "Added since this trade", and enters the
+ * or never ticked; a record stores ticks only, so the two cannot be told apart, R-T8-2a) sits in its
+ * own group, "Not answered on this trade", and enters the
  * count, and a write, only once the member answers it here. A trade with no record
  * counts the whole list, as before.
  * ⛔ R-T8-3: the rules are the SELECTED account's. On a trade whose `accountId` is
@@ -182,7 +183,7 @@ export default function AdherenceChecklist({ trade, settings }) {
       )}
       {added.length > 0 && (
         <div role="group" aria-labelledby={addedHeadId} className={styles.list}>
-          <p id={addedHeadId} className={styles.title}>Added since this trade</p>
+          <p id={addedHeadId} className={styles.title}>Not answered on this trade</p>
           <ul className={styles.list}>{added.map(row)}</ul>
         </div>
       )}

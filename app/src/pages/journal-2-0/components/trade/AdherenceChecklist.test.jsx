@@ -186,18 +186,29 @@ describe('AdherenceChecklist: rules added since the trade (R-T8-2)', () => {
     seam = { rules: [WAIT], rulesState: 'ready' }
     render(<AdherenceChecklist trade={TRADE} settings={SETTINGS} />)
     expect(screen.getByText('2 of 2 rules followed · adherence 100%')).toBeInTheDocument()
-    const added = screen.getByRole('group', { name: 'Added since this trade' })
+    const added = screen.getByRole('group', { name: 'Not answered on this trade' })
     expect(within(added).getByRole('checkbox', { name: 'Wait 15 minutes' }).checked).toBe(false)
     expect(within(added).getAllByRole('checkbox')).toHaveLength(1)
     expect(screen.getByRole('checkbox', { name: 'Sized at 1R risk' }).checked).toBe(true)
     expect(putBody()).toBeNull()
   })
 
+  it('R-T8-2a: a rule that existed at entry and was left unticked reads as not answered, under the stored numbers', () => {
+    // Log Trade listed three items (two setup items and the rule) and the member ticked two of them.
+    swrData = { ...OLD, checkedRuleIds: ['r1', 'r2'], totalRules: 3, adherencePct: 2 / 3 }
+    seam = { rules: [WAIT], rulesState: 'ready' }
+    render(<AdherenceChecklist trade={TRADE} settings={SETTINGS} />)
+    expect(screen.getByText('2 of 3 rules followed · adherence 67%')).toBeInTheDocument()
+    const group = screen.getByRole('group', { name: 'Not answered on this trade' })
+    expect(within(group).getByRole('checkbox', { name: 'Wait 15 minutes' }).checked).toBe(false)
+    expect(screen.queryByText(/Added since/)).toBeNull()
+  })
+
   it('CONTROL: nothing added since, so no such group, and the stored numbers stand', () => {
     swrData = { ...OLD, checkedRuleIds: ['r1', 'rule:x1'], totalRules: 3, adherencePct: 2 / 3 }
     seam = { rules: [WAIT], rulesState: 'ready' }
     render(<AdherenceChecklist trade={TRADE} settings={SETTINGS} />)
-    expect(screen.queryByRole('group', { name: 'Added since this trade' })).toBeNull()
+    expect(screen.queryByRole('group', { name: 'Not answered on this trade' })).toBeNull()
     expect(screen.getByText('2 of 3 rules followed · adherence 67%')).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Wait 15 minutes' }).checked).toBe(true)
   })
@@ -219,7 +230,7 @@ describe('AdherenceChecklist: rules added since the trade (R-T8-2)', () => {
     expect(putBody()).toEqual({ setup: 'VCP', checkedRuleIds: ['r1', 'r2', 'rule:x1'], totalRules: 3 })
     expect(screen.getByText('3 of 3 rules followed · adherence 100%')).toBeInTheDocument()
     // the answered rule stays where it was, in its group
-    const added = screen.getByRole('group', { name: 'Added since this trade' })
+    const added = screen.getByRole('group', { name: 'Not answered on this trade' })
     expect(within(added).getByRole('checkbox', { name: 'Wait 15 minutes' }).checked).toBe(true)
   })
 
