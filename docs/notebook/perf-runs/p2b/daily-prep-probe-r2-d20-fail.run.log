@@ -1,0 +1,113 @@
+tree 82e92b496e  sandbox C:\Users\Patrick\AppData\Local\Temp\t15b_daily_prep_probe_n_ba4bs5
+pins applied: 113  unpinnable: 0  every resolved path outside ['c:\\data']
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\t15b_daily_prep_probe_n_ba4bs5\auth.db
+[sqlite-migration] Applied purge_tf60_2f42e55: deleted 0 rows
+[sqlite-migration] Applied purge_tf60_3cbe1cf_src_cap: deleted 0 rows
+[sqlite-migration] Applied purge_intraday_pagination_v1: deleted 0 rows
+seeded: {'big': {'user_id': '48174466-74e4-43c3-b916-6e5b916ffd71', 'names': 200, 'positions': 10, 'flagged': 40, 'watchlist': 150}, 'small': {'user_id': '86b5b1c0-8930-4c17-bc61-3afffdb39fe5', 'names': 5, 'positions': 1, 'flagged': 1, 'watchlist': 3}}
+[cold] small: 0+1 creates, vendor delay 20.0s (fail) ...
+[trader_blocks] prep wire unreadable
+Traceback (most recent call last):
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 840, in prep_part
+    snap = reader(user_id, now, memo)
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 707, in _prep_wire
+    r = engine.get_rundown() or {}
+        ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\engine.py", line 803, in get_rundown
+    wire = _load_wire_data()
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\tools\notebook_daily_prep_probe.py", line 173, in wrapper
+    raise ProbeLegFailure(f"probe: {self.key} is dead (after {self.delay}s)")
+ProbeLegFailure: probe: engine._load_wire_data is dead (after 20.0s)
+[cold] small: p50 20.0265s  p95 20.0265s  max 20.0265s  (warm-up [])
+      prepWire                     {'uncaptured': 1}
+      prepEarnings                 {'uncaptured': 1}
+      prepMovers                   {'uncaptured': 1}
+      prepLevels                   {'uncaptured': 1}
+      marketcontext.regime         {'absent': 1}
+      marketcontext.spy            {'absent': 1}
+      marketcontext.qqq            {'absent': 1}
+      marketcontext.vix            {'absent': 1}
+      regime_at_write              {'absent': 1}
+[cold] big: 0+1 creates, vendor delay 20.0s (fail) ...
+[trader_blocks] prep wire unreadable
+Traceback (most recent call last):
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 840, in prep_part
+    snap = reader(user_id, now, memo)
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 707, in _prep_wire
+    r = engine.get_rundown() or {}
+        ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\engine.py", line 803, in get_rundown
+    wire = _load_wire_data()
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\tools\notebook_daily_prep_probe.py", line 173, in wrapper
+    raise ProbeLegFailure(f"probe: {self.key} is dead (after {self.delay}s)")
+ProbeLegFailure: probe: engine._load_wire_data is dead (after 20.0s)
+[cold] big: p50 20.0210s  p95 20.0210s  max 20.0210s  (warm-up [])
+      prepWire                     {'uncaptured': 1}
+      prepEarnings                 {'uncaptured': 1}
+      prepMovers                   {'uncaptured': 1}
+      prepLevels                   {'uncaptured': 1}
+      marketcontext.regime         {'absent': 1}
+      marketcontext.spy            {'absent': 1}
+      marketcontext.qqq            {'absent': 1}
+      marketcontext.vix            {'absent': 1}
+      regime_at_write              {'absent': 1}
+[cold] outbound socket attempts: 0
+[warm] small: 0+1 creates, vendor delay 20.0s (fail) ...
+[trader_blocks] prep wire unreadable
+Traceback (most recent call last):
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 840, in prep_part
+    snap = reader(user_id, now, memo)
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 707, in _prep_wire
+    r = engine.get_rundown() or {}
+        ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\engine.py", line 803, in get_rundown
+    wire = _load_wire_data()
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\tools\notebook_daily_prep_probe.py", line 173, in wrapper
+    raise ProbeLegFailure(f"probe: {self.key} is dead (after {self.delay}s)")
+ProbeLegFailure: probe: engine._load_wire_data is dead (after 20.0s)
+[warm] small: p50 20.0188s  p95 20.0188s  max 20.0188s  (warm-up [])
+      prepWire                     {'uncaptured': 1}
+      prepEarnings                 {'uncaptured': 1}
+      prepMovers                   {'uncaptured': 1}
+      prepLevels                   {'uncaptured': 1}
+      marketcontext.regime         {'absent': 1}
+      marketcontext.spy            {'absent': 1}
+      marketcontext.qqq            {'absent': 1}
+      marketcontext.vix            {'absent': 1}
+      regime_at_write              {'absent': 1}
+[warm] big: 0+1 creates, vendor delay 20.0s (fail) ...
+[trader_blocks] prep wire unreadable
+Traceback (most recent call last):
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 840, in prep_part
+    snap = reader(user_id, now, memo)
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 707, in _prep_wire
+    r = engine.get_rundown() or {}
+        ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\engine.py", line 803, in get_rundown
+    wire = _load_wire_data()
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\tools\notebook_daily_prep_probe.py", line 173, in wrapper
+    raise ProbeLegFailure(f"probe: {self.key} is dead (after {self.delay}s)")
+ProbeLegFailure: probe: engine._load_wire_data is dead (after 20.0s)
+[warm] big: p50 20.0210s  p95 20.0210s  max 20.0210s  (warm-up [])
+      prepWire                     {'uncaptured': 1}
+      prepEarnings                 {'uncaptured': 1}
+      prepMovers                   {'uncaptured': 1}
+      prepLevels                   {'uncaptured': 1}
+      marketcontext.regime         {'absent': 1}
+      marketcontext.spy            {'absent': 1}
+      marketcontext.qqq            {'absent': 1}
+      marketcontext.vix            {'absent': 1}
+      regime_at_write              {'absent': 1}
+[warm] outbound socket attempts: 0
+shared-root writes blocked: 0  reads recorded: 0
+raw JSON: C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\docs\notebook\perf-runs\p2b\daily-prep-probe-r2-d20-fail.json
+VERDICT: RAN CLEAN

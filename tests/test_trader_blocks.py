@@ -69,9 +69,9 @@ def _held_breadth(monkeypatch, payload):
 
 
 def test_the_sizer_records_the_regime_id_it_was_built_in(monkeypatch):
-    from api.services.journal_two import journal_styles as js, regime
-    monkeypatch.setattr(regime, "_read_exposure", lambda: {"score": 40, "as_of": "2026-10-13"})
-    _held_breadth(monkeypatch, {"wire_date": "2026-10-12"})
+    from api.services.journal_two import journal_styles as js
+    # R-T12-C: the regime comes from the HELD payload's own exposure block, never the default breadth.
+    _held_breadth(monkeypatch, {"wire_date": "2026-10-12", "exposure": {"score": 40, "as_of": "2026-10-13"}})
     node, _ = js.BLOCK_BUILDERS["positionSizing"]({"block": "positionSizing", "settings": {"grade": "A+"}}, dict(CTX, memo={}))
     assert node["attrs"]["params"] == {"grade": "A+", "regimeId": "orange", "regimeAsOf": "2026-10-13"}
 
@@ -81,9 +81,10 @@ def test_the_sizer_records_the_regime_id_it_was_built_in(monkeypatch):
 def test_the_sizer_dates_its_regime_exactly_as_entry_context_does(monkeypatch):
     """The wire's normalised exposure carries no date, so entry_context._regime_fields dates the regime by
     the wire run's own date. The sizer's stamp is that same date, never "" and never today."""
-    from api.services.journal_two import journal_styles as js, regime, entry_context
-    monkeypatch.setattr(regime, "_read_exposure", lambda: {"score": 95})
-    _held_breadth(monkeypatch, {"wire_date": "2026-10-09"})
+    from api.services.journal_two import journal_styles as js, entry_context
+    # The held payload carries the exposure (as engine.get_breadth's payload does); entry_context's own
+    # path below reads the same payload through the DEFAULT breadth, so the two datings are compared.
+    _held_breadth(monkeypatch, {"wire_date": "2026-10-09", "exposure": {"score": 95}})
     node, _ = js.BLOCK_BUILDERS["positionSizing"]({"block": "positionSizing", "settings": {"grade": "A"}}, dict(CTX, memo={}))
     expected = entry_context._regime_fields({})[0]
     assert expected["value"] == "green" and expected["asOf"] == "2026-10-09"           # non-vacuity
@@ -111,13 +112,13 @@ def test_the_sizer_stamps_todays_regime_only_into_a_new_note(mode, stamped, monk
     from api.services.journal_two import journal_styles as js, regime
     reads: list[str] = []
     monkeypatch.setattr(regime, "_read_exposure", lambda: reads.append("exposure") or {"score": 95, "as_of": "2026-10-13"})
-    calls = _held_breadth(monkeypatch, {"wire_date": "2026-10-13"})
+    calls = _held_breadth(monkeypatch, {"wire_date": "2026-10-13", "exposure": {"score": 95, "as_of": "2026-10-13"}})
     node, reason = js.BLOCK_BUILDERS["positionSizing"]({"block": "positionSizing", "settings": {"grade": "A"}},
                                                         dict(CTX, memo={}, mode=mode))
     assert reason is None
     if stamped:
         assert node["attrs"]["params"] == {"grade": "A", "regimeId": "green", "regimeAsOf": "2026-10-13"}
-        assert calls == [True] and reads == ["exposure"]
+        assert calls == [True] and reads == []      # R-T12-C: held only, the default path never entered
     else:
         assert node["attrs"]["params"] == {"grade": "A"}
         assert calls == [] and reads == []          # an older note never reads today's market
@@ -126,9 +127,8 @@ def test_the_sizer_stamps_todays_regime_only_into_a_new_note(mode, stamped, monk
 def test_update_layout_lands_the_sizer_unstamped_and_an_empty_note_stamped(db_path, monkeypatch):
     """End to end through the real apply: "Update layout" on a note with words lands the sizer with no
     regime; the same style on an EMPTY note (insertsOutline, create-equivalent) lands it stamped."""
-    from api.services.journal_two import journal_styles as js, notes, regime
-    monkeypatch.setattr(regime, "_read_exposure", lambda: {"score": 95, "as_of": "2026-10-13"})
-    _held_breadth(monkeypatch, {"wire_date": "2026-10-13"})
+    from api.services.journal_two import journal_styles as js, notes
+    _held_breadth(monkeypatch, {"wire_date": "2026-10-13", "exposure": {"score": 95, "as_of": "2026-10-13"}})
     s = js.create_style("u1", {"name": "Sized", "kindId": "thesis",
         "blocks": [{"block": "positionSizing", "enabled": True, "settings": {"grade": "A"}}],
         "outlineBodyJson": {"type": "doc", "content": [

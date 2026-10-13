@@ -10,7 +10,9 @@ write or any call to a notes write function.
 """
 from __future__ import annotations
 
+import contextvars
 import math
+import time
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable
@@ -23,6 +25,54 @@ BLOCK_IDS = ("preEntryChecklist", "priceStamps", "positionSizing",
 
 #: The regime ids regime.classify_regime answers (journal_two/regime.py), in severity order.
 REGIME_IDS = ("green", "amber", "orange", "red")
+
+
+#: R-T12-C: the ONE read budget, in seconds, for a note create's market and prep reads (and for one
+#: prep part's "Capture now"). Both run on the web pod's shared request threadpool, and the Task 15b
+#: probe measured a Daily prep create holding a worker for the serial sum of every read with nothing
+#: cutting it short. Read in ONE place: start_budget.
+PREP_CREATE_BUDGET_S = 3.0
+_DEADLINE = "deadline"      # the memo key holding the monotonic deadline
+#: The memo of the prep part being read right now (set by prep_part), so a read nested below a reader's
+#: own signature (_my_names' per-source reads) can check the SAME budget without a new parameter.
+_ACTIVE_BUDGET: contextvars.ContextVar = contextvars.ContextVar("trader_blocks_budget", default=None)
+
+
+#: Review I-1: the `reason` an uncaptured market context stamp carries when the create's read budget ran
+#: out (the interface the client reads: `{"uncaptured": true, "reason": "budget"}`). An Update layout
+#: stamp carries no reason.
+BUDGET_REASON = "budget"
+
+
+class BudgetSpent(Exception):
+    """The read budget ran out before the next read. The block it interrupts is written UNCAPTURED
+    (the IR-S11 shape, with "Capture now"), never as a partial snapshot."""
+
+
+def start_budget(memo: dict) -> dict:
+    """Start the budget on `memo` unless one is running (a compose shares ONE deadline across every
+    block it builds: the first start wins). Returns `memo`."""
+    memo.setdefault(_DEADLINE, time.monotonic() + PREP_CREATE_BUDGET_S)
+    return memo
+
+
+def _spent(memo: Any) -> bool:
+    """Has the budget on `memo` run out? False when the memo carries none."""
+    deadline = memo.get(_DEADLINE) if isinstance(memo, dict) else None
+    return deadline is not None and time.monotonic() >= deadline
+
+
+def _spend(memo: Any) -> None:
+    """Called BEFORE each guarded step (and before each name in a scan): BudgetSpent once the deadline
+    has passed. No deadline on the memo (a caller that started none) means no limit.
+    ⛔ A step already running is not interrupted, and one guarded step can be a CHAIN of reads that
+    runs inside engine.py, where no check sits: get_breadth(held_only=True) is up to 3 local file reads
+    (_load_state, _load_wire_data, _load_wire_data again for wire_date), get_rundown up to 2, and
+    setups_board.build_cards makes 3 SQL reads before its own scan. So the bound is the budget PLUS the
+    longest unguarded chain (3 reads), each read bounded only by its own store: sqlite lock waits of
+    2-5 s; a local file read has no bound at all (Task 15b fix round 2, review M-1)."""
+    if _spent(memo):
+        raise BudgetSpent()
 
 
 def _iso(dt: datetime) -> str:
@@ -73,8 +123,10 @@ def build_position_sizing(block: dict, ctx: dict):
     if ctx.get("mode") == "update":
         return _node("positionSizing", params, ctx), None
     try:
-        field = _regime_field(ctx.setdefault("memo", {}))
-    except Exception:  # noqa: BLE001 -- an unreadable hold is a missing regime, never a failed note
+        memo = ctx.setdefault("memo", {})
+        _spend(memo)                    # R-T12-C: a spent budget leaves the sizer unstamped
+        field = _regime_field(memo)
+    except Exception:  # noqa: BLE001 -- an unreadable hold (or a spent budget) is a missing regime, never a failed note
         field = {}
     if field.get("value") in REGIME_IDS:
         params.update({"regimeId": field["value"], "regimeAsOf": field.get("asOf") or ""})
@@ -170,14 +222,35 @@ def _breadth() -> dict:
 
 
 def _regime_field(memo: dict) -> dict:
-    """The regime field as entry context reads it (entry_context._regime_fields: the wire only).
-    That path asks the DEFAULT engine.get_breadth, so it is entered only when a breadth is held
-    (the held read also warms engine's cache for it); a cold hold answers "not published"."""
+    """The regime field, from HELD data only: the held breadth payload's own exposure block, shaped and
+    dated by the same two functions entry context uses (regime.regime_from_exposure,
+    entry_context.regime_fields_from: R-W0-2's dating), and stored in the memo in entry_context's shape
+    so every block of one compose stamps the same frozen reading.
+    ⛔ R-T12-C: it never asks the DEFAULT engine.get_breadth. That call's next step on a cold engine is
+    morning_wire_engine.fetch_breadth, an unbounded vendor call (the module note above), and the old
+    path reached it through entry_context._regime_fields -> regime.get_current_regime whenever the held
+    read answered. Nothing held: "not published" (wire_unavailable), never a guess."""
+    if "regime" in memo:
+        # Review M-5: the memo FIRST, so one compose reads the hold once. A cold pod caches nothing, so
+        # every repeat would otherwise re-run _load_state + _load_wire_data.
+        return memo["regime"][0]
     from api.services import engine
-    if engine.get_breadth(held_only=True) is None:
-        return {"missing": "wire_unavailable"}
     from api.services.journal_two import entry_context
-    return entry_context._regime_fields(memo)[0]
+    payload = engine.get_breadth(held_only=True)
+    if payload is None:
+        out = (entry_context._missing(entry_context.SRC_REGIME, "wire_unavailable"),
+               entry_context._missing(entry_context.SRC_EXPOSURE, "wire_unavailable"))
+    else:
+        from api.services.journal_two import regime as regime_service
+        exp = payload.get("exposure") if isinstance(payload, dict) else None
+        try:
+            out = entry_context.regime_fields_from(regime_service.regime_from_exposure(exp),
+                                                   lambda: payload.get("wire_date"))
+        except Exception:  # noqa: BLE001 -- an unreadable hold is a missing regime, never a failed note
+            out = (entry_context._missing(entry_context.SRC_REGIME, "source_error"),
+                   entry_context._missing(entry_context.SRC_EXPOSURE, "source_error"))
+    memo["regime"] = out
+    return out[0]
 
 
 def _bar_day(ts: Any) -> date | None:
@@ -425,25 +498,34 @@ def _et_clock(now: datetime) -> str:
 
 def market_context_params(memo: dict, *, user_id: str, now: datetime) -> dict:
     """The params a marketcontext stamp freezes: the wire readings (/charts' exact derivation) plus the
-    regime, SPY, QQQ and VIX, each sourced and dated or carrying a sentence saying why not."""
+    regime, SPY, QQQ and VIX, each sourced and dated or carrying a sentence saying why not.
+    R-T12-C: BudgetSpent (raised BEFORE a read, outside every per-source catch) when `memo` carries a
+    spent budget; the caller writes the stamp uncaptured rather than a part-read one."""
+    _spend(memo)
     try:
         breadth = _breadth()
     except Exception:  # noqa: BLE001 -- one source never takes the stamp down
         breadth = {}
     readings = readings_from(breadth)
+    _spend(memo)
     try:
         readings["regime"] = _sourced(_regime_field(memo))
     except Exception:  # noqa: BLE001
         readings["regime"] = _sourced({"missing": "source_error"})
-    try:
-        quotes = _quotes(user_id, tuple(sym for _, sym in _INDEXES), now=now)
-    except Exception:  # noqa: BLE001
-        quotes = {}
-    quotes = quotes if isinstance(quotes, dict) else {}
+    quotes: dict = {}
+    for _, sym in _INDEXES:
+        _spend(memo)                    # one read per index, each behind the budget
+        try:
+            got = _quotes(user_id, (sym,), now=now)
+        except Exception:  # noqa: BLE001
+            got = {}
+        if isinstance(got, dict):
+            quotes.update(got)
     for key, sym in _INDEXES:
         readings[key] = _index_field(sym, quotes.get(sym), now)
     readings["vix"] = dict(_VIX)
     wire = breadth.get("wire_date")
+    _spend(memo)                        # only a stamp read in full inside the budget is kept
     return {"readings": readings, "wireDate": wire if isinstance(wire, str) and wire else None,
             "updated": _et_clock(now)}
 
@@ -453,15 +535,23 @@ def build_market_context(block: dict, ctx: dict):
     and reads nothing (IR-S11: never today's market in an older note). No `searchText`, like
     journal_styles._build_chart: the client derives an embed's searchText from its params."""
     fields = _settings(block).get("fields", "all")
-    if ctx.get("mode") == "update":
-        # R-T3-2 I2: no capture date either (the client renders capturedAt as "captured <day>").
-        params, captured_at = {"uncaptured": True, "fields": fields}, None
-    else:
-        params = {**market_context_params(ctx.setdefault("memo", {}), user_id=ctx.get("user_id") or "",
-                                          now=ctx["now"]), "fields": fields}
-        captured_at = _iso(ctx["now"])
-        # R-T4-1 I-1: the regime reading THIS build froze, for the composer's regime_at_write.
-        ctx.setdefault("captured", {})["regime"] = params["readings"]["regime"]
+    # R-T3-2 I2: an uncaptured stamp has no capture date either (the client renders capturedAt as
+    # "captured <day>").
+    params, captured_at = {"uncaptured": True, "fields": fields}, None
+    if ctx.get("mode") != "update":
+        try:
+            read = market_context_params(ctx.setdefault("memo", {}), user_id=ctx.get("user_id") or "",
+                                         now=ctx["now"])
+        except BudgetSpent:
+            # R-T12-C: the create's read budget ran out: the stamp lands UNCAPTURED (the IR-S11 shape),
+            # never part-read, and freezes no regime, so regime_at_write stays absent. Review I-1: it says
+            # WHY ("reason": "budget"), so the client never tells a new note it "was written before it had
+            # one". The Update layout stamp above keeps the plain shape, with no reason key.
+            params, read = {**params, "reason": BUDGET_REASON}, None
+        if read is not None:
+            params, captured_at = {**read, "fields": fields}, _iso(ctx["now"])
+            # R-T4-1 I-1: the regime reading THIS build froze, for the composer's regime_at_write.
+            ctx.setdefault("captured", {})["regime"] = params["readings"]["regime"]
     return {"type": "widgetEmbed", "attrs": {
         "v": 1, "widgetId": "marketcontext", "embedId": uuid.uuid4().hex, "mode": "snapshot", "params": params,
         "capturedAt": captured_at, "annotations": [], "caption": None,
@@ -546,6 +636,12 @@ def save_pre_entry(user_id: str, position_id: str, setup: str | None, checked: l
 # ⛔ N10: a read that raises is a snapshot with `missing: "source_error"`, never a failed note.
 PREP_PARTS = ("wire", "earnings", "movers", "levels")
 PREP_BLOCK = {"wire": "prepWire", "earnings": "prepEarnings", "movers": "prepMovers", "levels": "prepLevels"}
+#: Review I-2: the builders that READ the market or the member's data in create mode. Each always
+#: builds a node (never a skip), so a dry run can list them without running them;
+#: journal_styles._plan does exactly that when an empty note is switched to a style. Railed both ways
+#: by tests/test_prep_create_budget.py: every builder outside this set reads nothing, and every
+#: builder inside it builds a node whatever its reads do.
+READS_ON_CREATE = frozenset({"marketcontext", "positionSizing", *PREP_BLOCK.values()})
 MOVERS_MAX = 8
 #: How many of the member's names the movers part reads. A name the live cache misses is a bar-store
 #: read, on the request path and inside a Daily prep note create, so the scan is bounded; the snapshot
@@ -572,8 +668,14 @@ def _my_names(user_id: str) -> list[str]:
     Ordered and deduplicated: by member_interest's source order (positions first), then by name, so a
     bounded reader (the movers scan) reads the names that matter most first."""
     from api.services import member_interest
+    memo = _ACTIVE_BUDGET.get()
+    # R-T12-C: inside a prep read, the budget is checked before EACH source read (a spent one raises
+    # through, never an empty list that would read as "no names"). Outside one: the plain call.
+    hook = {"before_source": lambda _name: _spend(memo)} if memo is not None else {}
     try:
-        by_source = member_interest.interest_for(user_id).get("by_source") or {}
+        by_source = member_interest.interest_for(user_id, **hook).get("by_source") or {}
+    except BudgetSpent:
+        raise
     except Exception:  # noqa: BLE001 -- interest_for never raises by its own contract; belt and braces
         return []
     out: dict[str, None] = {}
@@ -623,10 +725,13 @@ def _prep_wire(user_id: str, now: datetime, memo: dict) -> dict:
     compose stamps) and the exposure (the held breadth, dated by the reading or else the wire run)."""
     from api.services import engine
     out = _base("wire", now)
+    _spend(memo)
     r = engine.get_rundown() or {}
     headline = _headline(r.get("html") or "") if r.get("html") else None
+    _spend(memo)
     field = _regime_field(memo)
     regime_id = field.get("value") if field.get("value") in REGIME_IDS else None
+    _spend(memo)
     breadth = _breadth()
     exp = breadth.get("exposure") if isinstance(breadth.get("exposure"), dict) else {}
     score = _round1(exp.get("score"))
@@ -679,6 +784,11 @@ def _prep_movers(user_id: str, now: datetime, memo: dict) -> dict:
     out.update(scanned=len(scan))
     items, unquoted = [], 0
     for sym in scan:
+        # R-T12-C: the budget is checked before EVERY name. A spent budget raises out of the scan, so a
+        # list cut off part way is never frozen as if it were the list (the block lands uncaptured).
+        # bars_sqlite has no multi-ticker read of this shape (closes_asof loops per ticker and returns a
+        # close without the prior bar's change), so the scan stays serial, under the budget.
+        _spend(memo)
         q = _cached_quote(sym, now)
         if q and _num(q.get("price")) is not None:
             items.append({"symbol": sym, "price": q["price"], "changePct": _num(q.get("change_pct")),
@@ -704,10 +814,20 @@ def _prep_levels(user_id: str, now: datetime, memo: dict) -> dict:
         return out
 
     def prices(symbols) -> dict:
-        return {s: q for s in symbols if (q := _cached_quote(s, now))}
+        got: dict = {}
+        for s in symbols:
+            _spend(memo)                # R-T12-C: before each card's price read
+            if q := _cached_quote(s, now):
+                got[s] = q
+        return got
+
+    def read_plan(*args):
+        _spend(memo)                    # R-T12-C: inside the board's note scan, before each plan read
+        return setups_board.plan_extract.read_note_plan(*args)
+    _spend(memo)
     conn = get_connection()
     try:
-        board = setups_board.build_cards(conn, user_id, prices=prices)
+        board = setups_board.build_cards(conn, user_id, prices=prices, read_plan=read_plan)
     finally:
         conn.close()
     own = [c for c in (board.get("cards") or []) if not c.get("example")]
@@ -722,18 +842,42 @@ _PREP_READERS = {"wire": "_prep_wire", "earnings": "_prep_earnings", "movers": "
                  "levels": "_prep_levels"}
 
 
-def prep_part(user_id: str, part: str, *, now: datetime | None = None, memo: dict | None = None) -> dict:
+def prep_part(user_id: str, part: str, *, now: datetime | None = None, memo: dict | None = None,
+              on_spent: str = "gap") -> dict:
     """One prep part's snapshot: `{part, capturedAt, missing, detail, ...}`. KeyError for an unknown
     part (the route's 404). A read that raises is that part's `source_error` gap, never an exception
-    (N10): one unreadable cache never fails a Daily prep note create, nor the Capture now route."""
+    (N10): one unreadable cache never fails a Daily prep note create, nor the Capture now route.
+
+    R-T12-C: the reads run under the read budget (start_budget: the compose's own when the memo has
+    one, else a fresh one, so the Capture now route is bounded too). A spent budget is the route's
+    existing failure shape, the `source_error` gap (the client shows its detail, "could not be read
+    just now, capture again"), or, with on_spent="raise" (the composer's builder), BudgetSpent so the
+    block lands uncaptured instead."""
     reader = globals()[_PREP_READERS[part]]
     now = now or datetime.now(timezone.utc)
+    memo = start_budget(memo if memo is not None else {})
+    token = _ACTIVE_BUDGET.set(memo)
     try:
-        return reader(user_id, now, memo if memo is not None else {})
+        _spend(memo)            # a part whose turn comes after the budget is spent reads nothing
+        snap = reader(user_id, now, memo)
+        _spend(memo)            # only a part that FINISHED inside the budget keeps its snapshot
+        return snap
+    except BudgetSpent:
+        if on_spent == "raise":
+            raise
+        import logging
+        logging.getLogger(__name__).warning("[trader_blocks] prep %s: read budget spent", part)
+        return _gap(_base(part, now), "source_error")
     except Exception:  # noqa: BLE001 -- an unreadable source is a named gap, never a failed note
         import logging
         logging.getLogger(__name__).warning("[trader_blocks] prep %s unreadable", part, exc_info=True)
+        if on_spent == "raise" and _spent(memo):
+            # A read that failed AFTER the budget ran out did not finish inside it either: the block
+            # lands uncaptured, like any other part the budget stopped (R-T12-C ruling 1).
+            raise BudgetSpent() from None
         return _gap(_base(part, now), "source_error")
+    finally:
+        _ACTIVE_BUDGET.reset(token)
 
 
 def _prep_builder(part: str):
@@ -745,7 +889,12 @@ def _prep_builder(part: str):
         # and reads nothing; never today's data in an older note. Its "Capture now" is the member's own act.
         if not uid or ctx.get("mode") == "update":
             return _node(block_id, {}, ctx), None
-        snap = prep_part(uid, part, now=ctx["now"], memo=ctx.setdefault("memo", {}))
+        try:
+            snap = prep_part(uid, part, now=ctx["now"], memo=ctx.setdefault("memo", {}), on_spent="raise")
+        except BudgetSpent:
+            # R-T12-C: the create's read budget ran out: UNCAPTURED (the IR-S11 shape, with "Capture
+            # now"), never a partial snapshot.
+            return _node(block_id, {}, ctx), None
         return _node(block_id, {"snapshot": snap}, ctx), None
     return build
 

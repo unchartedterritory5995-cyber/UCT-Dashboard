@@ -745,6 +745,10 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
     try:
         ctx = {"ticker": ticker, "now": now or datetime.now(timezone.utc), "memo": {}, "mode": mode,
                "user_id": user_id}
+        if mode == "create":
+            # R-T12-C: ONE read budget for every block this create builds (trader_blocks owns the number).
+            # A block still to read when it runs out lands uncaptured; an update reads nothing anyway.
+            _tb.start_budget(ctx["memo"])
         doc = _outline_doc(user_id, style, conn)
         enabled: dict[str, dict] = {}
         disabled: set[str] = set()
@@ -1016,6 +1020,13 @@ def _plan(user_id: str, row: sqlite3.Row, body: dict, style_id: str | None, conn
         builder = BLOCK_BUILDERS.get(b["block"])
         if builder is None:
             skipped.append({"block": b["block"], "reason": "unknown-block"})
+            continue
+        if inserts_outline and b["block"] in _tb.READS_ON_CREATE:
+            # Review I-2: on the empty-note switch the write composes the body itself (compose, one
+            # budget), so these nodes would be thrown away; a reading builder always builds, so the
+            # plan lists it WITHOUT running it. The dry run (GET .../style-update-plan) and the write's
+            # plan make no market or prep read at all, and the write has ONE clock, compose's.
+            built.append((b, None))
             continue
         node, reason = builder(b, ctx)
         if node is None:
