@@ -613,6 +613,8 @@ export default function MobileChartsApp({
         onClose={closeSheet}
         cs={cs}
         onWrite={writeFromIndicatorSheet}
+        historyKey={chartWidget?.id ? `chart:${chartWidget.id}` : null}
+        historyUserId={historyUserId}
         onBrowseLibrary={browseLibrary}
         onOpenSettings={openSettings}
         className={sheetTheme}
