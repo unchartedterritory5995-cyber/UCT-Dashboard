@@ -623,7 +623,7 @@ def test_with_blocks_seeds_the_nine_block_kinds_and_the_stamp():
     kinds = [n["attrs"]["widgetId"] for n in nodes]
     assert kinds == [*tb.BLOCK_IDS, "marketcontext"] == list(h.TRADER_BLOCK_KINDS), kinds
     assert {"myRules", "prepWire", "prepEarnings", "prepMovers", "prepLevels", "tradeReview"} <= set(kinds)
-    assert len(nodes) == 10 and len({n["attrs"]["embedId"] for n in nodes}) == 10
+    assert len(nodes) == len(tb.BLOCK_IDS) + 1 == len({n["attrs"]["embedId"] for n in nodes})
     by = {n["attrs"]["widgetId"]: n["attrs"] for n in nodes}
     assert all(by[p]["params"] == {} for p in tb.PREP_BLOCK.values()), by
     assert by["tradeReview"]["params"] == {"tradeId": ""}

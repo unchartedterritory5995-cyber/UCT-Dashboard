@@ -19,6 +19,7 @@ import re
 import sys
 import time
 import traceback
+import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
@@ -73,6 +74,23 @@ STAMP_FOLLOWS_JS = """line => { const pm = document.querySelector('.ProseMirror'
   const kids = [...pm.children]; const i = kids.findIndex(e => e.tagName === 'P' && e.textContent.trim() === line);
   const next = i >= 0 ? kids[i + 1] : null;
   return !!next && (next.matches('[data-financial-fact]') || !!next.querySelector('[data-financial-fact]')) }"""
+
+
+JOURNAL_BLOCKS_JS = REPO / "app" / "src" / "pages" / "journal-2-0" / "lib" / "journalBlocks.js"
+BLOCK_STATES_JSX = REPO / "app" / "src" / "pages" / "journal-2-0" / "components" / "notebook" / "blocks" / "blockStates.jsx"
+
+
+def block_error_sentence() -> str | None:
+    """The sentence a crashed block shows inside its own group (blockStates.jsx BLOCK_ERROR_SENTENCE). Read."""
+    m = re.search(r'BLOCK_ERROR_SENTENCE\s*=\s*"([^"]*)"', BLOCK_STATES_JSX.read_text(encoding="utf-8"))
+    return m.group(1) if m else None
+
+
+def block_labels() -> dict:
+    """journalBlocks.js BLOCK_KINDS, id -> label: the name BlockNodeView gives a block's role="group"
+    (blockLabel). Read, never restated, so a renamed block fails the walk by name."""
+    src = JOURNAL_BLOCKS_JS.read_text(encoding="utf-8")
+    return dict(re.findall(r"id:\s*'(\w+)',\s*label:\s*'([^']*)'", src))
 
 
 def regime_words() -> dict:
@@ -2201,6 +2219,10 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             M.put(base + f"/api/j2/accounts/{acct}/settings", data=st)
             return acct
         acct_id = vcp_account()
+        # One tag per run, on every label the part-b rows (and this step's note titles) author: run_c2 re-enters
+        # the SAME member on a resume, and a second rule or style with the same words would make a locator
+        # match two rows (a strict-mode violation) or make select_option pick the other one.
+        run_tag = uuid.uuid4().hex[:6]
         C.goto(pg, base, "/journal/notebook", wait="main")
         pg.evaluate("([k, id]) => localStorage.setItem(k, id)", [SELECTED_ACCOUNT_KEY, acct_id])
         state = ctx.storage_state()
@@ -2464,9 +2486,20 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                         c.close()
 
         # blocks.switch-off-renders (1280): a second member context whose /api/auth/me answers
-        #   notebook_journal_styles_enabled=false; a note holding all three blocks and a marketcontext stamp
-        #   renders every one, Price stamps says it needs the switch, and no block slash item is offered.
+        #   notebook_journal_styles_enabled=false; a note holding every seeded node (the nine trader blocks of
+        #   parts a and b and the marketcontext stamp, h.trader_block_nodes) renders every one -- each block's
+        #   group by its journalBlocks.js label, derived from the seeded list -- Price stamps says it needs the
+        #   switch, and no block slash item is offered.
         def switch_off():
+            # Derived from the seeded nodes themselves (never api.* in this process): a trader block is a node the
+            # server builder gave a searchText (journal_styles.BLOCK_KINDS `search`); the stamp is marketcontext.
+            seeded = h.trader_block_nodes()
+            labels = block_labels()
+            seeded_ids = [x["attrs"]["widgetId"] for x in seeded]
+            block_ids = [x["attrs"]["widgetId"] for x in seeded if x["attrs"].get("searchText")]
+            unlabelled = [w for w in block_ids if w not in labels]
+            unknown = [w for w in seeded_ids if w not in block_ids and w != "marketcontext"]
+            seeded_groups = [labels[w] for w in block_ids if w in labels]
             c = C.new_ctx(browser, "1280", storage=state)
 
             def styles_off(route):
@@ -2477,20 +2510,28 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             c.route(re.compile(r"/api/auth/me(\?|$)"), styles_off)
             p, i = c.new_page(), C.Inst(c, cfg, "1280")
             try:
-                n = note("Switch off walk", h.trader_block_nodes())
+                n = note(f"Switch off walk {run_tag}", seeded)
                 C.goto(p, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
-                groups = {g: C.vis_loc(p.get_by_role("group", name=g, exact=True), 15000) for g in BLOCK_GROUPS}
+                groups = {g: C.vis_loc(p.get_by_role("group", name=g, exact=True), 15000) for g in seeded_groups}
                 stamp = C.vis_loc(p.locator('[data-widget-embed-view="marketcontext"]'), 15000)
                 needs = C.vis_loc(p.get_by_text("This block needs Journal styles, which is not on for you.", exact=True), 10000)
+                # A block that crashed still shows its group (BlockNodeView's boundary sits inside it), so the
+                # boundary's own sentence is counted too, once every group and the idle sentence are on screen.
+                crash_line = block_error_sentence()
+                crashed = {g: (p.get_by_role("group", name=g, exact=True).get_by_text(crash_line, exact=True).count()
+                               if crash_line else None) for g in seeded_groups}
                 new_line(p)
                 p.keyboard.type("/", delay=40)
                 menu = C.vis_loc(p.get_by_role("listbox", name="Insert block"), 10000)
                 offered = [t for t in BLOCK_SLASH_ITEMS if p.get_by_role("option", name=re.compile("^" + re.escape(t))).count()]
                 p.keyboard.press("Escape")
-                ok = all(groups.values()) and stamp and needs and menu and not offered
+                ok = (len(seeded_groups) == len(seeded) - 1 and not unlabelled and not unknown and bool(crash_line)
+                      and "marketcontext" in seeded_ids and all(groups.values()) and not any(crashed.values())
+                      and stamp and needs and menu and not offered)
                 C.step(p, i, "blocks.switch-off-renders",
-                       "Journal styles off: every block and the stamp still render, Price stamps says why it is idle, no block is offered by slash",
-                       "PASS" if ok else "FAIL", groups=groups, stamp=stamp, needs_switch_sentence=needs, slash_menu=menu,
+                       "Journal styles off: every seeded block (parts a and b) and the stamp still render, none crashed, Price stamps says why it is idle, no block is offered by slash",
+                       "PASS" if ok else "FAIL", seeded=seeded_ids, groups=groups, crashed=crashed, unlabelled=unlabelled,
+                       unknown_nodes=unknown, stamp=stamp, needs_switch_sentence=needs, slash_menu=menu,
                        block_items_offered=offered)
             finally:
                 c.close()
@@ -2547,10 +2588,10 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             have = P2B.get("rule")
             if have and (rule_now(have["id"]) or {}).get("version") == 2:
                 return have
-            label = "Walk rule: buy only the first pullback"
-            _, made = C.api(ctx, i_, "POST", base, rules_url, {"label": "Walk rule: no chasing gaps", "evidence": "Made by the walk"})
+            label = f"Walk rule {run_tag}: buy only the first pullback"
+            _, made = C.api(ctx, i_, "POST", base, rules_url, {"label": f"Walk rule {run_tag}: no chasing gaps", "evidence": f"Made by the walk {run_tag}"})
             rid = made["id"]
-            C.api(ctx, i_, "PUT", base, rule_url.format(rid), {"label": label, "changeNote": "Made by the walk"})
+            C.api(ctx, i_, "PUT", base, rule_url.format(rid), {"label": label, "changeNote": f"Made by the walk {run_tag}"})
             C.api(ctx, i_, "PUT", base, rule_url.format(rid), {"beforeEntry": True})
             P2B["rule"] = {"id": rid, "label": label, "made_by": "ensure_rule (the routes)"}
             return P2B["rule"]
@@ -2594,11 +2635,11 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             for vp in ("1280", "390"):
                 p, i, c = at(vp)
                 try:
-                    v1_label, v2_label = f"Walk rule {vp}: no chasing gaps", f"Walk rule {vp}: buy only the first pullback"
-                    made_status, made = C.api(ctx, i, "POST", base, rules_url, {"label": v1_label, "evidence": "Gaps kept failing"})
+                    v1_label, v2_label = f"Walk rule {vp} {run_tag}: no chasing gaps", f"Walk rule {vp} {run_tag}: buy only the first pullback"
+                    made_status, made = C.api(ctx, i, "POST", base, rules_url, {"label": v1_label, "evidence": f"Gaps kept failing ({run_tag})"})
                     rid = made.get("id") if isinstance(made, dict) else None
                     v1_line = f"v1 · made {et_day(made['changedAt'])}" if rid else None
-                    n = note(f"My rules walk {vp}", [block("myRules")])
+                    n = note(f"My rules walk {vp} {run_tag}", [block("myRules")])
                     C.goto(p, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
                     group = p.get_by_role("group", name="My rules", exact=True).first
                     row1 = group.locator("li").filter(has_text=v1_label)
@@ -2610,7 +2651,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                         form = group.get_by_role("form", name=f"Edit '{v1_label}'")
                         C.vis_loc(form, 10000)
                         form.get_by_label("Rule", exact=True).fill(v2_label)
-                        form.get_by_label("What changed?", exact=True).fill("The first pullback held where the gaps failed")
+                        form.get_by_label("What changed?", exact=True).fill(f"The first pullback held where the gaps failed ({run_tag})")
                         with p.expect_response(lambda r: r.request.method == "PUT" and bool(rule_put.search(r.url)),
                                                timeout=15000) as saved:
                             form.get_by_role("button", name="Save", exact=True).click()
@@ -2631,7 +2672,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                     if switched_on:
                         ck = block("preEntryChecklist")
                         ck["attrs"]["params"]["setup"] = "VCP"          # catalog defaults otherwise: includeRules "yes"
-                        n2 = note(f"Checklist reads the rule {vp}", [ck])
+                        n2 = note(f"Checklist reads the rule {vp} {run_tag}", [ck])
                         C.goto(p, base, f"/journal/notebook?note={n2['id']}", wait=".ProseMirror")
                         checklist = p.get_by_role("group", name="Pre-entry checklist", exact=True).first
                         listed = C.vis_loc(checklist.get_by_role("checkbox", name=v2_label, exact=True), 15000)
@@ -2687,11 +2728,12 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                             lines[f"v{ver}: {line}"] = C.vis_loc(region.get_by_text(line, exact=True), 15000)
                     ok = shown and picked == rule["id"] and bool(want_lines) and all(lines.values())
                     C.step(p, i, "blocks.before-after",
-                           f"Insights › Psychology: Before / after this rule, the rule picked, each small window reads 'too few trades to read as a rate' ({vp})",
+                           f"Insights › Psychology: Before / after this rule, the rule picked, each small window reads 'too few trades to read as a rate'; stands in for door-audit row 61, walk-measured, not graded ({vp})",
                            "PASS" if ok else "FAIL", rule=rule, seeded_position_status=pos_status, seeded_close_status=close_status,
                            seeded_trade_id=trade.get("id"), before_after_status=r.status, windows=ba.get("versions"),
                            card=shown, picked=picked, small_window_lines=lines,
-                           why=None if want_lines else "the server marked no window small with a trade in it")
+                           why=None if want_lines else "the server marked no window small with a trade in it",
+                           audit_row=61, audit_note="walk-measured, not graded: presence and content, not the door audit's clicks/fold/label")
                 finally:
                     if c is not None:
                         c.close()
@@ -2746,13 +2788,13 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                     line_after = f"Captured {et_minute(new_at)} ET" if new_at else None
                     moved = bool(line_after) and C.vis_loc(wire.get_by_text(spaced(line_after)), 10000)
                     ok = (create_status in (200, 201) and all(x["ok"] for x in parts.values())
-                          and get_status == 200 and later and moved)
+                          and get_status == 200 and later)            # the line prints minutes only: evidence, not the proof
                     C.step(p, i, "blocks.prep-pack",
-                           f"New note -> Daily prep holds the four prep blocks, each frozen or naming its gap; Capture again moves the wire's Captured line ({vp})",
+                           f"New note -> Daily prep holds the four prep blocks, each frozen or naming its gap; Capture again saves a later wire snapshot (the autosave's capturedAt; the Captured line is evidence) ({vp})",
                            "PASS" if ok else "FAIL", note_id=nid, create_status=create_status, parts=parts,
                            captured_before=old_at, capture_get_status=get_status, captured_after=new_at, later=later,
                            line_before=f"Captured {et_minute(old_at)} ET" if old_at else None, line_after=line_after,
-                           line_shown=moved)
+                           line_shown_evidence_only=moved)
                 finally:
                     if c is not None:
                         c.close()
@@ -2845,10 +2887,10 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         def restore_stamp():
             rules_block = lambda on: [{"block": "myRules", "enabled": on, "settings": {"which": "active"}}]  # noqa: E731
             style_status, made = C.api(ctx, inst, "POST", base, "/api/j2/journal-styles",
-                                       {"name": "Walk restore stamp", "kindId": "thesis", "blocks": rules_block(False)})
+                                       {"name": f"Walk restore stamp {run_tag}", "kindId": "thesis", "blocks": rules_block(False)})
             style = (made or {}).get("style") or {} if isinstance(made, dict) else {}
             sid, v1 = style.get("id"), style.get("version")
-            note_status, nbody = C.api(ctx, inst, "POST", base, "/api/j2/notes", {"styleId": sid, "title": "Restore stamp walk"})
+            note_status, nbody = C.api(ctx, inst, "POST", base, "/api/j2/notes", {"styleId": sid, "title": f"Restore stamp walk {run_tag}"})
             n = ((nbody or {}).get("note") if isinstance(nbody, dict) else None) or {}
             put_status, upd = C.api(ctx, inst, "PUT", base, f"/api/j2/journal-styles/{sid}", {"blocks": rules_block(True)})
             v2 = (((upd or {}).get("style") if isinstance(upd, dict) else None) or {}).get("version")

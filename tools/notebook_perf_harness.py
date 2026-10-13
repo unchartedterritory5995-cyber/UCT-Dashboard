@@ -1125,10 +1125,11 @@ def dry_run() -> int:
     seeded = bdoc["content"][1:1 + len(TRADER_BLOCK_KINDS)]
     kinds = [x["attrs"]["widgetId"] for x in seeded if x["type"] == "widgetEmbed"]
     assert kinds == list(TRADER_BLOCK_KINDS), kinds
-    assert kinds == [*tb.BLOCK_IDS, "marketcontext"] and len(tb.BLOCK_IDS) == 9 and len(kinds) == 10, kinds
-    assert bdoc["content"][0]["type"] == "paragraph" and len(bdoc["content"]) == 5 + 10, bdoc["content"]
+    want_n = len(tb.BLOCK_IDS) + 1                # the blocks and the stamp, counted off the server's list
+    assert kinds == [*tb.BLOCK_IDS, "marketcontext"] and len(kinds) == want_n, kinds
+    assert bdoc["content"][0]["type"] == "paragraph" and len(bdoc["content"]) == 5 + want_n, bdoc["content"]
     assert bdoc["content"][-1]["content"][0]["text"] == bmarker, "the open still waits for the last paragraph"
-    assert len({x["attrs"]["embedId"] for x in seeded}) == 10, "every embed needs its own embedId"
+    assert len({x["attrs"]["embedId"] for x in seeded}) == want_n, "every embed needs its own embedId"
     for x in seeded:
         a, kind = x["attrs"], x["attrs"]["widgetId"]
         assert a["v"] == 1 and a["mode"] == "snapshot" and isinstance(a["embedId"], str) and a["embedId"], a

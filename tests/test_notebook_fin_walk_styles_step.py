@@ -305,6 +305,35 @@ def test_the_part_b_rows_wait_on_the_products_own_answers():
         assert _calls_method(sub, "expect_response") or _calls_function(sub, SAVE), f"{name} must wait on a response"
 
 
+def _names_read(tree) -> set[str]:
+    return {n.id for n in ast.walk(tree) if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}
+
+
+def test_the_authoring_rows_tag_their_labels_with_one_per_run_tag():
+    """Fix round 1, I1: run_c2 re-enters the same member on a resume, so the rows that author rules, styles and
+    notes put one per-run tag in every label (a repeated label is a strict-mode violation on the rerun)."""
+    fn = _func(FEATURES.read_text(encoding="utf-8"), "blocks")
+    assigns = [n for n in ast.walk(fn) if isinstance(n, ast.Assign)
+               and any(isinstance(t, ast.Name) and t.id == "run_tag" for t in n.targets)]
+    assert len(assigns) == 1, "one run_tag, computed once in blocks()"
+    for name in ("ensure_rule", "my_rules", "restore_stamp", "switch_off"):
+        sub = next((n for n in ast.walk(fn) if isinstance(n, ast.FunctionDef) and n.name == name), None)
+        assert sub is not None and "run_tag" in _names_read(sub), f"{name} authors labels without the run tag"
+
+
+def test_switch_off_checks_every_seeded_group_read_off_the_seed():
+    """Fix round 1, I2: the switch-off row reads its group names off the seeded nodes and journalBlocks.js
+    (block_labels), never the typed part-a list, and counts the crash sentence in each group."""
+    fn = _func(FEATURES.read_text(encoding="utf-8"), "switch_off")
+    assert fn is not None
+    reads = _names_read(fn)
+    assert "BLOCK_GROUPS" not in reads, "the typed part-a list is back"
+    assert _calls_function(fn, "block_labels") and _calls_method(fn, "trader_block_nodes")
+    assert _calls_function(fn, "block_error_sentence")
+    assert not any(isinstance(n, (ast.Import, ast.ImportFrom)) and "api" in (getattr(n, "module", "") or "")
+                   for n in ast.walk(fn)), "the walk driver never imports api.* in-process"
+
+
 def test_save_landed_waits_on_the_save_response_not_a_poll():
     src = FEATURES.read_text(encoding="utf-8")
     fn = _func(src, SAVE)

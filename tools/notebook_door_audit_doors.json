@@ -569,11 +569,12 @@
       "role": "button",
       "name": "New Daily prep"
     },
+    "target_wait_ms": 15000,
     "viewports": [
       "1280",
       "390"
     ],
     "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
-    "note": "The P1 kind picker's Daily prep button (KindSection.jsx, aria-label \"New \" + the kind's name); the note it makes holds the prep pack (Daily prep v2). Reached the way row 55 reaches the menu."
+    "note": "The P1 kind picker's Daily prep button (KindSection.jsx, aria-label \"New \" + the kind's name); the note it makes holds the prep pack (Daily prep v2). Reached the way row 55 reaches the menu. The button exists only after the lazy KindSection chunk and GET /api/j2/journal-styles answer, so the target wait is 15 s (as row 53's). Three counted presses, so OK is its best verdict. Rows 61 (Before / after this rule) and 62 (Mark a rule before entry) have no entry here: the audit's members cannot reach either (the card needs an account, a tagged trade and a rule; the switch lives inside a note's My rules block), so the walk measures them (blocks.before-after, blocks.my-rules): walk-measured, presence and content, not graded for clicks or fold."
   }
 ]
