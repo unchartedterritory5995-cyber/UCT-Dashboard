@@ -1,0 +1,65 @@
+tree a7f1bb6030  sandbox C:\Users\Patrick\AppData\Local\Temp\t15b_daily_prep_probe_10ato098
+pins applied: 113  unpinnable: 0  every resolved path outside ['c:\\data']
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\t15b_daily_prep_probe_10ato098\auth.db
+[sqlite-migration] Applied purge_tf60_2f42e55: deleted 0 rows
+[sqlite-migration] Applied purge_tf60_3cbe1cf_src_cap: deleted 0 rows
+[sqlite-migration] Applied purge_intraday_pagination_v1: deleted 0 rows
+seeded: {'big': {'user_id': '8bba89b1-e624-4fe9-be53-4e9f22ddcfd3', 'names': 200, 'positions': 10, 'flagged': 40, 'watchlist': 150}, 'small': {'user_id': '85a89627-3a75-47d3-ad22-97e215e34e16', 'names': 5, 'positions': 1, 'flagged': 1, 'watchlist': 3}}
+[cold] small: 1+10 creates, vendor delay 0.0s (fail) ...
+[cold] small: p50 0.0291s  p95 0.0312s  max 0.0312s  (warm-up [0.038171])
+      prepWire                     {'fell_back:no_wire': 10}
+      prepEarnings                 {'fell_back:no_earnings_yet': 10}
+      prepMovers                   {'answered': 10}
+      prepLevels                   {'fell_back:no_setups': 10}
+      marketcontext.regime         {'fell_back': 10}
+      marketcontext.spy            {'answered': 10}
+      marketcontext.qqq            {'answered': 10}
+      marketcontext.vix            {'fell_back': 10}
+      regime_at_write              {'absent': 10}
+[cold] big: 1+10 creates, vendor delay 0.0s (fail) ...
+[cold] big: p50 0.0379s  p95 0.0591s  max 0.0591s  (warm-up [0.036342])
+      prepWire                     {'fell_back:no_wire': 10}
+      prepEarnings                 {'fell_back:no_earnings_yet': 10}
+      prepMovers                   {'answered': 10}
+      prepLevels                   {'fell_back:no_setups': 10}
+      marketcontext.regime         {'fell_back': 10}
+      marketcontext.spy            {'answered': 10}
+      marketcontext.qqq            {'answered': 10}
+      marketcontext.vix            {'fell_back': 10}
+      regime_at_write              {'absent': 10}
+[cold] outbound socket attempts: 0
+[warm] small: 1+10 creates, vendor delay 0.0s (fail) ...
+[warm] small: p50 0.0388s  p95 0.0582s  max 0.0582s  (warm-up [0.072727])
+      prepWire                     {'answered': 10}
+      prepEarnings                 {'answered': 10}
+      prepMovers                   {'answered': 10}
+      prepLevels                   {'fell_back:no_setups': 10}
+      marketcontext.regime         {'answered': 10}
+      marketcontext.spy            {'answered': 10}
+      marketcontext.qqq            {'answered': 10}
+      marketcontext.vix            {'fell_back': 10}
+      regime_at_write              {'stored': 10}
+[warm] big: 1+10 creates, vendor delay 0.0s (fail) ...
+[warm] big: p50 0.0448s  p95 0.0838s  max 0.0838s  (warm-up [0.046834])
+      prepWire                     {'answered': 10}
+      prepEarnings                 {'answered': 10}
+      prepMovers                   {'answered': 10}
+      prepLevels                   {'fell_back:no_setups': 10}
+      marketcontext.regime         {'answered': 10}
+      marketcontext.spy            {'answered': 10}
+      marketcontext.qqq            {'answered': 10}
+      marketcontext.vix            {'fell_back': 10}
+      regime_at_write              {'stored': 10}
+[warm] outbound socket attempts: 0
+shared-root writes blocked: 0  reads recorded: 0
+raw JSON: C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\docs\notebook\perf-runs\p2b\daily-prep-probe-r3-d0.json
+VERDICT: RAN CLEAN
