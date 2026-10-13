@@ -153,7 +153,7 @@ export function refusalSentence(res, { chart = 'that chart', op = null } = {}) {
       else if (spec && (Number.isFinite(spec.min) || Number.isFinite(spec.max))) {
         allowed = ` ${spec.label || spec.key} takes ${spec.type === 'int' ? 'a whole number' : 'a number'}${Number.isFinite(spec.min) && Number.isFinite(spec.max) ? ` from ${spec.min} to ${spec.max}` : Number.isFinite(spec.min) ? ` of at least ${spec.min}` : ` up to ${spec.max}`}.`
       }
-      return `I didn't add it: ${d.why || 'that setting is not valid'}.${allowed} Nothing was changed.`
+      return `I didn't ${op === 'setInputs' ? 'change it' : 'add it'}: ${d.why || 'that setting is not valid'}.${allowed} Nothing was changed.`
     }
     default: return 'That did not work.'
   }
@@ -171,6 +171,7 @@ export function receiptLine(receipt, chart) {
       return `Restored ${name}${where} with its original identity${back.length ? ` and reconnected ${back.join(', ')}` : ''}.`
     }
     if (receipt.undoOf === 'add') return `Removed the ${name} I added${where}.`
+    if (receipt.undoOf === 'setInputs') return `Put ${name}${where} back to its previous settings.`
     return `Put ${name}${where} back to ${receipt.visible ? 'shown' : 'hidden'}.`
   }
   if (receipt.op === 'add') {
@@ -178,6 +179,13 @@ export function receiptLine(receipt, chart) {
     // words the member used.
     const set = receipt.inputs ? settingsPhrase(receipt.defId, receipt.inputs) : ''
     return `Added ${name}${where}${set ? ` — ${set}` : ''}.`
+  }
+  if (receipt.op === 'setInputs' && receipt.inputs) {
+    // GATE C — what changed, AS STORED: "Changed EMA 9 on Chart (QQQ) — period 20 → 9"
+    const specs = new Map(inputsOfDef(receipt.defId).map(i => [i.key, i]))
+    const shown = (k, v) => { const s = specs.get(k); const o = s && s.type === 'enum' ? (s.options || []).find(x => x.value === v) : null; return o ? o.label : v }
+    const pairs = Object.keys(receipt.inputs.after).map(k => `${String(specs.get(k)?.label || k).toLowerCase()} ${shown(k, receipt.inputs.before[k])} → ${shown(k, receipt.inputs.after[k])}`)
+    return `Changed ${name}${where} — ${pairs.join(', ')}.`
   }
   if (receipt.op === 'remove') {
     const cut = severText(receipt.severed)
@@ -248,6 +256,11 @@ export const indicatorEditsKind = {
     if (!saved.ok) throw fail(`the save was not confirmed (${saved.reason}), so it is not done`, { unreverted: true })
     const done = confirmIndicatorMutation(saved.readBack, step.pending, ctx)
     if (done.status !== 'confirmed') throw fail(refusalSentence({ reason: done.reason || done.status }, { chart: label }), { unreverted: true })
+    // GATE C: the indicator this chat is now talking about ("make it a 9") — only from a CONFIRMED receipt
+    const r = done.receipt
+    if (!patch.undo && ['add', 'setInputs', 'setVisible'].includes(r.op) && r.instanceIds?.length === 1) {
+      touched = { chartRef, instanceId: r.instanceIds[0], defId: r.defId, name: r.name }
+    }
     return { lines: [receiptLine(done.receipt, label)], undoData: done.undo || null }
   },
   // `confirmIndicatorMutation` already verified the read-back inside commit.
@@ -272,6 +285,9 @@ function oneChange(st) { return st.change ? 'One indicator change at a time — 
 
 /** Instance argument → the interface's own resolver (exact id, else a legend name). */
 function targetOf(st, instance) {
+  // GATE C: "#20" / "#20:ema" — the one instance whose legend shows that length (and type)
+  const len = /^#(\d{1,4})(?::([a-z]+))?$/.exec(String(instance || ''))
+  if (len) return instanceByLength(st, Number(len[1]), len[2] || null)
   const byId = resolveIndicatorTarget(st.cs, nativeRegistry, { instanceId: instance })
   if (byId.ok) return byId
   const byName = resolveIndicatorTarget(st.cs, nativeRegistry, { name: instance })
@@ -309,8 +325,24 @@ function maTypeOf(words, options) {
   if (named && MA_TYPE_WORDS[named[1]] && values.has(MA_TYPE_WORDS[named[1]])) return { ok: true, type: MA_TYPE_WORDS[named[1]] }
   return { ok: false }
 }
+// ⭐ GATE C — MOVING-AVERAGE DEFAULTS (owner, approved provisionally 2026-10-13): a moving average named by
+// its length alone ("the 9 and 20", "a 50 ma") is an EMA for 8, 9, 10, 20 and 21 and an SMA for 50 and
+// above. Any other length has NO documented default: not guessed here (the model path asks). Explicit
+// words always win ("a 20 sma"); an EDIT keeps the indicator's own type unless the member names one.
+const EMA_DEFAULT_LENGTHS = new Set([8, 9, 10, 20, 21])
+export function defaultMaType(n) {
+  if (EMA_DEFAULT_LENGTHS.has(n)) return 'ema'
+  return Number.isInteger(n) && n >= 50 ? 'sma' : null
+}
 export function settingsOfWords(words) {
   const w = String(words || '').trim().toLowerCase()
+  // "the 9", "20" — a bare length is a moving average under the owner's defaults (or nothing)
+  const bare = /^(?:the )?(\d{1,4})$/.exec(w)
+  if (bare) {
+    const n = Number(bare[1])
+    const t = defaultMaType(n)
+    return t ? { defId: 'movingAverage', inputs: [{ key: 'period', value: n }, { key: 'maType', value: t }], assumed: true } : null
+  }
   let n = null
   let rest = null
   let m = /^(\d{1,4})(?:[- ](?:period|day|bar|length))?[- ](.+)$/.exec(w)
@@ -327,15 +359,101 @@ export function settingsOfWords(words) {
   if (ma.some(i => i.key === 'period') && maType) {
     const t = maTypeOf(rest, maType.options)
     if (t.ok) {
-      const inputs = [{ key: 'period', value: n }]
-      if (t.type) inputs.push({ key: 'maType', value: t.type })
-      return { defId: 'movingAverage', inputs }
+      // "a 50 ma" / "20 day moving average": no type named → the owner's default, or no instant reading
+      const type = t.type || defaultMaType(n)
+      if (!type) return null
+      return { defId: 'movingAverage', inputs: [{ key: 'period', value: n }, { key: 'maType', value: type }], ...(t.type ? {} : { assumed: true }) }
     }
   }
   const defId = defIdOfWords(rest)
   if (!defId) return null
   const lengths = inputsOfDef(defId).filter(i => i.type === 'int' && (i.key === 'period' || i.key === 'length'))
   return lengths.length === 1 ? { defId, inputs: [{ key: lengths[0].key, value: n }] } : null
+}
+
+// ── GATE C: which instance an edit means, and what it changes ──────────────────────────────────────────
+// "the 20" / "the 20 ema" — an instance named by the LENGTH its legend shows (`#20`, `#20:ema`): exactly one
+// on this chart, else the interface's own refusal (none → not-found; several → ambiguous, real names).
+function instanceByLength(st, n, type) {
+  const rows = (st.rows || []).filter(r => new RegExp(`(^|[^0-9.])${n}([^0-9.]|$)`).test(String(r.name || ''))
+    && (!type || String(r.name || '').toLowerCase().includes(type)))
+  if (rows.length === 1) return { ok: true, instanceId: rows[0].instanceId, name: rows[0].name }
+  return rows.length ? { ok: false, reason: REASONS.AMBIGUOUS, detail: { candidates: rows.map(r => ({ instanceId: r.instanceId, name: r.name })) } } : { ok: false, reason: REASONS.NOT_FOUND }
+}
+const updateRequest = (st, instance, inputs) => {
+  const ins = inputsOfArgs(inputs)
+  if (!ins.ok || !ins.inputs) return null
+  const t = targetOf(st, instance)
+  return t.ok ? { op: 'setInputs', instanceId: t.instanceId, inputs: ins.inputs } : null
+}
+const TYPE_WORDS = `(?:${['ema', 'sma', 'wma', 'vwma', 'hma', 'smma', 'dema', 'tema', 'lsma', ...Object.keys(MA_TYPE_WORDS)].join('|')})`
+const typeValue = (w) => (MA_TYPE_WORDS[w] || w)
+/** The setting a bare NUMBER changes on one definition: `period` / `length` when it has exactly one such
+ *  whole-number input, else null (the member must say which — "the MACD's fast length"). */
+export function lengthKeyOf(defId) {
+  const ints = inputsOfDef(defId).filter(i => i.type === 'int')
+  const named = ints.filter(i => i.key === 'period' || i.key === 'length')
+  if (named.length === 1) return named[0].key
+  return ints.length === 1 ? ints[0].key : null
+}
+/** "a 9" / "an ema" / "a 9 ema" / "exponential" → [{key, value}] for ONE definition, from its declared inputs:
+ *  a number → its one length; a type word → the enum input whose options carry it. null = not readable. */
+export function inputsOfEditWords(defId, words) {
+  const w = String(words || '').trim().toLowerCase().replace(/^(?:an? |the )/, '')
+  const m = new RegExp(`^(?:(\\d{1,4})(?:[- ](?:day|period|bar|length))?)?(?:[- ]?(${TYPE_WORDS})(?: moving average)?)?$`).exec(w)
+  if (!m || (!m[1] && !m[2])) return null
+  const out = []
+  if (m[1]) {
+    const key = lengthKeyOf(defId)
+    if (!key) return null
+    out.push({ key, value: Number(m[1]) })
+  }
+  if (m[2]) {
+    const v = typeValue(m[2])
+    const enumInput = inputsOfDef(defId).find(i => i.type === 'enum' && (i.options || []).some(o => String(o.value) === v))
+    if (!enumInput) return null
+    out.push({ key: enumInput.key, value: v })
+  }
+  return out
+}
+// explicit edits the instant path reads without memory ("change the 20 to a 50", "make the rsi 7")
+const EDIT_VERB = '(?:please )?(?:change|make|set|switch|turn|bump|move)'
+function updateOfWords(lower) {
+  // "change the 20 ema to a 50" / "make the 20 a 9" / "change the 20 to an sma"
+  let m = new RegExp(`^${EDIT_VERB} (?:the |my )?(\\d{1,4})(?:[- ](?:day|period))?(?: (${TYPE_WORDS}|ma|moving average))? (?:to |into )?(?:an? |the )?(.+)$`).exec(lower)
+  if (m) {
+    const type = m[2] && m[2] !== 'ma' && m[2] !== 'moving average' ? typeValue(m[2]) : null
+    const inputs = inputsOfEditWords('movingAverage', m[3])
+    return inputs && inputs.length ? { instance: `#${m[1]}${type ? `:${type}` : ''}`, inputs } : null
+  }
+  // "make the rsi 7" / "change the rsi length to 2" / "set the atr period to 10"
+  m = new RegExp(`^${EDIT_VERB} (?:the |my )?(.+?)(?:'s)?(?: (?:length|period|lookback))? (?:to |into )?(?:an? )?(\\d{1,4})$`).exec(lower)
+  if (m) {
+    const defId = defIdOfWords(m[1])
+    const key = defId ? lengthKeyOf(defId) : null
+    return key ? { instance: defId, inputs: [{ key, value: Number(m[2]) }] } : null
+  }
+  return null
+}
+
+// ── GATE C: the indicator a confirmed change last touched (session memory: "make it a 9") ──
+let touched = null
+/** The last CONFIRMED add / edit / show / hide: { chartRef, instanceId, defId, name } — taken once. */
+export function takeIndicatorTouch() { const t = touched; touched = null; return t }
+/** "make it a 9" / "change that to an SMA" on the indicator this chat last touched (`subject` from session
+ *  memory, re-validated: still on that chart). → { op } | { say } | null (not an edit of it). */
+export function updateOfSubject(host, subject, words) {
+  if (!subject?.chart || !subject.instanceId) return null
+  const c = host?.charts?.read?.(subject.chart)
+  if (!c) return null
+  const row = rowsOf(c.cs).find(r => r.instanceId === subject.instanceId)
+  if (!row) return { say: `${subject.label || 'That indicator'} isn't on that chart any more, so there's nothing to change.` }
+  const inputs = inputsOfEditWords(row.defId, words)
+  if (!inputs) {
+    const nums = /^(?:an? )?\d{1,4}$/.test(String(words || '').trim())
+    return nums ? { say: `${row.name} has more than one length — which one should be ${String(words).replace(/^(?:an? )/, '')}?` } : null
+  }
+  return { op: { action: 'indicator.update', target: refOf(subject.chart), args: { instance: subject.instanceId, inputs } } }
 }
 
 function planCheck(st, req) {
@@ -374,7 +492,8 @@ export function registerIndicatorEditCapabilities() {
     summary: 'Add ONE indicator to ONE chart — exactly what the Indicator Library\'s Add to Chart does. Built-in indicators or the member\'s own saved ones; Undo removes it again.',
     hints: 'target = the ref of that chart\'s indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn\'t clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings. '
       + 'inputs = null for the indicator\'s defaults, else [{key, value}] with ONLY keys from that row\'s `settings` ("a 20 EMA" → movingAverage, [{key:"period",value:20},{key:"maType",value:"ema"}]; "RSI 7" → rsi, [{key:"period",value:7}]). '
-      + 'Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn\'t available; never guess a key.',
+      + 'Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn\'t available; never guess a key. '
+      + 'A moving average named by its LENGTH only ("the 9 and 20", "a 50 ma"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member\'s default — say which you used); any other length: ask EMA or SMA.',
     // ⭐ PHASE 2.5 — `inputs` is a closed-schema-safe LIST (`[{key, value}]`), turned into the
     // Indicators interface's `{key: value}` here; the interface (`agentMutations` → the settings
     // dialog's own `checkInstanceInput`) decides every value, refuses a bad one BY NAME, and
@@ -406,7 +525,11 @@ export function registerIndicatorEditCapabilities() {
       if (!m) return null
       const defId = defIdOfWords(m[1])
       if (defId) return { defId, inputs: null }
-      return settingsOfWords(m[1])
+      // (`assumed`: a default type was applied — the receipt names the type it used, "… ma type EMA")
+      const s = settingsOfWords(m[1])
+      if (!s) return null
+      const { assumed, ...args } = s                                    // eslint-disable-line no-unused-vars
+      return args
     },
     check(st, { defId, inputs }) {
       if (NOT_ADDABLE.test(String(defId || '').trim())) return refusalSentence({ reason: REASONS.UNSUPPORTED_DEFINITION })
@@ -466,6 +589,57 @@ export function registerIndicatorEditCapabilities() {
       const cut = severText(preview.severs)
       return `Remove ${preview.name} from ${a.chart}${cut.length ? ` — this disconnects ${cut.join(', ')}` : ' — nothing else reads it'}`
     },
+  })
+
+  // ⭐ GATE C — EDIT IN PLACE: "make it a 9", "change the 20 to a 50", "change that to an SMA", "make the rsi 7".
+  // The SAME instance changes (never a remove + add, never a second copy); Indicators' `setInputs` decides every
+  // value, writes through the settings rows' own doors, and mints the exact Undo. Instant when nothing reads the
+  // indicator; a proposal when other indicators do (their inputs would move with it).
+  registerCapability({
+    ...common,
+    name: 'indicator.update',
+    summary: 'Change the settings of ONE indicator already on ONE chart, in place — its length, its moving-average type, or another setting its row lists (what the indicator\'s settings dialog does). Never adds a second copy. Undo puts the old settings back.',
+    hints: 'target = the ref of that chart\'s indicatorEdits entry. instance = the indicator\'s `id` from that chart\'s indicators list (exact; a name only if it is unique). '
+      + 'inputs = [{key, value}] with ONLY keys from that indicator\'s settings, and ONLY the settings the member named — everything else stays as it is (an EMA stays an EMA unless they name a type). '
+      + '"make it a 9" right after adding an EMA 20 → that EMA, [{key:"period",value:9}]; "change that to an SMA" → [{key:"maType",value:"sma"}]. Use this — never indicator.remove + indicator.add — to change an indicator that is already on the chart.',
+    args: {
+      type: 'object',
+      properties: {
+        instance: { type: 'string' },
+        inputs: { type: 'array', items: { type: 'object', properties: { key: { type: 'string' }, value: { type: ['string', 'number', 'boolean'] } }, required: ['key', 'value'], additionalProperties: false } },
+      },
+      required: ['instance', 'inputs'],
+      additionalProperties: false,
+    },
+    fast: ({ lower }) => updateOfWords(lower),
+    // other indicators read this one → their inputs move with it: shown first, applied on approval
+    confirmIf(st, { instance, inputs }) {
+      const req = updateRequest(st, instance, inputs)
+      if (!req) return false
+      const p = planFor(st, req)
+      return !!(p.ok && (p.plan.preview.dependents || []).length)
+    },
+    check(st, { instance, inputs }) {
+      const ins = inputsOfArgs(inputs)
+      if (!ins.ok) return refusalSentence({ reason: REASONS.BAD_INPUT, detail: { why: ins.why } }, { op: 'setInputs' })
+      if (!ins.inputs) return 'Which setting should I change, and to what?'
+      const t = targetOf(st, instance)
+      if (!t.ok) return refusalSentence(t, { chart: st.chart })
+      return oneChange(st) || planCheck(st, { op: 'setInputs', instanceId: t.instanceId, inputs: ins.inputs })
+    },
+    apply(st, { instance, inputs }) {
+      const req = updateRequest(st, instance, inputs)
+      if (!req) return st
+      const p = planFor(st, req)
+      return p.ok ? { ...st, change: { request: req, plan: p.plan } } : st
+    },
+    describe: (b, a) => {
+      if (!a.change) return null
+      const { preview } = a.change.plan
+      const moved = (preview.dependents || []).length ? ` — ${severText(preview.dependents).join(', ')} will read the new settings` : ''
+      return `Change ${preview.name} to ${preview.nameAfter} on ${a.chart}${moved}`
+    },
+    noop: () => 'It already has those settings — nothing changed.',
   })
 
   for (const [name, visible] of [['indicator.show', true], ['indicator.hide', false]]) {
