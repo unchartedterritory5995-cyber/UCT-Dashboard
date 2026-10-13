@@ -752,6 +752,25 @@ def _frozen_metric(universe: str, metric: str) -> dict:
     return hit
 
 
+#: ⭐ (2026-10-13) Same reason as `breadth_exchange_authority.TAIL_FAST_MAX`: a small-limit history
+#: reads the newest `limit` frozen rows newest-first instead of the metric's whole slice. The
+#: frozen rows are only those ≤ FROZEN_END, so the newest `limit` of frozen ∪ live is always inside
+#: (frozen tail) ∪ live. Identical rows to the full path (tested); nothing memoised.
+TAIL_FAST_MAX = 60
+
+
+def _frozen_tail(universe: str, metric: str, limit: int) -> dict:
+    if _load_frozen() is None:
+        return {}
+    c = sqlite3.connect("file:%s?mode=ro&immutable=1" % frozen_path(), uri=True)
+    try:
+        return {d: (o, h, l, cl, s) for d, o, h, l, cl, s in c.execute(
+            "SELECT date, o, h, l, c, source FROM breadth_daily_ohlc WHERE universe=? AND metric=? "
+            "ORDER BY date DESC LIMIT ?", (universe, metric, limit))}
+    finally:
+        c.close()
+
+
 def _live_universe(universe: str) -> dict:
     """{date: {metric: (o, h, l, c, source)}} of VALIDATED live publications for `universe`."""
     p = live_replica_path()
@@ -782,7 +801,9 @@ def universe_history(metric: str, universe: Optional[str], limit: int = 6000,
     u = US_UNIVERSE
     if metric in US_WITHHELD or metric not in V2_METRICS:
         return {}
-    rows = {d: r for d, r in _frozen_metric(u, metric).items()}
+    small = bool(limit) and 0 < int(limit) <= TAIL_FAST_MAX
+    rows = {d: r for d, r in (_frozen_tail(u, metric, int(limit)) if small
+                              else _frozen_metric(u, metric)).items()}
     for d, byd in _live_universe(u).items():
         if metric in byd and d > FROZEN_END:
             rows[d] = byd[metric]
