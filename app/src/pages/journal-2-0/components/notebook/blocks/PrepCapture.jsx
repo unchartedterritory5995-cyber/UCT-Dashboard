@@ -8,10 +8,11 @@
 // it needs. An answer that is not this part never lands in the note.
 import { useState } from 'react'
 import { BlockNeedsSwitch } from './blockStates'
+import { CAPTURE_FAILED } from '../../../lib/blocks/captureCopy'
 import styles from './Blocks.module.css'
 
-// Exported (R-T12-C fix round, I-1): the market context stamp's own "Capture now" says the same words.
-export const FAILED = "This couldn't be read just now. Nothing was changed."
+// The ONE copy lives in lib/blocks/captureCopy.js; the market context stamp's Capture now says it too.
+const FAILED = CAPTURE_FAILED
 
 /** "Oct 5, 2026, 10:30 AM" in New York, or null for a time that cannot be read. */
 function easternTime(iso) {

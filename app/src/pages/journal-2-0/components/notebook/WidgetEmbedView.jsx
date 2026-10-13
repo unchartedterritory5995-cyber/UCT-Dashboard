@@ -238,6 +238,13 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   // transaction, the note's own save path). Handed to that one embed only (below).
   const embedEditable = editor?.isEditable !== false && !shareView
   const setEmbedParams = useBlockParams({ attrs, updateAttributes, editable: embedEditable })
+  // Fix round 2 (I-1): a capture that clears the archive (`fallback: null`, in that ONE write) re-arms the
+  // self-archive first, exactly as switchTf / onEmbedSettings / syncFromMyChart do, so the archive
+  // re-freezes the captured stamp instead of keeping the uncaptured frame.
+  const captureEmbedParams = useCallback((patch, opts) => {
+    if (opts?.clearArchive === true) archivedOnceRef.current = false
+    return setEmbedParams(patch, opts)
+  }, [setEmbedParams])
 
   // Linked crosshair (spec Phase 6 #6): ONE bus per note, shared by every
   // chart embed through editor.storage. Lazily created by the first embed
@@ -696,7 +703,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
             // a coarse pointer (`isCoarsePointer`, above). Only chart embeds in
             // Draw mode ask for it; every other widget type ignores an unused prop.
             mobileDrawBar={annotate && isCoarsePointer}
-            {...(attrs.widgetId === 'marketcontext' ? { setParams: setEmbedParams, editable: embedEditable } : {})}
+            {...(attrs.widgetId === 'marketcontext' ? { setParams: captureEmbedParams, editable: embedEditable, embedFrozen: frozen } : {})}
           />
         </Suspense>
       </EmbedErrorBoundary>

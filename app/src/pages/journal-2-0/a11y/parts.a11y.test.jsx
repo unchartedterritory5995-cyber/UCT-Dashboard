@@ -165,7 +165,7 @@ describe('journal embed renderers', () => {
     const attrs = { ...buildWidgetEmbedAttrs('marketcontext', { uncaptured: true, fields: 'all' }), capturedAt: null,
       params: { uncaptured: true, reason: 'budget', fields: 'all' } }
     render(<Providers><MarketContextEmbed attrs={attrs} height={320} setParams={() => true} editable /></Providers>)
-    expect(await screen.findByText('The market could not be read in time when this note was made.')).toBeTruthy()
+    expect(await screen.findByText('The market could not be read in time when this stamp was added.')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Capture now' }))
     expect(await screen.findByText("This couldn't be read just now. Nothing was changed.")).toBeTruthy()
     expect(screen.getAllByRole('status').map((s) => s.textContent))

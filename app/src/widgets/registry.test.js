@@ -733,6 +733,19 @@ describe('widget registry — journal embed bindings', () => {
       .toBe('[market context: regime red · exposure 10]')
   })
 
+  it('R-T12-C fix round 2 (M-3): `reason` is declared as an optional STRING — normalizeParams keeps it, an unknown one still validates', () => {
+    const f = WIDGET_REGISTRY.marketcontext.paramsSchema.find(x => x.key === 'reason')
+    expect(f, 'marketcontext.paramsSchema declares reason').toBeTruthy()
+    expect(f.type).toBe('string')
+    expect(f.options).toBeUndefined()
+    expect(f.required).toBeFalsy()
+    expect(normalizeParams('marketcontext', { uncaptured: true, reason: 'budget', fields: 'all' }).reason).toBe('budget')
+    expect(validateParams('marketcontext', { uncaptured: true, reason: 'budget' }).ok).toBe(true)
+    expect(validateParams('marketcontext', { uncaptured: true, reason: 'a-reason-from-a-newer-server' }).ok).toBe(true)
+    expect(validateParams('marketcontext', { uncaptured: true }).ok).toBe(true)                     // optional
+    expect(validateParams('marketcontext', { uncaptured: true, reason: 7 }).ok).toBe(false)        // control: typed
+  })
+
   it('P2a: only a literal `uncaptured: true` makes a readings-less stamp reconstructable', () => {
     expect(isReconstructable('marketcontext', { uncaptured: false })).toBe(false)
     expect(isReconstructable('marketcontext', { uncaptured: 'true' })).toBe(false)

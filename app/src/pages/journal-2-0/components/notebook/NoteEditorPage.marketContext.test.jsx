@@ -27,6 +27,14 @@ vi.mock('../../hooks/useJ2Notes', () => ({
 }))
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
 vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
+// Fix round 2 (I-1): the self-archive's two network/raster steps are stood in for, so a rail can watch the
+// archive re-freeze after a capture. The real kickSnapshotWarm and everything else stay.
+const archive = vi.hoisted(() => ({ capture: vi.fn(), store: vi.fn() }))
+vi.mock('../../lib/embedArchive', async (orig) => ({
+  ...(await orig()),
+  captureElementPng: (...a) => archive.capture(...a),
+  storeFallbackImage: (...a) => archive.store(...a),
+}))
 
 const note = () => ({
   id: 'n1', title: 'AMD plan', subtitle: '', folderId: null, ticker: 'AMD', tags: [],
@@ -40,6 +48,8 @@ function routeFetch(mc) {
 }
 
 beforeEach(() => {
+  archive.capture.mockReset().mockResolvedValue(new Blob(['png']))
+  archive.store.mockReset().mockResolvedValue({ url: '/api/j2/notes/n1/images/new-archive.png', width: 10, height: 10 })
   localStorage.clear()
   __resetNotebookFlags()
   latchNotebookFlags({ notebook_journal_styles_enabled: true })
@@ -111,7 +121,7 @@ describe('Market context: a failed read is said, in the note\'s own toast', () =
 // read in time ({uncaptured: true, reason: "budget"}, the backend's shape) offers "Capture now", and the
 // click lands the readings IN THE NOTE (the node's params) through the embed's setParams: nothing on
 // the path is mocked but the read itself.
-const BUDGET = 'The market could not be read in time when this note was made.'
+const BUDGET = 'The market could not be read in time when this stamp was added.'
 const budgetStamp = () => ({ type: 'widgetEmbed', attrs: {
   v: 1, widgetId: 'marketcontext', embedId: 'mc-budget', mode: 'snapshot',
   params: { uncaptured: true, reason: 'budget', fields: 'all' },
@@ -150,7 +160,31 @@ describe('Market context: the budget stamp\'s Capture now writes into the note',
     expect(mcCalls()).toHaveLength(1)
     await waitFor(() => expect(screen.queryByText(BUDGET)).toBeNull())
     expect(screen.queryByRole('button', { name: 'Capture now' })).toBeNull()
+    // fix round 2 (M-2): the button is gone, so focus is on the stamp itself and the capture was said
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('figure')))
+    expect(screen.getByText('Market context captured.').getAttribute('role')).toBe('status')
   })
+
+  it('fix round 2 (I-1): Capture now clears a stale archived image in the SAME write, and the archive re-freezes the CAPTURED stamp', async () => {
+    const READ = { readings: { marketPhase: 'Uptrend', powerTrend: null }, wireDate: '2026-10-12', updated: '10:30 AM ET' }
+    routeFetch(async () => ({ ok: true, status: 200, json: async () => READ }))
+    const stale = budgetStamp()
+    stale.attrs.fallback = { url: '/api/j2/notes/n1/images/stale.png', w: 10, h: 10 }   // a PNG of the uncaptured frame
+    NOTE = { ...note(), bodyJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Plan ' }] }, stale] } }
+    const ed = await renderEditor()
+    await act(async () => { (await screen.findByRole('button', { name: 'Capture now' })).click() })
+    // one write: the readings, the date and the cleared archive land together
+    await waitFor(() => expect(stamps(ed)[0].attrs.params.readings).toEqual(READ.readings))
+    expect(stamps(ed)[0].attrs.fallback).toBeNull()
+    expect(stamps(ed)[0].attrs.capturedAt).toBeTruthy()
+    // re-armed: the self-archive settles, rasterizes the captured stamp (no door, no sentence) and lands it
+    await waitFor(() => expect(stamps(ed)[0].attrs.fallback?.url).toBe('/api/j2/notes/n1/images/new-archive.png'), { timeout: 20000 })
+    expect(archive.capture).toHaveBeenCalledTimes(1)
+    const shot = archive.capture.mock.calls[0][0]
+    expect(shot.textContent).toContain('Uptrend')
+    expect(shot.textContent).not.toContain('Capture now')
+    expect(shot.textContent).not.toContain(BUDGET)
+  }, 30000)
 
   it('fix round 1: the capture is DATED — capturedAt lands in the same node, and the caption says "· captured <day>"', async () => {
     const READ = { readings: { marketPhase: 'Uptrend', powerTrend: null }, wireDate: '2026-10-12', updated: '10:30 AM ET' }
@@ -177,7 +211,9 @@ describe('Market context: the budget stamp\'s Capture now writes into the note',
       ? { ok: true, status: 200, json: async () => snap } : { ok: true, status: 200, json: async () => ({}) }))
     const block = { type: 'widgetEmbed', attrs: {
       v: 1, widgetId: 'prepWire', embedId: 'pw1', mode: 'snapshot', params: {},
-      capturedAt: '2026-10-05T14:00:00Z', annotations: [], caption: null, layout: { width: 'full', height: null }, fallback: null,
+      capturedAt: '2026-10-05T14:00:00Z', annotations: [], caption: null, layout: { width: 'full', height: null },
+      // fix round 2: a value a block write must never touch (a block has no archive; this proves it stays)
+      fallback: { url: '/api/j2/notes/n1/images/kept.png', w: 1, h: 1 },
     } }
     NOTE = { ...note(), bodyJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Prep ' }] }, block] } }
     const ed = await renderEditor()
@@ -187,6 +223,7 @@ describe('Market context: the budget stamp\'s Capture now writes into the note',
     await act(async () => { button.click() })
     await waitFor(() => expect(node().attrs.params.snapshot).toEqual(snap))           // non-vacuity: it wrote
     expect(node().attrs.capturedAt).toBe('2026-10-05T14:00:00Z')
+    expect(node().attrs.fallback).toEqual({ url: '/api/j2/notes/n1/images/kept.png', w: 1, h: 1 })   // fix round 2
   })
 
   it('CONTROL: the "Update layout" stamp (no reason) shows its old sentence and no Capture now', async () => {

@@ -504,6 +504,10 @@ const PANEL_MANIFESTS = {
       // marketcontext `fields` (S20, railed by registry.test.js).
       { key: 'fields', type: 'enum', options: ['all', 'regime', 'indexes'], default: 'all' },
       { key: 'uncaptured', type: 'boolean' },
+      // R-T12-C fix round 2 (M-3): why a stamp is uncaptured. "budget" = the create-mode read ran out of
+      // time; absent = "Update layout" (IR-S11). ⛔ A STRING, never an enum: an unknown future reason
+      // must still validate (an enum would degrade the stamp to a placeholder).
+      { key: 'reason', type: 'string' },
     ],
     plainText: (p) => {
       if (p?.uncaptured === true) return '[market context: not captured]'
