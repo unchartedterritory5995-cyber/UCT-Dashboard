@@ -1124,6 +1124,99 @@ class SaveRefused(ValueError):
         return out
 
 
+#: ⛔ A0 — THE DEEPEST FORMULA TREE `save` WILL WALK. It is not a new limit on what a
+#: member can write: a tree's longest path holds that many DISTINCT subtrees, so any
+#: tree deeper than the node budget (`ast_budget`'s 128) is already refused by
+#: `budget:nodes`. What this bound buys is that the refusal arrives BEFORE the
+#: recursive walkers (`stable_stringify`, the graph expansion) — measured on
+#: 2026-10-13, a ~240-deep tree overflowed Python's stack there and surfaced as an
+#: HTTP 500. 160 keeps a wide margin on both sides.
+MAX_TREE_DEPTH = 160
+
+#: ⛔ A0 — THE DEEPEST JSON NESTING ANY PART OF A DEFINITION MAY HAVE (meta, plots,
+#: presentation — not only the tree). A legal document nests a few levels outside
+#: its trees and about two per tree level inside them, so this is far above anything
+#: a UCT client writes; `json.dumps` of a ~3,000-deep blob raises `RecursionError`
+#: in C, which no `setrecursionlimit` reaches.
+MAX_DOCUMENT_NESTING = 1024
+
+
+def _assert_bounded_nesting(document: Any) -> None:
+    """Refuse a definition nested deeper than `MAX_DOCUMENT_NESTING`, iteratively."""
+    stack = [(document, 1)]
+    while stack:
+        value, depth = stack.pop()
+        if depth > MAX_DOCUMENT_NESTING:
+            raise SaveRefused(
+                "tree",
+                f"this definition is nested more than {MAX_DOCUMENT_NESTING} levels deep. "
+                "Nothing was saved.",
+                guard="tree:nesting")
+        if isinstance(value, dict):
+            stack.extend((v, depth + 1) for v in value.values())
+        elif isinstance(value, list):
+            stack.extend((v, depth + 1) for v in value)
+
+
+def _tree_depth(tree: Any) -> int:
+    """Depth of a canonical tree, counted along `args` only, without recursion."""
+    deepest = 0
+    stack = [(tree, 1)]
+    while stack:
+        node, depth = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        deepest = max(deepest, depth)
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend((child, depth + 1) for child in args)
+    return deepest
+
+
+def _graph_root_depths(graph: Any) -> dict:
+    """`{plotKey: depth}` of a shared graph's expanded trees, in one forward pass.
+
+    References run strictly backwards (`compute_graph.assert_graph`), so each node's
+    depth is known before any node that reads it. A malformed graph returns `{}` and
+    is left to `assert_graph`, which names the problem.
+    """
+    if not isinstance(graph, dict):
+        return {}
+    nodes, roots = graph.get("nodes"), graph.get("outputRoots")
+    if not isinstance(nodes, list) or not isinstance(roots, dict):
+        return {}
+    depth = [0] * len(nodes)
+    for i, node in enumerate(nodes):
+        d = 1
+        for ref in (node.get("args") or ()) if isinstance(node, dict) else ():
+            if isinstance(ref, int) and not isinstance(ref, bool) and 0 <= ref < i:
+                d = max(d, depth[ref] + 1)
+        depth[i] = d
+    return {k: depth[r] for k, r in roots.items()
+            if isinstance(r, int) and not isinstance(r, bool) and 0 <= r < len(nodes)}
+
+
+def _assert_compute_depth(compute: Any) -> None:
+    """Refuse, by name, any tree in `compute` deeper than `MAX_TREE_DEPTH`."""
+    if not isinstance(compute, dict):
+        return
+    lanes = []
+    if "ast" in compute:
+        lanes.append(("compute.ast", _tree_depth(compute.get("ast"))))
+    trees = compute.get("trees")
+    if isinstance(trees, dict):
+        lanes.extend((f"compute.trees.{k}", _tree_depth(t)) for k, t in trees.items())
+    lanes.extend((f"compute.graph.outputRoots.{k}", d)
+                 for k, d in _graph_root_depths(compute.get("graph")).items())
+    for where, depth in lanes:
+        if depth > MAX_TREE_DEPTH:
+            raise SaveRefused(
+                "budget",
+                f"{where} is {depth} levels deep; a formula may be at most "
+                f"{MAX_TREE_DEPTH} deep. Nothing was saved.",
+                guard="budget:depth")
+
+
 def _lanes(definition: dict) -> list:
     """`[(plotKey, tree)]` for every tree the document computes — the browser's
     `validateAstLane` lanes: the trees map on a multi-tree document, else
@@ -1651,7 +1744,15 @@ def save(user_id: Any, def_id: str, definition: dict,
             f"definition.version: required integer >= 1 (the presentation version), "
             f"got {ver!r} — a document without one is refused by every browser that loads it")
 
+    # ⛔ A0 — DEPTH IS REFUSED BY NAME BEFORE ANYTHING RECURSIVE RUNS. Everything below
+    # (the manifest hook, the graph expansion, `ast_hash`, the lint) walks the tree
+    # recursively, so a deep enough document used to escape as a `RecursionError` --
+    # an HTTP 500 -- before the node budget could refuse it. Both checks are
+    # iterative and run on every save, the runtime door's included. The formula's own
+    # depth is asked first, so a deep formula is told so rather than "nested".
     compute = definition.get("compute")
+    _assert_compute_depth(compute)
+    _assert_bounded_nesting(definition)
     # ⭐⭐ RT1 — A RUNTIME-LANE DOCUMENT HAS ITS OWN DOOR (`runtime_definitions`),
     # switched OFF by default (`PINE_RUNTIME_SAVE_ENABLED`). It carries no tree, so
     # nothing below — the manifest hook, the graph split, the tree hash, the lint,
