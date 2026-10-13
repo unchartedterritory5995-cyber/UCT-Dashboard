@@ -462,7 +462,12 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   }, [uctPrefs])
   const applyChartTemplate = useCallback((t) => {
     const next = chartTemplateSettings(t)
-    if (next) paneRef.current?.applySettings?.(next)
+    // ⭐ A1.3 — replace (unchanged), now undoable: "Applied template “Swing” · Undo".
+    const label = `Applied template “${t?.name || 'Untitled'}”`
+    if (next) {
+      if (paneRef.current?.applySettingsRecorded) paneRef.current.applySettingsRecorded(next, { label, kind: 'template' })
+      else paneRef.current?.applySettings?.(next)
+    }
     closeCtx()
   }, [closeCtx])
 

@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, useContext, forwardRef, useImperativeHandle, lazy, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
+import { keepIndicatorState } from './indicatorPreservation'
 import { legendModeOf, nextLegendMode } from './legendMode'
 import ColorPicker, { PORTAL_POPUP_ATTR } from './ColorPicker'
 import ColorPanel from './ColorPanel'
@@ -295,8 +296,9 @@ function ChartSettingsPanel({
 
   const applyPreset = useCallback((key) => {
     const preset = PRESETS[key]
-    if (preset) onUpdateSettings(preset.settings)
-  }, [onUpdateSettings])
+    // ⭐ A1.3 (D5, Q5): a preset changes the LOOK and keeps the member's indicators.
+    if (preset) onUpdateSettings(keepIndicatorState(preset.settings, cs), { historyLabel: `Applied ${preset.label || key}`, historyKind: 'preset' })
+  }, [onUpdateSettings, cs])
 
   return (
     <div className={styles.settingsPanel}>

@@ -10,6 +10,7 @@ import DeviceSyncCard from './settings/DeviceSyncCard'
 import PlanAccess from './settings/PlanAccess'
 import ColorPicker from '../components/chart/ColorPicker'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../components/chart/chartDefaults'
+import { keepIndicatorState } from '../components/chart/indicatorPreservation'
 import { averageSlotView, writeAverageSlot } from '../components/chart/maAdoption'
 import { MA_TYPES } from '../components/chart/movingAverages'
 import useTagColors from '../hooks/useTagColors'
@@ -541,14 +542,15 @@ function ChartSettingsSection({ prefs, setPref }) {
 
   const applyPreset = useCallback((key) => {
     const preset = PRESETS[key]
-    if (preset) setPref('chart_settings', JSON.stringify(preset.settings))
-  }, [setPref])
+    // ⭐ A1.3 (D5, Q5): the look changes; the member's indicators are kept.
+    if (preset) setPref('chart_settings', JSON.stringify(keepIndicatorState(preset.settings, mergeChartSettings(prefs.chart_settings))))
+  }, [setPref, prefs.chart_settings])
 
   const resetToDefaults = useCallback(() => {
-    if (confirm('Reset all chart settings to defaults?')) {
-      setPref('chart_settings', JSON.stringify(CHART_DEFAULTS))
+    if (confirm('Reset chart appearance to defaults? Your indicators are kept.')) {
+      setPref('chart_settings', JSON.stringify(keepIndicatorState(CHART_DEFAULTS, mergeChartSettings(prefs.chart_settings))))
     }
-  }, [setPref])
+  }, [setPref, prefs.chart_settings])
 
   return (
     <TileCard icon="chart" title="Chart Settings">
