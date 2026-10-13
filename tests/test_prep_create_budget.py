@@ -27,10 +27,16 @@ REGIME = "builtin:regime_at_write"
 PREP = ("prepWire", "prepEarnings", "prepMovers", "prepLevels")
 BUDGET = 0.3        # seconds, patched over PREP_CREATE_BUDGET_S
 STALL = 0.5         # each stalled read sleeps past the budget
-#: The stated margin. A read already running is not interrupted, so the bound is the budget plus the ONE
-#: read in flight (STALL) plus fixed overhead (imports, the note insert, a loaded box). Without the budget
-#: the stalled create below makes 10+ stalled reads (>= 5 s), so this cannot pass by accident.
-MARGIN = STALL + 1.0
+#: The longest chain of reads ONE guarded step can run (review M-1, fix round 2): the check sits between
+#: steps, never inside engine.py, and get_breadth(held_only=True) is up to 3 file reads (_load_state,
+#: _load_wire_data, _load_wire_data again for wire_date); get_rundown is 2; build_cards 3 SQL reads before
+#: its scan. Measured: the first stalled step of a Daily prep create (prepWire's get_rundown on a cold
+#: pod) runs 2 stalled reads.
+LONGEST_CHAIN = 3
+#: The stated margin: a step already running is not interrupted, so the bound is the budget plus the
+#: longest unguarded chain (LONGEST_CHAIN stalled reads) plus fixed overhead (the note insert, a loaded
+#: box). Without the budget the stalled create makes 10+ stalled reads (>= 5 s): it cannot pass by accident.
+MARGIN = STALL * LONGEST_CHAIN + 0.5
 
 #: Every read the Daily prep builders reach that leaves process memory (the Task 15b probe's LEGS).
 LEGS = (("api.services.engine", "_load_wire_data"), ("api.services.engine", "_load_state"),
@@ -117,7 +123,9 @@ def test_a_create_with_every_read_stalled_returns_within_the_budget_and_freezes_
     for wid in PREP:
         assert "snapshot" not in blocks[wid]["params"], (wid, blocks[wid]["params"])   # uncaptured
     mc = blocks["marketcontext"]
-    assert mc["params"].get("uncaptured") is True and mc["capturedAt"] is None and "readings" not in mc["params"]
+    # Review I-1: the interface the client reads -- the IR-S11 shape plus WHY.
+    assert mc["params"] == {"uncaptured": True, "fields": "all", "reason": "budget"}, mc["params"]
+    assert mc["capturedAt"] is None
     assert REGIME not in (n["propertiesJson"] or {})
 
 
@@ -210,9 +218,10 @@ def test_capture_now_with_stalled_reads_answers_the_failure_shape_within_the_bud
     monkeypatch.setenv("NOTEBOOK_SETUPS_BOARD_ENABLED", "1")
     if part == "movers":
         monkeypatch.setattr(tb, "_my_names", lambda uid: [f"N{i:03d}" for i in range(20)])
+    client = _route(monkeypatch)                  # review M-3: build and import BEFORE the clock starts
     try:
         t0 = time.monotonic()
-        got = _route(monkeypatch).get(f"/api/j2/trader-blocks/prep/{part}")
+        got = client.get(f"/api/j2/trader-blocks/prep/{part}")
         took = time.monotonic() - t0
     finally:
         cache.invalidate(engine.EARNINGS_CACHE_KEY)
@@ -222,3 +231,171 @@ def test_capture_now_with_stalled_reads_answers_the_failure_shape_within_the_bud
     assert body["missing"] == "source_error" and body["detail"] == tb.PREP_GAPS["source_error"]
     assert not ({"items", "cards", "bmo", "headline"} & set(body)), body          # no partial read
     assert took < BUDGET + MARGIN, took
+
+
+# ── fix round 2 ────────────────────────────────────────────────────────────────────────────────
+
+def _empty_note(user="u1"):
+    from api.services.journal_two import notes
+    return notes.create_note(user, {"title": "blank"})
+
+
+def test_the_dry_run_on_an_empty_note_makes_no_read_at_all(db_path, small_budget, stalled):
+    """Review I-2: GET .../style-update-plan on an empty note switched to Daily prep lists the blocks
+    without running a single reading builder (compose builds the body at write time)."""
+    from api.services.journal_two import journal_styles as js, trader_blocks as tb
+    n = _empty_note()
+    t0 = time.monotonic()
+    plan = js.plan_style_update("u1", n["id"], style_id="builtin:daily_prep")
+    took = time.monotonic() - t0
+    assert (plan["insertsOutline"], plan["mode"]) == (True, "create")
+    assert stalled == [], stalled                                            # zero stalled reads
+    added = [a["block"] for a in plan["add"]]
+    assert set(added) == set(PREP) | {"marketcontext", "myRules"} and set(added) & tb.READS_ON_CREATE
+    assert took < BUDGET, took
+
+
+def test_switching_an_empty_note_with_every_read_stalled_runs_on_ONE_clock(db_path, small_budget, stalled):
+    """Review I-2: the write is bounded by ONE budget (compose's) plus the stated margin, and what ran
+    out lands uncaptured exactly as a create's does."""
+    from api.services.journal_two import journal_styles as js
+    n = _empty_note()
+    t0 = time.monotonic()
+    note, plan = js.apply_style_update("u1", n["id"], style_id="builtin:daily_prep",
+                                       expected_updated_at=n["updatedAt"])
+    took = time.monotonic() - t0
+    assert stalled, "non-vacuity: compose reached the stalled reads"
+    assert took < BUDGET + MARGIN, (took, stalled)
+    # ONE clock: only the chain already running when the single budget ran out was paid. A second clock
+    # (the plan's builders reading too) pays a second chain, which the time margin alone could absorb.
+    assert len(stalled) <= LONGEST_CHAIN, stalled
+    blocks = _embeds(note)
+    for wid in PREP:
+        assert "snapshot" not in blocks[wid]["params"], wid
+    assert blocks["marketcontext"]["params"].get("reason") == "budget"
+
+
+def _reads_spy(monkeypatch):
+    """Every reading seam trader_blocks has, recording any call (the LEGS plus its own read doors)."""
+    from api.services.journal_two import trader_blocks as tb
+    seen: list[str] = []
+    for mod_name, attr in LEGS:
+        mod = importlib.import_module(mod_name)
+        real = getattr(mod, attr)
+        monkeypatch.setattr(mod, attr, lambda *a, _r=real, _k=f"{mod_name}.{attr}", **k: seen.append(_k) or _r(*a, **k))
+    for attr in ("_breadth", "_regime_field", "_quotes", "_cached_quote", "_my_names", "prep_part",
+                 "market_context_params", "price_stamp_quote", "recent_closed_trades", "trade_review"):
+        real = getattr(tb, attr)
+        monkeypatch.setattr(tb, attr, lambda *a, _r=real, _k=attr, **k: seen.append(_k) or _r(*a, **k))
+    return seen
+
+
+def test_READS_ON_CREATE_is_exactly_the_builders_that_read(db_path, monkeypatch):
+    """The set _plan skips is derived, not guessed: every builder OUTSIDE it reads nothing in create
+    mode, and every builder INSIDE it reads (so the set holds no idle entry)."""
+    from datetime import datetime, timezone
+    from api.services.journal_two import journal_styles as js, trader_blocks as tb
+    seen = _reads_spy(monkeypatch)
+    for bid, builder in js.BLOCK_BUILDERS.items():
+        kind = js._BLOCK_BY_ID.get(bid) or {"settings": []}
+        block = {"block": bid, "enabled": True,
+                 "settings": {x["key"]: x["default"] for x in kind.get("settings", [])}}
+        seen.clear()
+        node, reason = builder(block, {"ticker": "NVDA", "now": datetime.now(timezone.utc), "memo": {},
+                                       "mode": "create", "user_id": "u1"})
+        if bid in tb.READS_ON_CREATE:
+            assert seen and node is not None and reason is None, (bid, seen, reason)
+        else:
+            assert seen == [], (bid, seen)
+    assert tb.READS_ON_CREATE <= set(js.BLOCK_BUILDERS)                            # non-vacuity
+
+
+def test_a_reading_builder_builds_a_node_even_when_every_read_raises(db_path, monkeypatch):
+    """So skipping it in a dry run cannot change what the plan lists: it never answers a skip."""
+    from datetime import datetime, timezone
+    from api.services.journal_two import journal_styles as js, trader_blocks as tb
+
+    def boom(*_a, **_k):
+        raise RuntimeError("unreadable")
+    for attr in ("_breadth", "_regime_field", "_quotes", "_cached_quote", "_my_names"):
+        monkeypatch.setattr(tb, attr, boom)
+    for bid in tb.READS_ON_CREATE:
+        node, reason = js.BLOCK_BUILDERS[bid]({"block": bid, "enabled": True, "settings": {}},
+                                             {"ticker": None, "now": datetime.now(timezone.utc), "memo": {},
+                                              "mode": "create", "user_id": "u1"})
+        assert node is not None and reason is None, bid
+
+
+def test_the_market_context_route_with_stalled_reads_answers_its_failure_within_the_budget(
+        db_path, small_budget, stalled, monkeypatch):
+    """F-MC-CAPTURE-BUDGET: the hand-inserted stamp's read runs under the same budget; a spent one is
+    the router's trader-block read failure (409 + sentence), which the slash command reads as "could
+    not be read just now, nothing was added"."""
+    from api.routers import notebook_journal_styles as r
+    client = _route(monkeypatch)
+    t0 = time.monotonic()
+    got = client.get("/api/j2/trader-blocks/market-context")
+    took = time.monotonic() - t0
+    assert stalled, "non-vacuity: the stalled reads were reached"
+    assert (got.status_code, got.json()["detail"]) == (409, r.MARKET_CONTEXT_UNREAD_SENTENCE)
+    assert took < BUDGET + MARGIN, took
+
+
+def test_a_spent_budget_raises_out_of_interest_for_after_one_source(monkeypatch):
+    """Review M-2: the per-source hook sits OUTSIDE interest_for's per-source catch, so a spent budget
+    stops the read after the source in flight; it is never swallowed into "no names"."""
+    from api.services import member_interest as mi
+    from api.services.journal_two import trader_blocks as tb
+    fn = {"positions": "_position_syms", "watchlist": "_watchlist_syms", "flagged": "_flagged_syms",
+          "uct20": "_uct20_syms"}
+    assert set(fn) == set(mi.SOURCES), mi.SOURCES                 # the map covers the declared vocabulary
+    first = fn[mi.SOURCES[0]]                                      # read first (positions, by the registry)
+    calls: list[str] = []
+
+    def slow(uid):
+        calls.append(first)
+        time.sleep(0.05)                                    # spends the 0.02 s budget below
+        return {"AAA"}
+    for name in fn.values():
+        monkeypatch.setattr(mi, name, slow if name == first else (lambda uid, _n=name: calls.append(_n) or set()))
+    monkeypatch.setattr(tb, "PREP_CREATE_BUDGET_S", 0.02)
+    memo = tb.start_budget({})
+    with pytest.raises(tb.BudgetSpent):
+        mi.interest_for("u1", before_source=lambda _name: tb._spend(memo))
+    assert calls == [first], calls                                 # one source read, then it stopped
+    calls.clear()
+    token = tb._ACTIVE_BUDGET.set(tb.start_budget({}))           # and through _my_names, the real caller
+    try:
+        with pytest.raises(tb.BudgetSpent):
+            tb._my_names("u1")
+    finally:
+        tb._ACTIVE_BUDGET.reset(token)
+    assert calls == [first], calls
+
+
+def test_the_regime_read_asks_the_hold_once_per_compose(monkeypatch):
+    """Review M-5: memo first; a cold pod's empty hold is remembered, so repeats do not re-read."""
+    from api.services import engine
+    from api.services.journal_two import trader_blocks as tb
+    asked: list[bool] = []
+    monkeypatch.setattr(engine, "get_breadth", lambda held_only=False: asked.append(held_only) or None)
+    memo: dict = {}
+    first, second = tb._regime_field(memo), tb._regime_field(memo)
+    assert asked == [True], asked
+    assert first == second and first["missing"] == "wire_unavailable" and first.get("value") is None
+
+
+def test_a_budget_reason_survives_the_save_and_never_reaches_a_stranger(db_path):
+    """Review I-1 interface: `reason` is stored and served as written (the server whitelists no param of
+    this block), and a public copy keeps none of the market context's params, so it cannot leak there."""
+    from api.services.journal_two import notes, public_note_payload as pub
+    node = {"type": "widgetEmbed", "attrs": {"v": 1, "widgetId": "marketcontext", "embedId": "e1",
+            "mode": "snapshot", "params": {"uncaptured": True, "fields": "all", "reason": "budget"},
+            "capturedAt": None, "annotations": [], "caption": None,
+            "layout": {"width": "full", "height": None}, "fallback": None}}
+    body = notes._validate_body_json({"type": "doc", "content": [node]})
+    notes._refuse_unbuildable(body)
+    n = notes.create_note("u1", {"title": "t", "bodyJson": body})
+    got = notes.get_note("u1", n["id"])
+    assert got["bodyJson"]["content"][0]["attrs"]["params"]["reason"] == "budget"
+    assert "marketcontext" not in pub.EMBED_PARAM_KEYS                               # no params published

@@ -60,6 +60,8 @@ from api.services.journal_two import notes as notes_service
 MAX_BODY_BYTES = 512_000
 TOO_LARGE_SENTENCE = "Request too large"
 NOT_FOUND = "Not found"
+#: F-MC-CAPTURE-BUDGET: the market context read ran out of its budget (the price stamp's 409 shape).
+MARKET_CONTEXT_UNREAD_SENTENCE = "Market context could not be read just now."
 #: A dismissed rule's edit (fix round 1, m2): read by rulesApi.editRule, which says it in words.
 RULE_DISMISSED = "rule_dismissed"
 # Integrator ruling (review M1): the base revision is required. Without it a caller that lands the
@@ -193,10 +195,18 @@ def default_style_endpoint(style_id: str, user: dict = Depends(require_paid)) ->
 def trader_market_context(user: dict = Depends(require_paid)) -> dict[str, Any]:
     """Read-only (spec §P2 item 3): the params a hand-inserted market context stamp freezes, captured
     now and dated as such (R-P2-8). Every gap is a sentence. Cache-only, like the composer's read
-    (R-W0-1): it never waits on a vendor."""
+    (R-W0-1): it never waits on a vendor.
+    F-MC-CAPTURE-BUDGET (Task 15b fix round 2): the reads run under the create's read budget
+    (trader_blocks.start_budget). A spent budget is this router's existing trader-block read failure,
+    the price stamp's: 409 with a "could not be read just now" sentence. The slash command already
+    reads any non-2xx as "could not be read just now, so nothing was added" and inserts nothing."""
     from datetime import datetime, timezone
     from api.services.journal_two import trader_blocks
-    return trader_blocks.market_context_params({}, user_id=user["id"], now=datetime.now(timezone.utc))
+    try:
+        return trader_blocks.market_context_params(trader_blocks.start_budget({}), user_id=user["id"],
+                                                   now=datetime.now(timezone.utc))
+    except trader_blocks.BudgetSpent:
+        raise HTTPException(status_code=409, detail=MARKET_CONTEXT_UNREAD_SENTENCE)
 
 
 @router.put("/trader-blocks/positions/{position_id}/pre-entry")

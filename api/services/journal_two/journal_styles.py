@@ -1021,6 +1021,13 @@ def _plan(user_id: str, row: sqlite3.Row, body: dict, style_id: str | None, conn
         if builder is None:
             skipped.append({"block": b["block"], "reason": "unknown-block"})
             continue
+        if inserts_outline and b["block"] in _tb.READS_ON_CREATE:
+            # Review I-2: on the empty-note switch the write composes the body itself (compose, one
+            # budget), so these nodes would be thrown away; a reading builder always builds, so the
+            # plan lists it WITHOUT running it. The dry run (GET .../style-update-plan) and the write's
+            # plan make no market or prep read at all, and the write has ONE clock, compose's.
+            built.append((b, None))
+            continue
         node, reason = builder(b, ctx)
         if node is None:
             skipped.append({"block": b["block"], "reason": reason or "cannot-build"})

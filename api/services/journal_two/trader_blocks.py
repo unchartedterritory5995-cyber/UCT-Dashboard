@@ -38,6 +38,12 @@ _DEADLINE = "deadline"      # the memo key holding the monotonic deadline
 _ACTIVE_BUDGET: contextvars.ContextVar = contextvars.ContextVar("trader_blocks_budget", default=None)
 
 
+#: Review I-1: the `reason` an uncaptured market context stamp carries when the create's read budget ran
+#: out (the interface the client reads: `{"uncaptured": true, "reason": "budget"}`). An Update layout
+#: stamp carries no reason.
+BUDGET_REASON = "budget"
+
+
 class BudgetSpent(Exception):
     """The read budget ran out before the next read. The block it interrupts is written UNCAPTURED
     (the IR-S11 shape, with "Capture now"), never as a partial snapshot."""
@@ -57,10 +63,14 @@ def _spent(memo: Any) -> bool:
 
 
 def _spend(memo: Any) -> None:
-    """Called BEFORE each read (and before each name in a scan): BudgetSpent once the deadline has
-    passed. No deadline on the memo (a caller that started none) means no limit.
-    ⛔ A read already running is not interrupted: the bound is the budget plus the one read in flight
-    (each read's own bound: sqlite lock waits of 2-5 s; a local file read has none)."""
+    """Called BEFORE each guarded step (and before each name in a scan): BudgetSpent once the deadline
+    has passed. No deadline on the memo (a caller that started none) means no limit.
+    ⛔ A step already running is not interrupted, and one guarded step can be a CHAIN of reads that
+    runs inside engine.py, where no check sits: get_breadth(held_only=True) is up to 3 local file reads
+    (_load_state, _load_wire_data, _load_wire_data again for wire_date), get_rundown up to 2, and
+    setups_board.build_cards makes 3 SQL reads before its own scan. So the bound is the budget PLUS the
+    longest unguarded chain (3 reads), each read bounded only by its own store: sqlite lock waits of
+    2-5 s; a local file read has no bound at all (Task 15b fix round 2, review M-1)."""
     if _spent(memo):
         raise BudgetSpent()
 
@@ -220,21 +230,25 @@ def _regime_field(memo: dict) -> dict:
     morning_wire_engine.fetch_breadth, an unbounded vendor call (the module note above), and the old
     path reached it through entry_context._regime_fields -> regime.get_current_regime whenever the held
     read answered. Nothing held: "not published" (wire_unavailable), never a guess."""
+    if "regime" in memo:
+        # Review M-5: the memo FIRST, so one compose reads the hold once. A cold pod caches nothing, so
+        # every repeat would otherwise re-run _load_state + _load_wire_data.
+        return memo["regime"][0]
     from api.services import engine
+    from api.services.journal_two import entry_context
     payload = engine.get_breadth(held_only=True)
     if payload is None:
-        return {"missing": "wire_unavailable"}
-    if "regime" in memo:
-        return memo["regime"][0]
-    from api.services.journal_two import entry_context
-    from api.services.journal_two import regime as regime_service
-    exp = payload.get("exposure") if isinstance(payload, dict) else None
-    try:
-        out = entry_context.regime_fields_from(regime_service.regime_from_exposure(exp),
-                                               lambda: payload.get("wire_date"))
-    except Exception:  # noqa: BLE001 -- an unreadable hold is a missing regime, never a failed note
-        out = (entry_context._missing(entry_context.SRC_REGIME, "source_error"),
-               entry_context._missing(entry_context.SRC_EXPOSURE, "source_error"))
+        out = (entry_context._missing(entry_context.SRC_REGIME, "wire_unavailable"),
+               entry_context._missing(entry_context.SRC_EXPOSURE, "wire_unavailable"))
+    else:
+        from api.services.journal_two import regime as regime_service
+        exp = payload.get("exposure") if isinstance(payload, dict) else None
+        try:
+            out = entry_context.regime_fields_from(regime_service.regime_from_exposure(exp),
+                                                   lambda: payload.get("wire_date"))
+        except Exception:  # noqa: BLE001 -- an unreadable hold is a missing regime, never a failed note
+            out = (entry_context._missing(entry_context.SRC_REGIME, "source_error"),
+                   entry_context._missing(entry_context.SRC_EXPOSURE, "source_error"))
     memo["regime"] = out
     return out[0]
 
@@ -530,8 +544,10 @@ def build_market_context(block: dict, ctx: dict):
                                          now=ctx["now"])
         except BudgetSpent:
             # R-T12-C: the create's read budget ran out: the stamp lands UNCAPTURED (the IR-S11 shape),
-            # never part-read, and freezes no regime, so regime_at_write stays absent.
-            read = None
+            # never part-read, and freezes no regime, so regime_at_write stays absent. Review I-1: it says
+            # WHY ("reason": "budget"), so the client never tells a new note it "was written before it had
+            # one". The Update layout stamp above keeps the plain shape, with no reason key.
+            params, read = {**params, "reason": BUDGET_REASON}, None
         if read is not None:
             params, captured_at = {**read, "fields": fields}, _iso(ctx["now"])
             # R-T4-1 I-1: the regime reading THIS build froze, for the composer's regime_at_write.
@@ -620,6 +636,12 @@ def save_pre_entry(user_id: str, position_id: str, setup: str | None, checked: l
 # ⛔ N10: a read that raises is a snapshot with `missing: "source_error"`, never a failed note.
 PREP_PARTS = ("wire", "earnings", "movers", "levels")
 PREP_BLOCK = {"wire": "prepWire", "earnings": "prepEarnings", "movers": "prepMovers", "levels": "prepLevels"}
+#: Review I-2: the builders that READ the market or the member's data in create mode. Each always
+#: builds a node (never a skip), so a dry run can list them without running them;
+#: journal_styles._plan does exactly that when an empty note is switched to a style. Railed both ways
+#: by tests/test_prep_create_budget.py: every builder outside this set reads nothing, and every
+#: builder inside it builds a node whatever its reads do.
+READS_ON_CREATE = frozenset({"marketcontext", "positionSizing", *PREP_BLOCK.values()})
 MOVERS_MAX = 8
 #: How many of the member's names the movers part reads. A name the live cache misses is a bar-store
 #: read, on the request path and inside a Daily prep note create, so the scan is bounded; the snapshot
