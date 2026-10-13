@@ -1,5 +1,8 @@
 # Gate 4 (tree efd110b538): classification of the one NEW row
 
+> ⚰️ CORRECTED by gate 5 (`../p2a-landing-r5/CLASSIFICATION.md`): this row is MASTER-OWNED and INTERMITTENT,
+> not order-dependent. It failed 2 of 3 solo runs on bare master `8f2b324a65`. Evidence 1 below was one sample.
+
 Manifest: `2026-10-13T08-18-48.md` / `.json`. VERDICT=NEW_FAILURES, new=1, test_files=3384, reconciles=true.
 
 ## NEW: `src/components/StockChart.smoke.test.jsx > StockChart render smoke > reports the drawn bar count to onDrawnBarCount`
