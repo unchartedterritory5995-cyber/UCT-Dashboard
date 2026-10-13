@@ -70,7 +70,7 @@ describe('⭐ the brief\'s sentences, through the fast path (no model call)', ()
     ['Add VWAP.', 'indicator.add', { defId: 'vwap', inputs: null }],
     ['Remove RSI.', 'indicator.remove', { instance: 'rsi' }],
     ['add rsi 7', 'indicator.add', { defId: 'rsi', inputs: [{ key: 'period', value: 7 }] }],
-    ['put a 50-day moving average on my chart', 'indicator.add', { defId: 'movingAverage', inputs: [{ key: 'period', value: 50 }] }],
+    ['put a 50-day moving average on my chart', 'indicator.add', { defId: 'movingAverage', inputs: [{ key: 'period', value: 50 }, { key: 'maType', value: 'sma' }] }],   // Gate C: owner MA default (SMA for 50+),
     ['add ema 9', 'indicator.add', { defId: 'movingAverage', inputs: [{ key: 'period', value: 9 }, { key: 'maType', value: 'ema' }] }],
     ['add MACD', 'indicator.add', { defId: 'macd', inputs: null }],
   ]

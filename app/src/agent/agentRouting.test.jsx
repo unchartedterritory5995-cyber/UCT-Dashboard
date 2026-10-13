@@ -200,7 +200,7 @@ describe('release audit: every registered action is reachable through routing', 
       for (const n of mine) covered.add(n)
     }
     expect(FULL.filter(c => !covered.has(c.name)).map(c => c.name)).toEqual([])
-    expect(FULL.length).toBe(90)              // Phase 1: + watchlist.open; MI breadth slice 1: + breadth.show; breadth intelligence: + breadth.history
+    expect(FULL.length).toBe(91)              // Gate C: + indicator.update. Phase 1: + watchlist.open; MI breadth slice 1: + breadth.show; breadth intelligence: + breadth.history
     // M2: + indicator.add / remove / show / hide; M3: + draft / previewDraft / saveDraft / undoDraft
   })
 })

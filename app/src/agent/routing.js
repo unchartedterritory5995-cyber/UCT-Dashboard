@@ -41,6 +41,10 @@ export const GROUPS = [
     words: [/\bindicators?\b/, /\b(rsi|macd|ema|sma|vwap|atr|bollinger|keltner|stochastic|supertrend|regression|correlation|momentum|oscillator|histogram)\b/,
       // "what's on this chart", "do i have the 50 on here", "a weekly 10 line": the chart's indicators
       /\bwhat'?s on (this|the|my) chart\b|\b(have|got) the \d+ on\b|\b\d+ (line|ma|average)\b/,
+      // Gate C: moving averages by name or by LENGTH ("add a 200 day moving average", "add the 9 and 20",
+      // "put the 50 on it", "make it a 9" after an add) and the short names traders type ("bollies", "bb")
+      /\bmoving averages?\b|\b(mas?|bbands?|bb|bollies|boll)\b|\b\d{1,3}[- ]?(?:day|week|period)\b/,
+      /\b(add|put|throw|slap|stick|plot|show|hide|remove|take off|clear|get rid of|make)\b.*\bthe \d{1,3}(?:\s*(?:,|and|&)\s*(?:the )?\d{1,3})*\b/,
       /\b(build|make|create|write|code)\b.*\b(indicator|study|signal|formula)\b/, /\b(when|whenever|if)\b.*\b(cross(es)?|above|below)\b/,
       // a colour RULE ("colour the candles by trend"), not a colour ("colour the candles green")
       /\b(colou?r|paint|highlight|shade)\w*\b.*\bby (trend|momentum|strength|signal|condition)\b/,
@@ -184,7 +188,7 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   // Past it, routing always applies: the always-on and follow-up groups, every other group NAMED,
   // so the model asks for what it needs (need_groups) instead of anything being cut.
   if (opts.enabled === false && manifest.length <= limit) return { manifest, routing: null }
-  const { priority, matched } = selectGroups(message, opts)
+  const { priority, matched, soft } = selectGroups(message, opts)
   if (!matched && !extra.length && manifest.length <= limit) return { manifest, routing: null }
   // A reroute's requested groups come straight after the always-on ones.
   const always = GROUPS.filter(g => g.always).map(g => g.id)
@@ -194,8 +198,13 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   // and if one must wait it is the biggest, most often incidental, group.
   const pinned = [...new Set([...always, ...extra, ...(opts.pendingActions || []), ...(opts.recentActions || [])].map(x => (x.includes?.('.') ? groupOfAction(x) : x)).filter(Boolean))]
   const rest = priority.filter(id => !pinned.includes(id))
-  // (nothing recognised: catalog order — charts first — not size order)
-  const own = matched ? [...rest].sort((a, b) => sizeOf(a) - sizeOf(b)) : rest
+  // Nothing recognised: the soft-vocabulary groups first, then charts (the page's own controls), then
+  // every other group SMALLEST first — the most groups that fit, so a message nothing named (a breadth
+  // follow-up, a market question) is not one action short of its group. (Gate C: catalog order sent only
+  // charts / workspace / layouts / indicators once the indicators group grew by one.)
+  const bySize = (a, b) => sizeOf(a) - sizeOf(b)
+  const own = matched ? [...rest].sort(bySize)
+    : [...new Set([...(soft || []).filter(id => rest.includes(id)), ...rest.filter(id => id === 'charts'), ...rest.filter(id => id !== 'charts').sort(bySize)])]
   const order = [...new Set([...pinned, ...own])]
   // PACK under the budget, in priority order. A group that would overflow is NOT sent — it is
   // named (unselected), so the model can ask for it; nothing is ever partially sent.
@@ -220,5 +229,11 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
     },
     // groups the request needed but the budget could not carry (a reroute cannot add these either)
     overBudget: over,
+    // ⭐ Gate C: the groups whose live data is worth RE-READING before this request (useAgent
+    // refreshContext). Nothing recognised → only the pinned, soft-vocabulary and chart groups: the rest
+    // fill the budget so the model can act without a reroute, from the context already loaded (every op
+    // is re-validated against live state before it runs). Recognised → every selected group, as before.
+    refresh: matched ? present.filter(g => want.has(g.id)).map(g => g.id)
+      : [...new Set([...pinned, ...(soft || []), 'charts'])].filter(id => want.has(id)),
   }
 }

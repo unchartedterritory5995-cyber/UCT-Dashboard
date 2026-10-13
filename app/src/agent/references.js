@@ -17,6 +17,7 @@
 
 import { getCapability, getTargetKind } from './capabilities'
 import { canon, matchPosition } from './fastPath'
+import { updateOfSubject } from './capabilities/indicatorEdits'
 
 const ORD = { first: 1, top: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10, last: -1, bottom: -1 }
 const ORD_WORD = Object.keys(ORD).join('|')
@@ -27,6 +28,8 @@ const OPEN_RE = new RegExp(`^${OPEN_VERB} ${ORDINAL}(?: (?:on|in) the chart)?$`)
 const COMPARE_RE = /^compare (?:it|this|that|this one|that one|this chart|the chart) (?:to|with|against|vs\.?) (?:(the others|the rest|the other ones|all the others|them|all of them)|the (?:top|first) (\d{1,2})(?: of them| others)?)$/
 const SAME_RE = /^(?:(?:do|apply|use|make) )?(?:the )?same(?: thing| settings| change| again)?(?: (?:on|for|to|with|in)) (?:the )?(top-left|top-right|bottom-left|bottom-right|left|right|top|bottom|upper|lower|other)(?: (?:one|chart|side))?(?: too| as well)?$/
 const NORM_POS = { upper: 'top', lower: 'bottom' }
+// "make it a 9", "change that to an EMA" — an EDIT of the indicator this chat last touched
+const EDIT_IT = /^(?:make|change|set|switch|turn|bump) (?:it|that|this|that one|this one) (?:to |into |up to |down to )?(?:an? |the )?(.+)$/
 const MAX_COMPARE = 10                            // chart.compare's own limit (10 overlays per chart)
 
 const chartsOf = (host) => { try { return getTargetKind('chart')?.list(host) || [] } catch { return [] } }
@@ -86,6 +89,19 @@ export function resolveReference(text, { host, memory, epoch = null } = {}) {
     }
     if (!want) return { kind: 'say', text: 'There are no other results to compare it with.' }
     return { kind: 'ops', ops: [{ action: 'chart.compare', args: { add: others.slice(0, want), remove: [], clear: false }, trusted: true, target: chart.ref }], target: null, ref: { set: set.id, count: want } }
+  }
+
+  // ── "make it a 9" / "change that to an EMA" — only while the conversation is about an indicator (the last
+  // change was one), so "make it weekly" after a chart change is still the chart's timeframe ──
+  const edit = EDIT_IT.exec(lower)
+  if (edit) {
+    const last = memory.lastChange(epoch)
+    const subject = memory.subject('indicator', epoch)
+    if (subject && last && last.ops.every(o => String(o.action).startsWith('indicator.'))) {
+      const r = updateOfSubject(host, subject, edit[1])
+      if (r?.say) return { kind: 'say', text: r.say }
+      if (r?.op) return { kind: 'ops', ops: [r.op], target: null, ref: { indicator: subject.instanceId } }
+    }
   }
 
   // ── "do the same on the right one" ──

@@ -94,7 +94,7 @@ export const TOPICS = [
   {
     id: 'indicators', title: 'Indicators',
     words: [/\bindicators?\b/, /\b(rsi|macd|bollinger|vwap|atr|stochastic|ema|sma|moving averages?|oscillators?|studies|study)\b/, /\bpanes?\b/],
-    caps: ['indicator.list', 'indicator.add', 'indicator.remove', 'indicator.show', 'indicator.hide'], productHas: true,
+    caps: ['indicator.list', 'indicator.add', 'indicator.update', 'indicator.remove', 'indicator.show', 'indicator.hide'], productHas: true,
     canDo: 'list the indicators on a chart; add one (a built-in indicator or one of your own saved ones), remove one (shown to you first, with anything it would disconnect, and undone exactly) and show or hide one — one at a time, on charts whose indicators you can change',
     known: () => ['an indicator’s inputs, colours, style and pane placement (Chart Settings → Indicators)', 'classic overlay averages and Volume Profile (Chart Settings)'],
     planned: null,

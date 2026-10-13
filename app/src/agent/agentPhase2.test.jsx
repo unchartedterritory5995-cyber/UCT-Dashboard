@@ -283,7 +283,7 @@ describe('a request for SPECIFIC indicator settings is never faked with a defaul
     ['add a 50 sma', '{"defId":"movingAverage","inputs":[{"key":"period","value":50},{"key":"maType","value":"sma"}]}'],
     ['add RSI 7', '{"defId":"rsi","inputs":[{"key":"period","value":7}]}'],
     ['throw a 20-period exponential moving average on this chart', '{"defId":"movingAverage","inputs":[{"key":"period","value":20},{"key":"maType","value":"ema"}]}'],
-    ['add the 200 day moving average', '{"defId":"movingAverage","inputs":[{"key":"period","value":200}]}'],
+    ['add the 200 day moving average', '{"defId":"movingAverage","inputs":[{"key":"period","value":200},{"key":"maType","value":"sma"}]}'],   // Gate C: owner MA default
   ])('instant path adds "%s" with exactly those settings', (t, args) => expect(parse(t)).toBe(`indicator.add${args}`))
   it('the model is told: every requested setting goes in inputs; never a default one in its place', () => {
     const h = getCapability('indicator.add').hints

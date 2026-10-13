@@ -37,6 +37,7 @@ import { registerBuiltins } from './builtins'
 import { routeManifest, routingEnabled, routingNames } from './routing'
 import { createMemory, tickersOfAnswer } from './memory'
 import { resolveReference, subjectTarget } from './references'
+import { takeIndicatorTouch } from './capabilities/indicatorEdits'
 import { correctTypos, lexiconFor } from './nl/lexicon'
 import { agentTurn, agentTurnStream, serverStreams, loadAgentConfig, agentRecord, agentConversation } from './agentClient'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
@@ -94,6 +95,9 @@ function rememberChange(memory, host, ops) {
     const refs = [...new Set(clean.map(o => o.target))]
     const sym = refs.length === 1 ? host?.charts?.read?.(refs[0])?.symbol || null : null
     memory?.noteChange({ ops: clean, epoch: epochOf(host), chartSymbol: sym })
+    // the indicator a confirmed add / edit touched ("make it a 9"), taken from Indicators' own receipt
+    const t = takeIndicatorTouch()
+    if (t) memory?.noteIndicator({ chart: t.chartRef, instanceId: t.instanceId, defId: t.defId, label: t.name, epoch: epochOf(host) })
   } catch { /* memory is best-effort */ }
 }
 // Which board the host is showing (null for hosts without layouts).
@@ -1076,7 +1080,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // Data that can change outside this panel is re-read first (bounded) — Phase 2: only for the
       // action groups this message was routed to (a timeframe change no longer waits on alerts).
       turnPath('model')
-      await refreshContext(1500, { groups: routed.routing ? routed.routing.selected : null })
+      await refreshContext(1500, { groups: routed.routing ? (routed.refresh || routed.routing.selected) : null })
       mark('context:refreshed')
       let { context, refMap } = buildContext(host, { ...capCtx, message: text })
       mark('context:built')
