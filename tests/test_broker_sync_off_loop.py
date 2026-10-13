@@ -218,6 +218,48 @@ async def test_every_request_loop_caller_in_the_router_asks_for_off_loop(monkeyp
     assert seen == [True, True, True], seen
 
 
+async def test_sync_due_accounts_passes_off_loop_through(monkeypatch):
+    seen = []
+
+    async def fake(user_id, ba_id, **kw):
+        seen.append(kw.get("off_loop", False))
+        return {}
+
+    monkeypatch.setattr(sync, "sync_account", fake)
+    monkeypatch.setattr(sync.connections, "list_due_accounts",
+                        lambda interval: [{"userId": "u1", "id": "a1"}])
+    monkeypatch.setattr(sync, "_user_is_paid", lambda uid, cache: True)
+    await sync.sync_due_accounts(interval_minutes=0, off_loop=True)
+    await sync.sync_due_accounts(interval_minutes=0)
+    assert seen == [True, False]
+
+
+async def test_the_reset_partner_auth_resync_asks_for_off_loop(monkeypatch):
+    """The admin reset-partner-auth route resyncs on the web pod's request
+    loop, so its sync_due_accounts call must request off_loop. Driven through
+    the real handler."""
+    from api.routers import broker_sync as router_mod
+    from api.services.journal_two.broker import connections as conns
+
+    seen = []
+
+    async def recorder(*, interval_minutes=None, concurrency=None, off_loop=False):
+        seen.append((interval_minutes, off_loop))
+        return {"due": 0, "synced": 0, "failed": 0}
+
+    class _Req:
+        headers = {"authorization": "Bearer s3cret"}
+
+    monkeypatch.setenv("PUSH_SECRET", "s3cret")
+    monkeypatch.setattr(conns, "reset_partner_auth_broken",
+                        lambda dry_run=False: {"reset": 1})
+    monkeypatch.setattr(sync, "sync_due_accounts", recorder)
+
+    out = await router_mod.admin_reset_partner_auth_broken(_Req(), resync=True, dry_run=False)
+    assert seen == [(0, True)], seen
+    assert out["resync"] == {"due": 0, "synced": 0, "failed": 0}
+
+
 def test_the_shared_rate_limiter_survives_use_from_several_event_loops():
     """One process-wide limiter is acquired from the request loop, the
     scheduler's asyncio.run threads and the off-loop syncs. An asyncio.Lock

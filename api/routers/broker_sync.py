@@ -312,7 +312,8 @@ async def admin_reset_partner_auth_broken(
     result = _conns.reset_partner_auth_broken(dry_run=dry_run)
     if resync and not dry_run and result["reset"]:
         from api.services.journal_two.broker import sync as _sync
-        result["resync"] = await _sync.sync_due_accounts(interval_minutes=0)
+        # off_loop: this route runs on the web pod's shared request loop (see sync_account).
+        result["resync"] = await _sync.sync_due_accounts(interval_minutes=0, off_loop=True)
     return result
 
 
