@@ -51,8 +51,14 @@ axeSurface('trader-block-platform', async () => {
   for (const name of ['Pre-entry checklist', 'Price stamps', 'Position sizing']) {
     expect(group(name).queryByText('This block is being built.')).toBeNull()
   }
-  // P2b Task 2: part b's six are stubs until their body tasks (8, 10, 11); each must still paint.
-  for (const name of PART_B) expect(await group(name).findByText('This block is being built.')).toBeTruthy()
+  // P2b Task 8: My rules has its real body (rules: [] here, so its empty state); its own states have a
+  // recipe in traderBlockMyRules.a11y.test.jsx. R-PF-B3: each body task flips its own group here.
+  expect(await group('My rules').findByText(/You have no rules yet/)).toBeTruthy()
+  expect(group('My rules').queryByText('This block is being built.')).toBeNull()
+  // P2b Task 2: part b's other five are stubs until their body tasks (10, 11); each must still paint.
+  for (const name of PART_B.filter((n) => n !== 'My rules')) {
+    expect(await group(name).findByText('This block is being built.')).toBeTruthy()
+  }
 })
 
 axeSurface('trader-block-platform:error', async () => {

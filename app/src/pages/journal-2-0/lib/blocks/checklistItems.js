@@ -17,6 +17,10 @@ export const CHECKLIST_ACCOUNT_LINES = Object.freeze({
 
 const hasId = (v) => v !== undefined && v !== null && v !== ''
 
+/** The ONE spelling of a rule's item id (`rule:<id>`): Log Trade stores it, and the Trade page's
+ *  adherence card keeps a stored one it does not list (P2b Task 8, R-T8-1 I-3). */
+export const RULE_PREFIX = 'rule:'
+
 export function checklistItems({ settings, rules, setup, includeRules }) {
   const out = []
   const seen = new Set()
@@ -26,7 +30,7 @@ export function checklistItems({ settings, rules, setup, includeRules }) {
     for (const r of setupRules) if (hasId(r?.id)) push(String(r.id), String(r.label || ''), 'setup')
   }
   if (includeRules === 'yes' && Array.isArray(rules)) {
-    for (const r of rules) if (r?.beforeEntry === true && hasId(r.id)) push(`rule:${r.id}`, String(r.label || ''), 'rule')
+    for (const r of rules) if (r?.beforeEntry === true && hasId(r.id)) push(`${RULE_PREFIX}${r.id}`, String(r.label || ''), 'rule')
   }
   return out
 }

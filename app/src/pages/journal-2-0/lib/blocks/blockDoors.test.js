@@ -43,7 +43,8 @@ const BLOCK_DIR_RELS = DIRS.map((d) => `${rel(d)}/`)
  * commit that creates the call, and nothing else:
  *   · Task 8  — lib/blocks/logTradeChecklist.js, its two named writes (Log Trade's ticks: the open
  *     position's pre-entry PUT and the closed trade's adherence PUT; the body file writes nothing);
- *   · Task 10 — its block body's one named write.
+ *   · Task 10 — its block body's one named write;
+ *   · P2b Task 8 — lib/blocks/rulesApi.js, the rule edit (a rule's words, its note, its before-entry switch).
  * Never a whole file, never a note URL (the last case below refuses both).
  */
 export const WRITE_EXCEPTIONS = {
@@ -56,6 +57,11 @@ export const WRITE_EXCEPTIONS = {
   'app/src/pages/journal-2-0/lib/blocks/priceStampsRun.js': [
     { method: 'POST', url: '/api/j2/trader-blocks/price-stamp',
       why: 'Task 10, the price stamp: creates ONE j2_fact_observations row (the price, its source and its as-of) and never advances the note; the stamp node lands through an editor transaction (spec §P2 item 4).' },
+  ],
+  // P2b Task 8 (ruling R-PF-B7: the literal template, never an escaped pattern).
+  'app/src/pages/journal-2-0/lib/blocks/rulesApi.js': [
+    { method: 'PUT', url: '/api/j2/trader-blocks/rules/{}',
+      why: 'Writes j2_journal_rules and j2_journal_rule_versions (part b Task 3), never a note.' },
   ],
 }
 
@@ -91,6 +97,9 @@ export const IMPORT_ALLOW = {
   'app/src/lib/tickerResolver': "resolveCashtags, the line's $TICKER (a parser over a bundled JSON); no network",
   // T14 gate fix (formControls.census): the price stamps toggle is the app's ONE on/off control.
   'app/src/components/ui/Switch': 'the shared switch primitive: a button and its knob, no imports, no network, no writes',
+  // P2b Task 8 (ruling R-PF-B8): the My rules block's ONE read seam. Its write is rulesApi.js (a block
+  // file, WRITE_EXCEPTIONS above); the seam hands back the rules, their state and a re-read only.
+  'app/src/pages/journal-2-0/hooks/useMyRulesSources': 'the My rules read seam: the selected account\'s rules, their state and one re-read; create and dismiss are unreachable (members)',
 }
 
 /**
@@ -145,6 +154,20 @@ export const SEAM_RULES = {
       [`${J2_HOOKS}useJ2SelectedAccount`]: ['accountId', 'isLoading', 'isAllAccounts', 'accountsError', 'accounts'],
       [`${J2_HOOKS}useJ2Accounts`]: ['refresh'],
       [`${J2_HOOKS}useJ2CurrentRegime`]: ['regime', 'isLoading', 'error'],
+    },
+  },
+  // P2b Task 8 (ruling R-PF-B8): the My rules block's seam. `mutate` is reached only through the seam's
+  // `refresh` (called with no argument: a re-read, never a cache write), held in a ref (H14).
+  [`${J2_HOOKS}useMyRulesSources`]: {
+    imports: {
+      react: 'useCallback, useEffect and useRef (the latest re-read, written after render; H14); no network',
+      [`${J2_HOOKS}useJ2SelectedAccount`]: 'the selected account; its setAccount is unreachable (members)',
+      [`${J2_HOOKS}useJournalRules`]: 'SWR read of the active (and, for "All rules", dismissed) rules; create and dismiss are unreachable (members)',
+      [`${J2_HOOKS}useChecklistSources`]: 'selectedAccountState only: the ONE copy of "why no account is selected"; the seam\'s hook is never called',
+    },
+    members: {
+      [`${J2_HOOKS}useJ2SelectedAccount`]: ['accountId', 'isLoading', 'isAllAccounts', 'accountsError', 'accounts'],
+      [`${J2_HOOKS}useJournalRules`]: ['rules', 'isLoading', 'error', 'mutate'],
     },
   },
 }
@@ -708,6 +731,7 @@ describe('⛔⛔ no block owns a second write door', () => {
     const seams = seamIds()
     expect(seams).toContain(`${J2_HOOKS}useChecklistSources`)                    // non-vacuity
     expect(seams).toContain(`${J2_HOOKS}usePositionSizingSources`)
+    expect(seams).toContain(`${J2_HOOKS}useMyRulesSources`)
     for (const id of seams) {
       const p = `${id}.js`
       expect(existsSync(join(REPO, p)), `${p} is not a file`).toBe(true)
@@ -800,6 +824,31 @@ describe('⛔⛔ no block owns a second write door', () => {
     expect(seamProblems(f, seam(CLEAN, "import useJournalRules from './useJournalRules'"), rule))
       .toEqual([`UNLISTED ${f}: ./useJournalRules`])
     expect(seamProblems(f, seam(CLEAN, '// const { save } = useJ2Settings()'), rule)).toEqual([])
+  })
+  it('CONTROL — ⑤ the My rules seam (P2b Task 8): create, dismiss or the whole hook result are seen, by name', () => {
+    const f = `${J2_HOOKS}useMyRulesSources.js`
+    const rule = SEAM_RULES[`${J2_HOOKS}useMyRulesSources`]
+    const seam = (body, extra = '') => [
+      "import useJ2SelectedAccount from './useJ2SelectedAccount'",
+      "import useJournalRules from './useJournalRules'",
+      "import { selectedAccountState } from './useChecklistSources'",
+      extra,
+      "export const RETURN_KEYS = Object.freeze(['rules', 'refresh'])",
+      'export default function useX() {',
+      body,
+      '}',
+    ].join('\n')
+    const CLEAN = "  const { accountId } = useJ2SelectedAccount()\n  const { rules, mutate } = useJournalRules(accountId)\n"
+      + '  const s = selectedAccountState({ accountId })\n  return { rules, refresh: mutate }'
+    expect(seamProblems(f, seam(CLEAN), rule)).toEqual([])
+    expect(seamProblems(f, seam(CLEAN.replace('{ rules, mutate }', '{ rules, mutate, create }')), rule))
+      .toEqual([`MEMBER ${f}: useJournalRules.create`])
+    expect(seamProblems(f, seam(CLEAN.replace('{ rules, mutate }', '{ rules, dismiss: d }')), rule))
+      .toEqual([`MEMBER ${f}: useJournalRules.dismiss`])
+    expect(seamProblems(f, seam(CLEAN.replace('const { rules, mutate } = useJournalRules(accountId)', 'const r = useJournalRules(accountId); const { rules, mutate } = r')), rule))
+      .toEqual([`REF ${f}: useJournalRules`])
+    expect(seamProblems(f, seam(CLEAN, "import useJ2Settings from './useJ2Settings'"), rule)).toEqual([`UNLISTED ${f}: ./useJ2Settings`])
+    expect(seamProblems(f, seam(CLEAN, '// const { create } = useJournalRules(accountId)'), rule)).toEqual([])
   })
   it("CONTROL — Task 10's write: the /price capture's note URL is refused, its own route is exempt and nothing else", () => {
     const why = 'a reason long enough to be a reason'

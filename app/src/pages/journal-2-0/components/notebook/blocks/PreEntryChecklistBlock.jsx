@@ -31,8 +31,8 @@ const RULE_LINES = {
   error: "Your rules couldn't load, so none are listed here.",
   // (with no specific account the whole checklist says why instead: CHECKLIST_ACCOUNT_LINES)
   // R-T7-2 concern 3: true today and stays true. The pointer to the control that marks a rule
-  // "before entry" lands with that control (part b), never before it.
-  none: 'No rules are marked "before entry" yet, so none are listed here.',
+  // "before entry" landed with that control (P2b Task 8, the My rules block's switch; N17).
+  none: 'No rules are marked "before entry" yet, so none are listed here. Turn on "Before entry" for a rule in a My rules block.',
 }
 
 export default function PreEntryChecklistBlock({ params, setParams, editable }) {

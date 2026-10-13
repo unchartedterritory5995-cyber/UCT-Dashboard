@@ -10,15 +10,28 @@
  * instantly revertible per-browser. Mirrors DayRulesChecklist's checkbox-row
  * idiom, but writes to the adherence side-table (not day-notes).
  *
- * Robust to setup edits: only CURRENT rules render, and only current-rule ids
- * are ever persisted, so a stored `checkedRuleId` whose rule was later
- * deleted/renamed simply drops out (never rendered, never inflates the count).
- * `totalRules` is always the current `rules.length`.
+ * Robust to setup edits: only CURRENT setup items render, and a stored setup
+ * item id whose item was later deleted/renamed simply drops out (never
+ * rendered, never inflates the count).
+ *
+ * ⛔ Notebook P2b Task 8 (R-T8-1 I-3, ruling R-PF-B9): once a rule can be marked
+ * "before entry", the list is the pre-entry checklist's list — the setup's items,
+ * then the account's before-entry rules as `rule:<id>` — built by the ONE copy,
+ * lib/blocks/checklistItems (includeRules yes), from the checklist's ONE read seam.
+ * Log Trade stores exactly that set, so the card, Log Trade and the analytics
+ * (which average the stored adherencePct) count one set, and a trade never
+ * carries two adherence numbers. A stored `rule:` tick for a rule this list no
+ * longer shows (un-marked, dismissed, or another account's) is a tick the member
+ * made: it is KEPT on every write, counted as followed in both the count and
+ * `totalRules`, and said in a line, never erased. While the rules are still
+ * loading the boxes wait, so no write counts a set it has not read.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFeatureFlag } from '../../featureFlags'
+import useChecklistSources from '../../hooks/useChecklistSources'
 import useJ2Adherence from '../../hooks/useJ2Adherence'
+import { RULE_PREFIX, checklistItems } from '../../lib/blocks/checklistItems'
 import styles from './AdherenceChecklist.module.css'
 
 export default function AdherenceChecklist({ trade, settings }) {
@@ -28,11 +41,13 @@ export default function AdherenceChecklist({ trade, settings }) {
 
   // Skip the fetch entirely when the flag is off (pass null → hook no-ops).
   const { adherence, save } = useJ2Adherence(flagOn ? tradeId : null)
+  const { rules: accountRules, rulesState } = useChecklistSources({ wantRules: flagOn })
 
-  const rules = useMemo(() => {
-    const r = settings?.setupRules?.[setup]
-    return Array.isArray(r) ? r : []
-  }, [settings, setup])
+  // No setup, no list: Log Trade lists nothing before a setup is picked either.
+  const rules = useMemo(
+    () => (setup ? checklistItems({ settings, rules: accountRules, setup, includeRules: 'yes' }) : []),
+    [settings, accountRules, setup],
+  )
   const ruleIds = useMemo(() => rules.map((r) => r.id), [rules])
 
   // Local optimistic checked set, seeded from the stored record.
@@ -55,17 +70,21 @@ export default function AdherenceChecklist({ trade, settings }) {
 
   if (!flagOn) return null
 
-  const total = rules.length
-  const checkedCount = ruleIds.filter((id) => checked.has(id)).length
+  // Stored rule ticks this list does not show: kept, and counted as followed (see the header).
+  const kept = [...checked].filter((id) => id.startsWith(RULE_PREFIX) && !ruleIds.includes(id))
+  const waiting = rulesState === 'loading'
+  const total = rules.length + kept.length
+  const checkedCount = ruleIds.filter((id) => checked.has(id)).length + kept.length
   const pct = total > 0 ? Math.round((checkedCount / total) * 100) : 0
 
   const toggle = (id) => {
+    if (waiting) return
     const next = new Set(checked)
     if (next.has(id)) next.delete(id)
     else next.add(id)
     setChecked(next)
-    // Persist only current-rule ids (drops any stale stored id).
-    const nextChecked = ruleIds.filter((rid) => next.has(rid))
+    // The listed ids that are ticked, then the kept rule ticks; a stale setup item id drops out.
+    const nextChecked = [...ruleIds.filter((rid) => next.has(rid)), ...kept]
     save({ setup, checkedRuleIds: nextChecked, totalRules: total })
   }
 
@@ -80,7 +99,7 @@ export default function AdherenceChecklist({ trade, settings }) {
         )}
       </div>
 
-      {total === 0 ? (
+      {rules.length === 0 ? (
         <p className={styles.affordance}>
           {setup
             ? `Define rules for ${setup} in Settings`
@@ -100,6 +119,7 @@ export default function AdherenceChecklist({ trade, settings }) {
                     type="checkbox"
                     className={styles.checkbox}
                     checked={isChecked}
+                    disabled={waiting}
                     onChange={() => toggle(r.id)}
                   />
                   <span className={styles.text}>{r.label}</span>
@@ -108,6 +128,11 @@ export default function AdherenceChecklist({ trade, settings }) {
             )
           })}
         </ul>
+      )}
+      {kept.length > 0 && (
+        <p className={styles.affordance}>
+          {`Also counted as followed: ${kept.length} ${kept.length === 1 ? 'rule' : 'rules'} ticked earlier that ${kept.length === 1 ? 'is' : 'are'} not listed here.`}
+        </p>
       )}
     </div>
   )

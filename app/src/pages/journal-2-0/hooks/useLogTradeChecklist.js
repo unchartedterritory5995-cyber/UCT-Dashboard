@@ -82,7 +82,11 @@ export default function useLogTradeChecklist({ preEntryChecklist, kind, setup })
 
   return {
     on,
-    slotProps: { setup, requireAll: mode.requireAll, checked: ticked, onChange, onItems, disabled: !!notSaved },
+    // N-4 (P2b Task 8): `touched` lets the body show a carried rule tick only on a list that will save it.
+    slotProps: {
+      setup, requireAll: mode.requireAll, checked: ticked, onChange, onItems, disabled: !!notSaved,
+      touched: touchedSetups.includes(setup),
+    },
     isOpen,
     notSaved,
     canRetry: !!pending,

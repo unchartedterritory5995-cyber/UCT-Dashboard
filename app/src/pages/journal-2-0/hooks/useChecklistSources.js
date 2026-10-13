@@ -32,6 +32,28 @@ import useJournalRules from './useJournalRules'
  *  lib/blocks/blockDoors.test.js (⑤) requires the literal return below to carry exactly these keys. */
 export const RETURN_KEYS = Object.freeze(['settings', 'settingsState', 'retrySettings', 'rules', 'rulesState'])
 
+/**
+ * WHY no specific account is selected, or null when one is (M-3): accounts failed, still loading,
+ * "All Accounts" chosen, no account at all, or the first pick not made yet (a frame between accounts
+ * arriving and the selection effect). Only "All Accounts" is "no-account"; the pending first pick
+ * reads as loading. The ONE copy: the My rules seam (useMyRulesSources.js) asks this too (P2b
+ * ruling R-PF-B8), so the two blocks can never disagree about whose rules are on screen.
+ * @param {{ accountId: string|null, isLoading: boolean, isAllAccounts: boolean, accountsError: any,
+ *           accounts: object[] }} selected  useJ2SelectedAccount()'s own fields
+ * @returns {null|'loading'|'no-account'|'no-accounts'|'accounts-error'}
+ */
+export function selectedAccountState({ accountId, isLoading, isAllAccounts, accountsError, accounts }) {
+  if (accountId) return null
+  // R-T7-3 N-2: SWR keeps the last accounts when a re-poll fails, so the error decides only when
+  // there are none on hand (AccountSelector.jsx's own `!!error && accounts.length === 0`).
+  const noAccounts = !Array.isArray(accounts) || accounts.length === 0
+  if (!!accountsError && noAccounts) return 'accounts-error'
+  if (isLoading) return 'loading'
+  if (Array.isArray(accounts) && accounts.length === 0) return 'no-accounts'   // before All Accounts: "All" of none is not a choice
+  if (isAllAccounts) return 'no-account'
+  return 'loading'
+}
+
 export default function useChecklistSources({ wantRules }) {
   const { settings, isLoading: settingsLoading, error: settingsError, refresh } = useJ2Settings()
   const {
@@ -39,21 +61,7 @@ export default function useChecklistSources({ wantRules }) {
   } = useJ2SelectedAccount()
   const { rules, isLoading: rulesLoading, error: rulesError } = useJournalRules(wantRules ? accountId : null)
 
-  // WHY no specific account is selected, or null when one is (M-3): accounts failed, still loading,
-  // "All Accounts" chosen, no account at all, or the first pick not made yet (a frame between accounts
-  // arriving and the selection effect). Only "All Accounts" is "no-account"; the pending first pick
-  // reads as loading.
-  let accountState = null
-  if (!accountId) {
-    // R-T7-3 N-2: SWR keeps the last accounts when a re-poll fails, so the error decides only when
-    // there are none on hand (AccountSelector.jsx's own `!!error && accounts.length === 0`).
-    const noAccounts = !Array.isArray(accounts) || accounts.length === 0
-    if (!!accountsError && noAccounts) accountState = 'accounts-error'
-    else if (accountsLoading) accountState = 'loading'
-    else if (Array.isArray(accounts) && accounts.length === 0) accountState = 'no-accounts'   // before All Accounts: "All" of none is not a choice
-    else if (isAllAccounts) accountState = 'no-account'
-    else accountState = 'loading'
-  }
+  const accountState = selectedAccountState({ accountId, isLoading: accountsLoading, isAllAccounts, accountsError, accounts })
 
   // C-1: the settings are one account's only when one account is selected.
   const settingsState = accountState
