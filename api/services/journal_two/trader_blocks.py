@@ -50,13 +50,18 @@ def start_budget(memo: dict) -> dict:
     return memo
 
 
+def _spent(memo: Any) -> bool:
+    """Has the budget on `memo` run out? False when the memo carries none."""
+    deadline = memo.get(_DEADLINE) if isinstance(memo, dict) else None
+    return deadline is not None and time.monotonic() >= deadline
+
+
 def _spend(memo: Any) -> None:
     """Called BEFORE each read (and before each name in a scan): BudgetSpent once the deadline has
     passed. No deadline on the memo (a caller that started none) means no limit.
     ⛔ A read already running is not interrupted: the bound is the budget plus the one read in flight
     (each read's own bound: sqlite lock waits of 2-5 s; a local file read has none)."""
-    deadline = memo.get(_DEADLINE) if isinstance(memo, dict) else None
-    if deadline is not None and time.monotonic() >= deadline:
+    if _spent(memo):
         raise BudgetSpent()
 
 
@@ -844,6 +849,10 @@ def prep_part(user_id: str, part: str, *, now: datetime | None = None, memo: dic
     except Exception:  # noqa: BLE001 -- an unreadable source is a named gap, never a failed note
         import logging
         logging.getLogger(__name__).warning("[trader_blocks] prep %s unreadable", part, exc_info=True)
+        if on_spent == "raise" and _spent(memo):
+            # A read that failed AFTER the budget ran out did not finish inside it either: the block
+            # lands uncaptured, like any other part the budget stopped (R-T12-C ruling 1).
+            raise BudgetSpent() from None
         return _gap(_base(part, now), "source_error")
     finally:
         _ACTIVE_BUDGET.reset(token)

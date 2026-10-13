@@ -58,10 +58,12 @@ def small_budget(monkeypatch):
     return BUDGET
 
 
-@pytest.fixture
-def stalled(monkeypatch):
-    """Every leg sleeps STALL, then answers as it really would. Returns the call log."""
+@pytest.fixture(params=["slow", "dead"])
+def stalled(monkeypatch, request):
+    """Every leg sleeps STALL, then answers as it really would (`slow`) or raises (`dead`: the Task 15b
+    probe's fail mode). Returns the call log."""
     calls: list[str] = []
+    dead = request.param == "dead"
     for mod_name, attr in LEGS:
         mod = importlib.import_module(mod_name)
         real = getattr(mod, attr)
@@ -69,6 +71,8 @@ def stalled(monkeypatch):
         def slow(*a, _real=real, _key=f"{mod_name}.{attr}", **k):
             calls.append(_key)
             time.sleep(STALL)
+            if dead:
+                raise OSError(f"{_key} is dead")
             return _real(*a, **k)
         monkeypatch.setattr(mod, attr, slow)
     return calls
