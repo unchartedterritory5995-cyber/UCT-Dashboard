@@ -400,6 +400,15 @@ function markExplicitSaves(host, ops, words, notes) {
   })
 }
 
+// ── the builder could not be reached or could not run (post-release 2026-10-13: an exhausted model account
+// surfaced as "The indicator builder refused that (model:transport) — nothing changed.) — nothing was left
+// changed"). A SET, so a future provider gate (e.g. model:unavailable) needs no new wording here (INDICATORS).
+// The member hears one short, true sentence; the gate code stays in the outcome record (diagnostics only).
+// "nothing was saved" — not "nothing changed": a failed FIRST turn may leave an empty draft in this tab.
+export const BUILDER_DOWN_GATES = new Set(['model:transport', 'model:unavailable'])
+export const BUILDER_DOWN = 'I couldn’t build that indicator right now — nothing was saved. Please try again shortly.'
+const builderDown = (gate) => BUILDER_DOWN_GATES.has(gate) || (/^network|^http:/.test(gate) && !/^http:429/.test(gate))
+
 // ── what the member is told when the specialist refuses (every reason in §10/§16) ──
 export function refusalSentence(res) {
   const r = res && res.reason
@@ -430,8 +439,8 @@ export function refusalSentence(res) {
       if (gate === 'rate:busy') return 'The indicator builder is still working on another request — nothing changed. Try again in a moment.'
       if (gate === 'cost:user') return 'Today’s indicator-builder allowance is used up — nothing changed.'
       if (gate === 'cost:global') return 'The indicator builder is paused for today — nothing changed.'
-      if (/^network|^http:/.test(gate)) return 'The indicator builder couldn’t be reached — nothing changed.'
-      return `The indicator builder refused that${gate ? ` (${gate})` : ''} — nothing changed.`
+      if (builderDown(gate)) return BUILDER_DOWN
+      return 'The indicator builder couldn’t do that — nothing was saved.'
     case R.BAD_REQUEST: return 'That isn’t a valid request for the indicator builder.'
     default: return 'That did not work — nothing changed.'
   }
@@ -487,6 +496,12 @@ const sealFor = (env, ref) => (Array.isArray(env?.approval) ? env.approval.find(
 // name-only path. ⛔ NEVER from `changes` containing 'renamed': a model turn can rename AND change
 // the maths while reporting only that (the specialist's own test proves it).
 const fail = (msg, extra = {}) => Object.assign(new Error(msg), extra)
+// a builder TURN refusal is already the member's whole sentence (`complete`): the runtime and the receipt
+// say it as-is, never wrapped as "<label> failed (…) — nothing was left changed"; its gate rides along
+// for the outcome record only
+const turnRefused = (out, extra = {}) => fail(refusalSentence(out), {
+  ...extra, ...(out?.reason === R.TURN_REFUSED ? { complete: true, gate: String(out?.detail?.gate || '') } : {}),
+})
 
 // ── target kind: one snapshot per draft in this tab, plus the "new draft" entry ──
 function snapshots(host) {
@@ -561,7 +576,7 @@ export const indicatorDraftsKind = {
         }
         setActive(draftRef)
         const out = await draftTurn(draftRef, op.message, { expectedRevision: op.pinRevision ?? revision }, ctx)
-        if (!out.ok) throw fail(refusalSentence(out), lines.length ? { unreverted: true } : {})
+        if (!out.ok) throw turnRefused(out, lines.length ? { unreverted: true } : {})
         revision = out.revision
         op.outcome = out.kind
         op.renameOnly = out.ok && out.kind === 'applied' && out.renameOnly === true

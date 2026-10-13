@@ -50,6 +50,27 @@ log = logging.getLogger(__name__)
 #: valid envelope arrives — a failed request has changed nothing.
 FAILED = "UCT Agent couldn't complete that request. No changes were made."
 
+#: A model-provider failure, as ONE short sentence for the member (post-release 2026-10-13: an exhausted
+#: model account reached chat as "UCT Agent is unavailable right now (BadRequestError)"). The exception's
+#: class and message stay in the log (`provider_failure`), never in the conversation. Nothing is retried.
+PROVIDER_DOWN = "UCT Agent can't reach its AI service right now, so nothing was changed. Please try again shortly."
+PROVIDER_BUSY = "UCT Agent is busy right now, so nothing was changed. Please try again in a moment."
+PROVIDER_FAILED = "UCT Agent couldn't answer that right now, so nothing was changed. Please try again shortly."
+
+
+def provider_failure(e: BaseException) -> tuple[str, str]:
+    """(kind, member sentence) for a failed model call. kind: account | busy | network | other."""
+    name = type(e).__name__
+    text = str(getattr(e, "message", "") or e).lower()
+    if name in ("AuthenticationError", "PermissionDeniedError") or (
+            name == "BadRequestError" and ("credit balance" in text or "billing" in text)):
+        return "account", PROVIDER_DOWN
+    if name in ("RateLimitError", "OverloadedError", "InternalServerError", "ServiceUnavailableError")             or getattr(e, "status_code", None) in (429, 500, 502, 503, 529):
+        return "busy", PROVIDER_BUSY
+    if name in ("APIConnectionError", "APITimeoutError", "TimeoutError", "ConnectionError"):
+        return "network", PROVIDER_DOWN
+    return "other", PROVIDER_FAILED
+
 SCOPE = "uct_agent_turn"
 _ET = ZoneInfo("America/New_York")
 
@@ -245,8 +266,9 @@ def _turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None) 
     except Exception as e:  # noqa: BLE001 -- a provider failure is a sentence, not a 500
         _give_back(uid)
         store.add_turn(uid, cid, "outcome", "UCT Agent was unavailable for this message.", {"kind": "error"})
-        log.exception("[uct-agent] turn failed")
-        raise HTTPException(status_code=503, detail=f"UCT Agent is unavailable right now ({type(e).__name__}). No changes were made.")
+        kind, said = provider_failure(e)
+        log.exception("[uct-agent] turn failed kind=%s class=%s", kind, type(e).__name__)
+        raise HTTPException(status_code=503, detail=said)
     env, usage = out["envelope"], out["usage"]
     t_post = time.perf_counter()
     try:
@@ -418,7 +440,17 @@ def agent_breadth(body: Any = Body(...), user: dict = Depends(require_admin_dark
     # overview (breadth_present.OVERVIEW_METRICS — four measures, inside MI's four-measure limit)
     if isinstance(body, dict) and body.get("metrics") == []:
         body = {**body, "metrics": list(breadth_present.OVERVIEW_METRICS)}
+    # "% BELOW a moving average": the same measure's complement (breadth_present.complement) — MI reads the
+    # measure as stored; `side` never reaches it
+    below = isinstance(body, dict) and body.get("side") == "below"
+    if isinstance(body, dict) and "side" in body:
+        body = {k: v for k, v in body.items() if k != "side"}
+    if below and not breadth_present.below_ok(body):
+        why = breadth_present.BELOW_REFUSAL
+        return {"status": "refused", "text": why, "table": None, "present": {"kind": "error", "text": why}}
     res = breadth_reads.read(body)
+    if below:
+        res = breadth_present.complement(res)
     out = breadth_answer.answer(res)
     log.info("[uct-agent] breadth lookup status=%s", out.get("status"))          # never a value
     # `present`: the concise VIEW for the member (present.js) — MI's values, MI's formatting; the
@@ -435,7 +467,8 @@ def agent_breadth(body: Any = Body(...), user: dict = Depends(require_admin_dark
     from api.services.uct_agent import breadth_now
     if breadth_now.enabled() and breadth_now.wants_current(body) and out.get("status") in ("ok", "partial"):
         try:
-            text, present, _kinds = breadth_now.overlay(res, out, present)
+            text, present, _kinds = breadth_now.overlay(
+                res, out, present, reading=breadth_present.complement_reading(breadth_now._reader()) if below else None)
         except Exception:  # noqa: BLE001 -- the finalized answer stands
             log.exception("[uct-agent] present-tense breadth failed; finalized answer shown")
     return {"status": out.get("status"), "text": text, "table": out.get("table"), "present": present}

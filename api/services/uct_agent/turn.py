@@ -566,7 +566,12 @@ _BREADTH_Q = re.compile(
 #: happened?", "how long did it last?") — a breadth question only right after a breadth answer.
 _HISTORY_FOLLOWUP = re.compile(r"\b(last|first|most recent) time\b|\bhow (many times|often)\b|\bhow long did\b|"
                                r"\bcross(ed|es)? (above|below)\b|\b(below|above|under|over) \d+(\.\d+)?\s*%|"
-                               r"\bsame (thing|question|search)? ?(for|on)\b|\bwhat about (last year|this year|(in )?\d{4})\b", re.I)
+                               r"\bsame (thing|question|search)? ?(for|on)\b|\bwhat about (last year|this year|(in )?\d{4})\b|"
+                               # post-release 2026-10-13: "what about the nasdaq", "how long was it below …",
+                               # "and how many are below it?", "fewer than 10% were above"
+                               r"\b(what|how) about (the )?(us|u\.s\.|nyse|nasdaq)\b|\bhow long (was|has|had)\b|"
+                               r"\bhow many (of them )?(are|were) (below|above|under|over)\b|"
+                               r"\b(fewer|less|more) than \d+(\.\d+)?\s*%", re.I)
 
 
 def _last_breadth_row(history) -> bool:
@@ -690,7 +695,8 @@ def _local_requests(data) -> str:
         when = {"value": f"on {ok.get('date') or now}",
                 "compare": f"{ok.get('date') or 'the latest finalized session'} vs {ok.get('compare_date')}",
                 "series": f"from {ok.get('start')} to {ok.get('end') or 'the latest finalized session'}"}[ok["mode"]]
-        parts.append(f"breadth lookup ({ok['universe'].upper()}: {', '.join(ok['metrics'])}; {when})")
+        side = " — share at or below" if r.get("side") == "below" else ""          # an enum, never a value
+        parts.append(f"breadth lookup ({ok['universe'].upper()}: {', '.join(ok['metrics'])}{side}; {when})")
     return ("The member asked for: " + "; ".join(parts) + ".") if parts else ""
 
 

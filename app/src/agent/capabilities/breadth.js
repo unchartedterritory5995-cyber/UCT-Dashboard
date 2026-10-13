@@ -138,7 +138,7 @@ const UNI_PRE = `(?:${UNI_WORD} )?`
 const UNI_POST = `(?: (?:on|for|in|across) (?:the )?${UNI_WORD}(?: stocks)?)?`
 const ASK = "(?:(?:what(?:'s| is| are| was)?|how(?:'s| is)|show(?: me)?|give me|tell me) )?"
 const OVERVIEW_RE = new RegExp(`^${ASK}(?:the )?${UNI_PRE}(?:market )?breadth(?: (?:look(?:ing)?|like|doing))*${UNI_POST}(${WHEN_NOW}|${AT_CLOSE})$`)
-const PCT_RE = new RegExp(`^${ASK}(?:the )?(?:percent(?:age)?|%|pct) (?:of )?${UNI_PRE}(?:stocks )?(?:that are |are |were )?above (?:their |the |its )?(\\d+)(?:[\\s-]*(?:day|d))?(?:[\\s-]*(?:simple moving average|moving average|sma|dma|ma))?${UNI_POST}(${WHEN_NOW}|${AT_CLOSE})$`)
+const PCT_RE = new RegExp(`^${ASK}(?:the )?(?:percent(?:age)?|%|pct|share) (?:of )?${UNI_PRE}(?:stocks )?(?:that are |are |were |is |trading )?(above|over|below|under|not above) (?:their |the |its )?(\\d+)(?:[\\s-]*(?:day|d))?(?:[\\s-]*(?:simple moving average|moving average|sma|dma|ma))?${UNI_POST}(${WHEN_NOW}|${AT_CLOSE})$`)
 const uniOf = (...ws) => {
   const w = ws.find(Boolean)
   return !w || w === 'u.s.' ? 'us' : w
@@ -148,6 +148,17 @@ const uniOf = (...ws) => {
 // year ("the 2022 bear market") is left to the model, which asks for the dates it cannot resolve.
 const LOWHIGH_RE = new RegExp(`^(?:what (?:was|is|were) )?(?:the )?(lowest|highest|low|high|minimum|maximum|min|max) (?:reading |value |level )?(?:(?:for|of|on) )?(?:the )?(?:${UNI_WORD}\\s*:?\\s*)?(?:a(\\d+)|(\\d+)[\\s-]*(?:day|d)?[\\s-]*(?:sma|dma|ma|moving average))(?: reading)?(?: (?:on|for) the ${UNI_WORD})? (?:in|during) (\\d{4})$`)
 const SAME_SHOW_RE = new RegExp(`^(?:and )?(?:the )?same (?:thing |question )?(?:for|on) (?:the )?${UNI_WORD}(?: stocks)?$`)
+// ── FOLLOW-UPS on the last READING (post-release 2026-10-13: "what about the nasdaq" after US:A50 reached
+// the model). One thing changes; everything else — measure, side, basis — is the subject's.
+//   "what about the Nasdaq?" / "and NYSE?" / "how about US stocks"     → the universe
+//   "what about the 200?" / "and the 50-day?"                         → the moving average
+//   "and how many are below it?" / "what % are above it"              → the side (above / at or below)
+const FOLLOW_PRE = '(?:and |ok,? |so |then )?'
+export const UNI_SWITCH_RE = new RegExp(`^(?:ok,? |so |then )?(?:(?:and )?(?:what|how) about|and(?: for)?) (?:the )?${UNI_WORD}(?: stocks| market)?$`)
+const MA_SWITCH_RE = new RegExp(`^${FOLLOW_PRE}(?:(?:what|how) about|and) (?:the |their )?(\\d+)(?:[\\s-]*(?:day|d))?(?:[\\s-]*(?:simple moving average|moving average|sma|dma|ma))?$`)
+const SIDE_SWITCH_RE = new RegExp(`^${FOLLOW_PRE}(?:how many|what (?:%|percent(?:age)?|share)|what about(?: the ones| stocks)?)(?: of them)? (?:are |were |is )?(?:trading )?(above|over|below|under|not above)(?: (?:it|that|the (?:ma|moving average|average)))?$`)
+// UCT stores % ABOVE (strictly close > MA); "below" is its complement, served as the share AT OR BELOW
+const sideOf = (w) => (/^(below|under|not above)$/.test(w) ? 'below' : null)
 export function breadthFast(raw) {
   const t = String(raw || '').toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/[?.!]+$/g, '').replace(/\s+/g, ' ').trim()
   if (!t || t.length > 120) return null
@@ -159,22 +170,52 @@ export function breadthFast(raw) {
     const thisYear = Number(String(dates.today_et || new Date().toISOString()).slice(0, 4))
     if (y > thisYear) return null
     return { mode: 'series', universe: uniOf(lh[2], lh[5]), metrics: [`pct_above_${n}sma`], date: null, compare_date: null,
-      start: `${y}-01-01`, end: y === thisYear ? null : `${y}-12-31`, basis: null }
+      start: `${y}-01-01`, end: y === thisYear ? null : `${y}-12-31`, basis: null, side: null }
   }
   const same = SAME_SHOW_RE.exec(t)
-  if (same) return subject?.kind === 'show' && subject.show ? { ...subject.show, universe: uniOf(same[1]) } : null
+  if (same) return subject?.kind === 'show' && subject.show ? { side: null, ...subject.show, universe: uniOf(same[1]) } : null
+  const fu = followUp(t)
+  if (fu !== undefined) return fu
   const base = { date: null, compare_date: null, start: null, end: null }
   let m = OVERVIEW_RE.exec(t)
   if (m) {
-    return { mode: 'value', universe: uniOf(m[1], m[2]), metrics: [], ...base, basis: /close$/.test(m[3] || '') ? 'close' : null }
+    return { mode: 'value', universe: uniOf(m[1], m[2]), metrics: [], ...base, basis: /close$/.test(m[3] || '') ? 'close' : null, side: null }
   }
   m = PCT_RE.exec(t)
   if (m) {
-    const n = Number(m[2])
+    const n = Number(m[3])
     if (!SMA_PERIODS.has(n)) return null
-    return { mode: 'value', universe: uniOf(m[1], m[3]), metrics: [`pct_above_${n}sma`], ...base, basis: /close$/.test(m[4] || '') ? 'close' : null }
+    return { mode: 'value', universe: uniOf(m[1], m[4]), metrics: [`pct_above_${n}sma`], ...base, basis: /close$/.test(m[5] || '') ? 'close' : null, side: sideOf(m[2]) }
   }
   return null
+}
+
+/** A follow-up on the last READING: its args with one thing changed. null = recognised but not answerable
+ *  here (the model plans it); undefined = not a reading follow-up (a SEARCH subject is breadth.history's). */
+function followUp(t) {
+  const u = UNI_SWITCH_RE.exec(t)
+  const ma = u ? null : MA_SWITCH_RE.exec(t)
+  const sd = u || ma ? null : SIDE_SWITCH_RE.exec(t)
+  if (!u && !ma && !sd) return undefined
+  if (!subject) return null
+  if (subject.kind !== 'show') {
+    if (!sd) return undefined
+    // "how many are below it?" after a SEARCH: the current reading of that measure, on that side
+    return subject.metric && /^pct_above_\d+sma$/.test(subject.metric) && BREADTH_UNIVERSES.includes(subject.universe)
+      ? { mode: 'value', universe: subject.universe, metrics: [subject.metric], date: null, compare_date: null,
+        start: null, end: null, basis: null, side: sideOf(sd[1]) }
+      : null
+  }
+  const prev = { side: null, ...subject.show }
+  if (u) return { ...prev, universe: uniOf(u[1]) }
+  const one = Array.isArray(prev.metrics) && prev.metrics.length === 1 ? prev.metrics[0] : null
+  if (!one || !/^pct_above_\d+sma$/.test(one)) return null
+  if (ma) {
+    const n = Number(ma[1])
+    return SMA_PERIODS.has(n) ? { ...prev, metrics: [`pct_above_${n}sma`] } : null
+  }
+  if (prev.mode !== 'value') return null              // the share below is a reading, never a range
+  return { ...prev, side: sideOf(sd[1]) }
 }
 
 const nullableDate = { type: ['string', 'null'] }
@@ -205,10 +246,10 @@ export function registerBreadthCapabilities() {
     localOnly: true,
     summary: 'Look up MARKET BREADTH from UCT\'s own data (US, NYSE, Nasdaq): the current reading (live in the session), a finalized value on a date, two dates compared, or a range summarised — % above a moving average, new highs/lows, advance/decline, Stage 2/4 counts. '
       + 'UCT shows the figures to the member; you never see them. Use this (disposition apply, research null) — never state breadth figures yourself.',
-    hints: 'target = breadth entry ref. universe us (default) | nyse | nasdaq | uct. metrics 1–4 keys; [] = general overview. '
-      + 'value: date null = now (live); basis "close" only if a close is asked, else null. '
-      + 'compare: compare_date required, date null = latest close. series: start required, end null = latest. '
-      + 'Dates YYYY-MM-DD else null, from today_et / latest_finalized. '
+    hints: 'target = breadth ref. universe us (default) | nyse | nasdaq | uct. metrics 1–4 keys; [] = general overview. '
+      + 'value: date null = now; basis "close" if a close is asked; side "below" for % BELOW MA; else null. '
+      + 'compare: compare_date required, date null = latest. series: start required, end null = latest. '
+      + 'Dates YYYY-MM-DD or null, from today_et / latest_finalized. '
       + 'reply: one short line, no figures. Keys: ' + METRIC_GUIDE,
     args: {
       type: 'object',
@@ -219,8 +260,11 @@ export function registerBreadthCapabilities() {
         date: nullableDate, compare_date: nullableDate, start: nullableDate, end: nullableDate,
         // "close" = the member asked for a closing / end-of-day value (finalized); null = present tense
         basis: { type: ['string', 'null'], enum: ['close', null] },
+        // "below" = the member asked for the share BELOW a moving average (value mode, % above-MA keys only):
+        // UCT answers the share AT OR BELOW it (100 − above, the same measure); null otherwise
+        side: { type: ['string', 'null'], enum: ['below', null] },
       },
-      required: ['mode', 'universe', 'metrics', 'date', 'compare_date', 'start', 'end', 'basis'],
+      required: ['mode', 'universe', 'metrics', 'date', 'compare_date', 'start', 'end', 'basis', 'side'],
       additionalProperties: false,
     },
     fastWhole: true,

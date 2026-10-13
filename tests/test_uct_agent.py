@@ -425,7 +425,7 @@ def test_metered_and_a_failure_gives_the_charge_back(make_client, monkeypatch):
     monkeypatch.setattr(turn, "_default_caller", boom)
     c = make_client(ADMIN)
     r = c.post("/api/agent/turn", json={"message": "hi", "context": CTX})
-    assert r.status_code == 503 and "unavailable" in r.json()["detail"]
+    assert r.status_code == 503 and r.json()["detail"] == rx.PROVIDER_DOWN    # one sentence, no class name
     assert daily_counters.value("2026-10-07", rx.SCOPE, ADMIN["id"]) == 0
     monkeypatch.setattr(turn, "_default_caller", caller_of(_resp(env("answer", reply="ok"))))
     assert c.post("/api/agent/turn", json={"message": "hi", "context": CTX}).status_code == 200

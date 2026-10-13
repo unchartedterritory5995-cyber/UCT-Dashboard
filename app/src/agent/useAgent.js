@@ -673,10 +673,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
       if (next.length) return { followUps: next, ...(holdForAdd ? { held: { lines, used: false } } : {}) }
     } else {
-      const text = `Some of that didn't take effect: ${res.failed.map(f => `${f.label} ${f.reason}`).join('; ')}.`
+      // a failure that carries its own complete sentence (`say`) is said as-is — never wrapped twice
+      const text = res.failed.every(f => f.say) ? res.failed.map(f => f.say).join(' ')
+        : `Some of that didn't take effect: ${res.failed.map(f => f.say || `${f.label} ${f.reason}`).join('; ')}.`
       if (res.lines.length) push({ role: 'receipt', lines: res.lines, undoId: res.undo?.id || null })
       refusalPush(text)
-      record({ member, outcome: [res.lines.join(' · '), text].filter(Boolean).join(' · '), outcomeData: { kind: 'failed', actions }, telemetry: { path, refused: true, actions, voice } })
+      const gates = res.failed.map(f => f.gate).filter(Boolean)            // diagnostics only, never shown
+      record({ member, outcome: [res.lines.join(' · '), text].filter(Boolean).join(' · '), outcomeData: { kind: 'failed', actions, ...(gates.length ? { gates } : {}) }, telemetry: { path, refused: true, actions, voice } })
     }
   }, [host, push, record, capCtx])
 

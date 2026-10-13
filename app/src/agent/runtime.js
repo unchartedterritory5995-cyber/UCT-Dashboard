@@ -85,12 +85,15 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   // `dirty`: the failing step itself left something behind it could not take back.
   // `note`: the failing step says itself what it kept (e.g. a draft rename that stays) — never
   // "nothing was left changed" over a change that was deliberately kept
-  const fail = async (label, reason, { dirty = false, note = null } = {}) => {
+  // `say`: the step's own COMPLETE sentence for the member (it already says what was and wasn't kept) —
+  // said once, as-is; only a change that could not be reversed is added to it. `gate`: diagnostics only.
+  const fail = async (label, reason, { dirty = false, note = null, say = null, gate = null } = {}) => {
     const restored = (await compensate(host, landed)) && !dirty
     const tail = note ? ` — ${note}` : (restored ? ' — nothing was left changed' : ' — and some changes could not be reversed')
     return {
       ok: false, lines: [], undo: null, compensated: restored && !note,
-      failed: [{ label, reason: `${reason}${tail}` }],
+      failed: [{ label, reason: `${reason}${tail}`,
+        ...(say ? { say: restored ? say : `${say} Some earlier changes could not be reversed.` } : {}), ...(gate ? { gate } : {}) }],
     }
   }
 
@@ -105,7 +108,8 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
       if (e?.created && Object.keys(e.created).length) {
         landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, lines: [], before: p.snap, after: kind.read(host, p.ref), patch: p.patch, partial: e.created })
       }
-      return fail(p.snap.label, `failed (${e?.message || 'error'})`, { dirty: !!e?.unreverted, note: e?.keptNote || null })
+      return fail(p.snap.label, `failed (${e?.message || 'error'})`, { dirty: !!e?.unreverted, note: e?.keptNote || null,
+        say: e?.complete && e?.message ? e.message : null, gate: e?.gate || null })
     }
     if (res && res.created) Object.assign(aliases, res.created)
     if (res && res.born) Object.assign(born, res.born)

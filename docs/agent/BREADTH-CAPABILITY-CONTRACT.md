@@ -63,6 +63,30 @@ series. The S&P 500 is not one of these universes.
   - A refusal reads nothing.
 - **Lowest / highest in a period.** `breadth.show` `series` (its low and high come with their dates). A named period that isn't a date range ("the 2022 bear market") gets a question asking for its dates; it is never guessed.
 
+## Above and below a moving average (2026-10-13)
+
+UCT stores one measure per moving average: the percentage of stocks ABOVE it.
+- **Definition.** Strictly `close > MA`, over the names with enough history for the window, rounded to 0.1 (`breadth_live._pct`). The finalized series is the same measure.
+- **Below.** Members ask about the share below. Its exact complement is the share AT OR BELOW: `100 − above`, on the same denominator. A name exactly on its average counts as "at or below".
+  - `breadth.show` takes `side: "below"`. The route complements MI's result before the view, text and current-reading overlay (`breadth_present.complement` / `complement_reading`).
+  - The card is labelled "% of Stocks At or Below 50-Day MA". `side` never reaches MI, and no second dataset exists.
+- **Where it applies.** `side: "below"` is answered for one reading (`mode: value`) of `pct_above_*` measures only. Comparisons, ranges, mixed measures and non-MA measures are refused with one sentence; they are not guessed.
+- **History in below terms.** A condition on the share at or below is searched as the complementary condition on the stored measure, at level `100 − X`:
+  - below-share > X ⇔ above < 100 − X;
+  - below-share ≥ X ⇔ above ≤ 100 − X;
+  - the mirrors for `<` / `≤`;
+  - crossings swap direction.
+
+  "Fewer than / more than / at least / at most X% were above / below" is translated deterministically. "That" or "it" after a below-reading uses the same translation.
+
+**Follow-ups answered without the model** (the remembered subject holds names only, never a value):
+- "what about the Nasdaq?" / "and NYSE?" switches the universe (a reading, or the last search).
+- "what about the 200?" / "and the 50-day?" switches the moving average.
+- "and how many are below it?" / "what % are above it" switches the side.
+- "how long did it stay below 10%?" / "how long did that last?" asks for the episode: the remembered search's condition and window, or the condition named in the question.
+
+A bare universe word never switches anything. With no subject, each of these goes to the model.
+
 ## Isolation (unchanged, and pinned by tests)
 
 - **Local only.** `breadth.show` and `breadth.history` are local-only (`turn.LOCAL_ONLY_ACTIONS`). Their dates and values go only to the member's transcript.
