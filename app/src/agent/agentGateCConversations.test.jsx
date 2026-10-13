@@ -131,6 +131,19 @@ describe('Gate C conversations — references from session memory, through the r
     save()
   }, 60000)
 
+  it('the model path sees the memory: results in the order shown, the correction — never values', async () => {
+    const b = board([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20 }], { A: 'QQQ' })
+    const { say, transcript } = mount(b, 'conversation-9-model-memory')
+    await say('find strong semis')
+    await waitFor(() => expect(transcript()).toContain('5 matches'))
+    await say('no, I meant software stocks')
+    await waitFor(() => expect(turns.length).toBe(1))
+    const mem = turns[0].context.conversation_memory
+    expect(mem.recent_results[0]).toMatchObject({ source: 'test.screen', count: 5, symbols_in_order: ROWS })
+    expect(mem.recent_corrections).toEqual(['no, I meant software stocks'])
+    expect(JSON.stringify(mem)).not.toMatch(/matches|\d+\.\d+%/)          // tickers and words only
+  }, 60000)
+
   it('stale context is refused, never guessed: nothing to repeat; a new chat forgets the results', async () => {
     const b = board([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20 }], { A: 'QQQ' })
     const { say, transcript, save } = mount(b, 'conversation-4-stale')
