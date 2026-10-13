@@ -1639,13 +1639,24 @@ def start_breadth_warm(interval_seconds: int = 90) -> None:
         # ⭐ (2026-10-13) Verify the V2 and exchange authorities ONCE, here, off the request path:
         # the first touch hashes each replica (SHA-256) and counts its rows — seconds on a cold
         # volume — and was being paid by the first Agent / chart request after every deploy.
+        # (2026-10-13) …and then run the EXACT first-request read (a 15-session history per
+        # authority), so its first-touch disk reads happen here too. Logged per step, value-free
+        # (durations and availability only), so a cold or unavailable replica is visible.
         try:
             from api.services import breadth_authority as _ba
             from api.services import breadth_exchange_authority as _ea
             t0 = time.time()
-            _ba.available()
-            _ea.available()
-            _log.info("[breadth_symbols] authorities verified in %.1fs", time.time() - t0)
+            us_ok, us_why = _ba.available()
+            t1 = time.time()
+            ex_ok, ex_why = _ea.available()
+            t2 = time.time()
+            _ba.universe_history("advancing", "us", 15)
+            _ea.universe_history("advancing", "nasdaq", 15)
+            _ea.universe_history("advancing", "nyse", 15)
+            t3 = time.time()
+            _log.info("[breadth_symbols] authorities verified: us=%s (%.1fs%s) exch=%s (%.1fs%s); "
+                      "first reads warmed in %.1fs", us_ok, t1 - t0, "" if us_ok else f", {us_why}",
+                      ex_ok, t2 - t1, "" if ex_ok else f", {ex_why}", t3 - t2)
         except Exception:
             _log.warning("[breadth_symbols] authority warm-up failed (requests will verify)")
         while True:

@@ -110,3 +110,39 @@ def test_us_fast_path_equals_the_full_read(us, monkeypatch, m, limit):
 def test_us_large_limit_unchanged(us):
     assert len(ba.universe_history("advancing", "us", 6000)) == len(
         _days("2026-03-23", "2026-10-09"))
+
+
+# ── (2026-10-13) the live replica read is memoised on the file's identity ────────────────────
+
+def _live_replica(path, sessions, state="VALIDATED"):
+    c = sqlite3.connect(path)
+    c.executescript(ba._LIVE_SCHEMA)
+    for i, d in enumerate(sessions):
+        c.execute("INSERT OR REPLACE INTO v2_live_session (date, pub_id, sha256, state, uct_present, provenance) "
+                  "VALUES (?,?,?,?,1,'test')", (d, f"p{i}", "x", state))
+        c.execute("INSERT OR REPLACE INTO v2_live_row (universe, date, metric, o, h, l, c, source, pub_id) "
+                  "VALUES (?,?,?,?,?,?,?,?,?)",
+                  ("us", d, "advancing", i, i, i, i, "v2live", f"p{i}"))
+    c.commit()
+    c.close()
+
+
+def test_live_replica_memo_is_identical_and_never_stale(tmp_path, monkeypatch):
+    import os
+    import time as _t
+    p = str(tmp_path / "live_replica.db")
+    monkeypatch.setattr(ba, "live_replica_path", lambda: p)
+    ba._LIVE_MEMO.clear()
+    _live_replica(p, ["2026-09-25", "2026-09-28"])
+    first = ba._live_universe("us")
+    reads = []
+    real = ba.sqlite3.connect
+    monkeypatch.setattr(ba.sqlite3, "connect", lambda *a, **k: reads.append(1) or real(*a, **k))
+    assert ba._live_universe("us") == first and reads == []            # memo hit, no re-read
+    _t.sleep(0.01)
+    _live_replica(p, ["2026-09-25", "2026-09-28", "2026-09-29"])         # a new publication lands
+    os.utime(p, None)
+    after = ba._live_universe("us")
+    assert reads and sorted(after) == ["2026-09-25", "2026-09-28", "2026-09-29"]
+    monkeypatch.setattr(ba, "live_replica_path", lambda: str(tmp_path / "absent.db"))
+    assert ba._live_universe("us") == {}
