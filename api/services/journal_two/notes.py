@@ -3464,15 +3464,23 @@ def _maybe_capture_version(
                 elapsed = datetime.fromisoformat(existing["updated_at"]) - datetime.fromisoformat(latest["created_at"])
                 if elapsed.total_seconds() < J2_VERSION_COALESCE_MINUTES * 60:
                     return  # still inside the same coalescing window -- no new checkpoint
+        # P1 M-7: the version records the style stamp the content was written under, so a restore
+        # can take it back with the body (`style_captured = 1` marks the stamp as recorded, even
+        # when the note had no style and both values are NULL).
+        existing_keys = _row_keys(existing)
         conn.execute(
             "INSERT INTO j2_note_versions (id, user_id, note_id, title, subtitle,"
-            " body_json, body_plain, properties_json, created_at, restored_from_version_id)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " body_json, body_plain, properties_json, created_at, restored_from_version_id,"
+            " style_id, style_version, style_captured)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 uuid.uuid4().hex, user_id, note_id,
                 old_content[0], old_content[1],
                 existing["body_json"], old_content[2], old_content[3],
                 existing["updated_at"], restored_from_version_id,
+                existing["style_id"] if "style_id" in existing_keys else None,
+                existing["style_version"] if "style_version" in existing_keys else None,
+                1,
             ),
         )
     except Exception:  # noqa: BLE001 — see docstring: never break the real save
@@ -3494,13 +3502,18 @@ def list_note_versions(
     owned = conn is None
     conn = conn or get_connection()
     try:
+        # P1 M-7 (pre-flight N8): the list carries the style stamp each version was taken at, so a
+        # reader can tell which version predates "Update layout" without fetching every body.
         rows = conn.execute(
-            "SELECT id, title, subtitle, created_at FROM j2_note_versions"
+            "SELECT id, title, subtitle, created_at, style_id, style_version, style_captured"
+            " FROM j2_note_versions"
             " WHERE user_id = ? AND note_id = ? ORDER BY created_at DESC LIMIT ?",
             (user_id, note_id, limit),
         ).fetchall()
         return [
-            {"id": r["id"], "title": r["title"], "subtitle": r["subtitle"], "createdAt": r["created_at"]}
+            {"id": r["id"], "title": r["title"], "subtitle": r["subtitle"], "createdAt": r["created_at"],
+             "styleId": r["style_id"], "styleVersion": r["style_version"],
+             "styleCaptured": bool(r["style_captured"])}
             for r in rows
         ]
     finally:
@@ -3541,6 +3554,11 @@ def get_note_version(
             # "nothing to restore," which is correct for either case.
             "propertiesJson": json.loads(row["properties_json"]) if row["properties_json"] else None,
             "restoredFromVersionId": row["restored_from_version_id"] if "restored_from_version_id" in _row_keys(row) else None,
+            # P1 M-7: the stamp the content was written under. `styleCaptured` False = a version
+            # taken before the stamp was recorded (its NULLs mean "unknown", not "no style").
+            "styleId": row["style_id"] if "style_id" in _row_keys(row) else None,
+            "styleVersion": row["style_version"] if "style_version" in _row_keys(row) else None,
+            "styleCaptured": bool(row["style_captured"]) if "style_captured" in _row_keys(row) else False,
         }
     finally:
         if owned:
@@ -3589,6 +3607,16 @@ def restore_note_version(
             if began:
                 conn.rollback()
             return None
+        # P1 M-7: the stamp goes back with the body. A version taken before this release carries no
+        # stamp: keep the style, forget the version, so "Update layout" is offered again. A note that
+        # never had a style (and a version that recorded none) gets no stamp write at all.
+        current = conn.execute("SELECT style_id FROM j2_notes WHERE id = ? AND user_id = ?",
+                               (note_id, user_id)).fetchone()
+        current_style_id = current["style_id"] if current is not None else None
+        if version.get("styleCaptured"):
+            stamp = (version.get("styleId"), version.get("styleVersion"))
+        else:
+            stamp = (current_style_id, None)
         out = update_note(
             user_id, note_id,
             {
@@ -3603,6 +3631,7 @@ def restore_note_version(
             },
             conn=conn, expected_updated_at=expected_updated_at, force_version=True,
             restored_from_version_id=version_id,
+            style_stamp=stamp if (stamp[0] or current_style_id) else None,
         )
         # ⛔ A trashed or missing note: update_note answers None inside OUR transaction and does
         # not roll back (it did not begin it). Release what this restore began, or a caller-supplied
@@ -3628,7 +3657,7 @@ def update_note(
     force_version: bool = False,
     restored_from_version_id: str | None = None,
     client_schema: int | None = None,
-    style_stamp: tuple[str, int] | None = None,
+    style_stamp: tuple[str | None, int | None] | None = None,
     *,
     captured_properties: str = "drop",
 ) -> dict[str, Any] | None:

@@ -2066,6 +2066,12 @@ _PHASE_2_ALTERS = [
     )""",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_note_kinds_user_name"
     " ON j2_note_kinds(user_id, name COLLATE NOCASE)",
+    # Notebook P2 (P1 M-7): a version records the style stamp it was taken at, so a restore takes it back.
+    # `style_captured` tells a version taken before this release (0: no stamp recorded) from one taken
+    # from a note that had no style (1, with style_id/style_version NULL).
+    "ALTER TABLE j2_note_versions ADD COLUMN style_id TEXT",
+    "ALTER TABLE j2_note_versions ADD COLUMN style_version INTEGER",
+    "ALTER TABLE j2_note_versions ADD COLUMN style_captured INTEGER NOT NULL DEFAULT 0",
 ]
 
 # ── Wave 7 (lane I): the Notebook's read-path indexes ──────────────────────────
