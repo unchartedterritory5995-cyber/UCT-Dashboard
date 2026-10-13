@@ -548,7 +548,10 @@ BREADTH_RULE = ("MARKET BREADTH (% of US / NYSE / Nasdaq stocks above a moving a
                 "200 dma, 50-day MA — new highs/lows, advance/decline, Stage 2/4; now, today, at the close or on a date): "
                 "plan breadth.show. HISTORY (when it was last / first below or above a level, crossings, how many "
                 "times, episodes, how long they lasted — including a follow-up about \"that\" reading): plan "
-                "breadth.history. Never research breadth, never answer it from memory, never say UCT lacks historical "
+                "breadth.history — ONLY for a condition (a level crossed / held); the RECENT READINGS themselves (\"breadth "
+                "history for the last 30 trading days\", \"the last 10 sessions\"): breadth.show mode rows, sessions N — never "
+                "invent a threshold. A date or \"at the close\": breadth.show value with that date / basis close (a completed "
+                "session not finalized yet is shown as a provisional close). Never research breadth, never answer it from memory, never say UCT lacks historical "
                 "breadth or NYSE / Nasdaq breadth, and never tell the member to scroll a chart. Lowest / highest in a "
                 "period: breadth.show mode series. A named period you cannot turn into dates with certainty (\"the "
                 "2022 bear market\"): ask for its start and end dates (disposition clarify) — never guess them.")
@@ -566,7 +569,12 @@ _BREADTH_Q = re.compile(
 #: happened?", "how long did it last?") — a breadth question only right after a breadth answer.
 _HISTORY_FOLLOWUP = re.compile(r"\b(last|first|most recent) time\b|\bhow (many times|often)\b|\bhow long did\b|"
                                r"\bcross(ed|es)? (above|below)\b|\b(below|above|under|over) \d+(\.\d+)?\s*%|"
-                               r"\bsame (thing|question|search)? ?(for|on)\b|\bwhat about (last year|this year|(in )?\d{4})\b", re.I)
+                               r"\bsame (thing|question|search)? ?(for|on)\b|\bwhat about (last year|this year|(in )?\d{4})\b|"
+                               # post-release 2026-10-13: "what about the nasdaq", "how long was it below …",
+                               # "and how many are below it?", "fewer than 10% were above"
+                               r"\b(what|how) about (the )?(us|u\.s\.|nyse|nasdaq)\b|\bhow long (was|has|had)\b|"
+                               r"\bhow many (of them )?(are|were) (below|above|under|over)\b|"
+                               r"\b(fewer|less|more) than \d+(\.\d+)?\s*%", re.I)
 
 
 def _last_breadth_row(history) -> bool:
@@ -675,6 +683,15 @@ def _local_requests(data) -> str:
         return ""
     parts = []
     for r in reqs[:4]:
+        if isinstance(r, dict) and r.get("mode") == "rows":
+            # the last N sessions of one measure (breadth_select.rows) — enums and a count only, never a value
+            mets = r.get("metrics") if isinstance(r.get("metrics"), list) else []
+            u, n = str(r.get("universe") or ""), r.get("sessions")
+            if (u in ("us", "nyse", "nasdaq") and len(mets) == 1 and isinstance(mets[0], str)
+                    and re.fullmatch(r"[a-z0-9_]{1,40}", mets[0]) and isinstance(n, int) and not isinstance(n, bool) and 1 <= n <= 250):
+                side = " — share at or below" if r.get("side") == "below" else ""
+                parts.append(f"breadth sessions list ({u.upper()}: {mets[0]}{side}; the last {n} sessions)")
+            continue
         if isinstance(r, dict) and r.get("metrics") == []:
             # the general overview: the route filled UCT's documented four measures (names only)
             from api.services.uct_agent.breadth_present import OVERVIEW_METRICS
@@ -686,11 +703,12 @@ def _local_requests(data) -> str:
                 parts.append(note)
             continue
         # present tense (no date, not an explicit close) is UCT's CURRENT reading — say so, never a value
-        now = "the current reading" if r.get("basis") != "close" else "the latest finalized close"
+        now = "the current reading" if r.get("basis") != "close" else "the latest completed close"
         when = {"value": f"on {ok.get('date') or now}",
                 "compare": f"{ok.get('date') or 'the latest finalized session'} vs {ok.get('compare_date')}",
                 "series": f"from {ok.get('start')} to {ok.get('end') or 'the latest finalized session'}"}[ok["mode"]]
-        parts.append(f"breadth lookup ({ok['universe'].upper()}: {', '.join(ok['metrics'])}; {when})")
+        side = " — share at or below" if r.get("side") == "below" else ""          # an enum, never a value
+        parts.append(f"breadth lookup ({ok['universe'].upper()}: {', '.join(ok['metrics'])}{side}; {when})")
     return ("The member asked for: " + "; ".join(parts) + ".") if parts else ""
 
 

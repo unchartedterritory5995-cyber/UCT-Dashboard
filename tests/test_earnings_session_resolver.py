@@ -321,3 +321,31 @@ def test_release_history_marks_in_session_releases(monkeypatch):
         {"publishedDate": "2026-07-16 11:04:00",
          "title": "Westamerica Bancorporation Reports Second Quarter 2026 Financial Results"}])
     assert r._press("WABC", "2026-10-10")["history"] == "dmh"
+
+
+def test_press_fetch_goes_through_the_shared_fmp_client(monkeypatch):
+    from api.services import fmp_client
+    from api.services.provider_errors import ProviderResult, ProvenanceRecord
+    seen = {}
+
+    def ok(sym, *, limit=None, timeout=None):
+        seen.update(sym=sym, limit=limit, timeout=timeout)
+        return ProviderResult(value=[{"title": "x"}], provenance=ProvenanceRecord(vendor="fmp", source_activity="t"),
+                              licensing_class="internal")
+    monkeypatch.setattr(fmp_client, "get_news_press_releases", ok)
+    assert r._press_fetch("WABC") == [{"title": "x"}]
+    assert seen == {"sym": "WABC", "limit": 25, "timeout": 8}
+
+    def raises(exc):
+        def f(*a, **k):
+            raise exc
+        return f
+    # no key and an empty list both read as "no releases", as the raw call did
+    monkeypatch.setattr(fmp_client, "get_news_press_releases", raises(fmp_client.FMPNotConfigured("no key", vendor="fmp")))
+    assert r._press_fetch("WABC") == []
+    monkeypatch.setattr(fmp_client, "get_news_press_releases", raises(fmp_client.FMPNotFound("empty", vendor="fmp")))
+    assert r._press_fetch("WABC") == []
+    # a real failure still fails (the resolver records it, rather than reading it as "none")
+    monkeypatch.setattr(fmp_client, "get_news_press_releases", raises(fmp_client.FMPTransient("down", vendor="fmp")))
+    with pytest.raises(fmp_client.FMPTransient):
+        r._press_fetch("WABC")

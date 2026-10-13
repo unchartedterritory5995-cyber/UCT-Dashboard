@@ -93,3 +93,85 @@ def test_the_morning_run_checks_the_previous_trading_day(env, monkeypatch):
     monkeypatch.setattr(bm, "raw_row", lambda d: seen.append(d) or {"date": d})
     ba.check_eod_row(datetime(2026, 10, 12, 9, 45, tzinfo=_ET), morning=True, post=post)
     assert seen == ["2026-10-09"]                       # Monday morning -> Friday
+
+
+# ── (2026-10-13) pending is not missing; one resolution when the row lands ──────────────────
+
+def _wire2(monkeypatch, row, results, last_tick):
+    from api.services import breadth_monitor as bm
+    from api.services import breadth_eod_source as eod
+    monkeypatch.setattr(bm, "raw_row", lambda d: row)
+    monkeypatch.setattr(eod, "server_writes", lambda d: True)
+    monkeypatch.setattr(eod, "status", lambda: {"mode": "server", "server_from": "2026-10-12",
+                                                "job": {"last_results": list(results),
+                                                        "last_tick": last_tick}})
+
+
+NIGHT = datetime(2026, 10, 12, 21, 30, tzinfo=_ET)
+PC_ROW = {"date": "2026-10-12", "adv_decline": 3}        # the partner PC's row, not the server's
+WAITING = [{"date": "2026-10-12", "computed": True, "status": "insufficient_coverage"}]
+
+
+def test_last_nights_case_is_a_pending_note_not_a_missing_alarm(env, monkeypatch):
+    posts, post = env
+    _wire2(monkeypatch, PC_ROW, WAITING, last_tick=NIGHT.timestamp() - 300)
+    out = ba.check_eod_row(NIGHT, post=post)
+    assert out["pending"] and out["sent"]
+    body = posts[0][1]
+    assert "pending (retrying)" in body and "insufficient_coverage" in body
+    assert "PC collector's row is in place" in body and "row is missing" not in body
+
+
+@pytest.mark.parametrize("results,last_tick,why", [
+    (WAITING, NIGHT.timestamp() - 3600, "stalled"),                       # the job stopped ticking
+    ([{"date": "2026-10-12", "status": "refused_degraded"}], NIGHT.timestamp() - 300, "refused_degraded"),
+    ([{"date": "2026-10-12", "status": "store_failed"}], NIGHT.timestamp() - 300, "store_failed"),
+])
+def test_a_real_failure_keeps_the_full_alarm(env, monkeypatch, results, last_tick, why):
+    posts, post = env
+    _wire2(monkeypatch, PC_ROW, results, last_tick)
+    out = ba.check_eod_row(NIGHT, post=post)
+    assert not out.get("pending") and "official row is missing" in posts[0][1] and why in posts[0][1]
+    assert "PC collector's row is serving meanwhile" in posts[0][1]   # still honest about charts
+
+
+def test_still_unwritten_by_morning_is_the_full_alarm(env, monkeypatch):
+    posts, post = env
+    morning = datetime(2026, 10, 13, 9, 45, tzinfo=_ET)
+    _wire2(monkeypatch, PC_ROW, WAITING, last_tick=morning.timestamp() - 300)
+    out = ba.check_eod_row(morning, morning=True, post=post)
+    assert not out.get("pending") and "still missing" in posts[0][1]
+
+
+def test_the_row_landing_posts_one_resolution_from_the_writer(env, monkeypatch):
+    posts, post = env
+    _wire2(monkeypatch, PC_ROW, WAITING, last_tick=NIGHT.timestamp() - 300)
+    ba.check_eod_row(NIGHT, post=post)                                    # pending note
+    from api.services import breadth_eod_source as eod
+    monkeypatch.setattr(eod, "mode", lambda: "server")
+    monkeypatch.setattr(eod, "candidate_sessions", lambda now=None: ["2026-10-12"])
+    monkeypatch.setattr(eod, "write_server_row",
+                        lambda d: {"date": d, "computed": True, "status": "written"})
+    import requests
+    monkeypatch.setattr(requests, "post", post)
+    eod.tick()
+    assert len(posts) == 2 and "has landed" in posts[1][1]
+    eod.tick()                                                            # nothing further
+    _wire2(monkeypatch, {"date": "2026-10-12", "_source": "server"}, [], NIGHT.timestamp())
+    ba.check_eod_row(datetime(2026, 10, 13, 9, 45, tzinfo=_ET), morning=True, post=post)
+    assert len(posts) == 2                                                # resolved exactly once
+
+
+def test_a_healthy_recheck_resolves_a_missing_alarm_once(env, monkeypatch):
+    posts, post = env
+    _wire2(monkeypatch, PC_ROW, [{"date": "2026-10-12", "status": "store_failed"}], NIGHT.timestamp())
+    ba.check_eod_row(NIGHT, post=post)
+    _wire2(monkeypatch, {"date": "2026-10-12", "_source": "server"}, [], NIGHT.timestamp())
+    ba.check_eod_row(datetime(2026, 10, 13, 9, 45, tzinfo=_ET), morning=True, post=post)
+    assert len(posts) == 2 and "now stored" in posts[1][1]
+
+
+def test_nothing_to_resolve_posts_nothing(env):
+    posts, post = env
+    assert all(not r["sent"] for r in ba.resolve_eod_row("2026-10-12", post=post).values())
+    assert posts == []

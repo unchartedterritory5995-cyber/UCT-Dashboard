@@ -144,10 +144,27 @@ def _session_for(now: datetime, morning: bool) -> Optional[str]:
     return d.isoformat() if sc.is_trading_day(d) else None
 
 
+#: The EOD writer's own "not yet — retry next tick" outcomes: the session's daily bars are not
+#: complete yet (`insufficient_coverage`) or bars.db cannot support it yet (`unavailable`).
+#: Anything else (`refused_degraded`, `store_failed`, a stalled job) is a real failure.
+RETRYABLE_EOD = ("insufficient_coverage", "unavailable")
+#: The writer ticks every 15 min; a job silent longer than this is stalled, not retrying.
+EOD_JOB_STALE_S = 45 * 60
+
+
 def check_eod_row(now: Optional[datetime] = None, morning: bool = False,
                   post: Optional[Callable] = None) -> dict:
     """Is the official breadth row for the session stored — and, once the server owns it
-    (`server_writes`), is it the SERVER's? Alerts with the EOD job's own last reason."""
+    (`server_writes`), is it the SERVER's? Alerts with the EOD job's own last reason.
+
+    ⭐ (2026-10-13, owner) PENDING IS NOT MISSING. On 2026-10-12 the 21:30 run said "today's
+    official row is missing" while the writer was only waiting for the day's bars to complete
+    (`insufficient_coverage`); it wrote the row at 21:33. In the EVENING run, when the PC
+    collector's row is in place and the writer's latest result for the session is a retryable
+    wait with the job still ticking, the alert is a softer PENDING note that says the PC row is
+    serving meanwhile. Real failures — and anything still unwritten at the morning re-check —
+    keep the full alert. When the row lands, ONE resolution is posted (`resolve_eod_row`, from
+    the writer's tick and from a healthy re-check), and only if an alert went out."""
     from api.services import breadth_monitor as bm
     from api.services import breadth_eod_source as eod
     now = now or datetime.now(_ET)
@@ -161,19 +178,49 @@ def check_eod_row(now: Optional[datetime] = None, morning: bool = False,
         problem = "no breadth row stored"
     elif server_owned and row.get("_source") != "server":
         problem = "the server did not write the row (only the PC collector's row is there)"
-    key = f"eod_row:{d}"
     if problem is None:
-        clear(key)
+        res = resolve_eod_row(d, post=post)
         return {"checked": True, "session": d, "ok": True,
-                "source": (row or {}).get("_source") or "collector"}
+                "source": (row or {}).get("_source") or "collector", "resolved": res}
     st = eod.status()
+    job = st.get("job") or {}
+    mine = [r for r in job.get("last_results") or [] if r.get("date") == d]
     reasons = [f"{r.get('date')}: {r.get('status')}" + (f" — {r.get('reason')}" if r.get('reason') else "")
-               for r in (st.get("job") or {}).get("last_results") or [] if r.get("date") == d][:4]
-    lines = [f"Session {d}: {problem}.",
-             f"EOD source mode: {st.get('mode')}" + (f", server from {st.get('server_from')}"
-                                                     if st.get("server_from") else ""),
-             *(reasons or ["The EOD job has no result for this session yet."]),
-             "Charts keep the live/provisional bar; the sealed day is missing until this is fixed."]
-    res = send(key, "Breadth: today's official row is missing" if not morning
+               for r in mine][:4]
+    mode_line = (f"EOD source mode: {st.get('mode')}"
+                 + (f", server from {st.get('server_from')}" if st.get("server_from") else ""))
+    last_tick = job.get("last_tick")
+    ticking = bool(last_tick) and (now.timestamp() - float(last_tick)) < EOD_JOB_STALE_S
+    pending = (not morning and row is not None and ticking and mine
+               and all(r.get("status") in RETRYABLE_EOD for r in mine))
+    if pending:
+        lines = [f"Session {d}: the server has not written its row yet — it is waiting for the "
+                 f"day's data and retrying every 15 minutes.",
+                 mode_line, *reasons,
+                 "The PC collector's row is in place meanwhile, so charts are not missing the day.",
+                 "A follow-up message will confirm when the server row lands; the morning check "
+                 "re-verifies."]
+        res = send(f"eod_row_pending:{d}", "Breadth: today's server row is pending (retrying)",
+                   lines, post=post)
+        return {"checked": True, "session": d, "ok": False, "pending": True,
+                "problem": problem, **res}
+    tail = ("The PC collector's row is serving meanwhile; the server-owned row is missing."
+            if row is not None else
+            "Charts keep the live/provisional bar; the sealed day is missing until this is fixed.")
+    if not ticking:
+        reasons.append("the EOD job has not ticked in over 45 minutes (stalled)")
+    lines = [f"Session {d}: {problem}.", mode_line,
+             *(reasons or ["The EOD job has no result for this session yet."]), tail]
+    res = send(f"eod_row:{d}", "Breadth: today's official row is missing" if not morning
                else "Breadth: yesterday's official row is still missing", lines, post=post)
     return {"checked": True, "session": d, "ok": False, "problem": problem, **res}
+
+
+def resolve_eod_row(session: str, post: Optional[Callable] = None) -> dict:
+    """The session's row is in place: resolve whichever EOD alert went out for it (missing or
+    pending) with ONE post each; nothing is posted when no alert was sent."""
+    out = {}
+    for key, title in ((f"eod_row:{session}", f"Breadth: the official row for {session} is now stored"),
+                       (f"eod_row_pending:{session}", f"Breadth: the server row for {session} has landed")):
+        out[key] = resolve(key, title, ["No action needed."], post=post)
+    return out

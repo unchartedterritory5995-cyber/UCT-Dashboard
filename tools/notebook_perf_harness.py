@@ -575,13 +575,31 @@ def trader_block_nodes() -> list[dict]:
     its catalog defaults with its searchText, the four prep blocks with NO snapshot (an "Update layout"
     block reads nothing, IR-S11), the review block with no trade, and the stamp UNCAPTURED
     ({"uncaptured": True, "fields": "all"}), so building them reads no market data and writes nothing.
-    Imported at call time: the harness itself stays importable without the app on the path."""
-    if str(REPO) not in sys.path:
-        sys.path.insert(0, str(REPO))
-    from datetime import datetime, timezone
-    from api.services.journal_two import trader_blocks as tb
-    ctx = {"now": datetime.now(timezone.utc), "mode": "update", "memo": {}}
-    return [tb.BUILDERS[kind]({"block": kind, "settings": {}}, ctx)[0] for kind in TRADER_BLOCK_KINDS]
+    Built in a CHILD Python (`_server_json`): this driver never imports api.* in its own process."""
+    return _server_json(
+        "from datetime import datetime, timezone\n"
+        "from api.services.journal_two import trader_blocks as tb\n"
+        "ctx = {'now': datetime.now(timezone.utc), 'mode': 'update', 'memo': {}}\n"
+        f"OUT = [tb.BUILDERS[k]({{'block': k, 'settings': {{}}}}, ctx)[0] for k in {list(TRADER_BLOCK_KINDS)!r}]\n")
+
+
+def _server_json(code: str):
+    """Run `code` (which sets OUT) in a CHILD Python and return OUT, JSON-decoded.
+
+    ⛔ This driver never imports api.* in its own process (tests/test_notebook_ai_actions.py
+    test_the_walk_driver_never_imports_api): it drives a sandbox from outside, and an api import runs
+    the app's import-time readers here. The child imports the repo-root `conftest` FIRST, which pins
+    every shared-data path to a throwaway sandbox and arms the shared-root tripwire, and only then the app.
+    The answer is the child's LAST stdout line."""
+    prog = ("import json, sys\n"
+            f"sys.path.insert(0, {str(REPO)!r})\n"
+            "import conftest  # noqa: F401 -- pins data paths + arms the shared-root tripwire before any api import\n"
+            + code + "print(json.dumps(OUT, default=str))\n")
+    r = subprocess.run([sys.executable, "-c", prog], cwd=str(REPO), capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", timeout=180)
+    if r.returncode != 0:
+        raise RuntimeError(f"server helper failed (exit {r.returncode}): {r.stderr.strip()[-800:]}")
+    return json.loads(r.stdout.strip().splitlines()[-1])
 
 
 def seed_doc(n: int, tag: str, with_blocks: bool = False) -> tuple[dict, str]:
@@ -1121,25 +1139,30 @@ def dry_run() -> int:
     plain, _ = seed_doc(5, "dry")
     assert len(plain["content"]) == 5 and all(x["type"] == "paragraph" for x in plain["content"]), plain
     bdoc, bmarker = seed_doc(5, "dry", with_blocks=True)
-    from api.services.journal_two import journal_styles as js, trader_blocks as tb
+    cat = _server_json(
+        "from api.services.journal_two import journal_styles as js, trader_blocks as tb\n"
+        "OUT = {'block_ids': list(tb.BLOCK_IDS), 'prep_ids': list(tb.PREP_BLOCK.values()),"
+        " 'kinds': {k: {'search': v.get('search'),"
+        " 'settings': [dict(s) for s in v['settings']]} for k, v in js._BLOCK_BY_ID.items()}}\n")
+    block_ids, by_id = set(cat["block_ids"]), cat["kinds"]
     seeded = bdoc["content"][1:1 + len(TRADER_BLOCK_KINDS)]
     kinds = [x["attrs"]["widgetId"] for x in seeded if x["type"] == "widgetEmbed"]
     assert kinds == list(TRADER_BLOCK_KINDS), kinds
-    want_n = len(tb.BLOCK_IDS) + 1                # the blocks and the stamp, counted off the server's list
-    assert kinds == [*tb.BLOCK_IDS, "marketcontext"] and len(kinds) == want_n, kinds
+    want_n = len(cat["block_ids"]) + 1           # the blocks and the stamp, counted off the server's list
+    assert kinds == [*cat["block_ids"], "marketcontext"] and len(kinds) == want_n, kinds
     assert bdoc["content"][0]["type"] == "paragraph" and len(bdoc["content"]) == 5 + want_n, bdoc["content"]
     assert bdoc["content"][-1]["content"][0]["text"] == bmarker, "the open still waits for the last paragraph"
     assert len({x["attrs"]["embedId"] for x in seeded}) == want_n, "every embed needs its own embedId"
     for x in seeded:
         a, kind = x["attrs"], x["attrs"]["widgetId"]
         assert a["v"] == 1 and a["mode"] == "snapshot" and isinstance(a["embedId"], str) and a["embedId"], a
-        for s in js._BLOCK_BY_ID[kind]["settings"]:
+        for s in by_id[kind]["settings"]:
             assert a["params"].get(s["key"]) == s["default"], (kind, s["key"], a["params"])
-        if kind in tb.BLOCK_IDS:
-            assert a["searchText"] == js._BLOCK_BY_ID[kind]["search"], a
+        if kind in block_ids:
+            assert a["searchText"] == by_id[kind]["search"], a
         else:
             assert a["params"] == {"uncaptured": True, "fields": "all"} and "searchText" not in a, a
-        if kind in tb.PREP_BLOCK.values():
+        if kind in cat["prep_ids"]:
             assert a["params"] == {}, ("an update-mode prep block captures nothing", a)
     assert seeded[kinds.index("tradeReview")]["attrs"]["params"] == {"tradeId": ""}, "the review block names no trade"
     assert seeded[kinds.index("myRules")]["attrs"]["params"] == {"which": "active"}, "My rules at its catalog default"

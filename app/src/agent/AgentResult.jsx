@@ -6,6 +6,7 @@
 import { useState } from 'react'
 import { Link, useInRouterContext } from 'react-router-dom'
 import styles from './AgentResult.module.css'
+import { chartTarget } from './present'
 
 function Prose({ text }) {
   return String(text || '').split(/\n{2,}/).map((p, i) => (
@@ -94,11 +95,36 @@ function Details({ details, sources }) {
   )
 }
 
+/** OPEN CHART: shown only when the card carries a valid target AND the panel can open charts. */
+function OpenChart({ target, onOpen, disabled }) {
+  // "Opening…" while THIS card's click runs (the panel's busy state disables every card's button)
+  const [opening, setOpening] = useState(false)
+  const click = () => {
+    setOpening(true)
+    Promise.resolve().then(() => onOpen(target)).finally(() => setOpening(false))
+  }
+  return (
+    <button type="button" className={styles.chartAction} onClick={click} disabled={disabled || opening}
+      aria-busy={opening || undefined} data-testid="agent-open-chart" aria-label={`Open chart: ${target.label}`}
+      title={`Show ${target.label} on a chart`}>
+      <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">
+        <rect x="1.75" y="1.75" width="12.5" height="12.5" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.3" />
+        <path d="M4.5 10.5l2.2-2.6 1.9 1.5 2.9-3.4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      {opening ? 'Opening…' : 'Open chart'}
+    </button>
+  )
+}
+
+// the metric views (one figure, figures side by side, a period): their footer — Details and Open chart —
+// sits under a hairline divider; other views (prose, tables, headlines) keep their own layout
+const METRIC = new Set(['value', 'comparison', 'metrics', 'range'])
+
 // structured views use the column's width (so their figures sit side by side); a single figure and
 // short prose stay as compact as their content
 const FULL = new Set(['comparison', 'metrics', 'range', 'table', 'headlines'])
 
-export default function AgentResult({ view }) {
+export default function AgentResult({ view, onOpenChart = null, busy = false }) {
   const body = (() => {
     switch (view.kind) {
       case 'value':
@@ -134,7 +160,18 @@ export default function AgentResult({ view }) {
       {extraText && <Prose text={view.text} />}
       {view.source && <div className={styles.source}>{view.source}</div>}
       {view.trimmed && <p className={styles.muted}>Showing the first rows that were kept with this conversation.</p>}
-      <Details details={view.details} sources={view.sources} />
+      {(() => {
+        const target = onOpenChart && view.kind !== 'error' ? chartTarget(view.chart) : null
+        const details = <Details details={view.details} sources={view.sources} />
+        const hasDetails = !!(view.details && (view.details.text || view.details.table || view.details.items?.length || view.details.headlines?.length)) || view.sources?.length > 0
+        if (!target && !(METRIC.has(view.kind) && hasDetails)) return details
+        return (
+          <div className={styles.foot} data-testid="agent-result-foot">
+            {hasDetails ? details : <span />}
+            {target && <OpenChart target={target} onOpen={onOpenChart} disabled={busy} />}
+          </div>
+        )
+      })()}
       {view.link && <OpenLink link={view.link} />}
     </div>
   )

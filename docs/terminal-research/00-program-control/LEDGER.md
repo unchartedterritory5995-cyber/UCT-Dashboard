@@ -4846,3 +4846,86 @@ breadth_monitor -> breadth_symbols -> breadth_live_universes`, whose real edge i
 `worker_main`, `bars_api_main`, `breadth_v2_producer_main`, `terminal_next_monitor_main` or
 `flow_worker_main` reaches `api/main.py`, so the capture runs on **web only**. No marker bump: a
 flow-worker restart drops the OPRA socket for zero behavioural difference.
+
+## Breadth EOD alert: pending vs missing, plus resolution · `70c9709671` · 2026-10-13 · owner-approved
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** (the written exception, as for the NH/NL capture) |
+| stranded files | `api/services/breadth_alerts.py`, `api/services/breadth_eod_source.py` (`tools/flow_worker_watch_coverage.py`) |
+
+`breadth_alerts.check_eod_row` is rewritten in place (11 deleted `api/` lines, all inside it). `resolve_eod_row`
+is new, plus a 7-line hook in `breadth_eod_source.tick()` after a `written` result.
+
+- **Callers.** The only caller of `check_eod_row` is the 21:30/09:45 job in `api/main.py`. `tick()` runs only in
+  the `breadth_eod_source` thread, started from `api/main.py` (web startup). `api/main.py`, `api/routers/push.py`
+  and the breadth routes are all outside flow-worker's closure. Flow-worker reaches these modules only through the
+  static chain via `bars_fetch`, whose real edge is the constant `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD`. It never
+  calls any changed function.
+- **No marker bump.** A flow-worker restart drops the OPRA socket for zero behavioural difference.
+
+## Breadth small-limit history fast path · `db928ff34b` · 2026-10-13
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: EQUIVALENT OUTPUT / NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/breadth_authority.py`, `breadth_exchange_authority.py`, `breadth_current.py`, `breadth_symbols.py` (`tools/flow_worker_watch_coverage.py`) |
+
+`universe_history(limit <= 60)` in both authorities now reads the newest rows newest-first. Its output is identical to the full
+read for every caller on every service (94 equivalence tests). Larger limits (e.g. market_indicators' default 6000) take
+the unchanged full path. There are 2 deleted `api/` lines, both the rewritten row-source line in each `universe_history`.
+
+- **Callers.** The boot verification is in `start_breadth_warm`, called only from `api/main.py` (web). `reading()`'s
+  `history_ms` log runs only from the Agent/ops routes on web. Flow-worker reaches these modules only through the
+  `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` constant edge.
+- **No marker bump.** A flow-worker restart drops the OPRA socket for zero behavioural difference.
+- **Released with** the Agent's Open chart / timing commit (Agent files are outside flow-worker's closure).
+
+## Breadth: warm the exact first history read + memoise the live replica read · `613176029c` · 2026-10-13
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: EQUIVALENT OUTPUT / NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/breadth_authority.py`, `api/services/breadth_symbols.py` |
+
+- **`breadth_authority._live_universe`.** Memoised on the live replica's (inode, size, mtime). It returns the
+  same dict for an unchanged file and re-reads after every replacement (tested), so its output is identical
+  for every caller on every service.
+- **The boot warm-up.** Lives in `breadth_symbols.start_breadth_warm`, called only from `api/main.py` (web).
+- **Flow-worker.** Reaches these modules only through the `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` constant
+  edge. 5 deleted `api/` lines, each a line rewritten in place (the existence check → `os.stat`, and the
+  old warm-up body).
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Breadth: restore the live state after a restart + `latest_completed` · `79ffd4d541` (+ Agent `c3a2d6adb6`) · 2026-10-13
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/breadth_live_universes.py`, `api/services/breadth_current.py` |
+
+- **What runs the new code.** `compute()` (state restore/save) runs only through `refresh()` / `payload()`. Its callers
+  are web's `breadth_live_universes_tick` job (`api/main.py`), the breadth routes, the Agent's `reading()`, and the
+  chart serve path (`breadth_symbols.append_library_bars` via `api/routers/bars.serve_bars`, i.e. web and
+  **bars-api**, each with its own `/data` volume and its own state file). `breadth_current.choose()` /
+  `latest_completed` run only from the Agent and ops routes on web.
+- **Flow-worker.** None of those callers is in flow-worker's closure. It reaches these modules only through the
+  `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` constant edge.
+- **Deleted lines.** 7 deleted `api/` lines, each rewritten in place (the state-build branch of `compute()`, two
+  `choose()` returns).
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Breadth `completed_sessions()` + Agent single selection policy · `212c4a0705` (+ Agent `0099f7e77d`) · 2026-10-13
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED / ADDITIVE, safe; NO marker bump** |
+| stranded file | `api/services/breadth_current.py` |
+
+- **Additive.** `select_completed()` / `completed_sessions()` are new, and their only caller is
+  `api/services/uct_agent/breadth_select.py`, reached from the Agent routes on web.
+- **Refactor.** `reading()` now reads its two sources through a new `_inputs()`: the same calls, moved, with
+  no behaviour change (103 contract tests unchanged and green). The deleted `api/` lines are that move.
+- **Flow-worker.** Reaches `breadth_current` only through the `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` constant
+  edge and never calls it.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.

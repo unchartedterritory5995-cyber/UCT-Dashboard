@@ -1,0 +1,93 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-p2-gate/app[39m
+
+[90mstdout[2m | src/components/chart/engine/runtime/__tests__/objectLaneCensus.measure.test.js[2m > [22m[2m⭐⭐ the object lane, measured over the committed corpus[2m > [22m[2m⭐⭐ prints where the DRAWING dies, by lane, and accounts for every script
+[22m[39m
+OBJECT-LANE CENSUS  —  266 scripts, tf=D, clock told
+the object lane BUILDS : 14  (5.3%)
+  ⛔ A BUILD IS NOT A DRAW — nothing here is EXECUTED. A script that builds and then throws, or runs and emits no object, is counted above.
+  n  lane / guard
+ 31  objects/objects:no-objects-in-source
+ 26  runtime/runtime:library
+ 13  runtime/pine:function
+ 12  runtime/pine:builtin
+ 10  runtime/runtime:call-undeclared-builtin-state
+  9  objects/pine:block
+  8  runtime/pine:request
+  7  runtime/runtime:history-expression
+  7  runtime/runtime:statement
+  7  objects/pine:module
+  7  objects/pine:no-output
+  7  runtime/pine:input-kind
+  7  runtime/runtime:history-dynamic-offset
+  6  objects/pine:function
+  6  runtime/runtime:object-op
+  5  objects/pine:request
+  5  runtime/runtime:call-text-state
+  5  runtime/pine:window-dependent
+  4  runtime/runtime:request
+  4  objects/pine:function-def
+  4  objects/pine:collection
+  4  runtime/runtime:presentation
+  3  objects/pine:state
+  3  runtime/runtime:varip
+  3  runtime/interpret:bind-time-text
+  3  runtime/pine:statement
+  3  runtime/runtime:function
+  2  objects/pine:statement
+  2  runtime/runtime:call-windowed-state
+  2  runtime/runtime:expression-statement
+  2  runtime/pine:block
+  2  runtime/runtime:loop
+  2  objects/pine:strategy-call
+  2  runtime/pine:text-value
+  2  runtime/runtime:block-value
+  2  runtime/runtime:directive
+  2  objects/pine:builtin
+  2  runtime/lower-tf:store-unmeasured
+  2  objects/objects:object-ops-all-dropped
+  2  runtime/runtime:input-state
+  1  runtime/runtime:switch
+  1  objects/pine:timeout
+  1  runtime/pine:undefined
+  1  objects/pine:tuple
+  1  runtime/runtime:call-conversion-state
+  1  runtime/pine:window
+  1  objects/pine:arity
+  1  runtime/pine:role-order
+  1  runtime/lower-tf:lookahead
+  1  runtime/pine:drawing
+  1  runtime/budget:lookback
+  1  runtime/runtime:fill-gradient
+  1  objects/pine:reassign
+  1  objects/pine:na
+  1  runtime/runtime:array
+  1  runtime/pine:strategy-call
+  1  runtime/pine:arity
+
+drawn:
+  4c-nyse-market-breadth-ratio__722410befd.pine
+  extrapolated-pivot-connector__vROeQSQlNs.pine
+  fib-retracement__8XcLscnekw.pine
+  fibonacci-pivot-points-cc__p8DQ3RIR97.pine
+  inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine
+  liquidity-pools__fa7b28e733.pine
+  makuchaku039s-trade-tools-fair-value-gaps__b951deedc8.pine
+  market-structure-by-leviathan__9ca1dae1ac.pine
+  options-max-pain-calculator-backquant__c904837c16.pine
+  price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7.pine
+  strong-start-rvol-dashboard__36140b1cbe.pine
+  trend-targets-algoalpha__92ff5628d7.pine
+  trendlines__43QQg9nDN0.pine
+  wyckoff-accumulation-distribution__d9ae726e21.pine
+
+
+ [32m✓[39m src/components/chart/engine/runtime/__tests__/objectLaneCensus.measure.test.js [2m([22m[2m3 tests[22m[2m)[22m[33m 17735[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ prints where the DRAWING dies, by lane, and accounts for every script [33m 9871[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ CONTROL — the lane tag is real, and BOTH lanes appear in the table [33m 7862[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m   Start at [22m 22:19:35
+[2m   Duration [22m 19.66s[2m (transform 806ms, setup 267ms, import 966ms, tests 17.74s, environment 549ms)[22m
+

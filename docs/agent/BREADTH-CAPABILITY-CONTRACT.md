@@ -9,11 +9,36 @@ question, which existing service answers it, what the answer means, and where it
 | Question | Agent tool | Service (owner) | Same data as the charts? |
 |---|---|---|---|
 | A reading now / today (present tense) | `breadth.show` mode `value`, `date` null, `basis` null | `breadth_current.reading()` (Breadth), reading the live-universes payload `breadth_live_universes.payload()`; behind `AGENT_BREADTH_CURRENT` | Yes. A chart's developing bar comes from the same payload, under the same freshness rule (`row_observation`) since 57c34f7c10 |
-| A closing value / a reading on a date | `breadth.show` `value` with `basis: "close"` or `date` | `market_intel.breadth_reads.read()` (MI), finalized only (D5) | Yes. `_sealed_series` reads `breadth_symbols.build_breadth_bars(sym, "D")` and cuts at the last finalized session |
+| A closing value / a reading on a date | `breadth.show` `value` with `basis: "close"` or `date` | The finalized close from `market_intel.breadth_reads.read()` (MI). A **completed session not finalized yet** comes from `breadth_current.completed_sessions()` (Breadth), labelled "Provisional close · <date>" (D5 as amended 2026-10-13, below) | Yes. Finalized: `_sealed_series`. Provisional: the completed rows the charts draw |
+| The last N sessions (a list of readings) | `breadth.show` mode `rows`, `sessions` N (1–250) | MI's `sealed_series()` (finalized rows), then Breadth's `completed_sessions()` (provisional rows after them) — each row with its status | Yes |
 | Two dates compared | `breadth.show` `compare` | `breadth_reads.read()` | Yes (finalized) |
 | A period summarised (first / last / low / high / average) | `breadth.show` `series` | `breadth_reads.read()` | Yes (finalized) |
 | When a condition held: last / first, crossings, counts, episodes | `breadth.history` | `market_intel.breadth_events` (MI), using the Slice 2 condition core over `breadth_reads.sealed_series()` | Yes (finalized daily) |
 | General "how's breadth?" | `breadth.show` with `metrics: []` | The four-measure overview, read per measure through the rows above | Yes |
+
+## D5 as amended (owner, 2026-10-13): completed vs finalized
+
+A **completed** session has closed and has a closing observation. A **finalized** session has also been
+settled by its universe's authority (normally the next session). D5 originally allowed only finalized
+sessions for dated and closing questions. As amended, the Agent answers them through ONE selection policy
+(`api/services/uct_agent/breadth_select.py`):
+
+| Request | Answer |
+|---|---|
+| Now (no date, no close) | The current reading. Live intraday when current; otherwise the newest completed session, said as not current (`latest_completed`) |
+| The latest close (`basis: "close"`) | The newest completed session: a **provisional close** when it is newer than the finalized watermark, else the finalized close |
+| A date D | D's **finalized** close when D is finalized (always preferred). Otherwise D's completed provisional close. A non-trading D is the session in effect on it (labelled). A trading D that has not completed is refused; **never another date** |
+| The last N sessions | Finalized rows, then any completed provisional sessions after them; each row says its status |
+| Compare / series summaries, threshold searches (`breadth.history`) | Finalized only (unchanged), and they say so |
+
+Rules, all pinned by tests (`tests/test_uct_agent_breadth_selection.py`, `tests/test_breadth_completed_sessions.py`, `app/src/agent/agentBreadthSelection.test.jsx`):
+- A provisional close is never presented as finalized. Its label is "Provisional close · <date>", and the card adds "Not finalized yet — the finalized close replaces it once this session finalizes."
+- An in-progress reading is never a completed close. Today counts only once its vendor data time has passed the close (Breadth's shared `row_observation`).
+- Once a session finalizes it leaves `completed_sessions()` and the finalized close is used.
+- NH/NL and every other finalized-only measure: finalized only, always.
+- Breadth's integrity gates apply. Payload and universe must be ok, and the population must reconcile (drift ≤ 5%); otherwise there is no provisional close.
+- "% at or below" is 100 − the share above **of the selected observation** (the same session, the same source).
+- A threshold search over a condition that is always true ("above 0%", "below 100%") is refused, with the way to see the readings themselves.
 
 ## Universes and measures
 
@@ -33,7 +58,8 @@ series. The S&P 500 is not one of these universes.
   - Finalized: "As of <date> close".
   - Current: the contract's label ("Intraday · 11:51 AM ET", "Provisional close · Oct 12"), built from the vendor's data time and never from compute time.
 - **Status.** Live (intraday), provisional close, finalized, or unavailable.
-  - When the requested session's reading is unavailable, the card says so: "No current breadth reading is available right now — this is the latest finalized close, shown as historical context."
+  - When no current reading exists, the card shows Breadth's **newest completed session** (`latest_completed`, 2026-10-13 incident) with its own label ("Provisional close · Oct 12" / "Finalized close · Oct 9") and: "Live breadth isn't available right now, so this is the latest completed session — not a current reading." Never "now", "live" or "intraday". It is used only when `current` is False, only if it is no older than MI's finalized close and, for a finalized session, newer than it; NH/NL (finalized-only) never take a provisional session.
+  - When neither exists (or Breadth's field is absent or malformed), the card says: "No current breadth reading is available right now — this is the latest finalized close, shown as historical context."
   - A finalized answer that lags the last completed session names the sessions not yet finalized (dates only).
   - An older reading is never presented as today's.
 - **History searches** also state:
@@ -62,6 +88,30 @@ series. The S&P 500 is not one of these universes.
   - Unknown fields are refused.
   - A refusal reads nothing.
 - **Lowest / highest in a period.** `breadth.show` `series` (its low and high come with their dates). A named period that isn't a date range ("the 2022 bear market") gets a question asking for its dates; it is never guessed.
+
+## Above and below a moving average (2026-10-13)
+
+UCT stores one measure per moving average: the percentage of stocks ABOVE it.
+- **Definition.** Strictly `close > MA`, over the names with enough history for the window, rounded to 0.1 (`breadth_live._pct`). The finalized series is the same measure.
+- **Below.** Members ask about the share below. Its exact complement is the share AT OR BELOW: `100 − above`, on the same denominator. A name exactly on its average counts as "at or below".
+  - `breadth.show` takes `side: "below"`. The route complements MI's result before the view, text and current-reading overlay (`breadth_present.complement` / `complement_reading`).
+  - The card is labelled "% of Stocks At or Below 50-Day MA". `side` never reaches MI, and no second dataset exists.
+- **Where it applies.** `side: "below"` is answered for one reading (`mode: value`) of `pct_above_*` measures only. Comparisons, ranges, mixed measures and non-MA measures are refused with one sentence; they are not guessed.
+- **History in below terms.** A condition on the share at or below is searched as the complementary condition on the stored measure, at level `100 − X`:
+  - below-share > X ⇔ above < 100 − X;
+  - below-share ≥ X ⇔ above ≤ 100 − X;
+  - the mirrors for `<` / `≤`;
+  - crossings swap direction.
+
+  "Fewer than / more than / at least / at most X% were above / below" is translated deterministically. "That" or "it" after a below-reading uses the same translation.
+
+**Follow-ups answered without the model** (the remembered subject holds names only, never a value):
+- "what about the Nasdaq?" / "and NYSE?" switches the universe (a reading, or the last search).
+- "what about the 200?" / "and the 50-day?" switches the moving average.
+- "and how many are below it?" / "what % are above it" switches the side.
+- "how long did it stay below 10%?" / "how long did that last?" asks for the episode: the remembered search's condition and window, or the condition named in the question.
+
+A bare universe word never switches anything. With no subject, each of these goes to the model.
 
 ## Isolation (unchanged, and pinned by tests)
 

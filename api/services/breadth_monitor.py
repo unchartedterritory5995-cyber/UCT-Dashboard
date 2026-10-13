@@ -468,6 +468,45 @@ def get_history(days: int = 90, end: Optional[str] = None, anchor: str = "le") -
 
 
 
+#: `adv_decline` over stored sessions, read off the numeric projection wherever it
+#: has the date and off the blob only where it does not.
+#:
+#: ⛔ WHY THIS EXISTS (2026-10-13): the three cumulative-A/D readers ran
+#: `json_extract(metrics, '$.adv_decline')` over `breadth_snapshots`, which parses
+#: the ~636 KB blob of EVERY earlier session on every cold build -- 165-740 MB of
+#: reads per request. At 15:37Z, with the pod busy, that turned a 0.4 s Monitor
+#: read into 22-44 s for every member who opened Breadth (reader residual 22.4 s,
+#: every instrumented phase < 1 ms; rchar +473-741 MB per request). The projection
+#: holds the same value (`numeric_of` drops only `*_list` keys) and is ~1 KB a row.
+#: The join keeps the date set identical to the blob table's, so a projection row
+#: whose blob was deleted can never enter a sum the old query did not include.
+_ADV_DECLINE_ROWS_SQL = (
+    "SELECT n.date AS date, json_extract(n.metrics, '$.adv_decline') AS v "
+    "FROM breadth_snapshot_numeric n JOIN breadth_snapshots s ON s.date = n.date "
+    "WHERE n.date {op} ? "
+    "UNION ALL "
+    "SELECT s.date AS date, json_extract(s.metrics, '$.adv_decline') AS v "
+    "FROM breadth_snapshots s WHERE s.date {op} ? "
+    "AND s.date NOT IN (SELECT date FROM breadth_snapshot_numeric)"
+)
+
+
+def _adv_decline_rows(c, op: str, bound: str) -> list:
+    """[(date, adv_decline)] for every stored session with `date <op> bound`."""
+    if op not in ("<", "<="):
+        raise ValueError(op)
+    return c.execute(_ADV_DECLINE_ROWS_SQL.format(op=op), (bound, bound)).fetchall()
+
+
+def _adv_decline_sum_before(c, oldest: str):
+    """SUM of `adv_decline` over stored sessions before `oldest` -- SQLite's SUM,
+    so the result type and arithmetic match the blob query it replaced."""
+    return c.execute(
+        f"SELECT COALESCE(SUM(v), 0) FROM ({_ADV_DECLINE_ROWS_SQL.format(op='<')})",
+        (oldest, oldest),
+    ).fetchone()[0]
+
+
 def _metrics_for_dates(c, dates: list) -> tuple:
     """`({date: metrics-without-_list}, blob_fallbacks)` for the given dates.
 
@@ -555,11 +594,7 @@ def _history_uncached(days: int, end: Optional[str], anchor: str, ck: str) -> li
             # overlapping dates (1538 vs 11640). Sum the rows we did not fetch.
             adv_decline_seed = 0
             if rows:
-                adv_decline_seed = c.execute(
-                    "SELECT COALESCE(SUM(json_extract(metrics, '$.adv_decline')), 0) "
-                    "FROM breadth_snapshots WHERE date < ?",
-                    (rows[-1]["date"],),
-                ).fetchone()[0] or 0
+                adv_decline_seed = _adv_decline_sum_before(c, rows[-1]["date"]) or 0
     except Exception as e:
         print(f"[breadth_monitor] get_history error: {e}")
         return []
@@ -667,8 +702,11 @@ def _apply_extra_ma(result_asc: list) -> None:
         want = [r for r in result_asc if r.get("date") and any(r.get(k) is None for k in _EXTRA_MA)]
         if not want:
             return
+        # Only the dates this window fills: the unbounded read fetched ~4,700 rows per
+        # metric to use ~200, each a GIL hand-off on a busy pod (see `_history_stored`).
+        since = min(r["date"] for r in want)
         for k in _EXTRA_MA:
-            hist = bdo._history_stored(k, limit=8000) or {}
+            hist = bdo._history_stored(k, limit=8000, since=since) or {}
             for r in want:
                 if r.get(k) is None:
                     v = (hist.get(r["date"]) or {}).get("c")
@@ -880,14 +918,23 @@ def _adv_decline_seed_before(oldest: str) -> float:
     coll: dict = {}
     try:
         with _conn() as c:
-            for (d, v) in c.execute(
-                "SELECT date, json_extract(metrics, '$.adv_decline') "
-                "FROM breadth_snapshots WHERE date < ?", (oldest,),
-            ).fetchall():
+            for (d, v) in _adv_decline_rows(c, "<", oldest):
                 if v is not None:
                     coll[d] = v
     except Exception:
         pass
+    # ⛔ SUMMED INSIDE SQLITE (2026-10-13): `metric_before` hands back ~4,400 rows, and on
+    # a busy web pod each fetched row waits out a GIL switch interval, so this seed alone
+    # measured 12.8-16.9 s of a cold deep read (8 ms on a quiet process). Excluding the
+    # collector's dates in SQL is the same "collector wins" merge; every stored
+    # adv_decline is a whole number, so the sum is exact in any order.
+    try:
+        from api.services import breadth_daily_ohlc as ohlc
+        recon_sum = ohlc.metric_sum_before("adv_decline", oldest, exclude=list(coll))
+    except Exception:
+        recon_sum = None
+    if recon_sum is not None:
+        return recon_sum + sum(coll.values())
     recon: dict = {}
     try:
         from api.services import breadth_daily_ohlc as ohlc
@@ -1462,9 +1509,7 @@ def v1_merged_adv_decline(through: str) -> list:
     coll: dict = {}
     try:
         with _conn() as c:
-            for (d, v) in c.execute(
-                    "SELECT date, json_extract(metrics, '$.adv_decline') FROM breadth_snapshots "
-                    "WHERE date <= ?", (through,)).fetchall():
+            for (d, v) in _adv_decline_rows(c, "<=", through):
                 if v is not None:
                     coll[d] = v
     except Exception:

@@ -15,7 +15,7 @@
 // execution path. Every real outcome (receipt, refusal, undo) is recorded to the
 // conversation, so the model's next turn remembers what UCT DID.
 
-import { protectionRefusal, undoProtectionRefusal } from './protectedLayouts'
+import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout } from './protectedLayouts'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../context/AuthContext'
 import { useCreateIndicatorAccess } from '../components/chart/builder/studio/createIndicatorFlag'
@@ -37,7 +37,7 @@ import { registerBuiltins } from './builtins'
 import { routeManifest, routingEnabled } from './routing'
 import { agentTurn, agentTurnStream, serverStreams, loadAgentConfig, agentRecord, agentConversation } from './agentClient'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
-import { presentOf, compactViews, itemsFromTurns } from './present'
+import { presentOf, compactViews, itemsFromTurns, chartTarget } from './present'
 // ⭐ INDICATORS ⇄ AGENT (2026-10-12): the chart's Create Indicator / Modify doors open the Agent; the
 // member's answer to its question runs the existing `indicator.draft` for that chart. See indicatorEntry.js.
 import { beginAuthoringIntent, takeAuthoringIntent, peekAuthoringIntent, clearAuthoringIntent, authoringPrompt, authoringOp, isCancelWords, INDICATOR_DOORS, openIndicatorDoor } from './indicatorEntry'
@@ -673,10 +673,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
       if (next.length) return { followUps: next, ...(holdForAdd ? { held: { lines, used: false } } : {}) }
     } else {
-      const text = `Some of that didn't take effect: ${res.failed.map(f => `${f.label} ${f.reason}`).join('; ')}.`
+      // a failure that carries its own complete sentence (`say`) is said as-is — never wrapped twice
+      const text = res.failed.every(f => f.say) ? res.failed.map(f => f.say).join(' ')
+        : `Some of that didn't take effect: ${res.failed.map(f => f.say || `${f.label} ${f.reason}`).join('; ')}.`
       if (res.lines.length) push({ role: 'receipt', lines: res.lines, undoId: res.undo?.id || null })
       refusalPush(text)
-      record({ member, outcome: [res.lines.join(' · '), text].filter(Boolean).join(' · '), outcomeData: { kind: 'failed', actions }, telemetry: { path, refused: true, actions, voice } })
+      const gates = res.failed.map(f => f.gate).filter(Boolean)            // diagnostics only, never shown
+      record({ member, outcome: [res.lines.join(' · '), text].filter(Boolean).join(' · '), outcomeData: { kind: 'failed', actions, ...(gates.length ? { gates } : {}) }, telemetry: { path, refused: true, actions, voice } })
     }
   }, [host, push, record, capCtx])
 
@@ -1181,11 +1184,63 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
 
   const canUndo = (undoId) => undoRef.current.some(e => e.id === undoId)
 
+  // ⭐ OPEN CHART (2026-10-13, owner rev. 2). A card's own typed target (present.chartTarget — set by the
+  // capability from what it answered; never the card's words) opens by REUSING a chart:
+  //   • one chart on the board   → that chart switches to it now (chart.setSymbol: the platform's own
+  //                                symbol switch — timeframe, settings, size and place kept; linked
+  //                                widgets follow exactly as a manual symbol search does) + Undo;
+  //   • several charts           → "Which chart?" with one choice per chart (its position and what it
+  //                                shows) and Cancel — only the chart picked changes;
+  //   • no chart                 → the safe add (widget.addCharts: one new chart if there is room).
+  // A chart already showing it is left as it is (no duplicate). Protected layouts, the symbol check
+  // and Undo apply as for any request; a NEW chart only when there is none (or the member asks for one
+  // in words: "open NASDAQ:A50 in a new chart").
+  const openChart = useCallback(async (raw) => {
+    const target = chartTarget(raw)
+    if (!target) return
+    const sym = target.symbol
+    const charts = (() => { try { return host?.charts?.list?.() || [] } catch { return [] } })()
+    const member = `Open chart: ${target.label}`
+    const said = (text, kind, role = 'agent') => {
+      push({ role, text })
+      record({ member, outcome: text, outcomeData: { kind }, telemetry: { path: 'card', ...(role === 'refusal' ? { refused: true } : {}) } })
+    }
+    const shown = charts.find(c => String(c?.symbol || '').toUpperCase() === sym)
+    if (shown) return said(`${target.label} is already on your board (${shown.label || 'a chart'}), so nothing changed.`, 'chart-already-open')
+    if (!charts.length) {
+      lastActionsRef.current = ['widget.addCharts']
+      // The click IS the approval of exactly this: ONE new chart on this ONE series. `approved` re-plans
+      // and re-validates like an Apply — the room, symbol and protection checks all still decide.
+      return execute([{ action: 'widget.addCharts', target: 'workspace', args: { symbols: [sym], timeframe: null, chart_type: null, exact: null } }],
+        { path: 'card', mode: 'approved', member, voice: false })
+    }
+    // a protected layout: said BEFORE asking which chart (the pick could only be refused)
+    if (protectedOpenLayout(host)) {
+      return said(protectionRefusal(host, { plans: [{ changed: true, kind: 'chart' }] }) || 'This layout is protected, so nothing changed.', 'refused-protected', 'refusal')
+    }
+    const op = { action: 'chart.setSymbol', args: { symbol: sym } }
+    lastActionsRef.current = ['chart.setSymbol']
+    if (charts.length === 1) return execute([{ ...op, target: charts[0].ref }], { path: 'card', mode: 'apply', member, voice: false })
+    // several: the member picks — labels made unique when two charts read alike ("Top chart (QQQ)" ×2)
+    // (each names what it shows now — the host's label carries it; added when a label does not)
+    const named = charts.map((c, i) => {
+      const base = c.label || `Chart ${i + 1}`
+      return c.symbol && !base.includes(c.symbol) ? `${base} (${c.symbol})` : base
+    })
+    const seen = new Map()
+    for (const l of named) seen.set(l, (seen.get(l) || 0) + 1)
+    let n = 0
+    const choices = charts.map((c, i) => ({ ref: c.ref, label: seen.get(named[i]) > 1 ? `${named[i]} · ${++n}` : named[i] }))
+    pendingRef.current = { kind: 'target', ops: [op], path: 'card', member, voice: false, epoch: epochOf(host) }
+    push({ role: 'question', text: `Which chart should show ${target.label}?`, choices: [...choices, { label: 'Cancel', cancel: true }], local: true })
+    record({ member, outcome: 'Asked which chart.', outcomeData: { kind: 'clarify-target', actions: ['chart.setSymbol'] }, telemetry: { path: 'card', clarified: true } })
+  }, [host, push, record, execute])
+
   return {
     items, busy, activity, restoring, conversationId, send, newChat, openConversation,
     undo: exclusive((undoId) => doUndo(undoId, { member: null })),
     approve: exclusive(() => approve(null, { member: null })), dismiss: () => { if (!lockRef.current) dismiss({ member: null }) },
-    chooseTarget: exclusive(chooseTarget), canUndo,
+    chooseTarget: exclusive(chooseTarget), canUndo, openChart: exclusive(openChart),
     prompt, openDoor,
     hasPending: !!pendingRef.current,
   }
