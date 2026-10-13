@@ -111,6 +111,17 @@ describe('a frozen block', () => {
     expect(screen.queryByRole('button')).toBeNull()
   })
 
+  it('M-4: an EDITABLE empty block says "Not captured yet." above its Capture now; CONTROL: a captured one does not', () => {
+    const { unmount } = render(<PrepMoversBlock params={{}} setParams={vi.fn()} editable />)
+    const line = screen.getByText('Not captured yet.')
+    const button = screen.getByRole('button', { name: 'Capture now' })
+    expect(line.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+    unmount()
+    render(<PrepWireBlock params={{ snapshot: wire() }} setParams={vi.fn()} editable />)
+    expect(screen.queryByText('Not captured yet.')).toBeNull()
+  })
+
   it('an unreadable capture time is left out, never printed as "Invalid Date"', () => {
     render(<PrepWireBlock params={{ snapshot: { ...wire(), capturedAt: 'not a time' } }} setParams={vi.fn()} editable />)
     expect(screen.queryByText(/Captured/)).toBeNull()

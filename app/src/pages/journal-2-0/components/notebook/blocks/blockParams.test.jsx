@@ -23,6 +23,50 @@ describe('useBlockParams', () => {
     expect(globalThis.fetch).not.toHaveBeenCalled()
   })
 
+  it('fix round 1: an optional capturedAt rides the SAME transaction (one call, three keys)', () => {
+    const updateAttributes = vi.fn()
+    function Stamp() {
+      const set = useBlockParams({ attrs: { widgetId: 'marketcontext', params: { uncaptured: true, fields: 'all' } }, updateAttributes, editable: true })
+      return <button type="button" onClick={() => set({ readings: { marketPhase: 'Uptrend' }, uncaptured: undefined }, { capturedAt: '2026-10-13T17:26:00.123000Z' })}>stamp</button>
+    }
+    render(<Stamp />)
+    fireEvent.click(screen.getByRole('button', { name: 'stamp' }))
+    expect(updateAttributes).toHaveBeenCalledTimes(1)
+    expect(updateAttributes.mock.calls[0][0].capturedAt).toBe('2026-10-13T17:26:00.123000Z')
+    expect(Object.keys(updateAttributes.mock.calls[0][0]).sort()).toEqual(['capturedAt', 'params', 'searchText'])
+  })
+
+  it('fix round 2 (I-1): `clearArchive: true` clears the archived image IN THE SAME call (one call, four keys)', () => {
+    const updateAttributes = vi.fn()
+    function Stamp() {
+      const set = useBlockParams({ attrs: { widgetId: 'marketcontext', params: { uncaptured: true, reason: 'budget', fields: 'all' } }, updateAttributes, editable: true })
+      return <button type="button" onClick={() => set({ readings: { marketPhase: 'Uptrend' }, uncaptured: undefined, reason: undefined },
+        { capturedAt: '2026-10-13T17:26:00.123000Z', clearArchive: true })}>stamp</button>
+    }
+    render(<Stamp />)
+    fireEvent.click(screen.getByRole('button', { name: 'stamp' }))
+    expect(updateAttributes).toHaveBeenCalledTimes(1)
+    const [arg] = updateAttributes.mock.calls[0]
+    expect(Object.keys(arg).sort()).toEqual(['capturedAt', 'fallback', 'params', 'searchText'])
+    expect(arg.fallback).toBeNull()
+  })
+
+  it('CONTROL: a block call (no second argument, or one that is not a time) writes exactly params + searchText', () => {
+    const updateAttributes = vi.fn()
+    function Block() {
+      const set = useBlockParams({ attrs: { widgetId: 'prepWire', params: {} }, updateAttributes, editable: true })
+      return <button type="button" onClick={() => {
+        set({ snapshot: { part: 'wire' } }); set({ x: 1 }, { capturedAt: '' }); set({ y: 2 }, { other: 1 })
+        // fix round 2: only a literal `clearArchive: true` clears the archive
+        set({ z: 3 }, { clearArchive: 'true' }); set({ w: 4 }, { clearArchive: 1 })
+      }}>three</button>
+    }
+    render(<Block />)
+    act(() => { fireEvent.click(screen.getByRole('button', { name: 'three' })) })
+    expect(updateAttributes).toHaveBeenCalledTimes(5)
+    for (const [arg] of updateAttributes.mock.calls) expect(Object.keys(arg).sort()).toEqual(['params', 'searchText'])
+  })
+
   it('a reader (not editable) writes nothing', () => {
     const updateAttributes = vi.fn()
     render(<Probe attrs={{ widgetId: 'preEntryChecklist', params: {} }} updateAttributes={updateAttributes} editable={false} />)

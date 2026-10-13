@@ -7,7 +7,7 @@
 // thesis section with its review, backlinks, the session-video hero and rails,
 // the hero image, the document-text status). Real components over the fixture
 // network.
-import { describe, beforeEach, vi } from 'vitest'
+import { describe, beforeEach, vi, expect } from 'vitest'
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import { installFetch, latchWave8Flags, Providers, P, NOTES, noteDetail } from './fixtures'
 import { axeSurface } from './surface'
@@ -155,6 +155,23 @@ describe('journal embed renderers', () => {
       await settle(60)
     })
   }
+
+  // R-T12-C fix round 1: the stamp a NEW note's create could not read in time ({uncaptured: true,
+  // reason: "budget"}): its sentence, its Capture now, and the failed capture's role="status" line
+  // (the read answers 503 here). Each is proved on screen before axe runs. Nothing types, so there is
+  // no autosave to land.
+  axeSurface('embed-market-context-budget', async () => {
+    installFetch([[/^\/api\/j2\/trader-blocks\/market-context$/, [503, {}]]])
+    const attrs = { ...buildWidgetEmbedAttrs('marketcontext', { uncaptured: true, fields: 'all' }), capturedAt: null,
+      params: { uncaptured: true, reason: 'budget', fields: 'all' } }
+    render(<Providers><MarketContextEmbed attrs={attrs} height={320} setParams={() => true} editable /></Providers>)
+    expect(await screen.findByText('The market could not be read in time when this stamp was added.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Capture now' }))
+    expect(await screen.findByText("This couldn't be read just now. Nothing was changed.")).toBeTruthy()
+    expect(screen.getAllByRole('status').map((s) => s.textContent))
+      .toContain("This couldn't be read just now. Nothing was changed.")
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Capture now' }).disabled).toBe(false))
+  })
 
   axeSurface('frozen-list', async () => {
     render(<Providers><FrozenList title="Leaders" subtitle="2 symbols" asOf="as of Sep 19, 2026" rows={ROWS} /></Providers>)
