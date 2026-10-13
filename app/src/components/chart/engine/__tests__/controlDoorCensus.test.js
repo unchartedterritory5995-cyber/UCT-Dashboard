@@ -138,6 +138,18 @@ const CALL_SITES = [
       + 'settings. That split is the one behaviour change the consolidation makes',
   },
   {
+    file: 'app/src/components/chart/builder/agentMutations.js',
+    writes: true,
+    door: '⭐ NEW AT AGENT GATE C (drafted by Agent for Indicators review, 2026-10-13) — `setInputs`, '
+      + 'UCT Agent\'s in-place edit ("make it a 9", "change that to an SMA"). ⛔ NOT A NEW DOOR, A SECOND '
+      + 'SURFACE ON DOOR 6\'S ROUTING: it calls `setIndicatorInput` ONLY for the fold\'s '
+      + '`legacyInstanceId(defId)` and `setInstanceInput` for a user-added instance — exactly as '
+      + '`indicatorRegistry.applyRowPatch` routes a settings row — so the cs.indicators mirror stays in '
+      + 'step with the one instance it projects into. It never calls `setIndicatorEnabled`, never '
+      + 'touches `hidden`, validates every value with `checkInstanceInput` first, and records the '
+      + 'change for an exact, fingerprint-guarded Undo (agentMutations.inputs.test.js)',
+  },
+  {
     file: 'app/src/components/chart/ChartToolbar.jsx',
     writes: false,
     door: 'the Manage-indicators launcher COUNTS what is on and opens the dialog; it does not write. '
@@ -277,7 +289,7 @@ describe('the control-door census — how many doors, and whether an eighth exis
     // proves the regex works only if the regex could have found a fourth; the
     // stronger control is that it still matches inside the file it EXCLUDES.
     expect(callers.length, 'the census found no caller at all — a scan that finds nothing is ' +
-      'a broken scan, not a tree with no doors').toBe(4)
+      'a broken scan, not a tree with no doors').toBe(5)            // + agentMutations setInputs (Gate C)
     const writerSrc = SHIPPED.find(f => f.file === THE_WRITER)
     expect(writerSrc, 'the writer module is not in the walk — the scan cannot see its own subject')
       .toBeTruthy()
