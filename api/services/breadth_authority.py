@@ -771,11 +771,24 @@ def _frozen_tail(universe: str, metric: str, limit: int) -> dict:
         c.close()
 
 
+_LIVE_MEMO: dict = {}
+
+
 def _live_universe(universe: str) -> dict:
-    """{date: {metric: (o, h, l, c, source)}} of VALIDATED live publications for `universe`."""
+    """{date: {metric: (o, h, l, c, source)}} of VALIDATED live publications for `universe`.
+
+    (2026-10-13) Memoised on the live replica's identity (inode, size, mtime): the sync loop
+    replaces the file on every publication, which changes the key, so a read is never stale —
+    it just stops re-reading an unchanged file on every history call."""
     p = live_replica_path()
-    if not os.path.exists(p):
+    try:
+        st = os.stat(p)
+    except OSError:
         return {}
+    key = (universe, st.st_ino, st.st_size, st.st_mtime_ns)
+    hit = _LIVE_MEMO.get(key)
+    if hit is not None:
+        return hit
     out: dict = {}
     c = sqlite3.connect("file:%s?mode=ro" % p, uri=True)
     try:
@@ -786,6 +799,9 @@ def _live_universe(universe: str) -> dict:
             out.setdefault(d, {})[m] = (o, h, l, cl, s)
     finally:
         c.close()
+    if len(_LIVE_MEMO) > 8:
+        _LIVE_MEMO.clear()
+    _LIVE_MEMO[key] = out
     return out
 
 

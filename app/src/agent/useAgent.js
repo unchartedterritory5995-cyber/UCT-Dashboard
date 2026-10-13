@@ -15,7 +15,7 @@
 // execution path. Every real outcome (receipt, refusal, undo) is recorded to the
 // conversation, so the model's next turn remembers what UCT DID.
 
-import { protectionRefusal, undoProtectionRefusal } from './protectedLayouts'
+import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout } from './protectedLayouts'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../context/AuthContext'
 import { useCreateIndicatorAccess } from '../components/chart/builder/studio/createIndicatorFlag'
@@ -1184,30 +1184,56 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
 
   const canUndo = (undoId) => undoRef.current.some(e => e.id === undoId)
 
-  // ⭐ OPEN CHART (2026-10-13). A card's own typed target (present.chartTarget — set by the capability
-  // from what it answered) opens through the SAME op as "open a QQQ chart": widget.addCharts → a NEW chart
-  // born on that symbol, unlinked; nothing existing changes; receipt + Undo; the protected-layout rules
-  // and the symbol check (ticker search, breadth series included) apply as for any request. A chart that
-  // already shows it is left as it is — said, nothing added (no duplicate widget).
+  // ⭐ OPEN CHART (2026-10-13, owner rev. 2). A card's own typed target (present.chartTarget — set by the
+  // capability from what it answered; never the card's words) opens by REUSING a chart:
+  //   • one chart on the board   → that chart switches to it now (chart.setSymbol: the platform's own
+  //                                symbol switch — timeframe, settings, size and place kept; linked
+  //                                widgets follow exactly as a manual symbol search does) + Undo;
+  //   • several charts           → "Which chart?" with one choice per chart (its position and what it
+  //                                shows) and Cancel — only the chart picked changes;
+  //   • no chart                 → the safe add (widget.addCharts: one new chart if there is room).
+  // A chart already showing it is left as it is (no duplicate). Protected layouts, the symbol check
+  // and Undo apply as for any request; a NEW chart only when there is none (or the member asks for one
+  // in words: "open NASDAQ:A50 in a new chart").
   const openChart = useCallback(async (raw) => {
     const target = chartTarget(raw)
     if (!target) return
     const sym = target.symbol
-    const shown = (() => { try { return host?.charts?.list?.() || [] } catch { return [] } })()
-      .find(c => String(c?.symbol || '').toUpperCase() === sym)
+    const charts = (() => { try { return host?.charts?.list?.() || [] } catch { return [] } })()
     const member = `Open chart: ${target.label}`
-    if (shown) {
-      const t = `${target.label} is already on your board (${shown.label || 'a chart'}), so nothing was added.`
-      push({ role: 'agent', text: t })
-      record({ member, outcome: t, outcomeData: { kind: 'chart-already-open' }, telemetry: { path: 'card' } })
-      return
+    const said = (text, kind, role = 'agent') => {
+      push({ role, text })
+      record({ member, outcome: text, outcomeData: { kind }, telemetry: { path: 'card', ...(role === 'refusal' ? { refused: true } : {}) } })
     }
-    lastActionsRef.current = ['widget.addCharts']
-    // The click IS the approval of exactly this: ONE new chart on this ONE series (an expansion is
-    // otherwise proposed first). `approved` re-plans and re-validates like an Apply — the room check,
-    // the symbol check and the born-unlinked rule all still decide; nothing is skipped.
-    return execute([{ action: 'widget.addCharts', target: 'workspace', args: { symbols: [sym], timeframe: null, chart_type: null, exact: null } }],
-      { path: 'card', mode: 'approved', member, voice: false })
+    const shown = charts.find(c => String(c?.symbol || '').toUpperCase() === sym)
+    if (shown) return said(`${target.label} is already on your board (${shown.label || 'a chart'}), so nothing changed.`, 'chart-already-open')
+    if (!charts.length) {
+      lastActionsRef.current = ['widget.addCharts']
+      // The click IS the approval of exactly this: ONE new chart on this ONE series. `approved` re-plans
+      // and re-validates like an Apply — the room, symbol and protection checks all still decide.
+      return execute([{ action: 'widget.addCharts', target: 'workspace', args: { symbols: [sym], timeframe: null, chart_type: null, exact: null } }],
+        { path: 'card', mode: 'approved', member, voice: false })
+    }
+    // a protected layout: said BEFORE asking which chart (the pick could only be refused)
+    if (protectedOpenLayout(host)) {
+      return said(protectionRefusal(host, { plans: [{ changed: true, kind: 'chart' }] }) || 'This layout is protected, so nothing changed.', 'refused-protected', 'refusal')
+    }
+    const op = { action: 'chart.setSymbol', args: { symbol: sym } }
+    lastActionsRef.current = ['chart.setSymbol']
+    if (charts.length === 1) return execute([{ ...op, target: charts[0].ref }], { path: 'card', mode: 'apply', member, voice: false })
+    // several: the member picks — labels made unique when two charts read alike ("Top chart (QQQ)" ×2)
+    // (each names what it shows now — the host's label carries it; added when a label does not)
+    const named = charts.map((c, i) => {
+      const base = c.label || `Chart ${i + 1}`
+      return c.symbol && !base.includes(c.symbol) ? `${base} (${c.symbol})` : base
+    })
+    const seen = new Map()
+    for (const l of named) seen.set(l, (seen.get(l) || 0) + 1)
+    let n = 0
+    const choices = charts.map((c, i) => ({ ref: c.ref, label: seen.get(named[i]) > 1 ? `${named[i]} · ${++n}` : named[i] }))
+    pendingRef.current = { kind: 'target', ops: [op], path: 'card', member, voice: false, epoch: epochOf(host) }
+    push({ role: 'question', text: `Which chart should show ${target.label}?`, choices: [...choices, { label: 'Cancel', cancel: true }], local: true })
+    record({ member, outcome: 'Asked which chart.', outcomeData: { kind: 'clarify-target', actions: ['chart.setSymbol'] }, telemetry: { path: 'card', clarified: true } })
   }, [host, push, record, execute])
 
   return {

@@ -57,9 +57,14 @@ const TICKER = /^[A-Z0-9.$:^_\-/]{1,24}$/
 // QQQ" would then change group A's symbol for every widget that follows A. The ticker must be
 // written in capitals (as the member typed it), so ordinary words never read as tickers.
 const NEW_CHART_TICKER = /^(?:please\s+)?(?:open|add|create|make|start|pull up|bring up|give me)(?:\s+me)?\s+(?:(?:a|an|another|one more)\s+)?(?:new\s+)?(?:(?:chart|graph)\s+(?:of|for|on|with)\s+\$?([A-Za-z][A-Za-z0-9.]{0,9})|\$?([A-Za-z][A-Za-z0-9.]{0,9})\s+(?:chart|graph))\s*(?:,?\s*please)?[.!]?$/i
+// (2026-10-13) "Open NASDAQ:A50 in a new chart" — a series or ticker, then an explicit NEW / separate chart.
+// The symbol is written in capitals and may carry a breadth series' colon (US:A50, NYSE:A200).
+const IN_NEW_CHART = /^(?:please\s+)?(?:open|add|put|show|load|chart|pull up|bring up)\s+\$?([A-Z][A-Z0-9.]{0,9}(?::[A-Z0-9]{1,8})?)\s+(?:in|on|as|into)\s+(?:a|an|another|one more)\s+(?:new|separate|second|additional|fresh)\s+(?:chart|graph|chart widget)\s*(?:,?\s*please)?[.!]?$/i
 /** The ticker of a "new <TICKER> chart" request, or null. */
 export function newChartTicker(raw) {
   const m = NEW_CHART_TICKER.exec(String(raw || '').trim())
+  const w = m ? null : IN_NEW_CHART.exec(String(raw || '').trim())
+  if (w) return /^[A-Z][A-Z0-9.]{0,9}(?::[A-Z0-9]{1,8})?$/.test(w[1]) && !isPronounToken(w[1], raw) ? w[1] : null
   const t = m ? (m[1] || m[2]) : null
   // ⛔ a pronoun is never a ticker — "OPEN A CHART OF IT" typed in capitals is still "it"
   const typed = t && String(raw).includes(`$${t}`) ? `$${t}` : t       // "$IT" is explicitly a ticker
