@@ -1,0 +1,22 @@
+{
+  "suite": "pytest",
+  "collected": 3624,
+  "passed": 3582,
+  "failed": 26,
+  "errored": 13,
+  "skipped": 3,
+  "wall_s": 752.25,
+  "failed_files": [
+    "tests/test_notebook_rollback_chain.py",
+    "tests/test_notebook_route_security_census.py",
+    "tests/test_notebook_switch_rehearsal.py",
+    "tests/test_notebook_transcript_capture.py",
+    "tests/test_options_l3.py",
+    "tests/test_parity_scorecard.py",
+    "tests/test_perf_batch_a.py",
+    "tests/test_phase_e_acceptance.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "26 failed, 3582 passed, 3 skipped, 54 warnings, 13 errors in 752.25s (0:12:32)",
+  "ok": true
+}
