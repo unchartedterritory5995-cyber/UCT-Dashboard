@@ -380,3 +380,26 @@ def test_SETTLE_a_failed_settle_leaves_the_worst_case_counting(clean, monkeypatc
     assert budget.state()["reserved_usd"] == pytest.approx(0.8)         # still held at its worst case
     with pytest.raises(budget.BudgetRefused):
         budget.reserve(user_id="u", request_id=None, category="turn", model="m", worst_usd=0.3, site_reader=ZERO_SITE)
+
+
+# ═══ research cost is OPT-IN on web_search (no other caller's result changes shape) ════════════════
+def test_RESEARCH_cost_rides_only_on_an_opted_in_call(monkeypatch):
+    import requests as _requests
+    import api.services.perplexity_search as pplx
+
+    class _Resp:
+        status_code = 200
+        def raise_for_status(self): return None
+        def json(self): return {"choices": [{"message": {"content": "answer text"}}], "citations": [],
+                                "usage": {"prompt_tokens": 100, "completion_tokens": 50}}
+
+    monkeypatch.setenv("PERPLEXITY_API_KEY", "k")
+    monkeypatch.setattr(pplx.time, "sleep", lambda s: None)
+    monkeypatch.setattr(pplx.requests, "post", lambda *a, **k: _Resp())
+    assert _requests  # (the module the client posts with)
+    plain = pplx.web_search("cost opt-in probe A", cache_salt="cost-optin-a")
+    assert plain.get("answer") == "answer text" and "cost_usd" not in plain          # AI Search, voice… unchanged
+    agent = pplx.web_search("cost opt-in probe B", cache_salt="cost-optin-b", return_cost=True)
+    assert isinstance(agent.get("cost_usd"), float) and agent["cost_usd"] > 0
+    again = pplx.web_search("cost opt-in probe B", cache_salt="cost-optin-b", return_cost=True)
+    assert again.get("cached") is True and "cost_usd" not in again                   # the cache never stores it

@@ -768,7 +768,7 @@ def _web_search(query: str, recency: str) -> dict:
     from api.services.perplexity_search import web_search
     return web_search(query=query[:400], max_tokens=600, mode="fast",
                       recency=None if recency == "any" else recency,
-                      domain_pack="finance", cost_surface="uct_agent") or {}
+                      domain_pack="finance", cost_surface="uct_agent", return_cost=True) or {}
 
 
 def _research(query: str, recency: str) -> dict:
