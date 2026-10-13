@@ -815,6 +815,15 @@ function ChartPane({
     // onChange uses. Lets the right-click "Chart template" menu drop a saved
     // template straight onto the chart without opening the modal.
     applySettings: updateChartSettings,
+    // ⭐ A1.3 — the same apply, RECORDED on this chart's indicator Undo stack under `label`
+    // (the right-click "Chart template" menu). `applySettings` itself stays unrecorded: it
+    // is also the Agent's door, and the Agent keeps its own Undo.
+    applySettingsRecorded: (next, { label, kind } = {}) => {
+      if (indicatorHistoryKey && label) {
+        try { recordIndicatorChange(indicatorHistoryKey, chartCs, next, { userId: historyUserId, label, kind: kind || 'bulk', origin: chartId }) } catch { /* never blocks */ }
+      }
+      updateChartSettings(next)
+    },
     focus: () => focusableRef.current?.focus({ preventScroll: true }),
     changeSymbol: handleSymbolChange,
     // The chart-fill rect (viewport coords) — lets a workspace tool (Compare
@@ -857,7 +866,7 @@ function ChartPane({
     // `{ok, movedFrom}` | `{ok:false, reason:'readonly'|'busy'|'invalid'}`; never persisted.
     showAuthoringPreview: (definition, opts = {}) => { try { return paneToolbarApi.current?.showAuthoringPreview?.(definition, opts) ?? { ok: false, reason: 'readonly' } } catch { return { ok: false, reason: 'readonly' } } },
     clearAuthoringPreview: () => { try { return !!paneToolbarApi.current?.clearAuthoringPreview?.() } catch { return false } },
-  }), [openSettings, updateChartSettings, handleSymbolChange])
+  }), [openSettings, updateChartSettings, handleSymbolChange, indicatorHistoryKey, chartCs, historyUserId, chartId])
 
   // Docked = the chart section gives up `studioDockW` on the right. Below
   // STUDIO_DOCK_W_MIN + STUDIO_DOCK_MIN_CHART_W the chart would be a sliver, so the

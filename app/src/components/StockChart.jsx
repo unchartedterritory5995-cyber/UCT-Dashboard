@@ -151,7 +151,7 @@ import { chipMenuItems } from './chart/legend/chipMenu'
 import { kindOf as definitionKindOf, copyVerdict } from './chart/builder/definitionActions'
 // ⭐ P1 — INFO VALUES: a header reference `{instanceId, plotKey, format}` to an
 // installed output, read from the binder's own latest value (`infoValueResolve`).
-import { addInfoValue, removeInfoValue, hasInfoValue, infoValueAddRefusal, infoValuesOf, severInfoValuesForInstanceSwap } from './chart/engine/infoValues'
+import { addInfoValue, removeInfoValue, hasInfoValue, infoValueAddRefusal, infoValuesOf } from './chart/engine/infoValues'
 import { resolveInfoValues, infoValueOutputExists } from './chart/engine/infoValueResolve'
 // ⭐ THE PER-PLOT REPAINT VERDICT — DERIVED BY THE LINTER, NEVER READ OFF A
 // BADGE. See `engine/repaintVerdict.js`'s header for why it is computed rather
@@ -166,6 +166,9 @@ import { useIsPaid } from '../context/AuthContext'
 import useHistoryUserId from './chart/useHistoryUserId'
 import IndicatorUndoToast from './chart/IndicatorUndoToast'
 import { recordIndicatorChange, indicatorHistoryKey as historyKeyFor } from './chart/indicatorHistoryStore'
+import { applyShareIndicators, liveInstanceList } from './chart/indicatorPreservation'
+import { claimShareState } from '../lib/chartDeepLink'
+import SharedIndicatorsPrompt from './chart/SharedIndicatorsPrompt'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStore'
 import useRealtimeBars from '../hooks/useRealtimeBars'
@@ -2605,7 +2608,7 @@ export default function StockChart({
   // inert and only the Task-4 controls respond.
   onLegendStudyTap = null,
 }) {
-  const { prefs, setPref } = usePreferences()
+  const { prefs, setPref, loading: prefsLoading } = usePreferences()
   // ═══ ECONOMIC PRIMARY CHART ═════════════════════════════════════════════
   // ⭐ `ECON:<SYMBOL>` is not an instrument: no bars, no OHLC, no quote, no feed.
   // Its host rows are the series' own timeline (`useEconomicPrimary`, via the
@@ -5100,7 +5103,7 @@ export default function StockChart({
   const historyKey = indicatorHistoryKeyProp || historyKeyFor({ isolated: !!onSettingsPersist, mountId: _mountId })
   // An Undo/Redo writes through this same function and must not record itself.
   const suppressHistoryRef = useRef(false)
-  const handleUpdateChartSettings = useCallback((incoming) => {
+  const handleUpdateChartSettings = useCallback((incoming, meta) => {
     // Guard the persist boundary against an invalid MA overlay period (0/neg/NaN/
     // >500) BEFORE it can be written by ANY edit path — the crash-safety complement
     // to computeSMA/computeEMA's read guard. Reverts a bad length to the prior valid
@@ -5129,8 +5132,14 @@ export default function StockChart({
     // ⭐ A1.2 — RECORD a member's indicator change (hide / show / add / remove) on this
     // chart's Undo stack. Cheap when the instance list did not move (no read-back).
     // Input edits, pane drags and every non-indicator write record nothing.
-    if (!suppressHistoryRef.current && newSettings && !Object.is(newSettings.indicatorInstances, cs.indicatorInstances)) {
-      try { recordIndicatorChange(historyKey, cs, newSettings, { userId: historyUserId, labelOf: labelFor, origin: chartId }) } catch { /* recording never blocks a write */ }
+    // A1.3 — a bulk write (a toolbar preset) names itself via `meta.historyLabel`.
+    const _named = meta && typeof meta === 'object' && typeof meta.historyLabel === 'string' ? meta : null
+    if (!suppressHistoryRef.current && newSettings && (_named || !Object.is(newSettings.indicatorInstances, cs.indicatorInstances))) {
+      try {
+        recordIndicatorChange(historyKey, cs, newSettings, _named
+          ? { userId: historyUserId, label: _named.historyLabel, kind: _named.historyKind || 'bulk', origin: chartId }
+          : { userId: historyUserId, labelOf: labelFor, origin: chartId })
+      } catch { /* recording never blocks a write */ }
     }
     if (onSettingsPersist) { onSettingsPersist(newSettings); return }
     // Every settings write site spreads {...cs}, which carries any per-instance
@@ -6258,45 +6267,54 @@ export default function StockChart({
     } catch {}
   }, [sym, resolvedTf, cs])
 
-  // ── Apply share-URL chart state on mount ──
-  // Reads ?state=<encoded> once on mount. If absent, skips silently.
-  // If parse fails, logs warning and skips. NEVER includes `cs` in deps —
-  // would re-fire and overwrite user-driven changes.
+  // ── Apply share-URL chart state — ONCE, on ONE chart, asking first (A1.3, D6/C3) ──
+  // ⚰️ Before A1 this effect ran in EVERY StockChart on the page and never stripped the
+  // param, so a `/charts?state=…` link rewrote every chart widget, again on every reload,
+  // and silently replaced the recipient's indicators. Now:
+  //  · `claimShareState()` hands the param to the FIRST chart to mount and strips it;
+  //  · the look half (type, HA, log, compare, markers) applies once preferences have loaded;
+  //  · the INDICATOR half applies directly only when the recipient has no indicator of their
+  //    own or exactly the sender's; otherwise the chart asks "Use theirs / Keep mine" (Q6).
+  // Never includes `cs` in deps — that would re-fire and overwrite the member's changes.
+  const shareClaimRef = useRef(null)
+  const shareAppliedRef = useRef(false)
+  const [sharePrompt, setSharePrompt] = useState(null)   // { decoded, count }
   useEffect(() => {
+    shareClaimRef.current = claimShareState()
+  }, [])
+  useEffect(() => {
+    // A surface with its own sink reads its settings from the host, not from global
+    // preferences — only a global-reading chart must wait for them to load.
+    if ((prefsLoading && !onSettingsPersist) || shareAppliedRef.current || !shareClaimRef.current) return
+    shareAppliedRef.current = true
     try {
-      const params = new URLSearchParams(window.location.search)
-      const encoded = params.get('state')
-      if (!encoded) return
-      const decoded = urlToChartState(encoded)
+      const decoded = urlToChartState(shareClaimRef.current)
       if (!decoded) return
-      // ⭐ P1 — the recipient's header is kept but the SENDER's instance list
-      // replaces theirs: an info value whose id now names a different instance
-      // (deterministic ids collide, e.g. `inst:rsi:1`) is severed, never read.
-      const _csIv = Array.isArray(decoded.indicatorInstances)
-        ? severInfoValuesForInstanceSwap(cs, decoded.indicatorInstances) : cs
-      const next = {
-        ..._csIv,
+      const look = {
+        ...cs,
         ...(decoded.chartType ? { chartType: decoded.chartType } : {}),
         ...(typeof decoded.heikinAshi === 'boolean' ? { heikinAshi: decoded.heikinAshi } : {}),
         ...(typeof decoded.logScale === 'boolean' ? { logScale: decoded.logScale } : {}),
-        ...(decoded.indicators ? { indicators: { ...cs.indicators, ...decoded.indicators } } : {}),
-        // ⚠️ REPLACED, NOT MERGED. `mergeSettingsOverride`'s union-by-id is right
-        // for a grid cell holding a partial blob; a share link is a complete
-        // description of somebody else's chart, and unioning would leave the
-        // RECIPIENT's tombstones in place — turning the sender's RSI back off on
-        // arrival, which is the exact defect Flip B makes possible.
-        ...(Array.isArray(decoded.indicatorInstances) ? { indicatorInstances: decoded.indicatorInstances } : {}),
-        // ⚠️ AND THE FLAG IS NOT DECODED EITHER (B5 Task 4). An OLD link, minted
-        // before this commit, still carries `engineEnabled` in its payload —
-        // ignoring it here is the correct read, because the key no longer exists
-        // and `mergeChartSettings` would drop it on the very next read anyway.
-        // Copying it forward would put a key in the user's stored blob that
-        // nothing declares and nothing removes until they next save.
+        // ⚠️ AND THE FLAG IS NOT DECODED EITHER (B5 Task 4): an old link's `engineEnabled`
+        // is ignored — the key no longer exists.
         ...(decoded.comparisonSymbols ? { comparisonSymbols: decoded.comparisonSymbols } : {}),
         ...(decoded.markers ? { markers: { ...cs.markers, ...decoded.markers } } : {}),
         preset: 'custom',
       }
-      handleUpdateChartSettings(next)
+      if (Array.isArray(decoded.indicatorInstances)) {
+        const mine = liveInstanceList(cs.indicatorInstances)
+        const theirs = liveInstanceList(decoded.indicatorInstances)
+        const same = JSON.stringify(mine.map((i) => i.instanceId).sort()) === JSON.stringify(theirs.map((i) => i.instanceId).sort())
+          && mine.every((i) => JSON.stringify(i) === JSON.stringify(theirs.find((t) => t.instanceId === i.instanceId)))
+        if (!mine.length || same) {
+          handleUpdateChartSettings(applyShareIndicators(look, decoded), { historyLabel: "Using the shared chart's indicators", historyKind: 'share' })
+        } else {
+          handleUpdateChartSettings(look)
+          setSharePrompt({ decoded, count: theirs.length })
+        }
+      } else {
+        handleUpdateChartSettings(look)
+      }
       if (decoded.sym && decoded.sym !== sym && typeof onSymbolChange === 'function') {
         onSymbolChange(decoded.sym)
       }
@@ -6307,7 +6325,12 @@ export default function StockChart({
       console.warn('Failed to apply share URL state:', err)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [prefsLoading])
+  const useSharedIndicators = useCallback(() => {
+    if (!sharePrompt) return
+    handleUpdateChartSettings(applyShareIndicators(cs, sharePrompt.decoded), { historyLabel: "Used the shared chart's indicators", historyKind: 'share' })
+    setSharePrompt(null)
+  }, [sharePrompt, cs, handleUpdateChartSettings])
   const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll, undo, redo, snapshotHistory, canUndo, canRedo } = useChartDrawings(sym)
   addDrawingRef.current = addDrawing
   clearAllRef.current = clearAll
@@ -19897,6 +19920,10 @@ export default function StockChart({
           (no drawing tools) persist nothing a member chose, so they get no toast. */}
       {showDrawingTools && (
         <IndicatorUndoToast surfaceKey={historyKey} userId={historyUserId} chartId={chartId} cs={cs} write={writeFromHistory} />
+      )}
+      {/* ⭐ A1.3 (D6, Q6) — a shared chart's indicators never silently replace the member's. */}
+      {sharePrompt && (
+        <SharedIndicatorsPrompt count={sharePrompt.count} onUseTheirs={useSharedIndicators} onKeepMine={() => setSharePrompt(null)} />
       )}
       {/* Brief action toast (add-to-list, alert). */}
       {chartToast && (
