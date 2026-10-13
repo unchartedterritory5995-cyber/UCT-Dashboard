@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Sheet from '../../../../../components/mobile/Sheet'
 import { blockLabel } from '../../../lib/journalBlocks'
-import { applyStyleUpdate, planStyleUpdate } from '../../../lib/journalStyles'
+import { applyStyleUpdate, knownStyleVersion, planStyleUpdate } from '../../../lib/journalStyles'
 import useJournalStyles from '../../../hooks/useJournalStyles'
 import { friendlyError, reportError } from './styleErrors'
 import styles from './StyleUpdateSheet.module.css'
@@ -123,7 +123,9 @@ export default function StyleUpdateSheet({ open, onClose, noteId, styleId = null
             <p className={styles.p}>
               {plan.switching
                 ? `Switch this note to ${plan.styleName}.`
-                : `Update this note from ${plan.styleName} v${plan.fromVersion} to v${plan.toVersion}.`}
+                : knownStyleVersion(plan.fromVersion) === null
+                  ? `Update this note to ${plan.styleName} v${plan.toVersion}.`
+                  : `Update this note from ${plan.styleName} v${plan.fromVersion} to v${plan.toVersion}.`}
             </p>
             {plan.insertsOutline && <p className={styles.p}>This note is empty, so the style’s outline is added too.</p>}
             {plan.add.length > 0 ? (

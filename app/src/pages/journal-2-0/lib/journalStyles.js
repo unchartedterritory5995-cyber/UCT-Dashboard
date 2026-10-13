@@ -116,5 +116,13 @@ export async function applyStyleUpdate(noteId, { styleId, baseUpdatedAt } = {}) 
   return out
 }
 
+// P2b N9: a note can record its style with no version (an older note, a restore that predates the stamp).
+// A version is a whole number from 1 up; anything else is unknown, and the copy says so in words.
+export function knownStyleVersion(v) {
+  if (typeof v !== 'number' && typeof v !== 'string') return null
+  const n = Number(v)
+  return Number.isInteger(n) && n >= 1 ? n : null
+}
+
 export const stylesOfKind = (payload, kindId) => (payload?.styles || []).filter((s) => s.kindId === kindId)
 export const defaultStyleFor = (payload, kindId) => stylesOfKind(payload, kindId).find((s) => s.isDefault) || null

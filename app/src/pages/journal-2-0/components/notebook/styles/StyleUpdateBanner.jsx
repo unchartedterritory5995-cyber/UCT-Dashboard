@@ -10,14 +10,16 @@
 // switch off) and the list hook refuses to fetch with it off; this file restates neither.
 import useSWR from 'swr'
 import useJournalStyles from '../../../hooks/useJournalStyles'
-import { planStyleUpdate } from '../../../lib/journalStyles'
+import { knownStyleVersion, planStyleUpdate } from '../../../lib/journalStyles'
 import styles from './StyleUpdateBanner.module.css'
 
 export default function StyleUpdateBanner({ note, onOpen, hideUpTo = 0 }) {
   const { data } = useJournalStyles()
   const style = note?.styleId ? (data?.styles || []).find((s) => s.id === note.styleId) : null
   // `hideUpTo`: an update to this version already landed (the editor could not take it yet); never offer it twice.
-  const latest = style && Number(style.version) > Math.max(Number(note.styleVersion), hideUpTo) ? style.version : null
+  // A note with no recorded version (N9) is treated as older than every version, so it is still offered.
+  const from = knownStyleVersion(note?.styleVersion)
+  const latest = style && Number(style.version) > Math.max(from ?? 0, hideUpTo) ? style.version : null
   // Keyed on the note and the two versions, not its revision: the plan is asked for once per offer,
   // not once per autosave. Apply recomputes it on the server from the body it reads.
   const { data: planned } = useSWR(
@@ -29,7 +31,11 @@ export default function StyleUpdateBanner({ note, onOpen, hideUpTo = 0 }) {
   if (!latest || !plan || plan.locked || plan.versionCurrent || !plan.missingBlocks) return null
   return (
     <div className={styles.banner} role="status" data-export-exclude>
-      <span className={styles.text}>This note uses {style.name} v{note.styleVersion}. Update layout to v{latest}?</span>
+      <span className={styles.text}>
+        {from === null
+          ? `This note uses an earlier version of ${style.name}. Update layout to v${latest}?`
+          : `This note uses ${style.name} v${from}. Update layout to v${latest}?`}
+      </span>
       <button type="button" className={styles.btn} onClick={onOpen}>Review update</button>
     </div>
   )
