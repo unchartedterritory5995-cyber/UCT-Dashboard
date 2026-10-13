@@ -4929,3 +4929,17 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
 - **Flow-worker.** Reaches `breadth_current` only through the `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` constant
   edge and never calls it.
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## UCT Agent Gate B — spend ledger + rate limits + routing · `release/agent-gate-b` · 2026-10-13
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded file | `api/services/perplexity_search.py` |
+
+- **Opt-in only.** `web_search(..., return_cost=False)` gains one keyword whose default returns exactly the dict it
+  always returned. `_record_cost` now also returns the cost it already ledgered. Only `api/services/uct_agent/turn.py`
+  (web, the Agent's research round) passes `return_cost=True`.
+- **Flow-worker.** Reaches `perplexity_search` through its import graph but never passes the new keyword, so it runs
+  byte-identical behaviour on the old code (pinned by `test_RESEARCH_cost_rides_only_on_an_opted_in_call`).
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
