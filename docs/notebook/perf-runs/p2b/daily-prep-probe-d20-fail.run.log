@@ -1,0 +1,174 @@
+tree f5ef653a7a  sandbox C:\Users\Patrick\AppData\Local\Temp\t15b_daily_prep_probe_37dl4lxc
+pins applied: 113  unpinnable: 0  every resolved path outside ['c:\\data']
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\t15b_daily_prep_probe_37dl4lxc\auth.db
+[sqlite-migration] Applied purge_tf60_2f42e55: deleted 0 rows
+[sqlite-migration] Applied purge_tf60_3cbe1cf_src_cap: deleted 0 rows
+[sqlite-migration] Applied purge_intraday_pagination_v1: deleted 0 rows
+seeded: {'big': {'user_id': '9f5ee4cd-45ae-4803-9f23-6220de3d8a7c', 'names': 200, 'positions': 10, 'flagged': 40, 'watchlist': 150}, 'small': {'user_id': '31cd3677-d2e6-4c90-9bc5-73f677f2ee4c', 'names': 5, 'positions': 1, 'flagged': 1, 'watchlist': 3}}
+[cold] small: 0+1 creates, vendor delay 20.0s (fail) ...
+[trader_blocks] prep wire unreadable
+Traceback (most recent call last):
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 732, in prep_part
+    return reader(user_id, now, memo if memo is not None else {})
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 626, in _prep_wire
+    r = engine.get_rundown() or {}
+        ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\engine.py", line 803, in get_rundown
+    wire = _load_wire_data()
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\tools\notebook_daily_prep_probe.py", line 173, in wrapper
+    raise ProbeLegFailure(f"probe: {self.key} is dead (after {self.delay}s)")
+ProbeLegFailure: probe: engine._load_wire_data is dead (after 20.0s)
+member_interest.interest_for source positions failed for user 31cd3677-d2e6-4c90-9bc5-73f677f2ee4c: probe: member_interest._position_syms is dead (after 20.0s)
+member_interest.interest_for source watchlist failed for user 31cd3677-d2e6-4c90-9bc5-73f677f2ee4c: probe: member_interest._watchlist_syms is dead (after 20.0s)
+member_interest.interest_for source flagged failed for user 31cd3677-d2e6-4c90-9bc5-73f677f2ee4c: probe: member_interest._flagged_syms is dead (after 20.0s)
+member_interest.interest_for source uct20 failed for user 31cd3677-d2e6-4c90-9bc5-73f677f2ee4c: probe: member_interest._uct20_syms is dead (after 20.0s)
+[trader_blocks] prep levels unreadable
+Traceback (most recent call last):
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 732, in prep_part
+    return reader(user_id, now, memo if memo is not None else {})
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 710, in _prep_levels
+    board = setups_board.build_cards(conn, user_id, prices=prices)
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\tools\notebook_daily_prep_probe.py", line 173, in wrapper
+    raise ProbeLegFailure(f"probe: {self.key} is dead (after {self.delay}s)")
+ProbeLegFailure: probe: setups_board.build_cards is dead (after 20.0s)
+[cold] small: p50 200.0398s  p95 200.0398s  max 200.0398s  (warm-up [])
+      prepWire                     {'fell_back:source_error': 1}
+      prepEarnings                 {'fell_back:no_earnings_yet': 1}
+      prepMovers                   {'fell_back:no_names': 1}
+      prepLevels                   {'fell_back:source_error': 1}
+      marketcontext.regime         {'fell_back': 1}
+      marketcontext.spy            {'fell_back': 1}
+      marketcontext.qqq            {'fell_back': 1}
+      marketcontext.vix            {'fell_back': 1}
+      regime_at_write              {'absent': 1}
+[cold] big: 0+1 creates, vendor delay 20.0s (fail) ...
+[trader_blocks] prep wire unreadable
+Traceback (most recent call last):
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 732, in prep_part
+    return reader(user_id, now, memo if memo is not None else {})
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 626, in _prep_wire
+    r = engine.get_rundown() or {}
+        ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\engine.py", line 803, in get_rundown
+    wire = _load_wire_data()
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\tools\notebook_daily_prep_probe.py", line 173, in wrapper
+    raise ProbeLegFailure(f"probe: {self.key} is dead (after {self.delay}s)")
+ProbeLegFailure: probe: engine._load_wire_data is dead (after 20.0s)
+member_interest.interest_for source positions failed for user 9f5ee4cd-45ae-4803-9f23-6220de3d8a7c: probe: member_interest._position_syms is dead (after 20.0s)
+member_interest.interest_for source watchlist failed for user 9f5ee4cd-45ae-4803-9f23-6220de3d8a7c: probe: member_interest._watchlist_syms is dead (after 20.0s)
+member_interest.interest_for source flagged failed for user 9f5ee4cd-45ae-4803-9f23-6220de3d8a7c: probe: member_interest._flagged_syms is dead (after 20.0s)
+member_interest.interest_for source uct20 failed for user 9f5ee4cd-45ae-4803-9f23-6220de3d8a7c: probe: member_interest._uct20_syms is dead (after 20.0s)
+[trader_blocks] prep levels unreadable
+Traceback (most recent call last):
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 732, in prep_part
+    return reader(user_id, now, memo if memo is not None else {})
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 710, in _prep_levels
+    board = setups_board.build_cards(conn, user_id, prices=prices)
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\tools\notebook_daily_prep_probe.py", line 173, in wrapper
+    raise ProbeLegFailure(f"probe: {self.key} is dead (after {self.delay}s)")
+ProbeLegFailure: probe: setups_board.build_cards is dead (after 20.0s)
+[cold] big: p50 200.0305s  p95 200.0305s  max 200.0305s  (warm-up [])
+      prepWire                     {'fell_back:source_error': 1}
+      prepEarnings                 {'fell_back:no_earnings_yet': 1}
+      prepMovers                   {'fell_back:no_names': 1}
+      prepLevels                   {'fell_back:source_error': 1}
+      marketcontext.regime         {'fell_back': 1}
+      marketcontext.spy            {'fell_back': 1}
+      marketcontext.qqq            {'fell_back': 1}
+      marketcontext.vix            {'fell_back': 1}
+      regime_at_write              {'absent': 1}
+[cold] outbound socket attempts: 0
+[warm] small: 0+1 creates, vendor delay 20.0s (fail) ...
+[trader_blocks] prep wire unreadable
+Traceback (most recent call last):
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 732, in prep_part
+    return reader(user_id, now, memo if memo is not None else {})
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 626, in _prep_wire
+    r = engine.get_rundown() or {}
+        ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\engine.py", line 803, in get_rundown
+    wire = _load_wire_data()
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\tools\notebook_daily_prep_probe.py", line 173, in wrapper
+    raise ProbeLegFailure(f"probe: {self.key} is dead (after {self.delay}s)")
+ProbeLegFailure: probe: engine._load_wire_data is dead (after 20.0s)
+member_interest.interest_for source positions failed for user 31cd3677-d2e6-4c90-9bc5-73f677f2ee4c: probe: member_interest._position_syms is dead (after 20.0s)
+member_interest.interest_for source watchlist failed for user 31cd3677-d2e6-4c90-9bc5-73f677f2ee4c: probe: member_interest._watchlist_syms is dead (after 20.0s)
+member_interest.interest_for source flagged failed for user 31cd3677-d2e6-4c90-9bc5-73f677f2ee4c: probe: member_interest._flagged_syms is dead (after 20.0s)
+member_interest.interest_for source uct20 failed for user 31cd3677-d2e6-4c90-9bc5-73f677f2ee4c: probe: member_interest._uct20_syms is dead (after 20.0s)
+member_interest.interest_for source positions failed for user 31cd3677-d2e6-4c90-9bc5-73f677f2ee4c: probe: member_interest._position_syms is dead (after 20.0s)
+member_interest.interest_for source watchlist failed for user 31cd3677-d2e6-4c90-9bc5-73f677f2ee4c: probe: member_interest._watchlist_syms is dead (after 20.0s)
+member_interest.interest_for source flagged failed for user 31cd3677-d2e6-4c90-9bc5-73f677f2ee4c: probe: member_interest._flagged_syms is dead (after 20.0s)
+member_interest.interest_for source uct20 failed for user 31cd3677-d2e6-4c90-9bc5-73f677f2ee4c: probe: member_interest._uct20_syms is dead (after 20.0s)
+[trader_blocks] prep levels unreadable
+Traceback (most recent call last):
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 732, in prep_part
+    return reader(user_id, now, memo if memo is not None else {})
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 710, in _prep_levels
+    board = setups_board.build_cards(conn, user_id, prices=prices)
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\tools\notebook_daily_prep_probe.py", line 173, in wrapper
+    raise ProbeLegFailure(f"probe: {self.key} is dead (after {self.delay}s)")
+ProbeLegFailure: probe: setups_board.build_cards is dead (after 20.0s)
+[warm] small: p50 280.0331s  p95 280.0331s  max 280.0331s  (warm-up [])
+      prepWire                     {'fell_back:source_error': 1}
+      prepEarnings                 {'fell_back:no_names': 1}
+      prepMovers                   {'fell_back:no_names': 1}
+      prepLevels                   {'fell_back:source_error': 1}
+      marketcontext.regime         {'fell_back': 1}
+      marketcontext.spy            {'fell_back': 1}
+      marketcontext.qqq            {'fell_back': 1}
+      marketcontext.vix            {'fell_back': 1}
+      regime_at_write              {'absent': 1}
+[warm] big: 0+1 creates, vendor delay 20.0s (fail) ...
+[trader_blocks] prep wire unreadable
+Traceback (most recent call last):
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 732, in prep_part
+    return reader(user_id, now, memo if memo is not None else {})
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 626, in _prep_wire
+    r = engine.get_rundown() or {}
+        ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\engine.py", line 803, in get_rundown
+    wire = _load_wire_data()
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\tools\notebook_daily_prep_probe.py", line 173, in wrapper
+    raise ProbeLegFailure(f"probe: {self.key} is dead (after {self.delay}s)")
+ProbeLegFailure: probe: engine._load_wire_data is dead (after 20.0s)
+member_interest.interest_for source positions failed for user 9f5ee4cd-45ae-4803-9f23-6220de3d8a7c: probe: member_interest._position_syms is dead (after 20.0s)
+member_interest.interest_for source watchlist failed for user 9f5ee4cd-45ae-4803-9f23-6220de3d8a7c: probe: member_interest._watchlist_syms is dead (after 20.0s)
+member_interest.interest_for source flagged failed for user 9f5ee4cd-45ae-4803-9f23-6220de3d8a7c: probe: member_interest._flagged_syms is dead (after 20.0s)
+member_interest.interest_for source uct20 failed for user 9f5ee4cd-45ae-4803-9f23-6220de3d8a7c: probe: member_interest._uct20_syms is dead (after 20.0s)
+member_interest.interest_for source positions failed for user 9f5ee4cd-45ae-4803-9f23-6220de3d8a7c: probe: member_interest._position_syms is dead (after 20.0s)
+member_interest.interest_for source watchlist failed for user 9f5ee4cd-45ae-4803-9f23-6220de3d8a7c: probe: member_interest._watchlist_syms is dead (after 20.0s)
+member_interest.interest_for source flagged failed for user 9f5ee4cd-45ae-4803-9f23-6220de3d8a7c: probe: member_interest._flagged_syms is dead (after 20.0s)
+member_interest.interest_for source uct20 failed for user 9f5ee4cd-45ae-4803-9f23-6220de3d8a7c: probe: member_interest._uct20_syms is dead (after 20.0s)
+[trader_blocks] prep levels unreadable
+Traceback (most recent call last):
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 732, in prep_part
+    return reader(user_id, now, memo if memo is not None else {})
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\api\services\journal_two\trader_blocks.py", line 710, in _prep_levels
+    board = setups_board.build_cards(conn, user_id, prices=prices)
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\tools\notebook_daily_prep_probe.py", line 173, in wrapper
+    raise ProbeLegFailure(f"probe: {self.key} is dead (after {self.delay}s)")
+ProbeLegFailure: probe: setups_board.build_cards is dead (after 20.0s)
+[warm] big: p50 280.0359s  p95 280.0359s  max 280.0359s  (warm-up [])
+      prepWire                     {'fell_back:source_error': 1}
+      prepEarnings                 {'fell_back:no_names': 1}
+      prepMovers                   {'fell_back:no_names': 1}
+      prepLevels                   {'fell_back:source_error': 1}
+      marketcontext.regime         {'fell_back': 1}
+      marketcontext.spy            {'fell_back': 1}
+      marketcontext.qqq            {'fell_back': 1}
+      marketcontext.vix            {'fell_back': 1}
+      regime_at_write              {'absent': 1}
+[warm] outbound socket attempts: 0
+shared-root writes blocked: 0  reads recorded: 0
+raw JSON: C:\Users\Patrick\uct-worktrees\notebook-p2b-w3\docs\notebook\perf-runs\p2b\daily-prep-probe-d20-fail.json
+VERDICT: RAN CLEAN
+EXIT: 0
