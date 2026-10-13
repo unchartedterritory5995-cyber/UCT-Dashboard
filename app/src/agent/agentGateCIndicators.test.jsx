@@ -113,7 +113,7 @@ describe('Gate C — "make it a 9": the SAME indicator changes, exactly undone',
     await waitFor(() => expect(ovl(h, 'ovl:1').inputs.period).toBe(50))  // the chart's EMA 20 — the only "20"
     expect(mas(h)).toHaveLength(4)
     await say('make it a 50')
-    await waitFor(() => expect(transcript()).toMatch(/already has those settings/))
+    await waitFor(() => expect(transcript()).toMatch(/Nothing to change — it already has those settings./))
     await say('add a 21 ema')
     await waitFor(() => expect(live(h)).toHaveLength(1))
     await say('add a 21 sma')

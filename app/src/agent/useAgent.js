@@ -100,6 +100,8 @@ function rememberChange(memory, host, ops) {
     if (t) memory?.noteIndicator({ chart: t.chartRef, instanceId: t.instanceId, defId: t.defId, label: t.name, epoch: epochOf(host) })
   } catch { /* memory is best-effort */ }
 }
+// GATE C: a message that corrects the last one ("no, I meant…", "not that", "wrong one", "I said…")
+const CORRECTION = /^(?:no|nope|nah|not that|not those|wrong|that's wrong|that is wrong|actually,? i meant|i meant|i said|i asked for)\b/i
 // Which board the host is showing (null for hosts without layouts).
 const epochOf = (host) => (typeof host?.epoch === 'function' ? host.epoch() : null)
 // A proposal is pinned to the board only if it touches something ON the board.
@@ -942,6 +944,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // a question or an authoring answer is waiting (those words answer THAT). A reference that cannot hold
       // is said plainly (`say`); one it cannot read goes on to the instant path / the model as before.
       const epochNow = epochOf(host)
+      // GATE C: the member CORRECTING the Agent ("no, I meant the weekly", "not that one") — kept as context
+      // for the model (session memory → conversation_memory.recent_corrections); never acted on by itself
+      if (CORRECTION.test(text)) memoryRef.current.noteCorrection(text)
       const memRef = (answering || pendingRef.current || peekAuthoringIntent()) ? null
         : resolveReference(text, { host, memory: memoryRef.current, epoch: epochNow })
       if (memRef?.kind === 'say') {
