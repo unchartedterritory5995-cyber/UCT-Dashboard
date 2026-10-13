@@ -165,26 +165,64 @@ describe('Market context: the budget stamp\'s Capture now writes into the note',
     expect(screen.getByText('Market context captured.').getAttribute('role')).toBe('status')
   })
 
-  it('fix round 2 (I-1): Capture now clears a stale archived image in the SAME write, and the archive re-freezes the CAPTURED stamp', async () => {
-    const READ = { readings: { marketPhase: 'Uptrend', powerTrend: null }, wireDate: '2026-10-12', updated: '10:30 AM ET' }
-    routeFetch(async () => ({ ok: true, status: 200, json: async () => READ }))
-    const stale = budgetStamp()
-    stale.attrs.fallback = { url: '/api/j2/notes/n1/images/stale.png', w: 10, h: 10 }   // a PNG of the uncaptured frame
-    NOTE = { ...note(), bodyJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Plan ' }] }, stale] } }
-    const ed = await renderEditor()
-    await act(async () => { (await screen.findByRole('button', { name: 'Capture now' })).click() })
-    // one write: the readings, the date and the cleared archive land together
-    await waitFor(() => expect(stamps(ed)[0].attrs.params.readings).toEqual(READ.readings))
-    expect(stamps(ed)[0].attrs.fallback).toBeNull()
-    expect(stamps(ed)[0].attrs.capturedAt).toBeTruthy()
-    // re-armed: the self-archive settles, rasterizes the captured stamp (no door, no sentence) and lands it
-    await waitFor(() => expect(stamps(ed)[0].attrs.fallback?.url).toBe('/api/j2/notes/n1/images/new-archive.png'), { timeout: 20000 })
-    expect(archive.capture).toHaveBeenCalledTimes(1)
-    const shot = archive.capture.mock.calls[0][0]
-    expect(shot.textContent).toContain('Uptrend')
-    expect(shot.textContent).not.toContain('Capture now')
-    expect(shot.textContent).not.toContain(BUDGET)
-  }, 30000)
+  // Fix round 3: the archive's clock (a 3.5 s settle, then five 2 s bars-ready retries) runs on the repo's
+  // fake-timer pattern (NoteEditorPage.durable / .interleavings / .draft): shouldAdvanceTime keeps every other
+  // timer moving, and advanceTimersByTimeAsync jumps the archive's ~13.5 s instead of waiting it out.
+  const ARCHIVE_BUDGET_MS = 14_000
+  const runArchiveClock = () => act(async () => { await vi.advanceTimersByTimeAsync(ARCHIVE_BUDGET_MS) })
+
+  describe('the archive after a capture', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('fix round 2 (I-1): Capture now clears a stale archived image in the SAME write, and the archive re-freezes the CAPTURED stamp', async () => {
+      const READ = { readings: { marketPhase: 'Uptrend', powerTrend: null }, wireDate: '2026-10-12', updated: '10:30 AM ET' }
+      routeFetch(async () => ({ ok: true, status: 200, json: async () => READ }))
+      const stale = budgetStamp()
+      stale.attrs.fallback = { url: '/api/j2/notes/n1/images/stale.png', w: 10, h: 10 }   // a PNG of the uncaptured frame
+      NOTE = { ...note(), bodyJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Plan ' }] }, stale] } }
+      const ed = await renderEditor()
+      await act(async () => { (await screen.findByRole('button', { name: 'Capture now' })).click() })
+      // one write: the readings, the date and the cleared archive land together
+      await waitFor(() => expect(stamps(ed)[0].attrs.params.readings).toEqual(READ.readings))
+      expect(stamps(ed)[0].attrs.fallback).toBeNull()
+      expect(stamps(ed)[0].attrs.capturedAt).toBeTruthy()
+      // re-armed: the self-archive settles, rasterizes the captured stamp (no door, no sentence) and lands it
+      await runArchiveClock()
+      await waitFor(() => expect(stamps(ed)[0].attrs.fallback?.url).toBe('/api/j2/notes/n1/images/new-archive.png'))
+      expect(archive.capture).toHaveBeenCalledTimes(1)
+      const shot = archive.capture.mock.calls[0][0]
+      expect(shot.textContent).toContain('Uptrend')
+      expect(shot.textContent).not.toContain('Capture now')
+      expect(shot.textContent).not.toContain(BUDGET)
+    })
+
+    it('fix round 3 (N-1): with NO archive and its retries already spent, a later Capture now still re-arms it and lands the CAPTURED stamp', async () => {
+      const READ = { readings: { marketPhase: 'Uptrend', powerTrend: null }, wireDate: '2026-10-12', updated: '10:30 AM ET' }
+      routeFetch(async () => ({ ok: true, status: 200, json: async () => READ }))
+      NOTE = { ...note(), bodyJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Plan ' }] }, budgetStamp()] } }
+      const ed = await renderEditor()
+      await screen.findByRole('button', { name: 'Capture now' })
+      // the member reads past the whole retry budget: the door is never rasterized, so nothing is archived
+      await runArchiveClock()
+      expect(archive.capture).not.toHaveBeenCalled()
+      expect(stamps(ed)[0].attrs.fallback).toBeNull()
+      // now the capture: `fallback: null` over a null changes nothing the archive watches -- the epoch does
+      await act(async () => { (await screen.findByRole('button', { name: 'Capture now' })).click() })
+      await waitFor(() => expect(stamps(ed)[0].attrs.params.readings).toEqual(READ.readings))
+      await runArchiveClock()
+      await waitFor(() => expect(stamps(ed)[0].attrs.fallback?.url).toBe('/api/j2/notes/n1/images/new-archive.png'))
+      expect(archive.capture).toHaveBeenCalledTimes(1)
+      const shot = archive.capture.mock.calls[0][0]
+      expect(shot.textContent).toContain('Uptrend')
+      expect(shot.textContent).not.toContain('Capture now')
+      expect(shot.textContent).not.toContain(BUDGET)
+    })
+  })
 
   it('fix round 1: the capture is DATED — capturedAt lands in the same node, and the caption says "· captured <day>"', async () => {
     const READ = { readings: { marketPhase: 'Uptrend', powerTrend: null }, wireDate: '2026-10-12', updated: '10:30 AM ET' }
