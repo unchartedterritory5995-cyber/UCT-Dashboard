@@ -182,6 +182,48 @@ numpad keys, which NVDA's desktop layout binds to its review cursor and swallows
 scan code reaches the page as an empty `KeyboardEvent.code`; the Journal's `?` matches on
 `code: "Slash"` (r6/r7 failed row 27 for that reason, r8 passed it).
 
+## Steps 28-38 -- Journal styles (P1) and the trader blocks (P2)
+
+Added 2026-10-13 (Notebook P2b, task 15 step 1) on `notebook-p2b-nvda`. **NOT RUN YET**: these rows are
+written and the driver has a step for each; the run (NVDA muted) is the integrator's, before the flag is
+armed. They are kept out of the table above so the 2026-10-09 result record still describes exactly
+the rows it ran.
+
+- **The switch.** Every surface below exists only while `NOTEBOOK_JOURNAL_STYLES_ENABLED` is on for the
+  server under test (`api/routers/auth.py` `NOTEBOOK_FLAGS`, unset means OFF). The client learns it from
+  the auth payload: key `notebook_journal_styles_enabled` on `/api/auth/me` (`_notebook_flags`, merged by
+  `_access_payload`), latched as a boolean by `lib/offline/notebookFlags.js` and read by
+  `lib/journalStylesFlag.js`. `tools/notebook_nvda_pass.py` reads the same key from its own `/api/auth/me`
+  and, when it is absent or anything but `true`, records every row here **NOT RUN** with the reason
+  `journal styles switch is off on <base>`, and makes none of the fixtures below.
+- **Fixtures**, made by the tool through the API the first time a row needs them (never through the
+  slash menu), and removed in its `finally`: one note per block, each holding the block node in
+  `bodyJson` exactly as `trader_blocks._node` builds it (`SR block checklist`, `SR block stamps`,
+  `SR block sizing`, `SR block prep`, `SR block rules`, `SR block review`; trashed); the style `SR style`
+  (the chart, then the pre-entry checklist; soft-deleted, the manager's own Delete); the rule
+  `SR rule wait for the first hour` in the account the browser selects, switched to Before entry
+  (`POST /api/j2/accounts/{account}/rules`, then `PUT /api/j2/trader-blocks/rules/{id}`; dismissed with
+  `POST /api/j2/rules/{id}/dismiss`, the rules API's only removal); and, only when the account has no
+  closed trade for the review picker, a manual `ZZZT` trade (`POST /api/j2/trades`; hard-deleted with
+  `DELETE /api/j2/trades/{id}`). The record carries `left_sr_styles`, `left_sr_rules`, `left_sr_trades`.
+- **Run them alone:** `python tools/notebook_nvda_pass.py --out <file> --nvda-log <log> --only 28,29,30,31,32,33,34,35,36,37,38`.
+  Each row opens its own page; none depends on an earlier one. The ear is narrowed to the final focus:
+  the page (and dialog) is set up, NVDA settles, the window is marked, then the control is focused.
+
+| # | Keys | Expected announcement (quoted from source) | Source | PASS / FAIL | Notes |
+|---|---|---|---|---|---|
+| 28 | Open `/journal/notebook?view=all`. Focus **Styles**, **Enter**. | `"Journal styles"`, dialog | the door `tabs/NotebookTab.jsx:2467-2469`; the title `components/notebook/styles/StylesManager.jsx:242`; `role="dialog"` named by its title `app/src/components/mobile/Sheet.jsx:261`, `:267` | **NOT RUN YET** | |
+| 29 | In the manager, **Enter** on `Edit SR style`; focus the second block row's move-up control. | `"Move Pre-entry checklist up"`, button | `components/notebook/styles/StyleEditor.jsx:282` (`` `Move ${label} up` ``); label `lib/journalBlocks.js:17`; the opener `components/notebook/styles/StylesManager.jsx:319` | **NOT RUN YET** | Name corrected from "Move up": that is the button's `title` tooltip (`:282`), not its accessible name. The first row's move-up is disabled, so the row is the style's second block. |
+| 30 | Same; focus the chart row's timeframe select. | `"Timeframe for Chart of the note’s ticker"`, combo box | `components/notebook/styles/StyleEditor.jsx:276` (`` `${s.label} for ${label}` ``); `lib/journalBlocks.js:10` (`Chart of the note’s ticker`), `:12` (`Timeframe`) | **NOT RUN YET** | The apostrophe is TYPOGRAPHIC (U+2019), not ASCII, so Python's repr keeps NVDA's single quotes around it; the ear reads both quote styles anyway, and its self-check walks this exact name. |
+| 31 | Open the note `SR block checklist`; focus `Change setup`. | `"Pre-entry checklist"`, grouping | the block's group `components/notebook/blocks/BlockNodeView.jsx:76` (`role="group"`, named by the block); label `lib/journalBlocks.js:17`; inside it a second group `components/notebook/blocks/PreEntryChecklistBlock.jsx:98-99` (`Pre-entry checklist for SR setup`), which holds the button `:111-115` | **NOT RUN YET** | `Change setup` is focused rather than the block's `Remove Pre-entry checklist` (`BlockNodeView.jsx:80`) because its own name does not carry the phrase, so `Pre-entry checklist` can only come from a group's name. The grade cannot tell the outer group from the inner one (the inner name contains the outer); the speech in the record can. |
+| 32 | Same note; focus the rule's check box. | `SR rule wait for the first hour`, check box, not checked | `components/notebook/blocks/PreEntryChecklistBlock.jsx:102-105` (the label wraps the box and the item's words); the item `lib/blocks/checklistItems.js` (`checklistItems`: an active rule with `beforeEntry`) | **NOT RUN YET** | The item is the run's own rule. The setup `SR setup` is not one of the account's setups, so the block also says `SR setup is no longer one of your setups.` (`:94`). |
+| 33 | Open the note `SR block stamps`; focus the switch. | `"Stamp prices as I write"`, switch | `components/notebook/blocks/PriceStampsBlock.jsx:24`; `role="switch"` `app/src/components/ui/Switch.jsx:44` | **NOT RUN YET** | Disabled, so unfocusable, while the switch is off (`:24`); the gate above keeps the row from running then. |
+| 34 | Open the note `SR block sizing`; focus **Entry**. | `"Entry"`, spin button | `components/notebook/blocks/PositionSizingBlock.jsx:98-99` | **NOT RUN YET** | Two corrections. Role: `<input type="number">` is a spin button (HTML-AAM), not "edit"; NVDA's exact wording for it is unmeasured here. Owner: the "trade plan entry field" is the Position sizing block's, which the built-in Trade plan style composes (`api/services/journal_two/journal_styles.py:131-137`). |
+| 35 | Same note; focus **Setup grade**. | `"Setup grade"`, combo box | `components/notebook/blocks/PositionSizingBlock.jsx:108-109` | **NOT RUN YET** | |
+| 36 | Open the note `SR block prep`; focus **Capture now**. | `"Capture now"`, button | `components/notebook/blocks/PrepCapture.jsx:52-54` (in `components/notebook/blocks/PrepWireBlock.jsx`) | **NOT RUN YET** | Never pressed: a capture reads the market and writes a snapshot into the note. The note's block has no snapshot (the uncaptured shape), so the button reads `Capture now`, not `Capture again`. |
+| 37 | Open the note `SR block rules`; focus the rule's **Edit**. | `"Edit 'SR rule wait for the first hour'"`, button | `components/notebook/blocks/MyRulesBlock.jsx:110` (`` `'${rule.label}'` ``), `:149` (`` `Edit ${name}` ``) | **NOT RUN YET** | The name carries the rule's words in ASCII single quotes, so NVDA's log writes it double-quoted (the shape the first ear was deaf to). Graded on `Edit`, the words and `button`, not on the quote characters, which NVDA's punctuation level may drop. |
+| 38 | Open the note `SR block review`; focus the trade picker. | `"Trade to review"`, combo box | `components/notebook/blocks/TradeReviewBlock.jsx:67-68` | **NOT RUN YET** | The picker exists only with at least one closed trade (`:63`); the tool makes the `ZZZT` trade when the account has none. |
+
 ## Appendix A -- the Mac-only chords, on a real Mac
 
 Read from source; never retyped from memory. On a Mac, `Mod` is Cmd and `Alt` is Option.

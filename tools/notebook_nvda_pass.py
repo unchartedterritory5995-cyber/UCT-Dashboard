@@ -5,7 +5,9 @@ input/output log rather than a person's ears.
     python tools/notebook_nvda_pass.py --self-check
 
 WHAT IT IS, HONESTLY. The pass script was written for a human listening to a real screen reader.
-This drives the same 27 rows with REAL OS key events (`SendInput`, so NVDA's keyboard hook sees
+This drives the same rows -- 1 to 27 (the 2026-10-09 pass) and 28 to 38 (Journal styles, P1, and the
+trader blocks, P2; added 2026-10-13, driven only while the server under test has the journal styles
+switch on) -- with REAL OS key events (`SendInput`, so NVDA's keyboard hook sees
 them; Playwright's CDP keys do not reach it) into a headed Chromium signed in as the synthetic
 smoke account, and reads what NVDA SPOKE from its log at log level 12 (input/output), where every
 utterance is a `Speaking [...]` line. A row PASSES when every quoted phrase in the script's
@@ -27,6 +29,12 @@ unverifiable foreground is never a key.
 signed-in email is checked by domain before any write). ⛔ WHAT IT LEAVES: nothing. The two notes,
 the folder and its subfolder, and the saved view it makes are removed in `finally`, and the record
 carries the counts left behind. Row 26 (Share) is NOT RUN on purpose: it would mint a public link.
+Rows 28-38 make their own fixtures, lazily, the first time a row that needs one runs (so `--only 28,...`
+works alone): one note per trader block (`SR block ...`), the style `SR style`, the rule `SR rule wait
+for the first hour` (switched to Before entry) in the account the browser selects, and -- only when the
+account has no closed trade for the review picker -- a manual `ZZZT` trade. `finally` trashes the notes,
+soft-deletes the style, dismisses the rule and hard-deletes the trade, and records what is left. With
+the switch off or absent on `/api/auth/me`, rows 28-38 are NOT RUN and none of these is made.
 
 ⛔ NVDA must already be running with `-m --log-level=12 --log-file=<path>`; pass that path as
 --nvda-log. The box's foreground is taken by the test browser for the run's length (~8 min).
@@ -302,6 +310,124 @@ def grade(expected: list[str], heard: list[str]) -> tuple[str, str]:
     return "PASS", " / ".join(heard)[:300]
 
 
+# ── Rows 28-38: Journal styles (P1) and the trader blocks (P2) ───────────────────────────────
+# Every name below is read from the component source; docs/notebook/screen-reader-pass.md quotes the
+# file:line for each row. ⛔ These surfaces exist only while NOTEBOOK_JOURNAL_STYLES_ENABLED is on for
+# the server under test. The client learns it from the auth payload (api/routers/auth.py
+# NOTEBOOK_FLAGS + _notebook_flags, the key below, on /api/auth/me) and latches only a BOOLEAN
+# (lib/offline/notebookFlags.js flagValue), so this reads the same key the same way.
+STYLES_FLAG_KEY = "notebook_journal_styles_enabled"
+SR_STYLE_NAME = "SR style"
+SR_RULE_LABEL = "SR rule wait for the first hour"      # no apostrophe: the name below quotes it in ''
+SR_SETUP = "SR setup"
+SR_TRADE_SYMBOL = "ZZZT"
+CHART_LABEL = "Chart of the note’s ticker"          # lib/journalBlocks.js:10 -- a TYPOGRAPHIC apostrophe
+CHECKLIST_LABEL = "Pre-entry checklist"                  # lib/journalBlocks.js:17
+TIMEFRAME_NAME = f"Timeframe for {CHART_LABEL}"          # StyleEditor.jsx:276 `${s.label} for ${label}`
+MOVE_UP_NAME = f"Move {CHECKLIST_LABEL} up"              # StyleEditor.jsx:282 `Move ${label} up`
+CHANGE_SETUP_NAME = "Change setup"                       # blocks/PreEntryChecklistBlock.jsx:111-115
+STAMP_NAME = "Stamp prices as I write"                   # blocks/PriceStampsBlock.jsx:24
+RULE_EDIT_NAME = f"Edit '{SR_RULE_LABEL}'"               # blocks/MyRulesBlock.jsx:110, :149
+ACTIVE_NAME = ("() => { const a = document.activeElement; if (!a) return 'none';"
+               " const role = a.getAttribute('role') || (a.tagName === 'INPUT' ? 'input[' + a.type + ']' : a.tagName.toLowerCase());"
+               " const name = a.getAttribute('aria-label') || (a.labels && a.labels[0] ? a.labels[0].textContent.trim() : '')"
+               " || a.textContent.trim().slice(0, 60);"
+               " return 'activeElement ' + role + ' named ' + JSON.stringify(name) }")
+
+#: n, keys, expected (every phrase must be spoken in the row's window), and `logged`: the strings NVDA
+#: is expected to log for that focus, used ONLY by the self-check to walk the ear over each row's own
+#: words written the way NVDA writes them (Python's repr). `logged` is never graded against.
+P1P2_ROWS = (
+    {"n": 28, "keys": "Notebook list (?view=all): focus Styles, Enter",
+     "expected": ["Journal styles", "dialog"], "logged": ["Journal styles", "dialog"]},
+    {"n": 29, "keys": f"in the manager, Enter on 'Edit {SR_STYLE_NAME}'; focus the second block row's move-up control",
+     "expected": [MOVE_UP_NAME, "button"], "logged": [MOVE_UP_NAME, "button"],
+     "note": "(the brief's 'Move up' is the control's title tooltip; its accessible name is 'Move <block> up')"},
+    {"n": 30, "keys": f"in the manager, Enter on 'Edit {SR_STYLE_NAME}'; focus the chart row's timeframe",
+     "expected": [TIMEFRAME_NAME, "combo box"], "logged": [TIMEFRAME_NAME, "combo box", "Daily"],
+     "note": "(a typographic apostrophe, U+2019, in the name)"},
+    {"n": 31, "keys": f"open the note 'SR block checklist'; focus '{CHANGE_SETUP_NAME}' (inside the block's groups)",
+     "expected": [CHECKLIST_LABEL, "grouping"],
+     "logged": [CHECKLIST_LABEL, "grouping", f"{CHECKLIST_LABEL} for {SR_SETUP}", "grouping", CHANGE_SETUP_NAME, "button"],
+     "note": "(focus enters the block's group, BlockNodeView.jsx:76; the button's own name does not carry the phrase)"},
+    {"n": 32, "keys": "same note: focus the before-entry rule's check box",
+     "expected": [SR_RULE_LABEL, "check box", "not checked"],
+     "logged": [f"{CHECKLIST_LABEL} for {SR_SETUP}", "grouping", SR_RULE_LABEL, "check box", "not checked"]},
+    {"n": 33, "keys": "open the note 'SR block stamps'; focus the switch",
+     "expected": [STAMP_NAME, "switch"], "logged": [STAMP_NAME, "switch", "off"]},
+    {"n": 34, "keys": "open the note 'SR block sizing'; focus Entry",
+     "expected": ["Entry", "spin button"], "logged": ["Entry", "spin button"],
+     "note": "(the brief said 'edit'; Entry is an <input type=number>, a spin button; it is the Position sizing block's)"},
+    {"n": 35, "keys": "same note: focus Setup grade",
+     "expected": ["Setup grade", "combo box"], "logged": ["Setup grade", "combo box", "A"]},
+    {"n": 36, "keys": "open the note 'SR block prep'; focus Capture now (never pressed)",
+     "expected": ["Capture now", "button"], "logged": ["Capture now", "button"]},
+    {"n": 37, "keys": "open the note 'SR block rules'; focus the rule's Edit",
+     "expected": ["Edit", SR_RULE_LABEL, "button"], "logged": [RULE_EDIT_NAME, "button"],
+     "note": "(its name is Edit '<the rule's words>', the label in ASCII quotes)"},
+    {"n": 38, "keys": "open the note 'SR block review'; focus the trade picker",
+     "expected": ["Trade to review", "combo box"], "logged": ["Trade to review", "combo box", "Pick a trade"]},
+)
+
+
+class FixtureUnavailable(RuntimeError):
+    """A fixture a new row needs could not be made through the API. The row is INCONCLUSIVE, no key sent."""
+
+
+def journal_styles_off(me, base: str) -> str | None:
+    """None when /api/auth/me says the journal styles switch is on; else the NOT RUN reason.
+    Only a boolean True is ON (the client latches booleans only): absent, False, a string, a
+    malformed payload all answer off, and absent says it is absent."""
+    if not isinstance(me, dict) or STYLES_FLAG_KEY not in me:
+        return f"journal styles switch is off on {base} (/api/auth/me carries no {STYLES_FLAG_KEY})"
+    if me.get(STYLES_FLAG_KEY) is True:
+        return None
+    return f"journal styles switch is off on {base}"
+
+
+def block_kinds(path: pathlib.Path | None = None) -> dict:
+    """journal_styles.BLOCK_KINDS, read by AST from the server file (never imported: importing it binds
+    auth_db), as {block id: {"search": str|None, "defaults": {key: default}}}. The ONE source of a
+    trader block node's `searchText` and settings defaults here; nothing is retyped."""
+    import ast
+    path = path or pathlib.Path(__file__).resolve().parents[1] / "api" / "services" / "journal_two" / "journal_styles.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in tree.body:
+        target = node.target if isinstance(node, ast.AnnAssign) else (node.targets[0] if isinstance(node, ast.Assign) else None)
+        if isinstance(target, ast.Name) and target.id == "BLOCK_KINDS" and node.value is not None:
+            kinds = ast.literal_eval(node.value)
+            return {k["id"]: {"search": k.get("search"), "defaults": {s["key"]: s["default"] for s in k.get("settings", ())}}
+                    for k in kinds}
+    raise LookupError(f"BLOCK_KINDS not found in {path}")
+
+
+def block_node(widget_id: str, params: dict, kinds: dict) -> dict:
+    """A trader block node exactly as trader_blocks._node builds it (api/services/journal_two/
+    trader_blocks.py:32-39): a widgetEmbed whose widgetId is the block id, searchText from the catalog."""
+    return {"type": "widgetEmbed", "attrs": {
+        "v": 1, "widgetId": widget_id, "embedId": secrets.token_hex(16), "mode": "snapshot", "params": params,
+        "capturedAt": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
+        "annotations": [], "caption": None, "layout": {"width": "full", "height": None}, "fallback": None,
+        "searchText": kinds[widget_id]["search"]}}
+
+
+def block_params(widget_id: str, kinds: dict) -> dict:
+    """The params a new note's block carries, as trader_blocks.BUILDERS shape them (trader_blocks.py),
+    with the defaults read from the catalog. Two departures, both so the row has its control: the
+    checklist gets a setup (an empty one lists nothing), and the prep block is the uncaptured shape
+    ("update" mode, :740-741) so it offers Capture now instead of holding a snapshot."""
+    d = kinds[widget_id]["defaults"]
+    return {
+        "preEntryChecklist": lambda: {"setup": SR_SETUP, "includeRules": d.get("includeRules", "yes"),
+                                      "requireAll": d.get("requireAll", "no"), "checked": []},   # :46-49
+        "priceStamps": lambda: {"on": d.get("on", "no")},                                        # :52-53
+        "positionSizing": lambda: {"grade": d.get("grade", "A")},                                # :72, unstamped
+        "myRules": lambda: {},                                                                   # :100-101
+        "prepWire": lambda: {},                                                                  # :740-741
+        "tradeReview": lambda: {"tradeId": ""},                                                  # :102
+    }[widget_id]()
+
+
 def self_check() -> int:
     """Controls: the grader can fail and can pass; the ear parses NVDA's line shape; the guard
     REFUSES when no window carries the nonce (no key could ever go anywhere)."""
@@ -316,6 +442,45 @@ def self_check() -> int:
             "Speaking [LangChangeCommand ('en_US'), 'row 1', 'column 1', 'Select All', 'check box', 'not checked']")
     if parse_speech(line) != ["row 1 column 1 Select All check box not checked"]:
         fails.append(f"parse_speech: {parse_speech(line)!r}")
+
+    # Rows 28-38. (a) The switch reader: NOT RUN unless /api/auth/me carries a boolean True.
+    base = "https://example.invalid"
+    off = f"journal styles switch is off on {base}"
+    for me, want_off in (({}, True), (None, True), ({STYLES_FLAG_KEY: False}, True), ({STYLES_FLAG_KEY: "true"}, True),
+                         ({STYLES_FLAG_KEY: 1}, True), ({STYLES_FLAG_KEY: True}, False)):
+        why = journal_styles_off(me, base)
+        if want_off and not (isinstance(why, str) and why.startswith(off)):
+            fails.append(f"journal_styles_off({me!r}) did not answer NOT RUN: {why!r}")
+        if not want_off and why is not None:
+            fails.append(f"journal_styles_off({me!r}) refused an ON switch: {why!r}")
+    if "carries no" not in (journal_styles_off({}, base) or ""):
+        fails.append("journal_styles_off: an ABSENT key did not say it was absent")
+    # (b) The rows are 28..38, once each, every one with something to hear.
+    nums = [r["n"] for r in P1P2_ROWS]
+    if nums != list(range(28, 39)):
+        fails.append(f"P1P2_ROWS numbers: {nums!r}")
+    for r in P1P2_ROWS:
+        if not r["expected"] or not all(isinstance(e, str) and e for e in r["expected"]):
+            fails.append(f"row {r['n']}: empty expected")
+        # (c) The ear walked over each row's own words, written as NVDA writes them (Python's repr:
+        # single quotes, DOUBLE quotes when the string holds an apostrophe -- row 37's name does).
+        logged = "Speaking [LangChangeCommand ('en_US'), " + ", ".join(repr(s) for s in r["logged"]) + "]"
+        verdict, why = grade(r["expected"], parse_speech(logged))
+        if verdict != "PASS":
+            fails.append(f"row {r['n']}: the ear cannot hear its own expected words: {why}")
+    if "’" not in TIMEFRAME_NAME or "'" in TIMEFRAME_NAME:
+        fails.append(f"row 30's name lost its typographic apostrophe: {TIMEFRAME_NAME!r}")
+    # (d) The block catalog is READ from the server file, and holds the six blocks the rows build.
+    try:
+        kinds = block_kinds()
+        for wid in ("preEntryChecklist", "priceStamps", "positionSizing", "myRules", "prepWire", "tradeReview"):
+            node = block_node(wid, block_params(wid, kinds), kinds)
+            if not (isinstance(node["attrs"]["searchText"], str) and node["attrs"]["searchText"].startswith("[")):
+                fails.append(f"block_kinds: no catalog search line for {wid}: {node['attrs']['searchText']!r}")
+        if kinds["preEntryChecklist"]["defaults"] != {"includeRules": "yes", "requireAll": "no"}:
+            fails.append(f"block_kinds: preEntryChecklist defaults {kinds['preEntryChecklist']['defaults']!r}")
+    except Exception as e:  # noqa: BLE001
+        fails.append(f"block_kinds: {type(e).__name__}: {e}")
 
     class _NoPage:
         def evaluate(self, *_a, **_k):
@@ -392,7 +557,7 @@ def main(argv=None) -> int:
 
     from playwright.sync_api import sync_playwright
     rows: list[dict] = []
-    made = {"notes": [], "folders": [], "views": []}
+    made = {"notes": [], "folders": [], "views": [], "styles": [], "rules": [], "trades": []}
     nonce = secrets.token_hex(6)
     rec = {"started": dt.datetime.now().isoformat(timespec="seconds"), "nvda_version": nvda_version,
            "base": a.base, "nonce": nonce, "rows": rows, "made": made, "aborted": None}
@@ -448,6 +613,9 @@ def main(argv=None) -> int:
         who = (me.get("user") or {}).get("email", "")
         if not who.endswith(SYNTHETIC_DOMAIN):
             print("REFUSED: not the synthetic account"); b.close(); return 2
+        # Rows 28-38 run only while the server under test has the journal styles switch on.
+        styles_off = journal_styles_off(me, a.base)
+        rec["journal_styles"] = "on" if styles_off is None else styles_off
         page = ctx.new_page()
         GUARD = Foreground(page, nonce)
         code = 0
@@ -682,6 +850,233 @@ def main(argv=None) -> int:
                     first += f"; after Insert+Space and ? again: keydowns {page.evaluate('() => window.__keys')!r}, dialogs x{_dom('[role=dialog]')}"
                 PROBE["txt"] = f"DOM: {first}, 'Keyboard Shortcuts' text x{_dom('text=Keyboard Shortcuts')}"
             row(27, "? (Shift+/ as a real key) anywhere in the Journal", ["Keyboard Shortcuts", "dialog"], _help)
+
+            # ── Rows 28-38 (2026-10-13): Journal styles (P1) and the trader blocks (P2) ─────────
+            # ⛔ Every row opens its own page and makes its own fixtures (lazily, through p2_row's
+            # `needs`), so `--only 28,...` works without any earlier row. The fixtures are made AFTER
+            # row 25 has emptied the account of the run's notes, so they cannot break its "no notes".
+            # Each row's ear window is narrowed to the final focus: the page and dialog are set up,
+            # NVDA settles, the ear is marked, THEN the control is focused.
+            fx: dict = {}
+
+            def put(path, body):
+                rr = req.put(f"{a.base}{path}", data=json.dumps(body), headers={"Content-Type": "application/json"})
+                return rr.status, (rr.json() if rr.status < 300 else rr.text())
+
+            def p2_account():
+                """The account the browser selects: the first of /api/j2/accounts (useJ2SelectedAccount picks
+                accounts[0] with nothing stored, and this Playwright context stores nothing)."""
+                if "account" not in fx:
+                    r = req.get(f"{a.base}/api/j2/accounts")
+                    accts = (r.json() or {}).get("accounts") if r.status == 200 else None
+                    if not accts:
+                        raise FixtureUnavailable(f"no Journal account (GET /api/j2/accounts {r.status})")
+                    fx["account"] = accts[0]["id"]
+                return fx["account"]
+
+            def p2_kinds():
+                if "kinds" not in fx:
+                    try:
+                        fx["kinds"] = block_kinds()
+                    except Exception as e:  # noqa: BLE001
+                        raise FixtureUnavailable(f"the block catalog could not be read: {e}")
+                return fx["kinds"]
+
+            def p2_rule():
+                """The run's own rule, switched to Before entry (so the checklist lists it too)."""
+                if "rule" not in fx:
+                    acct = p2_account()
+                    st, j = post(f"/api/j2/accounts/{acct}/rules", {"label": SR_RULE_LABEL})
+                    if st != 200 or not isinstance(j, dict) or not j.get("id"):
+                        raise FixtureUnavailable(f"rule not made: {st} {str(j)[:120]}")
+                    made["rules"].append(j["id"]); write()
+                    st, k = put(f"/api/j2/trader-blocks/rules/{j['id']}", {"beforeEntry": True})
+                    if st != 200:
+                        raise FixtureUnavailable(f"rule not switched to Before entry: {st} {str(k)[:120]}")
+                    fx["rule"] = j["id"]
+                return fx["rule"]
+
+            def p2_trade():
+                """The review picker lists the account's closed trades; only when there is none is a manual
+                ZZZT trade made (and hard-deleted in finally)."""
+                if "trade" not in fx:
+                    r = req.get(f"{a.base}/api/j2/trader-blocks/review/trades")
+                    if r.status != 200:
+                        raise FixtureUnavailable(f"GET /api/j2/trader-blocks/review/trades {r.status}")
+                    if (r.json() or {}).get("trades"):
+                        fx["trade"] = "the account's own"
+                    else:
+                        st, j = post("/api/j2/trades", {"symbol": SR_TRADE_SYMBOL, "side": "Long", "shares": 1,
+                                                        "entryPrice": 10, "exitPrice": 11, "entryDate": "2026-01-05",
+                                                        "exitDate": "2026-01-06", "accountId": p2_account()})
+                        if st != 200 or not isinstance(j, dict) or not j.get("id"):
+                            raise FixtureUnavailable(f"trade not made: {st} {str(j)[:120]}")
+                        made["trades"].append(j["id"]); write()
+                        fx["trade"] = j["id"]
+                return fx["trade"]
+
+            P2_NOTE_TITLES = {"preEntryChecklist": "SR block checklist", "priceStamps": "SR block stamps",
+                              "positionSizing": "SR block sizing", "prepWire": "SR block prep",
+                              "myRules": "SR block rules", "tradeReview": "SR block review"}
+
+            def p2_note(widget_id):
+                """One note per block, the block node already in bodyJson (never the slash menu)."""
+                key = f"note:{widget_id}"
+                if key not in fx:
+                    kinds = p2_kinds()
+                    body = {"type": "doc", "content": [_para("SR block row."), block_node(widget_id, block_params(widget_id, kinds), kinds)]}
+                    st, j = post("/api/j2/notes", {"title": P2_NOTE_TITLES[widget_id], "bodyJson": body})
+                    if st != 200:
+                        raise FixtureUnavailable(f"note for {widget_id} not made: {st} {str(j)[:160]}")
+                    made["notes"].append((j.get("note") or j)["id"]); write()
+                    fx[key] = (j.get("note") or j)["id"]
+                return fx[key]
+
+            def p2_style():
+                """`SR style`: the chart, then the pre-entry checklist (so the checklist row's Move up is live)."""
+                if "style" not in fx:
+                    r = req.get(f"{a.base}/api/j2/journal-styles")
+                    kinds = (r.json() or {}).get("kinds") if r.status == 200 else None
+                    if not kinds:
+                        raise FixtureUnavailable(f"no kinds of note (GET /api/j2/journal-styles {r.status})")
+                    ids = [k.get("id") for k in kinds]
+                    kind_id = "trade_plan" if "trade_plan" in ids else ids[0]
+                    st, j = post("/api/j2/journal-styles", {"name": SR_STYLE_NAME, "kindId": kind_id, "blocks": [
+                        {"block": "chart", "enabled": True, "settings": {"tf": "D"}},
+                        {"block": "preEntryChecklist", "enabled": True, "settings": {}}]})
+                    sid = ((j.get("style") or {}).get("id") if isinstance(j, dict) else None)
+                    if st != 200 or not sid:
+                        raise FixtureUnavailable(f"style not made: {st} {str(j)[:160]}")
+                    made["styles"].append(sid); write()
+                    fx["style"] = sid
+                return fx["style"]
+
+            def p2_row(num, needs, action):
+                """row() for 28-38: SKIPPED under --only, NOT RUN with the switch off, INCONCLUSIVE (no key
+                sent) when a fixture cannot be made; otherwise the row, with its fixtures handed in."""
+                spec = next(r for r in P1P2_ROWS if r["n"] == num)
+                keys, expected, note = spec["keys"], spec["expected"], spec.get("note")
+                if only and str(num) not in only:
+                    return row(num, keys, expected, lambda: None)
+                if styles_off:
+                    return not_run(num, keys, expected, styles_off)
+                try:
+                    got = [n() for n in needs]
+                except Exception as e:  # noqa: BLE001 -- FixtureUnavailable, or an answer of a shape not expected
+                    why = str(e) if isinstance(e, FixtureUnavailable) else f"a fixture could not be made: {type(e).__name__}: {e}"
+                    rows.append({"n": num, "keys": keys, "expected": expected, "result": "INCONCLUSIVE",
+                                 "notes": f"no key sent: {why}"[:300], "heard": []})
+                    write(); print(f"  INC  {num!s:>3}  {why[:110]}")
+                    return None
+                return row(num, keys, expected, lambda: action(*got), note=note)
+
+            def wait_visible(locator, what, widget=None):
+                try:
+                    locator.first.wait_for(state="visible", timeout=45_000)
+                except Exception as e:  # noqa: BLE001
+                    shown = ""
+                    if widget:
+                        try:
+                            shown = page.locator(f'[data-widget-embed-view="{widget}"]').first.inner_text(timeout=2_000)
+                        except Exception:  # noqa: BLE001
+                            shown = "(the block is not on the page)"
+                    raise RuntimeError(f"{what} never appeared{'; the block shows: ' + repr(shown[:200]) if widget else ''}") from e
+
+            def focus_heard(locator):
+                """Let NVDA finish the page, narrow the ear to what follows, focus, and note where focus is."""
+                time.sleep(1.5); ear.mark()
+                locator.first.focus(); time.sleep(0.8)
+                PROBE["txt"] = f"DOM: {page.evaluate(ACTIVE_NAME)}"
+
+            def open_note(nid, locator, what, widget):
+                page.goto(f"{a.base}/journal/notebook?note={nid}", wait_until="domcontentloaded")
+                wait_visible(locator, what, widget)
+                time.sleep(1.5); GUARD.ensure()
+
+            def styles_button():
+                return page.get_by_role("button", name="Styles", exact=True)
+
+            def open_styles(mark_first=False):
+                """The Notebook list's Styles door (NotebookTab.jsx:2467), focus and Enter."""
+                page.goto(f"{a.base}/journal/notebook?view=all", wait_until="domcontentloaded")
+                wait_visible(styles_button(), "the Styles button")
+                time.sleep(1.5); GUARD.ensure()
+                if mark_first:
+                    time.sleep(1.5); ear.mark()
+                styles_button().first.focus(); time.sleep(0.8); press("enter")
+                wait_visible(page.get_by_role("dialog", name="Journal styles"), "the Journal styles dialog")
+
+            def open_style_editor():
+                open_styles()
+                edit = page.get_by_role("button", name=f"Edit {SR_STYLE_NAME}", exact=True)
+                wait_visible(edit, f"'Edit {SR_STYLE_NAME}'")
+                edit.first.focus(); time.sleep(0.8); press("enter")
+                wait_visible(page.get_by_role("button", name=MOVE_UP_NAME, exact=True), "the style editor's block rows")
+
+            def _p28():
+                open_styles(mark_first=True)
+                time.sleep(1.0)
+                PROBE["txt"] = (f"DOM: dialog 'Journal styles' x{page.get_by_role('dialog', name='Journal styles').count()}; "
+                                f"{page.evaluate(ACTIVE_NAME)}")
+            p2_row(28, [], _p28)
+
+            def _p29(_style):
+                open_style_editor()
+                focus_heard(page.get_by_role("button", name=MOVE_UP_NAME, exact=True))
+            p2_row(29, [p2_style], _p29)
+
+            def _p30(_style):
+                open_style_editor()
+                focus_heard(page.get_by_role("combobox", name=TIMEFRAME_NAME, exact=True))
+            p2_row(30, [p2_style], _p30)
+
+            def _p31(nid, _rule):
+                target = page.get_by_role("button", name=CHANGE_SETUP_NAME, exact=True)
+                open_note(nid, target, f"'{CHANGE_SETUP_NAME}'", "preEntryChecklist")
+                focus_heard(target)
+            p2_row(31, [lambda: p2_note("preEntryChecklist"), p2_rule], _p31)
+
+            def _p32(nid, _rule):
+                target = page.get_by_role("checkbox", name=SR_RULE_LABEL, exact=True)
+                open_note(nid, target, "the before-entry rule's check box", "preEntryChecklist")
+                focus_heard(target)
+            p2_row(32, [lambda: p2_note("preEntryChecklist"), p2_rule], _p32)
+
+            def _p33(nid):
+                target = page.get_by_role("switch", name=STAMP_NAME, exact=True)
+                open_note(nid, target, "the stamp switch", "priceStamps")
+                focus_heard(target)
+            p2_row(33, [lambda: p2_note("priceStamps")], _p33)
+
+            def _p34(nid):
+                target = page.get_by_role("spinbutton", name="Entry", exact=True)
+                open_note(nid, target, "the Entry field", "positionSizing")
+                focus_heard(target)
+            p2_row(34, [lambda: p2_note("positionSizing")], _p34)
+
+            def _p35(nid):
+                target = page.get_by_role("combobox", name="Setup grade", exact=True)
+                open_note(nid, target, "Setup grade", "positionSizing")
+                focus_heard(target)
+            p2_row(35, [lambda: p2_note("positionSizing")], _p35)
+
+            def _p36(nid):
+                target = page.get_by_role("button", name="Capture now", exact=True)
+                open_note(nid, target, "Capture now", "prepWire")
+                focus_heard(target)
+            p2_row(36, [lambda: p2_note("prepWire")], _p36)
+
+            def _p37(nid, _rule):
+                target = page.get_by_role("button", name=RULE_EDIT_NAME, exact=True)
+                open_note(nid, target, f"{RULE_EDIT_NAME!r}", "myRules")
+                focus_heard(target)
+            p2_row(37, [lambda: p2_note("myRules"), p2_rule], _p37)
+
+            def _p38(nid, _trade):
+                target = page.get_by_role("combobox", name="Trade to review", exact=True)
+                open_note(nid, target, "the trade picker", "tradeReview")
+                focus_heard(target)
+            p2_row(38, [lambda: p2_note("tradeReview"), p2_trade], _p38)
         except RunAborted as e:
             print("INCONCLUSIVE:", e); code = 2
         finally:
@@ -693,6 +1088,17 @@ def main(argv=None) -> int:
                 except Exception: pass
             for fid in made["folders"]:
                 try: req.delete(f"{a.base}/api/j2/note-folders/{fid}")
+                except Exception: pass
+            # Rows 28-38's own: the style is soft-deleted (the manager's own Delete), the rule dismissed
+            # (the rules API has no delete; dismissal is the product's removal), the trade hard-deleted.
+            for sid in made["styles"]:
+                try: req.delete(f"{a.base}/api/j2/journal-styles/{sid}")
+                except Exception: pass
+            for rid in made["rules"]:
+                try: req.post(f"{a.base}/api/j2/rules/{rid}/dismiss")
+                except Exception: pass
+            for tid in made["trades"]:
+                try: req.delete(f"{a.base}/api/j2/trades/{tid}")
                 except Exception: pass
             try:
                 # The smoke account holds nothing by rule, so anything still active after the fixtures are
@@ -714,6 +1120,20 @@ def main(argv=None) -> int:
                 rec["left_sr_views"] = sum(1 for v in (vl or []) if str(v.get("name", "")).startswith("SR "))
             except Exception as e:  # noqa: BLE001
                 rec["left_check_error"] = str(e)[:200]
+            if made["styles"] or made["rules"] or made["trades"]:
+                try:
+                    st = req.get(f"{a.base}/api/j2/journal-styles").json()
+                    rec["left_sr_styles"] = sum(1 for s in (st.get("styles") or [])
+                                                if str(s.get("name", "")).startswith("SR ") and not s.get("deletedAt"))
+                    accts = req.get(f"{a.base}/api/j2/accounts").json().get("accounts") or []
+                    rec["left_sr_rules"] = sum(
+                        1 for ac in accts
+                        for r in (req.get(f"{a.base}/api/j2/accounts/{ac['id']}/rules?status=active").json() or [])
+                        if str(r.get("label", "")).startswith("SR "))
+                    tr = req.get(f"{a.base}/api/j2/trader-blocks/review/trades").json()
+                    rec["left_sr_trades"] = sum(1 for t in (tr.get("trades") or []) if t.get("symbol") == SR_TRADE_SYMBOL)
+                except Exception as e:  # noqa: BLE001
+                    rec["left_p2_check_error"] = str(e)[:200]
             rec["finished"] = dt.datetime.now().isoformat(timespec="seconds")
             write()
             out.with_suffix(".speech.log").write_text("\n".join(ear.run_speech()), encoding="utf-8")
@@ -723,6 +1143,8 @@ def main(argv=None) -> int:
     print(f"NVDA {nvda_version}: {counts}")
     if code:
         return code
+    if counts["INCONCLUSIVE"]:      # a row 28-38 whose fixture could not be made: nothing measured there
+        return 2
     return 1 if counts["FAIL"] else 0
 
 

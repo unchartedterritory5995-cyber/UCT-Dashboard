@@ -78,6 +78,44 @@ def test_the_foreground_guard_refuses_without_a_nonce_window_and_before_ensure(m
         mod.type_text("x")
 
 
+def test_rows_28_to_38_are_not_run_unless_the_journal_styles_switch_is_a_boolean_true(mod):
+    """Rows 28-38 exist only while NOTEBOOK_JOURNAL_STYLES_ENABLED is on for the server under test.
+    The reader answers the NOT RUN reason for absent / off / a non-boolean, and None only for True."""
+    base = "https://example.invalid"
+    off = f"journal styles switch is off on {base}"
+    assert mod.journal_styles_off({mod.STYLES_FLAG_KEY: False}, base) == off
+    absent = mod.journal_styles_off({"user": {}}, base)
+    assert absent.startswith(off) and "carries no" in absent
+    for v in ("true", 1, None):
+        assert mod.journal_styles_off({mod.STYLES_FLAG_KEY: v}, base).startswith(off)
+    assert mod.journal_styles_off(None, base).startswith(off)
+    assert mod.journal_styles_off({mod.STYLES_FLAG_KEY: True}, base) is None     # the control: ON proceeds
+
+
+def test_the_ear_hears_every_new_rows_words_as_nvda_logs_them(mod):
+    """Walk the ear over its blind-spot list before grading: each row's own words, written the way
+    NVDA writes them (Python's repr). Row 37's name holds ASCII quotes (repr switches to double
+    quotes) and row 30's a typographic apostrophe (it does not)."""
+    assert [r["n"] for r in mod.P1P2_ROWS] == list(range(28, 39))
+    for r in mod.P1P2_ROWS:
+        line = "Speaking [LangChangeCommand ('en_US'), " + ", ".join(repr(s) for s in r["logged"]) + "]"
+        assert mod.grade(r["expected"], mod.parse_speech(line))[0] == "PASS", r["n"]
+    assert '"' + mod.RULE_EDIT_NAME + '"' in repr(mod.RULE_EDIT_NAME)            # the double-quoted shape
+    assert "’" in mod.TIMEFRAME_NAME and repr(mod.TIMEFRAME_NAME).startswith("'")
+    # the control: a row whose words were never spoken still FAILS
+    assert mod.grade(mod.P1P2_ROWS[0]["expected"], ["Styles button"])[0] == "FAIL"
+
+
+def test_the_block_catalog_is_read_from_the_server_file_not_retyped(mod):
+    kinds = mod.block_kinds()
+    for wid in ("preEntryChecklist", "priceStamps", "positionSizing", "myRules", "prepWire", "tradeReview"):
+        node = mod.block_node(wid, mod.block_params(wid, kinds), kinds)
+        assert node["type"] == "widgetEmbed" and node["attrs"]["widgetId"] == wid
+        assert node["attrs"]["searchText"] == kinds[wid]["search"] and node["attrs"]["searchText"].startswith("[")
+    assert mod.block_params("preEntryChecklist", kinds)["setup"]                  # a setup, so items list
+    assert mod.block_params("prepWire", kinds) == {}                              # uncaptured: Capture now
+
+
 def test_extended_keys_carry_the_extended_flag_and_a_scan_code(mod):
     # Arrows without KEYEVENTF_EXTENDEDKEY arrive as numpad keys and NVDA swallows them (r4/r5).
     for name in ("down", "right", "insert", "home", "end"):
