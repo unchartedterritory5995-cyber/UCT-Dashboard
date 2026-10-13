@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (2026-10-12): not complete.** 272 of 279 rows are `live` or `moot`; 7 are not (0 `dark`, 7 `building`, 0 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (2026-10-12): not complete.** 274 of 279 rows are `live` or `moot`; 5 are not (0 `dark`, 5 `building`, 0 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -37,7 +37,7 @@ python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETI
 Printed 2026-10-12:
 
 ```
-279 Counter({'live': 238, 'moot': 34, 'building': 7})
+279 Counter({'live': 240, 'moot': 34, 'building': 5})
 0 duplicate ids
 ```
 
@@ -53,12 +53,12 @@ The per-section split is the same regex applied to each `## ` section:
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
 | 3 TERM-001..093 | 93 | 86 | 0 | 2 | 0 | 5 |
 | 4 BRK-01..10 | 10 | 9 | 0 | 0 | 0 | 1 |
-| 5 COV-01..12 | 12 | 9 | 0 | 2 | 0 | 1 |
-| 6 FT-001..080 | 80 | 71 | 0 | 2 | 0 | 7 |
+| 5 COV-01..12 | 12 | 10 | 0 | 1 | 0 | 1 |
+| 6 FT-001..080 | 80 | 72 | 0 | 1 | 0 | 7 |
 | 7 Untracked promises | 58 | 50 | 0 | 0 | 0 | 8 |
-| **total** | **279** | **238** | **0** | **7** | **0** | **34** |
+| **total** | **279** | **240** | **0** | **5** | **0** | **34** |
 
-`building` by lane: Integrator 4 · P 3.
+`building` by lane: P 3 · Integrator 2.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -227,7 +227,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `COV-09` | SEC filings feed (re-id DL-036) | `live` | `FILINGS_FEED_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2018`); `api/services/filings_feed.py`. Was `dark`. |
 | `COV-10` | Monitor groups / list subscriptions | `live` | List-subscribe (`docs/feature_flags.json:1832`) and groups E-H (`docs/feature_flags.json:1840`) armed on web. The literal `COLORS` / `COLOR_HEX` copies are deleted (lane f-l7, `6c187ca6c`): `app/src/pages/terminal/functions.rail.test.js:450` now walks `charts/colorGroups.js`' own dot cycle and `:460` compares its `GROUP_HEX`; `app/src/pages/charts/colorGroups.test.js:71` keeps the copies gone. Community lists stay on /watchlists via TERM-077. Was `building (Lane T2)`. |
 | `COV-11` | Indicator templates object | `live` | Built 2026-10-11, DARK behind `VITE_INDICATOR_TEMPLATES_ENABLED` (a build flag, default off; `docs/feature_flags.json` build_flags + `docs/frontend_feature_flags.json`; arming = the Railway variable on web set to `1` plus a rebuild). Chart Settings → Indicators → "Indicator templates" (`app/src/components/chart/IndicatorTemplatesBar.jsx`, mounted in `ChartSettingsIndicators.jsx` beside Add to Chart) saves the indicators on a chart as a named template and adds a saved template's indicators to any chart in one click. The seam is `app/src/components/chart/builder/indicatorTemplates.js` (capture/apply beside `agentMutations.js`); the template object is `alertSets.js`'s, validated by `applyAlertTemplate`; each indicator lands as its own new instance through the canonical writer `instanceControls.addInstanceCopy` (a new door-eight entry in `controlDoorCensus.test.js`), nothing already on the chart is removed or edited, and a second apply adds nothing. Templates persist per member in the server preference `indicator_templates` (allowlisted in `api/routers/auth.py`, written with `setPrefMerged`). Same day: the Agent's `chart.applyTemplate` now matches the click (one shared `chartTemplateSettings`, parity test `app/src/agent/agentChartTemplateParity.test.jsx`). LIVE 2026-10-11: `VITE_INDICATOR_TEMPLATES_ENABLED=1` armed on web after the pre-arm review fixed 8 defects (`fb60c4ab35`); the agent's template apply matches the click (`agentChartTemplateParity.test.jsx`). |
-| `COV-12` | Congressional / political-disclosure trackers (was COV-09) | `building (Integrator)` | ➜ 2026-10-07: S-6 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) AUDIT 2026-10-12 (owner-requested review of every moot row): REOPENED. S-6 judged scraping; it never checked the licensed route. Verified on prod 2026-10-12: our FMP plan returns `/stable/senate-trades` and `/stable/house-trades` (200, 100 rows for AAPL) and the `-latest` feeds, at no added cost. owner ruling 2026-10-12: build it (flag `CONGRESS_TRADES_ENABLED`). |
+| `COV-12` | Congressional / political-disclosure trackers (was COV-09) | `live` | ➜ 2026-10-07: S-6 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) AUDIT 2026-10-12 (owner-requested review of every moot row): REOPENED. S-6 judged scraping; it never checked the licensed route. Verified on prod 2026-10-12: our FMP plan returns `/stable/senate-trades` and `/stable/house-trades` (200, 100 rows for AAPL) and the `-latest` feeds, at no added cost. owner ruling 2026-10-12: build it (flag `CONGRESS_TRADES_ENABLED`). LIVE 2026-10-12: `CONGRESS_TRADES_ENABLED=1` armed on web (owner-run, deploy ac38e88c), verified in-process (`is_enabled()` True; both routes 401 unauthenticated, 404 before; AAPL 200 rows / 46 members, latest feed 158 rows; `9fd686707b`, `499f4ecd07`). `docs/feature_flags.json` CONGRESS_TRADES_ENABLED. |
 
 ## 6. Feature register — FT-001..FT-080
 
@@ -299,7 +299,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `FT-064` | EVTS staged events | `live` | `EVENTS_TIMELINE_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2050`). Was `dark`. |
 | `FT-065` | Seasonals tab | `live` | Via COV-01. |
 | `FT-066` | 15-year seasonality | `live` | ~31-year daily window. |
-| `FT-067` | Congressional trackers | `building (Integrator)` | ➜ 2026-10-07: S-6 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) AUDIT 2026-10-12 (owner-requested review of every moot row): REOPENED with COV-12 (licensed FMP route, owner ruling 2026-10-12: build). |
+| `FT-067` | Congressional trackers | `live` | ➜ 2026-10-07: S-6 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) AUDIT 2026-10-12 (owner-requested review of every moot row): REOPENED with COV-12 (licensed FMP route, owner ruling 2026-10-12: build). LIVE 2026-10-12: `CONGRESS_TRADES_ENABLED=1` armed on web (owner-run, deploy ac38e88c), verified in-process (`is_enabled()` True; both routes 401 unauthenticated, 404 before; AAPL 200 rows / 46 members, latest feed 158 rows; `9fd686707b`, `499f4ecd07`). `docs/feature_flags.json` CONGRESS_TRADES_ENABLED. |
 | `FT-068` | Insider / 13F / FEC / SI / FTD datasets | `moot (decided 2026-10-07: no FEC key)` | Insider, 13F and SI live; FTD armed on web 2026-10-04 (`a046f7d9f`) (`FTD_DATASET_ENABLED`, `docs/feature_flags.json:2058`). ➜ 2026-10-07: S-5 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-069` | MNRS history + copy / link | `live` | `api/services/artifact_versions.py:97`. |
 | `FT-070` | Indicator templates | `live` | Built 2026-10-11, DARK behind `VITE_INDICATOR_TEMPLATES_ENABLED` (a build flag, default off; `docs/feature_flags.json` build_flags + `docs/frontend_feature_flags.json`; arming = the Railway variable on web set to `1` plus a rebuild). Chart Settings → Indicators → "Indicator templates" (`app/src/components/chart/IndicatorTemplatesBar.jsx`, mounted in `ChartSettingsIndicators.jsx` beside Add to Chart) saves the indicators on a chart as a named template and adds a saved template's indicators to any chart in one click. The seam is `app/src/components/chart/builder/indicatorTemplates.js` (capture/apply beside `agentMutations.js`); the template object is `alertSets.js`'s, validated by `applyAlertTemplate`; each indicator lands as its own new instance through the canonical writer `instanceControls.addInstanceCopy` (a new door-eight entry in `controlDoorCensus.test.js`), nothing already on the chart is removed or edited, and a second apply adds nothing. Templates persist per member in the server preference `indicator_templates` (allowlisted in `api/routers/auth.py`, written with `setPrefMerged`). Same day: the Agent's `chart.applyTemplate` now matches the click (one shared `chartTemplateSettings`, parity test `app/src/agent/agentChartTemplateParity.test.jsx`). LIVE 2026-10-11: `VITE_INDICATOR_TEMPLATES_ENABLED=1` armed on web after the pre-arm review fixed 8 defects (`fb60c4ab35`); the agent's template apply matches the click (`agentChartTemplateParity.test.jsx`). |

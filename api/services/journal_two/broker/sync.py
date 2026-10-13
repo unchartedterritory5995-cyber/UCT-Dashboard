@@ -267,11 +267,15 @@ def sync_cadence_label() -> str:
 
 
 async def sync_due_accounts(
-    *, interval_minutes: int | None = None, concurrency: int | None = None
+    *, interval_minutes: int | None = None, concurrency: int | None = None,
+    off_loop: bool = False,
 ) -> dict[str, Any]:
     """Scheduler entry: sync every account whose last sync is older than the
     interval, across all users, with bounded concurrency. One failing account
-    never blocks the others (isolated per-account)."""
+    never blocks the others (isolated per-account). `off_loop` is passed to
+    `sync_account` (see there): the scheduler runs this under its own
+    asyncio.run, but a caller on the web pod's request loop (the
+    reset-partner-auth resync) must set it."""
     import os
     interval = (interval_minutes if interval_minutes is not None
                 else _default_interval_min())
@@ -292,7 +296,8 @@ async def sync_due_accounts(
     async def _one(acct: dict) -> Any:
         async with sem:
             try:
-                return await sync_account(acct["userId"], acct["id"])
+                kw = {"off_loop": True} if off_loop else {}
+                return await sync_account(acct["userId"], acct["id"], **kw)
             except Exception as e:  # noqa: BLE001
                 return {"error": str(e)}
 

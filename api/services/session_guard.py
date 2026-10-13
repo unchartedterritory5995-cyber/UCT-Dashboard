@@ -23,6 +23,12 @@ covered by ONE call site:
    message naming the account and the networks. One alarm per account per 24
    hours, stamped durably in ``activity_log`` so a redeploy cannot re-fire it.
 
+3. **Cross-network kick alert** (owner ask 2026-10-12). When the device limit
+   signs out a device whose network differs from the one signing in, the owner
+   gets a Discord message with both addresses and browsers, at most once per
+   account per hour. Skipped when the sharing alarm fires on the same sign-in
+   (that message already covers it). Same kill switch as the alarm.
+
 A "network" is the /24 (IPv4) or /48 (IPv6) the login came from, so a phone
 hopping between addresses inside one carrier block counts once.
 
@@ -47,6 +53,8 @@ from api.services.auth_db import get_connection
 EXEMPT_DOMAIN = "@uctintelligence.internal"
 SHARING_FLAG_ACTION = "sharing_flagged"
 WINDOW_SQL = "-1 day"
+DEVICE_KICK_ACTION = "device_kick_flagged"
+DEVICE_KICK_WINDOW_SQL = "-1 hour"
 
 
 def _int_env(name: str, default: int) -> int:
@@ -57,7 +65,11 @@ def _int_env(name: str, default: int) -> int:
 
 
 def device_limit() -> int:
-    return max(0, _int_env("SESSION_DEVICE_LIMIT", 2))
+    # Read by literal name so the flag-ledger scan sees it (docs/feature_flags.json knobs).
+    try:
+        return max(0, int(str(os.environ.get("SESSION_DEVICE_LIMIT", "2")).strip()))
+    except (TypeError, ValueError):
+        return 2
 
 
 def sharing_guard_enabled() -> bool:
@@ -84,19 +96,73 @@ def _email_of(conn, user_id: str) -> str:
     return (row[0] or "").lower() if row else ""
 
 
-def enforce_device_limit(conn, user_id: str, keep_token: str, limit: int) -> int:
-    """Delete every session beyond the newest ``limit``. Returns how many went."""
+def _surplus_sessions(conn, user_id: str, keep_token: str, limit: int) -> list:
+    """(token, ip_address, user_agent) of every session beyond the newest ``limit``."""
     if limit <= 0:
-        return 0
+        return []
     rows = conn.execute(
-        "SELECT token FROM sessions WHERE user_id = ? AND token != ? "
+        "SELECT token, ip_address, user_agent FROM sessions WHERE user_id = ? AND token != ? "
         "ORDER BY COALESCE(last_seen_at, created_at) DESC, created_at DESC",
         (user_id, keep_token),
     ).fetchall()
-    surplus = [r[0] for r in rows[limit - 1:]]
-    for tok in surplus:
+    return [tuple(r) for r in rows[limit - 1:]]
+
+
+def enforce_device_limit(conn, user_id: str, keep_token: str, limit: int) -> int:
+    """Delete every session beyond the newest ``limit``. Returns how many went."""
+    surplus = _surplus_sessions(conn, user_id, keep_token, limit)
+    for tok, _ip, _ua in surplus:
         conn.execute("DELETE FROM sessions WHERE token = ?", (tok,))
     return len(surplus)
+
+
+def _session_ip(conn, token: str) -> tuple:
+    row = conn.execute("SELECT ip_address, user_agent FROM sessions WHERE token = ?",
+                       (token,)).fetchone()
+    return (row[0], row[1]) if row else (None, None)
+
+
+def device_kick_alert(conn, user_id: str, email: str, keep_token: str, kicked: list) -> bool:
+    """Tell the owner when the device limit signed out a device on ANOTHER network.
+
+    Owner ask, 2026-10-12: a kick between two networks is how a shared login
+    looks the moment it happens, before the 24 h sharing alarm has enough
+    sign-ins to fire. One person's phone and computer on the same home network
+    never trip it. One alert per account per hour (stamped in ``activity_log``,
+    so a redeploy cannot re-fire it); the kick itself is never held back.
+    Returns True if it alerted.
+    """
+    if not kicked or not sharing_guard_enabled():
+        return False
+    new_ip, new_ua = _session_ip(conn, keep_token)
+    new_net = network_of(new_ip)
+    if not new_net:
+        return False
+    other = [(ip, ua) for _tok, ip, ua in kicked
+             if network_of(ip) and network_of(ip) != new_net]
+    if not other:
+        return False
+    if conn.execute(
+        "SELECT 1 FROM activity_log WHERE user_id = ? AND action = ? "
+        "AND created_at >= datetime('now', ?) LIMIT 1",
+        (user_id, DEVICE_KICK_ACTION, DEVICE_KICK_WINDOW_SQL),
+    ).fetchone():
+        return False
+    import uuid
+    conn.execute(
+        "INSERT INTO activity_log (id, user_id, action, details, ip_address) VALUES (?, ?, ?, ?, ?)",
+        (str(uuid.uuid4()), user_id, DEVICE_KICK_ACTION,
+         f"new {new_ip}; signed out {', '.join(str(ip) for ip, _ in other)}", new_ip),
+    )
+    lines = [
+        f"Device limit kick across networks: **{email or user_id}**",
+        f"New sign-in: {new_ip} ({(new_ua or 'unknown browser')[:80]})",
+    ]
+    for ip, ua in other[:5]:
+        lines.append(f"Signed out: {ip} ({(ua or 'unknown browser')[:80]})")
+    lines.append("Different networks can mean a shared login. Check the account in Admin.")
+    threading.Thread(target=_post_owner_alert, args=("\n".join(lines),), daemon=True).start()
+    return True
 
 
 def recent_login_networks(conn, user_id: str) -> tuple[int, list[str]]:
@@ -177,8 +243,10 @@ def after_session_created(user_id: str, token: str) -> None:
         email = _email_of(conn, user_id)
         if email.endswith(EXEMPT_DOMAIN):
             return
+        kicked = _surplus_sessions(conn, user_id, token, device_limit())
         enforce_device_limit(conn, user_id, token, device_limit())
-        check_sharing(conn, user_id, email, token)
+        if not check_sharing(conn, user_id, email, token):
+            device_kick_alert(conn, user_id, email, token, kicked)
         conn.commit()
     except Exception as e:
         print(f"[session-guard] skipped for {user_id}: {e}")
