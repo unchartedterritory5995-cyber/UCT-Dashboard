@@ -38,7 +38,16 @@ export const BLOCK_KINDS = Object.freeze([
     ]),
   }),
   // P2 Tier 1 (part b): six blocks, no settings.
-  Object.freeze({ id: 'myRules', label: 'My rules', search: '[my rules]', settings: Object.freeze([]) }),
+  Object.freeze({
+    id: 'myRules',
+    label: 'My rules',
+    search: '[my rules]',
+    // R-PF-B1: the one real setting among part b's blocks.
+    settings: Object.freeze([
+      Object.freeze({ key: 'which', label: 'Show', options: Object.freeze(['active', 'all']), default: 'active',
+        optionLabels: Object.freeze({ active: 'Active rules', all: 'All rules' }) }),
+    ]),
+  }),
   Object.freeze({ id: 'prepWire', label: 'Morning wire and exposure', search: '[morning wire and exposure]', settings: Object.freeze([]) }),
   Object.freeze({ id: 'prepEarnings', label: 'Earnings for my names', search: '[earnings for my names]', settings: Object.freeze([]) }),
   Object.freeze({ id: 'prepMovers', label: 'My movers', search: '[my movers]', settings: Object.freeze([]) }),

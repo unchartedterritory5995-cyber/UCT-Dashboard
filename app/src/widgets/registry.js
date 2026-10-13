@@ -888,7 +888,9 @@ const PANEL_MANIFESTS = {
     { key: 'regimeAsOf', type: 'string' },
   ], '[position sizing]'),
   // P2 Tier 1 (part b): capture-only blocks bound in BLOCK_COMPONENTS only (IR-B2, part b).
-  myRules: blockManifest('My rules', [], '[my rules]'),
+  myRules: blockManifest('My rules', [
+    { key: 'which', type: 'enum', options: ['active', 'all'], default: 'active' },
+  ], '[my rules]'),
   prepWire: blockManifest('Morning wire and exposure', [
     { key: 'snapshot', type: 'json' },
   ], '[morning wire and exposure]'),

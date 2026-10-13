@@ -60,7 +60,9 @@ BLOCK_KINDS: tuple[dict, ...] = (
     {"id": "positionSizing", "search": "[position sizing]", "settings": (
         {"key": "grade", "options": ("A", "A+", "B"), "default": "A"},)},
     # P2 Tier 1 (part b).
-    {"id": "myRules", "search": "[my rules]", "settings": ()},
+    # R-PF-B1: which rules the block lists (the one real setting; the five others have none).
+    {"id": "myRules", "search": "[my rules]", "settings": (
+        {"key": "which", "options": ("active", "all"), "default": "active"},)},
     {"id": "prepWire", "search": "[morning wire and exposure]", "settings": ()},
     {"id": "prepEarnings", "search": "[earnings for my names]", "settings": ()},
     {"id": "prepMovers", "search": "[my movers]", "settings": ()},

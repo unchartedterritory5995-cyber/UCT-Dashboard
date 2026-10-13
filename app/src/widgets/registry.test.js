@@ -363,15 +363,10 @@ const CAPTURE_FIXTURES = {
 
 describe('widget registry — params layer', () => {
   it('every widget type declares a paramsSchema, plainText, reconstructable, and liveCapable', () => {
-    // R-P2b-T2-1: a block whose member state is NOT in the note declares no params (myRules writes
-    // rules, never the note; plan Task 8 "params stays {}"). Declared here, by name, with the reason.
-    const PARAMLESS = new Set(['myRules'])
-    for (const id of PARAMLESS) expect(BLOCK_IDS, `${id} is paramless but not a block`).toContain(id)
     for (const id of WIDGET_IDS) {
       const w = WIDGET_REGISTRY[id]
       expect(Array.isArray(w.paramsSchema), `${id}.paramsSchema`).toBe(true)
-      if (PARAMLESS.has(id)) expect(w.paramsSchema, `${id} is declared paramless`).toEqual([])
-      else expect(w.paramsSchema.length, `${id}.paramsSchema empty`).toBeGreaterThan(0)
+      expect(w.paramsSchema.length, `${id}.paramsSchema empty`).toBeGreaterThan(0)
       expect(typeof w.plainText, `${id}.plainText`).toBe('function')
       expect(['boolean', 'function'].includes(typeof w.reconstructable), `${id}.reconstructable`).toBe(true)
       expect(typeof w.liveCapable, `${id}.liveCapable`).toBe('boolean')
@@ -701,7 +696,7 @@ describe('widget registry — journal embed bindings', () => {
   })
 
   it('S20: the registry\'s enum options and defaults ARE the catalog\'s, for every catalog setting of a block', () => {
-    // Non-vacuity at the SET level (R-P2b-T2-1): part b's six blocks carry no catalog settings by design,
+    // Non-vacuity at the SET level (R-PF-B1): five of part b's six blocks carry no catalog setting by design,
     // so "every block has one" no longer holds; the rail must still see settings to compare.
     expect(BLOCK_IDS.filter(id => BLOCK_KINDS.find(k => k.id === id)?.settings.length).length).toBeGreaterThan(0)
     for (const id of BLOCK_IDS) {
