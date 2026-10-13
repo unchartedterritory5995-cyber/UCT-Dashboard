@@ -2825,11 +2825,11 @@ export default function ChartsWorkspace() {
   // toast must never say "Switched to “X”" when nothing switched (Agent review, 2026-10-13).
   const [layoutUndo, setLayoutUndo] = useState(null)   // { plan, note, shown, at }
   const rememberLayoutOpen = useCallback((to) => {
-    if (!to || to.id == null || to.id === dockActiveId) return
+    if (!to || to.id == null || String(to.id) === String(dockActiveId)) return
     setLayoutUndo({ plan: planLayoutUndo(agentLayoutsRef.current, to), note: null, shown: false, at: Date.now() })
   }, [dockActiveId])
   useEffect(() => {
-    if (layoutUndo && !layoutUndo.shown && layoutUndo.plan.to && dockActiveId === layoutUndo.plan.to.id) {
+    if (layoutUndo && !layoutUndo.shown && layoutUndo.plan.to && dockActiveId != null && String(dockActiveId) === String(layoutUndo.plan.to.id)) {
       setLayoutUndo({ ...layoutUndo, shown: true })
     }
   }, [dockActiveId, layoutUndo])
