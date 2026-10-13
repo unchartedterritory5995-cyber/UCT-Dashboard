@@ -15,6 +15,7 @@
 
 import { registerCapability } from '../capabilities'
 import { BREADTH_UNIVERSES, BREADTH_METRICS, UCT_UNIVERSE_ANSWER, AGENT_UNIVERSES, lastBreadthSubject, rememberBreadthSubject, breadthToday, UNI_SWITCH_RE } from './breadth'
+import { chartTarget } from '../present'
 
 export const HISTORY_OPS = ['below', 'at_or_below', 'above', 'at_or_above', 'crosses_below', 'crosses_above']
 export const HISTORY_FINDS = ['last', 'first', 'count', 'episodes', 'longest', 'last_episode']
@@ -43,7 +44,8 @@ async function answerHistory(args) {
   const t = b.table
   const table = t && Array.isArray(t.columns) && Array.isArray(t.rows) ? { columns: t.columns, rows: t.rows } : null
   const present = b.present && typeof b.present === 'object' ? b.present : null
-  return { text: b.text, table, ...(present ? { present } : {}) }
+  const chart = chartTarget(b.chart)
+  return { text: b.text, table, ...(present ? { present } : {}), ...(chart ? { chart } : {}) }
 }
 
 // ── deterministic wording ─────────────────────────────────────────────────────────────────────────

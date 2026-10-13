@@ -471,7 +471,12 @@ def agent_breadth(body: Any = Body(...), user: dict = Depends(require_admin_dark
                 res, out, present, reading=breadth_present.complement_reading(breadth_now._reader()) if below else None)
         except Exception:  # noqa: BLE001 -- the finalized answer stands
             log.exception("[uct-agent] present-tense breadth failed; finalized answer shown")
-    return {"status": out.get("status"), "text": text, "table": out.get("table"), "present": present}
+    # OPEN CHART: one measure answered → its published chart series (never for "below" or an overview)
+    mets = body.get("metrics") if isinstance(body, dict) else None
+    chart = (breadth_present.chart_target(body.get("universe"), mets[0], "below" if below else None)
+             if out.get("status") in ("ok", "partial") and isinstance(mets, list) and len(mets) == 1 else None)
+    return {"status": out.get("status"), "text": text, "table": out.get("table"), "present": present,
+            **({"chart": chart} if chart else {})}
 
 
 @router.post("/api/agent/breadth/history")
@@ -497,7 +502,11 @@ def agent_breadth_history(body: Any = Body(...), user: dict = Depends(require_ad
     except Exception:  # noqa: BLE001 -- presentation never costs the member the answer itself
         log.exception("[uct-agent] breadth history view failed; the browser derives one")
         present = None
-    return {"status": out.get("status"), "text": out.get("text"), "table": out.get("table"), "present": present}
+    from api.services.uct_agent.breadth_present import chart_target
+    chart = chart_target(body.get("universe"), body.get("metric")) \
+        if out.get("status") in ("ok", "partial") and isinstance(body, dict) else None
+    return {"status": out.get("status"), "text": out.get("text"), "table": out.get("table"), "present": present,
+            **({"chart": chart} if chart else {})}
 
 
 @router.get("/api/agent/breadth/dates")
