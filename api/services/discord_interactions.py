@@ -124,6 +124,33 @@ def bars_warm_gate(timeout: float = BARS_WARM_TIMEOUT_S):
 # enough to time out the renderer's first attempt and cost a 45 s retry.
 PAGE_BARS = 5000                 # legacy default; the real number comes from discord_chart_house.page_fetch_bars
 
+
+def page_bars_read_here(sym: str) -> bool:
+    """True when the render page's own `/api/bars` read for `sym` is served by THIS pod's
+    bars store, so pre-warming that store in-process helps the page.
+
+    ⛔ WHY (2026-10-13): with the bars tier fully ramped (BARS_ORIGIN_URL set,
+    BARS_PROXY_ENABLED=1, BARS_PROXY_PCT=100) every real `/api/bars` read goes to the
+    bars-api tier, and the page's fetch never touches web's store. The deep pre-warm
+    (`max(page_fetch_bars, PAGE_BARS)` bars through the in-process `serve_bars`) then
+    bought nothing and cost the member-serving pod 5-19 s per chart: the hot-warm cycle
+    ran 30 s against its 20 s budget all market day, and `house` took the same 2-4 s
+    whether that pull was 0.0 s or 18.9 s (web log 15:33-15:42Z).
+
+    Same authority as `api.routers.bars.get_bars` routes on, so the two cannot drift:
+    breadth and market-indicator symbols stay local there and keep their warm here.
+    A partial ramp (pct < 100) is a per-request draw, so it keeps the warm. Any error
+    answers True: the old behaviour, never a cold page."""
+    try:
+        if not os.environ.get("BARS_ORIGIN_URL", "").strip():
+            return True
+        if float(os.environ.get("BARS_PROXY_PCT", "0")) < 100:
+            return True
+        from api.routers import bars as bars_router
+        return not bars_router._bars_proxy_should_route(sym, 0)
+    except Exception:  # noqa: BLE001
+        return True
+
 # Per-member throttle. A chart costs renderer CPU and one of the shared render
 # slots; nobody should be able to hog them. DISCORD_CHART_USER_RATE = "12/60"
 # means twelve charts per rolling sixty seconds per Discord user.
@@ -1351,8 +1378,10 @@ def _produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple
             # than PAGE_BARS, so it still reads the page's own number.
             from api.services import discord_chart_house as _house
             deep = bool(compare or req.to)
-            warm = _fetch(req.tf, max(_house.page_fetch_bars(req.tf, deep), PAGE_BARS))
-            for other in compare:
+            # Only when the page reads THIS pod's store (see page_bars_read_here).
+            if page_bars_read_here(req.ticker):
+                warm = _fetch(req.tf, max(_house.page_fetch_bars(req.tf, deep), PAGE_BARS))
+            for other in (o for o in compare if page_bars_read_here(o)):
                 # the page fetches each comparison symbol too; warm those as well
                 try:
                     with bars_warm_gate():
