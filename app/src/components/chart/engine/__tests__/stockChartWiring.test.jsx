@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { TIER1_IDS } from './tier1Library.fixture'
-import { render, cleanup, fireEvent, act } from '@testing-library/react'
+import { render, cleanup, fireEvent, act, within } from '@testing-library/react'
+import { _resetIndicatorHistoryForTests } from '../../indicatorHistoryStore'
 import { useState, Profiler } from 'react'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
 import intraday5m from '../../../../pages/parityBars/intraday5m.json'
@@ -6746,3 +6747,45 @@ describe('B1 — a member script\'s `barcolor` on the candles', () => {
     } finally { registry.uninstallUserDefinition(inst.defId) }
   })
 })
+
+// ⭐ A1.2 — THE UNDO TOAST, THROUGH THE REAL CHART. A chord hides RSI (A1.1), the chart
+// records it on its own surface's stack, the toast offers Undo, Undo writes the ORIGINAL
+// instance back through the chart's own sink, and Redo hides it again.
+describe('A1.2 — chord → toast → Undo / Redo, through the real chart', () => {
+  const RSI_ON = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
+  beforeEach(() => { _resetIndicatorHistoryForTests(); try { window.sessionStorage.clear() } catch { /* jsdom */ } })
+  it('Ctrl+I → "RSI hidden · Undo" → Undo restores the instance byte for byte → Redo hides it again', () => {
+    let cur = legendAlways({ ...RSI_ON, indicators: { ...RSI_ON.indicators, ...BB_CONTROL }, indicatorInstances: [RSI_INSTANCE] })
+    const writes = []
+    const el = () => (
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={cur} chartId="t1" indicatorHistoryKey="chart:t1"
+        onSettingsPersist={(s) => { writes.push(s); cur = s }} />
+    )
+    const view = render(el())
+    expect(document.querySelector('[data-testid="indicator-undo-toast"]'), 'a toast before any change').toBeNull()
+    act(() => { fireEvent.keyDown(document, { ctrlKey: true, key: 'i' }) })
+    view.rerender(el())
+    const toast = document.querySelector('[data-testid="indicator-undo-toast"]')
+    expect(toast, 'no Undo toast after Ctrl+I').toBeTruthy()
+    expect(toast.textContent).toMatch(/hidden/)
+    expect(writes.at(-1).indicatorInstances.find((i) => i && i.instanceId === 'engine-test:rsi').hidden).toBe(true)
+    act(() => { fireEvent.click(within(toast).getByRole('button', { name: 'Undo' })) })
+    expect(writes.at(-1).indicatorInstances.find((i) => i && i.instanceId === 'engine-test:rsi'),
+      'Undo did not restore the ORIGINAL instance').toEqual(RSI_INSTANCE)
+    view.rerender(el())
+    const redo = within(document.querySelector('[data-testid="indicator-undo-toast"]')).getByRole('button', { name: 'Redo' })
+    act(() => { fireEvent.click(redo) })
+    expect(writes.at(-1).indicatorInstances.find((i) => i && i.instanceId === 'engine-test:rsi').hidden).toBe(true)
+    view.unmount(); cleanup(); H.reset()
+  })
+
+  it('an input edit through the chart records nothing (no toast)', () => {
+    let cur = legendAlways({ ...RSI_ON, indicatorInstances: [RSI_INSTANCE] })
+    const el = () => <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={cur} chartId="t2" indicatorHistoryKey="chart:t2" onSettingsPersist={(s) => { cur = s }} />
+    const view = render(el())
+    act(() => { fireEvent.keyDown(document, { key: 'z', ctrlKey: true }) })
+    expect(document.querySelector('[data-testid="indicator-undo-toast"]')).toBeNull()
+    view.unmount(); cleanup(); H.reset()
+  })
+})
+
