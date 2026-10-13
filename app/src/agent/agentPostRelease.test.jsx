@@ -31,7 +31,7 @@ registerBuiltins()
 const PROVIDER_DOWN = "UCT Agent can't reach its AI service right now, so nothing was changed. Please try again shortly."
 const NOISE = /BadRequestError|model:transport|\(model:|nothing was left changed|didn't take effect/
 
-const show = (o) => ({ mode: 'value', universe: 'us', metrics: ['pct_above_50sma'], date: null, compare_date: null, start: null, end: null, basis: null, side: null, ...o })
+const show = (o) => ({ mode: 'value', universe: 'us', metrics: ['pct_above_50sma'], date: null, compare_date: null, start: null, end: null, basis: null, side: null, sessions: null, ...o })
 const hist = (o) => ({ universe: 'us', metric: 'pct_above_200sma', aggregation: 'daily', start: null, end: null, op: 'below', level: 10, find: 'last', ...o })
 
 // ═══ 1 · BREADTH — one panel session, the owner's words ═══════════════════════════════════════════
@@ -98,7 +98,7 @@ describe('breadth conversation (owner tests 1–6) — answered by UCT, never th
       const n = breadthBodies.length
       await say(q)
       await waitFor(() => expect(breadthBodies).toHaveLength(n + 1), { timeout: 8000 })
-      expect(breadthBodies[n]).toEqual(show({ side: 'below' }))
+      expect(breadthBodies[n]).toEqual(show({ side: 'below', sessions: null }))
     }
     expect(turns).toHaveLength(0)
     expect(transcript()).toContain('US · % of Stocks At or Below 50-Day MA')
@@ -115,13 +115,13 @@ describe('breadth conversation (owner tests 1–6) — answered by UCT, never th
     expect(breadthBodies[1]).toEqual(show({ universe: 'nasdaq' }))
     await say('And how many are below it?')
     await waitFor(() => expect(breadthBodies).toHaveLength(3), { timeout: 8000 })
-    expect(breadthBodies[2]).toEqual(show({ universe: 'nasdaq', side: 'below' }))
+    expect(breadthBodies[2]).toEqual(show({ universe: 'nasdaq', side: 'below', sessions: null }))
     await say('what about NYSE?')                                       // the side is kept
     await waitFor(() => expect(breadthBodies).toHaveLength(4), { timeout: 8000 })
-    expect(breadthBodies[3]).toEqual(show({ universe: 'nyse', side: 'below' }))
+    expect(breadthBodies[3]).toEqual(show({ universe: 'nyse', side: 'below', sessions: null }))
     await say('and the 200 day?')                                       // the moving average changes, nothing else
     await waitFor(() => expect(breadthBodies).toHaveLength(5), { timeout: 8000 })
-    expect(breadthBodies[4]).toEqual(show({ universe: 'nyse', metrics: ['pct_above_200sma'], side: 'below' }))
+    expect(breadthBodies[4]).toEqual(show({ universe: 'nyse', metrics: ['pct_above_200sma'], side: 'below', sessions: null }))
     await say('When was the last time fewer than 10% were above?')
     await waitFor(() => expect(historyBodies).toHaveLength(1), { timeout: 8000 })
     expect(historyBodies[0]).toEqual(hist({ universe: 'nyse' }))
@@ -156,10 +156,10 @@ describe('breadth wording — exact args (no model)', () => {
   }
 
   it.each([
-    ['what % of nasdaq stocks are under the 200 day', show({ universe: 'nasdaq', metrics: ['pct_above_200sma'], side: 'below' })],
-    ['what percentage of NYSE stocks are not above their 50-day moving average', show({ universe: 'nyse', side: 'below' })],
+    ['what % of nasdaq stocks are under the 200 day', show({ universe: 'nasdaq', metrics: ['pct_above_200sma'], side: 'below', sessions: null })],
+    ['what percentage of NYSE stocks are not above their 50-day moving average', show({ universe: 'nyse', side: 'below', sessions: null })],
     ['% of stocks over the 50sma', show()],
-    ['what share of us stocks are below the 20 day', show({ metrics: ['pct_above_20sma'], side: 'below' })],
+    ['what share of us stocks are below the 20 day', show({ metrics: ['pct_above_20sma'], side: 'below', sessions: null })],
   ])('%s', (q, want) => { expect(reading(q)).toEqual(want) })
 
   it('below at the close keeps the basis; an unsupported period is the model’s', () => {
@@ -176,8 +176,8 @@ describe('breadth wording — exact args (no model)', () => {
 
   it('switches keep everything else: universe, MA, side', async () => {
     await remember('what % of us stocks are below the 50sma')
-    expect(reading('how about the nyse')).toEqual(show({ universe: 'nyse', side: 'below' }))
-    expect(reading('what about the 200sma')).toEqual(show({ metrics: ['pct_above_200sma'], side: 'below' }))
+    expect(reading('how about the nyse')).toEqual(show({ universe: 'nyse', side: 'below', sessions: null }))
+    expect(reading('what about the 200sma')).toEqual(show({ metrics: ['pct_above_200sma'], side: 'below', sessions: null }))
     expect(reading('what about the 30 day')).toBeNull()               // not a UCT measure
     expect(reading('what % are above it')).toEqual(show())
     expect(reading('what about 2022')).toBeNull()                     // a year, not a moving average

@@ -20,7 +20,7 @@ const SENTINELS = ['73.4567', '73.457', '73.46', '73.5']
 const leaked = (o) => SENTINELS.filter(s => JSON.stringify(o).includes(s))
 const ANSWER = { status: 'ok', text: 'US · % Above 50-Day: 73.5% on 2026-10-09. Prior session 2026-10-08: 61.0%.\nSource: UCT Breadth — US.',
   table: { columns: [{ key: 'metric', label: 'Measure' }, { key: 'value', label: 'Value' }], rows: [{ metric: '% Above 50-Day', value: '73.5%' }] } }
-const REQ = { mode: 'value', universe: 'us', metrics: ['pct_above_50sma'], date: null, compare_date: null, start: null, end: null, basis: null, side: null }
+const REQ = { mode: 'value', universe: 'us', metrics: ['pct_above_50sma'], date: null, compare_date: null, start: null, end: null, basis: null, side: null, sessions: null }
 const CTX = { surface: 'charts', createIndicator: true }
 
 let envelopes, turnBodies, records, breadthBodies, datesBody
@@ -80,7 +80,7 @@ describe('1 · the capability: local only, closed args, dates-only context', () 
   })
 
   it('basis: null = present tense (UCT\'s current reading), "close" = an explicit close; nothing else', () => {
-    expect(shapeError('breadth.show', { ...REQ, basis: 'close', side: null })).toBeNull()
+    expect(shapeError('breadth.show', { ...REQ, basis: 'close', side: null, sessions: null })).toBeNull()
     expect(shapeError('breadth.show', { ...REQ, basis: 'live' })).toMatch(/isn't an option/)
     const { basis: _b, ...noBasis } = REQ
     expect(shapeError('breadth.show', noBasis)).toMatch(/Missing/)

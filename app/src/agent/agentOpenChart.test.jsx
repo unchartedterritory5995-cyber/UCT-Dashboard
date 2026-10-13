@@ -83,10 +83,10 @@ describe('owner’s four-question sequence — deterministic, no model, one requ
     const { say } = mount()
     const q = ['What percentage of US stocks are above their 50 SMA?', 'What about Nasdaq?', 'And how many are below it?', 'And the 200-day?']
     const want = [
-      { universe: 'us', metrics: ['pct_above_50sma'], side: null },
-      { universe: 'nasdaq', metrics: ['pct_above_50sma'], side: null },
-      { universe: 'nasdaq', metrics: ['pct_above_50sma'], side: 'below' },
-      { universe: 'nasdaq', metrics: ['pct_above_200sma'], side: 'below' },
+      { universe: 'us', metrics: ['pct_above_50sma'], side: null, sessions: null },
+      { universe: 'nasdaq', metrics: ['pct_above_50sma'], side: null, sessions: null },
+      { universe: 'nasdaq', metrics: ['pct_above_50sma'], side: 'below', sessions: null },
+      { universe: 'nasdaq', metrics: ['pct_above_200sma'], side: 'below', sessions: null },
     ]
     for (let i = 0; i < q.length; i++) {
       await say(q[i])

@@ -63,7 +63,7 @@ it.skipIf(!OUT)('capture the smoke-test requests', async () => {
       const prior = priorPlan && bodies.length === 1
       const ref = body.context?.breadth?.[0]?.ref
       const envelope = prior ? { disposition: 'apply', reply: '', question: null, unsupported_category: null,
-        ops: [{ action: 'breadth.show', target: ref, args: { mode: 'value', universe: 'us', metrics: ['pct_above_50sma'], date: null, compare_date: null, start: null, end: null, basis: null, side: null } }] }
+        ops: [{ action: 'breadth.show', target: ref, args: { mode: 'value', universe: 'us', metrics: ['pct_above_50sma'], date: null, compare_date: null, start: null, end: null, basis: null, side: null, sessions: null } }] }
         : { disposition: 'answer', reply: 'ok', question: null, ops: [], unsupported_category: null }
       return json({ conversationId: 'c', envelope, usage: {} })
     }
