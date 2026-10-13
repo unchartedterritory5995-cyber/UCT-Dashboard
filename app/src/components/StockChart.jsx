@@ -169,6 +169,7 @@ import { recordIndicatorChange, indicatorHistoryKey as historyKeyFor } from './c
 import { applyShareIndicators, liveInstanceList } from './chart/indicatorPreservation'
 import { claimShareState } from '../lib/chartDeepLink'
 import SharedIndicatorsPrompt from './chart/SharedIndicatorsPrompt'
+import UnavailableIndicators from './chart/UnavailableIndicators'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStore'
 import useRealtimeBars from '../hooks/useRealtimeBars'
@@ -12120,9 +12121,17 @@ export default function StockChart({
           // the blob" needs. A tombstone must NOT count (its whole job is to let
           // "off" survive a still-true toggle), and it blocks the projection by
           // its id anyway, inside the migrator's own `taken` set.
-          const liveStoredDefIds = new Set(
-            normalizeInstances(stored, engineRegistry).kept.map(i => i.defId),
-          )
+          // ⭐ A1.4 (owner Q5) — …AND A STORED RECORD THAT CANNOT BE SHOWN COUNTS TOO. A
+          // broken stored RSI (an input it no longer declares, a value out of range) used to
+          // be DROPPED and then SUBSTITUTED by a default `legacy:rsi` drawn under the same
+          // name — the member saw "RSI 14" and never their RSI. Now the definition counts as
+          // stored, nothing default is drawn in its place, and the chart says it can't be
+          // shown, with Repair (UnavailableIndicators).
+          const _storedNorm = normalizeInstances(stored, engineRegistry)
+          const liveStoredDefIds = new Set([
+            ..._storedNorm.kept.map(i => i.defId),
+            ..._storedNorm.dropped.map(d => (d && d.inst && typeof d.inst === 'object' && typeof d.inst.defId === 'string' ? d.inst.defId : null)).filter(Boolean),
+          ])
           const source = engineDrawsAnything()
             ? migrateLegacyToInstances(csView, engineRegistry)   // instances are the authority…
               .filter((i) => {
@@ -19920,6 +19929,11 @@ export default function StockChart({
           (no drawing tools) persist nothing a member chose, so they get no toast. */}
       {showDrawingTools && (
         <IndicatorUndoToast surfaceKey={historyKey} userId={historyUserId} chartId={chartId} cs={cs} write={writeFromHistory} />
+      )}
+      {/* ⭐ A1.4 — "⚠ 2 indicators can't be shown": stored records this chart cannot draw. */}
+      {showDrawingTools && (
+        <UnavailableIndicators variant="chip" cs={cs} registry={engineRegistry} write={(next) => handleUpdateChartSettings(next)}
+          surfaceKey={historyKey} userId={historyUserId} />
       )}
       {/* ⭐ A1.3 (D6, Q6) — a shared chart's indicators never silently replace the member's. */}
       {sharePrompt && (

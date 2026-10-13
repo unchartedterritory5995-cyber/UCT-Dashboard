@@ -8,6 +8,7 @@ import { isRowOn, toggledRow, rowVisibility } from '../../../components/chart/In
 import { fieldFromInput } from '../../../components/chart/indicatorRegistry'
 import { setInstanceInput, removeInstance } from '../../../components/chart/engine/instanceControls'
 import IndicatorHistoryButtons from '../../../components/chart/IndicatorHistoryButtons'
+import UnavailableIndicators from '../../../components/chart/UnavailableIndicators'
 import { isInstanceTombstone } from '../../../components/chart/instanceShape'
 import styles from './MobileCharts.module.css'
 
@@ -249,6 +250,9 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
             <IndicatorHistoryButtons surfaceKey={historyKey} userId={historyUserId} cs={cs} write={onWrite} />
           </div>
         )}
+        {/* ⭐ A1.4 — stored indicators this chart cannot show. */}
+        <UnavailableIndicators variant="group" cs={cs} registry={engineRegistry} write={(next) => onWrite({ ...next, preset: 'custom' })}
+          surfaceKey={historyKey || 'global'} userId={historyUserId} />
         <div className={styles.sectionLabel}>Moving averages</div>
         {/* ⛔ INDEX FIRST, FILTER SECOND — `toggleMa(i)` / `patchMa(i, …)` address
             the slot in the STORED array, so `i` must stay the real index. A moving
