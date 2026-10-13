@@ -1,0 +1,142 @@
+# promotion-gate: no — ADVISORY UNTIL OBSERVED BOTH WAYS. This repo promotes a check to
+#   gating only after it has been seen failing AND passing (the full-suite `gate`
+#   precedent, E CP26). The owner decides that promotion; flip this marker to `yes` then.
+# ─── INDICATORS SECURITY SUITE, ON THE LINUX THE WEB IMAGE SHIPS ─────────────
+#
+# ⛔⛔ WHY THIS EXISTS (Indicators Phase A0, 2026-10-13). The rails that hold the
+# formula engine's security claims — the escape census, the node/depth budgets, the
+# graph-bomb and parameter-manifest anti-forgery rails, auth per route, share tokens,
+# colour/XSS sinks and the runtime save gates — had two problems at once:
+#   * 68 of them had stopped reaching their own guard on 2026-10-08 (fixtures without
+#     `definition.version`), so they were red on every platform and proved nothing;
+#   * the escape census could not run on Windows at all (a C-recursion limit in the
+#     harness's `json.dumps`), and the dev box has no Linux (no Docker, no WSL, and the
+#     owner has ruled against installing either — see ocr-linux-cert.yml).
+# Both are repaired in the same change as this file. This job is the place they are
+# proved, BEFORE any change to formula execution is promoted.
+#
+# ⭐ THE RUNTIME IS THE PRODUCTION BASE: `python:3.12-slim-bookworm` (Dockerfile.web's
+# runtime stage) and Node 20.18.0 (Dockerfile.web's pin), the same container pattern
+# as ocr-linux-cert.yml. No secrets, no network beyond package installs, no database
+# but the per-test temp files the suites create themselves.
+#
+# ⛔ ONE DESELECT, NAMED: `test_user_definitions_auth::…PER_ROUTER…` asserts that every
+# router's 402 sentence is distinct; three SCREENER routers share one sentence
+# (screener.py, screener_nl.py, screen_promote.py — not formula code). It is filed in
+# docs/indicators/FINDINGS-FOR-OTHER-OWNERS.md. Remove the deselect when that is fixed.
+name: indicators security suite
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/indicators-security-suite.yml'
+      - 'api/services/ast_*.py'
+      - 'api/services/user_definitions.py'
+      - 'api/services/compute_graph.py'
+      - 'api/services/param_manifest*.py'
+      - 'api/services/runtime_definitions.py'
+      - 'api/services/presentation_schema.py'
+      - 'api/services/definition_*.py'
+      - 'api/routers/user_definitions.py'
+      - 'app/src/components/chart/engine/**'
+      - 'tools/ast_conformance.py'
+      - 'tests/test_ast_*.py'
+      - 'tests/test_compute_graph.py'
+      - 'tests/test_graph_wire_size.py'
+      - 'tests/test_param_*.py'
+      - 'tests/test_definition_*.py'
+      - 'tests/test_runtime_*.py'
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/indicators-security-suite.yml'
+      - 'api/services/ast_*.py'
+      - 'api/services/user_definitions.py'
+      - 'api/services/compute_graph.py'
+      - 'api/services/param_manifest*.py'
+      - 'api/services/runtime_definitions.py'
+      - 'api/services/presentation_schema.py'
+      - 'api/services/definition_*.py'
+      - 'api/routers/user_definitions.py'
+      - 'app/src/components/chart/engine/**'
+      - 'tools/ast_conformance.py'
+      - 'tests/test_ast_*.py'
+      - 'tests/test_compute_graph.py'
+      - 'tests/test_graph_wire_size.py'
+      - 'tests/test_param_*.py'
+      - 'tests/test_definition_*.py'
+      - 'tests/test_runtime_*.py'
+
+concurrency:
+  group: indicators-security-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bookworm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    container:
+      image: python:3.12-slim-bookworm
+    env:
+      NODE_VERSION: '20.18.0'
+    steps:
+      - name: The runtime the web image installs
+        run: |
+          set -eux
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git curl xz-utils
+          rm -rf /var/lib/apt/lists/*
+          curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+            | tar -xJ -C /usr/local --strip-components=1
+          node --version
+          python --version
+
+      - uses: actions/checkout@v4
+
+      - name: Install
+        run: |
+          set -eux
+          python -m pip install --quiet -r requirements.txt pytest
+          cd app && npm ci
+
+      - name: Python security rails
+        run: |
+          set -eux
+          python -m pytest -q -p no:cacheprovider \
+            tests/test_ast_interpret.py tests/test_ast_conformance.py \
+            tests/test_ast_conformance_no_conftest_in_server.py tests/test_ast_conformance_payload.py \
+            tests/test_refusal_not_laundered.py tests/test_ast_budget.py tests/test_ast_c19_shared_budget.py \
+            tests/test_definition_depth_guard.py \
+            tests/test_compute_graph.py tests/test_graph_wire_size.py \
+            tests/test_param_manifest.py tests/test_param_repaste_c46.py \
+            tests/test_user_definitions_auth.py tests/test_exposed_routes_gated.py \
+            tests/test_auth_surface_runtime.py tests/test_entitlements.py \
+            tests/test_definition_sharing.py tests/test_share_publish_authorization.py \
+            tests/test_definition_colour_trust.py tests/test_object_colour_trust.py \
+            tests/test_runtime_definitions.py tests/test_runtime_document_round_trip.py \
+            tests/test_pine_runtime_switch_on.py tests/test_runtime_repaint.py tests/test_runtime_pane_smoke.py \
+            tests/test_feature_flag_ledger.py tests/test_dockerfile_vite_build_args.py tests/test_vite_flag_ledger.py \
+            --deselect "tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER_and_this_task_invented_no_shared_one"
+
+      - name: Frontend security rails
+        working-directory: app
+        run: |
+          set -eux
+          E=src/components/chart/engine
+          npx vitest run --reporter=default \
+            $E/ast/budget.test.js $E/ast/parse.deepTree.test.js $E/ast/interpret.test.js $E/ast/parse.test.js \
+            $E/ast/closedTable.test.js $E/ast/stringEscapes.test.js $E/ast/sharedBudget.test.js $E/ast/paramIds.test.js \
+            $E/__tests__/objectColour.test.js $E/__tests__/objectTableDom.test.js \
+            $E/__tests__/presentationColourSinks.test.jsx \
+            $E/runtime/__tests__/runtimeHardeningP1.test.js $E/runtime/__tests__/runtimeLimitsAcceptance.test.js \
+            $E/runtime/__tests__/runtimePaneSafety.test.jsx $E/runtime/__tests__/runtimeAsync.test.js \
+            $E/__tests__/runtimeKillSwitch.test.js $E/__tests__/runtimeSwitchOn.test.js \
+            $E/__tests__/pineRuntimeFrontendGate.test.js 2>&1 | tee ../vitest-security.log
+          # ⛔ A run without a totals line is not a run (the full-suite lesson, F-CI).
+          grep -E "Test Files .* passed" ../vitest-security.log
+          if grep -E "Test Files .* failed" ../vitest-security.log; then exit 1; fi
