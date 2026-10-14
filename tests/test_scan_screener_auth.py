@@ -364,8 +364,10 @@ def stub_services(monkeypatch):
     # the stub takes it rather than swallowing **_, for the same reason as user_id.
     monkeypatch.setattr(scr_query, "run_scan",
                         lambda spec, user_id=None, user=None: dict(sentinel, _user_id=user_id))
+    # The count batch passes its shared connection + overlay (one per batch).
     monkeypatch.setattr(scr_query, "preview_count",
-                        lambda spec, user_id=None: dict(sentinel, _user_id=user_id))
+                        lambda spec, user_id=None, conn=None, overlay=None:
+                        dict(sentinel, _user_id=user_id))
     monkeypatch.setattr(scr_db, "status", lambda: dict(sentinel))
     monkeypatch.setattr(snapshot_builder, "run_build", lambda max_tickers=800: None)
     # rebuild-universe (#173) calls a whole-reference Massive build; stubbed with the
