@@ -101,6 +101,11 @@
   .btn, .btnOn, .btnPrimary, .linkBtn, .segOn, .segOff, .menuItem, .iconBtn, .receiptBtn, .screenBtn, .smPin, .smOpen, .goldLink, .pill, .pillX, .toastBtn, .dialogInput { min-height: var(--tap-min); }
   .smPin, .pillX { min-width: var(--tap-min); }
   .row { min-height: var(--tap-min); }
+  /* The app's floating buttons (voice orb / joystick bottom-right, feedback "?" bottom-left) are
+     fixed over this tier: keep Flag / Add to watchlist above them, and drop the keyboard hints
+     the "?" would sit on (keys are a desktop affordance; the Help menu still lists them). */
+  .pane { padding-bottom: 96px; }
+  .keyHints { display: none; }
 }
 
 .drawer:focus { outline: none; }
