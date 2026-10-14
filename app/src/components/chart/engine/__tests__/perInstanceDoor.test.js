@@ -29,7 +29,8 @@ import { planBindings, bindingKey } from '../pool'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../../chartDefaults'
 import {
   findInstance, setInstanceHidden, setInstanceInput, removeInstance, addInstance,
-  setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled,
+  setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled, removeDefinition, definitionVisibility,
+  HIDDEN_VIA_DEFINITION,
 } from '../instanceControls'
 import { newInstanceId } from '../instances'
 
@@ -140,10 +141,41 @@ describe('the per-INSTANCE door', () => {
     for (const d of declared) expect(added.inputs[d.key]).toEqual(d.default)
   })
 
-  it('⛔ the per-DEFINITION door still tombstones EVERY instance — unchanged contract', () => {
-    const off = setIndicatorEnabled(csWith(TWO(), { rsi: { enabled: true } }), 'rsi', false, engineRegistry)
+  // A1 (D3): the delete contract moved, unchanged, to `removeDefinition`.
+  it('⛔ the per-DEFINITION DELETE door (removeDefinition) still tombstones EVERY instance — unchanged contract', () => {
+    const off = removeDefinition(csWith(TWO(), { rsi: { enabled: true } }), 'rsi', engineRegistry)
     expect(off.indicatorInstances.every(i => i.deleted === true || i.defId !== 'rsi')).toBe(true)
     expect(off.indicators.rsi.enabled).toBe(false)
+  })
+
+  // ⭐ A1 (D3, owner-approved 2026-10-13): the per-DEFINITION toggle HIDES every instance.
+  it('⭐ A1 (D3) — the per-DEFINITION toggle hides EVERY instance, keeps them all, and ON restores byte-identically', () => {
+    const cs = csWith(TWO(), { rsi: { enabled: true } })
+    const off = setIndicatorEnabled(cs, 'rsi', false, engineRegistry)
+    expect(off.indicatorInstances.filter(i => i.deleted === true), 'a hide tombstoned something').toEqual([])
+    expect(off.indicatorInstances).toEqual(TWO().map(i => ({ ...i, hidden: true, hiddenVia: HIDDEN_VIA_DEFINITION })))
+    expect(off.indicators.rsi.enabled, '⛔ a hide wrote the mirror — it means "exists"').toBe(true)
+    expect(isIndicatorEnabled(off, 'rsi', { has: () => true }), 'a hidden instance still exists').toBe(true)
+    expect(definitionVisibility(off, 'rsi', { has: () => true }).state).toBe('hidden')
+    // ⛔ a second OFF has nothing visible to hide — identity, not a rewrite
+    expect(setIndicatorEnabled(off, 'rsi', false, engineRegistry)).toBe(off)
+    const on = setIndicatorEnabled(off, 'rsi', true, engineRegistry)
+    expect(JSON.stringify(on.indicatorInstances), 'ON did not restore the instances byte for byte')
+      .toBe(JSON.stringify(cs.indicatorInstances))
+    expect(on.indicators).toEqual(cs.indicators)
+  })
+
+  it('⭐ A1 (D3) — an instance the member hid himself is untouched by the definition hide, and gets no marker', () => {
+    const mine = [TWO()[0], { ...TWO()[1], hidden: true }]
+    const off = setIndicatorEnabled(csWith(mine, { rsi: { enabled: true } }), 'rsi', false, engineRegistry)
+    const byId = Object.fromEntries(off.indicatorInstances.map(i => [i.instanceId, i]))
+    expect(byId['legacy:rsi']).toEqual({ ...mine[0], hidden: true, hiddenVia: HIDDEN_VIA_DEFINITION })
+    expect(byId['inst:rsi:1'], 'the marker leaked onto an instance the definition hide did not hide')
+      .toEqual(mine[1])
+    // ON restores only what the definition hid
+    const on = setIndicatorEnabled(off, 'rsi', true, engineRegistry)
+    expect(on.indicatorInstances.map(i => [i.instanceId, i.hidden, 'hiddenVia' in i]))
+      .toEqual([['legacy:rsi', false, false], ['inst:rsi:1', true, false]])
   })
 
   // ⭐⭐ chart-UX-walls TASK 6 — WHY TASK 4's M5 WAS UNKILLABLE, AS AN EQUALITY
@@ -162,7 +194,10 @@ describe('the per-INSTANCE door', () => {
   // `legendFromDefinitions.test.jsx` (`× on ONE of TWO RSIs leaves the OTHER
   // drawing`), which drives a real chip on a real chart. A case here claiming
   // that kill would be a gate that cannot fail on the mutation it names.
-  it('⭐ removeInstance and setIndicatorEnabled(false) DIVERGE the moment TWO instances exist', () => {
+  // A1 (D3): the per-DEFINITION side of this pair is now `removeDefinition` — the toggle
+  // hides (pinned in the next case), so the delete-vs-delete equality lives on the door
+  // that still deletes. Every assertion is kept.
+  it('⭐ removeInstance and removeDefinition DIVERGE the moment TWO instances exist', () => {
     const stable = (cs) => JSON.stringify({
       live: (cs.indicatorInstances || []).filter(i => i && i.deleted !== true).map(i => i.instanceId),
       mirror: cs.indicators && cs.indicators.rsi ? cs.indicators.rsi.enabled : undefined,
@@ -173,12 +208,12 @@ describe('the per-INSTANCE door', () => {
     expect(stable(removeInstance(one, 'legacy:rsi', engineRegistry)),
       'with ONE instance the two doors already disagree — Task 4\'s survivor had a killer all '
       + 'along and its report was wrong about why')
-      .toBe(stable(setIndicatorEnabled(one, 'rsi', false, engineRegistry)))
+      .toBe(stable(removeDefinition(one, 'rsi', engineRegistry)))
 
     // ── TWO instances: they must NOT agree ──
     const two = csWith(TWO(), { rsi: { enabled: true } })
     const removed = removeInstance(two, 'inst:rsi:1', engineRegistry)
-    const disabled = setIndicatorEnabled(two, 'rsi', false, engineRegistry)
+    const disabled = removeDefinition(two, 'rsi', engineRegistry)
     expect(stable(removed),
       'the per-instance remove and the per-definition toggle STILL produce the same blob on a '
       + 'two-instance chart. `removeInstance` must take the one instance it names; if these are '
@@ -190,6 +225,17 @@ describe('the per-INSTANCE door', () => {
     expect(disabled.indicatorInstances.filter(i => i.deleted !== true)).toEqual([])
     expect(isIndicatorEnabled(removed, 'rsi', { has: () => true })).toBe(true)
     expect(isIndicatorEnabled(disabled, 'rsi', { has: () => true })).toBe(false)
+  })
+
+  // ⭐ A1 (D3): and the toggle now diverges from removeInstance even with ONE instance —
+  // a hide keeps the instance (and the mirror), the × deletes it.
+  it('⭐ A1 (D3) — setIndicatorEnabled(false) diverges from removeInstance even with ONE instance: it keeps it', () => {
+    const one = csWith([TWO()[0]], { rsi: { enabled: true } })
+    const hidden = setIndicatorEnabled(one, 'rsi', false, engineRegistry)
+    expect(hidden.indicatorInstances.filter(i => i.deleted !== true).map(i => [i.instanceId, i.hidden]))
+      .toEqual([['legacy:rsi', true]])
+    expect(hidden.indicators.rsi.enabled).toBe(true)
+    expect(removeInstance(one, 'legacy:rsi', engineRegistry).indicators.rsi.enabled).toBe(false)
   })
 })
 
@@ -206,7 +252,12 @@ const digest = (o) => crypto.createHash('sha256')
 describe('⭐ the per-DEFINITION doors did not move — an equality, not an opinion', () => {
   // Every preset plus the bare defaults, each read through the REAL merge, then
   // walked through every registered definition with both per-definition doors.
-  const corpus = () => {
+  // A1 (D3): the OFF step is a parameter. The default is the shipped toggle (which now
+  // HIDES); `removeDefinition` is the door the pre-A1 OFF moved to verbatim, and the
+  // pre-A1 literal is pinned against it below.
+  const offViaToggle = (cs, defId) => setIndicatorEnabled(cs, defId, false, engineRegistry)
+  const offViaRemove = (cs, defId) => removeDefinition(cs, defId, engineRegistry)
+  const corpus = (off = offViaToggle) => {
     const bases = [CHART_DEFAULTS, ...Object.values(PRESETS).map(p => p.settings)]
       .map(b => mergeChartSettings(JSON.stringify(b)))
     const out = []
@@ -219,7 +270,7 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
           cs = setIndicatorInput(cs, def.id, firstNum.key, firstNum.default + 1, engineRegistry)
           out.push(cs)
         }
-        out.push(setIndicatorEnabled(cs, def.id, false, engineRegistry))
+        out.push(off(cs, def.id))
       }
     }
     return out
@@ -276,7 +327,8 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
     // `crosshair.magnet` / `watermark.sizeScale`), so the corpus digest shifts by
     // exactly those keys. INVESTIGATED, not regenerated: no per-definition door
     // changed behaviour.
-    expect(digest(corpus().map(digest).join('|')))
+    // A1 (D3, owner-approved 2026-10-13): the definition door hides; the old literal now holds for removeDefinition
+    expect(digest(corpus(offViaRemove).map(digest).join('|')))
       // 2026-08-24: re-pinned for the graphite default palette retune — color
       // VALUE edits only (candles/volume/earnings → app --gain/--loss, canvas →
       // graphite #17181a); zero keys added/removed, structure byte-identical.
@@ -411,5 +463,54 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // the one moving part is the new default key on every base — no door moved.
       // (Prior value: 8469f829356dab8ef6448a35ecac1ad59eb8c69686c0a7ec686652d13b2ddbd5)
       .toBe('6f7743de23fdad1681d202f328898691c2d7151c59787de818b125cbb1fd45be')
+  })
+
+  // ⭐ A1 (D3, owner-approved 2026-10-13): the definition door hides; the old literal now
+  // holds for removeDefinition (above). The NEW literal below was not regenerated blind —
+  // it is DERIVED first: the two corpora must agree on every ON and INPUT element, and
+  // every OFF element must equal its predecessor with each live, visible instance of that
+  // definition marked `{hidden: true, hiddenVia: 'definition'}` and nothing else moved
+  // (no tombstone, no mirror write, no sever).
+  it('⭐ A1 (D3) — the toggle\'s OFF is exactly "hide every visible instance", element by element', () => {
+    const hidden = corpus()
+    const removed = corpus(offViaRemove)
+    expect(hidden.length).toBe(removed.length)
+    const hideOf = (prev, defId) => ({
+      ...prev,
+      indicatorInstances: prev.indicatorInstances.map(i => (
+        i && i.deleted !== true && i.defId === defId && i.hidden !== true
+          ? { ...i, hidden: true, hiddenVia: HIDDEN_VIA_DEFINITION } : i)),
+    })
+    let k = 0
+    let offs = 0
+    for (let b = 0; b < 1 + Object.values(PRESETS).length; b++) {
+      for (const def of engineRegistry.listDefinitions()) {
+        const hasInput = (def.inputs || []).some(i => i.type === 'int' && i.default !== undefined)
+        for (let s = 0; s < (hasInput ? 2 : 1); s++, k++) {
+          expect(digest(hidden[k]), `${def.id}: an ON/INPUT element moved — only OFF may`).toBe(digest(removed[k]))
+        }
+        const prev = hidden[k - 1]
+        const off = hidden[k]
+        expect(digest(off), `${def.id}: OFF is not exactly a definition hide of its predecessor`)
+          .toBe(digest(hideOf(prev, def.id)))
+        expect(off.indicators[def.id].enabled, `${def.id}: a hide wrote the mirror`).toBe(true)
+        // ⛔ a marker only ever sits on a HIDDEN instance
+        expect(off.indicatorInstances.filter(i => i && i.hiddenVia && i.hidden !== true), def.id).toEqual([])
+        offs++
+        k++
+      }
+    }
+    expect(k).toBe(hidden.length)
+    expect(offs, 'no OFF element was checked').toBeGreaterThan(50)
+  })
+
+  it('⛔ THE LITERAL (A1) — the shipped toggle\'s corpus', () => {
+    // A1 (D3, owner-approved 2026-10-13): the definition door hides; the old literal now holds for removeDefinition
+    // DERIVED, NOT REGENERATED: the case above proves this corpus differs from the
+    // removeDefinition one ONLY in its OFF elements, each of which is a pure hide.
+    // Measured 2026-10-13 only AFTER that case passed and `corpus(offViaRemove)` reproduced
+    // the prior literal (6f7743de…) byte for byte.
+    expect(digest(corpus().map(digest).join('|')))
+      .toBe('8ab5b272734563f15dd707eed76d45ea5527049ec3643a84db9523ac67e96063')
   })
 })

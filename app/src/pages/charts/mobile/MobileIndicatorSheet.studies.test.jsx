@@ -10,8 +10,10 @@
  *   · any study running that is NOT in the quick six still appears (badge ↔
  *     sheet agreement: a running study this sheet hides reads as a badge
  *     counting ghosts);
- *   · toggling OFF tombstones the instance and clears the mirror — never a
- *     bare array filter, which the read-time migrator would resurrect.
+ *   · toggling OFF HIDES the instance (A1, D3) — kept, inputs and mirror intact,
+ *     marked `hiddenVia: 'definition'` — and tapping again shows exactly what was
+ *     hidden. Never a bare array filter, which the read-time migrator would
+ *     resurrect; the delete is "Remove from chart", and it removes ONE instance.
  *
  * Nothing on the path under test is mocked: real registry, real catalog, real
  * instanceControls — the wire is the thing 2026-08-08's audit said component
@@ -66,7 +68,9 @@ describe('the quick six', () => {
     expect(next.preset).toBe('custom')
   })
 
-  test('a running study shows ON, and tapping it off tombstones — never resurrectable-deletes', async () => {
+  // A1 (D3): OFF HIDES. It used to tombstone; a phone switch is a visibility switch now,
+  // and the ONLY thing that may come off the instance is its visibility.
+  test('A1 (D3) — a running study shows ON, and tapping it off HIDES it — kept, never tombstoned', async () => {
     const user = userEvent.setup()
     const cs = { indicatorInstances: [liveInstance('macd')] }
     const onWrite = renderSheet(cs)
@@ -75,11 +79,12 @@ describe('the quick six', () => {
     await user.click(sw)
     const next = onWrite.mock.calls[0][0]
     const liveMacd = (next.indicatorInstances || []).filter((i) => i && i.defId === 'macd' && !isInstanceTombstone(i))
-    expect(liveMacd).toHaveLength(0)
-    // The off-marker survives (the migrator would resurrect a bare delete)…
-    expect((next.indicatorInstances || []).some((i) => isInstanceTombstone(i))).toBe(true)
-    // …and the legacy mirror agrees.
-    expect(next.indicators?.macd?.enabled).toBe(false)
+    // The instance survives, byte for byte, plus the definition-hide marker…
+    expect(liveMacd).toEqual([{ ...liveInstance('macd'), hidden: true, hiddenVia: 'definition' }])
+    // …nothing was tombstoned (no resurrectable delete, and no delete at all)…
+    expect((next.indicatorInstances || []).some((i) => isInstanceTombstone(i))).toBe(false)
+    // …and the mirror is not written: it means "an instance exists", and one does.
+    expect(next.indicators?.macd?.enabled).toBeUndefined()
   })
 })
 
@@ -130,7 +135,9 @@ describe('wave 8 — tap a row name to edit params (no desktop modal)', () => {
     expect(next.overlays[0].type).toBe('EMA')
   })
 
-  test('the editor offers Remove from chart, and it tombstones like the switch', async () => {
+  // A1 (D6): the switch no longer deletes, so "like the switch" stopped being true; the
+  // tombstone is this row's alone now, and it is aimed at the edited instance.
+  test('A1 (D6) — the editor offers Remove from chart, and it tombstones the instance', async () => {
     const user = userEvent.setup()
     const onWrite = renderSheet({ indicatorInstances: [liveInstance('rsi')] })
     await user.click(screen.getByRole('button', { name: 'Edit Relative Strength Index' }))
@@ -138,6 +145,9 @@ describe('wave 8 — tap a row name to edit params (no desktop modal)', () => {
     const next = onWrite.mock.calls.at(-1)[0]
     const live = (next.indicatorInstances || []).filter((i) => i && i.defId === 'rsi' && !isInstanceTombstone(i))
     expect(live).toHaveLength(0)
+    expect(next.indicatorInstances.find((i) => i.instanceId === 'legacy:rsi')).toSatisfy(isInstanceTombstone)
+    // The last copy gone ⇒ the mirror says so (removeInstance's rule).
+    expect(next.indicators?.rsi?.enabled).toBe(false)
   })
 })
 
@@ -236,5 +246,56 @@ describe('wave 11 — stepper tap-to-type', () => {
     await user.keyboard('{Escape}')
     expect(onWrite.mock.calls.length).toBe(before)
     expect(screen.queryByRole('spinbutton', { name: 'Period' })).toBeNull()
+  })
+})
+
+/* A1 DOORS (D3/D5/D6) — the phone's two definition-level doors under the new rule.
+ * The switch is VISIBILITY (a hidden study stays listed, reads off, and shows again);
+ * "Remove from chart" deletes the ONE instance its editor shows, never every copy. */
+describe('A1 doors', () => {
+  test('A1 (D6) — Remove from chart with TWO RSI removes only the edited one', async () => {
+    const user = userEvent.setup()
+    const a = { instanceId: 'rsi-a', defId: 'rsi', inputs: { period: 14 }, hidden: false }
+    const b = { instanceId: 'rsi-b', defId: 'rsi', inputs: { period: 21 }, hidden: false }
+    const onWrite = vi.fn()
+    render(
+      <MobileIndicatorSheet
+        open
+        onClose={vi.fn()}
+        cs={{ indicatorInstances: [a, b], indicators: { rsi: { enabled: true } } }}
+        onWrite={onWrite}
+        onBrowseLibrary={vi.fn()}
+        onOpenSettings={vi.fn()}
+        initialEditing={{ kind: 'study', defId: 'rsi', instanceId: 'rsi-b' }}
+      />,
+    )
+    await user.click(await screen.findByRole('button', { name: /remove from chart/i }))
+    expect(onWrite).toHaveBeenCalledTimes(1)
+    const next = onWrite.mock.calls[0][0]
+    const byId = Object.fromEntries(next.indicatorInstances.map((i) => [i.instanceId, i]))
+    expect(byId['rsi-b']).toSatisfy(isInstanceTombstone)
+    expect(byId['rsi-a'], 'Remove from chart took the OTHER copy with it').toEqual(a)
+    // A sibling still draws, so the mirror stays on.
+    expect(next.indicators.rsi.enabled).toBe(true)
+  })
+
+  test('A1 (D3/D5) — a hidden study reads " · hidden", switch off; tapping shows it again', async () => {
+    const user = userEvent.setup()
+    const shown = { ...liveInstance('rsi'), inputs: { period: 9 } }
+    const hidden = { ...shown, hidden: true, hiddenVia: 'definition' }
+    const onWrite = vi.fn()
+    const cs = { indicatorInstances: [hidden], indicators: { rsi: { enabled: true } } }
+    renderSheet(cs, onWrite)
+    // Still LISTED (it exists), but the switch is visibility.
+    const sw = screen.getByRole('switch', { name: 'Relative Strength Index' })
+    expect(sw).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByText('· hidden')).toBeInTheDocument()
+    await user.click(sw)
+    expect(onWrite).toHaveBeenCalledTimes(1)
+    const next = onWrite.mock.calls[0][0]
+    const live = next.indicatorInstances.filter((i) => i.defId === 'rsi' && !isInstanceTombstone(i))
+    // Shown back EXACTLY as it was before the hide — marker gone, inputs kept, no second copy.
+    expect(live).toEqual([shown])
+    expect(next.indicators.rsi.enabled).toBe(true)
   })
 })

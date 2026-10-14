@@ -2701,6 +2701,28 @@
       ]
     },
     {
+      "key": "uct.indicators.history.v1:*",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "state",
+      "label": "Indicator Undo history for this tab (per member and chart)",
+      "files": [
+        "app/src/components/chart/indicatorHistoryStore.js"
+      ]
+    },
+    {
+      "key": "uct.indicators.unavailable.dismissed.v1:*",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "state",
+      "label": "Unavailable-indicator notices you chose to keep, this tab",
+      "files": [
+        "app/src/components/chart/UnavailableIndicators.jsx"
+      ]
+    },
+    {
       "key": "uct.chunk-reload-attempted",
       "store": "sessionStorage",
       "scope": "device-local",

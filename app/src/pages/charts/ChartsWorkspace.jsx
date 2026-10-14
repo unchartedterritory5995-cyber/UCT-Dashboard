@@ -76,6 +76,7 @@ import Checkbox from '../../components/ui/Checkbox'
 import Input from '../../components/ui/Input'
 import { isSuspendedGroup } from './colorGroups'
 import useExtraGroupsEnabled from './useExtraGroupsEnabled'
+import { planLayoutUndo, layoutUndoDecision } from './layoutUndo'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
 
@@ -1608,7 +1609,8 @@ export default function ChartsWorkspace() {
     if (link.tf) applyTfToCharts(link.tf)
     try {
       const rest = stripChartsLink(window.location.search)
-      window.history.replaceState({}, '', `${window.location.pathname}${rest}`)
+      // ⭐ A1.3 (R4): keep `history.state` (the router's key/index) — `{}` wiped it.
+      window.history.replaceState(window.history.state, '', `${window.location.pathname}${rest}`)
     } catch { /* history unavailable — lingering params are harmless */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefsLoading])
@@ -2815,6 +2817,46 @@ export default function ChartsWorkspace() {
     if (tpl) applyTemplate(tpl)
   }, [gridMode, mc, applyUctDefault, applyTemplate, globalLayouts, myLayouts])
 
+  // ⭐ A1.3b (owner Q7) — "Switched to “Day” · Undo" for a MEMBER's layout open (the Dock and the
+  // Layouts menu; never the Agent's, which keeps its own Undo with the same rules —
+  // `layoutUndo.js`). The board snapshot is taken BEFORE the switch.
+  // ⛔ A remembered open is SHOWN only once the board has actually switched to it — an open
+  // can be a no-op (a layout with no widgets, a refused board size, an unknown entry), and the
+  // toast must never say "Switched to “X”" when nothing switched (Agent review, 2026-10-13).
+  const [layoutUndo, setLayoutUndo] = useState(null)   // { plan, note, shown, at }
+  const rememberLayoutOpen = useCallback((to) => {
+    if (!to || to.id == null || String(to.id) === String(dockActiveId)) return
+    setLayoutUndo({ plan: planLayoutUndo(agentLayoutsRef.current, to), note: null, shown: false, at: Date.now() })
+  }, [dockActiveId])
+  useEffect(() => {
+    if (layoutUndo && !layoutUndo.shown && layoutUndo.plan.to && dockActiveId != null && String(dockActiveId) === String(layoutUndo.plan.to.id)) {
+      setLayoutUndo({ ...layoutUndo, shown: true })
+    }
+    // ⛔ …and it goes the moment the board moves on to another layout (an Agent open, another
+    // Dock click). "Switched to “Swing”" beside the Agent's "Opened “Macro”" is two messages
+    // disagreeing about the board (Agent integration test, 2026-10-13).
+    if (layoutUndo && layoutUndo.shown && layoutUndo.plan.to && dockActiveId != null && String(dockActiveId) !== String(layoutUndo.plan.to.id)) {
+      setLayoutUndo(null)
+    }
+  }, [dockActiveId, layoutUndo])
+  const memberDockOpen = useCallback((entry) => {
+    rememberLayoutOpen(entry)
+    handleDockOpen(entry)
+  }, [rememberLayoutOpen, handleDockOpen])
+  const undoLayoutOpen = useCallback(() => {
+    if (!layoutUndo) return
+    const d = layoutUndoDecision(layoutUndo.plan, agentLayoutsRef.current)
+    if (!d.ok) { setLayoutUndo({ ...layoutUndo, note: d.sentence }); return }
+    setLayoutUndo(null)
+    handleDockOpen({ id: d.open.id, name: d.open.name })
+  }, [layoutUndo, handleDockOpen])
+  useEffect(() => {
+    if (!layoutUndo) return undefined
+    // an open that never landed is forgotten quickly; a shown toast stays 10 s (6 s for a refusal)
+    const t = setTimeout(() => setLayoutUndo(null), !layoutUndo.shown ? 4000 : layoutUndo.note ? 6000 : 10000)
+    return () => clearTimeout(t)
+  }, [layoutUndo])
+
   // ＋ — create the empty layout under the typed name (CREATE-ONLY: an existing name is
   // refused, never replaced — dockCreate.js), THEN blank the board and make it active.
   // You build it from there and save again through Layouts ▾.
@@ -3355,6 +3397,21 @@ export default function ChartsWorkspace() {
         <JournalToast msg={jwHotkeyMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
         {/* TERM-001: a refused add, or a board already over the bound, is stated in words.
             Nothing is removed from an over-bound board; it simply cannot grow. */}
+        {/* ⭐ A1.3b — a member's layout open, undoable under the Agent's rules. When the
+            switch discarded unsaved board state, it says so and offers NO Undo. */}
+        {layoutUndo && layoutUndo.shown && layoutUndo.plan.to && (
+          <div className={styles.boardBoundStatus} role="status" data-testid="layout-undo-toast">
+            <span>
+              {layoutUndo.note || (layoutUndo.plan.discarded
+                ? `Switched to “${layoutUndo.plan.to.name || 'layout'}” — the previous board's unsaved changes weren't kept.`
+                : `Switched to “${layoutUndo.plan.to.name || 'layout'}”.`)}
+            </span>
+            {!layoutUndo.note && !layoutUndo.plan.discarded && layoutUndo.plan.from && (
+              <button type="button" onClick={undoLayoutOpen}>Undo</button>
+            )}
+            <button type="button" aria-label="Dismiss" onClick={() => setLayoutUndo(null)}>×</button>
+          </div>
+        )}
         {(boardRefusal || boardOverBound) && (
           <div className={styles.boardBoundStatus} role="status" data-testid="board-bound-status">
             <span>{boardRefusal || boardOverBound}</span>
@@ -3437,11 +3494,11 @@ export default function ChartsWorkspace() {
                   <div className={styles.menuDivider} />
                   <div className={styles.menuSection}>Prebuilt</div>
                   <div className={styles.menuRow}>
-                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyUctDefault(); closeToolbarMenus() }}>UCT Default</button>
+                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { rememberLayoutOpen({ id: UCT_DEFAULT_ID, name: 'UCT Default' }); applyUctDefault(); closeToolbarMenus() }}>UCT Default</button>
                   </div>
                   {wsGlobalLayouts.map(t => (
                     <div key={`g${t.id}`} className={styles.menuRow}>
-                      <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid(); closeToolbarMenus() }}>{t.name}</button>
+                      <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { rememberLayoutOpen(t); applyTemplate(t); if (gridMode) mc.exitGrid(); closeToolbarMenus() }}>{t.name}</button>
                       {isAdmin && (confirmDeleteId === t.id ? (
                         <DeleteConfirm onYes={() => { handleDeleteTemplate(t.id); setConfirmDeleteId(null) }} onCancel={() => setConfirmDeleteId(null)} />
                       ) : (
@@ -3452,7 +3509,7 @@ export default function ChartsWorkspace() {
                   {wsMyLayouts.length > 0 && <div className={styles.menuSection}>My layouts</div>}
                   {wsMyLayouts.map(t => (
                     <div key={`m${t.id}`} className={styles.menuRow}>
-                      <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid(); closeToolbarMenus() }}>{t.name}</button>
+                      <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { rememberLayoutOpen(t); applyTemplate(t); if (gridMode) mc.exitGrid(); closeToolbarMenus() }}>{t.name}</button>
                       {confirmDeleteId === t.id ? (
                         <DeleteConfirm onYes={() => { handleDeleteTemplate(t.id); setConfirmDeleteId(null) }} onCancel={() => setConfirmDeleteId(null)} />
                       ) : (
@@ -3616,7 +3673,7 @@ export default function ChartsWorkspace() {
           loading={templatesLoading}
           merged={merged}
           isAdmin={isAdmin}
-          onOpen={handleDockOpen}
+          onOpen={memberDockOpen}
           onCreate={handleDockCreate}
           onSave={handleSaveLayout}
           onDuplicate={handleDockDuplicate}

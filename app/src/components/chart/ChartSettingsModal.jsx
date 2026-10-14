@@ -38,6 +38,8 @@ import { MAX_CHART_TEMPLATES } from './chartCeilings'
 // ⭐ The ONE apply every saved-template door shares (this modal, the right-click
 // flyout, UCT Agent) — see chartTemplateApply.js for the ruling behind it.
 import { chartTemplateSettings } from './chartTemplateApply'
+import { keepIndicatorState } from './indicatorPreservation'
+import { recordIndicatorChange } from './indicatorHistoryStore'
 
 // A user's saved chart-settings templates live in ONE global pref so they're
 // available from every chart/tab/grid cell. Applying a template routes through
@@ -286,6 +288,8 @@ const CROSSHAIR_MODE_LABELS = {
 
 export default function ChartSettingsModal({
   open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor, themeVars = null,
+  // ⭐ A1.2 — the chart's indicator Undo stack, for the Indicators tab's Undo / Redo.
+  historyKey = null, historyUserId = null,
   // Optional: apply a UCT theme to EVERY chart in the layout at once. Supplied by
   // the Charts workspace (via ChartPane); when absent, the themes gallery offers
   // only "this chart".
@@ -457,6 +461,11 @@ export default function ChartSettingsModal({
   const applyTemplate = (t) => {
     const next = chartTemplateSettings(t)
     if (!next) return
+    // ⭐ A1.3 — a template still REPLACES (integrator ruling 2026-10-11; Agent parity), and
+    // is now undoable: "Applied template “Swing” · Undo".
+    if (historyKey) {
+      try { recordIndicatorChange(historyKey, settings, next, { userId: historyUserId, label: `Applied template “${t?.name || 'Untitled'}”`, kind: 'template' }) } catch { /* never blocks */ }
+    }
     onChange?.(next)
     setTplMenuOpen(false)
   }
@@ -470,7 +479,13 @@ export default function ChartSettingsModal({
     if (confirmReset) {
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current)
       setConfirmReset(false)
-      onChange?.(JSON.parse(JSON.stringify(CHART_DEFAULTS)))
+      // ⭐ A1.3 (D5): the LOOK resets; indicators, moving averages, pane order and sizes,
+      // volume overlays and header info values are kept — and the reset is undoable.
+      const next = keepIndicatorState(JSON.parse(JSON.stringify(CHART_DEFAULTS)), settings)
+      if (historyKey) {
+        try { recordIndicatorChange(historyKey, settings, next, { userId: historyUserId, label: 'Chart appearance reset', kind: 'reset' }) } catch { /* never blocks */ }
+      }
+      onChange?.(next)
     } else {
       setConfirmReset(true)
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current)
@@ -898,7 +913,7 @@ export default function ChartSettingsModal({
               type="button"
               className={`${styles.resetBtn}${confirmReset ? ' ' + styles.resetBtnConfirm : ''}`}
               onClick={handleReset}
-              title="Restore all chart settings to defaults"
+              title="Resets chart appearance. Your indicators stay."
               style={{ cursor: 'pointer' }}
             >{confirmReset ? 'Confirm?' : '↺ Restore Defaults'}</button>
             <button type="button" data-modal-close className={styles.close} onClick={onClose} aria-label="Close" style={{ cursor: 'pointer' }}>✕</button>
@@ -1267,6 +1282,8 @@ export default function ChartSettingsModal({
             rows={indRows}
             settings={settings}
             onChange={onChange}
+            historyKey={historyKey}
+            historyUserId={historyUserId}
             registry={engineRegistry}
             onRowPatch={setRow}
             colorSwatch={colorSwatch}

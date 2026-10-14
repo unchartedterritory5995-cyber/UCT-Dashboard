@@ -1,6 +1,9 @@
 import {
   forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
 } from 'react'
+import useHistoryUserId from '../useHistoryUserId'
+import { recordIndicatorChange } from '../indicatorHistoryStore'
+import { labelFor as indicatorLabelFor } from '../indicatorCatalog'
 import StockChart from '../../StockChart'
 import isModalOpen from '../../../utils/modalOpen'
 import ChartMetaRow from './ChartMetaRow'
@@ -597,6 +600,22 @@ function ChartPane({
     setSettingsTarget(typeof target === 'string' ? target : null)
     setSettingsOpen(true)
   }, [])
+  // ⭐ A1.2 — the indicator Undo stack this pane's chart shares (StockChart toasts from it).
+  // ONLY the Chart Settings modal's own edits are recorded here (and template applies, via
+  // `applySettingsRecorded`); `applySettings` stays unrecorded. The Agent writes through
+  // ChartWidget `api.agent.commit` → onOptsChange, never through this pane, and keeps its
+  // own exact Undo.
+  const historyUserId = useHistoryUserId()
+  const indicatorHistoryKey = chartId ? `chart:${chartId}` : null
+  const updateChartSettingsRef = useRef(null)
+  const updateFromSettingsModal = useCallback((next) => {
+    if (indicatorHistoryKey) {
+      try {
+        recordIndicatorChange(indicatorHistoryKey, chartCs, next, { userId: historyUserId, labelOf: indicatorLabelFor, origin: chartId })
+      } catch { /* recording never blocks a write */ }
+    }
+    updateChartSettingsRef.current?.(next)
+  }, [indicatorHistoryKey, chartCs, historyUserId, chartId])
   const updateChartSettings = useCallback((next) => {
     // Settings → Type on a breadth chart sets the BREADTH type (see persistActiveSettings).
     if (isBreadthLike && next && next.chartType) {
@@ -606,6 +625,7 @@ function ChartPane({
     }
     writeActiveSettings(next)
   }, [isBreadthLike, writeActiveSettings, chartCs.chartType])
+  updateChartSettingsRef.current = updateChartSettings
 
   // ─── THE TOOLBAR'S IMPERATIVE API, HELD BY THE PANE ───────────────────────
   //
@@ -797,6 +817,15 @@ function ChartPane({
     // onChange uses. Lets the right-click "Chart template" menu drop a saved
     // template straight onto the chart without opening the modal.
     applySettings: updateChartSettings,
+    // ⭐ A1.3 — the same apply, RECORDED on this chart's indicator Undo stack under `label`
+    // (the right-click "Chart template" menu). `applySettings` itself stays unrecorded: it
+    // is also the Agent's door, and the Agent keeps its own Undo.
+    applySettingsRecorded: (next, { label, kind } = {}) => {
+      if (indicatorHistoryKey && label) {
+        try { recordIndicatorChange(indicatorHistoryKey, chartCs, next, { userId: historyUserId, label, kind: kind || 'bulk', origin: chartId }) } catch { /* never blocks */ }
+      }
+      updateChartSettings(next)
+    },
     focus: () => focusableRef.current?.focus({ preventScroll: true }),
     changeSymbol: handleSymbolChange,
     // The chart-fill rect (viewport coords) — lets a workspace tool (Compare
@@ -839,7 +868,7 @@ function ChartPane({
     // `{ok, movedFrom}` | `{ok:false, reason:'readonly'|'busy'|'invalid'}`; never persisted.
     showAuthoringPreview: (definition, opts = {}) => { try { return paneToolbarApi.current?.showAuthoringPreview?.(definition, opts) ?? { ok: false, reason: 'readonly' } } catch { return { ok: false, reason: 'readonly' } } },
     clearAuthoringPreview: () => { try { return !!paneToolbarApi.current?.clearAuthoringPreview?.() } catch { return false } },
-  }), [openSettings, updateChartSettings, handleSymbolChange])
+  }), [openSettings, updateChartSettings, handleSymbolChange, indicatorHistoryKey, chartCs, historyUserId, chartId])
 
   // Docked = the chart section gives up `studioDockW` on the right. Below
   // STUDIO_DOCK_W_MIN + STUDIO_DOCK_MIN_CHART_W the chart would be a sliver, so the
@@ -1039,6 +1068,7 @@ function ChartPane({
              are memoized upstream, so this stays identity-stable. */
           settingsOverride={effSettingsOverride}
           onSettingsPersist={persistActiveSettings}
+          indicatorHistoryKey={indicatorHistoryKey}
           /* UCT breadth line mode: single canvas-contrasting ink for the price line
              (the 'line' TYPE is forced above via effSettingsOverride). */
           breadthLine={breadthLineActive}
@@ -1159,7 +1189,9 @@ function ChartPane({
            Volume inside PRICE while the chart drew it below — which also left
            `movePane` resolving an order with no `volume` key to cross. */
         volumeOpts={{ volumeSeparatePane: true, blankVolume: false }}
-        onChange={updateChartSettings}
+        onChange={updateFromSettingsModal}
+        historyKey={indicatorHistoryKey}
+        historyUserId={historyUserId}
         onApplyThemeAll={onApplyThemeAll}
         onApplyThemeAllWidgets={onApplyThemeAllWidgets}
         onAdjustWatermark={onAdjustWatermark ? () => { onAdjustWatermark(); setSettingsOpen(false) } : null}

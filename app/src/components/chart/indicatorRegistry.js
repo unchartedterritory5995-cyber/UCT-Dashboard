@@ -97,7 +97,7 @@
 import { isInstanceTombstone } from './chartDefaults'
 import { ENGINE_OWNED } from './engine/flipState'
 import {
-  isIndicatorEnabled, setIndicatorEnabled, setIndicatorInput, setInstanceInput,
+  isIndicatorEnabled, setIndicatorEnabled, setIndicatorInput, setInstanceInput, definitionVisibility,
 } from './engine/instanceControls'
 // ⚠️ THE ONE MINTER, IMPORTED — never the literal `legacy:`. `USER_ID_PREFIX` and
 // `LEGACY_ID_PREFIX` live in `engine/instances.js` and a typed copy here would be
@@ -558,7 +558,12 @@ export function listEngineIndicators(settings, registry) {
     // Read through the ONE reader every other control door uses, so a
     // tombstone cannot leave this toggle ticked over a chart with no line. It is
     // per DEFINITION and therefore shared by every row of one definition.
-    const enabled = isIndicatorEnabled(settings, def.id, ENGINE_OWNED)
+    // ⭐ A1 (D3): the row's switch reads VISIBILITY — a definition-hidden indicator reads
+    // OFF, so unticking is never an identity no-op (stuck) and ticking shows it again.
+    // `exists` keeps the old "a live instance exists" answer for LISTING: a hidden
+    // indicator stays in the active list, with its own switch, so it can be found again.
+    const exists = isIndicatorEnabled(settings, def.id, ENGINE_OWNED)
+    const enabled = definitionVisibility(settings, def.id, ENGINE_OWNED).state === 'shown'
     for (const instance of (live.length ? live : [null])) {
       rows.push({
         id: instance ? instance.instanceId : def.id,
@@ -615,6 +620,7 @@ export function listEngineIndicators(settings, registry) {
         values: drawnValues(def, settings, instance),
         canToggle: true,
         enabled,
+        exists,
       })
     }
   }

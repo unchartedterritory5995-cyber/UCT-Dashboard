@@ -19,7 +19,7 @@ import {
 import {
   resolveInfoValue, resolveInfoValues, infoValueOutputExists, INFO_VALUE_STATES, INFO_VALUE_GUARDS,
 } from '../infoValueResolve'
-import { addInstance, removeInstance, setIndicatorEnabled } from '../instanceControls'
+import { addInstance, removeInstance, setIndicatorEnabled, removeDefinition } from '../instanceControls'
 import { severReferencesTo } from '../sourceRef'
 import { legacyInstanceId } from '../instances'
 import { CHART_SCALAR_GUARD } from '../chartScalars'
@@ -162,7 +162,8 @@ describe('P1 info — 18: deleting the referenced instance leaves a clean, visib
   })
 
   it('18b ASKED delete then RE-ADD RSI (same deterministic id `legacy:rsi`); CLAIMED a fresh RSI; DID keep the old value broken — never a silent reconnect', () => {
-    const del = setIndicatorEnabled(seeded(), 'rsi', false, registry)
+    // A1 (D3): the toggle hides now — the definition DELETE is removeDefinition
+    const del = removeDefinition(seeded(), 'rsi', registry)
     expect(del.header.infoValues[0].severed).toBe(true)
     const back = setIndicatorEnabled(del, 'rsi', true, registry)
     expect(back.indicatorInstances.some((i) => i.instanceId === rsiId && !i.deleted)).toBe(true)
@@ -175,6 +176,17 @@ describe('P1 info — 18: deleting the referenced instance leaves a clean, visib
     // and explicit removal returns the header to its legacy shape (key absent)
     const gone = removeInfoValue(back, { instanceId: rsiId, plotKey: 'rsi' })
     expect(INFO_VALUES_KEY in gone.header).toBe(false)
+  })
+
+  // ⭐ A1 (D3, decision O3): a definition HIDE is not a delete — dependents are KEPT.
+  it('18b-hide ASKED turn RSI off (the definition toggle) then on; CLAIMED the header value is kept; DID keep it connected — never severed, byte-identical after ON (A1 D3/O3)', () => {
+    const cs = seeded()
+    const off = setIndicatorEnabled(cs, 'rsi', false, registry)
+    expect(off.header.infoValues, 'a definition hide severed the info value').toEqual(cs.header.infoValues)
+    expect(off.indicatorInstances.some((i) => i.instanceId === rsiId && !i.deleted && i.hidden === true)).toBe(true)
+    const back = setIndicatorEnabled(off, 'rsi', true, registry)
+    expect(JSON.stringify(back)).toBe(JSON.stringify(cs))
+    expect(resolveInfoValue(back, infoValuesOf(back)[0], envOf(draw(back))).state).toBe(INFO_VALUE_STATES.VALUE)
   })
 
   it('18c ASKED the instance vanished without a delete door (template/share/normalise); CLAIMED a value; DID broken instance-missing — never looked up by name', () => {
