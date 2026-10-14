@@ -21,7 +21,7 @@
 .moreSentinel { height: 1px; }
 .keyHints { display: flex; gap: 12px; flex-wrap: wrap; padding: 10px 16px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--text-muted); }
 .keyHints b { color: var(--text); font-weight: 600; }
-.linkBtn { background: none; border: 0; padding: 0; display: inline-flex; align-items: center; gap: 0.3em; color: var(--text-muted); font: inherit; cursor: pointer; }
+.linkBtn { background: none; border: 0; padding: 0; min-height: 32px; display: inline-flex; align-items: center; gap: 0.3em; color: var(--text-muted); font: inherit; cursor: pointer; }
 .btn { background: transparent; color: var(--text); border: 1px solid var(--border-accent); border-radius: 8px; padding: 8px 14px; font: inherit; font-size: 13px; min-height: 36px; cursor: pointer; }
 .btnOn { background: var(--ut-gold-dim); color: var(--ut-gold); border: 1px solid var(--ut-gold); border-radius: 8px; padding: 8px 14px; font: inherit; font-size: 13px; min-height: 36px; cursor: pointer; }
 .btnPrimary { background: var(--ut-gold); color: var(--bg); border: 0; border-radius: 8px; padding: 8px 14px; font: inherit; font-size: 13px; font-weight: 700; min-height: 36px; cursor: pointer; }
@@ -47,8 +47,9 @@
 .segOn { background: var(--border-accent); color: var(--text-heading); }
 .segOff { background: transparent; color: var(--text-muted); }
 .chartBox { position: relative; flex: 1; min-height: 280px; }
-.paneFoot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 12px; }
-.why { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12.5px; }
+.paneFoot { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; border-top: 1px solid var(--border); padding-top: 12px; }
+.paneActions { display: flex; align-items: center; gap: 10px; flex: none; white-space: nowrap; }
+.why { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; flex: 1 1 auto; min-width: 0; font-size: 12.5px; }
 .whyLabel { color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
 .whyList { display: flex; gap: 14px; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
 .whyItem { display: inline-flex; gap: 6px; align-items: center; }
@@ -102,6 +103,13 @@
      fixed over this tier: keep Flag / Add to watchlist above them, and drop the keyboard hints
      the "?" would sit on (keys are a desktop affordance; the Help menu still lists them). */
   .pane { padding-bottom: 96px; }
+  /* The same buttons cover the last rows of the list: leave room to scroll them clear. */
+  .list { padding-bottom: 72px; }
+  /* The footer would take ~150px of a short pane and squeeze the chart: shrink the head, drop the
+     company/industry line, keep the why strip on one line. */
+  .paneTicker { font-size: 22px; }
+  .paneSub { display: none; }
+  .why, .whyList { flex-wrap: nowrap; overflow: hidden; }
   .keyHints { display: none; }
 }
 
@@ -135,7 +143,7 @@ button.pill { cursor: pointer; }
 .rowCompany { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .howToSteps { margin: 0; padding: 0 0 0 20px; color: var(--text); font-size: 14px; line-height: 1.6; }
 .howToSteps li + li { margin-top: 6px; }
-.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 80; display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px); background: var(--bg-elevated); border: 1px solid var(--border-accent); color: var(--text); padding: 8px 10px 8px 16px; border-radius: 10px; font-size: 13px; box-shadow: var(--shadow-popover); }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: var(--z-toast); display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px); background: var(--bg-elevated); border: 1px solid var(--border-accent); color: var(--text); padding: 8px 10px 8px 16px; border-radius: 10px; font-size: 13px; box-shadow: var(--shadow-popover); }
 .toast .menu { top: auto; bottom: calc(100% + 6px); }
 .toastBtn { background: transparent; color: var(--ut-gold); border: 1px solid var(--border-accent); border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 13px; min-height: 32px; cursor: pointer; white-space: nowrap; }
 .toastBtn:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
@@ -146,7 +154,7 @@ button.pill { cursor: pointer; }
 .skipLink { position: absolute; top: 8px; left: 8px; z-index: 50; white-space: nowrap; padding: 8px 14px; border-radius: 8px; background: var(--bg-elevated); color: var(--text); font-size: 13px; font-weight: 600; text-decoration: none; transform: translateY(-200%); clip-path: inset(50%); pointer-events: none; }
 .skipLink:focus-visible { transform: none; clip-path: none; pointer-events: auto; outline: 2px solid var(--ut-gold); outline-offset: 2px; }
 /* NameDialog: the inline "name it" box (no window.prompt). */
-.dialogScrim { position: fixed; inset: 0; z-index: 90; background: rgba(0, 0, 0, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.dialogScrim { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0, 0, 0, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
 .nameDialog { width: 380px; max-width: 100%; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow-popover); }
 .dialogTitle { margin: 0; font-size: 16px; font-weight: 700; color: var(--text-heading); }
 .dialogLabel { font-size: 12.5px; color: var(--text-muted); }

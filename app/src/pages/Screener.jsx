@@ -9,6 +9,7 @@ import styles from './Screener.module.css'
 import { AuthContext } from '../context/AuthContext'
 import OptionsScreener from './screener/options/OptionsScreener'
 import HowToChecklist from '../components/howTo/HowToChecklist'
+import { useIsPhone } from '../hooks/useBreakpoint'
 
 // ── ScannerShell error fallback — defense-in-depth (the stress-sweep's
 // blank-root finding traced to the SPA's static asset delivery, not a React
@@ -90,7 +91,9 @@ export default function Screener({ embedded = false }) {
   const [mode, setMode] = useState(() => (searchParams.get('tab') === 'options' ? 'options' : 'stocks'))
   const showOptions = optionsOn && mode === 'options'
   // Owner-only Focus layout (SCREENER_FOCUS_LAYOUT_ENABLED). Never in an embedded widget or a terminal panel.
-  const focusOn = useContext(AuthContext)?.screenerFocusLayoutEnabled === true && !embedded && !inPanel
+  // Phones (<=640) keep the current ResultCards page: the Focus layout is tablet and up.
+  const isPhone = useIsPhone()
+  const focusOn = useContext(AuthContext)?.screenerFocusLayoutEnabled === true && !embedded && !inPanel && !isPhone
 
   const containerCls = `${styles.containerFull} ${embedded ? styles.pageEmbedded : ''}`.trim()
   const showHeading = !embedded && !inPanel && !focusOn

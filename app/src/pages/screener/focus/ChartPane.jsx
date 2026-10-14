@@ -68,8 +68,10 @@ export default function ChartPane({ row, livePrice, why, onOpenFilters, onFlag, 
       <div className={styles.paneFoot}>
         <WhyStrip items={why.items} more={why.more} onMore={onOpenFilters} />
         <span className={styles.spacer} />
-        <button type="button" className={isFlagged ? styles.btnOn : styles.btn} aria-pressed={!!isFlagged} onClick={() => onFlag(row)}>Flag</button>
-        <button type="button" className={styles.btnPrimary} onClick={() => onWatch(row)}>Add to watchlist</button>
+        <div className={styles.paneActions}>
+          <button type="button" className={isFlagged ? styles.btnOn : styles.btn} aria-pressed={!!isFlagged} onClick={() => onFlag(row)}>Flag</button>
+          <button type="button" className={styles.btnPrimary} onClick={() => onWatch(row)}>Add to watchlist</button>
+        </div>
       </div>
     </section>
   )

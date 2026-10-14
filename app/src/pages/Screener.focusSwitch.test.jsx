@@ -1,7 +1,7 @@
 // app/src/pages/Screener.focusSwitch.test.jsx
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { vi, expect, test } from 'vitest'
+import { vi, expect, test, afterEach } from 'vitest'
 import { AuthContext } from '../context/AuthContext'
 import { TerminalPanelContext } from '../components/terminal'
 import styles from './Screener.module.css'
@@ -12,6 +12,46 @@ import Screener from './Screener'
 
 const wrap = (value, props = {}) => render(
   <MemoryRouter><AuthContext.Provider value={value}><Screener {...props} /></AuthContext.Provider></MemoryRouter>)
+
+// useIsPhone() reads matchMedia at mount: answer true only for the phone query (max-width: 640px).
+const realMatchMedia = window.matchMedia
+function setWidth(px) {
+  window.matchMedia = (query) => {
+    const max = /max-width:\s*(\d+)px/.exec(query)
+    const min = /min-width:\s*(\d+)px/.exec(query)
+    return {
+      matches: (!max || px <= Number(max[1])) && (!min || px >= Number(min[1])),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }
+  }
+}
+afterEach(() => { window.matchMedia = realMatchMedia })
+
+test('phone (<=640) keeps the old shell even with the flag on', () => {
+  setWidth(390)
+  wrap({ screenerFocusLayoutEnabled: true })
+  expect(screen.getByTestId('old-shell')).toBeInTheDocument()
+  expect(screen.queryByTestId('focus')).toBeNull()
+})
+
+test('tablet (641-1024) renders the focus layout with the flag on', () => {
+  setWidth(820)
+  wrap({ screenerFocusLayoutEnabled: true })
+  expect(screen.getByTestId('focus')).toBeInTheDocument()
+  expect(screen.queryByTestId('old-shell')).toBeNull()
+})
+
+test('the phone/tablet boundary: 640 is a phone, 641 is a tablet', () => {
+  setWidth(640)
+  const phone = wrap({ screenerFocusLayoutEnabled: true })
+  expect(screen.getByTestId('old-shell')).toBeInTheDocument()
+  phone.unmount()
+  setWidth(641)
+  wrap({ screenerFocusLayoutEnabled: true })
+  expect(screen.getByTestId('focus')).toBeInTheDocument()
+})
 
 test('flag off renders the old shell', () => {
   wrap({ screenerFocusLayoutEnabled: false })
