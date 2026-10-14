@@ -153,3 +153,15 @@ describe('prefetchBars urgent (opt-in cold-start bypass)', () => {
     expect(preload).toHaveBeenCalledTimes(1)
   })
 })
+
+// Rail: the urgent warm is only worth anything if it fills the key the chart reads on first paint.
+// StockChart builds that key inline, so pin both sides of the template here.
+describe('urgent key matches the chart', () => {
+  it('StockChart still requests /api/bars/<sym>?tf=<tf>&bars=<first-paint bars> and urgent builds the same', async () => {
+    const fs = await import('node:fs')
+    const src = fs.readFileSync('src/components/StockChart.jsx', 'utf8')
+    expect(src).toContain('/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_primaryBars}${_sinceParam')
+    const { FIRST_PAINT_BARS } = await import('./barsBackfill')
+    expect(mod._url('AAPL', 'D', false)).toBe(`/api/bars/AAPL?tf=D&bars=${FIRST_PAINT_BARS}`)
+  })
+})
