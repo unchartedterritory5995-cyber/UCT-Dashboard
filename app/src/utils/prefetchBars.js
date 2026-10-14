@@ -114,20 +114,39 @@ let _kick = null
 // COLD-START pack-ingest hold is on (the fresh-browser window where every
 // ArrowDown otherwise cold-fetches), but they stay in the SAME bounded queue,
 // respect _MAX_CONCURRENT, and still obey the server's 503 backoff.
-const _urgent = new Set()
+// ⛔ An urgent job warms THE CHART'S key: `_url(sym, tf, false)` (no `&warm=1`,
+// exactly what StockChart reads) AND lands the bars in mem + IDB the way
+// `_warmIntentNow` does. Filling only the `&warm=1` SWR key would leave the next
+// row cold, because StockChart never reads that key.
+const _urgent = new Map() // chart-key URL -> { sym, tf }
 export const URGENT_MAX_PER_CALL = 2
 function _startFetch(url) {
   _active++
-  Promise.resolve(preload(url, warmFetcher)).then(_noteWarmResult).finally(() => {
+  const meta = _urgent.get(url)
+  _urgent.delete(url)
+  const job = meta ? _fillUrgent(url, meta.sym, meta.tf) : Promise.resolve(preload(url, warmFetcher)).then(_noteWarmResult)
+  job.catch(() => { /* best-effort */ }).finally(() => {
     _active--
     _pump()
   })
+}
+async function _fillUrgent(url, sym, tf) {
+  if (memHas(sym, tf)) return
+  const have = await idbGet(sym, tf).catch(() => null)
+  if (have?.bars?.length && _memPromoteFresh(tf, have.lastT)) { memPut(sym, tf, have.bars); return }
+  const json = _noteWarmResult(await preload(url, warmFetcher))
+  if (json?.bars?.length && !json.delta) {
+    const staleDaily = tf === 'D' && have?.bars?.length && isDailyTailStale(have.lastT)
+    const next = (staleDaily && have.bars.length > json.bars.length) ? mergeDelta(have.bars, json.bars) : json.bars
+    memPut(sym, tf, next)
+    await idbPut(sym, tf, next)
+  }
 }
 function _drainUrgentWhileHeld() {
   if (Date.now() < _warmBackoffUntil) return // server shedding: nobody goes
   for (let i = 0; i < _queue.length && _active < _MAX_CONCURRENT;) {
     const url = _queue[i]
-    if (_urgent.has(url)) { _queue.splice(i, 1); _urgent.delete(url); _startFetch(url) } else i++
+    if (_urgent.has(url)) { _queue.splice(i, 1); _startFetch(url) } else i++
   }
 }
 
@@ -141,9 +160,7 @@ function _pump() {
   if (_holdBackgroundWarm()) { _drainUrgentWhileHeld(); if (_queue.length) _kickSoon(); return }
   while (_active < _MAX_CONCURRENT && _queue.length) {
     if (_holdBackgroundWarm()) { _drainUrgentWhileHeld(); _kickSoon(); return }
-    const url = _queue.shift()
-    _urgent.delete(url)
-    _startFetch(url)
+    _startFetch(_queue.shift())
   }
 }
 
@@ -158,27 +175,44 @@ function _kickSoon() {
   else _kick = setTimeout(go, 800)
 }
 
-function _enqueue(url, priority = false, urgent = false) {
+function _enqueue(url, priority = false) {
   const at = _queue.indexOf(url)
   if (at >= 0) {                 // already queued — promote to front if now urgent
-    if (urgent) _urgent.add(url)
     if (priority && at > 0) { _queue.splice(at, 1); _queue.unshift(url) }
     return
   }
   if (_seen.has(url) && !priority) return  // recently done; priority re-allows a jump
   _seen.add(url)
   setTimeout(() => _seen.delete(url), 30000) // allow a fresh prefetch after 30s
-  if (urgent) _urgent.add(url)
   if (priority) _queue.unshift(url)          // front of line (year the user just opened)
   else _queue.push(url)
-  // Urgent URLs must not wait on the idle callback / 800ms timer: a member
-  // arrowing ~1 row/s would outrun it. Pump on the next microtask (still the
-  // bounded queue + _MAX_CONCURRENT); everything else stays idle-deferred.
-  if (urgent) queueMicrotask(_pump)
-  else _kickSoon()
+  _kickSoon()
 }
 
-function _url(sym, tf, warm = true) {
+// Urgent enqueue for ONE (sym, tf). Chart-key URL; deliberately skips anything
+// already in mem or fetched/queued in the last 30s (`_seen`) so a held key is not
+// re-fetched on every ArrowDown. Pumps on the next microtask, never idle-deferred.
+function _enqueueUrgent(sym, tf) {
+  if (memHas(sym, tf)) return
+  const url = _url(sym, tf, false)
+  _urgent.set(url, { sym, tf })
+  // The same symbol may already sit in the queue under its background `&warm=1`
+  // URL (e.g. FocusScreener's top-30 warm): drop it, the urgent job replaces it.
+  const bg = _url(sym, tf, true)
+  const bi = _queue.indexOf(bg)
+  if (bi >= 0) _queue.splice(bi, 1)
+  const at = _queue.indexOf(url)
+  if (at >= 0) {
+    if (at > 0) { _queue.splice(at, 1); _queue.unshift(url) }
+  } else {
+    if (_seen.has(url)) { _urgent.delete(url); return }
+    _seen.add(url)
+    setTimeout(() => _seen.delete(url), 30000)
+    _queue.unshift(url)
+  }
+}
+
+export function _url(sym, tf, warm = true) {
   // warm=1 marks a best-effort BACKGROUND prefetch so the server de-prioritizes it under
   // load (it sheds a fast 503 rather than starving the chart the user actually clicked).
   // IDB warming is keyed by (sym,tf), not the URL, so the extra param never breaks it.
@@ -341,11 +375,19 @@ export function prefetchBars(tickers, tf = 'D', { priority = false, urgent = fal
   if (!tickers?.length) return
   const syms = tickers.filter(Boolean)
   const nUrgent = urgent ? Math.min(URGENT_MAX_PER_CALL, syms.length) : 0
-  // Urgent heads are unshifted, so enqueue them in REVERSE to leave caller order
-  // (nearest row first) at the front of the queue.
-  for (let i = nUrgent - 1; i >= 0; i--) {
-    _enqueue(_url(syms[i], tf), true, true)
-    prefetchTickerMeta(syms[i])
+  if (urgent) {
+    // Only the LATEST urgent call stays urgent: a fast walk must not leave a trail
+    // of stale urgent fetches for rows the user already passed.
+    const keep = new Set(syms.slice(0, nUrgent).map(x => _url(x, tf, false)))
+    for (const u of [..._urgent.keys()]) {
+      if (keep.has(u)) continue
+      _urgent.delete(u)
+      const qi = _queue.indexOf(u)
+      if (qi >= 0) { _queue.splice(qi, 1); _seen.delete(u) }
+    }
+    // Reverse so caller order (nearest row first) ends up at the head.
+    for (let i = nUrgent - 1; i >= 0; i--) { _enqueueUrgent(syms[i], tf); prefetchTickerMeta(syms[i]) }
+    queueMicrotask(_pump)
   }
   for (let i = nUrgent; i < syms.length; i++) {
     _enqueue(_url(syms[i], tf), priority)
