@@ -143,6 +143,7 @@ SOCIAL_LINKS = [
     "https://x.com/TSDR_Trading",
     "https://www.instagram.com/tsdr_trading",
     "https://youtube.com/@unchartedtrtyy",
+    "https://www.tiktok.com/@unchartedtrtry",            # the account Buffer posts to (2026-10-14)
     "https://www.facebook.com/profile.php?id=61595317401777",
 ]
 
@@ -153,7 +154,7 @@ def test_the_footer_social_row_links_the_approved_accounts_with_labels():
     assert '<span class="social-label">Follow along:</span>' in foot
     row = re.findall(r'<a href="(https://[^"]+)" target="_blank" rel="noopener" aria-label="([^"]+)">([^<]+)</a>', foot)
     assert [h for h, _, _ in row] == SOCIAL_LINKS, row
-    assert [text for _, _, text in row] == ["X", "Instagram", "YouTube", "Facebook"], row
+    assert [text for _, _, text in row] == ["X", "Instagram", "YouTube", "TikTok", "Facebook"], row
     assert all(label.strip() for _, label, _ in row), row
     main = html[html.index("<main"):html.index("</main>")]
     assert not any(link in main for link in SOCIAL_LINKS), "a social link left the footer"
