@@ -236,7 +236,7 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
     while True:
         try:
             _logger.info("[bar_stream] Connecting to %s", _WS_URL)
-            async with websockets.connect(_WS_URL, ping_interval=30, ping_timeout=10) as ws:
+            async with websockets.connect(_WS_URL, ping_interval=30, ping_timeout=30) as ws:
                 _ws_connection = ws
 
                 # Auth handshake — block on auth_success before proceeding
