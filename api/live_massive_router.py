@@ -4571,7 +4571,11 @@ def _cream_rank_side(rows: list, side: str, top_n: int, max_per_ticker: int) -> 
     most `max_per_ticker` contracts per NAME, then take the top_n survivors. A per-
     name cap of 1 reproduces the old one-row-per-ticker card. Pure — no DB — so the
     per-name cap is unit-testable without a flow.db."""
-    ordered = sorted((r for r in rows if r.get("_dir") == side), key=lambda r: -r["_agg"])
+    # GRADE FIRST, then premium: a D row must not sit above an A row just because
+    # it is bigger (10/09 card). Rows without a grade rank below graded ones.
+    from api.cream_select import grade_rank
+    ordered = sorted((r for r in rows if r.get("_dir") == side),
+                     key=lambda r: (-grade_rank(r.get("grade")), -r["_agg"]))
     per_name: dict = {}
     out: list = []
     for r in ordered:
@@ -4622,6 +4626,14 @@ def compute_cream(today: str, top_n=None, min_voi=None,
     # sweep premium clears this floor — a sub-floor micro-sweep beside a big block does
     # not count (SNOW P300 / SKHY P175, 2026-09-15).
     min_sweep_prem = float(os.getenv("CREAM_MIN_SWEEP_PREM", "100000"))
+    # 10/09 audit knobs (api/cream_select.py has the reasoning). Each <=0 / "" disables.
+    from api.cream_select import row_sanity_reason, net_two_sided, passes_grade_floor
+    max_dte = int(os.getenv("CREAM_MAX_DTE", "365"))
+    max_otm_pct = float(os.getenv("CREAM_MAX_OTM_PCT", "40"))
+    fresh_min_vol = int(os.getenv("CREAM_FRESH_MIN_VOL", "100"))
+    two_sided_ratio = float(os.getenv("CREAM_TWO_SIDED_RATIO", "2.0"))
+    min_grade = os.getenv("CREAM_MIN_GRADE", "C").strip()
+    dropped: dict = {}
 
     meta = _cream_contract_meta(today, min_sweep_prem)
     # ONE scan PER TIER — NOT a single tier=None scan. tier=None returns only the
@@ -4660,6 +4672,13 @@ def compute_cream(today: str, top_n=None, min_voi=None,
             fresh = (oi <= 0 and av > 0)
             if not fresh and (oi <= 0 or (av / oi) <= min_voi):
                 continue
+            # Deep-ITM on EVERY row, not only the size-recovery path: a clean
+            # aggregate _direction on a stock-replacement put is still not a bet.
+            _why = "deep_itm" if _cream_deep_itm(a) else row_sanity_reason(
+                a, max_dte=max_dte, max_otm_pct=max_otm_pct, fresh_min_vol=fresh_min_vol)
+            if _why:
+                dropped.setdefault(_why, set()).add(_cream_meta_key(a))
+                continue
             agg = aap or a.get("alertPremium") or 0
             tk = a.get("ticker")
             # Key by CONTRACT identity, not ticker, so a name's 2nd build survives.
@@ -4678,6 +4697,10 @@ def compute_cream(today: str, top_n=None, min_voi=None,
                     "_dir": d, "_agg": float(agg), "unconfirmed": unconfirmed,
                 }
     rows = list(best.values())
+    # Net two-sided names over every ELIGIBLE row (any grade: opposing flow is real
+    # flow even when it grades D), THEN apply the grade floor, THEN rank.
+    rows, two_sided = net_two_sided(rows, two_sided_ratio)
+    rows = [r for r in rows if passes_grade_floor(r.get("grade"), min_grade)]
     bull = _cream_rank_side(rows, "Bull", top_n, max_per_ticker)
     bear = _cream_rank_side(rows, "Bear", top_n, max_per_ticker)
     # Whole-day directional premium for the net-flow bar (the market read, same
@@ -4688,11 +4711,16 @@ def compute_cream(today: str, top_n=None, min_voi=None,
     except Exception:
         net = None
     return {"date": today, "bull": bull, "bear": bear, "net": net,
+            "two_sided": two_sided,
+            "dropped": {k: len(v) for k, v in sorted(dropped.items())},
             "params": {"top_n": top_n, "min_voi": min_voi,
                        "exclude_weekly": excl_wk, "exclude_block_only": excl_bo,
                        "max_per_ticker": max_per_ticker,
                        "include_size": include_size, "size_min_ask": size_min_ask,
-                       "min_dte": min_dte, "min_sweep_prem": min_sweep_prem}}
+                       "min_dte": min_dte, "min_sweep_prem": min_sweep_prem,
+                       "max_dte": max_dte, "max_otm_pct": max_otm_pct,
+                       "fresh_min_vol": fresh_min_vol,
+                       "two_sided_ratio": two_sided_ratio, "min_grade": min_grade}}
 
 
 @router.get("/cream")

@@ -29,6 +29,13 @@ _OUT = 2  # FINAL output scale: the PNG is 2× the logical size so text stays cr
 
 
 # ── formatting ─────────────────────────────────────────────────────────────
+def _names_label(rows) -> str:
+    """Section header count = UNIQUE names, not rows. The Top Flow card allows two
+    contracts per name, so the 10/09 card read "12 tickers" over 10 names."""
+    n = len({str(r.get("sym") or "").upper() for r in rows if r.get("sym")})
+    return f"{n} ticker" if n == 1 else f"{n} tickers"
+
+
 def _fmt_prem(v) -> str:
     v = float(v or 0)
     if v >= 1e9:
@@ -203,7 +210,7 @@ def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text,
         arrow = "▲" if accent is _BULL else "▼"
         lx = txt(40, y, f"{arrow} {label}", f_sec, accent)
         tot = sum(float(r.get("prem") or 0) for r in rows) / 1e6
-        txt(40 + lx + 12, y + 2, f"·  {len(rows)} tickers  ·  ${tot:.1f}M", f_hdr, _DIM)
+        txt(40 + lx + 12, y + 2, f"·  {_names_label(rows)}  ·  ${tot:.1f}M", f_hdr, _DIM)
         y += _D_SECH
         for i, it in enumerate(rows):
             if i % 2 == 1:
