@@ -1367,7 +1367,8 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
         return []
 
 
-def _fetch_intraday_range(ticker: str, tf: str, from_ymd: str, to_ymd: str) -> list[dict]:
+def _fetch_intraday_range(ticker: str, tf: str, from_ymd: str, to_ymd: str,
+                          raise_errors: bool = False) -> list[dict]:
     """Deep intraday OHLCV for an EXPLICIT date range [from_ymd, to_ymd] (YYYY-MM-DD),
     split-ADJUSTED, next_url-paginated. Unlike `_fetch_intraday_massive` there is NO per-TF
     lookback ceiling — the date range IS the bound — so Replay Mode can reach the provider's
@@ -1379,7 +1380,7 @@ def _fetch_intraday_range(ticker: str, tf: str, from_ymd: str, to_ymd: str) -> l
     FETCH TIME — a future split on the ticker would make cached pre-split intraday stale until
     re-fetched (same class the daily reconciliation worker handles for D/W/M)."""
     if tf == "60":
-        src = _fetch_intraday_range(ticker, "15", from_ymd, to_ymd)   # 15m base, session-anchored
+        src = _fetch_intraday_range(ticker, "15", from_ymd, to_ymd, raise_errors)   # 15m base, session-anchored
         return _session_resample_hourly(src) if src else []
     multiplier = int(tf)
     try:
@@ -1408,10 +1409,13 @@ def _fetch_intraday_range(ticker: str, tf: str, from_ymd: str, to_ymd: str) -> l
             for bar in all_results
         ]
     except Exception as _e:
+        if raise_errors:
+            raise
         import logging as _log
+        from api.services.log_redaction import redact as _redact
         _log.getLogger(__name__).error(
             f"[bars] _fetch_intraday_range {ticker} tf={tf} {from_ymd}..{to_ymd} "
-            f"failed: {type(_e).__name__}: {_e}"
+            f"failed: {type(_e).__name__}: {_redact(str(_e))}"
         )
         return []
 
@@ -3407,6 +3411,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         _live = _bls.covered(ticker_up, tf)
     except Exception:
         _bls, _live = None, False
+    _time_ck("live_cov")
     if stored_rows and not _needs_fresh(last_ts, tf, ticker_up) and (
         len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf)
         or (_live and bars <= _bls.LIVE_HISTORY_MAX_BARS and _bls.history_complete(ticker_up, tf))
@@ -3415,7 +3420,9 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         # which is < bars for stocks shorter-lived than the request) — serve
         # immediately, no API call.
         _mark_serve("sqlite")
+        _time_ck("fresh_ck")
         payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf, ticker_up)}
+        _time_ck("fmt")
         # A live-fed series changes every few seconds: never pin it in memory for the
         # normal 300 s daily TTL, or the developing candle would freeze for minutes.
         _ttl = _bls.covered_cache_ttl(tf, _CACHE_TTL.get(tf, 300)) if _live else _CACHE_TTL.get(tf, 300)

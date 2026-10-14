@@ -368,3 +368,22 @@ def test_the_guard_survives_a_missing_field(monkeypatch):
     monkeypatch.setattr(massive, "todays_daily_bar", lambda tk: dict(today))
     out = bars._augment_daily_with_today(_daily_resp([dict(yday)]), "AAPL")
     assert _bars_of(out) == [yday, today]
+
+
+def test_a_tail_already_at_today_never_asks_the_provider(monkeypatch):
+    """2026-10-14: the universe daily feed makes every covered series end at today, so
+    the developing-bar step must decide the skip from the tail alone. Asking the
+    provider first cost one live snapshot call per ticker on every daily read."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from fastapi.responses import JSONResponse
+    from api.routers import bars as bars_router
+    from api.services import massive
+
+    def _boom(*a, **k):
+        raise AssertionError("the provider must not be asked when the tail is today")
+    monkeypatch.setattr(massive, "todays_daily_bar", _boom)
+    today = datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+    resp = JSONResponse(content={"bars": [{"t": "2020-01-02", "o": 1, "h": 1, "l": 1, "c": 1, "v": 1},
+                                          {"t": today, "o": 2, "h": 2, "l": 2, "c": 2, "v": 2}]})
+    assert bars_router._augment_daily_with_today(resp, "AAA") is resp

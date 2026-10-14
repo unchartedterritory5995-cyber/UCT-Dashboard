@@ -147,3 +147,153 @@ def test_the_daily_poll_writes_only_moved_bars_and_reports_every_ticker(live, mo
     n1, seen = live._daily_poll_once(last)
     n2, _ = live._daily_poll_once(last)
     assert (n1, n2) == (1, 0) and seen == {"AAA", "PRE"}
+
+
+# ── reconnect continuity (2026-10-14 evening) ────────────────────────────────
+
+B = 1_791_990_000          # a 5m boundary (unix s)
+
+
+def _epoch(epoch, ffb_s, seq=1, rows=(), minutes=(), wm_ms=None):
+    return bls.ingest({"epoch_ms": epoch, "seq": seq, "first_full_bucket_ms": ffb_s * 1000,
+                       "watermark_ms": wm_ms, "rows": list(rows), "minutes": list(minutes)})
+
+
+def test_a_new_epoch_that_missed_its_start_asks_for_a_resync_and_covers_nothing(live):
+    out = _epoch(5, B + 300, seq=7)
+    assert out.get("resync") is True and out["accepted"] == 0
+    assert live._state["epoch_ms"] is None
+    assert live.stream_alive() is False
+
+
+def test_a_reconnect_remembers_where_each_covered_ticker_stopped(live):
+    _epoch(1, B, wm_ms=(B + 900 + 120) * 1000)       # old feed reached minute B+1020
+    live._covered5.update({"AAA", "BBB"})
+    _epoch(2, B + 1500)
+    assert live._covered5 == set()
+    assert live._gap_from == {"AAA": B + 900, "BBB": B + 900}
+
+
+def test_back_to_back_reconnects_keep_the_EARLIEST_stop(live):
+    _epoch(1, B, wm_ms=(B + 600) * 1000)
+    live._covered5.add("AAA")
+    _epoch(2, B + 1200, wm_ms=(B + 1500) * 1000)    # AAA not repaired before the next drop
+    _epoch(3, B + 1800)
+    assert live._gap_from["AAA"] == B + 600
+
+
+def _fake_fetch(monkeypatch, five=(), one=(), fail=False):
+    calls = []
+
+    def _f(sym, mult, frm, to):
+        calls.append((sym, mult, str(frm), str(to)))
+        if fail:
+            raise RuntimeError("provider down")
+        return list(five if mult == 5 else one)
+    monkeypatch.setattr(bls, "_fetch", _f)
+    return calls
+
+
+def _capture_writes(monkeypatch):
+    written = []
+    monkeypatch.setattr(bars_sqlite, "put_bars_many",
+                        lambda tf, by: written.extend((s, b["t"], b) for s, bs in by.items() for b in bs) or
+                        sum(len(v) for v in by.values()))
+    monkeypatch.setattr(bars_sqlite, "put_bars",
+                        lambda s, tf, bars: written.extend((s, b["t"], b) for b in bars))
+    return written
+
+
+def test_a_gap_repair_is_one_small_refetch_and_a_minute_merge(live, monkeypatch):
+    ffb = B + 1500
+    b0 = ffb - 300
+    _epoch(1, B, wm_ms=(B + 600 + 60) * 1000)
+    live._covered5.add("AAA")
+    _epoch(2, ffb, minutes=[["AAA", b0 + 180, 10, 13, 9, 12, 70]])   # the stream's minutes
+    calls = _fake_fetch(monkeypatch,
+                        five=[{"t": B + 600, "o": 1, "h": 2, "l": 1, "c": 2, "v": 5},
+                              {"t": B + 900, "o": 2, "h": 3, "l": 2, "c": 3, "v": 6},
+                              {"t": b0, "o": 9, "h": 9, "l": 9, "c": 9, "v": 999}],   # partial: must NOT land
+                        one=[{"t": b0, "o": 10, "h": 11, "l": 10, "c": 11, "v": 30},
+                             {"t": b0 + 60, "o": 11, "h": 12, "l": 10, "c": 11, "v": 20},
+                             {"t": b0 + 180, "o": 99, "h": 99, "l": 99, "c": 99, "v": 1}])  # stream wins
+    written = _capture_writes(monkeypatch)
+    assert live._backfill_one("AAA", 2, ffb) is True
+    assert [c[1] for c in calls] == [5, 1]
+    assert calls[0][2] == str((B + 600) * 1000) and calls[0][3] == str(b0 * 1000 - 1)
+    ts = [w[1] for w in written]
+    assert ts.count(b0) == 1 and B + 600 in ts and B + 900 in ts
+    row = [w[2] for w in written if w[1] == b0][0]
+    assert (row["o"], row["h"], row["l"], row["c"], row["v"]) == (10, 13, 9, 12, 120)
+    assert "AAA" in live._covered5 and "AAA" not in live._gap_from
+    assert live._state["backfill_gap_repairs"] == 1
+
+
+def test_a_reconnect_inside_the_same_bucket_needs_only_the_minute_call(live, monkeypatch):
+    ffb = B + 600
+    _epoch(1, B, wm_ms=(B + 300 + 120) * 1000)       # stopped inside bucket B+300 = the new b0
+    live._covered5.add("AAA")
+    _epoch(2, ffb)
+    calls = _fake_fetch(monkeypatch, one=[{"t": B + 300, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}])
+    _capture_writes(monkeypatch)
+    assert live._backfill_one("AAA", 2, ffb) is True
+    assert [c[1] for c in calls] == [1]
+
+
+def test_a_never_covered_ticker_gets_the_full_history(live, monkeypatch):
+    _epoch(1, B + 600)
+    calls = _fake_fetch(monkeypatch)
+    _capture_writes(monkeypatch)
+    assert live._backfill_one("NEW", 1, B + 600) is True
+    assert calls[0][1] == 5 and "-" in calls[0][2]                 # a date range, not a timestamp
+    assert "NEW" in live._history5_complete and live._state["backfill_full"] == 1
+
+
+def test_a_provider_error_never_marks_a_ticker_covered(live, monkeypatch):
+    _epoch(1, B + 600)
+    _fake_fetch(monkeypatch, fail=True)
+    _capture_writes(monkeypatch)
+    with pytest.raises(RuntimeError):
+        live._backfill_one("AAA", 1, B + 600)
+    assert "AAA" not in live._covered5
+
+
+def test_stream_minutes_after_the_repair_keep_the_boundary_bucket_current(live, monkeypatch):
+    ffb = B + 600
+    b0 = ffb - 300
+    _epoch(1, ffb)
+    _fake_fetch(monkeypatch, one=[{"t": b0, "o": 5, "h": 6, "l": 4, "c": 5, "v": 10}])
+    written = _capture_writes(monkeypatch)
+    live._backfill_one("AAA", 1, ffb)
+    written.clear()
+    _epoch(1, ffb, seq=2, minutes=[["AAA", b0 + 240, 5, 8, 5, 7, 3]])
+    row = [w[2] for w in written if w[1] == b0][-1]
+    assert (row["o"], row["h"], row["c"], row["v"]) == (5, 8, 7, 13)
+
+
+def test_a_stream_minute_racing_the_repair_is_not_lost(live, monkeypatch):
+    ffb = B + 600
+    b0 = ffb - 300
+    _epoch(1, ffb)
+    written = _capture_writes(monkeypatch)
+    real_b0_row = live.b0_row
+
+    def _late_minute(sym, b):   # a push lands between the snapshot and the coverage flip
+        row = real_b0_row(sym, b)
+        live._b0_stream.setdefault(sym, {})[b0 + 240] = (5, 9, 5, 9, 4)
+        live._b0_ver[sym] = live._b0_ver.get(sym, 0) + 1
+        monkeypatch.setattr(live, "b0_row", real_b0_row)
+        return row
+    monkeypatch.setattr(live, "b0_row", _late_minute)
+    _fake_fetch(monkeypatch, one=[{"t": b0, "o": 5, "h": 6, "l": 4, "c": 5, "v": 10}])
+    live._backfill_one("AAA", 1, ffb)
+    row = [w[2] for w in written if w[1] == b0][-1]
+    assert (row["h"], row["c"], row["v"]) == (9, 9, 14)
+
+
+def test_a_read_of_an_uncovered_ticker_jumps_the_repair_queue(live):
+    _epoch(1, B + 600)
+    live._urgent.clear()
+    assert live.covered("ZZZ", "5") is False
+    assert live._next_todo(["AAA", "BBB"], [0]) == "ZZZ"
+    assert live._next_todo(["AAA", "BBB"], [0]) == "AAA"

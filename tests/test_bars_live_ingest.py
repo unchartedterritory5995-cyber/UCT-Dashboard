@@ -70,3 +70,75 @@ def test_with_the_flag_off_subscribes_are_unchanged(monkeypatch):
     monkeypatch.delenv("BARS_UNIVERSE_STREAM_ENABLED", raising=False)
     msg = json.loads(bar_stream._build_subscribe_message(["AAPL"]))
     assert msg["params"] == "AM.AAPL,A.AAPL,T.AAPL"
+
+
+# ── continuity across reconnects and tier restarts (2026-10-14 evening) ──────────
+
+def test_the_boundary_bucket_goes_out_as_minutes_not_as_a_row():
+    ing.mark_connected(now_ms=(T0 + 30) * 1000)     # socket opened inside bucket T0
+    _am("AAA", T0 + 60, 10, 11, 9, 10, 100)
+    _am("AAA", T0 + 120, 10, 12, 9, 11, 50)
+    p = ing.take_payload()
+    assert p["rows"] == []
+    assert p["minutes"] == [["AAA", T0 + 60, 10.0, 11.0, 9.0, 10.0, 100],
+                            ["AAA", T0 + 120, 10.0, 12.0, 9.0, 11.0, 50]]
+
+
+def test_seq_counts_acknowledged_flushes_and_resets_with_the_epoch():
+    ing.mark_connected(now_ms=(T0 - 10) * 1000)
+    p1 = ing.take_payload()
+    assert p1["seq"] == 1
+    ing.flushed(p1, {"accepted": 0})
+    assert ing.take_payload()["seq"] == 2
+    ing.mark_connected(now_ms=(T0 + 400) * 1000)
+    assert ing.take_payload()["seq"] == 1
+
+
+def test_a_resync_reply_starts_a_new_epoch_keeping_the_current_bucket_minutes():
+    ing.mark_connected(now_ms=(T0 - 10) * 1000)
+    _am("AAA", T0, 10, 11, 9, 10, 100)
+    _am("AAA", T0 + 60, 10, 13, 9, 12, 40)
+    p = ing.take_payload()
+    old_epoch = p["epoch_ms"]
+    ing.resync(now_ms=(T0 + 90) * 1000)
+    q = ing.take_payload()
+    assert q["epoch_ms"] != old_epoch and q["seq"] == 1
+    assert q["first_full_bucket_ms"] == (T0 + 300) * 1000
+    assert [m[1] for m in q["minutes"]] == [T0, T0 + 60]   # nothing the socket saw is lost
+    assert q["rows"] == []
+
+
+def test_the_flusher_obeys_a_resync_reply():
+    ing.mark_connected(now_ms=(T0 - 10) * 1000)
+    p = ing.take_payload()
+    ing.flushed(p, {"accepted": 0, "resync": True})
+    assert ing.status()["resyncs"] == 1
+    assert ing.take_payload()["epoch_ms"] != p["epoch_ms"]
+
+
+def test_an_unacknowledged_bucket_is_never_pruned():
+    ing.mark_connected(now_ms=(T0 - 10) * 1000)
+    for k in range(5):                              # five buckets, no flush succeeds
+        _am("AAA", T0 + 300 * k, 1, 1, 1, 1, 1)
+    rows = ing.take_payload()["rows"]
+    assert sorted(r[1] for r in rows) == [T0 + 300 * k for k in range(5)]
+
+
+def test_a_failed_flush_resends_everything_it_carried():
+    ing.mark_connected(now_ms=(T0 - 10) * 1000)
+    _am("AAA", T0, 1, 1, 1, 1, 1)
+    p = ing.take_payload()
+    for k in range(1, 5):                           # buckets keep closing while in flight
+        _am("AAA", T0 + 300 * k, 1, 1, 1, 1, 1)
+    ing.requeue(p)
+    rows = ing.take_payload()["rows"]
+    assert T0 in [r[1] for r in rows]
+
+
+def test_holding_too_many_unflushed_buckets_starts_a_new_epoch():
+    ing.mark_connected(now_ms=(T0 - 10) * 1000)
+    e0 = ing.take_payload()["epoch_ms"]
+    for k in range(ing.MAX_HELD_BUCKETS + 2):
+        _am("AAA", T0 + 300 * k, 1, 1, 1, 1, 1)
+    assert ing.status()["overflows"] >= 1
+    assert ing.take_payload()["epoch_ms"] != e0

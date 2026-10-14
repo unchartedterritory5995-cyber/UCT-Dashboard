@@ -665,6 +665,17 @@ def _augment_daily_with_today(response, ticker: str):
     bars = payload.get("bars")
     if not isinstance(bars, list):
         return response
+    # ⭐ A tail that already carries today needs no provider answer (2026-10-14). The
+    # helper stamps `t` with today's ET date, so "tail >= today" decides the skip on
+    # its own; asking first cost a live snapshot call per ticker (8 s cache) on every
+    # daily read in the session, and with the universe daily feed EVERY covered
+    # series already ends at today. Measured: daily p95 273-313 ms through the edge.
+    if bars and isinstance(bars[-1], dict):
+        from datetime import datetime as _dt
+        from zoneinfo import ZoneInfo as _Zi
+        _tail = bars[-1].get("t")
+        if isinstance(_tail, str) and _tail >= _dt.now(_Zi("America/New_York")).date().isoformat():
+            return response
     from api.services import massive
     today_bar = massive.todays_daily_bar(ticker)
     if not today_bar:

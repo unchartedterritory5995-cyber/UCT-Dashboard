@@ -13,10 +13,18 @@ Two feeds keep it current:
   (every minute bar, every ticker) and forwards rolled-up 5m buckets here every few
   seconds (`api/services/bars_live_ingest.py` -> `POST /internal/live-bars`).
   A ticker is COVERED for tf=5 once (a) the stream is alive, and (b) this tier has
-  backfilled the ticker after the current stream connection began, so the gap a
-  reconnect leaves is filled from the provider. The stream owns every bucket that
-  starts at or after `first_full_bucket` (the first 5m boundary after the socket
-  connected); the backfill owns everything before it.
+  REPAIRED the ticker for the current epoch. Ownership is exact, per bucket:
+    - buckets at/after `first_full_bucket` (the first 5m boundary after the socket
+      connected): the stream, which saw them from their first minute;
+    - the BOUNDARY bucket (the one the socket connected inside): rebuilt minute by
+      minute, the provider's 1m bars for the minutes before the socket plus the
+      stream's own minutes (which win), and rebuilt again on every push;
+    - everything before the boundary: the provider. A ticker covered in the previous
+      epoch refetches only from the bucket where that epoch's feed stopped (a few
+      buckets, one small call); a ticker never covered fetches BACKFILL_DAYS.
+  A new epoch therefore costs a ticker one or two small provider calls, not a
+  14-day refetch after a five-minute wait. Tickers members are asking for are
+  repaired first.
 * **Daily, from the whole-market snapshot.** One provider call returns every
   ticker's `day` bar (o/h/l/c/v so far). Polled every `BARS_LIVE_DAILY_POLL_S`.
   A ticker is COVERED for tf=D while the poll is alive and its daily history is held.
@@ -45,7 +53,8 @@ DAILY_POLL_S = float(os.environ.get("BARS_LIVE_DAILY_POLL_S", "10"))
 DAILY_ALIVE_S = float(os.environ.get("BARS_LIVE_DAILY_ALIVE_S", "45"))
 #: Sessions of 5m history the backfill makes sure a ticker holds.
 BACKFILL_DAYS = int(os.environ.get("BARS_LIVE_BACKFILL_DAYS", "14"))
-BACKFILL_WORKERS = int(os.environ.get("BARS_LIVE_BACKFILL_WORKERS", "8"))
+BACKFILL_WORKERS = int(os.environ.get("BARS_LIVE_BACKFILL_WORKERS", "16"))
+BUCKET_S = 300
 #: A thin ticker's backfilled 5m history counts as complete only for requests up to
 #: this size (the chart's first paint asks for at most 1,199). Deeper requests keep
 #: today's depth path, so a covered ticker never serves a truncated deep history.
@@ -70,6 +79,9 @@ _state = {
     "backfill_failed": 0,
     "backfill_started_at": None,
     "backfill_finished_at": None,
+    "backfill_gap_repairs": 0,
+    "backfill_full": 0,
+    "resyncs_requested": 0,
 }
 #: Tickers backfilled for the CURRENT epoch (5m covered once the stream is alive).
 _covered5: set[str] = set()
@@ -83,6 +95,19 @@ _daily_seen: set[str] = set()
 _recent: dict[str, dict[int, tuple]] = {}
 #: The last daily row written per ticker (skip unchanged rewrites).
 _last_daily: dict[str, tuple] = {}
+#: sym -> the bucket (unix s) from which its stored 5m series may be incomplete: where
+#: the feed of the epoch that last covered it stopped. Absent = never covered here.
+_gap_from: dict[str, int] = {}
+#: The boundary bucket of the current epoch, minute by minute.
+#: Stream minutes: sym -> minute_s -> (o, h, l, c, v). Provider minutes likewise.
+_b0_stream: dict[str, dict[int, tuple]] = {}
+_b0_provider: dict[str, dict[int, tuple]] = {}
+#: Tickers a read found uncovered while a repair pass runs (repaired first).
+_urgent: list[str] = []
+_urgent_set: set[str] = set()
+#: Bumped whenever a ticker's stream minutes for the boundary bucket change.
+_b0_ver: dict[str, int] = {}
+_b0_write_lock = threading.Lock()
 _backfill_wakeup = threading.Event()
 _threads_started = False
 
@@ -111,7 +136,15 @@ def covered(ticker: str, tf: str) -> bool:
         return False
     sym = (ticker or "").upper()
     if tf == "5":
-        return stream_alive() and sym in _covered5
+        if sym in _covered5:
+            return stream_alive()
+        if sym not in _urgent_set:
+            with _lock:
+                if sym not in _urgent_set:
+                    _urgent_set.add(sym)
+                    _urgent.append(sym)
+            _backfill_wakeup.set()
+        return False
     if tf == "D":
         return daily_alive() and sym in _daily_seen and _daily_contiguous(sym)
     return False
@@ -166,20 +199,22 @@ def covered_cache_ttl(tf: str, default: int) -> int:
 
 def ingest(payload: dict) -> dict:
     """Apply one push from the web pod. Payload:
-    `{"epoch_ms", "first_full_bucket_ms", "watermark_ms", "rows": [[sym, ts, o, h, l, c, v], ...]}`
-    where `ts` is the 5m bucket start in unix SECONDS (the stored key for tf=5)."""
+    `{"epoch_ms", "seq", "first_full_bucket_ms", "watermark_ms", "rows": [[sym, ts, o, h, l, c, v], ...],
+      "minutes": [[sym, minute_s, o, h, l, c, v], ...]}`
+    `rows` are 5m buckets (`ts` = bucket start, unix SECONDS, the stored key for
+    tf=5); `minutes` are the boundary bucket's minutes. `seq` counts the epoch's
+    acknowledged pushes: a NEW epoch arriving with seq > 1 means pushes went to a
+    process before this one, which this one cannot vouch for, so it asks for a resync."""
     epoch = payload.get("epoch_ms")
     ffb = payload.get("first_full_bucket_ms")
+    seq = int(payload.get("seq") or 1)
     rows = payload.get("rows") or []
     with _lock:
         if epoch is not None and epoch != _state["epoch_ms"]:
-            # A new socket: every ticker's coverage must be re-earned by a backfill
-            # that runs after the new stream's first full bucket.
-            _state["epoch_ms"] = epoch
-            _state["first_full_bucket_ms"] = ffb
-            _covered5.clear()
-            _recent.clear()
-            _backfill_wakeup.set()
+            if seq > 1:
+                _state["resyncs_requested"] += 1
+                return {"accepted": 0, "resync": True, "epoch_ms": _state["epoch_ms"]}
+            _begin_epoch_locked(epoch, ffb)
         _state["last_push_mono"] = _now_mono()
         if payload.get("watermark_ms"):
             _state["watermark_ms"] = payload["watermark_ms"]
@@ -197,15 +232,69 @@ def ingest(payload: dict) -> dict:
                 continue  # a bucket the stream does not fully own
             row = (sym, ts, float(o), float(h), float(l), float(c), int(v or 0))
             clean.append(row)
-            bucket = _recent.setdefault(sym, {})
-            bucket[ts] = row
-            if len(bucket) > 4:
-                for old in sorted(bucket)[:-4]:
-                    bucket.pop(old, None)
+        b0 = min_ts - BUCKET_S
+        moved_b0 = set()
+        for m in payload.get("minutes") or ():
+            try:
+                sym, mts, o, h, l, c, v = m
+                sym = str(sym).upper()
+                mts = int(mts)
+            except Exception:
+                continue
+            if not (b0 <= mts < min_ts):
+                continue
+            _b0_stream.setdefault(sym, {})[mts] = (float(o), float(h), float(l), float(c), int(v or 0))
+            _b0_ver[sym] = _b0_ver.get(sym, 0) + 1
+            moved_b0.add(sym)
+        rebuild = [s_ for s_ in moved_b0 if s_ in _covered5]
     n = _write_rows("5", clean) if clean else 0
+    if rebuild:
+        n += _write_b0(rebuild, epoch)
     with _lock:
         _state["rows_written"] += n
     return {"accepted": n, "epoch_ms": _state["epoch_ms"]}
+
+
+def _begin_epoch_locked(epoch: int, ffb: Optional[int]) -> None:
+    """A new socket (or a resync). Every ticker covered so far keeps a note of where
+    its series may have stopped being complete, so its repair is a small refetch."""
+    wm = _state["watermark_ms"]
+    if wm and _covered5:
+        stop = (int(wm) // 1000) // BUCKET_S * BUCKET_S
+        for sym in _covered5:
+            prev = _gap_from.get(sym)
+            _gap_from[sym] = stop if prev is None else min(prev, stop)
+    _state["epoch_ms"] = epoch
+    _state["first_full_bucket_ms"] = ffb
+    _covered5.clear()
+    _b0_stream.clear()
+    _b0_provider.clear()
+    _b0_ver.clear()
+    _urgent.clear()
+    _urgent_set.clear()
+    _backfill_wakeup.set()
+
+
+def b0_row(sym: str, b0: int) -> Optional[tuple]:
+    """The boundary bucket from its minutes: the stream's minute wins over the provider's."""
+    mins = dict(_b0_provider.get(sym) or {})
+    mins.update(_b0_stream.get(sym) or {})
+    mins = {t: r for t, r in mins.items() if b0 <= t < b0 + BUCKET_S}
+    if not mins:
+        return None
+    ordered = [mins[t] for t in sorted(mins)]
+    return (sym, b0, ordered[0][0], max(r[1] for r in ordered), min(r[2] for r in ordered),
+            ordered[-1][3], sum(r[4] for r in ordered))
+
+
+def _write_b0(syms: Iterable[str], epoch) -> int:
+    with _b0_write_lock:
+        with _lock:
+            if _state["epoch_ms"] != epoch or _state["first_full_bucket_ms"] is None:
+                return 0
+            b0 = _state["first_full_bucket_ms"] // 1000 - BUCKET_S
+            rows = [r for r in (b0_row(s_, b0) for s_ in syms) if r is not None]
+        return _write_rows("5", rows) if rows else 0
 
 
 def _write_rows(tf: str, rows: list[tuple]) -> int:
@@ -233,31 +322,74 @@ def _universe() -> list[str]:
         return []
 
 
+def _fetch(sym: str, mult: int, frm, to) -> list[dict]:
+    """Provider aggregates, raising on failure (an error must never read as "no bars")."""
+    from api.services import bars_fetch
+    return bars_fetch._fetch_intraday_range(sym, str(mult), str(frm), str(to), raise_errors=True)
+
+
 def _backfill_one(sym: str, epoch: int, ffb_s: int) -> bool:
-    """Fetch the provider's 5m series for `sym` from BACKFILL_DAYS back through now and
-    store it, then re-apply the stream's own buckets on top."""
-    from api.services import bars_fetch, bars_sqlite
-    now = datetime.now(_ET)
-    start = (now - timedelta(days=BACKFILL_DAYS)).strftime("%Y-%m-%d")
-    end = now.strftime("%Y-%m-%d")
-    bars = bars_fetch._fetch_intraday_range(sym, "5", start, end)
-    if bars is None:
-        return False
-    if bars:
-        bars_sqlite.put_bars(sym, "5", bars)
+    """Repair `sym` for the current epoch (ownership rules in the module doc)."""
+    from api.services import bars_sqlite
+    b0 = ffb_s - BUCKET_S
+    gap = _gap_from.get(sym)
+    if gap is None:
+        now = datetime.now(_ET)
+        frm = (now - timedelta(days=BACKFILL_DAYS)).strftime("%Y-%m-%d")
+        bars = _fetch(sym, 5, frm, now.strftime("%Y-%m-%d"))
+        full = True
+    elif gap < b0:
+        bars = _fetch(sym, 5, gap * 1000, b0 * 1000 - 1)
+        full = False
+    else:
+        bars, full = [], False
+    mins = _fetch(sym, 1, b0 * 1000, (b0 + BUCKET_S) * 1000 - 1)
+    closed = [b for b in bars if int(b["t"]) < b0]
+    if closed:
+        bars_sqlite.put_bars(sym, "5", closed)
+    provider = {int(m["t"]): (float(m["o"]), float(m["h"]), float(m["l"]), float(m["c"]),
+                              int(m["v"] or 0))
+                for m in mins if b0 <= int(m["t"]) < b0 + BUCKET_S}
+    with _b0_write_lock:
+        with _lock:
+            if _state["epoch_ms"] != epoch:
+                return False  # the socket changed under us; the next pass redoes it
+            _b0_provider[sym] = provider
+            ver = _b0_ver.get(sym, 0)
+            row = b0_row(sym, b0)
+        if row is not None:
+            _write_rows("5", [row])
     with _lock:
         if _state["epoch_ms"] != epoch:
-            return False  # the socket changed under us; the next pass redoes it
-        mine = sorted((_recent.get(sym) or {}).values(), key=lambda r: r[1])
-    if mine:
-        _write_rows("5", mine)
-    with _lock:
-        if _state["epoch_ms"] == epoch:
-            _covered5.add(sym)
+            return False
+        _covered5.add(sym)
+        # A stream minute that landed between the snapshot above and this line was not
+        # rebuilt by its push (the ticker was not covered yet): rebuild it now.
+        stale = _b0_ver.get(sym, 0) != ver
+        _gap_from.pop(sym, None)
+        _state["backfill_full" if full else "backfill_gap_repairs"] += 1
+        if full:
             # The range above starts BACKFILL_DAYS back; a ticker that returned fewer
             # bars than a deep request asks for simply has no more in that window.
             _history5_complete.add(sym)
+    if stale:
+        _write_b0([sym], epoch)
     return True
+
+
+def _next_todo(todo: list[str], pos: list[int]) -> Optional[str]:
+    """The next ticker to repair: one a member is waiting on first, then the universe."""
+    with _lock:
+        while _urgent:
+            sym = _urgent.pop(0)
+            if sym not in _covered5:
+                return sym
+        while pos[0] < len(todo):
+            sym = todo[pos[0]]
+            pos[0] += 1
+            if sym not in _covered5:
+                return sym
+    return None
 
 
 def _backfill_pass() -> None:
@@ -266,46 +398,55 @@ def _backfill_pass() -> None:
         ffb = _state["first_full_bucket_ms"]
     if epoch is None or ffb is None:
         return
-    # Wait until the bucket the socket connected inside has CLOSED: until then the
-    # provider can only return it partial, and the stream does not own it.
-    wait_s = ffb / 1000 + 20 - time.time()
-    if wait_s > 0:
-        if _backfill_wakeup.wait(timeout=wait_s):
-            return  # a newer epoch arrived; the loop restarts the pass
     with _lock:
-        if _state["epoch_ms"] != epoch:
-            return
         _state["backfill_epoch"] = epoch
         _state["backfill_done"] = 0
         _state["backfill_failed"] = 0
         _state["backfill_started_at"] = time.time()
         _state["backfill_finished_at"] = None
-    todo = [s for s in _universe() if s not in _covered5]
-    from concurrent.futures import ThreadPoolExecutor
+    universe = _universe()
+    # Previously covered tickers are one small call each; do them before cold ones.
+    todo = sorted((s_ for s_ in universe if s_ not in _covered5), key=lambda s_: s_ not in _gap_from)
     ffb_s = ffb // 1000
+    pos = [0]
 
-    def _run(sym: str) -> None:
-        with _lock:
-            if _state["epoch_ms"] != epoch:
+    def _worker() -> None:
+        while True:
+            with _lock:
+                if _state["epoch_ms"] != epoch:
+                    return
+            sym = _next_todo(todo, pos)
+            if sym is None:
                 return
-        try:
-            ok = _backfill_one(sym, epoch, ffb_s)
-        except Exception as e:  # noqa: BLE001
-            ok = False
-            _log.debug("[bars-live] backfill %s failed: %s", sym, e)
-        with _lock:
-            _state["backfill_done" if ok else "backfill_failed"] += 1
+            try:
+                ok = _backfill_one(sym, epoch, ffb_s)
+            except Exception as e:  # noqa: BLE001
+                ok = False
+                from api.services.log_redaction import redact
+                _log.debug("[bars-live] repair %s failed: %s", sym, redact(str(e)))
+            with _lock:
+                _state["backfill_done" if ok else "backfill_failed"] += 1
 
-    with ThreadPoolExecutor(max_workers=BACKFILL_WORKERS, thread_name_prefix="bars-live-bf") as ex:
-        list(ex.map(_run, todo))
+    workers = [threading.Thread(target=_worker, daemon=True, name=f"bars-live-bf-{i}")
+               for i in range(BACKFILL_WORKERS)]
+    for w in workers:
+        w.start()
+    for w in workers:
+        w.join()
     with _lock:
         _state["backfill_finished_at"] = time.time()
-    _log.info("[bars-live] backfill pass for epoch %s: %d covered, %d failed of %d",
-              epoch, _state["backfill_done"], _state["backfill_failed"], len(todo))
+        took = _state["backfill_finished_at"] - _state["backfill_started_at"]
+    if not todo and not _state["backfill_done"] and not _state["backfill_failed"]:
+        return
+    _log.info("[bars-live] repair pass for epoch %s: %d covered, %d failed of %d in %.0fs "
+              "(gap repairs so far %d, full %d)",
+              epoch, _state["backfill_done"], _state["backfill_failed"], len(todo), took,
+              _state["backfill_gap_repairs"], _state["backfill_full"])
 
 
 def _backfill_loop() -> None:
     while True:
+        # A pass that left failures is retried after a minute; a new epoch starts at once.
         _backfill_wakeup.wait(timeout=60)
         _backfill_wakeup.clear()
         try:
@@ -459,6 +600,8 @@ def status() -> dict:
     with _lock:
         s = dict(_state)
         s["covered5"] = len(_covered5)
+        s["gap_pending"] = len(_gap_from)
+        s["b0_stream_tickers"] = len(_b0_stream)
         s["daily_seen"] = len(_daily_seen)
     s["enabled"] = enabled()
     s["stream_alive"] = stream_alive()
@@ -484,3 +627,11 @@ def _reset_for_tests() -> None:
         _recent.clear()
         _contig.clear()
         _last_daily.clear()
+        _gap_from.clear()
+        _b0_stream.clear()
+        _b0_provider.clear()
+        _urgent.clear()
+        _urgent_set.clear()
+        _b0_ver.clear()
+        for k in ("backfill_gap_repairs", "backfill_full", "resyncs_requested"):
+            _state[k] = 0
