@@ -1,3 +1,4 @@
+import { expect, test } from 'vitest'
 import { whyItsHere, whyColumns } from '../whyItsHere'
 
 const meta = [

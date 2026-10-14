@@ -1,3 +1,4 @@
+import { expect, test } from 'vitest'
 import { groupOf, migratePinned, DEFAULT_PINNED } from '../screenGroups'
 
 const starters = [{ id: 'starter_momentum_leaders' }, { id: 'starter_uct_50' }, { id: 'x_new', group: 'Earnings' }]

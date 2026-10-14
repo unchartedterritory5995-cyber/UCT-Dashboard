@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, within } from '@testing-library/react'
-import { vi } from 'vitest'
+import { vi, beforeEach, expect, test } from 'vitest'
 vi.mock('../useLazyCounts', () => ({ default: () => ({ starter_momentum_leaders: 412 }) }))
 import ScreenMenu from '../ScreenMenu'
 

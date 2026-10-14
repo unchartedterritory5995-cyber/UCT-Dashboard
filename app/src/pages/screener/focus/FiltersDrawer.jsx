@@ -18,6 +18,7 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
   const panel = useRef(null)
   // Captured in a ref so a new ref identity while open cannot re-run the effect and steal focus.
   const returnRef = useRef(returnFocusRef)
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only inside the open/close effect
   returnRef.current = returnFocusRef
   useEffect(() => {
     if (!open) return undefined

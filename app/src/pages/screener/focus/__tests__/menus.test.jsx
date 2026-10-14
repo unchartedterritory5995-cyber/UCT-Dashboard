@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { vi } from 'vitest'
+import { vi, expect, test } from 'vitest'
 import Menu, { MenuItem } from '../Menu'
 import SaveMenu from '../SaveMenu'
 import MoreMenu from '../MoreMenu'

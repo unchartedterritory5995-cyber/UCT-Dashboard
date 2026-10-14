@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import styles from './FocusScreener.module.css'
 
+// eslint-disable-next-line react-refresh/only-export-components -- a pure helper the orchestrator shares with this receipt
 export function coverageHasDrop(c) {
   return !!c && ((c.dropped || 0) > 0 || (c.not_computable || 0) > 0)
 }

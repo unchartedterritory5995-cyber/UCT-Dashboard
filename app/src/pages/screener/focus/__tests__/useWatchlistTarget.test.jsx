@@ -1,6 +1,6 @@
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
-import { vi } from 'vitest'
+import { vi, beforeEach, expect, test } from 'vitest'
 import useWatchlistTarget from '../useWatchlistTarget'
 
 const wrapper = ({ children }) => <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>{children}</SWRConfig>
@@ -12,7 +12,7 @@ const LISTS = [
   { id: 'wl-9', name: 'IPOs', is_flagged_list: 0, is_prebuilt: 0, item_count: 2 },
 ]
 
-beforeEach(() => { localStorage.clear(); global.fetch = vi.fn() })
+beforeEach(() => { localStorage.clear(); globalThis.fetch = vi.fn() })
 
 test('defaults to the first list and adds to it', async () => {
   fetch.mockResolvedValueOnce({ ok: true, json: async () => LISTS })

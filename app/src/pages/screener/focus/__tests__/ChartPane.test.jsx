@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { vi } from 'vitest'
+import { vi, expect, test } from 'vitest'
 vi.mock('../../../../components/StockChart', () => ({ default: props => <div data-testid="stockchart" data-sym={props.sym} data-tf={props.tf} data-lines={JSON.stringify(props.priceLines || [])} /> }))
 import ChartPane from '../ChartPane'
 

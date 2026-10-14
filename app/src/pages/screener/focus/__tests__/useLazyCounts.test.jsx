@@ -1,8 +1,8 @@
 import { renderHook, waitFor } from '@testing-library/react'
-import { vi } from 'vitest'
+import { vi, beforeEach, expect, test } from 'vitest'
 import useLazyCounts, { __resetCountCache } from '../useLazyCounts'
 
-beforeEach(() => { __resetCountCache(); global.fetch = vi.fn() })
+beforeEach(() => { __resetCountCache(); globalThis.fetch = vi.fn() })
 
 test('does nothing until enabled', () => {
   renderHook(() => useLazyCounts({ a: { filters: [] } }, false))

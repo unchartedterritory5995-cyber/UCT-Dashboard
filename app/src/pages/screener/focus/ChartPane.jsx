@@ -18,8 +18,9 @@ function facts(row) {
 export default function ChartPane({ row, livePrice, why, onOpenFilters, onFlag, isFlagged, onWatch }) {
   const [tf, setTf] = useState('D')
   // The colour literal must match --ut-gold: the chart draws on canvas, where CSS variables do not reach.
-  const priceLines = useMemo(() => (Number.isFinite(row?.base_pivot_px)
-    ? [{ price: row.base_pivot_px, color: '#dcbb5e', title: 'pivot' }] : []), [row?.base_pivot_px])
+  const pivot = row?.base_pivot_px
+  const priceLines = useMemo(() => (Number.isFinite(pivot)
+    ? [{ price: pivot, color: '#dcbb5e', title: 'pivot' }] : []), [pivot])
   if (!row) {
     return <section className={styles.pane} data-testid="focus-chart-pane"><p className={styles.stateBody}>Pick a stock from the list</p></section>
   }

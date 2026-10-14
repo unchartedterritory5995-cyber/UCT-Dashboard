@@ -1,3 +1,4 @@
+import { expect, test } from 'vitest'
 import { setupLine, pivotDetail } from '../setupLine'
 
 test('head of base_render, +N stripped', () => {

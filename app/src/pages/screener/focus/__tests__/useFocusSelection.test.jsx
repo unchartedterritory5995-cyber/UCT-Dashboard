@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react'
-import { vi } from 'vitest'
+import { vi, expect, test } from 'vitest'
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: vi.fn() }))
 import { useNeighborWarm } from '../../../../hooks/useNeighborWarm'
 import useFocusSelection from '../useFocusSelection'

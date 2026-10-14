@@ -43,6 +43,7 @@ export default function useLazyCounts(specsById, enabled) {
     let alive = true
     for (const [id, spec] of Object.entries(specsById || {})) {
       const key = JSON.stringify(spec)
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- a cached count lands in the same pass as the fetches for the rest
       if (cache.has(key)) { setCounts(c => (c[id] === cache.get(key) ? c : { ...c, [id]: cache.get(key) })); continue }
       countFor(spec).then(v => { if (alive) setCounts(c => ({ ...c, [id]: v })) })
     }

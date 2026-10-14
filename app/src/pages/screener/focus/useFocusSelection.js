@@ -49,6 +49,7 @@ export default function useFocusSelection({
   // The latest derived state, updated synchronously by commit() so that two
   // keydowns before a re-render both act on the state the first one left.
   const live = useRef(null)
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref: keydown handlers read it, commit() advances it between renders
   live.current = { sel, index, rows }
 
   const loadRequestedFor = useRef(null)
