@@ -152,6 +152,16 @@
      the value the watch rails use. */
   scroll-margin-top: calc(var(--uct-chrome-h, 92px) + 8px);
 }
+/* The market context stamp's header puts its "MARKET CONTEXT" title in the top-left corner, so a
+   top-left toolbar covered it (F-EMBED-HEADER-OVERLAP, walk 2026-10-14: "‹ R ⋯ More TEXT"). In a
+   note that header's right side is empty (no journal door, read-only), and the stamp is never live
+   (registry `liveCapable: false`), so the LIVE badge never claims that corner. Charts keep the left:
+   their legend is the thing the toolbar must not chase. Other widget kinds are not moved blind. */
+.frame[data-widget-embed-view='marketcontext'] .toolbar {
+  left: auto;
+  right: 8px;
+  justify-content: flex-end;
+}
 .frame:hover .toolbar,
 .frame:focus-within .toolbar,
 .selected .toolbar,

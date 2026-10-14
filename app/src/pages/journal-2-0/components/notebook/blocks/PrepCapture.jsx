@@ -53,7 +53,8 @@ export default function PrepCapture({ part, params, setParams, editable, childre
       {when && <p className={styles.muted}>{`Captured ${when} ET`}</p>}
       {failed && <p role="status" className={styles.muted}>{FAILED}</p>}
       {editable && (
-        <button type="button" className={`btn btn-ghost ${styles.tap}`} disabled={busy} onClick={capture}>
+        // btn-secondary: the same visible button as the market context stamp's Capture now.
+        <button type="button" className={`btn btn-secondary ${styles.tap}`} disabled={busy} onClick={capture}>
           {snap ? 'Capture again' : 'Capture now'}
         </button>
       )}
