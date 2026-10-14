@@ -51,9 +51,25 @@ test('save menu omits switched-off outcomes', () => {
   expect(screen.queryByRole('menuitem', { name: /today/ })).toBeNull()
   expect(screen.queryByRole('menuitem', { name: /Alert me/ })).toBeNull()
 })
-test('save menu with nothing available renders nothing', () => {
-  const { container } = render(<SaveMenu canSaveScreen={false} canFrozenList={false} canAlert={false} canNotebook={false} />)
-  expect(container).toBeEmptyDOMElement()
+test('save menu with nothing available still renders, disabled, so the top bar never shifts', () => {
+  render(<SaveMenu canSaveScreen={false} canFrozenList={false} canAlert={false} canNotebook={false} />)
+  const btn = screen.getByRole('button', { name: 'Save' })
+  expect(btn).toBeDisabled()
+  fireEvent.click(btn)
+  expect(screen.queryByRole('menu')).toBeNull()
+})
+test('save menu is disabled until there is a result, even when a door is already open', () => {
+  const { rerender } = render(<SaveMenu canSaveScreen canFrozenList={false} canAlert={false} canNotebook={false} hasResult={false} />)
+  expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  rerender(<SaveMenu canSaveScreen canFrozenList={false} canAlert={false} canNotebook hasResult />)
+  const btn = screen.getByRole('button', { name: 'Save' })
+  expect(btn).toBeEnabled()
+  fireEvent.click(btn)
+  expect(screen.getByRole('menuitem', { name: /Save as a screen/ })).toBeInTheDocument()
+})
+test('the Help trigger is the top bar ordinary button, like Save', () => {
+  render(<><HelpMenu onMethodology={vi.fn()} /><SaveMenu canSaveScreen hasResult /></>)
+  expect(screen.getByRole('button', { name: 'Help' }).className).toBe(screen.getByRole('button', { name: 'Save' }).className)
 })
 test('more menu hides Excel when server export is off', () => {
   render(<MoreMenu onExportCsv={vi.fn()} onExportXlsx={null} liveSortEligible={false} density="compact" onDensity={vi.fn()} showCompany onToggleCompany={vi.fn()} />)

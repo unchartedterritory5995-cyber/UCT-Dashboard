@@ -2,26 +2,35 @@ import { useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from
 import useLazyCounts from './useLazyCounts'
 import { GROUPS, groupOf } from './screenGroups'
 import Input from '../../../components/ui/Input'
+import UIcon from '../../../components/ui/UIcon'
 import styles from './FocusScreener.module.css'
+import menuStyles from './FocusMenus.module.css'
 
 const norm = s => String(s || '').toLowerCase()
 
+// A count of exactly 0 is a real answer ("nothing matches today"), so the row is dimmed and
+// says so; an unknown count (undefined: not asked yet, null: the count failed) never reads as 0.
 function Item({ item, pinned, count, current, onApply, onTogglePin }) {
+  const none = count === 0
   return (
-    <div className={`${styles.smItem} ${current ? styles.smCurrent : ''}`}>
+    <div className={`${styles.smItem} ${current ? styles.smCurrent : ''} ${none ? menuStyles.smEmpty : ''}`} data-empty={none ? '' : undefined}>
       <button type="button" className={styles.smPin} aria-pressed={pinned} aria-label={`${pinned ? 'Unpin' : 'Pin'} ${item.name}`} onClick={() => onTogglePin(String(item.id))}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill={pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 17v5M5 9l3-6h8l3 6-3 3v3H8v-3z" /></svg>
+        <UIcon name="pin" size={16} gold={false} className={menuStyles.pinIcon} fill={pinned ? 'currentColor' : 'none'} />
       </button>
-      <button type="button" className={styles.smOpen} aria-label={`Open ${item.name}`} onClick={() => onApply(item)}>
+      <button type="button" className={styles.smOpen} aria-label={`Open ${item.name}${none ? ', none today' : ''}`} onClick={() => onApply(item)}>
         <span className={styles.smName}>{item.name}</span>
         {item.description && <span className={styles.smDesc}>{item.description}</span>}
       </button>
-      <span className={styles.smCount}>{count === undefined ? '' : count === null ? '—' : count.toLocaleString('en-US')}</span>
+      {none
+        ? <span className={menuStyles.smNone}>none today</span>
+        : <span className={styles.smCount}>{count === undefined ? '' : count === null ? '—' : count.toLocaleString('en-US')}</span>}
     </div>
   )
 }
 
-export default function ScreenMenu({ currentName, currentId, isEdited, count, countPending = false, starters = [], saved = [], pinned = [], onTogglePin, onApply, onSaveChanges, onSaveAsNew, onRename, onNewScreen, myScans = [], onUseScan, apiRef }) {
+// `landing`: the page is still choosing which screen to land on, so the button shows a
+// placeholder instead of naming a "Custom screen" that is about to be replaced (B12).
+export default function ScreenMenu({ currentName, currentId, isEdited, count, countPending = false, landing = false, starters = [], saved = [], pinned = [], onTogglePin, onApply, onSaveChanges, onSaveAsNew, onRename, onNewScreen, myScans = [], onUseScan, apiRef }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const btn = useRef(null), box = useRef(null)
@@ -50,14 +59,16 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, co
   const match = it => !q || norm(it.name).includes(norm(q)) || norm(it.description).includes(norm(q))
   const pinnedIds = [...new Set(pinned.map(String))]
   const pinnedItems = pinnedIds.map(id => all.find(it => String(it.id) === String(id))).filter(Boolean).filter(match)
-  const groups = GROUPS.map(g => ({ ...g, items: starters.filter(s => groupOf(s) === g.key).map(s => ({ ...s, kind: 'starter' })).filter(match) }))
+  // A pinned screen is listed ONCE, under Pinned, never again inside its group (P3).
+  const notPinned = it => !pinnedIds.includes(String(it.id))
+  const groups = GROUPS.map(g => ({ ...g, items: starters.filter(s => groupOf(s) === g.key).map(s => ({ ...s, kind: 'starter' })).filter(notPinned).filter(match) }))
     .filter(g => g.items.length)
-  const mine = saved.map(s => ({ ...s, kind: 'saved' })).filter(match)
+  const mine = saved.map(s => ({ ...s, kind: 'saved' })).filter(notPinned).filter(match)
 
   const specs = useMemo(() => Object.fromEntries(all.map(it => [String(it.id), it.spec || { filters: [] }])), [all])
   const counts = useLazyCounts(specs, open)
   const pick = it => { onApply(it.spec || { filters: [] }, it); close() }
-  const label = `${currentName || 'Custom screen'}${isEdited ? ' (edited)' : ''}`
+  const label = landing ? 'Loading screen…' : `${currentName || 'Custom screen'}${isEdited ? ' (edited)' : ''}`
   const pinnedSet = pinnedIds
   const row = it => <Item key={`${it.kind}-${it.id}`} item={it} pinned={pinnedSet.includes(String(it.id))}
     count={counts[String(it.id)]} current={String(it.id) === String(currentId)} onApply={pick} onTogglePin={onTogglePin} />
@@ -65,9 +76,9 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, co
   return (
     <span className={styles.menuWrap} ref={box} onBlur={onBlur}>
       <button ref={btn} type="button" className={styles.screenBtn} aria-haspopup="dialog" aria-expanded={open}
-        aria-label={countPending ? `${label}, updating. Change screen` : Number.isFinite(count) ? `${label}, ${count} matches. Change screen` : `${label}. Change screen`} onClick={() => setOpen(o => !o)}>
-        <span>{label}</span>
-        <span className={styles.screenCount} data-testid="screen-count">{countPending ? '…' : Number.isFinite(count) ? count.toLocaleString('en-US') : ''}</span>
+        aria-label={landing ? `${label} Change screen` : countPending ? `${label}, updating. Change screen` : Number.isFinite(count) ? `${label}, ${count} matches. Change screen` : `${label}. Change screen`} onClick={() => setOpen(o => !o)}>
+        <span className={landing ? menuStyles.landing : undefined}>{label}</span>
+        <span className={styles.screenCount} data-testid="screen-count">{landing ? '' : countPending ? '…' : Number.isFinite(count) ? count.toLocaleString('en-US') : ''}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
       </button>
       {open && (

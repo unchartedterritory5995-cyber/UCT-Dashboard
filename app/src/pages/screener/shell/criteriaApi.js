@@ -8,23 +8,42 @@
 // module that names a screener URL as a result surface, and this box is a
 // criteria editor, not a result set.
 
-export async function grammarAvailable(fetcher = fetch) {
-  try {
-    const r = await fetcher('/api/screener/grammar', { credentials: 'include' })
-    return r.ok
-  } catch {
-    return false
+// ⭐ ONE PROBE PER DOOR PER PAGE LIFETIME. Opening the Focus layout's Filters drawer mounts
+// both "Describe a setup" (useDescribe) and CriteriaBox, and each used to ask both doors:
+// `grammar` x2 and `compile` x2 on every open. The answer is now memoised per fetcher, so
+// concurrent and later callers share one request. A door that answered "open" stays open
+// for the page; a closed door or a failed request is FORGOTTEN, so the next caller asks
+// again (a flag armed mid-session, or a network blip, is not latched shut).
+// Keyed by the fetcher, so a caller (or a test) passing its own fetcher gets its own probe.
+const probes = new Map() // path -> WeakMap<fetcher, Promise<boolean>>
+function probeDoor(path, fetcher) {
+  let byFetcher = probes.get(path)
+  if (!byFetcher) { byFetcher = new WeakMap(); probes.set(path, byFetcher) }
+  let p = byFetcher.get(fetcher)
+  if (!p) {
+    p = (async () => {
+      try {
+        const r = await fetcher(path, { credentials: 'include' })
+        return !!r.ok
+      } catch {
+        return false
+      }
+    })().then(ok => { if (!ok && byFetcher.get(fetcher) === p) byFetcher.delete(fetcher); return ok })
+    byFetcher.set(fetcher, p)
   }
+  return p
+}
+
+/** Tests only: forget every memoised door answer. */
+export function __resetCriteriaProbes() { probes.clear() }
+
+export function grammarAvailable(fetcher = fetch) {
+  return probeDoor('/api/screener/grammar', fetcher)
 }
 
 /** FT-024/030: is the plain-English compile door open? (404 while dark.) */
-export async function compileAvailable(fetcher = fetch) {
-  try {
-    const r = await fetcher('/api/screener/compile', { credentials: 'include' })
-    return r.ok
-  } catch {
-    return false
-  }
+export function compileAvailable(fetcher = fetch) {
+  return probeDoor('/api/screener/compile', fetcher)
 }
 
 /** English -> { criteria, logic, explanation, assumptions }. Throws with the server's sentence. */

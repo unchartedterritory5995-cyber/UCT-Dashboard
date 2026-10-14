@@ -15,7 +15,7 @@ export function MenuItem({ onSelect, hint, children, danger = false }) {
 export function MenuDivider() { return <div className={styles.menuDivider} role="separator" /> }
 export function MenuHeading({ children }) { return <div className={styles.menuHeading}>{children}</div> }
 
-export default function Menu({ label, trigger, children, align = 'left', triggerClassName, testId, width }) {
+export default function Menu({ label, trigger, children, align = 'left', triggerClassName, testId, width, disabled = false, disabledTitle }) {
   const [open, setOpen] = useState(false)
   const btn = useRef(null), pop = useRef(null), wrap = useRef(null)
   const id = useId()
@@ -53,8 +53,9 @@ export default function Menu({ label, trigger, children, align = 'left', trigger
   return (
     <span ref={wrap} className={styles.menuWrap} data-testid={testId} onBlur={onBlur}>
       <button ref={btn} type="button" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined}
-        aria-label={label} className={triggerClassName || styles.btn} onClick={() => setOpen(o => !o)}>{trigger}</button>
-      {open && (
+        aria-label={label} className={triggerClassName || styles.btn} disabled={disabled} title={disabled ? disabledTitle : undefined}
+        onClick={() => setOpen(o => !o)}>{trigger}</button>
+      {open && !disabled && (
         <CloseCtx.Provider value={close}>
           <div ref={pop} id={id} role="menu" aria-label={label} onKeyDown={onKeyDown} onFocus={e => { if (e.target.getAttribute('role') === 'menuitem') rove(e.target) }}
             className={`${styles.menu} ${align === 'right' ? styles.menuRight : ''}`} style={width ? { width } : undefined}>

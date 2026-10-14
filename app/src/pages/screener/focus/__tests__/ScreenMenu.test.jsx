@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { vi, beforeEach, expect, test } from 'vitest'
-vi.mock('../useLazyCounts', () => ({ default: () => ({ starter_momentum_leaders: 412 }) }))
+const lazy = vi.hoisted(() => ({ counts: { starter_momentum_leaders: 412 } }))
+vi.mock('../useLazyCounts', () => ({ default: () => lazy.counts }))
 import ScreenMenu from '../ScreenMenu'
 
 const starters = [
@@ -12,7 +13,7 @@ const props = { currentName: 'Leaders (RS ≥ 90)', currentId: 'starter_momentum
   pinned: ['starter_momentum_leaders'], onTogglePin: vi.fn(), onApply: vi.fn(), onSaveChanges: null, onSaveAsNew: vi.fn(),
   onRename: null, onNewScreen: vi.fn(), myScans: [], onUseScan: vi.fn() }
 
-beforeEach(() => { vi.clearAllMocks() })
+beforeEach(() => { vi.clearAllMocks(); lazy.counts = { starter_momentum_leaders: 412 } })
 
 test('trigger names the screen and its count', () => {
   render(<ScreenMenu {...props} />)
@@ -111,4 +112,53 @@ test('focus leaving the menu and its trigger closes it; a move inside keeps it o
   // the search is cleared with it
   fireEvent.click(trigger)
   expect(screen.getByRole('searchbox')).toHaveValue('')
+})
+
+test('a pinned screen is listed once, under Pinned, and not again in its group or My screens', () => {
+  render(<ScreenMenu {...props} pinned={['starter_momentum_leaders', '5']} />)
+  fireEvent.click(screen.getByRole('button', { name: /Leaders/ }))
+  const dlg = screen.getByRole('dialog', { name: 'Screens' })
+  expect(within(dlg).getAllByRole('button', { name: /^Open Leaders/ })).toHaveLength(1)
+  expect(within(dlg).getAllByRole('button', { name: /^Open Semis on watch/ })).toHaveLength(1)
+  const pinnedSec = within(dlg).getByRole('region', { name: 'Pinned' })
+  expect(within(pinnedSec).getByRole('button', { name: /^Open Leaders/ })).toBeInTheDocument()
+  expect(within(pinnedSec).getByRole('button', { name: /^Open Semis on watch/ })).toBeInTheDocument()
+  // My screens held only the pinned one, so it has no section of its own now
+  expect(within(dlg).queryByRole('region', { name: 'My screens' })).toBeNull()
+  // the unpinned starter is still in its group
+  expect(within(within(dlg).getByRole('region', { name: 'Momentum leaders' })).getByRole('button', { name: /^Open UCT 50/ })).toBeInTheDocument()
+})
+test('a screen with 0 matches today is dimmed and says "none today"; an unknown count is never 0', () => {
+  lazy.counts = { starter_momentum_leaders: 412, starter_uct_50: 0, 5: null }
+  render(<ScreenMenu {...props} />)
+  fireEvent.click(screen.getByRole('button', { name: /Leaders/ }))
+  const empty = screen.getByRole('button', { name: 'Open UCT 50, none today' }).parentElement
+  expect(empty).toHaveAttribute('data-empty')
+  expect(within(empty).getByText('none today')).toBeInTheDocument()
+  // a failed count (null) shows a dash, not "none today"
+  const failed = screen.getByRole('button', { name: 'Open Semis on watch' }).parentElement
+  expect(failed).not.toHaveAttribute('data-empty')
+  expect(within(failed).getByText('—')).toBeInTheDocument()
+  // a real count is neither
+  const full = screen.getByRole('button', { name: 'Open Leaders (RS ≥ 90)' }).parentElement
+  expect(full).not.toHaveAttribute('data-empty')
+})
+test('the pin control draws the app pin glyph, filled when pinned', () => {
+  render(<ScreenMenu {...props} />)
+  fireEvent.click(screen.getByRole('button', { name: /Leaders/ }))
+  const on = screen.getByRole('button', { name: 'Unpin Leaders (RS ≥ 90)' }).querySelector('svg')
+  const off = screen.getByRole('button', { name: 'Pin UCT 50' }).querySelector('svg')
+  expect(on.getAttribute('fill')).toBe('currentColor')
+  expect(off.getAttribute('fill')).toBe('none')
+  // UIcon's pin: a head and a needle, never the old one-path glyph
+  expect(on.querySelectorAll('path')).toHaveLength(2)
+})
+test('while landing, the button shows a placeholder, never "Custom screen" or a count', () => {
+  const { rerender } = render(<ScreenMenu {...props} currentName={undefined} currentId={undefined} count={412} landing />)
+  const btn = screen.getByRole('button', { name: /Change screen/ })
+  expect(btn).toHaveTextContent('Loading screen…')
+  expect(btn).not.toHaveTextContent('Custom screen')
+  expect(screen.getByTestId('screen-count')).toHaveTextContent('')
+  rerender(<ScreenMenu {...props} currentName={undefined} currentId={undefined} count={412} landing={false} />)
+  expect(screen.getByRole('button', { name: /Change screen/ })).toHaveTextContent('Custom screen')
 })
