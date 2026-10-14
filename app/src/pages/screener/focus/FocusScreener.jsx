@@ -19,7 +19,9 @@ import { LIVE_SORTABLE, sortRowsLive } from '../shell/liveSort'
 import { exportScreen } from '../shell/csvExport'
 import { buildScreenerCapture } from '../shell/notebookCapture'
 import ScannerShell from '../shell/ScannerShell'
-import { DEFAULT_SORT } from '../shell/specUrl'
+import { DEFAULT_SORT, SPEC_PARAM } from '../shell/specUrl'
+import { SAVED_SCREEN_PARAM } from '../shell/useScreenSpec'
+import { SHARED_SCREEN_PARAM } from '../screenShareLink'
 import FlaggedActions from '../shell/FlaggedActions'
 import { joinedScanReceipts } from '../ScanFilterChip'
 import { COLUMN_DEFS } from '../columnDefs'
@@ -261,6 +263,30 @@ function FocusList({ onMode }) {
     setPinned(next); writeLS(PIN_KEY, JSON.stringify(next))
   }
   const applyScreen = (spec, item) => { s.applySpec(spec); setCurrent({ id: item.id, name: item.name, kind: item.kind, spec }) }
+  // First load lands on a named screen: with no spec and no door in the URL, the first pinned
+  // screen is applied once per mount, through the same path the screen menu uses. A URL that
+  // carried a spec or a door at mount, or any filter the member has already set, wins.
+  const arrivedBare = useRef(null)
+  if (arrivedBare.current === null) {
+    const q = new URLSearchParams(window.location.search)
+    arrivedBare.current = ![SPEC_PARAM, SHARED_SCREEN_PARAM, SAVED_SCREEN_PARAM].some(k => q.has(k))
+  }
+  const autoApplied = useRef(false)
+  useEffect(() => {
+    if (autoApplied.current) return
+    if (!arrivedBare.current || current) { autoApplied.current = true; return }
+    if (!savedLoaded) return
+    autoApplied.current = true
+    if (Object.keys(s.filters).some(k => s.filters[k] && !POOL_KEYS.includes(k))) return
+    const hit = effectivePinned.map(id => {
+      const st = starters.find(x => String(x.id) === String(id))
+      if (st) return { ...st, kind: 'starter' }
+      const sv = saved.find(x => String(x.id) === String(id))
+      return sv ? { ...sv, kind: 'saved' } : null
+    }).find(Boolean)
+    if (hit) applyScreen(hit.spec || { filters: [] }, hit)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedLoaded, effectivePinned, starters, saved, current])
   const myScans = useMemo(() => ((meta?.filters || []).find(f => f.key === 'scan')?.scans || [])
     .filter(x => x?.def_hash).map(x => ({ hash: x.def_hash, name: x.name || 'Untitled scan' })), [meta])
   const applyScanFilter = (hash, name) => {

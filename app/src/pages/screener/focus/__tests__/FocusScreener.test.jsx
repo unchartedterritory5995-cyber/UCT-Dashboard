@@ -325,3 +325,32 @@ test('a sort key outside the visible columns is still offered, with its directio
   fireEvent.click(screen.getByRole('menuitem', { name: /Reverse order/ }))
   await waitFor(() => expect(scanBodies().at(-1).sort).toEqual({ key: 'rs_rank', dir: 'desc' }))
 })
+
+const STARTERS = [
+  { id: 'starter_momentum_leaders', name: 'Momentum leaders', spec: { filters: [{ key: 'rs_rank', op: 'gte', min: 90 }] } },
+  { id: 'starter_power_play', name: 'Power play', spec: { filters: [{ key: 'rs_rank', op: 'gte', min: 70 }] } },
+]
+const withStarters = () => {
+  extra = url => (url.startsWith('/api/screener/saved-screens') ? { ok: true, json: async () => ({ saved: [], starters: STARTERS }) } : null)
+}
+test('first load with no URL spec applies the first pinned screen, once', async () => {
+  withStarters()
+  mount()
+  await waitFor(() => expect(screen.getByRole('button', { name: /Momentum leaders/ })).toBeInTheDocument())
+  await waitFor(() => expect(scanBodies().some(b => (b.filters || []).some(f => f.key === 'rs_rank' && f.min === 90))).toBe(true))
+  // a later filter change is not undone by a re-apply
+  fireEvent.click(screen.getByRole('button', { name: /Momentum leaders/ }))
+  fireEvent.click((await screen.findAllByRole('button', { name: 'Open Power play' }))[0])
+  await waitFor(() => expect(scanBodies().at(-1).filters.some(f => f.min === 70)).toBe(true))
+  await new Promise(r => setTimeout(r, 50))
+  expect(scanBodies().at(-1).filters.some(f => f.min === 70)).toBe(true)
+})
+test('a URL spec is never overridden by the first pinned screen', async () => {
+  withStarters()
+  window.history.replaceState(null, '', `/?${SPEC_PARAM}=${encodeSpec({ filters: { rs_rank: { op: 'gte', min: 50 } }, sort: { key: 'price', dir: 'asc' }, view: 'overview', columns: null, rank: null, logic: null })}`)
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  await new Promise(r => setTimeout(r, 50))
+  expect(screen.queryByRole('button', { name: /Momentum leaders/ })).toBeNull()
+  expect(scanBodies().every(b => !(b.filters || []).some(f => f.min === 90))).toBe(true)
+})

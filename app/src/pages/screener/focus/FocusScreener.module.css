@@ -21,7 +21,7 @@
 .moreSentinel { height: 1px; }
 .keyHints { display: flex; gap: 12px; flex-wrap: wrap; padding: 10px 16px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--text-muted); }
 .keyHints b { color: var(--text); font-weight: 600; }
-.linkBtn { background: none; border: 0; padding: 0; display: inline-flex; align-items: center; color: var(--text-muted); font: inherit; cursor: pointer; }
+.linkBtn { background: none; border: 0; padding: 0; display: inline-flex; align-items: center; gap: 0.3em; color: var(--text-muted); font: inherit; cursor: pointer; }
 .btn { background: transparent; color: var(--text); border: 1px solid var(--border-accent); border-radius: 8px; padding: 8px 14px; font: inherit; font-size: 13px; min-height: 36px; cursor: pointer; }
 .btnOn { background: var(--ut-gold-dim); color: var(--ut-gold); border: 1px solid var(--ut-gold); border-radius: 8px; padding: 8px 14px; font: inherit; font-size: 13px; min-height: 36px; cursor: pointer; }
 .btnPrimary { background: var(--ut-gold); color: var(--bg); border: 0; border-radius: 8px; padding: 8px 14px; font: inherit; font-size: 13px; font-weight: 700; min-height: 36px; cursor: pointer; }
@@ -103,7 +103,7 @@
 }
 
 .drawer:focus { outline: none; }
-.drawerScrim { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, 0.45); }
+.drawerScrim { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0, 0, 0, 0.45); }
 .drawer { position: absolute; left: 0; top: 0; bottom: 0; width: 460px; max-width: 100%; background: var(--bg-surface); border-right: 1px solid var(--border-accent); display: flex; flex-direction: column; }
 .drawerHead { display: flex; align-items: center; gap: 10px; padding: 16px 18px 12px; }
 .drawerTitle { margin: 0; font-size: 18px; font-weight: 700; color: var(--text-heading); }

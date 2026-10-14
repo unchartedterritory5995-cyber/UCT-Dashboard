@@ -3,6 +3,10 @@ import FilterRail from '../shell/FilterRail'
 import CriteriaBox from '../shell/CriteriaBox'
 import Menu, { MenuItem } from './Menu'
 import { chipLabel } from '../chipLabel'
+import { compact } from './whyItsHere'
+
+// Pill text from the shared chipLabel carries raw numbers; any run of 5+ digits reads compactly.
+const compactDigits = s => String(s).replace(/\d{5,}(?:\.\d+)?/g, m => compact(Number(m)) ?? m)
 import styles from './FocusScreener.module.css'
 
 function universeLabel(filters) {
@@ -69,7 +73,7 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
               {lists.map(l => <MenuItem key={l.value} onSelect={() => setPool(l)}>{l.label}</MenuItem>)}
             </Menu>
             {pills.map(([k, v]) => {
-              const text = chipLabel(defs[k] || { key: k, label: k, presets: [] }, v) || k
+              const text = compactDigits(chipLabel(defs[k] || { key: k, label: k, presets: [] }, v) || k)
               return (
                 <span key={k} className={styles.pill}>
                   {text}

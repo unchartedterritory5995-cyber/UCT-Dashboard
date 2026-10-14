@@ -123,3 +123,10 @@ test('a new returnFocusRef identity while open does not move focus', () => {
   rerender(<FiltersDrawer {...base} open filters={{}} returnFocusRef={{ current: null }} />)
   expect(document.activeElement).toBe(btn)
 })
+test('large numbers in pill text read compactly', () => {
+  const m = { filters: [{ key: 'dollar_volume_30d', label: 'Dollar Volume (30d)', type: 'range', unit: '$', presets: [] }] }
+  render(<FiltersDrawer {...base} meta={m} filters={{ dollar_volume_30d: { op: 'gte', min: 20000000 } }} />)
+  const pill = screen.getByRole('button', { name: /^Remove Dollar Volume/ })
+  expect(pill.getAttribute('aria-label')).toMatch(/20M/)
+  expect(pill.getAttribute('aria-label')).not.toMatch(/20000000/)
+})

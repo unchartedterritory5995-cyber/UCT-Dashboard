@@ -107,3 +107,11 @@ test('whyColumns asks only for checkable keys', () => {
   expect(whyColumns({ rs_rank: { op: 'gte', min: 80 }, universe: { op: 'eq', value: 'uct' },
     scan: { op: 'in', value: 'x' }, price: { op: 'gt_col', value: 'ema20' } })).toEqual(['rs_rank'])
 })
+
+test('compact formats 5+ digit numbers', async () => {
+  const { compact } = await import('../whyItsHere')
+  expect(compact(20000000)).toBe('20M')
+  expect(compact(1500000)).toBe('1.5M')
+  expect(compact(25000)).toBe('25K')
+  expect(compact(999)).toBeNull()
+})

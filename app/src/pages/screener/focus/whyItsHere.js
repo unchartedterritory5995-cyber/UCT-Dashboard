@@ -30,7 +30,7 @@ const requiresFalse = v => v === 0 || v === false || v === '0'
 
 // Compact only at |v| >= 10000. The unit is chosen AFTER rounding to one
 // decimal, so 999999 steps up to 1M instead of reading 1000K.
-function compact(n) {
+export function compact(n) {
   if (Math.abs(n) < 10000) return null
   for (const [d, s] of [[1e3, 'K'], [1e6, 'M'], [1e9, 'B']]) {
     const x = Number((n / d).toFixed(1))
