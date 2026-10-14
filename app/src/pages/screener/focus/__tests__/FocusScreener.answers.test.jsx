@@ -193,7 +193,7 @@ test('the screen name survives List→Table→List and back/forward, and clears 
   mount()
   await waitFor(() => expect(screen.getByRole('button', { name: /Momentum leaders/ })).toBeInTheDocument())
   fireEvent.click(screen.getByRole('button', { name: 'Table' }))
-  expect(screen.getByTestId('table-mode')).toBeInTheDocument()
+  expect(await screen.findByTestId('table-mode')).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'List' }))
   await waitFor(() => screen.getByTestId('focus-row-MU'))
   expect(screen.getByRole('button', { name: /Momentum leaders/ })).toBeInTheDocument()

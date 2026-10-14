@@ -5,7 +5,7 @@
 // The two modes never run at once: each owns its own useScreenSpec, and both
 // read the working screen from the URL on mount, so a screen built in one mode
 // is the screen the other opens on.
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthContext } from '../../../context/AuthContext'
 import useScreenerMeta from '../hooks/useScreenerMeta'
@@ -18,7 +18,6 @@ import { LIVE_WINDOW } from '../shell/VirtualResults'
 import { LIVE_SORTABLE, sortRowsLive } from '../shell/liveSort'
 import { exportScreen } from '../shell/csvExport'
 import { buildScreenerCapture } from '../shell/notebookCapture'
-import ScannerShell from '../shell/ScannerShell'
 import { DEFAULT_SORT, SPEC_PARAM } from '../shell/specUrl'
 import { SAVED_SCREEN_PARAM } from '../shell/useScreenSpec'
 import { SHARED_SCREEN_PARAM } from '../screenShareLink'
@@ -63,6 +62,8 @@ import { describeEmptying } from './emptyUndo'
 import { migratePinned } from './screenGroups'
 import { useNameDialog } from './useNameDialog'
 import { useShortcutsSheet } from './useShortcutsSheet'
+import lazy from '../../../utils/lazyWithRetry'
+import { SkeletonTable } from '../../../components/Skeleton'
 import { ZERO_MATCH_NOTE } from './NameDialog'
 import {
   useRadar, useSaveDoors, poolOptions, createScreen, updateScreen,
@@ -85,6 +86,8 @@ const LANDING_WAIT_MS = 3000
 const readLS = (k, d) => { try { return localStorage.getItem(k) ?? d } catch { return d } }
 const writeLS = (k, v) => { try { localStorage.setItem(k, v) } catch { /* private mode */ } }
 const fmtN = v => Number(v || 0).toLocaleString('en-US')
+// Table mode is today's page, loaded only when a member switches to it (List never ships it).
+const ScannerShell = lazy(() => import('../shell/ScannerShell'))
 
 // The comparable part of a screen: its criteria, never its pool, sort or columns.
 function normalSpec(sp) {
@@ -125,7 +128,9 @@ export default function FocusScreener() {
           {/* Screener.jsx hides its own checklist while the Focus layout is on; Table mode keeps it reachable. */}
           <HowToChecklist surface="screener.stocks" />
           {/* ONE bar in Table mode: the List|Table switch leads the table's own toolbar (P14). */}
-          <ScannerShell toolbarLead={<ModeSwitch mode={mode} onMode={onMode} />} />
+          <Suspense fallback={<SkeletonTable rows={12} cols={6} />}>
+            <ScannerShell toolbarLead={<ModeSwitch mode={mode} onMode={onMode} />} />
+          </Suspense>
         </div>
       </div>
     )

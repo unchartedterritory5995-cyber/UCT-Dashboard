@@ -62,7 +62,9 @@ test('table toggle swaps to the old table, and back', async () => {
   mount()
   await waitFor(() => screen.getByTestId('focus-row-MU'))
   fireEvent.click(screen.getByRole('button', { name: 'Table' }))
-  expect(screen.getByTestId('table-mode')).toBeInTheDocument()
+  // Table mode's code is fetched on demand: it is not there in the same frame as the click
+  expect(screen.queryByTestId('table-mode')).toBeNull()
+  expect(await screen.findByTestId('table-mode')).toBeInTheDocument()
   expect(screen.queryByRole('listbox')).toBeNull()
   expect(localStorage.getItem('uct.screener.layout')).toBe('table')
   fireEvent.click(screen.getByRole('button', { name: 'List' }))
@@ -289,7 +291,8 @@ test('Table mode keeps the how-to checklist reachable', async () => {
   render(<MemoryRouter><AuthContext.Provider value={{ howToChecklistsEnabled: true }}>
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><FocusScreener /></SWRConfig>
   </AuthContext.Provider></MemoryRouter>)
-  expect(screen.getByTestId('table-mode')).toBeInTheDocument()
+  // Table mode is lazy-loaded: the table arrives a tick after the checklist
+  expect(await screen.findByTestId('table-mode')).toBeInTheDocument()
   expect(screen.getByTestId('how-to-checklist')).toBeInTheDocument()
 })
 test('a later page that comes back empty ends paging (no endless load-more)', async () => {
@@ -491,7 +494,7 @@ test('Table mode has ONE bar: the List|Table switch leads the table toolbar', as
   mount()
   await waitFor(() => screen.getByTestId('focus-row-MU'))
   fireEvent.click(screen.getByRole('button', { name: 'Table' }))
-  const table = screen.getByTestId('table-mode')
+  const table = await screen.findByTestId('table-mode')
   expect(within(table).getByRole('button', { name: 'List' })).toBeInTheDocument()
   expect(within(table).getByRole('button', { name: 'Table' })).toBeInTheDocument()
   expect(screen.getAllByRole('button', { name: 'List' })).toHaveLength(1)
