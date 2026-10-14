@@ -462,6 +462,8 @@ export const COLUMN_DEFS = {
     desc: 'EVERY structure this symbol satisfied — its one shape plus any named structures — not just the one that renders. ⛔ This is the column the Base Structure FILTER queries, because screening the rendered head would silently drop every symbol whose structure was ALSO a Darvas box. Stored delimiter-wrapped so a search for one key cannot match a longer key that contains it: measured on real rows, a bare "range" search matched 122 rows where the wrapped form matched 64.' },
   base_relation_count: { label: 'Named', fmt: num(0),
     desc: 'How many NAMED structures fired on this symbol beyond its shape — a Darvas box, a Green Line Breakout, a Pocket Pivot, a Power Play. Zero is a real answer (we looked and none fired); a blank means the row was not classified at all.' },
+  base_pivot_px: { label: 'Pivot', fmt: usd,
+    desc: "The entry price of the structure shown in Base Structure, taken from that structure's own detection. Blank when the leading structure has no pivot of its own; a pivot is never estimated." },
   // ── Wave 6: per-pattern engine flags ──
   // `tri`, not `bool`, the `optionable`/`shortable` precedent: ✓ the engine
   // detected this pattern, ✗ the engine has active detections on this symbol

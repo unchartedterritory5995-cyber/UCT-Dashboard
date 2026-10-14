@@ -102,6 +102,8 @@ COLUMNS = [
     # box or a Power Play. See api/services/screener/base_catalog.py.
     "base_shape", "base_shape_label", "base_matches", "base_relation_count",
     "base_render",
+    # pivot of the HEAD structure, from its own detection (REAL; see bases.py)
+    "base_pivot_px",
     # levels the LIVE tier reuses to classify the forming bar (see live_tier)
     "avg_body", "avg_range",
     # the WEEKLY bar's structure, resampled from the daily series
