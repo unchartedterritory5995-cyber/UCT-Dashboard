@@ -148,17 +148,23 @@ test('Perf 2: a listing date this browser holds as final is never asked again', 
 })
 
 test('Perf 2: a stock walked back to keeps its cached markers while unsettled, and asks for nothing', async () => {
+  const row3 = { ...row, ticker: 'AAA', company: 'Aaa' }
   const { rerender } = render(pane())
   act(() => { vi.advanceTimersByTime(SETTLE_MS) })
   await act(async () => {})
   expect(screen.getByTestId('stockchart')).toHaveAttribute('data-markers', 'MU')
-  rerender(pane({ row: row2 }))
+  rerender(pane({ row: row2 }))                      // ECO settles: the settled stock is now ECO
+  act(() => { vi.advanceTimersByTime(SETTLE_MS) })
   await act(async () => {})
-  expect(screen.getByTestId('stockchart')).toHaveAttribute('data-markers', '')   // nothing cached for ECO: held
-  rerender(pane({ row }))                                                          // back to MU before ECO settled
+  expect(screen.getByTestId('stockchart')).toHaveAttribute('data-markers', 'ECO')
+  rerender(pane({ row: row3 }))                      // AAA, unsettled, nothing cached: held, empty
   await act(async () => {})
-  expect(screen.getByTestId('stockchart')).toHaveAttribute('data-markers', 'MU')   // the cached value, at once
-  expect(fetched.filter(k => k.startsWith('/api/chart/markers/'))).toEqual(['/api/chart/markers/MU?days=36500'])
+  expect(screen.getByTestId('stockchart')).toHaveAttribute('data-markers', '')
+  rerender(pane({ row }))                            // back to MU, unsettled: its cached markers, at once
+  await act(async () => {})
+  expect(screen.getByTestId('stockchart')).toHaveAttribute('data-live', 'false')
+  expect(screen.getByTestId('stockchart')).toHaveAttribute('data-markers', 'MU')
+  expect(fetched.filter(k => k.startsWith('/api/chart/markers/'))).toEqual(['/api/chart/markers/MU?days=36500', '/api/chart/markers/ECO?days=36500'])
 })
 
 // ── B7 ──

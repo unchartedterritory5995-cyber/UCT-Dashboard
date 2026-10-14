@@ -171,7 +171,7 @@ test('Perf 3: without a signed-in member no seed is read or written', async () =
 test('Perf 3: a server answer that lands after the landing cap never switches the screen', async () => {
   seed([WIDE])
   starters = [WIDE, OTHER]
-  pin([OTHER.id, WIDE.id])
+  pin([OTHER.id])          // the late server would choose Other whatever the counts say
   savedDelay = 3400
   mount()
   await waitFor(() => expect(scanMins()).toEqual([70]))
