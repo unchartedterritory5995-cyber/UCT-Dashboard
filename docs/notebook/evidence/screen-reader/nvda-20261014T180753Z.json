@@ -1,0 +1,481 @@
+{
+ "started": "2026-10-14T13:07:53",
+ "nvda_version": "2026.2",
+ "base": "https://uctintelligence.com",
+ "nonce": "100c27091bd6",
+ "rows": [
+  {
+   "n": 1,
+   "keys": "Tab",
+   "expected": [
+    "Skip to notes list",
+    "link"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 2,
+   "keys": "Enter",
+   "expected": [
+    "All notes",
+    "heading"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 3,
+   "keys": "focus Hide folders panel, Tab",
+   "expected": [
+    "Hide folders panel",
+    "button",
+    "Panel view",
+    "tab"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 4,
+   "keys": "focus the All notes row",
+   "expected": [
+    "All notes"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 5,
+   "keys": "on All notes: Down until SR folder, Right (expand) -- no Insert+Space",
+   "expected": [
+    "SR folder",
+    "collapsed",
+    "expanded"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 6,
+   "keys": "Enter on the SR folder row, then Shift+F10 (its menu), Escape",
+   "expected": [
+    "SR folder",
+    "Rename",
+    "Add subfolder",
+    "Delete"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 7,
+   "keys": "focus the tag row",
+   "expected": [
+    "srpass",
+    "button"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 8,
+   "keys": "focus the Saved Views disclosure; focus SR view",
+   "expected": [
+    "Saved Views",
+    "button",
+    "SR view"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 9,
+   "keys": "Enter on All notes (clears the view); focus Sort notes; Right (List view); Right (Table view); Space",
+   "expected": [
+    "Sort notes",
+    "combo box",
+    "List view",
+    "pressed",
+    "Table view"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 10,
+   "keys": "Back to List; focus the SR pass card; Enter",
+   "expected": [
+    "SR pass",
+    "heading"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 11,
+   "keys": "Tab until the body (count measured)",
+   "expected": [
+    "Subtitle",
+    "Editor toolbar",
+    "Table",
+    "Note body"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 12,
+   "keys": "Insert+Space (browse mode), H, T, Down, Right",
+   "expected": [
+    "Setup",
+    "heading",
+    "table",
+    "Sym"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": "12b",
+   "keys": "Insert+Space (focus mode); Tab, Tab, Alt+F10, Escape",
+   "expected": [
+    "Table",
+    "tool bar"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 13,
+   "keys": "end of body, Enter, /, Down",
+   "expected": [
+    "Insert block"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 14,
+   "keys": "Escape",
+   "expected": [
+    "Note body"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 15,
+   "keys": "[ [ (real keys), type SR, Down, Enter",
+   "expected": [
+    "Link to a note",
+    "SR target"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 16,
+   "keys": "Ctrl+F, type stop",
+   "expected": [
+    "Find in note"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 17,
+   "keys": "Ctrl+H, Tab x7 (to the replace field), Escape",
+   "expected": [
+    "Replace with",
+    "Note body"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 18,
+   "keys": "focus Ask, Enter",
+   "expected": [
+    "Ask this note",
+    "Your question"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 19,
+   "keys": "type a question the note cannot answer, Enter, wait",
+   "expected": [
+    "find",
+    "note"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 20,
+   "keys": "focus Close Ask, Enter",
+   "expected": [
+    "Ask this note",
+    "button"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 21,
+   "keys": "list; Graph view; Show as list, Space",
+   "expected": [
+    "Graph view",
+    "Show as list",
+    "pressed"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 22,
+   "keys": "Space; focus the canvas; Home; Right",
+   "expected": [
+    "Note graph",
+    "notes",
+    "link"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 23,
+   "keys": "List; Save view, Enter, Escape",
+   "expected": [
+    "Save view",
+    "dialog",
+    "Name"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 24,
+   "keys": "open the note; More note actions, Enter; Delete, Enter; confirm Delete",
+   "expected": [
+    "Delete this note",
+    "dialog"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 25,
+   "keys": "no notes: open the Notebook home; focus its heading",
+   "expected": [
+    "Welcome to your Notebook",
+    "heading"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 26,
+   "keys": "Share, Enter, Tab, Escape",
+   "expected": [
+    "Share this note",
+    "Share link address"
+   ],
+   "result": "NOT RUN",
+   "notes": "left to the owner: the step mints a public share link for a note on the smoke account",
+   "heard": []
+  },
+  {
+   "n": 27,
+   "keys": "? (Shift+/ as a real key) anywhere in the Journal",
+   "expected": [
+    "Keyboard Shortcuts",
+    "dialog"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 28,
+   "keys": "Notebook list (?view=all): focus Styles, let NVDA finish, mark, Enter",
+   "expected": [
+    "Journal styles",
+    "dialog"
+   ],
+   "result": "PASS",
+   "notes": "(listening starts AFTER the Styles button's own 'opens dialog' (aria-haspopup)) en Journal styles dialog / en Close button / en Journal styles / en button Close / en A style is how a kind of note starts: its outline, its blocks and the properties it fills. ",
+   "heard": [
+    "en Journal styles dialog",
+    "en Close button",
+    "en Journal styles",
+    "en button Close",
+    "en A style is how a kind of note starts: its outline, its blocks and the properties it fills. "
+   ],
+   "dom": "DOM: dialog 'Journal styles' x1; activeElement button named \"Close\""
+  },
+  {
+   "n": 29,
+   "keys": "in the manager, Enter on 'Edit SR style'; focus the second block row's move-up control",
+   "expected": [
+    "Move Pre-entry checklist up",
+    "button"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 30,
+   "keys": "in the manager, Enter on 'Edit SR style'; focus the chart row's timeframe",
+   "expected": [
+    "Timeframe for Chart of the note\u2019s ticker",
+    "combo box"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 31,
+   "keys": "open the note 'SR block checklist'; focus 'Change setup' (inside the block's groups)",
+   "expected": [
+    "Pre-entry checklist grouping Pre-entry checklist for",
+    "Change setup"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 32,
+   "keys": "same note: focus the before-entry rule's check box",
+   "expected": [
+    "SR rule wait for the first hour",
+    "check box",
+    "not checked"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 33,
+   "keys": "open the note 'SR block stamps'; focus the switch",
+   "expected": [
+    "Stamp prices as I write",
+    "switch"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 34,
+   "keys": "open the note 'SR block sizing'; focus Entry",
+   "expected": [
+    "Entry",
+    "spin button"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 35,
+   "keys": "same note: focus Setup grade",
+   "expected": [
+    "Setup grade",
+    "combo box"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 36,
+   "keys": "open the note 'SR block prep'; focus Capture now (never pressed)",
+   "expected": [
+    "Capture now",
+    "button"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 37,
+   "keys": "open the note 'SR block rules'; focus the rule's Edit",
+   "expected": [
+    "Edit",
+    "SR rule wait for the first hour",
+    "button"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 38,
+   "keys": "open the note 'SR block review'; focus the trade picker",
+   "expected": [
+    "Trade to review",
+    "combo box"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  }
+ ],
+ "made": {
+  "notes": [
+   "7cc5cd2cb85d4c28bae61810816ed984",
+   "c1dc993a041741fbb71f3c86ed3e4a15"
+  ],
+  "folders": [
+   "3d98541c82de4c449d549e3257a6093f",
+   "634892f8aa304f0183ea568a40e65c78"
+  ],
+  "views": [
+   "7d15d10575bf450aa66cb88635751365"
+  ],
+  "styles": [],
+  "rules": [],
+  "trades": []
+ },
+ "aborted": null,
+ "journal_styles": "on",
+ "stray_notes_trashed": [],
+ "left_active_notes": 0,
+ "left_sr_folders": 0,
+ "left_sr_views": 0,
+ "finished": "2026-10-14T13:08:30"
+}
