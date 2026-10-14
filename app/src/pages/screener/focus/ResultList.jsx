@@ -37,7 +37,7 @@ const ResultRow = memo(function ResultRow({ r, i, sel, price, chg, onRadar, onSe
 })
 
 const ResultList = forwardRef(function ResultList(
-  { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps, showCompany = false, sortMenu },
+  { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps, showCompany = false, sortMenu, pending = false },
   ref,
 ) {
   const listRef = useRef(null)
@@ -97,12 +97,13 @@ const ResultList = forwardRef(function ResultList(
   }, [isLoading, hasMore, rowCount])
 
   return (
-    <div className={styles.listWrap}>
+    // `pending`: these rows answer the previous screen while the new one is on its way.
+    <div className={`${styles.listWrap} ${pending ? styles.listPending : ''}`} data-pending={pending ? '' : undefined}>
       <div className={styles.listHead}>
         {sortMenu || <button type="button" className={styles.linkBtn} onClick={onSort}>Sort: <span className={styles.listHeadValue}>{sortLabel}</span></button>}
         <span>{rows.length ? `${index + 1} of ${total ?? rows.length}` : ''}</span>
       </div>
-      <div ref={listRef} role="listbox" aria-label="Screen results" tabIndex={0}
+      <div ref={listRef} role="listbox" aria-label="Screen results" tabIndex={0} aria-busy={pending}
         aria-activedescendant={rows[index] ? `focus-opt-${rows[index].ticker}` : undefined}
         className={styles.list} onKeyDown={onKeyDown} data-focus-list="">
         {rows.map((r, i) => {

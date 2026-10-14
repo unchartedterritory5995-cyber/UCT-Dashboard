@@ -1,6 +1,8 @@
 .page { display: flex; flex-direction: column; height: calc(100vh - 56px); min-height: 520px; background: var(--bg); color: var(--text); }
 .body { display: flex; flex: 1; min-height: 0; }
 .listWrap { flex: 0 0 340px; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border); }
+/* The listed rows answer the previous screen; the new one's answer is on its way. */
+.listPending .list { opacity: 0.45; pointer-events: none; transition: opacity 120ms ease; }
 .listHead { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; font-size: 12px; color: var(--text-muted); }
 .listHeadValue { color: var(--text); }
 .list { flex: 1; overflow-y: auto; outline: none; position: relative; }

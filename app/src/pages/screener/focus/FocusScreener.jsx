@@ -86,6 +86,27 @@ function normalSpec(sp) {
     .sort((a, b) => String(a.key).localeCompare(String(b.key)))
   return JSON.stringify({ f, logic: sp?.logic || null, rank: sp?.rank || null })
 }
+// What the list is an answer to: criteria, pool and sort (not columns or page).
+const screenSigOf = sp => JSON.stringify({ f: sp?.filters || [], l: sp?.logic || null, r: sp?.rank || null, sort: sp?.sort || null })
+
+// The named screen (starter or saved) the working spec came from, kept per tab so it
+// survives List→Table→List and comes back on back/forward. Keyed by the normalised spec:
+// a spec that no longer matches gets no name.
+const NAMED_KEY = 'uct.screener.named'
+const NAMED_MAX = 25
+function readNamed() {
+  try { const v = JSON.parse(sessionStorage.getItem(NAMED_KEY) || '{}'); return v && typeof v === 'object' ? v : {} } catch { return {} }
+}
+function rememberNamed(item) {
+  if (!item?.spec) return
+  try {
+    const sig = normalSpec(item.spec)
+    // One entry per screen id: a screen whose spec was saved over is not named at its old spec.
+    const rest = Object.entries(readNamed()).filter(([k, v]) => k !== sig && String(v?.id) !== String(item.id))
+    const next = Object.fromEntries([...rest.slice(-(NAMED_MAX - 1)), [sig, { id: item.id, name: item.name, kind: item.kind, spec: item.spec }]])
+    sessionStorage.setItem(NAMED_KEY, JSON.stringify(next))
+  } catch { /* private mode or full: the name is just not kept */ }
+}
 
 export default function FocusScreener() {
   const [mode, setMode] = useState(() => (readLS(MODE_KEY, 'list') === 'table' ? 'table' : 'list'))
@@ -132,44 +153,65 @@ function FocusList({ onMode }) {
   // Retry must change the spec's JSON or useScreenerScan refires nothing (ScannerShell's recipe).
   const [retryNonce, setRetryNonce] = useState(0)
   const columns = useMemo(() => [...new Set([...REQUIRED_COLS, ...LIST_COLUMNS, ...whyColumns(s.filters)])], [s.filters])
-  const scanSpec = useMemo(() => ({ ...s.scanSpec, columns, ...(retryNonce ? { _retry: retryNonce } : {}) }), [s.scanSpec, columns, retryNonce])
-  const { result, isLoading, error } = useScreenerScan(landed ? scanSpec : null)
-  const { count, isLoading: countLoading } = useScreenerCount(landed ? s.baseSpec : null)
-
   // The screen's identity for the selection: a new screen starts at row 0; paging,
   // a live re-sort or a retry of the same screen keep the selected stock.
-  const screenSig = JSON.stringify({ f: s.filters, l: s.logic, r: s.rank, sort: s.sort })
+  const screenSig = screenSigOf(s.baseSpec)
+  // Every spec handed to the scan remembers the screen it was built from, so an answer
+  // is filed under the screen that ASKED for it, never under whatever is on screen when it
+  // lands (an answer for A arriving after the member moved to B is A's, not B's).
+  const askedBy = useRef(new WeakMap())
+  const scanSpec = useMemo(() => {
+    const sp = { ...s.scanSpec, columns, ...(retryNonce ? { _retry: retryNonce } : {}) }
+    askedBy.current.set(sp, { sig: screenSig, filters: s.filters, logic: s.logic, rank: s.rank, baseSpec: s.baseSpec })
+    return sp
+  }, [s.scanSpec, columns, retryNonce, screenSig, s.filters, s.logic, s.rank, s.baseSpec])
+  const { result, answeredSpec, isLoading, error } = useScreenerScan(landed ? scanSpec : null, { leading: true })
+  const { count, isLoading: countLoading } = useScreenerCount(landed ? s.baseSpec : null)
 
   // Each new scan answer is folded in ONCE, during render (React's "adjust state when an
   // input changes" pattern), so the rows, the selection's reset key and the empty-state
-  // bookkeeping all move in the same render as the answer:
-  //  · rows accumulate across pages, as in ScannerShell;
+  // bookkeeping all move in the same render as the answer. Everything is read from the
+  // screen the answer was asked for (`asked`), never from the screen shown now:
+  //  · rows accumulate across pages, as in ScannerShell; a later page skips any ticker
+  //    already loaded, and a later page for a screen other than the one listed is dropped;
   //  · the reset key moves only on a page-1 answer, to the screen it answered, so a new
   //    screen starts at row 0 while paging, a live re-sort or a retry keep the stock;
-  //  · `prev` is the last screen that had rows, for "your last change took it to 0".
+  //  · `prev` is the last screen that had rows, for "your last change took it to 0", and
+  //    the undo it offers survives further changes while the list stays at 0;
   //  · a later page that comes back EMPTY ends paging (`exhausted`), whatever `total`
   //    says, so the list's load-more re-arm cannot ask for the same empty page forever.
   const [answered, setAnswered] = useState({ result: null, rows: [], total: null, rowsKey: '', exhausted: false,
-    prev: { filters: null, baseSpec: null, total: null }, lastChange: null })
+    shown: null, prev: { filters: null, baseSpec: null, total: null }, lastChange: null })
   if (result && result !== answered.result) {
+    const asked = (answeredSpec && askedBy.current.get(answeredSpec))
+      || { sig: screenSig, filters: s.filters, logic: s.logic, rank: s.rank, baseSpec: s.baseSpec }
     const page1 = result.page === 1
-    let { prev, lastChange: change } = answered
-    if (page1) {
+    if (!page1 && asked.sig !== answered.rowsKey) {
+      setAnswered({ ...answered, result })
+    } else if (page1) {
+      let { prev, lastChange: change } = answered
       const defs = Object.fromEntries((meta?.filters || []).map(f => [f.key, f]))
       const desc = describeEmptying({ prevSpec: { filters: prev.filters }, prevTotal: prev.total,
-        nextSpec: { filters: s.filters }, nextTotal: result.total, defs })
-      change = desc ? { ...desc, undo: prev } : null
-      if (result.total > 0) prev = { filters: s.filters, baseSpec: s.baseSpec, total: result.total }
+        nextSpec: { filters: asked.filters }, nextTotal: result.total, defs })
+      // A 0→0 step keeps the offer: the undo still goes back to the last screen with rows.
+      change = desc ? { ...desc, undo: prev } : (result.total === 0 && answered.total === 0 ? change : null)
+      if (result.total > 0) prev = { filters: asked.filters, baseSpec: asked.baseSpec, total: result.total }
+      setAnswered({
+        result, total: result.total, prev, lastChange: change, rows: result.rows || [], rowsKey: asked.sig,
+        exhausted: false, shown: { filters: asked.filters, logic: asked.logic, rank: asked.rank },
+      })
+    } else {
+      const have = new Set(answered.rows.map(r => r.ticker))
+      const fresh = (result.rows || []).filter(r => !have.has(r.ticker) && have.add(r.ticker))
+      setAnswered({ ...answered, result, rows: [...answered.rows, ...fresh], exhausted: !fresh.length })
     }
-    setAnswered({
-      result, total: result.total, prev, lastChange: change,
-      rows: page1 ? (result.rows || []) : [...answered.rows, ...(result.rows || [])],
-      rowsKey: page1 ? screenSig : answered.rowsKey,
-      exhausted: page1 ? false : !(result.rows || []).length,
-    })
   }
   const { rows, total, rowsKey, lastChange, exhausted } = answered
-  const hasMore = total != null && rows.length < total && !exhausted
+  // The listed rows answer an earlier screen than the one now set: the new screen's answer
+  // is still on its way, so the list is shown dimmed and cannot be clicked.
+  const pending = !!result && rowsKey !== screenSig
+  const hasMore = total != null && rows.length < total && !exhausted && !pending
+  const shown = answered.shown || { filters: s.filters, logic: s.logic, rank: s.rank }
 
   const liveTickers = useMemo(() => rows.slice(0, LIVE_WINDOW).map(r => r.ticker), [rows])
   const { prices = {} } = useRealtimePrices(liveTickers) || {}
@@ -199,7 +241,9 @@ function FocusList({ onMode }) {
     say(out.message, { changeList: true })
   }, [watchAdd, say])
   const onFlag = useCallback(row => toggleFlag(row.ticker), [toggleFlag])
-  const onOpen = useCallback(row => navigate(chartsLinkPath({ symbol: row.ticker, tf: 'D' })), [navigate])
+  // Write any pending URL change first, so Back from the full chart returns to this screen.
+  const flushSpec = s.flush
+  const onOpen = useCallback(row => { flushSpec(); navigate(chartsLinkPath({ symbol: row.ticker, tf: 'D' })) }, [flushSpec, navigate])
   const pageRef = useRef(null)
   // After choosing a list, focus goes back to the results so the next W adds there.
   const pickList = l => {
@@ -216,7 +260,7 @@ function FocusList({ onMode }) {
   const screenMenuApi = useRef(null)
   const openScreens = useCallback(() => { screenMenuApi.current?.open() }, [])
   const hubOn = useHubEligible()
-  const { resultsRef: hubResultsRef, hubMount, cursor: hubCursor } = useScreenerHubSection({ displayRows, filters: s.filters, prices, hasMore, loadMore: s.loadMore, onOpenScans: openScreens })
+  const { resultsRef: hubResultsRef, hubMount, cursor: hubCursor } = useScreenerHubSection({ displayRows, filters: shown.filters, prices, hasMore, loadMore: s.loadMore, onOpenScans: openScreens })
   const hubIndex = hubCursor.index
   const hubScrubTo = hubCursor.scrubTo
   const selectRow = sel.select
@@ -261,8 +305,38 @@ function FocusList({ onMode }) {
   // ── screen identity (which starter or saved screen is applied) ───────────
   const { saved, starters, error: savedError, loaded: savedLoaded, refresh } = useSavedScreens()
   const [askName, nameDialog] = useNameDialog()
-  const [current, setCurrent] = useState(null) // {id, name, kind, spec}
-  const isEdited = !!current && normalSpec(current.spec) !== normalSpec(s.baseSpec)
+  // {id, name, kind, spec}. Rehydrated from this tab's named screens when the spec this
+  // mount opened on still matches one (List→Table→List remounts this component). A bare
+  // arrival carries no spec to match, so it lands on the first pinned screen as before.
+  const [current, setCurrent] = useState(() => (arrivedBare.current ? null : readNamed()[normalSpec(s.baseSpec)] || null))
+  const specKey = normalSpec(s.baseSpec)
+  const isEdited = !!current && normalSpec(current.spec) !== specKey
+  useEffect(() => { if (current) rememberNamed(current) }, [current])
+  // Spec changes made here (drawer, sort, undo, picking a screen) keep the name, shown as
+  // edited. Any other change came from outside: back/forward, the `S:<id>` door, a shared
+  // link. Those are named from this tab's named screens or the starter and saved screens
+  // when the spec matches one, and lose the old name when it does not.
+  const localEdit = useRef(false)
+  const ed = useMemo(() => {
+    const mine = fn => (...a) => { localEdit.current = true; return fn(...a) }
+    return { setFilter: mine(s.setFilter), clearFilters: mine(s.clearFilters), setLogic: mine(s.setLogic),
+      setSort: mine(s.setSort), applySpec: mine(s.applySpec) }
+  }, [s.setFilter, s.clearFilters, s.setLogic, s.setSort, s.applySpec])
+  const seenBase = useRef(s.baseSpec)
+  const needsName = useRef(!arrivedBare.current && !current)
+  useEffect(() => {
+    if (seenBase.current !== s.baseSpec) {
+      seenBase.current = s.baseSpec
+      needsName.current = !localEdit.current
+      localEdit.current = false
+    }
+    if (!needsName.current) return
+    if (current && normalSpec(current.spec) === specKey) { needsName.current = false; return }
+    const hit = readNamed()[specKey] || [...starters.map(x => ({ ...x, kind: 'starter' })), ...saved.map(x => ({ ...x, kind: 'saved' }))]
+      .find(it => it.spec && normalSpec(it.spec) === specKey)
+    if (hit) { needsName.current = false; setCurrent({ id: hit.id, name: hit.name, kind: hit.kind, spec: hit.spec }) }
+    else if (current) setCurrent(null)
+  }, [s.baseSpec, specKey, starters, saved, current])
   const { prefs, loading: prefsLoading } = usePreferences()
   // Pinned is migrated from the member's prefs, so the landing decision waits for them to answer
   // (a failed read settles too and lands on the defaults). Neither read is waited on forever.
@@ -281,7 +355,7 @@ function FocusList({ onMode }) {
     const next = effectivePinned.includes(k) ? effectivePinned.filter(x => x !== k) : [...effectivePinned, k]
     setPinned(next); writeLS(PIN_KEY, JSON.stringify(next))
   }
-  const applyScreen = (spec, item) => { s.applySpec(spec); setCurrent({ id: item.id, name: item.name, kind: item.kind, spec }) }
+  const applyScreen = (spec, item) => { ed.applySpec(spec); setCurrent({ id: item.id, name: item.name, kind: item.kind, spec }) }
   // First load lands on a named screen: with no spec and no door in the URL, the first pinned
   // screen is applied once per mount, through the same path the screen menu uses. A URL that
   // carried a spec or a door at mount, or any filter the member has already set, wins. The
@@ -311,16 +385,16 @@ function FocusList({ onMode }) {
     const cur = s.filters?.scan
     const have = cur ? (Array.isArray(cur.value) ? cur.value : [cur.value]) : []
     const value = have.includes(hash) ? have : [...have, hash]
-    s.setFilter('scan', { op: 'in', value: value.length === 1 ? value[0] : value, label: name })
+    ed.setFilter('scan', { op: 'in', value: value.length === 1 ? value[0] : value, label: name })
   }
 
   // ── empty-state undo ─────────────────────────────────────────────────
   const undoLast = () => {
     const u = lastChange?.undo
     if (!u?.baseSpec) return
-    s.applySpec(u.baseSpec)
+    ed.applySpec(u.baseSpec)
     // applySpec carries the current pool forward on purpose; an undo restores the old one exactly.
-    for (const k of POOL_KEYS) s.setFilter(k, u.filters?.[k] || null)
+    for (const k of POOL_KEYS) ed.setFilter(k, u.filters?.[k] || null)
   }
 
   // ── exports ──────────────────────────────────────────────────────────────
@@ -402,8 +476,8 @@ function FocusList({ onMode }) {
   // ── derived view state ───────────────────────────────────────────────────
   const filterCount = Object.keys(s.filters).filter(k => s.filters[k] && !POOL_KEYS.includes(k)).length + (s.logic ? 1 : 0)
   const selected = sel.selected
-  const why = useMemo(() => whyItsHere({ filters: s.filters, logic: s.logic, rank: s.rank, metaFilters: meta?.filters, row: selected || {} }),
-    [s.filters, s.logic, s.rank, meta, selected])
+  const why = useMemo(() => whyItsHere({ filters: shown.filters, logic: shown.logic, rank: shown.rank, metaFilters: meta?.filters, row: selected || {} }),
+    [shown.filters, shown.logic, shown.rank, meta, selected])
   const lists = useMemo(() => poolOptions(meta), [meta])
   const sortKey = s.sort?.key
   const colLabel = k => (meta?.filters || []).find(f => f.key === k || f.column === k)?.label || COLUMN_DEFS[k]?.label || k
@@ -420,10 +494,10 @@ function FocusList({ onMode }) {
       <MenuHeading>Sort by</MenuHeading>
       {sortKeys.map(k => (
         <MenuItem key={k} hint={!s.rank && k === sortKey ? sortArrow : undefined}
-          onSelect={() => s.setSort({ key: k, dir: k === sortKey && !s.rank ? s.sort.dir : 'desc' })}>{colLabel(k)}</MenuItem>
+          onSelect={() => ed.setSort({ key: k, dir: k === sortKey && !s.rank ? s.sort.dir : 'desc' })}>{colLabel(k)}</MenuItem>
       ))}
       {!s.rank && (
-        <MenuItem onSelect={() => s.setSort(nextSort({ key: sortKey, dir: s.sort?.dir }, sortKey))}
+        <MenuItem onSelect={() => ed.setSort(nextSort({ key: sortKey, dir: s.sort?.dir }, sortKey))}
           hint={s.sort?.dir === 'asc' ? '↓' : '↑'}>Reverse order</MenuItem>
       )}
     </Menu>
@@ -453,7 +527,7 @@ function FocusList({ onMode }) {
       <div className={styles.body}>
         <ResultList ref={hubResultsRef} itemProps={hubOn ? hubCursor.itemProps : undefined} rows={displayRows} index={sel.index} onSelect={sel.select} onKeyDown={onListKeyDown}
           livePrices={prices} radar={radar} sortLabel={sortLabel} sortMenu={sortMenu} total={total} hasMore={hasMore}
-          onLoadMore={s.loadMore} isLoading={isLoading} showCompany={showCompany} />
+          onLoadMore={s.loadMore} isLoading={isLoading} showCompany={showCompany} pending={pending} />
         <ChartPane row={selected} livePrice={selected ? prices[selected.ticker] : null} why={why}
           onOpenFilters={() => openFilters()} onFlag={onFlag} isFlagged={selected ? isFlagged(selected.ticker) : false} onWatch={onWatch} />
       </div>
@@ -466,12 +540,12 @@ function FocusList({ onMode }) {
         <a href="#focus-save" className={styles.skipLink} onClick={skipToSave}>Skip to save results</a>
       </SkipLinkPortal>
       <FocusTopBar
-        screenMenu={<ScreenMenu apiRef={screenMenuApi} currentName={current?.name} currentId={current?.id} isEdited={isEdited} count={total}
+        screenMenu={<ScreenMenu apiRef={screenMenuApi} currentName={current?.name} currentId={current?.id} isEdited={isEdited} count={total} countPending={pending}
           starters={starters} saved={saved} pinned={effectivePinned} onTogglePin={togglePin} onApply={applyScreen}
           onSaveChanges={current?.kind === 'saved' && isEdited ? saveChanges : null}
           onSaveAsNew={savedLoaded && !savedError ? saveAsScreen : null}
           onRename={current?.kind === 'saved' ? rename : null}
-          onNewScreen={() => { s.clearFilters(); s.setLogic(null); setCurrent(null); openFilters() }}
+          onNewScreen={() => { ed.clearFilters(); ed.setLogic(null); setCurrent(null); openFilters() }}
           myScans={myScans} onUseScan={applyScanFilter} />}
         filterCount={filterCount} onOpenFilters={() => openFilters()}
         dataReceipt={<DataReceipt snapshotDate={result?.snapshot_date} live={result?.snapshot?.live?.state === 'live'} coverage={result?.coverage} />}
@@ -502,7 +576,7 @@ function FocusList({ onMode }) {
       {drops.length > 0 && <p className={styles.dropNote} role="status">{drops.join(' ')}</p>}
       {body}
       <FiltersDrawer open={filtersOpen} onClose={() => setFiltersOpen(false)} meta={meta} filters={s.filters} logic={s.logic}
-        onSetFilter={s.setFilter} onClear={() => { s.clearFilters(); s.setLogic(null) }} onSetLogic={s.setLogic}
+        onSetFilter={ed.setFilter} onClear={() => { ed.clearFilters(); ed.setLogic(null) }} onSetLogic={ed.setLogic}
         count={count} countLoading={countLoading} lists={lists} />
       <Sheet open={sheet === 'howto'} onClose={() => setSheet(null)} variant="auto" title={howTo?.title || 'How to use this screen'}
         ariaLabel="How to use this screen" maxWidth={560}>

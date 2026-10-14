@@ -21,7 +21,7 @@ function Item({ item, pinned, count, current, onApply, onTogglePin }) {
   )
 }
 
-export default function ScreenMenu({ currentName, currentId, isEdited, count, starters = [], saved = [], pinned = [], onTogglePin, onApply, onSaveChanges, onSaveAsNew, onRename, onNewScreen, myScans = [], onUseScan, apiRef }) {
+export default function ScreenMenu({ currentName, currentId, isEdited, count, countPending = false, starters = [], saved = [], pinned = [], onTogglePin, onApply, onSaveChanges, onSaveAsNew, onRename, onNewScreen, myScans = [], onUseScan, apiRef }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const btn = useRef(null), box = useRef(null)
@@ -65,9 +65,9 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, st
   return (
     <span className={styles.menuWrap} ref={box} onBlur={onBlur}>
       <button ref={btn} type="button" className={styles.screenBtn} aria-haspopup="dialog" aria-expanded={open}
-        aria-label={Number.isFinite(count) ? `${label}, ${count} matches. Change screen` : `${label}. Change screen`} onClick={() => setOpen(o => !o)}>
+        aria-label={countPending ? `${label}, updating. Change screen` : Number.isFinite(count) ? `${label}, ${count} matches. Change screen` : `${label}. Change screen`} onClick={() => setOpen(o => !o)}>
         <span>{label}</span>
-        <span className={styles.screenCount}>{Number.isFinite(count) ? count.toLocaleString('en-US') : ''}</span>
+        <span className={styles.screenCount} data-testid="screen-count">{countPending ? '…' : Number.isFinite(count) ? count.toLocaleString('en-US') : ''}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
       </button>
       {open && (
