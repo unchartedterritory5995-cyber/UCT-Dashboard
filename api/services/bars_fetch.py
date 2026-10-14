@@ -683,6 +683,17 @@ def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> boo
     """
     if last_ts is None:
         return True
+    # A series the universe live feed keeps current (bars_live_store, bars-api only,
+    # BARS_LIVE_COVERAGE_ENABLED) is fresh by construction: the stream or the
+    # whole-market snapshot has already written its newest bar. False everywhere the
+    # flag is off or the feed is not alive, so this is a no-op until armed.
+    if ticker and tf in ("5", "D"):
+        try:
+            from api.services import bars_live_store as _bls
+            if _bls.covered(ticker, tf):
+                return False
+        except Exception:
+            pass
     if tf == "W":
         # ⛔⛔ A WEEKLY BAR IS KEYED BY ITS WEEK'S FRIDAY, WHICH IS AHEAD OF THE LATEST SESSION
         # FROM MONDAY TO THURSDAY. The D/W/M rule below (`last_ts <= latest session`) therefore
@@ -3391,18 +3402,27 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     # serve 10 rows because they're "fresh", leaving a huge gap on the chart).
     # Fall through to the stale-while-revalidate path when we have data but
     # less than requested — bg fetch will populate the missing depth.
+    try:
+        from api.services import bars_live_store as _bls
+        _live = _bls.covered(ticker_up, tf)
+    except Exception:
+        _bls, _live = None, False
     if stored_rows and not _needs_fresh(last_ts, tf, ticker_up) and (
         len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf)
+        or (_live and bars <= _bls.LIVE_HISTORY_MAX_BARS and _bls.history_complete(ticker_up, tf))
     ):
         # SQLite has enough fresh data (or holds the full available history,
         # which is < bars for stocks shorter-lived than the request) — serve
         # immediately, no API call.
         _mark_serve("sqlite")
         payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf, ticker_up)}
-        cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
+        # A live-fed series changes every few seconds: never pin it in memory for the
+        # normal 300 s daily TTL, or the developing candle would freeze for minutes.
+        _ttl = _bls.covered_cache_ttl(tf, _CACHE_TTL.get(tf, 300)) if _live else _CACHE_TTL.get(tf, 300)
+        cache.set(cache_key, payload, ttl=_ttl)
         return JSONResponse(
             content=payload,
-            headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
+            headers={"Cache-Control": f"public, max-age={_ttl}"},
         )
 
     # Cold-stale intraday (missing >=1 whole session) must NOT be served

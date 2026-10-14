@@ -212,6 +212,14 @@ async def _lifespan(app: FastAPI):
         _log.warning("[bars-api] barspack ingest start failed (non-fatal): %s", e)
     if os.environ.get("BARS_API_PUSH_HOTSET") == "1":
         _start_hotset_push()
+    try:
+        # Universe live bars (5m from the web pod's stream, daily from the
+        # whole-market snapshot). The threads idle while BARS_LIVE_COVERAGE_ENABLED
+        # is off, so flipping the flag needs no restart to stop it.
+        from api.services import bars_live_store
+        bars_live_store.start()
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] live store start failed (non-fatal): %s", e)
     _log.info("[bars-api] serving tier UP — /api/bars + /api/bars-history "
               "(no warmers, no uploader, no WS)")
     yield
@@ -306,6 +314,19 @@ def _build_app() -> FastAPI:
         st["service"] = "bars-api"
         st["cap_universe_size"] = len(sample) if sample else None
         return st
+
+    # Universe live bars feed from the web pod. GATED: the edge only routes
+    # /api/bars*, so no member browser reaches /internal/*, and only the web pod
+    # (PUSH_SECRET) may write bars into this tier.
+    @app.post("/internal/live-bars")
+    def live_bars_ingest(payload: dict, _svc: dict = Depends(require_bars_service)):
+        from api.services import bars_live_store
+        return bars_live_store.ingest(payload)
+
+    @app.get("/internal/live-status")
+    def live_bars_status(_svc: dict = Depends(require_bars_service)):
+        from api.services import bars_live_store
+        return bars_live_store.status()
 
     # ⛔ NO GATE HERE ON PURPOSE — the edge routes member browsers to this route.
     # See the block at the top of `_build_app`. Re-adding a credential here is a
