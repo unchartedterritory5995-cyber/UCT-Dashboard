@@ -110,6 +110,27 @@ const _MAX_CONCURRENT = 2 // keep the server's pool free for the active chart
 const _seen = new Set() // short-window dedupe so re-hover/re-select doesn't pile up
 let _kick = null
 
+// URLs the caller flagged `urgent` (see prefetchBars). They may run while the
+// COLD-START pack-ingest hold is on (the fresh-browser window where every
+// ArrowDown otherwise cold-fetches), but they stay in the SAME bounded queue,
+// respect _MAX_CONCURRENT, and still obey the server's 503 backoff.
+const _urgent = new Set()
+export const URGENT_MAX_PER_CALL = 2
+function _startFetch(url) {
+  _active++
+  Promise.resolve(preload(url, warmFetcher)).then(_noteWarmResult).finally(() => {
+    _active--
+    _pump()
+  })
+}
+function _drainUrgentWhileHeld() {
+  if (Date.now() < _warmBackoffUntil) return // server shedding: nobody goes
+  for (let i = 0; i < _queue.length && _active < _MAX_CONCURRENT;) {
+    const url = _queue[i]
+    if (_urgent.has(url)) { _queue.splice(i, 1); _urgent.delete(url); _startFetch(url) } else i++
+  }
+}
+
 function _pump() {
   // Hold ALL SWR list-warming (theme tracker holdings, Breadth drill lists,
   // ModelBook, Screener) while the pack is ingesting OR the server is shedding — it
@@ -117,15 +138,12 @@ function _pump() {
   // in-memory only (wiped on reload); the pack fills IDB, the visible chart's own
   // SWR fetch is separate, and a click fetches its one chart. A pending kick retries
   // once the hold lifts (backoff window or pack-stamp), so nothing is lost forever.
-  if (_holdBackgroundWarm()) { if (_queue.length) _kickSoon(); return }
+  if (_holdBackgroundWarm()) { _drainUrgentWhileHeld(); if (_queue.length) _kickSoon(); return }
   while (_active < _MAX_CONCURRENT && _queue.length) {
-    if (_holdBackgroundWarm()) { _kickSoon(); return }
+    if (_holdBackgroundWarm()) { _drainUrgentWhileHeld(); _kickSoon(); return }
     const url = _queue.shift()
-    _active++
-    Promise.resolve(preload(url, warmFetcher)).then(_noteWarmResult).finally(() => {
-      _active--
-      _pump()
-    })
+    _urgent.delete(url)
+    _startFetch(url)
   }
 }
 
@@ -140,15 +158,17 @@ function _kickSoon() {
   else _kick = setTimeout(go, 800)
 }
 
-function _enqueue(url, priority = false) {
+function _enqueue(url, priority = false, urgent = false) {
   const at = _queue.indexOf(url)
   if (at >= 0) {                 // already queued — promote to front if now urgent
+    if (urgent) _urgent.add(url)
     if (priority && at > 0) { _queue.splice(at, 1); _queue.unshift(url) }
     return
   }
   if (_seen.has(url) && !priority) return  // recently done; priority re-allows a jump
   _seen.add(url)
   setTimeout(() => _seen.delete(url), 30000) // allow a fresh prefetch after 30s
+  if (urgent) _urgent.add(url)
   if (priority) _queue.unshift(url)          // front of line (year the user just opened)
   else _queue.push(url)
   _kickSoon()
@@ -307,12 +327,25 @@ export function _isAuthoritativeAnswer(json, sym, tf) {
 // Prefetch a list of tickers for a specific timeframe (e.g. visible list rows).
 // `priority` jumps them to the front of the shared queue — e.g. the year the user
 // just switched to, so its charts warm before the background catalog trickle.
-export function prefetchBars(tickers, tf = 'D', { priority = false } = {}) {
+//
+// `urgent` (OPT-IN, default false) lets the first URGENT_MAX_PER_CALL symbols of
+// the call run during the cold-start pack-ingest hold (they are also jumped to the
+// front). Same URL / bar count (FIRST_PAINT_BARS), same bounded queue, same 503
+// backoff; symbols beyond the cap fall back to the normal held path. For the one or
+// two rows a user is about to reach by keyboard — never for list-wide warming.
+export function prefetchBars(tickers, tf = 'D', { priority = false, urgent = false } = {}) {
   if (!tickers?.length) return
-  for (const sym of tickers) {
-    if (!sym) continue
-    _enqueue(_url(sym, tf), priority)
-    prefetchTickerMeta(sym)
+  const syms = tickers.filter(Boolean)
+  const nUrgent = urgent ? Math.min(URGENT_MAX_PER_CALL, syms.length) : 0
+  // Urgent heads are unshifted, so enqueue them in REVERSE to leave caller order
+  // (nearest row first) at the front of the queue.
+  for (let i = nUrgent - 1; i >= 0; i--) {
+    _enqueue(_url(syms[i], tf), true, true)
+    prefetchTickerMeta(syms[i])
+  }
+  for (let i = nUrgent; i < syms.length; i++) {
+    _enqueue(_url(syms[i], tf), priority)
+    prefetchTickerMeta(syms[i])
   }
 }
 
