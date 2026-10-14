@@ -2,6 +2,7 @@ import styles from './FocusScreener.module.css'
 import own from './FiltersDrawer.module.css'
 import useLazyCounts from './useLazyCounts'
 import { dropOptions, MAX_DROP_PILLS, LOGIC_ID } from './drawerFilters'
+import { capToTopN } from './counts'
 
 export function ListSkeleton() {
   return (
@@ -22,12 +23,6 @@ export function ListSkeleton() {
 const countText = n => (n === undefined ? 'counting…' : n === null ? 'count unavailable'
   : `${n.toLocaleString('en-US')} ${n === 1 ? 'match' : 'matches'}`)
 
-// A ranked screen (UCT 50) shows at most its top_n rows, and the count route reports top_n
-// beside the count rather than applying it; so must the pill.
-const capToTopN = (n, spec) => {
-  const top = spec?.rank?.top_n
-  return typeof n === 'number' && Number.isFinite(top) ? Math.min(n, top) : n
-}
 
 export function EmptyState({ filterCount, lastChange, onUndo, onOpenFilters, spec = null, meta = null, onRemoveFilter = null, onRemoveLogic = null }) {
   const head = filterCount === 0 ? 'No stocks match this screen'

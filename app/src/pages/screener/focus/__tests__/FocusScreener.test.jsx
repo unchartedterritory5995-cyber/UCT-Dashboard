@@ -527,3 +527,32 @@ test('saving a screen with matches carries no zero-match note', async () => {
   const dialog = await screen.findByRole('dialog', { name: 'Save as a screen' })
   expect(within(dialog).queryByTestId('name-dialog-note')).toBeNull()
 })
+
+// -- Task 3 --
+test('S2: a ranked screen shows its top_n everywhere a count is shown, never the eligible total', async () => {
+  window.history.replaceState(null, '', `/?${SPEC_PARAM}=${encodeSpec({ filters: {}, rank: { criteria: [{ key: 'uct_composite', weight: 1 }], top_n: 50 } })}`)
+  extra = url => {
+    if (url === '/api/screener/scan') return { ok: true, json: async () => ({ rows: rowsA, total: 312, page: 1, snapshot_date: '2026-10-12' }) }
+    if (url === '/api/screener/count') return { ok: true, json: async () => ({ count: 312 }) }
+    return null
+  }
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  expect(screen.getByTestId('screen-count')).toHaveTextContent('50')
+  expect(screen.getByText('1 of 50')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /Filters/ }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Show 50 stocks' })).toBeInTheDocument())
+  fireEvent.click(screen.getByRole('button', { name: 'Show 50 stocks' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  extra = () => null
+  expect(screen.queryByText(/312/)).toBeNull()
+})
+test('S4: a count that failed reads "Count unavailable" in the drawer, never 0', async () => {
+  extra = url => (url === '/api/screener/count' ? { ok: false, status: 500, json: async () => ({ detail: 'boom' }) } : null)
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  fireEvent.click(screen.getByRole('button', { name: /Filters/ }))
+  await waitFor(() => expect(screen.getByTestId('drawer-count-note')).toHaveTextContent('Count unavailable'))
+  expect(screen.getByRole('button', { name: 'Show stocks' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Show 0/ })).toBeNull()
+})

@@ -41,11 +41,13 @@ function LongEnumControl({ filter, value, onChange }) {
 }
 const drawerControl = (f, value, onChange) => (isLongEnum(f) ? <LongEnumControl filter={f} value={value} onChange={onChange} /> : null)
 
-// The ONE place the drawer words its match count. A count that is not known yet (or failed)
-// never reads as a number.
-const known = (count, countLoading) => !countLoading && count != null
-const showLabel = (count, countLoading) => (known(count, countLoading) ? `Show ${count.toLocaleString('en-US')} stocks` : 'Show stocks')
-const settledCount = (count, countLoading) => (known(count, countLoading) ? `${count.toLocaleString('en-US')} matches` : '')
+// The ONE place the drawer words its match count. A count that is not known yet, or that
+// failed (S4: `countError`; the count hook keeps its PREVIOUS number on a failure), never reads
+// as a number, and a failure says so.
+const known = (count, countLoading, countError) => !countLoading && !countError && Number.isFinite(count)
+const showLabel = (count, countLoading, countError) => (known(count, countLoading, countError) ? `Show ${count.toLocaleString('en-US')} stocks` : 'Show stocks')
+const settledCount = (count, countLoading, countError) => (countError && !countLoading ? 'Count unavailable'
+  : known(count, countLoading, countError) ? `${count.toLocaleString('en-US')} matches` : '')
 
 function universeLabel(filters) {
   if (filters?.list) return filters.list.label || 'Watchlist'
@@ -70,7 +72,7 @@ const explainLine = ex => {
 // Left drawer holding every filter. A modal dialog: focus moves in on open,
 // Escape (handled on the dialog, no document listener) closes it, and focus goes
 // back to whatever opened it (or `returnFocusRef`, when the opener is remounted).
-export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic, onSetFilter, onClear, onSetLogic, count, countLoading, lists = [], returnFocusRef }) {
+export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic, onSetFilter, onClear, onSetLogic, count, countLoading, countError = null, lists = [], returnFocusRef }) {
   const panel = useRef(null)
   const describe = useDescribe(open)
   const [text, setText] = useState('')
@@ -188,11 +190,12 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
             <CriteriaBox logic={logic} onApply={onSetLogic} />
           </details>
           <span className={styles.spacer} />
+          {countError && !countLoading && <span className={own.countNote} aria-hidden="true" data-testid="drawer-count-note">Count unavailable</span>}
           <button type="button" className={styles.btnPrimary} onClick={onClose}>
-            {showLabel(count, countLoading)}
+            {showLabel(count, countLoading, countError)}
           </button>
           {/* Screen readers hear the count once it settles, never the "Show stocks" in between. */}
-          <span className="sr-only" role="status">{settledCount(count, countLoading)}</span>
+          <span className="sr-only" role="status">{settledCount(count, countLoading, countError)}</span>
         </footer>
       </aside>
     </div>

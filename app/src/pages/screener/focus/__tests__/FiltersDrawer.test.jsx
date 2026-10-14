@@ -210,3 +210,17 @@ test('a universe changed during the compile is not overwritten', async () => {
   await waitFor(() => expect(base.onSetFilter).toHaveBeenCalledWith('list', fresh))
   expect(base.onSetFilter).not.toHaveBeenCalledWith('universe', old)
 })
+
+// -- Task 3 (S4) --
+test('S4: a failed count never reads as a number: "Show stocks" and "Count unavailable"', () => {
+  render(<FiltersDrawer {...base} filters={{}} count={214} countError={new Error('count 500')} />)
+  expect(screen.getByRole('button', { name: 'Show stocks' })).toBeInTheDocument()
+  expect(screen.getByTestId('drawer-count-note')).toHaveTextContent('Count unavailable')
+  expect(screen.getByText('Count unavailable', { selector: '[role="status"]' })).toBeInTheDocument()
+  expect(screen.queryByText(/214|Show 0/)).toBeNull()
+})
+test('S4: an unknown count is "Show stocks" with no note', () => {
+  render(<FiltersDrawer {...base} filters={{}} count={null} />)
+  expect(screen.getByRole('button', { name: 'Show stocks' })).toBeInTheDocument()
+  expect(screen.queryByTestId('drawer-count-note')).toBeNull()
+})

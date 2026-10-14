@@ -49,6 +49,8 @@
 .paneMeta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .setupTag { background: var(--ut-gold-dim); color: var(--ut-gold); border-radius: 6px; padding: 4px 10px; font-weight: 600; font-size: 12.5px; }
 .paneFacts { color: var(--text-muted); font-size: 12.5px; }
+.paneEarnSoon { color: var(--warn); font-size: 12.5px; font-weight: 600; }
+.staleTag { color: var(--warn); font-weight: 600; }
 .seg { display: flex; gap: 2px; background: var(--bg-surface); border-radius: 8px; padding: 2px; }
 .segOn, .segOff { border: 0; border-radius: 6px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; min-width: 32px; }
 .segOn { background: var(--border-accent); color: var(--text-heading); }

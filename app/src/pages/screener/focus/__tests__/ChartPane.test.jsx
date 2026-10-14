@@ -92,3 +92,24 @@ test('the setup tag always carries a tooltip', () => {
   render(<ChartPane row={row} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
   expect(screen.getByTestId('pane-setup')).toHaveAttribute('title', 'Flat Base')
 })
+
+// -- Task 3 --
+test('B5/N4: the header pairs a live price with the live change only, as the row does', () => {
+  render(<ChartPane row={row} livePrice={{ price: 960 }} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.getByText('960.00')).toBeInTheDocument()
+  // the snapshot's change belongs to a different moment: never shown beside a live price
+  expect(screen.queryByText('−3.7%')).toBeNull()
+})
+test('P8: earnings reads a date and a countdown, amber within a week', () => {
+  const now = Date.parse('2026-10-14T10:00:00-04:00')
+  const { rerender } = render(<ChartPane row={{ ...row, next_earnings_date: '2026-11-18' }} now={now} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  const far = screen.getByTestId('pane-earnings')
+  expect(far).toHaveTextContent('Earnings Nov 18 (in 35d)')
+  expect(far).not.toHaveAttribute('data-soon')
+  rerender(<ChartPane row={{ ...row, next_earnings_date: '2026-10-19' }} now={now} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  const near = screen.getByTestId('pane-earnings')
+  expect(near).toHaveTextContent('Earnings Oct 19 (in 5d)')
+  expect(near).toHaveAttribute('data-soon')
+  expect(near.className).toMatch(/paneEarnSoon/)
+  expect(screen.queryByText(/2026-10-19/)).toBeNull()
+})

@@ -33,6 +33,7 @@
 .dropPill:hover, .dropPill:focus-visible { border-color: var(--ut-gold); }
 .dropGain { color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .dropGainSome { color: var(--success-ink); }
+.countNote { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
 .dropMore { color: var(--text-muted); font-size: 12px; align-self: center; }
 
 @media (max-width: 1024px) {

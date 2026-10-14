@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 const cache = new Map()        // spec JSON -> { v: number, at: ms }
 // A count describes the nightly snapshot, so a long-lived tab must not keep yesterday's: a cached
@@ -101,24 +101,38 @@ function countMany(specs) {
   return promises
 }
 
-// undefined = not asked yet, null = the count failed (never 0)
+// undefined = not asked yet, null = the count failed (never 0).
+//
+// Answers are held by the SPEC they answer (the same key the cache uses), never by the caller's
+// id: when an id's spec changes (the member picked another universe, so every screen is asked in
+// it), the id reads "not asked yet" until its new answer lands, never the previous spec's count.
 export default function useLazyCounts(specsById, enabled) {
-  const [counts, setCounts] = useState({})
+  const [bySpec, setBySpec] = useState({})
   const sig = enabled ? JSON.stringify(specsById) : ''
   useEffect(() => {
     if (!enabled) return undefined
     let alive = true
     const pending = []
-    for (const [id, spec] of Object.entries(specsById || {})) {
-      const hit = cached(JSON.stringify(spec))
+    for (const spec of Object.values(specsById || {})) {
+      const key = JSON.stringify(spec)
+      const hit = cached(key)
       // eslint-disable-next-line react-hooks/set-state-in-effect -- a cached count lands in the same pass as the fetches for the rest
-      if (hit !== undefined) { setCounts(c => (c[id] === hit ? c : { ...c, [id]: hit })); continue }
-      pending.push([id, spec])
+      if (hit !== undefined) { setBySpec(c => (c[key] === hit ? c : { ...c, [key]: hit })); continue }
+      pending.push([key, spec])
     }
     countMany(pending.map(([, spec]) => spec)).forEach((p, i) => {
-      p.then(v => { if (alive) setCounts(c => ({ ...c, [pending[i][0]]: v })) })
+      p.then(v => { if (alive) setBySpec(c => ({ ...c, [pending[i][0]]: v })) })
     })
     return () => { alive = false }
   }, [sig, enabled]) // eslint-disable-line react-hooks/exhaustive-deps
-  return counts
+  // `sig` is the specs' own JSON (empty while disabled), so the answer map follows it exactly.
+  const asked = useMemo(() => (sig ? JSON.parse(sig) : {}), [sig])
+  return useMemo(() => {
+    const out = {}
+    for (const [id, spec] of Object.entries(asked)) {
+      const key = JSON.stringify(spec)
+      if (key in bySpec) out[id] = bySpec[key]
+    }
+    return out
+  }, [asked, bySpec])
 }

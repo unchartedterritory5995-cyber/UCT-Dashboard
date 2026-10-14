@@ -52,6 +52,8 @@ import ResultList from './ResultList'
 import { activeStructures, structureLabels } from './setupLine'
 import { plainColumnLabel } from './plainWords'
 import { sortableColumns } from './sortKeys'
+import { capToTopN, poolOf } from './counts'
+import { livePriceOf } from './livePrice'
 import ChartPane from './ChartPane'
 import { ListSkeleton, EmptyState, ErrorState } from './FocusStates'
 import useFocusSelection from './useFocusSelection'
@@ -168,7 +170,7 @@ function FocusList({ onMode }) {
     return sp
   }, [s.scanSpec, columns, retryNonce, screenSig, s.filters, s.logic, s.rank, s.baseSpec])
   const { result, answeredSpec, isLoading, error } = useScreenerScan(landed ? scanSpec : null, { leading: true })
-  const { count, isLoading: countLoading } = useScreenerCount(landed ? s.baseSpec : null)
+  const { count, isLoading: countLoading, error: countError } = useScreenerCount(landed ? s.baseSpec : null)
 
   // Each new scan answer is folded in ONCE, during render (React's "adjust state when an
   // input changes" pattern), so the rows, the selection's reset key and the empty-state
@@ -192,7 +194,8 @@ function FocusList({ onMode }) {
       nextSpec: { filters: asked.filters }, nextTotal: res.total, defs })
     // A 0→0 step keeps the offer: the undo still goes back to the last screen with rows.
     change = desc ? { ...desc, undo: prev } : (res.total === 0 && base.total === 0 ? change : null)
-    if (res.total > 0) prev = { filters: asked.filters, baseSpec: asked.baseSpec, total: res.total }
+    // the "took the list from N to 0" number is the count the member saw (S2: capped at top_n)
+    if (res.total > 0) prev = { filters: asked.filters, baseSpec: asked.baseSpec, total: capToTopN(res.total, asked) }
     const { [asked.sig]: _used, ...dropped } = base.dropped
     return {
       ...base, result: res, total: res.total, prev, lastChange: change, rows: res.rows || [], rowsKey: asked.sig,
@@ -229,8 +232,10 @@ function FocusList({ onMode }) {
   // The listed rows answer an earlier screen than the one now set: the new screen's answer
   // is still on its way, so the list is shown dimmed and cannot be clicked.
   const pending = !!result && rowsKey !== screenSig
-  const hasMore = total != null && rows.length < total && !exhausted && !pending
   const shown = answered.shown || { filters: s.filters, logic: s.logic, rank: s.rank }
+  // S2: a ranked screen lists at most its top_n; every count shown for the list says so.
+  const shownTotal = capToTopN(total, shown)
+  const hasMore = shownTotal != null && rows.length < shownTotal && !exhausted && !pending
   // Row actions (Enter, W, Shift+F, the hub's actions) do nothing while the rows are the
   // previous screen's; arrow keys may still move the highlight.
   const pendingRef = useRef(pending)
@@ -490,7 +495,7 @@ function FocusList({ onMode }) {
     say(await saveToNotebook(buildScreenerCapture({
       meta, filters: s.filters, visibleColumns: columns, displayRows, livePrices: prices,
       spec: { filters: s.filters, sort: s.sort, view: s.view, columns: s.columns, rank: s.rank },
-      total, snapshotDate: result?.snapshot_date, snapshot: result?.snapshot, scanReceipts,
+      total: shownTotal, snapshotDate: result?.snapshot_date, snapshot: result?.snapshot, scanReceipts,
     })))
   }
   const hasResult = !!result && total != null
@@ -502,8 +507,15 @@ function FocusList({ onMode }) {
   // ── derived view state ───────────────────────────────────────────────────
   const filterCount = Object.keys(s.filters).filter(k => s.filters[k] && !POOL_KEYS.includes(k)).length + (s.logic ? 1 : 0)
   const selected = sel.selected
-  const why = useMemo(() => whyItsHere({ filters: shown.filters, logic: shown.logic, rank: shown.rank, metaFilters: meta?.filters, row: selected || {} }),
-    [shown.filters, shown.logic, shown.rank, meta, selected])
+  // B5: the strip reads the same live price the row and the pane header show.
+  const selLive = selected ? prices[selected.ticker] : null
+  const snapshotDate = result?.snapshot_date
+  const why = useMemo(() => whyItsHere({ filters: shown.filters, logic: shown.logic, rank: shown.rank, metaFilters: meta?.filters,
+    row: selected || {}, live: selected ? livePriceOf(selected, selLive) : null, snapshotDate }),
+  [shown.filters, shown.logic, shown.rank, meta, selected, selLive, snapshotDate])
+  // S3: the screen menu counts each screen in the member's universe/list.
+  const poolKey = JSON.stringify(poolOf(s.baseSpec))
+  const pool = useMemo(() => JSON.parse(poolKey), [poolKey])
   const lists = useMemo(() => poolOptions(meta), [meta])
   const sortKey = s.sort?.key
   // Structures the rows on screen were screened for: read from the ANSWERED filters, so a
@@ -560,7 +572,7 @@ function FocusList({ onMode }) {
     body = (
       <div className={styles.body}>
         <ResultList ref={hubResultsRef} itemProps={hubOn ? hubCursor.itemProps : undefined} rows={displayRows} index={sel.index} onSelect={sel.select} onKeyDown={onListKeyDown}
-          livePrices={prices} radar={radar} sortLabel={sortLabel} sortMenu={sortMenu} total={total} hasMore={hasMore}
+          livePrices={prices} radar={radar} sortLabel={sortLabel} sortMenu={sortMenu} total={shownTotal} hasMore={hasMore}
           onLoadMore={s.loadMore} isLoading={isLoading} showCompany={showCompany} pending={pending} structures={structures} />
         <ChartPane row={selected} livePrice={selected ? prices[selected.ticker] : null} why={why}
           onOpenFilters={() => openFilters()} onFlag={onFlag} isFlagged={selected ? isFlagged(selected.ticker) : false} onWatch={onWatch} structures={structures} />
@@ -575,7 +587,7 @@ function FocusList({ onMode }) {
         <a href="#focus-save" className={styles.skipLink} onClick={skipToSave}>Skip to save results</a>
       </SkipLinkPortal>
       <FocusTopBar
-        screenMenu={<ScreenMenu apiRef={screenMenuApi} landing={!landed} currentName={current?.name} currentId={current?.id} isEdited={isEdited} count={total} countPending={pending && !error}
+        screenMenu={<ScreenMenu apiRef={screenMenuApi} landing={!landed} pool={pool} currentName={current?.name} currentId={current?.id} isEdited={isEdited} count={shownTotal} countPending={pending && !error}
           starters={starters} saved={saved} pinned={effectivePinned} onTogglePin={togglePin} onApply={applyScreen}
           onSaveChanges={current?.kind === 'saved' && isEdited ? saveChanges : null}
           onSaveAsNew={savedLoaded && !savedError ? saveAsScreen : null}
@@ -588,7 +600,7 @@ function FocusList({ onMode }) {
         saveMenu={(
           <span ref={saveSlotRef} id="focus-save" className={styles.saveSlot}>
             <SaveMenu canSaveScreen={savedLoaded && !savedError} canFrozenList={doors.promote && hasResult && total > 0}
-              canAlert={doors.alert} canNotebook={hasResult} count={total} hasResult={hasResult}
+              canAlert={doors.alert} canNotebook={hasResult} count={shownTotal} hasResult={hasResult}
               onSaveScreen={saveAsScreen} onFrozenList={frozenList} onAlert={standingAlert} onNotebook={toNotebook} />
           </span>
         )}
@@ -611,7 +623,7 @@ function FocusList({ onMode }) {
       {body}
       <FiltersDrawer open={filtersOpen} onClose={() => setFiltersOpen(false)} meta={meta} filters={s.filters} logic={s.logic}
         onSetFilter={ed.setFilter} onClear={() => { ed.clearFilters(); ed.setLogic(null) }} onSetLogic={ed.setLogic}
-        count={count} countLoading={countLoading} lists={lists} />
+        count={capToTopN(count, s.baseSpec)} countLoading={countLoading} countError={countError} lists={lists} />
       <Sheet open={sheet === 'howto'} onClose={() => setSheet(null)} variant="auto" title={howTo?.title || 'How to use this screen'}
         ariaLabel="How to use this screen" maxWidth={560}>
         {sheet === 'howto' && howTo && <ol className={styles.howToSteps}>{howTo.steps.map((t, i) => <li key={i}>{t}</li>)}</ol>}

@@ -1,5 +1,6 @@
 import { useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import useLazyCounts from './useLazyCounts'
+import { capToTopN, withPool } from './counts'
 import { GROUPS, groupOf } from './screenGroups'
 import Input from '../../../components/ui/Input'
 import UIcon from '../../../components/ui/UIcon'
@@ -30,7 +31,7 @@ function Item({ item, pinned, count, current, onApply, onTogglePin }) {
 
 // `landing`: the page is still choosing which screen to land on, so the button shows a
 // placeholder instead of naming a "Custom screen" that is about to be replaced (B12).
-export default function ScreenMenu({ currentName, currentId, isEdited, count, countPending = false, landing = false, starters = [], saved = [], pinned = [], onTogglePin, onApply, onSaveChanges, onSaveAsNew, onRename, onNewScreen, myScans = [], onUseScan, apiRef }) {
+export default function ScreenMenu({ currentName, currentId, isEdited, count, countPending = false, landing = false, pool = null, starters = [], saved = [], pinned = [], onTogglePin, onApply, onSaveChanges, onSaveAsNew, onRename, onNewScreen, myScans = [], onUseScan, apiRef }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const btn = useRef(null), box = useRef(null)
@@ -65,13 +66,14 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, co
     .filter(g => g.items.length)
   const mine = saved.map(s => ({ ...s, kind: 'saved' })).filter(notPinned).filter(match)
 
-  const specs = useMemo(() => Object.fromEntries(all.map(it => [String(it.id), it.spec || { filters: [] }])), [all])
+  // Each screen is counted where it would run: in the member's universe/list when it names none.
+  const specs = useMemo(() => Object.fromEntries(all.map(it => [String(it.id), withPool(it.spec, pool)])), [all, pool])
   const counts = useLazyCounts(specs, open)
   const pick = it => { onApply(it.spec || { filters: [] }, it); close() }
   const label = landing ? 'Loading screen…' : `${currentName || 'Custom screen'}${isEdited ? ' (edited)' : ''}`
   const pinnedSet = pinnedIds
   const row = it => <Item key={`${it.kind}-${it.id}`} item={it} pinned={pinnedSet.includes(String(it.id))}
-    count={counts[String(it.id)]} current={String(it.id) === String(currentId)} onApply={pick} onTogglePin={onTogglePin} />
+    count={capToTopN(counts[String(it.id)], specs[String(it.id)])} current={String(it.id) === String(currentId)} onApply={pick} onTogglePin={onTogglePin} />
 
   return (
     <span className={styles.menuWrap} ref={box} onBlur={onBlur}>

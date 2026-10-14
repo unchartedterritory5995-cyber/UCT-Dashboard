@@ -122,3 +122,34 @@ test('a large threshold in the strip label reads compactly, like the drawer pill
   expect(items[0].label).toBe('Dollar Volume (30d) ≥ $20M')
   expect(items[0].value).toBe('$2.5B')
 })
+
+// -- Task 3 --
+test('B5: with a live price the strip checks and shows the live price', () => {
+  const live = { price: 961.5, chg: 0.6, live: true }
+  const { items } = whyItsHere({ filters: { price: { op: 'gte', min: 10 } }, metaFilters: meta, row, live, snapshotDate: '2026-10-12' })
+  expect(items[0]).toEqual({ kind: 'check', label: 'Price ≥ $10', value: '$961.50' })
+})
+test('B5: a live price that no longer passes is never a tick', () => {
+  const live = { price: 9.4, chg: -2, live: true }
+  const { items } = whyItsHere({ filters: { price: { op: 'gte', min: 10 } }, metaFilters: meta, row: { price: 10.2 }, live })
+  expect(items[0]).toEqual({ kind: 'note', label: 'Price ≥ $10', value: '$9.4' })
+})
+test('B5: without a live price the snapshot value says which close it is', () => {
+  const { items } = whyItsHere({ filters: { price: { op: 'gte', min: 10 } }, metaFilters: meta, row, live: { price: 956.12, live: false }, snapshotDate: '2026-10-12' })
+  expect(items[0]).toEqual({ kind: 'check', label: 'Price ≥ $10', value: '$956.12 at Oct 12 close' })
+})
+test('plain words: a column reads as the list and sort menu name it', () => {
+  const m = [...meta, { key: 'vol_ratio', label: 'Volume Ratio', type: 'range', presets: [] }]
+  const { items } = whyItsHere({ filters: { vol_ratio: { op: 'gte', min: 1.5 } }, metaFilters: m, row: { vol_ratio: 2.1 } })
+  expect(items[0].label).toBe('Volume vs avg ≥ 1.5')
+})
+test('P10: a structure screen says what the stock has, in plain words', () => {
+  const m = [{ key: 'base_structure', label: 'Base Structure', type: 'enum', presets: [
+    { label: 'Any' }, { label: 'Pocket Pivot', op: 'contains', value: ',pocket-pivot,' },
+    { label: 'Cheat (3-C)', op: 'contains', value: ',cheat-3c,' }, { label: 'Inside Day', op: 'contains', value: ',inside-day,' }] }]
+  const one = v => whyItsHere({ filters: { base_structure: { op: 'contains', value: v } }, metaFilters: m, row: {} }).items[0]
+  expect(one(',pocket-pivot,')).toEqual({ kind: 'note', label: 'Has a Pocket Pivot' })
+  expect(one(',cheat-3c,').label).toBe('Has an Early entry inside a cup (3-C)')
+  expect(one(',inside-day,').label).toBe('Has an Inside Day')
+  expect(one(',gone,').label).not.toMatch(/^Matches/)
+})

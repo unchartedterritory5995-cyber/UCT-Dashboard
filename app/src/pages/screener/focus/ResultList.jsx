@@ -1,5 +1,6 @@
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef } from 'react'
 import { setupLine } from './setupLine'
+import { livePriceOf } from './livePrice'
 import styles from './FocusScreener.module.css'
 
 const fmtPrice = v => (Number.isFinite(v) ? v.toFixed(2) : '—')
@@ -132,12 +133,7 @@ const ResultList = forwardRef(function ResultList(
         onPointerMove={e => { if (e.currentTarget.hasAttribute('data-kbd')) e.currentTarget.removeAttribute('data-kbd') }}
         onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.removeAttribute('data-kbd') }}>
         {rows.map((r, i) => {
-          const live = livePrices[r.ticker]
-          const zeroVol = r.vol_ratio === 0
-          const hasLivePrice = Number.isFinite(live?.price)
-          const price = hasLivePrice ? live.price : r.price
-          const chg = zeroVol ? null : hasLivePrice ? (Number.isFinite(live?.change_pct) ? live.change_pct : null)
-            : (Number.isFinite(live?.change_pct) ? live.change_pct : r.chg_pct_1d)
+          const { price, chg } = livePriceOf(r, livePrices[r.ticker])
           // itemProps(i) returns one of two constant objects, so the row's prop stays stable.
           return (
             <ResultRow key={r.ticker} r={r} i={i} sel={i === index} price={price} chg={chg}
