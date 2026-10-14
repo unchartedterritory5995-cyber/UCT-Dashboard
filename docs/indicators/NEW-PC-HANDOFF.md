@@ -31,7 +31,7 @@ Written by the old Indicators Claude session. **The old session stays running un
 
 | What | State | Action for the new PC |
 |---|---|---|
-| A0 full-suite run **38466871759**, attempt 2 (re-ran `tests-10`, publish, diff) | `tests-10` **passed** (17.5 min, under its 20-min cap). The **publish** job is queued in the shared `ci-results-publish` group | check §8.1. If publish was cancelled again, re-run it (§8.1) |
+| A0 full-suite run **38466871759**, attempt 2 (re-ran `tests-10`, publish, diff) | `tests-10` **passed** (17.5 min, under its 20-min cap). **Publish was displaced again at 03:14Z**: it waited 31 min, then was cancelled with 0 steps run, because master's own runs keep queuing publishes. **No `ci-results` record exists for this run yet.** The raw vitest artifact (`vitest-log`) is complete and is what the totals in §2.2 come from | re-run publish when no master full-suite run is pending (§8.1). Report it to the workflow owner as a CI defect, not an A0 defect |
 | A1 full-suite runs 38492420145 / 38494445941 | both ended (the frontend job hit master's 45-min cap; the second was cancelled by me) | none. A1 frontend evidence is the local full run (§3.3) |
 | old-PC background watcher | polls run 38466871759 until it completes | none; it dies with the old session |
 
