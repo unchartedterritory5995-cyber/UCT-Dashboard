@@ -356,10 +356,34 @@ def pattern_presets_enabled() -> bool:
     import os
     return os.environ.get(PATTERN_PRESETS_FLAG, "0").strip() == "1"
 
+#: Member-facing one-liners for the pattern presets, keyed by detector id. Each says only what
+#: the preset filters for: the engine detected that pattern on the stock.
+PATTERN_DESCRIPTIONS = {
+    "cup_handle": "Stocks with a cup and handle the scanner detected",
+    "ascending_triangle": "Stocks with an ascending triangle the scanner detected",
+    "symmetrical_triangle": "Stocks with a symmetrical triangle the scanner detected",
+    "descending_triangle": "Stocks with a descending triangle the scanner detected",
+    "bull_flag": "Stocks with a bull flag the scanner detected",
+    "bear_flag": "Stocks with a bear flag the scanner detected",
+    "pennant": "Stocks with a pennant the scanner detected",
+    "falling_wedge": "Stocks with a falling wedge the scanner detected",
+    "rising_wedge": "Stocks with a rising wedge the scanner detected",
+    "double_bottom": "Stocks with a double bottom the scanner detected",
+    "double_top": "Stocks with a double top the scanner detected",
+    "triple_bottom": "Stocks with a triple bottom the scanner detected",
+    "triple_top": "Stocks with a triple top the scanner detected",
+    "inverse_head_shoulders": "Stocks with an inverse head and shoulders the scanner detected",
+    "head_shoulders": "Stocks with a head and shoulders the scanner detected",
+    "rounded_base": "Stocks with a rounded base the scanner detected",
+    "rectangle": "Stocks trading in a rectangle the scanner detected",
+    "channel": "Stocks trading in a channel the scanner detected",
+}
+
 
 def pattern_starters():
     return [
         {"id": f"starter_pattern_{pid}", "name": label, "group": "Chart Patterns",
+         "description": PATTERN_DESCRIPTIONS[pid],
          "spec": {"filters": [{"key": "pattern_engine_id", "op": "contains",
                                "value": f",{pid},"}],
                   "view": "patterns",
@@ -382,10 +406,14 @@ def starters():
     return [
         # UCT 50 — top 50 by composite rating (rank owns ordering; top_n caps).
         {"id": "starter_uct_50", "name": "UCT 50",
+         "group": "Momentum leaders",
+         "description": "The 50 stocks with the highest UCT composite rating",
          "spec": {"filters": [], "view": "uct_ratings",
                   "rank": {"criteria": [{"key": "uct_composite"}], "top_n": 50}}},
         # ── momentum / trend setups ──
         {"id": "starter_momentum_leaders", "name": "Leaders (RS ≥ 90)",
+         "group": "Momentum leaders",
+         "description": "RS 90 or higher, 4% daily range, $20M+ traded, above the 50 day",
          "spec": {"filters": [
              {"key": "rs_rank", "op": "gte", "min": 90},
              {"key": "adr_pct", "op": "gte", "min": 4},
@@ -394,6 +422,8 @@ def starters():
              {"key": "above_50sma", "op": "eq", "value": 1}],
           "view": "technical", "sort": {"key": "rs_rank", "dir": "desc"}}},
         {"id": "starter_pullback_20ema", "name": "Momentum pullbacks (20EMA)",
+         "group": "Momentum leaders",
+         "description": "Strong stocks (RS 80+) resting within 2% of their 20 day EMA",
          "spec": {"filters": [
              {"key": "rs_rank", "op": "gte", "min": 80},
              {"key": "pct_vs_ema20", "op": "between", "min": -2, "max": 2},
@@ -401,6 +431,8 @@ def starters():
              {"key": "vol_nweek_low", "op": "gte", "min": 10}],
           "view": "technical", "sort": {"key": "rs_rank", "dir": "desc"}}},
         {"id": "starter_tight_base", "name": "Tight bases near highs",
+         "group": "Bases & chart patterns",
+         "description": "Within 8% of the 52 week high and trading in a tight range",
          "spec": {"filters": [
              {"key": "dist_52w_high_pct", "op": "gte", "min": -8},
              {"key": "close_cv_pct", "op": "lte", "max": 2.5},
@@ -409,19 +441,29 @@ def starters():
           "view": "technical", "sort": {"key": "dist_52w_high_pct", "dir": "desc"}}},
         # ── named base structures (query the delimiter-wrapped match set) ──
         {"id": "starter_base_pocket_pivot", "name": "Pocket pivots",
+         "group": "Breakouts & entries",
+         "description": "Stocks the scanner flags with a pocket pivot",
          "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",pocket-pivot,"}],
                   "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
         {"id": "starter_power_play", "name": "Power Plays",
+         "group": "Momentum leaders",
+         "description": "Stocks the scanner flags as a power play",
          "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",power-play,"}],
                   "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
         {"id": "starter_stage2_breakout", "name": "Stage-2 breakouts",
+         "group": "Breakouts & entries",
+         "description": "Stocks the scanner flags as a stage 2 breakout",
          "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",stage-2-breakout,"}],
                   "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
         {"id": "starter_three_weeks_tight", "name": "Three weeks tight",
+         "group": "Bases & chart patterns",
+         "description": "Stocks the scanner flags with three tight weekly closes",
          "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",three-weeks-tight,"}],
                   "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
         # ── gaps / breakouts / events / value ──
         {"id": "starter_value_quality", "name": "Cheap quality compounders",
+         "group": "Quality & value",
+         "description": "Forward P/E 20 or less, ROE 15%+ and EPS growth 15%+",
          "spec": {"filters": [
              {"key": "pe_fwd", "op": "lte", "max": 20},
              {"key": "roe", "op": "gte", "min": 15},
@@ -441,12 +483,16 @@ def starters():
         # (momentum_leaders / pullback_20ema / tight_base moved to the top of
         #  this list, renamed; their specs are unchanged.)
         {"id": "starter_gap_movers", "name": "Gap Movers",
+         "group": "Momentum leaders",
+         "description": "Gapped up 8% or more on 3x normal volume, $300M+ market cap",
          "spec": {"filters": [
              {"key": "gap_pct", "op": "gte", "min": 8},
              {"key": "vol_ratio", "op": "gte", "min": 3},
              {"key": "market_cap", "op": "gte", "min": 300_000_000}],
           "view": "momentum", "sort": {"key": "gap_pct", "dir": "desc"}}},
         {"id": "starter_52w_breakout", "name": "52-Week Breakout on Volume",
+         "group": "Breakouts & entries",
+         "description": "New 52 week high on 1.5x volume, $10M+ traded daily",
          "spec": {"filters": [
              {"key": "new_52w_high", "op": "eq", "value": 1},
              {"key": "vol_ratio", "op": "gte", "min": 1.5},
@@ -472,6 +518,8 @@ def starters():
         # preset yields 37 vs 38 unfiltered). It shipped in the Wave-6 finviz
         # parity pull and populated on its first night.
         {"id": "starter_earnings_momentum", "name": "Earnings Momentum",
+         "group": "Earnings",
+         "description": "Reports within 7 days, has options, RS 70 or higher",
          "spec": {"filters": [
              {"key": "days_to_earnings", "op": "between", "min": 0, "max": 7},
              {"key": "optionable", "op": "eq", "value": 1},
