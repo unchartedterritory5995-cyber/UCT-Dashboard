@@ -211,7 +211,7 @@ The joystick hub's screener section keeps working: the list exposes the same `sc
 
 **Phase 1 — frontend on existing data (this spec's build):** flag, layout, list, chart pane with neighbour warm,
 setup line rules, radar dot, why-it's-here, screen menu with lazy counts and client grouping, filters drawer,
-universe pill (needs a `universe` meta entry, §12), Save/⋯/? menus, data receipt, all states, keyboard, Table mode.
+universe pill (§12), Save/⋯/? menus, data receipt, all states, keyboard, Table mode.
 
 **Phase 2 — small backend additions:**
 1. Persist `base_pivot_px` and `base_pivot_detection` alongside `base_render` in `bases.classify()` /
@@ -230,8 +230,9 @@ universe pill (needs a `universe` meta entry, §12), Save/⋯/? menus, data rece
 - Client: `SERVER_FLAGS` entry in `AuthContext.jsx`; `Screener.jsx` renders `<FocusScreener/>` when
   `useContext(AuthContext)?.screenerFocusLayout === true && !embedded && !inPanel`, else `<ScannerShell/>`.
 - Rollout: `admin` (owner) → `1` (everyone) after a browser walk on prod; old shell removed in a later cleanup.
-- Add `universe` to the meta filter registry (label "Universe", options All stocks / UCT Universe) so the pill
-  has a real label; the query path already handles the key.
+- The universe pill's label is derived client-side from the spec (`universe.value === 'uct'` → "UCT Universe",
+  `list.label`, else "All stocks"). No `universe` meta entry: adding one to the filter registry would route the
+  key through the generic column path, while the query handles it specially (`query._universe_clauses`).
 
 ## 13. Code structure
 
