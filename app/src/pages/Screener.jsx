@@ -93,11 +93,14 @@ export default function Screener({ embedded = false }) {
   const focusOn = useContext(AuthContext)?.screenerFocusLayoutEnabled === true && !embedded && !inPanel
 
   const containerCls = `${styles.containerFull} ${embedded ? styles.pageEmbedded : ''}`.trim()
+  // With the Focus layout and no Options tab the header would hold nothing: an empty 60px strip above the top bar.
+  const showHeading = !embedded && !inPanel && !focusOn
+  const showHeader = showHeading || optionsOn
 
   return (
     <div className={containerCls}>
-      <div className={styles.headerFull}>
-        {!embedded && !inPanel && !focusOn && (
+      {showHeader && <div className={styles.headerFull}>
+        {showHeading && (
           <h1 className={styles.heading}>
             <UIcon name="screener" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />
             Screener
@@ -116,7 +119,7 @@ export default function Screener({ embedded = false }) {
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* FT-046: renders nothing unless HOW_TO_CHECKLISTS_ENABLED is on AND the owner
           approved this surface's copy (components/howTo). Full page only. The Focus layout

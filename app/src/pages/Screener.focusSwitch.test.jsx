@@ -40,3 +40,14 @@ test('the how-to bar moves under the Focus layout ? menu; the old page keeps it'
   wrap({ screenerFocusLayoutEnabled: false, howToChecklistsEnabled: true })
   expect(screen.getByTestId('how-to-checklist')).toBeInTheDocument()
 })
+
+test('the Focus layout draws no empty header strip above its top bar', () => {
+  const { container, unmount } = wrap({ screenerFocusLayoutEnabled: true })
+  expect(container.querySelector('h1')).toBeNull()
+  // the Focus top bar is the page's first child: nothing renders above it
+  expect(container.firstChild.firstChild).toBe(screen.getByTestId('focus'))
+  unmount()
+  // control: the old page keeps its header with the heading in it
+  const old = wrap({ screenerFocusLayoutEnabled: false })
+  expect(old.container.querySelector('h1')).not.toBeNull()
+})
