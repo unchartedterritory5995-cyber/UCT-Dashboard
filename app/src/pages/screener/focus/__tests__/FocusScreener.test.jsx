@@ -4,10 +4,10 @@ import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { vi, beforeEach, expect, test } from 'vitest'
 vi.mock('../../../../components/StockChart', () => ({ default: p => <div data-testid="stockchart" data-sym={p.sym} /> }))
-vi.mock('../../shell/ScannerShell', () => ({ default: () => <div data-testid="table-mode" /> }))
+vi.mock('../../shell/ScannerShell', () => ({ default: p => <div data-testid="table-mode">{p.toolbarLead}</div> }))
 vi.mock('../../../../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {} }) }))
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: () => {} }))
-vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {} }))
+vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {} }))
 import FocusScreener from '../FocusScreener'
 import { SPEC_PARAM, encodeSpec, decodeSpec } from '../../shell/specUrl'
 import { AuthContext } from '../../../../context/AuthContext'
@@ -204,10 +204,10 @@ test('the ? menu offers the how-to only when the checklist is on, and opens it i
 // A meta whose view mixes numeric and text columns, and whose library carries the Base Structure filter.
 const META_RICH = { ...META, views: [{ key: 'overview', columns: ['ticker', 'company', 'price', 'sector', 'base_render', 'vol_ratio'] }],
   filters: [...META.filters,
-    { key: 'price', label: 'Price', category: 'technical', type: 'range', column: 'price', presets: [{ label: 'Any' }] },
-    { key: 'vol_ratio', label: 'Volume Ratio', category: 'technical', type: 'range', column: 'vol_ratio', presets: [{ label: 'Any' }] },
-    { key: 'sector', label: 'Sector', category: 'technical', type: 'enum', column: 'sector', presets: [{ label: 'Any' }] },
-    { key: 'base_structure', label: 'Base Structure', category: 'technical', type: 'enum', column: 'base_matches', presets: [
+    { key: 'price', label: 'Price', category: 'technical', type: 'range', presets: [{ label: 'Any' }] },
+    { key: 'vol_ratio', label: 'Volume Ratio', category: 'technical', type: 'range', presets: [{ label: 'Any' }] },
+    { key: 'sector', label: 'Sector', category: 'technical', type: 'enum', presets: [{ label: 'Any' }] },
+    { key: 'base_structure', label: 'Base Structure', category: 'technical', type: 'enum', presets: [
       { label: 'Any' }, { label: 'Pocket Pivot', op: 'contains', value: ',pocket-pivot,' }] }] }
 const richMeta = url => (url.startsWith('/api/screener/meta') ? { ok: true, json: async () => META_RICH } : null)
 
@@ -444,4 +444,86 @@ test('B2: without a structure filter the row leads with the render head', async 
   await waitFor(() => screen.getByTestId('focus-row-UDB'))
   expect(screen.getByTestId('focus-row-UDB')).toHaveTextContent('Ugly Double Bottom')
   expect(screen.getByTestId('focus-row-UDB')).not.toHaveTextContent('also')
+})
+
+// ── wiring from Tasks 6 and 8 ─────────────────────────────────────────────────
+test('"Skip to results" moves focus to the results list', async () => {
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  const link = screen.getByRole('link', { name: 'Skip to results' })
+  // first of the page's skip links, before "Skip to save results"
+  expect(screen.getAllByRole('link').filter(l => /^Skip to/.test(l.textContent))[0]).toBe(link)
+  fireEvent.click(link)
+  expect(document.activeElement).toBe(screen.getByRole('listbox'))
+})
+test('"?" opens the shortcuts sheet from the page root, and Help offers it with the ? hint', async () => {
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  expect(screen.queryByRole('dialog', { name: 'Keyboard shortcuts' })).toBeNull()
+  fireEvent.keyDown(screen.getByRole('listbox'), { key: '?' })
+  const sheet = await screen.findByRole('dialog', { name: 'Keyboard shortcuts' })
+  expect(within(sheet).getByTestId('focus-shortcuts')).toHaveTextContent('Show this list')
+})
+test('Save is on the bar but disabled until the list has answered', async () => {
+  let release
+  const gate = new Promise(r => { release = r })
+  // the held answer is the ordinary one: `extra` steps aside once released, so route() cannot recurse
+  let held = true
+  extra = url => (held && url === '/api/screener/scan' ? gate.then(() => { held = false; return route(url) }) : null)
+  mount()
+  const save = await screen.findByRole('button', { name: 'Save' })
+  expect(save).toHaveAttribute('aria-disabled', 'true')
+  fireEvent.click(save)
+  expect(screen.queryByRole('menuitem', { name: /Save as a screen/ })).toBeNull()
+  release()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  expect(screen.getByRole('button', { name: 'Save' })).not.toHaveAttribute('aria-disabled')
+})
+test('the screen button says "Loading screen…" until the landing screen is chosen', async () => {
+  extra = url => (url.startsWith('/api/screener/saved-screens') ? new Promise(() => {}) : null)
+  mount()
+  await waitFor(() => expect(screen.getByText('Loading screen…')).toBeInTheDocument())
+  expect(screen.queryByText('Custom screen')).toBeNull()
+  await waitFor(() => screen.getByTestId('focus-row-MU'), { timeout: 5000 })
+  expect(screen.queryByText('Loading screen…')).toBeNull()
+}, 10000)
+test('Table mode has ONE bar: the List|Table switch leads the table toolbar', async () => {
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  fireEvent.click(screen.getByRole('button', { name: 'Table' }))
+  const table = screen.getByTestId('table-mode')
+  expect(within(table).getByRole('button', { name: 'List' })).toBeInTheDocument()
+  expect(within(table).getByRole('button', { name: 'Table' })).toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: 'List' })).toHaveLength(1)
+  expect(screen.queryByRole('banner')).toBeNull()
+})
+const emptyAt = sp => {
+  scanRows = []
+  window.history.replaceState(null, '', `/?${SPEC_PARAM}=${encodeSpec(sp)}`)
+}
+test('an empty result offers removable pills built from the screen that came back empty', async () => {
+  emptyAt({ filters: { rs_rank: { op: 'gte', min: 90 } } })
+  mount()
+  await screen.findByRole('button', { name: /^Remove RS Rank/ })
+  await new Promise(r => setTimeout(r, 400)) // past the scan debounce: the screen has settled
+  fireEvent.click(screen.getByRole('button', { name: /^Remove RS Rank/ }))
+  await waitFor(() => expect(scanBodies().at(-1).filters.some(f => f.key === 'rs_rank')).toBe(false))
+})
+test('saving a screen that matches nothing says it will still rerun nightly', async () => {
+  emptyAt({ filters: { rs_rank: { op: 'gte', min: 90 } } })
+  mount()
+  await screen.findByRole('button', { name: /^Remove RS Rank/ })
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).not.toHaveAttribute('aria-disabled'))
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  fireEvent.click(await screen.findByRole('menuitem', { name: /Save as a screen/ }))
+  const dialog = await screen.findByRole('dialog', { name: 'Save as a screen' })
+  expect(within(dialog).getByTestId('name-dialog-note')).toHaveTextContent('Nothing matches this screen today')
+})
+test('saving a screen with matches carries no zero-match note', async () => {
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  fireEvent.click(await screen.findByRole('menuitem', { name: /Save as a screen/ }))
+  const dialog = await screen.findByRole('dialog', { name: 'Save as a screen' })
+  expect(within(dialog).queryByTestId('name-dialog-note')).toBeNull()
 })

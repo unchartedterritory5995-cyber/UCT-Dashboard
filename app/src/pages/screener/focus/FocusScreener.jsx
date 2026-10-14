@@ -32,7 +32,7 @@ import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { useFlagged } from '../../../hooks/useFlagged'
 import { prefetchBars } from '../../../utils/prefetchBars'
 import { chartsLinkPath } from '../../../lib/chartDeepLink'
-import { SkipLinkPortal } from '../../../components/skipLinks'
+import { SkipLinkPortal, SkipLink } from '../../../components/skipLinks'
 import Sheet from '../../../components/mobile/Sheet'
 import MethodologyPanel from '../../../components/screener/MethodologyPanel'
 import StructureProvenance from '../../../components/screener/StructureProvenance'
@@ -51,6 +51,7 @@ import DataReceipt, { coverageHasDrop } from './DataReceipt'
 import ResultList from './ResultList'
 import { activeStructures, structureLabels } from './setupLine'
 import { plainColumnLabel } from './plainWords'
+import { sortableColumns } from './sortKeys'
 import ChartPane from './ChartPane'
 import { ListSkeleton, EmptyState, ErrorState } from './FocusStates'
 import useFocusSelection from './useFocusSelection'
@@ -59,6 +60,8 @@ import { whyItsHere, whyColumns } from './whyItsHere'
 import { describeEmptying } from './emptyUndo'
 import { migratePinned } from './screenGroups'
 import { useNameDialog } from './useNameDialog'
+import { useShortcutsSheet } from './useShortcutsSheet'
+import { ZERO_MATCH_NOTE } from './NameDialog'
 import {
   useRadar, useSaveDoors, poolOptions, createScreen, updateScreen,
   saveFrozenList, saveStandingAlert, saveToNotebook,
@@ -116,14 +119,11 @@ export default function FocusScreener() {
   if (mode === 'table') {
     return (
       <div className={styles.page} data-testid="focus-screener" data-mode="table">
-        <header className={styles.topBar}>
-          <span className={styles.spacer} />
-          <ModeSwitch mode={mode} onMode={onMode} />
-        </header>
         <div className={styles.tableMode}>
           {/* Screener.jsx hides its own checklist while the Focus layout is on; Table mode keeps it reachable. */}
           <HowToChecklist surface="screener.stocks" />
-          <ScannerShell />
+          {/* ONE bar in Table mode: the List|Table switch leads the table's own toolbar (P14). */}
+          <ScannerShell toolbarLead={<ModeSwitch mode={mode} onMode={onMode} />} />
         </div>
       </div>
     )
@@ -196,7 +196,7 @@ function FocusList({ onMode }) {
     const { [asked.sig]: _used, ...dropped } = base.dropped
     return {
       ...base, result: res, total: res.total, prev, lastChange: change, rows: res.rows || [], rowsKey: asked.sig,
-      exhausted: false, shown: { filters: asked.filters, logic: asked.logic, rank: asked.rank }, dropped,
+      exhausted: false, shown: { filters: asked.filters, logic: asked.logic, rank: asked.rank, baseSpec: asked.baseSpec }, dropped,
     }
   }
   if (result && result !== answered.result) {
@@ -329,6 +329,7 @@ function FocusList({ onMode }) {
   // ── screen identity (which starter or saved screen is applied) ───────────
   const { saved, starters, error: savedError, loaded: savedLoaded, refresh } = useSavedScreens()
   const [askName, nameDialog] = useNameDialog()
+  const shortcuts = useShortcutsSheet()
   // {id, name, kind, spec}. Rehydrated from this tab's named screens when the spec this
   // mount opened on still matches one (List→Table→List remounts this component). A bare
   // arrival carries no spec to match, so it lands on the first pinned screen as before.
@@ -447,7 +448,8 @@ function FocusList({ onMode }) {
     scans: (meta?.filters || []).find(f => f.key === 'scan')?.scans, scanJoins: result?.scan_joins,
   }), [meta, result])
   const saveAsScreen = async () => {
-    const name = await askName({ title: 'Save as a screen', label: 'Screen name', initial: current?.kind === 'saved' ? '' : current?.name || '' })
+    const name = await askName({ title: 'Save as a screen', label: 'Screen name', initial: current?.kind === 'saved' ? '' : current?.name || '',
+      note: total === 0 ? ZERO_MATCH_NOTE : undefined })
     if (!name) return
     const out = await createScreen(name, s.baseSpec)
     refresh()
@@ -516,9 +518,7 @@ function FocusList({ onMode }) {
   // A column is numeric when meta carries a range filter over it — the type is the server's,
   // never a list typed here. The default sort is always offered; a text sort set elsewhere still
   // shows in the trigger and "Reverse order" still flips it.
-  const numericCols = useMemo(() => new Set((meta?.filters || []).filter(f => f.type === 'range').map(f => f.column || f.key)), [meta])
-  const sortKeys = [...new Set([DEFAULT_SORT.key, ...(sortKey ? [sortKey] : []), ...(s.visibleColumns || result?.view_columns || [])])]
-    .filter(k => k && (k === DEFAULT_SORT.key || numericCols.has(k)))
+  const sortKeys = sortableColumns({ meta, columns: s.visibleColumns || result?.view_columns || [], sortKey, defaultKey: DEFAULT_SORT.key })
   const sortMenu = (
     <Menu label={`Sort: ${sortLabel}`} trigger={<>Sort: <span className={styles.listHeadValue}>{sortLabel}</span></>}
       triggerClassName={styles.linkBtn} width={240} testId="focus-sort-menu">
@@ -552,7 +552,10 @@ function FocusList({ onMode }) {
   } else if (!result) {
     body = <div className={styles.body}><div className={styles.listWrap}><ListSkeleton /></div><div className={styles.pane} aria-hidden="true" /></div>
   } else if (total === 0) {
-    body = <EmptyState filterCount={filterCount} lastChange={lastChange} onUndo={undoLast} onOpenFilters={() => openFilters()} />
+    // The pills are built from the screen that CAME BACK empty, never the live spec: a filter
+    // being edited in the drawer must not grow a pill for a screen nobody has run yet.
+    body = <EmptyState filterCount={filterCount} lastChange={lastChange} onUndo={undoLast} onOpenFilters={() => openFilters()}
+      spec={answered.shown?.baseSpec || null} meta={meta} onRemoveFilter={k => ed.setFilter(k, null)} onRemoveLogic={() => ed.setLogic(null)} />
   } else {
     body = (
       <div className={styles.body}>
@@ -566,12 +569,13 @@ function FocusList({ onMode }) {
   }
 
   return (
-    <div ref={pageRef} className={styles.page} data-testid="focus-screener" data-mode="list" data-density={density}>
+    <div ref={pageRef} className={styles.page} data-testid="focus-screener" data-mode="list" data-density={density} onKeyDown={shortcuts.onKeyDown}>
       <SkipLinkPortal>
+        <SkipLink href="#focus-results" className={styles.skipLink} target={() => pageRef.current?.querySelector('[data-focus-list]')}>Skip to results</SkipLink>
         <a href="#focus-save" className={styles.skipLink} onClick={skipToSave}>Skip to save results</a>
       </SkipLinkPortal>
       <FocusTopBar
-        screenMenu={<ScreenMenu apiRef={screenMenuApi} currentName={current?.name} currentId={current?.id} isEdited={isEdited} count={total} countPending={pending && !error}
+        screenMenu={<ScreenMenu apiRef={screenMenuApi} landing={!landed} currentName={current?.name} currentId={current?.id} isEdited={isEdited} count={total} countPending={pending && !error}
           starters={starters} saved={saved} pinned={effectivePinned} onTogglePin={togglePin} onApply={applyScreen}
           onSaveChanges={current?.kind === 'saved' && isEdited ? saveChanges : null}
           onSaveAsNew={savedLoaded && !savedError ? saveAsScreen : null}
@@ -584,7 +588,7 @@ function FocusList({ onMode }) {
         saveMenu={(
           <span ref={saveSlotRef} id="focus-save" className={styles.saveSlot}>
             <SaveMenu canSaveScreen={savedLoaded && !savedError} canFrozenList={doors.promote && hasResult && total > 0}
-              canAlert={doors.alert} canNotebook={hasResult} count={total}
+              canAlert={doors.alert} canNotebook={hasResult} count={total} hasResult={hasResult}
               onSaveScreen={saveAsScreen} onFrozenList={frozenList} onAlert={standingAlert} onNotebook={toNotebook} />
           </span>
         )}
@@ -593,8 +597,7 @@ function FocusList({ onMode }) {
           density={density} onDensity={d => { setDensity(d); writeLS(DENSITY_KEY, d) }}
           showCompany={showCompany} onToggleCompany={() => setShowCompany(v => { writeLS(COMPANY_KEY, v ? '0' : '1'); return !v })} />}
         helpMenu={<HelpMenu onHowTo={howTo ? () => setSheet('howto') : null} onMethodology={() => setSheet('methodology')}
-          onLibrary={() => setSheet('library')} onGlossary={() => openFilters()}
-          onShortcuts={() => say('↑ ↓ move · Shift+F flag · W watchlist · Enter full chart · / filters')} />}
+          onLibrary={() => setSheet('library')} onGlossary={() => openFilters()} shortcuts={shortcuts} />}
       />
       {metaError && !meta && (
         // The list still renders with the current screen; only the filter registry is missing.
@@ -621,6 +624,7 @@ function FocusList({ onMode }) {
       </Sheet>
       {hubMount}
       {nameDialog}
+      {shortcuts.sheet}
       {toast && (
         <div className={styles.toast} role="status" aria-live="polite" data-testid="focus-toast"
           onMouseEnter={holdToast} onMouseLeave={armToast} onFocus={holdToast} onBlur={armToast}>

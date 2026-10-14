@@ -7,10 +7,10 @@ import { MemoryRouter, useLocation } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { vi, beforeEach, expect, test } from 'vitest'
 vi.mock('../../../../components/StockChart', () => ({ default: p => <div data-testid="stockchart" data-sym={p.sym} /> }))
-vi.mock('../../shell/ScannerShell', () => ({ default: () => <div data-testid="table-mode" /> }))
+vi.mock('../../shell/ScannerShell', () => ({ default: p => <div data-testid="table-mode">{p.toolbarLead}</div> }))
 vi.mock('../../../../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {} }) }))
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: () => {} }))
-vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {} }))
+vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {} }))
 import FocusScreener from '../FocusScreener'
 import { SPEC_PARAM, DEFAULT_SORT, encodeSpec, decodeSpec } from '../../shell/specUrl'
 

@@ -37,7 +37,7 @@ vi.mock('../../../../components/StockChart', () => ({ default: p => <div data-te
 vi.mock('../../shell/ScannerShell', () => ({ default: () => <div data-testid="table-mode" /> }))
 vi.mock('../../../../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {} }) }))
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: () => {} }))
-vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {} }))
+vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {} }))
 import FocusScreener from '../FocusScreener'
 
 const META = { filters: [], categories: [], views: [{ key: 'overview', columns: ['ticker', 'price'] }] }
