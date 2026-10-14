@@ -189,3 +189,24 @@ test('the Describe input sits inside the focus trap', () => {
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Show 214 stocks' }))
   expect(input.closest('[role="dialog"]')).not.toBeNull()
 })
+
+test('an any-of explanation keeps its wording so it never reads as an AND', async () => {
+  describeState.available = true
+  describeState.run.mockResolvedValue({ filters: null, logic: { any: [] }, explanation: [{ depth: 0, text: 'Any of the following:' }, { depth: 1, text: 'RS Rank is at least 80' }, { depth: 1, text: 'Price is above 10' }] })
+  render(<FiltersDrawer {...base} filters={{}} />)
+  typeAndSubmit('either')
+  expect(await screen.findByText('Any of the following: RS Rank is at least 80; Price is above 10')).toBeInTheDocument()
+})
+test('a universe changed during the compile is not overwritten', async () => {
+  describeState.available = true
+  let release
+  describeState.run.mockImplementation(() => new Promise(r => { release = () => r({ filters: [{ key: 'rs_rank', op: 'gte', min: 80 }], explanation: [] }) }))
+  const old = { op: 'eq', value: 'uct', label: 'UCT Universe' }
+  const fresh = { op: 'in', value: 'wl:7', label: 'Semis' }
+  const { rerender } = render(<FiltersDrawer {...base} filters={{ universe: old }} />)
+  typeAndSubmit('leaders')
+  rerender(<FiltersDrawer {...base} filters={{ list: fresh }} />)
+  release()
+  await waitFor(() => expect(base.onSetFilter).toHaveBeenCalledWith('list', fresh))
+  expect(base.onSetFilter).not.toHaveBeenCalledWith('universe', old)
+})

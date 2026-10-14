@@ -6,7 +6,9 @@ vi.mock('../../shell/criteriaApi', () => ({
   compileAvailable: vi.fn(async () => true),
 }))
 import * as api from '../../shell/criteriaApi'
-import useDescribe from '../useDescribe'
+import useDescribe, { __resetDescribeProbe } from '../useDescribe'
+import { beforeEach } from 'vitest'
+beforeEach(() => { __resetDescribeProbe(); api.grammarAvailable.mockClear(); api.compileAvailable.mockClear() })
 
 test('available when both doors answer, and run returns filters', async () => {
   const { result } = renderHook(() => useDescribe())
@@ -36,4 +38,20 @@ test('a failed compile surfaces the server sentence and returns null', async () 
   await act(async () => { out = await result.current.run('x') })
   expect(out).toBeNull()
   expect(result.current.error).toBe('Daily limit reached.')
+})
+
+test('the probe runs once per page lifetime, and a failed probe retries', async () => {
+  const a = renderHook(() => useDescribe())
+  await waitFor(() => expect(a.result.current.available).toBe(true))
+  const b = renderHook(() => useDescribe())
+  await waitFor(() => expect(b.result.current.available).toBe(true))
+  expect(api.grammarAvailable).toHaveBeenCalledTimes(1)
+  __resetDescribeProbe()
+  api.grammarAvailable.mockResolvedValueOnce(false)
+  const c = renderHook(() => useDescribe())
+  await waitFor(() => expect(api.grammarAvailable).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(c.result.current.available).toBe(false))
+  const d = renderHook(() => useDescribe())
+  await waitFor(() => expect(d.result.current.available).toBe(true))
+  expect(api.grammarAvailable).toHaveBeenCalledTimes(3)
 })

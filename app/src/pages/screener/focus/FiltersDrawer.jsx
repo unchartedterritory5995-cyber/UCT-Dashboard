@@ -17,7 +17,18 @@ function universeLabel(filters) {
 }
 
 // The compile route's explanation is an outline of {depth, text}; the drawer shows one line.
-const explainLine = ex => (Array.isArray(ex) ? ex.map(x => x?.text).filter(t => t && !t.endsWith(':')).join('; ') : String(ex || ''))
+// Group headers stay ("Any of the following: A; B") so an OR or NOT never reads as an AND.
+// Only the top-level "All of the following:" is dropped, since pills are an AND already.
+const explainLine = ex => {
+  if (!Array.isArray(ex)) return String(ex || '')
+  let out = ''
+  ex.forEach((x, i) => {
+    const t = x?.text
+    if (!t || (i === 0 && t === 'All of the following:')) return
+    out += (out && !out.endsWith(': ') ? '; ' : out ? '' : '') + t + (t.endsWith(':') ? ' ' : '')
+  })
+  return out.trim()
+}
 
 // Left drawer holding every filter. A modal dialog: focus moves in on open,
 // Escape (handled on the dialog, no document listener) closes it, and focus goes
@@ -27,6 +38,10 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
   const describe = useDescribe(open)
   const [text, setText] = useState('')
   const [explain, setExplain] = useState('')
+  // Latest filters, read after the compile await so a universe changed meanwhile is not overwritten.
+  const filtersRef = useRef(filters)
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in the submit handler
+  filtersRef.current = filters
   // Captured in a ref so a new ref identity while open cannot re-run the effect and steal focus.
   const returnRef = useRef(returnFocusRef)
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only inside the open/close effect
@@ -58,7 +73,7 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
     if (!out) { setExplain(''); return }
     if (Array.isArray(out.filters) && out.filters.length) {
       // The member's universe choice is not part of a described setup: keep it.
-      const { universe, list } = filters
+      const { universe, list } = filtersRef.current || {}
       onClear()
       onSetLogic(null)
       for (const { key, ...rest } of out.filters) onSetFilter(key, rest)
