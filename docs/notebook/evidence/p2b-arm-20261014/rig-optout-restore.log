@@ -1,0 +1,9 @@
+profile: C:\Users\Patrick\uct-q1-observe\canary-chrome-profile-persistent
+rig profile: C:\Users\Patrick\uct-q1-observe\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+(node:47372) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+before: None
+opt_out: True '0'
+flush: ok
+teardown: killed=0 left=[] released=True held=[]
+on disk: 0 appends: 1

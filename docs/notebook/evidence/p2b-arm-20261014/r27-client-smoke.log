@@ -1,0 +1,45 @@
+nav entries derived from NavBar.jsx: 19
+extra routes R-27 names that the nav cannot supply: /settings, /journal/notebook
+rig profile: C:\Users\Patrick\uct-q1-observe\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+(node:8388) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+viewport pinned to 1440x900 (desktop NavBar tier)
+
+opt-in keys on the rig, as found: {'uct.j2.offline.enabled': '0', 'uct.nb.capture.enabled': None}
+--reset-keys: cleared, re-read as {'uct.j2.offline.enabled': None, 'uct.nb.capture.enabled': None}
+/api/auth/me: 200
+
+── CLIENT-SIDE NAVIGATION (clicked, never goto) ──
+  PASS    /terminal            275ms
+  PASS    /charts              220ms
+  PASS    /morning-wire        205ms
+  PASS    /dashboard           210ms
+  PASS    /ai-search           510ms
+  PASS    /uct-20              244ms
+  PASS    /breadth             387ms
+  PASS    /screener            298ms
+  PASS    /options-flow        430ms
+  PASS    /flow-scoreboard     210ms
+  PASS    /live-massive        202ms
+  PASS    /catalysts/history   228ms
+  PASS    /model-book          288ms
+  PASS    /formulas/reference  201ms
+  PASS    /desk                420ms
+  PASS    /journal             312ms
+  PASS    /portfolio-heat      208ms
+  PASS    /community           245ms
+  PASS    /support             346ms
+
+── ROUTES R-27 NAMES THAT ARE NOT NAV ENTRIES ──
+  PASS    /settings              rendered 1617 chars
+  PASS    /journal/notebook      rendered 4000 chars
+
+── RENDER STABILITY (5s idle each) ──
+  PASS    /dashboard     stable (1 commits, 4 mutations)
+  PASS    /charts        stable (5 commits, 5 mutations)
+  PASS    /screener      stable (0 commits, 0 mutations)
+  PASS    /journal       stable (0 commits, 0 mutations)
+
+recorded → docs/notebook/evidence/p2b-arm-20261014/r27-client-smoke.json
+
+✅ PASS — 21 routes navigated, 4 surfaces stable across 5s idle.
