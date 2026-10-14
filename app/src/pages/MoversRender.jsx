@@ -17,10 +17,47 @@ import uctLogo from '../components/intro/assets/compass-mark.png'
 
 
 import { renderTokenOk } from '../lib/renderToken'
+const UP = '#22c55e'
+const DN = '#ef4444'
 const BUCKET_STYLE = {
-  small_up: { color: '#22c55e' },
-  big_up: { color: '#22c55e' },
-  big_dn: { color: '#ef4444' },
+  small_up: { color: UP },
+  big_up: { color: UP },
+  big_dn: { color: DN },
+  // Relative lanes (Morning Wire): "Leading the Market" / "Lagging the Market".
+  // The bucket direction is RELATIVE to SPY, not the name's own move -- a Leading
+  // name can itself be red (XLU -0.2% while SPY -1.8%), so the ROW colour below
+  // reads the row's own sign and only the header marker uses this colour.
+  rel_up: { color: UP },
+  rel_dn: { color: DN },
+}
+
+// The bucket's direction: an explicit `dir` ('up'/'dn') wins, then the key.
+// Unknown keys read as up, exactly as before (`b.key !== 'big_dn'`).
+export function bucketUp(b) {
+  const d = String((b && b.dir) || '').toLowerCase()
+  if (d === 'up') return true
+  if (d === 'dn' || d === 'down') return false
+  const k = b && b.key
+  return k !== 'big_dn' && k !== 'rel_dn'
+}
+
+// The sign of a row's OWN move, from its pct ('+3.4%', '-0.2%', 1.5, '−0.8%').
+// null when unsigned/zero/unparseable -> the caller falls back to the bucket.
+export function pctSign(pct) {
+  if (pct === null || pct === undefined) return null
+  const n = typeof pct === 'number'
+    ? pct
+    : parseFloat(String(pct).replace(/[−–]/g, '-').replace(/[^0-9.+-]/g, ''))
+  if (!Number.isFinite(n) || n === 0) return null
+  return n > 0
+}
+
+// A row is green when ITS OWN pct is up, red when down; a flat/unparseable pct
+// inherits the bucket direction (which keeps every pre-existing bucket identical:
+// its rows all carry the bucket's sign).
+export function rowUp(it, bucketIsUp) {
+  const s = pctSign(it && it.pct)
+  return s === null ? bucketIsUp : s
 }
 
 function Row({ it, up }) {
@@ -36,7 +73,7 @@ function Row({ it, up }) {
         {it.news || ''}
       </span>
       <span style={{ flex: '0 0 auto', fontSize: 18, fontWeight: 800, fontVariantNumeric: 'tabular-nums',
-                     color: up ? '#22c55e' : '#ef4444', minWidth: 74, textAlign: 'right' }}>
+                     color: up ? UP : DN, minWidth: 74, textAlign: 'right' }}>
         {it.pct}
       </span>
     </div>
@@ -44,15 +81,15 @@ function Row({ it, up }) {
 }
 
 function Bucket({ b }) {
-  const up = b.key !== 'big_dn'
-  const c = (BUCKET_STYLE[b.key] || {}).color || '#e8e8e8'
+  const up = bucketUp(b)
+  const c = b.dir ? (up ? UP : DN) : ((BUCKET_STYLE[b.key] || {}).color || '#e8e8e8')
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 4px 4px' }}>
         <span style={{ color: c, fontSize: 15 }}>{b.marker}</span>
         <span style={{ color: '#e8e8e8', fontWeight: 800, fontSize: 14, letterSpacing: '0.7px', textTransform: 'uppercase' }}>{b.title}</span>
       </div>
-      {(b.items || []).map((it, i) => <Row key={it.sym || i} it={it} up={up} />)}
+      {(b.items || []).map((it, i) => <Row key={it.sym || i} it={it} up={rowUp(it, up)} />)}
     </div>
   )
 }
@@ -98,7 +135,7 @@ export default function MoversRender() {
         </div>
         <div style={{ padding: '12px 18px 6px' }}>
           {buckets.length === 0 && <div style={{ color: '#888', padding: 12 }}>No qualifying movers.</div>}
-          {buckets.map((b) => <Bucket key={b.key} b={b} />)}
+          {buckets.map((b, i) => <Bucket key={`${b.key || 'b'}-${i}`} b={b} />)}
         </div>
         <div style={{ height: 22, background: '#161616', display: 'flex', alignItems: 'center', padding: '0 18px', color: '#666', fontSize: 10 }}>
           <span>Catalyst-first: names with a real story ride the top of each list</span>
