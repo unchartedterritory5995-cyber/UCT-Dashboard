@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react'
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef } from 'react'
 import { setupLine } from './setupLine'
 import styles from './FocusScreener.module.css'
 
@@ -9,6 +9,32 @@ const fmtChg = v => {
   const s = r.toFixed(1)
   return r === 0 ? `${s}%` : v > 0 ? `+${s}%` : `−${s}%`
 }
+
+// One row, memoised. Live prices arrive as a fresh object per ticker on every stream message,
+// so the list hands each row PRIMITIVES (its live price and change) plus stable references (the
+// row object, `onSelect`, the hub cursor's constant prop objects). A tick for one ticker then
+// re-renders that ticker's row only, not every loaded row.
+const ResultRow = memo(function ResultRow({ r, i, sel, price, chg, onRadar, onSelect, hubProps, showCompany }) {
+  const s = setupLine({ ...r, price })
+  return (
+    <div id={`focus-opt-${r.ticker}`} role="option" aria-selected={sel}
+      data-index={i} data-testid={`focus-row-${r.ticker}`}
+      className={`${styles.row} ${sel ? styles.rowSel : ''} ${s.quiet ? styles.rowQuiet : ''}`}
+      onClick={() => onSelect(i)} {...(hubProps || {})}>
+      <span className={onRadar ? styles.dotOn : styles.dotOff}
+        {...(onRadar ? { 'aria-label': 'On your radar', role: 'img' } : { 'aria-hidden': true })} />
+      <span className={styles.rowMain}>
+        <span className={styles.ticker}>{r.ticker}</span>
+        {showCompany && r.company && <span className={styles.rowCompany}>{r.company}</span>}
+        <span className={styles.setup}>{s.text}{s.detail ? ` · ${s.detail}` : ''}</span>
+      </span>
+      <span className={styles.rowNums}>
+        <span>{fmtPrice(price)}</span>
+        <span className={chg > 0 ? styles.up : chg < 0 ? styles.down : styles.flat}>{fmtChg(chg)}</span>
+      </span>
+    </div>
+  )
+})
 
 const ResultList = forwardRef(function ResultList(
   { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps, showCompany = false, sortMenu },
@@ -82,29 +108,15 @@ const ResultList = forwardRef(function ResultList(
         {rows.map((r, i) => {
           const live = livePrices[r.ticker]
           const zeroVol = r.vol_ratio === 0
-          const price = Number.isFinite(live?.price) ? live.price : r.price
           const hasLivePrice = Number.isFinite(live?.price)
+          const price = hasLivePrice ? live.price : r.price
           const chg = zeroVol ? null : hasLivePrice ? (Number.isFinite(live?.change_pct) ? live.change_pct : null)
             : (Number.isFinite(live?.change_pct) ? live.change_pct : r.chg_pct_1d)
-          const s = setupLine({ ...r, price })
-          const sel = i === index
+          // itemProps(i) returns one of two constant objects, so the row's prop stays stable.
           return (
-            <div key={r.ticker} id={`focus-opt-${r.ticker}`} role="option" aria-selected={sel}
-              data-index={i} data-testid={`focus-row-${r.ticker}`}
-              className={`${styles.row} ${sel ? styles.rowSel : ''} ${s.quiet ? styles.rowQuiet : ''}`}
-              onClick={() => onSelect(i)} {...(itemProps ? itemProps(i) : {})}>
-              <span className={radar.has(r.ticker) ? styles.dotOn : styles.dotOff}
-                {...(radar.has(r.ticker) ? { 'aria-label': 'On your radar', role: 'img' } : { 'aria-hidden': true })} />
-              <span className={styles.rowMain}>
-                <span className={styles.ticker}>{r.ticker}</span>
-                {showCompany && r.company && <span className={styles.rowCompany}>{r.company}</span>}
-                <span className={styles.setup}>{s.text}{s.detail ? ` · ${s.detail}` : ''}</span>
-              </span>
-              <span className={styles.rowNums}>
-                <span>{fmtPrice(price)}</span>
-                <span className={chg > 0 ? styles.up : chg < 0 ? styles.down : styles.flat}>{fmtChg(chg)}</span>
-              </span>
-            </div>
+            <ResultRow key={r.ticker} r={r} i={i} sel={i === index} price={price} chg={chg}
+              onRadar={radar.has(r.ticker)} onSelect={onSelect} hubProps={itemProps ? itemProps(i) : undefined}
+              showCompany={showCompany} />
           )
         })}
         {hasMore && <div ref={endRef} className={styles.moreSentinel} aria-hidden="true" />}
