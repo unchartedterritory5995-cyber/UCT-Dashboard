@@ -9,7 +9,7 @@ vi.mock('../../../../hooks/useRealtimePrices', () => ({ default: () => ({ prices
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: () => {} }))
 vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {} }))
 import FocusScreener from '../FocusScreener'
-import { SPEC_PARAM, encodeSpec } from '../../shell/specUrl'
+import { SPEC_PARAM, encodeSpec, decodeSpec } from '../../shell/specUrl'
 import { AuthContext } from '../../../../context/AuthContext'
 
 const META = { filters: [{ key: 'rs_rank', label: 'RS Rank', category: 'technical', type: 'range', presets: [{ label: 'Any' }] }],
@@ -160,6 +160,10 @@ test('W adds the selected stock to the watchlist, and the toast offers Change li
   fireEvent.click(screen.getByRole('menuitem', { name: 'Swing' }))
   await waitFor(() => expect(screen.getByTestId('focus-toast')).toHaveTextContent('W now adds to Swing'))
   expect(localStorage.getItem('uct.screener.watchlistTarget')).toBe('wl-2')
+  // focus is back on the results, so the next W goes to the new list
+  expect(document.activeElement).toBe(screen.getByRole('listbox'))
+  fireEvent.keyDown(document.activeElement, { key: 'w' })
+  await waitFor(() => expect(posts).toEqual(['/api/watchlists/wl-1/items', '/api/watchlists/wl-2/items']))
 })
 test('the skip link targets the Save menu', async () => {
   mount()
@@ -195,4 +199,109 @@ test('the ? menu offers the how-to only when the checklist is on, and opens it i
   fireEvent.click(screen.getByRole('menuitem', { name: 'How to use this screen' }))
   const sheet = await screen.findByRole('dialog', { name: 'How to use this screen' })
   expect(within(sheet).getAllByRole('listitem').length).toBeGreaterThan(0)
+})
+
+test('the sort control is a menu of the sortable columns; picking one sorts, the last item reverses', async () => {
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  fireEvent.click(screen.getByRole('button', { name: 'Sort: UCT ↓' }))
+  const menu = screen.getByRole('menu', { name: 'Sort: UCT ↓' })
+  // the current sort carries its direction; view columns from meta are offered
+  expect(within(menu).getByRole('menuitem', { name: /UCT/ })).toHaveTextContent('↓')
+  fireEvent.click(within(menu).getByRole('menuitem', { name: /^Price/ }))
+  await waitFor(() => expect(scanBodies().at(-1).sort).toEqual({ key: 'price', dir: 'desc' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Sort: Price ↓' }))
+  fireEvent.click(screen.getByRole('menuitem', { name: /Reverse order/ }))
+  await waitFor(() => expect(scanBodies().at(-1).sort).toEqual({ key: 'price', dir: 'asc' }))
+  expect(screen.getByRole('button', { name: 'Sort: Price ↑' })).toBeInTheDocument()
+})
+test('Save as a screen asks for a name inline: empty cannot save, Enter saves, Escape cancels', async () => {
+  const posts = []
+  extra = (url, opts) => {
+    if (url === '/api/screener/saved-screens' && opts?.method === 'POST') { posts.push(JSON.parse(opts.body)); return { ok: true, json: async () => ({ id: 7, name: 'Leaders' }) } }
+    return null
+  }
+  const prompt = vi.spyOn(window, 'prompt')
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  const trigger = screen.getByRole('button', { name: 'Save' })
+  fireEvent.click(trigger)
+  await waitFor(() => screen.getByRole('menuitem', { name: /Save as a screen/ }))
+  fireEvent.click(screen.getByRole('menuitem', { name: /Save as a screen/ }))
+  const dialog = await screen.findByRole('dialog', { name: 'Save as a screen' })
+  const input = within(dialog).getByLabelText('Screen name')
+  expect(document.activeElement).toBe(input)
+  expect(within(dialog).getByRole('button', { name: 'Save' })).toBeDisabled()
+  fireEvent.keyDown(input, { key: 'Escape' })
+  expect(screen.queryByRole('dialog', { name: 'Save as a screen' })).toBeNull()
+  expect(document.activeElement).toBe(trigger)
+  expect(posts).toEqual([])
+  fireEvent.click(trigger)
+  fireEvent.click(screen.getByRole('menuitem', { name: /Save as a screen/ }))
+  const again = await screen.findByRole('dialog', { name: 'Save as a screen' })
+  fireEvent.change(within(again).getByLabelText('Screen name'), { target: { value: '  Leaders ' } })
+  fireEvent.submit(again)
+  await waitFor(() => expect(screen.getByTestId('focus-toast')).toHaveTextContent('Saved "Leaders"'))
+  expect(posts).toHaveLength(1)
+  expect(posts[0].name).toBe('Leaders')
+  expect(prompt).not.toHaveBeenCalled()
+  prompt.mockRestore()
+})
+test('Save as a screen stays hidden until the saved-screens read has answered', async () => {
+  let release
+  const gate = new Promise(res => { release = res })
+  extra = url => (url.startsWith('/api/screener/saved-screens') ? gate.then(() => ({ ok: true, json: async () => ({ saved: [], starters: [] }) })) : null)
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  expect(within(screen.getByRole('menu', { name: 'Save' })).queryByRole('menuitem', { name: /Save as a screen/ })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  release()
+  await waitFor(() => {
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(within(screen.getByRole('menu', { name: 'Save' })).getByRole('menuitem', { name: /Save as a screen/ })).toBeInTheDocument()
+  })
+})
+test('Table mode keeps the how-to checklist reachable', async () => {
+  localStorage.setItem('uct.screener.layout', 'table')
+  render(<MemoryRouter><AuthContext.Provider value={{ howToChecklistsEnabled: true }}>
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><FocusScreener /></SWRConfig>
+  </AuthContext.Provider></MemoryRouter>)
+  expect(screen.getByTestId('table-mode')).toBeInTheDocument()
+  expect(screen.getByTestId('how-to-checklist')).toBeInTheDocument()
+})
+test('a later page that comes back empty ends paging (no endless load-more)', async () => {
+  const pages = []
+  extra = (url, opts) => {
+    if (url !== '/api/screener/scan') return null
+    const page = JSON.parse(opts.body).page
+    pages.push(page)
+    const body = { ok: true, json: async () => ({ rows: page === 1 ? rowsA : [], total: 5, page, snapshot_date: '2026-10-12' }) }
+    // a later page takes a moment, as on a network: the list sees the load start and settle
+    return page === 1 ? body : new Promise(res => setTimeout(() => res(body), 30))
+  }
+  // The sentinel is always in view: every observer reports it intersecting.
+  const IO = globalThis.IntersectionObserver
+  globalThis.IntersectionObserver = class { constructor(cb) { this.cb = cb } observe() { this.cb([{ isIntersecting: true }]) } disconnect() {} }
+  try {
+    mount()
+    await waitFor(() => screen.getByTestId('focus-row-MU'))
+    await waitFor(() => expect(pages).toContain(2))
+    await new Promise(res => setTimeout(res, 1200))
+    expect(pages.filter(p => p > 1)).toEqual([2])
+    expect(screen.getByTestId('focus-row-ECO')).toBeInTheDocument()
+  } finally {
+    globalThis.IntersectionObserver = IO
+  }
+})
+test('switching to Table keeps a filter change made just before', async () => {
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  await new Promise(res => setTimeout(res, 450)) // let the mount-time URL write settle
+  fireEvent.click(screen.getByRole('button', { name: /Filters/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Universe: All stocks/ }))
+  fireEvent.click(screen.getByRole('menuitem', { name: 'UCT Universe' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Table' }))
+  const spec = decodeSpec(new URLSearchParams(window.location.search).get(SPEC_PARAM))
+  expect(spec?.filters?.universe?.value).toBe('uct')
 })

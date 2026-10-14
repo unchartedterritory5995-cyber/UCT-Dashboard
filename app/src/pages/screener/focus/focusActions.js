@@ -50,13 +50,6 @@ export function useSaveDoors() {
   return doors
 }
 
-/** window.prompt for a name; null when cancelled or blank. Phase 1 only
- *  (PromoteButton already names a list this way). */
-export function askName(question, def = '') {
-  const v = typeof window !== 'undefined' && typeof window.prompt === 'function' ? window.prompt(question, def) : null
-  return typeof v === 'string' && v.trim() ? v.trim().slice(0, 80) : null
-}
-
 async function sendJson(url, method, body) {
   let r
   try {

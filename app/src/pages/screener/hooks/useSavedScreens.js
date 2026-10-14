@@ -80,6 +80,8 @@ export default function useSavedScreens() {
     saved: data?.saved ?? [],
     starters: data?.starters ?? [],
     error: error || null,
+    // True once the read has answered (with screens or with a refusal).
+    loaded: data !== undefined || !!error,
     create, update, remove, refresh: mutate,
   }
 }

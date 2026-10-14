@@ -11,7 +11,7 @@ const fmtChg = v => {
 }
 
 const ResultList = forwardRef(function ResultList(
-  { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps, showCompany = false },
+  { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps, showCompany = false, sortMenu },
   ref,
 ) {
   const listRef = useRef(null)
@@ -73,7 +73,7 @@ const ResultList = forwardRef(function ResultList(
   return (
     <div className={styles.listWrap}>
       <div className={styles.listHead}>
-        <button type="button" className={styles.linkBtn} onClick={onSort}>Sort: <span className={styles.listHeadValue}>{sortLabel}</span></button>
+        {sortMenu || <button type="button" className={styles.linkBtn} onClick={onSort}>Sort: <span className={styles.listHeadValue}>{sortLabel}</span></button>}
         <span>{rows.length ? `${index + 1} of ${total ?? rows.length}` : ''}</span>
       </div>
       <div ref={listRef} role="listbox" aria-label="Screen results" tabIndex={0}

@@ -19,6 +19,7 @@ import { LIVE_SORTABLE, sortRowsLive } from '../shell/liveSort'
 import { exportScreen } from '../shell/csvExport'
 import { buildScreenerCapture } from '../shell/notebookCapture'
 import ScannerShell from '../shell/ScannerShell'
+import { DEFAULT_SORT } from '../shell/specUrl'
 import FlaggedActions from '../shell/FlaggedActions'
 import { joinedScanReceipts } from '../ScanFilterChip'
 import { COLUMN_DEFS } from '../columnDefs'
@@ -33,6 +34,8 @@ import Sheet from '../../../components/mobile/Sheet'
 import MethodologyPanel from '../../../components/screener/MethodologyPanel'
 import StructureProvenance from '../../../components/screener/StructureProvenance'
 import { approvedChecklist } from '../../../components/howTo/howToChecklists'
+import HowToChecklist from '../../../components/howTo/HowToChecklist'
+import useScreenerHubSection from '../../../hub/sections/screenerSection'
 import FocusTopBar, { ModeSwitch } from './FocusTopBar'
 import ScreenMenu from './ScreenMenu'
 import FiltersDrawer from './FiltersDrawer'
@@ -49,8 +52,9 @@ import useWatchlistTarget from './useWatchlistTarget'
 import { whyItsHere, whyColumns } from './whyItsHere'
 import { describeEmptying } from './emptyUndo'
 import { migratePinned } from './screenGroups'
+import { useNameDialog } from './useNameDialog'
 import {
-  useRadar, useSaveDoors, poolOptions, askName, createScreen, updateScreen,
+  useRadar, useSaveDoors, poolOptions, createScreen, updateScreen,
   saveFrozenList, saveStandingAlert, saveToNotebook,
 } from './focusActions'
 import styles from './FocusScreener.module.css'
@@ -86,7 +90,11 @@ export default function FocusScreener() {
           <span className={styles.spacer} />
           <ModeSwitch mode={mode} onMode={onMode} />
         </header>
-        <div className={styles.tableMode}><ScannerShell /></div>
+        <div className={styles.tableMode}>
+          {/* Screener.jsx hides its own checklist while the Focus layout is on; Table mode keeps it reachable. */}
+          <HowToChecklist surface="screener.stocks" />
+          <ScannerShell />
+        </div>
       </div>
     )
   }
@@ -121,7 +129,9 @@ function FocusList({ onMode }) {
   //  · the reset key moves only on a page-1 answer, to the screen it answered, so a new
   //    screen starts at row 0 while paging, a live re-sort or a retry keep the stock;
   //  · `prev` is the last screen that had rows, for "your last change took it to 0".
-  const [answered, setAnswered] = useState({ result: null, rows: [], total: null, rowsKey: '',
+  //  · a later page that comes back EMPTY ends paging (`exhausted`), whatever `total`
+  //    says, so the list's load-more re-arm cannot ask for the same empty page forever.
+  const [answered, setAnswered] = useState({ result: null, rows: [], total: null, rowsKey: '', exhausted: false,
     prev: { filters: null, baseSpec: null, total: null }, lastChange: null })
   if (result && result !== answered.result) {
     const page1 = result.page === 1
@@ -137,10 +147,11 @@ function FocusList({ onMode }) {
       result, total: result.total, prev, lastChange: change,
       rows: page1 ? (result.rows || []) : [...answered.rows, ...(result.rows || [])],
       rowsKey: page1 ? screenSig : answered.rowsKey,
+      exhausted: page1 ? false : !(result.rows || []).length,
     })
   }
-  const { rows, total, rowsKey, lastChange } = answered
-  const hasMore = total != null && rows.length < total
+  const { rows, total, rowsKey, lastChange, exhausted } = answered
+  const hasMore = total != null && rows.length < total && !exhausted
 
   const liveTickers = useMemo(() => rows.slice(0, LIVE_WINDOW).map(r => r.ticker), [rows])
   const { prices = {} } = useRealtimePrices(liveTickers) || {}
@@ -171,9 +182,29 @@ function FocusList({ onMode }) {
   }, [watchAdd, say])
   const onFlag = useCallback(row => toggleFlag(row.ticker), [toggleFlag])
   const onOpen = useCallback(row => navigate(chartsLinkPath({ symbol: row.ticker, tf: 'D' })), [navigate])
-  const pickList = l => { watch.setTarget(l.id); say(`W now adds to ${l.name}`, { changeList: true }) }
+  const pageRef = useRef(null)
+  // After choosing a list, focus goes back to the results so the next W adds there.
+  const pickList = l => {
+    watch.setTarget(l.id)
+    say(`W now adds to ${l.name}`, { changeList: true })
+    pageRef.current?.querySelector('[data-focus-list]')?.focus()
+  }
 
   const sel = useFocusSelection({ rows: displayRows, resetKey: rowsKey, hasMore, onLoadMore: s.loadMore, onOpen, onFlag, onWatch })
+
+  // ── the joystick hub (phones/tablets), registered over the rows AS SHOWN, like ScannerShell.
+  // Its screens door opens the screen menu. The selection follows the hub cursor.
+  const screenMenuApi = useRef(null)
+  const openScreens = useCallback(() => { screenMenuApi.current?.open() }, [])
+  const { resultsRef: hubResultsRef, hubMount, cursor: hubCursor } = useScreenerHubSection({ displayRows, filters: s.filters, prices, hasMore, loadMore: s.loadMore, onOpenScans: openScreens })
+  const hubIndex = hubCursor.index
+  const selectRow = sel.select
+  const lastHubIndex = useRef(hubIndex)
+  useEffect(() => {
+    if (lastHubIndex.current === hubIndex) return
+    lastHubIndex.current = hubIndex
+    selectRow(hubIndex)
+  }, [hubIndex, selectRow])
   const radar = useRadar(displayRows)
 
   // ── drawer and sheets ────────────────────────────────────────────────────
@@ -197,7 +228,8 @@ function FocusList({ onMode }) {
   const howTo = howToOn ? approvedChecklist('screener.stocks') : null
 
   // ── screen identity (which starter or saved screen is applied) ───────────
-  const { saved, starters, error: savedError, refresh } = useSavedScreens()
+  const { saved, starters, error: savedError, loaded: savedLoaded, refresh } = useSavedScreens()
+  const [askName, nameDialog] = useNameDialog()
   const [current, setCurrent] = useState(null) // {id, name, kind, spec}
   const isEdited = !!current && normalSpec(current.spec) !== normalSpec(s.baseSpec)
   const { prefs } = usePreferences()
@@ -260,7 +292,7 @@ function FocusList({ onMode }) {
     scans: (meta?.filters || []).find(f => f.key === 'scan')?.scans, scanJoins: result?.scan_joins,
   }), [meta, result])
   const saveAsScreen = async () => {
-    const name = askName('Name this screen', current?.kind === 'saved' ? '' : current?.name || '')
+    const name = await askName({ title: 'Save as a screen', label: 'Screen name', initial: current?.kind === 'saved' ? '' : current?.name || '' })
     if (!name) return
     const out = await createScreen(name, s.baseSpec)
     refresh()
@@ -276,7 +308,7 @@ function FocusList({ onMode }) {
     say(`Saved changes to "${current.name}"`)
   }
   const rename = async () => {
-    const name = askName('Rename this screen', current.name)
+    const name = await askName({ title: 'Rename this screen', label: 'Screen name', initial: current.name, submitLabel: 'Rename' })
     if (!name || name === current.name) return
     const out = await updateScreen(current.id, { name })
     refresh()
@@ -285,13 +317,13 @@ function FocusList({ onMode }) {
     say(`Renamed to "${name}"`)
   }
   const frozenList = async () => {
-    const name = askName('Name the new watchlist', current?.name || 'Screen results')
+    const name = await askName({ title: "Save today's list", label: 'Watchlist name', initial: current?.name || 'Screen results' })
     if (!name) return
     say(await saveFrozenList(s.baseSpec, name))
     refresh()
   }
   const standingAlert = async () => {
-    const name = askName('Name this alert', current?.name || 'My screen')
+    const name = await askName({ title: 'Alert me on new names', label: 'Alert name', initial: current?.name || 'My screen', submitLabel: 'Set alert' })
     if (!name) return
     say(await saveStandingAlert(s.baseSpec, name))
     refresh()
@@ -317,10 +349,27 @@ function FocusList({ onMode }) {
     [s.filters, s.logic, s.rank, meta, selected])
   const lists = useMemo(() => poolOptions(meta), [meta])
   const sortKey = s.sort?.key
-  const sortName = (meta?.filters || []).find(f => f.key === sortKey || f.column === sortKey)?.label || COLUMN_DEFS[sortKey]?.label || sortKey || 'Default'
-  const sortLabel = s.rank ? 'Your ranking' : `${sortName} ${s.sort?.dir === 'asc' ? '↑' : '↓'}`
-  // A rank owns the order; flipping the sort would drop it, so the control does nothing then.
-  const flipSort = s.rank ? undefined : () => s.setSort({ key: sortKey, dir: s.sort?.dir === 'asc' ? 'desc' : 'asc' })
+  const colLabel = k => (meta?.filters || []).find(f => f.key === k || f.column === k)?.label || COLUMN_DEFS[k]?.label || k
+  const sortArrow = s.sort?.dir === 'asc' ? '↑' : '↓'
+  const sortLabel = s.rank ? 'Your ranking' : `${colLabel(sortKey) || 'Default'} ${sortArrow}`
+  // The sortable set is the table's own: in Table mode every column header sorts (VirtualResults),
+  // and those headers are the view's columns from meta (the server sorts by any snapshot column).
+  const sortKeys = [...new Set([DEFAULT_SORT.key, ...(s.visibleColumns || result?.view_columns || [])])]
+    .filter(k => k && k !== 'ticker' && k !== 'company')
+  const sortMenu = (
+    <Menu label={`Sort: ${sortLabel}`} trigger={<>Sort: <span className={styles.listHeadValue}>{sortLabel}</span></>}
+      triggerClassName={styles.linkBtn} width={240} testId="focus-sort-menu">
+      <MenuHeading>Sort by</MenuHeading>
+      {sortKeys.map(k => (
+        <MenuItem key={k} hint={!s.rank && k === sortKey ? sortArrow : undefined}
+          onSelect={() => s.setSort({ key: k, dir: k === sortKey && !s.rank ? s.sort.dir : 'desc' })}>{colLabel(k)}</MenuItem>
+      ))}
+      {!s.rank && (
+        <MenuItem onSelect={() => s.setSort({ key: sortKey, dir: s.sort?.dir === 'asc' ? 'desc' : 'asc' })}
+          hint={s.sort?.dir === 'asc' ? '↓' : '↑'}>Reverse order</MenuItem>
+      )}
+    </Menu>
+  )
   const [density, setDensity] = useState(() => (readLS(DENSITY_KEY, 'compact') === 'comfortable' ? 'comfortable' : 'compact'))
   const [showCompany, setShowCompany] = useState(() => readLS(COMPANY_KEY, '0') === '1')
 
@@ -344,8 +393,8 @@ function FocusList({ onMode }) {
   } else {
     body = (
       <div className={styles.body}>
-        <ResultList rows={displayRows} index={sel.index} onSelect={sel.select} onKeyDown={onListKeyDown}
-          livePrices={prices} radar={radar} sortLabel={sortLabel} onSort={flipSort} total={total} hasMore={hasMore}
+        <ResultList ref={hubResultsRef} itemProps={hubCursor.itemProps} rows={displayRows} index={sel.index} onSelect={sel.select} onKeyDown={onListKeyDown}
+          livePrices={prices} radar={radar} sortLabel={sortLabel} sortMenu={sortMenu} total={total} hasMore={hasMore}
           onLoadMore={s.loadMore} isLoading={isLoading} showCompany={showCompany} />
         <ChartPane row={selected} livePrice={selected ? prices[selected.ticker] : null} why={why}
           onOpenFilters={() => openFilters()} onFlag={onFlag} isFlagged={selected ? isFlagged(selected.ticker) : false} onWatch={onWatch} />
@@ -354,12 +403,12 @@ function FocusList({ onMode }) {
   }
 
   return (
-    <div className={styles.page} data-testid="focus-screener" data-mode="list" data-density={density}>
+    <div ref={pageRef} className={styles.page} data-testid="focus-screener" data-mode="list" data-density={density}>
       <SkipLinkPortal>
         <a href="#focus-save" className={styles.skipLink} onClick={skipToSave}>Skip to save results</a>
       </SkipLinkPortal>
       <FocusTopBar
-        screenMenu={<ScreenMenu currentName={current?.name} currentId={current?.id} isEdited={isEdited} count={total}
+        screenMenu={<ScreenMenu apiRef={screenMenuApi} currentName={current?.name} currentId={current?.id} isEdited={isEdited} count={total}
           starters={starters} saved={saved} pinned={effectivePinned} onTogglePin={togglePin} onApply={applyScreen}
           onSaveChanges={current?.kind === 'saved' && isEdited ? saveChanges : null}
           onSaveAsNew={saveAsScreen}
@@ -368,10 +417,10 @@ function FocusList({ onMode }) {
           myScans={myScans} onUseScan={applyScanFilter} />}
         filterCount={filterCount} onOpenFilters={() => openFilters()}
         dataReceipt={<DataReceipt snapshotDate={result?.snapshot_date} live={result?.snapshot?.live?.state === 'live'} coverage={result?.coverage} />}
-        mode="list" onMode={onMode}
+        mode="list" onMode={m => { s.flush(); onMode(m) }}
         saveMenu={(
           <span ref={saveSlotRef} id="focus-save" className={styles.saveSlot}>
-            <SaveMenu canSaveScreen={!savedError} canFrozenList={doors.promote && hasResult && total > 0}
+            <SaveMenu canSaveScreen={savedLoaded && !savedError} canFrozenList={doors.promote && hasResult && total > 0}
               canAlert={doors.alert} canNotebook={hasResult} count={total}
               onSaveScreen={saveAsScreen} onFrozenList={frozenList} onAlert={standingAlert} onNotebook={toNotebook} />
           </span>
@@ -407,6 +456,8 @@ function FocusList({ onMode }) {
       <Sheet open={sheet === 'library'} onClose={() => setSheet(null)} variant="auto" title="Structure library" ariaLabel="Structure library" maxWidth={880}>
         {sheet === 'library' && <StructureProvenance />}
       </Sheet>
+      {hubMount}
+      {nameDialog}
       {toast && (
         <div className={styles.toast} role="status" aria-live="polite" data-testid="focus-toast"
           onMouseEnter={holdToast} onMouseLeave={armToast} onFocus={holdToast} onBlur={armToast}>

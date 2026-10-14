@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import useLazyCounts from './useLazyCounts'
 import { GROUPS, groupOf } from './screenGroups'
 import styles from './FocusScreener.module.css'
@@ -20,7 +20,7 @@ function Item({ item, pinned, count, current, onApply, onTogglePin }) {
   )
 }
 
-export default function ScreenMenu({ currentName, currentId, isEdited, count, starters = [], saved = [], pinned = [], onTogglePin, onApply, onSaveChanges, onSaveAsNew, onRename, onNewScreen, myScans = [], onUseScan }) {
+export default function ScreenMenu({ currentName, currentId, isEdited, count, starters = [], saved = [], pinned = [], onTogglePin, onApply, onSaveChanges, onSaveAsNew, onRename, onNewScreen, myScans = [], onUseScan, apiRef }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const btn = useRef(null), box = useRef(null)
@@ -33,6 +33,8 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, st
     return () => document.removeEventListener('pointerdown', onDown)
   }, [open])
   const close = () => { setOpen(false); setQ(''); btn.current?.focus() }
+  // `apiRef.current.open()` opens the menu (never toggles): the joystick hub's screens door.
+  useImperativeHandle(apiRef, () => ({ open: () => setOpen(true) }), [])
 
   const all = useMemo(() => [
     ...starters.map(s => ({ ...s, kind: 'starter' })),
