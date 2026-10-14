@@ -131,3 +131,39 @@ test('empty rows give no selection', () => {
   const { result } = renderHook(() => useFocusSelection({ rows: [] }))
   expect(result.current.selected).toBeNull()
 })
+
+test('load more re-arms when the result set changes, even at the same length', () => {
+  const onLoadMore = vi.fn()
+  const { result, rerender } = renderHook(p => useFocusSelection(p), {
+    initialProps: { rows: rows(2), resetKey: 'A', hasMore: true, onLoadMore },
+  })
+  act(() => result.current.onKeyDown(key('ArrowDown')))
+  act(() => result.current.onKeyDown(key('ArrowDown')))
+  expect(onLoadMore).toHaveBeenCalledTimes(1)
+  rerender({ rows: rows(2), resetKey: 'B', hasMore: true, onLoadMore })
+  act(() => result.current.onKeyDown(key('ArrowDown')))
+  act(() => result.current.onKeyDown(key('ArrowDown')))
+  expect(onLoadMore).toHaveBeenCalledTimes(2)
+})
+
+test('Enter on key repeat does not open', () => {
+  const onOpen = vi.fn()
+  const { result } = renderHook(() => useFocusSelection({ rows: rows(2), onOpen }))
+  act(() => result.current.onKeyDown(key('Enter', { repeat: true })))
+  expect(onOpen).not.toHaveBeenCalled()
+})
+
+test('a key during IME composition does not move', () => {
+  const { result } = renderHook(() => useFocusSelection({ rows: rows(3) }))
+  act(() => result.current.onKeyDown(key('ArrowDown', { isComposing: true })))
+  expect(result.current.index).toBe(0)
+})
+
+test('a re-sorted stock that then leaves clamps near where it last was', () => {
+  const { result, rerender } = renderHook(p => useFocusSelection(p), { initialProps: { rows: rows(3), resetKey: 'a' } })
+  act(() => result.current.select(2))
+  rerender({ rows: [{ ticker: 'T2' }, { ticker: 'T0' }, { ticker: 'T1' }], resetKey: 'a' })
+  expect(result.current.index).toBe(0)
+  rerender({ rows: [{ ticker: 'T0' }, { ticker: 'T1' }], resetKey: 'a' })
+  expect(result.current.index).toBe(0)
+})

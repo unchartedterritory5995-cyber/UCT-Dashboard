@@ -13,6 +13,7 @@ const isEditable = t => {
 
 const clamp = (n, lo, hi) => Math.min(Math.max(n, lo), hi)
 
+// resetKey must be a primitive (string or number), never an object: it is compared with !==.
 export default function useFocusSelection({
   rows = EMPTY, resetKey, hasMore = false, onLoadMore, onOpen, onFlag, onWatch, tf = 'D',
 } = {}) {
@@ -33,6 +34,12 @@ export default function useFocusSelection({
 
   const last = Math.max(0, rows.length - 1)
   const found = rows.findIndex(r => r.ticker === sel.ticker)
+  // A re-sort moved the selected stock: remember where it now sits, so a later
+  // disappearance clamps near where it last was.
+  if (found >= 0 && found !== sel.lastIndex) {
+    sel = { ...sel, lastIndex: found }
+    setStored(sel)
+  }
   const index = found >= 0 ? found : clamp(sel.lastIndex, 0, last)
   const selected = rows[index] ?? null
 
@@ -45,6 +52,7 @@ export default function useFocusSelection({
   live.current = { sel, index, rows }
 
   const loadRequestedFor = useRef(null)
+  const loadKey = (rs, rk) => `${rk}|${rs.length}`
 
   const commit = useCallback(i => {
     const cur = live.current
@@ -66,9 +74,10 @@ export default function useFocusSelection({
     if (k === 'ArrowDown' || k === 'j') {
       e.preventDefault()
       if (idx >= rs.length - 1) {
-        // Ask for the next page at most once per length of the list we are on.
-        if (hasMore && !e.repeat && loadRequestedFor.current !== rs.length) {
-          loadRequestedFor.current = rs.length
+        // Ask for the next page at most once per result set and length of the list we are on.
+        const key = loadKey(rs, live.current.sel.resetKey)
+        if (hasMore && !e.repeat && loadRequestedFor.current !== key) {
+          loadRequestedFor.current = key
           onLoadMore?.()
         }
         return
