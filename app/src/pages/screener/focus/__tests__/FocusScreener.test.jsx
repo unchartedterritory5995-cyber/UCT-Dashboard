@@ -251,6 +251,8 @@ test('Save as a screen stays hidden until the saved-screens read has answered', 
   let release
   const gate = new Promise(res => { release = res })
   extra = url => (url.startsWith('/api/screener/saved-screens') ? gate.then(() => ({ ok: true, json: async () => ({ saved: [], starters: [] }) })) : null)
+  // Arrive with a spec in the URL: a bare open holds its first scan until the saved screens answer.
+  window.history.replaceState(null, '', `/?${SPEC_PARAM}=${encodeSpec({ filters: { rs_rank: { op: 'gte', min: 50 } } })}`)
   mount()
   await waitFor(() => screen.getByTestId('focus-row-MU'))
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -345,6 +347,54 @@ test('first load with no URL spec applies the first pinned screen, once', async 
   await new Promise(r => setTimeout(r, 50))
   expect(scanBodies().at(-1).filters.some(f => f.min === 70)).toBe(true)
 })
+test('a bare first open sends exactly one scan, for the pinned screen (no whole-universe scan first)', async () => {
+  // The saved screens answer AFTER the scan debounce, as they can in production: without the
+  // hold, a whole-universe scan would already be on the wire before the pinned screen applied.
+  extra = url => (url.startsWith('/api/screener/saved-screens')
+    ? new Promise(r => setTimeout(() => r({ ok: true, json: async () => ({ saved: [], starters: STARTERS }) }), 450))
+    : null)
+  mount()
+  await waitFor(() => expect(screen.getByRole('button', { name: /Momentum leaders/ })).toBeInTheDocument())
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  await new Promise(r => setTimeout(r, 400)) // past the scan debounce: nothing else is coming
+  const bodies = scanBodies()
+  expect(bodies).toHaveLength(1)
+  expect(bodies[0].filters.some(f => f.key === 'rs_rank' && f.min === 90)).toBe(true)
+  // the count is held the same way: one request, for the pinned screen
+  const counts = fetch.mock.calls.filter(([u]) => String(u) === '/api/screener/count').map(([, o]) => JSON.parse(o.body))
+  expect(counts).toHaveLength(1)
+  expect(counts[0].filters.some(f => f.key === 'rs_rank' && f.min === 90)).toBe(true)
+})
+test('the landing screen waits for prefs: a migrated favourite wins even when prefs answer after the screens', async () => {
+  let releasePrefs
+  const prefsGate = new Promise(r => { releasePrefs = r })
+  extra = url => {
+    if (url.startsWith('/api/screener/saved-screens')) return { ok: true, json: async () => ({ saved: [], starters: STARTERS }) }
+    if (url.startsWith('/api/auth/preferences')) {
+      return { ok: true, json: async () => { await prefsGate; return { screener_favorite_screens: JSON.stringify(['starter:starter_power_play']) } } }
+    }
+    return null
+  }
+  mount()
+  // the saved screens have answered; the prefs have not: nothing is scanned yet
+  await waitFor(() => expect(fetch.mock.calls.some(([u]) => String(u).startsWith('/api/screener/saved-screens'))).toBe(true))
+  await new Promise(r => setTimeout(r, 400))
+  expect(scanBodies()).toHaveLength(0)
+  releasePrefs()
+  await waitFor(() => expect(screen.getByRole('button', { name: /Power play/ })).toBeInTheDocument())
+  await waitFor(() => expect(scanBodies()).toHaveLength(1))
+  await new Promise(r => setTimeout(r, 400))
+  expect(scanBodies()).toHaveLength(1)
+  expect(scanBodies()[0].filters.some(f => f.key === 'rs_rank' && f.min === 70)).toBe(true)
+})
+test('a landing read that never answers does not hold the list forever', async () => {
+  extra = url => (url.startsWith('/api/screener/saved-screens') ? new Promise(() => {}) : null)
+  mount()
+  await new Promise(r => setTimeout(r, 400))
+  expect(scanBodies()).toHaveLength(0)
+  await waitFor(() => screen.getByTestId('focus-row-MU'), { timeout: 5000 })
+  expect(scanBodies()).toHaveLength(1)
+}, 10000)
 test('a URL spec is never overridden by the first pinned screen', async () => {
   withStarters()
   window.history.replaceState(null, '', `/?${SPEC_PARAM}=${encodeSpec({ filters: { rs_rank: { op: 'gte', min: 50 } }, sort: { key: 'price', dir: 'asc' }, view: 'overview', columns: null, rank: null, logic: null })}`)

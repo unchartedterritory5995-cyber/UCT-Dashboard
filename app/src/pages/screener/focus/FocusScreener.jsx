@@ -71,6 +71,9 @@ const DENSITY_KEY = 'uct.screener.density'
 const COMPANY_KEY = 'uct.screener.showCompany'
 const POOL_KEYS = ['universe', 'list']
 const TOAST_MS = 4500
+// How long a bare first open waits for the saved screens and the member's preferences before
+// landing with whatever has answered (the whole universe if neither has).
+const LANDING_WAIT_MS = 3000
 const readLS = (k, d) => { try { return localStorage.getItem(k) ?? d } catch { return d } }
 const writeLS = (k, v) => { try { localStorage.setItem(k, v) } catch { /* private mode */ } }
 const fmtN = v => Number(v || 0).toLocaleString('en-US')
@@ -113,13 +116,24 @@ function FocusList({ onMode }) {
   }, [meta])
   const s = useScreenSpec({ viewColumnsFor })
 
+  // A bare first open (no spec or door in the URL) lands on the first pinned screen. Until that
+  // decision is made the scan and the count are held, so the page asks for the landing screen
+  // once instead of the whole universe first and the pinned screen second. A URL that carried
+  // a spec or a door decides at mount: nothing is held.
+  const arrivedBare = useRef(null)
+  if (arrivedBare.current === null) {
+    const q = new URLSearchParams(window.location.search)
+    arrivedBare.current = ![SPEC_PARAM, SHARED_SCREEN_PARAM, SAVED_SCREEN_PARAM].some(k => q.has(k))
+  }
+  const [landed, setLanded] = useState(() => !arrivedBare.current)
+
   // ── the scan ─────────────────────────────────────────────────────────────
   // Retry must change the spec's JSON or useScreenerScan refires nothing (ScannerShell's recipe).
   const [retryNonce, setRetryNonce] = useState(0)
   const columns = useMemo(() => [...new Set([...REQUIRED_COLS, ...LIST_COLUMNS, ...whyColumns(s.filters)])], [s.filters])
   const scanSpec = useMemo(() => ({ ...s.scanSpec, columns, ...(retryNonce ? { _retry: retryNonce } : {}) }), [s.scanSpec, columns, retryNonce])
-  const { result, isLoading, error } = useScreenerScan(scanSpec)
-  const { count, isLoading: countLoading } = useScreenerCount(s.baseSpec)
+  const { result, isLoading, error } = useScreenerScan(landed ? scanSpec : null)
+  const { count, isLoading: countLoading } = useScreenerCount(landed ? s.baseSpec : null)
 
   // The screen's identity for the selection: a new screen starts at row 0; paging,
   // a live re-sort or a retry of the same screen keep the selected stock.
@@ -248,7 +262,11 @@ function FocusList({ onMode }) {
   const [askName, nameDialog] = useNameDialog()
   const [current, setCurrent] = useState(null) // {id, name, kind, spec}
   const isEdited = !!current && normalSpec(current.spec) !== normalSpec(s.baseSpec)
-  const { prefs } = usePreferences()
+  const { prefs, loading: prefsLoading } = usePreferences()
+  // Pinned is migrated from the member's prefs, so the landing decision waits for them to answer
+  // (a failed read settles too and lands on the defaults). Neither read is waited on forever.
+  const [landingWaitOver, setLandingWaitOver] = useState(false)
+  useEffect(() => { const t = setTimeout(() => setLandingWaitOver(true), LANDING_WAIT_MS); return () => clearTimeout(t) }, [])
   const [pinned, setPinned] = useState(() => { try { const v = JSON.parse(readLS(PIN_KEY, 'null')); return Array.isArray(v) ? v.map(String) : null } catch { return null } })
   // Until the member pins something here, Pinned is migrated from the old favourites and
   // chip prefs (read only; nothing is written back to them).
@@ -265,19 +283,17 @@ function FocusList({ onMode }) {
   const applyScreen = (spec, item) => { s.applySpec(spec); setCurrent({ id: item.id, name: item.name, kind: item.kind, spec }) }
   // First load lands on a named screen: with no spec and no door in the URL, the first pinned
   // screen is applied once per mount, through the same path the screen menu uses. A URL that
-  // carried a spec or a door at mount, or any filter the member has already set, wins.
-  const arrivedBare = useRef(null)
-  if (arrivedBare.current === null) {
-    const q = new URLSearchParams(window.location.search)
-    arrivedBare.current = ![SPEC_PARAM, SHARED_SCREEN_PARAM, SAVED_SCREEN_PARAM].some(k => q.has(k))
-  }
+  // carried a spec or a door at mount, or any filter the member has already set, wins. The
+  // decision waits for the saved screens AND the prefs Pinned is migrated from, then releases
+  // the held scan (`landed`) in the same render as the applied spec.
   const autoApplied = useRef(false)
   useEffect(() => {
     if (autoApplied.current) return
-    if (!arrivedBare.current || current) { autoApplied.current = true; return }
-    if (!savedLoaded) return
-    autoApplied.current = true
-    if (Object.keys(s.filters).some(k => s.filters[k] && !POOL_KEYS.includes(k))) return
+    const decide = () => { autoApplied.current = true; setLanded(true) }
+    if (!arrivedBare.current || current) { decide(); return }
+    if (Object.keys(s.filters).some(k => s.filters[k] && !POOL_KEYS.includes(k))) { decide(); return }
+    if (!landingWaitOver && (!savedLoaded || prefsLoading)) return
+    decide()
     const hit = effectivePinned.map(id => {
       const st = starters.find(x => String(x.id) === String(id))
       if (st) return { ...st, kind: 'starter' }
@@ -286,7 +302,7 @@ function FocusList({ onMode }) {
     }).find(Boolean)
     if (hit) applyScreen(hit.spec || { filters: [] }, hit)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [savedLoaded, effectivePinned, starters, saved, current])
+  }, [savedLoaded, prefsLoading, landingWaitOver, effectivePinned, starters, saved, current])
   const myScans = useMemo(() => ((meta?.filters || []).find(f => f.key === 'scan')?.scans || [])
     .filter(x => x?.def_hash).map(x => ({ hash: x.def_hash, name: x.name || 'Untitled scan' })), [meta])
   const applyScanFilter = (hash, name) => {
