@@ -5647,8 +5647,13 @@ def enum_options() -> list:
     The seven candle options that were once typed into `filters.py` became a
     second authority and drifted the moment that library grew from 7 labels to
     62. This list cannot drift: it is the registry.
+
+    Each option also carries the structure's member-facing `desc`, so the
+    Focus layout's setup tags can explain a structure without a second copy
+    of the description on the client.
     """
     out = [{"label": "Any"}]
     for s in sorted(ALL_STRUCTURES, key=lambda q: (q.axis != "relation", q.rank)):
-        out.append({"label": s.label, "op": "contains", "value": match_value(s.key)})
+        out.append({"label": s.label, "op": "contains", "value": match_value(s.key),
+                    "desc": s.desc})
     return out
