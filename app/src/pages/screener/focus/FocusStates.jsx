@@ -15,9 +15,10 @@ export function ListSkeleton() {
 }
 
 export function EmptyState({ filterCount, lastChange, onUndo, onOpenFilters }) {
-  const head = filterCount === 1 ? 'No stocks match this filter' : `No stocks match all ${filterCount} filters`
+  const head = filterCount === 0 ? 'No stocks match this screen'
+    : filterCount === 1 ? 'No stocks match this filter' : `No stocks match all ${filterCount} filters`
   return (
-    <div className={styles.stateBox}>
+    <div className={styles.stateBox} role="status">
       <p className={styles.stateHead}>{head}</p>
       {lastChange && (
         <p className={styles.stateBody}>
@@ -33,10 +34,11 @@ export function EmptyState({ filterCount, lastChange, onUndo, onOpenFilters }) {
 }
 
 export function ErrorState({ message, onRetry }) {
+  const msg = String(message ?? '').trim().replace(/\.+$/, '')
   return (
     <div className={styles.stateBox} role="alert">
       <p className={styles.stateHead}>The screen didn&apos;t load</p>
-      <p className={styles.stateBody}>{message} Your filters are kept.</p>
+      <p className={styles.stateBody}>{msg ? `${msg}. ` : ''}Your filters are kept.</p>
       <button type="button" className={styles.btn} onClick={onRetry}>Try again</button>
     </div>
   )

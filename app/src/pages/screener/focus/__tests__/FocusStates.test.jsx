@@ -26,3 +26,17 @@ test('skeleton is announced as loading', () => {
   render(<ListSkeleton />)
   expect(screen.getByRole('status')).toHaveTextContent('Loading results')
 })
+
+test('empty with zero filters names the screen, and is a status region', () => {
+  render(<EmptyState filterCount={0} lastChange={null} onUndo={vi.fn()} onOpenFilters={vi.fn()} />)
+  expect(screen.getByText('No stocks match this screen')).toBeInTheDocument()
+  expect(screen.getByRole('status')).toBeInTheDocument()
+})
+test('error message and kept-filters note are two sentences whatever the punctuation', () => {
+  const { rerender } = render(<ErrorState message="Timed out." onRetry={vi.fn()} />)
+  expect(screen.getByRole('alert')).toHaveTextContent('Timed out. Your filters are kept.')
+  rerender(<ErrorState message="Timed out" onRetry={vi.fn()} />)
+  expect(screen.getByRole('alert')).toHaveTextContent('Timed out. Your filters are kept.')
+  rerender(<ErrorState message="" onRetry={vi.fn()} />)
+  expect(screen.getByRole('alert')).toHaveTextContent("The screen didn't loadYour filters are kept.")
+})

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { createRef } from 'react'
-import { vi } from 'vitest'
+import { vi, describe, beforeEach, afterEach } from 'vitest'
 import ResultList from '../ResultList'
 
 const rows = [
@@ -53,4 +53,67 @@ test('exposes scrollToIndex', () => {
   render(<ResultList {...base} ref={ref} />)
   expect(typeof ref.current.scrollToIndex).toBe('function')
   ref.current.scrollToIndex(2)
+})
+
+test('rounded-zero change carries no sign', () => {
+  render(<ResultList {...base} livePrices={{ MU: { price: 960.5, change_pct: 0.04 }, DAWN: { price: 5, change_pct: -0.04 } }} />)
+  expect(screen.getByTestId('focus-row-MU')).toHaveTextContent('0.0%')
+  expect(screen.getByTestId('focus-row-MU')).not.toHaveTextContent('+0.0%')
+  expect(screen.getByTestId('focus-row-DAWN')).toHaveTextContent('0.0%')
+  expect(screen.getByTestId('focus-row-DAWN').textContent).not.toMatch(/[−+]0\.0%/)
+})
+test('live price without live change shows a dash, not the snapshot change', () => {
+  render(<ResultList {...base} livePrices={{ MU: { price: 960.5 } }} />)
+  const r = screen.getByTestId('focus-row-MU')
+  expect(r).toHaveTextContent('960.50')
+  expect(r).toHaveTextContent('—')
+  expect(r.textContent).not.toMatch(/3\.7/)
+})
+test('key hints are exposed to screen readers', () => {
+  render(<ResultList {...base} />)
+  expect(screen.getByText('move').closest('[aria-hidden]')).toBeNull()
+})
+test('scrollToIndex moves only the list container and never calls scrollIntoView', () => {
+  const ref = createRef()
+  render(<ResultList {...base} ref={ref} />)
+  const list = screen.getByRole('listbox')
+  const row = screen.getByTestId('focus-row-DAWN')
+  const spy = vi.fn()
+  row.scrollIntoView = spy
+  Object.defineProperty(list, 'clientHeight', { configurable: true, value: 100 })
+  Object.defineProperty(row, 'offsetTop', { configurable: true, value: 300 })
+  Object.defineProperty(row, 'offsetHeight', { configurable: true, value: 50 })
+  ref.current.scrollToIndex(2)
+  expect(list.scrollTop).toBe(250)
+  expect(spy).not.toHaveBeenCalled()
+  Object.defineProperty(row, 'offsetTop', { configurable: true, value: 10 })
+  ref.current.scrollToIndex(2)
+  expect(list.scrollTop).toBe(10)
+})
+
+describe('load-more latch', () => {
+  let original
+  beforeEach(() => {
+    original = globalThis.IntersectionObserver
+    globalThis.IntersectionObserver = class {
+      constructor(cb, opts) { this.cb = cb; globalThis.__ioOpts = opts }
+      observe() { this.cb([{ isIntersecting: true }]) }
+      disconnect() {}
+    }
+  })
+  afterEach(() => { globalThis.IntersectionObserver = original })
+
+  test('fires once per rows.length, ignoring callback identity and isLoading churn', () => {
+    const a = vi.fn(); const b = vi.fn(); const c = vi.fn()
+    const { rerender } = render(<ResultList {...base} onLoadMore={a} />)
+    expect(a).toHaveBeenCalledTimes(1)
+    expect(globalThis.__ioOpts).toEqual({ rootMargin: '200px' })
+    rerender(<ResultList {...base} onLoadMore={b} isLoading />)
+    rerender(<ResultList {...base} onLoadMore={c} isLoading={false} />)
+    expect(a).toHaveBeenCalledTimes(1)
+    expect(b).not.toHaveBeenCalled()
+    expect(c).not.toHaveBeenCalled()
+    rerender(<ResultList {...base} rows={[...rows, { ticker: 'NEW', price: 1, chg_pct_1d: 1, base_render: null, vol_ratio: 1 }]} onLoadMore={c} />)
+    expect(c).toHaveBeenCalledTimes(1)
+  })
 })

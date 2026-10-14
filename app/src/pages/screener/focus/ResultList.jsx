@@ -1,12 +1,13 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react'
 import { setupLine } from './setupLine'
 import styles from './FocusScreener.module.css'
 
 const fmtPrice = v => (Number.isFinite(v) ? v.toFixed(2) : '—')
 const fmtChg = v => {
   if (!Number.isFinite(v)) return '—'
-  const s = Math.abs(v).toFixed(1)
-  return v > 0 ? `+${s}%` : v < 0 ? `−${s}%` : `${s}%`
+  const r = Number(Math.abs(v).toFixed(1))
+  const s = r.toFixed(1)
+  return r === 0 ? `${s}%` : v > 0 ? `+${s}%` : `−${s}%`
 }
 
 const ResultList = forwardRef(function ResultList(
@@ -14,21 +15,41 @@ const ResultList = forwardRef(function ResultList(
   ref,
 ) {
   const listRef = useRef(null)
-  const scrollToIndex = i => {
-    const el = listRef.current?.querySelector(`[data-index="${i}"]`)
-    el?.scrollIntoView?.({ block: 'nearest' })
-  }
-  useImperativeHandle(ref, () => ({ scrollToIndex }), [])
-  useEffect(() => { scrollToIndex(index) }, [index])
+  // Scroll only the list's own container, never an ancestor or the window.
+  const scrollToIndex = useCallback(i => {
+    const list = listRef.current
+    const el = list?.querySelector(`[data-index="${i}"]`)
+    if (!list || !el) return
+    const top = el.offsetTop
+    const bottom = top + el.offsetHeight
+    if (top < list.scrollTop) list.scrollTop = top
+    else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight
+  }, [])
+  useImperativeHandle(ref, () => ({ scrollToIndex }), [scrollToIndex])
+  useEffect(() => { scrollToIndex(index) }, [index, scrollToIndex])
 
-  // auto-load when the last row scrolls into view
+  // Auto-load when the last row nears the edge. Callbacks live in refs so the
+  // observer is rebuilt only when the result set changes; the latch allows one
+  // load per rows.length.
   const endRef = useRef(null)
+  const onLoadMoreRef = useRef(onLoadMore)
+  const isLoadingRef = useRef(isLoading)
+  onLoadMoreRef.current = onLoadMore
+  isLoadingRef.current = isLoading
+  const rowCount = rows.length
   useEffect(() => {
     if (!hasMore || typeof IntersectionObserver === 'undefined' || !endRef.current) return undefined
-    const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting) && !isLoading) onLoadMore?.() })
+    let fired = false
+    const io = new IntersectionObserver(es => {
+      if (fired || isLoadingRef.current) return
+      if (es.some(e => e.isIntersecting)) {
+        fired = true
+        onLoadMoreRef.current?.()
+      }
+    }, { rootMargin: '200px' })
     io.observe(endRef.current)
     return () => io.disconnect()
-  }, [hasMore, isLoading, onLoadMore, rows.length])
+  }, [hasMore, rowCount])
 
   return (
     <div className={styles.listWrap}>
@@ -43,7 +64,9 @@ const ResultList = forwardRef(function ResultList(
           const live = livePrices[r.ticker]
           const zeroVol = r.vol_ratio === 0
           const price = Number.isFinite(live?.price) ? live.price : r.price
-          const chg = zeroVol ? null : (Number.isFinite(live?.change_pct) ? live.change_pct : r.chg_pct_1d)
+          const hasLivePrice = Number.isFinite(live?.price)
+          const chg = zeroVol ? null : hasLivePrice ? (Number.isFinite(live?.change_pct) ? live.change_pct : null)
+            : (Number.isFinite(live?.change_pct) ? live.change_pct : r.chg_pct_1d)
           const s = setupLine({ ...r, price })
           const sel = i === index
           return (
@@ -66,7 +89,7 @@ const ResultList = forwardRef(function ResultList(
         })}
         {hasMore && <div ref={endRef} className={styles.moreSentinel} aria-hidden="true" />}
       </div>
-      <div className={styles.keyHints} aria-hidden="true">
+      <div className={styles.keyHints}>
         <span><b>↑↓</b> move</span><span><b>⇧F</b> flag</span><span><b>W</b> watchlist</span><span><b>↵</b> full chart</span>
       </div>
     </div>
