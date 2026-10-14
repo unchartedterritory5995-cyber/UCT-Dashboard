@@ -1,0 +1,534 @@
+{
+ "started": "2026-10-13T22:15:35",
+ "nvda_version": "2026.2",
+ "base": "https://uctintelligence.com",
+ "nonce": "1b4236beebb0",
+ "rows": [
+  {
+   "n": 1,
+   "keys": "Tab",
+   "expected": [
+    "Skip to notes list",
+    "link"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 2,
+   "keys": "Enter",
+   "expected": [
+    "All notes",
+    "heading"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 3,
+   "keys": "focus Hide folders panel, Tab",
+   "expected": [
+    "Hide folders panel",
+    "button",
+    "Panel view",
+    "tab"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 4,
+   "keys": "focus the All notes row",
+   "expected": [
+    "All notes"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 5,
+   "keys": "on All notes: Down until SR folder, Right (expand) -- no Insert+Space",
+   "expected": [
+    "SR folder",
+    "collapsed",
+    "expanded"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 6,
+   "keys": "Enter on the SR folder row, then Shift+F10 (its menu), Escape",
+   "expected": [
+    "SR folder",
+    "Rename",
+    "Add subfolder",
+    "Delete"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 7,
+   "keys": "focus the tag row",
+   "expected": [
+    "srpass",
+    "button"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 8,
+   "keys": "focus the Saved Views disclosure; focus SR view",
+   "expected": [
+    "Saved Views",
+    "button",
+    "SR view"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 9,
+   "keys": "Enter on All notes (clears the view); focus Sort notes; Right (List view); Right (Table view); Space",
+   "expected": [
+    "Sort notes",
+    "combo box",
+    "List view",
+    "pressed",
+    "Table view"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 10,
+   "keys": "Back to List; focus the SR pass card; Enter",
+   "expected": [
+    "SR pass",
+    "heading"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 11,
+   "keys": "Tab until the body (count measured)",
+   "expected": [
+    "Subtitle",
+    "Editor toolbar",
+    "Table",
+    "Note body"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 12,
+   "keys": "Insert+Space (browse mode), H, T, Down, Right",
+   "expected": [
+    "Setup",
+    "heading",
+    "table",
+    "Sym"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": "12b",
+   "keys": "Insert+Space (focus mode); Tab, Tab, Alt+F10, Escape",
+   "expected": [
+    "Table",
+    "tool bar"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 13,
+   "keys": "end of body, Enter, /, Down",
+   "expected": [
+    "Insert block"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 14,
+   "keys": "Escape",
+   "expected": [
+    "Note body"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 15,
+   "keys": "[ [ (real keys), type SR, Down, Enter",
+   "expected": [
+    "Link to a note",
+    "SR target"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 16,
+   "keys": "Ctrl+F, type stop",
+   "expected": [
+    "Find in note"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 17,
+   "keys": "Ctrl+H, Tab x7 (to the replace field), Escape",
+   "expected": [
+    "Replace with",
+    "Note body"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 18,
+   "keys": "focus Ask, Enter",
+   "expected": [
+    "Ask this note",
+    "Your question"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 19,
+   "keys": "type a question the note cannot answer, Enter, wait",
+   "expected": [
+    "find",
+    "note"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 20,
+   "keys": "focus Close Ask, Enter",
+   "expected": [
+    "Ask this note",
+    "button"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 21,
+   "keys": "list; Graph view; Show as list, Space",
+   "expected": [
+    "Graph view",
+    "Show as list",
+    "pressed"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 22,
+   "keys": "Space; focus the canvas; Home; Right",
+   "expected": [
+    "Note graph",
+    "notes",
+    "link"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 23,
+   "keys": "List; Save view, Enter, Escape",
+   "expected": [
+    "Save view",
+    "dialog",
+    "Name"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 24,
+   "keys": "open the note; More note actions, Enter; Delete, Enter; confirm Delete",
+   "expected": [
+    "Delete this note",
+    "dialog"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 25,
+   "keys": "no notes: open the Notebook home; focus its heading",
+   "expected": [
+    "Welcome to your Notebook",
+    "heading"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 26,
+   "keys": "Share, Enter, Tab, Escape",
+   "expected": [
+    "Share this note",
+    "Share link address"
+   ],
+   "result": "NOT RUN",
+   "notes": "left to the owner: the step mints a public share link for a note on the smoke account",
+   "heard": []
+  },
+  {
+   "n": 27,
+   "keys": "? (Shift+/ as a real key) anywhere in the Journal",
+   "expected": [
+    "Keyboard Shortcuts",
+    "dialog"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 28,
+   "keys": "Notebook list (?view=all): focus Styles, let NVDA finish, mark, Enter",
+   "expected": [
+    "Journal styles",
+    "dialog"
+   ],
+   "result": "FAIL",
+   "notes": "(listening starts AFTER the Styles button's own 'opens dialog' (aria-haspopup)) missing ['dialog']; heard: en Journal styles / en heading level 2 Journal styles / en button Close / en A style is how a kind of note starts: its outline, its blocks and the properties it fills. ",
+   "heard": [
+    "en Journal styles",
+    "en heading level 2 Journal styles",
+    "en button Close",
+    "en A style is how a kind of note starts: its outline, its blocks and the properties it fills. "
+   ],
+   "dom": "DOM: dialog 'Journal styles' x1; activeElement dialog named \"Journal styles\u00d7A style is how a kind of note starts: its out\""
+  },
+  {
+   "n": 29,
+   "keys": "in the manager, Enter on 'Edit SR style'; focus the second block row's move-up control",
+   "expected": [
+    "Move Pre-entry checklist up",
+    "button"
+   ],
+   "result": "PASS",
+   "notes": "(the brief's 'Move up' is the control's title tooltip; its accessible name is 'Move <block> up') en Edit style SR style form Blocks grouping Blocks in this style list with 2 items Move Pre-entry checklist up button Move up",
+   "heard": [
+    "en Edit style SR style form Blocks grouping Blocks in this style list with 2 items Move Pre-entry checklist up button Move up"
+   ],
+   "dom": "DOM: activeElement button named \"Move Pre-entry checklist up\""
+  },
+  {
+   "n": 30,
+   "keys": "in the manager, Enter on 'Edit SR style'; focus the chart row's timeframe",
+   "expected": [
+    "Timeframe for Chart of the note\u2019s ticker",
+    "combo box"
+   ],
+   "result": "PASS",
+   "notes": "(a typographic apostrophe, U+2019, in the name) en Edit style SR style form landmark / en Blocks grouping / en Blocks in this style list / en Timeframe for Chart of the note\u2019s ticker combo box Daily collapsed",
+   "heard": [
+    "en Edit style SR style form landmark",
+    "en Blocks grouping",
+    "en Blocks in this style list",
+    "en Timeframe for Chart of the note\u2019s ticker combo box Daily collapsed"
+   ],
+   "dom": "DOM: activeElement select named \"Timeframe for Chart of the note\u2019s ticker\""
+  },
+  {
+   "n": 31,
+   "keys": "open the note 'SR block checklist'; focus 'Change setup' (inside the block's groups)",
+   "expected": [
+    "Pre-entry checklist grouping Pre-entry checklist for",
+    "Change setup"
+   ],
+   "result": "PASS",
+   "notes": "(graded on the block's group THEN the checklist's inner group, adjacent in one announcement: the inner name alone cannot pass it) en clickable main landmark Note body section multi line editable Pre-entry checklist grouping Pre-entry checklist for SR setup grouping Change setup button",
+   "heard": [
+    "en clickable main landmark Note body section multi line editable Pre-entry checklist grouping Pre-entry checklist for SR setup grouping Change setup button"
+   ],
+   "dom": "DOM: activeElement button named \"Change setup\""
+  },
+  {
+   "n": 32,
+   "keys": "same note: focus the before-entry rule's check box",
+   "expected": [
+    "SR rule wait for the first hour",
+    "check box",
+    "not checked"
+   ],
+   "result": "PASS",
+   "notes": "en clickable main landmark Note body section multi line editable Pre-entry checklist grouping Pre-entry checklist for SR setup grouping SR rule wait for the first hour check box not checked",
+   "heard": [
+    "en clickable main landmark Note body section multi line editable Pre-entry checklist grouping Pre-entry checklist for SR setup grouping SR rule wait for the first hour check box not checked"
+   ],
+   "dom": "DOM: activeElement input[checkbox] named \"SR rule wait for the first hour\""
+  },
+  {
+   "n": 33,
+   "keys": "open the note 'SR block stamps'; focus the switch",
+   "expected": [
+    "Stamp prices as I write",
+    "switch"
+   ],
+   "result": "PASS",
+   "notes": "en clickable main landmark Note body section multi line editable Price stamps grouping Stamp prices as I write switch off",
+   "heard": [
+    "en clickable main landmark Note body section multi line editable Price stamps grouping Stamp prices as I write switch off"
+   ],
+   "dom": "DOM: activeElement switch named \"Stamp prices as I write\""
+  },
+  {
+   "n": 34,
+   "keys": "open the note 'SR block sizing'; focus Entry",
+   "expected": [
+    "Entry",
+    "spin button"
+   ],
+   "result": "PASS",
+   "notes": "(the brief said 'edit'; Entry is an <input type=number>, a spin button; it is the Position sizing block's) en main landmark / en Position sizing grouping / en Entry spin button editable blank",
+   "heard": [
+    "en main landmark",
+    "en Position sizing grouping",
+    "en Entry spin button editable blank"
+   ],
+   "dom": "DOM: activeElement input[number] named \"Entry\""
+  },
+  {
+   "n": 35,
+   "keys": "same note: focus Setup grade",
+   "expected": [
+    "Setup grade",
+    "combo box"
+   ],
+   "result": "PASS",
+   "notes": "en main landmark / en Position sizing grouping / en Setup grade combo box A collapsed",
+   "heard": [
+    "en main landmark",
+    "en Position sizing grouping",
+    "en Setup grade combo box A collapsed"
+   ],
+   "dom": "DOM: activeElement select named \"Setup grade\""
+  },
+  {
+   "n": 36,
+   "keys": "open the note 'SR block prep'; focus Capture now (never pressed)",
+   "expected": [
+    "Capture now",
+    "button"
+   ],
+   "result": "PASS",
+   "notes": "en clickable main landmark Note body section multi line editable Morning wire and exposure grouping Capture now button",
+   "heard": [
+    "en clickable main landmark Note body section multi line editable Morning wire and exposure grouping Capture now button"
+   ],
+   "dom": "DOM: activeElement button named \"Capture now\""
+  },
+  {
+   "n": 37,
+   "keys": "open the note 'SR block rules'; focus the rule's Edit",
+   "expected": [
+    "Edit",
+    "SR rule wait for the first hour",
+    "button"
+   ],
+   "result": "PASS",
+   "notes": "(its name is Edit '<the rule's words>', the label in ASCII quotes) en clickable main landmark Note body section multi line editable My rules grouping list with 1 item Edit 'SR rule wait for the first hour' button",
+   "heard": [
+    "en clickable main landmark Note body section multi line editable My rules grouping list with 1 item Edit 'SR rule wait for the first hour' button"
+   ],
+   "dom": "DOM: activeElement button named \"Edit 'SR rule wait for the first hour'\""
+  },
+  {
+   "n": 38,
+   "keys": "open the note 'SR block review'; focus the trade picker",
+   "expected": [
+    "Trade to review",
+    "combo box"
+   ],
+   "result": "PASS",
+   "notes": "en main landmark / en Post-trade review grouping / en Trade to review combo box Pick a trade collapsed",
+   "heard": [
+    "en main landmark",
+    "en Post-trade review grouping",
+    "en Trade to review combo box Pick a trade collapsed"
+   ],
+   "dom": "DOM: activeElement select named \"Trade to review\""
+  }
+ ],
+ "made": {
+  "notes": [
+   "6ee2e26b9cb5449bb40e304a08a231fd",
+   "6046c09bae934e66abb6ad2ca79852c0",
+   "b302bd5fc4e6406786986b84d4caed7b",
+   "331be26424d84e85ab4fb058931b4db7",
+   "7dd815497abb4df082e2fcb71139a7b0",
+   "16ca40c7db71424cb363f75ac28cb880",
+   "3373cfc2acd24897a79e40a2c4864032",
+   "8376d82cab72491ab5dc3ce52451db23"
+  ],
+  "folders": [
+   "a54ab76263ab4f80b985ac15b6def2d5",
+   "a39508fb970b4196ae6fa636a2fade8c"
+  ],
+  "views": [
+   "dca61459a8a04fbdb321df782887efac"
+  ],
+  "styles": [
+   "0fe628884c1a46aaa77bdbb9ef291e5d"
+  ],
+  "rules": [
+   "3623c928a043407e94fa39f6406fd37d"
+  ],
+  "trades": [
+   "08e5564e-92fd-4ba3-b557-98860154ec08"
+  ]
+ },
+ "aborted": null,
+ "journal_styles": "on",
+ "stray_notes_trashed": [],
+ "left_active_notes": 0,
+ "left_sr_folders": 0,
+ "left_sr_views": 0,
+ "left_sr_styles": 0,
+ "left_sr_rules": 0,
+ "left_sr_trades": 0,
+ "finished": "2026-10-13T22:17:47"
+}
