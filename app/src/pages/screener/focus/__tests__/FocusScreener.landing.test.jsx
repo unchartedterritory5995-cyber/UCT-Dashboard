@@ -11,8 +11,9 @@ vi.mock('../../../../hooks/useRealtimePrices', () => ({ default: () => ({ prices
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: () => {} }))
 vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {} }))
 import FocusScreener from '../FocusScreener'
+import { AuthContext } from '../../../../context/AuthContext'
 import { __resetCountCache } from '../useLazyCounts'
-import { LANDING_SEED_KEY } from '../landing'
+import { landingSeedKey } from '../landing'
 
 const META = { filters: [], categories: [], views: [{ key: 'overview', columns: ['ticker', 'price'] }] }
 const rows = [{ ticker: 'MU', price: 956.12, chg_pct_1d: -3.7, base_render: 'Flat Base', vol_ratio: 0.8 },
@@ -32,6 +33,7 @@ beforeEach(() => {
   localStorage.clear()
   window.history.replaceState(null, '', '/')
   countsByMin = { 95: 3, 70: 40, 50: 12 }
+  uid = 'member-a'
   starters = [THIN, WIDE]
   savedDelay = 0
   fail = false
@@ -52,10 +54,13 @@ beforeEach(() => {
     return { ok: true, json: async () => ([]) }
   })
 })
-const mount = () => render(<MemoryRouter><SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><FocusScreener /></SWRConfig></MemoryRouter>)
+let uid
+const mount = () => render(<MemoryRouter><AuthContext.Provider value={{ user: uid ? { id: uid } : null }}>
+  <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><FocusScreener /></SWRConfig>
+</AuthContext.Provider></MemoryRouter>)
 const scanMins = () => fetch.mock.calls.filter(([u]) => String(u) === '/api/screener/scan').map(([, o]) => minOf(JSON.parse(o.body)))
 const pin = ids => localStorage.setItem('uct.screener.pinned', JSON.stringify(ids))
-const seed = items => localStorage.setItem(LANDING_SEED_KEY, JSON.stringify(items))
+const seed = (items, who = 'member-a') => localStorage.setItem(landingSeedKey(who), JSON.stringify(items))
 
 test('P1: lands on the first pinned screen with at least 10 matches, and scans only it', async () => {
   pin([THIN.id, WIDE.id])
@@ -110,7 +115,7 @@ test('Perf 3: the server answer replaces the seeded choice when the member has n
   await waitFor(() => expect(screen.getByRole('button', { name: /Other screen/ })).toBeInTheDocument(), { timeout: 3000 })
   await waitFor(() => expect(scanMins().at(-1)).toBe(50))
   // and the new answer is what the next open starts from
-  expect(JSON.parse(localStorage.getItem(LANDING_SEED_KEY)).map(x => x.id)).toEqual([OTHER.id, WIDE.id])
+  expect(JSON.parse(localStorage.getItem(landingSeedKey('member-a'))).map(x => x.id)).toEqual([OTHER.id, WIDE.id])
 }, 10000)
 test('Perf 3: no switch once the member has interacted', async () => {
   seed([WIDE])
@@ -128,7 +133,7 @@ test('Perf 3: no switch once the member has interacted', async () => {
   expect(screen.getByTestId('stockchart')).toHaveAttribute('data-sym', 'ECO')
 }, 10000)
 test('Perf 3: an unreadable seed is ignored; the page waits for the server as before', async () => {
-  localStorage.setItem(LANDING_SEED_KEY, '{not json')
+  localStorage.setItem(landingSeedKey('member-a'), '{not json')
   pin([WIDE.id])
   savedDelay = 500
   mount()
@@ -136,3 +141,65 @@ test('Perf 3: an unreadable seed is ignored; the page waits for the server as be
   expect(scanMins()).toEqual([])
   await waitFor(() => expect(scanMins()).toEqual([70]))
 })
+
+test('Perf 3: a seed is per member: member B never lands on the seed member A left saved screen', async () => {
+  const mine = { id: 42, name: 'A private screen', kind: 'saved', spec: { filters: [{ key: 'rs_rank', op: 'gte', min: 50 }] } }
+  seed([mine], 'member-a')
+  uid = 'member-b'
+  pin([WIDE.id])
+  savedDelay = 500
+  mount()
+  await new Promise(r => setTimeout(r, 300))
+  expect(scanMins()).toEqual([])            // B has no seed: nothing starts before the server
+  await waitFor(() => expect(scanMins()).toEqual([70]))
+  expect(screen.queryByRole('button', { name: /A private screen/ })).toBeNull()
+  // and B's answer is kept under B, never over A's
+  expect(JSON.parse(localStorage.getItem(landingSeedKey('member-a')))[0].id).toBe(42)
+  expect(JSON.parse(localStorage.getItem(landingSeedKey('member-b')))[0].id).toBe(WIDE.id)
+})
+test('Perf 3: without a signed-in member no seed is read or written', async () => {
+  seed([OTHER], 'undefined')
+  uid = null
+  pin([WIDE.id])
+  savedDelay = 400
+  mount()
+  await new Promise(r => setTimeout(r, 250))
+  expect(scanMins()).toEqual([])
+  await waitFor(() => expect(scanMins()).toEqual([70]))
+  expect(Object.keys(localStorage).filter(k => k.startsWith('uct.screener.landingSeed'))).toEqual([landingSeedKey('undefined')])
+})
+test('Perf 3: a server answer that lands after the landing cap never switches the screen', async () => {
+  seed([WIDE])
+  starters = [WIDE, OTHER]
+  pin([OTHER.id, WIDE.id])
+  savedDelay = 3400
+  mount()
+  await waitFor(() => expect(scanMins()).toEqual([70]))
+  await waitFor(() => expect(fetch.mock.calls.some(([u]) => String(u).startsWith('/api/screener/saved-screens'))).toBe(true))
+  await new Promise(r => setTimeout(r, 4200))   // past the cap and past the late answer
+  expect(screen.getByRole('button', { name: /Wide screen/ })).toBeInTheDocument()
+  expect(scanMins()).toEqual([70])
+}, 12000)
+test('Perf 3: scrolling the list counts as interaction: no switch', async () => {
+  seed([WIDE])
+  starters = [WIDE, OTHER]
+  pin([OTHER.id, WIDE.id])
+  savedDelay = 700
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  fireEvent.wheel(screen.getByRole('listbox'), { deltaY: 120 })
+  await new Promise(r => setTimeout(r, 1500))
+  expect(screen.getByRole('button', { name: /Wide screen/ })).toBeInTheDocument()
+  expect(scanMins()).toEqual([70])
+}, 10000)
+test('Perf 3: a scroll event (no wheel) on the list counts too', async () => {
+  seed([WIDE])
+  starters = [WIDE, OTHER]
+  pin([OTHER.id, WIDE.id])
+  savedDelay = 700
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  fireEvent.scroll(screen.getByRole('listbox'))
+  await new Promise(r => setTimeout(r, 1500))
+  expect(scanMins()).toEqual([70])
+}, 10000)

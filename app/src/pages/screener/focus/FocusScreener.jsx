@@ -411,13 +411,17 @@ function FocusList({ onMode }) {
   //  · Perf 3: the pinned screens as the server last answered them are kept in localStorage, so
   //    the counts and the scan start at once instead of after the saved screens and prefs. When
   //    the server answers, its choice replaces the seeded one, unless the member has already
-  //    pressed a key or the pointer anywhere on the page (or the spec moved by any other door).
+  //    pressed a key or the pointer, or scrolled, anywhere on the page (or the spec moved by any
+  //    other door). The seed is per member, and the switch is bounded by the same cap: a server
+  //    answer that lands after LANDING_WAIT_MS never moves the screen under the member.
   //  · Without a seed the choice waits for the saved screens AND the prefs Pinned is migrated from.
   const [landPhase, setLandPhase] = useState(() => (arrivedBare.current ? 'pick' : 'final')) // 'pick' | 'reconcile' | 'final'
   const landedOn = useRef(null)
   const touched = useRef(false)
-  const seedItems = useMemo(() => (arrivedBare.current ? readLandingSeed() : null), [])
+  const uid = useContext(AuthContext)?.user?.id
+  const seedItems = useMemo(() => (arrivedBare.current ? readLandingSeed(uid) : null), []) // eslint-disable-line react-hooks/exhaustive-deps -- read once, at mount
   const serverReady = savedLoaded && (!prefsLoading || landingWaitOver)
+  const serverAnswered = savedLoaded && !prefsLoading
   const serverItems = useMemo(() => effectivePinned.map(id => {
     const st = starters.find(x => String(x.id) === String(id))
     if (st) return { ...st, kind: 'starter' }
@@ -425,9 +429,9 @@ function FocusList({ onMode }) {
     return sv ? { ...sv, kind: 'saved' } : null
   }).filter(Boolean), [effectivePinned, starters, saved])
   // The server's answer is remembered for the next open (only once both reads have answered).
-  useEffect(() => { if (savedLoaded && !prefsLoading) writeLandingSeed(serverItems) }, [savedLoaded, prefsLoading, serverItems])
+  useEffect(() => { if (serverAnswered) writeLandingSeed(uid, serverItems) }, [serverAnswered, uid, serverItems])
   const landingItems = landPhase === 'pick' ? (serverReady ? serverItems : seedItems)
-    : landPhase === 'reconcile' && serverReady ? serverItems : null
+    : landPhase === 'reconcile' && serverAnswered ? serverItems : null
   const landPoolKey = JSON.stringify(poolOf(s.baseSpec))
   // Each pinned screen is counted where it would run (the screen menu's rule, so the cache is shared).
   const landingSpecs = useMemo(() => Object.fromEntries((landingItems || []).map(it => [String(it.id), withPool(it.spec, JSON.parse(landPoolKey))])),
@@ -450,7 +454,7 @@ function FocusList({ onMode }) {
     }
     // reconcile: the seeded choice stands once the member has touched the page or the spec moved.
     const was = landedOn.current
-    if (touched.current || normalSpec(s.baseSpec) !== normalSpec(was.spec)) { setLandPhase('final'); return }
+    if (touched.current || landingWaitOver || normalSpec(s.baseSpec) !== normalSpec(was.spec)) { setLandPhase('final'); return }
     if (!landingItems) return
     const r = pickLanding(landingItems, countOf, landingWaitOver)
     if (!r.done) return
@@ -610,18 +614,21 @@ function FocusList({ onMode }) {
     if (coverageHasDrop(r.latest)) drops.push(`The scan filter ${r.label} could not check ${fmtN((r.latest.dropped || 0) + (r.latest.not_computable || 0))} stocks in its last run.`)
   }
 
+  // With no list to hold them (error, empty), the flagged actions get their own row: there is no
+  // list below it to push down. Empty (and hidden) until something is flagged.
+  const flagsOutsideList = <div className={styles.stateFlags} data-testid="focus-state-flags"><FlaggedActions /></div>
   let body
   if (error) {
     // The list is UNMOUNTED on a scan error: its load-more re-arms when a load
     // settles, so a mounted list would retry a failing page in a loop.
-    body = <ErrorState message={scanErrorText(error)} onRetry={() => setRetryNonce(n => n + 1)} />
+    body = <>{flagsOutsideList}<ErrorState message={scanErrorText(error)} onRetry={() => setRetryNonce(n => n + 1)} /></>
   } else if (!result) {
     body = <div className={styles.body}><div className={styles.listWrap}><ListSkeleton /></div><div className={styles.pane} aria-hidden="true" /></div>
   } else if (total === 0) {
     // The pills are built from the screen that CAME BACK empty, never the live spec: a filter
     // being edited in the drawer must not grow a pill for a screen nobody has run yet.
-    body = <EmptyState filterCount={filterCount} lastChange={lastChange} onUndo={undoLast} onOpenFilters={() => openFilters()}
-      spec={answered.shown?.baseSpec || null} meta={meta} onRemoveFilter={k => ed.setFilter(k, null)} onRemoveLogic={() => ed.setLogic(null)} />
+    body = <>{flagsOutsideList}<EmptyState filterCount={filterCount} lastChange={lastChange} onUndo={undoLast} onOpenFilters={() => openFilters()}
+      spec={answered.shown?.baseSpec || null} meta={meta} onRemoveFilter={k => ed.setFilter(k, null)} onRemoveLogic={() => ed.setLogic(null)} /></>
   } else {
     body = (
       <div className={styles.body}>
@@ -639,7 +646,7 @@ function FocusList({ onMode }) {
 
   return (
     <div ref={pageRef} className={styles.page} data-testid="focus-screener" data-mode="list" data-density={density} onKeyDown={shortcuts.onKeyDown}
-      onKeyDownCapture={markTouched} onPointerDownCapture={markTouched}>
+      onKeyDownCapture={markTouched} onPointerDownCapture={markTouched} onWheelCapture={markTouched} onScrollCapture={markTouched}>
       <SkipLinkPortal>
         <SkipLink href="#focus-results" className={styles.skipLink} target={() => pageRef.current?.querySelector('[data-focus-list]')}>Skip to results</SkipLink>
         <a href="#focus-save" className={styles.skipLink} onClick={skipToSave}>Skip to save results</a>

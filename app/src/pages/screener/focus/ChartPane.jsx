@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
-import { SWRConfig } from 'swr'
+import { SWRConfig, useSWRConfig } from 'swr'
 import StockChart from '../../../components/StockChart'
 import { hasFinalTickerIpo } from '../../../hooks/useTickerIpo'
 import WhyStrip from './WhyStrip'
@@ -32,15 +32,23 @@ const facts = row => ['vol_ratio', 'adr_pct'].map(k => plainFact(k, row[k])).fil
 
 const isSide = key => typeof key === 'string' && SIDE_FETCH.some(p => key.startsWith(p))
 // Scoped to this pane's chart only (an SWRConfig around it), so every other chart is untouched:
-//  · while the ticker is unsettled a side fetch is asked with no key (no request; a value the
-//    browser already holds for it still shows);
+//  · while the ticker is unsettled a side fetch makes no request. A value already in the SWR
+//    cache for that key is still served (markers stay on a stock walked back to); a key with
+//    nothing cached is asked with no key, so the hook shows its own fallback;
 //  · a listing date is static: one the browser already holds as FINAL is never asked again.
+// ⚠️ A cached value served while unsettled is not revalidated on settle (the key does not change);
+// its own deduping window already covers these (12h markers, 30m news and mentions).
+const QUIET = { revalidateOnMount: false, revalidateIfStale: false, revalidateOnFocus: false, revalidateOnReconnect: false }
 function sideFetchGate(settled) {
   return useSWRNext => (key, fetcher, config) => {
+    const { cache } = useSWRConfig()
     if (!isSide(key)) return useSWRNext(key, fetcher, config)
-    if (!settled) return useSWRNext(null, fetcher, config)
+    if (!settled) {
+      const held = cache.get(key)
+      return held && held.data !== undefined ? useSWRNext(key, fetcher, { ...config, ...QUIET }) : useSWRNext(null, fetcher, config)
+    }
     if (key.startsWith(IPO) && hasFinalTickerIpo(decodeURIComponent(key.slice(IPO.length)))) {
-      return useSWRNext(key, fetcher, { ...config, revalidateOnMount: false, revalidateIfStale: false })
+      return useSWRNext(key, fetcher, { ...config, ...QUIET })
     }
     return useSWRNext(key, fetcher, config)
   }

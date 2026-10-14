@@ -15,7 +15,8 @@ vi.mock('../../../../components/StockChart', async () => {
     // Stand-ins for the chart's own per-symbol fetches: one side fetch, one bars fetch.
     const ipo = useSWR(`/api/ticker-ipo/${props.sym}`, () => ({ list_date: '2001-01-01' }))
     const bars = useSWR(`/api/bars/${props.sym}?tf=${props.tf}`, () => ({ bars: [] }))
-    return <div data-testid="stockchart" data-sym={props.sym} data-live={String(props.liveUpdates)} data-ipo={ipo.data?.list_date || ''} data-bars={bars.data ? 'y' : ''} />
+    const markers = useSWR(`/api/chart/markers/${props.sym}?days=36500`, () => ({ sym: props.sym }))
+    return <div data-testid="stockchart" data-sym={props.sym} data-live={String(props.liveUpdates)} data-ipo={ipo.data?.list_date || ''} data-bars={bars.data ? 'y' : ''} data-markers={markers.data?.sym || ''} />
   }
   return { default: StockChart }
 })
@@ -144,6 +145,20 @@ test('Perf 2: a listing date this browser holds as final is never asked again', 
   act(() => { vi.advanceTimersByTime(SETTLE_MS) })
   await act(async () => {})
   expect(fetched).toContain('/api/ticker-ipo/ECO')
+})
+
+test('Perf 2: a stock walked back to keeps its cached markers while unsettled, and asks for nothing', async () => {
+  const { rerender } = render(pane())
+  act(() => { vi.advanceTimersByTime(SETTLE_MS) })
+  await act(async () => {})
+  expect(screen.getByTestId('stockchart')).toHaveAttribute('data-markers', 'MU')
+  rerender(pane({ row: row2 }))
+  await act(async () => {})
+  expect(screen.getByTestId('stockchart')).toHaveAttribute('data-markers', '')   // nothing cached for ECO: held
+  rerender(pane({ row }))                                                          // back to MU before ECO settled
+  await act(async () => {})
+  expect(screen.getByTestId('stockchart')).toHaveAttribute('data-markers', 'MU')   // the cached value, at once
+  expect(fetched.filter(k => k.startsWith('/api/chart/markers/'))).toEqual(['/api/chart/markers/MU?days=36500'])
 })
 
 // ── B7 ──

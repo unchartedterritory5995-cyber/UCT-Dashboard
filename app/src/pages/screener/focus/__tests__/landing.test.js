@@ -1,5 +1,5 @@
 import { expect, test, beforeEach } from 'vitest'
-import { pickLanding, sameScreen, readLandingSeed, writeLandingSeed, LANDING_MIN_MATCHES, LANDING_SEED_KEY } from '../landing'
+import { pickLanding, sameScreen, readLandingSeed, writeLandingSeed, LANDING_MIN_MATCHES, landingSeedKey } from '../landing'
 
 const items = [{ id: 'a', name: 'A', spec: { filters: [] } }, { id: 'b', name: 'B', spec: { filters: [] } }, { id: 'c', name: 'C', spec: { filters: [] } }]
 const by = m => id => m[id]
@@ -33,10 +33,19 @@ test('sameScreen compares id and spec', () => {
 })
 beforeEach(() => localStorage.clear())
 test('the seed round-trips and drops malformed entries', () => {
-  writeLandingSeed([...items, { id: 'x' }])
-  expect(readLandingSeed().map(i => i.id)).toEqual(['a', 'b', 'c'])
-  localStorage.setItem(LANDING_SEED_KEY, '[1, null]')
-  expect(readLandingSeed()).toBeNull()
-  localStorage.setItem(LANDING_SEED_KEY, '{')
-  expect(readLandingSeed()).toBeNull()
+  writeLandingSeed('u1', [...items, { id: 'x' }])
+  expect(readLandingSeed('u1').map(i => i.id)).toEqual(['a', 'b', 'c'])
+  localStorage.setItem(landingSeedKey('u1'), '[1, null]')
+  expect(readLandingSeed('u1')).toBeNull()
+  localStorage.setItem(landingSeedKey('u1'), '{')
+  expect(readLandingSeed('u1')).toBeNull()
+})
+test('the seed is per member, and there is none without a member', () => {
+  writeLandingSeed('u1', items)
+  expect(readLandingSeed('u2')).toBeNull()
+  expect(readLandingSeed('u1').map(i => i.id)).toEqual(['a', 'b', 'c'])
+  writeLandingSeed(undefined, items)
+  writeLandingSeed('', items)
+  expect(Object.keys(localStorage).filter(k => k.startsWith('uct.screener.landingSeed'))).toEqual([landingSeedKey('u1')])
+  expect(readLandingSeed(undefined)).toBeNull()
 })
