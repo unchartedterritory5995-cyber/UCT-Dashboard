@@ -970,15 +970,27 @@ def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None) -> int:
         conn.execute("PRAGMA busy_timeout=30000")
         conn.execute("ATTACH DATABASE ? AS snap", (src_db,))
         try:
-            cur = conn.execute(
+            # `total_changes`, not `cur.rowcount`: Python's sqlite3 reports -1 for a
+            # statement that starts with `WITH`, and -1 here means "no local DB".
+            before = conn.total_changes
+            conn.execute(
                 """
-                INSERT OR IGNORE INTO ohlcv (ticker,tf,ts,o,h,l,c,v)
+                -- Newest local bar for ONLY the (ticker,tf) pairs this snapshot
+                -- carries: one primary-key seek per pair, computed once. The old
+                -- `GROUP BY` over all of `main.ohlcv` scanned the whole table
+                -- while this statement held the write lock, so every bars write
+                -- on the pod waited (bars-api froze 10:20-10:28 ET on 2026-10-14,
+                -- inside the X-15 gate run).
+                WITH l AS MATERIALIZED (
+                    SELECT p.ticker, p.tf,
+                           (SELECT MAX(m.ts) FROM main.ohlcv m
+                            WHERE m.ticker=p.ticker AND m.tf=p.tf) AS mx
+                    FROM (SELECT DISTINCT ticker, tf FROM snap.ohlcv) p
+                )
+                INSERT OR IGNORE INTO main.ohlcv (ticker,tf,ts,o,h,l,c,v)
                 SELECT s.ticker,s.tf,s.ts,s.o,s.h,s.l,s.c,s.v
                 FROM snap.ohlcv s
-                LEFT JOIN (
-                    SELECT ticker,tf,MAX(ts) AS mx
-                    FROM ohlcv GROUP BY ticker,tf
-                ) l ON l.ticker=s.ticker AND l.tf=s.tf
+                LEFT JOIN l ON l.ticker=s.ticker AND l.tf=s.tf
                 WHERE (l.mx IS NULL OR s.ts > l.mx)
                   -- 🔴 THE SECOND WRITE DOOR INTO `ohlcv`, AND IT BYPASSES
                   -- `put_bars` ENTIRELY. Gating only `put_bars` leaves this
@@ -1000,7 +1012,7 @@ def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None) -> int:
                   AND (s.v IS NULL OR s.v >= 0)
                 """
             )
-            adopted = cur.rowcount if cur.rowcount is not None else 0
+            adopted = conn.total_changes - before
             # ⚰️ A BEST-EFFORT `bars_provenance` MERGE SAT HERE UNTIL 2026-08-09.
             # It copied rows from `snap.bars_provenance` into a local table that
             # held 0 rows on both sides, because nothing in the product ever
