@@ -177,6 +177,19 @@ describe('the Styles manager', () => {
     expect(within(builtin).getByRole('button', { name: 'Set Trade plan as default' })).toBeInTheDocument()
   })
 
+  // NVDA row 28 (2026-10-14, production, NVDA 2026.2): with focus on the Sheet panel itself, NVDA spoke
+  // "Journal styles" with no "dialog". It announces the role when focus ENTERS a dialog through a
+  // descendant -- the Keyboard Shortcuts dialog (focuses Close) and ConfirmModal (focuses Cancel) both
+  // read "... dialog" in the 10/09 runs. So opening puts focus on the title heading, inside the dialog.
+  it('opening puts focus on the "Journal styles" heading inside the dialog, so a screen reader names the dialog', async () => {
+    open()
+    const heading = await screen.findByRole('heading', { name: 'Journal styles', level: 2 })
+    await act(async () => { await new Promise((r) => requestAnimationFrame(() => r())) })   // past the Sheet's own focus frame
+    await waitFor(() => expect(document.activeElement).toBe(heading))
+    expect(heading.closest('[role="dialog"]')).toBe(screen.getByRole('dialog', { name: 'Journal styles' }))
+    expect(heading.getAttribute('tabindex')).toBe('-1')                                    // focusable by script, not a Tab stop
+  })
+
   it('Delete then Undo restores the style: the row is gone, then it is back, and focus follows', async () => {
     let deleted = false
     routes.unshift(
