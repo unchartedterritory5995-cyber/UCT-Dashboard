@@ -601,8 +601,10 @@ function ChartPane({
     setSettingsOpen(true)
   }, [])
   // ⭐ A1.2 — the indicator Undo stack this pane's chart shares (StockChart toasts from it).
-  // ONLY the Chart Settings modal's own edits are recorded here: `updateChartSettings` is
-  // also the Agent's `applySettings`, and the Agent keeps its own exact Undo.
+  // ONLY the Chart Settings modal's own edits are recorded here (and template applies, via
+  // `applySettingsRecorded`); `applySettings` stays unrecorded. The Agent writes through
+  // ChartWidget `api.agent.commit` → onOptsChange, never through this pane, and keeps its
+  // own exact Undo.
   const historyUserId = useHistoryUserId()
   const indicatorHistoryKey = chartId ? `chart:${chartId}` : null
   const updateChartSettingsRef = useRef(null)
