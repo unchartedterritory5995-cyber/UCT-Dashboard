@@ -31,7 +31,7 @@ export default function Menu({ label, trigger, children, align = 'left', trigger
     rove(first)
     first?.focus()
     return () => document.removeEventListener('pointerdown', onDown)
-  }, [open])
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps -- runs on open only; rove/items read refs, not state
   const onBlur = e => {
     const to = e.relatedTarget
     if (to && !wrap.current?.contains(to)) setOpen(false)
