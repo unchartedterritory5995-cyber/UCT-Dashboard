@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useId, useRef, useState } from 'react'
 import styles from './FocusScreener.module.css'
+import menuStyles from './FocusMenus.module.css'
 
 const CloseCtx = createContext(() => {})
 
@@ -17,6 +18,10 @@ export function MenuHeading({ children }) { return <div className={styles.menuHe
 
 export default function Menu({ label, trigger, children, align = 'left', triggerClassName, testId, width, disabled = false, disabledTitle }) {
   const [open, setOpen] = useState(false)
+  // ⛔ THE ONE GUARD for a disabled menu: open is forced false during render, so a click on the
+  // aria-disabled trigger never commits an open menu, a menu that becomes disabled closes (never
+  // aria-expanded=true while disabled), and it does not re-pop when enabled again.
+  if (disabled && open) setOpen(false)
   const btn = useRef(null), pop = useRef(null), wrap = useRef(null)
   const id = useId()
   const close = () => { setOpen(false); btn.current?.focus() }
@@ -53,9 +58,13 @@ export default function Menu({ label, trigger, children, align = 'left', trigger
   return (
     <span ref={wrap} className={styles.menuWrap} data-testid={testId} onBlur={onBlur}>
       <button ref={btn} type="button" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined}
-        aria-label={label} className={triggerClassName || styles.btn} disabled={disabled} title={disabled ? disabledTitle : undefined}
+        aria-label={label} className={`${triggerClassName || styles.btn}${disabled ? ` ${menuStyles.triggerDisabled}` : ''}`}
+        /* ⛔ aria-disabled, never `disabled`: a disabled trigger stays in the tab order and can
+           take focus (a skip link may land on it, its title stays reachable); the click guard is
+           is the ONE guard that keeps it shut: a click (or Enter/Space) on it is undone in that same render. */
+        aria-disabled={disabled ? 'true' : undefined} title={disabled ? disabledTitle : undefined}
         onClick={() => setOpen(o => !o)}>{trigger}</button>
-      {open && !disabled && (
+      {open && (
         <CloseCtx.Provider value={close}>
           <div ref={pop} id={id} role="menu" aria-label={label} onKeyDown={onKeyDown} onFocus={e => { if (e.target.getAttribute('role') === 'menuitem') rove(e.target) }}
             className={`${styles.menu} ${align === 'right' ? styles.menuRight : ''}`} style={width ? { width } : undefined}>

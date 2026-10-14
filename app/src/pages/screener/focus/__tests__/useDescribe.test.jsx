@@ -6,7 +6,11 @@ vi.mock('../../shell/criteriaApi', () => ({
   compileAvailable: vi.fn(async () => true),
 }))
 import * as api from '../../shell/criteriaApi'
-import useDescribe, { __resetDescribeSession, describeFailure, DESCRIBE_DOWN } from '../useDescribe'
+import useDescribe, { __resetDescribeSession, describeFailure, DESCRIBE_DOWN, DESCRIBE_BUSY } from '../useDescribe'
+import { AuthContext } from '../../../../context/AuthContext'
+
+const withStatus = (msg, status) => Object.assign(new Error(msg), { status })
+const UNAVAILABLE = 'Plain-English screens are unavailable right now. Try again shortly.'
 
 beforeEach(() => { __resetDescribeSession(); api.grammarAvailable.mockClear(); api.compileAvailable.mockClear() })
 
@@ -50,28 +54,54 @@ test('the hook keeps no private probe cache: dedupe lives in criteriaApi', async
   expect(api.grammarAvailable).toHaveBeenCalledTimes(2)
 })
 
-test('B11: an exception name is never shown; plain copy instead', () => {
-  expect(describeFailure(new Error('Compile failed (RuntimeError)'))).toEqual({ hard: true, text: DESCRIBE_DOWN })
-  expect(describeFailure(new Error('ValueError: bad thing'))).toEqual({ hard: true, text: DESCRIBE_DOWN })
-  expect(describeFailure(new Error('compile 502'))).toEqual({ hard: true, text: DESCRIBE_DOWN })
-  expect(describeFailure(new TypeError('Failed to fetch'))).toEqual({ hard: true, text: DESCRIBE_DOWN })
-  expect(describeFailure(new Error('Plain-English screens are unavailable right now. Try again shortly.')).hard).toBe(true)
-  // refusals keep the server's own sentence and are not hard failures
+test('B11: no exception name or raw "Not Found" is ever shown; plain copy instead', () => {
+  const busy = { hard: false, text: DESCRIBE_BUSY }
+  const down = { hard: true, text: DESCRIBE_DOWN }
+  // broken, but not shut: plain copy, and the box stays
+  expect(describeFailure(new Error('Compile failed (RuntimeError)'))).toEqual(busy)
+  expect(describeFailure(new Error('ValueError: bad thing'))).toEqual(busy)
+  expect(describeFailure(new Error('compile 502'))).toEqual(busy)
+  expect(describeFailure(new TypeError('Failed to fetch'))).toEqual(busy)
+  // the door is shut: plain copy, and the box is hidden from the next open
+  expect(describeFailure(withStatus('Not Found', 404))).toEqual(down)
+  expect(describeFailure(new Error('Not Found'))).toEqual(down)
+  expect(describeFailure(withStatus('The screener requires a paid plan', 402))).toEqual(down)
+  expect(describeFailure(new Error('The screener requires a paid plan'))).toEqual(down)
+  expect(describeFailure(withStatus('Forbidden', 403))).toEqual(down)
+  // refusals keep the server's own sentence
   expect(describeFailure(new Error('Describe the screen you want.'))).toEqual({ hard: false, text: 'Describe the screen you want.' })
-  expect(describeFailure(new Error('compile 400')).hard).toBe(false)
-  expect(describeFailure(new Error('compile 400')).text).not.toMatch(/compile 400/)
-  for (const e of [new Error('Compile failed (RuntimeError)'), new Error('compile 503')]) {
-    expect(describeFailure(e).text).not.toMatch(/Error|compile \d/)
+  expect(describeFailure(new Error('compile 400'))).toEqual({ hard: false, text: 'Could not read that. Try different words.' })
+  for (const e of [new Error('Compile failed (RuntimeError)'), new Error('compile 503'), new Error('Not Found'), withStatus('Not Found', 404)]) {
+    expect(describeFailure(e).text).not.toMatch(/Error|compile \d|Not Found|paid plan/)
   }
 })
 
-test('B11: after a hard failure the box stays for this open, then is hidden for the session', async () => {
-  api.compileEnglish.mockRejectedValueOnce(new Error('Compile failed (RuntimeError)'))
+test('a transient 503 "try again shortly" is SOFT: its own sentence is shown, nothing is hidden', () => {
+  expect(describeFailure(withStatus(UNAVAILABLE, 503))).toEqual({ hard: false, text: UNAVAILABLE })
+  expect(describeFailure(new Error(UNAVAILABLE))).toEqual({ hard: false, text: UNAVAILABLE })
+})
+
+test('a 503 stays visible: the sentence shows and the box is still there on the next open', async () => {
+  api.compileEnglish.mockRejectedValueOnce(withStatus(UNAVAILABLE, 503))
+  const { result, rerender } = renderHook(({ on }) => useDescribe(on), { initialProps: { on: true } })
+  await waitFor(() => expect(result.current.available).toBe(true))
+  await act(async () => { await result.current.run('x') })
+  expect(result.current.error).toBe(UNAVAILABLE)
+  expect(result.current.available).toBe(true)
+  rerender({ on: false })
+  rerender({ on: true })
+  await waitFor(() => expect(result.current.available).toBe(true))
+  // and another drawer in the same session still offers it
+  const other = renderHook(() => useDescribe())
+  await waitFor(() => expect(other.result.current.available).toBe(true))
+})
+
+test('B11: after a shut-door answer the box stays for this open, then is hidden for the session', async () => {
+  api.compileEnglish.mockRejectedValueOnce(withStatus('Not Found', 404))
   const { result, rerender } = renderHook(({ on }) => useDescribe(on), { initialProps: { on: true } })
   await waitFor(() => expect(result.current.available).toBe(true))
   await act(async () => { await result.current.run('x') })
   expect(result.current.error).toBe(DESCRIBE_DOWN)
-  expect(result.current.error).not.toMatch(/RuntimeError/)
   // still shown for THIS open, so the sentence is read
   expect(result.current.available).toBe(true)
   // close and reopen: gone, and no probe is spent asking again
@@ -84,6 +114,23 @@ test('B11: after a hard failure the box stays for this open, then is hidden for 
   await new Promise(r => setTimeout(r, 0))
   expect(other.result.current.available).toBe(false)
   expect(api.grammarAvailable).not.toHaveBeenCalled()
+})
+
+test('the session hide is per signed-in user: someone else signing in starts clean', async () => {
+  let user = { id: 'u1' }
+  const wrapper = ({ children }) => <AuthContext.Provider value={{ user }}>{children}</AuthContext.Provider>
+  api.compileEnglish.mockRejectedValueOnce(withStatus('Not Found', 404))
+  const a = renderHook(() => useDescribe(), { wrapper })
+  await waitFor(() => expect(a.result.current.available).toBe(true))
+  await act(async () => { await a.result.current.run('x') })
+  a.unmount()
+  const same = renderHook(() => useDescribe(), { wrapper })
+  await new Promise(r => setTimeout(r, 0))
+  expect(same.result.current.available).toBe(false)
+  same.unmount()
+  user = { id: 'u2' }
+  const other = renderHook(() => useDescribe(), { wrapper })
+  await waitFor(() => expect(other.result.current.available).toBe(true))
 })
 
 test('a refusal does not hide the box on the next open', async () => {

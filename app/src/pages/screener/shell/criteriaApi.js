@@ -34,6 +34,11 @@ function probeDoor(path, fetcher) {
   return p
 }
 
+// A door that answered "open" and then shuts (404: flag off; 402/403: plan or permission) must
+// not stay "open" in the memo: the next caller asks again.
+const DOOR_SHUT = new Set([402, 403, 404])
+function forgetDoor(path, fetcher) { probes.get(path)?.delete(fetcher) }
+
 /** Tests only: forget every memoised door answer. */
 export function __resetCriteriaProbes() { probes.clear() }
 
@@ -55,9 +60,11 @@ export async function compileEnglish(text, fetcher = fetch) {
     body: JSON.stringify({ text }),
   })
   if (!r.ok) {
+    if (DOOR_SHUT.has(r.status)) forgetDoor('/api/screener/compile', fetcher)
     let detail = `compile ${r.status}`
     try { const j = await r.json(); if (j?.detail) detail = String(j.detail) } catch { /* keep */ }
-    throw new Error(detail)
+    // The message is unchanged; `status` rides along so a caller can tell a shut door from a refusal.
+    throw Object.assign(new Error(detail), { status: r.status })
   }
   return r.json()
 }

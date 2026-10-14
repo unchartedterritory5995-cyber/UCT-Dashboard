@@ -59,3 +59,34 @@ test('compile itself is never memoised', async () => {
   await compileEnglish('a', f)
   expect(f).toHaveBeenCalledTimes(2)
 })
+
+test('a compile answer that says the door shut (404/402/403) forgets the memoised "open" probe', async () => {
+  for (const status of [404, 402, 403]) {
+    __resetCriteriaProbes()
+    const detail = status === 404 ? 'Not Found' : 'The screener requires a paid plan'
+    const f = vi.fn(async (url, opts) => (opts?.method === 'POST'
+      ? { ok: false, status, json: async () => ({ detail }) }
+      : { ok: true, status: 200 }))
+    expect(await compileAvailable(f)).toBe(true)
+    expect(await compileAvailable(f)).toBe(true)
+    const probes = () => f.mock.calls.filter(([u, o]) => u === '/api/screener/compile' && !o?.method).length
+    expect(probes()).toBe(1)
+    const err = await compileEnglish('x', f).catch(e => e)
+    // the message is what it always was; the status rides along
+    expect(err.message).toBe(detail)
+    expect(err.status).toBe(status)
+    await compileAvailable(f)
+    expect(probes()).toBe(2)
+  }
+})
+
+test('a refusal (400/429) or a transient 503 keeps the memoised probe', async () => {
+  for (const status of [400, 429, 503]) {
+    __resetCriteriaProbes()
+    const f = vi.fn(async (url, opts) => (opts?.method === 'POST' ? { ok: false, status, json: async () => ({ detail: 'no' }) } : { ok: true }))
+    await compileAvailable(f)
+    await compileEnglish('x', f).catch(() => {})
+    await compileAvailable(f)
+    expect(f.mock.calls.filter(([, o]) => !o?.method)).toHaveLength(1)
+  }
+})

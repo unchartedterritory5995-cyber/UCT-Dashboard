@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, expect, test } from 'vitest'
 import Menu, { MenuItem } from '../Menu'
@@ -51,19 +52,51 @@ test('save menu omits switched-off outcomes', () => {
   expect(screen.queryByRole('menuitem', { name: /today/ })).toBeNull()
   expect(screen.queryByRole('menuitem', { name: /Alert me/ })).toBeNull()
 })
-test('save menu with nothing available still renders, disabled, so the top bar never shifts', () => {
+test('save menu with nothing available still renders, aria-disabled and focusable, so the top bar never shifts', () => {
   render(<SaveMenu canSaveScreen={false} canFrozenList={false} canAlert={false} canNotebook={false} />)
   const btn = screen.getByRole('button', { name: 'Save' })
-  expect(btn).toBeDisabled()
+  expect(btn).toHaveAttribute('aria-disabled', 'true')
+  expect(btn).not.toHaveAttribute('disabled')
+  expect(btn).toHaveAttribute('title', 'Available once the list has loaded')
+  btn.focus()
+  expect(document.activeElement).toBe(btn)
   fireEvent.click(btn)
+  fireEvent.keyDown(btn, { key: 'Enter' })
   expect(screen.queryByRole('menu')).toBeNull()
+  expect(btn).toHaveAttribute('aria-expanded', 'false')
+})
+test('"Skip to save results" still lands on a disabled Save (the page skip handler, verbatim)', () => {
+  function Bar() {
+    const slot = useRef(null)
+    const skipToSave = e => { e.preventDefault(); slot.current?.querySelector('button')?.focus() }
+    return (
+      <>
+        <a href="#focus-save" onClick={skipToSave}>Skip to save results</a>
+        <span ref={slot} id="focus-save"><SaveMenu canSaveScreen hasResult={false} /></span>
+      </>
+    )
+  }
+  render(<Bar />)
+  fireEvent.click(screen.getByRole('link', { name: 'Skip to save results' }))
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Save' }))
+})
+test('a menu that becomes disabled closes, and does not re-open when enabled again', () => {
+  const { rerender } = render(<Menu label="Things" trigger="Things"><MenuItem>One</MenuItem></Menu>)
+  fireEvent.click(screen.getByRole('button', { name: 'Things' }))
+  expect(screen.getByRole('menu')).toBeInTheDocument()
+  rerender(<Menu label="Things" trigger="Things" disabled><MenuItem>One</MenuItem></Menu>)
+  expect(screen.queryByRole('menu')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Things' })).toHaveAttribute('aria-expanded', 'false')
+  rerender(<Menu label="Things" trigger="Things"><MenuItem>One</MenuItem></Menu>)
+  expect(screen.queryByRole('menu')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Things' })).toHaveAttribute('aria-expanded', 'false')
 })
 test('save menu is disabled until there is a result, even when a door is already open', () => {
   const { rerender } = render(<SaveMenu canSaveScreen canFrozenList={false} canAlert={false} canNotebook={false} hasResult={false} />)
-  expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('aria-disabled', 'true')
   rerender(<SaveMenu canSaveScreen canFrozenList={false} canAlert={false} canNotebook hasResult />)
   const btn = screen.getByRole('button', { name: 'Save' })
-  expect(btn).toBeEnabled()
+  expect(btn).not.toHaveAttribute('aria-disabled')
   fireEvent.click(btn)
   expect(screen.getByRole('menuitem', { name: /Save as a screen/ })).toBeInTheDocument()
 })

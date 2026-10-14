@@ -13,7 +13,7 @@ function Page({ outer }) {
         <textarea aria-label="Note" />
         <div aria-label="Rich" contentEditable suppressContentEditableWarning />
         <div role="menu" aria-label="Open menu"><button type="button" role="menuitem">Item</button></div>
-        <HelpMenu onShortcuts={s.open} />
+        <HelpMenu shortcuts={s} />
       </div>
       {s.sheet}
     </div>
@@ -57,13 +57,28 @@ test('the layout takes precedence: the key does not reach a listener further out
   expect(outer).toHaveBeenCalledTimes(1)
 })
 
-test('Help > Keyboard shortcuts opens the same sheet (not a toast), and its "?" hint is true', () => {
+test('Help > Keyboard shortcuts opens the host sheet, and its "?" hint is true because the host binds the key', () => {
   render(<Page />)
   fireEvent.click(screen.getByRole('button', { name: 'Help' }))
   const item = screen.getByRole('menuitem', { name: /Keyboard shortcuts/ })
   expect(item).toHaveTextContent('?')
   fireEvent.click(item)
-  expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument()
+  const sheets = screen.getAllByRole('dialog', { name: 'Keyboard shortcuts' })
+  expect(sheets).toHaveLength(1)
+  expect(within(sheets[0]).getByTestId('focus-shortcuts')).toHaveTextContent('Show this list')
+})
+
+test('Help with no host binding the key: the item opens a sheet (never the old toast), with no "?" anywhere', () => {
+  const toast = vi.fn()
+  render(<HelpMenu onMethodology={vi.fn()} onShortcuts={toast} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Help' }))
+  const item = screen.getByRole('menuitem', { name: /Keyboard shortcuts/ })
+  expect(item).not.toHaveTextContent('?')
+  fireEvent.click(item)
+  expect(toast).not.toHaveBeenCalled()
+  const list = within(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).getByTestId('focus-shortcuts')
+  expect(list).toHaveTextContent('Open the filters')
+  expect(list).not.toHaveTextContent('Show this list')
 })
 
 test('isShortcutsKey: the predicate, directly', () => {

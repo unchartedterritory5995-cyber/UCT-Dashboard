@@ -44,10 +44,12 @@ export function isShortcutsKey(e) {
  * would collide with any other surface's). It stops the event there, so while focus is inside
  * the layout the sheet takes precedence over anything listening further out.
  *
- * Returns { open, onKeyDown, sheet }: render `sheet` once, hand `open` to Help's
- * "Keyboard shortcuts", and put `onKeyDown` on the layout's root.
+ * Returns { open, onKeyDown, sheet }: render `sheet` once, hand the whole result to HelpMenu
+ * as `shortcuts`, and put `onKeyDown` on the layout's root. `keyBound: false` (HelpMenu's own
+ * fallback, when no host binds the key) leaves the "?" row out, so the sheet never lists a key
+ * that does nothing.
  */
-export function useShortcutsSheet() {
+export function useShortcutsSheet({ keyBound = true } = {}) {
   const [isOpen, setOpen] = useState(false)
   const open = useCallback(() => setOpen(true), [])
   const onKeyDown = useCallback(e => {
@@ -61,7 +63,7 @@ export function useShortcutsSheet() {
       {isOpen && (
         <>
           <dl className={styles.keys} data-testid="focus-shortcuts">
-            {FOCUS_SHORTCUTS.map(s => (
+            {FOCUS_SHORTCUTS.filter(s => keyBound || !s.keys.includes('?')).map(s => (
               <div key={s.does} className={styles.keyRow}>
                 <dt>
                   {s.keys.map(k => <kbd key={k} className={styles.kbd}>{k}</kbd>)}
