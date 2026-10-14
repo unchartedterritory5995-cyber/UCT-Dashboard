@@ -77,8 +77,26 @@
 .receiptGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; font-variant-numeric: tabular-nums; }
 .receiptGrid dt { color: var(--text-muted); font-size: 11.5px; }
 .receiptGrid dd { margin: 0; font-size: 16px; font-weight: 700; }
+.screenBtn { display: inline-flex; align-items: center; gap: 10px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text-heading); padding: 8px 14px; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; min-height: 40px; }
+.screenCount { color: var(--text-muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+.screenMenu { width: 560px; max-width: calc(100vw - 40px); max-height: min(80vh, 760px); padding: 0; overflow: hidden; }
+.smSearch { padding: 12px; border-bottom: 1px solid var(--border); }
+.smInput { width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border-accent); border-radius: 8px; color: var(--text); padding: 9px 12px; font: inherit; font-size: 13px; }
+.smBody { overflow-y: auto; padding: 6px; }
+.smHead { margin: 0; padding: 12px 12px 6px; color: var(--text-muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+.smItem { display: flex; align-items: center; gap: 8px; padding: 2px 8px; border-radius: 8px; }
+.smItem:hover { background: var(--bg-hover); }
+.smCurrent { background: var(--ut-gold-dim); }
+.smPin { background: none; border: 0; color: var(--text-muted); width: 32px; height: 36px; cursor: pointer; }
+.smPin[aria-pressed='true'] { color: var(--ut-gold); }
+.smOpen { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; text-align: left; background: none; border: 0; color: inherit; font: inherit; padding: 6px 0; cursor: pointer; }
+.smName { font-size: 13.5px; font-weight: 600; color: var(--text-heading); }
+.smDesc { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.smCount { color: var(--text-muted); font-variant-numeric: tabular-nums; font-size: 12.5px; min-width: 40px; text-align: right; }
+.smFoot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; border-top: 1px solid var(--border); background: var(--bg); }
+.goldLink { background: none; border: 0; color: var(--ut-gold); font: inherit; font-size: 13px; cursor: pointer; min-height: 36px; }
 @media (max-width: 1024px) {
   .listWrap { flex-basis: 280px; }
-  .btn, .btnOn, .btnPrimary, .linkBtn, .segOn, .segOff, .menuItem, .iconBtn, .receiptBtn { min-height: var(--tap-min); }
+  .btn, .btnOn, .btnPrimary, .linkBtn, .segOn, .segOff, .menuItem, .iconBtn, .receiptBtn, .screenBtn, .smPin, .smOpen, .goldLink { min-height: var(--tap-min); }
   .row { min-height: var(--tap-min); }
 }
