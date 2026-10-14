@@ -1,0 +1,9 @@
+nav 16:16:09Z  longtasks=5 total=0.4s  biggest=0.1s@4.8s, 0.1s@5.4s, 0.1s@7.8s, 0.1s@5.3s, 0.1s@5.6s  worst heartbeat=0ms  page_errors=0
+     52419 ms  (idle) @ :-1:-1
+     17646 ms  (program) @ :-1:-1
+      3261 ms  m.onsuccess @ index-BEQ021_4.js:6:136805
+       995 ms  Cc @ index-BEQ021_4.js:14:121479
+       729 ms  (garbage collector) @ :-1:-1
+       162 ms  (anonymous) @ index-BEQ021_4.js:6:136397
+       141 ms  ym @ vendor-react-BrA_wePN.js:7:100988
+        52 ms  nP @ index-BEQ021_4.js:14:121335

@@ -338,16 +338,31 @@ def top_level_routes(entries: list[dict]) -> list[str]:
     return out
 
 
-def login(page, base: str) -> bool:
+def login(page, base: str) -> bool | None:
+    """True signed in · False no credentials or an HTTP refusal · None the request never completed.
+
+    ⛔ None is INCONCLUSIVE, not a failure: on 2026-10-14 the server answered in under a second
+    and the BODY never arrived (twice, two edges), and the uncaught TimeoutError exited 1 — the
+    code H15 rolls back on. ⛔ Print `brief(exc)`, never the exception: its call log carries the
+    response's set-cookie, and that put a live smoke session into two run logs.
+    """
     email = os.environ.get("SMOKE_EMAIL")
     pw = os.environ.get("SMOKE_PASSWORD")
     if not email or not pw:
         return False
-    resp = page.request.post(
-        f"{base}/api/auth/login",
-        data=json.dumps({"email": email, "password": pw}),
-        headers={"Content-Type": "application/json"},
-    )
+    try:
+        resp = page.request.post(
+            f"{base}/api/auth/login",
+            data=json.dumps({"email": email, "password": pw}),
+            headers={"Content-Type": "application/json"},
+        )
+    except Exception as exc:  # noqa: BLE001 — any transport failure means nothing was measured
+        try:
+            from tools.secret_scrub import brief  # noqa: PLC0415 — package import (tests)
+        except ImportError:
+            from secret_scrub import brief  # noqa: PLC0415 — script import (tools/ on sys.path)
+        say(f"INCONCLUSIVE: the sign-in request did not complete ({brief(exc)})", err=True)
+        return None
     if not resp.ok:
         say(f"  ! login HTTP {resp.status} — running UNAUTHENTICATED", err=True)
         return False
@@ -1069,6 +1084,9 @@ def main(argv=None) -> int:
         page = br.new_context(viewport={"width": 1280, "height": 900}).new_page()
 
         authed = login(page, args.base) if args.auth else False
+        if authed is None:
+            br.close()
+            return 2
         if not authed:
             # ⛔ SAY SO, LOUDLY, AND SAY WHAT IS NOT COVERED. A partial run reported as a full one
             # is the "chunked suite quoted as the gate" defect.
