@@ -33,6 +33,12 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, st
     return () => document.removeEventListener('pointerdown', onDown)
   }, [open])
   const close = () => { setOpen(false); setQ(''); btn.current?.focus() }
+  // Tabbing (or any focus move) out of the menu and its trigger closes it, as the Menu primitive
+  // does; focus stays where the member sent it. A null relatedTarget (window blur) keeps it open.
+  const onBlur = e => {
+    const to = e.relatedTarget
+    if (open && to && !box.current?.contains(to)) { setOpen(false); setQ('') }
+  }
   // `apiRef.current.open()` opens the menu (never toggles): the joystick hub's screens door.
   useImperativeHandle(apiRef, () => ({ open: () => setOpen(true) }), [])
 
@@ -56,7 +62,7 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, st
     count={counts[String(it.id)]} current={String(it.id) === String(currentId)} onApply={pick} onTogglePin={onTogglePin} />
 
   return (
-    <span className={styles.menuWrap} ref={box}>
+    <span className={styles.menuWrap} ref={box} onBlur={onBlur}>
       <button ref={btn} type="button" className={styles.screenBtn} aria-haspopup="dialog" aria-expanded={open}
         aria-label={Number.isFinite(count) ? `${label}, ${count} matches. Change screen` : `${label}. Change screen`} onClick={() => setOpen(o => !o)}>
         <span>{label}</span>

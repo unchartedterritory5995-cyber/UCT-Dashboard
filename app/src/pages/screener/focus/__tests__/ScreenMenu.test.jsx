@@ -87,3 +87,28 @@ test('Escape closes and returns focus to the trigger; outside pointerdown closes
   fireEvent.pointerDown(document.body)
   expect(screen.queryByRole('dialog')).toBeNull()
 })
+test('focus leaving the menu and its trigger closes it; a move inside keeps it open', () => {
+  render(<><ScreenMenu {...props} /><button type="button">Elsewhere</button></>)
+  const trigger = screen.getByRole('button', { name: /Leaders/ })
+  const outside = screen.getByRole('button', { name: 'Elsewhere' })
+  fireEvent.click(trigger)
+  const search = screen.getByRole('searchbox')
+  const pin = within(screen.getByRole('dialog', { name: 'Screens' })).getAllByRole('button', { name: /^(Pin|Unpin) / })[0]
+  // inside the dialog, and back to the trigger: still open
+  fireEvent.focusOut(search, { relatedTarget: pin })
+  expect(screen.getByRole('dialog', { name: 'Screens' })).toBeInTheDocument()
+  fireEvent.focusOut(pin, { relatedTarget: trigger })
+  expect(screen.getByRole('dialog', { name: 'Screens' })).toBeInTheDocument()
+  // a window blur (no relatedTarget) is not the member leaving the menu
+  fireEvent.focusOut(search, { relatedTarget: null })
+  expect(screen.getByRole('dialog', { name: 'Screens' })).toBeInTheDocument()
+  // Tab out to the next control on the page: closed, and focus is not pulled back to the trigger
+  fireEvent.change(search, { target: { value: 'semis' } })
+  outside.focus()
+  fireEvent.focusOut(search, { relatedTarget: outside })
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(outside).toHaveFocus()
+  // the search is cleared with it
+  fireEvent.click(trigger)
+  expect(screen.getByRole('searchbox')).toHaveValue('')
+})
