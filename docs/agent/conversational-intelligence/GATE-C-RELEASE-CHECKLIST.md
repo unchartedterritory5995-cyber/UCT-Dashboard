@@ -122,3 +122,27 @@ Measured on the rehearsal (`f05a05b445`):
 - Deploy freeze (venv Python): NOT FROZEN at 2026-10-13 23:38 ET. The system Python fails open (no `tzdata`).
 
 **To resume after a shutdown:** `git worktree list`; confirm the three refs above; `git fetch origin`; re-read `origin/master` / `origin/production`. If master moved, redo the rebase rehearsal. Re-run any suite that §7 does not record as finished, with the same settings on both trees.
+
+## 7. Full frontend suite — master vs Gate C (2026-10-14 ~04:00–05:15Z; local, nothing pushed)
+
+Identical configuration on both trees: `python scripts/gate_shards.py --shards 6 --max-workers 6`, system Node v24.20.0, deps from `npm ci` / `npm install` under Node 20.18.0 (same lockfile), clean trees verified at start and end by the wrapper, every test file accounted for. A first run at 2 workers was stopped at the owner's request before any shard finished (nothing to preserve: shard output is written only on completion).
+
+| | master `558c6443f1` | Gate C rehearsal `f05a05b445` |
+|---|---|---|
+| Test files | 3,404: **20 failed** / 3,353 passed / 31 skipped | 3,407: **16 failed** / 3,360 passed / 31 skipped |
+| Tests | 46,494: **16 failed** / 46,302 passed / 175 skipped / 1 todo | 46,535: **12 failed** / 46,350 passed / 172 skipped / 1 todo |
+| Tree start = end | yes | yes |
+| Failing identities | 23 | 19 |
+
+(The wrapper's own "NEW vs baseline" line compares against its stored historical baseline, not master; it is not the Gate C comparison.)
+
+**Failures only on Gate C: 0.** Every one of Gate C's 19 failing identities also fails on master. They are pre-existing; the handoff's known list (`targetScriptReport.measure`, `panelContract.rail`, `exportFormats.roundtrip`, `fidelityCarryovers.roundtrip`, `formControls.terminal`, `jsonFetcher`) plus master's newer reds (`symbolFoldParity`, four engine `*.measure` censuses, journal-2-0 `calloutNode.variant`, `dateMentionNode`, `exportRoundtrip`, `noteBatch.jsonRoundtrip`, `selectionExport.roundtrip`).
+
+**Failures only on master: 4**, each investigated rather than banked:
+- `StockChart.smoke`, `pollingSites.rail`, `ScanObjectCard`: all pass when re-run alone on master (`pollingSites` 23 s, `ScanObjectCard` 5 s) → load-sensitive. `StockChart.smoke` alone still throws one unhandled error on master (a chart mock without `subscribeVisibleTimeRangeChange`); Gate C does not touch `StockChart`.
+- `iteratorGlobalFloor`: reads BUILT output. Master's tree has no build ("app/dist/assets missing — run `npm run build`"). On Gate C it read the Node 20.18.0 production build and **passed**, so the Gate C build is clear of unshimmed globals below the iOS ≥ 16 floor.
+
+The Gate C additions (+3 test files, +41 tests) all pass.
+
+**After the shutdown (2026-10-14 ~09:10 ET):** `origin/master` = `origin/production` = `248d6c6819` (50 commits past the rehearsal base). Those 50 commits overlap Gate C's 39 files in **0** files and touch **none** of the frozen shared files; `merge-tree` of the rehearsal onto the new master is clean. A0 (`b8da8233f7`) and A1 (`2928cfc55e`) unchanged and not landed. The rehearsal therefore still holds, but release time redoes §2 on the then-current master with A0 on it.
+
