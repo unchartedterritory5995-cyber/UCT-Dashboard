@@ -45,6 +45,33 @@ def _bars_flat_base():
     return out
 
 
+def _qualifying_flat_base():
+    """60-bar 50% advance, then a 40-bar tight base just under the high."""
+    out, p = [], 100.0
+    g = 1.5 ** (1 / 60)
+    for i in range(60):
+        p *= g
+        out.append({"t": f"d{i}", "o": p * .995, "h": p * 1.005, "l": p * .995,
+                    "c": p, "v": 1_000_000})
+    top = p
+    for i in range(40):
+        c = top * (0.99 + 0.01 * ((i % 3) - 1) * 0.3)
+        out.append({"t": f"b{i}", "o": c, "h": min(top, c * 1.004), "l": c * .996,
+                    "c": c, "v": 500_000})
+    return out
+
+
+def test_a_real_adapter_produces_the_detectors_own_pivot():
+    """End to end, no patching: flat-base's adapter returns state["pivot"]."""
+    bars = _qualifying_flat_base()
+    st = base_catalog.flat_base_state(bars)
+    assert base_catalog.flat_base_qualifies(st, bars)      # the series is a real flat base
+    ctx = bases._context(bars, None)
+    px = base_catalog.by_key("flat-base").pivot(ctx)
+    assert px is not None and math.isfinite(px) and px > 0
+    assert px == st["pivot"]
+
+
 def _patch_by_key(monkeypatch, pivots):
     """Give chosen structure keys a fixed pivot callable; others untouched."""
     real = base_catalog.by_key
@@ -67,7 +94,7 @@ def test_every_structure_pivot_is_callable_or_none():
         assert s.pivot is None or callable(s.pivot), s.key
 
 
-def test_the_pivot_adapters_are_the_eleven_mapped_structures():
+def test_the_pivot_adapters_are_the_twelve_mapped_structures():
     have = {s.key for s in base_catalog.ALL_STRUCTURES if s.pivot is not None}
     assert have == {"flat-base", "base-on-base", "double-bottom", "high-tight-flag",
                     "vcp", "ascending-base", "square-box", "cup-with-handle", "cheat-3c", "low-cheat",
