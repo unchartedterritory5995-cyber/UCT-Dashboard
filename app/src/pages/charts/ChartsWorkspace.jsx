@@ -2832,6 +2832,12 @@ export default function ChartsWorkspace() {
     if (layoutUndo && !layoutUndo.shown && layoutUndo.plan.to && dockActiveId != null && String(dockActiveId) === String(layoutUndo.plan.to.id)) {
       setLayoutUndo({ ...layoutUndo, shown: true })
     }
+    // ⛔ …and it goes the moment the board moves on to another layout (an Agent open, another
+    // Dock click). "Switched to “Swing”" beside the Agent's "Opened “Macro”" is two messages
+    // disagreeing about the board (Agent integration test, 2026-10-13).
+    if (layoutUndo && layoutUndo.shown && layoutUndo.plan.to && dockActiveId != null && String(dockActiveId) !== String(layoutUndo.plan.to.id)) {
+      setLayoutUndo(null)
+    }
   }, [dockActiveId, layoutUndo])
   const memberDockOpen = useCallback((entry) => {
     rememberLayoutOpen(entry)
