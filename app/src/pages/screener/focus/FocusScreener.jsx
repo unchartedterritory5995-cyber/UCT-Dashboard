@@ -36,6 +36,7 @@ import StructureProvenance from '../../../components/screener/StructureProvenanc
 import { approvedChecklist } from '../../../components/howTo/howToChecklists'
 import HowToChecklist from '../../../components/howTo/HowToChecklist'
 import useScreenerHubSection from '../../../hub/sections/screenerSection'
+import { useHubEligible } from '../../../hub/useHubActive'
 import FocusTopBar, { ModeSwitch } from './FocusTopBar'
 import ScreenMenu from './ScreenMenu'
 import FiltersDrawer from './FiltersDrawer'
@@ -193,18 +194,31 @@ function FocusList({ onMode }) {
   const sel = useFocusSelection({ rows: displayRows, resetKey: rowsKey, hasMore, onLoadMore: s.loadMore, onOpen, onFlag, onWatch })
 
   // ── the joystick hub (phones/tablets), registered over the rows AS SHOWN, like ScannerShell.
-  // Its screens door opens the screen menu. The selection follows the hub cursor.
+  // Its screens door opens the screen menu. Where the hub cannot exist (useHubEligible, the gate
+  // its own mount uses) its cursor is ignored entirely: no row props, no sync.
   const screenMenuApi = useRef(null)
   const openScreens = useCallback(() => { screenMenuApi.current?.open() }, [])
+  const hubOn = useHubEligible()
   const { resultsRef: hubResultsRef, hubMount, cursor: hubCursor } = useScreenerHubSection({ displayRows, filters: s.filters, prices, hasMore, loadMore: s.loadMore, onOpenScans: openScreens })
   const hubIndex = hubCursor.index
+  const hubScrubTo = hubCursor.scrubTo
   const selectRow = sel.select
-  const lastHubIndex = useRef(hubIndex)
+  // Where the hub can exist, the list selection and the hub cursor are kept in step BOTH ways.
+  // The cursor has no setIndex; scrubTo(i / (count - 1)) lands exactly on i. A local move (keys,
+  // click) or a new screen (reset to row 0) is written into the cursor; a cursor move from the
+  // pad is written into the selection. A new screen wins over the cursor's follow-the-ticker.
+  const sync = useRef({ sel: sel.index, hub: hubIndex, key: rowsKey })
   useEffect(() => {
-    if (lastHubIndex.current === hubIndex) return
-    lastHubIndex.current = hubIndex
-    selectRow(hubIndex)
-  }, [hubIndex, selectRow])
+    const prev = sync.current
+    sync.current = { sel: sel.index, hub: hubIndex, key: rowsKey }
+    if (!hubOn || !displayRows.length || sel.index === hubIndex) return
+    if (prev.key !== rowsKey || prev.sel !== sel.index) {
+      const n = displayRows.length
+      hubScrubTo?.(n > 1 ? sel.index / (n - 1) : 0)
+    } else if (prev.hub !== hubIndex && hubIndex >= 0) {
+      selectRow(hubIndex)
+    }
+  }, [hubOn, sel.index, hubIndex, rowsKey, displayRows.length, hubScrubTo, selectRow])
   const radar = useRadar(displayRows)
 
   // ── drawer and sheets ────────────────────────────────────────────────────
@@ -354,7 +368,8 @@ function FocusList({ onMode }) {
   const sortLabel = s.rank ? 'Your ranking' : `${colLabel(sortKey) || 'Default'} ${sortArrow}`
   // The sortable set is the table's own: in Table mode every column header sorts (VirtualResults),
   // and those headers are the view's columns from meta (the server sorts by any snapshot column).
-  const sortKeys = [...new Set([DEFAULT_SORT.key, ...(s.visibleColumns || result?.view_columns || [])])]
+  // The current sort key is always offered, so a sort set elsewhere can be seen and reversed.
+  const sortKeys = [...new Set([DEFAULT_SORT.key, ...(sortKey ? [sortKey] : []), ...(s.visibleColumns || result?.view_columns || [])])]
     .filter(k => k && k !== 'ticker' && k !== 'company')
   const sortMenu = (
     <Menu label={`Sort: ${sortLabel}`} trigger={<>Sort: <span className={styles.listHeadValue}>{sortLabel}</span></>}
@@ -393,7 +408,7 @@ function FocusList({ onMode }) {
   } else {
     body = (
       <div className={styles.body}>
-        <ResultList ref={hubResultsRef} itemProps={hubCursor.itemProps} rows={displayRows} index={sel.index} onSelect={sel.select} onKeyDown={onListKeyDown}
+        <ResultList ref={hubResultsRef} itemProps={hubOn ? hubCursor.itemProps : undefined} rows={displayRows} index={sel.index} onSelect={sel.select} onKeyDown={onListKeyDown}
           livePrices={prices} radar={radar} sortLabel={sortLabel} sortMenu={sortMenu} total={total} hasMore={hasMore}
           onLoadMore={s.loadMore} isLoading={isLoading} showCompany={showCompany} />
         <ChartPane row={selected} livePrice={selected ? prices[selected.ticker] : null} why={why}
@@ -411,7 +426,7 @@ function FocusList({ onMode }) {
         screenMenu={<ScreenMenu apiRef={screenMenuApi} currentName={current?.name} currentId={current?.id} isEdited={isEdited} count={total}
           starters={starters} saved={saved} pinned={effectivePinned} onTogglePin={togglePin} onApply={applyScreen}
           onSaveChanges={current?.kind === 'saved' && isEdited ? saveChanges : null}
-          onSaveAsNew={saveAsScreen}
+          onSaveAsNew={savedLoaded && !savedError ? saveAsScreen : null}
           onRename={current?.kind === 'saved' ? rename : null}
           onNewScreen={() => { s.clearFilters(); s.setLogic(null); setCurrent(null); openFilters() }}
           myScans={myScans} onUseScan={applyScanFilter} />}

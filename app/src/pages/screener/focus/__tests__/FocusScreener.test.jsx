@@ -256,7 +256,16 @@ test('Save as a screen stays hidden until the saved-screens read has answered', 
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   expect(within(screen.getByRole('menu', { name: 'Save' })).queryByRole('menuitem', { name: /Save as a screen/ })).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  // the screen menu's "Save as new…" waits too
+  fireEvent.click(screen.getByRole('button', { name: /Change screen/ }))
+  expect(within(screen.getByRole('dialog', { name: 'Screens' })).queryByRole('button', { name: /Save as new/ })).toBeNull()
+  fireEvent.keyDown(screen.getByRole('dialog', { name: 'Screens' }), { key: 'Escape' })
   release()
+  await waitFor(() => {
+    fireEvent.click(screen.getByRole('button', { name: /Change screen/ }))
+    expect(within(screen.getByRole('dialog', { name: 'Screens' })).getByRole('button', { name: /Save as new/ })).toBeInTheDocument()
+  })
+  fireEvent.keyDown(screen.getByRole('dialog', { name: 'Screens' }), { key: 'Escape' })
   await waitFor(() => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(within(screen.getByRole('menu', { name: 'Save' })).getByRole('menuitem', { name: /Save as a screen/ })).toBeInTheDocument()
@@ -304,4 +313,15 @@ test('switching to Table keeps a filter change made just before', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Table' }))
   const spec = decodeSpec(new URLSearchParams(window.location.search).get(SPEC_PARAM))
   expect(spec?.filters?.universe?.value).toBe('uct')
+})
+test('a sort key outside the visible columns is still offered, with its direction', async () => {
+  const enc = encodeSpec({ filters: {}, sort: { key: 'rs_rank', dir: 'asc' } })
+  window.history.replaceState(null, '', `/?${SPEC_PARAM}=${enc}`)
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  fireEvent.click(screen.getByRole('button', { name: 'Sort: RS Rank ↑' }))
+  const item = within(screen.getByRole('menu', { name: 'Sort: RS Rank ↑' })).getByRole('menuitem', { name: /RS Rank/ })
+  expect(item).toHaveTextContent('↑')
+  fireEvent.click(screen.getByRole('menuitem', { name: /Reverse order/ }))
+  await waitFor(() => expect(scanBodies().at(-1).sort).toEqual({ key: 'rs_rank', dir: 'desc' }))
 })

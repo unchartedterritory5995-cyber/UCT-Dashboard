@@ -84,7 +84,7 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, st
           </div>
           <div className={styles.smFoot}>
             {onSaveChanges && typeof currentName === 'string' && currentName && <button type="button" className={styles.btn} onClick={() => { onSaveChanges(); close() }}>Save changes to &ldquo;{currentName}&rdquo;</button>}
-            <button type="button" className={styles.linkBtn} onClick={() => { onSaveAsNew(); close() }}>Save as new…</button>
+            {onSaveAsNew && <button type="button" className={styles.linkBtn} onClick={() => { onSaveAsNew(); close() }}>Save as new…</button>}
             {onRename && <button type="button" className={styles.linkBtn} onClick={() => { onRename(); close() }}>Rename</button>}
             <span className={styles.spacer} />
             <button type="button" className={styles.goldLink} onClick={() => { onNewScreen(); close() }}>+ New screen</button>
