@@ -99,7 +99,10 @@ ROOT = Path(__file__).resolve().parents[1]
 #: `paid`, which is what it must be: it returns the full criteria library
 #: including verbatim source quotes.
 EXPECTED_SCANS_ROUTES = 16
-EXPECTED_SCREENER_ROUTES = 24  # +1 2026-10-07: GET /api/screener/fields (the filter
+EXPECTED_SCREENER_ROUTES = 25  # +1 2026-10-14: POST /api/screener/count/batch (up to 30
+#   counts in one request for the screen menu). PAID like /count: it runs each
+#   spec through the same preview_count with the same dependency-sourced user id.
+#                              # +1 2026-10-07: GET /api/screener/fields (the filter
 #   registry without meta()'s measurements, for UCT Agent). PAID like /meta.
 #                              # +2 2026-10-02: GET /api/screener/grammar and
 #   POST /api/screener/grammar/parse (FT-029, dark behind SCREENER_LOGIC_ENABLED).
@@ -170,6 +173,7 @@ BODY_SAMPLES = {
     # Same ScanSpec as /scan, deliberately — the count previews THAT spec,
     # so a body shape of its own would be a second grammar for one request.
     ("POST", "/api/screener/count"): {"filters": [], "view": "overview"},
+    ("POST", "/api/screener/count/batch"): {"specs": [{"filters": [], "view": "overview"}]},
     ("POST", "/api/screener/alerts"): {"def_hash": "h", "def_id": "d",
                                        "name": "S", "mode": "both"},
     ("POST", "/api/screener/saved-screens"): {"name": "n", "spec": {"filters": []}},

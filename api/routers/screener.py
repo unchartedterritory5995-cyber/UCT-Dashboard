@@ -45,7 +45,7 @@ Gating it would break every share link already in the wild. It is named in
 a SECOND open route cannot join it quietly.
 """
 from fastapi import APIRouter, HTTPException, Body, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from api.services.engine import get_screener, get_candidates
 from api.services import breadth_monitor as bm_svc
 from api.services.screener import (
@@ -292,6 +292,32 @@ def screener_count(spec: ScanSpec, user=Depends(require_paid)):
                                        user_id=(user or {}).get("id"))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+class CountBatch(BaseModel):
+    specs: list[ScanSpec] = Field(..., min_length=1, max_length=30)
+
+
+@router.post("/api/screener/count/batch")
+def screener_count_batch(body: CountBatch, user=Depends(require_paid)):
+    """Counts for up to 30 specs in one request (the screen menu's numbers).
+
+    ⛔ Same gate and same `user_id` source as `/count`: each spec goes through the
+    identical `preview_count` call, with the id read off the dependency and never
+    the body. One bad spec answers `{"error": ...}` in its own slot and never
+    fails its neighbours; a spec `/count` would refuse with a 400 reports that
+    same message, and anything unexpected is reported generically.
+    """
+    uid = (user or {}).get("id")
+    out = []
+    for spec in body.specs:
+        try:
+            out.append(scr_query.preview_count(spec.model_dump(), user_id=uid))
+        except ValueError as e:
+            out.append({"error": str(e)})
+        except Exception:  # noqa: BLE001 -- one spec, not the batch
+            out.append({"error": "count failed"})
+    return {"counts": out}
 
 
 @router.post("/api/screener/scan")
