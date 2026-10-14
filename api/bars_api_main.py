@@ -337,6 +337,11 @@ def _build_app() -> FastAPI:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
+    # Quiet httpx/httpcore like web and worker do (api/main.py). At INFO httpx
+    # logs every request URL, and the Massive URLs carry `apiKey=` in the query
+    # string, so this tier was writing the provider key into its logs.
+    for _noisy in ("httpx", "httpcore"):
+        logging.getLogger(_noisy).setLevel(logging.WARNING)
     # Extract/install onto the 50GB VOLUME, not the small ephemeral /tmp (a big
     # extract there was a suspected silent-kill cause). Set in-process so it also
     # overrides any mangled Railway TMPDIR value.
