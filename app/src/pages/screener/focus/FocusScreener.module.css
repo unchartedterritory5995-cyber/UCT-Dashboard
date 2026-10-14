@@ -102,16 +102,18 @@
   .row { min-height: var(--tap-min); }
 }
 
+.drawer:focus { outline: none; }
 .drawerScrim { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, 0.45); }
 .drawer { position: absolute; left: 0; top: 0; bottom: 0; width: 460px; max-width: 100%; background: var(--bg-surface); border-right: 1px solid var(--border-accent); display: flex; flex-direction: column; }
 .drawerHead { display: flex; align-items: center; gap: 10px; padding: 16px 18px 12px; }
 .drawerTitle { margin: 0; font-size: 18px; font-weight: 700; color: var(--text-heading); }
 .drawerCount { color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .drawerSection { padding: 12px 18px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-.drawerBody { flex: 1; overflow-y: auto; padding: 8px 10px; }
+.drawerBody { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 8px 10px; }
 .drawerFoot { display: flex; align-items: flex-start; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--border); }
 .pillRow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 6px 4px 12px; font: inherit; font-size: 12.5px; background: var(--bg-elevated); border: 1px solid var(--border-accent); color: var(--text); cursor: pointer; min-height: 32px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 6px 4px 12px; font: inherit; font-size: 12.5px; background: var(--bg-elevated); border: 1px solid var(--border-accent); color: var(--text); min-height: 32px; }
+button.pill { cursor: pointer; }
 .pillKey { color: var(--text-muted); }
 .pillX { background: none; border: 0; color: var(--text-muted); font-size: 15px; width: 28px; height: 28px; cursor: pointer; }
 .codeBox { flex: 1; min-width: 0; }

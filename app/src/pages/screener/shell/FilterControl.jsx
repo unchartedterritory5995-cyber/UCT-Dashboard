@@ -4,11 +4,14 @@ import styles from './ScannerShell.module.css'
 import Input from '../../../components/ui/Input'
 import Select from '../../../components/ui/Select'
 
+// The ONE preset matcher: select and buttons both decide "which preset is on" here.
+const presetMatches = (p, value) => !!value && p.op === value.op && p.value === value.value
+  && p.min === value.min && p.max === value.max
+
 const currentLabel = (filter, value, customOpen) => {
   if (customOpen) return 'Custom…'
   if (!value) return 'Any'
-  const match = (filter.presets || []).find(o =>
-    o.op === value.op && o.value === value.value && o.min === value.min && o.max === value.max)
+  const match = (filter.presets || []).find(o => presetMatches(o, value))
   return match ? match.label : 'Custom…'
 }
 
@@ -46,7 +49,13 @@ export default function FilterControl({ filter, value, onChange, presentation = 
   }
 
   const onKey = e => { if (e.key === 'Enter') commit() }
-  const customInputs = customOpen && (
+  // A value that matches no preset IS a custom range; the buttons presentation
+  // shows it as such (Custom pressed, min/max visible). The select keeps its
+  // own behaviour (label 'Custom…', inputs only after the member opens them).
+  const unmatched = presentation === 'buttons' && !!value
+    && !(filter.presets || []).some(p => p.label !== 'Any' && presetMatches(p, value))
+  const customShown = customOpen || unmatched
+  const customInputs = customShown && (
     <div className={styles.customRange}>
       <Input type="number" placeholder="min" aria-label={`${filter.label} min`}
         value={minV} onChange={e => setMinV(e.target.value)}
@@ -62,8 +71,6 @@ export default function FilterControl({ filter, value, onChange, presentation = 
   // choice at once. Default stays 'select' so ScannerShell renders unchanged.
   // It reuses onSelect, so a preset emits exactly the spec the select does.
   if (presentation === 'buttons') {
-    const matches = p => !!value && p.op === value.op && p.value === value.value
-      && p.min === value.min && p.max === value.max
     return (
       <div className={styles.presetGroup}>
         <span className={styles.presetHead}>
@@ -71,13 +78,14 @@ export default function FilterControl({ filter, value, onChange, presentation = 
           <ColumnDesc colKey={filter.key} name={filter.label} tapTarget />
         </span>
         <div className={styles.presetRow} role="group" aria-label={filter.label}>
-          {(filter.presets || []).map(p => (
+          {(filter.presets || []).map((p, i) => (
             <button key={p.label} type="button" className={styles.presetBtn}
-              aria-pressed={p.label === 'Any' ? !value && !customOpen : !customOpen && matches(p)}
+              id={i === 0 ? `fc_${filter.key}` : undefined}
+              aria-pressed={p.label === 'Any' ? !value && !customShown : !customShown && presetMatches(p, value)}
               onClick={() => onSelect(p.label)}>{p.label}</button>
           ))}
           {filter.allow_custom && (
-            <button type="button" className={styles.presetCustom} aria-pressed={customOpen}
+            <button type="button" className={styles.presetCustom} aria-pressed={customShown}
               onClick={() => onSelect('Custom…')}>Custom…</button>
           )}
         </div>

@@ -33,3 +33,9 @@ test('default presentation is still a select', () => {
   expect(screen.getByRole('combobox')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '≥ 90' })).toBeNull()
 })
+test('a value matching no preset shows Custom pressed with the min/max inputs', () => {
+  render(<FilterControl filter={f} value={{ op: 'between', min: 70, max: 95 }} onChange={vi.fn()} presentation="buttons" />)
+  expect(screen.getByRole('button', { name: 'Custom…' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('button', { name: 'Any' })).toHaveAttribute('aria-pressed', 'false')
+  expect(screen.getByLabelText('RS Rank min')).toHaveValue(70)
+})

@@ -83,3 +83,43 @@ test('returnFocusRef wins over the captured element', () => {
   expect(document.activeElement).toBe(b)
   a.remove(); b.remove()
 })
+
+test('Tab from the last control wraps to the first; Shift+Tab from the first wraps to the last', () => {
+  render(<FiltersDrawer {...base} filters={{}} />)
+  const dlg = screen.getByRole('dialog', { name: 'Filters' })
+  const last = screen.getByRole('button', { name: 'Show 214 stocks' })
+  last.focus()
+  fireEvent.keyDown(last, { key: 'Tab' })
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close filters' }))
+  fireEvent.keyDown(document.activeElement, { key: 'Tab', shiftKey: true })
+  expect(document.activeElement).toBe(last)
+  expect(dlg.contains(document.activeElement)).toBe(true)
+})
+test('Escape works with focus on the dialog itself (after a click on plain content)', () => {
+  render(<FiltersDrawer {...base} filters={{}} />)
+  const dlg = screen.getByRole('dialog', { name: 'Filters' })
+  expect(dlg).toHaveAttribute('tabindex', '-1')
+  dlg.focus()
+  fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+  expect(base.onClose).toHaveBeenCalled()
+})
+test('body scroll is locked while open and restored after close', () => {
+  document.body.style.overflow = 'scroll'
+  const { rerender, unmount } = render(<FiltersDrawer {...base} open={false} filters={{}} />)
+  expect(document.body.style.overflow).toBe('scroll')
+  rerender(<FiltersDrawer {...base} open filters={{}} />)
+  expect(document.body.style.overflow).toBe('hidden')
+  rerender(<FiltersDrawer {...base} open={false} filters={{}} />)
+  expect(document.body.style.overflow).toBe('scroll')
+  rerender(<FiltersDrawer {...base} open filters={{}} />)
+  unmount()
+  expect(document.body.style.overflow).toBe('scroll')
+  document.body.style.overflow = ''
+})
+test('a new returnFocusRef identity while open does not move focus', () => {
+  const { rerender } = render(<FiltersDrawer {...base} open filters={{}} returnFocusRef={{ current: null }} />)
+  const btn = screen.getByRole('button', { name: 'Show 214 stocks' })
+  btn.focus()
+  rerender(<FiltersDrawer {...base} open filters={{}} returnFocusRef={{ current: null }} />)
+  expect(document.activeElement).toBe(btn)
+})
