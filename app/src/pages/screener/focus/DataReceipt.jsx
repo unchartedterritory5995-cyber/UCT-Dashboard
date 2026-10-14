@@ -1,13 +1,14 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import CoverageLine from '../../../components/provenance/CoverageLine'
-import { closeLabel, isStaleSnapshot } from './dates'
+import { sessionCloseLabel, isStaleSnapshot } from './dates'
 import styles from './FocusScreener.module.css'
 
 // eslint-disable-next-line react-refresh/only-export-components -- a pure helper the orchestrator shares with this receipt
 export function coverageHasDrop(c) {
   return !!c && ((c.dropped || 0) > 0 || (c.not_computable || 0) > 0)
 }
-const day = iso => closeLabel(iso) || 'latest close'
+// The label names the SESSION the snapshot describes (dates.js), not the night it was built.
+const day = iso => sessionCloseLabel(iso) || 'latest close'
 
 // P7: a snapshot more than one session old is said out loud (amber, "stale"), never a quiet
 // date change. `now` is injectable for tests.
@@ -29,7 +30,9 @@ export default function DataReceipt({ snapshotDate, live, coverage, now }) {
     setOpen(false)
     btn.current?.focus()
   }
-  const when = closeLabel(snapshotDate)
+  const when = sessionCloseLabel(snapshotDate)
+  // Staleness is computed at RENDER: there is no timer, so a page left open across a missed
+  // nightly turns stale on its next render (a scan answer, a live tick, any interaction).
   const stale = !!when && isStaleSnapshot(snapshotDate, now)
   return (
     <span className={styles.menuWrap} ref={box} onKeyDown={onKeyDown}>

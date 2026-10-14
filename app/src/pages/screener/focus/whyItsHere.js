@@ -4,7 +4,7 @@
 // plain sentence. Never a ✓ we cannot back with the row's own value.
 import { chipLabel } from '../chipLabel'
 import { plainColumnLabel, plainStructure } from './plainWords'
-import { closeLabel } from './dates'
+import { sessionCloseLabel } from './dates'
 
 export const NOT_CHECKABLE_KEYS = new Set([
   'universe', 'list', 'scan', 'tickers', 'arith', 'base_structure', 'pattern_engine_id',
@@ -98,7 +98,8 @@ function noteLabel(key, def, spec) {
 export function whyItsHere({ filters = {}, logic = null, rank = null, metaFilters = [], row = {}, live = null, snapshotDate = null } = {}) {
   const defs = Object.fromEntries((metaFilters || []).map(f => [f.key, f]))
   const all = []
-  const asOfClose = closeLabel(snapshotDate)
+  // The close the row's numbers describe: its own bars_asof, else the session before the build.
+  const asOfClose = sessionCloseLabel(snapshotDate, row?.bars_asof)
   for (const [key, spec] of Object.entries(filters || {})) {
     if (!spec) continue
     if (key === 'universe') { all.push({ kind: 'pool', label: `In ${spec.label || 'UCT Universe'}` }); continue }
@@ -116,7 +117,9 @@ export function whyItsHere({ filters = {}, logic = null, rank = null, metaFilter
       // B5: the header shows the live price, so the strip checks the live price too.
       const v = live[field]
       if (isMissing(v)) { all.push({ kind: 'note', label, value: '—' }); continue }
-      all.push({ kind: satisfies(spec, v) ? 'check' : 'note', label, value: fmtValue(def, v) })
+      if (satisfies(spec, v)) { all.push({ kind: 'check', label, value: fmtValue(def, v) }); continue }
+      // Moved out of range since the snapshot: say so, and say when it matched.
+      all.push({ kind: 'note', label, value: `${fmtValue(def, v)} now${asOfClose ? ` (matched at ${asOfClose})` : ''}` })
       continue
     }
     if (isMissing(row[key])) { all.push({ kind: 'note', label, value: '—' }); continue }

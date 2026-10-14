@@ -14,3 +14,6 @@ test('no live price: the snapshot price and change', () => {
 test('a stock that did not trade shows no change', () => {
   expect(livePriceOf({ ...row, vol_ratio: 0 }, { price: 104, change_pct: 1.2 }).chg).toBeNull()
 })
+test('a live change with no live price is never paired with the snapshot price', () => {
+  expect(livePriceOf(row, { change_pct: 2.4 })).toEqual({ price: 100, chg: -3.7, live: false })
+})

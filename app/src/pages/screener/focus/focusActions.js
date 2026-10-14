@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMemberInterestSurface, useMemberInterest, followedAmong } from '../../../lib/memberInterest'
 import { promoteAvailable, promoteScreen } from '../shell/promoteApi'
 import { saveForkOffer, saveFork } from '../shell/saveForkApi'
+import { capToTopN } from './counts'
 
 const EMPTY = new Set()
 
@@ -81,8 +82,10 @@ export async function updateScreen(id, fields) {
 export async function saveFrozenList(spec, name) {
   try {
     const out = await promoteScreen({ spec, name })
-    return out?.truncated
-      ? `Saved "${name}" with the first ${Number(out.taken).toLocaleString('en-US')} of ${Number(out.matched).toLocaleString('en-US')} matches`
+    // A ranked screen lists at most its top_n: "of N" is the count the member was shown (S2).
+    const matched = capToTopN(Number(out?.matched), spec)
+    return out?.truncated && Number.isFinite(matched) && matched > Number(out.taken)
+      ? `Saved "${name}" with the first ${Number(out.taken).toLocaleString('en-US')} of ${matched.toLocaleString('en-US')} matches`
       : `Saved "${name}" with ${Number(out?.added || 0).toLocaleString('en-US')} names`
   } catch (e) {
     return e?.message || 'Could not save the list.'

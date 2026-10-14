@@ -131,12 +131,16 @@ test('B5: with a live price the strip checks and shows the live price', () => {
 })
 test('B5: a live price that no longer passes is never a tick', () => {
   const live = { price: 9.4, chg: -2, live: true }
-  const { items } = whyItsHere({ filters: { price: { op: 'gte', min: 10 } }, metaFilters: meta, row: { price: 10.2 }, live })
-  expect(items[0]).toEqual({ kind: 'note', label: 'Price ≥ $10', value: '$9.4' })
+  const { items } = whyItsHere({ filters: { price: { op: 'gte', min: 10 } }, metaFilters: meta, row: { price: 10.2 }, live, snapshotDate: '2026-10-13' })
+  expect(items[0]).toEqual({ kind: 'note', label: 'Price ≥ $10', value: '$9.4 now (matched at Oct 12 close)' })
 })
 test('B5: without a live price the snapshot value says which close it is', () => {
-  const { items } = whyItsHere({ filters: { price: { op: 'gte', min: 10 } }, metaFilters: meta, row, live: { price: 956.12, live: false }, snapshotDate: '2026-10-12' })
+  // snapshot_date is the BUILD date: a Tuesday build describes Monday's close
+  const { items } = whyItsHere({ filters: { price: { op: 'gte', min: 10 } }, metaFilters: meta, row, live: { price: 956.12, live: false }, snapshotDate: '2026-10-13' })
   expect(items[0]).toEqual({ kind: 'check', label: 'Price ≥ $10', value: '$956.12 at Oct 12 close' })
+  // a row's own bars_asof names its close directly
+  const own = whyItsHere({ filters: { price: { op: 'gte', min: 10 } }, metaFilters: meta, row: { ...row, bars_asof: '20261009' }, snapshotDate: '2026-10-13' })
+  expect(own.items[0].value).toBe('$956.12 at Oct 9 close')
 })
 test('plain words: a column reads as the list and sort menu name it', () => {
   const m = [...meta, { key: 'vol_ratio', label: 'Volume Ratio', type: 'range', presets: [] }]

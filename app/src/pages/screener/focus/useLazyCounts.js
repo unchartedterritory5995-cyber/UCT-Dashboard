@@ -10,7 +10,13 @@ function cached(key) {
   if (Date.now() - hit.at >= COUNT_TTL_MS) { cache.delete(key); return undefined }
   return hit.v
 }
-const remember = (key, v) => cache.set(key, { v, at: Date.now() })
+// A spec naming a watchlist or a scan is never cached here: the member can change that list (or
+// the scan re-runs) inside the tab, and the cached number would outlive it.
+const VOLATILE_KEYS = new Set(['list', 'scan'])
+const cacheable = key => {
+  try { return !(JSON.parse(key)?.filters || []).some(f => f && VOLATILE_KEYS.has(f.key)) } catch { return false }
+}
+const remember = (key, v) => { if (cacheable(key)) cache.set(key, { v, at: Date.now() }) }
 const inflight = new Map()     // spec JSON -> Promise
 let active = 0
 const queue = []

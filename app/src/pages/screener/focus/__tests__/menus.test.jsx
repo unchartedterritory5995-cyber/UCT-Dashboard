@@ -124,8 +124,9 @@ test('coverage drop detection', () => {
   expect(coverageHasDrop({ evaluated: 10, answered: 8, dropped: 2, not_computable: 0 })).toBe(true)
   expect(coverageHasDrop({ evaluated: 10, answered: 9, dropped: 0, not_computable: 1 })).toBe(true)
 })
+// snapshotDate is the BUILD date (the 03:00 ET nightly): a Tuesday build describes Monday's close.
 test('data receipt shows the date and counts', () => {
-  render(<DataReceipt snapshotDate="2026-10-12" live coverage={{ evaluated: 11230, answered: 11230, dropped: 0, not_computable: 0 }} />)
+  render(<DataReceipt snapshotDate="2026-10-13" live coverage={{ evaluated: 11230, answered: 11230, dropped: 0, not_computable: 0 }} />)
   const btn = screen.getByRole('button', { name: /Oct 12 close/ })
   fireEvent.click(btn)
   expect(screen.getByRole('region', { name: 'About this data' })).toHaveTextContent('11,230')
@@ -178,7 +179,7 @@ test('help menu renders only items with a handler', () => {
   expect(screen.getByRole('menuitem', { name: 'Methodology' })).toBeInTheDocument()
 })
 test('receipt is a disclosure: escape closes from trigger and from inside, focus returns', () => {
-  render(<DataReceipt snapshotDate="2026-10-12" coverage={{ evaluated: 5, answered: 5, dropped: 0, not_computable: 0 }} />)
+  render(<DataReceipt snapshotDate="2026-10-13" coverage={{ evaluated: 5, answered: 5, dropped: 0, not_computable: 0 }} />)
   const btn = screen.getByRole('button', { name: /Oct 12 close/ })
   expect(btn).not.toHaveAttribute('aria-controls')
   fireEvent.click(btn)
@@ -192,13 +193,13 @@ test('receipt is a disclosure: escape closes from trigger and from inside, focus
   expect(screen.queryByRole('region')).toBeNull()
 })
 test('receipt closes on outside pointerdown', () => {
-  render(<div><span>out</span><DataReceipt snapshotDate="2026-10-12" /></div>)
+  render(<div><span>out</span><DataReceipt snapshotDate="2026-10-13" /></div>)
   fireEvent.click(screen.getByRole('button', { name: /Oct 12 close/ }))
   fireEvent.pointerDown(screen.getByText('out'))
   expect(screen.queryByRole('region')).toBeNull()
 })
 test('receipt date handling: time component, bad input, missing', () => {
-  const { unmount } = render(<DataReceipt snapshotDate="2026-10-12T20:00:00Z" />)
+  const { unmount } = render(<DataReceipt snapshotDate="2026-10-13T07:00:00Z" />)
   expect(screen.getByRole('button', { name: /Oct 12 close/ })).toBeInTheDocument()
   unmount()
   render(<DataReceipt snapshotDate="garbage" />)

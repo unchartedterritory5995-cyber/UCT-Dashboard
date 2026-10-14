@@ -156,3 +156,16 @@ describe('cached counts expire after 10 minutes', () => {
     expect(fetch).toHaveBeenCalledTimes(3)
   })
 })
+
+test('a spec naming a watchlist or a scan is asked again on the next open, never served from cache', async () => {
+  fetch.mockImplementation(async (url, o) => ({ ok: true, json: async () => ({ counts: JSON.parse(o.body).specs.map(() => ({ count: 9 })) }) }))
+  const specs = { l: { filters: [{ key: 'list', op: 'in', value: 'wl:3' }] }, s: { filters: [{ key: 'scan', op: 'in', value: 'abc' }] }, p: { filters: [] } }
+  const first = renderHook(() => useLazyCounts(specs, true))
+  await waitFor(() => expect(first.result.current).toEqual({ l: 9, s: 9, p: 9 }))
+  first.unmount()
+  fetch.mockClear()
+  const again = renderHook(() => useLazyCounts(specs, true))
+  await waitFor(() => expect(again.result.current).toEqual({ l: 9, s: 9, p: 9 }))
+  const asked = fetch.mock.calls.flatMap(([, o]) => JSON.parse(o.body).specs.map(sp => sp.filters[0]?.key || 'plain'))
+  expect(asked.sort()).toEqual(['list', 'scan'])
+})
