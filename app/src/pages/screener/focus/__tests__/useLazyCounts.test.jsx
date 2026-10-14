@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react'
-import { vi, beforeEach, expect, test } from 'vitest'
+import { vi, afterEach, beforeEach, describe, expect, test } from 'vitest'
 import useLazyCounts, { __resetCountCache } from '../useLazyCounts'
 
 const BATCH = '/api/screener/count/batch'
@@ -113,4 +113,46 @@ test('two consumers asking for the same spec share one request', async () => {
   const two = renderHook(() => useLazyCounts({ z: spec }, true))
   await waitFor(() => { expect(one.result.current.a).toBe(8); expect(two.result.current.z).toBe(8) })
   expect(fetch).toHaveBeenCalledTimes(1)
+})
+
+describe('cached counts expire after 10 minutes', () => {
+  // Only the clock is faked: the hook's fetch and promise plumbing run as normal.
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-14T14:00:00Z')) })
+  afterEach(() => { vi.useRealTimers() })
+  const specs = { a: { filters: [{ key: 'rs_rank', op: 'gte', min: 90 }] } }
+
+  test('served from cache inside the window, asked again after it', async () => {
+    let n = 40
+    fetch.mockImplementation(async () => ({ ok: true, json: async () => ({ counts: [{ count: ++n }] }) }))
+    const first = renderHook(() => useLazyCounts(specs, true))
+    await waitFor(() => expect(first.result.current.a).toBe(41))
+    first.unmount()
+
+    vi.setSystemTime(new Date('2026-10-14T14:09:59Z'))
+    const second = renderHook(() => useLazyCounts(specs, true))
+    await waitFor(() => expect(second.result.current.a).toBe(41))
+    expect(fetch).toHaveBeenCalledTimes(1)
+    second.unmount()
+
+    vi.setSystemTime(new Date('2026-10-14T14:10:00Z'))
+    const third = renderHook(() => useLazyCounts(specs, true))
+    await waitFor(() => expect(third.result.current.a).toBe(42))
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  test('a failure is still never cached, and the reset clears fresh counts', async () => {
+    fetch.mockImplementationOnce(async () => ({ ok: false, status: 500, json: async () => ({}) }))
+    const failed = renderHook(() => useLazyCounts(specs, true))
+    await waitFor(() => expect(failed.result.current.a).toBeNull())
+    failed.unmount()
+    fetch.mockImplementation(async () => ({ ok: true, json: async () => ({ counts: [{ count: 7 }] }) }))
+    const retry = renderHook(() => useLazyCounts(specs, true))
+    await waitFor(() => expect(retry.result.current.a).toBe(7))
+    expect(fetch).toHaveBeenCalledTimes(2)
+    retry.unmount()
+    __resetCountCache()
+    const afterReset = renderHook(() => useLazyCounts(specs, true))
+    await waitFor(() => expect(afterReset.result.current.a).toBe(7))
+    expect(fetch).toHaveBeenCalledTimes(3)
+  })
 })

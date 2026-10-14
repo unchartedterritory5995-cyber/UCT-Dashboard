@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react'
 
-const cache = new Map()        // spec JSON -> number | null
+const cache = new Map()        // spec JSON -> { v: number, at: ms }
+// A count describes the nightly snapshot, so a long-lived tab must not keep yesterday's: a cached
+// count is served for COUNT_TTL_MS, then asked for again. Failures are never cached at all.
+const COUNT_TTL_MS = 10 * 60 * 1000
+function cached(key) {
+  const hit = cache.get(key)
+  if (!hit) return undefined
+  if (Date.now() - hit.at >= COUNT_TTL_MS) { cache.delete(key); return undefined }
+  return hit.v
+}
+const remember = (key, v) => cache.set(key, { v, at: Date.now() })
 const inflight = new Map()     // spec JSON -> Promise
 let active = 0
 const queue = []
@@ -17,7 +27,8 @@ function pump() {
 }
 function countFor(spec) {
   const key = JSON.stringify(spec)
-  if (cache.has(key)) return Promise.resolve(cache.get(key))
+  const hit = cached(key)
+  if (hit !== undefined) return Promise.resolve(hit)
   if (inflight.has(key)) return inflight.get(key)
   const p = new Promise(resolve => {
     queue.push(async () => {
@@ -27,7 +38,7 @@ function countFor(spec) {
         if (r.ok) { const j = await r.json(); v = Number.isFinite(j?.count) ? j.count : null }
       } catch { v = null }
       // a failure is never cached: the next open retries
-      if (v !== null) cache.set(key, v)
+      if (v !== null) remember(key, v)
       inflight.delete(key); resolve(v)
     })
     pump()
@@ -64,7 +75,7 @@ function sendBatch(entries) {
       return
     }
     entries.forEach((e, i) => {
-      if (vals[i] !== null) cache.set(e.key, vals[i])
+      if (vals[i] !== null) remember(e.key, vals[i])
       inflight.delete(e.key); e.settle(vals[i])
     })
   })
@@ -76,7 +87,8 @@ function countMany(specs) {
   const fresh = []
   const promises = specs.map(spec => {
     const key = JSON.stringify(spec)
-    if (cache.has(key)) return Promise.resolve(cache.get(key))
+    const hit = cached(key)
+    if (hit !== undefined) return Promise.resolve(hit)
     if (inflight.has(key)) return inflight.get(key)
     if (batchDown) return countFor(spec)
     let settle
@@ -98,9 +110,9 @@ export default function useLazyCounts(specsById, enabled) {
     let alive = true
     const pending = []
     for (const [id, spec] of Object.entries(specsById || {})) {
-      const key = JSON.stringify(spec)
+      const hit = cached(JSON.stringify(spec))
       // eslint-disable-next-line react-hooks/set-state-in-effect -- a cached count lands in the same pass as the fetches for the rest
-      if (cache.has(key)) { setCounts(c => (c[id] === cache.get(key) ? c : { ...c, [id]: cache.get(key) })); continue }
+      if (hit !== undefined) { setCounts(c => (c[id] === hit ? c : { ...c, [id]: hit })); continue }
       pending.push([id, spec])
     }
     countMany(pending.map(([, spec]) => spec)).forEach((p, i) => {
