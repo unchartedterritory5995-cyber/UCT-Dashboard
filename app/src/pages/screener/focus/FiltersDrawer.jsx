@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import FilterRail from '../shell/FilterRail'
 import CriteriaBox from '../shell/CriteriaBox'
 import Menu, { MenuItem } from './Menu'
 import { chipLabel } from '../chipLabel'
 import { compact } from './whyItsHere'
+import useDescribe from './useDescribe'
 
 // Pill text from the shared chipLabel carries raw numbers; any run of 5+ digits reads compactly.
 const compactDigits = s => String(s).replace(/\d{5,}(?:\.\d+)?/g, m => compact(Number(m)) ?? m)
@@ -15,11 +16,17 @@ function universeLabel(filters) {
   return 'All stocks'
 }
 
+// The compile route's explanation is an outline of {depth, text}; the drawer shows one line.
+const explainLine = ex => (Array.isArray(ex) ? ex.map(x => x?.text).filter(t => t && !t.endsWith(':')).join('; ') : String(ex || ''))
+
 // Left drawer holding every filter. A modal dialog: focus moves in on open,
 // Escape (handled on the dialog, no document listener) closes it, and focus goes
 // back to whatever opened it (or `returnFocusRef`, when the opener is remounted).
 export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic, onSetFilter, onClear, onSetLogic, count, countLoading, lists = [], returnFocusRef }) {
   const panel = useRef(null)
+  const describe = useDescribe(open)
+  const [text, setText] = useState('')
+  const [explain, setExplain] = useState('')
   // Captured in a ref so a new ref identity while open cannot re-run the effect and steal focus.
   const returnRef = useRef(returnFocusRef)
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only inside the open/close effect
@@ -44,6 +51,27 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
     else if (choice === 'uct') { onSetFilter('list', null); onSetFilter('universe', { op: 'eq', value: 'uct', label: 'UCT Universe' }) }
     else { onSetFilter('universe', null); onSetFilter('list', { op: 'in', value: choice.value, label: choice.label }) }
   }
+  const submitDescribe = async e => {
+    e.preventDefault()
+    if (!text.trim() || describe.busy) return
+    const out = await describe.run(text.trim())
+    if (!out) { setExplain(''); return }
+    if (Array.isArray(out.filters) && out.filters.length) {
+      // The member's universe choice is not part of a described setup: keep it.
+      const { universe, list } = filters
+      onClear()
+      onSetLogic(null)
+      for (const { key, ...rest } of out.filters) onSetFilter(key, rest)
+      if (universe) onSetFilter('universe', universe)
+      if (list) onSetFilter('list', list)
+    } else if (out.logic) {
+      onSetLogic(out.logic)
+    } else {
+      setExplain("Couldn't turn that into filters. Try different words.")
+      return
+    }
+    setExplain(explainLine(out.explanation))
+  }
   const onKeyDown = e => {
     if (e.key === 'Escape') { e.stopPropagation(); onClose(); return }
     if (e.key !== 'Tab') return
@@ -65,6 +93,15 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
           <span className={styles.spacer} />
           <button type="button" className={styles.iconBtn} aria-label="Close filters" onClick={onClose}>×</button>
         </header>
+        {describe.available && (
+          <form className={styles.drawerSection} onSubmit={submitDescribe}>
+            <label htmlFor="focus-describe" className={styles.describeLabel}>Describe a setup</label>
+            <input id="focus-describe" className={styles.describeInput} value={text} onChange={e => setText(e.target.value)}
+              placeholder="e.g. liquid tech leaders near highs" disabled={describe.busy} />
+            {describe.error && <p className={styles.describeNote} role="alert">{describe.error}</p>}
+            {!describe.error && explain && <p className={styles.describeNote} role="status">{explain}</p>}
+          </form>
+        )}
         <div className={styles.drawerSection}>
           <div className={styles.pillRow}>
             <Menu label={`Universe: ${universeLabel(filters)}`} trigger={<><span className={styles.pillKey}>Universe</span> {universeLabel(filters)} ▾</>} triggerClassName={styles.pill} width={240}>

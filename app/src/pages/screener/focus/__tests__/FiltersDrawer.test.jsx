@@ -1,13 +1,15 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { vi, test, expect, beforeEach } from 'vitest'
 vi.mock('../../shell/FilterRail', () => ({ default: p => <div data-testid="rail" data-presentation={p.presentation} /> }))
 vi.mock('../../shell/CriteriaBox', () => ({ default: () => <div data-testid="criteria" /> }))
+const describeState = { available: false, busy: false, error: null, run: vi.fn() }
+vi.mock('../useDescribe', () => ({ default: () => describeState }))
 import FiltersDrawer from '../FiltersDrawer'
 
 const meta = { filters: [{ key: 'rs_rank', label: 'RS Rank', type: 'range', presets: [] }] }
 const base = { open: true, onClose: vi.fn(), meta, logic: null, onSetFilter: vi.fn(), onClear: vi.fn(), onSetLogic: vi.fn(), count: 214, countLoading: false,
   lists: [{ value: 'wl:7', label: 'Semis' }] }
-beforeEach(() => { vi.clearAllMocks() })
+beforeEach(() => { vi.clearAllMocks(); Object.assign(describeState, { available: false, busy: false, error: null }) })
 
 test('universe pill reads All stocks with no pool', () => {
   render(<FiltersDrawer {...base} filters={{}} />)
@@ -129,4 +131,61 @@ test('large numbers in pill text read compactly', () => {
   const pill = screen.getByRole('button', { name: /^Remove Dollar Volume/ })
   expect(pill.getAttribute('aria-label')).toMatch(/20M/)
   expect(pill.getAttribute('aria-label')).not.toMatch(/20000000/)
+})
+
+const typeAndSubmit = words => {
+  fireEvent.change(screen.getByLabelText('Describe a setup'), { target: { value: words } })
+  fireEvent.submit(screen.getByLabelText('Describe a setup').closest('form'))
+}
+test('no Describe input when the compile door is closed', () => {
+  render(<FiltersDrawer {...base} filters={{}} />)
+  expect(screen.queryByLabelText('Describe a setup')).toBeNull()
+})
+test('a plain AND becomes pills and clears the old logic tree', async () => {
+  describeState.available = true
+  describeState.run.mockResolvedValue({ filters: [{ key: 'rs_rank', op: 'gte', min: 80 }], logic: { all: [] }, explanation: [{ depth: 0, text: 'All of the following:' }, { depth: 1, text: 'RS Rank is at least 80' }] })
+  render(<FiltersDrawer {...base} filters={{}} />)
+  typeAndSubmit('liquid leaders')
+  expect(await screen.findByText('RS Rank is at least 80')).toBeInTheDocument()
+  expect(base.onClear).toHaveBeenCalled()
+  expect(base.onSetFilter).toHaveBeenCalledWith('rs_rank', { op: 'gte', min: 80 })
+  expect(base.onSetLogic).toHaveBeenCalledWith(null)
+})
+test('a described setup keeps the member universe', async () => {
+  describeState.available = true
+  describeState.run.mockResolvedValue({ filters: [{ key: 'rs_rank', op: 'gte', min: 80 }], explanation: [] })
+  const uni = { op: 'eq', value: 'uct', label: 'UCT Universe' }
+  const lst = { op: 'in', value: 'wl:7', label: 'Semis' }
+  render(<FiltersDrawer {...base} filters={{ universe: uni, list: lst }} />)
+  typeAndSubmit('leaders')
+  await waitFor(() => expect(base.onSetFilter).toHaveBeenCalledWith('universe', uni))
+  expect(base.onSetFilter).toHaveBeenCalledWith('list', lst)
+  expect(base.onSetFilter).toHaveBeenCalledWith('rs_rank', { op: 'gte', min: 80 })
+})
+test('a complex result is applied as a logic tree', async () => {
+  describeState.available = true
+  const tree = { any: [{ key: 'price', op: 'gt', min: 5 }] }
+  describeState.run.mockResolvedValue({ filters: null, logic: tree, explanation: [] })
+  render(<FiltersDrawer {...base} filters={{}} />)
+  typeAndSubmit('either or')
+  await waitFor(() => expect(base.onSetLogic).toHaveBeenCalledWith(tree))
+  expect(base.onClear).not.toHaveBeenCalled()
+})
+test('an empty compile says so instead of doing nothing', async () => {
+  describeState.available = true
+  describeState.run.mockResolvedValue({ filters: null, logic: null, explanation: [] })
+  render(<FiltersDrawer {...base} filters={{}} />)
+  typeAndSubmit('gibberish')
+  expect(await screen.findByText("Couldn't turn that into filters. Try different words.")).toBeInTheDocument()
+  expect(base.onSetFilter).not.toHaveBeenCalled()
+})
+test('the Describe input sits inside the focus trap', () => {
+  describeState.available = true
+  render(<FiltersDrawer {...base} filters={{}} />)
+  const input = screen.getByLabelText('Describe a setup')
+  const close = screen.getByRole('button', { name: 'Close filters' })
+  close.focus()
+  fireEvent.keyDown(close, { key: 'Tab', shiftKey: true })
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Show 214 stocks' }))
+  expect(input.closest('[role="dialog"]')).not.toBeNull()
 })

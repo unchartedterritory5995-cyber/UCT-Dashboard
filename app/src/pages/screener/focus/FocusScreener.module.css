@@ -117,6 +117,9 @@ button.pill { cursor: pointer; }
 .pillKey { color: var(--text-muted); }
 .pillX { background: none; border: 0; color: var(--text-muted); font-size: 15px; width: 28px; height: 28px; cursor: pointer; }
 .codeBox { flex: 1; min-width: 0; }
+.describeLabel { color: var(--ut-gold); font-weight: 600; font-size: 12.5px; display: block; margin-bottom: 6px; }
+.describeInput { width: 100%; box-sizing: border-box; min-height: var(--tap-min); padding: 6px 10px; font: inherit; background: var(--bg-elevated); border: 1px solid var(--border-accent); border-radius: 6px; color: var(--text); }
+.describeNote { margin: 6px 0 0; color: var(--text-muted); font-size: 12px; }
 @media (max-width: 640px) { .drawer { width: 100%; } }
 
 /* Orchestrator (FocusScreener.jsx) */
