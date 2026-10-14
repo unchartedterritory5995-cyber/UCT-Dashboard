@@ -47,7 +47,9 @@ function sendBatch(entries) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ specs: entries.map(e => e.spec) }),
       })
-      if (r.status === 404) batchDown = true
+      // 404 or 405: a POST to an unmounted API route hits the SPA catch-all and answers 405, so a
+      // new bundle meeting a backend without the batch route (rolling deploy, rollback) lands here too.
+      if (r.status === 404 || r.status === 405) batchDown = true
       else if (!r.ok) vals = entries.map(() => null)
       else {
         const j = await r.json()

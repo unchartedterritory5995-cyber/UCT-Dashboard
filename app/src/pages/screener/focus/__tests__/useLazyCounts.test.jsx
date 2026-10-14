@@ -72,6 +72,11 @@ test('falls back to single counts when batch is missing', async () => {
   const { result } = renderHook(() => useLazyCounts({ a: { filters: [] } }, true))
   await waitFor(() => expect(result.current.a).toBe(3))
 })
+test('falls back to single counts when the batch route answers 405 (SPA catch-all)', async () => {
+  fetch.mockImplementation(async url => (url === BATCH ? { ok: false, status: 405, json: async () => ({}) } : { ok: true, json: async () => ({ count: 3 }) }))
+  const { result } = renderHook(() => useLazyCounts({ a: { filters: [] } }, true))
+  await waitFor(() => expect(result.current.a).toBe(3))
+})
 test('remembers a missing batch route: the next open does not probe again', async () => {
   fetch.mockImplementation(async url => (url === BATCH ? batchMissing : { ok: true, json: async () => ({ count: 3 }) }))
   const { result } = renderHook(() => useLazyCounts({ a: { filters: [{ key: 'x' }] } }, true))
