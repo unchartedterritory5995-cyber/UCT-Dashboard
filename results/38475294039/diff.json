@@ -1,0 +1,117 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 2,
+    "fixed": 5,
+    "unchanged": 272,
+    "missing": 0,
+    "baseline": 277,
+    "current": 274,
+    "current_ran": 44721,
+    "new_flaky": 0,
+    "flaky_size": 11,
+    "flaky_new": 1,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 2
+  },
+  "arithmetic": "baseline 277 = unchanged 272 + fixed 5 + missing 0  |  current 274 = unchanged 272 + new 2 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "38334654786",
+  "current_run_id": "38475294039",
+  "baseline_sha": "caf67367b57961b082771dff6c20e9da64ed313d",
+  "current_sha": "66cd9fe126040f14009fb6d7cf91dca838454df1",
+  "commit_range": "caf67367b57961b082771dff6c20e9da64ed313d..66cd9fe126040f14009fb6d7cf91dca838454df1",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_breadth_forward_seal|test_already_current_is_blocked_with_no_sessions",
+    "pytest|tests.test_breadth_history_single_flight|test_the_plain_reader_is_wired_too"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches",
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows",
+    "pytest|tests.test_flow_rth_guard|test_concurrent_persists_of_one_name_never_collide",
+    "pytest|tests.test_sample_never_feeds_real_numbers|test_every_reader_of_a_note_table_is_guarded_or_exempt_with_a_reason",
+    "pytest|tests.test_term018_every_guard_can_fire|test_the_pytest_collection_probe_can_answer_NO"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/research/sections/CatalystsSection.test.jsx|CatalystsSection > shows the finding state while catalysts generate and lands on its own (polls)",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/charts/widgets/IndexesWidget.test.jsx|CONTROL \u2014 the toast rail fails when the door says nothing",
+    "vitest|src/pages/journal-2-0/components/notebook/CaptureHost.test.jsx|capture preserves the member context (\u00a75/\u00a720) > closing returns the dialog to nothing",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_breadth_forward_seal|test_already_current_is_blocked_with_no_sessions": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in caf67367b..66cd9fe12 touched tests/test_breadth_forward_seal.py or anything it imports"
+    },
+    "pytest|tests.test_breadth_history_single_flight|test_the_plain_reader_is_wired_too": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in caf67367b..66cd9fe12 touched tests/test_breadth_history_single_flight.py or anything it imports"
+    },
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in caf67367b..66cd9fe12 touched tests/test_bars_server_include_today.py or anything it imports"
+    },
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in caf67367b..66cd9fe12 touched tests/test_bars_server_timing.py or anything it imports"
+    },
+    "pytest|tests.test_flow_rth_guard|test_concurrent_persists_of_one_name_never_collide": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in caf67367b..66cd9fe12 touched tests/test_flow_rth_guard.py or anything it imports"
+    },
+    "pytest|tests.test_sample_never_feeds_real_numbers|test_every_reader_of_a_note_table_is_guarded_or_exempt_with_a_reason": {
+      "class": "test-file-change",
+      "commits": [
+        "389940e31",
+        "033b22d8d"
+      ],
+      "workstreams": [
+        {
+          "commit": "389940e31",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "033b22d8d",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_term018_every_guard_can_fire|test_the_pytest_collection_probe_can_answer_NO": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in caf67367b..66cd9fe12 touched tests/test_term018_every_guard_can_fire.py or anything it imports"
+    }
+  }
+}
