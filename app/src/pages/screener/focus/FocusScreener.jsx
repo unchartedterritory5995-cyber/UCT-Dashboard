@@ -72,8 +72,9 @@ import {
 import styles from './FocusScreener.module.css'
 
 // Every column the list, the chart header and the setup line read. Each must be a
-// real snapshot column: the scan refuses an unknown one with a 400.
-const LIST_COLUMNS = ['base_render', 'base_pivot_px', 'vol_ratio', 'rs_rank', 'market_cap', 'adr_pct', 'industry', 'sector', 'next_earnings_date']
+// real snapshot column: the scan refuses an unknown one with a 400. `bars_asof` (in
+// snapshot_db.COLUMNS) lets the why strip name each row's own close.
+const LIST_COLUMNS = ['base_render', 'base_pivot_px', 'vol_ratio', 'rs_rank', 'market_cap', 'adr_pct', 'industry', 'sector', 'next_earnings_date', 'bars_asof']
 const MODE_KEY = 'uct.screener.layout'
 const PIN_KEY = 'uct.screener.pinned'
 const DENSITY_KEY = 'uct.screener.density'

@@ -45,6 +45,8 @@ test('list shows up and the first stock is charted', async () => {
   mount()
   await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
   expect(screen.getByTestId('stockchart')).toHaveAttribute('data-sym', 'MU')
+  // the why strip names each row's own close: the scan asks for it
+  expect(scanBodies().at(-1).columns).toContain('bars_asof')
 })
 test('arrow down charts the next stock', async () => {
   mount()
