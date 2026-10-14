@@ -192,7 +192,9 @@ function FocusList({ onMode }) {
   //    the undo it offers survives further changes while the list stays at 0;
   //  · a later page that comes back EMPTY ends paging (`exhausted`), whatever `total`
   //    says, so the list's load-more re-arm cannot ask for the same empty page forever.
-  const [answered, setAnswered] = useState({ result: null, rows: [], total: null, rowsKey: '', exhausted: false,
+  // `listed`: the page-1 answer of the screen on view. The coverage note, the data receipt and the
+  // scan receipts read it, never the hook's latest answer (which may be a dropped one).
+  const [answered, setAnswered] = useState({ result: null, listed: null, rows: [], total: null, rowsKey: '', exhausted: false,
     shown: null, prev: { filters: null, baseSpec: null, total: null }, lastChange: null, dropped: {} })
   // A page-1 answer for the screen now set, folded in as the list.
   const foldPage1 = (base, res, asked) => {
@@ -206,7 +208,7 @@ function FocusList({ onMode }) {
     if (res.total > 0) prev = { filters: asked.filters, baseSpec: asked.baseSpec, total: capToTopN(res.total, asked) }
     const { [asked.sig]: _used, ...dropped } = base.dropped
     return {
-      ...base, result: res, total: res.total, prev, lastChange: change, rows: res.rows || [], rowsKey: asked.sig,
+      ...base, result: res, listed: res, total: res.total, prev, lastChange: change, rows: res.rows || [], rowsKey: asked.sig,
       exhausted: false, shown: { filters: asked.filters, logic: asked.logic, rank: asked.rank, baseSpec: asked.baseSpec }, dropped,
     }
   }
@@ -237,9 +239,11 @@ function FocusList({ onMode }) {
     setAnswered({ ...foldPage1(answered, d.result, d.asked), result: answered.result })
   }
   const { rows, total, rowsKey, lastChange, exhausted } = answered
+  // On a scan error nothing is listed, so nothing is described either.
   // The listed rows answer an earlier screen than the one now set: the new screen's answer
   // is still on its way, so the list is shown dimmed and cannot be clicked.
   const pending = !!result && rowsKey !== screenSig
+  const listed = error ? null : answered.listed
   const shown = answered.shown || { filters: s.filters, logic: s.logic, rank: s.rank }
   // S2: a ranked screen lists at most its top_n; every count shown for the list says so.
   const shownTotal = capToTopN(total, shown)
@@ -417,6 +421,7 @@ function FocusList({ onMode }) {
   //  · Without a seed the choice waits for the saved screens AND the prefs Pinned is migrated from.
   const [landPhase, setLandPhase] = useState(() => (arrivedBare.current ? 'pick' : 'final')) // 'pick' | 'reconcile' | 'final'
   const landedOn = useRef(null)
+  const seedKept = useRef(false)   // the screen on view was chosen from the seed and kept
   const touched = useRef(false)
   const uid = useContext(AuthContext)?.user?.id
   const seedItems = useMemo(() => (arrivedBare.current ? readLandingSeed(uid) : null), []) // eslint-disable-line react-hooks/exhaustive-deps -- read once, at mount
@@ -449,6 +454,7 @@ function FocusList({ onMode }) {
       setLanded(true)
       if (r.hit) applyScreen(r.hit.spec || { filters: [] }, r.hit)
       landedOn.current = r.hit
+      seedKept.current = !serverReady && !!r.hit
       setLandPhase(serverReady || !r.hit ? 'final' : 'reconcile')
       return
     }
@@ -459,9 +465,21 @@ function FocusList({ onMode }) {
     const r = pickLanding(landingItems, countOf, landingWaitOver)
     if (!r.done) return
     setLandPhase('final')
-    if (r.hit && !sameScreen(r.hit, was)) applyScreen(r.hit.spec || { filters: [] }, r.hit)
+    if (r.hit && !sameScreen(r.hit, was)) { seedKept.current = false; applyScreen(r.hit.spec || { filters: [] }, r.hit) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [landPhase, landingItems, landingCounts, landingWaitOver, serverReady, current, s.filters, s.baseSpec])
+  // A seeded screen the page kept (the member touched it, or the server answered past the cap)
+  // may be an OLD copy of that screen: when the server's copy under the same id has another spec,
+  // the screen on view is that screen EDITED, never silently labelled as the current version.
+  useEffect(() => {
+    if (landPhase !== 'final' || !seedKept.current || !serverAnswered) return
+    seedKept.current = false
+    const was = landedOn.current
+    const srv = serverItems.find(it => String(it.id) === String(was?.id))
+    if (srv && !sameScreen(srv, was)) {
+      setCurrent(c => (c && String(c.id) === String(srv.id) ? { ...c, name: srv.name, spec: srv.spec || { filters: [] } } : c))
+    }
+  }, [landPhase, serverAnswered, serverItems])
   const markTouched = () => { touched.current = true }
   const myScans = useMemo(() => ((meta?.filters || []).find(f => f.key === 'scan')?.scans || [])
     .filter(x => x?.def_hash).map(x => ({ hash: x.def_hash, name: x.name || 'Untitled scan' })), [meta])
@@ -497,7 +515,7 @@ function FocusList({ onMode }) {
     if (serverExport) { await serverExportAs('csv'); return }
     try {
       const labels = Object.fromEntries(columns.map(c => [c, COLUMN_DEFS[c]?.label || c]))
-      const out = await exportScreen({ spec: exportBody, columns, labels, snapshotDate: result?.snapshot_date })
+      const out = await exportScreen({ spec: exportBody, columns, labels, snapshotDate: listed?.snapshot_date })
       say(`Exported ${fmtN(out.rows)} rows${out.truncated ? ' (capped at 5,000)' : ''}`)
     } catch { say('Export failed. Nothing was downloaded.') }
   }
@@ -505,11 +523,11 @@ function FocusList({ onMode }) {
   // ── save outcomes (spec §8.1): each offered only when its door is open ───
   const doors = useSaveDoors()
   const scanReceipts = useMemo(() => joinedScanReceipts({
-    scans: (meta?.filters || []).find(f => f.key === 'scan')?.scans, scanJoins: result?.scan_joins,
-  }), [meta, result])
+    scans: (meta?.filters || []).find(f => f.key === 'scan')?.scans, scanJoins: listed?.scan_joins,
+  }), [meta, listed])
   const saveAsScreen = async () => {
     const name = await askName({ title: 'Save as a screen', label: 'Screen name', initial: current?.kind === 'saved' ? '' : current?.name || '',
-      note: total === 0 ? ZERO_MATCH_NOTE : undefined })
+      note: !pending && total === 0 ? ZERO_MATCH_NOTE : undefined })
     if (!name) return
     const out = await createScreen(name, s.baseSpec)
     refresh()
@@ -550,7 +568,7 @@ function FocusList({ onMode }) {
     say(await saveToNotebook(buildScreenerCapture({
       meta, filters: s.filters, visibleColumns: columns, displayRows, livePrices: prices,
       spec: { filters: s.filters, sort: s.sort, view: s.view, columns: s.columns, rank: s.rank },
-      total: shownTotal, snapshotDate: result?.snapshot_date, snapshot: result?.snapshot, scanReceipts,
+      total: shownTotal, snapshotDate: listed?.snapshot_date, snapshot: listed?.snapshot, scanReceipts,
     })))
   }
   const hasResult = !!result && total != null
@@ -567,7 +585,7 @@ function FocusList({ onMode }) {
   const selLive = selected ? prices[selected.ticker] : null
   const selPx = selLive?.price
   const selChg = selLive?.change_pct
-  const snapshotDate = result?.snapshot_date
+  const snapshotDate = listed?.snapshot_date
   const why = useMemo(() => whyItsHere({ filters: shown.filters, logic: shown.logic, rank: shown.rank, metaFilters: meta?.filters,
     row: selected || {}, live: selected ? livePriceOf(selected, Number.isFinite(selPx) ? { price: selPx, change_pct: selChg } : null) : null, snapshotDate }),
   [shown.filters, shown.logic, shown.rank, meta, selected, selPx, selChg, snapshotDate])
@@ -607,8 +625,8 @@ function FocusList({ onMode }) {
   const [showCompany, setShowCompany] = useState(() => readLS(COMPANY_KEY, '0') === '1')
 
   const drops = []
-  if (coverageHasDrop(result?.coverage)) {
-    drops.push(`${fmtN((result.coverage.dropped || 0) + (result.coverage.not_computable || 0))} stocks could not be checked against every filter. They are left out of this list.`)
+  if (coverageHasDrop(listed?.coverage)) {
+    drops.push(`${fmtN((listed.coverage.dropped || 0) + (listed.coverage.not_computable || 0))} stocks could not be checked against every filter. They are left out of this list.`)
   }
   for (const r of scanReceipts) {
     if (coverageHasDrop(r.latest)) drops.push(`The scan filter ${r.label} could not check ${fmtN((r.latest.dropped || 0) + (r.latest.not_computable || 0))} stocks in its last run.`)
@@ -639,7 +657,7 @@ function FocusList({ onMode }) {
         {/* S5: primitives and stable callbacks only, so a tick for another ticker skips the pane. */}
         <ChartPane row={selected} livePx={selPx} liveChg={selChg} why={why}
           onOpenFilters={openFiltersFromStrip} onFlag={paneFlag} isFlagged={selected ? isFlagged(selected.ticker) : false} onWatch={paneWatch}
-          onNavKey={paneNavKey} structures={structures} />
+          onNavKey={paneNavKey} structures={structures} busy={pending} />
       </div>
     )
   }
@@ -652,7 +670,7 @@ function FocusList({ onMode }) {
         <a href="#focus-save" className={styles.skipLink} onClick={skipToSave}>Skip to save results</a>
       </SkipLinkPortal>
       <FocusTopBar
-        screenMenu={<ScreenMenu apiRef={screenMenuApi} landing={!landed} pool={pool} currentName={current?.name} currentId={current?.id} isEdited={isEdited} count={shownTotal} countPending={pending && !error}
+        screenMenu={<ScreenMenu apiRef={screenMenuApi} landing={!landed} pool={pool} currentName={current?.name} currentId={current?.id} isEdited={isEdited} count={pending ? null : shownTotal} countPending={pending && !error}
           starters={starters} saved={saved} pinned={effectivePinned} onTogglePin={togglePin} onApply={applyScreen}
           onSaveChanges={current?.kind === 'saved' && isEdited ? saveChanges : null}
           onSaveAsNew={savedLoaded && !savedError ? saveAsScreen : null}
@@ -660,12 +678,12 @@ function FocusList({ onMode }) {
           onNewScreen={() => { ed.clearFilters(); ed.setLogic(null); setCurrent(null); openFilters() }}
           myScans={myScans} onUseScan={applyScanFilter} />}
         filterCount={filterCount} onOpenFilters={() => openFilters()}
-        dataReceipt={<DataReceipt snapshotDate={result?.snapshot_date} live={result?.snapshot?.live?.state === 'live'} coverage={result?.coverage} />}
+        dataReceipt={<DataReceipt snapshotDate={listed?.snapshot_date} live={listed?.snapshot?.live?.state === 'live'} coverage={listed?.coverage} />}
         mode="list" onMode={m => { s.flush(); onMode(m) }}
         saveMenu={(
           <span ref={saveSlotRef} id="focus-save" className={styles.saveSlot}>
-            <SaveMenu canSaveScreen={savedLoaded && !savedError} canFrozenList={doors.promote && hasResult && total > 0}
-              canAlert={doors.alert} canNotebook={hasResult} count={shownTotal} hasResult={hasResult}
+            <SaveMenu canSaveScreen={savedLoaded && !savedError} canFrozenList={doors.promote && hasResult && !pending && total > 0}
+              canAlert={doors.alert} canNotebook={hasResult} count={pending ? null : shownTotal} hasResult={hasResult}
               onSaveScreen={saveAsScreen} onFrozenList={frozenList} onAlert={standingAlert} onNotebook={toNotebook} />
           </span>
         )}

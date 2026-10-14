@@ -77,6 +77,12 @@ test('an answer for screen A that lands after the switch to B is dropped: never 
   expect(screen.getByTestId('screen-count')).toHaveTextContent('…')
   // the why strip still reads the listed screen's criteria (no RS Rank line over X's rows)
   expect(within(screen.getByTestId('focus-chart-pane')).queryByText(/RS Rank/)).toBeNull()
+  // Minor 5: the pane's row actions say they are waiting
+  for (const name of ['Flag', 'Add to watchlist']) {
+    const b = within(screen.getByTestId('focus-chart-pane')).getByRole('button', { name })
+    expect(b).toHaveAttribute('aria-disabled', 'true')
+    expect(b.className).toMatch(/btnBusy/)
+  }
 })
 
 test('A→B→C quickly with B answering last-but-one: B is never listed, and undo after C empties returns to the screen last seen with rows', async () => {
@@ -286,4 +292,71 @@ test('a failed scan for the new screen does not leave "…" in the screen button
   goTo({ universe: UCT })
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent("The screen didn't load"))
   expect(screen.getByTestId('screen-count')).not.toHaveTextContent('…')
+})
+
+test('Important 1: a failed scan for the new screen shows no number in the screen button, never the old one', async () => {
+  extra = (url, opts) => (url === '/api/screener/scan' && keysOf(JSON.parse(opts.body)).includes('universe')
+    ? { ok: false, status: 503, json: async () => ({}) } : null)
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  await waitFor(() => expect(screen.getByTestId('screen-count')).toHaveTextContent('2'))
+  goTo({ universe: UCT })
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent("The screen didn't load"))
+  expect(screen.getByTestId('screen-count').textContent).toBe('')
+  const label = screen.getByTestId('screen-count').closest('button').getAttribute('aria-label')
+  expect(label).not.toMatch(/[0-9]/)
+  expect(label).not.toMatch(/matches/)
+})
+test('Important 1: while the new screen is pending the Save menu offers no frozen list of the old one', async () => {
+  extra = (url, opts) => {
+    if (url === '/api/screener/save-fork') return { ok: true, json: async () => ({ choices: [{ id: 'frozen_list', available: true }, { id: 'definition', available: true }] }) }
+    if (url === '/api/screener/to-watchlist') return { ok: true, json: async () => ({ available: true, max_symbols: 500 }) }
+    if (url === '/api/screener/scan' && keysOf(JSON.parse(opts.body)).includes('universe')) return new Promise(() => {})
+    return null
+  }
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(screen.getByRole('menuitem', { name: /Save today/ })).toBeInTheDocument())
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await sleep(350)
+  goTo({ universe: UCT })
+  await waitFor(() => expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'true'))
+  if (!screen.queryByRole('menu', { name: 'Save' })) fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  const menu = screen.getByRole('menu', { name: 'Save' })
+  expect(within(menu).queryByRole('menuitem', { name: /Save today/ })).toBeNull()
+})
+test('Minor 2: a dropped answer never describes the listed screen: its coverage note stays the listed one', async () => {
+  let releaseA = null
+  extra = (url, opts) => {
+    if (url !== '/api/screener/scan') return null
+    const keys = keysOf(JSON.parse(opts.body))
+    if (keys.includes('rs_rank')) return new Promise(() => {})
+    if (keys.includes('universe')) {
+      return new Promise(r => { releaseA = () => r({ ok: true, json: async () => ({ rows: [AAA], total: 1, page: 1, snapshot_date: '2026-10-12', coverage: { evaluated: 10, answered: 5, dropped: 5, not_computable: 0 } }) }) })
+    }
+    return null
+  }
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  await sleep(350)
+  goTo({ universe: UCT })
+  await waitFor(() => expect(releaseA).toBeTypeOf('function'))
+  goTo({ universe: UCT, rs_rank: RS90 })
+  await act(async () => { releaseA() })
+  await sleep(50)
+  expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument()
+  expect(screen.queryByText(/could not be checked/)).toBeNull()
+})
+test('Minor 2: after a scan error the old screen coverage note is gone with its list', async () => {
+  extra = (url, opts) => {
+    if (url !== '/api/screener/scan') return null
+    if (keysOf(JSON.parse(opts.body)).includes('universe')) return { ok: false, status: 504, json: async () => ({}) }
+    return { ok: true, json: async () => ({ rows: rowsX, total: 2, page: 1, snapshot_date: '2026-10-12', coverage: { evaluated: 10, answered: 7, dropped: 3, not_computable: 0 } }) }
+  }
+  mount()
+  await waitFor(() => expect(screen.getByText(/3 stocks could not be checked/)).toBeInTheDocument())
+  goTo({ universe: UCT })
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent("The screen didn't load"))
+  expect(screen.queryByText(/could not be checked/)).toBeNull()
 })

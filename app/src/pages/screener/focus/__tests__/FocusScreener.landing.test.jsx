@@ -203,3 +203,27 @@ test('Perf 3: a scroll event (no wheel) on the list counts too', async () => {
   await new Promise(r => setTimeout(r, 1500))
   expect(scanMins()).toEqual([70])
 }, 10000)
+
+test('Minor 3: a kept seeded screen whose server copy changed reads as edited, never as the current version', async () => {
+  seed([WIDE])                                     // the seed holds Wide at rs_rank >= 70
+  const WIDE_NOW = scr(WIDE.id, 'Wide screen', 75)  // the server's Wide is now >= 75
+  countsByMin = { 70: 40, 75: 30 }
+  starters = [WIDE_NOW]
+  pin([WIDE.id])
+  savedDelay = 3400                                // past the cap: the seeded spec is kept
+  mount()
+  await waitFor(() => expect(scanMins()).toEqual([70]))
+  await waitFor(() => expect(screen.getByRole('button', { name: /Wide screen \(edited\)/ })).toBeInTheDocument(), { timeout: 6000 })
+  expect(scanMins()).toEqual([70])
+}, 12000)
+test('Minor 3: a kept seeded screen the server still has unchanged is not marked edited', async () => {
+  seed([WIDE])
+  pin([WIDE.id])
+  savedDelay = 3400
+  mount()
+  await waitFor(() => expect(scanMins()).toEqual([70]))
+  await waitFor(() => expect(fetch.mock.calls.some(([u]) => String(u).startsWith('/api/screener/saved-screens'))).toBe(true))
+  await new Promise(r => setTimeout(r, 4000))
+  expect(screen.getByRole('button', { name: /Wide screen/ })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /edited/ })).toBeNull()
+}, 12000)

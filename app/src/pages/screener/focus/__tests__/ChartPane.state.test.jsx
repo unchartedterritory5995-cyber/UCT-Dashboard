@@ -181,3 +181,15 @@ test('B7: ↑/↓ pressed in the pane are handed to the list; other keys and typ
   fireEvent.keyDown(paneEl, { key: 'ArrowDown', ctrlKey: true })
   expect(onNavKey).toHaveBeenCalledTimes(2)
 })
+
+test('Minor 5: while busy, Flag and Add to watchlist are aria-disabled and dimmed, and keep focus', () => {
+  const { rerender } = render(pane({ busy: true }))
+  for (const name of ['Flag', 'Add to watchlist']) {
+    const b = screen.getByRole('button', { name })
+    expect(b).toHaveAttribute('aria-disabled', 'true')
+    expect(b).not.toBeDisabled()
+    expect(b.className).toMatch(/btnBusy/)
+  }
+  rerender(pane({ busy: false }))
+  expect(screen.getByRole('button', { name: 'Flag' })).not.toHaveAttribute('aria-disabled')
+})

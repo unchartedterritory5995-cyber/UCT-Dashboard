@@ -78,6 +78,8 @@ export async function parseCriteria(text, fetcher = fetch) {
     body: JSON.stringify({ text }),
   })
   if (!r.ok) {
+    // As compile: a grammar door that shuts mid-page is asked again next time, never latched open.
+    if (DOOR_SHUT.has(r.status)) forgetDoor('/api/screener/grammar', fetcher)
     let detail = `parse ${r.status}`
     try { const j = await r.json(); if (j?.detail) detail = String(j.detail) } catch { /* keep */ }
     throw new Error(detail)

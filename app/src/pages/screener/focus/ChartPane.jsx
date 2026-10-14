@@ -22,6 +22,7 @@ export const SETTLE_MS = 80
 // unsettled. The bars themselves are never held.
 const SIDE_FETCH = ['/api/ticker-ipo/', '/api/chart/markers/', '/api/chart-news/', '/api/education/tickers/']
 const IPO = '/api/ticker-ipo/'
+const BUSY_TITLE = 'Waiting for the new screen to load'
 
 const fmt = v => (Number.isFinite(v) ? v.toFixed(2) : '—')
 const pct = v => (Number.isFinite(v) ? `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)}%` : '—')
@@ -79,7 +80,8 @@ const isEditable = t => /^(input|textarea|select)$/i.test(t?.tagName || '') || !
 // `livePx` / `liveChg`: the selected stock's live price and change, as primitives (S5), so a tick
 // for any other ticker never re-renders the pane. `onNavKey`: ↑/↓ pressed anywhere in the pane
 // step the list (B7) — the pane is focusable, so a click on the chart keeps the keys working.
-function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFlagged, onWatch, onNavKey, structures }) {
+// `busy`: the list answers the previous screen; the row actions say so (and the page ignores them).
+function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFlagged, onWatch, onNavKey, structures, busy = false }) {
   const [tf, setTf] = useState('D')
   const ink = useThemeInk(PIVOT_INK)
   const pivot = row?.base_pivot_px
@@ -177,8 +179,11 @@ function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFl
         <WhyStrip items={why.items} more={why.more} onMore={onOpenFilters} />
         <span className={styles.spacer} />
         <div className={styles.paneActions}>
-          <button type="button" className={isFlagged ? styles.btnOn : styles.btn} aria-pressed={!!isFlagged} onClick={() => onFlag(row)}>Flag</button>
-          <button type="button" className={styles.btnPrimary} onClick={() => onWatch(row)}>Add to watchlist</button>
+          {/* aria-disabled, never `disabled`: the buttons keep focus and their reason. */}
+          <button type="button" className={`${isFlagged ? styles.btnOn : styles.btn} ${busy ? styles.btnBusy : ''}`} aria-pressed={!!isFlagged}
+            aria-disabled={busy ? 'true' : undefined} title={busy ? BUSY_TITLE : undefined} onClick={() => onFlag(row)}>Flag</button>
+          <button type="button" className={`${styles.btnPrimary} ${busy ? styles.btnBusy : ''}`}
+            aria-disabled={busy ? 'true' : undefined} title={busy ? BUSY_TITLE : undefined} onClick={() => onWatch(row)}>Add to watchlist</button>
         </div>
       </div>
     </section>

@@ -1,7 +1,7 @@
 // The door probes are memoised: the Focus layout's Filters drawer mounts both useDescribe and
 // CriteriaBox, and each used to ask both doors (grammar x2, compile x2 per open).
 import { vi, test, expect, beforeEach } from 'vitest'
-import { grammarAvailable, compileAvailable, compileEnglish, __resetCriteriaProbes } from './criteriaApi'
+import { grammarAvailable, compileAvailable, compileEnglish, parseCriteria, __resetCriteriaProbes } from './criteriaApi'
 
 const answering = ok => vi.fn(async () => ({ ok, status: ok ? 200 : 404, json: async () => ({}) }))
 
@@ -87,6 +87,33 @@ test('a refusal (400/429) or a transient 503 keeps the memoised probe', async ()
     await compileAvailable(f)
     await compileEnglish('x', f).catch(() => {})
     await compileAvailable(f)
+    expect(f.mock.calls.filter(([, o]) => !o?.method)).toHaveLength(1)
+  }
+})
+
+test('a parse answer that says the grammar door shut (404/402/403) forgets its memoised "open" probe', async () => {
+  for (const status of [404, 402, 403]) {
+    __resetCriteriaProbes()
+    const f = vi.fn(async (url, opts) => (opts?.method === 'POST'
+      ? { ok: false, status, json: async () => ({ detail: 'shut' }) }
+      : { ok: true, status: 200 }))
+    expect(await grammarAvailable(f)).toBe(true)
+    const probes = () => f.mock.calls.filter(([u, o]) => u === '/api/screener/grammar' && !o?.method).length
+    expect(probes()).toBe(1)
+    // the error is what it always was
+    const err = await parseCriteria('x', f).catch(e => e)
+    expect(err.message).toBe('shut')
+    await grammarAvailable(f)
+    expect(probes()).toBe(2)
+  }
+})
+test('a parse refusal (400/429) or a transient 503 keeps the grammar probe', async () => {
+  for (const status of [400, 429, 503]) {
+    __resetCriteriaProbes()
+    const f = vi.fn(async (url, opts) => (opts?.method === 'POST' ? { ok: false, status, json: async () => ({ detail: 'no' }) } : { ok: true }))
+    await grammarAvailable(f)
+    await parseCriteria('x', f).catch(() => {})
+    await grammarAvailable(f)
     expect(f.mock.calls.filter(([, o]) => !o?.method)).toHaveLength(1)
   }
 })

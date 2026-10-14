@@ -7,6 +7,8 @@
 .listHeadEnd { display: flex; align-items: center; gap: 10px; flex: none; }
 .stateFlags { display: flex; align-items: center; padding: 8px 20px 0; }
 .stateFlags:empty { display: none; }
+/* a row action while the list answers the previous screen (aria-disabled, so it keeps focus) */
+.btnBusy { opacity: 0.5; cursor: not-allowed; }
 .listHeadValue { color: var(--text); }
 .list { flex: 1; overflow-y: auto; outline: none; position: relative; }
 .list:focus-visible { box-shadow: inset 0 0 0 2px var(--ut-gold); }
