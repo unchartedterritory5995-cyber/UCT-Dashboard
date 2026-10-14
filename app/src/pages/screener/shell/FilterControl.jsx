@@ -4,15 +4,18 @@ import styles from './ScannerShell.module.css'
 import Input from '../../../components/ui/Input'
 import Select from '../../../components/ui/Select'
 
+// The ONE preset matcher: select and buttons both decide "which preset is on" here.
+const presetMatches = (p, value) => !!value && p.op === value.op && p.value === value.value
+  && p.min === value.min && p.max === value.max
+
 const currentLabel = (filter, value, customOpen) => {
   if (customOpen) return 'Custom…'
   if (!value) return 'Any'
-  const match = (filter.presets || []).find(o =>
-    o.op === value.op && o.value === value.value && o.min === value.min && o.max === value.max)
+  const match = (filter.presets || []).find(o => presetMatches(o, value))
   return match ? match.label : 'Custom…'
 }
 
-export default function FilterControl({ filter, value, onChange }) {
+export default function FilterControl({ filter, value, onChange, presentation = 'select' }) {
   const [customOpen, setCustomOpen] = useState(false)
   const [minV, setMinV] = useState(value?.min ?? '')
   const [maxV, setMaxV] = useState(value?.max ?? '')
@@ -45,9 +48,54 @@ export default function FilterControl({ filter, value, onChange }) {
     onChange(spec)
   }
 
+  const onKey = e => { if (e.key === 'Enter') commit() }
+  // A value that matches no preset IS a custom range; the buttons presentation
+  // shows it as such (Custom pressed, min/max visible). The select keeps its
+  // own behaviour (label 'Custom…', inputs only after the member opens them).
+  const unmatched = presentation === 'buttons' && !!value
+    && !(filter.presets || []).some(p => p.label !== 'Any' && presetMatches(p, value))
+  const customShown = customOpen || unmatched
+  const customInputs = customShown && (
+    <div className={styles.customRange}>
+      <Input type="number" placeholder="min" aria-label={`${filter.label} min`}
+        value={minV} onChange={e => setMinV(e.target.value)}
+        onKeyDown={onKey} onBlur={() => commit()} />
+      <Input type="number" placeholder="max" aria-label={`${filter.label} max`}
+        value={maxV} onChange={e => setMaxV(e.target.value)}
+        onKeyDown={onKey} onBlur={() => commit()} />
+    </div>
+  )
+
+  // `presentation="buttons"` is the Focus layout's drawer: the same presets as
+  // the select below, laid out as pressable buttons so a member sees every
+  // choice at once. Default stays 'select' so ScannerShell renders unchanged.
+  // It reuses onSelect, so a preset emits exactly the spec the select does.
+  if (presentation === 'buttons') {
+    return (
+      <div className={styles.presetGroup}>
+        <span className={styles.presetHead}>
+          <span className={styles.filterLabel}>{filter.label}</span>
+          <ColumnDesc colKey={filter.key} name={filter.label} tapTarget />
+        </span>
+        <div className={styles.presetRow} role="group" aria-label={filter.label}>
+          {(filter.presets || []).map((p, i) => (
+            <button key={p.label} type="button" className={styles.presetBtn}
+              id={i === 0 ? `fc_${filter.key}` : undefined}
+              aria-pressed={p.label === 'Any' ? !value && !customShown : !customShown && presetMatches(p, value)}
+              onClick={() => onSelect(p.label)}>{p.label}</button>
+          ))}
+          {filter.allow_custom && (
+            <button type="button" className={styles.presetCustom} aria-pressed={customShown}
+              onClick={() => onSelect('Custom…')}>Custom…</button>
+          )}
+        </div>
+        {customInputs}
+      </div>
+    )
+  }
+
   const options = (filter.presets || []).map(p => p.label)
   if (filter.allow_custom && !options.includes('Custom…')) options.push('Custom…')
-  const onKey = e => { if (e.key === 'Enter') commit() }
 
   return (
     <div className={styles.filterRow}>
@@ -76,16 +124,7 @@ export default function FilterControl({ filter, value, onChange }) {
       </Select>
       {/* The per-control "Typical Range" percentile band was removed by owner
           request — the dropdown + custom min/max is the whole control now. */}
-      {customOpen && (
-        <div className={styles.customRange}>
-          <Input type="number" placeholder="min" aria-label={`${filter.label} min`}
-            value={minV} onChange={e => setMinV(e.target.value)}
-            onKeyDown={onKey} onBlur={() => commit()} />
-          <Input type="number" placeholder="max" aria-label={`${filter.label} max`}
-            value={maxV} onChange={e => setMaxV(e.target.value)}
-            onKeyDown={onKey} onBlur={() => commit()} />
-        </div>
-      )}
+      {customInputs}
     </div>
   )
 }

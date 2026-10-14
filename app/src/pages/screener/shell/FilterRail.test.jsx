@@ -194,3 +194,18 @@ describe('FilterRail', () => {
     })
   })
 })
+
+describe('FilterRail buttons presentation: search then Enter', () => {
+  it('lands focus inside the highlighted filter preset buttons', () => {
+    const r = render, sc = screen, fe = fireEvent
+    const meta = { categories: [{ key: 'c', label: 'Cat' }],
+      filters: [{ key: 'rs_rank', label: 'RS Rank', category: 'c', type: 'range', allow_custom: true,
+        presets: [{ label: 'Any' }, { label: 'Over 80', op: 'gte', min: 80 }] }] }
+    r(<FilterRail meta={meta} activeFilters={{}} onChange={() => {}} onClear={() => {}} presentation="buttons" />)
+    const search = sc.getByLabelText('Find a filter')
+    fe.change(search, { target: { value: 'rs' } })
+    fe.keyDown(search, { key: 'Enter' })
+    expect(document.activeElement.id).toBe('fc_rs_rank')
+    expect(sc.getByRole('group', { name: 'RS Rank' }).contains(document.activeElement)).toBe(true)
+  })
+})

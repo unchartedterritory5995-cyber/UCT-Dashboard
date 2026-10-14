@@ -20,7 +20,8 @@ const openKey = k => `uct.screener.rail.${k}`
 const readOpen = k => { try { return localStorage.getItem(openKey(k)) !== '0' } catch { return true } }
 
 export default function FilterRail({ meta, activeFilters, onChange, onClear, variant = 'rail',
-  matchCount, matchCountEmpty, matchCountLoading, matchCountAsOf = null, criteriaSlot = null }) {
+  matchCount, matchCountEmpty, matchCountLoading, matchCountAsOf = null, criteriaSlot = null,
+  presentation = 'select' }) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(() =>
     Object.fromEntries((meta?.categories || []).map(c => [c.key, readOpen(c.key)])))
@@ -239,7 +240,7 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
                     value={activeFilters[f.key] || null}
                     onChange={v => onChange(f.key, v)} />
                 ) : (
-                  <FilterControl filter={f}
+                  <FilterControl filter={f} presentation={presentation}
                     value={activeFilters[f.key] || null}
                     onChange={v => onChange(f.key, v)} />
                 )}

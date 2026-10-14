@@ -135,6 +135,36 @@ def _parse(text: str) -> dict:
     return node
 
 
+_POOL_OR_SPECIAL = {"arith", "tickers", "scan", "list", "universe"}
+_GROUPS = {"all", "any", "none", "not"}
+
+
+def flatten_to_filters(logic):
+    """A pure all-of tree of plain leaves -> the leaf list; anything else -> None.
+
+    Only this shape can be shown as removable pills without changing what the
+    screen means. OR/NOT, nested groups, field-to-field compares and arithmetic
+    stay a logic tree ("Custom criteria")."""
+    if isinstance(logic, dict) and "key" in logic and not (_GROUPS & set(logic)):
+        leaves = [logic]
+    elif isinstance(logic, dict) and set(logic) == {"all"} and isinstance(logic["all"], list):
+        leaves = logic["all"]
+    else:
+        return None
+    if not leaves:
+        return None
+    seen = set()
+    for leaf in leaves:
+        if not isinstance(leaf, dict) or "key" not in leaf or _GROUPS & set(leaf):
+            return None
+        if leaf["key"] in _POOL_OR_SPECIAL or str(leaf.get("op", "")).endswith("_col"):
+            return None
+        if leaf["key"] in seen:
+            return None
+        seen.add(leaf["key"])
+    return list(leaves)
+
+
 def compile_english(english: str, *, caller: Callable[[list[dict]], dict] | None = None) -> dict[str, Any]:
     """English -> {criteria, logic, explanation, assumptions}. At most two
     model calls. Raises CompileError with a sentence. Does not meter."""
@@ -161,6 +191,7 @@ def compile_english(english: str, *, caller: Callable[[list[dict]], dict] | None
         except ValueError as second:
             raise CompileError(f"That could not be turned into a screen ({second}). Try rephrasing.")
     return {"criteria": text, "logic": node, "explanation": grammar.explain(node),
+            "filters": flatten_to_filters(node),
             "assumptions": [str(a) for a in (out.get("assumptions") or [])][:10]}
 
 

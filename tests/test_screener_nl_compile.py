@@ -3,6 +3,8 @@ only (a fake caller); the property under test is that nothing the model says
 reaches the screener without passing the member-facing parser."""
 from __future__ import annotations
 
+import logging
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -109,7 +111,8 @@ def test_metered_and_a_failure_gives_the_charge_back(client, monkeypatch):
     assert r2.status_code == 429 and "plain-English" in r2.json()["detail"]
 
 
-def test_a_provider_failure_is_a_503_sentence(client, monkeypatch):
+def test_a_provider_failure_is_a_503_sentence(client, monkeypatch, caplog):
+    caplog.set_level(logging.WARNING, logger="api.routers.screener_nl")
     _arm(monkeypatch)
 
     def boom(messages):
@@ -117,4 +120,8 @@ def test_a_provider_failure_is_a_503_sentence(client, monkeypatch):
     monkeypatch.setattr(nl_compile, "_call", boom)
     r = client.post("/api/screener/compile", json={"text": "anything"})
     assert r.status_code == 503 and "unavailable" in r.json()["detail"]
+    # members never read an internal name: the class name goes to the log, not the sentence
+    assert r.json()["detail"] == "Plain-English screens are unavailable right now. Try again shortly."
+    assert "TimeoutError" not in r.json()["detail"]
+    assert any("TimeoutError" in rec.getMessage() for rec in caplog.records)
     assert daily_counters.value("2026-10-02", nl_compile.SCOPE, "nl-u1") == 0

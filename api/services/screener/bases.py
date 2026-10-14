@@ -43,6 +43,7 @@ _NULL = {
     "base_matches": None,
     "base_relation_count": None,
     "base_render": None,
+    "base_pivot_px": None,
 }
 
 
@@ -252,6 +253,16 @@ def classify(bars, bars_full=None) -> dict:
         if s is not None:
             labels.append(s.label)
 
+    # The pivot belongs to the HEAD of the render order only, and only when the
+    # head structure's own detection computes one. Never invented.
+    pivot_px = None
+    head = base_catalog.by_key(order[0]) if order else None
+    if head is not None and head.pivot is not None:
+        try:
+            pivot_px = head.pivot(ctx)
+        except Exception:  # noqa: BLE001 -- a detector bug must not cost the row
+            pivot_px = None
+
     matches = [shape_key] + relation_keys
     shape = base_catalog.by_key(shape_key)
 
@@ -262,4 +273,5 @@ def classify(bars, bars_full=None) -> dict:
         "base_matches": "," + ",".join(matches) + ",",
         "base_relation_count": len(relation_keys),
         "base_render": _render(labels),
+        "base_pivot_px": pivot_px,
     }

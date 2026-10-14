@@ -75,11 +75,13 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
 
   // ── URL write: debounced replaceState; local edits strip `screen=` ───────
   const writeTimer = useRef()
+  const pendingWrite = useRef(null) // the debounced write not yet run, for flush()
   const skipNextWrite = useRef(false)
   useEffect(() => {
-    if (skipNextWrite.current) { skipNextWrite.current = false; return undefined }
+    if (skipNextWrite.current) { skipNextWrite.current = false; pendingWrite.current = null; return undefined }
     clearTimeout(writeTimer.current)
-    writeTimer.current = setTimeout(() => {
+    const write = () => {
+      pendingWrite.current = null
       const url = new URL(window.location.href)
       const enc = encodeSpec({ filters, sort, view, columns, rank, logic })
       if (enc) url.searchParams.set(SPEC_PARAM, enc)
@@ -87,9 +89,17 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
       url.searchParams.delete(SHARED_SCREEN_PARAM)
       url.searchParams.delete(SAVED_SCREEN_PARAM)
       window.history.replaceState(null, '', url)
-    }, 400)
+    }
+    pendingWrite.current = write
+    writeTimer.current = setTimeout(write, 400)
     return () => clearTimeout(writeTimer.current)
   }, [filters, sort, view, columns, rank, logic])
+  // Run a pending debounced URL write now (e.g. before this screen unmounts), so a
+  // change made in the last 400 ms is not lost. No-op when nothing is pending.
+  const flush = useCallback(() => {
+    clearTimeout(writeTimer.current)
+    pendingWrite.current?.()
+  }, [])
 
   // ── back/forward restores the encoded screen ─────────────────────────────
   useEffect(() => {
@@ -181,5 +191,5 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
 
   return { filters, sort, view, columns, rank, logic, visibleColumns, page,
     setFilter, clearFilters, setSort, setRank, setView, setColumns, applySpec, setLogic,
-    loadMore, resetPage, baseSpec, scanSpec }
+    loadMore, resetPage, baseSpec, scanSpec, flush }
 }

@@ -472,3 +472,16 @@
   outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
 }
+
+/* Focus layout filters drawer: FilterControl presentation="buttons". Every
+   preset is a pressable button; the select above stays the default. */
+.presetGroup { display: flex; flex-direction: column; gap: 6px; padding: 6px 4px; }
+.presetHead { display: flex; align-items: center; gap: 4px; }
+.presetRow { display: flex; flex-wrap: wrap; gap: 4px; }
+.presetBtn { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font: inherit; font-size: 12px; min-height: 32px; padding: 4px 10px; cursor: pointer; }
+.presetBtn[aria-pressed='true'] { border-color: var(--ut-gold); background: var(--ut-gold-dim); color: var(--ut-gold); }
+.presetCustom { background: none; border: 0; color: var(--ut-gold); font: inherit; font-size: 12px; min-height: 32px; padding: 4px 6px; cursor: pointer; }
+.presetCustom[aria-pressed='true'] { text-decoration: underline; }
+@media (max-width: 1024px) {
+  .presetBtn, .presetCustom { min-height: var(--tap-min); }
+}

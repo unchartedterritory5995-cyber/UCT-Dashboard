@@ -1,0 +1,154 @@
+.page { display: flex; flex-direction: column; height: calc(100vh - 56px); min-height: 520px; background: var(--bg); color: var(--text); }
+.body { display: flex; flex: 1; min-height: 0; }
+.listWrap { flex: 0 0 340px; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border); }
+.listHead { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; font-size: 12px; color: var(--text-muted); }
+.listHeadValue { color: var(--text); }
+.list { flex: 1; overflow-y: auto; outline: none; position: relative; }
+.list:focus-visible { box-shadow: inset 0 0 0 2px var(--ut-gold); }
+.row { display: flex; align-items: center; gap: 10px; padding: 10px 16px 10px 12px; border-bottom: 1px solid var(--bg-surface); cursor: pointer; min-height: var(--tap-min); }
+.row:hover { background: var(--bg-hover); }
+.rowSel { background: var(--bg-elevated); box-shadow: inset 3px 0 0 var(--ut-gold); }
+.rowQuiet .setup { font-style: italic; }
+.dotOn { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ut-gold); }
+.dotOff { flex: none; width: 6px; height: 6px; }
+.rowMain { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.ticker { font-size: 15px; font-weight: 700; color: var(--text-heading); }
+.setup { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rowNums { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-variant-numeric: tabular-nums; font-size: 13px; }
+.up { color: var(--success-ink); font-size: 12px; }
+.down { color: var(--danger-ink); font-size: 12px; }
+.flat { color: var(--text-muted); font-size: 12px; }
+.moreSentinel { height: 1px; }
+.keyHints { display: flex; gap: 12px; flex-wrap: wrap; padding: 10px 16px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--text-muted); }
+.keyHints b { color: var(--text); font-weight: 600; }
+.linkBtn { background: none; border: 0; padding: 0; display: inline-flex; align-items: center; gap: 0.3em; color: var(--text-muted); font: inherit; cursor: pointer; }
+.btn { background: transparent; color: var(--text); border: 1px solid var(--border-accent); border-radius: 8px; padding: 8px 14px; font: inherit; font-size: 13px; min-height: 36px; cursor: pointer; }
+.btnOn { background: var(--ut-gold-dim); color: var(--ut-gold); border: 1px solid var(--ut-gold); border-radius: 8px; padding: 8px 14px; font: inherit; font-size: 13px; min-height: 36px; cursor: pointer; }
+.btnPrimary { background: var(--ut-gold); color: var(--bg); border: 0; border-radius: 8px; padding: 8px 14px; font: inherit; font-size: 13px; font-weight: 700; min-height: 36px; cursor: pointer; }
+.stateBox { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 40px 20px; text-align: center; flex: 1; }
+.stateHead { margin: 0; font-size: 16px; font-weight: 700; color: var(--text-heading); }
+.stateBody { margin: 0; color: var(--text-muted); max-width: 40ch; line-height: 1.5; }
+.stateActions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.skeleton { display: flex; flex-direction: column; }
+.skelRow { display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; border-bottom: 1px solid var(--bg-surface); }
+.skelA { height: 12px; border-radius: 4px; background: var(--bg-elevated); }
+.skelB { height: 9px; border-radius: 4px; background: var(--bg-surface); }
+.pane { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 16px 24px 14px; }
+.paneHead { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.paneTicker { margin: 0; font-size: 28px; font-weight: 700; color: var(--text-heading); }
+.paneSub { color: var(--text-muted); font-size: 14px; }
+.panePrice { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.spacer { flex: 1; }
+.paneMeta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.setupTag { background: var(--ut-gold-dim); color: var(--ut-gold); border-radius: 6px; padding: 4px 10px; font-weight: 600; font-size: 12.5px; }
+.paneFacts { color: var(--text-muted); font-size: 12.5px; }
+.seg { display: flex; gap: 2px; background: var(--bg-surface); border-radius: 8px; padding: 2px; }
+.segOn, .segOff { border: 0; border-radius: 6px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; min-width: 32px; }
+.segOn { background: var(--border-accent); color: var(--text-heading); }
+.segOff { background: transparent; color: var(--text-muted); }
+.chartBox { position: relative; flex: 1; min-height: 280px; }
+.paneFoot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 12px; }
+.why { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12.5px; }
+.whyLabel { color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
+.whyList { display: flex; gap: 14px; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
+.whyItem { display: inline-flex; gap: 6px; align-items: center; }
+.whyCheck { color: var(--success-ink); }
+.whyPool { color: var(--text-muted); }
+.whyText { color: var(--text-muted); }
+.whyValue { color: var(--text); font-variant-numeric: tabular-nums; }
+/* right padding clears the app-wide feedback "?" (FeedbackWidget: fixed, top 10, right 14, 24px wide) */
+.topBar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 52px 10px 20px; min-height: 60px; border-bottom: 1px solid var(--border); }
+.badge { display: inline-block; margin-left: 6px; background: var(--ut-gold); color: var(--bg); border-radius: 999px; padding: 0 7px; font-size: 11.5px; font-weight: 700; }
+.iconBtn { background: transparent; border: 0; color: var(--text-muted); width: var(--tap-min); height: 36px; font: inherit; font-weight: 700; cursor: pointer; }
+.menuWrap { position: relative; display: inline-flex; }
+.menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; min-width: 220px; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: 10px; padding: 6px; display: flex; flex-direction: column; box-shadow: var(--shadow-popover); }
+.menuRight { left: auto; right: 0; }
+.menuItem { display: flex; justify-content: space-between; gap: 12px; text-align: left; background: transparent; border: 0; color: var(--text); padding: 9px 12px; border-radius: 8px; font: inherit; font-size: 13px; cursor: pointer; min-height: 36px; }
+.menuItem:hover, .menuItem:focus-visible { background: var(--bg-hover); outline: none; }
+.menuDanger { color: var(--danger-ink); }
+.menuHint { color: var(--text-muted); font-size: 12px; }
+.menuDivider { height: 1px; background: var(--border); margin: 4px 6px; }
+.menuHeading { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 12px 4px; }
+.receiptBtn { display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 0; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; min-height: 36px; }
+.liveDot { width: 6px; height: 6px; border-radius: 50%; background: var(--gain); }
+.idleDot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); }
+.infoMark { border: 1px solid var(--border-accent); border-radius: 50%; width: 16px; height: 16px; font-size: 10px; display: inline-flex; align-items: center; justify-content: center; }
+.receipt { width: 320px; padding: 14px; gap: 10px; }
+.receiptHead { margin: 0; color: var(--text); font-size: 13px; line-height: 1.5; }
+.screenBtn { display: inline-flex; align-items: center; gap: 10px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text-heading); padding: 8px 14px; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; min-height: 40px; }
+.screenCount { color: var(--text-muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+.screenMenu { width: 560px; max-width: calc(100vw - 40px); max-height: min(80vh, 760px); padding: 0; overflow: hidden; }
+.smSearch { padding: 12px; border-bottom: 1px solid var(--border); }
+.smInput { width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border-accent); border-radius: 8px; color: var(--text); padding: 9px 12px; font: inherit; font-size: 13px; }
+.smBody { overflow-y: auto; padding: 6px; }
+.smHead { margin: 0; padding: 12px 12px 6px; color: var(--text-muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+.smItem { display: flex; align-items: center; gap: 8px; padding: 2px 8px; border-radius: 8px; }
+.smItem:hover { background: var(--bg-hover); }
+.smCurrent { background: var(--ut-gold-dim); }
+.smPin { background: none; border: 0; color: var(--text-muted); width: 32px; height: 36px; cursor: pointer; }
+.smPin[aria-pressed='true'] { color: var(--ut-gold); }
+.smOpen { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; text-align: left; background: none; border: 0; color: inherit; font: inherit; padding: 6px 0; cursor: pointer; }
+.smName { font-size: 13.5px; font-weight: 600; color: var(--text-heading); }
+.smDesc { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.smCount { color: var(--text-muted); font-variant-numeric: tabular-nums; font-size: 12.5px; min-width: 40px; text-align: right; }
+.smFoot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; border-top: 1px solid var(--border); background: var(--bg); }
+.goldLink { background: none; border: 0; color: var(--ut-gold); font: inherit; font-size: 13px; cursor: pointer; min-height: 36px; }
+@media (max-width: 1024px) {
+  .listWrap { flex-basis: 280px; }
+  .btn, .btnOn, .btnPrimary, .linkBtn, .segOn, .segOff, .menuItem, .iconBtn, .receiptBtn, .screenBtn, .smPin, .smOpen, .goldLink, .pill, .pillX, .toastBtn, .dialogInput { min-height: var(--tap-min); }
+  .smPin, .pillX { min-width: var(--tap-min); }
+  .row { min-height: var(--tap-min); }
+  /* The app's floating buttons (voice orb / joystick bottom-right, feedback "?" bottom-left) are
+     fixed over this tier: keep Flag / Add to watchlist above them, and drop the keyboard hints
+     the "?" would sit on (keys are a desktop affordance; the Help menu still lists them). */
+  .pane { padding-bottom: 96px; }
+  .keyHints { display: none; }
+}
+
+.drawer:focus { outline: none; }
+.drawerScrim { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0, 0, 0, 0.45); }
+.drawer { position: absolute; left: 0; top: 0; bottom: 0; width: 460px; max-width: 100%; background: var(--bg-surface); border-right: 1px solid var(--border-accent); display: flex; flex-direction: column; }
+.drawerHead { display: flex; align-items: center; gap: 10px; padding: 16px 18px 12px; }
+.drawerTitle { margin: 0; font-size: 18px; font-weight: 700; color: var(--text-heading); }
+.drawerCount { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.drawerSection { padding: 12px 18px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.drawerBody { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 8px 10px; }
+.drawerFoot { display: flex; align-items: flex-start; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--border); }
+.pillRow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 6px 4px 12px; font: inherit; font-size: 12.5px; background: var(--bg-elevated); border: 1px solid var(--border-accent); color: var(--text); min-height: 32px; }
+button.pill { cursor: pointer; }
+.pillKey { color: var(--text-muted); }
+.pillX { background: none; border: 0; color: var(--text-muted); font-size: 15px; width: 28px; height: 28px; cursor: pointer; }
+.codeBox { flex: 1; min-width: 0; }
+.describeLabel { color: var(--ut-gold); font-weight: 600; font-size: 12.5px; display: block; margin-bottom: 6px; }
+.describeInput { width: 100%; box-sizing: border-box; min-height: var(--tap-min); padding: 6px 10px; font: inherit; background: var(--bg-elevated); border: 1px solid var(--border-accent); border-radius: 6px; color: var(--text); }
+.describeNote { margin: 6px 0 0; color: var(--text-muted); font-size: 12px; }
+@media (max-width: 640px) { .drawer { width: 100%; } }
+
+/* Orchestrator (FocusScreener.jsx) */
+.tableMode { flex: 1; min-height: 0; overflow: auto; }
+.saveSlot { display: contents; }
+.flagBar { display: flex; align-items: center; gap: 8px; padding: 6px 20px; border-bottom: 1px solid var(--border); }
+.flagBar:empty { display: none; }
+.dropNote { margin: 0; padding: 8px 20px; background: var(--bg-surface); color: var(--text); font-size: 12.5px; border-bottom: 1px solid var(--border); box-shadow: inset 3px 0 0 var(--ut-gold); }
+.metaNote { display: flex; align-items: center; gap: 12px; padding: 8px 20px; background: var(--bg-surface); color: var(--text); font-size: 12.5px; border-bottom: 1px solid var(--border); }
+.rowCompany { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.howToSteps { margin: 0; padding: 0 0 0 20px; color: var(--text); font-size: 14px; line-height: 1.6; }
+.howToSteps li + li { margin-top: 6px; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 80; display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px); background: var(--bg-elevated); border: 1px solid var(--border-accent); color: var(--text); padding: 8px 10px 8px 16px; border-radius: 10px; font-size: 13px; box-shadow: var(--shadow-popover); }
+.toast .menu { top: auto; bottom: calc(100% + 6px); }
+.toastBtn { background: transparent; color: var(--ut-gold); border: 1px solid var(--border-accent); border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 13px; min-height: 32px; cursor: pointer; white-space: nowrap; }
+.toastBtn:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+[data-density='comfortable'] .row { padding-top: 14px; padding-bottom: 14px; }
+/* "Skip to save results": invisible and click-through until keyboard focus shows it. Clipped rather than
+   opacity 0, so its ink is measured at full strength by the contrast rail. Text inks are --success-ink and
+   --danger-ink, never the candle hues --gain/--loss (terminalReachableContrast). */
+.skipLink { position: absolute; top: 8px; left: 8px; z-index: 50; white-space: nowrap; padding: 8px 14px; border-radius: 8px; background: var(--bg-elevated); color: var(--text); font-size: 13px; font-weight: 600; text-decoration: none; transform: translateY(-200%); clip-path: inset(50%); pointer-events: none; }
+.skipLink:focus-visible { transform: none; clip-path: none; pointer-events: auto; outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+/* NameDialog: the inline "name it" box (no window.prompt). */
+.dialogScrim { position: fixed; inset: 0; z-index: 90; background: rgba(0, 0, 0, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.nameDialog { width: 380px; max-width: 100%; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow-popover); }
+.dialogTitle { margin: 0; font-size: 16px; font-weight: 700; color: var(--text-heading); }
+.dialogLabel { font-size: 12.5px; color: var(--text-muted); }
+.dialogInput { background: var(--bg); color: var(--text); border: 1px solid var(--border-accent); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 14px; min-height: 36px; }
+.dialogInput:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }

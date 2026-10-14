@@ -9,12 +9,19 @@ bounded by the shared client's timeout with zero SDK retries.
 """
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 
 router = APIRouter()
+log = logging.getLogger(__name__)
+
+#: What a member reads when the model provider fails. The exception's class name is an internal
+#: detail: it goes to the server log, never into this sentence.
+UNAVAILABLE_SENTENCE = "Plain-English screens are unavailable right now. Try again shortly."
 
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
@@ -59,5 +66,5 @@ def compile_screen(body: CompileIn, user: dict = Depends(require_paid)):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:  # noqa: BLE001 -- a provider failure is a sentence, not a 500
         nl_compile.give_back(uid)
-        raise HTTPException(status_code=503,
-                            detail=f"Plain-English screens are unavailable right now ({type(e).__name__}).")
+        log.warning("screener compile: provider failure (%s)", type(e).__name__)
+        raise HTTPException(status_code=503, detail=UNAVAILABLE_SENTENCE)

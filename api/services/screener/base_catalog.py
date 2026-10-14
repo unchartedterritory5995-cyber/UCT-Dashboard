@@ -113,6 +113,12 @@ class Structure:
     desc: str
     criteria: tuple = ()
     detect: Optional[Callable] = None
+    #: The pivot (entry price) THIS structure's own detection computed, as
+    #: `pivot(ctx) -> Optional[float]`. `None` means the structure has no pivot
+    #: concept. It calls its detector with exactly the arguments `detect`
+    #: passes and applies the same qualification gate, so a pivot is never
+    #: reported for a structure `detect` would reject.
+    pivot: Optional[Callable] = None
     # ⚰️ `needs_intraday` REMOVED 2026-08-30. It was declared here, surfaced in
     # `meta()` as a member-facing constant `false`, SET BY NOTHING and READ BY
     # NOTHING — a capability the payload asserted and no code checked. The
@@ -125,6 +131,44 @@ class Structure:
     #: structure has not been measured yet — which is itself a finding
     #: (`cup_handle_uct` shipped green and fires on 2 of 2,890 symbols).
     coverage_pct: Optional[float] = None
+
+
+def _pivot_of(state) -> Optional[float]:
+    """The pivot a detector computed, or None. Never invented: a detector that
+    found nothing, or found no pivot, answers None."""
+    if not isinstance(state, dict):
+        return None
+    p = state.get("pivot")
+    try:
+        p = float(p)
+    except (TypeError, ValueError):
+        return None
+    return p if p > 0 and p == p and p != float("inf") else None
+
+
+def _flat_base_pivot(ctx) -> Optional[float]:
+    st = flat_base_state(ctx.bars)
+    return _pivot_of(st) if flat_base_qualifies(st, ctx.bars) else None
+
+
+def _base_on_base_pivot(ctx) -> Optional[float]:
+    st = base_on_base_state(ctx.bars)
+    # the NEWER base's pivot is the live one; the detector names it `pivot2`
+    return _pivot_of({"pivot": st.get("pivot2")}) if st else None
+
+
+def _square_box_pivot(ctx) -> Optional[float]:
+    st = square_box_state(ctx.bars)
+    if st is None or (st["prior_advance"] or 0.0) < BOX_PRIOR_ADVANCE:
+        return None
+    return _pivot_of(st)
+
+
+def _three_weeks_tight_pivot(ctx) -> Optional[float]:
+    st = three_weeks_tight_state(ctx.bars)
+    if st is None or st["pairwise"] > TWT_MAX_PAIRWISE:
+        return None
+    return _pivot_of(st)
 
 
 # ── the Darvas box state machine ───────────────────────────────────────────
@@ -1426,6 +1470,7 @@ FLAT_BASE = Structure(
     ),
     coverage_pct=4.5,
     detect=_detect_flat_base,
+    pivot=_flat_base_pivot,
 )
 
 
@@ -1651,6 +1696,7 @@ BASE_ON_BASE = Structure(
     ),
     coverage_pct=0.6,
     detect=_detect_base_on_base,
+    pivot=_base_on_base_pivot,
 )
 
 
@@ -1852,6 +1898,7 @@ CUP_WITH_HANDLE = Structure(
     ),
     coverage_pct=0.6,
     detect=_detect_cup_with_handle,
+    pivot=lambda ctx: _pivot_of(cup.cup_with_handle_state(ctx.bars)),
 )
 
 
@@ -2066,6 +2113,7 @@ DOUBLE_BOTTOM = Structure(
     ),
     coverage_pct=6.9,
     detect=_detect_double_bottom,
+    pivot=lambda ctx: _pivot_of(double_bottom_state(ctx)),
 )
 
 
@@ -2597,6 +2645,7 @@ HIGH_TIGHT_FLAG = Structure(
     ),
     coverage_pct=0.08,
     detect=_detect_high_tight_flag,
+    pivot=lambda ctx: _pivot_of(high_tight_flag_state(ctx)),
 )
 
 
@@ -3015,6 +3064,7 @@ VCP = Structure(
     ),
     coverage_pct=1.8,
     detect=_detect_vcp,
+    pivot=lambda ctx: _pivot_of(vcp_state(ctx)),
 )
 
 
@@ -3218,6 +3268,7 @@ ASCENDING_BASE = Structure(
     ),
     coverage_pct=0.11,
     detect=_detect_ascending_base,
+    pivot=lambda ctx: _pivot_of(ascending_base_state(ctx)),
 )
 
 
@@ -3406,6 +3457,7 @@ SQUARE_BOX = Structure(
     ),
     coverage_pct=8.0,
     detect=_detect_square_box,
+    pivot=_square_box_pivot,
 )
 
 
@@ -4117,6 +4169,7 @@ CHEAT_3C = Structure(
     ),
     coverage_pct=2.2,
     detect=_detect_cheat_3c,
+    pivot=lambda ctx: _pivot_of(cheat_3c_state(ctx)),
 )
 
 
@@ -4243,6 +4296,7 @@ LOW_CHEAT = Structure(
     ),
     coverage_pct=1.1,
     detect=_detect_low_cheat,
+    pivot=lambda ctx: _pivot_of(low_cheat_state(ctx)),
 )
 
 
@@ -4440,6 +4494,7 @@ SAUCER = Structure(
     ),
     coverage_pct=1.9,
     detect=_detect_saucer,
+    pivot=lambda ctx: _pivot_of(saucer_state(ctx)),
 )
 
 
@@ -5029,6 +5084,7 @@ THREE_WEEKS_TIGHT = Structure(
     #: error. Full sweep table beside `TWT_MAX_PAIRWISE`.
     coverage_pct=13.9,
     detect=_detect_three_weeks_tight,
+    pivot=_three_weeks_tight_pivot,
 )
 
 
