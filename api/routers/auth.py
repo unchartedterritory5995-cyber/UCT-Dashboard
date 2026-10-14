@@ -664,6 +664,24 @@ def _breadth_dc_scope(env_name: str, default_on: bool) -> str:
     return default
 
 
+#: Screener capability flags, same three-value grammar as BREADTH_DC_FLAGS
+#: (unset/0 = off, 1 = everyone, admin = owner preview). Read PER REQUEST.
+SCREENER_FLAGS = {
+    "SCREENER_FOCUS_LAYOUT_ENABLED": False,   # enablement: Focus list + chart layout
+}
+
+
+def _screener_flags(is_admin: bool = False) -> dict:
+    """The Screener's layout flag, parsed by the SAME `_breadth_dc_scope` so the
+    two flag families cannot disagree about what `admin` or a typo means.
+    `is_admin` defaults False so a caller that forgets the role fails CLOSED."""
+    out = {}
+    for env_name, default_on in SCREENER_FLAGS.items():
+        scope = _breadth_dc_scope(env_name, default_on)
+        out[env_name.lower()] = scope == _SCOPE_ALL or (scope == _ADMIN_ONLY and bool(is_admin))
+    return out
+
+
 def _preview_payload_keys() -> frozenset:
     """TERM-039: the payload keys whose live value is a RESTRICTED rollout right now.
 
@@ -838,6 +856,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         # flag cannot express: one bundle cannot be on for one member and off for the
         # rest.
         **_breadth_dc_flags(is_admin=is_admin),
+        **_screener_flags(is_admin=is_admin),
         # ── TERM-077 — watchlist "copy or link, chosen at import" ──────────
         # Same request-time read and ENABLEMENT polarity as the gates above.
         # ⛔ THE KEY IS PRESENT ONLY WHEN ON. Its ticket's own rail is "flag

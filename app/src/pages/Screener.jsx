@@ -1,6 +1,7 @@
 import { useContext, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import ScannerShell from './screener/shell/ScannerShell'
+import FocusScreener from './screener/focus/FocusScreener'
 import ErrorBoundary from '../components/ErrorBoundary'
 import UIcon from '../components/ui/UIcon'
 import { useInTerminalPanel } from '../components/terminal'
@@ -88,13 +89,15 @@ export default function Screener({ embedded = false }) {
   const [searchParams] = useSearchParams()
   const [mode, setMode] = useState(() => (searchParams.get('tab') === 'options' ? 'options' : 'stocks'))
   const showOptions = optionsOn && mode === 'options'
+  // Owner-only Focus layout (SCREENER_FOCUS_LAYOUT_ENABLED). Never in an embedded widget or a terminal panel.
+  const focusOn = useContext(AuthContext)?.screenerFocusLayoutEnabled === true && !embedded && !inPanel
 
   const containerCls = `${styles.containerFull} ${embedded ? styles.pageEmbedded : ''}`.trim()
 
   return (
     <div className={containerCls}>
       <div className={styles.headerFull}>
-        {!embedded && !inPanel && (
+        {!embedded && !inPanel && !focusOn && (
           <h1 className={styles.heading}>
             <UIcon name="screener" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />
             Screener
@@ -121,12 +124,14 @@ export default function Screener({ embedded = false }) {
 
       {showOptions && <OptionsScreener />}
 
-      {!showOptions && <ErrorBoundary
-        key={shellKey}
-        fallback={<ScannerShellErrorFallback onRetry={() => setShellKey(k => k + 1)} />}
-      >
-        <ScannerShell embedded={embedded} />
-      </ErrorBoundary>}
+      {!showOptions && (
+        <ErrorBoundary
+          key={shellKey}
+          fallback={<ScannerShellErrorFallback onRetry={() => setShellKey(k => k + 1)} />}
+        >
+          {focusOn ? <FocusScreener /> : <ScannerShell embedded={embedded} />}
+        </ErrorBoundary>
+      )}
     </div>
   )
 }

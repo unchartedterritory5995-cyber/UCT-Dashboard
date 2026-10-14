@@ -2513,6 +2513,16 @@
       ],
       "note": ""
     },
+    "SCREENER_FOCUS_LAYOUT_ENABLED": {
+      "member_facing": {
+        "label": "Focus layout (list + chart)",
+        "where": "Screener"
+      },
+      "status": "dark",
+      "since": "2026-10-13",
+      "where": [],
+      "note": "Screener Focus layout (spec docs/superpowers/specs/2026-10-13-screener-focus-layout-design.md). Dark: unset means NOT RELEASED. Read PER REQUEST in api/routers/auth.py::_screener_flags via _breadth_dc_scope, so a flip needs no rebuild. THREE VALUES: unset/0/false/no/off = off for everyone; 1/true/yes/on = everyone; admin = owner preview only (a member reads false). An unrecognised value takes the default (off). Flag off renders today's ScannerShell byte-for-byte."
+    },
     "SCREENER_LIVE_TIER_ENABLED": {
       "status": "armed",
       "where": [
