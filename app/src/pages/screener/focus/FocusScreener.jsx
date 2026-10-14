@@ -49,6 +49,8 @@ import HelpMenu from './HelpMenu'
 import Menu, { MenuItem, MenuHeading } from './Menu'
 import DataReceipt, { coverageHasDrop } from './DataReceipt'
 import ResultList from './ResultList'
+import { activeStructures, structureLabels } from './setupLine'
+import { plainColumnLabel } from './plainWords'
 import ChartPane from './ChartPane'
 import { ListSkeleton, EmptyState, ErrorState } from './FocusStates'
 import useFocusSelection from './useFocusSelection'
@@ -502,14 +504,21 @@ function FocusList({ onMode }) {
     [shown.filters, shown.logic, shown.rank, meta, selected])
   const lists = useMemo(() => poolOptions(meta), [meta])
   const sortKey = s.sort?.key
-  const colLabel = k => (meta?.filters || []).find(f => f.key === k || f.column === k)?.label || COLUMN_DEFS[k]?.label || k
+  // Structures the rows on screen were screened for: read from the ANSWERED filters, so a
+  // structure being edited in the drawer does not relabel rows that answer the previous screen.
+  const structures = useMemo(() => ({ matched: activeStructures(shown.filters, meta?.filters), labels: structureLabels(meta?.filters) }),
+    [shown.filters, meta])
+  const colLabel = k => plainColumnLabel(k) || (meta?.filters || []).find(f => f.key === k || f.column === k)?.label || COLUMN_DEFS[k]?.label || k
   const sortArrow = s.sort?.dir === 'asc' ? '↑' : '↓'
   const sortLabel = s.rank ? 'Your ranking' : `${colLabel(sortKey) || 'Default'} ${sortArrow}`
-  // The sortable set is the table's own: in Table mode every column header sorts (VirtualResults),
-  // and those headers are the view's columns from meta (the server sorts by any snapshot column).
-  // The current sort key is always offered, so a sort set elsewhere can be seen and reversed.
+  // The sortable set is the view's columns from meta (the server sorts by any snapshot column),
+  // restricted to NUMERIC ones: a text column sorts alphabetically, so "Structure ↓" ran Z→A.
+  // A column is numeric when meta carries a range filter over it — the type is the server's,
+  // never a list typed here. The default sort is always offered; a text sort set elsewhere still
+  // shows in the trigger and "Reverse order" still flips it.
+  const numericCols = useMemo(() => new Set((meta?.filters || []).filter(f => f.type === 'range').map(f => f.column || f.key)), [meta])
   const sortKeys = [...new Set([DEFAULT_SORT.key, ...(sortKey ? [sortKey] : []), ...(s.visibleColumns || result?.view_columns || [])])]
-    .filter(k => k && k !== 'ticker' && k !== 'company')
+    .filter(k => k && (k === DEFAULT_SORT.key || numericCols.has(k)))
   const sortMenu = (
     <Menu label={`Sort: ${sortLabel}`} trigger={<>Sort: <span className={styles.listHeadValue}>{sortLabel}</span></>}
       triggerClassName={styles.linkBtn} width={240} testId="focus-sort-menu">
@@ -549,9 +558,9 @@ function FocusList({ onMode }) {
       <div className={styles.body}>
         <ResultList ref={hubResultsRef} itemProps={hubOn ? hubCursor.itemProps : undefined} rows={displayRows} index={sel.index} onSelect={sel.select} onKeyDown={onListKeyDown}
           livePrices={prices} radar={radar} sortLabel={sortLabel} sortMenu={sortMenu} total={total} hasMore={hasMore}
-          onLoadMore={s.loadMore} isLoading={isLoading} showCompany={showCompany} pending={pending} />
+          onLoadMore={s.loadMore} isLoading={isLoading} showCompany={showCompany} pending={pending} structures={structures} />
         <ChartPane row={selected} livePrice={selected ? prices[selected.ticker] : null} why={why}
-          onOpenFilters={() => openFilters()} onFlag={onFlag} isFlagged={selected ? isFlagged(selected.ticker) : false} onWatch={onWatch} />
+          onOpenFilters={() => openFilters()} onFlag={onFlag} isFlagged={selected ? isFlagged(selected.ticker) : false} onWatch={onWatch} structures={structures} />
       </div>
     )
   }

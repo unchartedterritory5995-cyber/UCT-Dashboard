@@ -73,22 +73,98 @@ test('key hints are exposed to screen readers', () => {
   render(<ResultList {...base} />)
   expect(screen.getByText('move').closest('[aria-hidden]')).toBeNull()
 })
+// Lays rows out 40px apart inside a list whose box starts at 1000, scrolled to `scrollTop`.
+function layout(list, n, scrollTop = 0, height = 400) {
+  Object.defineProperty(list, 'clientHeight', { configurable: true, value: height })
+  list.scrollTop = scrollTop
+  list.getBoundingClientRect = () => ({ top: 1000, bottom: 1000 + height })
+  for (let i = 0; i < n; i++) {
+    const el = list.querySelector(`[data-index="${i}"]`)
+    el.getBoundingClientRect = () => ({ top: 1000 + i * 40 - list.scrollTop, bottom: 1040 + i * 40 - list.scrollTop })
+  }
+}
+const many = Array.from({ length: 20 }, (_, i) => ({ ticker: `T${i}`, price: 10, chg_pct_1d: 1, base_render: 'Flat Base', vol_ratio: 1 }))
+
 test('scrollToIndex moves only the list container and never calls scrollIntoView', () => {
   const ref = createRef()
-  render(<ResultList {...base} ref={ref} />)
+  render(<ResultList {...base} rows={many} ref={ref} />)
   const list = screen.getByRole('listbox')
-  const row = screen.getByTestId('focus-row-DAWN')
   const spy = vi.fn()
-  row.scrollIntoView = spy
-  Object.defineProperty(list, 'clientHeight', { configurable: true, value: 100 })
-  list.getBoundingClientRect = () => ({ top: 1000, bottom: 1100 })
-  row.getBoundingClientRect = () => ({ top: 1300, bottom: 1350 })
-  ref.current.scrollToIndex(2)
-  expect(list.scrollTop).toBe(250)
+  list.querySelectorAll('[data-index]').forEach(r => { r.scrollIntoView = spy })
+  layout(list, 20, 0)
+  ref.current.scrollToIndex(12)
+  expect(list.scrollTop).toBeGreaterThan(0)
   expect(spy).not.toHaveBeenCalled()
-  row.getBoundingClientRect = () => ({ top: 980, bottom: 1030 })
-  ref.current.scrollToIndex(2)
-  expect(list.scrollTop).toBe(230)
+})
+test('P4: moving down keeps two rows of lookahead below the selection', () => {
+  const ref = createRef()
+  render(<ResultList {...base} rows={many} ref={ref} />)
+  const list = screen.getByRole('listbox')
+  layout(list, 20, 0) // rows 0-9 fill the 400px view
+  ref.current.scrollToIndex(9) // row 9 touches the bottom edge: rows 10 and 11 must come in
+  expect(list.scrollTop).toBe(12 * 40 - 400)
+  ref.current.scrollToIndex(5) // well inside the view: nothing moves
+  expect(list.scrollTop).toBe(80)
+})
+test('P4: moving up keeps two rows of lookahead above the selection', () => {
+  const ref = createRef()
+  render(<ResultList {...base} rows={many} ref={ref} />)
+  const list = screen.getByRole('listbox')
+  layout(list, 20, 400) // rows 10-19 in view
+  ref.current.scrollToIndex(10)
+  expect(list.scrollTop).toBe(8 * 40)
+})
+test('P4: at the ends of the list the lookahead is what exists', () => {
+  const ref = createRef()
+  render(<ResultList {...base} rows={many} ref={ref} />)
+  const list = screen.getByRole('listbox')
+  layout(list, 20, 0)
+  ref.current.scrollToIndex(19)
+  expect(list.scrollTop).toBe(20 * 40 - 400)
+  ref.current.scrollToIndex(0)
+  expect(list.scrollTop).toBe(0)
+})
+test('P4: a view too short for the lookahead still shows the selected row', () => {
+  const ref = createRef()
+  render(<ResultList {...base} rows={many} ref={ref} />)
+  const list = screen.getByRole('listbox')
+  layout(list, 20, 0, 60) // one and a half rows tall
+  ref.current.scrollToIndex(10)
+  expect(list.scrollTop).toBeLessThanOrEqual(10 * 40)
+  expect(list.scrollTop).toBeGreaterThanOrEqual(11 * 40 - 60)
+})
+test('P5: a key press puts the list in keyboard mode; moving the pointer leaves it', () => {
+  render(<ResultList {...base} />)
+  const list = screen.getByRole('listbox')
+  expect(list).not.toHaveAttribute('data-kbd')
+  fireEvent.keyDown(list, { key: 'ArrowDown' })
+  expect(list).toHaveAttribute('data-kbd')
+  expect(base.onKeyDown).toHaveBeenCalled()
+  fireEvent.pointerMove(list)
+  expect(list).not.toHaveAttribute('data-kbd')
+  fireEvent.keyDown(list, { key: 'ArrowDown' })
+  fireEvent.blur(list)
+  expect(list).not.toHaveAttribute('data-kbd')
+})
+test('P5: the selected fill outranks hover, and hover paints nothing in keyboard mode', async () => {
+  const { readFileSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const css = readFileSync(join(globalThis.process.cwd(), 'src/pages/screener/focus/FocusScreener.module.css'), 'utf8').replace(/\r\n/g, '\n')
+  // hover never applies to the selected row, so it cannot repaint it
+  expect(css).toMatch(/\.row:not\(\.rowSel\):hover\s*\{/)
+  expect(css).not.toMatch(/\.row:hover\s*\{/)
+  expect(css).toMatch(/\.list\[data-kbd\] \.row:not\(\.rowSel\):hover\s*\{\s*background: transparent/)
+  // the selection paints the gold tint OVER the hover tone: strictly stronger than hover
+  expect(css).toMatch(/\.rowSel\s*\{[^}]*linear-gradient\(var\(--ut-gold-dim\), var\(--ut-gold-dim\)\), var\(--bg-hover\)/)
+})
+test('B2: a structure screen leads each row with the matched structure, with a tooltip', () => {
+  const structures = { matched: [{ value: ',pocket-pivot,', label: 'Pocket Pivot', title: 'Pocket Pivot' }], labels: ['Pocket Pivot', 'Ugly Double Bottom'] }
+  const r = [{ ticker: 'UDB', price: 97, chg_pct_1d: 1, base_render: 'Ugly Double Bottom (Pocket Pivot)', vol_ratio: 1.2, base_pivot_px: 100 }]
+  render(<ResultList {...base} rows={r} structures={structures} />)
+  const setup = screen.getByText('Pocket Pivot · also Ugly Double Bottom')
+  expect(setup).toHaveAttribute('title', 'Pocket Pivot')
+  // the head's pivot does not ride beside the lead in the row
+  expect(screen.getByTestId('focus-row-UDB')).not.toHaveTextContent('pivot')
 })
 
 describe('load-more latch', () => {

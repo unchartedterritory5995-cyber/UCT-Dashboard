@@ -201,7 +201,18 @@ test('the ? menu offers the how-to only when the checklist is on, and opens it i
   expect(within(sheet).getAllByRole('listitem').length).toBeGreaterThan(0)
 })
 
+// A meta whose view mixes numeric and text columns, and whose library carries the Base Structure filter.
+const META_RICH = { ...META, views: [{ key: 'overview', columns: ['ticker', 'company', 'price', 'sector', 'base_render', 'vol_ratio'] }],
+  filters: [...META.filters,
+    { key: 'price', label: 'Price', category: 'technical', type: 'range', column: 'price', presets: [{ label: 'Any' }] },
+    { key: 'vol_ratio', label: 'Volume Ratio', category: 'technical', type: 'range', column: 'vol_ratio', presets: [{ label: 'Any' }] },
+    { key: 'sector', label: 'Sector', category: 'technical', type: 'enum', column: 'sector', presets: [{ label: 'Any' }] },
+    { key: 'base_structure', label: 'Base Structure', category: 'technical', type: 'enum', column: 'base_matches', presets: [
+      { label: 'Any' }, { label: 'Pocket Pivot', op: 'contains', value: ',pocket-pivot,' }] }] }
+const richMeta = url => (url.startsWith('/api/screener/meta') ? { ok: true, json: async () => META_RICH } : null)
+
 test('the sort control is a menu of the sortable columns; picking one sorts, the last item reverses', async () => {
+  extra = richMeta
   mount()
   await waitFor(() => screen.getByTestId('focus-row-MU'))
   fireEvent.click(screen.getByRole('button', { name: 'Sort: UCT ↓' }))
@@ -403,4 +414,34 @@ test('a URL spec is never overridden by the first pinned screen', async () => {
   await new Promise(r => setTimeout(r, 50))
   expect(screen.queryByRole('button', { name: /Momentum leaders/ })).toBeNull()
   expect(scanBodies().every(b => !(b.filters || []).some(f => f.min === 90))).toBe(true)
+})
+
+test('B9: sort offers numeric columns only, by the type meta gives each column', async () => {
+  extra = richMeta
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  fireEvent.click(screen.getByRole('button', { name: 'Sort: UCT ↓' }))
+  const names = within(screen.getByRole('menu', { name: 'Sort: UCT ↓' })).getAllByRole('menuitem').map(m => m.textContent)
+  expect(names.some(n => n.startsWith('Price'))).toBe(true)
+  // plain words: the sort menu reads the same label module as the chart pane
+  expect(names.some(n => n.startsWith('Volume vs avg'))).toBe(true)
+  // text columns never sort ("Structure ↓" ran Z to A)
+  for (const text of ['Sector', 'Structure', 'Ticker', 'Company']) expect(names.some(n => n.startsWith(text))).toBe(false)
+})
+test('B2: a structure screen leads each row with the structure it was screened for', async () => {
+  extra = richMeta
+  scanRows = [{ ticker: 'UDB', price: 97, chg_pct_1d: 1, base_render: 'Ugly Double Bottom (Pocket Pivot) +1', vol_ratio: 1.1, base_pivot_px: 100 }]
+  const enc = encodeSpec({ filters: { base_structure: { op: 'contains', value: ',pocket-pivot,' } }, sort: { key: 'uct_composite', dir: 'desc' } })
+  window.history.replaceState(null, '', `/?${SPEC_PARAM}=${enc}`)
+  mount()
+  await waitFor(() => expect(screen.getByTestId('focus-row-UDB')).toHaveTextContent('Pocket Pivot · also Ugly Double Bottom'))
+  expect(screen.getByTestId('pane-setup')).toHaveTextContent('Pocket Pivot · also Ugly Double Bottom')
+})
+test('B2: without a structure filter the row leads with the render head', async () => {
+  extra = richMeta
+  scanRows = [{ ticker: 'UDB', price: 97, chg_pct_1d: 1, base_render: 'Ugly Double Bottom (Pocket Pivot)', vol_ratio: 1.1 }]
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-UDB'))
+  expect(screen.getByTestId('focus-row-UDB')).toHaveTextContent('Ugly Double Bottom')
+  expect(screen.getByTestId('focus-row-UDB')).not.toHaveTextContent('also')
 })

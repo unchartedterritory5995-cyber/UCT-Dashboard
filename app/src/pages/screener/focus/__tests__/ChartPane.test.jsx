@@ -73,3 +73,22 @@ test('the W button passes tf W to the chart', () => {
   expect(screen.getByRole('button', { name: 'W' })).toHaveAttribute('aria-pressed', 'true')
   expect(screen.getByTestId('stockchart')).toHaveAttribute('data-tf', 'W')
 })
+
+test('plain words: the fact line says what the numbers are (owner decision 5)', () => {
+  render(<ChartPane row={{ ...row, vol_ratio: 0.6, adr_pct: 4.1 }} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.getByText('Volume 0.6× avg · Avg daily range 4.1%')).toBeInTheDocument()
+  expect(screen.queryByText(/ADR|Vol \d/)).toBeNull()
+})
+test('B2: a structure screen leads the setup tag with the matched structure; the pivot is named for the head', () => {
+  const structures = { matched: [{ value: ',pocket-pivot,', label: 'Pocket Pivot', title: 'Pocket Pivot' }], labels: ['Pocket Pivot', 'Ugly Double Bottom'] }
+  render(<ChartPane row={{ ...row, base_render: 'Ugly Double Bottom (Pocket Pivot)', price: 97, base_pivot_px: 100 }} structures={structures}
+    why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  const tag = screen.getByTestId('pane-setup')
+  expect(tag).toHaveTextContent('Pocket Pivot · also Ugly Double Bottom')
+  expect(tag).toHaveAttribute('title', 'Pocket Pivot')
+  expect(screen.getByText('Ugly Double Bottom: 3.0% below pivot 100')).toBeInTheDocument()
+})
+test('the setup tag always carries a tooltip', () => {
+  render(<ChartPane row={row} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.getByTestId('pane-setup')).toHaveAttribute('title', 'Flat Base')
+})

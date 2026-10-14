@@ -14,8 +14,8 @@ const fmtChg = v => {
 // so the list hands each row PRIMITIVES (its live price and change) plus stable references (the
 // row object, `onSelect`, the hub cursor's constant prop objects). A tick for one ticker then
 // re-renders that ticker's row only, not every loaded row.
-const ResultRow = memo(function ResultRow({ r, i, sel, price, chg, onRadar, onSelect, hubProps, showCompany }) {
-  const s = setupLine({ ...r, price })
+const ResultRow = memo(function ResultRow({ r, i, sel, price, chg, onRadar, onSelect, hubProps, showCompany, structures }) {
+  const s = setupLine({ ...r, price }, structures)
   return (
     <div id={`focus-opt-${r.ticker}`} role="option" aria-selected={sel}
       data-index={i} data-testid={`focus-row-${r.ticker}`}
@@ -26,7 +26,7 @@ const ResultRow = memo(function ResultRow({ r, i, sel, price, chg, onRadar, onSe
       <span className={styles.rowMain}>
         <span className={styles.ticker}>{r.ticker}</span>
         {showCompany && r.company && <span className={styles.rowCompany}>{r.company}</span>}
-        <span className={styles.setup}>{s.text}{s.detail ? ` · ${s.detail}` : ''}</span>
+        <span className={styles.setup} title={s.title || undefined}>{s.text}{s.detail ? ` · ${s.detail}` : ''}</span>
       </span>
       <span className={styles.rowNums}>
         <span>{fmtPrice(price)}</span>
@@ -36,22 +36,41 @@ const ResultRow = memo(function ResultRow({ r, i, sel, price, chg, onRadar, onSe
   )
 })
 
+// The screen's structure library and the structures it was screened for (setupLine reads both).
+const NO_STRUCTURES = {}
+// Rows kept visible beyond the selection when it moves, so the next stock is always in view.
+export const LOOKAHEAD_ROWS = 2
+
 const ResultList = forwardRef(function ResultList(
-  { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps, showCompany = false, sortMenu, pending = false },
+  { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps, showCompany = false, sortMenu, pending = false, structures = NO_STRUCTURES },
   ref,
 ) {
   const listRef = useRef(null)
-  // Scroll only the list's own container, never an ancestor or the window.
+  // Scroll only the list's own container, never an ancestor or the window. The selection
+  // keeps LOOKAHEAD_ROWS rows in view on either side (fewer at the ends of the list); when
+  // the list is too short for that, the selected row itself always stays in view.
   const scrollToIndex = useCallback(i => {
     const list = listRef.current
     const el = list?.querySelector(`[data-index="${i}"]`)
     if (!list || !el) return
+    const rowAt = k => list.querySelector(`[data-index="${k}"]`)
+    let above = el
+    for (let k = Math.max(0, i - LOOKAHEAD_ROWS); k < i; k++) { const r = rowAt(k); if (r) { above = r; break } }
+    let below = el
+    for (let k = i + LOOKAHEAD_ROWS; k > i; k--) { const r = rowAt(k); if (r) { below = r; break } }
     const lr = list.getBoundingClientRect()
-    const er = el.getBoundingClientRect()
-    const top = er.top - lr.top + list.scrollTop
-    const bottom = er.bottom - lr.top + list.scrollTop
-    if (top < list.scrollTop) list.scrollTop = top
-    else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight
+    const off = node => {
+      const r = node.getBoundingClientRect()
+      return { top: r.top - lr.top + list.scrollTop, bottom: r.bottom - lr.top + list.scrollTop }
+    }
+    const sel = off(el)
+    const want = { top: off(above).top, bottom: off(below).bottom }
+    let next = list.scrollTop
+    if (want.top < next) next = want.top
+    else if (want.bottom > next + list.clientHeight) next = want.bottom - list.clientHeight
+    // Never let the lookahead push the selected row itself out of view.
+    next = Math.min(Math.max(next, sel.bottom - list.clientHeight), sel.top)
+    if (next !== list.scrollTop) list.scrollTop = next
   }, [])
   useImperativeHandle(ref, () => ({ scrollToIndex }), [scrollToIndex])
   useEffect(() => { scrollToIndex(index) }, [index, scrollToIndex])
@@ -105,7 +124,13 @@ const ResultList = forwardRef(function ResultList(
       </div>
       <div ref={listRef} role="listbox" aria-label="Screen results" tabIndex={0} aria-busy={pending}
         aria-activedescendant={rows[index] ? `focus-opt-${rows[index].ticker}` : undefined}
-        className={styles.list} onKeyDown={onKeyDown} data-focus-list="">
+        className={styles.list} data-focus-list=""
+        // Keyboard mode: while the member steps with the keys, hover paints nothing, so the
+        // row under a resting pointer never looks more selected than the selection. Set on
+        // the DOM directly: a state change here would re-render every row.
+        onKeyDown={e => { e.currentTarget.setAttribute('data-kbd', ''); onKeyDown?.(e) }}
+        onPointerMove={e => { if (e.currentTarget.hasAttribute('data-kbd')) e.currentTarget.removeAttribute('data-kbd') }}
+        onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.removeAttribute('data-kbd') }}>
         {rows.map((r, i) => {
           const live = livePrices[r.ticker]
           const zeroVol = r.vol_ratio === 0
@@ -117,7 +142,7 @@ const ResultList = forwardRef(function ResultList(
           return (
             <ResultRow key={r.ticker} r={r} i={i} sel={i === index} price={price} chg={chg}
               onRadar={radar.has(r.ticker)} onSelect={onSelect} hubProps={itemProps ? itemProps(i) : undefined}
-              showCompany={showCompany} />
+              showCompany={showCompany} structures={structures} />
           )
         })}
         {hasMore && <div ref={endRef} className={styles.moreSentinel} aria-hidden="true" />}

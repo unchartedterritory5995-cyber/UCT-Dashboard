@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import StockChart from '../../../components/StockChart'
 import WhyStrip from './WhyStrip'
 import { setupLine } from './setupLine'
+import { plainFact } from './plainWords'
 import { useThemeInk } from '../../../lib/theme'
 import styles from './FocusScreener.module.css'
 
@@ -11,15 +12,14 @@ const PIVOT_INK = { pivot: ['--ut-gold', '#dcbb5e'] }
 const fmt = v => (Number.isFinite(v) ? v.toFixed(2) : '—')
 const pct = v => (Number.isFinite(v) ? `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)}%` : '—')
 
+// Plain words (owner decision 5): the wording lives in plainWords.js, shared with the sort menu.
 function facts(row) {
-  const out = []
-  if (Number.isFinite(row.vol_ratio)) out.push(`Vol ${row.vol_ratio.toFixed(1)}×`)
-  if (Number.isFinite(row.adr_pct)) out.push(`ADR ${row.adr_pct.toFixed(1)}%`)
+  const out = ['vol_ratio', 'adr_pct'].map(k => plainFact(k, row[k])).filter(Boolean)
   if (row.next_earnings_date) out.push(`Earnings ${row.next_earnings_date}`)
   return out.join(' · ')
 }
 
-export default function ChartPane({ row, livePrice, why, onOpenFilters, onFlag, isFlagged, onWatch }) {
+export default function ChartPane({ row, livePrice, why, onOpenFilters, onFlag, isFlagged, onWatch, structures }) {
   const [tf, setTf] = useState('D')
   const ink = useThemeInk(PIVOT_INK)
   const pivot = row?.base_pivot_px
@@ -30,7 +30,7 @@ export default function ChartPane({ row, livePrice, why, onOpenFilters, onFlag, 
   }
   const price = Number.isFinite(livePrice?.price) ? livePrice.price : row.price
   const chg = row.vol_ratio === 0 ? null : (Number.isFinite(livePrice?.change_pct) ? livePrice.change_pct : row.chg_pct_1d)
-  const s = setupLine({ ...row, price })
+  const s = setupLine({ ...row, price }, structures)
   const factText = facts(row)
   const industry = row.industry || row.sector
   return (
@@ -48,8 +48,10 @@ export default function ChartPane({ row, livePrice, why, onOpenFilters, onFlag, 
         <span className={chg > 0 ? styles.up : chg < 0 ? styles.down : styles.flat}>{pct(chg)}</span>
       </div>
       <div className={styles.paneMeta}>
-        <span className={styles.setupTag}>{s.text}</span>
+        <span className={styles.setupTag} title={s.title || undefined} data-testid="pane-setup">{s.text}</span>
         {s.detail && <span className={styles.setupTag}>{s.detail}</span>}
+        {/* The pivot is the head structure's, so when another structure leads it is named. */}
+        {s.alsoDetail && <span className={styles.setupTag}>{`${s.also}: ${s.alsoDetail}`}</span>}
         {factText && <span className={styles.paneFacts}>{factText}</span>}
         <span className={styles.spacer} />
         <div role="group" aria-label="Timeframe" className={styles.seg}>
