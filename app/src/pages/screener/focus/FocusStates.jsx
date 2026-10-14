@@ -1,4 +1,7 @@
 import styles from './FocusScreener.module.css'
+import own from './FiltersDrawer.module.css'
+import useLazyCounts from './useLazyCounts'
+import { dropOptions, MAX_DROP_PILLS, LOGIC_ID } from './drawerFilters'
 
 export function ListSkeleton() {
   return (
@@ -14,9 +17,18 @@ export function ListSkeleton() {
   )
 }
 
-export function EmptyState({ filterCount, lastChange, onUndo, onOpenFilters }) {
+// The ONE place a pill words its count. undefined = still asking, null = the count
+// failed: neither may ever read as 0.
+const countText = n => (n === undefined ? 'counting…' : n === null ? 'count unavailable'
+  : `${n.toLocaleString('en-US')} ${n === 1 ? 'match' : 'matches'}`)
+
+export function EmptyState({ filterCount, lastChange, onUndo, onOpenFilters, spec = null, meta = null, onRemoveFilter = null, onRemoveLogic = null }) {
   const head = filterCount === 0 ? 'No stocks match this screen'
     : filterCount === 1 ? 'No stocks match this filter' : `No stocks match all ${filterCount} filters`
+  const options = onRemoveFilter ? dropOptions(spec, meta, !!onRemoveLogic) : []
+  const shown = options.slice(0, MAX_DROP_PILLS)
+  const counts = useLazyCounts(Object.fromEntries(shown.map(o => [o.id, o.spec])), shown.length > 0)
+  const remove = id => (id === LOGIC_ID ? onRemoveLogic() : onRemoveFilter(id))
   return (
     <div className={styles.stateBox} role="status">
       <p className={styles.stateHead}>{head}</p>
@@ -24,6 +36,27 @@ export function EmptyState({ filterCount, lastChange, onUndo, onOpenFilters }) {
         <p className={styles.stateBody}>
           Your last change, <b>{lastChange.label}</b>, took the list from {lastChange.from} to 0.
         </p>
+      )}
+      {shown.length > 0 && (
+        <>
+          <p className={styles.stateBody}>Remove one filter to see what it brings back:</p>
+          <ul className={own.dropPills}>
+            {shown.map(o => {
+              const n = counts[o.id]
+              return (
+                <li key={o.id}>
+                  <button type="button" className={own.dropPill} aria-label={`Remove ${o.label}, ${countText(n)}`} onClick={() => remove(o.id)}>
+                    <span>{o.label}</span>
+                    <span className={`${own.dropGain} ${n > 0 ? own.dropGainSome : ''}`}>{`remove → ${countText(n)}`}</span>
+                  </button>
+                </li>
+              )
+            })}
+            {options.length > shown.length && (
+              <li className={own.dropMore}>{`+${options.length - shown.length} more in Filters`}</li>
+            )}
+          </ul>
+        </>
       )}
       <div className={styles.stateActions}>
         {lastChange && <button type="button" className={styles.btnPrimary} onClick={onUndo}>Undo that change</button>}

@@ -6,7 +6,37 @@ import { chipLabel } from '../chipLabel'
 import { compactDigits } from './whyItsHere'
 import useDescribe from './useDescribe'
 import Input from '../../../components/ui/Input'
+import FilterControl from '../shell/FilterControl'
 import styles from './FocusScreener.module.css'
+import own from './FiltersDrawer.module.css'
+import { COMMON_FILTERS, choicesOf, isLongEnum } from './drawerFilters'
+
+// The app's select (FilterControl's `select` presentation, i.e. components/ui/Select) with
+// a components/ui/Input that narrows its choices. The chosen value is always kept in the
+// list, so narrowing can never make the select show a different answer than the one on.
+function LongEnumControl({ filter, value, onChange }) {
+  const [q, setQ] = useState('')
+  const all = choicesOf(filter)
+  const needle = q.trim().toLowerCase()
+  // An enum's spec is {op:'eq', value}; its own choice is the one with that value.
+  const narrowed = needle ? all.filter(p => p.label.toLowerCase().includes(needle) || (value && p.value === value.value)) : all
+  const anyPreset = (filter.presets || []).find(p => p.label === 'Any') || { label: 'Any' }
+  return (
+    <div className={own.enumWrap}>
+      <FilterControl filter={{ ...filter, presets: [anyPreset, ...narrowed] }} value={value} onChange={onChange} presentation="select" />
+      <div className={own.enumSearchRow}>
+        <Input className={own.enumSearch} aria-label={`Narrow ${filter.label} choices`} value={q}
+          placeholder={`Type to narrow ${all.length.toLocaleString('en-US')} choices`} onChange={e => setQ(e.target.value)} />
+        {needle && <span className={own.enumHint}>{`${narrowed.length} of ${all.length}`}</span>}
+      </div>
+    </div>
+  )
+}
+const drawerControl = (f, value, onChange) => (isLongEnum(f) ? <LongEnumControl filter={f} value={value} onChange={onChange} /> : null)
+
+// The ONE place the drawer words its match count. A count that is not known yet (or failed)
+// never reads as a number.
+const showLabel = (count, countLoading) => (countLoading || count == null ? 'Show stocks' : `Show ${count.toLocaleString('en-US')} stocks`)
 
 function universeLabel(filters) {
   if (filters?.list) return filters.list.label || 'Watchlist'
@@ -102,7 +132,6 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
         tabIndex={-1} onKeyDown={onKeyDown}>
         <header className={styles.drawerHead}>
           <h2 className={styles.drawerTitle}>Filters</h2>
-          <span className={styles.drawerCount} aria-live="polite">{countLoading ? 'Counting…' : `${(count ?? 0).toLocaleString('en-US')} matches`}</span>
           <span className={styles.spacer} />
           <button type="button" className={styles.iconBtn} aria-label="Close filters" onClick={onClose}>×</button>
         </header>
@@ -141,16 +170,17 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
         </div>
         <div className={styles.drawerBody}>
           <FilterRail meta={meta} activeFilters={filters} onChange={onSetFilter} onClear={onClear}
-            variant="sheet" presentation="buttons" matchCount={count} matchCountLoading={countLoading} />
+            variant="sheet" presentation="buttons" common={COMMON_FILTERS} startCollapsed
+            openStorePrefix="uct.screener.drawer" showClear={false} controlFor={drawerControl} />
         </div>
         <footer className={styles.drawerFoot}>
           <details className={styles.codeBox}>
-            <summary className={styles.linkBtn}>Edit as code</summary>
+            <summary className={own.codeLink}>Edit as code</summary>
             <CriteriaBox logic={logic} onApply={onSetLogic} />
           </details>
           <span className={styles.spacer} />
-          <button type="button" className={styles.btnPrimary} onClick={onClose}>
-            {countLoading ? 'Show stocks' : `Show ${(count ?? 0).toLocaleString('en-US')} stocks`}
+          <button type="button" className={styles.btnPrimary} onClick={onClose} aria-live="polite">
+            {showLabel(count, countLoading)}
           </button>
         </footer>
       </aside>
