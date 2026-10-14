@@ -106,9 +106,9 @@
   /* The same buttons cover the last rows of the list: leave room to scroll them clear. */
   .list { padding-bottom: 72px; }
   /* The footer would take ~150px of a short pane and squeeze the chart: shrink the head, drop the
-     company/industry line, keep the why strip on one line. */
+     industry part of the name line (the company name stays), keep the why strip on one line. */
   .paneTicker { font-size: 22px; }
-  .paneSub { display: none; }
+  .paneIndustry { display: none; }
   .why, .whyList { flex-wrap: nowrap; overflow: hidden; }
   .keyHints { display: none; }
 }

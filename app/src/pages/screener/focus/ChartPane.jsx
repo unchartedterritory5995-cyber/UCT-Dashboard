@@ -32,12 +32,17 @@ export default function ChartPane({ row, livePrice, why, onOpenFilters, onFlag, 
   const chg = row.vol_ratio === 0 ? null : (Number.isFinite(livePrice?.change_pct) ? livePrice.change_pct : row.chg_pct_1d)
   const s = setupLine({ ...row, price })
   const factText = facts(row)
-  const sub = [row.company, row.industry || row.sector].filter(Boolean).join(' · ')
+  const industry = row.industry || row.sector
   return (
     <section className={styles.pane} data-testid="focus-chart-pane" aria-label={`${row.ticker} chart`}>
       <div className={styles.paneHead}>
         <h2 className={styles.paneTicker}>{row.ticker}</h2>
-        {sub && <span className={styles.paneSub}>{sub}</span>}
+        {(row.company || industry) && (
+          <span className={styles.paneSub}>
+            {row.company && <span data-testid="pane-company">{row.company}</span>}
+            {industry && <span className={styles.paneIndustry} data-testid="pane-industry">{row.company ? ' · ' : ''}{industry}</span>}
+          </span>
+        )}
         <span className={styles.spacer} />
         <span className={styles.panePrice}>{fmt(price)}</span>
         <span className={chg > 0 ? styles.up : chg < 0 ? styles.down : styles.flat}>{pct(chg)}</span>

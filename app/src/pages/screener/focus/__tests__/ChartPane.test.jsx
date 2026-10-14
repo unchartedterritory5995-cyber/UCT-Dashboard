@@ -9,7 +9,15 @@ const why = { items: [{ kind: 'check', label: 'RS Rank ≥ 80', value: '94' }, {
 test('header names the stock and the setup', () => {
   render(<ChartPane row={row} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
   expect(screen.getByRole('heading', { name: /MU/ })).toBeInTheDocument()
-  expect(screen.getByText('Micron Technology · Semiconductors')).toBeInTheDocument()
+  const company = screen.getByTestId('pane-company')
+  const industry = screen.getByTestId('pane-industry')
+  expect(company).toHaveTextContent('Micron Technology')
+  expect(industry).toHaveTextContent('· Semiconductors')
+  expect(company).not.toBe(industry)
+  expect(company.contains(industry)).toBe(false)
+  // the <=1024 media rule hides only the industry element, never the company
+  expect(industry.className).toMatch(/paneIndustry/)
+  expect(company.className).not.toMatch(/paneIndustry/)
   expect(screen.getByText('Flat Base')).toBeInTheDocument()
   expect(screen.getByTestId('stockchart')).toHaveAttribute('data-sym', 'MU')
 })
