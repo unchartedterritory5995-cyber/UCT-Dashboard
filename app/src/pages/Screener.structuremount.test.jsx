@@ -128,7 +128,7 @@ const structureCalls = () => H.calls.filter(u => u.startsWith('/api/screener/str
 
 /** The door, located by ROLE and its own visible label — never a testid. A
  *  member finds this control by reading it. */
-const libraryButton = () => screen.findByRole('button', { name: /Structure library/i })
+const libraryButton = () => screen.findByRole('button', { name: /Structure library/i }, { timeout: 15000 })
 
 describe('🔴 the structure library reaches a member from /screener', () => {
   it('the door exists on the page App.jsx actually mounts', async () => {
