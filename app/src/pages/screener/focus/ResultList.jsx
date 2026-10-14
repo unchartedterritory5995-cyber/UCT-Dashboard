@@ -43,7 +43,7 @@ const NO_STRUCTURES = {}
 export const LOOKAHEAD_ROWS = 2
 
 const ResultList = forwardRef(function ResultList(
-  { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps, showCompany = false, sortMenu, pending = false, structures = NO_STRUCTURES },
+  { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps, showCompany = false, sortMenu, pending = false, structures = NO_STRUCTURES, headExtra = null },
   ref,
 ) {
   const listRef = useRef(null)
@@ -121,7 +121,12 @@ const ResultList = forwardRef(function ResultList(
     <div className={`${styles.listWrap} ${pending ? styles.listPending : ''}`} data-pending={pending ? '' : undefined}>
       <div className={styles.listHead}>
         {sortMenu || <button type="button" className={styles.linkBtn} onClick={onSort}>Sort: <span className={styles.listHeadValue}>{sortLabel}</span></button>}
-        <span>{rows.length ? `${index + 1} of ${total ?? rows.length}` : ''}</span>
+        {/* B13: the flagged actions live here, in a row that is always this tall, so the first
+            flag adds nothing above the list and nothing below it moves. */}
+        <span className={styles.listHeadEnd}>
+          {headExtra}
+          <span>{rows.length ? `${index + 1} of ${total ?? rows.length}` : ''}</span>
+        </span>
       </div>
       <div ref={listRef} role="listbox" aria-label="Screen results" tabIndex={0} aria-busy={pending}
         aria-activedescendant={rows[index] ? `focus-opt-${rows[index].ticker}` : undefined}

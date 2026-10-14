@@ -59,7 +59,7 @@ test('nothing selected shows a placeholder, no chart', () => {
 })
 
 test('live price overrides the shown price', () => {
-  render(<ChartPane row={row} livePrice={{ price: 960.5, change_pct: 1.2 }} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  render(<ChartPane row={row} livePx={960.5} liveChg={1.2} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
   expect(screen.getByText('960.50')).toBeInTheDocument()
   expect(screen.getByText('+1.2%')).toBeInTheDocument()
 })
@@ -95,7 +95,7 @@ test('the setup tag always carries a tooltip', () => {
 
 // -- Task 3 --
 test('B5/N4: the header pairs a live price with the live change only, as the row does', () => {
-  render(<ChartPane row={row} livePrice={{ price: 960 }} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  render(<ChartPane row={row} livePx={960} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
   expect(screen.getByText('960.00')).toBeInTheDocument()
   // the snapshot's change belongs to a different moment: never shown beside a live price
   expect(screen.queryByText('−3.7%')).toBeNull()

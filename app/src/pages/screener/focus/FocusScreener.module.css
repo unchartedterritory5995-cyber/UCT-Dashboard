@@ -3,7 +3,8 @@
 .listWrap { flex: 0 0 340px; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border); }
 /* The listed rows answer the previous screen; the new one's answer is on its way. */
 .listPending .list { opacity: 0.45; pointer-events: none; transition: opacity 120ms ease; }
-.listHead { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; font-size: 12px; color: var(--text-muted); }
+.listHead { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 16px; font-size: 12px; color: var(--text-muted); }
+.listHeadEnd { display: flex; align-items: center; gap: 10px; flex: none; }
 .listHeadValue { color: var(--text); }
 .list { flex: 1; overflow-y: auto; outline: none; position: relative; }
 .list:focus-visible { box-shadow: inset 0 0 0 2px var(--ut-gold); }
@@ -55,7 +56,15 @@
 .segOn, .segOff { border: 0; border-radius: 6px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; min-width: 32px; }
 .segOn { background: var(--border-accent); color: var(--text-heading); }
 .segOff { background: transparent; color: var(--text-muted); }
-.chartBox { position: relative; flex: 1; min-height: 280px; }
+.chartBox { position: relative; flex: 1; min-height: 280px; isolation: isolate; }
+/* B4: the chart's own state over the canvas. Loading fades in late, so a cached step never flashes it. */
+.chartLoading, .chartError { position: absolute; inset: 0; z-index: var(--z-dropdown); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+.chartLoading { pointer-events: none; opacity: 0; animation: chartStateIn 0.2s ease-out 0.25s forwards; }
+.chartError { background: var(--bg); color: var(--text); }
+@keyframes chartStateIn { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .chartLoading { animation: none; opacity: 1; } }
+/* B7: the pane takes focus on a click so arrow keys keep stepping the list; it draws no ring. */
+.pane:focus { outline: none; }
 .paneFoot { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; border-top: 1px solid var(--border); padding-top: 12px; }
 .paneActions { display: flex; align-items: center; gap: 10px; flex: none; white-space: nowrap; }
 .why { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; flex: 1 1 auto; min-width: 0; font-size: 12.5px; }
@@ -145,8 +154,6 @@ button.pill { cursor: pointer; }
 /* Orchestrator (FocusScreener.jsx) */
 .tableMode { flex: 1; min-height: 0; overflow: auto; }
 .saveSlot { display: contents; }
-.flagBar { display: flex; align-items: center; gap: 8px; padding: 6px 20px; border-bottom: 1px solid var(--border); }
-.flagBar:empty { display: none; }
 .dropNote { margin: 0; padding: 8px 20px; background: var(--bg-surface); color: var(--text); font-size: 12.5px; border-bottom: 1px solid var(--border); box-shadow: inset 3px 0 0 var(--ut-gold); }
 .metaNote { display: flex; align-items: center; gap: 12px; padding: 8px 20px; background: var(--bg-surface); color: var(--text); font-size: 12.5px; border-bottom: 1px solid var(--border); }
 .rowCompany { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

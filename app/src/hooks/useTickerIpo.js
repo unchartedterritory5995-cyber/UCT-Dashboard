@@ -44,6 +44,13 @@ function lsPut(sym, data) {
   }
 }
 
+// True when this browser already holds the symbol's listing date as a FINAL answer. A listing
+// date never changes, so a caller may skip asking again (the Focus screener's chart does).
+export function hasFinalTickerIpo(sym) {
+  const d = sym ? lsGet(sym) : undefined
+  return !!d && d.first_trade_final === true
+}
+
 // A failure must be an ERROR (not cached null), so a transient backend miss
 // self-heals on retry rather than sticking as "no IPO date" all session — same
 // lesson as useTickerMeta.

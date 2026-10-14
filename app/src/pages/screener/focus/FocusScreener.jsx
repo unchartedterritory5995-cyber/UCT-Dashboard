@@ -279,12 +279,16 @@ function FocusList({ onMode }) {
   const flushSpec = s.flush
   const onOpen = useCallback(row => { if (pendingRef.current) return; flushSpec(); navigate(chartsLinkPath({ symbol: row.ticker, tf: 'D' })) }, [flushSpec, navigate])
   const pageRef = useRef(null)
+  const focusList = useCallback(() => { pageRef.current?.querySelector('[data-focus-list]')?.focus() }, [])
   // After choosing a list, focus goes back to the results so the next W adds there.
   const pickList = l => {
     watch.setTarget(l.id)
     say(`W now adds to ${l.name}`, { changeList: true })
-    pageRef.current?.querySelector('[data-focus-list]')?.focus()
+    focusList()
   }
+  // B7: the pane's Flag and Add to watchlist hand focus back to the results, so ↓ keeps stepping.
+  const paneFlag = useCallback(row => { onFlag(row); focusList() }, [onFlag, focusList])
+  const paneWatch = useCallback(row => { onWatch(row); focusList() }, [onWatch, focusList])
 
   const sel = useFocusSelection({ rows: displayRows, resetKey: rowsKey, hasMore, onLoadMore: s.loadMore, onOpen, onFlag, onWatch })
 
@@ -332,6 +336,9 @@ function FocusList({ onMode }) {
     if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.isComposing) { e.preventDefault(); openFilters(true); return }
     selKeyDown(e)
   }, [selKeyDown, openFilters])
+  // B7: ↑/↓ pressed anywhere in the chart pane step the list, and the list takes focus back.
+  const paneNavKey = useCallback(e => { selKeyDown(e); focusList() }, [selKeyDown, focusList])
+  const openFiltersFromStrip = useCallback(() => openFilters(), [openFilters])
   const [sheet, setSheet] = useState(null) // 'howto' | 'methodology' | 'library' | null
   const howToOn = useContext(AuthContext)?.howToChecklistsEnabled === true
   const howTo = howToOn ? approvedChecklist('screener.stocks') : null
@@ -513,11 +520,14 @@ function FocusList({ onMode }) {
   const filterCount = Object.keys(s.filters).filter(k => s.filters[k] && !POOL_KEYS.includes(k)).length + (s.logic ? 1 : 0)
   const selected = sel.selected
   // B5: the strip reads the same live price the row and the pane header show.
+  // S5: read as primitives, so a fresh price object for an unchanged price changes nothing.
   const selLive = selected ? prices[selected.ticker] : null
+  const selPx = selLive?.price
+  const selChg = selLive?.change_pct
   const snapshotDate = result?.snapshot_date
   const why = useMemo(() => whyItsHere({ filters: shown.filters, logic: shown.logic, rank: shown.rank, metaFilters: meta?.filters,
-    row: selected || {}, live: selected ? livePriceOf(selected, selLive) : null, snapshotDate }),
-  [shown.filters, shown.logic, shown.rank, meta, selected, selLive, snapshotDate])
+    row: selected || {}, live: selected ? livePriceOf(selected, Number.isFinite(selPx) ? { price: selPx, change_pct: selChg } : null) : null, snapshotDate }),
+  [shown.filters, shown.logic, shown.rank, meta, selected, selPx, selChg, snapshotDate])
   // S3: the screen menu counts each screen in the member's universe/list.
   const poolKey = JSON.stringify(poolOf(s.baseSpec))
   const pool = useMemo(() => JSON.parse(poolKey), [poolKey])
@@ -578,9 +588,12 @@ function FocusList({ onMode }) {
       <div className={styles.body}>
         <ResultList ref={hubResultsRef} itemProps={hubOn ? hubCursor.itemProps : undefined} rows={displayRows} index={sel.index} onSelect={sel.select} onKeyDown={onListKeyDown}
           livePrices={prices} radar={radar} sortLabel={sortLabel} sortMenu={sortMenu} total={shownTotal} hasMore={hasMore}
-          onLoadMore={s.loadMore} isLoading={isLoading} showCompany={showCompany} pending={pending} structures={structures} />
-        <ChartPane row={selected} livePrice={selected ? prices[selected.ticker] : null} why={why}
-          onOpenFilters={() => openFilters()} onFlag={onFlag} isFlagged={selected ? isFlagged(selected.ticker) : false} onWatch={onWatch} structures={structures} />
+          onLoadMore={s.loadMore} isLoading={isLoading} showCompany={showCompany} pending={pending} structures={structures}
+          headExtra={<FlaggedActions />} />
+        {/* S5: primitives and stable callbacks only, so a tick for another ticker skips the pane. */}
+        <ChartPane row={selected} livePx={selPx} liveChg={selChg} why={why}
+          onOpenFilters={openFiltersFromStrip} onFlag={paneFlag} isFlagged={selected ? isFlagged(selected.ticker) : false} onWatch={paneWatch}
+          onNavKey={paneNavKey} structures={structures} />
       </div>
     )
   }
@@ -623,7 +636,6 @@ function FocusList({ onMode }) {
           <button type="button" className={styles.btn} onClick={retryMeta}>Retry</button>
         </div>
       )}
-      <div className={styles.flagBar}><FlaggedActions /></div>
       {drops.length > 0 && <p className={styles.dropNote} role="status">{drops.join(' ')}</p>}
       {body}
       <FiltersDrawer open={filtersOpen} onClose={() => setFiltersOpen(false)} meta={meta} filters={s.filters} logic={s.logic}
