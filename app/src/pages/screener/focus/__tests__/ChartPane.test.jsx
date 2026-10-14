@@ -1,0 +1,51 @@
+import { render, screen, fireEvent } from '@testing-library/react'
+import { vi } from 'vitest'
+vi.mock('../../../../components/StockChart', () => ({ default: props => <div data-testid="stockchart" data-sym={props.sym} data-lines={JSON.stringify(props.priceLines || [])} /> }))
+import ChartPane from '../ChartPane'
+
+const row = { ticker: 'MU', company: 'Micron Technology', industry: 'Semiconductors', price: 956.12, chg_pct_1d: -3.7, base_render: 'Flat Base', vol_ratio: 0.8, adr_pct: 3.1 }
+const why = { items: [{ kind: 'check', label: 'RS Rank ≥ 80', value: '94' }, { kind: 'pool', label: 'In UCT Universe' }], more: 0 }
+
+test('header names the stock and the setup', () => {
+  render(<ChartPane row={row} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.getByRole('heading', { name: /MU/ })).toBeInTheDocument()
+  expect(screen.getByText('Micron Technology · Semiconductors')).toBeInTheDocument()
+  expect(screen.getByText('Flat Base')).toBeInTheDocument()
+  expect(screen.getByTestId('stockchart')).toHaveAttribute('data-sym', 'MU')
+})
+test('why-it-here shows checks and pools differently', () => {
+  render(<ChartPane row={row} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  const strip = screen.getByRole('list', { name: "Why it's here" })
+  expect(strip).toHaveTextContent('RS Rank ≥ 80')
+  expect(strip).toHaveTextContent('94')
+  expect(strip).toHaveTextContent('In UCT Universe')
+})
+test('a note with a missing value shows the pool mark, never a check', () => {
+  const w = { items: [{ kind: 'note', label: 'RS Rank ≥ 80', value: '—' }, { kind: 'check', label: 'Price ≥ 10', value: '956' }], more: 0 }
+  render(<ChartPane row={row} why={w} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  const items = screen.getByRole('list', { name: "Why it's here" }).querySelectorAll('li')
+  expect(items[0]).toHaveTextContent('○')
+  expect(items[0]).not.toHaveTextContent('✓')
+  expect(items[1]).toHaveTextContent('✓')
+})
+test('no pivot line without a pivot', () => {
+  render(<ChartPane row={row} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.getByTestId('stockchart')).toHaveAttribute('data-lines', '[]')
+})
+test('pivot line when the row has one', () => {
+  render(<ChartPane row={{ ...row, base_pivot_px: 988 }} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(JSON.parse(screen.getByTestId('stockchart').dataset.lines)[0].price).toBe(988)
+})
+test('buttons call back', () => {
+  const onFlag = vi.fn(), onWatch = vi.fn()
+  render(<ChartPane row={row} why={why} onFlag={onFlag} onWatch={onWatch} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Flag' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Add to watchlist' }))
+  expect(onFlag).toHaveBeenCalledWith(row)
+  expect(onWatch).toHaveBeenCalledWith(row)
+})
+test('nothing selected shows a placeholder, no chart', () => {
+  render(<ChartPane row={null} why={{ items: [], more: 0 }} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.queryByTestId('stockchart')).toBeNull()
+  expect(screen.getByText('Pick a stock from the list')).toBeInTheDocument()
+})

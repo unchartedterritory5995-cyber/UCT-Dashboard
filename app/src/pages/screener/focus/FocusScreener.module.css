@@ -32,8 +32,31 @@
 .skelRow { display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; border-bottom: 1px solid var(--bg-surface); }
 .skelA { height: 12px; border-radius: 4px; background: var(--bg-elevated); }
 .skelB { height: 9px; border-radius: 4px; background: var(--bg-surface); }
+.pane { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 16px 24px 14px; }
+.paneHead { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.paneTicker { margin: 0; font-size: 28px; font-weight: 700; color: var(--text-heading); }
+.paneSub { color: var(--text-muted); font-size: 14px; }
+.panePrice { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.spacer { flex: 1; }
+.paneMeta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.setupTag { background: var(--ut-gold-dim); color: var(--ut-gold); border-radius: 6px; padding: 4px 10px; font-weight: 600; font-size: 12.5px; }
+.paneFacts { color: var(--text-muted); font-size: 12.5px; }
+.seg { display: flex; gap: 2px; background: var(--bg-surface); border-radius: 8px; padding: 2px; }
+.segOn, .segOff { border: 0; border-radius: 6px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; min-width: 32px; }
+.segOn { background: var(--border-accent); color: var(--text-heading); }
+.segOff { background: transparent; color: var(--text-muted); }
+.chartBox { position: relative; flex: 1; min-height: 280px; }
+.paneFoot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 12px; }
+.why { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12.5px; }
+.whyLabel { color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
+.whyList { display: flex; gap: 14px; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
+.whyItem { display: inline-flex; gap: 6px; align-items: center; }
+.whyCheck { color: var(--gain); }
+.whyPool { color: var(--text-muted); }
+.whyText { color: var(--text-muted); }
+.whyValue { color: var(--text); font-variant-numeric: tabular-nums; }
 @media (max-width: 1024px) {
   .listWrap { flex-basis: 280px; }
-  .btn, .btnPrimary, .linkBtn { min-height: var(--tap-min); }
+  .btn, .btnPrimary, .linkBtn, .segOn, .segOff { min-height: var(--tap-min); }
   .row { min-height: var(--tap-min); }
 }
