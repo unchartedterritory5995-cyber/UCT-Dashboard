@@ -115,3 +115,10 @@ test('compact formats 5+ digit numbers', async () => {
   expect(compact(25000)).toBe('25K')
   expect(compact(999)).toBeNull()
 })
+
+test('a large threshold in the strip label reads compactly, like the drawer pill', () => {
+  const dv = { key: 'dollar_vol_30d', label: 'Dollar Volume (30d)', type: 'range', unit: '$', presets: [] }
+  const { items } = whyItsHere({ filters: { dollar_vol_30d: { op: 'gte', min: 20000000 } }, metaFilters: [dv], row: { dollar_vol_30d: 2.5e9 } })
+  expect(items[0].label).toBe('Dollar Volume (30d) ≥ $20M')
+  expect(items[0].value).toBe('$2.5B')
+})

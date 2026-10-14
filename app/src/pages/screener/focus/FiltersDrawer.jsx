@@ -3,11 +3,8 @@ import FilterRail from '../shell/FilterRail'
 import CriteriaBox from '../shell/CriteriaBox'
 import Menu, { MenuItem } from './Menu'
 import { chipLabel } from '../chipLabel'
-import { compact } from './whyItsHere'
+import { compactDigits } from './whyItsHere'
 import useDescribe from './useDescribe'
-
-// Pill text from the shared chipLabel carries raw numbers; any run of 5+ digits reads compactly.
-const compactDigits = s => String(s).replace(/\d{5,}(?:\.\d+)?/g, m => compact(Number(m)) ?? m)
 import styles from './FocusScreener.module.css'
 
 function universeLabel(filters) {

@@ -39,6 +39,9 @@ export function compact(n) {
   return null
 }
 
+// Labels from the shared chipLabel carry raw numbers; any run of 5+ digits reads compactly.
+export const compactDigits = s => String(s).replace(/\d{5,}(?:\.\d+)?/g, m => compact(Number(m)) ?? m)
+
 function fmtValue(def, v) {
   if (isMissing(v)) return '—'
   if (def?.type === 'bool') return isYes(v) ? 'Yes' : 'No'
@@ -59,7 +62,7 @@ function checkLabel(def, spec) {
     const list = spec.values.join(', ')
     return stripColon(spec.op === 'not_in' ? `${def.label}: not ${list}` : `${def.label}: ${list}`)
   }
-  return stripColon(chipLabel(def, spec))
+  return compactDigits(stripColon(chipLabel(def, spec)))
 }
 
 export function whyItsHere({ filters = {}, logic = null, rank = null, metaFilters = [], row = {} } = {}) {

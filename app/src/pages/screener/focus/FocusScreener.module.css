@@ -56,7 +56,8 @@
 .whyPool { color: var(--text-muted); }
 .whyText { color: var(--text-muted); }
 .whyValue { color: var(--text); font-variant-numeric: tabular-nums; }
-.topBar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 20px; min-height: 60px; border-bottom: 1px solid var(--border); }
+/* right padding clears the app-wide feedback "?" (FeedbackWidget: fixed, top 10, right 14, 24px wide) */
+.topBar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 52px 10px 20px; min-height: 60px; border-bottom: 1px solid var(--border); }
 .badge { display: inline-block; margin-left: 6px; background: var(--ut-gold); color: var(--bg); border-radius: 999px; padding: 0 7px; font-size: 11.5px; font-weight: 700; }
 .iconBtn { background: transparent; border: 0; color: var(--text-muted); width: var(--tap-min); height: 36px; font: inherit; font-weight: 700; cursor: pointer; }
 .menuWrap { position: relative; display: inline-flex; }
