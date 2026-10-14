@@ -76,6 +76,17 @@ test('large money values compact to K, M and B with one decimal', () => {
   expect(v(12500)).toBe('$12.5K')
   expect(v(3200000000)).toBe('$3.2B')
 })
+test('values under 10000 are never compacted', () => {
+  const v = (key, n) => whyItsHere({ filters: { [key]: { op: 'gte', min: 1 } }, metaFilters: meta, row: { [key]: n } }).items[0].value
+  expect(v('price', 4500)).toBe('$4500')
+  expect(v('price', 1234)).toBe('$1234')
+  expect(v('rs_rank', 1234)).toBe('1234')
+})
+test('compaction picks the unit after rounding and keeps the sign', () => {
+  const v = n => whyItsHere({ filters: { rs_rank: { op: 'gte', min: 1 } }, metaFilters: meta, row: { rs_rank: n } }).items[0].value
+  expect(v(999999)).toBe('1M')
+  expect(v(-2500000)).toBe('-2.5M')
+})
 test('an in-list label joins its values, a not_in label says not', () => {
   const sector = { op: 'in', values: ['Technology', 'Energy'] }
   const notIn = { op: 'not_in', values: ['Utilities'] }

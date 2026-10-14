@@ -24,8 +24,8 @@ test('pivot detail rides the row when base_pivot_px exists', () => {
   expect(setupLine({ base_render: 'Flat Base', vol_ratio: 1, price: 97, base_pivot_px: 100 }).detail)
     .toBe('3.0% below pivot 100')
 })
-test('a render that opens with a parenthetical keeps it instead of going blank', () => {
-  expect(setupLine({ base_render: '(Stage 2 Breakout) +2', vol_ratio: 1 }).text).toBe('(Stage 2 Breakout)')
+test('leading whitespace before a parenthetical keeps the render instead of going blank', () => {
+  expect(setupLine({ base_render: ' (Stage 2 Breakout) +2', vol_ratio: 1 }).text).toBe('(Stage 2 Breakout)')
 })
 test('pivot under 10 keeps two decimals', () => {
   expect(pivotDetail(4.5, 4.75)).toBe('5.3% below pivot 4.75')

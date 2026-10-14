@@ -28,10 +28,13 @@ const isYes = v => Number(v) === 1 || v === true || v === 'true'
 // A bool filter requires the state named by its spec value; falsy means "Not …".
 const requiresFalse = v => v === 0 || v === false || v === '0'
 
+// Compact only at |v| >= 10000. The unit is chosen AFTER rounding to one
+// decimal, so 999999 steps up to 1M instead of reading 1000K.
 function compact(n) {
-  const a = Math.abs(n)
-  for (const [d, s] of [[1e9, 'B'], [1e6, 'M'], [1e3, 'K']]) {
-    if (a >= d) return `${(n / d).toFixed(1).replace(/\.0$/, '')}${s}`
+  if (Math.abs(n) < 10000) return null
+  for (const [d, s] of [[1e3, 'K'], [1e6, 'M'], [1e9, 'B']]) {
+    const x = Number((n / d).toFixed(1))
+    if (Math.abs(x) < 1000 || d === 1e9) return `${x}${s}`
   }
   return null
 }
