@@ -485,10 +485,15 @@ describe('/plan (Tier 2 part A)', () => {
     expect(planItems('chart')).toEqual([])
   })
   it('a prefix of the word is still a hint', () => { expect(planItems('pla')).toHaveLength(1) })
-  it('a bare slash lists the hint no more than once (the empty query offers none)', () => {
-    expect(planItems('')).toEqual([])
-    const bare = groupedSlashItems(ITEMS, [...widgetItems(''), ...factItems(''), ...consensusFactItems(''), ...planItems('')])
-    expect(bare.filter((i) => i.cmd === 'plan')).toHaveLength(0)
+  it('a bare slash lists the Trade plan hint exactly once, like Price', () => {
+    const hints = planItems('')
+    expect(hints).toHaveLength(1)
+    expect(hints[0].title).toBe('Trade plan')
+    expect(hints[0].cmd).toBe('plan')
+    const bare = groupedSlashItems(ITEMS, [...widgetItems(''), ...factItems(''), ...consensusFactItems(''), ...hints])
+    expect(bare.filter((i) => i.cmd === 'plan')).toHaveLength(1)
+    expect(bare.filter((i) => i.title === 'Trade plan')).toHaveLength(1)
+    expect(bare.find((i) => i.cmd === 'plan').group).toBe('trading')
   })
   it('is OFF with the journal-styles switch: nothing is offered', () => {
     journalStylesEnabled.mockImplementation(() => false)

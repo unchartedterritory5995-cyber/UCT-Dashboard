@@ -464,7 +464,7 @@ export function planItems(query) {
   const tokens = raw.trim().split(/\s+/).filter(Boolean)
   const first = tokens[0]?.toLowerCase() || ''
   const singleToken = tokens.length <= 1
-  if (singleToken ? !first || !'plan'.startsWith(first) : first !== 'plan') return []
+  if (singleToken ? !'plan'.startsWith(first) : first !== 'plan') return []
   const rest = singleToken ? '' : raw.trim().slice(first.length).trim()
   if (!rest) {
     return [{
