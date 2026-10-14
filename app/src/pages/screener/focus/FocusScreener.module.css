@@ -56,8 +56,29 @@
 .whyPool { color: var(--text-muted); }
 .whyText { color: var(--text-muted); }
 .whyValue { color: var(--text); font-variant-numeric: tabular-nums; }
+.topBar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 20px; min-height: 60px; border-bottom: 1px solid var(--border); }
+.badge { display: inline-block; margin-left: 6px; background: var(--ut-gold); color: var(--bg); border-radius: 999px; padding: 0 7px; font-size: 11.5px; font-weight: 700; }
+.iconBtn { background: transparent; border: 0; color: var(--text-muted); width: var(--tap-min); height: 36px; font: inherit; font-weight: 700; cursor: pointer; }
+.menuWrap { position: relative; display: inline-flex; }
+.menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; min-width: 220px; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: 10px; padding: 6px; display: flex; flex-direction: column; box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45); }
+.menuRight { left: auto; right: 0; }
+.menuItem { display: flex; justify-content: space-between; gap: 12px; text-align: left; background: transparent; border: 0; color: var(--text); padding: 9px 12px; border-radius: 8px; font: inherit; font-size: 13px; cursor: pointer; min-height: 36px; }
+.menuItem:hover, .menuItem:focus-visible { background: var(--bg-hover); outline: none; }
+.menuDanger { color: var(--loss); }
+.menuHint { color: var(--text-muted); font-size: 12px; }
+.menuDivider { height: 1px; background: var(--border); margin: 4px 6px; }
+.menuHeading { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 12px 4px; }
+.receiptBtn { display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 0; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; min-height: 36px; }
+.liveDot { width: 6px; height: 6px; border-radius: 50%; background: var(--gain); }
+.idleDot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); }
+.infoMark { border: 1px solid var(--border-accent); border-radius: 50%; width: 16px; height: 16px; font-size: 10px; display: inline-flex; align-items: center; justify-content: center; }
+.receipt { width: 320px; padding: 14px; gap: 10px; }
+.receiptHead { margin: 0; color: var(--text); font-size: 13px; line-height: 1.5; }
+.receiptGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; font-variant-numeric: tabular-nums; }
+.receiptGrid dt { color: var(--text-muted); font-size: 11.5px; }
+.receiptGrid dd { margin: 0; font-size: 16px; font-weight: 700; }
 @media (max-width: 1024px) {
   .listWrap { flex-basis: 280px; }
-  .btn, .btnOn, .btnPrimary, .linkBtn, .segOn, .segOff { min-height: var(--tap-min); }
+  .btn, .btnOn, .btnPrimary, .linkBtn, .segOn, .segOff, .menuItem, .iconBtn, .receiptBtn { min-height: var(--tap-min); }
   .row { min-height: var(--tap-min); }
 }
