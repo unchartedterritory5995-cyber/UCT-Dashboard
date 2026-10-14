@@ -403,6 +403,9 @@ GUARDED = {
                                                "delete-kind hold counts a sample on purpose (a value it holds)",
     "api/services/journal_two/journal_styles.py": "the style preview's \"your latest note's\" ticker; a style "
                                                    "update reads the one note the member opened",
+    "api/services/journal_two/plan_prefill.py": "/plan copies the member's own entry, stop and target from "
+                                                 "their newest note about the ticker; an example's levels are "
+                                                 "never copied onto a real plan",
 }
 
 #: Readers that do NOT turn a note into a fact about the member, each with the reason.
