@@ -5,6 +5,7 @@ import Menu, { MenuItem } from './Menu'
 import { chipLabel } from '../chipLabel'
 import { compactDigits } from './whyItsHere'
 import useDescribe from './useDescribe'
+import Input from '../../../components/ui/Input'
 import styles from './FocusScreener.module.css'
 
 function universeLabel(filters) {
@@ -108,7 +109,7 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
         {describe.available && (
           <form className={styles.drawerSection} onSubmit={submitDescribe}>
             <label htmlFor="focus-describe" className={styles.describeLabel}>Describe a setup</label>
-            <input id="focus-describe" className={styles.describeInput} value={text} onChange={e => setText(e.target.value)}
+            <Input id="focus-describe" className={styles.describeInput} value={text} onChange={e => setText(e.target.value)}
               placeholder="e.g. liquid tech leaders near highs" disabled={describe.busy} />
             {describe.error && <p className={styles.describeNote} role="alert">{describe.error}</p>}
             {!describe.error && explain && <p className={styles.describeNote} role="status">{explain}</p>}

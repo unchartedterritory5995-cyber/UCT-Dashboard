@@ -2,7 +2,11 @@ import { useMemo, useState } from 'react'
 import StockChart from '../../../components/StockChart'
 import WhyStrip from './WhyStrip'
 import { setupLine } from './setupLine'
+import { useThemeInk } from '../../../lib/theme'
 import styles from './FocusScreener.module.css'
+
+// The chart draws on canvas, where CSS variables do not reach: the pivot line reads --ut-gold through the theme.
+const PIVOT_INK = { pivot: ['--ut-gold', '#dcbb5e'] }
 
 const fmt = v => (Number.isFinite(v) ? v.toFixed(2) : '—')
 const pct = v => (Number.isFinite(v) ? `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)}%` : '—')
@@ -17,10 +21,10 @@ function facts(row) {
 
 export default function ChartPane({ row, livePrice, why, onOpenFilters, onFlag, isFlagged, onWatch }) {
   const [tf, setTf] = useState('D')
-  // The colour literal must match --ut-gold: the chart draws on canvas, where CSS variables do not reach.
+  const ink = useThemeInk(PIVOT_INK)
   const pivot = row?.base_pivot_px
   const priceLines = useMemo(() => (Number.isFinite(pivot)
-    ? [{ price: pivot, color: '#dcbb5e', title: 'pivot' }] : []), [pivot])
+    ? [{ price: pivot, color: ink.pivot, title: 'pivot' }] : []), [pivot, ink.pivot])
   if (!row) {
     return <section className={styles.pane} data-testid="focus-chart-pane"><p className={styles.stateBody}>Pick a stock from the list</p></section>
   }

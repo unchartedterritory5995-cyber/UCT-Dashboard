@@ -1,6 +1,7 @@
 import { useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import useLazyCounts from './useLazyCounts'
 import { GROUPS, groupOf } from './screenGroups'
+import Input from '../../../components/ui/Input'
 import styles from './FocusScreener.module.css'
 
 const norm = s => String(s || '').toLowerCase()
@@ -72,7 +73,7 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, st
       {open && (
         <div role="dialog" aria-label="Screens" className={`${styles.menu} ${styles.screenMenu}`} onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close() } }}>
           <div className={styles.smSearch}>
-            <input type="search" aria-label="Search screens" placeholder="Search screens…" value={q} autoFocus onChange={e => setQ(e.target.value)} className={styles.smInput} />
+            <Input type="search" aria-label="Search screens" placeholder="Search screens…" value={q} autoFocus onChange={e => setQ(e.target.value)} className={styles.smInput} />
           </div>
           <div className={styles.smBody}>
             {pinnedItems.length > 0 && <section aria-labelledby={`${uid}-pinned`}><h3 id={`${uid}-pinned`} className={styles.smHead}>Pinned</h3>{pinnedItems.map(row)}</section>}

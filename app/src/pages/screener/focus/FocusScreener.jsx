@@ -25,6 +25,7 @@ import { SHARED_SCREEN_PARAM } from '../screenShareLink'
 import FlaggedActions from '../shell/FlaggedActions'
 import { joinedScanReceipts } from '../ScanFilterChip'
 import { COLUMN_DEFS } from '../columnDefs'
+import { nextSort } from '../../../lib/presentation/dataGrid/gridSort'
 import { exportQuota, downloadExport } from '../../../lib/dataExport'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
@@ -422,7 +423,7 @@ function FocusList({ onMode }) {
           onSelect={() => s.setSort({ key: k, dir: k === sortKey && !s.rank ? s.sort.dir : 'desc' })}>{colLabel(k)}</MenuItem>
       ))}
       {!s.rank && (
-        <MenuItem onSelect={() => s.setSort({ key: sortKey, dir: s.sort?.dir === 'asc' ? 'desc' : 'asc' })}
+        <MenuItem onSelect={() => s.setSort(nextSort({ key: sortKey, dir: s.sort?.dir }, sortKey))}
           hint={s.sort?.dir === 'asc' ? '↓' : '↑'}>Reverse order</MenuItem>
       )}
     </Menu>

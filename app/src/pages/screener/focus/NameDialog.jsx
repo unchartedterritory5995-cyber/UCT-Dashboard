@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import Input from '../../../components/ui/Input'
 import styles from './FocusScreener.module.css'
 
 // NameDialog — the one small "name it" box the Save menu and the screen menu share
@@ -33,7 +34,7 @@ export default function NameDialog({ title, label, initial = '', submitLabel = '
         onSubmit={submit} onKeyDown={onKeyDown}>
         <h2 id={titleId} className={styles.dialogTitle}>{title}</h2>
         <label htmlFor={inputId} className={styles.dialogLabel}>{label}</label>
-        <input id={inputId} ref={input} type="text" className={styles.dialogInput} value={value} maxLength={80}
+        <Input id={inputId} ref={input} type="text" className={styles.dialogInput} value={value} maxLength={80}
           onChange={e => setValue(e.target.value)} />
         <div className={styles.stateActions}>
           <button type="button" className={styles.btn} onClick={onCancel}>Cancel</button>
