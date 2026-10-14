@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import StockChart from '../../../../components/StockChart'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import styles from './SetupsBoard.module.css'
+import { money, distanceText, STATE_LABEL } from '../../lib/blocks/setupsBoardText'
 
 /**
  * Wave 13 lane 13J -- one card of the active setups board: a live mini-chart of the symbol
@@ -22,9 +23,9 @@ const NEVER = () => false
 const LINE_COLORS = { entry: '#dcbb5e', stop: '#f87171', target: '#4ade80' }
 const ROLE_LABEL = { entry: 'Entry', stop: 'Stop', target: 'Target' }
 
-export const money = (v) => (typeof v === 'number' && Number.isFinite(v) ? `$${v.toFixed(2)}` : '—')
-const pct = (v) => `${Math.abs(v).toFixed(2)}%`
-const r = (v) => `${Math.abs(v).toFixed(2)}R`
+// The distance and state words live in lib/blocks/setupsBoardText.js, shared with the daily prep pack's
+// key levels block; distanceText is re-exported here because the board's tests import it from this file.
+export { distanceText }
 
 /** The member's lines as StockChart price lines. Pure. */
 export function planPriceLines(card) {
@@ -33,24 +34,10 @@ export function planPriceLines(card) {
     .map((role) => ({ price: card[role], color: LINE_COLORS[role], lineWidth: 1, lineStyle: 2, title: ROLE_LABEL[role] }))
 }
 
-/** One sentence for where price stands against the trigger. Pure. */
-export function distanceText(card) {
-  const { state, distancePct, distanceR } = card || {}
-  if (state === 'no_price' || distancePct == null) return 'No price yet'
-  const rPart = distanceR == null ? '' : ` · ${r(distanceR)}`
-  if (state === 'triggered') return `Triggered · ${pct(distancePct)} through the entry${rPart}`
-  if (state === 'invalidated') return `Through the stop · ${pct(distancePct)} from the entry${rPart}`
-  return `${pct(distancePct)} to the entry${rPart}`
-}
-
 /** Calendar days since the plan's note was created (the server counts them, ET). */
 export function daysText(days) {
   if (days === 0) return 'New today'
   return days === 1 ? '1 day in setup' : `${days} days in setup`
-}
-
-export const STATE_LABEL = {
-  waiting: 'Waiting', watching: 'Watching', triggered: 'Triggered', invalidated: 'Invalidated', no_price: 'No price',
 }
 
 function priceSourceText(card) {

@@ -40,8 +40,11 @@
  *                                        the mic. In a wrapping row the hint is
  *                                        a flex item, so the row makes room and
  *                                        it covers nothing. The Notebook editor
- *                                        opts in; the other callers sit in rows
- *                                        that do not wrap and keep the float.
+ *                                        opts in, and so does Add Position: the
+ *                                        P2b pre-entry checklist sits right above
+ *                                        its Notes mic, and the float covered a
+ *                                        checklist item (c2 walk, review-pack).
+ *                                        The other callers keep the float.
  *   hintDeferred?: bool                — wave 10 lane D3P round 2, default
  *                                        false. The host defers the first-run
  *                                        hint: it does not render HERE, and it

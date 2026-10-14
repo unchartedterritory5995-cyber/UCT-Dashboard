@@ -1,5 +1,5 @@
 // Notebook P2a Task 12: the slash menu's P2a rail (there is no SlashMenu.test.jsx; pre-flight N6).
-// The three trader blocks and the market context stamp, offered in the Trading group while journal
+// The trader blocks (P2a's three, P2b's six) and the market context stamp, offered in the Trading group while journal
 // styles are on. A block item inserts its kind with its catalog defaults; "Market context" reads
 // GET /api/j2/trader-blocks/market-context and stamps what it read (R-P2-8), or inserts nothing.
 // ⛔ R-RC-4: the typed "/market context" leaves the note BEFORE the read is awaited, so a slow read
@@ -20,7 +20,9 @@ if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
 if (!Range.prototype.getBoundingClientRect) Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
 
 const ON = () => latchNotebookFlags({ notebook_journal_styles_enabled: true })
-const BLOCK_IDS = ['preEntryChecklist', 'priceStamps', 'positionSizing']
+// P2b Task 12: the six part-b blocks join part a's three (the stamp, below, is not a plain block).
+const PART_B_IDS = ['myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview']
+const BLOCK_IDS = ['preEntryChecklist', 'priceStamps', 'positionSizing', ...PART_B_IDS]
 const IDS = [...BLOCK_IDS, 'marketcontext']
 // The words a member sees are the catalog's labels (journalBlocks.js), read here, never retyped.
 const label = (id) => BLOCK_KINDS.find((k) => k.id === id).label
@@ -44,7 +46,19 @@ afterEach(() => { __resetNotebookFlags(); globalThis.fetch = origFetch; document
 
 describe('P2a slash items', () => {
   it('the titles are the catalog labels, including the words this rail expects (control)', () => {
-    expect(titles).toEqual(['Pre-entry checklist', 'Price stamps', 'Position sizing', 'Market context'])
+    expect(titles).toEqual(['Pre-entry checklist', 'Price stamps', 'Position sizing',
+      'My rules', 'Morning wire and exposure', 'Earnings for my names', 'My movers', 'Key levels from my plans',
+      'Post-trade review', 'Market context'])
+  })
+
+  it('the six part-b rows each carry their own description', () => {
+    const descs = PART_B_IDS.map((id) => ITEMS.find((i) => i.title === label(id)).description)
+    expect(new Set(descs).size).toBe(PART_B_IDS.length)
+    expect(descs).not.toContain('A trader block')
+  })
+
+  it('every slash title is unique, so a typed title names exactly one item', () => {
+    for (const t of titles) expect(ITEMS.filter((i) => i.title === t).length, t).toBe(1)
   })
 
   it('each is offered in the Trading group while the switch is on', () => {
@@ -65,7 +79,7 @@ describe('P2a slash items', () => {
     expect(blockItemsAvailable({}).filter((i) => titles.includes(i.title))).toEqual([])
   })
 
-  it('a typed query finds them by title, and "/block" finds all four', () => {
+  it('a typed query finds them by title, and "/block" finds every one', () => {
     ON()
     const here = blockItemsAvailable({})
     expect(rankedBlockItems(here, 'market')[0].title).toBe('Market context')
@@ -293,4 +307,18 @@ describe('R-T12-1: a named command outranks a block title (the rendered menu)', 
     const shown = await typeSlash('/pre')
     expect(shown[0]).toBe('Pre-entry checklist')
   })
+
+  // P2b Task 12: each part-b block's full title, typed as the menu shows it, leads the menu and Enter
+  // inserts that block (R-T12-4's rule, for the six new titles).
+  for (const id of PART_B_IDS) {
+    it(`/${label(id).toLowerCase()} + Enter inserts the ${id} block`, async () => {
+      ON()
+      const shown = await typeSlash(`/${label(id).toLowerCase()}`)
+      expect(shown[0]).toBe(label(id))
+      await act(async () => { pressKey('Enter') })
+      await waitFor(() => expect(ed.getJSON().content.some(
+        (n) => n.type === 'widgetEmbed' && n.attrs?.widgetId === id)).toBe(true))
+      expect(ed.state.doc.textContent).not.toContain('/')
+    })
+  }
 })

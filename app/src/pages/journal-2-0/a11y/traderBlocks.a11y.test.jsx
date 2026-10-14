@@ -6,7 +6,7 @@
 // so the whole composition (the named group, its Remove button, then the error state with "Try again")
 // is audited -- not a hand-built frame. An empty screen cannot pass as a clean one in either.
 import { render, screen, within } from '@testing-library/react'
-import { vi, expect } from 'vitest'
+import { vi, expect, afterEach } from 'vitest'
 import { axeSurface } from './surface'
 
 vi.mock('@tiptap/react', () => ({ NodeViewWrapper: ({ children, ...p }) => <div {...p}>{children}</div> }))
@@ -21,17 +21,29 @@ vi.mock('../hooks/useJournalRules', () => ({ default: () => ({ rules: [] }) }))
 import userEvent from '@testing-library/user-event'
 import BlockNodeView, { BLOCK_COMPONENTS } from '../components/notebook/blocks/BlockNodeView'
 import { BLOCK_ERROR_SENTENCE } from '../components/notebook/blocks/blockStates'
+import { contractBody } from '../__fixtures__/contract'
+
+// A failed assertion in the recipe must not leave the stubbed fetch behind for the next recipe.
+afterEach(() => vi.unstubAllGlobals())
 
 const editor = { isEditable: true, storage: { uctJournalWidgets: { noteId: 'n1' } } }
 const node = (widgetId, params = {}) => ({ attrs: { widgetId, params, searchText: `[${widgetId}]` } })
 
+// P2b: since M2 every part b body is real (Task 8 My rules, Task 10 the four prep blocks, Task 11 the
+// review block), so each has a real expectation below and none may still say the stub sentence.
+const PREP_BLOCKS = ['Morning wire and exposure', 'Earnings for my names', 'My movers', 'Key levels from my plans']
+const PART_B = ['My rules', ...PREP_BLOCKS, 'Post-trade review']
+
 axeSurface('trader-block-platform', async () => {
+  // The review block, with no trade picked, reads the member's closed trades (the REAL server answer).
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => contractBody('trader-blocks.review.trades') })))
   render(<div>
-    {['preEntryChecklist', 'priceStamps', 'positionSizing'].map((id) => (
+    {['preEntryChecklist', 'priceStamps', 'positionSizing',
+      'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview'].map((id) => (
       <BlockNodeView key={id} node={node(id)} editor={editor} updateAttributes={() => {}} deleteNode={() => {}} />
     ))}
   </div>)
-  for (const name of ['Pre-entry checklist', 'Price stamps', 'Position sizing']) {
+  for (const name of ['Pre-entry checklist', 'Price stamps', 'Position sizing', ...PART_B]) {
     expect(await screen.findByRole('group', { name })).toBeTruthy()
     expect(screen.getByRole('button', { name: `Remove ${name}` })).toBeTruthy()
   }
@@ -44,7 +56,20 @@ axeSurface('trader-block-platform', async () => {
   expect(await group('Pre-entry checklist').findByText(/You have no setups yet/)).toBeTruthy()
   expect(await group('Price stamps').findByRole('switch', { name: 'Stamp prices as I write' })).toBeTruthy()
   expect(await group('Position sizing').findByRole('spinbutton', { name: 'Entry' })).toBeTruthy()
-  expect(screen.queryByText('This block is being built.')).toBeNull()
+  for (const name of ['Pre-entry checklist', 'Price stamps', 'Position sizing']) {
+    expect(group(name).queryByText('This block is being built.')).toBeNull()
+  }
+  // P2b Task 8: My rules has its real body (no rules here, so its empty state); its own states have a
+  // recipe in traderBlockMyRules.a11y.test.jsx. R-PF-B3: each body task flipped its own group here.
+  expect(await group('My rules').findByText(/You have no rules yet/)).toBeTruthy()
+  // P2b Task 10: an uncaptured prep block offers "Capture now" and has read nothing (never on mount).
+  for (const name of PREP_BLOCKS) {
+    expect(await group(name).findByRole('button', { name: 'Capture now' })).toBeTruthy()
+  }
+  // P2b Task 11: the review block, with no trade picked, lists the closed trades to pick from.
+  expect(await group('Post-trade review').findByRole('combobox', { name: 'Trade to review' })).toBeTruthy()
+  // M2: no part b body still says the stub sentence.
+  for (const name of PART_B) expect(group(name).queryByText('This block is being built.')).toBeNull()
 })
 
 axeSurface('trader-block-platform:error', async () => {

@@ -1,0 +1,22 @@
+/* RuleBeforeAfterCard — "Before / after this rule" under the Psychology panels (Notebook P2b Task 9).
+   Matches the J2 insights idiom (bg-surface, --border); the two windows sit side by side and stack on
+   a phone. Finger targets are raised at every touch width (<=1024px), never the phone alone. */
+.card { display: flex; flex-direction: column; gap: 10px; padding: 16px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-xl); }
+.title { margin: 0; font-size: 13px; font-weight: 700; color: var(--text-bright); }
+.sub { margin: 0; max-width: 560px; font-size: 12.5px; line-height: 1.6; color: var(--text-muted); }
+.muted { margin: 0; font-size: 12.5px; color: var(--text-muted); }
+.pick { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-muted); }
+.pick select { min-width: 0; max-width: 100%; font: inherit; }
+.failed { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-muted); }
+.version { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--border); }
+.words { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-bright); overflow-wrap: anywhere; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.col { min-width: 0; }
+.colHead { margin: 0 0 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-muted); }
+.lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--text-bright); font-variant-numeric: tabular-nums; }
+@media (max-width: 1024px) {
+  .tap { min-height: var(--tap-min); }
+}
+@media (max-width: 640px) {
+  .cols { grid-template-columns: 1fr; }
+}

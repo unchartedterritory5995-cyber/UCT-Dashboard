@@ -12,11 +12,12 @@
  * here because the null IS the ruling, and the rail exists so nobody "fixes" it
  * by deriving a value or hiding the row.
  */
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { vi } from 'vitest'
 import MarketContextWidget from './MarketContextWidget'
 import { readingsFrom } from './marketContextModel'
 import MarketContextEmbed from '../../journal-2-0/components/notebook/MarketContextEmbed'
+import { contractBody } from '../../journal-2-0/__fixtures__/contract'
 
 const mockData = vi.fn()
 // Every key the widget asks the data hook for. A frozen stamp must ask for NONE
@@ -390,4 +391,130 @@ test('P2a embed: an uncaptured node (capturedAt null) says why, and renders no c
   expect(fig.getAttribute('aria-label')).toBe('Market Context — not captured')
   expect(document.body.textContent).not.toMatch(/captured \w{3} \d/)
   expect(mockSwrKeys.every((k) => k === null)).toBe(true)
+})
+
+// ── R-T12-C fix round, I-1: a NEW note whose create ran out of its read budget ─────────────────────
+// The backend writes `{uncaptured: true, reason: "budget"}`; "Update layout" still writes no reason.
+// Every assertion reads RENDERED text. The read's answer is the server's REAL one (the contract fixture).
+
+const BUDGET_SENTENCE = 'The market could not be read in time when this stamp was added.'
+const OLD_SENTENCE = 'Market context is captured when a note is created. This note was written before it had one.'
+const CAPTURE_FAILED = "This couldn't be read just now. Nothing was changed."
+const MC_URL = '/api/j2/trader-blocks/market-context'
+const budgetAttrs = (extra = {}) => ({ widgetId: 'marketcontext', capturedAt: null,
+  params: { uncaptured: true, reason: 'budget', fields: 'regime', ...extra } })
+
+describe('R-T12-C: the budget stamp', () => {
+  let realFetch
+  beforeEach(() => { realFetch = globalThis.fetch; mockData.mockReturnValue(OTHER_BREADTH) })
+  afterEach(() => { globalThis.fetch = realFetch })
+
+  test('says the true sentence and offers Capture now; reads nothing on mount', () => {
+    globalThis.fetch = vi.fn()
+    render(<MarketContextEmbed attrs={budgetAttrs()} height={280} setParams={vi.fn(() => true)} editable />)
+    expect(screen.getByText(BUDGET_SENTENCE)).toBeTruthy()
+    expect(screen.queryByText(OLD_SENTENCE)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Capture now' })).toBeTruthy()
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+    expect(mockSwrKeys.every((k) => k === null)).toBe(true)
+  })
+
+  test('CONTROL: the "Update layout" stamp (no reason) keeps its sentence and offers no capture, even to an editor', () => {
+    render(<MarketContextEmbed attrs={{ widgetId: 'marketcontext', capturedAt: null, params: { uncaptured: true, fields: 'all' } }}
+      height={280} setParams={vi.fn(() => true)} editable />)
+    expect(screen.getByText(OLD_SENTENCE)).toBeTruthy()
+    expect(screen.queryByText(BUDGET_SENTENCE)).toBeNull()
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  test('a reader (not editable, or no setParams) sees the sentence and no button', () => {
+    const { unmount } = render(<MarketContextEmbed attrs={budgetAttrs()} height={280} setParams={vi.fn(() => true)} editable={false} />)
+    expect(screen.getByText(BUDGET_SENTENCE)).toBeTruthy()
+    expect(screen.queryByRole('button')).toBeNull()
+    unmount()
+    render(<MarketContextEmbed attrs={budgetAttrs()} height={280} />)
+    expect(screen.getByText(BUDGET_SENTENCE)).toBeTruthy()
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  test('Capture now reads the route once and lands the readings through setParams; the stamp keeps its preset', async () => {
+    const body = contractBody('trader-blocks.market-context')
+    globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => body }))
+    const setParams = vi.fn(() => true)
+    render(<MarketContextEmbed attrs={budgetAttrs()} height={280} setParams={setParams} editable />)
+    fireEvent.click(screen.getByRole('button', { name: 'Capture now' }))
+    await waitFor(() => expect(setParams).toHaveBeenCalledTimes(1))
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+    expect(globalThis.fetch).toHaveBeenCalledWith(MC_URL, expect.objectContaining({ credentials: 'include' }))
+    const patch = setParams.mock.calls[0][0]
+    expect(patch).toEqual({ readings: body.readings, wireDate: body.wireDate, updated: body.updated,
+      uncaptured: undefined, reason: undefined })
+    expect('fields' in patch).toBe(false)              // setParams merges: the stamp's own `fields` stays
+    // fix round 1: the capture time rides the same call, in trader_blocks._iso's form; fix round 2 (I-1):
+    // so does clearing the archive (the stale PNG showed the uncaptured frame)
+    expect(setParams.mock.calls[0][1]).toEqual({
+      capturedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{6})?Z$/), clearArchive: true })
+    // fix round 2 (M-2): the capture is announced through a live region that stays mounted
+    expect(screen.getByText('Market context captured.').getAttribute('role')).toBe('status')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Capture now' }).disabled).toBe(false))
+    expect(screen.queryByText(CAPTURE_FAILED)).toBeNull()
+  })
+
+  test('the landed params render as a captured stamp (the readings, no uncaptured sentence)', () => {
+    const body = contractBody('trader-blocks.market-context')
+    render(<MarketContextEmbed attrs={{ widgetId: 'marketcontext', capturedAt: null,
+      params: { fields: 'regime', readings: body.readings, wireDate: body.wireDate, updated: body.updated,
+        uncaptured: undefined, reason: undefined } }} height={280} setParams={vi.fn(() => true)} editable />)
+    expect(rowOf('Market phase')).toHaveTextContent('Uptrend')
+    expect(rowOf('Regime')).toHaveTextContent('Yellow')
+    expect(screen.queryByText(BUDGET_SENTENCE)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Capture now' })).toBeNull()
+  })
+
+  test('a failed read says the failure sentence and writes nothing; Capture now can be pressed again', async () => {
+    globalThis.fetch = vi.fn(async () => ({ ok: false, status: 503, json: async () => ({}) }))
+    const setParams = vi.fn(() => true)
+    render(<MarketContextEmbed attrs={budgetAttrs()} height={280} setParams={setParams} editable />)
+    fireEvent.click(screen.getByRole('button', { name: 'Capture now' }))
+    expect(await screen.findByText(CAPTURE_FAILED)).toBeTruthy()
+    expect(setParams).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Capture now' }).disabled).toBe(false)
+    expect(screen.getByText(BUDGET_SENTENCE)).toBeTruthy()
+  })
+
+  test('fix round 2 (M-4): a FROZEN budget stamp (its body takes no pointer events) offers no Capture now', () => {
+    render(<MarketContextEmbed attrs={budgetAttrs()} height={280} setParams={vi.fn(() => true)} editable embedFrozen />)
+    expect(screen.getByText(BUDGET_SENTENCE)).toBeTruthy()
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  test('fix round 2 (I-1): the door is never the artifact -- its box carries the render-unavailable mark, and the sentence box does not', () => {
+    render(<MarketContextEmbed attrs={budgetAttrs()} height={280} setParams={vi.fn(() => true)} editable />)
+    const door = screen.getByRole('button', { name: 'Capture now' }).closest('[data-render-unavailable]')
+    expect(door).not.toBeNull()
+    expect(screen.getByText(BUDGET_SENTENCE).closest('[data-render-unavailable]')).toBeNull()
+  })
+
+  test('fix round 2 (M-2): nothing is announced before a capture, nor after a failed one', async () => {
+    globalThis.fetch = vi.fn(async () => ({ ok: false, status: 503, json: async () => ({}) }))
+    render(<MarketContextEmbed attrs={budgetAttrs()} height={280} setParams={vi.fn(() => true)} editable />)
+    expect(screen.queryByText('Market context captured.')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Capture now' }))
+    expect(await screen.findByText(CAPTURE_FAILED)).toBeTruthy()
+    expect(screen.queryByText('Market context captured.')).toBeNull()
+  })
+
+  test('an answer with no readings, a read that throws, and a write the editor refused each say the failure sentence', async () => {
+    for (const [fetchImpl, setParams] of [
+      [vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ wireDate: '2026-10-05' }) })), vi.fn(() => true)],
+      [vi.fn(async () => { throw new TypeError('Failed to fetch') }), vi.fn(() => true)],
+      [vi.fn(async () => ({ ok: true, status: 200, json: async () => contractBody('trader-blocks.market-context') })), vi.fn(() => false)],
+    ]) {
+      globalThis.fetch = fetchImpl
+      const { unmount } = render(<MarketContextEmbed attrs={budgetAttrs()} height={280} setParams={setParams} editable />)
+      fireEvent.click(screen.getByRole('button', { name: 'Capture now' }))
+      expect(await screen.findByText(CAPTURE_FAILED)).toBeTruthy()
+      unmount()
+    }
+  })
 })

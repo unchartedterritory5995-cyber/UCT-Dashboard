@@ -53,9 +53,12 @@ const IDS = [
   // Notebook P2a: the trader blocks (capture-only AND `block: true`), bound in
   // blocks/BlockNodeView.jsx's BLOCK_COMPONENTS, never in EMBED_COMPONENTS.
   'preEntryChecklist', 'priceStamps', 'positionSizing',
+  // Notebook P2b (part b): six more blocks, same binding.
+  'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview',
 ]
 const G040_KINDS = ['screener', 'cot', 'modelbook']
-const BLOCK_IDS = ['preEntryChecklist', 'priceStamps', 'positionSizing']
+const BLOCK_IDS = ['preEntryChecklist', 'priceStamps', 'positionSizing',
+  'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview']
 // The ids a /charts board can hold — everything except the capture-only kinds.
 const CAPTURE_ONLY = [...G040_KINDS, ...BLOCK_IDS]
 const BOARD_IDS = IDS.filter(id => !CAPTURE_ONLY.includes(id))
@@ -76,6 +79,8 @@ describe('widget registry — metadata pins', () => {
       volumescan: 'Volume Surge', scatter: 'Market Map',
       screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
+      myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
+      prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
     })
   })
 
@@ -90,6 +95,8 @@ describe('widget registry — metadata pins', () => {
       volumescan: 'Volume Surge', scatter: 'Market Map',
       screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
+      myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
+      prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
     })
   })
 
@@ -104,6 +111,8 @@ describe('widget registry — metadata pins', () => {
       volumescan: 'Volume', scatter: 'Map',
       screener: 'Screener', cot: 'COT', modelbook: 'Model Book',
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
+      myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
+      prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
     })
   })
 
@@ -136,6 +145,12 @@ describe('widget registry — metadata pins', () => {
       preEntryChecklist: { w: 6, h: 4, minW: 3, minH: 2 },
       priceStamps: { w: 6, h: 4, minW: 3, minH: 2 },
       positionSizing: { w: 6, h: 4, minW: 3, minH: 2 },
+      myRules: { w: 6, h: 4, minW: 3, minH: 2 },
+      prepWire: { w: 6, h: 4, minW: 3, minH: 2 },
+      prepEarnings: { w: 6, h: 4, minW: 3, minH: 2 },
+      prepMovers: { w: 6, h: 4, minW: 3, minH: 2 },
+      prepLevels: { w: 6, h: 4, minW: 3, minH: 2 },
+      tradeReview: { w: 6, h: 4, minW: 3, minH: 2 },
     })
   })
 
@@ -681,10 +696,15 @@ describe('widget registry — journal embed bindings', () => {
   })
 
   it('S20: the registry\'s enum options and defaults ARE the catalog\'s, for every catalog setting of a block', () => {
+    // Non-vacuity at the SET level (R-PF-B1): five of part b's six blocks carry no catalog setting by design,
+    // so "every block has one" no longer holds; the rail must still see settings to compare.
+    expect(BLOCK_IDS.filter(id => BLOCK_KINDS.find(k => k.id === id)?.settings.length).length).toBeGreaterThan(0)
     for (const id of BLOCK_IDS) {
       const kind = BLOCK_KINDS.find(k => k.id === id)
       expect(kind, id).toBeTruthy()
-      expect(kind.settings.length, `${id} has catalog settings`).toBeGreaterThan(0)              // non-vacuity
+      if (kind.settings.length === 0) {                       // no catalog setting => no enum the catalog could drift from
+        expect(WIDGET_REGISTRY[id].paramsSchema.filter(x => x.type === 'enum'), `${id} enums`).toEqual([])
+      }
       for (const s of kind.settings) {
         const f = WIDGET_REGISTRY[id].paramsSchema.find(x => x.key === s.key)
         expect(f, `${id}.${s.key}`).toBeTruthy()
@@ -711,6 +731,19 @@ describe('widget registry — journal embed bindings', () => {
     expect(paramsPlainText('marketcontext', { uncaptured: true })).toBe('[market context: not captured]')
     expect(paramsPlainText('marketcontext', { readings: { regime: { value: 'red' }, exposureScore: 10 } }))
       .toBe('[market context: regime red · exposure 10]')
+  })
+
+  it('R-T12-C fix round 2 (M-3): `reason` is declared as an optional STRING — normalizeParams keeps it, an unknown one still validates', () => {
+    const f = WIDGET_REGISTRY.marketcontext.paramsSchema.find(x => x.key === 'reason')
+    expect(f, 'marketcontext.paramsSchema declares reason').toBeTruthy()
+    expect(f.type).toBe('string')
+    expect(f.options).toBeUndefined()
+    expect(f.required).toBeFalsy()
+    expect(normalizeParams('marketcontext', { uncaptured: true, reason: 'budget', fields: 'all' }).reason).toBe('budget')
+    expect(validateParams('marketcontext', { uncaptured: true, reason: 'budget' }).ok).toBe(true)
+    expect(validateParams('marketcontext', { uncaptured: true, reason: 'a-reason-from-a-newer-server' }).ok).toBe(true)
+    expect(validateParams('marketcontext', { uncaptured: true }).ok).toBe(true)                     // optional
+    expect(validateParams('marketcontext', { uncaptured: true, reason: 7 }).ok).toBe(false)        // control: typed
   })
 
   it('P2a: only a literal `uncaptured: true` makes a readings-less stamp reconstructable', () => {

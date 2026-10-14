@@ -1,0 +1,10 @@
+/* The My rules block (Notebook P2b, Task 8). Finger targets come from Blocks.module.css (`.tap`, `.row`),
+   which raise them to var(--tap-min) at every touch width; nothing here declares a target. */
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.item { display: grid; gap: 2px; padding-top: 8px; border-top: 1px solid var(--border); }
+.item:first-child { padding-top: 0; border-top: 0; }
+.label { margin: 0; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.field { display: grid; gap: 4px; font-size: 13px; }
+.field input, .field textarea { font: inherit; width: 100%; box-sizing: border-box; }
+.status:empty { margin: 0; }

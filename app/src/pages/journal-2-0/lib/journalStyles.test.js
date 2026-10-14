@@ -25,8 +25,16 @@ import {
   STYLES_URL, STYLES_CACHE_KEY, fetchJournalStyles, readCachedStyles, getJournalStyle, createJournalStyle,
   updateJournalStyle, deleteJournalStyle, restoreJournalStyle, setDefaultJournalStyle, previewJournalStyle,
   createKind, updateKind, deleteKind, getMappingOffer, applyMappingOffer, planStyleUpdate, applyStyleUpdate,
-  defaultStyleFor, stylesOfKind,
+  defaultStyleFor, stylesOfKind, knownStyleVersion,
 } from './journalStyles'
+
+// P2b N9: the one answer to "does this note know its style version?" that the banner and the sheet both ask.
+describe('knownStyleVersion', () => {
+  it.each([[1, 1], [3, 3], ['2', 2]])('%j is version %j', (v, want) => expect(knownStyleVersion(v)).toBe(want))
+  it.each([[null], [undefined], [''], [0], [-1], [1.5], ['v2'], [NaN], [true], [{}]])('%j is unknown', (v) => {
+    expect(knownStyleVersion(v)).toBeNull()
+  })
+})
 
 // ── the server's answers, from the contract fixtures ──
 // A real style row from the list, for the pure-function tests that need a payload of their own kinds.

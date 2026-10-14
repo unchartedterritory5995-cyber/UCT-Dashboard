@@ -1,0 +1,1561 @@
+{
+ "probe": "tools/notebook_daily_prep_probe.py",
+ "tree": "7899752fcb",
+ "tree_dirty_paths": [
+  "?? docs/notebook/perf-runs/p2b/daily-prep-probe-r1-d0.json",
+  "?? docs/notebook/perf-runs/p2b/daily-prep-probe-r1-d0.run.log",
+  "?? docs/notebook/perf-runs/p2b/daily-prep-probe-r1-slow0p02.run.log"
+ ],
+ "started_utc": "2026-10-13T21:55:29.836617+00:00",
+ "python": "3.14.0",
+ "platform": "Windows-11-10.0.26200-SP0",
+ "config": {
+  "k": 3,
+  "vendor_delay_s": 0.02,
+  "vendor_mode": "slow",
+  "big_names": 200,
+  "small_names": 5,
+  "movers_scan_max": 200,
+  "percentiles": "nearest-rank",
+  "warmup_creates_per_member": 0,
+  "env": {
+   "NOTEBOOK_SETUPS_BOARD_ENABLED": "1",
+   "NOTEBOOK_CHART_PLAN_ENABLED": "1",
+   "WORKER_ENABLED": null,
+   "ALLOW_LOCAL_VENDOR_SOCKETS": null
+  }
+ },
+ "sandbox": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\t15b_daily_prep_probe_zr2_5avk",
+ "resolved_paths": {
+  "auth_db._DB_PATH": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\t15b_daily_prep_probe_zr2_5avk\\auth.db",
+  "bars_sqlite._DB_PATH": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\t15b_daily_prep_probe_zr2_5avk\\bars.db",
+  "member_interest._auth_db_path()": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\t15b_daily_prep_probe_zr2_5avk\\auth.db",
+  "engine.PERSISTENT_WIRE_DATA_FILE": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\t15b_daily_prep_probe_zr2_5avk\\wire_data.json",
+  "engine.WIRE_DATA_FILE": "C:\\Users\\Patrick\\uct-worktrees\\morning-wire\\data\\wire_data.json",
+  "engine.STATE_FILE": "C:\\Users\\Patrick\\uct-worktrees\\morning-wire\\morning_wire_state.json"
+ },
+ "seed": {
+  "members": {
+   "big": {
+    "user_id": "7eb6cccb-8476-4f2c-8365-0b2bc72a3ff9",
+    "names": 200,
+    "positions": 10,
+    "flagged": 40,
+    "watchlist": 150
+   },
+   "small": {
+    "user_id": "39cbe5b5-4f64-4c3b-9cda-91b8424ae808",
+    "names": 5,
+    "positions": 1,
+    "flagged": 1,
+    "watchlist": 3
+   }
+  },
+  "sessions": [
+   "2026-10-09",
+   "2026-10-12",
+   "2026-10-13"
+  ],
+  "names_sample": [
+   "A",
+   "AA",
+   "AACI",
+   "AAL",
+   "AAMI"
+  ]
+ },
+ "legs": [
+  {
+   "key": "engine._load_wire_data",
+   "module": "api.services.engine",
+   "attr": "_load_wire_data",
+   "reads": "the wire: the process cache, then PERSISTENT_WIRE_DATA_FILE / WIRE_DATA_FILE (local files)"
+  },
+  {
+   "key": "engine._load_state",
+   "module": "api.services.engine",
+   "attr": "_load_state",
+   "reads": "the morning-wire state file (local file)"
+  },
+  {
+   "key": "member_interest._watchlist_syms",
+   "module": "api.services.member_interest",
+   "attr": "_watchlist_syms",
+   "reads": "the member's watchlist names (auth.db, sqlite3.connect default timeout)"
+  },
+  {
+   "key": "member_interest._flagged_syms",
+   "module": "api.services.member_interest",
+   "attr": "_flagged_syms",
+   "reads": "the member's flagged names (auth.db)"
+  },
+  {
+   "key": "member_interest._position_syms",
+   "module": "api.services.member_interest",
+   "attr": "_position_syms",
+   "reads": "the member's open positions (auth.db)"
+  },
+  {
+   "key": "member_interest._uct20_syms",
+   "module": "api.services.member_interest",
+   "attr": "_uct20_syms",
+   "reads": "the UCT 20 (the wire; interest_for asks it though _my_names drops it)"
+  },
+  {
+   "key": "bars_sqlite.get_bars",
+   "module": "api.services.bars_sqlite",
+   "attr": "get_bars",
+   "reads": "held daily bars (bars.db): the last close for SPY/QQQ and for each name the live cache misses"
+  },
+  {
+   "key": "setups_board.build_cards",
+   "module": "api.services.journal_two.setups_board",
+   "attr": "build_cards",
+   "reads": "the levels part's setups board scan (auth.db notes, prices through the cache-only seam)"
+  }
+ ],
+ "observers": [
+  "live_prices.get_live_prices",
+  "massive._get_client",
+  "engine.get_earnings",
+  "engine.build_earnings",
+  "engine.get_breadth(held_only=True)",
+  "engine.get_breadth(default)"
+ ],
+ "scenarios": {
+  "cold": {
+   "warm_seed": null,
+   "members": {
+    "small": {
+     "label": "small",
+     "user_id": "39cbe5b5-4f64-4c3b-9cda-91b8424ae808",
+     "wall_s": {
+      "n": 3,
+      "p50": 0.492264,
+      "p95": 0.505409,
+      "max": 0.505409,
+      "mean": 0.49284599999999995
+     },
+     "warmup_wall_s": [],
+     "outcomes": {
+      "prepWire": {
+       "fell_back:no_wire": 3
+      },
+      "prepEarnings": {
+       "fell_back:no_earnings_yet": 3
+      },
+      "prepMovers": {
+       "answered": 3
+      },
+      "prepLevels": {
+       "fell_back:no_setups": 3
+      },
+      "marketcontext.regime": {
+       "fell_back": 3
+      },
+      "marketcontext.spy": {
+       "answered": 3
+      },
+      "marketcontext.qqq": {
+       "answered": 3
+      },
+      "marketcontext.vix": {
+       "fell_back": 3
+      },
+      "regime_at_write": {
+       "absent": 3
+      }
+     },
+     "creates": [
+      {
+       "i": 0,
+       "warmup": false,
+       "wall_s": 0.505409,
+       "skipped": [],
+       "styleVersion": 2,
+       "note": {
+        "parts": {
+         "prepWire": {
+          "outcome": "fell_back:no_wire",
+          "headline": false,
+          "regime": null
+         },
+         "prepEarnings": {
+          "outcome": "fell_back:no_earnings_yet",
+          "listed": 0
+         },
+         "prepMovers": {
+          "outcome": "answered",
+          "scanned": 5,
+          "total": 5,
+          "unquoted": 0,
+          "items": 5
+         },
+         "prepLevels": {
+          "outcome": "fell_back:no_setups"
+         }
+        },
+        "context": {
+         "regime": "fell_back",
+         "spy": "answered",
+         "qqq": "answered",
+         "vix": "fell_back"
+        },
+        "regime_at_write": null
+       },
+       "legs": {
+        "engine._load_wire_data": {
+         "calls": 6,
+         "seconds_inside": 0.121604,
+         "slept": 0.121066,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine._load_state": {
+         "calls": 5,
+         "seconds_inside": 0.101943,
+         "slept": 0.101413,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._watchlist_syms": {
+         "calls": 1,
+         "seconds_inside": 0.022195,
+         "slept": 0.020119,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._flagged_syms": {
+         "calls": 1,
+         "seconds_inside": 0.022575,
+         "slept": 0.020416,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._position_syms": {
+         "calls": 1,
+         "seconds_inside": 0.027053,
+         "slept": 0.020072,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._uct20_syms": {
+         "calls": 1,
+         "seconds_inside": 0.04033,
+         "slept": 0.020062,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "bars_sqlite.get_bars": {
+         "calls": 7,
+         "seconds_inside": 0.143061,
+         "slept": 0.142114,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "setups_board.build_cards": {
+         "calls": 1,
+         "seconds_inside": 0.023043,
+         "slept": 0.020457,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine.get_breadth(held_only=True)": {
+         "calls": 4,
+         "seconds_inside": 0.162588,
+         "slept": 0.0,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        }
+       }
+      },
+      {
+       "i": 1,
+       "warmup": false,
+       "wall_s": 0.480865,
+       "skipped": [],
+       "styleVersion": 2,
+       "note": {
+        "parts": {
+         "prepWire": {
+          "outcome": "fell_back:no_wire",
+          "headline": false,
+          "regime": null
+         },
+         "prepEarnings": {
+          "outcome": "fell_back:no_earnings_yet",
+          "listed": 0
+         },
+         "prepMovers": {
+          "outcome": "answered",
+          "scanned": 5,
+          "total": 5,
+          "unquoted": 0,
+          "items": 5
+         },
+         "prepLevels": {
+          "outcome": "fell_back:no_setups"
+         }
+        },
+        "context": {
+         "regime": "fell_back",
+         "spy": "answered",
+         "qqq": "answered",
+         "vix": "fell_back"
+        },
+        "regime_at_write": null
+       },
+       "legs": {
+        "engine._load_wire_data": {
+         "calls": 6,
+         "seconds_inside": 0.12159,
+         "slept": 0.12111,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine._load_state": {
+         "calls": 4,
+         "seconds_inside": 0.08137,
+         "slept": 0.080905,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._watchlist_syms": {
+         "calls": 1,
+         "seconds_inside": 0.023103,
+         "slept": 0.020298,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._flagged_syms": {
+         "calls": 1,
+         "seconds_inside": 0.022857,
+         "slept": 0.020108,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._position_syms": {
+         "calls": 1,
+         "seconds_inside": 0.02675,
+         "slept": 0.020146,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._uct20_syms": {
+         "calls": 1,
+         "seconds_inside": 0.040644,
+         "slept": 0.020463,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "bars_sqlite.get_bars": {
+         "calls": 7,
+         "seconds_inside": 0.14287,
+         "slept": 0.141879,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "setups_board.build_cards": {
+         "calls": 1,
+         "seconds_inside": 0.02053,
+         "slept": 0.020156,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine.get_breadth(held_only=True)": {
+         "calls": 4,
+         "seconds_inside": 0.162565,
+         "slept": 0.0,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        }
+       }
+      },
+      {
+       "i": 2,
+       "warmup": false,
+       "wall_s": 0.492264,
+       "skipped": [],
+       "styleVersion": 2,
+       "note": {
+        "parts": {
+         "prepWire": {
+          "outcome": "fell_back:no_wire",
+          "headline": false,
+          "regime": null
+         },
+         "prepEarnings": {
+          "outcome": "fell_back:no_earnings_yet",
+          "listed": 0
+         },
+         "prepMovers": {
+          "outcome": "answered",
+          "scanned": 5,
+          "total": 5,
+          "unquoted": 0,
+          "items": 5
+         },
+         "prepLevels": {
+          "outcome": "fell_back:no_setups"
+         }
+        },
+        "context": {
+         "regime": "fell_back",
+         "spy": "answered",
+         "qqq": "answered",
+         "vix": "fell_back"
+        },
+        "regime_at_write": null
+       },
+       "legs": {
+        "engine._load_wire_data": {
+         "calls": 6,
+         "seconds_inside": 0.122081,
+         "slept": 0.121561,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine._load_state": {
+         "calls": 4,
+         "seconds_inside": 0.081571,
+         "slept": 0.081195,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._watchlist_syms": {
+         "calls": 1,
+         "seconds_inside": 0.022398,
+         "slept": 0.020103,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._flagged_syms": {
+         "calls": 1,
+         "seconds_inside": 0.022382,
+         "slept": 0.020129,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._position_syms": {
+         "calls": 1,
+         "seconds_inside": 0.02731,
+         "slept": 0.02049,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._uct20_syms": {
+         "calls": 1,
+         "seconds_inside": 0.040409,
+         "slept": 0.020097,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "bars_sqlite.get_bars": {
+         "calls": 7,
+         "seconds_inside": 0.142806,
+         "slept": 0.14182,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "setups_board.build_cards": {
+         "calls": 1,
+         "seconds_inside": 0.02069,
+         "slept": 0.020391,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine.get_breadth(held_only=True)": {
+         "calls": 4,
+         "seconds_inside": 0.162864,
+         "slept": 0.0,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        }
+       }
+      }
+     ]
+    },
+    "big": {
+     "label": "big",
+     "user_id": "7eb6cccb-8476-4f2c-8365-0b2bc72a3ff9",
+     "wall_s": {
+      "n": 3,
+      "p50": 3.024193,
+      "p95": 3.030369,
+      "max": 3.030369,
+      "mean": 3.0258000000000003
+     },
+     "warmup_wall_s": [],
+     "outcomes": {
+      "prepWire": {
+       "fell_back:no_wire": 3
+      },
+      "prepEarnings": {
+       "fell_back:no_earnings_yet": 3
+      },
+      "prepMovers": {
+       "uncaptured": 3
+      },
+      "prepLevels": {
+       "uncaptured": 3
+      },
+      "marketcontext.regime": {
+       "fell_back": 3
+      },
+      "marketcontext.spy": {
+       "answered": 3
+      },
+      "marketcontext.qqq": {
+       "answered": 3
+      },
+      "marketcontext.vix": {
+       "fell_back": 3
+      },
+      "regime_at_write": {
+       "absent": 3
+      }
+     },
+     "creates": [
+      {
+       "i": 0,
+       "warmup": false,
+       "wall_s": 3.024193,
+       "skipped": [],
+       "styleVersion": 2,
+       "note": {
+        "parts": {
+         "prepWire": {
+          "outcome": "fell_back:no_wire",
+          "headline": false,
+          "regime": null
+         },
+         "prepEarnings": {
+          "outcome": "fell_back:no_earnings_yet",
+          "listed": 0
+         },
+         "prepMovers": {
+          "outcome": "uncaptured",
+          "scanned": null,
+          "total": null,
+          "unquoted": null,
+          "items": 0
+         },
+         "prepLevels": {
+          "outcome": "uncaptured"
+         }
+        },
+        "context": {
+         "regime": "fell_back",
+         "spy": "answered",
+         "qqq": "answered",
+         "vix": "fell_back"
+        },
+        "regime_at_write": null
+       },
+       "legs": {
+        "engine._load_wire_data": {
+         "calls": 6,
+         "seconds_inside": 0.122425,
+         "slept": 0.121829,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine._load_state": {
+         "calls": 4,
+         "seconds_inside": 0.081205,
+         "slept": 0.080825,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._watchlist_syms": {
+         "calls": 1,
+         "seconds_inside": 0.022415,
+         "slept": 0.02006,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._flagged_syms": {
+         "calls": 1,
+         "seconds_inside": 0.022367,
+         "slept": 0.020209,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._position_syms": {
+         "calls": 1,
+         "seconds_inside": 0.028207,
+         "slept": 0.020184,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._uct20_syms": {
+         "calls": 1,
+         "seconds_inside": 0.04088,
+         "slept": 0.020408,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "bars_sqlite.get_bars": {
+         "calls": 132,
+         "seconds_inside": 2.697411,
+         "slept": 2.679041,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine.get_breadth(held_only=True)": {
+         "calls": 4,
+         "seconds_inside": 0.163113,
+         "slept": 0.0,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        }
+       }
+      },
+      {
+       "i": 1,
+       "warmup": false,
+       "wall_s": 3.030369,
+       "skipped": [],
+       "styleVersion": 2,
+       "note": {
+        "parts": {
+         "prepWire": {
+          "outcome": "fell_back:no_wire",
+          "headline": false,
+          "regime": null
+         },
+         "prepEarnings": {
+          "outcome": "fell_back:no_earnings_yet",
+          "listed": 0
+         },
+         "prepMovers": {
+          "outcome": "uncaptured",
+          "scanned": null,
+          "total": null,
+          "unquoted": null,
+          "items": 0
+         },
+         "prepLevels": {
+          "outcome": "uncaptured"
+         }
+        },
+        "context": {
+         "regime": "fell_back",
+         "spy": "answered",
+         "qqq": "answered",
+         "vix": "fell_back"
+        },
+        "regime_at_write": null
+       },
+       "legs": {
+        "engine._load_wire_data": {
+         "calls": 6,
+         "seconds_inside": 0.121753,
+         "slept": 0.121263,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine._load_state": {
+         "calls": 4,
+         "seconds_inside": 0.081393,
+         "slept": 0.080974,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._watchlist_syms": {
+         "calls": 1,
+         "seconds_inside": 0.024493,
+         "slept": 0.020078,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._flagged_syms": {
+         "calls": 1,
+         "seconds_inside": 0.022986,
+         "slept": 0.020423,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._position_syms": {
+         "calls": 1,
+         "seconds_inside": 0.027365,
+         "slept": 0.02008,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._uct20_syms": {
+         "calls": 1,
+         "seconds_inside": 0.041094,
+         "slept": 0.020508,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "bars_sqlite.get_bars": {
+         "calls": 132,
+         "seconds_inside": 2.698832,
+         "slept": 2.67849,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine.get_breadth(held_only=True)": {
+         "calls": 4,
+         "seconds_inside": 0.162498,
+         "slept": 0.0,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        }
+       }
+      },
+      {
+       "i": 2,
+       "warmup": false,
+       "wall_s": 3.022838,
+       "skipped": [],
+       "styleVersion": 2,
+       "note": {
+        "parts": {
+         "prepWire": {
+          "outcome": "fell_back:no_wire",
+          "headline": false,
+          "regime": null
+         },
+         "prepEarnings": {
+          "outcome": "fell_back:no_earnings_yet",
+          "listed": 0
+         },
+         "prepMovers": {
+          "outcome": "uncaptured",
+          "scanned": null,
+          "total": null,
+          "unquoted": null,
+          "items": 0
+         },
+         "prepLevels": {
+          "outcome": "uncaptured"
+         }
+        },
+        "context": {
+         "regime": "fell_back",
+         "spy": "answered",
+         "qqq": "answered",
+         "vix": "fell_back"
+        },
+        "regime_at_write": null
+       },
+       "legs": {
+        "engine._load_wire_data": {
+         "calls": 6,
+         "seconds_inside": 0.12167,
+         "slept": 0.121095,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine._load_state": {
+         "calls": 4,
+         "seconds_inside": 0.082028,
+         "slept": 0.081519,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._watchlist_syms": {
+         "calls": 1,
+         "seconds_inside": 0.022585,
+         "slept": 0.020289,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._flagged_syms": {
+         "calls": 1,
+         "seconds_inside": 0.022802,
+         "slept": 0.020282,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._position_syms": {
+         "calls": 1,
+         "seconds_inside": 0.026834,
+         "slept": 0.020436,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._uct20_syms": {
+         "calls": 1,
+         "seconds_inside": 0.040627,
+         "slept": 0.020405,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "bars_sqlite.get_bars": {
+         "calls": 132,
+         "seconds_inside": 2.696843,
+         "slept": 2.677542,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine.get_breadth(held_only=True)": {
+         "calls": 4,
+         "seconds_inside": 0.163078,
+         "slept": 0.0,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        }
+       }
+      }
+     ]
+    }
+   },
+   "outbound_socket_attempts": []
+  },
+  "warm": {
+   "warm_seed": {
+    "wire_html_bytes": 35088,
+    "earnings_rows": 15
+   },
+   "members": {
+    "small": {
+     "label": "small",
+     "user_id": "39cbe5b5-4f64-4c3b-9cda-91b8424ae808",
+     "wall_s": {
+      "n": 3,
+      "p50": 0.430774,
+      "p95": 0.497411,
+      "max": 0.497411,
+      "mean": 0.4522716666666667
+     },
+     "warmup_wall_s": [],
+     "outcomes": {
+      "prepWire": {
+       "answered": 3
+      },
+      "prepEarnings": {
+       "answered": 3
+      },
+      "prepMovers": {
+       "answered": 3
+      },
+      "prepLevels": {
+       "fell_back:no_setups": 3
+      },
+      "marketcontext.regime": {
+       "answered": 3
+      },
+      "marketcontext.spy": {
+       "answered": 3
+      },
+      "marketcontext.qqq": {
+       "answered": 3
+      },
+      "marketcontext.vix": {
+       "fell_back": 3
+      },
+      "regime_at_write": {
+       "stored": 3
+      }
+     },
+     "creates": [
+      {
+       "i": 0,
+       "warmup": false,
+       "wall_s": 0.497411,
+       "skipped": [],
+       "styleVersion": 2,
+       "note": {
+        "parts": {
+         "prepWire": {
+          "outcome": "answered",
+          "headline": true,
+          "regime": "amber"
+         },
+         "prepEarnings": {
+          "outcome": "answered",
+          "listed": 0
+         },
+         "prepMovers": {
+          "outcome": "answered",
+          "scanned": 5,
+          "total": 5,
+          "unquoted": 0,
+          "items": 5
+         },
+         "prepLevels": {
+          "outcome": "fell_back:no_setups"
+         }
+        },
+        "context": {
+         "regime": "answered",
+         "spy": "answered",
+         "qqq": "answered",
+         "vix": "fell_back"
+        },
+        "regime_at_write": "amber"
+       },
+       "legs": {
+        "engine._load_wire_data": {
+         "calls": 5,
+         "seconds_inside": 0.10169,
+         "slept": 0.101494,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine._load_state": {
+         "calls": 1,
+         "seconds_inside": 0.020325,
+         "slept": 0.02024,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._watchlist_syms": {
+         "calls": 2,
+         "seconds_inside": 0.046838,
+         "slept": 0.040554,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._flagged_syms": {
+         "calls": 2,
+         "seconds_inside": 0.046544,
+         "slept": 0.040337,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._position_syms": {
+         "calls": 2,
+         "seconds_inside": 0.051564,
+         "slept": 0.040582,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._uct20_syms": {
+         "calls": 2,
+         "seconds_inside": 0.081098,
+         "slept": 0.040476,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "bars_sqlite.get_bars": {
+         "calls": 7,
+         "seconds_inside": 0.142888,
+         "slept": 0.141757,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "setups_board.build_cards": {
+         "calls": 1,
+         "seconds_inside": 0.021043,
+         "slept": 0.020546,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine.get_breadth(held_only=True)": {
+         "calls": 4,
+         "seconds_inside": 0.061232,
+         "slept": 0.0,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        }
+       }
+      },
+      {
+       "i": 1,
+       "warmup": false,
+       "wall_s": 0.42863,
+       "skipped": [],
+       "styleVersion": 2,
+       "note": {
+        "parts": {
+         "prepWire": {
+          "outcome": "answered",
+          "headline": true,
+          "regime": "amber"
+         },
+         "prepEarnings": {
+          "outcome": "answered",
+          "listed": 0
+         },
+         "prepMovers": {
+          "outcome": "answered",
+          "scanned": 5,
+          "total": 5,
+          "unquoted": 0,
+          "items": 5
+         },
+         "prepLevels": {
+          "outcome": "fell_back:no_setups"
+         }
+        },
+        "context": {
+         "regime": "answered",
+         "spy": "answered",
+         "qqq": "answered",
+         "vix": "fell_back"
+        },
+        "regime_at_write": "amber"
+       },
+       "legs": {
+        "engine._load_wire_data": {
+         "calls": 3,
+         "seconds_inside": 0.061403,
+         "slept": 0.061336,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._watchlist_syms": {
+         "calls": 2,
+         "seconds_inside": 0.044762,
+         "slept": 0.04042,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._flagged_syms": {
+         "calls": 2,
+         "seconds_inside": 0.044961,
+         "slept": 0.040415,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._position_syms": {
+         "calls": 2,
+         "seconds_inside": 0.049889,
+         "slept": 0.040594,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._uct20_syms": {
+         "calls": 2,
+         "seconds_inside": 0.081919,
+         "slept": 0.040903,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "bars_sqlite.get_bars": {
+         "calls": 7,
+         "seconds_inside": 0.143187,
+         "slept": 0.142163,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "setups_board.build_cards": {
+         "calls": 1,
+         "seconds_inside": 0.020855,
+         "slept": 0.020496,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine.get_breadth(held_only=True)": {
+         "calls": 4,
+         "seconds_inside": 4e-05,
+         "slept": 0.0,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        }
+       }
+      },
+      {
+       "i": 2,
+       "warmup": false,
+       "wall_s": 0.430774,
+       "skipped": [],
+       "styleVersion": 2,
+       "note": {
+        "parts": {
+         "prepWire": {
+          "outcome": "answered",
+          "headline": true,
+          "regime": "amber"
+         },
+         "prepEarnings": {
+          "outcome": "answered",
+          "listed": 0
+         },
+         "prepMovers": {
+          "outcome": "answered",
+          "scanned": 5,
+          "total": 5,
+          "unquoted": 0,
+          "items": 5
+         },
+         "prepLevels": {
+          "outcome": "fell_back:no_setups"
+         }
+        },
+        "context": {
+         "regime": "answered",
+         "spy": "answered",
+         "qqq": "answered",
+         "vix": "fell_back"
+        },
+        "regime_at_write": "amber"
+       },
+       "legs": {
+        "engine._load_wire_data": {
+         "calls": 3,
+         "seconds_inside": 0.061208,
+         "slept": 0.061141,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._watchlist_syms": {
+         "calls": 2,
+         "seconds_inside": 0.044956,
+         "slept": 0.040158,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._flagged_syms": {
+         "calls": 2,
+         "seconds_inside": 0.045155,
+         "slept": 0.040436,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._position_syms": {
+         "calls": 2,
+         "seconds_inside": 0.051803,
+         "slept": 0.040213,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._uct20_syms": {
+         "calls": 2,
+         "seconds_inside": 0.081811,
+         "slept": 0.040914,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "bars_sqlite.get_bars": {
+         "calls": 7,
+         "seconds_inside": 0.14316,
+         "slept": 0.141972,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "setups_board.build_cards": {
+         "calls": 1,
+         "seconds_inside": 0.020519,
+         "slept": 0.020072,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine.get_breadth(held_only=True)": {
+         "calls": 4,
+         "seconds_inside": 4.1e-05,
+         "slept": 0.0,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        }
+       }
+      }
+     ]
+    },
+    "big": {
+     "label": "big",
+     "user_id": "7eb6cccb-8476-4f2c-8365-0b2bc72a3ff9",
+     "wall_s": {
+      "n": 3,
+      "p50": 3.032844,
+      "p95": 3.035362,
+      "max": 3.035362,
+      "mean": 3.03333
+     },
+     "warmup_wall_s": [],
+     "outcomes": {
+      "prepWire": {
+       "answered": 3
+      },
+      "prepEarnings": {
+       "answered": 3
+      },
+      "prepMovers": {
+       "uncaptured": 3
+      },
+      "prepLevels": {
+       "uncaptured": 3
+      },
+      "marketcontext.regime": {
+       "answered": 3
+      },
+      "marketcontext.spy": {
+       "answered": 3
+      },
+      "marketcontext.qqq": {
+       "answered": 3
+      },
+      "marketcontext.vix": {
+       "fell_back": 3
+      },
+      "regime_at_write": {
+       "stored": 3
+      }
+     },
+     "creates": [
+      {
+       "i": 0,
+       "warmup": false,
+       "wall_s": 3.031784,
+       "skipped": [],
+       "styleVersion": 2,
+       "note": {
+        "parts": {
+         "prepWire": {
+          "outcome": "answered",
+          "headline": true,
+          "regime": "amber"
+         },
+         "prepEarnings": {
+          "outcome": "answered",
+          "listed": 14
+         },
+         "prepMovers": {
+          "outcome": "uncaptured",
+          "scanned": null,
+          "total": null,
+          "unquoted": null,
+          "items": 0
+         },
+         "prepLevels": {
+          "outcome": "uncaptured"
+         }
+        },
+        "context": {
+         "regime": "answered",
+         "spy": "answered",
+         "qqq": "answered",
+         "vix": "fell_back"
+        },
+        "regime_at_write": "amber"
+       },
+       "legs": {
+        "engine._load_wire_data": {
+         "calls": 3,
+         "seconds_inside": 0.060906,
+         "slept": 0.060836,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._watchlist_syms": {
+         "calls": 2,
+         "seconds_inside": 0.045346,
+         "slept": 0.040517,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._flagged_syms": {
+         "calls": 2,
+         "seconds_inside": 0.044876,
+         "slept": 0.040423,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._position_syms": {
+         "calls": 2,
+         "seconds_inside": 0.049325,
+         "slept": 0.040895,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._uct20_syms": {
+         "calls": 2,
+         "seconds_inside": 0.0815,
+         "slept": 0.040714,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "bars_sqlite.get_bars": {
+         "calls": 135,
+         "seconds_inside": 2.756641,
+         "slept": 2.736646,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine.get_breadth(held_only=True)": {
+         "calls": 4,
+         "seconds_inside": 5.3e-05,
+         "slept": 0.0,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        }
+       }
+      },
+      {
+       "i": 1,
+       "warmup": false,
+       "wall_s": 3.035362,
+       "skipped": [],
+       "styleVersion": 2,
+       "note": {
+        "parts": {
+         "prepWire": {
+          "outcome": "answered",
+          "headline": true,
+          "regime": "amber"
+         },
+         "prepEarnings": {
+          "outcome": "answered",
+          "listed": 14
+         },
+         "prepMovers": {
+          "outcome": "uncaptured",
+          "scanned": null,
+          "total": null,
+          "unquoted": null,
+          "items": 0
+         },
+         "prepLevels": {
+          "outcome": "uncaptured"
+         }
+        },
+        "context": {
+         "regime": "answered",
+         "spy": "answered",
+         "qqq": "answered",
+         "vix": "fell_back"
+        },
+        "regime_at_write": "amber"
+       },
+       "legs": {
+        "engine._load_wire_data": {
+         "calls": 3,
+         "seconds_inside": 0.061043,
+         "slept": 0.060964,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._watchlist_syms": {
+         "calls": 2,
+         "seconds_inside": 0.044901,
+         "slept": 0.040281,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._flagged_syms": {
+         "calls": 2,
+         "seconds_inside": 0.045831,
+         "slept": 0.040801,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._position_syms": {
+         "calls": 2,
+         "seconds_inside": 0.051466,
+         "slept": 0.040123,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._uct20_syms": {
+         "calls": 2,
+         "seconds_inside": 0.081802,
+         "slept": 0.040858,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "bars_sqlite.get_bars": {
+         "calls": 135,
+         "seconds_inside": 2.758556,
+         "slept": 2.738448,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine.get_breadth(held_only=True)": {
+         "calls": 4,
+         "seconds_inside": 4e-05,
+         "slept": 0.0,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        }
+       }
+      },
+      {
+       "i": 2,
+       "warmup": false,
+       "wall_s": 3.032844,
+       "skipped": [],
+       "styleVersion": 2,
+       "note": {
+        "parts": {
+         "prepWire": {
+          "outcome": "answered",
+          "headline": true,
+          "regime": "amber"
+         },
+         "prepEarnings": {
+          "outcome": "answered",
+          "listed": 14
+         },
+         "prepMovers": {
+          "outcome": "uncaptured",
+          "scanned": null,
+          "total": null,
+          "unquoted": null,
+          "items": 0
+         },
+         "prepLevels": {
+          "outcome": "uncaptured"
+         }
+        },
+        "context": {
+         "regime": "answered",
+         "spy": "answered",
+         "qqq": "answered",
+         "vix": "fell_back"
+        },
+        "regime_at_write": "amber"
+       },
+       "legs": {
+        "engine._load_wire_data": {
+         "calls": 3,
+         "seconds_inside": 0.060561,
+         "slept": 0.060468,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._watchlist_syms": {
+         "calls": 2,
+         "seconds_inside": 0.046655,
+         "slept": 0.040673,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._flagged_syms": {
+         "calls": 2,
+         "seconds_inside": 0.045006,
+         "slept": 0.040602,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._position_syms": {
+         "calls": 2,
+         "seconds_inside": 0.049545,
+         "slept": 0.040901,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "member_interest._uct20_syms": {
+         "calls": 2,
+         "seconds_inside": 0.08105,
+         "slept": 0.040607,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "bars_sqlite.get_bars": {
+         "calls": 135,
+         "seconds_inside": 2.75838,
+         "slept": 2.739169,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        },
+        "engine.get_breadth(held_only=True)": {
+         "calls": 4,
+         "seconds_inside": 3.7e-05,
+         "slept": 0.0,
+         "failed": 0,
+         "off_thread": 0,
+         "outlived_create": 0
+        }
+       }
+      }
+     ]
+    }
+   },
+   "outbound_socket_attempts": []
+  }
+ },
+ "shared_root_writes_blocked": 0,
+ "shared_root_reads_recorded": 0,
+ "finished_utc": "2026-10-13T21:55:52.541600+00:00"
+}

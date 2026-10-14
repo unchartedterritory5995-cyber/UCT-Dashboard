@@ -16,6 +16,12 @@ export const BLOCK_COMPONENTS = {
   preEntryChecklist: () => import('./PreEntryChecklistBlock'),
   priceStamps: () => import('./PriceStampsBlock'),
   positionSizing: () => import('./PositionSizingBlock'),
+  myRules: () => import('./MyRulesBlock'),
+  prepWire: () => import('./PrepWireBlock'),
+  prepEarnings: () => import('./PrepEarningsBlock'),
+  prepMovers: () => import('./PrepMoversBlock'),
+  prepLevels: () => import('./PrepLevelsBlock'),
+  tradeReview: () => import('./TradeReviewBlock'),
 }
 
 /** A body that throws (or whose chunk fails twice) shows BLOCK_ERROR_SENTENCE inside the block's own

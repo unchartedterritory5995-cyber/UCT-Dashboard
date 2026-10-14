@@ -584,7 +584,8 @@ def test_without_the_shim_the_launcher_dies_before_its_checkpoint(tmp_path, monk
 
 def test_seed_with_blocks_posts_every_trader_block_as_the_second_node():
     """`_seed` hands the flag to the doc it posts: each seeded note (every size and the small one)
-    carries the four kinds right after its first paragraph. Without the flag, paragraphs only."""
+    carries the ten nodes (the nine trader blocks of parts a and b, then the market context stamp)
+    right after its first paragraph. Without the flag, paragraphs only."""
     class Req:
         def __init__(self):
             self.bodies = []
@@ -605,10 +606,28 @@ def test_seed_with_blocks_posts_every_trader_block_as_the_second_node():
     h._seed(off, "http://x", [7], "t")
     assert len(on.bodies) == 2 and len(off.bodies) == 2          # the 7-paragraph note and the small one
     for body in on.bodies:
-        kinds = [x["attrs"]["widgetId"] for x in body["content"][1:5]]
-        assert kinds == list(h.TRADER_BLOCK_KINDS), kinds
+        embeds = [x for x in body["content"] if x["type"] == "widgetEmbed"]
+        kinds = [x["attrs"]["widgetId"] for x in body["content"][1:1 + len(h.TRADER_BLOCK_KINDS)]]
+        assert kinds == list(h.TRADER_BLOCK_KINDS) and len(embeds) == len(kinds), kinds
         assert body["content"][0]["type"] == "paragraph" and body["content"][-1]["type"] == "paragraph"
     assert all(x["type"] == "paragraph" for body in off.bodies for x in body["content"])
+
+
+def test_with_blocks_seeds_the_nine_block_kinds_and_the_stamp():
+    """P2b Task 13: the seed is every trader block the server knows (trader_blocks.BLOCK_IDS, part a's
+    three and part b's six, in its order) and then the market context stamp -- ten nodes, read off the
+    server's own list, never a typed count. The prep blocks are built as "Update layout" builds them:
+    no snapshot, so seeding reads no market data."""
+    from api.services.journal_two import trader_blocks as tb
+    nodes = h.trader_block_nodes()
+    kinds = [n["attrs"]["widgetId"] for n in nodes]
+    assert kinds == [*tb.BLOCK_IDS, "marketcontext"] == list(h.TRADER_BLOCK_KINDS), kinds
+    assert {"myRules", "prepWire", "prepEarnings", "prepMovers", "prepLevels", "tradeReview"} <= set(kinds)
+    assert len(nodes) == len(tb.BLOCK_IDS) + 1 == len({n["attrs"]["embedId"] for n in nodes})
+    by = {n["attrs"]["widgetId"]: n["attrs"] for n in nodes}
+    assert all(by[p]["params"] == {} for p in tb.PREP_BLOCK.values()), by
+    assert by["tradeReview"]["params"] == {"tradeId": ""}
+    assert by["marketcontext"]["params"] == {"uncaptured": True, "fields": "all"}
 
 
 def test_with_blocks_reaches_the_live_run_and_the_record(tmp_path, monkeypatch, capsys):

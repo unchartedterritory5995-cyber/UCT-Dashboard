@@ -18,7 +18,9 @@
  * and `settingsState` names the reason, the same one `rulesState` carries.
  *
  * @param {{ wantRules: boolean }} opts  false: the rules are never fetched (null account).
- * @returns {{ settings: object|undefined,
+ * `accountId` is the SELECTED account (null with none selected): the settings above are that account's, so
+ * a reader of a record from another account (the post-trade review) compares against it.
+ * @returns {{ settings: object|undefined, accountId: string|null,
  *             settingsState: 'loading'|'error'|'ready'|'no-account'|'no-accounts'|'accounts-error',
  *             retrySettings: () => void, rules: object[],
  *             rulesState: 'off'|'loading'|'no-account'|'no-accounts'|'accounts-error'|'error'|'ready' }}
@@ -30,7 +32,29 @@ import useJournalRules from './useJournalRules'
 
 /** The ONE copy of this seam's return shape. useChecklistSources.test.js reads it, and
  *  lib/blocks/blockDoors.test.js (⑤) requires the literal return below to carry exactly these keys. */
-export const RETURN_KEYS = Object.freeze(['settings', 'settingsState', 'retrySettings', 'rules', 'rulesState'])
+export const RETURN_KEYS = Object.freeze(['settings', 'settingsState', 'retrySettings', 'rules', 'rulesState', 'accountId'])
+
+/**
+ * WHY no specific account is selected, or null when one is (M-3): accounts failed, still loading,
+ * "All Accounts" chosen, no account at all, or the first pick not made yet (a frame between accounts
+ * arriving and the selection effect). Only "All Accounts" is "no-account"; the pending first pick
+ * reads as loading. Shared by the two read seams (this one and useMyRulesSources.js, P2b ruling
+ * R-PF-B8), so those blocks agree; useJ2Settings.js's noAccountReason still restates it in its own words.
+ * @param {{ accountId: string|null, isLoading: boolean, isAllAccounts: boolean, accountsError: any,
+ *           accounts: object[] }} selected  useJ2SelectedAccount()'s own fields
+ * @returns {null|'loading'|'no-account'|'no-accounts'|'accounts-error'}
+ */
+export function selectedAccountState({ accountId, isLoading, isAllAccounts, accountsError, accounts }) {
+  if (accountId) return null
+  // R-T7-3 N-2: SWR keeps the last accounts when a re-poll fails, so the error decides only when
+  // there are none on hand (AccountSelector.jsx's own `!!error && accounts.length === 0`).
+  const noAccounts = !Array.isArray(accounts) || accounts.length === 0
+  if (!!accountsError && noAccounts) return 'accounts-error'
+  if (isLoading) return 'loading'
+  if (Array.isArray(accounts) && accounts.length === 0) return 'no-accounts'   // before All Accounts: "All" of none is not a choice
+  if (isAllAccounts) return 'no-account'
+  return 'loading'
+}
 
 export default function useChecklistSources({ wantRules }) {
   const { settings, isLoading: settingsLoading, error: settingsError, refresh } = useJ2Settings()
@@ -39,21 +63,7 @@ export default function useChecklistSources({ wantRules }) {
   } = useJ2SelectedAccount()
   const { rules, isLoading: rulesLoading, error: rulesError } = useJournalRules(wantRules ? accountId : null)
 
-  // WHY no specific account is selected, or null when one is (M-3): accounts failed, still loading,
-  // "All Accounts" chosen, no account at all, or the first pick not made yet (a frame between accounts
-  // arriving and the selection effect). Only "All Accounts" is "no-account"; the pending first pick
-  // reads as loading.
-  let accountState = null
-  if (!accountId) {
-    // R-T7-3 N-2: SWR keeps the last accounts when a re-poll fails, so the error decides only when
-    // there are none on hand (AccountSelector.jsx's own `!!error && accounts.length === 0`).
-    const noAccounts = !Array.isArray(accounts) || accounts.length === 0
-    if (!!accountsError && noAccounts) accountState = 'accounts-error'
-    else if (accountsLoading) accountState = 'loading'
-    else if (Array.isArray(accounts) && accounts.length === 0) accountState = 'no-accounts'   // before All Accounts: "All" of none is not a choice
-    else if (isAllAccounts) accountState = 'no-account'
-    else accountState = 'loading'
-  }
+  const accountState = selectedAccountState({ accountId, isLoading: accountsLoading, isAllAccounts, accountsError, accounts })
 
   // C-1: the settings are one account's only when one account is selected.
   const settingsState = accountState
@@ -83,5 +93,6 @@ export default function useChecklistSources({ wantRules }) {
     retrySettings,
     rules: rulesState === 'ready' && Array.isArray(rules) ? rules : [],
     rulesState,
+    accountId: accountId || null,
   }
 }

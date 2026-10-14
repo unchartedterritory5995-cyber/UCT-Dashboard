@@ -65,6 +65,25 @@ export const FIELD_SETS = Object.freeze({
   indexes: { context: [], sourced: ['spy', 'qqq', 'vix'] },
 })
 export const UNCAPTURED_SENTENCE = 'Market context is captured when a note is created. This note was written before it had one.'
+// R-T12-C (fix round, I-1): a stamp whose create-mode read ran out of its budget gets it uncaptured with
+// `reason: "budget"`. UNCAPTURED_SENTENCE would be false there, so it says what did happen. Fix round 2
+// (M-1): "when this stamp was added", true on both create paths -- a new note AND an empty older note
+// switched to a style (journal_styles.apply_style_update composes in create mode). The "Update layout"
+// stamp carries no reason and keeps the old words.
+export const UNCAPTURED_BUDGET_SENTENCE = 'The market could not be read in time when this stamp was added.'
+// Fix round 2 (M-2): said through a live region that stays mounted when a Capture now lands.
+export const CAPTURED_ANNOUNCEMENT = 'Market context captured.'
+
+/** The sentence an uncaptured stamp shows: the budget one only for exactly `reason: "budget"`. */
+export const uncapturedSentence = (reason) => (reason === 'budget' ? UNCAPTURED_BUDGET_SENTENCE : UNCAPTURED_SENTENCE)
+
+/** A capture time in the stamp builder's own form, trader_blocks._iso: `dt.astimezone(utc).isoformat()`
+ *  with "+00:00" written "Z". Python's isoformat gives six fraction digits when there is a fraction and
+ *  none when there is not; a JS Date holds milliseconds, so they are written as six digits. */
+export function captureIso(date) {
+  const s = date.toISOString()                       // YYYY-MM-DDTHH:MM:SS.mmmZ, always UTC
+  return date.getUTCMilliseconds() ? s.replace(/\.(\d{3})Z$/, '.$1000Z') : s.replace(/\.\d{3}Z$/, 'Z')
+}
 
 /** The preset a stored `fields` names; an unknown one (a newer version's) shows everything. */
 export const presetFor = (fields) =>

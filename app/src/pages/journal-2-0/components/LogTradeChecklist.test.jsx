@@ -135,6 +135,27 @@ describe('LogTradeChecklist', () => {
     expect(refresh).toHaveBeenCalledTimes(1)
   })
 
+  // N-4 (P2b Task 8, ruling R-PF-B9): a rule ticked on one setup's list is in `checked` on every other.
+  it('N-4: a list not yet answered shows no carried rule tick (it would save nothing); an answered one does', () => {
+    src.rules = { rules: [{ id: 'x1', label: 'Wait 15 minutes', beforeEntry: true }] }
+    const { unmount } = renderList({ requireAll: 'yes', checked: ['rule:x1', 'f1'], touched: false })
+    expect(screen.getByRole('checkbox', { name: 'Wait 15 minutes' }).checked).toBe(false)
+    expect(screen.getByRole('status').textContent).toBe('3 checklist items not ticked. You can still log this trade.')
+    unmount()
+    // CONTROL: the same ticks on a list the member has answered show the rule ticked
+    renderList({ requireAll: 'yes', checked: ['rule:x1', 'f1'], touched: true })
+    expect(screen.getByRole('checkbox', { name: 'Wait 15 minutes' }).checked).toBe(true)
+    expect(screen.getByRole('status').textContent).toBe('2 checklist items not ticked. You can still log this trade.')
+  })
+
+  it('N-4: answering an untouched list never erases a tick another list holds', () => {
+    src.rules = { rules: [{ id: 'x1', label: 'Wait 15 minutes', beforeEntry: true }] }
+    const onChange = vi.fn()
+    renderList({ checked: ['rule:x1', 'f1'], touched: false, onChange })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Volume dry-up' }))
+    expect(onChange.mock.calls[0][0].sort()).toEqual(['f1', 'rule:x1', 's1'])
+  })
+
   it("rules that failed to load: the setup's items still show, and the line says the rules are missing", () => {
     src.rules = { rules: undefined, isLoading: false, error: new Error('x') }
     renderList()

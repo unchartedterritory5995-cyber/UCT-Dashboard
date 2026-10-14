@@ -60,6 +60,10 @@ from api.services.journal_two import notes as notes_service
 MAX_BODY_BYTES = 512_000
 TOO_LARGE_SENTENCE = "Request too large"
 NOT_FOUND = "Not found"
+#: F-MC-CAPTURE-BUDGET: the market context read ran out of its budget (the price stamp's 409 shape).
+MARKET_CONTEXT_UNREAD_SENTENCE = "Market context could not be read just now."
+#: A dismissed rule's edit (fix round 1, m2): read by rulesApi.editRule, which says it in words.
+RULE_DISMISSED = "rule_dismissed"
 # Integrator ruling (review M1): the base revision is required. Without it a caller that lands the
 # answer would record as its own a revision that may fold in another writer's change it never saw.
 BASE_REQUIRED_SENTENCE = "Send baseUpdatedAt, the revision of the note you are looking at."
@@ -191,10 +195,18 @@ def default_style_endpoint(style_id: str, user: dict = Depends(require_paid)) ->
 def trader_market_context(user: dict = Depends(require_paid)) -> dict[str, Any]:
     """Read-only (spec §P2 item 3): the params a hand-inserted market context stamp freezes, captured
     now and dated as such (R-P2-8). Every gap is a sentence. Cache-only, like the composer's read
-    (R-W0-1): it never waits on a vendor."""
+    (R-W0-1): it never waits on a vendor.
+    F-MC-CAPTURE-BUDGET (Task 15b fix round 2): the reads run under the create's read budget
+    (trader_blocks.start_budget). A spent budget is this router's existing trader-block read failure,
+    the price stamp's: 409 with a "could not be read just now" sentence. The slash command already
+    reads any non-2xx as "could not be read just now, so nothing was added" and inserts nothing."""
     from datetime import datetime, timezone
     from api.services.journal_two import trader_blocks
-    return trader_blocks.market_context_params({}, user_id=user["id"], now=datetime.now(timezone.utc))
+    try:
+        return trader_blocks.market_context_params(trader_blocks.start_budget({}), user_id=user["id"],
+                                                   now=datetime.now(timezone.utc))
+    except trader_blocks.BudgetSpent:
+        raise HTTPException(status_code=409, detail=MARKET_CONTEXT_UNREAD_SENTENCE)
 
 
 @router.put("/trader-blocks/positions/{position_id}/pre-entry")
@@ -365,3 +377,84 @@ def apply_style_update_endpoint(note_id: str, body: dict = Depends(paid_body),
     # The note as journal_two serves every note: an over-deep stored body is withheld, never sent.
     from api.routers.journal_two import _servable_note
     return {"note": _servable_note(note), "plan": plan}
+
+
+# ── trader blocks: rules, versions, before / after (P2b, lane S) ─────────────────────
+# Self-contained block (P2b merge note: lane P appends its own routes beside it). Routes:
+#   PUT /api/j2/trader-blocks/rules/{rule_id}                  edit the words (a new version) or the
+#                                                              before-entry switch (never a version);
+#                                                              400 blank label or a wrong type, 404
+#                                                              another member's rule (spec §P2 item 2)
+#   GET /api/j2/trader-blocks/rules/{rule_id}/versions         newest first; 404 another member's rule
+#   GET /api/j2/trader-blocks/rules/{rule_id}/before-after     each version's before / after windows
+#                                                              (R-P2b-3); 404 another member's rule or
+#                                                              a dismissed one
+
+@router.put("/trader-blocks/rules/{rule_id}")
+def trader_edit_rule(rule_id: str, body: dict = Depends(paid_body), user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """Spec §P2 item 2. Writes the rule and its version history, never a note."""
+    from api.services.journal_two import rule_versions
+    try:
+        rec = rule_versions.edit_rule(user["id"], rule_id, body)
+    except rule_versions.RuleEditError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except rule_versions.RuleDismissed:
+        # Fix round 1 (m2): the client says "dismissed" only for this detail; every other 404 here
+        # (another member's rule, a missing one, the switch off) keeps the plain NOT_FOUND.
+        raise HTTPException(status_code=404, detail=RULE_DISMISSED)
+    if rec is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    return rec
+
+
+@router.get("/trader-blocks/rules/{rule_id}/versions")
+def trader_rule_versions(rule_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    from api.services.journal_two import rule_versions
+    vs = rule_versions.list_versions(user["id"], rule_id)
+    if vs is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    return {"versions": vs}
+
+
+@router.get("/trader-blocks/rules/{rule_id}/before-after")
+def trader_rule_before_after(rule_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """Read-only. Sample sizes always; `small` below rule_versions.SMALL_SAMPLE (spec §P2 item 2)."""
+    from api.services.journal_two import rule_versions
+    got = rule_versions.before_after(user["id"], rule_id)
+    if got is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    return got
+
+
+# ── trader blocks (P2b, lane P): the daily prep pack and the post-trade review ───────────
+#   GET    /api/j2/trader-blocks/prep/{part}       one prep part, captured now (Task 6); 404 unknown part
+#   GET    /api/j2/trader-blocks/review/trades     the member's closed trades, newest exit first (Task 7)
+#   GET    /api/j2/trader-blocks/review/{trade}    one trade's review: a stable ref (id:/ext:) or a row id;
+#                                                  404 when it is not the caller's (Task 7)
+# Read-only. Self-contained block, appended last (lane merge order S before P).
+
+@router.get("/trader-blocks/prep/{part}")
+def trader_prep(part: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """Read-only (spec §P2 item 6): one prep part's snapshot for the block's "Capture now". Caches
+    only (R-W0-1); each gap is named, and a read that raises is that part's gap, never a 500 (N10)."""
+    from api.services.journal_two import trader_blocks
+    if part not in trader_blocks.PREP_PARTS:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    return trader_blocks.prep_part(user["id"], part)
+
+
+# `/review/trades` is declared BEFORE `/review/{trade_key}`, so "trades" is never read as a trade.
+@router.get("/trader-blocks/review/trades")
+def trader_review_trades(user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """Read-only (spec §P2 item 7): the review block's trade picker. Each row carries its stable
+    `tradeRef`, which is what the block stores (pre-flight N15)."""
+    from api.services.journal_two import trader_blocks
+    return {"trades": trader_blocks.recent_closed_trades(user["id"])}
+
+
+@router.get("/trader-blocks/review/{trade_key}")
+def trader_review(trade_key: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """Read-only (spec §P2 item 7): the trade, its tags, the rules ticked before entry, the plan grade
+    or what it needs. Another member's trade is the same 404 as one that does not exist."""
+    from api.services.journal_two import trader_blocks
+    return _found(trader_blocks.trade_review(user["id"], trade_key))

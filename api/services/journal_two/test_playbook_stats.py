@@ -261,6 +261,24 @@ def test_adherence_vs_expectancy_split(db_conn):
     assert vcp["adherenceCoverage"] == {"eligible": 3, "computed": 3}
 
 
+def test_adherence_counts_before_entry_rule_ticks_with_the_setup_items(db_conn):
+    """Notebook P2b Task 8 (R-T8-1 I-3, ruling R-PF-B9): Log Trade and the Trade page card both store
+    the pre-entry checklist's ONE set, the setup's items plus the before-entry rules as `rule:<id>`,
+    and `totalRules` counts that set. The analytics count the same set: a `rule:` tick is a followed
+    item, and an unticked listed rule is a missed one."""
+    from api.services.journal_two import playbook_stats
+    from api.services.journal_two.adherence_store import upsert_adherence
+    acc = _seed_account(db_conn)
+    t1 = _insert_trade(db_conn, user_id="u_pb", account_id=acc["id"], setup="VCP", result="Win", pnl=100, r=1.0)
+    t2 = _insert_trade(db_conn, user_id="u_pb", account_id=acc["id"], setup="VCP", result="Loss", pnl=-50, r=-1.0)
+    # two setup items + one before-entry rule: all three followed, then one setup item and the rule
+    upsert_adherence("u_pb", f"id:{t1}", "VCP", ["s1", "s2", "rule:x1"], 3, db_conn)   # 1.0
+    upsert_adherence("u_pb", f"id:{t2}", "VCP", ["s1", "rule:x1"], 3, db_conn)         # 2/3
+    vcp = _by_setup(playbook_stats.get_playbook_stats("u_pb", acc["id"], conn=db_conn))["VCP"]
+    assert vcp["adherence"] == round((1.0 + 2 / 3) / 2, 4)
+    assert vcp["adherenceCoverage"] == {"eligible": 2, "computed": 2}
+
+
 def test_adherence_bucket_boundary_and_empty_bucket(db_conn):
     """0.8 is the inclusive adhered boundary; a bucket with no trades →
     {expectancy: None, n: 0}, never a fake split."""

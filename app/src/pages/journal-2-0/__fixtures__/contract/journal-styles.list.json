@@ -12,6 +12,12 @@
       "preEntryChecklist",
       "priceStamps",
       "positionSizing",
+      "myRules",
+      "prepWire",
+      "prepEarnings",
+      "prepMovers",
+      "prepLevels",
+      "tradeReview",
       "marketcontext"
     ],
     "kinds": [
@@ -121,7 +127,42 @@
         "version": 2
       },
       {
-        "blocks": [],
+        "blocks": [
+          {
+            "block": "prepWire",
+            "enabled": true,
+            "settings": {}
+          },
+          {
+            "block": "marketcontext",
+            "enabled": true,
+            "settings": {
+              "fields": "all"
+            }
+          },
+          {
+            "block": "prepEarnings",
+            "enabled": true,
+            "settings": {}
+          },
+          {
+            "block": "prepMovers",
+            "enabled": true,
+            "settings": {}
+          },
+          {
+            "block": "prepLevels",
+            "enabled": true,
+            "settings": {}
+          },
+          {
+            "block": "myRules",
+            "enabled": true,
+            "settings": {
+              "which": "active"
+            }
+          }
+        ],
         "builtin": true,
         "createdAt": null,
         "deletedAt": null,
@@ -135,7 +176,7 @@
         "sourceGalleryId": null,
         "sourceVersion": null,
         "updatedAt": null,
-        "version": 1
+        "version": 2
       },
       {
         "blocks": [],
@@ -187,6 +228,11 @@
             "settings": {
               "tf": "D"
             }
+          },
+          {
+            "block": "tradeReview",
+            "enabled": true,
+            "settings": {}
           }
         ],
         "builtin": true,
@@ -202,7 +248,7 @@
         "sourceGalleryId": null,
         "sourceVersion": null,
         "updatedAt": null,
-        "version": 1
+        "version": 2
       },
       {
         "blocks": [],

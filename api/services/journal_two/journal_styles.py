@@ -59,6 +59,15 @@ BLOCK_KINDS: tuple[dict, ...] = (
         {"key": "on", "options": ("no", "yes"), "default": "no"},)},
     {"id": "positionSizing", "search": "[position sizing]", "settings": (
         {"key": "grade", "options": ("A", "A+", "B"), "default": "A"},)},
+    # P2 Tier 1 (part b).
+    # R-PF-B1: which rules the block lists (the one real setting; the five others have none).
+    {"id": "myRules", "search": "[my rules]", "settings": (
+        {"key": "which", "options": ("active", "all"), "default": "active"},)},
+    {"id": "prepWire", "search": "[morning wire and exposure]", "settings": ()},
+    {"id": "prepEarnings", "search": "[earnings for my names]", "settings": ()},
+    {"id": "prepMovers", "search": "[my movers]", "settings": ()},
+    {"id": "prepLevels", "search": "[key levels from my plans]", "settings": ()},
+    {"id": "tradeReview", "search": "[post-trade review]", "settings": ()},
     # The market context stamp is the EXISTING marketcontext capture widget (IR-S6). No `search`.
     {"id": "marketcontext", "settings": (
         {"key": "fields", "options": ("all", "regime", "indexes"), "default": "all"},)},
@@ -126,10 +135,16 @@ BUILTIN_STYLES: dict[str, dict] = {
         _ph("preEntryChecklist"),
         _h("Entry, stop and target"), _p("Entry:"), _p("Stop:"), _p("Target:"),
         _h("Size and risk"), _ph("positionSizing"), _p("How much am I risking, and is it within my rules?"))},
-    "daily_prep": {"name": "Daily prep", "version": 1, "properties": {}, "blocks": [], "outline": _doc(
-        _h("The market"), _p("What is the tape telling me today?"),
-        _h("Names on my list"), _p("Which setups are closest to a trigger?"),
-        _h("My plan"), _p("What will I do, and what will I not do?"))},
+    # v2 (Notebook P2b, Task 12): the prep pack, the stamp and My rules. A v1 note gains them only
+    # through "Update layout", which ADDS them uncaptured (IR-S11, R-RC-1).
+    "daily_prep": {"name": "Daily prep", "version": 2, "properties": {},
+                   "blocks": [_blk("prepWire"), _blk("marketcontext"), _blk("prepEarnings"), _blk("prepMovers"),
+                              _blk("prepLevels"), _blk("myRules")],
+                   "outline": _doc(
+        _h("The market"), _ph("prepWire"), _ph("marketcontext"), _p("What is the tape telling me today?"),
+        _h("Names on my list"), _ph("prepEarnings"), _ph("prepMovers"), _ph("prepLevels"),
+        _p("Which setups are closest to a trigger?"),
+        _h("My plan"), _ph("myRules"), _p("What will I do, and what will I not do?"))},
     "weekend_prep": {"name": "Weekend prep", "version": 1, "properties": {}, "blocks": [], "outline": _doc(
         _h("The week behind"), _p("What worked and what did not?"),
         _h("Leading groups"), _p("Where is the strength?"),
@@ -138,9 +153,11 @@ BUILTIN_STYLES: dict[str, dict] = {
         _h("What the market expects"), _p("Consensus, and the move the options price in:"), _ph("chart"),
         _h("My view"), _p("What would surprise the market?"),
         _h("The plan around the report"), _p("Hold, trim, or wait?"))},
-    "post_trade_review": {"name": "Post-trade review", "version": 1, "properties": {}, "blocks": [_chart("D")],
+    # v2 (Notebook P2b, Task 12): the review block, above the chart it explains.
+    "post_trade_review": {"name": "Post-trade review", "version": 2, "properties": {},
+                          "blocks": [_chart("D"), _blk("tradeReview")],
                           "outline": _doc(
-        _h("What happened"), _p("Entry, exit and result:"), _ph("chart"),
+        _h("What happened"), _ph("tradeReview"), _p("Entry, exit and result:"), _ph("chart"),
         _h("Did I follow my plan?"), _p("Where did I follow it, and where did I not?"),
         _h("What I'd do differently"), _p())},
     "weekly_review": {"name": "Weekly review", "version": 1, "properties": {}, "blocks": [], "outline": _doc(
@@ -728,6 +745,10 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
     try:
         ctx = {"ticker": ticker, "now": now or datetime.now(timezone.utc), "memo": {}, "mode": mode,
                "user_id": user_id}
+        if mode == "create":
+            # R-T12-C: ONE read budget for every block this create builds (trader_blocks owns the number).
+            # A block still to read when it runs out lands uncaptured; an update reads nothing anyway.
+            _tb.start_budget(ctx["memo"])
         doc = _outline_doc(user_id, style, conn)
         enabled: dict[str, dict] = {}
         disabled: set[str] = set()
@@ -999,6 +1020,13 @@ def _plan(user_id: str, row: sqlite3.Row, body: dict, style_id: str | None, conn
         builder = BLOCK_BUILDERS.get(b["block"])
         if builder is None:
             skipped.append({"block": b["block"], "reason": "unknown-block"})
+            continue
+        if inserts_outline and b["block"] in _tb.READS_ON_CREATE:
+            # Review I-2: on the empty-note switch the write composes the body itself (compose, one
+            # budget), so these nodes would be thrown away; a reading builder always builds, so the
+            # plan lists it WITHOUT running it. The dry run (GET .../style-update-plan) and the write's
+            # plan make no market or prep read at all, and the write has ONE clock, compose's.
+            built.append((b, None))
             continue
         node, reason = builder(b, ctx)
         if node is None:

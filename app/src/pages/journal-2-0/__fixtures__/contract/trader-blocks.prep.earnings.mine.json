@@ -1,0 +1,25 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/trader-blocks/prep/earnings",
+    "note": "Only the member's names: XOM reports too and is not theirs.",
+    "path": "/api/j2/trader-blocks/prep/earnings",
+    "status": 200
+  },
+  "body": {
+    "amc": [
+      "AMD"
+    ],
+    "amcTonight": [
+      "TSLA"
+    ],
+    "asOf": null,
+    "bmo": [
+      "NVDA"
+    ],
+    "capturedAt": "2026-10-05T14:30:00Z",
+    "detail": null,
+    "missing": null,
+    "part": "earnings"
+  }
+}

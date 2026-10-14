@@ -1,0 +1,1480 @@
+
+  [pre-boot] shared data root baseline: 62 db files hashed (sha256)
+  [pre-boot] integrity log: C:\Users\Patrick\uct-worktrees\notebook-p2b\docs\plans\joystick\sandbox-runs\2026-10-13T15-57-18.md
+  [pre-boot] sandbox identity: 9844d0774ea9b249d1f7767064f2de1a (served at /__uct_sandbox_identity)
+  Model keys   : BLANKED ANTHROPIC_API_KEY, WISDOM_ANTHROPIC_API_KEY, OPENAI_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_AUTH_TOKEN; keyring -> null backend (opt in: --allow-model-keys or HUB_SANDBOX_ALLOW_MODEL_KEYS=1)
+
+  --------------------------------------------------------------------
+  HUB SANDBOX
+  --------------------------------------------------------------------
+  Data dir     : C:\Users\Patrick\AppData\Local\Temp\nb-p2b-typing-blocks-r3
+  Admin        : hubtest@local.dev
+  URL          : http://localhost:8143
+  Path pins    : 113 env vars, DERIVED by AST from api/**
+  Kill-list    : 38 scheduler / outbound flags
+  Guard mode   : enforce
+  Shared roots : c:\data (writes RAISE)
+  --------------------------------------------------------------------
+
+  A 'SHARED-ROOT WRITE BLOCKED' banner below means the app tried to
+  reach live data and was stopped. Report it; do not ignore it.
+
+2026-10-13 15:57:23,987 INFO api.services.session_calendar: [session-calendar] NYSE calendar v2026-09-29.1 covers 2000-01-01..2028-12-31
+2026-10-13 15:57:24,014 INFO api.services.cap_universe: [cap-universe] loaded 3640 symbols
+2026-10-13 15:57:24,015 INFO api.routers.ticker_search: [ticker-search] loaded 3640 tickers from cap_universe
+2026-10-13 15:57:24,089 WARNING api.services.email_service: [email] RESEND_API_KEY not set — emails disabled
+2026-10-13 15:57:25,379 INFO api.liveflow_worker: [liveflow] no user blocklist file at C:\Users\Patrick\AppData\Local\Temp\nb-p2b-typing-blocks-r3\liveflow_user_blocklist.json — seeded with 0 defaults: []
+2026-10-13 15:57:25,385 INFO api.baselines: [baselines] loaded 0 ticker baselines into memory
+2026-10-13 15:57:25,386 INFO api.liveflow_worker: [liveflow] ticker baselines loaded into worker memory (0 tickers)
+INFO:     Started server process [23284]
+INFO:     Waiting for application startup.
+[startup] access-log redaction armed for ['/journal/share']
+[startup] anyio thread limiter set to 64
+[startup] boot probe armed (5s ticks, 300s summary window)
+[startup] cache snapshot restored: 0/0 entries (age Nones)
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\nb-p2b-typing-blocks-r3\auth.db
+[startup] tweets.db initialized
+[startup] desk.db initialized
+[startup] catalysts.db initialized
+[startup] wire_feedback.db initialized
+[startup] modelbook.db initialized
+[startup] news_catalysts.db initialized
+[startup] stock_brief.db initialized
+[startup] charts_layouts.db initialized
+[startup] user_definitions.db initialized
+[startup] education.db initialized
+2026-10-13 15:57:28,776 INFO api.main: community store ready
+2026-10-13 15:57:28,830 INFO api.main: alert_taxonomy: 8 trigger type(s) registered -- catalyst-match, document-arrival, event-proximity, indicator-condition, position-risk, price-level, regime-change, scan-membership-change (all DARK beyond document-arrival). A type appears here when its CP3 is signed, not when its module is written.
+2026-10-13 15:57:28,833 INFO api.main: rollout: cohort 's7-dark' seeded from role 'admin' (0 new tag rows)
+2026-10-13 15:57:28,837 INFO api.main: [startup] terminal seed: enrolled existing members (0 new tag rows)
+[startup] wisdom.db ready (migrations applied this boot: 27)
+2026-10-13 15:57:28,867 INFO api.main: chat presence broadcaster started
+2026-10-13 15:57:28,871 INFO api.baselines: [baselines] loaded 0 ticker baselines into memory
+[startup] ticker baselines loaded (0 tickers)
+2026-10-13 15:57:28,893 INFO api.main: [startup] quarantined 0 bars from existing cache
+2026-10-13 15:57:28,932 INFO api.main: [startup] indicator alert evaluator started
+2026-10-13 15:57:28,942 INFO api.main: [startup] awareness regime_snapshots schema ready
+[startup] j2-ocr: flag=0 binary=absent version=none active=False max_concurrency=1
+2026-10-13 15:57:28,954 INFO api.main: [startup] alert_durability schema ready
+2026-10-13 15:57:28,954 INFO api.main: [startup] priority audit scheduled (~30s after boot)
+2026-10-13 15:57:28,954 INFO api.main: [startup] hot tier warm scheduled (~45s after boot)
+2026-10-13 15:57:28,965 INFO api.main: [startup] breadth numeric projection: {'ran': True, 'marker': 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\nb-p2b-typing-blocks-r3\\.breadth_numeric_v1', 'before': {'rows': 0, 'sha256': 'e3b0c44298fc1c14'}, 'numeric_rows_before': 0, 'backup': 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\nb-p2b-typing-blocks-r3\\backups\\breadth_monitor-2026-10-13-155728-pre-numeric.db', 'backup_bytes': 24576, 'to_write': 0, 'after': {'rows': 0, 'sha256': 'e3b0c44298fc1c14'}, 'numeric_rows_after': 0, 'written': 0, 'ms': 7.5, 'source_table_unchanged': True}
+2026-10-13 15:57:28,967 INFO api.main: [cold-start-guard] boot preload started for 393 resource(s) (2 hand-registered + 391 derived from the manifest)
+2026-10-13 15:57:28,967 INFO api.services.cap_universe: [cap-universe-etfs] loaded 100 symbols
+2026-10-13 15:57:28,970 INFO api.main: [startup] dashboard warm scheduled (~20s after boot); calendar-enrichment re-warm every 240s (under the 300s TTL); calendar week re-warm every 20 min (under the 30-min stale bound)
+2026-10-13 15:57:28,970 INFO api.main: [startup] rs-rankings warm scheduled (~120s after boot)
+2026-10-13 15:57:28,970 INFO api.main: [startup] industry-map prewarm scheduled (~75s after boot)
+2026-10-13 15:57:28,971 INFO api.main: [startup] darkpool prewarm scheduled (~60s after boot)
+2026-10-13 15:57:28,971 INFO api.main: [startup] scanner-preset warm scheduled (~30s after boot); re-warm every 50s during market hours, 300s off-hours
+2026-10-13 15:57:28,971 INFO api.main: [startup] ticker-meta name-heal scheduled (one-shot)
+2026-10-13 15:57:28,971 INFO api.main: [startup] deploy smoke audit scheduled
+2026-10-13 15:57:28,973 INFO api.main: [startup] bars_continuous_audit started
+2026-10-13 15:57:28,974 INFO api.services.bars_wal_checkpointer: [bars-wal] checkpointer started (interval=20s, truncate_hwm=2000 frames)
+2026-10-13 15:57:28,974 INFO api.services.bars_reconciliation: [reconcile] disabled (RECONCILE_ENABLED=0)
+2026-10-13 15:57:28,975 INFO api.main: [startup] bars_reconciliation started
+2026-10-13 15:57:28,975 INFO api.services.fundamentals_monitor: [fund-monitor] disabled (FUNDAMENTALS_MONITOR_ENABLED=0)
+2026-10-13 15:57:28,975 INFO api.main: [startup] fundamentals_monitor started
+2026-10-13 15:57:28,978 INFO api.services.provider_coverage_monitor: [coverage-monitor] disabled (PROVIDER_COVERAGE_MONITOR_ENABLED=0)
+2026-10-13 15:57:28,978 INFO api.main: [startup] provider_coverage_monitor started
+2026-10-13 15:57:28,978 INFO api.main: [startup] disk_watchdog started (warn=75.0% crit=90.0% every 1800s)
+2026-10-13 15:57:28,978 INFO api.main: [startup] realtime_candle reconciliation_worker scheduled
+2026-10-13 15:57:28,978 INFO api.main: [startup] liveflow_worker (Bullflow) NOT started — retired 2026-08-29; live flow is served by the Massive rail
+[startup] .tf60_purged_2f42e55: purged 0 tf=60 disk-cache files
+[startup] .tf60_purged_3cbe1cf_src_cap: purged 0 tf=60 disk-cache files
+[startup] by-date index scheduled build OFF (BARS_BYDATE_INDEX_BUILD_ENABLED unset); the index ships with the R2 snapshot; admin trigger available
+[startup] bars.db boot steps scheduled (background: init_db + one-shot heals)
+[startup] weekly_key_purge: scheduled (background)
+2026-10-13 15:57:28,980 ERROR api.services.bars_continuous_audit: [continuous_audit] bars store unhealthy: schema-missing (no such table: ohlcv)
+2026-10-13 15:57:28,980 INFO api.services.bars_continuous_audit: [continuous_audit] 1hr priority sweep
+[startup] chart-realtime-mode: fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once heal_v3_60day=ran-once needs_fresh_post_market=on swr_refresh_interval=30s_intraday tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds delta_intraday_filter=>= idb_cache_logic_version=7 weekly_dating=friday-close heal_weekly_close=ran-once reconciliation_worker=off
+[startup] bars-push-rail: stream_bars_enabled=off keyed_dispatch=on single_writer_arbitration=on delivering_recency=120s/300s_hysteresis heartbeat=named watchdog_renotify=10s idle_sleep=250ms status_endpoint=/api/admin/bars-stream-status (frontend rollout% in StockChart.BARS_PUSH_ROLLOUT_PCT)
+2026-10-13 15:57:28,982 INFO api.auth_surface_check: [startup] auth-surface: service=web mutating_routes=122 ungated=0 delegated=0 middleware_gated=17 OK
+2026-10-13 15:57:28,989 WARNING api.services.bars_sqlite: [sqlite] weekly key purge failed (non-fatal): no such table: ohlcv
+2026-10-13 15:57:28,989 ERROR api.services.bars_sqlite: [sqlite] integrity smoke probe failed: no such table: ohlcv
+[startup] bars.db FAILED integrity smoke probe (0.01s) -- pulling fresh snapshot from R2
+2026-10-13 15:57:28,990 WARNING api.services.data_sync: [data_sync] force_resync: could not remove C:\Users\Patrick\AppData\Local\Temp\nb-p2b-typing-blocks-r3\bars.db: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\nb-p2b-typing-blocks-r3\\bars.db'
+2026-10-13 15:57:28,990 WARNING api.services.data_sync: [data_sync] force_resync: could not remove C:\Users\Patrick\AppData\Local\Temp\nb-p2b-typing-blocks-r3\bars.db-wal: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\nb-p2b-typing-blocks-r3\\bars.db-wal'
+2026-10-13 15:57:28,991 WARNING api.services.data_sync: [data_sync] force_resync: could not remove C:\Users\Patrick\AppData\Local\Temp\nb-p2b-typing-blocks-r3\bars.db-shm: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\nb-p2b-typing-blocks-r3\\bars.db-shm'
+2026-10-13 15:57:28,992 ERROR api.services.data_sync: [data_sync] force_resync: no installable remote snapshot; recreating an empty schema so reads degrade to cache-miss refetch instead of 'no such table' until reboot
+[sqlite-migration] Applied purge_tf60_2f42e55: deleted 0 rows
+[sqlite-migration] Applied purge_tf60_3cbe1cf_src_cap: deleted 0 rows
+[sqlite-migration] Applied purge_intraday_pagination_v1: deleted 0 rows
+[startup] SQLite bar store ready
+[startup] bars.db restore from R2 FAILED
+[startup] fmp_tz_heal: removed 0 intraday rows from last 14d; next chart load on each ticker refills clean
+[startup] fmp_tz_heal: cleared 0 in-memory bars cache entries
+[startup] strict_gt_heal_v2: removed 0 intraday rows from last 14d (companion to >= filter relaxation)
+[startup] strict_gt_heal_v2: cleared 0 in-memory bars cache entries
+[startup] intraday_heal_v3_60day: removed 0 intraday rows from last 60d
+[startup] intraday_heal_v3_60day: cleared 0 in-memory bars cache entries
+[startup] weekly_close_date_heal: removed 0 weekly rows; next chart load on each ticker refills with Friday-dated candles
+2026-10-13 15:57:29,017 WARNING api.auth_surface_check: [startup] auth-surface-reads: service=web examined 1192/1799 (method,path) | reads 1070: gated=949 (of which OPEN_READS_GATE-staged=145 mode=off) middleware_gated=13 delegated=0 public=43 inline=50 recorded_open=7 UNRECORDED=8 | mutating(audited prefixes) 122: UNGATED=0 | stale_baseline=0 inline_marker_missing=0 | by_method={'DELETE': 91, 'GET': 1058, 'HEAD': 12, 'PATCH': 27, 'POST': 556, 'PUT': 55}
+[startup] trade-condition-filter: enabled=off (env TRADE_CONDITION_FILTER_ENABLED) applied_to=massive_push+finnhub authoritative_rules=loading|fallback
+[startup] Memory pre-warm skipped (USE_REMOTE_BARS=1); cache populates lazily after snapshot pull
+[startup] USE_REMOTE_BARS=1 -- skipping in-process prewarmer/seeder; pulling snapshot from worker via R2
+[startup] Loaded wire_data from volume (date=2026-01-02)
+2026-10-13 15:57:29,019 INFO api.services.ticker_names_prewarm: [ticker-names-prewarm] disabled via env
+[startup] ticker-names prewarm scheduled
+[startup] ticker-logos prewarm scheduled
+2026-10-13 15:57:29,019 INFO api.main: [startup] breadth reconstructed side: {'ran': True, 'marker': 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\nb-p2b-typing-blocks-r3\\.breadth_reconstructed_v1', 'before': {'dates': 0, 'settled': 0, 'sha256': 'e3b0c44298fc1c14'}, 'rows_before': 0, 'backup': 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\nb-p2b-typing-blocks-r3\\backups\\breadth_daily_ohlc-2026-10-13-155728-pre-reconstructed.db', 'backup_bytes': 32768, 'candidate_dates': 0, 'built': 0, 'after': {'dates': 0, 'settled': 0, 'sha256': 'e3b0c44298fc1c14'}, 'concurrently_written': [], 'concurrently_written_count': 0, 'rows_after': 0, 'ms': 28.9, 'settled_history_unchanged': True, 'stale_after': 0}
+[startup] ticker-search index build scheduled
+[startup] index-bars warm loop scheduled
+[startup] breadth-bars warm loop scheduled
+2026-10-13 15:57:29,080 INFO api.main: [startup] breadth reconstructed rebuild_stale: {'stale': 0, 'built': 0}
+[startup] logo_hires_v1: upgrade scheduled (~90s after boot)
+[startup] R2 initial snapshot probe+pull started (background thread)
+2026-10-13 15:57:29,081 INFO api.services.bars_continuous_audit: [continuous_audit] 24hr universe sweep
+2026-10-13 15:57:29,082 INFO api.services.ticker_search_index: [ticker_search_index] liquidity map: 0 symbols
+[startup] S3 periodic puller started (20-min cadence; mode=newer-wins-merge)
+[startup] Initial snapshot already current (0.0s) -- cache warm
+[startup] hot-set push loop started (web -> R2, 2-min cadence)
+[startup] breadth self-heal armed (boot pass + watch loop)
+[deep-cache] Skipped (set DEEP_CACHE_ENABLED=1 to enable).
+2026-10-13 15:57:29,146 INFO api.services.ticker_search_index: [ticker_search_index] built 3640 rows
+2026-10-13 15:57:29,892 INFO api.services.theme_db: [themes] overlay GC skipped (engine tables absent): no such table: engine_memberships
+2026-10-13 15:57:29,899 INFO api.services.theme_db: [themes] Seeded v4.22.0 — 112 themes, 2029 memberships
+[startup] No persisted theme data — will compute on first request
+2026-10-13 15:57:29,931 WARNING api.services.vendor_socket_guard: [finnhub] REFUSING to open the live finnhub socket: this process is not running on Railway, and the production API key allows roughly ONE connection. A local run steals that slot from production and kicks the live site off its own feed (this happened 2026-08-10 and cost a session of live charts). Set ALLOW_LOCAL_VENDOR_SOCKETS=1 if you really do want this process on the live feed.
+2026-10-13 15:57:29,937 INFO api.daily_tracker: [tracker] No history file found at C:\Users\Patrick\AppData\Local\Temp\nb-p2b-typing-blocks-r3\contract_history.json — starting fresh.
+2026-10-13 15:57:29,938 INFO api.daily_tracker: [tracker] Snapshot scheduler task created.
+[startup] Top Flow tracker: 0 active, 0 archived.
+[startup] Watchlist tracker: 0 saved days.
+2026-10-13 15:57:29,953 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=82262919598786: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,954 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=263212063478037: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,954 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=45873918139974: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,954 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=260883058653479: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,955 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=80791767513138: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,955 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=193467074160361: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,955 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=267239076625528: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,955 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=259635970298456: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,955 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=164919788607070: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,956 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=137611096038897: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,956 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=70502309616397: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,957 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=99335749032422: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,957 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=85881977722879: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,957 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=131131896967495: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,957 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=229078840933249: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,957 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=193923953788978: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,958 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=144853339379747: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,958 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=35237434383150: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,958 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=123227148862910: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,958 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=159025302660056: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,960 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=606597191911: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,960 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=113314011518325: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,960 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=110621240287509: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,960 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=214960259611021: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,960 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=63690873482139: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,960 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=54966116250052: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,960 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=67127492078784: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,960 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=19749962190216: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,960 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=93878891872809: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,960 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=62668201351833: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,960 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=68122778754676: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,960 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=27830523386444: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,960 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=114071905895624: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,960 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=90399119643365: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,961 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=217923498866998: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,961 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=50767805576432: OPENAI_API_KEY is not set
+2026-10-13 15:57:29,961 INFO api.services.voice_kb_service: [voice_kb] index_corpus: {'indexed': 0, 'skipped': 0, 'errors': 36}
+[startup] COT table empty -- seeding from CFTC historical archive (background)...
+2026-10-13 15:57:29,976 INFO api.services.cot_service: COT: downloading 2017 data (https://www.cftc.gov/files/dea/history/deacot2017.zip)...
+2026-10-13 15:57:29,992 INFO api.services.scheduler_lock: [scheduler-lock] fcntl unavailable — granting (dev mode)
+2026-10-13 15:57:30,683 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,692 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,701 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,701 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,728 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] indicator alert shadow lane OFF (set ALERT_SHADOW_ENABLED=1 to soak the closed lane)
+2026-10-13 15:57:30,729 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,733 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] alert bars freshness scheduled (every 60s, armed groups only)
+2026-10-13 15:57:30,733 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] darkpool Massive ingest scheduled (weekdays 19:20 ET)
+2026-10-13 15:57:30,737 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] darkpool ALL-SYMBOLS flat-file ingest scheduled (Mon-Sat 11:45 ET, gated)
+2026-10-13 15:57:30,742 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,743 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] darkpool intraday poller scheduled (weekdays every 3m, 7-16 ET)
+2026-10-13 15:57:30,744 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,744 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] darkpool tiered warm(12m) + snapshot fast-lane(5m) scheduled (gated)
+2026-10-13 15:57:30,751 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,751 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] darkpool EOD/EOW summary scheduled (EOD 20:10 ET weekdays, EOW 20:15 ET Fri) — dark until DARKPOOL_EOD_ENABLED=1
+[startup] nightly side-heal job skip: No module named 'api.nightly_side_heal'
+2026-10-13 15:57:30,754 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,754 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,755 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,755 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,756 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,756 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,756 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,757 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,757 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,757 INFO api.main: [startup] breadth-live pre-open warm scheduled (weekdays 9:05 ET)
+2026-10-13 15:57:30,757 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,758 INFO api.main: [startup] breadth dividend sweep scheduled (daily 4:40 ET)
+2026-10-13 15:57:30,758 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,758 INFO api.main: [startup] breadth-live intraday sampler scheduled (weekdays 9-16 ET, 1/min)
+2026-10-13 15:57:30,759 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,759 INFO api.main: [startup] breadth live-universes tick scheduled (weekdays 9-16 ET, 1/min, own job)
+2026-10-13 15:57:30,759 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,759 INFO api.main: [startup] breadth OHLC intraday aggregation scheduled (weekdays 17:15 ET)
+2026-10-13 15:57:30,759 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,767 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,767 INFO api.main: [startup] breadth put/call fill scheduled (07:05/19:05/22:05 ET + boot)
+2026-10-13 15:57:30,768 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,769 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,769 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,769 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,769 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,770 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,770 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,770 INFO api.main: [startup] breadth history backfill tick scheduled (every 12 min, gated on floor marker)
+2026-10-13 15:57:30,770 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,770 INFO api.main: [startup] breadth forward seal scheduled (every 30 min, inert while dark)
+2026-10-13 15:57:30,770 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] Entry-context capture hooks registered (inert unless NOTEBOOK_ENTRY_CONTEXT_ENABLED)
+2026-10-13 15:57:30,770 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] Similar-matches nightly job registered (inert unless NOTEBOOK_FIND_SIMILAR_ENABLED)
+2026-10-13 15:57:30,770 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,771 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,771 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,771 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] logo miss-retry scheduled (daily 3:25am ET)
+2026-10-13 15:57:30,832 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,832 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,832 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,833 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,833 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,833 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,834 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,834 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,834 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,835 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,835 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,835 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,835 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,836 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] wisdom jobs registered: 14 (wisdom_core_catchup, wisdom_core_watchdog, wisdom_capture_detections, wisdom_capture_morning, wisdom_capture_themes, wisdom_capture_tweets, wisdom_capture_eod, wisdom_capture_late, wisdom_sources_discord_listener, wisdom_sources_twitter_listener, wisdom_extract_reap, wisdom_daily_chain, wisdom_weekly_chain, wisdom_monthly_packet)
+2026-10-13 15:57:30,836 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,836 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,836 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,836 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,837 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,837 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,837 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,844 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,845 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,848 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] signature sweep scheduled (weekdays 20:05 ET)
+2026-10-13 15:57:30,856 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] bars split-repair sweep scheduled (cron[hour='2', minute='30'] ET, 500 tickers/run)
+2026-10-13 15:57:30,857 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,857 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] discord-index-close: discord_index_close=cron[day_of_week='mon-fri', hour='15', minute='45'] + discord_index_close_retry=cron[day_of_week='mon-fri', hour='15', minute='58'] armed=off webhook=UNSET(posts nothing)
+2026-10-13 15:57:30,857 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] discord-chart hot-warm scheduled (every 60s, 20s cycle budget)
+2026-10-13 15:57:30,874 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,877 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,877 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] discord render ops scheduled (flow warm every 120s, smoke +240s, /flow daily line 16:25 ET)
+2026-10-13 15:57:30,878 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] buzz poll scheduled (every 60s)
+2026-10-13 15:57:30,890 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,890 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,890 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,891 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,891 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,891 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,891 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] buzz digest scheduled (mon-fri ET): 10:00, 10:30, 11:30, 12:30, 14:00, 16:15, 17:30
+2026-10-13 15:57:30,891 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] theme_index re-warm scheduled (every 15m)
+2026-10-13 15:57:30,927 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,931 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,932 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[scheduler] substack poll job registered (hourly + Sunday burst)
+2026-10-13 15:57:30,932 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[scheduler] desk article audit registered (09:10 ET)
+[startup] pattern-vision: on model=claude-opus-4-8[code] cost_hard_cap=$10.0[default] max_per_run=150[default] active_set_only=on:84[resolved] skip_if_stable=on[force_default] confirmed_only=on[api_default]2026-10-13 15:57:30,941 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+
+2026-10-13 15:57:30,942 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,949 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,950 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,950 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,958 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,958 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,958 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,959 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[scheduler] measurement window jobs registered (Wed 09:00-11:00 ET)
+2026-10-13 15:57:30,980 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,980 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,980 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[scheduler] earnings calendar snapshot/audit/health registered
+2026-10-13 15:57:30,982 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,982 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[mrr] Snapshot recorded for 2026-10-13: MRR=$0, subs=0
+2026-10-13 15:57:30,996 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,997 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,997 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] Compass automation PAUSED -- skipping job 'voice_proactive_premarket' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'voice_proactive_scan' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'voice_proactive_after_hours' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'awareness_engine_scan' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] S7 document-arrival alerts PAUSED (set ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED=1 to resume)
+2026-10-13 15:57:30,998 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,998 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:30,998 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:31,030 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] S7 price-level DARK comparison OFF (set ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED=1 to start the dark run)
+[startup] S7 event-proximity DARK comparison OFF (set ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED=1 to start the dark run)
+[startup] S7 position-risk DARK comparison OFF (set ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED=1 to start the dark run)
+[startup] S7 scan-membership-change DARK comparison OFF (set ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED=1 to start the dark run)
+[startup] S7 catalyst-match DARK comparison OFF (set ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED=1 to start the dark run)
+[startup] S7 regime-change DARK comparison OFF (set ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED=1 to start the dark run)
+[startup] S7 indicator-condition DARK comparison OFF (set ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED=1 to start the dark run)
+[startup] D2 dual-compute warm reader OFF (set D2_DUAL_COMPUTE_WARM_READER_ENABLED=1 to start it)
+[startup] Compass automation PAUSED -- skipping job 'compass_daily_focus' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'voice_nightly_consolidate' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+2026-10-13 15:57:31,032 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:31,034 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:31,058 INFO api.oi_snapshots: [oi-snapshot] DB initialized (path=C:\Users\Patrick\AppData\Local\Temp\nb-p2b-typing-blocks-r3\oi_snapshots.db)
+2026-10-13 15:57:31,234 INFO api.services.cot_service: COT: 2017 — 2613 records parsed
+2026-10-13 15:57:31,234 INFO api.services.cot_service: COT: downloading 2018 data (https://www.cftc.gov/files/dea/history/deacot2018.zip)...
+[startup] naaim series seed: {'ok': True, 'accepted': 134, 'refused': 0, 'reasons': {}, 'first': '2023-11-29', 'last': '2026-06-17', 'count': 134}
+2026-10-13 15:57:32,161 INFO api.services.cot_service: COT: 2018 — 2763 records parsed
+2026-10-13 15:57:32,161 INFO api.services.cot_service: COT: downloading 2019 data (https://www.cftc.gov/files/dea/history/deacot2019.zip)...
+[darkpool_db] darkpool_trades upload: 5190 inserted, 49 dupes, 0 errors / 5239 total
+[startup] Darkpool DB seeded/merged: +5,190 new, 49 dupes, 0 skipped-invalid (5,239 in file)
+[startup] breadth-sentiment seed: {'ok': True, 'seeded': 15897, 'csv_rows': 15897}
+2026-10-13 15:57:32,647 INFO api.dealer_positioning: [dealer_positioning] init_db done
+[startup] dealer_positioning table initialized
+[scheduler] OI snapshot cron NOT registered here (MASSIVE_WS_ENABLED!=1 — runs on flow-worker)
+2026-10-13 15:57:32,647 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] Compass automation PAUSED -- skipping job 'compass_eod_recap' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'compass_weekly_email_digest' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+2026-10-13 15:57:32,648 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:32,648 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:32,648 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:32,648 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:32,648 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:32,648 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:32,648 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] Fundamentals reporters warm scheduled -- every 15 min in earnings windows
+2026-10-13 15:57:32,649 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] cache snapshot scheduled -- every 3 min + on shutdown
+2026-10-13 15:57:32,649 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] malloc_trim scheduled -- every 10 min
+2026-10-13 15:57:32,649 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:32,649 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] estimate history (weekdays 18:20 ET) + filings feed poll scheduled (flag-gated per run)
+2026-10-13 15:57:32,650 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:32,650 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-13 15:57:32,650 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] research depth jobs scheduled (flag-gated per run)
+2026-10-13 15:57:32,651 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ocr_requeue_abandoned" to job store "default"
+2026-10-13 15:57:32,651 INFO apscheduler.scheduler: Added job "post_daily_heartbeat" to job store "default"
+2026-10-13 15:57:32,651 INFO apscheduler.scheduler: Added job "run_signal_cycle" to job store "default"
+2026-10-13 15:57:32,652 INFO apscheduler.scheduler: Added job "post_premarket_brief" to job store "default"
+2026-10-13 15:57:32,652 INFO apscheduler.scheduler: Added job "run_scheduled_refresh" to job store "default"
+2026-10-13 15:57:32,652 INFO apscheduler.scheduler: Added job "sweep_silent_alerts" to job store "default"
+2026-10-13 15:57:32,652 INFO apscheduler.scheduler: Added job "run_scheduled_sweep" to job store "default"
+2026-10-13 15:57:32,652 INFO apscheduler.scheduler: Added job "scheduled_run" to job store "default"
+2026-10-13 15:57:32,653 INFO apscheduler.scheduler: Added job "scheduled_run" to job store "default"
+2026-10-13 15:57:32,653 INFO apscheduler.scheduler: Added job "scheduled_run" to job store "default"
+2026-10-13 15:57:32,653 INFO apscheduler.scheduler: Added job "roll_session" to job store "default"
+2026-10-13 15:57:32,653 INFO apscheduler.scheduler: Added job "scheduled_warm" to job store "default"
+2026-10-13 15:57:32,654 INFO apscheduler.scheduler: Added job "scheduled_scanner" to job store "default"
+2026-10-13 15:57:32,654 INFO apscheduler.scheduler: Added job "run_eod_summary" to job store "default"
+2026-10-13 15:57:32,654 INFO apscheduler.scheduler: Added job "job" to job store "default"
+2026-10-13 15:57:32,654 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ipo_maintenance_job" to job store "default"
+2026-10-13 15:57:32,655 INFO apscheduler.scheduler: Added job "refresh_from_current" to job store "default"
+2026-10-13 15:57:32,655 INFO apscheduler.scheduler: Added job "refresh_if_stale" to job store "default"
+2026-10-13 15:57:32,655 INFO apscheduler.scheduler: Added job "refresh_if_stale" to job store "default"
+2026-10-13 15:57:32,655 INFO apscheduler.scheduler: Added job "lifespan.<locals>._cot_narrative_prewarm_job" to job store "default"
+2026-10-13 15:57:32,655 INFO apscheduler.scheduler: Added job "lifespan.<locals>._cot_narrative_prewarm_job" to job store "default"
+2026-10-13 15:57:32,655 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ticker_types_sync" to job store "default"
+2026-10-13 15:57:32,656 INFO apscheduler.scheduler: Added job "lifespan.<locals>._of_etf_reconcile" to job store "default"
+2026-10-13 15:57:32,656 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_live_daily_warm" to job store "default"
+2026-10-13 15:57:32,656 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_dividends_refresh" to job store "default"
+2026-10-13 15:57:32,656 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_live_sample" to job store "default"
+2026-10-13 15:57:32,657 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_live_universes_tick" to job store "default"
+2026-10-13 15:57:32,657 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_ohlc_intraday_agg" to job store "default"
+2026-10-13 15:57:32,657 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_putcall_fill" to job store "default"
+[startup] Flow DB seeded stocks: 21,589 rows from flow-data.csv (1 dates)2026-10-13 15:57:32,658 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_putcall_fill" to job store "default"
+
+2026-10-13 15:57:32,658 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_eod_row_check" to job store "default"
+2026-10-13 15:57:32,658 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_external_capture" to job store "default"
+2026-10-13 15:57:32,658 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_external_report" to job store "default"
+2026-10-13 15:57:32,658 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_eod_row_check" to job store "default"
+2026-10-13 15:57:32,659 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_nhnl_extend" to job store "default"
+2026-10-13 15:57:32,659 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_nhnl_extend" to job store "default"
+2026-10-13 15:57:32,659 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_history_backfill_tick" to job store "default"
+2026-10-13 15:57:32,663 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_forward_seal_tick" to job store "default"
+2026-10-13 15:57:32,663 INFO apscheduler.scheduler: Added job "run_sweep_blocking" to job store "default"
+2026-10-13 15:57:32,663 INFO apscheduler.scheduler: Added job "run_nightly_blocking" to job store "default"
+2026-10-13 15:57:32,663 INFO apscheduler.scheduler: Added job "lifespan.<locals>._cot_daily_catchup" to job store "default"
+2026-10-13 15:57:32,664 INFO apscheduler.scheduler: Added job "cleanup_expired_sessions" to job store "default"
+2026-10-13 15:57:32,664 INFO apscheduler.scheduler: Added job "run_scheduled" to job store "default"
+2026-10-13 15:57:32,664 INFO apscheduler.scheduler: Added job "register_logo_miss_retry_job.<locals>._run" to job store "default"
+2026-10-13 15:57:32,664 INFO apscheduler.scheduler: Added job "wisdom_core_catchup" to job store "default"
+2026-10-13 15:57:32,664 INFO apscheduler.scheduler: Added job "wisdom_core_watchdog" to job store "default"
+2026-10-13 15:57:32,664 INFO apscheduler.scheduler: Added job "wisdom_capture_detections" to job store "default"
+2026-10-13 15:57:32,664 INFO apscheduler.scheduler: Added job "wisdom_capture_morning" to job store "default"
+2026-10-13 15:57:32,665 INFO apscheduler.scheduler: Added job "wisdom_capture_themes" to job store "default"
+2026-10-13 15:57:32,665 INFO apscheduler.scheduler: Added job "wisdom_capture_tweets" to job store "default"
+2026-10-13 15:57:32,665 INFO apscheduler.scheduler: Added job "wisdom_capture_eod" to job store "default"
+2026-10-13 15:57:32,665 INFO apscheduler.scheduler: Added job "wisdom_capture_late" to job store "default"
+2026-10-13 15:57:32,665 INFO apscheduler.scheduler: Added job "wisdom_sources_discord_listener" to job store "default"
+2026-10-13 15:57:32,665 INFO apscheduler.scheduler: Added job "wisdom_sources_twitter_listener" to job store "default"
+2026-10-13 15:57:32,666 INFO apscheduler.scheduler: Added job "wisdom_extract_reap" to job store "default"
+2026-10-13 15:57:32,666 INFO apscheduler.scheduler: Added job "wisdom_daily_chain" to job store "default"
+2026-10-13 15:57:32,666 INFO apscheduler.scheduler: Added job "wisdom_weekly_chain" to job store "default"
+2026-10-13 15:57:32,666 INFO apscheduler.scheduler: Added job "wisdom_monthly_packet" to job store "default"
+2026-10-13 15:57:32,666 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run" to job store "default"
+2026-10-13 15:57:32,666 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_live_scan_sweep" to job store "default"
+2026-10-13 15:57:32,666 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_spec_alerts" to job store "default"
+2026-10-13 15:57:32,666 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_finviz_universe" to job store "default"
+2026-10-13 15:57:32,666 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_earnings_dates" to job store "default"
+2026-10-13 15:57:32,666 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_opt_flow_pull" to job store "default"
+2026-10-13 15:57:32,667 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_insider_capture" to job store "default"
+2026-10-13 15:57:32,667 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_live_tier" to job store "default"
+2026-10-13 15:57:32,667 INFO apscheduler.scheduler: Added job "register_wire_watchdog_job.<locals>._check" to job store "default"
+2026-10-13 15:57:32,667 INFO apscheduler.scheduler: Added job "sweep_job" to job store "default"
+2026-10-13 15:57:32,667 INFO apscheduler.scheduler: Added job "_run_bars_split_repair_sweep" to job store "default"
+2026-10-13 15:57:32,667 INFO apscheduler.scheduler: Added job "register_discord_index_close_job.<locals>._run" to job store "default"
+2026-10-13 15:57:32,667 INFO apscheduler.scheduler: Added job "register_discord_index_close_job.<locals>._run" to job store "default"
+2026-10-13 15:57:32,667 INFO apscheduler.scheduler: Added job "_discord_chart_hot_warm" to job store "default"
+2026-10-13 15:57:32,667 INFO apscheduler.scheduler: Added job "_discord_flow_hot_warm" to job store "default"
+2026-10-13 15:57:32,667 INFO apscheduler.scheduler: Added job "_discord_render_smoke" to job store "default"
+2026-10-13 15:57:32,667 INFO apscheduler.scheduler: Added job "_discord_flow_daily_stats" to job store "default"
+2026-10-13 15:57:32,668 INFO apscheduler.scheduler: Added job "_buzz_poll" to job store "default"
+2026-10-13 15:57:32,668 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-10-13 15:57:32,668 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-10-13 15:57:32,668 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-10-13 15:57:32,668 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-10-13 15:57:32,668 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-10-13 15:57:32,669 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-10-13 15:57:32,669 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-10-13 15:57:32,669 INFO apscheduler.scheduler: Added job "lifespan.<locals>._theme_index_prewarm" to job store "default"
+2026-10-13 15:57:32,669 INFO apscheduler.scheduler: Added job "register_pattern_vision_jobs.<locals>._run" to job store "default"
+2026-10-13 15:57:32,670 INFO apscheduler.scheduler: Added job "poll_all" to job store "default"
+2026-10-13 15:57:32,670 INFO apscheduler.scheduler: Added job "poll_all" to job store "default"
+2026-10-13 15:57:32,670 INFO apscheduler.scheduler: Added job "lifespan.<locals>._article_audit" to job store "default"
+2026-10-13 15:57:32,670 INFO apscheduler.scheduler: Added job "warm_week_previews" to job store "default"
+2026-10-13 15:57:32,670 INFO apscheduler.scheduler: Added job "warm_reported_analyses" to job store "default"
+2026-10-13 15:57:32,670 INFO apscheduler.scheduler: Added job "lifespan.<locals>.<lambda>" to job store "default"
+2026-10-13 15:57:32,670 INFO apscheduler.scheduler: Added job "lifespan.<locals>.<lambda>" to job store "default"
+2026-10-13 15:57:32,671 INFO apscheduler.scheduler: Added job "run_weekly_deep" to job store "default"
+2026-10-13 15:57:32,671 INFO apscheduler.scheduler: Added job "take_sample" to job store "default"
+2026-10-13 15:57:32,671 INFO apscheduler.scheduler: Added job "take_sample" to job store "default"
+2026-10-13 15:57:32,672 INFO apscheduler.scheduler: Added job "run_bars_gate" to job store "default"
+2026-10-13 15:57:32,672 INFO apscheduler.scheduler: Added job "finalize" to job store "default"
+2026-10-13 15:57:32,672 INFO apscheduler.scheduler: Added job "snapshot_upcoming_week" to job store "default"
+2026-10-13 15:57:32,673 INFO apscheduler.scheduler: Added job "audit_week" to job store "default"
+2026-10-13 15:57:32,673 INFO apscheduler.scheduler: Added job "post_health" to job store "default"
+2026-10-13 15:57:32,673 INFO apscheduler.scheduler: Added job "lifespan.<locals>._check_churn_risk" to job store "default"
+2026-10-13 15:57:32,673 INFO apscheduler.scheduler: Added job "record_mrr_snapshot" to job store "default"
+2026-10-13 15:57:32,673 INFO apscheduler.scheduler: Added job "run_daily_digests" to job store "default"
+2026-10-13 15:57:32,673 INFO apscheduler.scheduler: Added job "run_weekly_digests" to job store "default"
+2026-10-13 15:57:32,673 INFO apscheduler.scheduler: Added job "lifespan.<locals>._nightly_bar_refresh" to job store "default"
+2026-10-13 15:57:32,673 INFO apscheduler.scheduler: Added job "lifespan.<locals>._alert_webhook_drain_job" to job store "default"
+2026-10-13 15:57:32,674 INFO apscheduler.scheduler: Added job "lifespan.<locals>._alert_lifecycle_expire_job" to job store "default"
+2026-10-13 15:57:32,674 INFO apscheduler.scheduler: Added job "lifespan.<locals>._alert_remind_job" to job store "default"
+2026-10-13 15:57:32,674 INFO apscheduler.scheduler: Added job "lifespan.<locals>._alert_rating_change_job" to job store "default"
+2026-10-13 15:57:32,674 INFO apscheduler.scheduler: Added job "lifespan.<locals>._nightly_flow_prune" to job store "default"
+2026-10-13 15:57:32,675 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ssetf_nightly" to job store "default"
+2026-10-13 15:57:32,675 INFO apscheduler.scheduler: Added job "purge_expired" to job store "default"
+2026-10-13 15:57:32,675 INFO apscheduler.scheduler: Added job "lifespan.<locals>._compass_health_email_job" to job store "default"
+2026-10-13 15:57:32,675 INFO apscheduler.scheduler: Added job "_run_patterns_track_outcomes" to job store "default"
+2026-10-13 15:57:32,675 INFO apscheduler.scheduler: Added job "_run_patterns_recompute_stats" to job store "default"
+2026-10-13 15:57:32,676 INFO apscheduler.scheduler: Added job "_run_patterns_leaders_scan" to job store "default"
+2026-10-13 15:57:32,676 INFO apscheduler.scheduler: Added job "_run_patterns_universe_scan" to job store "default"
+2026-10-13 15:57:32,676 INFO apscheduler.scheduler: Added job "_run_patterns_prune" to job store "default"
+2026-10-13 15:57:32,676 INFO apscheduler.scheduler: Added job "lifespan.<locals>._fundamentals_reporters_warm_job" to job store "default"
+2026-10-13 15:57:32,677 INFO apscheduler.scheduler: Added job "lifespan.<locals>._cache_snapshot_job" to job store "default"
+2026-10-13 15:57:32,677 INFO apscheduler.scheduler: Added job "lifespan.<locals>._malloc_trim_job" to job store "default"
+2026-10-13 15:57:32,677 INFO apscheduler.scheduler: Added job "lifespan.<locals>._estimate_history_job" to job store "default"
+2026-10-13 15:57:32,677 INFO apscheduler.scheduler: Added job "lifespan.<locals>._filings_feed_job" to job store "default"
+2026-10-13 15:57:32,677 INFO apscheduler.scheduler: Added job "lifespan.<locals>._filing_search_reindex_job" to job store "default"
+2026-10-13 15:57:32,677 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ftd_ingest_job" to job store "default"
+2026-10-13 15:57:32,677 INFO apscheduler.scheduler: Added job "lifespan.<locals>._sec_13f_list_job" to job store "default"
+2026-10-13 15:57:32,678 INFO apscheduler.scheduler: Scheduler started
+[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET
+[startup] Session cleanup scheduled -- daily at 3:00 AM ET
+[startup] Churn risk check scheduled -- daily at 9:00 AM ET
+[startup] MRR snapshot scheduled -- daily at 11:59 PM ET
+[startup] Compass automation PAUSED -- all scheduled Compass/voice jobs skipped; manual surfaces unaffected (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Pattern engine jobs scheduled -- outcomes (4h interval), stats (06:00 UTC daily), universe scan (1h interval)
+2026-10-13 15:57:32,679 INFO api.massive_ws_worker: [massive-ws] disabled via MASSIVE_WS_ENABLED=0
+[startup] Massive WS consumer not started (disabled or no MASSIVE_API_KEY)
+2026-10-13 15:57:32,682 WARNING api.massive_flatfiles_worker: [massive-ff] MASSIVE_S3_ACCESS_KEY/SECRET not set -- not registering scheduler jobs
+[startup] Massive Flat Files cron NOT registered (disabled or no S3 keys)
+2026-10-13 15:57:32,877 INFO api.services.cot_service: COT: 2019 — 2755 records parsed
+2026-10-13 15:57:32,877 INFO api.services.cot_service: COT: downloading 2020 data (https://www.cftc.gov/files/dea/history/deacot2020.zip)...
+[startup] Flow DB seeded indexes: 16,203 rows from Indexes-data.csv (1 dates)
+2026-10-13 15:57:33,242 INFO api.flow_gap_autofill: [gap-fill] disabled (FLOW_GAP_AUTOFILL_ENABLED != 1)
+2026-10-13 15:57:33,242 INFO api.flow_backup: [flow-backup] disabled (FLOW_BACKUP_ENABLED != 1)
+2026-10-13 15:57:33,242 INFO api.j2_attachments_backup: [j2-attach-backup] disabled (J2_ATTACHMENT_BACKUP_ENABLED != 1)
+2026-10-13 15:57:33,243 INFO api.services.store_backup: [store_backup] disabled (STORE_BACKUP_ENABLED unset)
+2026-10-13 15:57:33,245 INFO api.services.journal_two.excursion_jobs: [j2-excursion] disabled (EXCURSION_ENGINE_ENABLED != 1)
+2026-10-13 15:57:33,245 INFO apscheduler.scheduler: Added job "run_weekly_sweep" to job store "default"
+[startup] j2 books audit registered (Sun 09:30 ET)
+2026-10-13 15:57:33,246 INFO apscheduler.scheduler: Added job "register_trash_purge_job.<locals>._job" to job store "default"
+[startup] j2 trash purge registered (03:20 ET daily)
+2026-10-13 15:57:33,246 INFO apscheduler.scheduler: Added job "register_task_reminder_job.<locals>._boundary.<locals>.body" to job store "default"
+2026-10-13 15:57:33,247 INFO apscheduler.scheduler: Added job "register_task_reminder_job.<locals>._boundary.<locals>.body" to job store "default"
+2026-10-13 15:57:33,247 INFO apscheduler.scheduler: Added job "register_task_reminder_job.<locals>._boundary.<locals>.body" to job store "default"
+[startup] notebook task reminders registered (07:00 + 09:00 ET, boot catch-up)
+2026-10-13 15:57:33,248 INFO apscheduler.scheduler: Added job "sweep_job" to job store "default"
+[startup] notebook semantic sweep registered (every 15 min; dark unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED)
+2026-10-13 15:57:33,248 INFO apscheduler.scheduler: Added job "scheduled_check" to job store "default"
+2026-10-13 15:57:33,248 INFO apscheduler.scheduler: Added job "scheduled_digest" to job store "default"
+[startup] notebook SLO check registered (every 15 min) + digest (17:10 ET)
+2026-10-13 15:57:33,249 INFO apscheduler.scheduler: Added job "nightly_job" to job store "default"
+[startup] notebook passed-setups nightly registered (17:40 ET weekdays; dark unless NOTEBOOK_PASSED_SETUPS_ENABLED)
+[watchdog] dark — WATCHDOG_ENABLED and WATCHDOG_OBSERVE both off; not starting (set WATCHDOG_OBSERVE=1 to gather a lag baseline).
+2026-10-13 15:57:33,250 INFO api.daily_tracker: [tracker] Snapshot scheduler started.
+2026-10-13 15:57:33,250 INFO api.daily_tracker: [tracker] Next snapshot at 2026-10-14 16:30 ET (84747 seconds from now).
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8143 (Press CTRL+C to quit)
+2026-10-13 15:57:33,417 INFO api.flow_backup: [flow-backup] flow.db integrity OK (ok)
+INFO:     127.0.0.1:54089 - "GET /api/health HTTP/1.1" 200 OK
+2026-10-13 15:57:33,633 INFO api.services.cot_service: COT: 2020 — 2748 records parsed
+2026-10-13 15:57:33,633 INFO api.services.cot_service: COT: downloading 2021 data (https://www.cftc.gov/files/dea/history/deacot2021.zip)...
+[startup] cboe refresh: ingested={'VIX9D': 3966, 'VIX3M': 4292, 'VIX6M': 4723, 'VVIX': 5123, 'VXN': 4298, 'RVX': 4289, 'SKEW': 9246} errors={}
+2026-10-13 15:57:33,969 INFO api.main: [breadth-series-warm] {'ok': False, 'reason': 'flag off'}
+2026-10-13 15:57:34,314 WARNING api.services.email_service: [email] Skipping email to hubtest@local.dev (Resend not configured)
+INFO:     127.0.0.1:54120 - "POST /api/auth/signup HTTP/1.1" 200 OK
+2026-10-13 15:57:34,408 INFO api.services.cot_service: COT: 2021 — 2888 records parsed
+2026-10-13 15:57:34,409 INFO api.services.cot_service: COT: downloading 2022 data (https://www.cftc.gov/files/dea/history/deacot2022.zip)...
+2026-10-13 15:57:34,582 WARNING api.services.email_service: [email] Skipping email to w7perf@local.dev (Resend not configured)
+INFO:     127.0.0.1:54120 - "POST /api/auth/signup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54120 - "POST /api/auth/admin/comp-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54120 - "POST /api/auth/admin/verify-email HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54120 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54120 - "POST /api/j2/notes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54130 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54131 - "GET /api/health HTTP/1.1" 200 OK
+2026-10-13 15:57:35,161 INFO api.services.cot_service: COT: 2022 — 3248 records parsed
+2026-10-13 15:57:35,161 INFO api.services.cot_service: COT: downloading 2023 data (https://www.cftc.gov/files/dea/history/deacot2023.zip)...
+INFO:     127.0.0.1:54120 - "POST /api/j2/notes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54120 - "POST /api/j2/notes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54120 - "POST /api/j2/notes HTTP/1.1" 200 OK
+2026-10-13 15:57:36,027 INFO api.services.cot_service: COT: 2023 — 3413 records parsed
+2026-10-13 15:57:36,027 INFO api.services.cot_service: COT: downloading 2024 data (https://www.cftc.gov/files/dea/history/deacot2024.zip)...
+INFO:     127.0.0.1:51690 - "GET /journal/notebook?note=2fadf135cf9d424ba9d3a4e4c50f8147 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /fonts/instrument-sans-v4-latin.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /fonts/instrument-sans-v4-latin-tab.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/index-BX6_NCD1.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/index-ChMqvw_s.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/vendor-react-BrA_wePN.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/vendor-swr-DMX8TUtE.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/AddPositionModal-C6XPp9vS.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/GlobalAddPositionProvider-BAhU_oIE.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/disciplineGuards-BETme5OJ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/useJ2Accounts-BLeM472D.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/useJ2SelectedAccount-CAvhJQBb.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/useJ2Settings-Cql1frXl.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/GlobalAddPositionProvider-BxtpbEMG.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/regimeWords-D9eQ7hTC.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/ModalShell-cNsm7dP-.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/Toast-B2CVyuZT.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/LogTradeChecklistSlot-D22yQG8W.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/AlertBanner-DEh6uiOt.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/VoiceInputButton-DJ7JuWzt.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/ModalShell.module-BBDh_wSF.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/AlertBanner.module-CqPaXHgr.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/checklistItems-B3cMETiD.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/LogTradeChecklistSlot-Cxm5rw7p.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/journalStylesFlag-CvQC1bIr.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/useJ2CurrentRegime-IZzZSNUS.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/registry-Cw_FZvaG.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/compassScope-BdtmPm2h.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/widgetEmbedCore-BA8Rs1Wz.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/drawingsStore-BFYRuH6i.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/InterventionBanner-Ckup1yF2.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/maintenance HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/Toast-BmcCOIlm.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/uid-BuiH9E25.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/compass-mark-DvndB-rt.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/ContextPopover-BnxCoxux.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/useRovingTabIndex-DLd4zs36.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/ShortcutCheatSheet-CXAsiUve.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/index-CMdH19mr.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/JournalLayout-CWS6qPsI.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/routeFocus-BX1v7wLO.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/ContextPopover-CiwQWpbK.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/JournalLayout-Cc68GMfU.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/JournalLayout-loLcNbFD.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/DeleteAccountModal-Dq2de4K8.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/ShortcutCheatSheet-DIrKw8XV.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/LoadFailed-XFjbJGz9.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/GlobalVoiceLayer-DTP7cbsc.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/LoadFailed-D_nD0jqQ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/useLongPress-BFZb_6ZI.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/DeleteAccountModal-DKQr0zHZ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/CompassOrb-d-YKkmgE.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/useJ2AccountComparison-DbnNAO1V.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/platform-BjMEggDU.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/JournalLayout.module-DikITloP.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/useJ2Positions-rygmkua2.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/journalRoutes-HtVy9PaN.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/indicatorRegistry-Ddzaz4nj.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/GlobalVoiceLayer-BpEvENVQ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/chartDefaults-CPjQRtVJ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/drawingColors-DVGzR6Ty.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/colours-OXJHZl_e.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/sentence-dva8jABj.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/nativeRegistry-CH2CH8WZ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/interpret-CLeZp-Og.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/Provenance-C_1qDZfS.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/AskPanel-MerGyudY.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/CapturedSourceSheet-cVOA7qsQ.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/AskInsertView-mRzIgo_M.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/FolderSidebar--raoRk_E.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/tiptap-DKox71Qj.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/RsBadge-C3U6yPu9.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/TranscriptPanel-CJ3-x0Bi.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/CollapsibleSection-C6X1gx7M.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/UnreadableNoteNotice-ljOSuQZK.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/NotebookFlagGate-Ds8yA-G7.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/presentation-BKMLneTA.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/readAloudProgress-DWtCuYlC.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/fundamentalFormat-Bs1S9CPW.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/timeframes-DNdrDnui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/CompassOrb-CAz6rWzC.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/watchlists?include_prebuilt=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /api/community/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/watchlists/flagged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/voice/insights/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/alerts?limit=20 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /api/auth/preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/auth/avatar/bfce175c-8376-4a81-8d06-d08401a2b747 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /api/intradaypack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/NotebookSurface-Cvgq53a6.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/NotebookFlagGate-D1GKc4aQ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /api/indicator-alerts/delivery-health?limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/CapturedSourceSheet-CsZXGJ_C.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "POST /api/auth/track HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/AskPanel.module-DrM1PSZp.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/index-D1XVJ_bY.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/askInsert-CIoEfc4b.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/breadthpack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/index-Vcq4gwWv.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/index-C7yKKq-w.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/Provenance-BG9jISBu.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/documentProvenance-BdzAm6ny.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/sampleNotebook-CXD6KOAl.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/noteHasUnsentWork-C-yu52Pa.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/offlineFlag-Q9vKdvSH.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/FolderSidebar-JniGzwvS.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/ConfirmModal-D8VHs9Fm.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/computed-DFSFrGp8.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/tiptap-BMxcuFnT.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/index-jb_zvbfm.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/calendar-XzuO1sW0.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/fontFamilies-kMTQjQyI.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/researchCapture-DRtYjucP.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/voiceNote-D8ZxU2I4.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/embedArchive-COl1nBQO.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/index-5_BQjH9m.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/useToolbarRoving-CoLxT1uq.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/RsBadge-Ck-iz9n2.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/TranscriptPanel-CQcaVczx.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/AskInsertView-BMb5t3Dp.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/useDurableNote-BYNmjmH7.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/CollapsibleSection-DjXCF3gT.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/UnreadableNoteNotice-CFUFxYSb.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/useNoteConnectors-CPWvus1X.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/reviewDraftsFlag-BxuFdFOP.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/TranscriptDoors-AZIfomuf.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/broker/fills/check HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /api/j2/accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/positions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /api/j2/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "POST /api/j2/broker/sync?background=1 HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:50669 - "GET /api/j2/accounts/comparison HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/voice/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /api/j2/note-folders HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "POST /api/watchlists/flagged/sync HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /api/j2/notes/folder-counts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /api/j2/notes?sort=updated&limit=1&deleted=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes?folder_id=__archived__&sort=updated&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /api/j2/notes/favorites HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /api/j2/notes/tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/excerpts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/evidence-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/facts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/saved-views HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/ownChartSettings-CvYs6_mN.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/properties HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /api/j2/notes?sort=title HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/Blocks-CBjOjjaM.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/property-defs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/thesis-summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/CaptureMenu-Bv_uBcvv.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/notes?sort=updated HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/MarketContextWidget-C-4AHeVe.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/accounts/5204a0b2-7264-41d9-86a6-e1f02346e57e/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /api/j2/positions?account_id=5204a0b2-7264-41d9-86a6-e1f02346e57e HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/backlinks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/trade-ref/resolve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/journalBlocks-BYR__wuj.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/BlockNodeView-B3u5VFIh.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/Blocks.module-C4VmgSbb.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/related-from HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/MarketContextEmbed-Cpi2IB6Q.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/WorkspaceContext-C5mvCp5f.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/MyRulesBlock-CRiueEPr.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/PositionSizingBlock-BOQDUTR6.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/unlinked-mentions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/MarketContextWidget-D0uqgwfA.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/widgetSnapshotFetcher-B1x_-5Kd.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/sendToJournal-F5O_obLy.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/CaptureMenu-CGqZqVvN.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/frozenWorkspace-BZpHfo3H.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/PrepLevelsBlock-ByIDAhGY.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/PrepCapture-DX4WB8A6.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/setupsBoardText-DHyQzMkv.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/PreEntryChecklistBlock-BIFwYsS5.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/useChecklistSources-BbGQarm0.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/useJournalRules-Cbab-zr8.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/PrepMoversBlock-BXJh__HY.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/rulesApi-20wq-3e_.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/Switch-Brn9hvto.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/MyRulesBlock-B-krdKEu.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/TradeReviewBlock-DSnp4_-f.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /assets/planGradeText-Bbzi7yKv.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/PriceStampsBlock-93I1AEV-.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /assets/PrepWireBlock-B524feEe.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /assets/a8Taxonomy-Cie7WdvJ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /assets/tickerResolver-Ctbr721I.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /assets/PrepEarningsBlock-VQTrZlJ4.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /assets/PositionSizingBlock-DadzXSCp.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+2026-10-13 15:57:36,966 INFO api.services.cot_service: COT: 2024 — 3450 records parsed
+2026-10-13 15:57:36,966 INFO api.services.cot_service: COT: downloading 2025 data (https://www.cftc.gov/files/dea/history/deacot2025.zip)...
+INFO:     127.0.0.1:50766 - "GET /api/watchlists?include_items=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/watchlist-alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /api/ticker-tags/shared HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/ticker-tags/public HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/ticker-tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/excerpts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/facts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/evidence-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/backlinks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "GET /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/trade-ref/resolve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/properties HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/related-from HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51690 - "GET /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/thesis-summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/unlinked-mentions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61910 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+2026-10-13 15:57:37,801 INFO api.services.cot_service: COT: 2025 — 3289 records parsed
+2026-10-13 15:57:37,802 INFO api.services.cot_service: COT: downloading 2026 data (https://www.cftc.gov/files/dea/history/deacot2026.zip)...
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+2026-10-13 15:57:38,255 INFO boot_probe: [boot-probe] boot+13s anyio 0/64 waiting=0 threads=57 yf q=0 threads=2/8 loop-lag=5ms cpu=175% tracked=0 importing=0
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+2026-10-13 15:57:38,556 INFO api.services.cot_service: COT: 2026 — 2495 records parsed
+[warm] dashboard cache warmed: snapshot
+[warm] dashboard cache warmed: movers
+2026-10-13 15:57:38,684 INFO api.services.cot_service: COT: initial seed complete — 29662 records inserted (709 unmapped markets ignored)
+[startup] COT initial seed complete -- 29662 records inserted
+INFO:     127.0.0.1:59062 - "GET /api/j2/trader-blocks/review/trades HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:56249 - "GET /api/j2/regime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/accounts/5204a0b2-7264-41d9-86a6-e1f02346e57e/rules?status=active HTTP/1.1" 200 OK
+[warm] dashboard cache warmed: news
+[warm] dashboard cache warmed: theme-performance
+[warm] dashboard cache warmed: leadership
+[warm] dashboard cache warmed: breadth
+[theme-perf] Computation done — 1 themes persisted to disk
+[warm] dashboard cache warmed: earnings
+[substack] article bodies: fetched=8 reconverted=0 deferred=71 refused=0
+2026-10-13 15:57:42,462 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — October 11, 2026' with 50 tickers
+2026-10-13 15:57:42,497 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — October 4, 2026' with 77 tickers
+2026-10-13 15:57:42,531 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — September 27, 2026' with 49 tickers
+2026-10-13 15:57:42,565 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — September 20, 2026' with 69 tickers
+2026-10-13 15:57:42,601 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — September 13, 2026' with 44 tickers
+2026-10-13 15:57:42,639 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — September 6, 2026' with 83 tickers
+2026-10-13 15:57:42,674 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — August 30, 2026' with 90 tickers
+2026-10-13 15:57:42,711 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — August 23, 2026' with 74 tickers
+2026-10-13 15:57:42,767 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — August 16, 2026' with 62 tickers
+2026-10-13 15:57:42,802 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — August 9, 2026' with 46 tickers
+2026-10-13 15:57:42,836 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — August 2, 2026' with 74 tickers
+2026-10-13 15:57:42,869 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — July 19, 2026' with 57 tickers
+[substack] sunday-scans watchlists reconciled — created/rebuilt 12, retired 0, 12 issues kept
+2026-10-13 15:57:43,271 INFO boot_probe: [boot-probe] boot+18s anyio 0/64 waiting=0 threads=52 yf q=0 threads=2/8 loop-lag=15ms cpu=48% tracked=0 importing=0
+INFO:     127.0.0.1:50669 - "PUT /api/j2/notes/48fc4fe3c14d417696b63c9d336f1165 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51522 - "GET /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/excerpts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55771 - "GET /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/facts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/evidence-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/thesis-summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51522 - "GET /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/properties HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/trade-ref/resolve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51522 - "GET /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/related-from HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/backlinks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/unlinked-mentions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/voice/insights/unspoken HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/note-folders HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/notes/tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/facts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/property-defs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/evidence-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59062 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/properties HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55771 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/excerpts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51522 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/thesis-summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51522 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/backlinks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50669 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/related-from HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/unlinked-mentions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/trader-blocks/review/trades HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:52911 - "GET /api/j2/accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/accounts/5204a0b2-7264-41d9-86a6-e1f02346e57e/settings HTTP/1.1" 200 OK
+2026-10-13 15:57:48,283 INFO boot_probe: [boot-probe] boot+23s anyio 0/64 waiting=0 threads=52 yf q=0 threads=2/8 loop-lag=12ms cpu=48% tracked=0 importing=0
+2026-10-13 15:57:48,973 INFO api.main: [dashboard-warm] flow-tape ok
+[dormant] self-heal rebuilt active set (0 active)
+2026-10-13 15:57:48,977 INFO api.main: [dashboard-warm] screener-meta ok
+2026-10-13 15:57:48,986 INFO api.main: [dashboard-warm] screener-meta-payload ok
+2026-10-13 15:57:48,997 INFO api.main: [dashboard-warm] scatter-universes ok
+2026-10-13 15:57:48,997 INFO api.main: [dashboard-warm] options-sizzle ok
+2026-10-13 15:57:48,997 INFO api.main: [dashboard-warm] movers ok
+2026-10-13 15:57:49,080 INFO breadth_symbols: [breadth_symbols] authorities verified: us=False (0.0s, frozen replica absent) exch=False (0.0s, BREADTH_AUTHORITY_EXCH is off); first reads warmed in 0.0s
+2026-10-13 15:57:49,114 INFO api.main: [dashboard-warm] themes ok
+2026-10-13 15:57:49,114 INFO api.main: [dashboard-warm] news ok
+2026-10-13 15:57:49,121 INFO api.main: [dashboard-warm] breadth ok
+2026-10-13 15:57:49,121 INFO api.main: [dashboard-warm] breadth-live {'ok': False, 'reason': 'reference levels unavailable'}
+2026-10-13 15:57:49,121 INFO api.main: [dashboard-warm] breadth-live ok
+2026-10-13 15:57:49,121 INFO api.main: [dashboard-warm] his-wire-archive ok
+INFO:     127.0.0.1:56249 - "PUT /api/j2/notes/7c2c46ca446047eca6306b30341c1a6d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/evidence-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49601 - "GET /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/facts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/excerpts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57122 - "GET /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/thesis-summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57122 - "GET /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/backlinks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49601 - "GET /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/related-from HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/trade-ref/resolve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/unlinked-mentions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/properties HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/positions?account_id=5204a0b2-7264-41d9-86a6-e1f02346e57e HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/trade-ref/resolve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/note-folders HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57122 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/facts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/property-defs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/evidence-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/excerpts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56789 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/properties HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49601 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/thesis-summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57122 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49601 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/unlinked-mentions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57122 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/related-from HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/backlinks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+2026-10-13 15:57:53,285 INFO boot_probe: [boot-probe] boot+28s anyio 0/64 waiting=0 threads=60 yf q=0 threads=4/8 loop-lag=1ms cpu=140% tracked=0 importing=0
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+2026-10-13 15:57:53,327 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+INFO:     127.0.0.1:59717 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+2026-10-13 15:57:53,369 INFO api.routers.calendar: Calendar: backfilled 5 past-day reporters from Finnhub+FMP (2026-10-12 -> 2026-10-12)
+2026-10-13 15:57:53,369 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+2026-10-13 15:57:53,824 INFO api.routers.calendar: Calendar: live-window supplement added 199 reporters (2026-10-13 -> 2026-10-16)
+INFO:     127.0.0.1:59717 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+2026-10-13 15:57:53,872 INFO api.routers.calendar: Calendar: FMP patched 31 actuals through 2026-10-13
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "POST /api/j2/notes/2fadf135cf9d424ba9d3a4e4c50f8147/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "POST /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/trader-blocks/review/trades HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:49601 - "GET /api/j2/regime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57122 - "GET /api/j2/accounts/5204a0b2-7264-41d9-86a6-e1f02346e57e/rules?status=active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52911 - "GET /api/j2/accounts/5204a0b2-7264-41d9-86a6-e1f02346e57e/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59717 - "GET /api/j2/accounts HTTP/1.1" 200 OK
+2026-10-13 15:57:55,006 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Bull & Bear ETFs' with 72 tickers
+2026-10-13 15:57:55,044 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sector SPDRs' with 11 tickers
+2026-10-13 15:57:55,084 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Broad Market & Index' with 12 tickers
+2026-10-13 15:57:55,124 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Industry & Thematic ETFs' with 36 tickers
+2026-10-13 15:57:55,168 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Country & Region ETFs' with 20 tickers
+2026-10-13 15:57:55,208 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Commodities' with 18 tickers
+2026-10-13 15:57:55,352 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Bonds & Rates' with 20 tickers
+2026-10-13 15:57:55,395 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Crypto ETFs' with 12 tickers
+2026-10-13 15:57:55,436 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Factor & Smart-Beta ETFs' with 10 tickers
+2026-10-13 15:57:55,487 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'S&P 500' with 503 tickers
+2026-10-13 15:57:55,532 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'S&P 100' with 98 tickers
+2026-10-13 15:57:55,571 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Nasdaq 100' with 102 tickers
+  [post-boot (+15s)] shared data root CLEAN (62 db files byte-identical).
+2026-10-13 15:57:55,607 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Dow 30' with 30 tickers
+2026-10-13 15:57:55,650 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'S&P MidCap 400' with 396 tickers
+2026-10-13 15:57:55,691 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'S&P SmallCap 600' with 600 tickers
+2026-10-13 15:57:55,742 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Russell 2000' with 1921 tickers
+2026-10-13 15:57:55,838 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'UCT Thematic Indexes' with 112 tickers
+2026-10-13 15:57:55,874 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'MA Breadth' with 8 tickers
+2026-10-13 15:57:55,911 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Momentum Breadth' with 15 tickers
+2026-10-13 15:57:55,947 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Highs & Lows' with 10 tickers
+2026-10-13 15:57:55,987 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Score & Regime' with 12 tickers
+2026-10-13 15:57:55,992 INFO api.services.watchlist_prebuilt_refresh: [prebuilt-refresh] startup catch-up (overlay age=None) — refreshing
+2026-10-13 15:57:58,293 INFO boot_probe: [boot-probe] boot+33s anyio 0/64 waiting=0 threads=66 yf q=0 threads=4/8 loop-lag=8ms cpu=208% tracked=0 importing=0
+2026-10-13 15:57:59,047 INFO api.services.ticker_logos_prewarm: [logo-prewarm] starting pass: 3640 universe, 3640 to warm, 0 already cached
+2026-10-13 15:58:00,005 INFO apscheduler.executors.default: Running job "lifespan.<locals>._alert_lifecycle_expire_job (trigger: cron[minute='*'], next run at: 2026-10-13 16:58:00 EDT)" (scheduled at 2026-10-13 16:58:00-04:00)
+2026-10-13 15:58:00,006 INFO apscheduler.executors.default: Running job "lifespan.<locals>._alert_webhook_drain_job (trigger: cron[minute='*'], next run at: 2026-10-13 16:58:00 EDT)" (scheduled at 2026-10-13 16:58:00-04:00)
+2026-10-13 15:58:00,007 INFO apscheduler.executors.default: Running job "lifespan.<locals>._breadth_live_sample (trigger: cron[day_of_week='mon-fri', hour='9-16', minute='*'], next run at: 2026-10-13 16:58:00 EDT)" (scheduled at 2026-10-13 16:58:00-04:00)
+2026-10-13 15:58:00,008 INFO apscheduler.executors.default: Running job "lifespan.<locals>._breadth_live_universes_tick (trigger: cron[day_of_week='mon-fri', hour='9-16', minute='*'], next run at: 2026-10-13 16:58:00 EDT)" (scheduled at 2026-10-13 16:58:00-04:00)
+2026-10-13 15:58:00,008 INFO apscheduler.executors.default: Running job "wisdom_sources_discord_listener (trigger: cron[minute='13,28,43,58'], next run at: 2026-10-13 16:58:00 EDT)" (scheduled at 2026-10-13 16:58:00-04:00)
+2026-10-13 15:58:00,019 INFO apscheduler.executors.default: Job "lifespan.<locals>._alert_webhook_drain_job (trigger: cron[minute='*'], next run at: 2026-10-13 16:59:00 EDT)" executed successfully
+2026-10-13 15:58:00,020 INFO apscheduler.executors.default: Job "lifespan.<locals>._breadth_live_sample (trigger: cron[day_of_week='mon-fri', hour='9-16', minute='*'], next run at: 2026-10-13 16:59:00 EDT)" executed successfully
+2026-10-13 15:58:00,020 INFO apscheduler.executors.default: Job "lifespan.<locals>._alert_lifecycle_expire_job (trigger: cron[minute='*'], next run at: 2026-10-13 16:59:00 EDT)" executed successfully
+2026-10-13 15:58:00,024 INFO apscheduler.executors.default: Job "lifespan.<locals>._breadth_live_universes_tick (trigger: cron[day_of_week='mon-fri', hour='9-16', minute='*'], next run at: 2026-10-13 16:59:00 EDT)" executed successfully
+2026-10-13 15:58:00,026 INFO apscheduler.executors.default: Job "wisdom_sources_discord_listener (trigger: cron[minute='13,28,43,58'], next run at: 2026-10-13 17:13:00 EDT)" executed successfully
+INFO:     127.0.0.1:54126 - "PUT /api/j2/notes/b9a96cc0eb354fe0901463cec56fdc76 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54126 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-10-13 15:58:00,630 INFO api.massive_ws_worker: [massive-ws] stop(): consumer not running -- nothing to do
+[shutdown] Massive WS consumer stop: clean
+2026-10-13 15:58:00,632 INFO api.liveflow_worker_threaded: [liveflow-thread] stop(): worker not running — nothing to do
+[shutdown] Bullflow SSE worker stop: clean
+2026-10-13 15:58:00,633 INFO apscheduler.scheduler: Scheduler has been shut down
+2026-10-13 15:58:00,820 INFO api.services.cache_snapshot: [cache-snapshot] saved 35/49 entries (2318.0 KB)
+[shutdown] cache snapshot saved: 35 entries, 2318 KB
+2026-10-13 15:58:00,822 INFO api.daily_tracker: [tracker] Snapshot scheduler cancelled.
+2026-10-13 15:58:00,823 INFO api.daily_tracker: [tracker] Snapshot scheduler stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [23284]
+2026-10-13 15:58:02,455 INFO api.services.watchlist_prebuilt_refresh: [prebuilt-refresh] liquid=100 delisted=77 (ADGI,AMBC,AMEH,ANGIV,APGE,ATAI,ATUS,AVB,AXL,BF-B,BH-A,BIGC,BLFS,BOMN,BRK-B,BRKS,CDXC,COEP,COMM,CRD-A,CRNX,DBRG,DOMO,EA,ELY,EQR,EXPI,FBHS,FBRX,GBTG,GEF-B,GMRE,GPS,HEAR,HLX,HM,HONAV,ISSC,JCOM,KFS,LANC,LC,LEG,LNDC,MDV,MEG,MOG-A,MPW,NCR,OSTK,PCYG,PFHC,PSKY,PTSI,PX,QRVO,RCII,RMAX,SBT,SCVL,SEAS,SLP,SPX,SRM,SWM,TALK,TBPH,THAR,THRD,TOI,TPX,TWO,VIX,VSNTV,WBD,WBS,ZI) index={'s&p 500': 503, 's&p 100': 101, 'nasdaq 100': 101, 'dow 30': 30, 's&p midcap 400': 400, 's&p smallcap 600': 602, 'russell 2000': 1963} days=2026-10-13,2026-10-12,2026-10-09,2026-10-08,2026-10-07
+2026-10-13 15:58:02,604 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'S&P 500' with 500 tickers
+2026-10-13 15:58:02,678 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'S&P 100' with 100 tickers
+2026-10-13 15:58:02,757 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Nasdaq 100' with 101 tickers
+2026-10-13 15:58:02,895 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'S&P MidCap 400' with 399 tickers
+2026-10-13 15:58:03,832 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'S&P SmallCap 600' with 602 tickers
+2026-10-13 15:58:03,972 INFO api.main: [startup] theme_index prewarm: 0 themes warmed
+2026-10-13 15:58:04,009 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Russell 2000' with 1957 tickers
+2026-10-13 15:58:06,370 ERROR yfinance: HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-10-13 15:58:06,372 ERROR yfinance: HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-10-13 15:58:06,376 ERROR yfinance: HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-10-13 15:58:06,377 ERROR yfinance: HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-10-13 15:58:07,467 ERROR yfinance: HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-10-13 15:58:07,468 INFO api.services.earnings_session_resolver: session resolver: yahoo AONNF failed: argument of type 'NoneType' is not a container or iterable
+2026-10-13 15:58:09,045 ERROR yfinance: HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-10-13 15:58:10,239 INFO breadth_symbols: [breadth_symbols] warm pass done: {'refreshed': 45, 'fresh': 0, 'indicators': {'fresh': 8, 'restored': 0, 'rebuilt': 6, 'deferred': 11}, 'pack': {'ok': False, 'reason': 'no breadth series built yet'}}
+2026-10-13 15:58:10,901 ERROR yfinance: HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-10-13 15:58:10,902 ERROR yfinance: HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-10-13 15:58:10,903 INFO api.services.earnings_session_resolver: session resolver: yahoo BPHLY failed: argument of type 'NoneType' is not a container or iterable
+2026-10-13 15:58:10,997 ERROR yfinance: HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-10-13 15:58:11,289 ERROR yfinance: HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-10-13 15:58:11,289 INFO api.services.earnings_session_resolver: session resolver: yahoo BRIOF failed: argument of type 'NoneType' is not a container or iterable
+2026-10-13 15:58:11,291 ERROR yfinance: HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-10-13 15:58:11,713 ERROR yfinance: HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-10-13 15:58:11,716 ERROR yfinance: HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-10-13 15:58:11,717 INFO api.services.earnings_session_resolver: session resolver: yahoo BRUZF failed: argument of type 'NoneType' is not a container or iterable
+2026-10-13 15:58:12,041 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-13 15:58:12,248 ERROR yfinance: HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-10-13 15:58:12,248 INFO api.services.earnings_session_resolver: session resolver: yahoo CGLCF failed: argument of type 'NoneType' is not a container or iterable
+  [shutdown] shared data root CLEAN (62 db files byte-identical). Log: C:\Users\Patrick\uct-worktrees\notebook-p2b\docs\plans\joystick\sandbox-runs\2026-10-13T15-57-18.md
+Exception in thread modelbook-stats-warm:
+Traceback (most recent call last):
+  File "C:\Python314\Lib\threading.py", line 1081, in _bootstrap_inner
+    self._context.run(self.run)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Python314\Lib\threading.py", line 1023, in run
+    self._target(*self._args, **self._kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b\api\routers\modelbook.py", line 968, in warm_all_stats
+    _generate_recaps_for(recap_pending, max_workers=3)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b\api\routers\modelbook.py", line 1348, in _generate_recaps_for
+    list(ex.map(_work, years))
+         ~~~~~~^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\concurrent\futures\_base.py", line 618, in map
+    fs = [self.submit(fn, *args) for args in zipped_iterables]
+          ~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Python314\Lib\concurrent\futures\thread.py", line 207, in submit
+    raise RuntimeError('cannot schedule new futures after '
+                       'interpreter shutdown')
+RuntimeError: cannot schedule new futures after interpreter shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo CPIFF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo CRTTF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo CSMYF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo CYDY failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo DGNOF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo DHBUF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo DIGBF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo DMIFF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo DTMXF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo DUSXF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo ECAOF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo ECLMF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo ECVTF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo EGTYF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo EMBYF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo EMOTF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo ENTEF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo ENTOF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo EQBBF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo ERIXF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,591 INFO api.services.earnings_session_resolver: session resolver: yahoo ESKRF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo ESMC failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo ESXMF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo ETUGF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo EUUNF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo EVKRF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo EVMN failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo FBSI failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo FDOGF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo FNGR failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo FOBIF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo FRCB failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo FRMO failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo FSVEF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo GALOF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo GBBFF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo GENPF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo GFELF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo GFGSF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo GKSDF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,592 INFO api.services.earnings_session_resolver: session resolver: yahoo GLDFF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo GLDG failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo GLHRF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo GNSMF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo GWRRF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo HDGHF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo HELOF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo HEPA failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo HIFS failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo HKD failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo HVGDF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo IACYF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo ICHIF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo IMRFF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo ISBA failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo ISGIF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo IVSBF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo IVSXF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo IZCFF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo JFROF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo JNHMF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo KGSSF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo KITAF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo KNEVF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo KNGRF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo KVLQF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo LIFFF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,593 INFO api.services.earnings_session_resolver: session resolver: yahoo LNAI failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo LVSDF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo LXENF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo MARVF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo MATEF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo MCBS failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo MCCHF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo MCKRF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo MDDCF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo MKTSF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo MMTMF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo MONTF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo MWCAF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo NAUH failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo NBNKF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo NBVAF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo NCFFF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo NLLSF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo NPT failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo NTRP failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo NZAUF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,594 INFO api.services.earnings_session_resolver: session resolver: yahoo ODDAF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,595 INFO api.services.earnings_session_resolver: session resolver: yahoo OMID failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,595 INFO api.services.earnings_session_resolver: session resolver: yahoo ORMNF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,595 INFO api.services.earnings_session_resolver: session resolver: yahoo PBAM failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,595 INFO api.services.earnings_session_resolver: session resolver: yahoo PBCRF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,595 INFO api.services.earnings_session_resolver: session resolver: yahoo PDLMF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,595 INFO api.services.earnings_session_resolver: session resolver: yahoo PETS failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,595 INFO api.services.earnings_session_resolver: session resolver: yahoo PLJJF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,595 INFO api.services.earnings_session_resolver: session resolver: yahoo PLLMF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,595 INFO api.services.earnings_session_resolver: session resolver: yahoo PNDDF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,595 INFO api.services.earnings_session_resolver: session resolver: yahoo PNNEF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,595 INFO api.services.earnings_session_resolver: session resolver: yahoo QNME failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,595 INFO api.services.earnings_session_resolver: session resolver: yahoo QZMRF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo RBCAA failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo REZZF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo RFXRF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo RIINF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo RKIGF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo RMCF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo RVLGF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo RYKKF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo RYKKY failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo SAENF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo SBMCF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo SCDCF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo SCTSF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo SGLY failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo SGMOQ failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo SLMZF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo SSEBF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,596 INFO api.services.earnings_session_resolver: session resolver: yahoo STLXF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo SUUFF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo SVJTY failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo TARSF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo TBLLF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo TDRRF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo TGL failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo TGTMF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo TKCOF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo TMOAF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo TMOAY failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo TSDRF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo TSIHF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo TSMWF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo UBSBF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo UCAR failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo UCLQF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo UCPLF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo URGYF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo USHAF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo VCIG failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo VGMIF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo VIZNF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo VRRCF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo VTMTF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo WABC failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo WAFDP failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo WBS failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,597 INFO api.services.earnings_session_resolver: session resolver: yahoo WFCNP failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,598 INFO api.services.earnings_session_resolver: session resolver: yahoo WLDPF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,598 INFO api.services.earnings_session_resolver: session resolver: yahoo WSRUF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,598 INFO api.services.earnings_session_resolver: session resolver: yahoo WTBCF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,598 INFO api.services.earnings_session_resolver: session resolver: yahoo WTCZF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,598 INFO api.services.earnings_session_resolver: session resolver: yahoo WYGC failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,598 INFO api.services.earnings_session_resolver: session resolver: yahoo YUGVF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,598 INFO api.services.earnings_session_resolver: session resolver: yahoo YUMSF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,598 INFO api.services.earnings_session_resolver: session resolver: yahoo ZGBEF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,598 INFO api.services.earnings_session_resolver: session resolver: yahoo ZHAOF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,598 INFO api.services.earnings_session_resolver: session resolver: yahoo ZZZOF failed: cannot schedule new futures after shutdown
+2026-10-13 15:58:12,849 WARNING api.services.earnings_session_resolver: Calendar: unconfirmed-row resolver failed: cannot schedule new futures after interpreter shutdown
+2026-10-13 15:58:13,778 INFO index_bars: [index_bars] warm pass done: {'fetched': 46, 'fresh': 0, 'failed': 3}
+2026-10-13 15:58:13,960 INFO api.main: [startup] hot tier warmed: 0 entries
+[breadth-heal] boot pass: 0 healed of last 10
+2026-10-13 15:58:14,609 INFO api.routers.calendar: Calendar: econ loaded — FF 20 events / 4 days, FMP filled 8 across 1 uncovered days
+2026-10-13 15:58:14,611 WARNING api.services.industry_map: [industry_map] FINVIZ_API_KEY not set — bulk refresh skipped
+2026-10-13 15:58:14,611 ERROR api.main: [dashboard-warm] calendar failed
+Traceback (most recent call last):
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b\api\main.py", line 1180, in _warm
+    fn()
+    ~~^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b\api\main.py", line 1240, in _calendar
+    get_calendar()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b\api\routers\calendar.py", line 2181, in get_calendar
+    payload = _get_calendar_payload(week)
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b\api\routers\calendar.py", line 2235, in _get_calendar_payload
+    return _WEEKLY_STALE.serve(
+           ~~~~~~~~~~~~~~~~~~~^
+        "current",
+        ^^^^^^^^^^
+    ...<2 lines>...
+        good=_weekly_payload_is_good,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b\api\services\serve_stale.py", line 157, in serve
+    built = build()
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b\api\routers\calendar.py", line 2404, in _build_current_week
+    _attach_names(days)
+    ~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-p2b\api\routers\calendar.py", line 1541, in _attach_names
+    _NAME_POOL.submit(_backfill)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Python314\Lib\concurrent\futures\thread.py", line 207, in submit
+    raise RuntimeError('cannot schedule new futures after '
+                       'interpreter shutdown')
+RuntimeError: cannot schedule new futures after interpreter shutdown
+2026-10-13 15:58:14,619 INFO api.main: [dashboard-warm] earnings-previews ok
+2026-10-13 15:58:14,619 INFO api.main: [dashboard-warm] enrichment ok
+2026-10-13 15:58:14,626 INFO api.main: [dashboard-warm] flow-curated ok
+[darkpool_agg] prewarm: cold windows [1, 5, 20, 60, 90, None] — building in background
+[darkpool_agg] days=90 all=False rows=4516 tickers=1250 dates=3 took=215ms
+[darkpool_agg] days=60 all=False rows=4516 tickers=1250 dates=3 took=81ms
+[darkpool_agg] days=20 all=False rows=4516 tickers=1250 dates=3 took=59ms
+[darkpool_agg] days=5 all=False rows=4516 tickers=1250 dates=3 took=64ms
+[darkpool_agg] days=1 all=False rows=1674 tickers=727 dates=1 took=30ms
+[darkpool_agg] days=None all=True rows=4516 tickers=1250 dates=3 took=91ms
+[darkpool_agg] prewarm complete
+2026-10-13 15:58:30,528 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-13 15:58:35,157 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 250/3640 warmed=163 failed=87
+2026-10-13 15:58:38,629 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)

@@ -1,0 +1,55 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/trader-blocks/review/review-1",
+    "note": "The trade, its tags, the rules ticked before entry (Log Trade's pos: record), the plan grade.",
+    "path": "/api/j2/trader-blocks/review/review-1",
+    "status": 200
+  },
+  "body": {
+    "accountId": null,
+    "planGrade": {
+      "candidates": [],
+      "checks": null,
+      "dateOnly": false,
+      "entryDay": "2026-09-10",
+      "labels": [],
+      "plan": null,
+      "setupChip": null,
+      "side": "Long",
+      "status": "unplanned",
+      "symbol": "NVDA",
+      "tradeId": "review-1",
+      "tradeRef": "id:review-1"
+    },
+    "preEntry": {
+      "checkedRuleIds": [
+        "s1"
+      ],
+      "setup": "VCP",
+      "totalRules": 2
+    },
+    "tags": {
+      "emotions": [
+        "calm"
+      ],
+      "mistakes": [
+        "chased"
+      ]
+    },
+    "trade": {
+      "entryDate": "2026-09-10T14:30:00+00:00",
+      "entryPrice": 100.0,
+      "exitDate": "2026-10-02T15:00:00+00:00",
+      "exitPrice": 110.0,
+      "id": "review-1",
+      "pnlPercent": 0.1,
+      "rMultiple": 2.0,
+      "result": "Win",
+      "setup": "VCP",
+      "side": "Long",
+      "symbol": "NVDA",
+      "tradeRef": "id:review-1"
+    }
+  }
+}

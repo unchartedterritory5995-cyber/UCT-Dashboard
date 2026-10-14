@@ -254,6 +254,86 @@ def test_the_blocks_step_has_no_blind_sleep():
     assert _calls_function(fn, SAVE), "the integrity row must wait for the save, not a clock"
 
 
+def test_the_blocks_step_names_every_part_b_row():
+    src = FEATURES.read_text(encoding="utf-8")
+    for row in ("blocks.my-rules", "blocks.before-after", "blocks.prep-pack", "blocks.review-pack", "blocks.restore-stamp"):
+        assert row in src, row
+
+
+PART_B_ROWS = ("blocks.my-rules", "blocks.before-after", "blocks.prep-pack", "blocks.review-pack", "blocks.restore-stamp")
+
+
+def _step_features(tree) -> set[str]:
+    """The feature argument (third positional) of every `<x>.step(...)` call in `tree`."""
+    return {n.args[2].value for n in ast.walk(tree) if isinstance(n, ast.Call) and _dotted(n.func).endswith(".step")
+            and len(n.args) >= 3 and isinstance(n.args[2], ast.Constant) and isinstance(n.args[2].value, str)}
+
+
+def test_control_g_the_step_feature_matcher_ignores_prose_and_sees_code():
+    prose = "def blocks():\n    '''C.step(p, i, \"blocks.my-rules\", ...)'''\n    # C.step(p, i, 'blocks.prep-pack', 'x', 'PASS')\n"
+    real = "def blocks():\n    C.step(p, i, 'blocks.prep-pack', 'x', 'PASS')\n"
+    assert _step_features(ast.parse(prose)) == set()
+    assert _step_features(ast.parse(real)) == {"blocks.prep-pack"}
+
+
+def test_every_part_b_row_is_a_recorded_step_and_a_coverage_feature_in_code():
+    """CODE, NEVER PROSE (the module docstring): each part-b row is the feature of a real C.step call in
+    blocks(), a row of the rows tuple, and a key of the coverage table -- none of it satisfiable by a
+    comment naming the row."""
+    fn = _func(FEATURES.read_text(encoding="utf-8"), "blocks")
+    assert fn is not None, "no def blocks() in the features file"           # non-vacuity
+    assert "blocks.integrity-tick-leave" in _step_features(fn), "non-vacuity: a part-a row is seen the same way"
+    steps = _step_features(fn)
+    for row in PART_B_ROWS:
+        assert row in steps, f"{row}: no C.step records it"
+        assert _code_strings(fn).count(row) >= 3, f"{row}: must be a step, a rows entry and a coverage key"
+    cover = next((n for n in ast.walk(fn) if isinstance(n, ast.Assign)
+                  and any(isinstance(t, ast.Name) and t.id == "walked_at" for t in n.targets)), None)
+    assert cover is not None and isinstance(cover.value, ast.Dict), "the coverage table is a dict literal"
+    keys = {k.value for k in cover.value.keys if isinstance(k, ast.Constant)}
+    assert set(PART_B_ROWS) <= keys and "blocks.slash-insert" in keys, keys
+
+
+def test_the_part_b_rows_wait_on_the_products_own_answers():
+    """The rows wait on the writes they make (the rule PUT, the prep capture, the apply, the restore, the
+    autosave), never a clock -- the same AST read as the no-sleep rail above."""
+    fn = _func(FEATURES.read_text(encoding="utf-8"), "blocks")
+    assert _sleep_calls(fn) == []
+    for name in ("my_rules", "prep_pack", "review_pack", "restore_stamp"):
+        sub = next((n for n in ast.walk(fn) if isinstance(n, ast.FunctionDef) and n.name == name), None)
+        assert sub is not None, name
+        assert _calls_method(sub, "expect_response") or _calls_function(sub, SAVE), f"{name} must wait on a response"
+
+
+def _names_read(tree) -> set[str]:
+    return {n.id for n in ast.walk(tree) if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}
+
+
+def test_the_authoring_rows_tag_their_labels_with_one_per_run_tag():
+    """Fix round 1, I1: run_c2 re-enters the same member on a resume, so the rows that author rules, styles and
+    notes put one per-run tag in every label (a repeated label is a strict-mode violation on the rerun)."""
+    fn = _func(FEATURES.read_text(encoding="utf-8"), "blocks")
+    assigns = [n for n in ast.walk(fn) if isinstance(n, ast.Assign)
+               and any(isinstance(t, ast.Name) and t.id == "run_tag" for t in n.targets)]
+    assert len(assigns) == 1, "one run_tag, computed once in blocks()"
+    for name in ("ensure_rule", "my_rules", "restore_stamp", "switch_off"):
+        sub = next((n for n in ast.walk(fn) if isinstance(n, ast.FunctionDef) and n.name == name), None)
+        assert sub is not None and "run_tag" in _names_read(sub), f"{name} authors labels without the run tag"
+
+
+def test_switch_off_checks_every_seeded_group_read_off_the_seed():
+    """Fix round 1, I2: the switch-off row reads its group names off the seeded nodes and journalBlocks.js
+    (block_labels), never the typed part-a list, and counts the crash sentence in each group."""
+    fn = _func(FEATURES.read_text(encoding="utf-8"), "switch_off")
+    assert fn is not None
+    reads = _names_read(fn)
+    assert "BLOCK_GROUPS" not in reads, "the typed part-a list is back"
+    assert _calls_function(fn, "block_labels") and _calls_method(fn, "trader_block_nodes")
+    assert _calls_function(fn, "block_error_sentence")
+    assert not any(isinstance(n, (ast.Import, ast.ImportFrom)) and "api" in (getattr(n, "module", "") or "")
+                   for n in ast.walk(fn)), "the walk driver never imports api.* in-process"
+
+
 def test_save_landed_waits_on_the_save_response_not_a_poll():
     src = FEATURES.read_text(encoding="utf-8")
     fn = _func(src, SAVE)

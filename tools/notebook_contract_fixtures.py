@@ -1848,6 +1848,56 @@ def journal_styles(w: World) -> None:
 
 
 @builder
+def trader_rules(w: World) -> None:
+    """Notebook P2b (spec §P2 item 2; R-P2b-1..3), lane S: a rule's edit door, its version history
+    and its before / after numbers. A member of its own, so no other builder's rules or trades show
+    up here; recorded after every other surface's builder, so their ids do not move."""
+    from api.services.journal_two import journal_rules
+    who = w.member("rules", "Rory Rules")
+    made = "2026-09-01T14:00:00+00:00"           # a month before the frozen today, so v2 has a before
+    c = w.conn()
+    try:
+        rule = journal_rules.create_rule(who, "acct-rules", "No trades in the first 5 minutes", conn=c)
+        c.execute("UPDATE j2_journal_rules SET created_at = ?, updated_at = ? WHERE id = ?", (made, made, rule["id"]))
+        c.execute("UPDATE j2_journal_rule_versions SET changed_at = ? WHERE rule_id = ? AND version = 1",
+                  (made, rule["id"]))
+        c.commit()
+    finally:
+        c.close()
+    base = f"/api/j2/trader-blocks/rules/{rule['id']}"
+    w.as_user(who)
+    w.record("trader-blocks.rules.edit", "PUT", base, case="success", expect=200,
+             json_body={"label": "No trades in the first 15 minutes", "changeNote": "Five minutes was too early."},
+             note="The words changed: version 2, dated now, with the member's note.")
+    w.record("trader-blocks.rules.edit.before-entry", "PUT", base, case="success", expect=200,
+             json_body={"beforeEntry": True},
+             note="Before entry says where the rule shows, not what it says: still version 2, changedAt unmoved.")
+    w.record("trader-blocks.rules.edit.blank", "PUT", base, case="error", expect=400, json_body={"label": "   "},
+             note="A rule needs words: nothing is written.")
+    w.record("trader-blocks.rules.versions", "GET", f"{base}/versions", case="success", expect=200)
+    w.record("trader-blocks.rules.versions.not-found", "GET", "/api/j2/trader-blocks/rules/nope/versions",
+             case="error", expect=404, note="Not this member's rule (or no such rule): the same 404.")
+    # Task 4 (R-P2b-3): two closed trades in the rule's account, one either side of v2's day (today,
+    # written through the door above), the first with a ticked checklist.
+    from api.services.journal_two import adherence_store
+    c = w.conn()
+    try:
+        add_trade(c, "rules-before", user=who, entry=100.0, exit_=95.0, stop=97.5, account_id="acct-rules",
+                  entry_date="2026-09-15T14:30:00+00:00", exit_date="2026-09-16T15:00:00+00:00")
+        add_trade(c, "rules-after", user=who, entry=100.0, exit_=104.0, stop=98.0, account_id="acct-rules",
+                  entry_date="2026-10-05T13:35:00+00:00", exit_date="2026-10-05T14:10:00+00:00")
+        adherence_store.upsert_adherence(who, "id:rules-before", "VCP", ["r1"], 2, conn=c)
+    finally:
+        c.close()
+    w.record("trader-blocks.rules.before-after", "GET", f"{base}/before-after", case="success", expect=200,
+             note="Version 2 split on its ET day: one trade before (with a ticked checklist), one after. "
+                  "Both windows are small samples, so the client shows counts, never a bare rate.")
+    w.record("trader-blocks.rules.before-after.not-found", "GET", "/api/j2/trader-blocks/rules/nope/before-after",
+             case="error", expect=404, note="Not this member's rule, no such rule, or a dismissed one: the same 404.")
+    w.as_user(MEMBER)
+
+
+@builder
 def sweeps(w: World) -> None:
     """Two answers every route gives, in one file each: signed out with the flags on (401), and
     signed out with every flag off (the one 404, BEFORE the session is read)."""
@@ -1892,6 +1942,92 @@ def shared_constants(w: World) -> None:
                       "path": ""},
         "body": {"categories": list(template_gallery.CATEGORIES),
                  "reportReasons": list(template_gallery.REPORT_REASONS)}}
+
+
+@builder
+def trader_prep_review(w: World) -> None:
+    """P2b lane P: the daily prep pack's capture read (Task 6) and the post-trade review reads
+    (Task 7). Self-contained, appended last (lane merge order S before P). Every source stands in
+    at trader_blocks' own seams; the journal_styles builder's market-context stand-ins are reset
+    here so these answers never depend on builder order."""
+    from api.services import engine
+    from api.services.cache import cache
+    from api.services.journal_two import trader_blocks
+    who = w.member("prep", "Pat Prep")
+    w.as_user(who)
+    prep = "/api/j2/trader-blocks/prep"
+    # The fixture world's empty caches: every part's "missing" shape (the setups board is on in this
+    # world, so an empty board is its `no_setups` gap; `levels.off` is the switch's `needs`).
+    w.p.setattr(engine, "get_rundown", lambda: {})
+    w.p.setattr(trader_blocks, "_breadth", lambda: {})
+    w.p.setattr(trader_blocks, "_regime_field", lambda memo: {"missing": "wire_unavailable"})
+    w.p.setattr(trader_blocks, "_my_names", lambda uid: set())
+    w.p.setattr(trader_blocks, "_cached_quote", lambda sym, now=None: None)
+    cache.invalidate(engine.EARNINGS_CACHE_KEY)
+    for part in ("wire", "earnings", "movers", "levels"):
+        w.record(f"trader-blocks.prep.{part}", "GET", f"{prep}/{part}", case="empty", expect=200,
+                 note="Nothing held yet: the part names its gap (`missing`) and says it (`detail`).")
+    w.p.setenv("NOTEBOOK_SETUPS_BOARD_ENABLED", "0")
+    w.record("trader-blocks.prep.levels.off", "GET", f"{prep}/levels", case="success", expect=200,
+             note="The setups board is off: the part says what it needs.")
+    w.p.setenv("NOTEBOOK_SETUPS_BOARD_ENABLED", "1")
+    w.record("trader-blocks.prep.unknown", "GET", f"{prep}/nope", case="error", expect=404)
+    # Held sources: the wire's narrative, the regime and exposure; three of the member's names report
+    # today; four names, three with a cached price (one with no provable change) and one with none.
+    w.p.setattr(engine, "get_rundown", lambda: {"date": TODAY, "html": (
+        '<div class="rd-sections"><div class="rd-agenda"><span>TODAY\'S FOCUS</span><ul><li>NVDA · pullback'
+        ' to the 21-EMA</li></ul></div><p>Chips led the drag and that is carrying over. Breadth is thin.</p></div>')})
+    w.p.setattr(trader_blocks, "_breadth", lambda: {"exposure": {"score": 72.5}, "wire_date": TODAY})
+    w.p.setattr(trader_blocks, "_regime_field", lambda memo: {
+        "value": "amber", "source": "journal_two.regime.get_current_regime", "asOf": TODAY,
+        "missing": None, "detail": None})
+    w.record("trader-blocks.prep.wire.held", "GET", f"{prep}/wire", case="success", expect=200,
+             note="The narrative's first sentence (never the TODAY'S FOCUS heading), the regime id, the exposure.")
+    w.p.setattr(trader_blocks, "_my_names", lambda uid: {"NVDA", "AMD", "TSLA", "MSFT"})
+    cache.set(engine.EARNINGS_CACHE_KEY, {"bmo": [{"sym": "NVDA"}, {"sym": "XOM"}], "amc": [{"sym": "AMD"}],
+                                          "amc_tonight": [{"sym": "TSLA"}]}, ttl=600)
+    w.record("trader-blocks.prep.earnings.mine", "GET", f"{prep}/earnings", case="success", expect=200,
+             note="Only the member's names: XOM reports too and is not theirs.")
+    cache.invalidate(engine.EARNINGS_CACHE_KEY)
+    quotes = {"NVDA": {"price": 182.5, "change_pct": 3.1, "source": "live price", "asOf": "2026-10-05T14:29:00Z"},
+              "AMD": {"price": 160.25, "change_pct": -4.2, "source": "last close", "asOf": "2026-10-02T20:00:00Z"},
+              "MSFT": {"price": 412.5, "change_pct": None, "source": "last close", "asOf": "2026-10-02T20:00:00Z"}}
+    w.p.setattr(trader_blocks, "_cached_quote", lambda sym, now=None: quotes.get(sym))
+    w.record("trader-blocks.prep.movers.mine", "GET", f"{prep}/movers", case="success", expect=200,
+             note="Sorted by the size of the move; MSFT's change is unavailable (null, never 0); TSLA has no price.")
+
+    # Task 7: the post-trade review. Two closed trades of this member's (a manual one with tags and the
+    # rules ticked in Log Trade, under pos:<position>; a broker one, listed by its ext: ref), and one of
+    # another member's (the same 404 as a missing trade).
+    from api.services.journal_two import adherence_store
+    reviewer, stranger = w.member("trade-review", "Rae Review"), w.member("trade-review-other")
+    c = w.conn()
+    try:
+        add_trade(c, "review-1", user=reviewer, symbol="NVDA", setup="VCP", exit_date="2026-10-02T15:00:00+00:00")
+        c.execute("UPDATE j2_trades SET mistake_tags = ?, emotion_tags = ? WHERE id = ?",
+                  ('["chased"]', '["calm"]', "review-1"))
+        add_trade(c, "review-2", user=reviewer, symbol="AMD", exit_=95.0, source="broker", external_id="FP-REVIEW-2",
+                  exit_date="2026-09-30T15:00:00+00:00")
+        add_trade(c, "review-other", user=stranger, symbol="TSLA")
+        c.commit()
+    finally:
+        c.close()
+    adherence_store.upsert_adherence(reviewer, trader_blocks.pre_entry_ref("pos-review-1"), "VCP", ["s1"], 2)
+    review = "/api/j2/trader-blocks/review"
+    w.as_user(reviewer)
+    w.record("trader-blocks.review.trades", "GET", f"{review}/trades", case="success", expect=200,
+             note="Newest exit first; each row's tradeRef is what the block stores (a broker trade's is ext:).")
+    w.record("trader-blocks.review", "GET", f"{review}/review-1", case="success", expect=200,
+             note="The trade, its tags, the rules ticked before entry (Log Trade's pos: record), the plan grade.")
+    w.record("trader-blocks.review.by-ref", "GET", f"{review}/ext:FP-REVIEW-2", case="success", expect=200,
+             note="A broker trade by its stable ref, which survives the resync that reissues its row id.")
+    w.p.setenv("NOTEBOOK_PLAN_GRADING_ENABLED", "0")
+    w.record("trader-blocks.review.no-grading", "GET", f"{review}/review-1", case="success", expect=200,
+             note="Plan grading is off: the grade says what it needs.")
+    w.p.setenv("NOTEBOOK_PLAN_GRADING_ENABLED", "1")
+    w.record("trader-blocks.review.not-found", "GET", f"{review}/review-other", case="error", expect=404,
+             note="Another member's trade: the same 404 as one that does not exist.")
+    w.as_user(MEMBER)
 
 
 # ── normalising, writing, checking ────────────────────────────────────────────────────────────

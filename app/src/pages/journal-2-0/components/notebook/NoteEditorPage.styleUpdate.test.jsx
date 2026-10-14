@@ -130,6 +130,33 @@ describe('styleUpdate.banner', () => {
   })
 })
 
+// P2b N9: a note can record its style with no version (an older note, a restore that predates the stamp). The
+// copy must never print a bare "v" or "vnull": asserted on the RENDERED text, not on the props.
+describe('styleUpdate.unknownVersion', () => {
+  const NO_STRAY_V = /\bv(null|undefined|NaN)\b|\bv\.(\s|$)/
+  it.each([['null', null], ['missing', undefined]])('a %s version reads as an earlier version, and is still offered', async (_n, v) => {
+    NOTE = { ...baseNote(), styleVersion: v }
+    await renderEditor()
+    const banner = await screen.findByText('This note uses an earlier version of Weekend prep. Update layout to v3?')
+    expect(banner.closest('[role="status"]').textContent).not.toMatch(NO_STRAY_V)
+  })
+
+  it('the sheet names only the version it moves to', async () => {
+    NOTE = { ...baseNote(), styleVersion: null }
+    planStyleUpdate.mockResolvedValue({ plan: { ...PLAN, fromVersion: null } })
+    await renderEditor()
+    const dialog = await openSheet()
+    expect(await within(dialog).findByText('Update this note to Weekend prep v3.')).toBeTruthy()
+    expect(dialog.textContent).not.toMatch(NO_STRAY_V)
+  })
+
+  it('control: a known version still names both', async () => {
+    await renderEditor()
+    const dialog = await openSheet()
+    expect(await within(dialog).findByText('Update this note from Weekend prep v1 to v3.')).toBeTruthy()
+  })
+})
+
 describe('styleUpdate.deletedStyleNoBanner', () => {
   it('a note whose style is gone from the list shows no banner and asks for no plan', async () => {
     fetchJournalStyles.mockResolvedValue({ ...LIST, styles: LIST.styles.filter((s) => s.id !== 's1') })

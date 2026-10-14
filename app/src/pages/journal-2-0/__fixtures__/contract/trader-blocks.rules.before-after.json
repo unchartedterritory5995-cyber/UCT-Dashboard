@@ -1,0 +1,73 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/trader-blocks/rules/a51b58c085874577ad8c5db3d46dcef2/before-after",
+    "note": "Version 2 split on its ET day: one trade before (with a ticked checklist), one after. Both windows are small samples, so the client shows counts, never a bare rate.",
+    "path": "/api/j2/trader-blocks/rules/a51b58c085874577ad8c5db3d46dcef2/before-after",
+    "status": 200
+  },
+  "body": {
+    "accountId": "acct-rules",
+    "ruleId": "a51b58c085874577ad8c5db3d46dcef2",
+    "versions": [
+      {
+        "after": {
+          "adherence": null,
+          "adherenceCount": 0,
+          "avgR": 2.0,
+          "from": "2026-10-05T14:30:00+00:00",
+          "rCount": 1,
+          "small": true,
+          "to": null,
+          "trades": 1,
+          "winRate": 1.0,
+          "wins": 1
+        },
+        "before": {
+          "adherence": 0.5,
+          "adherenceCount": 1,
+          "avgR": -2.0,
+          "from": "2026-09-01T14:00:00+00:00",
+          "rCount": 1,
+          "small": true,
+          "to": "2026-10-05T14:30:00+00:00",
+          "trades": 1,
+          "winRate": 0.0,
+          "wins": 0
+        },
+        "changedAt": "2026-10-05T14:30:00+00:00",
+        "label": "No trades in the first 15 minutes",
+        "version": 2
+      },
+      {
+        "after": {
+          "adherence": 0.5,
+          "adherenceCount": 1,
+          "avgR": -2.0,
+          "from": "2026-09-01T14:00:00+00:00",
+          "rCount": 1,
+          "small": true,
+          "to": "2026-10-05T14:30:00+00:00",
+          "trades": 1,
+          "winRate": 0.0,
+          "wins": 0
+        },
+        "before": {
+          "adherence": null,
+          "adherenceCount": 0,
+          "avgR": null,
+          "from": null,
+          "rCount": 0,
+          "small": true,
+          "to": "2026-09-01T14:00:00+00:00",
+          "trades": 0,
+          "winRate": null,
+          "wins": 0
+        },
+        "changedAt": "2026-09-01T14:00:00+00:00",
+        "label": "No trades in the first 5 minutes",
+        "version": 1
+      }
+    ]
+  }
+}

@@ -596,8 +596,12 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
 
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Notes</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+            {/* hintInFlow: the pre-entry checklist (P2b) sits directly above this row, and the
+                floating first-run hint hung over its second item and took the click (c2 walk at
+                e1b1540e22, blocks.review-pack). In flow, the row wraps and the hint covers nothing. */}
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
               <VoiceInputButton
+                hintInFlow
                 onTranscript={(spoken) => {
                   setNotes((prev) => prev ? `${prev} ${spoken}` : spoken)
                 }}

@@ -1,0 +1,20 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/trader-blocks/prep/wire",
+    "note": "Nothing held yet: the part names its gap (`missing`) and says it (`detail`).",
+    "path": "/api/j2/trader-blocks/prep/wire",
+    "status": 200
+  },
+  "body": {
+    "capturedAt": "2026-10-05T14:30:00Z",
+    "detail": "The morning wire has not published yet today.",
+    "exposure": null,
+    "exposureAsOf": null,
+    "headline": null,
+    "missing": "no_wire",
+    "part": "wire",
+    "regime": null,
+    "wireDate": null
+  }
+}

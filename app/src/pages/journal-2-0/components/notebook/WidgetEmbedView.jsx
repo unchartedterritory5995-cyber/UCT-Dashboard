@@ -18,6 +18,7 @@ import styles from './WidgetEmbedView.module.css'
 import { lazyLeaf } from '../../lib/lazyChunk'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
+import { useBlockParams } from './blocks/useBlockParams'
 
 // Free-resize bounds (px). MAX_W is generous so a resize can reach the full
 // note-column width on wide screens; `.sized { max-width: 100% }` keeps it
@@ -231,6 +232,27 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   // never mounts live components that poll auth-scoped APIs. The durable
   // image IS the shared artifact.
   const shareView = !!editor?.storage?.uctJournalWidgets?.shareView
+
+  // R-T12-C (fix round, I-1): the market context stamp's "Capture now" writes its params the way a
+  // prep block does — the SAME setParams (blocks/useBlockParams.js: one updateAttributes, one editor
+  // transaction, the note's own save path). Handed to that one embed only (below).
+  const embedEditable = editor?.isEditable !== false && !shareView
+  const setEmbedParams = useBlockParams({ attrs, updateAttributes, editable: embedEditable })
+  // Fix round 2 (I-1): a capture that clears the archive (`fallback: null`, in that ONE write) re-arms the
+  // self-archive first, exactly as switchTf / onEmbedSettings / syncFromMyChart do, so the archive
+  // re-freezes the captured stamp instead of keeping the uncaptured frame.
+  // Fix round 3 (N-1): `fallback: null` over a fallback that was ALREADY null (the budget stamp's archive
+  // skipped while its door showed) changes no dependency of the archive effect, so a landed capture also
+  // bumps `archiveEpoch`, which that effect depends on: a capture always re-arms the archive. Only this
+  // door bumps it; switchTf / onEmbedSettings / syncFromMyChart keep exactly their behaviour.
+  const [archiveEpoch, setArchiveEpoch] = useState(0)
+  const captureEmbedParams = useCallback((patch, opts) => {
+    const rearm = opts?.clearArchive === true
+    if (rearm) archivedOnceRef.current = false
+    const landed = setEmbedParams(patch, opts)
+    if (rearm && landed) setArchiveEpoch((n) => n + 1)
+    return landed
+  }, [setEmbedParams])
 
   // Linked crosshair (spec Phase 6 #6): ONE bus per note, shared by every
   // chart embed through editor.storage. Lazily created by the first embed
@@ -566,7 +588,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
     timer = setTimeout(fire, ARCHIVE_SETTLE_MS)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needsArchive, editor, inView])
+  }, [needsArchive, editor, inView, archiveEpoch])
 
   const archived = attrs.fallback?.url
     ? <ArchivedImage attrs={attrs} />
@@ -689,6 +711,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
             // a coarse pointer (`isCoarsePointer`, above). Only chart embeds in
             // Draw mode ask for it; every other widget type ignores an unused prop.
             mobileDrawBar={annotate && isCoarsePointer}
+            {...(attrs.widgetId === 'marketcontext' ? { setParams: captureEmbedParams, editable: embedEditable, embedFrozen: frozen } : {})}
           />
         </Suspense>
       </EmbedErrorBoundary>

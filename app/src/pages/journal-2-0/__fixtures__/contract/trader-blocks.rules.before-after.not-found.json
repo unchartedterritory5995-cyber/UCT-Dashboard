@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/trader-blocks/rules/nope/before-after",
+    "note": "Not this member's rule, no such rule, or a dismissed one: the same 404.",
+    "path": "/api/j2/trader-blocks/rules/nope/before-after",
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}

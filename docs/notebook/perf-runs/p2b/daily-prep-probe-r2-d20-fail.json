@@ -1,0 +1,507 @@
+{
+ "probe": "tools/notebook_daily_prep_probe.py",
+ "tree": "82e92b496e",
+ "tree_dirty_paths": [
+  "?? docs/notebook/perf-runs/p2b/daily-prep-probe-r2-d0.json",
+  "?? docs/notebook/perf-runs/p2b/daily-prep-probe-r2-d0.run.log",
+  "?? docs/notebook/perf-runs/p2b/daily-prep-probe-r2-d20-fail.run.log",
+  "?? docs/notebook/perf-runs/p2b/daily-prep-probe-r2-slow0p02.json",
+  "?? docs/notebook/perf-runs/p2b/daily-prep-probe-r2-slow0p02.run.log"
+ ],
+ "started_utc": "2026-10-13T22:06:12.958740+00:00",
+ "python": "3.14.0",
+ "platform": "Windows-11-10.0.26200-SP0",
+ "config": {
+  "k": 1,
+  "vendor_delay_s": 20.0,
+  "vendor_mode": "fail",
+  "big_names": 200,
+  "small_names": 5,
+  "movers_scan_max": 200,
+  "percentiles": "nearest-rank",
+  "warmup_creates_per_member": 0,
+  "env": {
+   "NOTEBOOK_SETUPS_BOARD_ENABLED": "1",
+   "NOTEBOOK_CHART_PLAN_ENABLED": "1",
+   "WORKER_ENABLED": null,
+   "ALLOW_LOCAL_VENDOR_SOCKETS": null
+  }
+ },
+ "sandbox": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\t15b_daily_prep_probe_n_ba4bs5",
+ "resolved_paths": {
+  "auth_db._DB_PATH": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\t15b_daily_prep_probe_n_ba4bs5\\auth.db",
+  "bars_sqlite._DB_PATH": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\t15b_daily_prep_probe_n_ba4bs5\\bars.db",
+  "member_interest._auth_db_path()": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\t15b_daily_prep_probe_n_ba4bs5\\auth.db",
+  "engine.PERSISTENT_WIRE_DATA_FILE": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\t15b_daily_prep_probe_n_ba4bs5\\wire_data.json",
+  "engine.WIRE_DATA_FILE": "C:\\Users\\Patrick\\uct-worktrees\\morning-wire\\data\\wire_data.json",
+  "engine.STATE_FILE": "C:\\Users\\Patrick\\uct-worktrees\\morning-wire\\morning_wire_state.json"
+ },
+ "seed": {
+  "members": {
+   "big": {
+    "user_id": "48174466-74e4-43c3-b916-6e5b916ffd71",
+    "names": 200,
+    "positions": 10,
+    "flagged": 40,
+    "watchlist": 150
+   },
+   "small": {
+    "user_id": "86b5b1c0-8930-4c17-bc61-3afffdb39fe5",
+    "names": 5,
+    "positions": 1,
+    "flagged": 1,
+    "watchlist": 3
+   }
+  },
+  "sessions": [
+   "2026-10-09",
+   "2026-10-12",
+   "2026-10-13"
+  ],
+  "names_sample": [
+   "A",
+   "AA",
+   "AACI",
+   "AAL",
+   "AAMI"
+  ]
+ },
+ "legs": [
+  {
+   "key": "engine._load_wire_data",
+   "module": "api.services.engine",
+   "attr": "_load_wire_data",
+   "reads": "the wire: the process cache, then PERSISTENT_WIRE_DATA_FILE / WIRE_DATA_FILE (local files)"
+  },
+  {
+   "key": "engine._load_state",
+   "module": "api.services.engine",
+   "attr": "_load_state",
+   "reads": "the morning-wire state file (local file)"
+  },
+  {
+   "key": "member_interest._watchlist_syms",
+   "module": "api.services.member_interest",
+   "attr": "_watchlist_syms",
+   "reads": "the member's watchlist names (auth.db, sqlite3.connect default timeout)"
+  },
+  {
+   "key": "member_interest._flagged_syms",
+   "module": "api.services.member_interest",
+   "attr": "_flagged_syms",
+   "reads": "the member's flagged names (auth.db)"
+  },
+  {
+   "key": "member_interest._position_syms",
+   "module": "api.services.member_interest",
+   "attr": "_position_syms",
+   "reads": "the member's open positions (auth.db)"
+  },
+  {
+   "key": "member_interest._uct20_syms",
+   "module": "api.services.member_interest",
+   "attr": "_uct20_syms",
+   "reads": "the UCT 20 (the wire; interest_for asks it though _my_names drops it)"
+  },
+  {
+   "key": "bars_sqlite.get_bars",
+   "module": "api.services.bars_sqlite",
+   "attr": "get_bars",
+   "reads": "held daily bars (bars.db): the last close for SPY/QQQ and for each name the live cache misses"
+  },
+  {
+   "key": "setups_board.build_cards",
+   "module": "api.services.journal_two.setups_board",
+   "attr": "build_cards",
+   "reads": "the levels part's setups board scan (auth.db notes, prices through the cache-only seam)"
+  }
+ ],
+ "observers": [
+  "live_prices.get_live_prices",
+  "massive._get_client",
+  "engine.get_earnings",
+  "engine.build_earnings",
+  "engine.get_breadth(held_only=True)",
+  "engine.get_breadth(default)"
+ ],
+ "scenarios": {
+  "cold": {
+   "warm_seed": null,
+   "members": {
+    "small": {
+     "label": "small",
+     "user_id": "86b5b1c0-8930-4c17-bc61-3afffdb39fe5",
+     "wall_s": {
+      "n": 1,
+      "p50": 20.026535,
+      "p95": 20.026535,
+      "max": 20.026535,
+      "mean": 20.026535
+     },
+     "warmup_wall_s": [],
+     "outcomes": {
+      "prepWire": {
+       "uncaptured": 1
+      },
+      "prepEarnings": {
+       "uncaptured": 1
+      },
+      "prepMovers": {
+       "uncaptured": 1
+      },
+      "prepLevels": {
+       "uncaptured": 1
+      },
+      "marketcontext.regime": {
+       "absent": 1
+      },
+      "marketcontext.spy": {
+       "absent": 1
+      },
+      "marketcontext.qqq": {
+       "absent": 1
+      },
+      "marketcontext.vix": {
+       "absent": 1
+      },
+      "regime_at_write": {
+       "absent": 1
+      }
+     },
+     "creates": [
+      {
+       "i": 0,
+       "warmup": false,
+       "wall_s": 20.026535,
+       "skipped": [],
+       "styleVersion": 2,
+       "note": {
+        "parts": {
+         "prepWire": {
+          "outcome": "uncaptured",
+          "headline": false,
+          "regime": null
+         },
+         "prepEarnings": {
+          "outcome": "uncaptured",
+          "listed": 0
+         },
+         "prepMovers": {
+          "outcome": "uncaptured",
+          "scanned": null,
+          "total": null,
+          "unquoted": null,
+          "items": 0
+         },
+         "prepLevels": {
+          "outcome": "uncaptured"
+         }
+        },
+        "context": {
+         "regime": "absent",
+         "spy": "absent",
+         "qqq": "absent",
+         "vix": "absent"
+        },
+        "regime_at_write": null
+       },
+       "legs": {
+        "engine._load_wire_data": {
+         "calls": 1,
+         "seconds_inside": 20.000222,
+         "slept": 20.000202,
+         "failed": 1,
+         "off_thread": 0,
+         "outlived_create": 0
+        }
+       }
+      }
+     ]
+    },
+    "big": {
+     "label": "big",
+     "user_id": "48174466-74e4-43c3-b916-6e5b916ffd71",
+     "wall_s": {
+      "n": 1,
+      "p50": 20.020965,
+      "p95": 20.020965,
+      "max": 20.020965,
+      "mean": 20.020965
+     },
+     "warmup_wall_s": [],
+     "outcomes": {
+      "prepWire": {
+       "uncaptured": 1
+      },
+      "prepEarnings": {
+       "uncaptured": 1
+      },
+      "prepMovers": {
+       "uncaptured": 1
+      },
+      "prepLevels": {
+       "uncaptured": 1
+      },
+      "marketcontext.regime": {
+       "absent": 1
+      },
+      "marketcontext.spy": {
+       "absent": 1
+      },
+      "marketcontext.qqq": {
+       "absent": 1
+      },
+      "marketcontext.vix": {
+       "absent": 1
+      },
+      "regime_at_write": {
+       "absent": 1
+      }
+     },
+     "creates": [
+      {
+       "i": 0,
+       "warmup": false,
+       "wall_s": 20.020965,
+       "skipped": [],
+       "styleVersion": 2,
+       "note": {
+        "parts": {
+         "prepWire": {
+          "outcome": "uncaptured",
+          "headline": false,
+          "regime": null
+         },
+         "prepEarnings": {
+          "outcome": "uncaptured",
+          "listed": 0
+         },
+         "prepMovers": {
+          "outcome": "uncaptured",
+          "scanned": null,
+          "total": null,
+          "unquoted": null,
+          "items": 0
+         },
+         "prepLevels": {
+          "outcome": "uncaptured"
+         }
+        },
+        "context": {
+         "regime": "absent",
+         "spy": "absent",
+         "qqq": "absent",
+         "vix": "absent"
+        },
+        "regime_at_write": null
+       },
+       "legs": {
+        "engine._load_wire_data": {
+         "calls": 1,
+         "seconds_inside": 20.000185,
+         "slept": 20.000167,
+         "failed": 1,
+         "off_thread": 0,
+         "outlived_create": 0
+        }
+       }
+      }
+     ]
+    }
+   },
+   "outbound_socket_attempts": []
+  },
+  "warm": {
+   "warm_seed": {
+    "wire_html_bytes": 35088,
+    "earnings_rows": 15
+   },
+   "members": {
+    "small": {
+     "label": "small",
+     "user_id": "86b5b1c0-8930-4c17-bc61-3afffdb39fe5",
+     "wall_s": {
+      "n": 1,
+      "p50": 20.018825,
+      "p95": 20.018825,
+      "max": 20.018825,
+      "mean": 20.018825
+     },
+     "warmup_wall_s": [],
+     "outcomes": {
+      "prepWire": {
+       "uncaptured": 1
+      },
+      "prepEarnings": {
+       "uncaptured": 1
+      },
+      "prepMovers": {
+       "uncaptured": 1
+      },
+      "prepLevels": {
+       "uncaptured": 1
+      },
+      "marketcontext.regime": {
+       "absent": 1
+      },
+      "marketcontext.spy": {
+       "absent": 1
+      },
+      "marketcontext.qqq": {
+       "absent": 1
+      },
+      "marketcontext.vix": {
+       "absent": 1
+      },
+      "regime_at_write": {
+       "absent": 1
+      }
+     },
+     "creates": [
+      {
+       "i": 0,
+       "warmup": false,
+       "wall_s": 20.018825,
+       "skipped": [],
+       "styleVersion": 2,
+       "note": {
+        "parts": {
+         "prepWire": {
+          "outcome": "uncaptured",
+          "headline": false,
+          "regime": null
+         },
+         "prepEarnings": {
+          "outcome": "uncaptured",
+          "listed": 0
+         },
+         "prepMovers": {
+          "outcome": "uncaptured",
+          "scanned": null,
+          "total": null,
+          "unquoted": null,
+          "items": 0
+         },
+         "prepLevels": {
+          "outcome": "uncaptured"
+         }
+        },
+        "context": {
+         "regime": "absent",
+         "spy": "absent",
+         "qqq": "absent",
+         "vix": "absent"
+        },
+        "regime_at_write": null
+       },
+       "legs": {
+        "engine._load_wire_data": {
+         "calls": 1,
+         "seconds_inside": 20.000066,
+         "slept": 20.000048,
+         "failed": 1,
+         "off_thread": 0,
+         "outlived_create": 0
+        }
+       }
+      }
+     ]
+    },
+    "big": {
+     "label": "big",
+     "user_id": "48174466-74e4-43c3-b916-6e5b916ffd71",
+     "wall_s": {
+      "n": 1,
+      "p50": 20.021014,
+      "p95": 20.021014,
+      "max": 20.021014,
+      "mean": 20.021014
+     },
+     "warmup_wall_s": [],
+     "outcomes": {
+      "prepWire": {
+       "uncaptured": 1
+      },
+      "prepEarnings": {
+       "uncaptured": 1
+      },
+      "prepMovers": {
+       "uncaptured": 1
+      },
+      "prepLevels": {
+       "uncaptured": 1
+      },
+      "marketcontext.regime": {
+       "absent": 1
+      },
+      "marketcontext.spy": {
+       "absent": 1
+      },
+      "marketcontext.qqq": {
+       "absent": 1
+      },
+      "marketcontext.vix": {
+       "absent": 1
+      },
+      "regime_at_write": {
+       "absent": 1
+      }
+     },
+     "creates": [
+      {
+       "i": 0,
+       "warmup": false,
+       "wall_s": 20.021014,
+       "skipped": [],
+       "styleVersion": 2,
+       "note": {
+        "parts": {
+         "prepWire": {
+          "outcome": "uncaptured",
+          "headline": false,
+          "regime": null
+         },
+         "prepEarnings": {
+          "outcome": "uncaptured",
+          "listed": 0
+         },
+         "prepMovers": {
+          "outcome": "uncaptured",
+          "scanned": null,
+          "total": null,
+          "unquoted": null,
+          "items": 0
+         },
+         "prepLevels": {
+          "outcome": "uncaptured"
+         }
+        },
+        "context": {
+         "regime": "absent",
+         "spy": "absent",
+         "qqq": "absent",
+         "vix": "absent"
+        },
+        "regime_at_write": null
+       },
+       "legs": {
+        "engine._load_wire_data": {
+         "calls": 1,
+         "seconds_inside": 20.000439,
+         "slept": 20.00042,
+         "failed": 1,
+         "off_thread": 0,
+         "outlived_create": 0
+        }
+       }
+      }
+     ]
+    }
+   },
+   "outbound_socket_attempts": []
+  }
+ },
+ "shared_root_writes_blocked": 0,
+ "shared_root_reads_recorded": 0,
+ "finished_utc": "2026-10-13T22:07:34.462241+00:00"
+}

@@ -43,7 +43,8 @@ const BLOCK_DIR_RELS = DIRS.map((d) => `${rel(d)}/`)
  * commit that creates the call, and nothing else:
  *   · Task 8  — lib/blocks/logTradeChecklist.js, its two named writes (Log Trade's ticks: the open
  *     position's pre-entry PUT and the closed trade's adherence PUT; the body file writes nothing);
- *   · Task 10 — its block body's one named write.
+ *   · Task 10 — its block body's one named write;
+ *   · P2b Task 8 — lib/blocks/rulesApi.js, the rule edit (a rule's words, its note, its before-entry switch).
  * Never a whole file, never a note URL (the last case below refuses both).
  */
 export const WRITE_EXCEPTIONS = {
@@ -56,6 +57,11 @@ export const WRITE_EXCEPTIONS = {
   'app/src/pages/journal-2-0/lib/blocks/priceStampsRun.js': [
     { method: 'POST', url: '/api/j2/trader-blocks/price-stamp',
       why: 'Task 10, the price stamp: creates ONE j2_fact_observations row (the price, its source and its as-of) and never advances the note; the stamp node lands through an editor transaction (spec §P2 item 4).' },
+  ],
+  // P2b Task 8 (ruling R-PF-B7: the literal template, never an escaped pattern).
+  'app/src/pages/journal-2-0/lib/blocks/rulesApi.js': [
+    { method: 'PUT', url: '/api/j2/trader-blocks/rules/{}',
+      why: 'Writes j2_journal_rules and j2_journal_rule_versions (part b Task 3), never a note.' },
   ],
 }
 
@@ -91,6 +97,14 @@ export const IMPORT_ALLOW = {
   'app/src/lib/tickerResolver': "resolveCashtags, the line's $TICKER (a parser over a bundled JSON); no network",
   // T14 gate fix (formControls.census): the price stamps toggle is the app's ONE on/off control.
   'app/src/components/ui/Switch': 'the shared switch primitive: a button and its knob, no imports, no network, no writes',
+  // P2b Task 11 (post-trade review): two GET reads through useSWR, each with a fetcher written in the block
+  // file itself (so rule ① scans every request it can make), the trade page link, and the plan grade's words.
+  swr: 'useSWR: cache and revalidation around a fetcher the block file writes itself, which rule ① scans; it sends nothing of its own',
+  'react-router-dom': "Link: the review block's way to the trade page (navigation, no network, no writes)",
+  'app/src/pages/journal-2-0/lib/planGradeText': "the plan grade's words (verdict, detail, price format): pure functions shared with the trade page's card, no imports, no network",
+  // P2b Task 8 (ruling R-PF-B8): the My rules block's ONE read seam. Its write is rulesApi.js (a block
+  // file, WRITE_EXCEPTIONS above); the seam hands back the rules, their state and a re-read only.
+  'app/src/pages/journal-2-0/hooks/useMyRulesSources': 'the My rules read seam: the selected account\'s rules, their state, one re-read and the saved rule shown at once (an SWR cache write, never a server write); create and dismiss are unreachable (members)',
 }
 
 /**
@@ -101,6 +115,10 @@ export const IMPORT_ALLOW = {
  */
 export const IMPORT_NAMES = {
   'app/src/utils/lazyWithRetry': ['isChunkLoadError'],
+  // P2b Task 11: only what the review block uses (useSWR, Link), so `mutate` (a global cache write) or a
+  // navigation hook cannot slip in under the same allow-list row.
+  swr: ['default'],
+  'react-router-dom': ['Link'],
 }
 
 /**
@@ -145,6 +163,20 @@ export const SEAM_RULES = {
       [`${J2_HOOKS}useJ2SelectedAccount`]: ['accountId', 'isLoading', 'isAllAccounts', 'accountsError', 'accounts'],
       [`${J2_HOOKS}useJ2Accounts`]: ['refresh'],
       [`${J2_HOOKS}useJ2CurrentRegime`]: ['regime', 'isLoading', 'error'],
+    },
+  },
+  // P2b Task 8 (ruling R-PF-B8): the My rules block's seam. `mutate` is reached only through the seam's
+  // `refresh` (called with no argument: a re-read, never a cache write), held in a ref (H14).
+  [`${J2_HOOKS}useMyRulesSources`]: {
+    imports: {
+      react: 'useCallback, useEffect and useRef (the latest re-read, written after render; H14); no network',
+      [`${J2_HOOKS}useJ2SelectedAccount`]: 'the selected account; its setAccount is unreachable (members)',
+      [`${J2_HOOKS}useJournalRules`]: 'SWR read of the active (and, for "All rules", dismissed) rules; create and dismiss are unreachable (members)',
+      [`${J2_HOOKS}useChecklistSources`]: 'selectedAccountState only: the ONE copy of "why no account is selected"; the seam\'s hook is never called',
+    },
+    members: {
+      [`${J2_HOOKS}useJ2SelectedAccount`]: ['accountId', 'isLoading', 'isAllAccounts', 'accountsError', 'accounts'],
+      [`${J2_HOOKS}useJournalRules`]: ['rules', 'isLoading', 'error', 'mutate'],
     },
   },
 }
@@ -576,7 +608,9 @@ describe('⛔⛔ no block owns a second write door', () => {
   })
   it('CONTROL — ④ an import outside the allow-list is seen, by name; a sibling block file and a listed module are not', () => {
     const f = 'app/src/pages/journal-2-0/components/notebook/blocks/X.jsx'
-    expect(problemsIn(f, "import useSWR from 'swr'")).toEqual([`UNLISTED ${f}: swr`])
+    // (a package nobody listed; `swr` was this example until the review block listed it, Task 11)
+    expect(problemsIn(f, "import axios from 'axios'")).toEqual([`UNLISTED ${f}: axios`])
+    expect(problemsIn(f, "import useSWR from 'swr'")).toEqual([])
     expect(problemsIn(f, "import { jsonGet } from '../../../lib/api'")).toEqual([`UNLISTED ${f}: ../../../lib/api`])
     expect(problemsIn(f, "export { x } from '../../../hooks/useJ2Trades'")).toEqual([`UNLISTED ${f}: ../../../hooks/useJ2Trades`])
     expect(problemsIn(f, "const A = () => import('../SomeEmbed')")).toEqual([`UNLISTED ${f}: ../SomeEmbed`])
@@ -704,10 +738,20 @@ describe('⛔⛔ no block owns a second write door', () => {
     // every name-limited module is also an allow-listed one
     for (const id of Object.keys(IMPORT_NAMES)) expect(Object.hasOwn(IMPORT_ALLOW, id), id).toBe(true)
   })
+  it('CONTROL — P2b Task 11: swr gives a block only useSWR, react-router-dom only Link', () => {
+    const f = 'app/src/pages/journal-2-0/components/notebook/blocks/X.jsx'
+    expect(problemsIn(f, "import useSWR from 'swr'")).toEqual([])
+    expect(problemsIn(f, "import { mutate } from 'swr'")).toEqual([`NAMES ${f}: swr (mutate)`])
+    expect(problemsIn(f, "import useSWR, { mutate } from 'swr'")).toEqual([`NAMES ${f}: swr (mutate)`])
+    expect(problemsIn(f, "import { Link } from 'react-router-dom'")).toEqual([])
+    expect(problemsIn(f, "import { Link, useNavigate } from 'react-router-dom'")).toEqual([`NAMES ${f}: react-router-dom (useNavigate)`])
+    expect(problemsIn(f, "import * as R from 'react-router-dom'")).toEqual([`NAMES ${f}: react-router-dom (*)`])
+  })
   it('⑤ every read seam (an IMPORT_ALLOW entry under hooks/) is scanned with its OWN rules: nothing found', () => {
     const seams = seamIds()
     expect(seams).toContain(`${J2_HOOKS}useChecklistSources`)                    // non-vacuity
     expect(seams).toContain(`${J2_HOOKS}usePositionSizingSources`)
+    expect(seams).toContain(`${J2_HOOKS}useMyRulesSources`)
     for (const id of seams) {
       const p = `${id}.js`
       expect(existsSync(join(REPO, p)), `${p} is not a file`).toBe(true)
@@ -800,6 +844,31 @@ describe('⛔⛔ no block owns a second write door', () => {
     expect(seamProblems(f, seam(CLEAN, "import useJournalRules from './useJournalRules'"), rule))
       .toEqual([`UNLISTED ${f}: ./useJournalRules`])
     expect(seamProblems(f, seam(CLEAN, '// const { save } = useJ2Settings()'), rule)).toEqual([])
+  })
+  it('CONTROL — ⑤ the My rules seam (P2b Task 8): create, dismiss or the whole hook result are seen, by name', () => {
+    const f = `${J2_HOOKS}useMyRulesSources.js`
+    const rule = SEAM_RULES[`${J2_HOOKS}useMyRulesSources`]
+    const seam = (body, extra = '') => [
+      "import useJ2SelectedAccount from './useJ2SelectedAccount'",
+      "import useJournalRules from './useJournalRules'",
+      "import { selectedAccountState } from './useChecklistSources'",
+      extra,
+      "export const RETURN_KEYS = Object.freeze(['rules', 'refresh'])",
+      'export default function useX() {',
+      body,
+      '}',
+    ].join('\n')
+    const CLEAN = "  const { accountId } = useJ2SelectedAccount()\n  const { rules, mutate } = useJournalRules(accountId)\n"
+      + '  const s = selectedAccountState({ accountId })\n  return { rules, refresh: mutate }'
+    expect(seamProblems(f, seam(CLEAN), rule)).toEqual([])
+    expect(seamProblems(f, seam(CLEAN.replace('{ rules, mutate }', '{ rules, mutate, create }')), rule))
+      .toEqual([`MEMBER ${f}: useJournalRules.create`])
+    expect(seamProblems(f, seam(CLEAN.replace('{ rules, mutate }', '{ rules, dismiss: d }')), rule))
+      .toEqual([`MEMBER ${f}: useJournalRules.dismiss`])
+    expect(seamProblems(f, seam(CLEAN.replace('const { rules, mutate } = useJournalRules(accountId)', 'const r = useJournalRules(accountId); const { rules, mutate } = r')), rule))
+      .toEqual([`REF ${f}: useJournalRules`])
+    expect(seamProblems(f, seam(CLEAN, "import useJ2Settings from './useJ2Settings'"), rule)).toEqual([`UNLISTED ${f}: ./useJ2Settings`])
+    expect(seamProblems(f, seam(CLEAN, '// const { create } = useJournalRules(accountId)'), rule)).toEqual([])
   })
   it("CONTROL — Task 10's write: the /price capture's note URL is refused, its own route is exempt and nothing else", () => {
     const why = 'a reason long enough to be a reason'

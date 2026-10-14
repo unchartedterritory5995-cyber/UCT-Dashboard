@@ -504,6 +504,10 @@ const PANEL_MANIFESTS = {
       // marketcontext `fields` (S20, railed by registry.test.js).
       { key: 'fields', type: 'enum', options: ['all', 'regime', 'indexes'], default: 'all' },
       { key: 'uncaptured', type: 'boolean' },
+      // R-T12-C fix round 2 (M-3): why a stamp is uncaptured. "budget" = the create-mode read ran out of
+      // time; absent = "Update layout" (IR-S11). ⛔ A STRING, never an enum: an unknown future reason
+      // must still validate (an enum would degrade the stamp to a placeholder).
+      { key: 'reason', type: 'string' },
     ],
     plainText: (p) => {
       if (p?.uncaptured === true) return '[market context: not captured]'
@@ -887,6 +891,25 @@ const PANEL_MANIFESTS = {
     { key: 'regimeId', type: 'enum', options: ['green', 'amber', 'orange', 'red'] },
     { key: 'regimeAsOf', type: 'string' },
   ], '[position sizing]'),
+  // P2 Tier 1 (part b): capture-only blocks bound in BLOCK_COMPONENTS only (IR-B2, part b).
+  myRules: blockManifest('My rules', [
+    { key: 'which', type: 'enum', options: ['active', 'all'], default: 'active' },
+  ], '[my rules]'),
+  prepWire: blockManifest('Morning wire and exposure', [
+    { key: 'snapshot', type: 'json' },
+  ], '[morning wire and exposure]'),
+  prepEarnings: blockManifest('Earnings for my names', [
+    { key: 'snapshot', type: 'json' },
+  ], '[earnings for my names]'),
+  prepMovers: blockManifest('My movers', [
+    { key: 'snapshot', type: 'json' },
+  ], '[my movers]'),
+  prepLevels: blockManifest('Key levels from my plans', [
+    { key: 'snapshot', type: 'json' },
+  ], '[key levels from my plans]'),
+  tradeReview: blockManifest('Post-trade review', [
+    { key: 'tradeId', type: 'string' },
+  ], '[post-trade review]'),
 }
 
 export const WIDGET_REGISTRY = deepFreeze(Object.fromEntries(
