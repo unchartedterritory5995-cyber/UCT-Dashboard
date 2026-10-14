@@ -348,37 +348,101 @@ def daily_rows_from_snapshot(tickers: Iterable[dict], today_ymd: int) -> list[tu
     return out
 
 
-def _daily_poll_once() -> None:
+def _daily_poll_once(last: Optional[dict] = None) -> tuple[int, set]:
+    """One whole-market snapshot -> today's daily rows. Returns (rows written, every
+    ticker seen). Runs in the CHILD process (`_daily_child`): parsing a ~13k-ticker
+    snapshot holds the GIL for 150-230 ms, and in the serving process that stalled
+    every chart read queued behind it (measured 2026-10-14 against bars-api /health)."""
     from api.services import massive_adapter
+    last = _last_daily if last is None else last
     data = massive_adapter.get(
         "/v2/snapshot/locale/us/markets/stocks/tickers", data_class="bars",
         activity="bars_live_store.daily_poll").value or {}
     tickers = data.get("tickers") or []
     if not tickers:
-        return
+        return 0, set()
     today = int(datetime.now(_ET).strftime("%Y%m%d"))
     # Only bars that moved since the last poll: an unchanged ticker's stored row is
-    # already exact, and rewriting ~11k rows every poll would crowd the write lock.
-    rows = [r for r in daily_rows_from_snapshot(tickers, today) if _last_daily.get(r[0]) != r]
+    # already exact, and rewriting ~13k rows every poll would crowd the write lock.
+    rows = [r for r in daily_rows_from_snapshot(tickers, today) if last.get(r[0]) != r]
     n = _write_rows("D", rows) if rows else 0
     for r in rows:
-        _last_daily[r[0]] = r
+        last[r[0]] = r
     seen = {str(t.get("ticker", "")).replace(".", "-").upper() for t in tickers if t.get("ticker")}
-    with _lock:
-        _daily_seen.update(seen)
-        _state["daily_last_ok_mono"] = _now_mono()
-        _state["daily_rows_written"] += n
-        _state["daily_polls"] += 1
+    return n, seen
 
 
-def _daily_loop() -> None:
+def _daily_child(q, poll_s: float) -> None:
+    """Long-lived child process: poll, write, and report (time, rows, NEW tickers) to
+    the parent. Only new tickers cross the pipe, so a report is a few bytes."""
+    last: dict = {}
+    reported: set = set()
     while True:
         try:
             if enabled() and _in_daily_window(datetime.now(_ET)):
-                _daily_poll_once()
+                n, seen = _daily_poll_once(last)
+                if seen:
+                    fresh = seen - reported
+                    reported |= fresh
+                    q.put(("ok", n, sorted(fresh)))
+        except Exception as e:  # noqa: BLE001
+            try:
+                q.put(("err", 0, str(e)[:200]))
+            except Exception:
+                pass
+        time.sleep(poll_s)
+
+
+def apply_daily_report(msg) -> None:
+    """Parent side of the child's report."""
+    kind, n, payload = msg
+    if kind != "ok":
+        _log.warning("[bars-live] daily poll failed: %s", payload)
+        return
+    with _lock:
+        _daily_seen.update(payload or ())
+        _state["daily_last_ok_mono"] = _now_mono()
+        _state["daily_rows_written"] += int(n or 0)
+        _state["daily_polls"] += 1
+
+
+def _daily_listener(q) -> None:
+    while True:
+        try:
+            apply_daily_report(q.get())
+        except Exception as e:  # noqa: BLE001
+            _log.warning("[bars-live] daily listener error: %s", e)
+            time.sleep(1)
+
+
+def _daily_loop() -> None:
+    """In-process fallback, used only if the child process cannot start."""
+    while True:
+        try:
+            if enabled() and _in_daily_window(datetime.now(_ET)):
+                n, seen = _daily_poll_once()
+                if seen:
+                    apply_daily_report(("ok", n, sorted(seen)))
         except Exception as e:  # noqa: BLE001
             _log.warning("[bars-live] daily poll failed: %s", e)
         time.sleep(DAILY_POLL_S)
+
+
+def _start_daily() -> str:
+    try:
+        import multiprocessing as mp
+        ctx = mp.get_context("spawn")
+        q = ctx.Queue()
+        p = ctx.Process(target=_daily_child, args=(q, DAILY_POLL_S), daemon=True,
+                        name="bars-live-daily")
+        p.start()
+        threading.Thread(target=_daily_listener, args=(q,), daemon=True,
+                         name="bars-live-daily-listener").start()
+        return f"process pid={p.pid}"
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-live] daily child process failed (%s); polling in-process", e)
+        threading.Thread(target=_daily_loop, daemon=True, name="bars-live-daily").start()
+        return "thread"
 
 
 def start() -> None:
@@ -387,8 +451,8 @@ def start() -> None:
         return
     _threads_started = True
     threading.Thread(target=_backfill_loop, daemon=True, name="bars-live-backfill").start()
-    threading.Thread(target=_daily_loop, daemon=True, name="bars-live-daily").start()
-    _log.info("[bars-live] started (enabled=%s)", enabled())
+    how = _start_daily()
+    _log.info("[bars-live] started (enabled=%s, daily poll in %s)", enabled(), how)
 
 
 def status() -> dict:

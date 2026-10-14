@@ -126,3 +126,24 @@ def test_end_to_end_a_pushed_bucket_lands_and_a_covered_read_is_served_from_sqli
     assert body["bars"][-1]["v"] == 777 and body["bars"][-1]["h"] == 12
     bars_sqlite._drop_local_conn()
     bls._reset_for_tests()
+
+
+def test_the_daily_child_report_updates_the_parent_state(live):
+    live.apply_daily_report(("ok", 3, ["AAA", "BBB"]))
+    assert live.daily_alive() and {"AAA", "BBB"} <= live._daily_seen
+    assert live._state["daily_rows_written"] == 3
+    live.apply_daily_report(("err", 0, "boom"))   # an error never marks the poll alive anew
+    assert live._state["daily_polls"] == 1
+
+
+def test_the_daily_poll_writes_only_moved_bars_and_reports_every_ticker(live, monkeypatch):
+    from api.services import massive_adapter
+
+    class _R:
+        value = {"tickers": [{"ticker": "AAA", "day": {"o": 1, "h": 2, "l": 1, "c": 2, "v": 9}},
+                             {"ticker": "PRE", "day": {}}]}
+    monkeypatch.setattr(massive_adapter, "get", lambda *a, **k: _R())
+    last = {}
+    n1, seen = live._daily_poll_once(last)
+    n2, _ = live._daily_poll_once(last)
+    assert (n1, n2) == (1, 0) and seen == {"AAA", "PRE"}
