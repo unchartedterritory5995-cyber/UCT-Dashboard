@@ -8,3 +8,5 @@ export const JOURNAL_STYLES_FLAG = 'notebook_journal_styles_enabled'
 export const journalStylesEnabled = () => notebookFlag(JOURNAL_STYLES_FLAG) === true
 /** `/style` dispatches this on the editor's own DOM root; NoteEditorPage opens the style sheet. */
 export const STYLE_EVENT = 'uct:notebook-journal-style'
+/** Tier 2 part A: the slash menu's /plan, dispatched on the editor's own DOM root (I5). */
+export const PLAN_EVENT = 'uct:notebook-plan'

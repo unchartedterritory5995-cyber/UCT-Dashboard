@@ -130,7 +130,8 @@ import { pasteTerminalCommand } from '../../lib/terminalCommandPaste'
 import lazyChunk from '../../lib/lazyChunk'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { CANVAS_EVENT, extraBlockCount, isTradeCanvasDoc } from '../../lib/tradeCanvas'
-import { STYLE_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
+import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
+import { createPlanNote } from '../../lib/planCreate'
 import { loadStyle } from './styles/lazyStyles'
 import { createTradeCanvasNote, tradeCanvasEnabled } from '../../lib/tradeCanvasCreate'
 import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
@@ -2052,6 +2053,35 @@ export default function NoteEditorPage({
       creatingCanvasRef.current = false
     }
   }, [])
+  // Tier 2 part A: /plan NVDA in a note -- make the Trade plan and link it at the caret.
+  const creatingPlanRef = useRef(false)
+  const createLinkedPlan = useCallback(async (symbol) => {
+    const ed = editorRef.current
+    if (!journalStylesEnabled() || !ed || ed.isDestroyed || creatingPlanRef.current) return
+    if (lockedRef.current || !ed.isEditable) {
+      setUploadToast({ message: 'This note is locked — unlock it in the Notebook first', tone: 'error' })
+      return
+    }
+    creatingPlanRef.current = true
+    try {
+      const created = await createPlanNote({ symbol, folderId: canvasNoteRef.current?.folderId || undefined })
+      const live = editorRef.current
+      if (created?.id && live && !live.isDestroyed && live.isEditable && !lockedRef.current) {
+        live.chain().focus().insertContent([
+          { type: 'noteLink', attrs: { noteId: created.id } }, { type: 'text', text: ' ' },
+        ]).run()
+        globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+        setUploadToast({ message: `Trade plan for ${symbol} created and linked. Open it from the link.`, tone: 'success' })
+      } else if (created?.id) {
+        setUploadToast({ message: `Trade plan for ${symbol} created. This note could not take the link.`, tone: 'error' })
+      }
+    } catch (e) {
+      console.error('[notebook] /plan create failed', e)
+      setUploadToast({ message: "Couldn't create the trade plan. Nothing was saved.", tone: 'error' })
+    } finally {
+      creatingPlanRef.current = false
+    }
+  }, [])
   // The canvas's "Link from a thesis": open the picked note with the offer.
   const linkCanvasFromNote = useCallback((picked) => {
     if (!picked?.id) return
@@ -3640,6 +3670,8 @@ export default function NoteEditorPage({
     // Wave 11 lane 11D: the slash menu's "Trade-plan canvas", same per-editor target.
     const onTradeCanvas = () => { createLinkedCanvas() }
     const onStyle = () => setStyleAsk((n) => n + 1)
+    // Tier 2 part A: the slash menu's "/plan SYMBOL", same per-editor target.
+    const onPlan = (e) => { createLinkedPlan(e?.detail?.symbol) }
     let dom = null
     const detach = () => {
       if (dom) {
@@ -3649,6 +3681,7 @@ export default function NoteEditorPage({
         dom.removeEventListener(VOICE_NOTE_EVENT, onVoiceNote)
         dom.removeEventListener(CANVAS_EVENT, onTradeCanvas)
         dom.removeEventListener(STYLE_EVENT, onStyle)
+        dom.removeEventListener(PLAN_EVENT, onPlan)
       }
       dom = null
     }
@@ -3664,6 +3697,7 @@ export default function NoteEditorPage({
       dom.addEventListener(VOICE_NOTE_EVENT, onVoiceNote)
       dom.addEventListener(CANVAS_EVENT, onTradeCanvas)
       dom.addEventListener(STYLE_EVENT, onStyle)
+      dom.addEventListener(PLAN_EVENT, onPlan)
     }
     attach()
     editor.on('mount', attach)

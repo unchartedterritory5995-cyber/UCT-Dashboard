@@ -25,7 +25,7 @@ import { WRITING_HELP_EVENT } from '../../lib/writingHelp'
 import { VOICE_NOTE_EVENT } from '../../lib/voiceNote'
 import { CANVAS_EVENT } from '../../lib/tradeCanvas'
 import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCapture'
-import { STYLE_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
+import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
 import styles from './SlashMenu.module.css'
 
 // Notebook P2a: a trader block (and the market context stamp) in the Trading group, dark behind the
@@ -455,6 +455,36 @@ export function factItems(query) {
   }]
 }
 
+// ── Tier 2 part A, item 9: /plan NVDA makes a Trade plan note for NVDA (the member's default
+// Trade plan style, with their own levels and a dated price) and links it at the caret. The
+// same two-regime matching as /price; dispatched on this editor's own DOM root (I5), like /canvas.
+export function planItems(query) {
+  if (!journalStylesEnabled()) return []
+  const raw = String(query || '')
+  const tokens = raw.trim().split(/\s+/).filter(Boolean)
+  const first = tokens[0]?.toLowerCase() || ''
+  const singleToken = tokens.length <= 1
+  if (singleToken ? !first || !'plan'.startsWith(first) : first !== 'plan') return []
+  const rest = singleToken ? '' : raw.trim().slice(first.length).trim()
+  if (!rest) {
+    return [{
+      title: 'Trade plan', cmd: 'plan', description: 'Type a symbol — e.g. /plan NVDA',
+      command: ({ editor, range }) => { editor.chain().focus().deleteRange(range).insertContent('/plan ').run() },
+    }]
+  }
+  const symTokens = rest.split(/\s+/).filter(Boolean)
+  if (symTokens.length !== 1 || !FACT_SYMBOL_RE.test(symTokens[0].replace(/^\$/, ''))) return []
+  const symbol = symTokens[0].replace(/^\$/, '').toUpperCase()
+  return [{
+    title: `Trade plan — ${symbol}`, cmd: 'plan',
+    description: 'A Trade plan note with your levels and the price, linked here',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      editor.view.dom.dispatchEvent(new CustomEvent(PLAN_EVENT, { bubbles: true, detail: { symbol } }))
+    },
+  }]
+}
+
 // ── G-062 (wave 10, lane G62): /consensus captures the note's own ticker's
 // analyst price-target CONSENSUS -- the exact same shape as /price above
 // (mirrored deliberately, not unified, so each command's own tests stay
@@ -800,18 +830,19 @@ export const SlashMenuExtension = Extension.create({
           const widgets = widgetItems(query)
           const factCaptures = factItems(query)
           const consensusCaptures = consensusFactItems(query)
+          const planCaptures = planItems(query)
           // Wave 6: an item may say where it is NOT offered (`available`) —
           // today only columns, never inside a column (they do not nest). A
           // table of contents is an ordinary block and is offered anywhere.
           const here = blockItemsAvailable(editor)
-          if (!q) return groupedSlashItems(here, [...widgets, ...factCaptures, ...consensusCaptures])
+          if (!q) return groupedSlashItems(here, [...widgets, ...factCaptures, ...consensusCaptures, ...planCaptures])
           // Widget/fact items match on their own tokenized rules (args after
           // the type name would defeat a plain substring filter).
           // ⛔ R-T12-1: a command the member has NAMED in full (`/price`, `/price st`) goes first --
           // ahead of a block whose title merely starts with the word ("Price stamps"), or Enter
           // inserts the block. A partial word (`/pri`) names nothing yet, so the blocks lead.
           // R-T12-4: but a block's FULL title ("/price stamps") names that block, and leads.
-          const captures = [...widgets, ...factCaptures, ...consensusCaptures]
+          const captures = [...widgets, ...factCaptures, ...consensusCaptures, ...planCaptures]
           const cmd = q.trim().split(/\s+/)[0]
           const blocks = rankedBlockItems(here, q)
           const exact = blocks.filter((it) => it.title.toLowerCase() === q.trim())
