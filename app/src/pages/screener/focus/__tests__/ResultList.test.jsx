@@ -81,14 +81,14 @@ test('scrollToIndex moves only the list container and never calls scrollIntoView
   const spy = vi.fn()
   row.scrollIntoView = spy
   Object.defineProperty(list, 'clientHeight', { configurable: true, value: 100 })
-  Object.defineProperty(row, 'offsetTop', { configurable: true, value: 300 })
-  Object.defineProperty(row, 'offsetHeight', { configurable: true, value: 50 })
+  list.getBoundingClientRect = () => ({ top: 1000, bottom: 1100 })
+  row.getBoundingClientRect = () => ({ top: 1300, bottom: 1350 })
   ref.current.scrollToIndex(2)
   expect(list.scrollTop).toBe(250)
   expect(spy).not.toHaveBeenCalled()
-  Object.defineProperty(row, 'offsetTop', { configurable: true, value: 10 })
+  row.getBoundingClientRect = () => ({ top: 980, bottom: 1030 })
   ref.current.scrollToIndex(2)
-  expect(list.scrollTop).toBe(10)
+  expect(list.scrollTop).toBe(230)
 })
 
 describe('load-more latch', () => {
@@ -97,23 +97,42 @@ describe('load-more latch', () => {
     original = globalThis.IntersectionObserver
     globalThis.IntersectionObserver = class {
       constructor(cb, opts) { this.cb = cb; globalThis.__ioOpts = opts }
-      observe() { this.cb([{ isIntersecting: true }]) }
+      observe() { this.cb([{ isIntersecting: globalThis.__ioIntersect !== false }]) }
       disconnect() {}
     }
   })
-  afterEach(() => { globalThis.IntersectionObserver = original })
+  afterEach(() => { globalThis.IntersectionObserver = original; delete globalThis.__ioIntersect })
 
-  test('fires once per rows.length, ignoring callback identity and isLoading churn', () => {
+  test('fires once per rows.length, ignoring callback identity', () => {
     const a = vi.fn(); const b = vi.fn(); const c = vi.fn()
     const { rerender } = render(<ResultList {...base} onLoadMore={a} />)
     expect(a).toHaveBeenCalledTimes(1)
     expect(globalThis.__ioOpts).toEqual({ rootMargin: '200px' })
-    rerender(<ResultList {...base} onLoadMore={b} isLoading />)
-    rerender(<ResultList {...base} onLoadMore={c} isLoading={false} />)
+    rerender(<ResultList {...base} onLoadMore={b} />)
+    rerender(<ResultList {...base} onLoadMore={c} />)
     expect(a).toHaveBeenCalledTimes(1)
     expect(b).not.toHaveBeenCalled()
     expect(c).not.toHaveBeenCalled()
     rerender(<ResultList {...base} rows={[...rows, { ticker: 'NEW', price: 1, chg_pct_1d: 1, base_render: null, vol_ratio: 1 }]} onLoadMore={c} />)
     expect(c).toHaveBeenCalledTimes(1)
+  })
+
+  test('a load that returns the same length re-arms while the sentinel is still in view', () => {
+    const fn = vi.fn()
+    const { rerender } = render(<ResultList {...base} onLoadMore={fn} />)
+    expect(fn).toHaveBeenCalledTimes(1)
+    rerender(<ResultList {...base} onLoadMore={fn} isLoading />)
+    expect(fn).toHaveBeenCalledTimes(1)
+    rerender(<ResultList {...base} onLoadMore={fn} isLoading={false} />)
+    expect(fn).toHaveBeenCalledTimes(2)
+  })
+
+  test('isLoading toggling without the sentinel in view adds no call', () => {
+    globalThis.__ioIntersect = false
+    const fn = vi.fn()
+    const { rerender } = render(<ResultList {...base} onLoadMore={fn} />)
+    rerender(<ResultList {...base} onLoadMore={fn} isLoading />)
+    rerender(<ResultList {...base} onLoadMore={fn} isLoading={false} />)
+    expect(fn).not.toHaveBeenCalled()
   })
 })

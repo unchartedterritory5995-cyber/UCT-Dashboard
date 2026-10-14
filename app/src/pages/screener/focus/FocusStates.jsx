@@ -38,7 +38,7 @@ export function ErrorState({ message, onRetry }) {
   return (
     <div className={styles.stateBox} role="alert">
       <p className={styles.stateHead}>The screen didn&apos;t load</p>
-      <p className={styles.stateBody}>{msg ? `${msg}. ` : ''}Your filters are kept.</p>
+      <p className={styles.stateBody}>{msg ? <span>{`${msg}.`}</span> : null}{msg ? ' ' : null}<span>Your filters are kept.</span></p>
       <button type="button" className={styles.btn} onClick={onRetry}>Try again</button>
     </div>
   )

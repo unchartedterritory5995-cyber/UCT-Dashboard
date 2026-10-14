@@ -20,8 +20,10 @@ const ResultList = forwardRef(function ResultList(
     const list = listRef.current
     const el = list?.querySelector(`[data-index="${i}"]`)
     if (!list || !el) return
-    const top = el.offsetTop
-    const bottom = top + el.offsetHeight
+    const lr = list.getBoundingClientRect()
+    const er = el.getBoundingClientRect()
+    const top = er.top - lr.top + list.scrollTop
+    const bottom = er.bottom - lr.top + list.scrollTop
     if (top < list.scrollTop) list.scrollTop = top
     else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight
   }, [])
@@ -29,27 +31,44 @@ const ResultList = forwardRef(function ResultList(
   useEffect(() => { scrollToIndex(index) }, [index, scrollToIndex])
 
   // Auto-load when the last row nears the edge. Callbacks live in refs so the
-  // observer is rebuilt only when the result set changes; the latch allows one
-  // load per rows.length.
+  // observer is rebuilt only when the result set changes. The latch allows one
+  // load per rows.length; it re-arms when a load settles (isLoading true to
+  // false) without the list growing, because an observer does not re-report a
+  // sentinel that never left the viewport.
   const endRef = useRef(null)
   const onLoadMoreRef = useRef(onLoadMore)
   const isLoadingRef = useRef(isLoading)
+  const intersectingRef = useRef(false)
+  const firedAtRef = useRef(null)
+  const prevLoadingRef = useRef(!!isLoading)
   onLoadMoreRef.current = onLoadMore
   isLoadingRef.current = isLoading
   const rowCount = rows.length
   useEffect(() => {
+    firedAtRef.current = null
+    intersectingRef.current = false
     if (!hasMore || typeof IntersectionObserver === 'undefined' || !endRef.current) return undefined
-    let fired = false
     const io = new IntersectionObserver(es => {
-      if (fired || isLoadingRef.current) return
+      if (es.length) intersectingRef.current = es[es.length - 1].isIntersecting
+      if (firedAtRef.current !== null || isLoadingRef.current) return
       if (es.some(e => e.isIntersecting)) {
-        fired = true
+        firedAtRef.current = rowCount
         onLoadMoreRef.current?.()
       }
     }, { rootMargin: '200px' })
     io.observe(endRef.current)
     return () => io.disconnect()
   }, [hasMore, rowCount])
+  useEffect(() => {
+    const was = prevLoadingRef.current
+    prevLoadingRef.current = !!isLoading
+    if (!was || isLoading) return
+    // A load just settled. If the list did not grow and the sentinel is still
+    // in view, nothing will report it again: ask once more.
+    if (hasMore && firedAtRef.current === rowCount && intersectingRef.current) {
+      onLoadMoreRef.current?.()
+    }
+  }, [isLoading, hasMore, rowCount])
 
   return (
     <div className={styles.listWrap}>
