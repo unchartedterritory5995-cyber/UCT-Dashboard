@@ -23,6 +23,7 @@
 .keyHints b { color: var(--text); font-weight: 600; }
 .linkBtn { background: none; border: 0; padding: 0; display: inline-flex; align-items: center; color: var(--text-muted); font: inherit; cursor: pointer; }
 .btn { background: transparent; color: var(--text); border: 1px solid var(--border-accent); border-radius: 8px; padding: 8px 14px; font: inherit; font-size: 13px; min-height: 36px; cursor: pointer; }
+.btnOn { background: var(--ut-gold-dim); color: var(--ut-gold); border: 1px solid var(--ut-gold); border-radius: 8px; padding: 8px 14px; font: inherit; font-size: 13px; min-height: 36px; cursor: pointer; }
 .btnPrimary { background: var(--ut-gold); color: var(--bg); border: 0; border-radius: 8px; padding: 8px 14px; font: inherit; font-size: 13px; font-weight: 700; min-height: 36px; cursor: pointer; }
 .stateBox { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 40px 20px; text-align: center; flex: 1; }
 .stateHead { margin: 0; font-size: 16px; font-weight: 700; color: var(--text-heading); }
@@ -57,6 +58,6 @@
 .whyValue { color: var(--text); font-variant-numeric: tabular-nums; }
 @media (max-width: 1024px) {
   .listWrap { flex-basis: 280px; }
-  .btn, .btnPrimary, .linkBtn, .segOn, .segOff { min-height: var(--tap-min); }
+  .btn, .btnOn, .btnPrimary, .linkBtn, .segOn, .segOff { min-height: var(--tap-min); }
   .row { min-height: var(--tap-min); }
 }

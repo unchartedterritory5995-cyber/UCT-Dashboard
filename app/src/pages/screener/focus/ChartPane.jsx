@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import StockChart from '../../../components/StockChart'
-import WhyItsHere from './WhyItsHere.jsx' // explicit extension: './WhyItsHere' also matches whyItsHere.js on case-insensitive filesystems
+import WhyStrip from './WhyStrip'
 import { setupLine } from './setupLine'
 import styles from './FocusScreener.module.css'
 
@@ -17,6 +17,7 @@ function facts(row) {
 
 export default function ChartPane({ row, livePrice, why, onOpenFilters, onFlag, isFlagged, onWatch }) {
   const [tf, setTf] = useState('D')
+  // The colour literal must match --ut-gold: the chart draws on canvas, where CSS variables do not reach.
   const priceLines = useMemo(() => (Number.isFinite(row?.base_pivot_px)
     ? [{ price: row.base_pivot_px, color: '#dcbb5e', title: 'pivot' }] : []), [row?.base_pivot_px])
   if (!row) {
@@ -25,6 +26,7 @@ export default function ChartPane({ row, livePrice, why, onOpenFilters, onFlag, 
   const price = Number.isFinite(livePrice?.price) ? livePrice.price : row.price
   const chg = row.vol_ratio === 0 ? null : (Number.isFinite(livePrice?.change_pct) ? livePrice.change_pct : row.chg_pct_1d)
   const s = setupLine({ ...row, price })
+  const factText = facts(row)
   const sub = [row.company, row.industry || row.sector].filter(Boolean).join(' · ')
   return (
     <section className={styles.pane} data-testid="focus-chart-pane" aria-label={`${row.ticker} chart`}>
@@ -38,7 +40,7 @@ export default function ChartPane({ row, livePrice, why, onOpenFilters, onFlag, 
       <div className={styles.paneMeta}>
         <span className={styles.setupTag}>{s.text}</span>
         {s.detail && <span className={styles.setupTag}>{s.detail}</span>}
-        <span className={styles.paneFacts}>{facts(row)}</span>
+        {factText && <span className={styles.paneFacts}>{factText}</span>}
         <span className={styles.spacer} />
         <div role="group" aria-label="Timeframe" className={styles.seg}>
           {['D', 'W'].map(t => (
@@ -59,9 +61,9 @@ export default function ChartPane({ row, livePrice, why, onOpenFilters, onFlag, 
           priceLines={priceLines} />
       </div>
       <div className={styles.paneFoot}>
-        <WhyItsHere items={why.items} more={why.more} onMore={onOpenFilters} />
+        <WhyStrip items={why.items} more={why.more} onMore={onOpenFilters} />
         <span className={styles.spacer} />
-        <button type="button" className={styles.btn} aria-pressed={!!isFlagged} onClick={() => onFlag(row)}>{isFlagged ? 'Flagged' : 'Flag'}</button>
+        <button type="button" className={isFlagged ? styles.btnOn : styles.btn} aria-pressed={!!isFlagged} onClick={() => onFlag(row)}>Flag</button>
         <button type="button" className={styles.btnPrimary} onClick={() => onWatch(row)}>Add to watchlist</button>
       </div>
     </section>

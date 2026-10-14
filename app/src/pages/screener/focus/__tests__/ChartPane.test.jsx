@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { vi } from 'vitest'
-vi.mock('../../../../components/StockChart', () => ({ default: props => <div data-testid="stockchart" data-sym={props.sym} data-lines={JSON.stringify(props.priceLines || [])} /> }))
+vi.mock('../../../../components/StockChart', () => ({ default: props => <div data-testid="stockchart" data-sym={props.sym} data-tf={props.tf} data-lines={JSON.stringify(props.priceLines || [])} /> }))
 import ChartPane from '../ChartPane'
 
 const row = { ticker: 'MU', company: 'Micron Technology', industry: 'Semiconductors', price: 956.12, chg_pct_1d: -3.7, base_render: 'Flat Base', vol_ratio: 0.8, adr_pct: 3.1 }
@@ -48,4 +48,20 @@ test('nothing selected shows a placeholder, no chart', () => {
   render(<ChartPane row={null} why={{ items: [], more: 0 }} onFlag={vi.fn()} onWatch={vi.fn()} />)
   expect(screen.queryByTestId('stockchart')).toBeNull()
   expect(screen.getByText('Pick a stock from the list')).toBeInTheDocument()
+})
+
+test('live price overrides the shown price', () => {
+  render(<ChartPane row={row} livePrice={{ price: 960.5, change_pct: 1.2 }} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.getByText('960.50')).toBeInTheDocument()
+  expect(screen.getByText('+1.2%')).toBeInTheDocument()
+})
+test('isFlagged sets aria-pressed and keeps the label', () => {
+  render(<ChartPane row={row} isFlagged why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.getByRole('button', { name: 'Flag' })).toHaveAttribute('aria-pressed', 'true')
+})
+test('the W button passes tf W to the chart', () => {
+  render(<ChartPane row={row} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  fireEvent.click(screen.getByRole('button', { name: 'W' }))
+  expect(screen.getByRole('button', { name: 'W' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByTestId('stockchart')).toHaveAttribute('data-tf', 'W')
 })

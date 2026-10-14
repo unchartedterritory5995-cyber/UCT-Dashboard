@@ -40,16 +40,46 @@ test('no lists gives a plain message', async () => {
   fetch.mockResolvedValueOnce({ ok: true, json: async () => [] })
   const { result } = renderHook(() => useWatchlistTarget(), { wrapper })
   let out
-  await act(async () => { out = await result.current.add('MU') })
-  expect(out).toEqual({ ok: false, message: 'Create a watchlist first, then press W again.' })
+  await waitFor(async () => {
+    await act(async () => { out = await result.current.add('MU') })
+    expect(out).toEqual({ ok: false, message: 'Create a watchlist first, then press W again.' })
+  })
 })
 test('a refused add says so', async () => {
   fetch.mockResolvedValueOnce({ ok: true, json: async () => LISTS })
-    .mockResolvedValueOnce({ ok: false, status: 409, json: async () => ({ detail: 'already there' }) })
+    .mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ detail: 'Watchlist not found' }) })
   const { result } = renderHook(() => useWatchlistTarget(), { wrapper })
   await waitFor(() => expect(result.current.target).not.toBeNull())
   let out
   await act(async () => { out = await result.current.add('MU') })
   expect(out.ok).toBe(false)
-  expect(out.message).toMatch(/MU was not added/)
+  expect(out.message).toBe('MU was not added to Semis.')
+})
+
+test('a stored id that no longer exists falls back to the first list', async () => {
+  localStorage.setItem('uct.screener.watchlistTarget', 'wl-gone')
+  fetch.mockResolvedValueOnce({ ok: true, json: async () => LISTS })
+  const { result } = renderHook(() => useWatchlistTarget(), { wrapper })
+  await waitFor(() => expect(result.current.target?.id).toBe('wl-7'))
+})
+test('linked lists are not offered as a target', async () => {
+  fetch.mockResolvedValueOnce({ ok: true, json: async () => [{ id: 'wl-l', name: 'Linked', origin: { mode: 'link' } }, ...LISTS] })
+  const { result } = renderHook(() => useWatchlistTarget(), { wrapper })
+  await waitFor(() => expect(result.current.target?.id).toBe('wl-7'))
+})
+test('adding while the lists are still loading says so', async () => {
+  fetch.mockReturnValueOnce(new Promise(() => {}))
+  const { result } = renderHook(() => useWatchlistTarget(), { wrapper })
+  let out
+  await act(async () => { out = await result.current.add('MU') })
+  expect(out).toEqual({ ok: false, message: 'Your watchlists are still loading. Try again in a moment.' })
+})
+test('a failed load is not reported as having no lists', async () => {
+  fetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) })
+  const { result } = renderHook(() => useWatchlistTarget(), { wrapper })
+  let out
+  await waitFor(async () => {
+    await act(async () => { out = await result.current.add('MU') })
+    expect(out.message).toBe("Your watchlists couldn't be loaded, so nothing was added.")
+  })
 })
