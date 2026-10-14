@@ -186,7 +186,10 @@ function FocusList({ onMode }) {
     const asked = (answeredSpec && askedBy.current.get(answeredSpec))
       || { sig: screenSig, filters: s.filters, logic: s.logic, rank: s.rank, baseSpec: s.baseSpec }
     const page1 = result.page === 1
-    if (!page1 && asked.sig !== answered.rowsKey) {
+    // An answer for neither the screen now set nor the one listed is a superseded
+    // intermediate screen: dropped whole, never shown and never the undo target.
+    // A later page counts only for the screen listed.
+    if (page1 ? asked.sig !== screenSig && asked.sig !== answered.rowsKey : asked.sig !== answered.rowsKey) {
       setAnswered({ ...answered, result })
     } else if (page1) {
       let { prev, lastChange: change } = answered
@@ -212,6 +215,10 @@ function FocusList({ onMode }) {
   const pending = !!result && rowsKey !== screenSig
   const hasMore = total != null && rows.length < total && !exhausted && !pending
   const shown = answered.shown || { filters: s.filters, logic: s.logic, rank: s.rank }
+  // Row actions (Enter, W, Shift+F, the hub's actions) do nothing while the rows are the
+  // previous screen's; arrow keys may still move the highlight.
+  const pendingRef = useRef(pending)
+  pendingRef.current = pending
 
   const liveTickers = useMemo(() => rows.slice(0, LIVE_WINDOW).map(r => r.ticker), [rows])
   const { prices = {} } = useRealtimePrices(liveTickers) || {}
@@ -236,14 +243,15 @@ function FocusList({ onMode }) {
   const { toggle: toggleFlag, isFlagged } = useFlagged()
   const watch = useWatchlistTarget()
   const watchAdd = watch.add
-  const onWatch = useCallback(async row => {
+  const watchRow = useCallback(async row => {
     const out = await watchAdd(row.ticker)
     say(out.message, { changeList: true })
   }, [watchAdd, say])
-  const onFlag = useCallback(row => toggleFlag(row.ticker), [toggleFlag])
+  const onWatch = useCallback(row => { if (!pendingRef.current) watchRow(row) }, [watchRow])
+  const onFlag = useCallback(row => { if (!pendingRef.current) toggleFlag(row.ticker) }, [toggleFlag])
   // Write any pending URL change first, so Back from the full chart returns to this screen.
   const flushSpec = s.flush
-  const onOpen = useCallback(row => { flushSpec(); navigate(chartsLinkPath({ symbol: row.ticker, tf: 'D' })) }, [flushSpec, navigate])
+  const onOpen = useCallback(row => { if (pendingRef.current) return; flushSpec(); navigate(chartsLinkPath({ symbol: row.ticker, tf: 'D' })) }, [flushSpec, navigate])
   const pageRef = useRef(null)
   // After choosing a list, focus goes back to the results so the next W adds there.
   const pickList = l => {
@@ -260,7 +268,7 @@ function FocusList({ onMode }) {
   const screenMenuApi = useRef(null)
   const openScreens = useCallback(() => { screenMenuApi.current?.open() }, [])
   const hubOn = useHubEligible()
-  const { resultsRef: hubResultsRef, hubMount, cursor: hubCursor } = useScreenerHubSection({ displayRows, filters: shown.filters, prices, hasMore, loadMore: s.loadMore, onOpenScans: openScreens })
+  const { resultsRef: hubResultsRef, hubMount, cursor: hubCursor } = useScreenerHubSection({ displayRows, filters: shown.filters, prices, hasMore, loadMore: s.loadMore, onOpenScans: openScreens, busy: pending })
   const hubIndex = hubCursor.index
   const hubScrubTo = hubCursor.scrubTo
   const selectRow = sel.select

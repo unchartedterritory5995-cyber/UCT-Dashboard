@@ -593,6 +593,8 @@ export function createScreenerSection({
  * @param {Record<string, {price?: number}>} [args.prices]  The live-stream overlay.
  * @param {boolean} [args.hasMore]
  * @param {() => void} [args.loadMore]
+ * @param {boolean} [args.busy]  Opt-in (default false): the rows are a previous screen's while a
+ *   new one loads, so the cursor still moves but no action acts on a row (no symbol is offered).
  * @param {() => void} [args.onOpenScans]  The page's seam onto its saved-screen picker. Omit it
  *   and the `Scans` action is ABSENT rather than inert — see the R-13 note in the header.
  * @returns {{resultsRef: {current: any}, hubToast: import('react').ReactElement,
@@ -601,7 +603,7 @@ export function createScreenerSection({
  *   through `useImperativeHandle`); `hubToast` is the section's feedback host.
  */
 export default function useScreenerHubSection({
-  displayRows, filters, prices, hasMore = false, loadMore, onOpenScans,
+  displayRows, filters, prices, hasMore = false, loadMore, onOpenScans, busy = false,
 } = {}) {
   const rows = displayRows && displayRows.length ? displayRows : NO_ROWS
   const cursor = useHubCursor(LIST_ID, rows, { key: identityKey })
@@ -622,7 +624,7 @@ export default function useScreenerHubSection({
   const [undo, setUndo] = useState(null)
   useEffect(() => { if (!toastMsg) setUndo(null) }, [toastMsg])
 
-  const symbol = tickerOf(rows[index])
+  const symbol = busy ? null : tickerOf(rows[index])
   const streamPrice = symbol ? (prices?.[symbol]?.price ?? null) : null
   // What the table is showing: the live overlay when there is one, else the row's own snapshot
   // price — the same resolution all three renderers do.

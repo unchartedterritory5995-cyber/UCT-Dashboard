@@ -3,7 +3,7 @@
 // survives a 0→0 step (B6), the screen name survives remounts and back/forward (B8/N2), Enter
 // writes the URL before leaving (N3), and a later page never repeats a ticker (N1).
 import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { vi, beforeEach, expect, test } from 'vitest'
 vi.mock('../../../../components/StockChart', () => ({ default: p => <div data-testid="stockchart" data-sym={p.sym} /> }))
@@ -42,6 +42,8 @@ beforeEach(() => {
   globalThis.fetch = vi.fn(async (u, o) => route(String(u), o))
 })
 const mount = () => render(<MemoryRouter><SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><FocusScreener /></SWRConfig></MemoryRouter>)
+function Where() { return <span data-testid="location">{useLocation().pathname}</span> }
+const mountAt = () => render(<MemoryRouter><SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><FocusScreener /><Where /></SWRConfig></MemoryRouter>)
 const scanBodies = () => fetch.mock.calls.filter(([u]) => String(u) === '/api/screener/scan').map(([, o]) => JSON.parse(o.body))
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const keysOf = body => (body.filters || []).map(f => f.key).sort()
@@ -52,12 +54,12 @@ const goTo = filters => act(() => {
 })
 const scanReply = (rows, total = rows.length) => ({ ok: true, json: async () => ({ rows, total, page: 1, snapshot_date: '2026-10-12' }) })
 
-test('an answer for screen A that lands after the switch to B is never shown as B, and undo goes back to A', async () => {
+test('an answer for screen A that lands after the switch to B is dropped: never shown, the list waits for B', async () => {
   let releaseA = null
   extra = (url, opts) => {
     if (url !== '/api/screener/scan') return null
     const keys = keysOf(JSON.parse(opts.body))
-    if (keys.includes('rs_rank')) return scanReply([], 0) // B
+    if (keys.includes('rs_rank')) return new Promise(() => {}) // B, still on its way
     if (keys.includes('universe')) return new Promise(r => { releaseA = () => r(scanReply([AAA])) }) // A, held
     return null
   }
@@ -68,16 +70,52 @@ test('an answer for screen A that lands after the switch to B is never shown as 
   await waitFor(() => expect(releaseA).toBeTypeOf('function'))
   goTo({ universe: UCT, rs_rank: RS90 }) // inside the window: B waits on the debounce
   await act(async () => { releaseA() })
-  await waitFor(() => screen.getByTestId('focus-row-AAA'))
-  // A's rows are on screen, but as A's: dimmed and busy, with no count claimed for B,
-  // and the why strip reads A's criteria (no RS Rank line over rows B never asked for).
+  await sleep(50)
+  expect(screen.queryByTestId('focus-row-AAA')).toBeNull()
+  expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument()
   expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'true')
   expect(screen.getByTestId('screen-count')).toHaveTextContent('…')
+  // the why strip still reads the listed screen's criteria (no RS Rank line over X's rows)
   expect(within(screen.getByTestId('focus-chart-pane')).queryByText(/RS Rank/)).toBeNull()
-  // B answers 0: the change described is A→B (from A's 1), and undo restores A, not B.
-  await waitFor(() => expect(screen.getByText(/took the list from 1 to 0/)).toBeInTheDocument())
+})
+
+test('A→B→C quickly with B answering last-but-one: B is never listed, and undo after C empties returns to the screen last seen with rows', async () => {
+  let releaseB = null
+  extra = (url, opts) => {
+    if (url !== '/api/screener/scan') return null
+    const keys = keysOf(JSON.parse(opts.body))
+    if (keys.includes('universe') && keys.includes('rs_rank')) return new Promise(r => { releaseB = () => r(scanReply([AAA])) }) // B
+    if (keys.includes('universe')) return new Promise(() => {}) // A, superseded
+    if (keys.includes('rs_rank')) return scanReply([], 0) // C
+    return null
+  }
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  await sleep(350)
+  goTo({ universe: UCT }) // A fires at once
+  goTo({ universe: UCT, rs_rank: RS90 }) // B fires when the window closes
+  await waitFor(() => expect(releaseB).toBeTypeOf('function'))
+  goTo({ rs_rank: { op: 'gte', min: 50 } }) // C, inside B's window
+  await act(async () => { releaseB() }) // B answers before C is even asked
+  await sleep(50)
+  expect(screen.queryByTestId('focus-row-AAA')).toBeNull()
+  await waitFor(() => expect(screen.getByText(/took the list from 2 to 0/)).toBeInTheDocument())
+  expect(screen.queryByTestId('focus-row-AAA')).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: 'Undo that change' }))
-  await waitFor(() => expect(keysOf(scanBodies().at(-1))).toEqual(['universe']))
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  expect(scanBodies().at(-1).filters).toEqual([])
+})
+
+test('row actions do nothing while the new screen is pending: Enter does not leave for the chart', async () => {
+  extra = (url, opts) => (url === '/api/screener/scan' && keysOf(JSON.parse(opts.body)).includes('universe') ? new Promise(() => {}) : null)
+  mountAt()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  goTo({ universe: UCT })
+  await waitFor(() => expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'true'))
+  fireEvent.keyDown(screen.getByRole('listbox'), { key: 'ArrowDown' }) // the highlight may still move
+  expect(screen.getByTestId('stockchart')).toHaveAttribute('data-sym', 'ECO')
+  fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Enter' })
+  expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/)
 })
 
 test('the list is dimmed and busy while the new screen is pending, and clears when it answers', async () => {
@@ -176,14 +214,22 @@ test('Enter writes a just-made change to the URL before it leaves for the full c
   mount()
   await waitFor(() => screen.getByTestId('focus-row-MU'))
   await sleep(450) // let the mount-time URL write settle
-  fireEvent.click(screen.getByRole('button', { name: /Filters/ }))
-  fireEvent.click(screen.getByRole('button', { name: /Universe: All stocks/ }))
-  fireEvent.click(screen.getByRole('menuitem', { name: 'UCT Universe' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Close filters' }))
-  // the debounced URL write (400 ms) has not run yet
-  expect(decodeSpec(new URLSearchParams(window.location.search).get(SPEC_PARAM))?.filters?.universe).toBeUndefined()
-  fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Enter' })
-  expect(decodeSpec(new URLSearchParams(window.location.search).get(SPEC_PARAM))?.filters?.universe?.value).toBe('uct')
+  // Timers are held from here, so the 400 ms debounced URL write cannot run on its own
+  // however slow the box is: only a flush can write it. The scan's answer is a promise.
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  try {
+    fireEvent.click(screen.getByRole('button', { name: /Filters/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Universe: All stocks/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'UCT Universe' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close filters' }))
+    for (let i = 0; i < 10; i++) await act(async () => {}) // the new screen's answer lands
+    expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'false')
+    expect(decodeSpec(new URLSearchParams(window.location.search).get(SPEC_PARAM))?.filters?.universe).toBeUndefined()
+    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Enter' })
+    expect(decodeSpec(new URLSearchParams(window.location.search).get(SPEC_PARAM))?.filters?.universe?.value).toBe('uct')
+  } finally {
+    vi.useRealTimers()
+  }
 })
 
 test('a later page skips tickers already loaded', async () => {
