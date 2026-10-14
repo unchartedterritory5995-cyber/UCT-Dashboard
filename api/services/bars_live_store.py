@@ -349,9 +349,10 @@ def daily_rows_from_snapshot(tickers: Iterable[dict], today_ymd: int) -> list[tu
 
 
 def _daily_poll_once() -> None:
-    from api.services.massive import _REST_BASE, _get_client
-    client = _get_client()
-    data = client._get(f"{_REST_BASE}/v2/snapshot/locale/us/markets/stocks/tickers?apiKey={client._api_key}")
+    from api.services import massive_adapter
+    data = massive_adapter.get(
+        "/v2/snapshot/locale/us/markets/stocks/tickers", data_class="bars",
+        activity="bars_live_store.daily_poll").value or {}
     tickers = data.get("tickers") or []
     if not tickers:
         return
