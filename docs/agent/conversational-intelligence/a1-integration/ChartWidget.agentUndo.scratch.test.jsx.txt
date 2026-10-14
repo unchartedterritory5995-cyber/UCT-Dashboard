@@ -1,0 +1,101 @@
+import { render, act } from '@testing-library/react'
+import { useRef, useState } from 'react'
+import { MemoryRouter } from 'react-router-dom'
+import { vi } from 'vitest'
+import { WorkspaceContext } from '../WorkspaceContext'
+
+// UCT Agent's chart adapter on the REAL ChartWidget: it must read the active
+// tab's own settings / tf / colour group, and write through the widget's own
+// sinks — settings + tf in ONE onOptsChange, the ticker through the group.
+vi.mock('../../../components/StockChart', () => ({ default: () => <div data-testid="chart" /> }))
+vi.mock('../../../components/chart/SymbolSearch', () => ({ default: () => <span>search</span> }))
+vi.mock('../../../components/community/ShareToFloor', () => ({ default: () => <span>share</span> }))
+vi.mock('../../../components/chart/ChartSettingsModal', () => ({ default: () => null }))
+vi.mock('./ChartMarketClock', () => ({ default: () => <span>clock</span> }))
+vi.mock('./ChartDayGain', () => ({ default: () => <span>gain</span> }))
+vi.mock('./AiSearchWidget', () => ({ default: () => null }))
+vi.mock('./TimeframeMenu', () => ({ default: () => null }))
+vi.mock('../../../hooks/useFlagged', () => ({ useFlagged: () => ({ isFlagged: () => false, toggle: () => {} }) }))
+vi.mock('../../../hooks/useWatchlistAlerts', () => ({ default: () => ({ alerts: [], createAlert: () => {}, deleteAlert: () => {} }) }))
+vi.mock('../../../hooks/useFundamentalSnapshot', () => ({ default: () => ({ data: null, isLoading: false }) }))
+vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: {}, setPref: () => {}, setPrefMerged: () => {}, loading: false }) }))
+vi.mock('../../../hooks/useThemeIndexBars', () => ({ default: () => ({ isIndex: false, bars: null, name: null, sector: null, loading: false }) }))
+vi.mock('../../../hooks/useTickerMeta', () => ({ default: () => null }))
+vi.mock('../../../hooks/useMarketOpen', () => ({ default: () => ({ isOpen: false, isPremarket: false, isExtended: false }) }))
+
+import ChartWidget from './ChartWidget'
+import { buildWorkspaceHost } from '../../../agent/host'
+import { registerBuiltins } from '../../../agent/builtins'
+import { planOps, collectTargets } from '../../../agent/executor'
+import { commitPlan, undoEntry } from '../../../agent/runtime'
+
+registerBuiltins()
+
+let api
+let optsLog
+function Wrap({ initialOpts }) {
+  const [opts, setOpts] = useState(initialOpts)
+  const [groupSyms, setGroupSyms] = useState({ A: 'NVDA', B: 'AMD', C: null, D: null })
+  const chartApiById = useRef(new Map())
+  api = { chartApiById, get opts() { return opts }, groupSyms }
+  const value = {
+    groupSyms,
+    setGroupSym: (c, s) => setGroupSyms(prev => ({ ...prev, [c]: s })),
+    chartsTheme: 'default',
+    crosshairBus: { emit: () => {}, subscribe: () => () => {} },
+    aiSearchBus: { subscribe: () => () => {}, request: () => false },
+    activeChartRef: { current: null },
+    chartApiById,
+  }
+  return (
+    <MemoryRouter>
+      <WorkspaceContext.Provider value={value}>
+        <ChartWidget color="A" chartId="w1" opts={opts} onOptsChange={(o) => { optsLog.push(o); setOpts(o) }} />
+      </WorkspaceContext.Provider>
+    </MemoryRouter>
+  )
+}
+const adapter = () => [...api.chartApiById.current.values()][0].agent
+
+beforeEach(() => { optsLog = []; try { sessionStorage.clear() } catch { /* */ } })
+
+// SCRATCH (AGENT × INDICATORS A1, 2026-10-13): the Agent's indicator writes through the REAL ChartWidget
+// adapter (api.agent.commit → onOptsChange) never reach the A1.2 indicator Undo stack.
+import { peekIndicatorHistory } from '../../../components/chart/indicatorHistoryStore'
+const historyKeys = () => { const out = []; for (let i = 0; i < sessionStorage.length; i++) { const k = sessionStorage.key(i); if (k && k.startsWith('uct.indicators.history.v1:')) out.push(k) } return out }
+
+test('Agent add / hide / show / update / remove through the real ChartWidget: lands, records NOTHING', async () => {
+  render(<Wrap initialOpts={{ tf: 'D' }} />)
+  // StockChart is mocked here, so its toolbar never publishes 'can manage indicators'; only that gate is stubbed —
+  // the write still goes through the REAL api.agent.commit → onOptsChange
+  adapter().canManageIndicators = () => true
+  const host = buildWorkspaceHost({
+    chartApiById: api.chartApiById,
+    getWidgets: () => [{ id: 'w1', type: 'chart', color: 'A', x: 0, y: 0, w: 24, h: 20 }],
+    widgetLabel: (t) => t,
+  })
+  host.persist = async () => ({ ok: true })            // the board's server ACK (ChartsWorkspace persist)
+  const run = async (action, args) => {
+    adapter().canManageIndicators = () => true          // (re-applied: the widget re-registers its api on render)
+    const plan = planOps(collectTargets(host, ['indicatorEdits']), [{ action, target: 'ixe:w1', args }], {}, { surface: 'charts' })
+    expect(plan.ok, JSON.stringify(plan)).toBe(true)
+    const prevAct = globalThis.IS_REACT_ACT_ENVIRONMENT
+    globalThis.IS_REACT_ACT_ENVIRONMENT = false
+    try { const res = await commitPlan(host, plan); expect(res.ok, JSON.stringify(res)).toBe(true); return res } finally { globalThis.IS_REACT_ACT_ENVIRONMENT = prevAct }
+  }
+  const insts = () => (api.opts.settings?.indicatorInstances || []).filter(i => i && !i.deleted)
+  await run('indicator.add', { defId: 'rsi', inputs: null })
+  const rsi = insts().find(i => i.defId === 'rsi')
+  expect(rsi).toBeTruthy()
+  await run('indicator.hide', { instance: rsi.instanceId })
+  expect(insts().find(i => i.instanceId === rsi.instanceId).hidden).toBe(true)
+  await run('indicator.show', { instance: rsi.instanceId })
+  if (process.env.WITH_UPDATE) {
+    await run('indicator.update', { instance: rsi.instanceId, inputs: [{ key: 'period', value: 7 }] })
+    expect(insts().find(i => i.instanceId === rsi.instanceId).inputs.period).toBe(7)
+  }
+  await run('indicator.remove', { instance: rsi.instanceId })
+  expect(insts().find(i => i.instanceId === rsi.instanceId)).toBeUndefined()
+  for (const u of [null, 1, '1']) for (const k of ['chart:w1', 'global']) expect(peekIndicatorHistory(k, { userId: u }).past).toHaveLength(0)
+  expect(historyKeys()).toEqual([])
+}, 30000)

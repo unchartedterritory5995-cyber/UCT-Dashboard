@@ -1,0 +1,183 @@
+/* SCRATCH — copied harness from ChartsWorkspace.previousLayout.test.jsx */
+import { render, screen, act, fireEvent, waitFor, cleanup, within } from '@testing-library/react'
+import { useSyncExternalStore } from 'react'
+import { vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
+
+vi.mock('./WidgetHost', () => ({ default: ({ widget }) => <div data-testid={`body-${widget.type}`}>{widget.type}</div> }))
+vi.mock('./mobile/MobileChartsApp', () => ({ default: () => <div data-testid="mobile-charts-app">MOBILE</div> }))
+vi.mock('./grid/MultiChartGrid', () => ({ default: () => <div data-testid="multichart-grid">GRID</div> }))
+vi.mock('./grid/MultiChartMenu', () => ({ default: () => <div data-testid="multichart-menu">MC MENU</div> }))
+vi.mock('react-grid-layout', () => ({
+  // the grid's own drag callback: a member moving a widget (the board's arrangement changes)
+  Responsive: ({ children, onLayoutChange }) => (
+    <div data-testid="rgl-responsive">
+      <button data-testid="rgl-drag" onClick={() => onLayoutChange && onLayoutChange([{ i: 'calendar-1', x: 10, y: 2, w: 6, h: 8 }])}>drag</button>
+      {children}
+    </div>
+  ),
+  WidthProvider: (C) => C,
+}))
+vi.mock('../journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
+
+// ── preferences: a store, so a write re-renders like the real hook ──
+const prefStore = (() => {
+  let prefs = {}
+  const subs = new Set()
+  return {
+    get: () => prefs,
+    set: (p) => { prefs = p; subs.forEach(f => f()) },
+    write: (k, v) => { prefs = { ...prefs, [k]: v }; subs.forEach(f => f()) },
+    subscribe: (f) => { subs.add(f); return () => subs.delete(f) },
+  }
+})()
+const setPref = vi.fn((k, v) => { prefStore.write(k, v); return Promise.resolve(true) })
+vi.mock('../../hooks/usePreferences', () => ({
+  default: function usePreferences() { return { prefs: useSyncExternalStore(prefStore.subscribe, prefStore.get), setPref, loading: false } },
+  parsePref: (raw, fallback) => {
+    if (raw == null) return fallback
+    if (typeof raw !== 'string') return raw
+    try { return JSON.parse(raw) } catch { return fallback }
+  },
+}))
+vi.mock('../../hooks/useMediaQuery', () => ({ default: () => false }))
+vi.mock('../../context/AuthContext', async () => {
+  const { createContext } = await import('react')
+  const value = { user: { id: 1, role: 'admin', plan: 'pro' }, addressSpaceEnabled: false }
+  return { AuthContext: createContext(value), useAuth: () => value }
+})
+
+const board = (type) => ({ widgets: [{ id: `${type}-1`, type, color: 'A', x: 0, y: 0, w: 6, h: 8, opts: {} }], cols: 24 })
+const MAIN = { id: 1, name: 'Main Trading', scope: 'user', groups: null, layout: board('watchlist') }
+const SWING = { id: 2, name: 'Swing Board', scope: 'user', groups: null, layout: board('fundamentals') }
+const MACRO = { id: 3, name: 'Macro Board', scope: 'user', groups: null, layout: board('news') }
+const FIRM = { id: 9, name: 'Firm Board', scope: 'global', groups: null, layout: board('calendar') }
+let library
+vi.mock('../../hooks/useChartLayouts', () => ({
+  default: () => ({
+    global: library.global, mine: library.mine, isLoading: false,
+    saveLayout: async () => ({}), deleteLayout: async () => {}, refresh: () => {},
+  }),
+}))
+
+import ChartsWorkspace from './ChartsWorkspace'
+import { AGENT_FLAG_KEY, AGENT_OPEN_KEY } from '../../agent/agentFlag'
+
+let modelCalls
+beforeEach(() => {
+  modelCalls = 0
+  // jsdom's own storage (this file only): no conversation / in-flight marker from an earlier test
+  try { localStorage.clear() } catch { /* */ }
+  library = { global: [FIRM], mine: [MAIN, SWING, MACRO] }
+  localStorage.setItem(AGENT_FLAG_KEY, '1')
+  localStorage.setItem(AGENT_OPEN_KEY, '1')
+  globalThis.fetch = vi.fn(async (url) => {
+    const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
+    if (String(url).startsWith('/api/agent/turn')) { modelCalls += 1; return json({}) }
+    if (String(url).startsWith('/api/agent/record')) return json({ conversationId: 'ac_1' })
+    if (String(url).startsWith('/api/watchlists')) return json([])
+    // the cross-tab guard's server read (host.boardInSync) is railed in its own suites; here it is
+    // unreadable, which the guard treats as unchecked (never blocks on a network blip)
+    if (String(url).startsWith('/api/auth/preferences')) return new Response('', { status: 503 })
+    return json({ conversations: [] })
+  })
+})
+afterEach(() => {
+  cleanup()
+  localStorage.removeItem(AGENT_FLAG_KEY)
+  localStorage.removeItem(AGENT_OPEN_KEY)
+  delete globalThis.fetch
+})
+
+function mount(open) {
+  prefStore.set({
+    charts_workspace_layout: JSON.stringify(open.layout),
+    charts_active_template: JSON.stringify({ id: open.id, name: open.name, scope: open.scope }),
+  })
+  return render(<MemoryRouter><ChartsWorkspace /></MemoryRouter>)
+}
+const activeId = () => JSON.parse(prefStore.get().charts_active_template || 'null')?.id ?? null
+const dockButton = (name) => [...document.querySelectorAll('[role="toolbar"][aria-label="Saved layouts"] button')].find(b => b.textContent.trim() === name) || null
+const dockActive = () => [...document.querySelectorAll('[role="toolbar"][aria-label="Saved layouts"] button[aria-current="true"]')].map(b => b.textContent.trim())
+async function say(text) {
+  const box = await screen.findByLabelText('Message UCT Agent', {}, { timeout: 15000 })
+  fireEvent.change(box, { target: { value: text } })
+  await act(async () => { fireEvent.keyDown(box, { key: 'Enter' }) })
+}
+
+// SCRATCH (AGENT × INDICATORS A1.3b, 2026-10-13): the Agent's layout.open receipt vs the member's
+// "Switched to …" toast — never both for one switch, never a stale or conflicting Undo.
+const toastEl = () => screen.queryByTestId('layout-undo-toast')
+const settle = (ms = 300) => act(async () => { await new Promise(r => setTimeout(r, ms)) })
+
+test('L1 — an Agent open: the Agent receipt only, NO member toast', async () => {
+  mount(MAIN)
+  await say('open Swing Board')
+  await waitFor(() => expect(activeId()).toBe(2), { timeout: 15000 })
+  expect(await screen.findByText(/Opened “Swing Board” in place of “Main Trading”/, {}, { timeout: 15000 })).toBeTruthy()
+  await settle()
+  expect(toastEl()).toBeNull()
+  expect(modelCalls).toBe(0)
+}, 45000)
+
+test('L2 — member Dock open (toast), THEN an Agent open: what does the member toast say, and its Undo?', async () => {
+  mount(MAIN)
+  await act(async () => { dockButton('Swing Board').click() })
+  await waitFor(() => expect(activeId()).toBe(2))
+  expect((await screen.findByTestId('layout-undo-toast')).textContent).toMatch(/^Switched to “Swing Board”/)
+  await say('open Macro Board')
+  await waitFor(() => expect(activeId()).toBe(3), { timeout: 15000 })
+  expect(await screen.findByText(/Opened “Macro Board” in place of “Swing Board”/, {}, { timeout: 15000 })).toBeTruthy()
+  await settle()
+  expect(toastEl()).toBeNull()                                  // 1311765c84: the stale "Switched to Swing" is gone
+  expect(modelCalls).toBe(0)
+}, 45000)
+
+test('L3 — Agent open, then member Dock open: Agent "undo" is refused (stale); the member toast Undo works', async () => {
+  mount(MAIN)
+  await say('open Swing Board')
+  await waitFor(() => expect(activeId()).toBe(2), { timeout: 15000 })
+  await screen.findByText(/Opened “Swing Board” in place of “Main Trading”/, {}, { timeout: 15000 })
+  await act(async () => { dockButton('Macro Board').click() })
+  await waitFor(() => expect(activeId()).toBe(3))
+  expect((await screen.findByTestId('layout-undo-toast')).textContent).toMatch(/^Switched to “Macro Board”/)
+  await say('undo')
+  await settle(600)
+  console.log('L3 OBSERVED Agent undo reply:', JSON.stringify(screen.getByTestId('agent-transcript').textContent.slice(-220)))
+  expect(activeId()).toBe(3)                                     // the Agent never undoes the member's switch
+  const t = toastEl()
+  expect(t).toBeTruthy()
+  await act(async () => { within(t).getByRole('button', { name: 'Undo' }).click() })
+  await waitFor(() => expect(activeId()).toBe(2))
+  expect(modelCalls).toBe(0)
+}, 60000)
+
+test('L4 — refusals: an unknown layout, and an unsaved-board proposal — no member toast either way', async () => {
+  mount(FIRM)
+  await say('open Nowhere Board')
+  await settle(800)
+  console.log('L4 OBSERVED unknown-layout reply:', JSON.stringify(screen.getByTestId('agent-transcript').textContent.slice(-200)), 'modelCalls', modelCalls)
+  expect(activeId()).toBe(9)
+  expect(toastEl()).toBeNull()
+  await act(async () => { screen.getByTestId('rgl-drag').click() })   // unsaved edits on a prebuilt
+  await say('open Main Trading')
+  expect(await screen.findByTestId('agent-proposal', {}, { timeout: 15000 })).toBeTruthy()
+  expect(activeId()).toBe(9)
+  expect(toastEl()).toBeNull()
+  await say('do it')
+  await waitFor(() => expect(activeId()).toBe(1), { timeout: 15000 })
+  await settle()
+  expect(toastEl()).toBeNull()                                   // the Agent's receipt says it; no member toast
+}, 60000)
+
+test('L5 — a member open that did not land, then an Agent open within 4 s: no toast misattributed', async () => {
+  const EMPTY = { id: 4, name: 'Empty Board', scope: 'user', groups: null, layout: { cols: 24 } }
+  library = { global: [FIRM], mine: [MAIN, SWING, MACRO, EMPTY] }
+  mount(MAIN)
+  await act(async () => { dockButton('Empty Board').click() })
+  await settle(100)
+  await say('open Swing Board')
+  await waitFor(() => expect(activeId()).toBe(2), { timeout: 15000 })
+  await settle()
+  expect(toastEl()).toBeNull()
+}, 45000)

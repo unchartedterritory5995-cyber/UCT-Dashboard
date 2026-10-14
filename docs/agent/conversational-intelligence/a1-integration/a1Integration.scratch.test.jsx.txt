@@ -1,0 +1,244 @@
+// SCRATCH (AGENT × INDICATORS A1 integration, 2026-10-13) — not committed.
+// The Agent's indicator writes vs the member's indicator Undo stack (A1.2): the REAL AgentPanel, the REAL
+// Agent runtime, the REAL IndicatorUndoToast + IndicatorHistoryButtons, the REAL indicatorHistoryStore.
+// The host's commit writes the blob WITHOUT recording (= ChartWidget `api.agent.commit` → onOptsChange);
+// the member's writes record exactly as StockChart.handleUpdateChartSettings does (recordIndicatorChange
+// then write). No model: every Agent turn here is deterministic.
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, waitFor, cleanup, act, within } from '@testing-library/react'
+import { useSyncExternalStore } from 'react'
+import { SWRConfig } from 'swr'
+import { mergeChartSettings } from '../components/chart/chartDefaults'
+import { adoptOverlayAverages } from '../components/chart/maAdoption'
+import { AuthContext } from '../context/AuthContext'
+import { registerBuiltins } from './builtins'
+import { setOwnedDefinitionSource, _resetProposedPlans } from './capabilities/indicatorEdits'
+import { planOps, collectTargets } from './executor'
+import { commitPlan, undoEntry } from './runtime'
+import {
+  recordIndicatorChange, peekIndicatorHistory, _resetIndicatorHistoryForTests,
+} from '../components/chart/indicatorHistoryStore'
+import IndicatorUndoToast from '../components/chart/IndicatorUndoToast'
+import IndicatorHistoryButtons from '../components/chart/IndicatorHistoryButtons'
+import { labelFor } from '../components/chart/indicatorCatalog'
+
+vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
+import AgentPanel from './AgentPanel'
+registerBuiltins()
+
+const SURFACE = 'chart:c1'
+const UID = 1
+let turns
+beforeEach(() => {
+  turns = []
+  setOwnedDefinitionSource(() => []); _resetProposedPlans(); _resetIndicatorHistoryForTests()
+  try { localStorage.clear(); sessionStorage.clear() } catch { /* */ }
+  globalThis.fetch = vi.fn(async (url, init = {}) => {
+    const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json' } })
+    if (url === '/api/agent/turn' || url === '/api/agent/turn/stream') { turns.push(JSON.parse(init.body)); return json({ detail: 'no model in this test' }, 503) }
+    if (url === '/api/agent/record') return json({ conversationId: 'ac_1' })
+    if (url === '/api/agent/config') return json({ stream: false })
+    if (String(url).startsWith('/api/user-definitions')) return json({ definitions: [] })
+    return json({ conversations: [] })
+  })
+})
+afterEach(() => { cleanup(); vi.restoreAllMocks() })
+
+const load = (cs) => { const m = mergeChartSettings(JSON.stringify(cs || {})); return adoptOverlayAverages(m) || m }
+
+function makeHost() {
+  const subs = new Set()
+  const store = { c1: {} }
+  let ver = 0
+  const notify = () => { ver++; subs.forEach(f => f()) }
+  const read = (ref) => (ref in store ? { ref, label: 'Chart (QQQ)', position: null, symbol: 'QQQ', tf: 'D', stored: store[ref], cs: load(store[ref]), linkedCount: 0 } : null)
+  const h = {
+    store,
+    sub: (f) => { subs.add(f); return () => subs.delete(f) },
+    ver: () => ver,
+    cs: () => load(store.c1),
+    // the AGENT's door: ChartWidget api.agent.commit → onOptsChange — never recorded
+    charts: {
+      list: () => Object.keys(store).map(read), read,
+      commit: (ref, patch) => { store[ref] = JSON.parse(JSON.stringify(patch.settings)); notify(); return true },
+      canManageIndicators: () => true, canCreateIndicator: () => true, openCreateIndicator: () => ({ ok: true }),
+    },
+    persist: async () => ({ ok: true }),
+    otherWidgets: () => [],
+    // the MEMBER's door: StockChart.handleUpdateChartSettings — record, then write
+    memberWrite: (next) => {
+      recordIndicatorChange(SURFACE, load(store.c1), next, { userId: UID, labelOf: labelFor, origin: 'c1' })
+      store.c1 = JSON.parse(JSON.stringify(next)); notify()
+    },
+    // the toast / buttons sink: the chart's writer with recording suppressed (writeFromHistory)
+    historyWrite: (next) => { store.c1 = JSON.parse(JSON.stringify(next)); notify() },
+  }
+  return h
+}
+const inst = (h, id) => (h.cs().indicatorInstances || []).find(i => i && i.instanceId === id && !i.deleted)
+const setHidden = (h, id, hidden) => {
+  const cs = h.cs()
+  return { ...cs, indicatorInstances: cs.indicatorInstances.map(i => (i.instanceId === id ? { ...i, hidden } : i)) }
+}
+const past = () => peekIndicatorHistory(SURFACE, { userId: UID }).past
+const anyPast = () => [UID, null, 'anon', '1'].reduce((n, u) => n + peekIndicatorHistory(SURFACE, { userId: u }).past.length, 0)
+
+function Surface({ h }) {
+  useSyncExternalStore(h.sub, h.ver)
+  const cs = h.cs()
+  return (
+    <div data-testid="chart-surface">
+      <IndicatorUndoToast surfaceKey={SURFACE} userId={UID} chartId="c1" cs={cs} write={h.historyWrite} />
+      <IndicatorHistoryButtons surfaceKey={SURFACE} userId={UID} cs={cs} write={h.historyWrite} />
+    </div>
+  )
+}
+
+function mount(h) {
+  render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <AuthContext.Provider value={{ isPaid: true, user: { id: UID, role: 'admin' }, loading: false }}>
+        <Surface h={h} />
+        <AgentPanel host={h} onClose={() => {}} />
+      </AuthContext.Provider>
+    </SWRConfig>,
+  )
+  const box = screen.getByLabelText('Message UCT Agent')
+  const say = async (t) => {
+    await waitFor(() => { expect(box.disabled).toBe(false); expect(document.querySelector('[data-testid=agent-typing]')).toBeNull() }, { timeout: 8000 })
+    fireEvent.change(box, { target: { value: t } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() => expect(box.value).toBe(''), { timeout: 4000 })
+    await waitFor(() => expect(document.querySelector('[data-testid=agent-typing]')).toBeNull(), { timeout: 8000 })
+  }
+  const transcript = () => screen.getByTestId('agent-transcript').textContent
+  return { say, transcript, box }
+}
+
+// the Agent's runtime door for the model-only verbs (hide / show / remove / update by id) — the same plan the
+// model's ops would produce; never a model call.
+async function agentOp(h, action, args) {
+  const plan = planOps(collectTargets(h, ['indicatorEdits']), [{ action, target: 'ixe:c1', args }], {}, { surface: 'charts' })
+  expect(plan.ok, JSON.stringify(plan)).toBe(true)
+  const res = await commitPlan(h, plan)
+  expect(res.ok, JSON.stringify(res)).toBe(true)
+  return res
+}
+const toast = () => screen.queryByTestId('indicator-undo-toast')
+const undoBtn = () => within(screen.getByTestId('indicator-history-buttons')).getAllByRole('button')[0]
+const redoBtn = () => within(screen.getByTestId('indicator-history-buttons')).getAllByRole('button')[1]
+
+describe('1 — Agent indicator writes land and are NEVER on the Indicators Undo stack', () => {
+  it('add / update (setInputs) / hide / show / remove — each lands; the member stack stays empty; no toast', async () => {
+    const h = makeHost()
+    const { say } = mount(h)
+    expect(inst(h, 'ovl:2').inputs).toMatchObject({ period: 50 })
+    await say('add a 20 ema')
+    const added = await waitFor(() => { const a = h.cs().indicatorInstances.filter(i => !i.deleted && !String(i.instanceId).startsWith('ovl:')); expect(a).toHaveLength(1); return a[0] })
+    expect(anyPast()).toBe(0); expect(toast()).toBeNull()
+    await say('make it a 9')                                                        // Gate C setInputs
+    await waitFor(() => expect(inst(h, added.instanceId).inputs.period).toBe(9))
+    expect(anyPast()).toBe(0); expect(toast()).toBeNull()
+    await act(async () => { await agentOp(h, 'indicator.hide', { instance: 'ovl:3' }) })
+    expect(inst(h, 'ovl:3').hidden).toBe(true)
+    expect(anyPast()).toBe(0); expect(toast()).toBeNull()
+    await act(async () => { await agentOp(h, 'indicator.show', { instance: 'ovl:3' }) })
+    expect(inst(h, 'ovl:3').hidden).not.toBe(true)
+    await act(async () => { await agentOp(h, 'indicator.update', { instance: 'ovl:2', inputs: [{ key: 'period', value: 100 }] }) })
+    expect(inst(h, 'ovl:2').inputs.period).toBe(100)
+    await act(async () => { await agentOp(h, 'indicator.remove', { instance: added.instanceId }) })
+    expect(inst(h, added.instanceId)).toBeUndefined()
+    expect(anyPast()).toBe(0); expect(toast()).toBeNull()
+    expect(undoBtn().disabled).toBe(true)                                           // Chart Settings / phone Undo: nothing
+    expect(turns).toHaveLength(0)
+  }, 60000)
+})
+
+describe('2 — member Undo / Redo never reverts or replays an Agent write', () => {
+  it('SAME instance: member hides SMA 50 → Agent shows it → member toast Undo is REFUSED, Agent write intact; Agent Undo still exact', async () => {
+    const h = makeHost()
+    mount(h)
+    act(() => h.memberWrite(setHidden(h, 'ovl:2', true)))
+    expect(past()).toHaveLength(1)
+    await waitFor(() => expect(toast()?.textContent).toMatch(/hidden/))
+    let res
+    await act(async () => { res = await agentOp(h, 'indicator.show', { instance: 'ovl:2' }) })
+    expect(inst(h, 'ovl:2').hidden).not.toBe(true)
+    expect(past()).toHaveLength(1)                                                  // the Agent added nothing
+    const before = JSON.stringify(h.store.c1)
+    await act(async () => { within(toast()).getByRole('button', { name: 'Undo' }).click() })
+    expect(toast().textContent).toMatch(/Can't undo: .* changed since\./)
+    expect(JSON.stringify(h.store.c1)).toBe(before)                                 // nothing written
+    let u
+    await act(async () => { u = await undoEntry(h, res.undo) })
+    expect(u.ok).toBe(true)
+    expect(inst(h, 'ovl:2').hidden).toBe(true)                                      // Agent Undo → back to the member's hidden
+    // …and now the member's entry is exact again: Undo applies
+    await act(async () => { undoBtn().click() })
+    expect(inst(h, 'ovl:2').hidden).not.toBe(true)
+  }, 60000)
+
+  it('DIFFERENT instance: member hides SMA 50, Agent adds an EMA 20, member Undo/Redo touch ONLY the SMA 50; Agent Undo removes only its EMA', async () => {
+    const h = makeHost()
+    const { say } = mount(h)
+    act(() => h.memberWrite(setHidden(h, 'ovl:2', true)))
+    await say('add a 20 ema')
+    const added = await waitFor(() => { const a = h.cs().indicatorInstances.filter(i => !i.deleted && !String(i.instanceId).startsWith('ovl:')); expect(a).toHaveLength(1); return a[0] })
+    expect(past()).toHaveLength(1)
+    await act(async () => { undoBtn().click() })                                    // Chart Settings ↶
+    expect(inst(h, 'ovl:2').hidden).not.toBe(true)
+    expect(inst(h, added.instanceId)).toBeTruthy()                                  // Agent's EMA untouched
+    await act(async () => { redoBtn().click() })                                    // ↷
+    expect(inst(h, 'ovl:2').hidden).toBe(true)
+    expect(inst(h, added.instanceId)).toBeTruthy()
+    await say('undo')                                                               // the Agent's own Undo
+    await waitFor(() => expect(inst(h, added.instanceId)).toBeUndefined())
+    expect(inst(h, 'ovl:2').hidden).toBe(true)                                      // member's redo intact
+    expect(past()).toHaveLength(1)
+    expect(turns).toHaveLength(0)
+  }, 60000)
+
+  it('Agent setInputs on an instance the member just hid: member Undo refused; after Agent Undo, member Undo applies', async () => {
+    const h = makeHost()
+    mount(h)
+    act(() => h.memberWrite(setHidden(h, 'ovl:1', true)))                          // EMA 20 hidden by the member
+    let res
+    await act(async () => { res = await agentOp(h, 'indicator.update', { instance: 'ovl:1', inputs: [{ key: 'period', value: 50 }] }) })
+    expect(inst(h, 'ovl:1')).toMatchObject({ hidden: true, inputs: expect.objectContaining({ period: 50 }) })
+    await act(async () => { undoBtn().click() })
+    expect(screen.getByTestId('indicator-history-buttons').textContent).toMatch(/Can't undo: the indicator changed since\./)
+    expect(inst(h, 'ovl:1')).toMatchObject({ hidden: true, inputs: expect.objectContaining({ period: 50 }) })
+    await act(async () => { await undoEntry(h, res.undo) })
+    expect(inst(h, 'ovl:1')).toMatchObject({ hidden: true, inputs: expect.objectContaining({ period: 20 }) })
+    await act(async () => { undoBtn().click() })
+    expect(inst(h, 'ovl:1').hidden).not.toBe(true)
+    expect(inst(h, 'ovl:1').inputs.period).toBe(20)
+  }, 60000)
+
+  it('Redo after an Agent write to the same instance is refused (never replays over it)', async () => {
+    const h = makeHost()
+    mount(h)
+    act(() => h.memberWrite(setHidden(h, 'ovl:2', true)))
+    await act(async () => { undoBtn().click() })                                    // member Undo → shown; Redo available
+    expect(inst(h, 'ovl:2').hidden).not.toBe(true)
+    await act(async () => { await agentOp(h, 'indicator.update', { instance: 'ovl:2', inputs: [{ key: 'period', value: 100 }] }) })
+    const before = JSON.stringify(h.store.c1)
+    await act(async () => { redoBtn().click() })
+    expect(JSON.stringify(h.store.c1)).toBe(before)
+    expect(inst(h, 'ovl:2').inputs.period).toBe(100)
+  }, 60000)
+
+  it('keys: Ctrl+Z typed in the Agent message box never fires the indicator Undo; on the page it does', async () => {
+    const h = makeHost()
+    const { box } = mount(h)
+    act(() => h.memberWrite(setHidden(h, 'ovl:2', true)))
+    await waitFor(() => expect(toast()).toBeTruthy())
+    box.focus()
+    await act(async () => { fireEvent.keyDown(box, { key: 'z', ctrlKey: true }) })
+    expect(inst(h, 'ovl:2').hidden).toBe(true)
+    box.blur()                                                                      // the member clicks back on the chart
+    await act(async () => { fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true }) })
+    expect(inst(h, 'ovl:2').hidden).not.toBe(true)
+  }, 60000)
+})
+
