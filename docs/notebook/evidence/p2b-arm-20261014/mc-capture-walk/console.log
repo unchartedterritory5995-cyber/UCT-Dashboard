@@ -1,0 +1,14 @@
+PASS auth payload carries the flag ON :: notebook_journal_styles_enabled=True
+PASS 390: tap target >= 44 px tall :: {'x': 41, 'y': 590.640625, 'width': 120.71875, 'height': 44}
+PASS 390: nothing covers the button :: {'self': True, 'hitTag': 'BUTTON', 'hitText': 'Capture now'}
+PASS 390: button inside the viewport width :: {'x': 41, 'y': 590.640625, 'width': 120.71875, 'height': 44}
+PASS 1280: button laid out with a real box :: {'x': 415, 'y': 550.75, 'width': 114.6875, 'height': 33}
+PASS 1280: the button takes keyboard focus inside the node view :: {'tag': 'BUTTON', 'text': 'Capture now'}
+PASS 1280: the budget sentence is shown before capture :: 1
+PASS capture: the button goes away once captured :: [{'method': 'GET', 'url': '/api/j2/trader-blocks/market-context', 'status': 200}]
+PASS capture: the note write landed on the wire (200) :: [{'method': 'PUT', 'url': '/api/j2/notes/d0ee0193c56843e790eca3d66f7b677e', 'status': 200}]
+PASS round trip: the server copy is captured :: {'params_keys': ['fields', 'readings', 'updated', 'wireDate'], 'capturedAt': '2026-10-14T03:12:26.782000Z'}
+PASS reload: no Capture now, no budget sentence :: after reload
+PASS no uncaught page errors :: []
+cleanup: {'delete_status': 200, 'still_listed': False}
+VERDICT: PASS

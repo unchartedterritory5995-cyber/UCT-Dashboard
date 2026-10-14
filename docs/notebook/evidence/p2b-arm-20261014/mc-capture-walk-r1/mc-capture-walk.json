@@ -1,0 +1,196 @@
+{
+ "base": "https://uctintelligence.com",
+ "started": "2026-10-14T03:08:59Z",
+ "checks": [
+  {
+   "name": "auth payload carries the flag ON",
+   "ok": true,
+   "detail": "notebook_journal_styles_enabled=True"
+  },
+  {
+   "name": "390: tap target >= 44 px tall",
+   "ok": true,
+   "detail": {
+    "x": 41,
+    "y": 590.640625,
+    "width": 120.71875,
+    "height": 44
+   }
+  },
+  {
+   "name": "390: nothing covers the button",
+   "ok": false,
+   "detail": {
+    "self": false,
+    "hitTag": "SPAN",
+    "hitText": "Morning Wire"
+   }
+  },
+  {
+   "name": "390: button inside the viewport width",
+   "ok": true,
+   "detail": {
+    "x": 41,
+    "y": 590.640625,
+    "width": 120.71875,
+    "height": 44
+   }
+  },
+  {
+   "name": "1280: button laid out with a real box",
+   "ok": true,
+   "detail": {
+    "x": 415,
+    "y": 550.75,
+    "width": 114.6875,
+    "height": 33
+   }
+  },
+  {
+   "name": "1280: the button takes keyboard focus inside the node view",
+   "ok": true,
+   "detail": {
+    "tag": "BUTTON",
+    "text": "Capture now"
+   }
+  },
+  {
+   "name": "1280: the budget sentence is shown before capture",
+   "ok": true,
+   "detail": 1
+  },
+  {
+   "name": "capture: the button goes away once captured",
+   "ok": true,
+   "detail": [
+    {
+     "method": "GET",
+     "url": "/api/j2/trader-blocks/market-context",
+     "status": 200
+    }
+   ]
+  },
+  {
+   "name": "capture: the note write landed on the wire (200)",
+   "ok": false,
+   "detail": []
+  },
+  {
+   "name": "round trip: the server copy is captured",
+   "ok": true,
+   "detail": {
+    "params_keys": [
+     "fields",
+     "readings",
+     "updated",
+     "wireDate"
+    ],
+    "capturedAt": "2026-10-14T03:09:14.337000Z"
+   }
+  },
+  {
+   "name": "reload: no Capture now, no budget sentence",
+   "ok": true,
+   "detail": "after reload"
+  },
+  {
+   "name": "no uncaught page errors",
+   "ok": true,
+   "detail": []
+  }
+ ],
+ "console_errors": [],
+ "page_errors": [],
+ "wire": [
+  {
+   "method": "GET",
+   "url": "/api/j2/trader-blocks/market-context",
+   "status": 200
+  },
+  {
+   "method": "PUT",
+   "url": "/api/j2/notes/7ed52cbdbcae45528ae573ead49f2472",
+   "status": 200
+  },
+  {
+   "method": "PUT",
+   "url": "/api/j2/notes/7ed52cbdbcae45528ae573ead49f2472",
+   "status": 200
+  }
+ ],
+ "note_id": "7ed52cbdbcae45528ae573ead49f2472",
+ "cleanup": {
+  "delete_status": 200,
+  "still_listed": false
+ },
+ "server_stamp": {
+  "v": 1,
+  "widgetId": "marketcontext",
+  "params": {
+   "fields": "all",
+   "readings": {
+    "marketPhase": null,
+    "exposureScore": 100,
+    "exposureDelta": 0,
+    "breadthScore": 38.7,
+    "distributionDays": 0,
+    "pctAbove50": 37,
+    "pctAbove200": 50.1,
+    "powerTrend": null,
+    "regime": {
+     "value": "green",
+     "source": "journal_two.regime.get_current_regime",
+     "asOf": "2026-10-13",
+     "missing": null
+    },
+    "spy": {
+     "value": {
+      "price": 777.82,
+      "changePct": -0.036,
+      "closed": true
+     },
+     "source": "last close",
+     "asOf": "2026-10-13T20:00:00Z",
+     "missing": null
+    },
+    "qqq": {
+     "value": {
+      "price": 743.57,
+      "changePct": -0.3311,
+      "closed": true
+     },
+     "source": "last close",
+     "asOf": "2026-10-13T20:00:00Z",
+     "missing": null
+    },
+    "vix": {
+     "value": null,
+     "source": null,
+     "asOf": null,
+     "missing": "VIX unavailable"
+    }
+   },
+   "wireDate": "2026-10-13",
+   "updated": "11:09 PM ET"
+  },
+  "capturedAt": "2026-10-14T03:09:14.337000Z",
+  "embedId": "mc-walk",
+  "mode": "snapshot",
+  "fallback": {
+   "url": "/api/j2/notes/attachments/f4433528-6466-474a-949c-8d5eda8a7b91/7ed52cbdbcae45528ae573ead49f2472/inline/3b165bb0db3ba231f1706a7342701a85.png",
+   "w": 776,
+   "h": 427
+  },
+  "frozen": false,
+  "tradeRef": null,
+  "annotations": [],
+  "caption": null,
+  "layout": {
+   "width": "full",
+   "height": null
+  },
+  "searchText": "[market context: regime green \u00b7 exposure 100 \u00b7 breadth 38.7 \u2014 2026-10-13]",
+  "ta": null
+ },
+ "verdict": "FAIL"
+}
