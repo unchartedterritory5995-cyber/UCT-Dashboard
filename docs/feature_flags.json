@@ -688,6 +688,22 @@
       ],
       "note": ""
     },
+    "BARS_LIVE_COVERAGE_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-14",
+      "where": [
+        "bars-api"
+      ],
+      "note": "Universe live bars, SERVING side (api/services/bars_live_store.py). ENABLEMENT GATE, default OFF, read per call. When ON, bars-api keeps every cap_universe ticker's 5m series current from the web pod's AM.* stream (POST /internal/live-bars, service-gated) plus a per-socket-epoch provider backfill, and every ticker's daily bar current from the whole-market snapshot every BARS_LIVE_DAILY_POLL_S (10 s); a covered series is fresh by construction in bars_fetch._needs_fresh and is served from SQLite with no provider call. Arms together with BARS_UNIVERSE_STREAM_ENABLED on web. Status: GET /internal/live-status (service token). Rollback: set 0 (reads fall back to the old freshness path at once)."
+    },
+    "BARS_UNIVERSE_STREAM_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-14",
+      "where": [
+        "web"
+      ],
+      "note": "Universe live bars, WEB side (api/services/bars_live_ingest.py). ENABLEMENT GATE, default OFF. When ON, the web pod's one Massive stocks socket (bar_stream) subscribes AM.* (every minute bar, every ticker), rolls them into 5m buckets and POSTs them to bars-api every BARS_LIVE_FLUSH_S (3 s) at BARS_ORIGIN_URL/internal/live-bars; per-symbol subscribes drop AM.<sym> (the wildcard carries it). Runs on the bar-stream thread's own event loop, not the request loop. Counters: /api/admin/bars-stream-status -> universe. Needs STREAM_BARS_ENABLED=1. Arms with BARS_LIVE_COVERAGE_ENABLED on bars-api."
+    },
     "BARS_RAIL_PAGE_ENABLED": {
       "status": "armed",
       "where": ["web"],

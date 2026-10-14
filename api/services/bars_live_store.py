@@ -81,6 +81,8 @@ _daily_seen: set[str] = set()
 #: Recent stream buckets per ticker, re-applied after a backfill write so a
 #: provider snapshot taken mid-bucket can never regress a bucket the stream owns.
 _recent: dict[str, dict[int, tuple]] = {}
+#: The last daily row written per ticker (skip unchanged rewrites).
+_last_daily: dict[str, tuple] = {}
 _backfill_wakeup = threading.Event()
 _threads_started = False
 
@@ -111,8 +113,45 @@ def covered(ticker: str, tf: str) -> bool:
     if tf == "5":
         return stream_alive() and sym in _covered5
     if tf == "D":
-        return daily_alive() and sym in _daily_seen
+        return daily_alive() and sym in _daily_seen and _daily_contiguous(sym)
     return False
+
+
+#: sym -> (today_ymd, verdict). Re-checked once per ticker per day, and again after
+#: any failed check (a later R2 merge or fetch can fill the missing session).
+_contig: dict[str, tuple[int, bool]] = {}
+
+
+def _prev_session_ymd(today: datetime) -> int:
+    from api.services.bars_fetch import _is_nyse_holiday
+    d = today - timedelta(days=1)
+    for _ in range(14):
+        ymd = int(d.strftime("%Y%m%d"))
+        if d.weekday() < 5 and not _is_nyse_holiday(ymd):
+            return ymd
+        d -= timedelta(days=1)
+    return int(d.strftime("%Y%m%d"))
+
+
+def _daily_contiguous(sym: str) -> bool:
+    """The stored daily series runs unbroken into today: its newest bar before today is
+    the previous session. Without this a ticker whose stored history ended last week
+    would be served with today's snapshot bar sitting after a silent gap."""
+    now = datetime.now(_ET)
+    today = int(now.strftime("%Y%m%d"))
+    hit = _contig.get(sym)
+    if hit and hit[0] == today and hit[1]:
+        return True
+    from api.services import bars_sqlite
+    try:
+        c = bars_sqlite._conn()
+        row = c.execute("SELECT MAX(ts) FROM ohlcv WHERE ticker=? AND tf='D' AND ts<?",
+                        (sym, today)).fetchone()
+        ok = bool(row and row[0] == _prev_session_ymd(now))
+    except Exception:
+        ok = False
+    _contig[sym] = (today, ok)
+    return ok
 
 
 def history_complete(ticker: str, tf: str) -> bool:
@@ -317,8 +356,12 @@ def _daily_poll_once() -> None:
     if not tickers:
         return
     today = int(datetime.now(_ET).strftime("%Y%m%d"))
-    rows = daily_rows_from_snapshot(tickers, today)
+    # Only bars that moved since the last poll: an unchanged ticker's stored row is
+    # already exact, and rewriting ~11k rows every poll would crowd the write lock.
+    rows = [r for r in daily_rows_from_snapshot(tickers, today) if _last_daily.get(r[0]) != r]
     n = _write_rows("D", rows) if rows else 0
+    for r in rows:
+        _last_daily[r[0]] = r
     seen = {str(t.get("ticker", "")).replace(".", "-").upper() for t in tickers if t.get("ticker")}
     with _lock:
         _daily_seen.update(seen)
@@ -374,3 +417,5 @@ def _reset_for_tests() -> None:
         _history5_complete.clear()
         _daily_seen.clear()
         _recent.clear()
+        _contig.clear()
+        _last_daily.clear()

@@ -60,7 +60,8 @@ def test_daily_rows_come_from_the_snapshot_day_bar_and_skip_unprinted_tickers():
     assert rows == [("BRK-B", 20261014, 1.0, 2.0, 0.5, 1.5, 100)]
 
 
-def test_daily_is_covered_while_the_poll_is_alive(live):
+def test_daily_is_covered_while_the_poll_is_alive(live, monkeypatch):
+    monkeypatch.setattr(live, "_daily_contiguous", lambda s: True)
     live._daily_seen.add("AAA")
     assert live.covered("AAA", "D") is False
     live._state["daily_last_ok_mono"] = live._now_mono()
@@ -72,3 +73,56 @@ def test_a_deep_request_never_rides_the_thin_history_shortcut(live):
     live._history5_complete.add("AAA")
     assert live.history_complete("AAA", "5") is True
     assert 5000 > live.LIVE_HISTORY_MAX_BARS
+
+
+def test_daily_is_not_covered_when_yesterday_is_missing(live, monkeypatch):
+    live._daily_seen.add("AAA")
+    live._state["daily_last_ok_mono"] = live._now_mono()
+
+    class _C:
+        def execute(self, *a):
+            class _R:
+                def fetchone(self_):
+                    return (20261001,)   # last stored daily bar is two weeks old
+            return _R()
+    monkeypatch.setattr(bars_sqlite, "_conn", lambda: _C())
+    assert live.covered("AAA", "D") is False
+
+
+def test_prev_session_skips_weekends_and_holidays():
+    from datetime import datetime
+    assert bls._prev_session_ymd(datetime(2026, 10, 12, 12, tzinfo=bls._ET)) == 20261009  # Mon -> Fri
+    assert bls._prev_session_ymd(datetime(2026, 11, 27, 12, tzinfo=bls._ET)) == 20261125  # day after Thanksgiving
+
+
+def test_end_to_end_a_pushed_bucket_lands_and_a_covered_read_is_served_from_sqlite(monkeypatch, tmp_path):
+    """Real SQLite: the web push lands in the store, and a covered tf=5 read is
+    answered from SQLite without touching any provider."""
+    import time as _t
+    monkeypatch.setenv("BARS_LIVE_COVERAGE_ENABLED", "1")
+    monkeypatch.setattr(bars_sqlite, "_DB_PATH", str(tmp_path / "bars.db"))
+    bars_sqlite._drop_local_conn()
+    bars_sqlite.init_db()
+    bls._reset_for_tests()
+    now_b = int(_t.time()) // 300 * 300
+    hist = [{"t": now_b - 300 * i, "o": 10, "h": 11, "l": 9, "c": 10, "v": 100} for i in range(1, 400)]
+    bars_sqlite.put_bars("AAA", "5", hist)
+
+    def _no_provider(*a, **k):
+        raise AssertionError("a covered read must not reach a provider")
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday", _no_provider)
+    monkeypatch.setattr(bars_fetch, "_delta_intraday", _no_provider)
+
+    ffb = (now_b - 600) * 1000
+    out = bls.ingest({"epoch_ms": ffb - 1, "first_full_bucket_ms": ffb, "watermark_ms": now_b * 1000,
+                      "rows": [["AAA", now_b, 10, 12, 9, 11.5, 777]]})
+    assert out["accepted"] == 1
+    bls._covered5.add("AAA")
+    bars_fetch.cache.delete_prefix("bars_AAA_5_")
+    resp = bars_fetch._get_bars_inner("AAA", "5", 240)
+    assert bars_fetch.get_serve_layer() == "sqlite"
+    import json as _j
+    body = _j.loads(resp.body)
+    assert body["bars"][-1]["v"] == 777 and body["bars"][-1]["h"] == 12
+    bars_sqlite._drop_local_conn()
+    bls._reset_for_tests()

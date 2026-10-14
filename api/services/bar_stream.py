@@ -186,8 +186,10 @@ def _build_subscribe_message(syms: Iterable[str]) -> str:
     Example: AM.AAPL,A.AAPL,T.AAPL,AM.MSFT,A.MSFT,T.MSFT
     """
     parts = []
+    universe = _universe_stream_enabled()
     for s in sorted(syms):
-        parts.append(f"AM.{s}")
+        if not universe:  # under the universe feed, AM.* already carries every symbol
+            parts.append(f"AM.{s}")
         parts.append(f"A.{s}")
         parts.append(f"T.{s}")
     params = ",".join(parts)
@@ -197,12 +199,23 @@ def _build_subscribe_message(syms: Iterable[str]) -> str:
 def _build_unsubscribe_message(syms: Iterable[str]) -> str:
     """Unsubscribe from AM.*, A.*, and T.* for each symbol (Phase 4.6)."""
     parts = []
+    universe = _universe_stream_enabled()
     for s in sorted(syms):
-        parts.append(f"AM.{s}")
+        if not universe:  # never drop AM.<sym> out from under the AM.* wildcard
+            parts.append(f"AM.{s}")
         parts.append(f"A.{s}")
         parts.append(f"T.{s}")
     params = ",".join(parts)
     return json.dumps({"action": "unsubscribe", "params": params})
+
+
+def _universe_stream_enabled() -> bool:
+    """Universe live bars (`bars_live_ingest`): subscribe AM.* for every ticker."""
+    try:
+        from api.services import bars_live_ingest
+        return bars_live_ingest.enabled()
+    except Exception:
+        return False
 
 
 def _build_auth_message(api_key: str) -> str:
@@ -273,6 +286,17 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                     await ws.send(_build_subscribe_message(syms_to_resubscribe))
                     _logger.info("[bar_stream] Resubscribed %d symbols on (re)connect", len(syms_to_resubscribe))
 
+                # Universe live bars: every minute bar for every ticker, rolled into 5m
+                # and forwarded to the serving tier (`bars_live_ingest`). A new socket
+                # starts a new epoch, so the tier re-backfills the gap it left.
+                universe = _universe_stream_enabled()
+                if universe:
+                    from api.services import bars_live_ingest
+                    bars_live_ingest.mark_connected()
+                    bars_live_ingest.start_flusher(asyncio.get_running_loop())
+                    await ws.send(json.dumps({"action": "subscribe", "params": "AM.*"}))
+                    _logger.info("[bar_stream] universe feed: subscribed AM.*")
+
                 _running = True
                 backoff = 1
 
@@ -314,10 +338,19 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                                         _logger.info("[bar_stream] status: %s (%s)",
                                                      _st, ev.get("message"))
                                 continue
+                            kind = parsed["kind"]
+                            # T events carry "trade" dict; AM/A events carry "bar" dict
+                            payload_dict = parsed["trade"] if kind == "T" else parsed["bar"]
+                            if universe and kind == "AM":
+                                try:
+                                    bars_live_ingest.on_am(parsed["sym"], payload_dict)
+                                except Exception as ing_err:
+                                    _logger.debug("[bar_stream] universe ingest error: %s", ing_err)
+                                # The wildcard delivers every ticker; only the ones a
+                                # chart or owner subscribed reach the broadcaster.
+                                if parsed["sym"] not in _active:
+                                    continue
                             try:
-                                kind = parsed["kind"]
-                                # T events carry "trade" dict; AM/A events carry "bar" dict
-                                payload_dict = parsed["trade"] if kind == "T" else parsed["bar"]
                                 on_bar(parsed["sym"], payload_dict, kind)
                             except Exception as cb_err:
                                 _logger.warning("[bar_stream] on_bar callback error: %s", cb_err)
@@ -478,7 +511,16 @@ def get_status() -> dict:
             # the number to project the 300-name cost from.
             "a_msgs_per_sym_per_sec": round(_feed_counts["A"] / elapsed / active_n, 3) if active_n else None,
         },
+        "universe": _universe_status(),
     }
+
+
+def _universe_status() -> dict:
+    try:
+        from api.services import bars_live_ingest
+        return bars_live_ingest.status()
+    except Exception as e:  # noqa: BLE001
+        return {"error": str(e)}
 
 
 def start_stream(on_bar: OnBarCallback) -> None:
