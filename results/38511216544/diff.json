@@ -1,0 +1,336 @@
+{
+  "verdict": "INVALID",
+  "counts": {
+    "new": 8,
+    "fixed": 3,
+    "unchanged": 226,
+    "missing": 45,
+    "baseline": 274,
+    "current": 234,
+    "current_ran": 41452,
+    "new_flaky": 0,
+    "flaky_size": 11,
+    "flaky_new": 1,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 45
+  },
+  "arithmetic": "baseline 274 = unchanged 226 + fixed 3 + missing 45  |  current 234 = unchanged 226 + new 8 + new-but-flaky 0",
+  "invalid_because": [
+    "current: shards_success 17 of 20",
+    "current: shards_without_totals = ['tests-08']"
+  ],
+  "baseline_run_id": "38475294039",
+  "current_run_id": "38511216544",
+  "baseline_sha": "66cd9fe126040f14009fb6d7cf91dca838454df1",
+  "current_sha": "946a2ff330f9055273f201254acc6fbe85c7f1b5",
+  "commit_range": "66cd9fe126040f14009fb6d7cf91dca838454df1..946a2ff330f9055273f201254acc6fbe85c7f1b5",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_alert_taxonomy_price_level_projection|test_flow_worker_does_not_reach_d3_price_level_wiring",
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches",
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows",
+    "pytest|tests.test_breadth_chunk_invariance|test_bite_check_unseeded_prev_breaks_the_bodies",
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped",
+    "pytest|tests.test_notebook_bridges_pin_the_root|test_every_notebook_tool_that_imports_api_applies_the_census_first",
+    "pytest|tests.test_notebook_flag_parse|test_NO_notebook_flag_is_read_outside_the_one_parse",
+    "pytest|tests.test_review_drafts|test_every_caller_that_can_freeze_a_plan_is_behind_the_plan_grading_switch"
+  ],
+  "missing": [
+    "pytest|tests.test_notebook_route_security_census|test_every_notebook_route_on_the_real_app_is_classified_and_agrees",
+    "pytest|tests.test_notebook_switch_rehearsal|test_every_notebook_gate_is_rehearsed_or_carries_a_reason",
+    "pytest|tests.test_notebook_transcript_capture|test_the_import_graph_never_reaches_alphavantage",
+    "pytest|tests.test_options_l3|test_the_new_flags_are_declared_dark_in_the_ledger",
+    "pytest|tests.test_param_manifest|test_10_a_parameter_change_produces_a_new_ast_hash_for_scan_keying",
+    "pytest|tests.test_param_manifest|test_11_one_input_feeding_two_trees_updates_both_bindings_atomically",
+    "pytest|tests.test_param_manifest|test_12_one_of_two_locators_disappearing_is_PARTIALLY_DETACHED_not_a_half_working_slider",
+    "pytest|tests.test_param_manifest|test_13_two_locators_that_disagree_across_trees_is_CONFLICTED",
+    "pytest|tests.test_param_manifest|test_14_a_crafted_manifest_widening_an_existing_parameters_bound_is_defeated",
+    "pytest|tests.test_param_manifest|test_14b_a_crafted_manifest_changing_type_or_frozen_status_is_ignored",
+    "pytest|tests.test_param_manifest|test_14c_a_genuinely_new_parameter_on_a_FRESH_creation_is_legitimately_trusted",
+    "pytest|tests.test_param_manifest|test_15_a_crafted_PUT_cannot_invent_a_new_trusted_parameter_on_an_existing_definition",
+    "pytest|tests.test_param_manifest|test_15b_a_second_definition_may_legitimately_have_its_own_fresh_parameter",
+    "pytest|tests.test_param_manifest|test_16_a_bool_parameter_accepts_0_and_1_and_toggles_cleanly",
+    "pytest|tests.test_param_manifest|test_17_a_bool_parameter_REJECTS_anything_outside_0_or_1_no_coercion",
+    "pytest|tests.test_param_manifest|test_17b_a_bool_bound_to_a_JSON_true_literal_is_refused_even_earlier_than_param_manifest",
+    "pytest|tests.test_param_manifest|test_18_a_crafted_manifest_swapping_bool_for_int_type_is_ignored",
+    "pytest|tests.test_param_manifest|test_1_one_numeric_parameter_imports_adjustable_and_overrides_cleanly",
+    "pytest|tests.test_param_manifest|test_2_two_independent_parameters_change_without_disturbing_each_other",
+    "pytest|tests.test_param_manifest|test_3_one_parameter_at_multiple_locations_updates_all_locators_atomically",
+    "pytest|tests.test_param_manifest|test_3b_multiple_locators_that_DISAGREE_are_conflicted_not_silently_resolved",
+    "pytest|tests.test_param_manifest|test_4_offset_window_case_the_literal_survives_a_parameter_change",
+    "pytest|tests.test_param_manifest|test_5_manual_edit_of_the_binding_value_is_the_same_path_as_a_UI_edit",
+    "pytest|tests.test_param_manifest|test_6_a_deleted_binding_DETACHES_and_does_not_block_the_save",
+    "pytest|tests.test_param_manifest|test_6b_a_binding_rewritten_to_a_non_literal_is_NON_LITERAL_not_a_crash",
+    "pytest|tests.test_param_manifest|test_7_a_lookback_increasing_change_is_accepted_and_reflected",
+    "pytest|tests.test_param_manifest|test_8_an_out_of_range_override_is_REJECTED_not_clamped",
+    "pytest|tests.test_param_manifest|test_8b_the_boundary_values_are_inclusive_not_an_off_by_one",
+    "pytest|tests.test_param_manifest|test_9_forget_still_fires_on_every_save_that_carries_a_paramManifest",
+    "pytest|tests.test_param_repaste_c46|test_a_control_WITHOUT_the_carry_the_same_paste_is_refused",
+    "pytest|tests.test_param_repaste_c46|test_a_the_same_pine_pasted_over_the_pre_c46_document_SAVES_with_the_same_ids_and_values",
+    "pytest|tests.test_param_repaste_c46|test_b_an_input_ADDED_on_an_edit_is_refused_by_condition_15_and_nothing_is_stored",
+    "pytest|tests.test_param_repaste_c46|test_base_record_an_ADDED_input_was_refused_at_base_too",
+    "pytest|tests.test_param_repaste_c46|test_base_record_the_RENAMED_paste_sends_what_base_sent",
+    "pytest|tests.test_param_repaste_c46|test_c2_a_rename_beside_an_ADDED_input_is_refused_for_the_added_one_only",
+    "pytest|tests.test_param_repaste_c46|test_c3_two_inputs_SWAPPED_in_the_source_save_under_their_own_ids",
+    "pytest|tests.test_param_repaste_c46|test_c4_a_rename_with_a_changed_KIND_is_a_new_identity_and_is_refused",
+    "pytest|tests.test_param_repaste_c46|test_c5_two_renames_at_once_save_under_both_saved_ids",
+    "pytest|tests.test_param_repaste_c46|test_c_a_RENAMED_input_keeps_its_saved_id_and_SAVES",
+    "pytest|tests.test_param_repaste_c46|test_d_a_FRESH_paste_into_a_new_definition_saves_with_source_ids",
+    "pytest|tests.test_parity_scorecard|test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous",
+    "pytest|tests.test_perf_batch_a|test_get_rs_for_ticker_never_recomputes",
+    "pytest|tests.test_phase_e_acceptance|test_the_PINE_SCREENER_PARITY_PATH__one_definition_at_every_step",
+    "pytest|tests.test_phase_e_acceptance|test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED",
+    "pytest|tests.test_phase_e_acceptance|test_the_SCAN_SURFACE_and_the_CHART_read_the_SAME_ROW"
+  ],
+  "fixed": [
+    "pytest|tests.test_breadth_forward_seal|test_already_current_is_blocked_with_no_sessions",
+    "pytest|tests.test_breadth_history_single_flight|test_the_plain_reader_is_wired_too",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/research/sections/CatalystsSection.test.jsx|CatalystsSection > shows the finding state while catalysts generate and lands on its own (polls)",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/charts/widgets/IndexesWidget.test.jsx|CONTROL \u2014 the toast rail fails when the door says nothing",
+    "vitest|src/pages/journal-2-0/components/notebook/CaptureHost.test.jsx|capture preserves the member context (\u00a75/\u00a720) > closing returns the dialog to nothing",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [
+    "pytest|tests.test_notebook_route_security_census|test_every_notebook_route_on_the_real_app_is_classified_and_agrees",
+    "pytest|tests.test_notebook_switch_rehearsal|test_every_notebook_gate_is_rehearsed_or_carries_a_reason",
+    "pytest|tests.test_notebook_transcript_capture|test_the_import_graph_never_reaches_alphavantage",
+    "pytest|tests.test_options_l3|test_the_new_flags_are_declared_dark_in_the_ledger",
+    "pytest|tests.test_param_manifest|test_10_a_parameter_change_produces_a_new_ast_hash_for_scan_keying",
+    "pytest|tests.test_param_manifest|test_11_one_input_feeding_two_trees_updates_both_bindings_atomically",
+    "pytest|tests.test_param_manifest|test_12_one_of_two_locators_disappearing_is_PARTIALLY_DETACHED_not_a_half_working_slider",
+    "pytest|tests.test_param_manifest|test_13_two_locators_that_disagree_across_trees_is_CONFLICTED",
+    "pytest|tests.test_param_manifest|test_14_a_crafted_manifest_widening_an_existing_parameters_bound_is_defeated",
+    "pytest|tests.test_param_manifest|test_14b_a_crafted_manifest_changing_type_or_frozen_status_is_ignored",
+    "pytest|tests.test_param_manifest|test_14c_a_genuinely_new_parameter_on_a_FRESH_creation_is_legitimately_trusted",
+    "pytest|tests.test_param_manifest|test_15_a_crafted_PUT_cannot_invent_a_new_trusted_parameter_on_an_existing_definition",
+    "pytest|tests.test_param_manifest|test_15b_a_second_definition_may_legitimately_have_its_own_fresh_parameter",
+    "pytest|tests.test_param_manifest|test_16_a_bool_parameter_accepts_0_and_1_and_toggles_cleanly",
+    "pytest|tests.test_param_manifest|test_17_a_bool_parameter_REJECTS_anything_outside_0_or_1_no_coercion",
+    "pytest|tests.test_param_manifest|test_17b_a_bool_bound_to_a_JSON_true_literal_is_refused_even_earlier_than_param_manifest",
+    "pytest|tests.test_param_manifest|test_18_a_crafted_manifest_swapping_bool_for_int_type_is_ignored",
+    "pytest|tests.test_param_manifest|test_1_one_numeric_parameter_imports_adjustable_and_overrides_cleanly",
+    "pytest|tests.test_param_manifest|test_2_two_independent_parameters_change_without_disturbing_each_other",
+    "pytest|tests.test_param_manifest|test_3_one_parameter_at_multiple_locations_updates_all_locators_atomically",
+    "pytest|tests.test_param_manifest|test_3b_multiple_locators_that_DISAGREE_are_conflicted_not_silently_resolved",
+    "pytest|tests.test_param_manifest|test_4_offset_window_case_the_literal_survives_a_parameter_change",
+    "pytest|tests.test_param_manifest|test_5_manual_edit_of_the_binding_value_is_the_same_path_as_a_UI_edit",
+    "pytest|tests.test_param_manifest|test_6_a_deleted_binding_DETACHES_and_does_not_block_the_save",
+    "pytest|tests.test_param_manifest|test_6b_a_binding_rewritten_to_a_non_literal_is_NON_LITERAL_not_a_crash",
+    "pytest|tests.test_param_manifest|test_7_a_lookback_increasing_change_is_accepted_and_reflected",
+    "pytest|tests.test_param_manifest|test_8_an_out_of_range_override_is_REJECTED_not_clamped",
+    "pytest|tests.test_param_manifest|test_8b_the_boundary_values_are_inclusive_not_an_off_by_one",
+    "pytest|tests.test_param_manifest|test_9_forget_still_fires_on_every_save_that_carries_a_paramManifest",
+    "pytest|tests.test_param_repaste_c46|test_a_control_WITHOUT_the_carry_the_same_paste_is_refused",
+    "pytest|tests.test_param_repaste_c46|test_a_the_same_pine_pasted_over_the_pre_c46_document_SAVES_with_the_same_ids_and_values",
+    "pytest|tests.test_param_repaste_c46|test_b_an_input_ADDED_on_an_edit_is_refused_by_condition_15_and_nothing_is_stored",
+    "pytest|tests.test_param_repaste_c46|test_base_record_an_ADDED_input_was_refused_at_base_too",
+    "pytest|tests.test_param_repaste_c46|test_base_record_the_RENAMED_paste_sends_what_base_sent",
+    "pytest|tests.test_param_repaste_c46|test_c2_a_rename_beside_an_ADDED_input_is_refused_for_the_added_one_only",
+    "pytest|tests.test_param_repaste_c46|test_c3_two_inputs_SWAPPED_in_the_source_save_under_their_own_ids",
+    "pytest|tests.test_param_repaste_c46|test_c4_a_rename_with_a_changed_KIND_is_a_new_identity_and_is_refused",
+    "pytest|tests.test_param_repaste_c46|test_c5_two_renames_at_once_save_under_both_saved_ids",
+    "pytest|tests.test_param_repaste_c46|test_c_a_RENAMED_input_keeps_its_saved_id_and_SAVES",
+    "pytest|tests.test_param_repaste_c46|test_d_a_FRESH_paste_into_a_new_definition_saves_with_source_ids",
+    "pytest|tests.test_parity_scorecard|test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous",
+    "pytest|tests.test_perf_batch_a|test_get_rs_for_ticker_never_recomputes",
+    "pytest|tests.test_phase_e_acceptance|test_the_PINE_SCREENER_PARITY_PATH__one_definition_at_every_step",
+    "pytest|tests.test_phase_e_acceptance|test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED",
+    "pytest|tests.test_phase_e_acceptance|test_the_SCAN_SURFACE_and_the_CHART_read_the_SAME_ROW"
+  ],
+  "missing_buckets": {
+    "pytest|tests.test_notebook_route_security_census|test_every_notebook_route_on_the_real_app_is_classified_and_agrees": [
+      "DE-COLLECTED",
+      "tests/test_notebook_route_security_census.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_switch_rehearsal|test_every_notebook_gate_is_rehearsed_or_carries_a_reason": [
+      "DE-COLLECTED",
+      "tests/test_notebook_switch_rehearsal.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_transcript_capture|test_the_import_graph_never_reaches_alphavantage": [
+      "DE-COLLECTED",
+      "tests/test_notebook_transcript_capture.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_options_l3|test_the_new_flags_are_declared_dark_in_the_ledger": [
+      "DE-COLLECTED",
+      "tests/test_options_l3.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_10_a_parameter_change_produces_a_new_ast_hash_for_scan_keying": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_11_one_input_feeding_two_trees_updates_both_bindings_atomically": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_12_one_of_two_locators_disappearing_is_PARTIALLY_DETACHED_not_a_half_working_slider": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_13_two_locators_that_disagree_across_trees_is_CONFLICTED": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_14_a_crafted_manifest_widening_an_existing_parameters_bound_is_defeated": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_14b_a_crafted_manifest_changing_type_or_frozen_status_is_ignored": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_14c_a_genuinely_new_parameter_on_a_FRESH_creation_is_legitimately_trusted": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_15_a_crafted_PUT_cannot_invent_a_new_trusted_parameter_on_an_existing_definition": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_15b_a_second_definition_may_legitimately_have_its_own_fresh_parameter": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_16_a_bool_parameter_accepts_0_and_1_and_toggles_cleanly": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_17_a_bool_parameter_REJECTS_anything_outside_0_or_1_no_coercion": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_17b_a_bool_bound_to_a_JSON_true_literal_is_refused_even_earlier_than_param_manifest": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_18_a_crafted_manifest_swapping_bool_for_int_type_is_ignored": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_1_one_numeric_parameter_imports_adjustable_and_overrides_cleanly": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_2_two_independent_parameters_change_without_disturbing_each_other": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_3_one_parameter_at_multiple_locations_updates_all_locators_atomically": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_3b_multiple_locators_that_DISAGREE_are_conflicted_not_silently_resolved": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_4_offset_window_case_the_literal_survives_a_parameter_change": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_5_manual_edit_of_the_binding_value_is_the_same_path_as_a_UI_edit": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_6_a_deleted_binding_DETACHES_and_does_not_block_the_save": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_6b_a_binding_rewritten_to_a_non_literal_is_NON_LITERAL_not_a_crash": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_7_a_lookback_increasing_change_is_accepted_and_reflected": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_8_an_out_of_range_override_is_REJECTED_not_clamped": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_8b_the_boundary_values_are_inclusive_not_an_off_by_one": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_manifest|test_9_forget_still_fires_on_every_save_that_carries_a_paramManifest": [
+      "DE-COLLECTED",
+      "tests/test_param_manifest.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_repaste_c46|test_a_control_WITHOUT_the_carry_the_same_paste_is_refused": [
+      "DE-COLLECTED",
+      "tests/test_param_repaste_c46.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_repaste_c46|test_a_the_same_pine_pasted_over_the_pre_c46_document_SAVES_with_the_same_ids_and_values": [
+      "DE-COLLECTED",
+      "tests/test_param_repaste_c46.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_repaste_c46|test_b_an_input_ADDED_on_an_edit_is_refused_by_condition_15_and_nothing_is_stored": [
+      "DE-COLLECTED",
+      "tests/test_param_repaste_c46.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_repaste_c46|test_base_record_an_ADDED_input_was_refused_at_base_too": [
+      "DE-COLLECTED",
+      "tests/test_param_repaste_c46.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_repaste_c46|test_base_record_the_RENAMED_paste_sends_what_base_sent": [
+      "DE-COLLECTED",
+      "tests/test_param_repaste_c46.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_repaste_c46|test_c2_a_rename_beside_an_ADDED_input_is_refused_for_the_added_one_only": [
+      "DE-COLLECTED",
+      "tests/test_param_repaste_c46.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_repaste_c46|test_c3_two_inputs_SWAPPED_in_the_source_save_under_their_own_ids": [
+      "DE-COLLECTED",
+      "tests/test_param_repaste_c46.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_repaste_c46|test_c4_a_rename_with_a_changed_KIND_is_a_new_identity_and_is_refused": [
+      "DE-COLLECTED",
+      "tests/test_param_repaste_c46.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_repaste_c46|test_c5_two_renames_at_once_save_under_both_saved_ids": [
+      "DE-COLLECTED",
+      "tests/test_param_repaste_c46.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_repaste_c46|test_c_a_RENAMED_input_keeps_its_saved_id_and_SAVES": [
+      "DE-COLLECTED",
+      "tests/test_param_repaste_c46.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_param_repaste_c46|test_d_a_FRESH_paste_into_a_new_definition_saves_with_source_ids": [
+      "DE-COLLECTED",
+      "tests/test_param_repaste_c46.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_parity_scorecard|test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous": [
+      "DE-COLLECTED",
+      "tests/test_parity_scorecard.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_perf_batch_a|test_get_rs_for_ticker_never_recomputes": [
+      "DE-COLLECTED",
+      "tests/test_perf_batch_a.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_phase_e_acceptance|test_the_PINE_SCREENER_PARITY_PATH__one_definition_at_every_step": [
+      "DE-COLLECTED",
+      "tests/test_phase_e_acceptance.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_phase_e_acceptance|test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED": [
+      "DE-COLLECTED",
+      "tests/test_phase_e_acceptance.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_phase_e_acceptance|test_the_SCAN_SURFACE_and_the_CHART_read_the_SAME_ROW": [
+      "DE-COLLECTED",
+      "tests/test_phase_e_acceptance.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ]
+  },
+  "attribution": {}
+}
