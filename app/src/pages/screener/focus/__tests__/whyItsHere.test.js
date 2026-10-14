@@ -49,9 +49,40 @@ test('a column comparison op is a note', () => {
   const { items } = whyItsHere({ filters: { price: { op: 'gt_col', value: 'ema20' } }, metaFilters: meta, row })
   expect(items[0].kind).toBe('note')
 })
-test('missing row value shows a dash, still a check', () => {
+test('missing row value is a note, not a check', () => {
   const { items } = whyItsHere({ filters: { rs_rank: { op: 'gte', min: 80 } }, metaFilters: meta, row: { ticker: 'X' } })
-  expect(items[0]).toEqual({ kind: 'check', label: 'RS Rank ≥ 80', value: '—' })
+  expect(items[0]).toEqual({ kind: 'note', label: 'RS Rank ≥ 80', value: '—' })
+})
+test('null and NaN row values are notes with a dash', () => {
+  const nul = whyItsHere({ filters: { rs_rank: { op: 'gte', min: 80 } }, metaFilters: meta, row: { rs_rank: null } })
+  const nan = whyItsHere({ filters: { rs_rank: { op: 'gte', min: 80 } }, metaFilters: meta, row: { rs_rank: NaN } })
+  expect(nul.items[0]).toEqual({ kind: 'note', label: 'RS Rank ≥ 80', value: '—' })
+  expect(nan.items[0]).toEqual({ kind: 'note', label: 'RS Rank ≥ 80', value: '—' })
+})
+test('a bool requiring false reads Not, with the row state', () => {
+  const { items } = whyItsHere({ filters: { above_50sma: { op: 'eq', value: 0 } }, metaFilters: meta, row })
+  expect(items[0]).toEqual({ kind: 'check', label: 'Not Above 50 SMA', value: 'Yes' })
+})
+test('bool row strings 0 and false read No, true reads Yes', () => {
+  const f = { above_50sma: { op: 'eq', value: 1 } }
+  expect(whyItsHere({ filters: f, metaFilters: meta, row: { above_50sma: '0' } }).items[0].value).toBe('No')
+  expect(whyItsHere({ filters: f, metaFilters: meta, row: { above_50sma: 'false' } }).items[0].value).toBe('No')
+  expect(whyItsHere({ filters: f, metaFilters: meta, row: { above_50sma: 'true' } }).items[0].value).toBe('Yes')
+})
+test('large money values compact to K, M and B with one decimal', () => {
+  const v = p => whyItsHere({ filters: { price: { op: 'gte', min: 1 } }, metaFilters: meta, row: { price: p } }).items[0].value
+  expect(v(5000000)).toBe('$5M')
+  expect(v(1234567)).toBe('$1.2M')
+  expect(v(12500)).toBe('$12.5K')
+  expect(v(3200000000)).toBe('$3.2B')
+})
+test('an in-list label joins its values, a not_in label says not', () => {
+  const sector = { op: 'in', values: ['Technology', 'Energy'] }
+  const notIn = { op: 'not_in', values: ['Utilities'] }
+  expect(whyItsHere({ filters: { sector }, metaFilters: meta, row }).items[0])
+    .toEqual({ kind: 'check', label: 'Sector Technology, Energy', value: 'Technology' })
+  expect(whyItsHere({ filters: { sector: notIn }, metaFilters: meta, row }).items[0].label)
+    .toBe('Sector not Utilities')
 })
 test('caps at five, reports the rest', () => {
   const filters = Object.fromEntries(['a', 'b', 'c', 'd', 'e', 'f', 'g'].map(k => [k, { op: 'gte', min: 1 }]))
