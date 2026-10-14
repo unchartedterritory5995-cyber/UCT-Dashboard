@@ -270,7 +270,8 @@ git bundle verify C:\UCT\handoff\uct-indicators-local-2026-10-14.thin.bundle   #
 # Bring the bundle's branches in under their OWN namespace, so no local branch is clobbered:
 git fetch C:\UCT\handoff\uct-indicators-local-2026-10-14.thin.bundle "refs/heads/*:refs/remotes/oldpc/*" "refs/tags/indicators-a0-rc1:refs/tags/indicators-a0-rc1" "refs/tags/indicators-a0-rc2:refs/tags/indicators-a0-rc2"
 git branch -r --list "oldpc/*"
-git rev-parse --short=10 "indicators-a0-rc1^{commit}" "indicators-a0-rc2^{commit}"   # f37a754a06 0e1d42d785
+git rev-parse --short=10 "indicators-a0-rc1^{commit}"   # f37a754a06
+git rev-parse --short=10 "indicators-a0-rc2^{commit}"   # 0e1d42d785
 ```
 
 ### 6.3 Separate worktrees
@@ -363,6 +364,8 @@ On the new PC, all of these must hold:
 - the §6.2 SHAs match;
 - `git branch -r --list "oldpc/*"` shows 8 branches;
 - this file opens from `origin/handoff/indicators-new-pc`.
+
+This recovery was rehearsed on the old PC in an empty repo holding only `origin/master`: the bundle verified, the 8 `oldpc/*` branches and both tags came back, and `git fsck --connectivity-only` was clean.
 
 Then tell the owner: **"new PC verified"**. Only after that may the old session be closed.
 
