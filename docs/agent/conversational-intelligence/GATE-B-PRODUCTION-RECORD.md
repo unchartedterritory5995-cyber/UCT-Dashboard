@@ -28,6 +28,7 @@
 - They are created with `CREATE TABLE IF NOT EXISTS` **on first use** (the first admin model request or rate admission). Concurrent first use is safe (idempotent DDL).
 - No existing table is altered. No environment change.
 - **Status at release:** pending first use. It is confirmed by the admin smoke step below.
+- **Confirmed 2026-10-13 (ET)** by the owner's smoke step: the ledger read back settled rows with tokens, so the tables exist and settle against real usage.
 
 ## Paid smoke call (authorised: one Haiku 4.5 call)
 - **Not made by me.** There is no Anthropic credential outside production's own variables, and retrieving it would bypass the credential boundary. Cost so far: **$0**.
@@ -35,6 +36,27 @@
   1. In the Agent panel, send one non-instant request, e.g. "what's driving semis this week?". That is one model call; with research possibly a second model call plus one search; worst case about $0.03, typically about $0.01.
   2. Open `GET /api/agent/budget`. Expect: `cap_usd: 5`; `calls.settled ≥ 1`; tokens > 0; `by_category.turn` > 0; `models: ["claude-haiku-4-5"]`; `site.cap_usd: 15`. That confirms the tables were created (migration) and that reservations settle against real usage.
   3. Free, instant: "show me my strongest stocks". This is the RS Rank production-coverage check for the vocabulary work.
+
+### Result: PASS (owner, admin session, ET day 2026-10-13)
+Reported by the owner from the live admin Agent panel and `GET /api/agent/budget`. Not re-read by Claude, which has no production session.
+
+| Check | Expected | Observed | |
+|---|---|---|---|
+| "what's driving semis this week?" | a model answer | a sourced AI answer | ✅ |
+| "show me the strongest stocks" | ranked rows, or a stated refusal | Screener result, sorted by RS Rank (see `VOCABULARY-VERIFICATION.md` Q1) | ✅ |
+| `cap_usd` | 5 | 5.00 | ✅ |
+| `calls.settled` | ≥ 1 | 3 | ✅ |
+| open calls / reserved | — | 0 / $0 (nothing left reserved) | ✅ |
+| tokens | > 0 | input 9,630; output 343; cache read 11,608; cache write 11,608 | ✅ |
+| settled spend | ≈ $0.01–0.03 | $0.035752 | ✅ (see note) |
+| `models` | `["claude-haiku-4-5"]` | `claude-haiku-4-5`, `perplexity` | ✅ by design (see note) |
+| `max_calls_per_request` | 2 | 2 | ✅ |
+| `site.cap_usd` | 15 | 15.00 (shared spend $11.6336 at read time) | ✅ |
+| agent paused | false | false | ✅ |
+
+**Note on `perplexity` and 3 settled rows.** The expectation above was written for an answer without research. A sourced answer takes the research path in `turn.py`: one Haiku call that declares research, one Perplexity query, then a second Haiku call with the results. `budget.py` ledgers the query as `category="research", model="perplexity"` with `counts_as_call=False`. So 3 settled rows = 2 counted model calls (at the ceiling of 2) + 1 research row, which is consistent with the design. The per-request split was not read row by row. The $0.0358 is slightly above the typical estimate because it includes the research row and the second, larger Haiku prompt; it is within the $5 Agent cap.
+
+**Gate B smoke prerequisite for Gate C: satisfied** (2026-10-13).
 
 ## Rollback readiness
 - Local branch `rollback/agent-gate-b` (C:/w/aconv) at `2a32b9b633`: 13 reverts. Its tree is **identical to `2d4c93293c`** (verified). Not pushed.
