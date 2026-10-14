@@ -79,6 +79,8 @@ FLAGS = (
     "NOTEBOOK_ONBOARDING_ENABLED",
     # Notebook P1: journal styles and kinds of note (api/routers/notebook_journal_styles.py).
     "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    # Notebook P2 Tier 2 part A: the alert chip, the screenshot chip and their ticker route.
+    "NOTEBOOK_SMART_CHIPS_ENABLED",
 )
 
 
