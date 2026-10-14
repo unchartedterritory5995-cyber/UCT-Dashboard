@@ -73,8 +73,11 @@ test('an opened category is remembered for this viewer, apart from the desktop r
 
 test('one match count: the footer button; no Clear 1 in the rail', () => {
   render(<FiltersDrawer {...base} filters={{ price: { op: 'gte', min: 10 } }} />)
-  expect(screen.getAllByText(/214/)).toHaveLength(1)
-  expect(screen.getByRole('button', { name: 'Show 214 stocks' })).toBeInTheDocument()
+  // Visible once (the button), plus the one visually hidden status that speaks it.
+  expect(screen.getAllByText(/214/).map(n => n.textContent)).toEqual(['Show 214 stocks', '214 matches'])
+  expect(screen.getByRole('button', { name: 'Show 214 stocks' })).not.toHaveAttribute('aria-live')
+  expect(screen.getByText('214 matches')).toHaveClass('sr-only')
+  expect(screen.getByText('214 matches')).toHaveAttribute('role', 'status')
   expect(screen.queryByRole('button', { name: /^Clear 1$/ })).toBeNull()
   expect(screen.getByRole('button', { name: 'Clear all' })).toBeInTheDocument()
 })
@@ -83,6 +86,34 @@ test('an unknown count never reads as a number', () => {
   render(<FiltersDrawer {...base} count={null} filters={{}} />)
   expect(screen.getByRole('button', { name: 'Show stocks' })).toBeInTheDocument()
   expect(screen.queryByText(/Show 0/)).toBeNull()
+})
+test('the hidden status speaks only a settled count', () => {
+  const { rerender, container } = render(<FiltersDrawer {...base} countLoading filters={{}} />)
+  const status = () => container.querySelector('footer [role="status"]')
+  expect(status()).toHaveTextContent(/^$/)
+  rerender(<FiltersDrawer {...base} count={null} filters={{}} />)
+  expect(status()).toHaveTextContent(/^$/)
+  rerender(<FiltersDrawer {...base} count={1240} filters={{}} />)
+  expect(status()).toHaveTextContent('1,240 matches')
+})
+test('the narrowing box comes first, controls the select, and announces "N of M" politely', () => {
+  render(<FiltersDrawer {...base} filters={{ industry: { op: 'eq', value: 'Industry 3' } }} />)
+  const industry = groupOf('Descriptive').querySelector('[data-filter-key="industry"]')
+  const box = within(industry).getByLabelText('Narrow Industry choices')
+  const select = within(industry).getByRole('combobox', { name: 'Industry' })
+  expect(box.compareDocumentPosition(select) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(box).toHaveAttribute('aria-controls', select.id)
+  const hint = industry.querySelector('[aria-live="polite"]')
+  expect(hint).toHaveTextContent(/^$/)
+  fireEvent.change(box, { target: { value: 'industry 14' } })
+  expect(hint).toHaveTextContent('2 of 150')         // Industry 14, plus the chosen Industry 3
+})
+test('narrowing keeps every chosen value of an `in` filter', () => {
+  render(<FiltersDrawer {...base} filters={{ industry: { op: 'in', value: ['Industry 5', 'Industry 9'] } }} />)
+  const industry = groupOf('Descriptive').querySelector('[data-filter-key="industry"]')
+  fireEvent.change(within(industry).getByLabelText('Narrow Industry choices'), { target: { value: 'industry 150' } })
+  const labels = [...within(industry).getByRole('combobox').querySelectorAll('option')].map(o => o.textContent)
+  expect(labels.filter(l => l !== 'Custom…')).toEqual(['Any', 'Industry 5', 'Industry 9', 'Industry 150'])
 })
 
 test('Edit as code is a muted link, not a primary button', () => {

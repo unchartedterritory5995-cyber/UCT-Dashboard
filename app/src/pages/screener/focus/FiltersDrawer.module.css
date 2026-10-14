@@ -20,6 +20,9 @@
 }
 .enumHint { color: var(--text-muted); font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+/* Empty state: the verdict alone is the live region. */
+.stateStatus { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
 /* Empty state: each active filter as a pill that says what removing it would give. */
 .dropPills { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 640px; margin: 0; padding: 0; list-style: none; }
 .dropPill {

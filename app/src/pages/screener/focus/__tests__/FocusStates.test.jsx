@@ -121,3 +121,43 @@ test('without a remover there are no pills and no request', () => {
   expect(screen.queryByText(/remove →/)).toBeNull()
   expect(fetch).not.toHaveBeenCalled()
 })
+
+test('only the verdict is a live region: the pills sit outside role=status', async () => {
+  fetch.mockImplementation(async (url, init) => ({ ok: true, json: async () => ({ counts: JSON.parse(init.body).specs.map(() => ({ count: 9 })) }) }))
+  emptyWith({ onRemoveFilter: vi.fn() })
+  const status = screen.getByRole('status')
+  expect(status).toHaveTextContent('No stocks match all 3 filters')
+  await screen.findAllByText('remove → 9 matches')
+  for (const pill of screen.getAllByRole('button', { name: /^Remove / })) expect(status.contains(pill)).toBe(false)
+  expect(status).not.toHaveTextContent(/remove →/)
+})
+test('after the screen changes, the remaining pills read "counting…" until their own counts land', async () => {
+  const pending = []
+  fetch.mockImplementation((url, init) => new Promise(r => {
+    const n = JSON.parse(init.body).specs.length
+    pending.push(c => r({ ok: true, json: async () => ({ counts: Array.from({ length: n }, () => ({ count: c })) }) }))
+  }))
+  const props = { filterCount: 3, lastChange: null, onUndo: vi.fn(), onOpenFilters: vi.fn(), meta: META, onRemoveFilter: vi.fn() }
+  const { rerender } = render(<EmptyState {...props} spec={SPEC} />)
+  pending.shift()(300)
+  await waitFor(() => expect(screen.getAllByText('remove → 300 matches')).toHaveLength(3))
+  // The member tightens RS Rank. The Price and Dollar Volume pills now describe a different
+  // screen, so their old number must go; the RS Rank pill's spec (RS Rank removed) is unchanged.
+  const tighter = specOf(SPEC.filters.map(f => (f.key === 'rs_rank' ? { ...f, min: 95 } : f)))
+  rerender(<EmptyState {...props} spec={tighter} />)
+  const gain = name => screen.getByRole('button', { name: new RegExp(`^Remove ${name}`) }).lastChild.textContent
+  expect(gain('RS Rank')).toBe('remove → 300 matches')
+  expect(gain('Price')).toBe('remove → counting…')
+  expect(gain('Dollar Volume')).toBe('remove → counting…')
+  await waitFor(() => expect(pending).toHaveLength(1))
+  pending.shift()(12)
+  await waitFor(() => expect(gain('Price')).toBe('remove → 12 matches'))
+  expect(gain('Dollar Volume')).toBe('remove → 12 matches')
+})
+test('a ranked screen caps each pill at its top_n', async () => {
+  fetch.mockImplementation(async (url, init) => ({ ok: true, json: async () => ({ counts: JSON.parse(init.body).specs.map(() => ({ count: 1240, top_n: 50 })) }) }))
+  const ranked = { ...SPEC, rank: { criteria: [{ key: 'uct_composite' }], top_n: 50 } }
+  render(<EmptyState filterCount={3} lastChange={null} onUndo={vi.fn()} onOpenFilters={vi.fn()} spec={ranked} meta={META} onRemoveFilter={vi.fn()} />)
+  await waitFor(() => expect(screen.getAllByText('remove → 50 matches')).toHaveLength(3))
+  expect(screen.queryByText(/1,240/)).toBeNull()
+})

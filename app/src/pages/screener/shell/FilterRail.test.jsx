@@ -261,6 +261,20 @@ describe('FilterRail opt-in: startCollapsed', () => {
     expect(screen.getByRole('button', { name: /^Momentum/ })).toHaveAttribute('aria-expanded', 'false')
   })
 
+  it('reads the remembered choices once, not on every render', () => {
+    const spy = vi.spyOn(Storage.prototype, 'getItem')
+    const { rerender } = render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}}
+      startCollapsed openStorePrefix="t.drawer" />)
+    const reads = spy.mock.calls.filter(([k]) => k.startsWith('t.drawer.')).length
+    expect(reads).toBe(2)                     // one per group
+    for (let i = 0; i < 5; i++) {
+      rerender(<FilterRail meta={META} activeFilters={{ price: { op: 'gte', min: i } }} onChange={() => {}} onClear={() => {}}
+        startCollapsed openStorePrefix="t.drawer" />)
+    }
+    expect(spy.mock.calls.filter(([k]) => k.startsWith('t.drawer.')).length).toBe(reads)
+    spy.mockRestore()
+  })
+
   it('closing a group that holds an active filter sticks', () => {
     render(<FilterRail meta={META} activeFilters={{ pole_pct: { op: 'gte', min: 30 } }}
       onChange={() => {}} onClear={() => {}} startCollapsed openStorePrefix="t.drawer" />)

@@ -33,10 +33,10 @@ const countActive = (list, activeFilters) => list.filter(f => activeFilters[f.ke
 // `startCollapsed` mode: a choice the member made wins; otherwise a group with an
 // active filter starts open, Common starts open, and the rest start closed
 // unless this viewer last left them open.
-function groupOpen({ open, key, startCollapsed, prefix, active }) {
+// `stored` is this viewer's remembered choice for the group ('1' / '0' / null).
+function groupOpen({ open, key, startCollapsed, stored, active }) {
   if (!startCollapsed) return open[key]
   if (open[key] !== undefined) return open[key]
-  const stored = readStored(prefix, key)
   if (key === COMMON_KEY) return stored !== '0'
   return active > 0 || stored === '1'
 }
@@ -87,8 +87,14 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
     }
     return out.map(g => ({ ...g, list: needle ? g.all.filter(f => f.label.toLowerCase().includes(needle)) : g.all }))
   }, [meta, needle, commonSig])
+  // startCollapsed mode reads each group's remembered choice ONCE per set of groups (not
+  // every render); after that the member's clicks live in `open`.
+  const groupKeys = groups.map(g => g.key).join('|')
+  const stored = useMemo(() => (startCollapsed
+    ? Object.fromEntries(groupKeys.split('|').map(k => [k, readStored(openStorePrefix, k)])) : {}),
+  [groupKeys, startCollapsed, openStorePrefix])
   const isOpen = (prevOpen, g) => groupOpen({ open: prevOpen, key: g.key, startCollapsed,
-    prefix: openStorePrefix, active: countActive(g.all, activeFilters) })
+    stored: stored[g.key] ?? null, active: countActive(g.all, activeFilters) })
 
   // The flat, VISIBLE-ORDER list of filters — exactly what the JSX below
   // renders (same category/open/needle logic), so arrow-key navigation can
@@ -98,11 +104,11 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
     for (const g of groups) {
       if (needle && !g.list.length) continue
       const shown = needle ? true : groupOpen({ open, key: g.key, startCollapsed,
-        prefix: openStorePrefix, active: countActive(g.all, activeFilters) })
+        stored: stored[g.key] ?? null, active: countActive(g.all, activeFilters) })
       if (shown) out.push(...g.list)
     }
     return out
-  }, [groups, open, needle, startCollapsed, openStorePrefix, activeFilters])
+  }, [groups, open, needle, startCollapsed, stored, activeFilters])
 
   // ⭐ KEYBOARD-DRIVEN FILTER EDITING — the piece of Wave A's "A9 — Screening"
   // that was genuinely missing (live match-count and saved-screen addressing

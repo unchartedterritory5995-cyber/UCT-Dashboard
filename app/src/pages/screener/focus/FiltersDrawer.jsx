@@ -14,21 +14,28 @@ import { COMMON_FILTERS, choicesOf, isLongEnum } from './drawerFilters'
 // The app's select (FilterControl's `select` presentation, i.e. components/ui/Select) with
 // a components/ui/Input that narrows its choices. The chosen value is always kept in the
 // list, so narrowing can never make the select show a different answer than the one on.
+// A choice is "on" when the spec names its value: {op:'eq', value} or an `in` over a list
+// (`value: [...]` or the typeset form `values: [...]`).
+const isChosen = (p, spec) => {
+  if (!spec) return false
+  const vals = Array.isArray(spec.values) ? spec.values : Array.isArray(spec.value) ? spec.value : [spec.value]
+  return vals.includes(p.value)
+}
 function LongEnumControl({ filter, value, onChange }) {
   const [q, setQ] = useState('')
   const all = choicesOf(filter)
   const needle = q.trim().toLowerCase()
-  // An enum's spec is {op:'eq', value}; its own choice is the one with that value.
-  const narrowed = needle ? all.filter(p => p.label.toLowerCase().includes(needle) || (value && p.value === value.value)) : all
+  const narrowed = needle ? all.filter(p => p.label.toLowerCase().includes(needle) || isChosen(p, value)) : all
   const anyPreset = (filter.presets || []).find(p => p.label === 'Any') || { label: 'Any' }
   return (
     <div className={own.enumWrap}>
-      <FilterControl filter={{ ...filter, presets: [anyPreset, ...narrowed] }} value={value} onChange={onChange} presentation="select" />
       <div className={own.enumSearchRow}>
-        <Input className={own.enumSearch} aria-label={`Narrow ${filter.label} choices`} value={q}
+        {/* FilterControl gives its select this id. */}
+        <Input className={own.enumSearch} aria-label={`Narrow ${filter.label} choices`} value={q} aria-controls={`fc_${filter.key}`}
           placeholder={`Type to narrow ${all.length.toLocaleString('en-US')} choices`} onChange={e => setQ(e.target.value)} />
-        {needle && <span className={own.enumHint}>{`${narrowed.length} of ${all.length}`}</span>}
+        <span className={own.enumHint} aria-live="polite">{needle ? `${narrowed.length} of ${all.length}` : ''}</span>
       </div>
+      <FilterControl filter={{ ...filter, presets: [anyPreset, ...narrowed] }} value={value} onChange={onChange} presentation="select" />
     </div>
   )
 }
@@ -36,7 +43,9 @@ const drawerControl = (f, value, onChange) => (isLongEnum(f) ? <LongEnumControl 
 
 // The ONE place the drawer words its match count. A count that is not known yet (or failed)
 // never reads as a number.
-const showLabel = (count, countLoading) => (countLoading || count == null ? 'Show stocks' : `Show ${count.toLocaleString('en-US')} stocks`)
+const known = (count, countLoading) => !countLoading && count != null
+const showLabel = (count, countLoading) => (known(count, countLoading) ? `Show ${count.toLocaleString('en-US')} stocks` : 'Show stocks')
+const settledCount = (count, countLoading) => (known(count, countLoading) ? `${count.toLocaleString('en-US')} matches` : '')
 
 function universeLabel(filters) {
   if (filters?.list) return filters.list.label || 'Watchlist'
@@ -179,9 +188,11 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
             <CriteriaBox logic={logic} onApply={onSetLogic} />
           </details>
           <span className={styles.spacer} />
-          <button type="button" className={styles.btnPrimary} onClick={onClose} aria-live="polite">
+          <button type="button" className={styles.btnPrimary} onClick={onClose}>
             {showLabel(count, countLoading)}
           </button>
+          {/* Screen readers hear the count once it settles, never the "Show stocks" in between. */}
+          <span className="sr-only" role="status">{settledCount(count, countLoading)}</span>
         </footer>
       </aside>
     </div>
