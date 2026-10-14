@@ -1,0 +1,1227 @@
+{
+ "base": "https://uctintelligence.com",
+ "dwell_s": 75,
+ "started": "2026-10-14T16:18:49Z",
+ "responses": [
+  {
+   "t": 1.553,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/maintenance",
+   "len": null
+  },
+  {
+   "t": 2.969,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/auth/me",
+   "len": null
+  },
+  {
+   "t": 5.008,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/auth/avatar/f4433528-6466-474a-949c-8d5eda8a7b91",
+   "len": null
+  },
+  {
+   "t": 5.253,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/breadthpack/manifest",
+   "len": null
+  },
+  {
+   "t": 5.312,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/watchlist-alerts",
+   "len": null
+  },
+  {
+   "t": 5.313,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/ticker-tags",
+   "len": null
+  },
+  {
+   "t": 5.322,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/watchlists?include_items=0",
+   "len": null
+  },
+  {
+   "t": 5.438,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/ticker-tags/shared",
+   "len": null
+  },
+  {
+   "t": 6.441,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/watchlists?include_prebuilt=0",
+   "len": null
+  },
+  {
+   "t": 6.462,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/watchlists/flagged",
+   "len": null
+  },
+  {
+   "t": 6.462,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/ticker-tags/public",
+   "len": null
+  },
+  {
+   "t": 6.523,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/manifest",
+   "len": null
+  },
+  {
+   "t": 6.524,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/manifest",
+   "len": null
+  },
+  {
+   "t": 6.553,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/intradaypack/manifest",
+   "len": null
+  },
+  {
+   "t": 6.659,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/indicator-alerts/delivery-health?limit=10",
+   "len": null
+  },
+  {
+   "t": 6.698,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/j2/settings",
+   "len": null
+  },
+  {
+   "t": 6.731,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/j2/accounts",
+   "len": null
+  },
+  {
+   "t": 6.77,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/community/status",
+   "len": null
+  },
+  {
+   "t": 6.777,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/auth/preferences",
+   "len": null
+  },
+  {
+   "t": 6.778,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/voice/insights/pending",
+   "len": null
+  },
+  {
+   "t": 7.355,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/alerts?limit=20",
+   "len": null
+  },
+  {
+   "t": 7.395,
+   "status": 200,
+   "method": "POST",
+   "path": "/api/auth/track",
+   "len": null
+  },
+  {
+   "t": 7.742,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/voice/settings",
+   "len": null
+  },
+  {
+   "t": 7.755,
+   "status": 200,
+   "method": "POST",
+   "path": "/api/watchlists/flagged/sync",
+   "len": null
+  },
+  {
+   "t": 8.351,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/breadthpack/b6a6c901de7269787/1",
+   "len": "216270"
+  },
+  {
+   "t": 8.396,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/breadthpack/b6a6c901de7269787/0",
+   "len": "144067"
+  },
+  {
+   "t": 8.556,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/stream/prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 8.844,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live/massive/worker-history?min_gap_minutes=2",
+   "len": null
+  },
+  {
+   "t": 8.889,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live/massive/day-stats?stock_etf=all",
+   "len": null
+  },
+  {
+   "t": 8.958,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live/massive/recent?limit=10000&sort_by=recent&min_grade=D&curated=true",
+   "len": null
+  },
+  {
+   "t": 8.997,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 9.706,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/breadthpack/b6a6c901de7269787/3",
+   "len": "205491"
+  },
+  {
+   "t": 9.731,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/breadthpack/b6a6c901de7269787/2",
+   "len": "191557"
+  },
+  {
+   "t": 9.851,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/j2/accounts/a094e78f-7365-4c97-bd90-f4dbdd311092/settings",
+   "len": null
+  },
+  {
+   "t": 9.949,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 10.633,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/hot",
+   "len": "1438555"
+  },
+  {
+   "t": 11.593,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/intradaypack/2026-10-13/1",
+   "len": "2200844"
+  },
+  {
+   "t": 11.779,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/1",
+   "len": "2663498"
+  },
+  {
+   "t": 12.042,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/intradaypack/2026-10-13/0",
+   "len": "2367806"
+  },
+  {
+   "t": 12.149,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/0",
+   "len": "2668816"
+  },
+  {
+   "t": 12.182,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/flow/dates?source=stocks",
+   "len": null
+  },
+  {
+   "t": 12.947,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 13.614,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/community/unread",
+   "len": null
+  },
+  {
+   "t": 13.721,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/voice/insights/unspoken",
+   "len": null
+  },
+  {
+   "t": 14.274,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 15.366,
+   "status": 200,
+   "method": "POST",
+   "path": "/api/live/massive/current-quotes",
+   "len": null
+  },
+  {
+   "t": 15.366,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/flow/dates?source=stocks",
+   "len": null
+  },
+  {
+   "t": 15.684,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 18.013,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 19.292,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 21.558,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 23.282,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/2",
+   "len": "2726103"
+  },
+  {
+   "t": 23.523,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 24.252,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/3",
+   "len": "2505956"
+  },
+  {
+   "t": 25.491,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 27.433,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 29.435,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live/massive/recent?limit=10000&sort_by=recent&min_grade=D&curated=true",
+   "len": null
+  },
+  {
+   "t": 29.498,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 31.539,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 33.435,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 33.45,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/watchlist-alerts",
+   "len": null
+  },
+  {
+   "t": 33.486,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/j2/accounts",
+   "len": null
+  },
+  {
+   "t": 33.516,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/voice/insights/pending",
+   "len": null
+  },
+  {
+   "t": 35.417,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 37.363,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 37.572,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/community/unread",
+   "len": null
+  },
+  {
+   "t": 38.137,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/intradaypack/2026-10-13/2",
+   "len": "2144611"
+  },
+  {
+   "t": 39.324,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live/massive/day-stats?stock_etf=all",
+   "len": null
+  },
+  {
+   "t": 39.74,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 41.191,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/5",
+   "len": "2688773"
+  },
+  {
+   "t": 41.33,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/4",
+   "len": "2809841"
+  },
+  {
+   "t": 41.373,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 43.476,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 45.457,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 46.658,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/intradaypack/2026-10-13/3",
+   "len": "2058882"
+  },
+  {
+   "t": 47.364,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 49.424,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 50.654,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live/massive/recent?limit=10000&sort_by=recent&min_grade=D&curated=true",
+   "len": null
+  },
+  {
+   "t": 50.654,
+   "status": 200,
+   "method": "POST",
+   "path": "/api/live/massive/current-quotes",
+   "len": null
+  },
+  {
+   "t": 51.359,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 53.257,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 55.309,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 56.475,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/7",
+   "len": "2572860"
+  },
+  {
+   "t": 56.58,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/6",
+   "len": "2883304"
+  },
+  {
+   "t": 57.262,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 59.405,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 61.34,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 63.543,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/watchlists?include_prebuilt=0",
+   "len": null
+  },
+  {
+   "t": 63.701,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 63.741,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/watchlists?include_items=0",
+   "len": null
+  },
+  {
+   "t": 63.745,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/ticker-tags/public",
+   "len": null
+  },
+  {
+   "t": 63.822,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/watchlist-alerts",
+   "len": null
+  },
+  {
+   "t": 64.065,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/j2/accounts",
+   "len": null
+  },
+  {
+   "t": 64.231,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/alerts?limit=20",
+   "len": null
+  },
+  {
+   "t": 64.508,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/voice/insights/pending",
+   "len": null
+  },
+  {
+   "t": 65.55,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 66.113,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/intradaypack/2026-10-13/4",
+   "len": "2162799"
+  },
+  {
+   "t": 67.392,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 68.458,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/8",
+   "len": "2902577"
+  },
+  {
+   "t": 69.34,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/9",
+   "len": "2467297"
+  },
+  {
+   "t": 69.596,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 69.78,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/intradaypack/2026-10-13/5",
+   "len": "2103050"
+  },
+  {
+   "t": 70.223,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/community/unread",
+   "len": null
+  },
+  {
+   "t": 70.521,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live/massive/day-stats?stock_etf=all",
+   "len": null
+  },
+  {
+   "t": 71.017,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live/massive/recent?limit=10000&sort_by=recent&min_grade=D&curated=true",
+   "len": null
+  },
+  {
+   "t": 71.561,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 73.462,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  }
+ ],
+ "heartbeat": [
+  {
+   "t": 3.546,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 4.552,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 5.59,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 6.598,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 7.613,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 8.621,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 9.626,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 10.632,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 11.641,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 12.679,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 13.694,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 14.71,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 15.713,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 16.743,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 17.778,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 18.782,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 19.832,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 20.84,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 21.844,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 22.861,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 23.867,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 24.898,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 25.929,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 26.956,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 27.968,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 28.997,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 30.021,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 31.079,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 32.116,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 33.147,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 34.182,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 35.222,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 36.24,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 37.284,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 38.288,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 39.323,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 40.353,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 41.363,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 42.394,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 43.441,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 44.481,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 45.494,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 46.512,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 47.563,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 48.574,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 49.585,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 50.625,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 51.651,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 52.656,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 53.665,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 54.673,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 55.685,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 56.691,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 57.695,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 58.703,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 59.708,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 60.727,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 61.754,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 62.762,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 63.768,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 64.773,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 65.781,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 66.802,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 67.812,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 68.823,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 69.827,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 70.836,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 71.876,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 72.905,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 73.955,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  }
+ ],
+ "longtasks": [
+  {
+   "start": 3038.3000000715256,
+   "dur": 62
+  },
+  {
+   "start": 3326.100000023842,
+   "dur": 54
+  },
+  {
+   "start": 8990.400000095367,
+   "dur": 62
+  }
+ ],
+ "page_errors": [],
+ "nav_wall": "16:18:56Z",
+ "lt_err": null,
+ "top_self_ms": [
+  [
+   "(idle) @ :-1:-1",
+   50714
+  ],
+  [
+   "(program) @ :-1:-1",
+   19083
+  ],
+  [
+   "m.onsuccess @ index-BEQ021_4.js:6:136805",
+   3279
+  ],
+  [
+   "(garbage collector) @ :-1:-1",
+   726
+  ],
+  [
+   "Cc @ index-BEQ021_4.js:14:121479",
+   448
+  ],
+  [
+   "(anonymous) @ index-BEQ021_4.js:6:136397",
+   184
+  ],
+  [
+   "ym @ vendor-react-BrA_wePN.js:7:100988",
+   140
+  ],
+  [
+   "gc @ vendor-react-BrA_wePN.js:7:47971",
+   28
+  ],
+  [
+   "nP @ index-BEQ021_4.js:14:121335",
+   17
+  ],
+  [
+   "zS @ vendor-react-BrA_wePN.js:8:7860",
+   17
+  ],
+  [
+   "(anonymous) @ index-BEQ021_4.js:0:0",
+   14
+  ],
+  [
+   "fetch @ :-1:-1",
+   13
+  ],
+  [
+   "$n @ LiveFlowMassive-506xhwu9.js:4:2402",
+   13
+  ],
+  [
+   "appendChild @ :-1:-1",
+   11
+  ],
+  [
+   "S.<computed> @ main.js:0:13380",
+   11
+  ],
+  [
+   "Pf @ vendor-react-BrA_wePN.js:7:10635",
+   11
+  ],
+  [
+   "_s @ LiveFlowMassive-506xhwu9.js:2:1832",
+   11
+  ],
+  [
+   "rt @ vendor-react-BrA_wePN.js:7:5393",
+   9
+  ],
+  [
+   "re @ vendor-react-BrA_wePN.js:7:40663",
+   9
+  ],
+  [
+   "uS @ vendor-react-BrA_wePN.js:7:85526",
+   8
+  ],
+  [
+   "Xe @ vendor-react-BrA_wePN.js:8:71",
+   8
+  ],
+  [
+   "Wf @ vendor-react-BrA_wePN.js:7:10383",
+   8
+  ],
+  [
+   "Ie @ nativeRegistry-BTMkl_c9.js:0:6909",
+   8
+  ],
+  [
+   "Tt @ vendor-react-BrA_wePN.js:8:5481",
+   6
+  ],
+  [
+   "Ge @ vendor-react-BrA_wePN.js:7:42164",
+   5
+  ]
+ ]
+}

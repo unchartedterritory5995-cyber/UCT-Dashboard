@@ -1,0 +1,1225 @@
+{
+ "base": "https://uctintelligence.com",
+ "dwell_s": 75,
+ "started": "2026-10-14T16:16:06Z",
+ "responses": [
+  {
+   "t": 5.108,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/maintenance",
+   "len": null
+  },
+  {
+   "t": 5.344,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/auth/me",
+   "len": null
+  },
+  {
+   "t": 5.862,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/watchlist-alerts",
+   "len": null
+  },
+  {
+   "t": 6.509,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/ticker-tags",
+   "len": null
+  },
+  {
+   "t": 6.51,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/auth/avatar/f4433528-6466-474a-949c-8d5eda8a7b91",
+   "len": null
+  },
+  {
+   "t": 6.51,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/watchlists?include_prebuilt=0",
+   "len": null
+  },
+  {
+   "t": 6.511,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/ticker-tags/shared",
+   "len": null
+  },
+  {
+   "t": 7.098,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/j2/accounts",
+   "len": null
+  },
+  {
+   "t": 7.14,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/watchlists?include_items=0",
+   "len": null
+  },
+  {
+   "t": 7.14,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/ticker-tags/public",
+   "len": null
+  },
+  {
+   "t": 7.144,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/watchlists/flagged",
+   "len": null
+  },
+  {
+   "t": 7.145,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/intradaypack/manifest",
+   "len": null
+  },
+  {
+   "t": 7.145,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/manifest",
+   "len": null
+  },
+  {
+   "t": 7.146,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/manifest",
+   "len": null
+  },
+  {
+   "t": 7.146,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/alerts?limit=20",
+   "len": null
+  },
+  {
+   "t": 7.147,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/indicator-alerts/delivery-health?limit=10",
+   "len": null
+  },
+  {
+   "t": 7.147,
+   "status": 200,
+   "method": "POST",
+   "path": "/api/auth/track",
+   "len": null
+  },
+  {
+   "t": 7.151,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/auth/preferences",
+   "len": null
+  },
+  {
+   "t": 7.157,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/breadthpack/manifest",
+   "len": null
+  },
+  {
+   "t": 7.157,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/voice/insights/pending",
+   "len": null
+  },
+  {
+   "t": 7.159,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/j2/settings",
+   "len": null
+  },
+  {
+   "t": 7.18,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/community/status",
+   "len": null
+  },
+  {
+   "t": 7.246,
+   "status": 200,
+   "method": "POST",
+   "path": "/api/watchlists/flagged/sync",
+   "len": null
+  },
+  {
+   "t": 7.25,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/voice/settings",
+   "len": null
+  },
+  {
+   "t": 7.512,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/j2/accounts/a094e78f-7365-4c97-bd90-f4dbdd311092/settings",
+   "len": null
+  },
+  {
+   "t": 7.542,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 7.542,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live/massive/day-stats?stock_etf=all",
+   "len": null
+  },
+  {
+   "t": 7.688,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/breadthpack/b6a6c901de7269787/0",
+   "len": "144067"
+  },
+  {
+   "t": 7.712,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/breadthpack/b6a6c901de7269787/1",
+   "len": "216270"
+  },
+  {
+   "t": 7.798,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live/massive/recent?limit=10000&sort_by=recent&min_grade=D&curated=true",
+   "len": null
+  },
+  {
+   "t": 7.877,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/intradaypack/2026-10-13/0",
+   "len": "2367806"
+  },
+  {
+   "t": 7.877,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/community/unread",
+   "len": null
+  },
+  {
+   "t": 7.908,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/stream/prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 7.961,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/1",
+   "len": "2663498"
+  },
+  {
+   "t": 8.066,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/intradaypack/2026-10-13/1",
+   "len": "2200844"
+  },
+  {
+   "t": 8.179,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/hot",
+   "len": "1438555"
+  },
+  {
+   "t": 8.211,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/0",
+   "len": "2668816"
+  },
+  {
+   "t": 8.857,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/breadthpack/b6a6c901de7269787/2",
+   "len": "191557"
+  },
+  {
+   "t": 8.857,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/breadthpack/b6a6c901de7269787/3",
+   "len": "205491"
+  },
+  {
+   "t": 9.734,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 11.492,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 13.519,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 13.811,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/flow/dates?source=stocks",
+   "len": null
+  },
+  {
+   "t": 14.271,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/voice/insights/unspoken",
+   "len": null
+  },
+  {
+   "t": 14.709,
+   "status": 200,
+   "method": "POST",
+   "path": "/api/live/massive/current-quotes",
+   "len": null
+  },
+  {
+   "t": 14.71,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/flow/dates?source=stocks",
+   "len": null
+  },
+  {
+   "t": 15.426,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 17.602,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 19.43,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 21.779,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 23.505,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 24.284,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/2",
+   "len": "2726103"
+  },
+  {
+   "t": 24.491,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/3",
+   "len": "2505956"
+  },
+  {
+   "t": 25.734,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 27.461,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 28.101,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live/massive/recent?limit=10000&sort_by=recent&min_grade=D&curated=true",
+   "len": null
+  },
+  {
+   "t": 30.368,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 31.451,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 33.536,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 35.459,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 36.02,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/watchlist-alerts",
+   "len": null
+  },
+  {
+   "t": 36.098,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/j2/accounts",
+   "len": null
+  },
+  {
+   "t": 36.106,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/voice/insights/pending",
+   "len": null
+  },
+  {
+   "t": 37.731,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 38.014,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live/massive/day-stats?stock_etf=all",
+   "len": null
+  },
+  {
+   "t": 38.097,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/community/unread",
+   "len": null
+  },
+  {
+   "t": 38.342,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/4",
+   "len": "2809841"
+  },
+  {
+   "t": 38.613,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/5",
+   "len": "2688773"
+  },
+  {
+   "t": 38.791,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/intradaypack/2026-10-13/2",
+   "len": "2144611"
+  },
+  {
+   "t": 39.525,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 39.525,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/intradaypack/2026-10-13/3",
+   "len": "2058882"
+  },
+  {
+   "t": 41.788,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 43.513,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 45.555,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 47.549,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 49.596,
+   "status": 200,
+   "method": "POST",
+   "path": "/api/live/massive/current-quotes",
+   "len": null
+  },
+  {
+   "t": 49.596,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live/massive/recent?limit=10000&sort_by=recent&min_grade=D&curated=true",
+   "len": null
+  },
+  {
+   "t": 49.629,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 51.575,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 53.618,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 55.656,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 55.68,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/6",
+   "len": "2883304"
+  },
+  {
+   "t": 55.854,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/7",
+   "len": "2572860"
+  },
+  {
+   "t": 57.428,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 60.627,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 61.435,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 63.422,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 65.861,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 65.974,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/watchlists?include_items=0",
+   "len": null
+  },
+  {
+   "t": 65.983,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/watchlists?include_prebuilt=0",
+   "len": null
+  },
+  {
+   "t": 65.999,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/alerts?limit=20",
+   "len": null
+  },
+  {
+   "t": 66.009,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/ticker-tags/public",
+   "len": null
+  },
+  {
+   "t": 67.002,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/watchlist-alerts",
+   "len": null
+  },
+  {
+   "t": 67.099,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/j2/accounts",
+   "len": null
+  },
+  {
+   "t": 67.106,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/voice/insights/pending",
+   "len": null
+  },
+  {
+   "t": 67.514,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/intradaypack/2026-10-13/4",
+   "len": "2162799"
+  },
+  {
+   "t": 67.517,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 67.528,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/intradaypack/2026-10-13/5",
+   "len": "2103050"
+  },
+  {
+   "t": 67.54,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/8",
+   "len": "2902577"
+  },
+  {
+   "t": 67.559,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/barspack/2026-10-13/9",
+   "len": "2467297"
+  },
+  {
+   "t": 68.331,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live/massive/day-stats?stock_etf=all",
+   "len": null
+  },
+  {
+   "t": 68.405,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/community/unread",
+   "len": null
+  },
+  {
+   "t": 69.725,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 69.922,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live/massive/recent?limit=10000&sort_by=recent&min_grade=D&curated=true",
+   "len": null
+  },
+  {
+   "t": 71.95,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 73.783,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  },
+  {
+   "t": 75.467,
+   "status": 200,
+   "method": "GET",
+   "path": "/api/live-prices?tickers=DAWN",
+   "len": null
+  }
+ ],
+ "heartbeat": [
+  {
+   "t": 5.872,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 6.892,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 7.908,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 8.917,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 9.924,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 10.957,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 12.013,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 13.071,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 14.11,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 15.144,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 16.176,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 17.217,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 18.251,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 19.302,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 20.341,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 21.381,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 22.42,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 23.432,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 24.434,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 25.455,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 26.503,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 27.554,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 28.592,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 29.633,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 30.636,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 31.644,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 32.677,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 33.71,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 34.754,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 35.826,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 36.883,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 37.908,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 38.916,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 39.924,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 40.942,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 41.991,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 43.062,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 44.073,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 45.104,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 46.163,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 47.184,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 48.224,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 49.267,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 50.306,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 51.355,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 52.385,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 53.442,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 54.448,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 55.469,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 56.5,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 57.532,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 58.549,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 59.563,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 60.573,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 61.584,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 62.592,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 63.603,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 64.611,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 65.621,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 66.634,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 67.641,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 68.644,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 69.647,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 70.653,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 71.659,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 72.672,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 73.734,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  },
+  {
+   "t": 74.779,
+   "rtt_ms": 0,
+   "ok": "TypeError"
+  }
+ ],
+ "longtasks": [
+  {
+   "start": 4768.200000047684,
+   "dur": 104
+  },
+  {
+   "start": 5320.100000023842,
+   "dur": 59
+  },
+  {
+   "start": 5380.300000071526,
+   "dur": 97
+  },
+  {
+   "start": 5646.700000047684,
+   "dur": 55
+  },
+  {
+   "start": 7784.600000023842,
+   "dur": 60
+  }
+ ],
+ "page_errors": [],
+ "nav_wall": "16:16:09Z",
+ "lt_err": null,
+ "top_self_ms": [
+  [
+   "(idle) @ :-1:-1",
+   52419
+  ],
+  [
+   "(program) @ :-1:-1",
+   17646
+  ],
+  [
+   "m.onsuccess @ index-BEQ021_4.js:6:136805",
+   3261
+  ],
+  [
+   "Cc @ index-BEQ021_4.js:14:121479",
+   995
+  ],
+  [
+   "(garbage collector) @ :-1:-1",
+   729
+  ],
+  [
+   "(anonymous) @ index-BEQ021_4.js:6:136397",
+   162
+  ],
+  [
+   "ym @ vendor-react-BrA_wePN.js:7:100988",
+   141
+  ],
+  [
+   "nP @ index-BEQ021_4.js:14:121335",
+   52
+  ],
+  [
+   "gc @ vendor-react-BrA_wePN.js:7:47971",
+   24
+  ],
+  [
+   "I.<computed> @ main.js:0:13134",
+   20
+  ],
+  [
+   "fetch @ :-1:-1",
+   16
+  ],
+  [
+   "appendChild @ :-1:-1",
+   11
+  ],
+  [
+   "Wf @ vendor-react-BrA_wePN.js:7:10383",
+   11
+  ],
+  [
+   "Pf @ vendor-react-BrA_wePN.js:7:10635",
+   11
+  ],
+  [
+   "Wk @ index-BEQ021_4.js:6:136367",
+   11
+  ],
+  [
+   "tm @ vendor-react-BrA_wePN.js:7:80654",
+   9
+  ],
+  [
+   "WF @ main.js:0:6295",
+   9
+  ],
+  [
+   "zS @ vendor-react-BrA_wePN.js:8:7860",
+   9
+  ],
+  [
+   "rt @ vendor-react-BrA_wePN.js:7:5393",
+   8
+  ],
+  [
+   "J5 @ index-BEQ021_4.js:14:118427",
+   8
+  ],
+  [
+   "Xe @ vendor-react-BrA_wePN.js:8:71",
+   6
+  ],
+  [
+   "a8 @ main.js:0:23606",
+   6
+  ],
+  [
+   "Us @ LiveFlowMassive-506xhwu9.js:8:12899",
+   6
+  ],
+  [
+   "$n @ LiveFlowMassive-506xhwu9.js:4:2402",
+   6
+  ],
+  [
+   "Ie @ nativeRegistry-BTMkl_c9.js:0:6909",
+   6
+  ]
+ ]
+}
