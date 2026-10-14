@@ -247,3 +247,14 @@ test('A1.3b — a Dock open that does not land shows NO toast', async () => {
   expect(screen.queryByTestId('layout-undo-toast')).toBeNull()
 }, 30000)
 
+// ⛔ Agent integration test (2026-10-13): the member's toast must not outlive the switch it names.
+test('A1.3b — the toast goes when the board moves on to another layout', async () => {
+  mount(MAIN)
+  await act(async () => { dockButton('Swing Board').click() })
+  await waitFor(() => expect(activeId()).toBe(2))
+  expect((await screen.findByTestId('layout-undo-toast')).textContent).toMatch(/^Switched to “Swing Board”/)
+  await say('open Macro Board')
+  await waitFor(() => expect(activeId()).toBe(3), { timeout: 15000 })
+  await waitFor(() => expect(screen.queryByText(/Switched to “Swing Board”/)).toBeNull())
+  expect(modelCalls).toBe(0)
+}, 45000)
