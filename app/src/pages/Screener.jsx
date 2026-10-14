@@ -93,9 +93,11 @@ export default function Screener({ embedded = false }) {
   const focusOn = useContext(AuthContext)?.screenerFocusLayoutEnabled === true && !embedded && !inPanel
 
   const containerCls = `${styles.containerFull} ${embedded ? styles.pageEmbedded : ''}`.trim()
-  // With the Focus layout and no Options tab the header would hold nothing: an empty 60px strip above the top bar.
   const showHeading = !embedded && !inPanel && !focusOn
-  const showHeader = showHeading || optionsOn
+  // The Focus layout drops the header when it would hold nothing (no Options tab): an empty 60px
+  // strip above its top bar. Everywhere else (old page, embedded widget, terminal panel) the header
+  // renders exactly as before, even when empty: its min-height is part of those layouts.
+  const showHeader = focusOn ? optionsOn : true
 
   return (
     <div className={containerCls}>
