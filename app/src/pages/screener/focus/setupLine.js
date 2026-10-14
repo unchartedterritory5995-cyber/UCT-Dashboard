@@ -20,8 +20,7 @@ export function pivotDetail(price, pivot) {
 }
 
 // The structure library as the server ships it: the Base Structure filter's presets, each a
-// label and the delimiter-wrapped value it matches. The filter is found by the column it reads,
-// so no key or label list is typed here.
+// label and the delimiter-wrapped value it matches. No structure label list is typed here.
 const STRUCTURE_COLUMN = 'base_matches'
 const norm = s => String(s || '').trim().toLowerCase()
 
@@ -29,7 +28,12 @@ const norm = s => String(s || '').trim().toLowerCase()
 // otherwise the textbook name when the plain name replaced it, otherwise the name itself.
 const tooltipFor = (name, desc) => desc || name
 
-const structureFilters = metaFilters => (metaFilters || []).filter(def => def?.column === STRUCTURE_COLUMN)
+// ⛔ The meta payload's filter entries carry NO `column` field (filters.py `_build_shared_filters`
+// ships key, label, category, type, presets, allow_custom, unit), so the filter is found by its
+// server key; `column` is honoured only if a later payload ever carries it.
+const STRUCTURE_KEY = 'base_structure'
+const structureFilters = metaFilters => (metaFilters || [])
+  .filter(def => def?.key === STRUCTURE_KEY || def?.column === STRUCTURE_COLUMN)
 
 // Every structure name in the library. A name may itself hold " (" ("Cheat (3-C)"), so the
 // render's head is found by name, not by cutting at the first parenthesis.
