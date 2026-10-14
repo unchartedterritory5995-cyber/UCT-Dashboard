@@ -12,6 +12,7 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import useSWR, { mutate as globalMutate } from 'swr'
 import Sheet from '../../../../../components/mobile/Sheet'
+import { focusableWithin } from '../../../../../components/mobile/useFocusTrap'
 import UIcon, { UICON_NAMES } from '../../../../../components/ui/UIcon'
 import usePreferences from '../../../../../hooks/usePreferences'
 import { AuthContext } from '../../../../../context/AuthContext'
@@ -58,6 +59,17 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const [newKind, setNewKind] = useState({ name: '', icon: 'document' })
   const [renaming, setRenaming] = useState(null)        // { id, name }
   const [confirmKind, setConfirmKind] = useState(null)  // id of the kind a Delete is waiting on
+  // Focus ENTERS the dialog through its first tabbable control (the Sheet's Close button, as the
+  // Keyboard Shortcuts dialog does), so NVDA says "Journal styles dialog": focused on the Sheet's panel
+  // itself it spoke the name with no role (NVDA row 28, 2026-10-14, production). NOT the title heading:
+  // a tabIndex=-1 element is outside useFocusTrap's list, so a first Shift+Tab escaped the modal. The
+  // Sheet only focuses its panel when nothing inside already has focus, so this wins its frame.
+  const titleRef = useRef(null)
+  useEffect(() => {
+    if (!open) return
+    const dialog = titleRef.current?.closest('[role="dialog"]')
+    focusableWithin(dialog)[0]?.focus()
+  }, [open])
   const [offerDone, setOfferDone] = useState(false)     // the offer was applied (also kept in offerApplied.js, which outlives this tab)
 
   const editorHeadRef = useRef(null)
@@ -239,7 +251,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const notNow = () => { setPref('notebook_kind_mapping', 'dismissed') }
 
   return (
-    <Sheet open={open} onClose={close} title={<h2 style={{ margin: 0, font: 'inherit' }}>Journal styles</h2>}
+    <Sheet open={open} onClose={close} title={<h2 ref={titleRef} style={{ margin: 0, font: 'inherit' }}>Journal styles</h2>}
       labelledByTitle variant="auto" maxWidth={960}>
       <div className={styles.wrap}>
         <p className={styles.hint}>
