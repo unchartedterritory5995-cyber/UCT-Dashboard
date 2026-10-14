@@ -1846,9 +1846,10 @@
         "label": "Journal styles",
         "where": "Notebook"
       },
-      "status": "dark",
-      "where": [],
-      "note": "Notebook P1, 2026-10-11 (spec docs/superpowers/specs/2026-10-11-notebook-journal-styles-design.md §P1). Enablement gate for journal styles: kinds of note (built-in and the member's own), styles (outline + blocks + property defaults) with versions and one default per kind, the Styles manager, New note -> kind -> default style, Save this note's setup as a style, /style and the previewed Update layout action. Paid. Rides the auth payload (_access_payload) as notebook_journal_styles_enabled; the router answers one 404 while it is off. It gates CREATING only: notes already made from a style render unchanged with it off, and their Kind of note value still shows."
+      "status": "armed",
+      "since": "2026-10-14",
+      "where": ["web"],
+      "note": "ARMED on web 2026-10-14T02:23:41Z (owner set it; new boot SUCCESS 02:28:30Z on b80e0bf818, in-process read '1'; R-27 client smoke PASS and hub_nav_smoke --auth PASS, evidence docs/notebook/evidence/p2b-arm-20261014/). Covers P1 (styles) and P2 Tier 1 parts a and b (pre-entry checklist, market-context stamp, rule versions and before/after, daily prep pack, post-trade review pack). Live NVDA pass of screen-reader-pass.md rows 28-38 owed post-flip (R-P2b-ARM-ORDER). Rollback: railway variable delete NOTEBOOK_JOURNAL_STYLES_ENABLED --service web, then railway redeploy --service web --yes, and confirm in-process. Notebook P1, 2026-10-11 (spec docs/superpowers/specs/2026-10-11-notebook-journal-styles-design.md §P1). Enablement gate for journal styles: kinds of note (built-in and the member's own), styles (outline + blocks + property defaults) with versions and one default per kind, the Styles manager, New note -> kind -> default style, Save this note's setup as a style, /style and the previewed Update layout action. Paid. Rides the auth payload (_access_payload) as notebook_journal_styles_enabled; the router answers one 404 while it is off. It gates CREATING only: notes already made from a style render unchanged with it off, and their Kind of note value still shows."
     },
     "NOTEBOOK_EARNINGS_PREP_ENABLED": {
       "member_facing": {
