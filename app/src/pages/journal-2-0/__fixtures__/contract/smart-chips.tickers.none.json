@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "POST /api/j2/smart-chips/tickers",
+    "note": "EMA is a word in prose without a cashtag: an empty list, not an error.",
+    "path": "/api/j2/smart-chips/tickers",
+    "requestBody": {
+      "text": "alert me if EMA closes below 120"
+    },
+    "status": 200
+  },
+  "body": {
+    "tickers": []
+  }
+}

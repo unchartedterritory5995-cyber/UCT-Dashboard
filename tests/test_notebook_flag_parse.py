@@ -44,6 +44,7 @@ from pathlib import Path
 import pytest
 
 from api.routers import auth as auth_router
+from api.routers import notebook_smart_chips
 from api.services import feature_flag_index as ffi
 from api.services import notebook_flags
 from api.services.journal_two import note_shares
@@ -160,9 +161,8 @@ def _server_gates() -> dict:
         "COMPASS_NOTES_TOOL_ENABLED": coach_chat_tools.notes_tool_enabled,
         # Notebook P1: the journal styles service's own gate function.
         "NOTEBOOK_JOURNAL_STYLES_ENABLED": journal_styles.enabled,
-        # Tier 2 part A: the smart-chips switch (alert chip, screenshot chip, ticker route). No
-        # service module owns it yet; its gate is the one Notebook parse.
-        "NOTEBOOK_SMART_CHIPS_ENABLED": lambda: notebook_flags.flag_on("NOTEBOOK_SMART_CHIPS_ENABLED", False),
+        # Tier 2 part A: the smart-chips ticker route's own gate function.
+        "NOTEBOOK_SMART_CHIPS_ENABLED": notebook_smart_chips.enabled,
     }
 
 

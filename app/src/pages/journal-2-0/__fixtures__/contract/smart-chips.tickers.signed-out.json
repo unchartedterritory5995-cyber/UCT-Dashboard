@@ -1,0 +1,14 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/smart-chips/tickers",
+    "path": "/api/j2/smart-chips/tickers",
+    "requestBody": {
+      "text": "NVDA"
+    },
+    "status": 401
+  },
+  "body": {
+    "detail": "Not authenticated"
+  }
+}
