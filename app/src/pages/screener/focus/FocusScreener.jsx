@@ -51,7 +51,9 @@ import ResultList from './ResultList'
 import { activeStructures, structureLabels } from './setupLine'
 import { plainColumnLabel } from './plainWords'
 import { sortableColumns } from './sortKeys'
-import { capToTopN, poolOf } from './counts'
+import { capToTopN, poolOf, withPool } from './counts'
+import useLazyCounts from './useLazyCounts'
+import { pickLanding, sameScreen, readLandingSeed, writeLandingSeed } from './landing'
 import { livePriceOf } from './livePrice'
 import ChartPane from './ChartPane'
 import { ListSkeleton, EmptyState, ErrorState } from './FocusStates'
@@ -399,28 +401,64 @@ function FocusList({ onMode }) {
     setPinned(next); writeLS(PIN_KEY, JSON.stringify(next))
   }
   const applyScreen = (spec, item) => { ed.applySpec(spec); setCurrent({ id: item.id, name: item.name, kind: item.kind, spec }) }
-  // First load lands on a named screen: with no spec and no door in the URL, the first pinned
-  // screen is applied once per mount, through the same path the screen menu uses. A URL that
-  // carried a spec or a door at mount, or any filter the member has already set, wins. The
-  // decision waits for the saved screens AND the prefs Pinned is migrated from, then releases
-  // the held scan (`landed`) in the same render as the applied spec.
-  const autoApplied = useRef(false)
+  // ── landing (owner decision 1, Perf 3) ─────────────────────────────────
+  // A bare first open (no spec, no door, no filter set) lands on the first pinned screen with at
+  // least LANDING_MIN_MATCHES matches, else the first pinned screen, through the same path the
+  // screen menu uses. The scan and the count stay held (`landed`) until that choice is made, so
+  // the page never asks for the whole universe first. The choice reads the batch counts the
+  // screen menu shares, and is bounded by LANDING_WAIT_MS: past it, an unanswered count no longer
+  // holds the page (it lands on the first pinned screen).
+  //  · Perf 3: the pinned screens as the server last answered them are kept in localStorage, so
+  //    the counts and the scan start at once instead of after the saved screens and prefs. When
+  //    the server answers, its choice replaces the seeded one, unless the member has already
+  //    pressed a key or the pointer anywhere on the page (or the spec moved by any other door).
+  //  · Without a seed the choice waits for the saved screens AND the prefs Pinned is migrated from.
+  const [landPhase, setLandPhase] = useState(() => (arrivedBare.current ? 'pick' : 'final')) // 'pick' | 'reconcile' | 'final'
+  const landedOn = useRef(null)
+  const touched = useRef(false)
+  const seedItems = useMemo(() => (arrivedBare.current ? readLandingSeed() : null), [])
+  const serverReady = savedLoaded && (!prefsLoading || landingWaitOver)
+  const serverItems = useMemo(() => effectivePinned.map(id => {
+    const st = starters.find(x => String(x.id) === String(id))
+    if (st) return { ...st, kind: 'starter' }
+    const sv = saved.find(x => String(x.id) === String(id))
+    return sv ? { ...sv, kind: 'saved' } : null
+  }).filter(Boolean), [effectivePinned, starters, saved])
+  // The server's answer is remembered for the next open (only once both reads have answered).
+  useEffect(() => { if (savedLoaded && !prefsLoading) writeLandingSeed(serverItems) }, [savedLoaded, prefsLoading, serverItems])
+  const landingItems = landPhase === 'pick' ? (serverReady ? serverItems : seedItems)
+    : landPhase === 'reconcile' && serverReady ? serverItems : null
+  const landPoolKey = JSON.stringify(poolOf(s.baseSpec))
+  // Each pinned screen is counted where it would run (the screen menu's rule, so the cache is shared).
+  const landingSpecs = useMemo(() => Object.fromEntries((landingItems || []).map(it => [String(it.id), withPool(it.spec, JSON.parse(landPoolKey))])),
+    [landingItems, landPoolKey])
+  const landingCounts = useLazyCounts(landingSpecs, !!landingItems?.length)
+  const countOf = id => capToTopN(landingCounts[String(id)], landingSpecs[String(id)])
   useEffect(() => {
-    if (autoApplied.current) return
-    const decide = () => { autoApplied.current = true; setLanded(true) }
-    if (!arrivedBare.current || current) { decide(); return }
-    if (Object.keys(s.filters).some(k => s.filters[k] && !POOL_KEYS.includes(k))) { decide(); return }
-    if (!landingWaitOver && (!savedLoaded || prefsLoading)) return
-    decide()
-    const hit = effectivePinned.map(id => {
-      const st = starters.find(x => String(x.id) === String(id))
-      if (st) return { ...st, kind: 'starter' }
-      const sv = saved.find(x => String(x.id) === String(id))
-      return sv ? { ...sv, kind: 'saved' } : null
-    }).find(Boolean)
-    if (hit) applyScreen(hit.spec || { filters: [] }, hit)
+    if (landPhase === 'final') return
+    if (landPhase === 'pick') {
+      // A member who already chose a screen or set a filter wins.
+      if (current || Object.keys(s.filters).some(k => s.filters[k] && !POOL_KEYS.includes(k))) { setLanded(true); setLandPhase('final'); return }
+      if (!landingItems) { if (landingWaitOver) { setLanded(true); setLandPhase('final') } return }
+      const r = pickLanding(landingItems, countOf, landingWaitOver)
+      if (!r.done) return
+      setLanded(true)
+      if (r.hit) applyScreen(r.hit.spec || { filters: [] }, r.hit)
+      landedOn.current = r.hit
+      setLandPhase(serverReady || !r.hit ? 'final' : 'reconcile')
+      return
+    }
+    // reconcile: the seeded choice stands once the member has touched the page or the spec moved.
+    const was = landedOn.current
+    if (touched.current || normalSpec(s.baseSpec) !== normalSpec(was.spec)) { setLandPhase('final'); return }
+    if (!landingItems) return
+    const r = pickLanding(landingItems, countOf, landingWaitOver)
+    if (!r.done) return
+    setLandPhase('final')
+    if (r.hit && !sameScreen(r.hit, was)) applyScreen(r.hit.spec || { filters: [] }, r.hit)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [savedLoaded, prefsLoading, landingWaitOver, effectivePinned, starters, saved, current])
+  }, [landPhase, landingItems, landingCounts, landingWaitOver, serverReady, current, s.filters, s.baseSpec])
+  const markTouched = () => { touched.current = true }
   const myScans = useMemo(() => ((meta?.filters || []).find(f => f.key === 'scan')?.scans || [])
     .filter(x => x?.def_hash).map(x => ({ hash: x.def_hash, name: x.name || 'Untitled scan' })), [meta])
   const applyScanFilter = (hash, name) => {
@@ -600,7 +638,8 @@ function FocusList({ onMode }) {
   }
 
   return (
-    <div ref={pageRef} className={styles.page} data-testid="focus-screener" data-mode="list" data-density={density} onKeyDown={shortcuts.onKeyDown}>
+    <div ref={pageRef} className={styles.page} data-testid="focus-screener" data-mode="list" data-density={density} onKeyDown={shortcuts.onKeyDown}
+      onKeyDownCapture={markTouched} onPointerDownCapture={markTouched}>
       <SkipLinkPortal>
         <SkipLink href="#focus-results" className={styles.skipLink} target={() => pageRef.current?.querySelector('[data-focus-list]')}>Skip to results</SkipLink>
         <a href="#focus-save" className={styles.skipLink} onClick={skipToSave}>Skip to save results</a>
