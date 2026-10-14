@@ -1,0 +1,256 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 25,
+    "fixed": 4,
+    "unchanged": 270,
+    "missing": 0,
+    "baseline": 274,
+    "current": 295,
+    "current_ran": 44927,
+    "new_flaky": 0,
+    "flaky_size": 11,
+    "flaky_new": 1,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 25
+  },
+  "arithmetic": "baseline 274 = unchanged 270 + fixed 4 + missing 0  |  current 295 = unchanged 270 + new 25 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "38475294039",
+  "current_run_id": "38555686269",
+  "baseline_sha": "66cd9fe126040f14009fb6d7cf91dca838454df1",
+  "current_sha": "248d6c68195afcc2e86ee8f17d8123d9a3fb4f37",
+  "commit_range": "66cd9fe126040f14009fb6d7cf91dca838454df1..248d6c68195afcc2e86ee8f17d8123d9a3fb4f37",
+  "first_run": false,
+  "new": [
+    "pytest|tests.pattern_engine.primitives.test_bases|test_no_bars_at_all_returns_the_same_null_shape",
+    "pytest|tests.pattern_engine.primitives.test_bases|test_too_few_bars_returns_every_key_as_none",
+    "pytest|tests.test_alert_taxonomy_price_level_projection|test_flow_worker_does_not_reach_d3_price_level_wiring",
+    "pytest|tests.test_ast_scalars|test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly",
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches",
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped",
+    "pytest|tests.test_notebook_bridges_pin_the_root|test_every_notebook_tool_that_imports_api_applies_the_census_first",
+    "pytest|tests.test_notebook_flag_parse|test_NO_notebook_flag_is_read_outside_the_one_parse",
+    "pytest|tests.test_review_drafts|test_every_caller_that_can_freeze_a_plan_is_behind_the_plan_grading_switch",
+    "pytest|tests.test_scan_store|test_the_screener_COLUMN_SET_still_partitions_into_E1s_frozen_manifest",
+    "pytest|tests.test_smoke_login_link|test_a_token_is_single_use",
+    "pytest|tests.test_smoke_login_link|test_a_token_older_than_the_ttl_is_refused",
+    "pytest|tests.test_smoke_login_link|test_a_token_typed_in_UPPERCASE_still_redeems",
+    "pytest|tests.test_smoke_login_link|test_case_insensitivity_does_not_weaken_single_use",
+    "pytest|tests.test_smoke_login_link|test_issuance_refuses_an_allow_listed_id_with_no_user_row",
+    "pytest|tests.test_smoke_login_link|test_issuance_refuses_any_other_user_id",
+    "pytest|tests.test_smoke_login_link|test_issuance_requires_admin",
+    "pytest|tests.test_smoke_login_link|test_issuance_requires_the_flag",
+    "pytest|tests.test_smoke_login_link|test_issuance_returns_a_url_carrying_a_token",
+    "pytest|tests.test_smoke_login_link|test_redemption_creates_a_session_and_returns_the_login_shape",
+    "pytest|tests.test_smoke_login_link|test_the_flag_and_the_wrong_id_are_indistinguishable",
+    "pytest|tests.test_smoke_login_link|test_the_smoke_token_is_lowercase_base32_so_a_phone_keyboard_cannot_break_it",
+    "pytest|tests.test_smoke_login_link|test_the_token_is_in_the_FRAGMENT_and_never_a_query_string",
+    "pytest|tests.test_smoke_login_link|test_the_token_is_never_written_to_the_activity_log",
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_breadth_forward_seal|test_already_current_is_blocked_with_no_sessions",
+    "pytest|tests.test_breadth_history_single_flight|test_the_plain_reader_is_wired_too",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/research/sections/CatalystsSection.test.jsx|CatalystsSection > shows the finding state while catalysts generate and lands on its own (polls)",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/charts/widgets/IndexesWidget.test.jsx|CONTROL \u2014 the toast rail fails when the door says nothing",
+    "vitest|src/pages/journal-2-0/components/notebook/CaptureHost.test.jsx|capture preserves the member context (\u00a75/\u00a720) > closing returns the dialog to nothing",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.pattern_engine.primitives.test_bases|test_no_bars_at_all_returns_the_same_null_shape": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/pattern_engine/primitives/test_bases.py or anything it imports"
+    },
+    "pytest|tests.pattern_engine.primitives.test_bases|test_too_few_bars_returns_every_key_as_none": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/pattern_engine/primitives/test_bases.py or anything it imports"
+    },
+    "pytest|tests.test_alert_taxonomy_price_level_projection|test_flow_worker_does_not_reach_d3_price_level_wiring": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_alert_taxonomy_price_level_projection.py or anything it imports"
+    },
+    "pytest|tests.test_ast_scalars|test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_ast_scalars.py or anything it imports"
+    },
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_bars_server_include_today.py or anything it imports"
+    },
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_launch_hardening.py or anything it imports"
+    },
+    "pytest|tests.test_notebook_bridges_pin_the_root|test_every_notebook_tool_that_imports_api_applies_the_census_first": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_notebook_bridges_pin_the_root.py or anything it imports"
+    },
+    "pytest|tests.test_notebook_flag_parse|test_NO_notebook_flag_is_read_outside_the_one_parse": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_notebook_flag_parse.py or anything it imports"
+    },
+    "pytest|tests.test_review_drafts|test_every_caller_that_can_freeze_a_plan_is_behind_the_plan_grading_switch": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_review_drafts.py or anything it imports"
+    },
+    "pytest|tests.test_scan_store|test_the_screener_COLUMN_SET_still_partitions_into_E1s_frozen_manifest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_scan_store.py or anything it imports"
+    },
+    "pytest|tests.test_smoke_login_link|test_a_token_is_single_use": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_smoke_login_link.py or anything it imports"
+    },
+    "pytest|tests.test_smoke_login_link|test_a_token_older_than_the_ttl_is_refused": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_smoke_login_link.py or anything it imports"
+    },
+    "pytest|tests.test_smoke_login_link|test_a_token_typed_in_UPPERCASE_still_redeems": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_smoke_login_link.py or anything it imports"
+    },
+    "pytest|tests.test_smoke_login_link|test_case_insensitivity_does_not_weaken_single_use": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_smoke_login_link.py or anything it imports"
+    },
+    "pytest|tests.test_smoke_login_link|test_issuance_refuses_an_allow_listed_id_with_no_user_row": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_smoke_login_link.py or anything it imports"
+    },
+    "pytest|tests.test_smoke_login_link|test_issuance_refuses_any_other_user_id": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_smoke_login_link.py or anything it imports"
+    },
+    "pytest|tests.test_smoke_login_link|test_issuance_requires_admin": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_smoke_login_link.py or anything it imports"
+    },
+    "pytest|tests.test_smoke_login_link|test_issuance_requires_the_flag": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_smoke_login_link.py or anything it imports"
+    },
+    "pytest|tests.test_smoke_login_link|test_issuance_returns_a_url_carrying_a_token": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_smoke_login_link.py or anything it imports"
+    },
+    "pytest|tests.test_smoke_login_link|test_redemption_creates_a_session_and_returns_the_login_shape": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_smoke_login_link.py or anything it imports"
+    },
+    "pytest|tests.test_smoke_login_link|test_the_flag_and_the_wrong_id_are_indistinguishable": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_smoke_login_link.py or anything it imports"
+    },
+    "pytest|tests.test_smoke_login_link|test_the_smoke_token_is_lowercase_base32_so_a_phone_keyboard_cannot_break_it": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_smoke_login_link.py or anything it imports"
+    },
+    "pytest|tests.test_smoke_login_link|test_the_token_is_in_the_FRAGMENT_and_never_a_query_string": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_smoke_login_link.py or anything it imports"
+    },
+    "pytest|tests.test_smoke_login_link|test_the_token_is_never_written_to_the_activity_log": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_smoke_login_link.py or anything it imports"
+    },
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_term082_day_metrics_serve_stale.py or anything it imports"
+    },
+    "pytest|tests.test_breadth_forward_seal|test_already_current_is_blocked_with_no_sessions": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_breadth_forward_seal.py or anything it imports"
+    },
+    "pytest|tests.test_breadth_history_single_flight|test_the_plain_reader_is_wired_too": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_breadth_history_single_flight.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 66cd9fe12..248d6c681 touched tests/test_mutation_check.py or anything it imports"
+    }
+  }
+}
