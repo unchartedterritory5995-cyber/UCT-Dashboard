@@ -67,4 +67,24 @@ describe('prefetchBars urgent (opt-in cold-start bypass)', () => {
     await drain()
     expect(preload).not.toHaveBeenCalled()
   })
+
+  it('urgent starts on the next tick, without waiting for the idle callback or timer', async () => {
+    const ric = vi.fn()
+    vi.stubGlobal('requestIdleCallback', ric)
+    mod.prefetchBars(['AAA', 'BBB'], 'D', { urgent: true })
+    await Promise.resolve()                 // microtasks only: NO timers advanced
+    expect(urls().join()).toContain('AAA')
+    expect(preload).toHaveBeenCalledTimes(2)
+    expect(ric).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
+  it('non-urgent warms stay idle-deferred (not started on the next tick)', async () => {
+    localStorage.setItem('barspack.version', 'v1')
+    mod.prefetchBars(['AAA'], 'D')
+    await Promise.resolve()
+    expect(preload).not.toHaveBeenCalled()
+    await drain()
+    expect(preload).toHaveBeenCalledTimes(1)
+  })
 })

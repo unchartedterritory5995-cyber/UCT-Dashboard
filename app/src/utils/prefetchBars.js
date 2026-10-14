@@ -171,7 +171,11 @@ function _enqueue(url, priority = false, urgent = false) {
   if (urgent) _urgent.add(url)
   if (priority) _queue.unshift(url)          // front of line (year the user just opened)
   else _queue.push(url)
-  _kickSoon()
+  // Urgent URLs must not wait on the idle callback / 800ms timer: a member
+  // arrowing ~1 row/s would outrun it. Pump on the next microtask (still the
+  // bounded queue + _MAX_CONCURRENT); everything else stays idle-deferred.
+  if (urgent) queueMicrotask(_pump)
+  else _kickSoon()
 }
 
 function _url(sym, tf, warm = true) {
