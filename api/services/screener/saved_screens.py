@@ -435,7 +435,7 @@ def _starter_defs():
         # ── momentum / trend setups ──
         {"id": "starter_momentum_leaders", "name": "Leaders (RS ≥ 90)",
          "group": "Momentum leaders",
-         "description": "Stocks with RS 90+, 4% daily range, $20M+ traded, price $5+, above 50 day",
+         "description": "Stocks with RS 90+, 4%+ daily range, $20M+ traded, price $5+, above 50 day",
          "spec": {"filters": [
              {"key": "rs_rank", "op": "gte", "min": 90},
              {"key": "adr_pct", "op": "gte", "min": 4},

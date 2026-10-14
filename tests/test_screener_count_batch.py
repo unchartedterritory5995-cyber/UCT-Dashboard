@@ -217,3 +217,85 @@ def test_an_unexpected_failure_is_logged_with_its_slot(paid, caplog):
         c.post(URL, json={"specs": [{"filters": []}, {"filters": [{"key": "crash"}]}]})
     recs = [r for r in caplog.records if "count batch slot 1 failed" in r.getMessage()]
     assert recs and recs[0].exc_info and "secret internal path" in str(recs[0].exc_info[1])
+
+
+# -- the overlay ON, in RTH: the moving cutoff must not defeat the cache ------
+
+import time as _time  # noqa: E402
+
+from api.services.screener import live_tier  # noqa: E402
+
+
+def _live_row(ticker, asof, **values):
+    row = {c: None for c in live_tier.LIVE_COLUMNS}
+    row.update(values)
+    row.update({"ticker": ticker, "live_session_ymd": 20260823,
+                "live_asof": float(asof), "anchor_bars_asof": "20260822",
+                "src_price": float(values.get("price") or 1.0),
+                "anchor_price": 1.0, "live_cols": len(values)})
+    return row
+
+
+@pytest.fixture
+def rth(monkeypatch):
+    """Armed tier, regular session, and a cutoff that ADVANCES on every
+    overlay decision (one second each), the way `time.time() - max_age` does,
+    while staying inside one cache bucket."""
+    monkeypatch.setenv("SCREENER_LIVE_TIER_ENABLED", "1")
+    monkeypatch.setattr(live_tier, "_session", lambda: "regular")
+    now = _time.time()
+    base = (int(now - 120) // scr_query.COUNT_CACHE_TTL_S) * scr_query.COUNT_CACHE_TTL_S + 10
+    ticks = iter(range(10_000))
+    monkeypatch.setattr(live_tier, "min_serve_asof",
+                        lambda now=None: float(base + next(ticks)))
+    db.init_db()
+    db.upsert_rows([
+        {"ticker": "AAA", "price": 10.0, "bars_asof": "20260822",
+         "snapshot_date": "2026-08-22", "built_at": 1},
+        {"ticker": "BBB", "price": 10.0, "bars_asof": "20260822",
+         "snapshot_date": "2026-08-22", "built_at": 1},
+    ])
+    db.upsert_live_rows([_live_row("AAA", now, price=50.0)])
+    return now
+
+
+_OVER_20 = [{"filters": [{"key": "price", "op": "gte", "min": 20}]}]
+
+
+def test_with_the_overlay_on_in_RTH_a_repeat_batch_hits_the_cache(rth, monkeypatch):
+    first = scr_query.preview_count_batch(_OVER_20, user_id="u1")
+    assert first[0]["count"] == 1          # the LIVE price qualified AAA
+    calls = []
+    real = scr_query.preview_count
+    monkeypatch.setattr(scr_query, "preview_count",
+                        lambda spec, user_id=None, conn=None, overlay=None:
+                        calls.append(spec) or real(spec, user_id=user_id, conn=conn, overlay=overlay))
+    again = scr_query.preview_count_batch(_OVER_20, user_id="u1")
+    assert calls == [] and again == first
+
+
+def test_with_the_overlay_on_a_new_live_sweep_misses_the_cache(rth):
+    assert scr_query.preview_count_batch(_OVER_20, user_id="u1")[0]["count"] == 1
+    db.upsert_live_rows([_live_row("BBB", rth + 1, price=60.0)])
+    assert scr_query.preview_count_batch(_OVER_20, user_id="u1")[0]["count"] == 2
+
+
+def test_the_nightly_half_of_the_stamp_is_the_live_tiers_own_fingerprint(snap):
+    conn = db.connect()
+    try:
+        stamp = scr_query._snapshot_stamp(conn, scr_query._overlay(conn))
+        assert repr(live_tier._anchor_fingerprint(conn)) in stamp
+    finally:
+        conn.close()
+
+
+def test_a_database_that_will_not_open_is_logged_once_not_per_slot(monkeypatch, caplog):
+    def boom(*a, **k):
+        raise RuntimeError("disk gone")
+    monkeypatch.setattr(db, "connect", boom)
+    c = _client(PAID)
+    with caplog.at_level("ERROR"):
+        out = c.post(URL, json={"specs": [{"filters": []}] * 5}).json()["counts"]
+    assert out == [{"error": "count failed"}] * 5
+    errs = [r for r in caplog.records if r.levelname == "ERROR"]
+    assert len(errs) == 1 and "could not open" in errs[0].getMessage()

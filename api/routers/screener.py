@@ -55,6 +55,7 @@ from api.services.screener import (
     saved_screens as scr_saved,
     contention_trace_temp as scr_ctrace,
 )
+import logging
 import time as _ctrace_time
 from api.middleware.auth_middleware import (
     get_current_user_with_plan,
@@ -63,6 +64,7 @@ from api.middleware.auth_middleware import (
 )
 
 router = APIRouter()
+log = logging.getLogger(__name__)
 
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
@@ -313,8 +315,6 @@ def screener_count_batch(body: CountBatch, user=Depends(require_paid)):
     decision, with a small TTL cache (see query.py); the 30-spec cap above and
     the parameterised SQL inside `preview_count` are unchanged.
     """
-    import logging
-    log = logging.getLogger(__name__)
     uid = (user or {}).get("id")
     results = scr_query.preview_count_batch([s.model_dump() for s in body.specs],
                                             user_id=uid)
@@ -322,6 +322,8 @@ def screener_count_batch(body: CountBatch, user=Depends(require_paid)):
     for slot, res in enumerate(results):
         if isinstance(res, ValueError):
             out.append({"error": str(res)})
+        elif isinstance(res, scr_query.CountBatchUnavailable):
+            out.append({"error": "count failed"})  # logged once by the batch
         elif isinstance(res, BaseException):
             log.exception("[screener] count batch slot %d failed", slot, exc_info=res)
             out.append({"error": "count failed"})

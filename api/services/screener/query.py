@@ -1528,17 +1528,35 @@ def _count_cache():
 
 
 def _snapshot_stamp(conn, overlay):
-    """What identifies the data a count reads: the nightly table's size, newest
-    build and newest date, plus the live overlay's size and newest sweep when it
-    is serving. ``None`` (no caching) when the database cannot say."""
+    """What identifies the data a count reads. ``None`` (no caching) when the
+    database cannot say.
+
+    The nightly half IS `live_tier._anchor_fingerprint` -- the stamp the live
+    sweeper already trusts to notice a rebuild (db path, row count, MAX(rowid),
+    newest `built_at`; a rebuild rewrites every rowid) -- never a second,
+    weaker one. With the overlay serving, the live table's size and newest
+    sweep are added, so each sweep moves the key.
+
+    ⛔ The in-session freshness cutoff (`min_serve_asof`, now minus max age)
+    moves every second, so it is BUCKETED to the cache TTL. Putting the raw
+    value in the key would make every RTH lookup a miss. A bucket of one TTL
+    bounds how long a row that aged past the cutoff can be counted to one TTL,
+    the same bound the cache already accepts.
+
+    ⚠️ A flag flip ON -> OFF (or OFF -> ON) changes the overlay-off marker and
+    so the key, but a success cached a moment before the flip is still served
+    for up to one TTL to a key that has not moved. Refusals and failures are
+    never cached, only successful counts.
+    """
     try:
-        r = conn.execute("SELECT COUNT(*), MAX(built_at), MAX(snapshot_date) "
-                         "FROM screener_rows").fetchone()
-        parts = [tuple(r)]
+        from . import live_tier
+        parts = [live_tier._anchor_fingerprint(conn)]
         if overlay.on:
             lv = conn.execute(
                 f'SELECT COUNT(*), MAX(live_asof) FROM "{overlay.table}"').fetchone()
-            parts.append((tuple(lv), tuple(overlay.join_params)))
+            cutoff = overlay.join_params[0] if overlay.join_params else None
+            bucket = None if cutoff is None else int(cutoff // COUNT_CACHE_TTL_S)
+            parts.append(("overlay-on", tuple(lv), bucket))
         else:
             parts.append("overlay-off")
         return repr(parts)
@@ -1565,6 +1583,11 @@ def _count_cache_key(spec, user_id, stamp):
     return "|".join((str(user_id), stamp, hashlib.sha256(body.encode()).hexdigest()))
 
 
+class CountBatchUnavailable(RuntimeError):
+    """Every slot of a batch whose database could not be opened. Already
+    logged once by `preview_count_batch`; the route must not log it per slot."""
+
+
 def preview_count_batch(specs, user_id=None):
     """``preview_count`` for each spec, in order, over ONE connection and ONE
     overlay decision. Each slot is the count dict or the exception that spec
@@ -1572,8 +1595,11 @@ def preview_count_batch(specs, user_id=None):
     import copy
     try:
         conn = snapshot_db.connect()
-    except Exception as e:  # noqa: BLE001 -- reported in every slot
-        return [e for _ in specs]
+    except Exception:  # noqa: BLE001 -- logged ONCE here, not once per slot
+        import logging
+        logging.getLogger(__name__).exception(
+            "[screener] count batch could not open the snapshot database")
+        return [CountBatchUnavailable() for _ in specs]
     out = []
     try:
         overlay = _overlay(conn)
