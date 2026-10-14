@@ -18,7 +18,7 @@ export const MAX_PHRASE_TEXT = 280
 
 const ASK = /\balert\b/i
 const NEGATED = /\b(?:don'?t|do\s+not|never|no)\b[^.!?]{0,20}\balert\b/i
-const PHRASE = /\b(?:if|when|once)\s+(?<sym>it|the\s+stock|the\s+price|price|\$?[A-Za-z]{1,6}(?:[.-][A-Za-z]{1,2})?)\s+(?<verb>closes|close|trades|trade|goes|gets|moves|drops|falls|breaks|crosses|hits|touches|reaches|is)\s+(?:(?<dir>above|below|over|under|through|to)\s+)?(?<price>\$?\d{1,7}(?:\.\d{1,4})?)(?!\d|\.\d)(?:\s+on\s+the\s+(?<tf>daily|weekly)(?:\s+chart)?)?/gi
+const PHRASE = /\b(?:if|when|once)\s+(?<sym>it|the\s+stock|the\s+price|price|\$?[A-Za-z]{1,6}(?:[.-][A-Za-z]{1,2})?)\s+(?<verb>closes|close|trades|trade|goes|gets|moves|drops|falls|breaks|crosses|hits|touches|reaches|is)\s+(?:(?<dir>above|below|over|under|through|to)\s+)?(?<price>\$?(?:\d{1,3}(?:,\d{3})+|\d{1,7})(?:\.\d{1,4})?)(?!\d|[.,]\d)(?![-\s]?(?:(?:days?|dma|ema|sma|ma|k|shares?)\b|%))(?:\s+on\s+the\s+(?<tf>daily|weekly)(?:\s+chart)?)?/gi
 
 const DIR = { above: 'above', over: 'above', below: 'below', under: 'below' }
 const FALLING = new Set(['drops', 'falls'])
@@ -33,7 +33,7 @@ function readSentence(sentence) {
   }
   if (!found) return null
   const g = found.groups
-  const priced = parseAlertPrice(g.price)
+  const priced = parseAlertPrice(g.price.replace(/,/g, ''))
   if (!priced) return null
   const rawSym = g.sym
   const pronoun = rawSym !== 'IT' && PRONOUN.test(rawSym)

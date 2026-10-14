@@ -15,6 +15,10 @@ describe('parseAlertPhrase -- what it reads', () => {
     ['alert me if NVDA closes under 118 on the weekly', { mode: 'close', direction: 'below', tf: 'W' }],
     ['alert me if BRK.B closes below 400', { symbol: 'BRK-B' }],
     ['Alert me if NVDA closes below 120.', { price: 120 }],
+    ['alert me if NVDA closes below 1,200', { price: 1200 }],
+    ['alert me if SPX closes below 5,000', { price: 5000 }],
+    ['alert me if NVDA closes above $5,000.50', { price: 5000.5 }],
+    ['alert me if NVDA closes below 120 on the daily', { price: 120, tf: 'D' }],
   ])('%s', (text, want) => { expect(P(text)).toMatchObject(want) })
 
   it('"it", "the stock" and "price" mean the note\'s own ticker', () => {
@@ -40,6 +44,17 @@ describe('parseAlertPhrase -- what it refuses', () => {
     'alert me if NVDA closes below -5',
     'if NVDA closes below 120 alert me',             // ask after the condition
     'alert me if NVDA bounces off 120',              // unknown verb
+    'alert me if NVDA closes below 1,20',            // malformed grouping, never read as a smaller number
+    'alert me if NVDA closes below 12,0000',
+    'alert me if NVDA closes below 50-day',          // moving average / unit words are not prices
+    'alert me if NVDA closes below 50 day',
+    'alert me if NVDA closes below 200 dma',
+    'alert me if NVDA closes below 20 EMA',
+    'alert me if NVDA closes below 50 sma',
+    'alert me if NVDA closes below 50 ma',
+    'alert me if NVDA closes below 120%',
+    'alert me if NVDA closes below $120k',
+    'alert me if NVDA closes below 120 shares',
     '',
   ])('%s', (text) => { expect(P(text)).toBeNull() })
 
