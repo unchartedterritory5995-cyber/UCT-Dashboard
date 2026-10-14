@@ -34,3 +34,14 @@ test('a failed count is null, not zero', async () => {
   const { result } = renderHook(() => useLazyCounts({ a: { filters: [] } }, true))
   await waitFor(() => expect(result.current.a).toBeNull())
 })
+test('a failure is not cached: reopening retries', async () => {
+  fetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) })
+  fetch.mockResolvedValue({ ok: true, json: async () => ({ count: 7 }) })
+  const specs = { a: { filters: [] } }
+  const { result, rerender } = renderHook(({ e }) => useLazyCounts(specs, e), { initialProps: { e: true } })
+  await waitFor(() => expect(result.current.a).toBeNull())
+  rerender({ e: false })
+  rerender({ e: true })
+  await waitFor(() => expect(result.current.a).toBe(7))
+  expect(fetch).toHaveBeenCalledTimes(2)
+})

@@ -25,7 +25,9 @@ test('opens with pinned first, then groups and my screens', () => {
   const heads = within(dlg).getAllByRole('heading').map(h => h.textContent)
   expect(heads[0]).toBe('Pinned')
   expect(heads).toContain('My screens')
-  expect(within(dlg).getByText('RS rank 90 or higher')).toBeInTheDocument()
+  const pinnedSec = within(dlg).getByRole('region', { name: 'Pinned' })
+  expect(within(pinnedSec).getByText('RS rank 90 or higher')).toBeInTheDocument()
+  expect(within(pinnedSec).getByText('412')).toBeInTheDocument()
 })
 test('search filters items', () => {
   render(<ScreenMenu {...props} />)
@@ -49,8 +51,30 @@ test('pin toggles without applying', () => {
   expect(props.onApply).not.toHaveBeenCalled()
 })
 test('edited screen offers save changes', () => {
-  render(<ScreenMenu {...props} isEdited onSaveChanges={vi.fn()} currentName="Semis on watch" currentId={5} />)
-  expect(screen.getByRole('button', { name: /Semis on watch \(edited\)/ })).toBeInTheDocument()
+  const onSaveChanges = vi.fn()
+  render(<ScreenMenu {...props} isEdited onSaveChanges={onSaveChanges} currentName="Semis on watch" currentId={5} />)
+  fireEvent.click(screen.getByRole('button', { name: /Semis on watch \(edited\)/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Save changes to/ }))
+  expect(onSaveChanges).toHaveBeenCalled()
+})
+test('no Save changes button without a current name', () => {
+  render(<ScreenMenu {...props} onSaveChanges={vi.fn()} currentName="" />)
+  fireEvent.click(screen.getByRole('button', { name: /Change screen/ }))
+  expect(screen.queryByRole('button', { name: /Save changes to/ })).toBeNull()
+})
+test('a pinned id for a deleted screen is skipped, duplicates collapse, trigger omits an unknown count', () => {
+  render(<ScreenMenu {...props} count={undefined} pinned={['starter_momentum_leaders', 'starter_momentum_leaders', '999']} />)
+  const trigger = screen.getByRole('button', { name: /Leaders/ })
+  expect(trigger.getAttribute('aria-label')).not.toMatch(/matches/)
+  fireEvent.click(trigger)
+  const pinnedSec = screen.getByRole('region', { name: 'Pinned' })
+  expect(within(pinnedSec).getAllByRole('button', { name: /^Open / })).toHaveLength(1)
+})
+test('pin ids are passed as strings', () => {
+  render(<ScreenMenu {...props} />)
+  fireEvent.click(screen.getByRole('button', { name: /Leaders/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Pin Semis on watch' }))
+  expect(props.onTogglePin).toHaveBeenCalledWith('5')
 })
 test('Escape closes and returns focus to the trigger; outside pointerdown closes', () => {
   render(<ScreenMenu {...props} />)

@@ -98,5 +98,6 @@
 @media (max-width: 1024px) {
   .listWrap { flex-basis: 280px; }
   .btn, .btnOn, .btnPrimary, .linkBtn, .segOn, .segOff, .menuItem, .iconBtn, .receiptBtn, .screenBtn, .smPin, .smOpen, .goldLink { min-height: var(--tap-min); }
+  .smPin { min-width: var(--tap-min); }
   .row { min-height: var(--tap-min); }
 }

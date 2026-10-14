@@ -24,7 +24,9 @@ function countFor(spec) {
         const r = await fetch('/api/screener/count', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: key })
         if (r.ok) { const j = await r.json(); v = Number.isFinite(j?.count) ? j.count : null }
       } catch { v = null }
-      cache.set(key, v); inflight.delete(key); resolve(v)
+      // a failure is never cached: the next open retries
+      if (v !== null) cache.set(key, v)
+      inflight.delete(key); resolve(v)
     })
     pump()
   })
@@ -35,7 +37,7 @@ function countFor(spec) {
 // undefined = not asked yet, null = the count failed (never 0)
 export default function useLazyCounts(specsById, enabled) {
   const [counts, setCounts] = useState({})
-  const sig = JSON.stringify(specsById)
+  const sig = enabled ? JSON.stringify(specsById) : ''
   useEffect(() => {
     if (!enabled) return undefined
     let alive = true
