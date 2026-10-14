@@ -118,6 +118,33 @@ test('row actions do nothing while the new screen is pending: Enter does not lea
   expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/)
 })
 
+test('A→B→A: an answer for A that landed while B was current is used when the member returns to A', async () => {
+  let releaseA = null
+  extra = (url, opts) => {
+    if (url !== '/api/screener/scan') return null
+    const keys = keysOf(JSON.parse(opts.body))
+    if (keys.includes('rs_rank')) return scanReply([], 0) // B
+    if (keys.includes('universe')) return new Promise(r => { releaseA = () => r(scanReply([AAA])) }) // A, held
+    return null
+  }
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  await sleep(350)
+  goTo({ universe: UCT }) // A fires at once
+  await waitFor(() => expect(releaseA).toBeTypeOf('function'))
+  goTo({ universe: UCT, rs_rank: RS90 }) // B queued
+  await act(async () => { releaseA() }) // A lands while B is current: not listed
+  await sleep(20)
+  expect(screen.queryByTestId('focus-row-AAA')).toBeNull()
+  goTo({ universe: UCT }) // back to A: the scan does not ask again for the spec it already sent
+  await waitFor(() => screen.getByTestId('focus-row-AAA'))
+  expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'false')
+  expect(screen.getByTestId('screen-count')).toHaveTextContent('1')
+  await sleep(400)
+  expect(scanBodies().some(b => keysOf(b).includes('rs_rank'))).toBe(false) // B never asked
+  expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'false')
+})
+
 test('the list is dimmed and busy while the new screen is pending, and clears when it answers', async () => {
   let releaseA = null
   extra = (url, opts) => {
@@ -151,8 +178,9 @@ test('undo survives a 0→0 step and still goes back to the last screen with row
   goTo({ universe: UCT })
   await waitFor(() => expect(screen.getByText(/took the list from 2 to 0/)).toBeInTheDocument())
   goTo({ universe: UCT, rs_rank: RS90 })
-  await waitFor(() => expect(scanBodies().some(b => keysOf(b).includes('rs_rank'))).toBe(true))
-  await sleep(50) // let the 0 answer for the second change fold in
+  expect(screen.getByTestId('screen-count')).toHaveTextContent('…') // the second change is pending
+  await waitFor(() => expect(screen.getByTestId('screen-count')).toHaveTextContent('0')) // and has folded
+  expect(scanBodies().some(b => keysOf(b).includes('rs_rank'))).toBe(true)
   expect(screen.getByText(/took the list from 2 to 0/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Undo that change' }))
   await waitFor(() => screen.getByTestId('focus-row-MU'))
@@ -248,4 +276,14 @@ test('a later page skips tickers already loaded', async () => {
   } finally {
     globalThis.IntersectionObserver = IO
   }
+})
+
+test('a failed scan for the new screen does not leave "…" in the screen button', async () => {
+  extra = (url, opts) => (url === '/api/screener/scan' && keysOf(JSON.parse(opts.body)).includes('universe')
+    ? { ok: false, status: 504, json: async () => ({}) } : null)
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  goTo({ universe: UCT })
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent("The screen didn't load"))
+  expect(screen.getByTestId('screen-count')).not.toHaveTextContent('…')
 })

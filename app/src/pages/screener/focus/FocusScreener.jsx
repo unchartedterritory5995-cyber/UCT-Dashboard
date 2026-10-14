@@ -181,33 +181,47 @@ function FocusList({ onMode }) {
   //  · a later page that comes back EMPTY ends paging (`exhausted`), whatever `total`
   //    says, so the list's load-more re-arm cannot ask for the same empty page forever.
   const [answered, setAnswered] = useState({ result: null, rows: [], total: null, rowsKey: '', exhausted: false,
-    shown: null, prev: { filters: null, baseSpec: null, total: null }, lastChange: null })
+    shown: null, prev: { filters: null, baseSpec: null, total: null }, lastChange: null, dropped: {} })
+  // A page-1 answer for the screen now set, folded in as the list.
+  const foldPage1 = (base, res, asked) => {
+    let { prev, lastChange: change } = base
+    const defs = Object.fromEntries((meta?.filters || []).map(f => [f.key, f]))
+    const desc = describeEmptying({ prevSpec: { filters: prev.filters }, prevTotal: prev.total,
+      nextSpec: { filters: asked.filters }, nextTotal: res.total, defs })
+    // A 0→0 step keeps the offer: the undo still goes back to the last screen with rows.
+    change = desc ? { ...desc, undo: prev } : (res.total === 0 && base.total === 0 ? change : null)
+    if (res.total > 0) prev = { filters: asked.filters, baseSpec: asked.baseSpec, total: res.total }
+    const { [asked.sig]: _used, ...dropped } = base.dropped
+    return {
+      ...base, result: res, total: res.total, prev, lastChange: change, rows: res.rows || [], rowsKey: asked.sig,
+      exhausted: false, shown: { filters: asked.filters, logic: asked.logic, rank: asked.rank }, dropped,
+    }
+  }
   if (result && result !== answered.result) {
-    const asked = (answeredSpec && askedBy.current.get(answeredSpec))
-      || { sig: screenSig, filters: s.filters, logic: s.logic, rank: s.rank, baseSpec: s.baseSpec }
+    // A spec this mount did not build is never filed under the screen on view: dropped.
+    const asked = (answeredSpec && askedBy.current.get(answeredSpec)) || null
     const page1 = result.page === 1
-    // An answer for neither the screen now set nor the one listed is a superseded
-    // intermediate screen: dropped whole, never shown and never the undo target.
-    // A later page counts only for the screen listed.
-    if (page1 ? asked.sig !== screenSig && asked.sig !== answered.rowsKey : asked.sig !== answered.rowsKey) {
+    if (!asked) {
       setAnswered({ ...answered, result })
+    } else if (page1 && asked.sig !== screenSig && asked.sig !== answered.rowsKey) {
+      // A superseded intermediate screen: never shown and never the undo target. Its answer is
+      // kept aside (the last few, one per screen) in case the member returns to that screen
+      // before anything newer is asked: the scan does not ask again for a spec it already sent.
+      const kept = Object.entries(answered.dropped).filter(([k]) => k !== asked.sig).slice(-4)
+      setAnswered({ ...answered, result, dropped: Object.fromEntries([...kept, [asked.sig, { result, asked }]]) })
     } else if (page1) {
-      let { prev, lastChange: change } = answered
-      const defs = Object.fromEntries((meta?.filters || []).map(f => [f.key, f]))
-      const desc = describeEmptying({ prevSpec: { filters: prev.filters }, prevTotal: prev.total,
-        nextSpec: { filters: asked.filters }, nextTotal: result.total, defs })
-      // A 0→0 step keeps the offer: the undo still goes back to the last screen with rows.
-      change = desc ? { ...desc, undo: prev } : (result.total === 0 && answered.total === 0 ? change : null)
-      if (result.total > 0) prev = { filters: asked.filters, baseSpec: asked.baseSpec, total: result.total }
-      setAnswered({
-        result, total: result.total, prev, lastChange: change, rows: result.rows || [], rowsKey: asked.sig,
-        exhausted: false, shown: { filters: asked.filters, logic: asked.logic, rank: asked.rank },
-      })
+      setAnswered(foldPage1(answered, result, asked))
+    } else if (asked.sig !== answered.rowsKey) {
+      setAnswered({ ...answered, result }) // a later page counts only for the screen listed
     } else {
       const have = new Set(answered.rows.map(r => r.ticker))
       const fresh = (result.rows || []).filter(r => !have.has(r.ticker) && have.add(r.ticker))
       setAnswered({ ...answered, result, rows: [...answered.rows, ...fresh], exhausted: !fresh.length })
     }
+  } else if (answered.rowsKey !== screenSig && answered.dropped[screenSig]) {
+    // Back on a screen whose answer arrived while it was not current: adopt it now.
+    const d = answered.dropped[screenSig]
+    setAnswered({ ...foldPage1(answered, d.result, d.asked), result: answered.result })
   }
   const { rows, total, rowsKey, lastChange, exhausted } = answered
   // The listed rows answer an earlier screen than the one now set: the new screen's answer
@@ -548,7 +562,7 @@ function FocusList({ onMode }) {
         <a href="#focus-save" className={styles.skipLink} onClick={skipToSave}>Skip to save results</a>
       </SkipLinkPortal>
       <FocusTopBar
-        screenMenu={<ScreenMenu apiRef={screenMenuApi} currentName={current?.name} currentId={current?.id} isEdited={isEdited} count={total} countPending={pending}
+        screenMenu={<ScreenMenu apiRef={screenMenuApi} currentName={current?.name} currentId={current?.id} isEdited={isEdited} count={total} countPending={pending && !error}
           starters={starters} saved={saved} pinned={effectivePinned} onTogglePin={togglePin} onApply={applyScreen}
           onSaveChanges={current?.kind === 'saved' && isEdited ? saveChanges : null}
           onSaveAsNew={savedLoaded && !savedError ? saveAsScreen : null}

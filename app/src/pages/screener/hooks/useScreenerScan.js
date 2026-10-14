@@ -54,7 +54,11 @@ export default function useScreenerScan(spec, { debounce = 300, leading = false 
   }
 
   useEffect(() => {
-    if (!key) return undefined
+    if (!key) {
+      // Leading mode keeps its timer across key changes, so a queued edit is dropped here.
+      if (leading) { clearTimeout(timer.current); timer.current = null; trailing.current = false }
+      return undefined
+    }
     if (!leading) {
       clearTimeout(timer.current)
       timer.current = setTimeout(() => run(spec, key), debounce)

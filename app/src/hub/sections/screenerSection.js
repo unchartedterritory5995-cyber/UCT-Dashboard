@@ -594,7 +594,8 @@ export function createScreenerSection({
  * @param {boolean} [args.hasMore]
  * @param {() => void} [args.loadMore]
  * @param {boolean} [args.busy]  Opt-in (default false): the rows are a previous screen's while a
- *   new one loads, so the cursor still moves but no action acts on a row (no symbol is offered).
+ *   new one loads: the cursor still moves, the shared symbol is cleared, and every row action is
+ *   disabled with the hub's unmet-requirement reason.
  * @param {() => void} [args.onOpenScans]  The page's seam onto its saved-screen picker. Omit it
  *   and the `Scans` action is ABSENT rather than inert — see the R-13 note in the header.
  * @returns {{resultsRef: {current: any}, hubToast: import('react').ReactElement,
@@ -643,9 +644,14 @@ export default function useScreenerHubSection({
    * shell; clearing here would race the navigation and blank the symbol the member just chose.
    * The shared symbol is Part C4 state that outlives one section by design.
    */
+  // While `busy`, the shared symbol is CLEARED rather than left on the previous screen's row, so
+  // every symbol-requiring action (Chart it, Why, Flag, Alert, Plan trade) renders disabled with
+  // the hub's own reason, exactly as an unmet requirement does, instead of acting on a stale row
+  // or falling back to a bare route. It is written again the moment the new screen answers.
   useEffect(() => {
-    if (symbol) setSymbol(symbol)
-  }, [symbol, setSymbol])
+    if (busy) setSymbol(null)
+    else if (symbol) setSymbol(symbol)
+  }, [busy, symbol, setSymbol])
 
   /**
    * `HubListAdapter.scrollTo` — REQUIRED by the contract, because a cursor that advances

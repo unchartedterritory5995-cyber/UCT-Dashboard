@@ -78,3 +78,36 @@ describe('leading option', () => {
     expect(result.current.answeredSpec).toBe(asked)
   })
 })
+
+describe('leading option: returning and clearing', () => {
+  afterEach(() => { vi.useRealTimers() })
+  const scanCalls = () => globalThis.fetch.mock.calls.filter(([u]) => u === '/api/screener/scan')
+
+  test('returning to the spec still in flight drops the queued edit, and its answer is delivered for it', async () => {
+    let release
+    globalThis.fetch = vi.fn(() => new Promise(r => { release = () => r({ ok: true, json: async () => ({ total: 7, rows: [] }) }) }))
+    vi.useFakeTimers()
+    const A = { filters: [{ key: 'a' }], page: 1 }
+    const { result, rerender } = renderHook(({ s }) => useScreenerScan(s, { leading: true }), { initialProps: { s: A } })
+    expect(scanCalls()).toHaveLength(1)
+    rerender({ s: { filters: [{ key: 'b' }], page: 1 } }) // queued on the debounce
+    rerender({ s: { ...A } }) // back to A: same key as the request on the wire
+    act(() => { vi.advanceTimersByTime(1000) })
+    expect(scanCalls()).toHaveLength(1) // B never fired, A was not asked twice
+    vi.useRealTimers()
+    await act(async () => { release() })
+    await waitFor(() => expect(result.current.result?.total).toBe(7))
+    expect(result.current.answeredSpec).toBe(A)
+  })
+
+  test('a spec that goes null drops the queued edit', () => {
+    vi.useFakeTimers()
+    const { rerender } = renderHook(({ s }) => useScreenerScan(s, { leading: true }),
+      { initialProps: { s: { filters: [], page: 1 } } })
+    expect(scanCalls()).toHaveLength(1)
+    rerender({ s: { filters: [{ key: 'b' }], page: 1 } })
+    rerender({ s: null })
+    act(() => { vi.advanceTimersByTime(1000) })
+    expect(scanCalls()).toHaveLength(1)
+  })
+})
