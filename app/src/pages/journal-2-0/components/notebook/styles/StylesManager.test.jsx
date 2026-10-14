@@ -13,6 +13,7 @@ import { AuthContext } from '../../../../../context/AuthContext'
 import { contract, contractBody } from '../../../__fixtures__/contract'
 import { __resetOfferApplied } from './offerApplied'
 import { friendlyError } from './styleErrors'
+import { FOCUSABLE_SELECTOR, isHiddenForFocus } from '../../../../../components/mobile/useFocusTrap'
 
 const setPref = vi.fn()
 let prefsNow = {}
@@ -175,6 +176,50 @@ describe('the Styles manager', () => {
     // the default row needs no "Set as default"
     expect(within(row).queryByRole('button', { name: /as default/ })).toBeNull()
     expect(within(builtin).getByRole('button', { name: 'Set Trade plan as default' })).toBeInTheDocument()
+  })
+
+  // NVDA row 28 (2026-10-14, production, NVDA 2026.2): with focus on the Sheet panel itself, NVDA spoke
+  // "Journal styles" with no "dialog". It announces the role when focus ENTERS a dialog through a
+  // descendant -- the Keyboard Shortcuts dialog (focuses Close) and ConfirmModal (focuses Cancel) both
+  // read "... dialog" in the 10/09 runs. So opening puts focus on the dialog's first tabbable control (its
+  // Close button, the Keyboard Shortcuts dialog's own pattern). Review of the first fix: a tabIndex=-1
+  // heading is not in useFocusTrap's list, so a first Shift+Tab escaped to the page behind the modal.
+  const settleFocus = () => act(async () => { await new Promise((r) => requestAnimationFrame(() => r())) })   // past the Sheet's frame
+  const dialogTabbables = (dialog) => [...dialog.querySelectorAll(FOCUSABLE_SELECTOR)].filter((n) => !isHiddenForFocus(n))
+
+  it('opening puts focus on the dialog\'s Close button, inside the dialog, so a screen reader names the dialog', async () => {
+    open()
+    await screen.findByRole('heading', { name: 'Journal styles', level: 2 })
+    await settleFocus()
+    const dialog = screen.getByRole('dialog', { name: 'Journal styles' })
+    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getAllByRole('button', { name: 'Close' })[0]))
+    expect(document.activeElement).toBe(dialogTabbables(dialog)[0])                         // the trap's `first`
+  })
+
+  it('Shift+Tab as the FIRST key after opening wraps to the last control and stays in the dialog', async () => {
+    open()
+    await screen.findByRole('heading', { name: 'Journal styles', level: 2 })
+    await screen.findByRole('button', { name: `Edit ${NAME}` })                             // the list has loaded
+    await settleFocus()
+    const dialog = screen.getByRole('dialog', { name: 'Journal styles' })
+    const nodes = dialogTabbables(dialog)
+    expect(nodes.length).toBeGreaterThan(1)
+    fireEvent.keyDown(document.activeElement, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(nodes[nodes.length - 1])
+    expect(dialog.contains(document.activeElement)).toBe(true)
+  })
+
+  it('close then reopen puts focus on Close again', async () => {
+    const { rerender } = open()
+    await screen.findByRole('heading', { name: 'Journal styles', level: 2 })
+    await settleFocus()
+    rerender(tree({ open: false }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Journal styles' })).toBeNull())
+    rerender(tree({ open: true }))
+    await screen.findByRole('heading', { name: 'Journal styles', level: 2 })
+    await settleFocus()
+    const dialog = screen.getByRole('dialog', { name: 'Journal styles' })
+    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getAllByRole('button', { name: 'Close' })[0]))
   })
 
   it('Delete then Undo restores the style: the row is gone, then it is back, and focus follows', async () => {
