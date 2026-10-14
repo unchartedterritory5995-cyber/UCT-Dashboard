@@ -119,8 +119,12 @@ export default function Screener({ embedded = false }) {
       </div>
 
       {/* FT-046: renders nothing unless HOW_TO_CHECKLISTS_ENABLED is on AND the owner
-          approved this surface's copy (components/howTo). Full page only. */}
-      {!embedded && <HowToChecklist surface={showOptions ? 'screener.options' : 'screener.stocks'} />}
+          approved this surface's copy (components/howTo). Full page only. The Focus layout
+          carries the Stocks checklist under its ? menu ("How to use this screen"), so the
+          bar steps aside there; the Options tab keeps it. */}
+      {!embedded && !(focusOn && !showOptions) && (
+        <HowToChecklist surface={showOptions ? 'screener.options' : 'screener.stocks'} />
+      )}
 
       {showOptions && <OptionsScreener />}
 

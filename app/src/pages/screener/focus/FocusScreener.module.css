@@ -15,8 +15,8 @@
 .ticker { font-size: 15px; font-weight: 700; color: var(--text-heading); }
 .setup { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rowNums { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-variant-numeric: tabular-nums; font-size: 13px; }
-.up { color: var(--gain); font-size: 12px; }
-.down { color: var(--loss); font-size: 12px; }
+.up { color: var(--success-ink); font-size: 12px; }
+.down { color: var(--danger-ink); font-size: 12px; }
 .flat { color: var(--text-muted); font-size: 12px; }
 .moreSentinel { height: 1px; }
 .keyHints { display: flex; gap: 12px; flex-wrap: wrap; padding: 10px 16px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--text-muted); }
@@ -52,7 +52,7 @@
 .whyLabel { color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
 .whyList { display: flex; gap: 14px; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
 .whyItem { display: inline-flex; gap: 6px; align-items: center; }
-.whyCheck { color: var(--gain); }
+.whyCheck { color: var(--success-ink); }
 .whyPool { color: var(--text-muted); }
 .whyText { color: var(--text-muted); }
 .whyValue { color: var(--text); font-variant-numeric: tabular-nums; }
@@ -64,7 +64,7 @@
 .menuRight { left: auto; right: 0; }
 .menuItem { display: flex; justify-content: space-between; gap: 12px; text-align: left; background: transparent; border: 0; color: var(--text); padding: 9px 12px; border-radius: 8px; font: inherit; font-size: 13px; cursor: pointer; min-height: 36px; }
 .menuItem:hover, .menuItem:focus-visible { background: var(--bg-hover); outline: none; }
-.menuDanger { color: var(--loss); }
+.menuDanger { color: var(--danger-ink); }
 .menuHint { color: var(--text-muted); font-size: 12px; }
 .menuDivider { height: 1px; background: var(--border); margin: 4px 6px; }
 .menuHeading { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 12px 4px; }
@@ -97,7 +97,7 @@
 .goldLink { background: none; border: 0; color: var(--ut-gold); font: inherit; font-size: 13px; cursor: pointer; min-height: 36px; }
 @media (max-width: 1024px) {
   .listWrap { flex-basis: 280px; }
-  .btn, .btnOn, .btnPrimary, .linkBtn, .segOn, .segOff, .menuItem, .iconBtn, .receiptBtn, .screenBtn, .smPin, .smOpen, .goldLink, .pill, .pillX { min-height: var(--tap-min); }
+  .btn, .btnOn, .btnPrimary, .linkBtn, .segOn, .segOff, .menuItem, .iconBtn, .receiptBtn, .screenBtn, .smPin, .smOpen, .goldLink, .pill, .pillX, .toastBtn { min-height: var(--tap-min); }
   .smPin, .pillX { min-width: var(--tap-min); }
   .row { min-height: var(--tap-min); }
 }
@@ -118,3 +118,24 @@ button.pill { cursor: pointer; }
 .pillX { background: none; border: 0; color: var(--text-muted); font-size: 15px; width: 28px; height: 28px; cursor: pointer; }
 .codeBox { flex: 1; min-width: 0; }
 @media (max-width: 640px) { .drawer { width: 100%; } }
+
+/* Orchestrator (FocusScreener.jsx) */
+.tableMode { flex: 1; min-height: 0; overflow: auto; }
+.saveSlot { display: contents; }
+.flagBar { display: flex; align-items: center; gap: 8px; padding: 6px 20px; border-bottom: 1px solid var(--border); }
+.flagBar:empty { display: none; }
+.dropNote { margin: 0; padding: 8px 20px; background: var(--bg-surface); color: var(--text); font-size: 12.5px; border-bottom: 1px solid var(--border); box-shadow: inset 3px 0 0 var(--ut-gold); }
+.metaNote { display: flex; align-items: center; gap: 12px; padding: 8px 20px; background: var(--bg-surface); color: var(--text); font-size: 12.5px; border-bottom: 1px solid var(--border); }
+.rowCompany { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.howToSteps { margin: 0; padding: 0 0 0 20px; color: var(--text); font-size: 14px; line-height: 1.6; }
+.howToSteps li + li { margin-top: 6px; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 80; display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px); background: var(--bg-elevated); border: 1px solid var(--border-accent); color: var(--text); padding: 8px 10px 8px 16px; border-radius: 10px; font-size: 13px; box-shadow: var(--shadow-popover); }
+.toast .menu { top: auto; bottom: calc(100% + 6px); }
+.toastBtn { background: transparent; color: var(--ut-gold); border: 1px solid var(--border-accent); border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 13px; min-height: 32px; cursor: pointer; white-space: nowrap; }
+.toastBtn:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+[data-density='comfortable'] .row { padding-top: 14px; padding-bottom: 14px; }
+/* "Skip to save results": invisible and click-through until keyboard focus shows it. Clipped rather than
+   opacity 0, so its ink is measured at full strength by the contrast rail. Text inks are --success-ink and
+   --danger-ink, never the candle hues --gain/--loss (terminalReachableContrast). */
+.skipLink { position: absolute; top: 8px; left: 8px; z-index: 50; white-space: nowrap; padding: 8px 14px; border-radius: 8px; background: var(--bg-elevated); color: var(--text); font-size: 13px; font-weight: 600; text-decoration: none; transform: translateY(-200%); clip-path: inset(50%); pointer-events: none; }
+.skipLink:focus-visible { transform: none; clip-path: none; pointer-events: auto; outline: 2px solid var(--ut-gold); outline-offset: 2px; }

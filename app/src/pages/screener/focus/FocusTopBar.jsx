@@ -1,5 +1,18 @@
 import styles from './FocusScreener.module.css'
 
+// List | Table. Exported so Table mode, which renders today's page under a slim bar, shows the same control.
+export function ModeSwitch({ mode, onMode }) {
+  return (
+    <div role="group" aria-label="View" className={styles.seg}>
+      {['list', 'table'].map(m => (
+        <button key={m} type="button" aria-pressed={mode === m} className={mode === m ? styles.segOn : styles.segOff} onClick={() => onMode(m)}>
+          {m === 'list' ? 'List' : 'Table'}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function FocusTopBar({ screenMenu, filterCount, onOpenFilters, dataReceipt, mode, onMode, saveMenu, moreMenu, helpMenu, optionsTab }) {
   return (
     <header className={styles.topBar}>
@@ -10,13 +23,7 @@ export default function FocusTopBar({ screenMenu, filterCount, onOpenFilters, da
       </button>
       <span className={styles.spacer} />
       {dataReceipt}
-      <div role="group" aria-label="View" className={styles.seg}>
-        {['list', 'table'].map(m => (
-          <button key={m} type="button" aria-pressed={mode === m} className={mode === m ? styles.segOn : styles.segOff} onClick={() => onMode(m)}>
-            {m === 'list' ? 'List' : 'Table'}
-          </button>
-        ))}
-      </div>
+      <ModeSwitch mode={mode} onMode={onMode} />
       {saveMenu}
       {moreMenu}
       {helpMenu}

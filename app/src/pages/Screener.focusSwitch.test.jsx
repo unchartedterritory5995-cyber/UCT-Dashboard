@@ -1,7 +1,7 @@
 // app/src/pages/Screener.focusSwitch.test.jsx
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { vi } from 'vitest'
+import { vi, expect, test } from 'vitest'
 import { AuthContext } from '../context/AuthContext'
 
 vi.mock('./screener/shell/ScannerShell', () => ({ default: () => <div data-testid="old-shell" /> }))
@@ -31,4 +31,12 @@ test('embedded always renders the old shell', () => {
 test('outside an AuthProvider renders the old shell', () => {
   render(<MemoryRouter><Screener /></MemoryRouter>)
   expect(screen.getByTestId('old-shell')).toBeInTheDocument()
+})
+
+test('the how-to bar moves under the Focus layout ? menu; the old page keeps it', () => {
+  const { unmount } = wrap({ screenerFocusLayoutEnabled: true, howToChecklistsEnabled: true })
+  expect(screen.queryByTestId('how-to-checklist')).toBeNull()
+  unmount()
+  wrap({ screenerFocusLayoutEnabled: false, howToChecklistsEnabled: true })
+  expect(screen.getByTestId('how-to-checklist')).toBeInTheDocument()
 })

@@ -11,7 +11,7 @@ const fmtChg = v => {
 }
 
 const ResultList = forwardRef(function ResultList(
-  { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps },
+  { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps, showCompany = false },
   ref,
 ) {
   const listRef = useRef(null)
@@ -97,6 +97,7 @@ const ResultList = forwardRef(function ResultList(
                 {...(radar.has(r.ticker) ? { 'aria-label': 'On your radar', role: 'img' } : { 'aria-hidden': true })} />
               <span className={styles.rowMain}>
                 <span className={styles.ticker}>{r.ticker}</span>
+                {showCompany && r.company && <span className={styles.rowCompany}>{r.company}</span>}
                 <span className={styles.setup}>{s.text}{s.detail ? ` · ${s.detail}` : ''}</span>
               </span>
               <span className={styles.rowNums}>
