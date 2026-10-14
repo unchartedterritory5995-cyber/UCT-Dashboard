@@ -40,9 +40,56 @@ test('clamps selection when rows shrink', () => {
 })
 
 test('resets to 0 when the result set changes', () => {
-  const { result, rerender } = renderHook(p => useFocusSelection(p), { initialProps: { rows: rows(5) } })
+  const { result, rerender } = renderHook(p => useFocusSelection(p), { initialProps: { rows: rows(5), resetKey: 'a' } })
   act(() => result.current.select(3))
-  rerender({ rows: [{ ticker: 'NEW' }, { ticker: 'X' }, { ticker: 'Y' }, { ticker: 'Z' }] })
+  // New result set that even keeps the same first ticker: the resetKey is what resets.
+  rerender({ rows: [{ ticker: 'T0' }, { ticker: 'X' }, { ticker: 'Y' }, { ticker: 'Z' }], resetKey: 'b' })
+  expect(result.current.index).toBe(0)
+})
+
+test('keeps the same stock when the list re-sorts', () => {
+  const { result, rerender } = renderHook(p => useFocusSelection(p), { initialProps: { rows: rows(3), resetKey: 'a' } })
+  act(() => result.current.select(2))
+  expect(result.current.selected.ticker).toBe('T2')
+  rerender({ rows: [{ ticker: 'T2' }, { ticker: 'T0' }, { ticker: 'T1' }], resetKey: 'a' })
+  expect(result.current.selected.ticker).toBe('T2')
+  expect(result.current.index).toBe(0)
+})
+
+test('two arrows in one act both count', () => {
+  const { result } = renderHook(() => useFocusSelection({ rows: rows(4) }))
+  act(() => {
+    result.current.onKeyDown(key('ArrowDown'))
+    result.current.onKeyDown(key('ArrowDown'))
+  })
+  expect(result.current.index).toBe(2)
+})
+
+test('load more is requested once per page', () => {
+  const onLoadMore = vi.fn()
+  const { result } = renderHook(() => useFocusSelection({ rows: rows(2), hasMore: true, onLoadMore }))
+  act(() => result.current.onKeyDown(key('ArrowDown')))
+  act(() => {
+    result.current.onKeyDown(key('ArrowDown'))
+    result.current.onKeyDown(key('ArrowDown'))
+    result.current.onKeyDown(key('ArrowDown'))
+  })
+  expect(result.current.index).toBe(1)
+  expect(onLoadMore).toHaveBeenCalledTimes(1)
+})
+
+test('repeat does not toggle flag', () => {
+  const onFlag = vi.fn()
+  const { result } = renderHook(() => useFocusSelection({ rows: rows(2), onFlag }))
+  act(() => result.current.onKeyDown(key('F', { shiftKey: true, repeat: true })))
+  expect(onFlag).not.toHaveBeenCalled()
+})
+
+test('role textbox is editable', () => {
+  const div = document.createElement('div')
+  div.setAttribute('role', 'textbox')
+  const { result } = renderHook(() => useFocusSelection({ rows: rows(3) }))
+  act(() => result.current.onKeyDown(key('j', { target: div })))
   expect(result.current.index).toBe(0)
 })
 
