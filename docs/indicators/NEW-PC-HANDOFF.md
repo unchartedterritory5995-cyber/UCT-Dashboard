@@ -320,11 +320,10 @@ The memory notes are background, not instructions. Re-verify any SHA they name.
 
 - **Ownership:** the Agent owns conversational interpretation and action orchestration. Indicators owns indicator behaviour and persistence. **Do not implement Agent logic, and do not edit Agent routing, prompts or conversation context.**
 - **Gate C status:**
-  - the Agent session is preparing Gate C's release candidate against production, **without** A1;
-  - Gate C's current head was `e8e4985352`, and its setInputs commit was `bd91b4175c`;
-  - rebased on A1 it is `tmp/gatec-on-a1` → `596f7ebd45` (Agent-owned; do not use it);
-  - it is unreleased.
-- **Gate C's footprint in the Indicators area** is exactly 3 files: `app/src/components/chart/builder/agentMutations.js`, `agentMutations.inputs.test.js`, and a `controlDoorCensus.test.js` row.
+  - the Agent's Gate C release candidate is `3191545b71`, built **without** A1. It is carried on the Agent's own handoff branch, `origin/handoff/agent-gate-c-2026-10-13` (head `13ed33b0c1` at the time of writing);
+  - it is **unreleased**, and it has its own NEW-PC handoff. That branch, and the Agent's worktree on the new PC, belong to the Agent: read them only;
+  - earlier heads were `e8e4985352` (setInputs `bd91b4175c`); rebased on A1 it was `tmp/gatec-on-a1` → `596f7ebd45`. Both are Agent-owned and old-PC-only; do not use them.
+- **Gate C's footprint in the Indicators area** is exactly 3 files (checked on `3191545b71`): `app/src/components/chart/builder/agentMutations.js`, `agentMutations.inputs.test.js`, and a `controlDoorCensus.test.js` row.
 - **Landing order is clean either way; whoever lands second rebases.** If Gate C lands first, A1 rebases over those 3 files. The Agent has shown it applies cleanly onto A1.
 - **Don't interfere:**
   - never check out, rebase, stash in, or delete an Agent worktree or branch;
