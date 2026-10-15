@@ -1,6 +1,6 @@
 // app/src/pages/journal-2-0/lib/screenshotSmarts.test.js
 import { describe, expect, it } from 'vitest'
-import { altFor, pickTicker, timeframeFromText } from './screenshotSmarts'
+import { CHART_WORDS, altFor, pickTicker, timeframeFromText } from './screenshotSmarts'
 
 describe('timeframeFromText (R-T2A-9)', () => {
   it.each([
@@ -15,6 +15,9 @@ describe('timeframeFromText (R-T2A-9)', () => {
     ['TSLA 15m', '15', '15 minute'],
     ['TSLA 5 min', '5', '5 minute'],
     ['TSLA 30min', '30', '30 minute'],
+    ['NVDA 15m', '15', '15 minute'],
+    ['NVDA 15MIN', '15', '15 minute'],
+    ['NVDA 60m', '60', '1 hour'],
   ])('%s', (text, tf, label) => { expect(timeframeFromText(text)).toEqual({ tf, label }) })
 
   it.each([
@@ -23,6 +26,9 @@ describe('timeframeFromText (R-T2A-9)', () => {
     'NVDA 182.40 60 120',          // bare numbers are prices, not timeframes
     'daily and weekly together',   // a conflict is no answer
     'd w',                         // lower-case single letters are OCR noise
+    'NVDA Vol 15M',                // a volume figure, not minutes
+    'NVDA Vol 5M',
+    'NVDA Vol 30M',
     '',
   ])('%s -> null', (text) => { expect(timeframeFromText(text)).toBeNull() })
 
@@ -40,6 +46,19 @@ describe('pickTicker (R-T2A-7)', () => {
     expect(pickTicker([{ symbol: 'NVDA', tier: 'exact' }, { symbol: 'AMD', tier: 'exact' }])).toBeNull()
   })
   it('contextual (lower-case) matches never count', () => { expect(pickTicker([{ symbol: 'DELL', tier: 'contextual' }])).toBeNull() })
+  it('exchange names in a chart header are not tickers', () => {
+    expect(pickTicker([{ symbol: 'CME', tier: 'exact' }])).toBeNull()       // "E-mini S&P 500 Futures · 1D · CME"
+    expect(pickTicker([{ symbol: 'ATR', tier: 'exact' }])).toBeNull()       // "CBRS · 1D · NASDAQ  Vol  SMA 50 ATR 14"
+    expect(pickTicker([{ symbol: 'NASDAQ', tier: 'exact' }, { symbol: 'ATR', tier: 'exact' }])).toBeNull()
+  })
+  it('an explicit cashtag keeps a chart word', () => { expect(pickTicker([{ symbol: 'CME', tier: 'cashtag' }])).toBe('CME') })
+  it('the real symbol survives its exchange name', () => {
+    expect(pickTicker([{ symbol: 'NVDA', tier: 'alias' }, { symbol: 'NASDAQ', tier: 'exact' }])).toBe('NVDA')
+  })
+  it('CHART_WORDS is frozen and holds the listed words', () => {
+    expect(Object.isFrozen(CHART_WORDS)).toBe(true)
+    for (const w of ['CME', 'NASDAQ', 'ATR', 'VWAP', 'MACD']) expect(CHART_WORDS.has(w)).toBe(true)
+  })
   it('nothing, or a failed check', () => { expect(pickTicker([])).toBeNull(); expect(pickTicker(null)).toBeNull() })
 })
 

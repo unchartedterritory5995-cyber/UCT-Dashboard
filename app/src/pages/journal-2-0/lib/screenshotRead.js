@@ -10,28 +10,49 @@ import { tickersIn } from './smartChipsApi'
 
 export const POLL_DELAYS_MS = [1500, 2000, 3000, 4000, 5000, 6000, 8000, 10000, 10000, 10000]
 const DONE = new Set(['ready', 'no_text', 'processing_failed'])
+export const REQUEST_TIMEOUT_MS = 8000
+// Resolves at once when the signal is already aborted; drops its listener when the timer wins.
 const realSleep = (ms, signal) => new Promise((resolve) => {
-  const t = setTimeout(resolve, ms)
-  signal?.addEventListener?.('abort', () => { clearTimeout(t); resolve() }, { once: true })
+  if (signal?.aborted) { resolve(); return }
+  let onAbort = null
+  const t = setTimeout(() => { signal?.removeEventListener?.('abort', onAbort); resolve() }, ms)
+  onAbort = () => { clearTimeout(t); resolve() }
+  signal?.addEventListener?.('abort', onAbort, { once: true })
 })
 
+// One bounded request: the caller's abort, or REQUEST_TIMEOUT_MS, ends it with null. Never throws.
 async function getJson(fetchImpl, url, signal) {
-  try {
-    const r = await fetchImpl(url, { credentials: 'include', signal })
+  const ctrl = new AbortController()
+  let timer = null
+  let onAbort = null
+  const gone = new Promise((resolve) => {
+    onAbort = () => { ctrl.abort(); resolve(null) }
+    timer = setTimeout(onAbort, REQUEST_TIMEOUT_MS)
+    if (signal?.aborted) onAbort()
+    else signal?.addEventListener?.('abort', onAbort, { once: true })
+  })
+  const work = (async () => {
+    const r = await fetchImpl(url, { credentials: 'include', signal: ctrl.signal })
     return r?.ok ? await r.json() : null
+  })().catch(() => null)
+  try {
+    return await Promise.race([work, gone])
   } catch {
     return null
+  } finally {
+    clearTimeout(timer)
+    signal?.removeEventListener?.('abort', onAbort)
   }
 }
 
-export async function readScreenshot({ noteId, url, signal, fetchImpl = globalThis.fetch, sleep = realSleep }) {
+async function readScreenshotInner({ noteId, url, signal, fetchImpl = globalThis.fetch, sleep = realSleep }) {
   if (!noteId || !url || signal?.aborted) return null
   let doc = null
   for (const ms of POLL_DELAYS_MS) {
     await sleep(ms, signal)
     if (signal?.aborted) return null
     const body = await getJson(fetchImpl, `/api/j2/notes/${encodeURIComponent(noteId)}/documents`, signal)
-    const found = (body?.documents || []).find((d) => d?.attachmentUrl === url)
+    const found = (Array.isArray(body?.documents) ? body.documents : []).find((d) => d?.attachmentUrl === url)
     if (found && DONE.has(found.status)) { doc = found; break }
   }
   if (!doc || doc.status !== 'ready' || signal?.aborted) return null
@@ -41,4 +62,12 @@ export async function readScreenshot({ noteId, url, signal, fetchImpl = globalTh
   const symbol = pickTicker(await tickersIn(head, fetchImpl))
   if (!symbol || signal?.aborted) return null
   return { symbol, timeframe: timeframeFromText(head) }
+}
+
+export async function readScreenshot(args) {
+  try {
+    return await readScreenshotInner(args || {})
+  } catch {
+    return null
+  }
 }
