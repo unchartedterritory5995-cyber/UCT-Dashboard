@@ -1,7 +1,7 @@
 """Make tools/fixtures/chart-header-nvda-1d.png, the screenshot the Tier 2 part A walk pastes.
 
-A 900x500 PNG on a dark background whose top-left reads "NVDA · 1D · NASDAQ" in 18 px sans text,
-the way a charting site headers a daily chart. The rest of the picture is a faint grid and a rising
+A 900x500 PNG on a dark background whose top-left reads "NVDA · 1D · NASDAQ" and, under it, an OHLC
+line, in 18 px sans text, the way a charting site headers a daily chart. The rest of the picture is a faint grid and a rising
 candle-less line, so the image looks like a chart and OCR has the header to read and little else.
 The walk step `smart.screenshot-tag` (tools/notebook_fin_walk_features.py) pastes it and waits for
 "Tag NVDA · Daily".
@@ -33,6 +33,10 @@ GRID = (32, 38, 47)
 INK = (230, 233, 238)
 LINE = (38, 166, 154)
 HEADER = "NVDA · 1D · NASDAQ"
+# The second line a charting site puts under the symbol. The existing OCR keeps a page only when it has at
+# least USABLE_MIN_TOKENS (4) meaningful tokens (document_ocr.text_is_usable); the one header line alone
+# reads as three, so the product -- correctly -- offered nothing and the walk could not measure the offer.
+HEADER_2 = "O121.40 H123.10 L119.80 C122.65 +1.20 (+0.99%)"
 FONT_PX = 18
 
 
@@ -50,6 +54,7 @@ def render() -> bytes:
     draw.line(pts, fill=LINE, width=3)
     font = ImageFont.truetype(str(FONT), FONT_PX)
     draw.text((16, 16), HEADER, font=font, fill=INK)
+    draw.text((16, 46), HEADER_2, font=font, fill=INK)
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=False)
     return buf.getvalue()
