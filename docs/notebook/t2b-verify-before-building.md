@@ -1,23 +1,30 @@
 # Tier 2 part B: verify before building (Task 1)
 
-Base `204234469b` on branch `notebook-t2b-followup`. Run 2026-10-15, 12:52 to about 13:30 ET (a Thursday, a trading day).
-Raw output for every probe is committed BEFORE this document, in
-`docs/notebook/evidence/t2b-verify-20261015/` (commit `85956ba337`); the post-merge walk for PR #330 is its own commit
-`dd58977b5c`. A line the document quotes is quoted from the base tree. A `file:line` is a dated claim like any other: it was true
+Base `204234469b` on branch `notebook-t2b-followup` (since rebased onto origin/master `4649e2d03e`, see V1). Run 2026-10-15, 12:52 to
+13:17 ET (a Thursday, a trading day). The last probe stamp is 13:17 ET: the keyless V2-V4 smoke was re-run then, after the sampling change below; the first set of
+probes ended at 12:59 ET, and the earlier smoke output is in git history at `9af0726107`.
+Raw output for every probe is committed BEFORE this document: `docs/notebook/evidence/t2b-verify-20261015/` in commits `9af0726107` and `792dd1d297`; the post-merge walk
+for PR #330 is its own commit `50b0c273c1`. A line the document quotes is quoted from the base tree. A `file:line` is a dated claim like any other: it was true
 on `204234469b`.
 
-Nothing under `C:\data` was touched. Every probe ran in a child process that applied `hub_sandbox_boot.apply_sandbox_env` (the
-census pins and the shared-root tripwire) before importing `api.*`; `C:\data\auth.db` kept its mtime (10/02/2026 23:58:04) across
-the run (`v2-v3-v4-keyless-smoke.txt` first lines). No provider key was read, printed or written.
+Setup, verified rather than created (F11): the worktree `C:\Users\Patrick\uct-worktrees\notebook-t2b` and branch exist; `.uct-session-owner` reads `session: 61625d99-f8db-4269-a728-231c08d3da11` /
+`created: 2026-10-15`; the `app/node_modules` junction target `_nb-shared-install\node_modules` holds **377** entries (`ls -A | wc -l`, re-read after the rebase and still 377). The spec and both plans were
+read by absolute path from `notebook-presets-spec` and not copied.
+
+Nothing under `C:\data` was written. The protection is the census pin: each of the V2-V4, V6 and V18 probes calls `hub_sandbox_boot.apply_sandbox_env` (the census pins and the shared-root
+tripwire) before importing any `api.*` module (read the scripts in `probes/`); the V2-V4 probe also prints the sandbox `auth_db_path` in its HEAD line, and the V16 probe opens no data path.
+There is no pre-run capture of `C:\data\auth.db`, so no before/after comparison is claimed. A read-only stat taken after the run is in `c-data-auth-db-stat-end-state.txt`
+(labelled "end state, taken after the run, no pre-run capture": mtime 2026-10-02 23:58:04 CT, older than every probe, which is consistent with no write and is not proof of one).
+No provider key was read, printed or written.
 
 ## Summary
 
 | | |
 |---|---|
-| Measured | V5 (partly), V6, V10, V11, V14, V16, V18, and the base reds |
+| Measured | V6, V10, V11, V14, V16, V18, and the base reds |
 | Read from code and confirmed | V1, V5, V7, V8, V9, V12, V13, V15, V17 |
 | NOT YET MEASURED | V2 entire; V3's bar half and its `reaction_none` count; V4's three live readings (which leg answered, the symbols' timing, Finnhub's `hour` values). The reason is in "The three measured items" |
-| Differs from the plan text | V9 (no guard needed), V10 (the composed fixture is not the tool's), V12 (the guard IS needed), V15 (next free row is 66, not 67) |
+| Differs from the plan text | V10 (the composed fixture is not the tool's; re-confirms pre-flight F7), V12 (the guard IS needed), V15 (row 66 is free and skipped; 67 and 68 are still free). V9 is confirmed, none: the conditional step is moot |
 | Base reds | none real. One load-sensitive timeout, green alone |
 
 Rulings the controller owes before Task 2 is dispatched are listed at the end ("For the controller").
@@ -35,10 +42,11 @@ Rulings the controller owes before Task 2 is dispatched are listed at the end ("
 
 * `git merge-base --is-ancestor 204234469b origin/master` exits 0 (`v1-ancestry.txt`): the base IS an ancestor of master, and Part A is merged. PR #331
   `Merge pull request #331 from unchartedterritory5995-cyber/notebook-t2a-assists` is `2019ec0202`.
-* origin/master is now `4649e2d03e` (#332, a screener merge), 48 commits ahead of the base. Of the 147 files those commits change,
+* origin/master was `4649e2d03e` (#332, a screener merge), 48 commits ahead of the base when measured. Of the 147 files those commits change,
   four sit in the Notebook area: `MarketContextEmbed.jsx`, `WidgetEmbedView.module.css`, `blocks/PrepCapture.jsx` (all from #330, merge `70beb043b5`) and
-  `lib/formula/offlineNeverStoresComputed.test.js`. None is in the plan's File map (a grep of the plan for those four names returns 0). So a rebase
-  is optional on file overlap. The controller decides (CLAUDE.md: "Empty overlap and fewer than six behind => push"; this is 48 behind).
+  `lib/formula/offlineNeverStoresComputed.test.js`. None is in the plan's File map (a grep of the plan for those four names returns 0).
+  **The rebase is DONE** (controller ruling): the branch now sits on `4649e2d03e`, and this task's commits are `50b0c273c1` (the #330 walk), `9af0726107` (raw) and `e26cddfae8` (this doc, before this amendment).
+  Every `file:line` in this document was read on the pre-rebase base `204234469b`; the rebase brought in none of the cited Notebook files except as listed above.
 * `git show --stat 6ddba86694` (the Part A switch commit, 9 files, 47 insertions): `api/routers/auth.py` (+1:
   `"NOTEBOOK_SMART_CHIPS_ENABLED": False,  # enablement (Tier 2 part A: alert + screenshot chips)` at `auth.py:266`), `J/lib/offline/notebookFlags.js` (+1),
   `J/lib/smartChipsFlag.js` (+11), its test (+15), `docs/feature_flags.json` (+10), `tests/test_notebook_flag_parse.py` (+3),
@@ -55,9 +63,11 @@ NOT YET MEASURED. Two independent blockers, and neither is the clock:
    unsanctioned channel.
 2. At 12:59 ET it is also before the first gate (16:45 ET).
 
-What was run instead, and is NOT a measurement: `t2b_v2_probe.py ... all` with no keys (`v2-v3-v4-keyless-smoke.txt`). Its HEAD line says
-`"keys_present": {"FINNHUB_API_KEY": false, "FMP_API_KEY": false, "MASSIVE_API_KEY": false}, "MEASUREMENT_VALID": false`. It proves the harness: the
-sandbox pins landed (`"auth_db_path": ...\scratchpad\t2b-v2-data-smoke\auth.db`), `previous trading day` resolves to `2026-10-14`, and the three sections
+Ruling (controller): V2, V3's bar half and V4's live readings are POST-ARMING observations, recorded in the arming packet. No agent obtains provider keys. The commands below are kept for whoever takes them then.
+
+What was run instead, and is NOT a measurement: `t2b_v2_probe.py ... all` with no keys (`v2-v3-v4-keyless-smoke.txt`). Its HEAD line (line 2 of the file; line 1 is the sandbox's model-key banner) says
+`"keys_present": {"FINNHUB_API_KEY": false, "FMP_API_KEY": false, "MASSIVE_API_KEY": false}, "MEASUREMENT_VALID": false`, so nothing in that file is a reading. It proves the harness: the
+sandbox pins landed (`"auth_db_path": ...\scratchpad\t2b-v2-data-smoke2\auth.db`), `previous trading day` resolves to `2026-10-14`, and the three sections
 print. It also showed one fact worth keeping for Task 7 (see V4).
 
 Exact commands to run later (PowerShell; a Windows path through the Bash tool loses its backslash). The controller supplies the three keys in the
@@ -72,7 +82,7 @@ python "$repo\docs\notebook\evidence\t2b-verify-20261015\probes\t2b_v2_probe.py"
 $code = $LASTEXITCODE; Write-Output "EXIT: $code"; exit $code
 ```
 
-Read the file's first line: `"MEASUREMENT_VALID": true` or the run is void. The `V2` line carries, per reporter (6 per day, today and the
+Read the file's HEAD line (line 2; line 1 is the sandbox model-key banner): `"MEASUREMENT_VALID": true` or the run is void. The reporters sampled are a seeded spread (`random.Random(20261015).sample`), not the alphabetical head, so the reading is not biased toward A-names. The `V2` line carries, per reporter (6 per day, today and the
 previous trading day), `newest_reported`, `eps_actual`, `revenue_actual`, `reaction_none`, `reaction_for_day`, `n_quarters`; the answer is "rows with
 `newest_reported == day` and an `eps_actual`" over rows, at each time. The same run writes the `V3_BARS` and `V4` lines. Run it again after 18:00 ET.
 Per F12 this never blocks the build; it must close before Task 7 (the job's pass times and its ranking read it).
@@ -98,10 +108,10 @@ three legs in order and returns at the first non-empty one: (1) the `calendar_we
 (2) `:158` `data = fh_get("/calendar/earnings", {"from": market_date, "to": market_date}, timeout=10)`; (3) `:174` `fmp_result, fmp_ok = _fmp_reporters_for_date_with_status(market_date)`.
 `ok` is `False` the moment any leg that ran raised or returned a non-2xx or a malformed body, "or was simply unconfigured" counts as OK.
 
-* **Measured, keyless sandbox** (`v2-v3-v4-keyless-smoke.txt`, V4 line): `"reporters_count": 0, "ok": true, "answered_by_cache_leg": false`. With no key
+* **Seen in the keyless sandbox, `MEASUREMENT_VALID: false`, so a harness observation and not a reading** (`v2-v3-v4-keyless-smoke.txt`, V4 line): `"reporters_count": 0, "ok": true, "answered_by_cache_leg": false`. With no key
   and an empty cache the lookup answers `(set(), True)`: an unconfigured box and a genuinely quiet day are the same answer. That is the docstring
   at `calendar_alerts.py:124-` saying so ("a genuinely quiet day looks identical to a throttled one from here"), now seen. **Consequence for
-  Task 7:** `ok == True` with zero reporters is not evidence that nothing reported, so the job must not print "no reporters" as a fact on that alone.
+  Task 7:** `ok == True` with zero reporters is not evidence that nothing reported. Controller ruling: Task 7 treats an unconfigured reporters lookup as INCONCLUSIVE.
 * `earnings_prep._timing_from_calendar_cache(sym, day)` (`earnings_prep.py:219`) reads only the already-built `calendar_weekly` / `calendar_week_<monday>` caches and
   returns `None` for an unbuilt week ("Nothing is built here"). Keyless sandbox: `{}` (no symbols to ask about).
 * Finnhub's `hour`: how this repo reads it: `api/routers/calendar.py:977-978`  `hour = (row.get("hour") or "").lower()` /
@@ -144,9 +154,9 @@ The caller at `calendar_alerts.py:158` is `fh_get("/calendar/earnings", {"from":
 
 `api/services/notebook_flags.py:47` `def flag_on(env_name: str, default: bool) -> bool:`; `:54` `raw = os.environ.get(env_name)`; unset, or neither a TRUTHY nor a FALSY spelling, answers `default`. No module-level capture.
 
-## V9. Consumers that assume a block id is a widget id (confirmed: none breaks on `reminder`; no guard needed)
+## V9. Consumers that assume a block id is a widget id (confirmed, none; the conditional step is moot)
 
-Differs from the plan's conditional (Task 3, "If Task 1 V9 named a client consumer ... add the guard"): V9 names none, so that step does not apply.
+Confirmed, none (Task 3's conditional, "If Task 1 V9 named a client consumer ... add the guard"): V9 names none, so that step is moot.
 
 * `KindSection.jsx:23` `const KNOWN_BLOCKS = new Set(BLOCK_KINDS.map((b) => b.id))`; `:28-29` `if (KNOWN_BLOCKS.has(id)) return blockLabel(id)` / `return WIDGET_REGISTRY[id]?.labels?.header || blockLabel(id)`.
   `reminder` is in `BLOCK_KINDS`, so it takes the first branch and never reaches the registry. Besides, a Reminder composes to an unticked task, not a `widgetEmbed`, so `blockLine` is not asked about it.
@@ -157,7 +167,7 @@ Differs from the plan's conditional (Task 3, "If Task 1 V9 named a client consum
 * Two tool consumers read the catalogue by SHAPE, so the Task 3 row must stay as the plan writes it: `tools/notebook_nvda_pass.py:491-503` reads server `BLOCK_KINDS` with `ast.literal_eval` (the new row is a pure literal: OK), and
   `tools/notebook_fin_walk_features.py:94-98` `dict(re.findall(r"id:\s*'(\w+)',\s*label:\s*'([^']*)'", src))` over `journalBlocks.js` (the plan's `id: 'reminder', label: 'Reminder'` are adjacent: OK).
 
-## V10. `tools/notebook_contract_fixtures.py` write mode and which fixtures carry what (confirmed; matches pre-flight F7)
+## V10. `tools/notebook_contract_fixtures.py` write mode and which fixtures carry what (confirmed; re-confirms pre-flight F7)
 
 * Header, `tools/notebook_contract_fixtures.py:5-9`: it writes `app/src/pages/journal-2-0/__fixtures__/contract/<name>.json` only. Write mode is `python tools/notebook_contract_fixtures.py`; `--check` exits 1 on a difference; `--list` names them.
   Base: `OK: 261 contract fixtures match the server` (`v10-contract-fixtures-check.log`).
@@ -196,9 +206,11 @@ The job reads them through `earnings_prep._member_sets` -> `calendar_personaliza
 
 `tools/notebook_door_audit_doors.json` is a list of 28 rows over 24 distinct `audit_row` values: 11, 15, 23, 24, 26, 29, 32, 33, 34, 35, 39, 40, 41, 42, 46, 53, 54, 55, 56, 57, 59, 63, 64, 65.
 `"flag": null` is accepted and already used by 9 rows (11, 24 x2, 26 x2, 33, 34, 35, 46); the tool's default is `"flag": None` (`tools/notebook_door_audit.py:460`) and `:648` reads `flag = row.get("flag")` before using it.
-**Differs:** the plan says "expected 67" is the next free; the highest is 65, so the next two free are **66 and 67** (the plan's "67 and 68" in Task 11 is off by one). Take the numbers from the file at execution time (F18).
+**Differs:** the plan says "expected 67" is the next free; the highest is 65, so **66 is free and would be skipped; 67 and 68 are still free** (the plan's hard-coded "67 and 68" in Task 11 are not wrong, only gappy). F18 says take the next unused numbers from the file at execution time; the controller has ruled Task 11 uses 66 and 67.
 
 ## V16. `session_calendar` (measured)
+
+Artifact: `probes/t2b_v16_probe.py` (no network, no key, no data path) and its output `v16-session-calendar.txt`, run 2026-10-15 about 13:15 ET.
 
 `api/services/session_calendar.py:154` `def horizon(cal: CalendarData = _CAL) -> date:` returns **2028-12-31**; `coverage_start` is 2000-01-01; version `2026-09-29.1`. `covers(2026-10-14)` and `covers(2027-12-31)` are both true.
 Weekday holidays: **Thanksgiving Day 2026-11-26** (Thursday), Christmas Day 2026-12-25; 2027 has ten (the first is New Year's Day 2027-01-01, the last Christmas Day (observed) 2027-12-24). Task 3's holiday test has a real November 2026 date to use.
@@ -223,11 +235,11 @@ controller owns: a sanctioned way to put `FINNHUB_API_KEY`, `FMP_API_KEY`, `MASS
 
 ## For the controller
 
-1. **Rule on the key channel for V2/V3/V4**, and say when to run them (today 16:45 and 18:00 ET, or Friday). `with_model_keys.py` does not carry FMP/Finnhub/Massive.
+1. **RULED:** V2, V3-bars and V4-live are post-arming observations recorded in the arming packet; no agent obtains provider keys (`with_model_keys.py` does not carry FMP/Finnhub/Massive).
 2. **V12 -> Task 9:** the `lazyDialog` guard IS needed (a failed chunk reloads once, then throws). Not a "none".
 3. **V9 -> Task 3:** no client consumer breaks on `reminder`; the V9 conditional guard step is moot. Keep the row a pure literal with `id` and `label` adjacent (two tools read it by shape).
 4. **V10 -> Tasks 3 and 4 (F7):** Task 3 regenerates `journal-styles.list.json` and `.list.empty.json` and runs `tests/test_notebook_contract_fixtures.py`; Task 4 regenerates `note-kinds.list.json`, `journal-styles.list.json`, and the composed fixture by `UCT_WRITE_JOURNAL_STYLES_FIXTURE=1 ... tests/test_journal_styles_schema.py`.
-5. **V15 -> Task 11 (F18):** door-audit rows are 66 and 67, read from the file at execution time.
-6. **V1:** Part A is merged; the base is an ancestor of master; master is 48 commits ahead with four Notebook-area files from #330 and no overlap with this plan's File map. Rebase or not is yours.
-7. **V4 -> Task 7:** `(set(), True)` is also what an unconfigured box answers; do not report "none reported" on `ok` alone.
+5. **V15 -> Task 11 (F18):** door-audit rows 66 and 67 (ruled), read from the file at execution time; 67 and 68 are still free, only 66 is skipped by the plan's numbers.
+6. **V1:** Part A is merged; the base is an ancestor of master. The rebase onto `4649e2d03e` is DONE (48 commits, four Notebook-area files from #330, no overlap with this plan's File map).
+7. **V4 -> Task 7:** `(set(), True)` is also what an unconfigured box answers (seen in the keyless smoke, `MEASUREMENT_VALID: false`, so a harness observation). Ruled: Task 7 treats an unconfigured reporters lookup as INCONCLUSIVE.
 8. **V5 -> Tasks 6, 9:** `createdAt` is UTC; do not compare its `[:10]` to an ET day.
