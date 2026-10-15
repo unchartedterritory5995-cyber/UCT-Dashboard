@@ -705,16 +705,16 @@ WHOP_BIZ = "biz_VFkuhplWXekHZf"
 CONTACT_EMAIL = "contact@uctintelligence.com"
 
 
-def test_both_offer_blocks_carry_the_october_deadline_inside_a_nov1_remove_block():
+def test_after_nov1_no_offer_block_names_the_october_deadline():
+    """Nov 1 switch (docs/nov1/SWITCH-NIGHT-2026-10-31.md, uct-growth): the two NOV1-REMOVE
+    blocks are gone with their lines; the JOINUCT line in each offer block stays."""
     html = PAGE.read_text(encoding="utf-8")
     offers = re.findall(r'<div class="offer">(.*?)</div>', html, flags=re.S)
     assert len(offers) == 2, len(offers)
     for block in offers:
-        m = re.search(r"<!-- NOV1-REMOVE:.*?-->(.*?)<!-- /NOV1-REMOVE -->", block, flags=re.S)
-        assert m, "the deadline is not inside a NOV1-REMOVE marker block"
-        assert OCT_DEADLINE in _norm(m.group(1))
-    assert html.count(OCT_DEADLINE) == 2
-    assert html.count("<!-- NOV1-REMOVE:") == 2 and html.count("<!-- /NOV1-REMOVE -->") == 2
+        assert "JOINUCT" in block, "the JOINUCT line left an offer block"
+    assert OCT_DEADLINE not in _norm(html) and "Oct 31" not in html
+    assert "NOV1-REMOVE" not in html and "offer-deadline" not in html
 
 
 def test_every_room_image_with_a_drawn_button_is_the_whop_link():
