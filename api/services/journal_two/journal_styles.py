@@ -127,6 +127,11 @@ def _never_empty(before: list, after: list) -> list:
     return after if (after or not before) else [{"type": "paragraph"}]
 
 
+#: Tier 2 part B (R-T2B-8): the follow-up's three headings. ONE constant: the built-in outline below and
+#: followup_prefill.py (which places the prep link and the numbers under the first two, by exact text)
+#: both read it. Straight apostrophes everywhere (pre-flight F24).
+FOLLOWUP_HEADINGS = ("What I expected", "What happened", "What I'll do differently")
+
 # One built-in style per built-in kind. Versions are bumped BY HAND when an outline here changes,
 # which is what offers "update layout" to notes made from the older one.
 BUILTIN_STYLES: dict[str, dict] = {
@@ -157,6 +162,13 @@ BUILTIN_STYLES: dict[str, dict] = {
         _h("What the market expects"), _p("Consensus, and the move the options price in:"), _ph("chart"),
         _h("My view"), _p("What would surprise the market?"),
         _h("The plan around the report"), _p("Hold, trim, or wait?"))},
+    # Tier 2 part B (R-T2B-8): the earnings follow-up. followup_prefill.py adds the prep-note link and the
+    # quarter's numbers under the first two headings; the reminder lands at the end.
+    "earnings_followup": {"name": "Earnings follow-up", "version": 1, "properties": {},
+                          "blocks": [_blk("reminder")], "outline": _doc(
+        _h(FOLLOWUP_HEADINGS[0]), _p("What did I expect going in, and why?"),
+        _h(FOLLOWUP_HEADINGS[1]), _p("How did the numbers and the reaction compare?"),
+        _h(FOLLOWUP_HEADINGS[2]), _p(), _ph("reminder"))},
     # v2 (Notebook P2b, Task 12): the review block, above the chart it explains.
     "post_trade_review": {"name": "Post-trade review", "version": 2, "properties": {},
                           "blocks": [_chart("D"), _blk("tradeReview")],

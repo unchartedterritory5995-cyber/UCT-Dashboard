@@ -121,7 +121,7 @@ def test_list_create_rename_delete(db_path):
     k = nk.create_kind("u1", "  Gap and go ", "bolt")
     assert k["id"].startswith("k_") and k["name"] == "Gap and go" and k["builtin"] is False
     ids = [x["id"] for x in nk.list_kinds("u1")]
-    assert ids[:8] == [b["id"] for b in nk.BUILTIN_NOTE_KINDS] and ids[-1] == k["id"]
+    assert ids[:len(nk.BUILTIN_NOTE_KINDS)] == [b["id"] for b in nk.BUILTIN_NOTE_KINDS] and ids[-1] == k["id"]
     assert nk.update_kind("u1", k["id"], name="Gap & go")["name"] == "Gap & go"
     assert nk.list_kinds("u2")[-1]["id"] == "watchlist_note"           # another member sees none of it
     assert nk.delete_kind("u1", k["id"])
@@ -328,3 +328,14 @@ def test_apply_mapping_skips_locked_notes_and_says_so(db_path):
     assert [d["id"] for d in done] == [a["id"]]
     assert [s["id"] for s in skipped] == [b["id"]] and skipped[0]["reason"] == "locked"
     assert NOTE_KIND not in notes.get_note("u1", b["id"])["propertiesJson"]
+
+
+def test_the_earnings_followup_kind_sits_after_earnings():
+    """Tier 2 part B (R-T2B-8): the follow-up is a built-in kind, right after Earnings. The client list
+    (lib/noteKinds.js) is pinned equal to this one through Node by test_the_client_list_equals_the_servers."""
+    from api.services.journal_two import note_kinds
+    ids = [k["id"] for k in note_kinds.BUILTIN_NOTE_KINDS]
+    assert ids[ids.index("earnings") + 1] == "earnings_followup"
+    assert note_kinds._BUILTIN_BY_ID["earnings_followup"] == {"id": "earnings_followup", "name": "Earnings follow-up",
+                                                              "icon": "edit"}
+    assert "earnings_followup" in note_kinds.BUILTIN_KIND_IDS

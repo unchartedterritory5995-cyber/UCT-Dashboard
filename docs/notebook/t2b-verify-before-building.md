@@ -243,3 +243,28 @@ controller owns: a sanctioned way to put `FINNHUB_API_KEY`, `FMP_API_KEY`, `MASS
 6. **V1:** Part A is merged; the base is an ancestor of master. The rebase onto `4649e2d03e` is DONE (48 commits, four Notebook-area files from #330, no overlap with this plan's File map).
 7. **V4 -> Task 7:** `(set(), True)` is also what an unconfigured box answers (seen in the keyless smoke, `MEASUREMENT_VALID: false`, so a harness observation). Ruled: Task 7 treats an unconfigured reporters lookup as INCONCLUSIVE.
 8. **V5 -> Tasks 6, 9:** `createdAt` is UTC; do not compare its `[:10]` to an ET day.
+
+## Task 4 census (the ONE-FACT-IN-TWO-FILES pairs that list built-in kinds or styles)
+
+Run 2026-10-15 on `c1be173900` plus Task 4's edits, before the kind was added. Raw outputs: grep `git grep -n "watchlist_note\|post_trade_review" -- api app/src tools tests`
+returned **52 lines in 17 files**; the AST walk (lists, tuples, sets and dicts holding at least three of the eight built-in kind ids as string
+literals, over `api`, `tools`, `tests` and `scripts`) returned **one** hit, `api/services/journal_two/journal_styles.py:132`, which is the `BUILTIN_STYLES` dict itself.
+
+| Pair | Files | Pinned by | Result |
+|---|---|---|---|
+| built-in kinds | `note_kinds.py:42-52` and `lib/noteKinds.js:8-18` | `tests/test_note_kinds.py:44-45` (through Node) | Confirmed. Both gain `earnings_followup` right after `earnings`. |
+| a style per kind | `journal_styles.BUILTIN_STYLES` keys and `note_kinds.BUILTIN_KIND_IDS` | `tests/test_journal_styles_store.py:65` | Confirmed. The new style sits right after `earnings`, so the dict order matches the kind order. |
+| Kind of note options | `note_properties.py:114`, derived from `BUILTIN_NOTE_KINDS` | none before; Task 4 adds `test_the_kind_of_note_property_lists_the_new_kind` | Confirmed derived, no edit. (`note_properties.py:106` `watchlist_note` is the separate `builtin:research_type` option list, mapped to kinds by `RESEARCH_TYPE_TO_KIND`; unchanged.) |
+| contract fixtures | `note-kinds.list.json`, `journal-styles.list.json`, `journal-styles.list.empty.json` | `tests/test_notebook_contract_fixtures.py` | Regenerated with `python tools/notebook_contract_fixtures.py`; `--check` prints `OK: 261 contract fixtures match the server`. |
+| composed fixture | `lib/__fixtures__/journalStylesComposed.json` | `tests/test_journal_styles_schema.py` | NOT the tool's (F7, V10). Regenerated with `UCT_WRITE_JOURNAL_STYLES_FIXTURE=1 python -m pytest tests/test_journal_styles_schema.py`: 180 lines added, none removed (the two new keys `builtin_earnings_followup` and `builtin_earnings_followup_no_ticker`). |
+
+Found beyond the plan's table, each a test literal of the same fact, fixed in this task by deriving from the list:
+
+* `tests/test_note_kinds.py:124` `ids[:8]` (the plan named it) now `ids[:len(nk.BUILTIN_NOTE_KINDS)]`.
+* `tests/test_notebook_journal_styles_router.py:86` `assert len(listing["kinds"]) == 8`. The kind-id grep cannot find it (it names no kind); a search for the literal count did.
+  Now `len(nk.BUILTIN_NOTE_KINDS)`.
+* `tests/test_notebook_journal_styles_router.py:82-84` pinned `blockKinds` without `reminder`; it was already red at `c1be173900` (Task 3 changed `BLOCK_KINDS` and missed this list). `reminder` appended.
+
+Looked at and left alone, not pairs of this fact: the voice TOOL named `post_trade_review` (`voice_tool_impls.py:1090-3068`, `voice_briefings.py:202`, `voice_agents.py:251`,
+`routers/voice.py:948`, `tools/voice_tool_audit.py:160-161`, `tests/test_voice_tools.py:234`), a name collision with the kind id and nothing else; the four client tests that build their kind lists from `BUILTIN_NOTE_KINDS`
+(`NotebookTab.kindPicker`, `NotebookTab.listCaret`, `KindSection`, `NoteMenuActions.saveAsStyle`), which derive and carry no literal; and tests that use `builtin:watchlist_note` as a sample style id.

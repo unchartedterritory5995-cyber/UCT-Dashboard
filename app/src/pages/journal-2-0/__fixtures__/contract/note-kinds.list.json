@@ -37,31 +37,38 @@
       },
       {
         "builtin": true,
+        "icon": "edit",
+        "id": "earnings_followup",
+        "name": "Earnings follow-up",
+        "sortOrder": 4
+      },
+      {
+        "builtin": true,
         "icon": "check",
         "id": "post_trade_review",
         "name": "Post-trade review",
-        "sortOrder": 4
+        "sortOrder": 5
       },
       {
         "builtin": true,
         "icon": "refresh",
         "id": "weekly_review",
         "name": "Weekly review",
-        "sortOrder": 5
+        "sortOrder": 6
       },
       {
         "builtin": true,
         "icon": "book",
         "id": "thesis",
         "name": "Thesis",
-        "sortOrder": 6
+        "sortOrder": 7
       },
       {
         "builtin": true,
         "icon": "eye",
         "id": "watchlist_note",
         "name": "Watchlist note",
-        "sortOrder": 7
+        "sortOrder": 8
       }
     ]
   }

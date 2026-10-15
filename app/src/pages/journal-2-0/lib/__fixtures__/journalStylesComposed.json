@@ -600,6 +600,186 @@
     ],
     "type": "doc"
   },
+  "builtin_earnings_followup": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "What I expected",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "What did I expect going in, and why?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "What happened",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "How did the numbers and the reaction compare?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "What I'll do differently",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "attrs": {
+              "checked": false
+            },
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "Follow up by ",
+                    "type": "text"
+                  },
+                  {
+                    "attrs": {
+                      "date": "2026-10-16"
+                    },
+                    "type": "dateMention"
+                  }
+                ],
+                "type": "paragraph"
+              }
+            ],
+            "type": "taskItem"
+          }
+        ],
+        "type": "taskList"
+      }
+    ],
+    "type": "doc"
+  },
+  "builtin_earnings_followup_no_ticker": {
+    "content": [
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "What I expected",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "What did I expect going in, and why?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "What happened",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "How did the numbers and the reaction compare?",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "What I'll do differently",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "attrs": {
+              "checked": false
+            },
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "Follow up by ",
+                    "type": "text"
+                  },
+                  {
+                    "attrs": {
+                      "date": "2026-10-16"
+                    },
+                    "type": "dateMention"
+                  }
+                ],
+                "type": "paragraph"
+              }
+            ],
+            "type": "taskItem"
+          }
+        ],
+        "type": "taskList"
+      }
+    ],
+    "type": "doc"
+  },
   "builtin_earnings_no_ticker": {
     "content": [
       {
