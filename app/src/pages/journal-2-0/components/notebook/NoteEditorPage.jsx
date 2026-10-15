@@ -147,6 +147,12 @@ import { labelImage } from '../../lib/screenshotLabel'
 // The read-only property mirror of the note's ticker. The details region carries the ONE
 // editable Ticker control, so PropertiesSection leaves this row out (stable array: its memo key).
 const DETAILS_OMIT = Object.freeze(['builtin:ticker'])
+/** The Ticker field's text as a ticker (I2): the normalized symbol, the raw text when it is not one (it is still the
+ *  member's, never to be overwritten), or null when the field is blank. */
+const fieldTicker = (raw) => {
+  const text = String(raw ?? '').trim()
+  return text ? (normalizeNoteTicker(text).ticker || text) : null
+}
 /** How many tags the one-line details summary names before it says "+N". */
 const DETAILS_TAGS_SHOWN = 3
 
@@ -1936,8 +1942,11 @@ export default function NoteEditorPage({
   // Dismiss, and the chip's own "the image is gone" (I3): either way the offer ends and the chip unmounts.
   const clearScreenshotOffer = useCallback(() => setScreenshotOffer(null), [])
   const screenshotReadRef = useRef(null)
+  // ⛔ I2: what the member has TYPED into the Ticker field and not saved yet (it saves on blur, and the chip's
+  // mousedown keeps focus, so a press on the chip does not save it). Null while the field shows the saved value.
+  const [tickerDraft, setTickerDraft] = useState(null)
   useEffect(() => () => { screenshotReadRef.current?.abort() }, [noteId])
-  useEffect(() => { setScreenshotOffer(null) }, [noteId])
+  useEffect(() => { setScreenshotOffer(null); setTickerDraft(null) }, [noteId])
   const startScreenshotRead = async (url) => {
     screenshotReadRef.current?.abort()
     const ctrl = new AbortController()
@@ -1953,6 +1962,8 @@ export default function NoteEditorPage({
   }
   // Accepting labels the image (an editor transaction: the note's own autosave) and, only when the note has no
   // ticker yet, sets it through the metadata door -- `update` + `settleMetadataRevision`, exactly as onTickerChange.
+  // ⛔ I2: "the note's ticker" includes what is TYPED in the Ticker field and not saved yet. A typed value is the
+  // member's; the tag then labels the image only, and the chip's words say so ("Tag image …").
   const acceptScreenshotTag = async (offer) => {
     setScreenshotOffer(null)
     const ed = editorRef.current
@@ -1965,14 +1976,18 @@ export default function NoteEditorPage({
       setUploadToast({ message: "Couldn't tag the screenshot — it is no longer in this note. Nothing changed.", tone: 'error' })
       return
     }
-    if (note?.ticker) {
+    if (fieldTicker(tickerInputRef.current?.value) || note?.ticker) {
       setUploadToast({ message: `Tagged the screenshot ${words}.`, tone: 'success' })
       return
     }
+    // The ticker door's own validator, never a second route around it.
+    const { ticker: symbol } = normalizeNoteTicker(offer.symbol)
     try {
-      await settleMetadataRevision(await update({ ticker: offer.symbol }))
-      if (tickerInputRef.current) tickerInputRef.current.value = offer.symbol
-      setUploadToast({ message: `Tagged the screenshot ${words} and set this note's ticker to ${offer.symbol}.`, tone: 'success' })
+      if (!symbol) throw new Error('not a ticker')
+      await settleMetadataRevision(await update({ ticker: symbol }))
+      if (tickerInputRef.current) tickerInputRef.current.value = symbol
+      setTickerDraft(null)
+      setUploadToast({ message: `Tagged the screenshot ${words} and set this note's ticker to ${symbol}.`, tone: 'success' })
     } catch {
       setUploadToast({ message: `Tagged the screenshot ${words}. Couldn't set the note's ticker; nothing else changed.`, tone: 'error' })
     }
@@ -3854,6 +3869,7 @@ export default function NoteEditorPage({
   // said in a SaveFailed sentence with the field put back -- see lib/noteTicker.js for the
   // uncaught 400 this replaced.
   const onTickerChange = async (raw) => {
+    setTickerDraft(null) // the field is being saved (or put back): from here the note's ticker is the authority
     const saved = note?.ticker || ''
     const restore = () => { if (tickerInputRef.current) tickerInputRef.current.value = saved }
     const { ticker, error } = normalizeNoteTicker(raw)
@@ -5190,6 +5206,7 @@ export default function NoteEditorPage({
               className={styles.tickerInput}
               placeholder="e.g. NVDA"
               defaultValue={note.ticker || ''}
+              onChange={(e) => setTickerDraft(e.target.value)}
               onBlur={(e) => onTickerChange(e.target.value)}
               autoComplete="off"
               spellCheck={false}
@@ -5255,7 +5272,8 @@ export default function NoteEditorPage({
         )}
         {smartChipsEnabled() && screenshotOffer && screenshotOffer.noteId === noteId && (
           <Suspense fallback={null}>
-            <ScreenshotTagOffer editor={editor} offer={screenshotOffer} noteTicker={note?.ticker || null}
+            <ScreenshotTagOffer editor={editor} offer={screenshotOffer}
+              noteTicker={(tickerDraft != null ? fieldTicker(tickerDraft) : null) || note?.ticker || null}
               onAccept={acceptScreenshotTag} onDismiss={clearScreenshotOffer} onGone={clearScreenshotOffer} />
           </Suspense>
         )}

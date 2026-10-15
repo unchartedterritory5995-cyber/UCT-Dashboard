@@ -248,6 +248,42 @@ describe('accepting', () => {
     expect(updateMock).not.toHaveBeenCalled()
     expect(imageAttrs(editor)[0].alt).toBe('NVDA daily chart')
   })
+  it('⛔ I2: a ticker TYPED into the field but not saved yet is the note\'s ticker -- labelled only, never overwritten', async () => {
+    switchesOn()
+    const { editor } = await renderEditor()
+    openDetails()
+    await pasteImage()
+    await chip('Tag NVDA · Daily') // control: before the member types, the note has no ticker and the chip offers both
+    fireEvent.change(tickerField(), { target: { value: 'aapl' } }) // typed, NOT blurred: not saved
+    // The chip's words follow the field at once: it will label the image only.
+    expect(await chip('Tag image NVDA · Daily')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Tag image NVDA · Daily' }))
+    expect(await screen.findByText('Tagged the screenshot NVDA · Daily.')).toBeTruthy()
+    expect(updateMock).not.toHaveBeenCalled()
+    expect(tickerField().value).toBe('aapl')
+    expect(imageAttrs(editor)[0].alt).toBe('NVDA daily chart')
+  })
+  it('the ticker set by a tag goes through the ticker door\'s own validator (normalized, never a second route)', async () => {
+    switchesOn()
+    readMock.mockResolvedValue({ symbol: 'nvda', timeframe: { tf: 'D', label: 'Daily' } })
+    await renderEditor()
+    openDetails()
+    await pasteImage()
+    fireEvent.click(await chip('Tag nvda · Daily'))
+    await screen.findByText(/set this note's ticker to NVDA\./)
+    expect(updateMock).toHaveBeenCalledWith({ ticker: 'NVDA' })
+    expect(tickerField().value).toBe('NVDA')
+  })
+  it('a symbol the ticker door refuses is not written: the alt stays and the toast says the ticker was not set', async () => {
+    switchesOn()
+    readMock.mockResolvedValue({ symbol: 'NOT A TICKER', timeframe: null })
+    const { editor } = await renderEditor()
+    await pasteImage()
+    fireEvent.click(await chip('Tag NOT A TICKER'))
+    expect(await screen.findByText("Tagged the screenshot NOT A TICKER. Couldn't set the note's ticker; nothing else changed.")).toBeTruthy()
+    expect(updateMock).not.toHaveBeenCalled()
+    expect(imageAttrs(editor)[0].alt).toBe('NOT A TICKER chart')
+  })
   it('no timeframe: the alt and the toast name the symbol alone', async () => {
     switchesOn()
     readMock.mockResolvedValue({ symbol: 'NVDA', timeframe: null })
