@@ -161,3 +161,12 @@ test('a ranked screen caps each pill at its top_n', async () => {
   await waitFor(() => expect(screen.getAllByText('remove → 50 matches')).toHaveLength(3))
   expect(screen.queryByText(/1,240/)).toBeNull()
 })
+
+test('5: an empty state that answers the previous screen reads as waiting', () => {
+  const { rerender } = render(<EmptyState filterCount={1} lastChange={null} onUndo={() => {}} onOpenFilters={() => {}} pending />)
+  const box = screen.getByTestId('focus-empty')
+  expect(box.className).toMatch(/stateBusy/)
+  expect(box).toHaveAttribute('aria-busy', 'true')
+  rerender(<EmptyState filterCount={1} lastChange={null} onUndo={() => {}} onOpenFilters={() => {}} />)
+  expect(screen.getByTestId('focus-empty').className).not.toMatch(/stateBusy/)
+})

@@ -1,3 +1,5 @@
+import { chipLabel } from '../chipLabel'
+
 // Plain words for the Focus layout (owner decision 5, 2026-10-14). ONE place: the list's setup
 // line, the chart pane's facts and the sort menu all read it, so a column or a structure never
 // carries two names on one screen. A column with no entry keeps the label the server's meta gives
@@ -17,6 +19,20 @@ export const PLAIN_COLUMN_LABELS = {
 }
 
 export const plainColumnLabel = key => PLAIN_COLUMN_LABELS[key] || null
+
+// Preset labels are written to stand alone ("Over 4%"); mid-sentence the operator word reads
+// lowercase ("Avg daily range over 4%"). Only these words: a name, a ticker or an acronym keeps
+// its capitals.
+const OPERATOR_WORDS = /^(Over|Under|Above|Below|At least|At most|More than|Less than|Between|Within|Up|Down|Near|Rising|Falling|Positive|Negative)\b/
+export const lowerOperator = s => String(s ?? '').replace(/^(.*?:\s*)(.*)$/, (m, head, rest) => head + rest.replace(OPERATOR_WORDS, w => w.toLowerCase()))
+
+// The Focus layout's label for an active filter: the shared chip label (the old page's, unchanged)
+// with the plain column name and the operator word lowercased. "Avg daily range: over 4%".
+export function focusChipLabel(def, spec) {
+  if (!def) return ''
+  const plain = plainColumnLabel(def.key) || plainColumnLabel(def.column) || def.label
+  return lowerOperator(chipLabel({ ...def, label: plain }, spec))
+}
 
 // One short fact per column, for the chart pane's fact line.
 const FACTS = {

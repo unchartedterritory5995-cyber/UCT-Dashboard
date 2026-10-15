@@ -1,5 +1,5 @@
 // Plain data and rules for the Filters drawer and the empty state's "remove one" pills.
-import { chipLabel } from '../chipLabel'
+import { focusChipLabel } from './plainWords'
 import { compactDigits } from './whyItsHere'
 
 // Owner decision 2 (2026-10-14): these come first, in this order. Keys are the screener
@@ -24,7 +24,7 @@ export function dropOptions(spec, meta, withLogic) {
   const out = []
   for (const { key, ...v } of filters) {
     if (POOL_KEYS.has(key)) continue
-    const label = compactDigits(chipLabel(defs[key] || { key, label: key, presets: [] }, v) || key)
+    const label = compactDigits(focusChipLabel(defs[key] || { key, label: key, presets: [] }, v) || key)
     out.push({ id: key, label, spec: { ...spec, filters: filters.filter(f => f.key !== key) } })
   }
   if (withLogic && spec?.logic) {

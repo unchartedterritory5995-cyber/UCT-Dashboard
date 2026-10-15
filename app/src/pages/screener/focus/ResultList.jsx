@@ -128,7 +128,7 @@ const ResultList = forwardRef(function ResultList(
           <span>{rows.length ? `${index + 1} of ${total ?? rows.length}` : ''}</span>
         </span>
       </div>
-      <div ref={listRef} role="listbox" aria-label="Screen results" tabIndex={0} aria-busy={pending}
+      <div ref={listRef} id="focus-results" role="listbox" aria-label="Screen results" tabIndex={0} aria-busy={pending}
         aria-activedescendant={rows[index] ? `focus-opt-${rows[index].ticker}` : undefined}
         className={styles.list} data-focus-list=""
         // Keyboard mode: while the member steps with the keys, hover paints nothing, so the

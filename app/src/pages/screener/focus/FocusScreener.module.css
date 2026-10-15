@@ -61,6 +61,10 @@
 .segOn { background: var(--border-accent); color: var(--text-heading); }
 .segOff { background: transparent; color: var(--text-muted); }
 .chartBox { position: relative; flex: 1; min-height: 280px; isolation: isolate; }
+/* the chart itself, as laid out without a wrapper; inert behind "Chart unavailable" */
+.chartLayer { display: contents; }
+/* while the list answers the previous screen, the pane and the empty state read as waiting */
+.paneBusy, .stateBusy { opacity: 0.55; transition: opacity 120ms ease; }
 /* B4: the chart's own state over the canvas. Loading fades in late, so a cached step never flashes it. */
 .chartLoading, .chartError { position: absolute; inset: 0; z-index: var(--z-dropdown); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
 .chartLoading { pointer-events: none; opacity: 0; animation: chartStateIn 0.2s ease-out 0.25s forwards; }
@@ -71,10 +75,12 @@
 .pane:focus { outline: none; }
 .paneFoot { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; border-top: 1px solid var(--border); padding-top: 12px; }
 .paneActions { display: flex; align-items: center; gap: 10px; flex: none; white-space: nowrap; }
-.why { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; flex: 1 1 auto; min-width: 0; font-size: 12.5px; }
-.whyLabel { color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
-.whyList { display: flex; gap: 14px; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
-.whyItem { display: inline-flex; gap: 6px; align-items: center; }
+.why { display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; flex: 1 1 auto; min-width: 0; font-size: 12.5px; }
+.whyLabel { color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; white-space: nowrap; flex: none; }
+/* ONE line at every width: what does not fit is counted into the "+N more" cue (WhyStrip). */
+.whyList { display: flex; gap: 14px; flex-wrap: nowrap; flex: 1 1 auto; min-width: 0; overflow: hidden; list-style: none; margin: 0; padding: 0; }
+.whyItem { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; flex-shrink: 0; }
+.whyMore { flex: none; white-space: nowrap; }
 .whyCheck { color: var(--success-ink); }
 .whyPool { color: var(--text-muted); }
 .whyText { color: var(--text-muted); }
@@ -131,7 +137,6 @@
      industry part of the name line (the company name stays), keep the why strip on one line. */
   .paneTicker { font-size: 22px; }
   .paneIndustry { display: none; }
-  .why, .whyList { flex-wrap: nowrap; overflow: hidden; }
   .keyHints { display: none; }
 }
 

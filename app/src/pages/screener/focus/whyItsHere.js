@@ -3,7 +3,7 @@
 // (scan joins, logic trees, ranks, field-to-field, structure contains) is a
 // plain sentence. Never a ✓ we cannot back with the row's own value.
 import { chipLabel } from '../chipLabel'
-import { plainColumnLabel, plainStructure } from './plainWords'
+import { plainColumnLabel, plainStructure, lowerOperator } from './plainWords'
 import { sessionCloseLabel } from './dates'
 
 export const NOT_CHECKABLE_KEYS = new Set([
@@ -64,7 +64,7 @@ function checkLabel(def, spec) {
     const list = spec.values.join(', ')
     return stripColon(spec.op === 'not_in' ? `${def.label}: not ${list}` : `${def.label}: ${list}`)
   }
-  return compactDigits(stripColon(chipLabel(def, spec)))
+  return compactDigits(stripColon(lowerOperator(chipLabel(def, spec))))
 }
 
 // Does `v` satisfy a plain comparison? Used only where the shown value is NOT the one the
@@ -86,7 +86,7 @@ const LIVE_FIELDS = { price: 'price', chg_pct_1d: 'chg' }
 // P10: a structure filter reads as what the stock has ("Has a Pocket Pivot"), from the preset
 // chipLabel names, in plain words; any other filter that cannot be checked per row reads its chip.
 function noteLabel(key, def, spec) {
-  const chip = stripColon(chipLabel(def, spec) || '')
+  const chip = stripColon(lowerOperator(chipLabel(def, spec) || ''))
   const preset = (def.presets || []).find(o => o.op === spec.op && o.value === spec.value && o.label && o.label !== 'Any')
   if (key === 'base_structure' && preset) {
     const name = plainStructure(preset.label)

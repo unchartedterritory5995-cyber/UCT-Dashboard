@@ -193,3 +193,28 @@ test('Minor 5: while busy, Flag and Add to watchlist are aria-disabled and dimme
   rerender(pane({ busy: false }))
   expect(screen.getByRole('button', { name: 'Flag' })).not.toHaveAttribute('aria-disabled')
 })
+
+test('3: Retry hands focus back to the list', () => {
+  const onRefocus = vi.fn()
+  render(pane({ onRefocus }))
+  act(() => { vi.advanceTimersByTime(CHART_TIMEOUT_MS) })
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+  expect(onRefocus).toHaveBeenCalledTimes(1)
+})
+test('6: behind "Chart unavailable" the chart is inert and hidden, so there is ONE Retry to reach', () => {
+  render(pane())
+  const layer = screen.getByTestId('pane-chart-layer')
+  expect(layer).not.toHaveAttribute('inert')
+  act(() => { vi.advanceTimersByTime(CHART_TIMEOUT_MS) })
+  expect(layer).toHaveAttribute('inert')
+  expect(layer).toHaveAttribute('aria-hidden', 'true')
+  expect(layer.contains(screen.getByTestId('stockchart'))).toBe(true)
+  drawn(5)
+  expect(layer).not.toHaveAttribute('inert')
+})
+test('5: a busy pane is dimmed and says so', () => {
+  render(pane({ busy: true }))
+  const p = screen.getByTestId('focus-chart-pane')
+  expect(p.className).toMatch(/paneBusy/)
+  expect(p).toHaveAttribute('aria-busy', 'true')
+})

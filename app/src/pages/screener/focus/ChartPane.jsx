@@ -81,7 +81,7 @@ const isEditable = t => /^(input|textarea|select)$/i.test(t?.tagName || '') || !
 // for any other ticker never re-renders the pane. `onNavKey`: ↑/↓ pressed anywhere in the pane
 // step the list (B7) — the pane is focusable, so a click on the chart keeps the keys working.
 // `busy`: the list answers the previous screen; the row actions say so (and the page ignores them).
-function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFlagged, onWatch, onNavKey, structures, busy = false }) {
+function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFlagged, onWatch, onNavKey, onRefocus, structures, busy = false }) {
   const [tf, setTf] = useState('D')
   const ink = useThemeInk(PIVOT_INK)
   const pivot = row?.base_pivot_px
@@ -132,7 +132,7 @@ function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFl
   const earn = earningsText(row.next_earnings_date, now)
   const industry = row.industry || row.sector
   return (
-    <section className={styles.pane} data-testid="focus-chart-pane" aria-label={`${row.ticker} chart`} tabIndex={-1} onKeyDown={onKeyDown}>
+    <section className={`${styles.pane} ${busy ? styles.paneBusy : ''}`} data-testid="focus-chart-pane" aria-label={`${row.ticker} chart`} aria-busy={busy || undefined} tabIndex={-1} onKeyDown={onKeyDown}>
       <div className={styles.paneHead}>
         <h2 className={styles.paneTicker}>{row.ticker}</h2>
         {(row.company || industry) && (
@@ -165,13 +165,17 @@ function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFl
         </div>
       </div>
       <div className={styles.chartBox} data-chart-state={chartState}>
-        <PaneChart sym={row.ticker} tf={tf} priceLines={priceLines} settled={settled} onDrawnBarCount={onDrawnBarCount} retry={retry} />
+        {/* Behind "Chart unavailable" the chart (and its own hidden error + Retry) is inert, so a
+            screen reader meets ONE Retry. */}
+        <div className={styles.chartLayer} inert={chartState === 'error'} aria-hidden={chartState === 'error' ? 'true' : undefined} data-testid="pane-chart-layer">
+          <PaneChart sym={row.ticker} tf={tf} priceLines={priceLines} settled={settled} onDrawnBarCount={onDrawnBarCount} retry={retry} />
+        </div>
         {chartState === 'loading' && <div className={styles.chartLoading} role="status">Loading chart…</div>}
         {chartState === 'error' && (
           <div className={styles.chartError} role="alert">
             <span>Chart unavailable</span>
             <span aria-hidden="true">·</span>
-            <button type="button" className={styles.linkBtn} onClick={() => setRetry(n => n + 1)}>Retry</button>
+            <button type="button" className={styles.linkBtn} onClick={() => { setRetry(n => n + 1); onRefocus?.() }}>Retry</button>
           </div>
         )}
       </div>

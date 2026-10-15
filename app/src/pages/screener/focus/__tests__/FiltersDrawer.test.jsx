@@ -224,3 +224,22 @@ test('S4: an unknown count is "Show stocks" with no note', () => {
   expect(screen.getByRole('button', { name: 'Show stocks' })).toBeInTheDocument()
   expect(screen.queryByTestId('drawer-count-note')).toBeNull()
 })
+
+test('7: pills use the plain column name and a lowercase operator word', () => {
+  const m = { filters: [{ key: 'adr_pct', label: 'ADR %', type: 'range', presets: [{ label: 'Over 4%', op: 'gte', min: 4 }] }] }
+  render(<FiltersDrawer {...base} meta={m} filters={{ adr_pct: { op: 'gte', min: 4 } }} />)
+  expect(screen.getByText('Avg daily range: over 4%')).toBeInTheDocument()
+  expect(screen.queryByText(/ADR %/)).toBeNull()
+})
+test('4: after Clear all, focus stays inside the drawer and Escape still closes it', () => {
+  const onClose = vi.fn()
+  render(<FiltersDrawer {...base} onClose={onClose} filters={{ rs_rank: { op: 'gte', min: 80 } }} />)
+  const clear = screen.getByRole('button', { name: 'Clear all' })
+  clear.focus()
+  fireEvent.click(clear)
+  expect(base.onClear).toHaveBeenCalled()
+  const dialog = screen.getByRole('dialog', { name: 'Filters' })
+  expect(dialog.contains(document.activeElement)).toBe(true)
+  fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+  expect(onClose).toHaveBeenCalled()
+})

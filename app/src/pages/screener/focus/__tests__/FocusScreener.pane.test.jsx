@@ -130,3 +130,12 @@ test('Minor 3: ... and after a scan error', async () => {
   await screen.findByText("The screen didn't load", {}, { timeout: 5000 })
   expect(within(screen.getByTestId('focus-state-flags')).getByRole('button', { name: /Flagged/ })).toBeInTheDocument()
 }, 10000)
+
+test('2: the skip link\'s target exists, and the page has one (visually hidden) h1', async () => {
+  await mount()
+  expect(document.getElementById('focus-results')).toBe(screen.getByRole('listbox'))
+  const h1 = screen.getByRole('heading', { level: 1 })
+  expect(h1).toHaveTextContent('Screener')
+  expect(h1).toHaveClass('sr-only')
+  expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+}, 10000)

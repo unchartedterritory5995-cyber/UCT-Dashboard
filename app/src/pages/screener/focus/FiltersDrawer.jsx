@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import FilterRail from '../shell/FilterRail'
 import CriteriaBox from '../shell/CriteriaBox'
 import Menu, { MenuItem } from './Menu'
-import { chipLabel } from '../chipLabel'
+import { focusChipLabel } from './plainWords'
 import { compactDigits } from './whyItsHere'
 import useDescribe from './useDescribe'
 import Input from '../../../components/ui/Input'
@@ -99,6 +99,9 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
   }, [open])
   if (!open) return null
   const defs = Object.fromEntries((meta?.filters || []).map(f => [f.key, f]))
+  // Clear all removes the pill row's own button: focus goes to the panel, never to <body>, so
+  // Tab keeps cycling the drawer and Escape still closes it.
+  const clearAll = () => { onClear(); panel.current?.focus() }
   const pills = Object.entries(filters).filter(([k, v]) => v && k !== 'universe' && k !== 'list')
   const setPool = choice => {
     if (choice === 'all') { onSetFilter('universe', null); onSetFilter('list', null) }
@@ -163,7 +166,7 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
               {lists.map(l => <MenuItem key={l.value} onSelect={() => setPool(l)}>{l.label}</MenuItem>)}
             </Menu>
             {pills.map(([k, v]) => {
-              const text = compactDigits(chipLabel(defs[k] || { key: k, label: k, presets: [] }, v) || k)
+              const text = compactDigits(focusChipLabel(defs[k] || { key: k, label: k, presets: [] }, v) || k)
               return (
                 <span key={k} className={styles.pill}>
                   {text}
@@ -176,11 +179,11 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
                 <button type="button" className={styles.pillX} aria-label="Remove Custom criteria" onClick={() => onSetLogic(null)}>×</button>
               </span>
             )}
-            {(pills.length > 0 || logic) && <button type="button" className={styles.linkBtn} onClick={onClear}>Clear all</button>}
+            {(pills.length > 0 || logic) && <button type="button" className={styles.linkBtn} onClick={clearAll}>Clear all</button>}
           </div>
         </div>
         <div className={styles.drawerBody}>
-          <FilterRail meta={meta} activeFilters={filters} onChange={onSetFilter} onClear={onClear}
+          <FilterRail meta={meta} activeFilters={filters} onChange={onSetFilter} onClear={clearAll}
             variant="sheet" presentation="buttons" common={COMMON_FILTERS} startCollapsed
             openStorePrefix="uct.screener.drawer" showClear={false} controlFor={drawerControl} />
         </div>

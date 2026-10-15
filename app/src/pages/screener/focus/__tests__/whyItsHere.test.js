@@ -157,3 +157,9 @@ test('P10: a structure screen says what the stock has, in plain words', () => {
   expect(one(',inside-day,').label).toBe('Has an Inside Day')
   expect(one(',gone,').label).not.toMatch(/^Matches/)
 })
+
+test('7: the operator word reads lowercase mid-sentence, with the plain column name', () => {
+  const m = [{ key: 'adr_pct', label: 'ADR %', type: 'range', unit: '%', presets: [{ label: 'Over 4%', op: 'gte', min: 4 }] }]
+  const { items } = whyItsHere({ filters: { adr_pct: { op: 'gte', min: 4 } }, metaFilters: m, row: { ticker: 'MU', adr_pct: 5.2 } })
+  expect(items[0].label).toBe('Avg daily range over 4%')
+})

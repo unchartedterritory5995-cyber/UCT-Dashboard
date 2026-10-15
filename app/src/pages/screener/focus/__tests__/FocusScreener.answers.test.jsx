@@ -82,7 +82,16 @@ test('an answer for screen A that lands after the switch to B is dropped: never 
     const b = within(screen.getByTestId('focus-chart-pane')).getByRole('button', { name })
     expect(b).toHaveAttribute('aria-disabled', 'true')
     expect(b.className).toMatch(/btnBusy/)
+    // 9: a click that does nothing leaves focus where it was
+    b.focus()
+    fireEvent.click(b)
+    expect(document.activeElement).toBe(b)
   }
+  // 5: the pane reads as waiting too
+  expect(screen.getByTestId('focus-chart-pane').className).toMatch(/paneBusy/)
+  // 8: no Notebook capture of the old rows under the new screen
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  expect(within(screen.getByRole('menu', { name: 'Save' })).queryByRole('menuitem', { name: /Add to Notebook/ })).toBeNull()
 })
 
 test('A→B→C quickly with B answering last-but-one: B is never listed, and undo after C empties returns to the screen last seen with rows', async () => {

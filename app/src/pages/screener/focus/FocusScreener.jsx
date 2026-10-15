@@ -294,8 +294,9 @@ function FocusList({ onMode }) {
     focusList()
   }
   // B7: the pane's Flag and Add to watchlist hand focus back to the results, so ↓ keeps stepping.
-  const paneFlag = useCallback(row => { onFlag(row); focusList() }, [onFlag, focusList])
-  const paneWatch = useCallback(row => { onWatch(row); focusList() }, [onWatch, focusList])
+  // While pending the click does nothing, so focus stays on the (dimmed) button.
+  const paneFlag = useCallback(row => { if (pendingRef.current) return; onFlag(row); focusList() }, [onFlag, focusList])
+  const paneWatch = useCallback(row => { if (pendingRef.current) return; onWatch(row); focusList() }, [onWatch, focusList])
 
   const sel = useFocusSelection({ rows: displayRows, resetKey: rowsKey, hasMore, onLoadMore: s.loadMore, onOpen, onFlag, onWatch })
 
@@ -564,6 +565,8 @@ function FocusList({ onMode }) {
     refresh()
   }
   const toNotebook = async () => {
+    // A capture pairs the screen with its rows: never the new screen with the old rows.
+    if (pendingRef.current) return
     say('Saving…')
     say(await saveToNotebook(buildScreenerCapture({
       meta, filters: s.filters, visibleColumns: columns, displayRows, livePrices: prices,
@@ -646,7 +649,7 @@ function FocusList({ onMode }) {
     // The pills are built from the screen that CAME BACK empty, never the live spec: a filter
     // being edited in the drawer must not grow a pill for a screen nobody has run yet.
     body = <>{flagsOutsideList}<EmptyState filterCount={filterCount} lastChange={lastChange} onUndo={undoLast} onOpenFilters={() => openFilters()}
-      spec={answered.shown?.baseSpec || null} meta={meta} onRemoveFilter={k => ed.setFilter(k, null)} onRemoveLogic={() => ed.setLogic(null)} /></>
+      pending={pending} spec={answered.shown?.baseSpec || null} meta={meta} onRemoveFilter={k => ed.setFilter(k, null)} onRemoveLogic={() => ed.setLogic(null)} /></>
   } else {
     body = (
       <div className={styles.body}>
@@ -657,7 +660,7 @@ function FocusList({ onMode }) {
         {/* S5: primitives and stable callbacks only, so a tick for another ticker skips the pane. */}
         <ChartPane row={selected} livePx={selPx} liveChg={selChg} why={why}
           onOpenFilters={openFiltersFromStrip} onFlag={paneFlag} isFlagged={selected ? isFlagged(selected.ticker) : false} onWatch={paneWatch}
-          onNavKey={paneNavKey} structures={structures} busy={pending} />
+          onNavKey={paneNavKey} onRefocus={focusList} structures={structures} busy={pending} />
       </div>
     )
   }
@@ -665,6 +668,8 @@ function FocusList({ onMode }) {
   return (
     <div ref={pageRef} className={styles.page} data-testid="focus-screener" data-mode="list" data-density={density} onKeyDown={shortcuts.onKeyDown}
       onKeyDownCapture={markTouched} onPointerDownCapture={markTouched} onWheelCapture={markTouched} onScrollCapture={markTouched}>
+      {/* The page's one h1, for assistive tech; the top bar carries the visible title. */}
+      <h1 className="sr-only">Screener</h1>
       <SkipLinkPortal>
         <SkipLink href="#focus-results" className={styles.skipLink} target={() => pageRef.current?.querySelector('[data-focus-list]')}>Skip to results</SkipLink>
         <a href="#focus-save" className={styles.skipLink} onClick={skipToSave}>Skip to save results</a>
@@ -683,7 +688,7 @@ function FocusList({ onMode }) {
         saveMenu={(
           <span ref={saveSlotRef} id="focus-save" className={styles.saveSlot}>
             <SaveMenu canSaveScreen={savedLoaded && !savedError} canFrozenList={doors.promote && hasResult && !pending && total > 0}
-              canAlert={doors.alert} canNotebook={hasResult} count={pending ? null : shownTotal} hasResult={hasResult}
+              canAlert={doors.alert} canNotebook={hasResult && !pending} count={pending ? null : shownTotal} hasResult={hasResult}
               onSaveScreen={saveAsScreen} onFrozenList={frozenList} onAlert={standingAlert} onNotebook={toNotebook} />
           </span>
         )}
