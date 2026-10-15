@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (2026-10-14): not complete.** 278 of 279 rows are `live` or `moot`; 1 is not (0 `dark`, 1 `building`, 0 `owner-blocked`): X-15, re-measured in the Wed 2026-10-21 window. It is complete when every row below is `live` or `moot`.
+**The answer today (2026-10-15): complete.** 279 of 279 rows are `live` or `moot` (0 `dark`, 0 `building`, 0 `owner-blocked`). The last row, X-15, went live on three valid RTH gate runs on 2026-10-15. It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,14 +34,14 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-14:
+Printed 2026-10-15:
 
 ```
-279 Counter({'live': 244, 'moot': 34, 'building': 1})
+279 Counter({'live': 245, 'moot': 34})
 0 duplicate ids
 ```
 
-The previous print, at master `d95f331bb` the same day: `279 Counter({'live': 174, 'building': 44, 'moot': 39, 'dark': 13, 'owner-blocked': 9})`.
+The previous print, 2026-10-14: `279 Counter({'live': 244, 'moot': 34, 'building': 1})`. Before that, at master `d95f331bb` the same day: `279 Counter({'live': 174, 'building': 44, 'moot': 39, 'dark': 13, 'owner-blocked': 9})`.
 
 Before this reconciliation (same command, the file as committed at `d95f331bb`): `279 Counter({'building': 85, 'live': 77, 'dark': 69, 'moot': 36, 'owner-blocked': 12})`, 0 duplicate ids. (The table that stood here then still carried the pre-sweep 2026-10-03 numbers; the command, not the table, was right.)
 
@@ -49,16 +49,16 @@ The per-section split is the same regex applied to each `## ` section:
 
 | section | rows | live | dark | building | owner-blocked | moot |
 |---|---|---|---|---|---|---|
-| 1 Programme records + ship | 17 | 13 | 0 | 1 | 0 | 3 |
+| 1 Programme records + ship | 17 | 14 | 0 | 0 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
 | 3 TERM-001..093 | 93 | 88 | 0 | 0 | 0 | 5 |
 | 4 BRK-01..10 | 10 | 9 | 0 | 0 | 0 | 1 |
 | 5 COV-01..12 | 12 | 11 | 0 | 0 | 0 | 1 |
 | 6 FT-001..080 | 80 | 73 | 0 | 0 | 0 | 7 |
 | 7 Untracked promises | 58 | 50 | 0 | 0 | 0 | 8 |
-| **total** | **279** | **244** | **0** | **1** | **0** | **34** |
+| **total** | **279** | **245** | **0** | **0** | **0** | **34** |
 
-`building` by lane: P 1 (X-15).
+`building` by lane: none.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -81,7 +81,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `X-12` | `/calendar` retirement (RM-L16, CX-8) | `moot (decided 2026-10-07: /calendar coexists permanently as a URL)` | D-006 places the calendar inside the Terminal but does not choose. If retire: MG-7 at 0 GAP, nav graduation, MG-8 re-census, then the countdown. ➜ 2026-10-07: P-9 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `X-13` | MG-8 consumer re-census at countdown | `moot (no countdown; X-12 decided)` | The live instance is fixed (`api/services/journal_two/db.py:2403-2406`). The gate is unrun because no countdown has started. ➜ 2026-10-07: P-10 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) AUDIT 2026-10-12 (owner-requested review of every moot row): correct; citation re-pointed to the "DO NOT DROP j2_playbook_entries" docstring. |
 | `X-14` | RM-N05 MVP trial (subject Ravi, adjudicator Patrick) | `moot (owner waived the Ravi trial 2026-10-10)` | Owner ruling 2026-10-10, verbatim: "no need to wait for ravi on anything we can proceed fully with all of those" (`12-decisions/2026-10-07-owner-delegated-decisions.md:213-221`). It supersedes P-11 and C2. Pre-registered 2026-09-30, never started. Was `owner-blocked (Ravi records Phase A: 5 trading days or 10 occasions)`. |
-| `X-15` | RM-N10 bars p95, clause 2 | `building (Lane P)` | Instrument fixed (`tools/bars_warmth_gate.py:115` `MIN_NOWAIT_N`). Needs one valid RTH run with n ≥ `MIN_NOWAIT_N`. No valid run recorded since 2026-10-03: not measured. Automatic reader on master (`api/services/measurement_window.py`, web scheduler): samples every minute Wed 09:00-11:00 ET, runs the bars gate once at 10:15, and from 11:01 writes ONE result per window with a verdict per row; read it at `GET /api/admin/measurement-window/latest` (admin) or the ops-channel summary. web promotion is held inside the window (`tools/deploy_freeze.py`). Goes live only on a VALID verdict. ➜ 2026-10-12 (owner ruling "just do it now"): a one-off extra window Tue 2026-10-13 09:00-11:00 ET, same bounds and bar (`measurement_window.EXTRA_WINDOW_DAYS`, `c4c3b5e31b`); Wednesday 10-14 stays as the second attempt. A same-day afternoon run cannot count: the bar is >= 104 min on one pod ACROSS the open. ➜ 2026-10-14 READ: INCONCLUSIVE (exit 2), no-wait n = 0 on both tf=D and tf=5: all 80 reads carried no Server-Timing layer (`{'unknown': 40}` each, 654 s for 80 reads). Cause: bars-api froze 10:20-10:28 ET (log silence, then one flush at 10:28:07 with `[data_sync] applied delta`); the 20-minute delta merge scanned all of `ohlcv` under the write lock. Fixed `ae91105e55` (`data_sync._merge_ohlcv_from` seeks per pair; rail `tests/test_data_sync_merge_seek.py`). Re-measured outside the gate at 11:07 ET: every read carried a layer again. Next valid attempt: Wed 2026-10-21 window. |
+| `X-15` | RM-N10 bars p95, clause 2 | `live` | Instrument fixed (`tools/bars_warmth_gate.py:115` `MIN_NOWAIT_N`). Needs one valid RTH run with n ≥ `MIN_NOWAIT_N`. No valid run recorded since 2026-10-03: not measured. Automatic reader on master (`api/services/measurement_window.py`, web scheduler): samples every minute Wed 09:00-11:00 ET, runs the bars gate once at 10:15, and from 11:01 writes ONE result per window with a verdict per row; read it at `GET /api/admin/measurement-window/latest` (admin) or the ops-channel summary. web promotion is held inside the window (`tools/deploy_freeze.py`). Goes live only on a VALID verdict. ➜ 2026-10-12 (owner ruling "just do it now"): a one-off extra window Tue 2026-10-13 09:00-11:00 ET, same bounds and bar (`measurement_window.EXTRA_WINDOW_DAYS`, `c4c3b5e31b`); Wednesday 10-14 stays as the second attempt. A same-day afternoon run cannot count: the bar is >= 104 min on one pod ACROSS the open. ➜ 2026-10-14 READ: INCONCLUSIVE (exit 2), no-wait n = 0 on both tf=D and tf=5: all 80 reads carried no Server-Timing layer (`{'unknown': 40}` each, 654 s for 80 reads). Cause: bars-api froze 10:20-10:28 ET (log silence, then one flush at 10:28:07 with `[data_sync] applied delta`); the 20-minute delta merge scanned all of `ohlcv` under the write lock. Fixed `ae91105e55` (`data_sync._merge_ohlcv_from` seeks per pair; rail `tests/test_data_sync_merge_seek.py`). Re-measured outside the gate at 11:07 ET: every read carried a layer again. Next valid attempt: Wed 2026-10-21 window. ➜ 2026-10-15 LIVE. Fix `ca1178ead5` (stream liveness check replaces the library keepalive that dropped the socket at the 15:37 and 16:00 ET bursts; per-bucket ownership with gap repair; D tail checked before the provider call). One web pod held one feed epoch from 00:01 ET through the open (bars-api uptime 44513 s at the first run, well past the 104-min bar). Three valid RTH runs, all reads no-wait (n = 40 of 40 per timeframe, 0 stale, 0 waited): 09:55 ET D p95 154 ms / tf5 112 ms; 09:56 ET D 102 / tf5 98; 09:57 ET D 171 / tf5 87. Evidence: `docs/terminal-research/10-roadmap/evidence/2026-10-15-card16-p95-gate-1355Z/`, `-1356Z/`, `-1357Z/`. |
 | `X-16` | Ledger hygiene: `IMPLIED_ENRICHMENT_CUTOVER`, `D5_CP4_DUAL_COMPUTE_SAMPLE_RATE`, `WIRE_SURFACE_LINE_ENABLED` | `live` | Done: the `knobs` section of `docs/feature_flags.json` holds all three on master (`docs/feature_flags.json:2974` `IMPLIED_ENRICHMENT_CUTOVER` pending, `docs/feature_flags.json:2982` `D5_CP4_DUAL_COMPUTE_SAMPLE_RATE` armed, `docs/feature_flags.json:2990` `WIRE_SURFACE_LINE_ENABLED` dark), landed by `e82e6a661` on master via the X-01 landing `2e304db42`; rail `tests/test_flag_ledger_knobs.py`. Flipping `IMPLIED_ENRICHMENT_CUTOVER` is a separate owner call, not this hygiene row. Was `dark` (branch-only). |
 | `X-17` | Settings "Free Plan" copy contradicts D-010 (U-COPY-01) | `live` | Fixed 2026-10-10 (lane f-l9): the non-Pro branch of the billing card is `app/src/pages/settings/PlanAccess.jsx` (`Settings.jsx:2042`), which names the real case (full-access trial with days left, premium, lifetime, admin, or no plan) and says there is no free tier; no "Free Plan", no free-page list (`FREE_PAGES = []`, `constants/freePages.js`). Rail: `app/src/pages/settings/PlanAccess.test.jsx` (8 tests). Was `building (Lane P)`. |
 
