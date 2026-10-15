@@ -51,15 +51,14 @@ So *"−2.4% vs the 50-day"* at 10:42 means *"−2.4% vs the 50-day average of t
 50 sessions through the previous close"*. That is what Finviz-class screeners
 mean by the phrase, and it is what the Seal says in those words.
 
-⚠️ KNOWN GAP AT SHIP — the ``day_open`` / ``day_high`` widening (spec §3.2) is
-``api/services/massive.py``'s, and that file is NOT this lane's. Until it
-lands, ``get_full_market_snapshot`` emits only ``last_price``/``prev_close``/
-``today_vol``/``prev_vol``, so four of the twenty-two —
-``chg_from_open_pct``, ``gap_pct``, ``new_52w_high``, ``new_ath`` — have no
-feed input and **keep their nightly value**, counted in ``live_cols`` as not
-recomputed. That is the honest degradation, not a bug: the moment the parse
-widens (three additive extractions, zero provider cost) they light up with no
-change here.
+⚰️ THE "KNOWN GAP AT SHIP" IS CLOSED. This said ``get_full_market_snapshot``
+emitted only ``last_price``/``prev_close``/``today_vol``/``prev_vol`` and that
+``chg_from_open_pct``, ``gap_pct``, ``new_52w_high`` and ``new_ath`` therefore kept
+their nightly value. The parse was widened in 6c82962044 (2026-08-25): it emits
+``day_open``/``day_high``/``day_low`` (0 or missing read as None), and those four
+columns plus the candle columns are recomputed whenever the fields are present.
+They still fall back to the nightly value before the open or for a symbol with
+no print, and ``live_columns_effective()`` says so by name.
 
 ⛔⛔ AND THE DISCLOSURE MUST NOT NAME THEM. ``LIVE_COLUMNS`` is what the tier
 *aspires* to recompute; ``live_columns_effective()`` is what it **measured

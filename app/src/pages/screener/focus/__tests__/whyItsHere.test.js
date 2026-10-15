@@ -20,7 +20,7 @@ test('money values are formatted', () => {
 })
 test('bool reads Yes', () => {
   const { items } = whyItsHere({ filters: { above_50sma: { op: 'eq', value: 1 } }, metaFilters: meta, row })
-  expect(items[0]).toEqual({ kind: 'check', label: 'Above 50 SMA', value: 'Yes' })
+  expect(items[0]).toEqual({ kind: 'check', label: 'Above 50-day avg', value: 'Yes' })
 })
 test('universe is a pool, not a check', () => {
   const { items } = whyItsHere({ filters: { universe: { op: 'eq', value: 'uct', label: 'UCT Universe' } }, metaFilters: meta, row })
@@ -62,7 +62,7 @@ test('null and NaN row values are notes with a dash', () => {
 })
 test('a bool requiring false reads Not, with the row state', () => {
   const { items } = whyItsHere({ filters: { above_50sma: { op: 'eq', value: 0 } }, metaFilters: meta, row })
-  expect(items[0]).toEqual({ kind: 'check', label: 'Not Above 50 SMA', value: 'Yes' })
+  expect(items[0]).toEqual({ kind: 'check', label: 'Not above 50-day avg', value: 'Yes' })
 })
 test('bool row strings 0 and false read No, true reads Yes', () => {
   const f = { above_50sma: { op: 'eq', value: 1 } }

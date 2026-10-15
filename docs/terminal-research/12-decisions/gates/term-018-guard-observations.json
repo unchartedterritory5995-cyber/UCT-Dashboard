@@ -1203,6 +1203,42 @@
         ],
         "note": "A member's single-shot ask: ai_search -> fast_lane_answer -> perplexity_search.web_search -> the guard. The scheduled callers (ai_search_briefings jobs registered as lambdas through an aliased import) and the stream route also reach it; the rail records the one wire a single cut breaks. Mounted by app.include_router(ai_search_router.router) in api/main.py."
       }
+    },
+    {
+      "guard": "api/main.py::_alert_if_nightly_short::<computed>::warning",
+      "in_population": true,
+      "audit_rows": [],
+      "what_the_guard_decides": "Whether a screener nightly build that did not cover every stock (refused, crashed, stopped short of its targets, or more than 2% of rows errored) raises an operator warning instead of a log line nobody reads, while a build that reached every row (built + skipped + errors >= targets) raises nothing. Added 2026-10-15 when the nightly stopped being capped at 4,000 of 11,230 rows.",
+      "predicate": {
+        "file": "api/main.py",
+        "scope": "_alert_if_nightly_short",
+        "pinned": "if not why:",
+        "mutation": "if why:"
+      },
+      "observed_by": [
+        "tests/test_screener_nightly_rebuilds_every_row.py::test_the_nightly_job_alerts_on_a_run_that_stops_short",
+        "tests/test_screener_nightly_rebuilds_every_row.py::test_CONTROL_a_nightly_that_reaches_every_row_alerts_nobody",
+        "tests/test_screener_nightly_rebuilds_every_row.py::test_a_crashing_nightly_still_alerts"
+      ],
+      "proof": {
+        "commit": "13a43312b",
+        "quote": "mutating `if not why:` -> `if why:` in _alert_if_nightly_short turns 3 tests red"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "add_job",
+            "job_id": "screener_snapshot_nightly"
+          },
+          {
+            "file": "api/main.py",
+            "call": "register_screener_jobs"
+          }
+        ],
+        "note": "web, the 03:00 ET screener nightly; the job self-gates on SCREENER_SNAPSHOT_ENABLED (default on). No flag state is asserted here."
+      }
     }
   ],
   "declared_unobserved": []

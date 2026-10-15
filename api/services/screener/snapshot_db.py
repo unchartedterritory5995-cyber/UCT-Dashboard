@@ -690,6 +690,60 @@ def describe_rows(conn, where: str = "", params=(),
     }
 
 
+# One row per nightly (or admin/boot) build: what it set out to rebuild and what landed.
+# The build used to report only to the log, so a run cut short by a redeploy or a crash
+# left nothing an HTTP reader could see. Created on first write (an additive side table,
+# like the live tables above) and trimmed to the newest BUILD_RUNS_KEEP rows.
+BUILD_RUNS_KEEP = 60
+_BUILD_RUNS_SQL = """
+CREATE TABLE IF NOT EXISTS screener_build_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at REAL, finished_at REAL,
+    targets INTEGER, built INTEGER, skipped INTEGER, errors INTEGER,
+    empty_columns TEXT
+)"""
+
+
+def record_build_run(stats: dict) -> None:
+    """Persist one build's receipt. Never raises: a receipt that cannot be written must
+    not cost the build it describes."""
+    try:
+        with connect() as conn:
+            conn.execute(_BUILD_RUNS_SQL)
+            conn.execute(
+                "INSERT INTO screener_build_runs (started_at, finished_at, targets, built, "
+                "skipped, errors, empty_columns) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (stats.get("started_at"), stats.get("finished_at"), stats.get("targets"),
+                 stats.get("built"), stats.get("skipped"), stats.get("errors"),
+                 ",".join(stats.get("empty_columns") or [])))
+            conn.execute(
+                "DELETE FROM screener_build_runs WHERE id NOT IN (SELECT id FROM "
+                "screener_build_runs ORDER BY id DESC LIMIT ?)", (BUILD_RUNS_KEEP,))
+            conn.commit()
+    except Exception as e:                                  # noqa: BLE001
+        import logging
+        logging.getLogger(__name__).warning("[screener] build receipt not written: %s", e)
+
+
+def last_build_run() -> dict | None:
+    """The newest build receipt, or None when no build has recorded one yet."""
+    try:
+        with connect() as conn:
+            conn.execute(_BUILD_RUNS_SQL)
+            r = conn.execute("SELECT * FROM screener_build_runs ORDER BY id DESC LIMIT 1").fetchone()
+    except Exception:                                       # noqa: BLE001
+        return None
+    if r is None:
+        return None
+    d = dict(r)
+    d["empty_columns"] = [c for c in (d.get("empty_columns") or "").split(",") if c]
+    # A build that reached every row it targeted accounts for each one as built, skipped
+    # (no bars) or errored. Anything short of that was cut off partway.
+    seen = (d.get("built") or 0) + (d.get("skipped") or 0) + (d.get("errors") or 0)
+    d["complete"] = d.get("targets") is not None and seen >= d["targets"]
+    return d
+
+
 def status() -> dict:
     """Coverage + freshness of the whole snapshot.
 
@@ -705,7 +759,8 @@ def status() -> dict:
     # `latest_snapshot_date` is DERIVED from the value already computed, never
     # re-queried: a second authority over one number is how these two drift.
     return {**prov, "latest_built_at": built,
-            "latest_snapshot_date": prov["newest_snapshot_date"]}
+            "latest_snapshot_date": prov["newest_snapshot_date"],
+            "last_build": last_build_run()}
 
 
 def get_projected(tickers: list, columns: list) -> dict:
