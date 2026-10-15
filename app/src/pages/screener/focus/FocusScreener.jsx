@@ -683,7 +683,7 @@ function FocusList({ onMode }) {
           onNewScreen={() => { ed.clearFilters(); ed.setLogic(null); setCurrent(null); openFilters() }}
           myScans={myScans} onUseScan={applyScanFilter} />}
         filterCount={filterCount} onOpenFilters={() => openFilters()}
-        dataReceipt={<DataReceipt snapshotDate={listed?.snapshot_date} live={listed?.snapshot?.live?.state === 'live'} coverage={listed?.coverage} />}
+        dataReceipt={<DataReceipt snapshotDate={listed?.snapshot_date} live={listed?.snapshot?.live} coverage={listed?.coverage} />}
         mode="list" onMode={m => { s.flush(); onMode(m) }}
         saveMenu={(
           <span ref={saveSlotRef} id="focus-save" className={styles.saveSlot}>

@@ -213,7 +213,7 @@ _SNAP_TTL = 30   # seconds; snapshot moves only every few seconds, so this is in
 
 def full_market_snapshot() -> dict:
     """The whole US-market snapshot ({provider_ticker: {last_price, prev_close,
-    today_vol, prev_vol}}), shared across every preset scan AND the background
+    today_vol, prev_vol, day_open, day_high, day_low}}), shared across every preset scan AND the background
     warmer via a ~30s cache.
 
     Each scan compares the live market against its own per-day reference. Without

@@ -59,7 +59,8 @@ function fmtValue(def, v) {
 const stripColon = s => s.replace(/:\s*/, ' ').replace(/\s+/g, ' ').trim()
 
 function checkLabel(def, spec) {
-  if (def.type === 'bool') return requiresFalse(spec.value) ? `Not ${def.label}` : def.label
+  // Mid-sentence after "Not" a word drops its capital ("Not above 50-day avg"); an acronym keeps it ("Not HVC").
+  if (def.type === 'bool') return requiresFalse(spec.value) ? `Not ${/^[A-Z][a-z]/.test(def.label) ? def.label[0].toLowerCase() + def.label.slice(1) : def.label}` : def.label
   if ((spec.op === 'in' || spec.op === 'not_in') && Array.isArray(spec.values) && spec.values.length) {
     const list = spec.values.join(', ')
     return stripColon(spec.op === 'not_in' ? `${def.label}: not ${list}` : `${def.label}: ${list}`)
