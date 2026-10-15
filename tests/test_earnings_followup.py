@@ -13,6 +13,7 @@ import importlib
 import inspect
 import json
 import os
+import sqlite3
 import tempfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -198,8 +199,10 @@ def test_the_cap_keeps_the_biggest_moves_and_breaks_ties_by_symbol(db, world):
     result, sent = ring(db, at(date(2026, 10, 15)))
     assert _symbols(sent) == ["BBB", "CCC", "DDD"]
     assert result["capped"] == 2
-    rows = db.execute("SELECT symbol FROM j2_earnings_followup_log ORDER BY symbol").fetchall()
-    assert [r[0] for r in rows] == ["BBB", "CCC", "DDD"]          # capped names are never written
+    rows = db.execute("SELECT symbol, status FROM j2_earnings_followup_log ORDER BY symbol").fetchall()
+    # the three that rang are sent; the two over the cap are RECORDED as capped (final), never delivered
+    assert [tuple(r) for r in rows] == [("AAA", "capped"), ("BBB", "sent"), ("CCC", "sent"),
+                                        ("DDD", "sent"), ("EEE", "capped")]
 
 
 def test_the_cap_is_the_constant_and_is_per_member(db, world, monkeypatch):
@@ -414,13 +417,26 @@ def test_the_registrar_reads_no_switch_and_wires_three_jobs(monkeypatch):
     monkeypatch.setattr(journal_styles, "enabled", boom)
     jobs = []
 
+    full = {}
+
     class FakeScheduler:
         def add_job(self, fn, trigger, **kw):
             jobs.append((kw["id"], str(trigger)))
+            full[kw["id"]] = (trigger, kw)
     assert ef.register_followup_jobs(FakeScheduler()) is True
     ids = [j for j, _ in jobs]
     assert ids == ["notebook_earnings_followup", "notebook_earnings_followup_second", "notebook_earnings_followup_catch_up"]
     assert "hour='16'" in jobs[0][1] and "minute='45'" in jobs[0][1] and "mon-fri" in jobs[0][1]
+    assert "hour='18'" in jobs[1][1] and "minute='0'" in jobs[1][1] and "mon-fri" in jobs[1][1]
+    for job_id in ids[:2]:
+        trigger, kw = full[job_id]
+        assert type(trigger).__name__ == "CronTrigger" and str(trigger.timezone) == "America/New_York"
+        # api/main.py's job_defaults grace is ONE SECOND: a run reached late would be skipped outright
+        assert kw["max_instances"] == 1 and kw["coalesce"] is True
+        assert kw["misfire_grace_time"] == 3600 and kw["replace_existing"] is True
+    trigger, kw = full["notebook_earnings_followup_catch_up"]
+    assert type(trigger).__name__ == "DateTrigger"
+    assert kw["max_instances"] == 1 and kw["misfire_grace_time"] == 3600 and kw["replace_existing"] is True
 
 
 def test_main_calls_the_registrar():
@@ -620,3 +636,170 @@ def test_the_bell_reaches_the_members_notices_with_only_a_link(db, world, monkey
         assert mine[0]["data"]["research_url"] == "/journal/notebook?followup=ORCL&reportDate=2026-10-15"
     finally:
         alerts.clear_alerts(user_id="u8")
+
+
+# ── fix round 1: capped is FINAL ────────────────────────────────────────────────────────────────────
+
+def test_capped_names_are_final_and_never_roll_over_to_the_next_day(db, world):
+    """Five before-the-open names dated Oct 15, cap 3. The two over the cap are recorded as capped; no later
+    pass, day or catch-up delivers them (the window still sees Oct 15 on Oct 16, and a fresh session day has
+    a fresh cap, so without the written row both would ring on the 16th)."""
+    names = ("AAA", "BBB", "CCC", "DDD", "EEE")
+    world["reports"] = {"2026-10-15": {s: "bmo" for s in names}}
+    world["sets"], world["paid"] = {"u1": {s: ["watchlist"] for s in names}}, {"u1"}
+    world["reactions"] = {"AAA": 5.0, "BBB": 4.0, "CCC": 3.0, "DDD": 2.0, "EEE": 1.0}
+    d15, d16 = date(2026, 10, 15), date(2026, 10, 16)
+    result, sent = ring(db, at(d15, 16, 45), pass_label="16:45")
+    assert _symbols(sent) == ["AAA", "BBB", "CCC"] and result["capped"] == 2
+    for later in (ring(db, at(d15, 18), pass_label="18:00"), ring(db, at(d15, 19), pass_label="catch-up"),
+                  ring(db, at(d16), pass_label="16:45")):
+        assert later[1] == [] and later[0]["delivered"] == 0 and later[0]["capped"] == 2
+    status = dict(tuple(r) for r in db.execute("SELECT symbol, status FROM j2_earnings_followup_log").fetchall())
+    assert status == {"AAA": "sent", "BBB": "sent", "CCC": "sent", "DDD": "capped", "EEE": "capped"}
+
+
+def test_a_capped_row_takes_no_slot_of_the_cap(db, world):
+    ef.ensure_schema(db)
+    for sym, status in (("S1", "sent"), ("S2", "sent"), ("C1", "capped"), ("C2", "capped"), ("C3", "capped")):
+        db.execute("INSERT INTO j2_earnings_followup_log VALUES ('u1', ?, '2026-10-14', '2026-10-15', 'x', ?)",
+                   (sym, status))
+    db.commit()
+    world["reports"] = {"2026-10-15": {"ORCL": "bmo"}}
+    world["sets"], world["paid"] = {"u1": {"ORCL": ["watchlist"]}}, {"u1"}
+    _, sent = ring(db, at(date(2026, 10, 15)))
+    assert _symbols(sent) == ["ORCL"]              # two sent + three capped: one slot is still free
+
+
+def test_the_cap_counts_the_session_day_across_report_dates(db, world):
+    """M4: Friday's after-the-close reports and Monday's before-the-open ones all belong to Monday's cap of
+    three. A cap keyed by report date would let each date ring up to three."""
+    world["reports"] = {FRI.isoformat(): {"AAA": "amc", "BBB": "amc"}, MON.isoformat(): {"CCC": "bmo", "DDD": "bmo"}}
+    world["sets"] = {"u1": {s: ["watchlist"] for s in ("AAA", "BBB", "CCC", "DDD")}}
+    world["paid"] = {"u1"}
+    world["reactions"] = {"AAA": 4.0, "BBB": 3.0, "CCC": 2.0, "DDD": 1.0}
+    result, sent = ring(db, at(MON))
+    assert _symbols(sent) == ["AAA", "BBB", "CCC"] and result["capped"] == 1 and result["candidates"] == 4
+    assert sorted({d["reportDate"] for _, _, _, d in sent}) == [FRI.isoformat(), MON.isoformat()]
+
+
+def test_the_cap_is_filled_across_passes_not_per_pass(db, world):
+    d15 = date(2026, 10, 15)
+    world["sets"], world["paid"] = {"u1": {s: ["watchlist"] for s in ("AAA", "BBB", "CCC", "DDD")}}, {"u1"}
+    world["reactions"] = {"AAA": 1.0, "BBB": 2.0, "CCC": 9.0, "DDD": 8.0}
+    world["reports"] = {d15.isoformat(): {"AAA": "bmo", "BBB": "bmo"}}
+    first = ring(db, at(d15, 16, 45), pass_label="16:45")
+    assert sorted(_symbols(first[1])) == ["AAA", "BBB"]
+    world["reports"] = {d15.isoformat(): {s: "bmo" for s in ("AAA", "BBB", "CCC", "DDD")}}
+    result, sent = ring(db, at(d15, 18), pass_label="18:00")
+    assert _symbols(sent) == ["CCC"] and result["capped"] == 1 and result["already_sent"] == 2
+    assert db.execute("SELECT COUNT(*) FROM j2_earnings_followup_log WHERE status = 'sent'").fetchone()[0] == 3
+
+
+# ── fix round 1: the ledger tells the truth about an incomplete run ───────────────────────────────────
+
+def test_an_unclean_source_ledgers_the_run_incomplete_and_the_catch_up_looks_again(db, world):
+    """M1: ok=False from the reporters lookup. The names it did answer still ring, but the day is not done."""
+    world["reports"] = {"2026-10-15": {"ORCL": "bmo"}}
+    world["sets"], world["paid"] = {"u1": {"ORCL": ["watchlist"]}}, {"u1"}
+    world["ok"] = False
+    result, sent = ring(db, at(date(2026, 10, 15), 16, 45), pass_label="16:45")
+    assert result["partial"] is True and _symbols(sent) == ["ORCL"]
+    row = db.execute("SELECT complete, result FROM j2_earnings_followup_runs").fetchone()
+    assert row[0] == 0 and json.loads(row[1])["partial"] is True
+    out = ef.catch_up_followups(now=at(date(2026, 10, 15), 19), conn=db, deliver=lambda *a: None)
+    assert out["ran"] is True and out["already_sent"] == 1
+    world["ok"] = True                                              # control: a clean source completes the day
+    ring(db, at(date(2026, 10, 15), 19, 30), pass_label="clean")
+    assert db.execute("SELECT MAX(complete) FROM j2_earnings_followup_runs").fetchone()[0] == 1
+
+
+def test_a_claim_still_in_flight_leaves_the_run_incomplete(db, world):
+    ef.ensure_schema(db)
+    db.execute("INSERT INTO j2_earnings_followup_log VALUES ('u1', 'ORCL', '2026-10-15', '2026-10-15', 'x', 'claimed')")
+    db.commit()
+    world["reports"] = {"2026-10-15": {"ORCL": "bmo"}}
+    world["sets"], world["paid"] = {"u1": {"ORCL": ["watchlist"]}}, {"u1"}
+    result, sent = ring(db, at(date(2026, 10, 15)))
+    assert sent == [] and result["in_flight"] == 1
+    assert db.execute("SELECT complete FROM j2_earnings_followup_runs").fetchone()[0] == 0
+
+
+def test_the_warm_budget_is_per_run_not_per_member(db, world, monkeypatch):
+    """M2: four members, one name each, 50 s a warm. 120 s into the RUN the fourth is not warmed."""
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(ef, "_mono", lambda: clock["t"])
+
+    def slow(sym, rd):
+        world["warmed"].append(sym)
+        clock["t"] += 50.0
+        return 1.0
+    monkeypatch.setattr(ef, "_reaction_pct", slow)
+    names = {"u1": "AAA", "u2": "BBB", "u3": "CCC", "u4": "DDD"}
+    world["reports"] = {"2026-10-15": {s: "bmo" for s in names.values()}}
+    world["sets"] = {u: {s: ["watchlist"]} for u, s in names.items()}
+    world["paid"] = set(names)
+    result, sent = ring(db, at(date(2026, 10, 15)))
+    assert len(sent) == 4                                           # every member still rings
+    assert world["warmed"] == ["AAA", "BBB", "CCC"] and result["warm_skipped"] == 1
+
+
+# ── fix round 1: an error stays with its member, and the run is still ledgered ─────────────────────
+
+class _LockedFor:
+    """A connection whose statement starting `needle` fails like a locked database for one member."""
+    def __init__(self, real, uid, needle):
+        self._real, self._uid, self._needle = real, uid, needle
+
+    def execute(self, sql, params=()):
+        if sql.lstrip().startswith(self._needle) and params and params[0] == self._uid:
+            raise sqlite3.OperationalError("database is locked")
+        return self._real.execute(sql, params)
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+
+@pytest.mark.parametrize("needle", ["INSERT OR IGNORE INTO j2_earnings_followup_log", "UPDATE j2_earnings_followup_log"])
+def test_a_locked_database_inside_one_members_offer_stays_with_that_member(db, world, needle):
+    world["reports"] = {"2026-10-15": {"ORCL": "bmo", "AMD": "bmo"}}
+    world["sets"] = {"u1": {"ORCL": ["watchlist"], "AMD": ["watchlist"]}, "u2": {"ORCL": ["watchlist"]}}
+    world["paid"] = {"u1", "u2"}
+    sent = []
+    result = ef.run_followups(now=at(date(2026, 10, 15)), conn=_LockedFor(db, "u1", needle),
+                              deliver=lambda uid, t, m, data: sent.append(uid))
+    assert "u2" in sent and result["failed"] == 1 and result["skipped"] is None
+    assert db.execute("SELECT complete FROM j2_earnings_followup_runs").fetchone()[0] == 0     # ledgered, incomplete
+
+
+def test_a_lookup_that_raises_still_ledgers_the_run_as_incomplete(db, world, monkeypatch):
+    def boom(d):
+        raise RuntimeError("calendar down")
+    monkeypatch.setattr(ef, "reporters_on", boom)
+    result, sent = ring(db, at(date(2026, 10, 15)))
+    assert sent == [] and result["failed"] == 1 and result["error"] == "RuntimeError"
+    row = db.execute("SELECT complete, result FROM j2_earnings_followup_runs").fetchone()
+    assert row[0] == 0 and json.loads(row[1])["error"] == "RuntimeError"
+
+
+# ── fix round 1: the lookup's counting and merging ─────────────────────────────────────────────────
+
+def test_the_time_fill_reads_dmh_and_ignores_what_is_not_a_time(monkeypatch):
+    from api.services import finnhub_client
+    monkeypatch.setattr(finnhub_client, "fh_get", lambda *a, **k: {"earningsCalendar": [
+        {"symbol": "ORCL", "hour": "dmh"}, {"symbol": "AMD", "hour": " AMC "}, {"symbol": "NVDA", "hour": "tbd"}]})
+    found = {"ORCL": None, "AMD": None, "NVDA": None}
+    ef._fill_timing("2026-10-14", found)
+    assert found == {"ORCL": "dmh", "AMD": "amc", "NVDA": None}
+
+
+def test_a_symbol_reporting_on_two_scanned_days_keeps_the_earliest_report(world):
+    world["reports"] = {"2026-10-14": {"ORCL": "amc"}, "2026-10-15": {"ORCL": "bmo"}}
+    assert ef.todays_reports(date(2026, 10, 15)) == ({"ORCL": "2026-10-14"}, False, 0)
+
+
+def test_unknown_times_are_counted_and_reach_the_run(db, world):
+    world["reports"] = {"2026-10-14": {"AAA": None, "BBB": "amc", "CCC": None}}
+    assert ef.todays_reports(date(2026, 10, 15)) == (
+        {"AAA": "2026-10-14", "BBB": "2026-10-14", "CCC": "2026-10-14"}, False, 2)
+    world["sets"], world["paid"] = {"u1": {"AAA": ["watchlist"]}}, {"u1"}
+    assert ring(db, at(date(2026, 10, 15)))[0]["timing_unknown"] == 2

@@ -21,7 +21,10 @@ THE RULES (R-T2B-1..6, 10):
 * CLAIM, THEN DELIVER (note_tasks' idiom): ONE atomic INSERT claims AND enforces DAILY_CAP per member
   per session day; a delivery that raises releases its claim.
 * Inside the cap: largest |reaction| first, an unmeasured one last, then by symbol. The rest are
-  counted (`capped`) and never written or delivered.
+  counted (`capped`) and RECORDED in the claim table with status 'capped': capped is FINAL, the same
+  primary key keeps every later pass, day and catch-up from delivering them (they never roll over to
+  the next session). `session_day` is the DELIVERY day (the run's day, which is what the cap counts),
+  not the session that reacted to the report. A 'capped' row takes no slot of the cap.
 * It WARMS earnings_intel (get_earnings, on this scheduler thread) for every name it ranks, so the
   member's create reads what UCT already holds and never waits on a vendor (R-T2B-10). The warm has a
   wall-clock budget (WARM_BUDGET_S, F21): past it a name is not warmed, ranks as unmeasured, and is counted
@@ -67,7 +70,7 @@ CREATE TABLE IF NOT EXISTS j2_earnings_followup_log (
     user_id      TEXT NOT NULL,
     symbol       TEXT NOT NULL,
     report_date  TEXT NOT NULL,
-    session_day  TEXT NOT NULL,
+    session_day  TEXT NOT NULL,      -- the day the run offered it (the cap counts this), not the reacting session
     created_at   TEXT NOT NULL,
     status       TEXT NOT NULL DEFAULT 'claimed',
     PRIMARY KEY (user_id, symbol, report_date)
@@ -85,7 +88,9 @@ CREATE TABLE IF NOT EXISTS j2_earnings_followup_runs (
 _CLAIM = ("INSERT OR IGNORE INTO j2_earnings_followup_log"
           " (user_id, symbol, report_date, session_day, created_at, status)"
           " SELECT ?, ?, ?, ?, ?, 'claimed' WHERE (SELECT COUNT(*) FROM j2_earnings_followup_log"
-          " WHERE user_id = ? AND session_day = ?) < ?")
+          " WHERE user_id = ? AND session_day = ? AND status != 'capped') < ?")
+_CAPPED = ("INSERT OR IGNORE INTO j2_earnings_followup_log"
+           " (user_id, symbol, report_date, session_day, created_at, status) VALUES (?, ?, ?, ?, ?, 'capped')")
 
 
 def enabled() -> bool:
@@ -239,7 +244,11 @@ def _offer(conn, uid: str, sym: str, report_date: str, day: date, sources: list[
     if cur.rowcount == 0:
         held = conn.execute("SELECT status FROM j2_earnings_followup_log WHERE user_id = ? AND symbol = ?"
                             " AND report_date = ?", (uid, sym, report_date)).fetchone()
-        result["capped" if held is None else ("already_sent" if held[0] == "sent" else "in_flight")] += 1
+        if held is None:        # over the cap: final. Written, so no later pass or day can deliver it.
+            conn.execute(_CAPPED, (uid, sym, report_date, day.isoformat(), stamp))
+            conn.commit()
+        result["capped" if held is None or held[0] == "capped"
+               else ("already_sent" if held[0] == "sent" else "in_flight")] += 1
         return
     title, message = notice_copy(sym, date.fromisoformat(report_date), sources)
     data = {"source": FOLLOWUP_SOURCE, "research_url": followup_url(sym, report_date), "symbol": sym,
@@ -284,6 +293,37 @@ def _warm(reactions: dict, mine: dict, reports: dict, clock: dict, result: dict)
         result["warmed"] += 1
 
 
+def _scan(conn, day: date, deliver, result: dict) -> None:
+    from api.services.journal_two import followup_prefill as fp
+    reports, result["partial"], result["timing_unknown"] = todays_reports(day)
+    reports = {s: d for s, d in reports.items() if fp.valid_symbol(s)}
+    result["candidates"] = len(reports)
+    reactions: dict[str, float | None] = {}
+    clock: dict[str, Any] = {"start": None}
+    if not reports:
+        return
+    for uid in _member_ids(conn):
+        try:
+            mine = {s: src for s, src in _member_sets(uid).items() if s in reports}
+            if not mine or not _paid(uid, conn):
+                continue
+        except Exception:  # noqa: BLE001 -- one member's unreadable sets must not stop the rest
+            result["failed"] += 1
+            continue
+        result["members"] += 1
+        _warm(reactions, mine, reports, clock, result)
+        order = sorted(mine, key=lambda s: (reactions[s] is None, -abs(reactions[s] or 0.0), s))
+        try:
+            for s in order:
+                _offer(conn, uid, s, reports[s], day, mine[s], deliver, result)
+        except Exception:  # noqa: BLE001 -- e.g. a locked database on the claim: this member only
+            try:
+                conn.rollback()
+            except Exception:  # noqa: BLE001
+                pass
+            result["failed"] += 1
+
+
 def run_followups(now: datetime | None = None, *, pass_label: str = "manual", conn=None, deliver=None) -> dict:
     """One pass for the session day of `now` (ET). Safe to run twice, and twice at once."""
     when = (now or _now()).astimezone(ET)
@@ -308,26 +348,11 @@ def run_followups(now: datetime | None = None, *, pass_label: str = "manual", co
             result["skipped"] = "unconfigured"          # V4: inconclusive, never "nobody reported"
             _record_run(conn, result, when)
             return result
-        from api.services.journal_two import followup_prefill as fp
-        reports, result["partial"], result["timing_unknown"] = todays_reports(day)
-        reports = {s: d for s, d in reports.items() if fp.valid_symbol(s)}
-        result["candidates"] = len(reports)
-        reactions: dict[str, float | None] = {}
-        clock: dict[str, Any] = {"start": None}
-        if reports:
-            for uid in _member_ids(conn):
-                try:
-                    mine = {s: src for s, src in _member_sets(uid).items() if s in reports}
-                    if not mine or not _paid(uid, conn):
-                        continue
-                except Exception:  # noqa: BLE001 -- one member's unreadable sets must not stop the rest
-                    result["failed"] += 1
-                    continue
-                result["members"] += 1
-                _warm(reactions, mine, reports, clock, result)
-                order = sorted(mine, key=lambda s: (reactions[s] is None, -abs(reactions[s] or 0.0), s))
-                for s in order:
-                    _offer(conn, uid, s, reports[s], day, mine[s], deliver, result)
+        try:
+            _scan(conn, day, deliver, result)
+        except Exception as e:  # noqa: BLE001 -- whatever broke, the run is still ledgered, as incomplete
+            result["failed"] += 1
+            result["error"] = type(e).__name__
         _record_run(conn, result, when)
         return result
     finally:
