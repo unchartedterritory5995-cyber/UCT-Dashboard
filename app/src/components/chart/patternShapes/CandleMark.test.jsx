@@ -101,3 +101,28 @@ describe('CandleMark — swing_pivots (unaffected by Package 8D, regression chec
     expect(container.querySelectorAll('rect')).toHaveLength(0)
   })
 })
+
+describe('CandleMark — the four trader-setup detectors (public since 2026-10-15)', () => {
+  // Same geometry the Python detectors emit (uct_setups_common.build_detection):
+  // shape candle_mark, the trigger session as the LAST anchor.
+  const cases = [
+    ['uct_kicker', 'bullish', 'K'],
+    ['uct_oops_reversal', 'bullish', 'OR'],
+    ['uct_slingshot', 'bullish', 'SL'],
+    ['uct_hve', 'bearish', 'HVE'],
+  ]
+  it.each(cases)('%s renders a badge on the trigger candle with its own letter', (pid, direction, letter) => {
+    const detection = {
+      pattern_id: pid, direction, confidence: 80, category: 'uct',
+      geometry: {
+        shape: 'candle_mark', semantic_subtype: pid,
+        anchors: [{ t: 100000, price: 10 }, { t: 200000, price: 12 }],
+        anchor_roles: ['setup', 'trigger'], extras: {},
+      },
+    }
+    const { container } = renderInSvg(detection)
+    expect(container.querySelectorAll('circle[r="9"]')).toHaveLength(1)
+    expect(container.querySelector('text')?.textContent).toBe(letter)
+    expect(container.querySelectorAll('rect')).toHaveLength(0)
+  })
+})

@@ -159,6 +159,13 @@ _ACTIVE_STATUSES = ("forming", "ready", "triggered")
 #: `category` column rather than by a typed id list, so a candlestick detector
 #: added tomorrow is excluded the day it ships.
 _SCREENER_EXCLUDED_CATEGORIES = ("candlestick",)
+
+#: ⛔ Internal/admin-only detectors never reach the screener (a member-facing,
+#: universe-wide snapshot). Excluded in SQL, like the category exclusion above,
+#: by BOTH readers below. The set is the registry's one authority, never retyped.
+def _excluded_pattern_ids() -> tuple:
+    from api.services.pattern_engine.detectors.registry import INTERNAL_PATTERN_IDS
+    return tuple(sorted(INTERNAL_PATTERN_IDS))
 _WINDOW_SECS = 7 * 24 * 3600
 #: ⭐ RAISED 10 -> 20, MEASURED. With the eight near-universal detectors gone
 #: (see UNINFORMATIVE_SHARE) the id counts collapse: median 6, p90 10, p99 13,
@@ -265,6 +272,8 @@ def read_pattern_fields(targets, failures=None) -> dict:
         cutoff = int(time.time()) - _WINDOW_SECS
         placeholders = ",".join("?" * len(_ACTIVE_STATUSES))
         cat_ph = ",".join("?" * len(_SCREENER_EXCLUDED_CATEGORIES))
+        internal = _excluded_pattern_ids()
+        int_ph = ",".join("?" * len(internal))
         sql = f"""
             SELECT sym, pattern_id, direction, confidence, levels_json, detected_at
             FROM pattern_detections
@@ -272,11 +281,12 @@ def read_pattern_fields(targets, failures=None) -> dict:
               AND status IN ({placeholders})
               AND detected_at >= ?
               AND (category IS NULL OR category NOT IN ({cat_ph}))
+              AND pattern_id NOT IN ({int_ph})
         """
         with contextlib.closing(pattern_db.get_connection()) as conn:
             rows = conn.execute(
                 sql, (*_ACTIVE_STATUSES, cutoff,
-                      *_SCREENER_EXCLUDED_CATEGORIES)).fetchall()
+                      *_SCREENER_EXCLUDED_CATEGORIES, *internal)).fetchall()
     except Exception as e:
         _note(failures, "pattern_join", e)
         return {}
@@ -475,6 +485,8 @@ def read_pattern_fields_canonical_shadow(targets) -> dict:
     placeholders = ",".join("?" * len(_ACTIVE_STATUSES))
     cat_ph = ",".join("?" * len(_SCREENER_EXCLUDED_CATEGORIES))
     sym_ph = ",".join("?" * len(target_syms))
+    internal = _excluded_pattern_ids()
+    int_ph = ",".join("?" * len(internal))
     # Phase 8 Package 8G-B Residual Performance Closure (2026-09-05):
     # `INDEXED BY idx_pd_sym_tf`, forced. Measured root cause of the live
     # pilot's remaining ~400-700ms admin cost (after the prior ticker-scoping
@@ -499,12 +511,13 @@ def read_pattern_fields_canonical_shadow(targets) -> dict:
           AND status IN ({placeholders})
           AND detected_at >= ?
           AND (category IS NULL OR category NOT IN ({cat_ph}))
+          AND pattern_id NOT IN ({int_ph})
           AND sym IN ({sym_ph})
     """
     with contextlib.closing(pattern_db.get_connection()) as conn:
         rows = conn.execute(
             sql, (*_ACTIVE_STATUSES, cutoff, *_SCREENER_EXCLUDED_CATEGORIES,
-                  *target_syms)).fetchall()
+                  *internal, *target_syms)).fetchall()
 
     by_ticker: dict = {}
     for r in rows:
