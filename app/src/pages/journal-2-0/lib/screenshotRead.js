@@ -43,11 +43,16 @@ async function bounded(makeWork, signal) {
   }
 }
 
+// A GET, and only a GET. It is a NAMED function handing its own url to the injected fetch, which is the shape
+// the note-door rail can read and judge (doorEnumeration.test.js, "FORWARDERS"); an anonymous arrow around the
+// same call reads as an injected fetch the rail cannot account for.
+async function fetchJson(fetchImpl, url, inner) {
+  const r = await fetchImpl(url, { credentials: 'include', signal: inner })
+  return r?.ok ? await r.json() : null
+}
+
 function getJson(fetchImpl, url, signal) {
-  return bounded(async (inner) => {
-    const r = await fetchImpl(url, { credentials: 'include', signal: inner })
-    return r?.ok ? await r.json() : null
-  }, signal)
+  return bounded((inner) => fetchJson(fetchImpl, url, inner), signal)
 }
 
 async function readScreenshotInner({ noteId, url, signal, fetchImpl = globalThis.fetch, sleep = realSleep }) {

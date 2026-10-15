@@ -139,6 +139,10 @@ import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { TranscriptInsertHost } from './TranscriptDoors'
 import { normalizeNoteTicker } from '../../lib/noteTicker'
 import { smartChipsEnabled } from '../../lib/smartChipsFlag'
+// Item 10: the screenshot chip's EAGER halves are tiny and pure (the alt text; the editor transaction that sets it).
+// The poll and its network code (lib/screenshotRead) are a dynamic import below, and the chip itself is lazy.
+import { altFor } from '../../lib/screenshotSmarts'
+import { labelImage } from '../../lib/screenshotLabel'
 
 // The read-only property mirror of the note's ticker. The details region carries the ONE
 // editable Ticker control, so PropertiesSection leaves this row out (stable array: its memo key).
@@ -172,6 +176,9 @@ const ResurfaceVersionSheet = lazyChunk(() => import('./ResurfaceVersionSheet'))
 // 120". LAZY, and mounted only while the smart-chips switch is on (an off switch never fetches it). Its mount
 // is also what switches the alert plugin on (lib/alertPhraseOffer.js: HOSTED ONLY).
 const AlertPhraseMenu = lazyChunk(() => import('./AlertPhraseMenu'))
+// Item 10: the "Tag NVDA · Daily" chip on a pasted chart screenshot. LAZY: it exists only after a paste, with both
+// switches on, once the screenshot read has found exactly one ticker.
+const ScreenshotTagOffer = lazyChunk(() => import('./ScreenshotTagOffer'))
 // Notebook P1 (spec P1.3): the "Update layout" offer, its previewed sheet, the /style chooser and the
 // "updated" confirmation, behind ONE lazy import (a second import of the same module costs first-open bytes).
 // Mounted only while journalStylesEnabled() -- a switch that is off never fetches it.
@@ -1923,12 +1930,63 @@ export default function NoteEditorPage({
       return next
     }, { replace: true })
   }, [setSearchParams])
+  // Tier 2 part A, item 10: the screenshot chip. ONE offer at a time (the newest paste); the read is aborted when
+  // another image is pasted, the note changes, or the page unmounts (Review Focus 3).
+  const [screenshotOffer, setScreenshotOffer] = useState(null)
+  const screenshotReadRef = useRef(null)
+  useEffect(() => () => { screenshotReadRef.current?.abort() }, [noteId])
+  useEffect(() => { setScreenshotOffer(null) }, [noteId])
+  const startScreenshotRead = async (url) => {
+    screenshotReadRef.current?.abort()
+    const ctrl = new AbortController()
+    screenshotReadRef.current = ctrl
+    const forNote = noteId
+    try {
+      // The poll and its network code load only when a screenshot is pasted with the switches on.
+      const { readScreenshot } = await import('../../lib/screenshotRead')
+      const found = await readScreenshot({ noteId: forNote, url, signal: ctrl.signal })
+      if (!found || ctrl.signal.aborted) return
+      setScreenshotOffer({ url, ...found, noteId: forNote })
+    } catch { /* the chip is an extra: a chunk that will not load offers nothing, and the paste itself is done */ }
+  }
+  // Accepting labels the image (an editor transaction: the note's own autosave) and, only when the note has no
+  // ticker yet, sets it through the metadata door -- `update` + `settleMetadataRevision`, exactly as onTickerChange.
+  const acceptScreenshotTag = async (offer) => {
+    setScreenshotOffer(null)
+    const ed = editorRef.current
+    const words = offer.timeframe ? `${offer.symbol} · ${offer.timeframe.label}` : offer.symbol
+    if (lockedRef.current) {
+      setUploadToast({ message: 'This note is locked — unlock it in the Notebook first', tone: 'error' })
+      return
+    }
+    if (offer.noteId !== noteId || !labelImage(ed, offer.url, altFor(offer))) {
+      setUploadToast({ message: "Couldn't tag the screenshot — it is no longer in this note. Nothing changed.", tone: 'error' })
+      return
+    }
+    if (note?.ticker) {
+      setUploadToast({ message: `Tagged the screenshot ${words}.`, tone: 'success' })
+      return
+    }
+    try {
+      await settleMetadataRevision(await update({ ticker: offer.symbol }))
+      if (tickerInputRef.current) tickerInputRef.current.value = offer.symbol
+      setUploadToast({ message: `Tagged the screenshot ${words} and set this note's ticker to ${offer.symbol}.`, tone: 'success' })
+    } catch {
+      setUploadToast({ message: `Tagged the screenshot ${words}. Couldn't set the note's ticker; nothing else changed.`, tone: 'error' })
+    }
+  }
   const handleImageInsert = async (file) => {
     const ed = editorRef.current
     if (!ed || !file) return
     try {
       const { url } = await uploadInlineImage(noteId, file)
-      ed.chain().focus().setImage({ src: url, alt: '' }).run()
+      const placed = ed.chain().focus().setImage({ src: url, alt: '' }).run()
+      // Item 10: with BOTH switches on, wait in the background for the OCR the document pipeline runs on a pasted
+      // image and, if it names exactly one ticker, offer the tag. ⛔ Never automatic; an off switch starts nothing.
+      if (placed !== false && smartChipsEnabled() && notebookFlag('notebook_image_docx_documents_enabled') === true) {
+        refreshDocuments() // the attachment path's "the id exists the moment the chip does"
+        startScreenshotRead(url)
+      }
     } catch (e) {
       // Wave 7 (G5, the camera "Scan" door): the server's reason is a sentence a
       // member can act on — a phone photo in HEIC is refused with "Only
@@ -5192,6 +5250,12 @@ export default function NoteEditorPage({
         <LinkPasteMenu editor={editor} />
         {smartChipsEnabled() && (
           <Suspense fallback={null}><AlertPhraseMenu editor={editor} noteTicker={note?.ticker || null} /></Suspense>
+        )}
+        {smartChipsEnabled() && screenshotOffer && screenshotOffer.noteId === noteId && (
+          <Suspense fallback={null}>
+            <ScreenshotTagOffer editor={editor} offer={screenshotOffer} noteTicker={note?.ticker || null}
+              onAccept={acceptScreenshotTag} onDismiss={() => setScreenshotOffer(null)} />
+          </Suspense>
         )}
 
         {offerCanvasLink && (

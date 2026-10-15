@@ -1,0 +1,50 @@
+/* Tier 2 part A, item 10 - the "Tag NVDA - Daily" chip (ScreenshotTagOffer.jsx), floated under the pasted
+   image by the component. The bar is AlertPhraseMenu's, unchanged. */
+.bar {
+  position: fixed;
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  max-width: calc(100vw - 16px);
+  padding: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+  font-family: var(--font-sans);
+}
+.btn,
+.icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover,
+.icon:hover { background: var(--bg-hover); }
+.btn:focus-visible,
+.icon:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+
+/* Touch tier: every control is a finger target (phone AND tablet). */
+@media (max-width: 1024px) {
+  .btn {
+    min-height: var(--tap-min);
+    justify-content: center;
+    font-size: 14px;
+  }
+  .icon {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+    justify-content: center;
+  }
+}
