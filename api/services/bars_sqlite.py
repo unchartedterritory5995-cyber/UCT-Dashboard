@@ -1308,6 +1308,42 @@ def _writable_bars(ticker: str, tf: str, bars: list[dict]) -> tuple[list[dict], 
     return keep, rejected
 
 
+def put_bars_many(tf: str, bars_by_ticker: dict[str, list[dict]]) -> int:
+    """Upsert many tickers' bars of ONE timeframe in a single transaction.
+
+    The universe live feed (`bars_live_store`) lands ~10k tickers' newest bucket a
+    minute; one `put_bars` per ticker would be ~10k transactions, each taking the
+    write lock. Same validity gate and the same INSERT OR REPLACE as `put_bars`.
+    `t` is the stored integer key (unix seconds intraday, YYYYMMDD for D)."""
+    rows = []
+    for ticker, bars in (bars_by_ticker or {}).items():
+        keep, _rejected = _writable_bars(ticker.upper(), tf, bars)
+        for b in keep:
+            rows.append((ticker.upper(), tf, int(b.get("t", 0)), b.get("o"), b.get("h"),
+                         b.get("l"), b.get("c"), int(b.get("v") or 0)))
+    if not rows:
+        return 0
+    last_lock_err: sqlite3.OperationalError | None = None
+    for attempt in range(3):
+        try:
+            with _WRITE_LOCK:
+                c = _conn()
+                c.executemany(
+                    "INSERT OR REPLACE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
+                    rows,
+                )
+                c.commit()
+            return len(rows)
+        except sqlite3.OperationalError as e:
+            if "locked" not in str(e).lower():
+                raise
+            last_lock_err = e
+            time.sleep(0.05 * (attempt + 1))
+    if last_lock_err is not None:
+        raise last_lock_err
+    return 0
+
+
 def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
              on_conflict: str = "replace") -> int:
     """Upsert bars.  date_tf=True means bar["t"] is 'YYYY-MM-DD' → YYYYMMDD int.

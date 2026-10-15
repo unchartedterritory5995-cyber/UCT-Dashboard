@@ -66,6 +66,27 @@ _feed_bytes = 0
 _feed_frames = 0
 _feed_since = time.time()
 
+# ── Liveness + stall diagnosis (2026-10-14) ──────────────────────────────────
+# The library keepalive (ping every 30 s, close if no pong within 30 s) dropped the
+# socket at 15:37:57 and 16:00:27 ET with the universe feed on. A pong travels in the
+# same TCP stream as the data, so whenever this loop falls behind the inbound frames
+# (or is starved of the GIL) the pong waits behind them and the library declares a
+# live connection dead. Every drop costs a reconnect and a bucket the stream did not
+# see whole. So the decision moved here: the socket is dead only when NEITHER a data
+# frame NOR a pong has arrived for LIVENESS_S of time this loop was actually running.
+# A stall of the loop itself is measured (max, count, and the WS thread's stack while
+# it is stalled) instead of being mistaken for a dead peer.
+LIVENESS_S = float(os.environ.get("BAR_STREAM_LIVENESS_S", "90"))
+_PING_EVERY_S = 10.0
+#: The WS loop is "stalled" when its 0.5 s beat is this late.
+_STALL_S = float(os.environ.get("BAR_STREAM_STALL_S", "3"))
+_loop_beat_mono: Optional[float] = None
+_ws_thread_ident: Optional[int] = None
+_stall = {"count": 0, "max_s": 0.0, "last_s": 0.0, "last_at": None, "dumps": 0}
+_liveness = {"pongs": 0, "dead_closes": 0, "last_pong_rtt_ms": None}
+#: Minute-bar delivery lag (receipt time minus the minute's end), current minute window.
+_am_lag = {"window_start": 0.0, "max_ms": 0, "prev_window_max_ms": 0, "worst_ms": 0}
+
 OnBarCallback = Callable[[str, dict, str], None]  # (symbol, payload_dict, kind) -> None
 # kind is "AM" (authoritative 1-min close), "A" (per-second aggregate), or "T" (per-trade tick)
 # For AM/A: payload is a bar dict {t, o, h, l, c, v}
@@ -186,8 +207,10 @@ def _build_subscribe_message(syms: Iterable[str]) -> str:
     Example: AM.AAPL,A.AAPL,T.AAPL,AM.MSFT,A.MSFT,T.MSFT
     """
     parts = []
+    universe = _universe_stream_enabled()
     for s in sorted(syms):
-        parts.append(f"AM.{s}")
+        if not universe:  # under the universe feed, AM.* already carries every symbol
+            parts.append(f"AM.{s}")
         parts.append(f"A.{s}")
         parts.append(f"T.{s}")
     params = ",".join(parts)
@@ -197,12 +220,23 @@ def _build_subscribe_message(syms: Iterable[str]) -> str:
 def _build_unsubscribe_message(syms: Iterable[str]) -> str:
     """Unsubscribe from AM.*, A.*, and T.* for each symbol (Phase 4.6)."""
     parts = []
+    universe = _universe_stream_enabled()
     for s in sorted(syms):
-        parts.append(f"AM.{s}")
+        if not universe:  # never drop AM.<sym> out from under the AM.* wildcard
+            parts.append(f"AM.{s}")
         parts.append(f"A.{s}")
         parts.append(f"T.{s}")
     params = ",".join(parts)
     return json.dumps({"action": "unsubscribe", "params": params})
+
+
+def _universe_stream_enabled() -> bool:
+    """Universe live bars (`bars_live_ingest`): subscribe AM.* for every ticker."""
+    try:
+        from api.services import bars_live_ingest
+        return bars_live_ingest.enabled()
+    except Exception:
+        return False
 
 
 def _build_auth_message(api_key: str) -> str:
@@ -223,7 +257,8 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
     while True:
         try:
             _logger.info("[bar_stream] Connecting to %s", _WS_URL)
-            async with websockets.connect(_WS_URL, ping_interval=30, ping_timeout=10) as ws:
+            # Library keepalive OFF: `_liveness_watch` decides (see LIVENESS_S).
+            async with websockets.connect(_WS_URL, ping_interval=None, ping_timeout=None) as ws:
                 _ws_connection = ws
 
                 # Auth handshake — block on auth_success before proceeding
@@ -273,11 +308,23 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                     await ws.send(_build_subscribe_message(syms_to_resubscribe))
                     _logger.info("[bar_stream] Resubscribed %d symbols on (re)connect", len(syms_to_resubscribe))
 
+                # Universe live bars: every minute bar for every ticker, rolled into 5m
+                # and forwarded to the serving tier (`bars_live_ingest`). A new socket
+                # starts a new epoch, so the tier re-backfills the gap it left.
+                universe = _universe_stream_enabled()
+                if universe:
+                    from api.services import bars_live_ingest
+                    bars_live_ingest.mark_connected()
+                    bars_live_ingest.start_flusher(asyncio.get_running_loop())
+                    await ws.send(json.dumps({"action": "subscribe", "params": "AM.*"}))
+                    _logger.info("[bar_stream] universe feed: subscribed AM.*")
+
                 _running = True
                 backoff = 1
 
                 # Concurrent tasks: drain pending sub/unsub queue + read messages
                 drain_task = asyncio.create_task(_drain_pending_queue(ws))
+                live_task = asyncio.create_task(_liveness_watch(ws))
                 try:
                     async for raw_msg in ws:
                         # Measurement: frame size + count (cheap; monitoring only).
@@ -314,10 +361,21 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                                         _logger.info("[bar_stream] status: %s (%s)",
                                                      _st, ev.get("message"))
                                 continue
+                            kind = parsed["kind"]
+                            # T events carry "trade" dict; AM/A events carry "bar" dict
+                            payload_dict = parsed["trade"] if kind == "T" else parsed["bar"]
+                            if kind == "AM":
+                                _note_am_lag(ev.get("e"))
+                            if universe and kind == "AM":
+                                try:
+                                    bars_live_ingest.on_am(parsed["sym"], payload_dict)
+                                except Exception as ing_err:
+                                    _logger.debug("[bar_stream] universe ingest error: %s", ing_err)
+                                # The wildcard delivers every ticker; only the ones a
+                                # chart or owner subscribed reach the broadcaster.
+                                if parsed["sym"] not in _active:
+                                    continue
                             try:
-                                kind = parsed["kind"]
-                                # T events carry "trade" dict; AM/A events carry "bar" dict
-                                payload_dict = parsed["trade"] if kind == "T" else parsed["bar"]
                                 on_bar(parsed["sym"], payload_dict, kind)
                             except Exception as cb_err:
                                 _logger.warning("[bar_stream] on_bar callback error: %s", cb_err)
@@ -332,12 +390,119 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                 finally:
                     _running = False
                     drain_task.cancel()
+                    live_task.cancel()
         except Exception as e:
             _logger.warning("[bar_stream] disconnected: %s — reconnect in %ds", e, backoff)
             _running = False
             _ws_connection = None
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, 60)
+
+
+def _note_am_lag(end_ms) -> None:
+    try:
+        lag = int(time.time() * 1000) - int(end_ms)
+    except (TypeError, ValueError):
+        return
+    now = time.time()
+    if now - _am_lag["window_start"] >= 60:
+        _am_lag["prev_window_max_ms"] = _am_lag["max_ms"]
+        _am_lag["max_ms"] = 0
+        _am_lag["window_start"] = now
+    if lag > _am_lag["max_ms"]:
+        _am_lag["max_ms"] = lag
+        if lag > _am_lag["worst_ms"]:
+            _am_lag["worst_ms"] = lag
+
+
+async def _liveness_watch(ws) -> None:
+    """Close the socket only when it is really dead (see LIVENESS_S)."""
+    pongs = [0]
+    sent_at = [0.0]
+
+    def _on_pong(fut) -> None:
+        if not fut.cancelled() and fut.exception() is None:
+            pongs[0] += 1
+            _liveness["pongs"] += 1
+            _liveness["last_pong_rtt_ms"] = round((time.monotonic() - sent_at[0]) * 1000)
+
+    pending = None
+    seen = (_feed_frames, 0)
+    quiet = 0.0
+    last = time.monotonic()
+    while True:
+        await asyncio.sleep(_PING_EVERY_S)
+        now = time.monotonic()
+        dt, last = now - last, now
+        if pending is None or pending.done():
+            try:
+                sent_at[0] = now
+                pending = await ws.ping()
+                pending.add_done_callback(_on_pong)
+            except Exception:
+                return  # the socket is closing; the reader loop handles it
+        progress = (_feed_frames, pongs[0])
+        if progress != seen:
+            seen, quiet = progress, 0.0
+        elif dt < _PING_EVERY_S + _STALL_S:
+            quiet += dt  # only time this loop was really running counts as silence
+        if quiet >= LIVENESS_S:
+            _liveness["dead_closes"] += 1
+            _logger.warning("[bar_stream] no frame and no pong for %.0fs of running time; "
+                            "closing the socket to reconnect", quiet)
+            await ws.close()
+            return
+
+
+async def _loop_beat() -> None:
+    """0.5 s heartbeat of the WS loop; a late beat is a measured stall."""
+    global _loop_beat_mono
+    _loop_beat_mono = time.monotonic()
+    while True:
+        await asyncio.sleep(0.5)
+        now = time.monotonic()
+        late = now - _loop_beat_mono - 0.5
+        _loop_beat_mono = now
+        if late >= _STALL_S:
+            _stall["count"] += 1
+            _stall["last_s"] = round(late, 2)
+            _stall["last_at"] = time.time()
+            _stall["max_s"] = max(_stall["max_s"], round(late, 2))
+            _logger.warning("[bar_stream] WS loop stalled %.1fs", late)
+
+
+def _stall_watch() -> None:
+    """Separate OS thread: while the WS loop is stalled, record where it is stuck (its
+    own stack) and where every other thread is, once per stall, at most once a minute."""
+    import sys
+    import traceback
+    dumped_beat = None
+    last_dump = 0.0
+    while True:
+        time.sleep(1.0)
+        beat = _loop_beat_mono
+        if beat is None or _ws_thread_ident is None:
+            continue
+        age = time.monotonic() - beat
+        if age < _STALL_S or dumped_beat == beat or time.monotonic() - last_dump < 60:
+            continue
+        dumped_beat, last_dump = beat, time.monotonic()
+        try:
+            frames = sys._current_frames()
+            names = {t.ident: t.name for t in threading.enumerate()}
+            ws_stack = "".join(traceback.format_stack(frames.get(_ws_thread_ident)))[-2500:]
+            others = []
+            for tid, fr in frames.items():
+                if tid == _ws_thread_ident:
+                    continue
+                code = fr.f_code
+                others.append(f"{names.get(tid, tid)}@{code.co_filename.rsplit('/', 1)[-1]}:"
+                              f"{fr.f_lineno}:{code.co_name}")
+            _stall["dumps"] += 1
+            _logger.warning("[bar_stream] WS loop stalled %.1fs so far. WS thread: %s | "
+                            "other threads: %s", age, ws_stack, " | ".join(others)[:3000])
+        except Exception as e:  # noqa: BLE001
+            _logger.warning("[bar_stream] stall dump failed: %s", e)
 
 
 async def _drain_pending_queue(ws) -> None:
@@ -478,7 +643,21 @@ def get_status() -> dict:
             # the number to project the 300-name cost from.
             "a_msgs_per_sym_per_sec": round(_feed_counts["A"] / elapsed / active_n, 3) if active_n else None,
         },
+        "universe": _universe_status(),
+        "loop_stalls": dict(_stall),
+        "liveness": dict(_liveness),
+        "am_lag_ms": {"this_minute_max": _am_lag["max_ms"],
+                      "last_minute_max": _am_lag["prev_window_max_ms"],
+                      "worst": _am_lag["worst_ms"]},
     }
+
+
+def _universe_status() -> dict:
+    try:
+        from api.services import bars_live_ingest
+        return bars_live_ingest.status()
+    except Exception as e:  # noqa: BLE001
+        return {"error": str(e)}
 
 
 def start_stream(on_bar: OnBarCallback) -> None:
@@ -499,13 +678,16 @@ def start_stream(on_bar: OnBarCallback) -> None:
         return
 
     def _thread_target():
-        global _ws_loop
+        global _ws_loop, _ws_thread_ident
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         _ws_loop = loop
+        _ws_thread_ident = threading.get_ident()
+        loop.create_task(_loop_beat())
         loop.run_until_complete(_run_websocket(on_bar))
 
     threading.Thread(target=_thread_target, daemon=True, name="bar-stream").start()
+    threading.Thread(target=_stall_watch, daemon=True, name="bar-stream-stallwatch").start()
     _logger.info("[bar_stream] thread started")
 
 
