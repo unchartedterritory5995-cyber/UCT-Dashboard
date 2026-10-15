@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { vi, test, expect, beforeEach } from 'vitest'
 vi.mock('../../shell/FilterRail', () => ({ default: p => <div data-testid="rail" data-presentation={p.presentation} /> }))
@@ -233,11 +234,18 @@ test('7: pills use the plain column name and a lowercase operator word', () => {
 })
 test('4: after Clear all, focus stays inside the drawer and Escape still closes it', () => {
   const onClose = vi.fn()
-  render(<FiltersDrawer {...base} onClose={onClose} filters={{ rs_rank: { op: 'gte', min: 80 } }} />)
+  // As on the page: clearing removes the pills, and with them the Clear all button itself.
+  function Host() {
+    const [filters, setFilters] = useState({ rs_rank: { op: 'gte', min: 80 } })
+    return <FiltersDrawer {...base} onClose={onClose} filters={filters} onClear={() => { base.onClear(); setFilters({}) }} />
+  }
+  render(<Host />)
   const clear = screen.getByRole('button', { name: 'Clear all' })
   clear.focus()
   fireEvent.click(clear)
   expect(base.onClear).toHaveBeenCalled()
+  expect(screen.queryByRole('button', { name: 'Clear all' })).toBeNull()
+  expect(document.activeElement).not.toBe(document.body)
   const dialog = screen.getByRole('dialog', { name: 'Filters' })
   expect(dialog.contains(document.activeElement)).toBe(true)
   fireEvent.keyDown(document.activeElement, { key: 'Escape' })
