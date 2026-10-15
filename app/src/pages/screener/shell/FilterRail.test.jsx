@@ -210,7 +210,7 @@ describe('FilterRail buttons presentation: search then Enter', () => {
   })
 })
 
-// The Focus drawer's opt-in props (common / startCollapsed / openStorePrefix / showClear /
+// The Focus drawer's opt-in props (common / startCollapsed / openStore / showClear /
 // controlFor) must leave ScannerShell's rail and phone sheet exactly as they were.
 describe('FilterRail defaults are the old rail', () => {
   const LONG = { key: 'industry', label: 'Industry', category: 'descriptive', type: 'enum',
@@ -249,14 +249,14 @@ describe('FilterRail defaults are the old rail', () => {
 describe('FilterRail opt-in: startCollapsed', () => {
   it('starts closed, opens a group with an active filter, and remembers a choice under its prefix', () => {
     const { unmount } = render(<FilterRail meta={META} activeFilters={{ pole_pct: { op: 'gte', min: 30 } }}
-      onChange={() => {}} onClear={() => {}} startCollapsed openStorePrefix="t.drawer" />)
+      onChange={() => {}} onClear={() => {}} startCollapsed openStore="drawer" />)
     expect(screen.getByRole('button', { name: /^Descriptive/ })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByRole('button', { name: /^Momentum/ })).toHaveAttribute('aria-expanded', 'true')
     fireEvent.click(screen.getByRole('button', { name: /^Descriptive/ }))
     expect(screen.getByLabelText('Price')).toBeInTheDocument()
-    expect(localStorage.getItem('t.drawer.descriptive')).toBe('1')
+    expect(localStorage.getItem('uct.screener.drawer.descriptive')).toBe('1')
     unmount()
-    render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} startCollapsed openStorePrefix="t.drawer" />)
+    render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} startCollapsed openStore="drawer" />)
     expect(screen.getByRole('button', { name: /^Descriptive/ })).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByRole('button', { name: /^Momentum/ })).toHaveAttribute('aria-expanded', 'false')
   })
@@ -264,20 +264,20 @@ describe('FilterRail opt-in: startCollapsed', () => {
   it('reads the remembered choices once, not on every render', () => {
     const spy = vi.spyOn(Storage.prototype, 'getItem')
     const { rerender } = render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}}
-      startCollapsed openStorePrefix="t.drawer" />)
-    const reads = spy.mock.calls.filter(([k]) => k.startsWith('t.drawer.')).length
+      startCollapsed openStore="drawer" />)
+    const reads = spy.mock.calls.filter(([k]) => k.startsWith('uct.screener.drawer.')).length
     expect(reads).toBe(2)                     // one per group
     for (let i = 0; i < 5; i++) {
       rerender(<FilterRail meta={META} activeFilters={{ price: { op: 'gte', min: i } }} onChange={() => {}} onClear={() => {}}
-        startCollapsed openStorePrefix="t.drawer" />)
+        startCollapsed openStore="drawer" />)
     }
-    expect(spy.mock.calls.filter(([k]) => k.startsWith('t.drawer.')).length).toBe(reads)
+    expect(spy.mock.calls.filter(([k]) => k.startsWith('uct.screener.drawer.')).length).toBe(reads)
     spy.mockRestore()
   })
 
   it('closing a group that holds an active filter sticks', () => {
     render(<FilterRail meta={META} activeFilters={{ pole_pct: { op: 'gte', min: 30 } }}
-      onChange={() => {}} onClear={() => {}} startCollapsed openStorePrefix="t.drawer" />)
+      onChange={() => {}} onClear={() => {}} startCollapsed openStore="drawer" />)
     fireEvent.click(screen.getByRole('button', { name: /^Momentum/ }))
     expect(screen.getByRole('button', { name: /^Momentum/ })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByLabelText('Prior Run (Pole %)')).toBeNull()

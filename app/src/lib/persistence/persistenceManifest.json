@@ -2384,7 +2384,54 @@
       "kind": "setting",
       "label": "Row density",
       "files": [
+        "app/src/pages/screener/focus/FocusScreener.jsx",
         "app/src/pages/screener/shell/ScannerShell.jsx"
+      ]
+    },
+    {
+      "key": "uct.screener.drawer.*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "state",
+      "label": "Filters drawer sections open or closed",
+      "pattern": true,
+      "files": [
+        "app/src/pages/screener/shell/FilterRail.jsx"
+      ]
+    },
+    {
+      "key": "uct.screener.landingSeed:*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "cache",
+      "label": "Pinned screens to open on, per member",
+      "pattern": true,
+      "files": [
+        "app/src/pages/screener/focus/landing.js"
+      ]
+    },
+    {
+      "key": "uct.screener.layout",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "Focus or Table layout",
+      "files": [
+        "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
+      "key": "uct.screener.pinned",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "Pinned screens",
+      "files": [
+        "app/src/pages/screener/focus/FocusScreener.jsx"
       ]
     },
     {
@@ -2397,6 +2444,28 @@
       "pattern": true,
       "files": [
         "app/src/pages/screener/shell/FilterRail.jsx"
+      ]
+    },
+    {
+      "key": "uct.screener.showCompany",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "Show company names in the list",
+      "files": [
+        "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
+      "key": "uct.screener.watchlistTarget",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "Watchlist the Watch button adds to",
+      "files": [
+        "app/src/pages/screener/focus/useWatchlistTarget.js"
       ]
     },
     {
@@ -2742,6 +2811,17 @@
       "label": "Chart review session",
       "files": [
         "app/src/pages/charts/review/reviewSession.js"
+      ]
+    },
+    {
+      "key": "uct.screener.named",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "state",
+      "label": "Which named screen the current filters came from",
+      "files": [
+        "app/src/pages/screener/focus/FocusScreener.jsx"
       ]
     },
     {

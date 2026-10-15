@@ -185,7 +185,7 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
         <div className={styles.drawerBody}>
           <FilterRail meta={meta} activeFilters={filters} onChange={onSetFilter} onClear={clearAll}
             variant="sheet" presentation="buttons" common={COMMON_FILTERS} startCollapsed
-            openStorePrefix="uct.screener.drawer" showClear={false} controlFor={drawerControl} />
+            openStore="drawer" showClear={false} controlFor={drawerControl} />
         </div>
         <footer className={styles.drawerFoot}>
           <details className={styles.codeBox}>

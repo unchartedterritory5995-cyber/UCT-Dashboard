@@ -92,6 +92,7 @@ const PaneChart = memo(function PaneChart({ sym, tf, priceLines, settled, onDraw
       <StockChart key={retry} sym={sym} tf={tf}
         {...look}
         settingsOverride={settingsOverride}
+        viewLockKey={null}
         showDrawingTools={false} showSavedDrawings
         hideReplay hidePatterns hideCompare hideCountdown disablePatterns
         backgroundWarm={false} liveUpdates={settled} hotkeysActive={false}

@@ -16,10 +16,12 @@ const CAT_ICON = {
   my_lists: 'star', my_scans: 'screener',
 }
 
+// Two stores, both module constants, so the persistence census resolves every key.
 const RAIL_PREFIX = 'uct.screener.rail'
-const openKey = (k, prefix = RAIL_PREFIX) => `${prefix}.${k}`
+const DRAWER_PREFIX = 'uct.screener.drawer'
+const openKey = (k, store = 'rail') => `${store === 'drawer' ? DRAWER_PREFIX : RAIL_PREFIX}.${k}`
 const readOpen = k => { try { return localStorage.getItem(openKey(k)) !== '0' } catch { return true } }
-const readStored = (prefix, k) => { try { return localStorage.getItem(openKey(k, prefix)) } catch { return null } }
+const readStored = (store, k) => { try { return localStorage.getItem(openKey(k, store)) } catch { return null } }
 
 // The opt-in "Common" group (the Focus drawer's). Its key cannot collide with a
 // server category key, which are plain snake_case words.
@@ -46,15 +48,15 @@ function groupOpen({ open, key, startCollapsed, stored, active }) {
 //   common          filter keys shown first in their own "Common" group, and
 //                   taken out of their server category so no control renders twice
 //   startCollapsed  groups start closed (see groupOpen) instead of remembered-open
-//   openStorePrefix where open/closed choices persist; a different prefix keeps
-//                   the drawer's choices from moving the desktop rail's
+//   openStore       'rail' | 'drawer': where open/closed choices persist; the drawer's
+//                   own store keeps its choices from moving the desktop rail's
 //   showClear       the "Clear N" button beside the search box
 //   controlFor      (filter, value, onChange) => element | null: a caller-supplied
 //                   control for one filter; null falls back to the stock control
 export default function FilterRail({ meta, activeFilters, onChange, onClear, variant = 'rail',
   matchCount, matchCountEmpty, matchCountLoading, matchCountAsOf = null, criteriaSlot = null,
   presentation = 'select', common = null, startCollapsed = false,
-  openStorePrefix = RAIL_PREFIX, showClear = true, controlFor = null }) {
+  openStore = 'rail', showClear = true, controlFor = null }) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(() => (startCollapsed ? {}
     : Object.fromEntries((meta?.categories || []).map(c => [c.key, readOpen(c.key)]))))
@@ -91,8 +93,8 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
   // every render); after that the member's clicks live in `open`.
   const groupKeys = groups.map(g => g.key).join('|')
   const stored = useMemo(() => (startCollapsed
-    ? Object.fromEntries(groupKeys.split('|').map(k => [k, readStored(openStorePrefix, k)])) : {}),
-  [groupKeys, startCollapsed, openStorePrefix])
+    ? Object.fromEntries(groupKeys.split('|').map(k => [k, readStored(openStore, k)])) : {}),
+  [groupKeys, startCollapsed, openStore])
   const isOpen = (prevOpen, g) => groupOpen({ open: prevOpen, key: g.key, startCollapsed,
     stored: stored[g.key] ?? null, active: countActive(g.all, activeFilters) })
 
@@ -174,7 +176,7 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
 
   const toggle = g => setOpen(prev => {
     const next = { ...prev, [g.key]: !isOpen(prev, g) }
-    try { localStorage.setItem(openKey(g.key, openStorePrefix), next[g.key] ? '1' : '0') } catch { /* private mode */ }
+    try { localStorage.setItem(openKey(g.key, openStore), next[g.key] ? '1' : '0') } catch { /* private mode */ }
     return next
   })
   const activeTotal = Object.keys(activeFilters).length

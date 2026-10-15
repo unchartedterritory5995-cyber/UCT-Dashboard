@@ -132,7 +132,8 @@ function _startFetch(url) {
 }
 async function _fillUrgent(url, sym, tf) {
   if (memHas(sym, tf)) return
-  const have = await idbGet(sym, tf).catch(() => null)
+  let have = null
+  try { have = await idbGet(sym, tf) } catch { /* IDB unavailable: fetch instead */ }
   if (have?.bars?.length && _memPromoteFresh(tf, have.lastT)) { memPut(sym, tf, have.bars); return }
   const json = _noteWarmResult(await preload(url, warmFetcher))
   if (json?.bars?.length && !json.delta) {
