@@ -1,4 +1,5 @@
-"""Wednesday 09:00-11:00 ET deploy freeze for the `web` promotion (decision B1 / T-4).
+"""Deploy freeze for the `web` promotion: the Wednesday 09:00-11:00 ET measurement
+window (decision B1 / T-4), and every weekday's opening and closing rush.
 
 WHY. The measurement window (TERM-007 / TERM-017 / X-15) is only valid on ONE web
 pod for the whole 09:00-11:00 ET window; a deploy inside it restarts the process
@@ -6,13 +7,20 @@ and voids that week's reading. `web` deploys from `production`, and
 `.github/workflows/promote-production.yml` is the one step that moves
 `production`, so that is where a freeze can actually hold.
 
+THE MARKET RUSHES (2026-10-15). A web deploy restarts the pod that holds the Massive
+stocks socket; the universe live-bars feed reconnects and the serving tier repairs the
+gap. On 2026-10-15 two web deploys landed at 15:47 and 16:02 ET, around the close. So
+web is also held every weekday inside `BURST_WINDOWS_ET` (09:20-09:45 and 15:30-16:15
+ET, half-open), the busiest minutes of the session. Catch-up: the workflow's weekday
+scheduled runs after each rush promote the tip of master.
+
 WHAT IT DOES. Prints a verdict and exits:
 
     0  NOT FROZEN  promote as usual
-    3  FROZEN      inside the window; the promotion is HELD, not refused. The
-                   workflow's scheduled run (Wed 15:05 and 16:05 UTC) promotes the
-                   tip of master once the window has closed, so nothing waits for
-                   the next push.
+    3  FROZEN      inside a window; the promotion is HELD, not refused. The
+                   workflow's scheduled runs (Wed 15:05 and 16:05 UTC; weekdays
+                   after each rush) promote the tip of master once the window has
+                   closed, so nothing waits for the next push.
 
 With `GITHUB_OUTPUT` set it also writes `frozen=yes|no` there.
 
@@ -50,6 +58,8 @@ EXIT_OPEN = 0
 EXIT_FROZEN = 3
 OVERRIDE_ENV = "DEPLOY_FREEZE_OVERRIDE"
 OVERRIDE_TOKEN = "[freeze-override]"
+#: Weekday rushes, ET wall clock, half-open [start, end). (name, start, end)
+BURST_WINDOWS_ET = (("opening", (9, 20), (9, 45)), ("closing", (15, 30), (16, 15)))
 
 _ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -62,25 +72,49 @@ def _window_module():
     return mod
 
 
+def burst_window(now: _dt.datetime) -> str | None:
+    """The weekday rush `now` falls in ("opening"/"closing"), or None."""
+    from zoneinfo import ZoneInfo
+    et = now.astimezone(ZoneInfo("America/New_York"))
+    if et.weekday() >= 5:
+        return None
+    hm = (et.hour, et.minute)
+    for name, start, end in BURST_WINDOWS_ET:
+        if start <= hm < end:
+            return name
+    return None
+
+
 def decide(now: _dt.datetime, *, override: str = "", message: str = "",
-           in_window_fn=None) -> tuple[int, str]:
-    """(exit_code, reason). Pure apart from the window function."""
+           in_window_fn=None, burst_fn=None) -> tuple[int, str]:
+    """(exit_code, reason). Pure apart from the window functions."""
     try:
         in_window_fn = in_window_fn or _window_module().in_window
         inside = bool(in_window_fn(now))
+        rush = (burst_fn or burst_window)(now)
     except Exception as e:  # noqa: BLE001
         return EXIT_OPEN, (f"NOT FROZEN (fail-open): the window could not be read "
                            f"({type(e).__name__}: {e})")
-    if not inside:
-        return EXIT_OPEN, "NOT FROZEN: outside Wednesday 09:00-11:00 ET"
+    if not inside and not rush:
+        return EXIT_OPEN, ("NOT FROZEN: outside Wednesday 09:00-11:00 ET and outside the "
+                           "weekday opening/closing rush")
+    if inside:
+        what = "the Wednesday 09:00-11:00 ET measurement window (TERM-007)"
+        cost = "This week's measurement window is void."
+        after = "the scheduled run after 11:00 ET"
+    else:
+        start, end = next((a, b) for n, a, b in BURST_WINDOWS_ET if n == rush)
+        what = (f"the weekday {rush} rush ({start[0]:02d}:{start[1]:02d}-"
+                f"{end[0]:02d}:{end[1]:02d} ET)")
+        cost = "The live bars feed reconnects inside the rush."
+        after = "the scheduled run after the rush"
     if override.strip():
-        return EXIT_OPEN, (f"NOT FROZEN (OVERRIDE): inside the window, override reason: "
-                           f"{override.strip()[:200]}. This week's measurement window is void.")
+        return EXIT_OPEN, (f"NOT FROZEN (OVERRIDE): inside {what}, override reason: "
+                           f"{override.strip()[:200]}. {cost}")
     if OVERRIDE_TOKEN in (message or ""):
-        return EXIT_OPEN, (f"NOT FROZEN (OVERRIDE): inside the window, commit message carries "
-                           f"{OVERRIDE_TOKEN}. This week's measurement window is void.")
-    return EXIT_FROZEN, ("FROZEN: inside the Wednesday 09:00-11:00 ET measurement window "
-                         "(TERM-007). web is not promoted now; the scheduled run after 11:00 ET "
+        return EXIT_OPEN, (f"NOT FROZEN (OVERRIDE): inside {what}, commit message carries "
+                           f"{OVERRIDE_TOKEN}. {cost}")
+    return EXIT_FROZEN, (f"FROZEN: inside {what}. web is not promoted now; {after} "
                          f"promotes the tip of master. Override: {OVERRIDE_ENV}=<reason> or "
                          f"{OVERRIDE_TOKEN} in the commit message.")
 
@@ -118,12 +152,31 @@ def self_check() -> int:
          decide(wed_in, message=f"fix: x {OVERRIDE_TOKEN}")[0] == EXIT_OPEN)
     case("a broken window fails OPEN",
          decide(wed_in, in_window_fn=lambda _n: 1 / 0)[0] == EXIT_OPEN)
+    # the weekday rushes (2026-10-15)
+    thu_close = _dt.datetime(2026, 10, 15, 19, 55, tzinfo=utc)  # 15:55 EDT
+    case("a Thursday 15:55 ET (closing rush) is FROZEN", decide(thu_close)[0] == EXIT_FROZEN)
+    case("15:30 ET exactly is FROZEN (half-open start)",
+         decide(_dt.datetime(2026, 10, 15, 19, 30, tzinfo=utc))[0] == EXIT_FROZEN)
+    case("16:15 ET exactly is not (half-open end)",
+         decide(_dt.datetime(2026, 10, 15, 20, 15, tzinfo=utc))[0] == EXIT_OPEN)
+    case("15:29 ET is not", decide(_dt.datetime(2026, 10, 15, 19, 29, tzinfo=utc))[0] == EXIT_OPEN)
+    case("a Monday 09:30 ET (opening rush) is FROZEN",
+         decide(_dt.datetime(2026, 10, 19, 13, 30, tzinfo=utc))[0] == EXIT_FROZEN)
+    case("09:45 ET is not", decide(_dt.datetime(2026, 10, 19, 13, 45, tzinfo=utc))[0] == EXIT_OPEN)
+    case("winter (EST) 15:55 ET is FROZEN",
+         decide(_dt.datetime(2026, 12, 3, 20, 55, tzinfo=utc))[0] == EXIT_FROZEN)
+    case("a Saturday 15:55 ET is not",
+         decide(_dt.datetime(2026, 10, 17, 19, 55, tzinfo=utc))[0] == EXIT_OPEN)
+    case("the override opens a rush", decide(thu_close, override="hotfix")[0] == EXIT_OPEN)
+    case("a broken rush reader fails OPEN",
+         decide(thu_close, burst_fn=lambda _n: 1 / 0)[0] == EXIT_OPEN)
     print("self-check: " + ("PASS" if not bad else f"FAIL ({bad})"))
     return 0 if not bad else 1
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="Wednesday measurement-window deploy freeze.")
+    ap = argparse.ArgumentParser(description="web deploy freeze: Wednesday measurement window "
+                                             "and the weekday market rushes.")
     ap.add_argument("--now", default=None, help="ISO time to judge (default: now, UTC)")
     ap.add_argument("--message", default=None, help="candidate commit message")
     ap.add_argument("--self-check", action="store_true")

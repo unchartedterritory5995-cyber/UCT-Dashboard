@@ -51,9 +51,18 @@ on:
   # promote the tip of master once the window has closed (15:05 UTC = 11:05 EDT,
   # 16:05 UTC = 11:05 EST; the off-season one lands inside the window and holds again,
   # harmlessly). A run with nothing new to promote ends "Already promoted".
+  #
+  # ⭐ THE WEEKDAY RUSH CATCH-UPS (2026-10-15). web is also held during each weekday's
+  # opening (09:20-09:45 ET) and closing (15:30-16:15 ET) rush; these promote the tip of
+  # master after each: 09:50 and 16:20 ET, one cron per daylight/standard offset (the
+  # other lands outside every window and promotes harmlessly).
   schedule:
     - cron: '5 15 * * 3'
     - cron: '5 16 * * 3'
+    - cron: '50 13 * * 1-5'
+    - cron: '50 14 * * 1-5'
+    - cron: '20 20 * * 1-5'
+    - cron: '20 21 * * 1-5'
 
 # ⛔ ONE QUEUE, AND `cancel-in-progress: false` IS THE WHOLE MECHANISM.
 #
@@ -112,7 +121,7 @@ jobs:
       # one-pod reading. FAILS OPEN: an error in the tool, or in this step, leaves
       # `frozen` unset and the promotion proceeds. Override: the `freeze_override`
       # dispatch input, or `[freeze-override]` in the candidate commit's message.
-      - name: Deploy freeze (Wed 09:00-11:00 ET measurement window)
+      - name: Deploy freeze (Wed 09:00-11:00 ET measurement window, weekday rushes)
         id: freeze
         continue-on-error: true
         env:
@@ -123,10 +132,10 @@ jobs:
           python tools/deploy_freeze.py --message "$MSG"
           CODE=$?
           if [ "$CODE" = "3" ]; then
-            echo "::notice title=Promotion held (measurement window)::Inside Wed 09:00-11:00 ET. production is not moved now; the scheduled run after 11:00 ET promotes the tip of master."
-            echo "## Promotion held — measurement window" >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice title=Promotion held (deploy freeze)::Inside the Wed 09:00-11:00 ET measurement window or a weekday market rush. production is not moved now; the next scheduled run after the window promotes the tip of master."
+            echo "## Promotion held — deploy freeze" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "Inside the Wednesday 09:00-11:00 ET window (TERM-007). The scheduled run after 11:00 ET promotes the tip of master." >> "$GITHUB_STEP_SUMMARY"
+            echo "Inside the Wednesday 09:00-11:00 ET window (TERM-007) or a weekday rush (09:20-09:45 / 15:30-16:15 ET). The next scheduled run promotes the tip of master." >> "$GITHUB_STEP_SUMMARY"
           fi
           exit 0
 

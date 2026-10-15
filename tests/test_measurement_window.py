@@ -288,6 +288,10 @@ def test_the_promotion_workflow_skips_the_fast_forward_when_frozen():
     assert "python tools/deploy_freeze.py" in wf
     assert "steps.freeze.outputs.frozen != 'yes'" in wf
     assert "cron: '5 15 * * 3'" in wf
+    # the weekday rush catch-ups (2026-10-15): one per daylight/standard offset, after
+    # the opening (09:50 ET) and the closing (16:20 ET) rush
+    for cron in ("50 13 * * 1-5", "50 14 * * 1-5", "20 20 * * 1-5", "20 21 * * 1-5"):
+        assert f"cron: '{cron}'" in wf
 
 
 def test_the_one_off_extra_window_2026_10_13_is_a_full_window():

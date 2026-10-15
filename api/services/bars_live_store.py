@@ -29,12 +29,22 @@ Two feeds keep it current:
   ticker's `day` bar (o/h/l/c/v so far). Polled every `BARS_LIVE_DAILY_POLL_S`.
   A ticker is COVERED for tf=D while the poll is alive and its daily history is held.
 
+**Restarts of this tier** (2026-10-15: a deploy at 15:53 ET cost a 229 s full
+repair of the whole universe). Coverage is checkpointed into bars.db itself every
+`BARS_LIVE_CKPT_S` (see `save_checkpoint`). On boot the checkpoint is read back: if the
+web pod's socket is the SAME one (same epoch), every ticker it covered is covered again
+at once, because every push it acknowledged was committed to this database before the
+acknowledgement; otherwise each ticker repairs only from where that feed stopped. The
+checkpoint lives in bars.db so a database replaced by an R2 snapshot carries none,
+and the tier then does a full repair, as before.
+
 Covered means `_needs_fresh` answers False, so the read is served from SQLite at
 once. Uncovered (feed down, not yet backfilled, flag off) falls back to today's path
 unchanged. Kill switch: `BARS_LIVE_COVERAGE_ENABLED` (unset = OFF).
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import threading
@@ -108,6 +118,11 @@ _urgent_set: set[str] = set()
 #: Bumped whenever a ticker's stream minutes for the boundary bucket change.
 _b0_ver: dict[str, int] = {}
 _b0_write_lock = threading.Lock()
+#: Coverage checkpoint (see the module doc). Seconds between saves.
+CKPT_EVERY_S = float(os.environ.get("BARS_LIVE_CKPT_S", "15"))
+_ckpt = {"last_mono": None, "saves": 0, "save_errors": 0, "loaded": None, "adopted": 0}
+#: The checkpoint read at boot, until the first push says whether its socket survived.
+_restored: Optional[dict] = None
 _backfill_wakeup = threading.Event()
 _threads_started = False
 
@@ -209,12 +224,19 @@ def ingest(payload: dict) -> dict:
     ffb = payload.get("first_full_bucket_ms")
     seq = int(payload.get("seq") or 1)
     rows = payload.get("rows") or []
+    global _restored
     with _lock:
         if epoch is not None and epoch != _state["epoch_ms"]:
-            if seq > 1:
-                _state["resyncs_requested"] += 1
-                return {"accepted": 0, "resync": True, "epoch_ms": _state["epoch_ms"]}
-            _begin_epoch_locked(epoch, ffb)
+            r, _restored = _restored, None
+            if r is not None and r["epoch_ms"] == epoch and r["first_full_bucket_ms"] is not None:
+                _adopt_restored_locked(r)
+            else:
+                if r is not None:
+                    _gaps_from_restored_locked(r)
+                if seq > 1:
+                    _state["resyncs_requested"] += 1
+                    return {"accepted": 0, "resync": True, "epoch_ms": _state["epoch_ms"]}
+                _begin_epoch_locked(epoch, ffb)
         _state["last_push_mono"] = _now_mono()
         if payload.get("watermark_ms"):
             _state["watermark_ms"] = payload["watermark_ms"]
@@ -246,13 +268,136 @@ def ingest(payload: dict) -> dict:
             _b0_stream.setdefault(sym, {})[mts] = (float(o), float(h), float(l), float(c), int(v or 0))
             _b0_ver[sym] = _b0_ver.get(sym, 0) + 1
             moved_b0.add(sym)
-        rebuild = [s_ for s_ in moved_b0 if s_ in _covered5]
+        # Only a ticker holding the provider's half of the boundary bucket is rebuilt: one
+        # covered by a restored checkpoint has its boundary row on disk already, and the
+        # stream's minutes alone would overwrite it with a partial bucket.
+        rebuild = [s_ for s_ in moved_b0 if s_ in _covered5 and s_ in _b0_provider]
     n = _write_rows("5", clean) if clean else 0
     if rebuild:
         n += _write_b0(rebuild, epoch)
     with _lock:
         _state["rows_written"] += n
+    save_checkpoint()
     return {"accepted": n, "epoch_ms": _state["epoch_ms"]}
+
+
+def _adopt_restored_locked(r: dict) -> None:
+    """The socket outlived this process: what it covered before the restart is covered."""
+    _state["epoch_ms"] = r["epoch_ms"]
+    _state["first_full_bucket_ms"] = r["first_full_bucket_ms"]
+    _state["watermark_ms"] = r["watermark_ms"]
+    for sym in r["covered"]:
+        _covered5.add(sym)
+        _gap_from.pop(sym, None)
+    _ckpt["adopted"] = len(r["covered"])
+    _log.info("[bars-live] same socket as before the restart: %d tickers covered again "
+              "from the checkpoint", len(r["covered"]))
+    _backfill_wakeup.set()
+
+
+def _gaps_from_restored_locked(r: dict) -> None:
+    """The socket changed too: each ticker the checkpoint covered repairs from where that
+    feed stopped (or in full, when that is older than BACKFILL_DAYS)."""
+    wm = r.get("watermark_ms")
+    if not wm:
+        return
+    stop = (int(wm) // 1000) // BUCKET_S * BUCKET_S
+    if stop < int(time.time()) - BACKFILL_DAYS * 86400:
+        return
+    for sym in r["covered"]:
+        prev = _gap_from.get(sym)
+        _gap_from[sym] = stop if prev is None else min(prev, stop)
+
+
+# -- coverage checkpoint (survives a restart of this tier) --------------------
+
+_CKPT_DDL = ("CREATE TABLE IF NOT EXISTS live_cov_ckpt("
+             "id INTEGER PRIMARY KEY CHECK (id = 1), saved_at REAL NOT NULL, body TEXT NOT NULL)")
+
+
+def _checkpoint_body_locked() -> Optional[dict]:
+    if _state["epoch_ms"] is None:
+        return None
+    gaps: dict[str, list[str]] = {}
+    for sym, g in _gap_from.items():
+        gaps.setdefault(str(g), []).append(sym)
+    return {"v": 1, "epoch_ms": _state["epoch_ms"],
+            "first_full_bucket_ms": _state["first_full_bucket_ms"],
+            "watermark_ms": _state["watermark_ms"], "covered": sorted(_covered5),
+            "gaps": gaps, "complete": sorted(_history5_complete)}
+
+
+def save_checkpoint(force: bool = False) -> bool:
+    """Write the coverage checkpoint, at most every CKPT_EVERY_S unless `force`.
+    Taken under the state lock after the push's rows were committed, so every ticker it
+    calls covered has its series on disk through the watermark it records."""
+    if not enabled():
+        return False
+    now = _now_mono()
+    last = _ckpt["last_mono"]
+    if not force and last is not None and now - last < CKPT_EVERY_S:
+        return False
+    _ckpt["last_mono"] = now
+    with _lock:
+        body = _checkpoint_body_locked()
+    if body is None:
+        return False
+    from api.services import bars_sqlite
+    try:
+        with bars_sqlite._WRITE_LOCK:
+            c = bars_sqlite._conn()
+            c.execute(_CKPT_DDL)
+            c.execute("INSERT OR REPLACE INTO live_cov_ckpt(id, saved_at, body) VALUES (1, ?, ?)",
+                      (time.time(), json.dumps(body, separators=(",", ":"))))
+            c.commit()
+        _ckpt["saves"] += 1
+        return True
+    except Exception as e:  # noqa: BLE001
+        _ckpt["save_errors"] += 1
+        _log.warning("[bars-live] checkpoint save failed: %s", e)
+        return False
+
+
+def load_checkpoint() -> int:
+    """Read the checkpoint at boot. Returns how many tickers it named."""
+    global _restored
+    from api.services import bars_sqlite
+    try:
+        row = bars_sqlite._conn().execute(
+            "SELECT saved_at, body FROM live_cov_ckpt WHERE id = 1").fetchone()
+    except Exception:
+        return 0  # no table: a fresh or replaced database
+    if not row:
+        return 0
+    try:
+        saved_at, body = float(row[0]), json.loads(row[1])
+        if body.get("v") != 1:
+            return 0
+    except Exception:  # noqa: BLE001
+        return 0
+    floor = int(time.time()) - BACKFILL_DAYS * 86400
+    if saved_at < floor:
+        return 0
+    n = 0
+    with _lock:
+        for g, syms in (body.get("gaps") or {}).items():
+            g = int(g)
+            if g < floor:
+                continue  # older than the backfill window: a full repair instead
+            for sym in syms:
+                prev = _gap_from.get(sym)
+                _gap_from[sym] = g if prev is None else min(prev, g)
+                n += 1
+        _history5_complete.update(body.get("complete") or ())
+        covered = set(body.get("covered") or ())
+        n += len(covered)
+        _restored = {"epoch_ms": body.get("epoch_ms"),
+                     "first_full_bucket_ms": body.get("first_full_bucket_ms"),
+                     "watermark_ms": body.get("watermark_ms"), "covered": covered}
+    _ckpt["loaded"] = {"tickers": n, "age_s": round(time.time() - saved_at, 1)}
+    _log.info("[bars-live] coverage checkpoint read: %d covered, %d awaiting repair, %.0fs old",
+              len(covered), n - len(covered), time.time() - saved_at)
+    return n
 
 
 def _begin_epoch_locked(epoch: int, ffb: Optional[int]) -> None:
@@ -438,6 +583,7 @@ def _backfill_pass() -> None:
         took = _state["backfill_finished_at"] - _state["backfill_started_at"]
     if not todo and not _state["backfill_done"] and not _state["backfill_failed"]:
         return
+    save_checkpoint(force=True)
     _log.info("[bars-live] repair pass for epoch %s: %d covered, %d failed of %d in %.0fs "
               "(gap repairs so far %d, full %d)",
               epoch, _state["backfill_done"], _state["backfill_failed"], len(todo), took,
@@ -591,6 +737,11 @@ def start() -> None:
     if _threads_started:
         return
     _threads_started = True
+    if enabled():
+        try:
+            load_checkpoint()
+        except Exception as e:  # noqa: BLE001
+            _log.warning("[bars-live] checkpoint read failed: %s", e)
     threading.Thread(target=_backfill_loop, daemon=True, name="bars-live-backfill").start()
     how = _start_daily()
     _log.info("[bars-live] started (enabled=%s, daily poll in %s)", enabled(), how)
@@ -603,6 +754,7 @@ def status() -> dict:
         s["gap_pending"] = len(_gap_from)
         s["b0_stream_tickers"] = len(_b0_stream)
         s["daily_seen"] = len(_daily_seen)
+        s["checkpoint"] = {k: v for k, v in _ckpt.items() if k != "last_mono"}
     s["enabled"] = enabled()
     s["stream_alive"] = stream_alive()
     s["daily_alive"] = daily_alive()
@@ -614,6 +766,9 @@ def status() -> dict:
 
 
 def _reset_for_tests() -> None:
+    global _restored
+    _restored = None
+    _ckpt.update({"last_mono": None, "saves": 0, "save_errors": 0, "loaded": None, "adopted": 0})
     with _lock:
         for k in _state:
             _state[k] = 0 if isinstance(_state[k], int) and k not in (
