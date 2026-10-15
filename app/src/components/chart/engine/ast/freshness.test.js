@@ -109,7 +109,11 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //   excluded 66 + 1 = 67         `security_type` (#176, 2026-09-28) --
     //                               a Stock / ADR / ETF bucket label, TEXT,
     //                               for `sector`'s reason.
-    expect(Object.keys(excluded).length).toBe(67)
+    //   excluded 67 + 1 = 68         `rvol_live` (2026-10-15) -- volume vs usual
+    //                               by now, LIVE-ONLY: NULL in every nightly row
+    //                               by design, so a scalar over it would be a
+    //                               hole at every hour.
+    expect(Object.keys(excluded).length).toBe(68)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

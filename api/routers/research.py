@@ -494,10 +494,15 @@ def research_snapshot_batch(tickers: list[str] = Body(..., embed=True),
         except Exception:
             _today = None
         avg = bars_sqlite.avg_daily_volume(list(out.keys()), sessions=20, before_ymd=_today)
+        # The 30 completed sessions before today — the SAME window as the screener's
+        # `avg_volume_30d`, which is what the chart header's RVOL divides by so the
+        # chart and the screener's `rvol_live` ("volume vs usual by now") agree.
+        avg30 = bars_sqlite.avg_daily_volume(list(out.keys()), sessions=30, before_ymd=_today)
     except Exception:
-        avg = {}
+        avg, avg30 = {}, {}
     for sym in out:
         out[sym]["avg_vol_20d"] = avg.get(sym)
+        out[sym]["avg_vol_30d"] = avg30.get(sym)
 
     # First-trade (IPO) date — for the optional 'IPO Date' column. One bulk GROUP BY
     # over bars.db's since-inception daily coverage; YYYYMMDD int per ticker.

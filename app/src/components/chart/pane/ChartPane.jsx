@@ -21,11 +21,12 @@ import { useFlagged } from '../../../hooks/useFlagged'
 import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 import useWatchlistPerformance from '../../../hooks/useWatchlistPerformance'
 import useWatchlistMeta from '../../../hooks/useWatchlistMeta'
+import useVolumeCurve from '../../../hooks/useVolumeCurve'
 import useWatchlistThemes from '../../../hooks/useWatchlistThemes'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import {
   HEADER_FIELD_BY_KEY, PERF_HEADER_KEYS, QUOTE_HEADER_KEYS, META_HEADER_KEYS,
-  THEME_HEADER_KEYS, headerFieldKeys, resolveHeaderField, SIGN_POS, SIGN_NEG,
+  THEME_HEADER_KEYS, CURVE_HEADER_KEYS, headerFieldKeys, resolveHeaderField, SIGN_POS, SIGN_NEG,
 } from '../headerFields'
 import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
@@ -521,12 +522,14 @@ function ChartPane({
   const wantsMeta = infoGate && infoFieldKeys.some((k) => META_HEADER_KEYS.has(k))
   const wantsTheme = infoGate && infoFieldKeys.some((k) => THEME_HEADER_KEYS.has(k))
   const wantsPerf = infoGate && infoFieldKeys.some((k) => PERF_HEADER_KEYS.has(k))
+  const wantsCurve = infoGate && infoFieldKeys.some((k) => CURVE_HEADER_KEYS.has(k))
   const { prices: hdrPrices } = useRealtimePrices(wantsQuote ? [sym] : [])
   const { metaData: hdrMeta } = useWatchlistMeta(wantsMeta ? [sym] : [])
   const { themeData: hdrTheme } = useWatchlistThemes(wantsTheme ? [sym] : [])
   const { perfData } = useWatchlistPerformance(wantsPerf ? [sym] : [])
+  const volCurve = useVolumeCurve(wantsCurve)
   const metaItems = useMemo(() => {
-    const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike }
+    const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike, volCurve }
     return infoFieldKeys.map((key) => {
       const f = HEADER_FIELD_BY_KEY[key]
       if (!f) return null
@@ -542,7 +545,7 @@ function ChartPane({
       }
       return { key, label: f.label, short: f.short || f.label, value, color: finalColor }
     }).filter(Boolean)
-  }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym, companyName, isFundLike])
+  }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym, companyName, isFundLike, volCurve])
 
   // ── Wrap-fit measurement (drives tfCap / infoForceAbbrev declared above) ──
   // A signature of what occupies the row besides the timeframe buttons: the info

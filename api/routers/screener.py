@@ -407,6 +407,18 @@ def screener_snapshot_status(user=Depends(require_paid)):
     return {**scr_db.status(), "live": scr_query.live_tier_state()}
 
 
+@router.get("/api/screener/volume-curve")
+def screener_volume_curve(user=Depends(require_paid)):
+    """The market-wide time-of-day volume curve + today's ET session window, so the
+    chart header's RVOL computes the SAME number as the screener's live `rvol_live`
+    ("volume vs usual by now"). One small cached payload for every chart, never a
+    per-ticker call. `curve: null` (no night has stored one) or `session: null`
+    (not a trading day) both mean the header reads blank.
+    Design: docs/superpowers/specs/2026-10-15-screener-live-relative-volume-design.md."""
+    from api.services.screener import volume_curve
+    return volume_curve.client_payload()
+
+
 @router.post("/api/screener/refresh")
 def screener_refresh(max_tickers: int = 800, user=Depends(require_admin)):
     """Admin: warm the snapshot now (background, capped) instead of waiting for

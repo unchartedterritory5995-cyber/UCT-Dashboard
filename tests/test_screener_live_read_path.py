@@ -712,3 +712,33 @@ def test_the_evaluator_never_NAMES_the_overlay__BY_AST():
     # nothing would both read as a clean bill of health.
     assert "snapshot_db" in imported
     assert any("screener_rows" in s for s in strings)
+
+
+# ═══ `rvol_live` — volume vs usual BY NOW reaches the member AND filters ══════
+#
+# docs/superpowers/specs/2026-10-15-screener-live-relative-volume-design.md. The
+# column's nightly value is NULL by design, so the ONLY way a member can see or
+# screen on it is through the overlay — which is exactly what these pin.
+
+def test_rvol_live_is_served_and_FILTERED_from_the_overlay(served):
+    snapshot_db.upsert_live_rows([
+        _overlay_row("CROSSER", price=106.4, chg_pct_1d=6.4, rvol_live=3.2),
+        _overlay_row("FADER", price=70.7, chg_pct_1d=1.0, rvol_live=1.1),
+    ])
+    spec = {"filters": [{"key": "rvol_live", "op": "gte", "min": 2}], "page_size": 50}
+    res = query.run_scan(spec)
+    assert [r["ticker"] for r in res["rows"]] == ["CROSSER"]
+    assert res["rows"][0]["rvol_live"] == 3.2
+    assert res["total"] == 1
+
+
+def test_the_CONTROL_with_the_overlay_off_rvol_live_screens_NOTHING(served, monkeypatch):
+    """Nightly the column is NULL for every row: a "heavy volume by now" screen
+    returns nothing rather than yesterday's names."""
+    snapshot_db.upsert_live_rows([
+        _overlay_row("CROSSER", price=106.4, chg_pct_1d=6.4, rvol_live=3.2)])
+    monkeypatch.setenv("SCREENER_LIVE_TIER_ENABLED", "0")
+    spec = {"filters": [{"key": "rvol_live", "op": "gte", "min": 2}], "page_size": 50}
+    assert query.run_scan(spec)["rows"] == []
+    assert all(r.get("rvol_live") is None for r in
+               query.run_scan({"page_size": 50, "columns": ["rvol_live"]})["rows"])

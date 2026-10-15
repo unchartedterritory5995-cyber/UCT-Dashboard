@@ -346,6 +346,14 @@ FILTERS = dict([
     _range("vol_ratio", "Volume Ratio", "technical", "vol_ratio",
            [{"label": "Any"}, {"label": "Over 1.5×", "op": "gte", "min": 1.5},
             {"label": "Over 2×", "op": "gte", "min": 2}], unit="×"),
+    # ⭐ LIVE-ONLY: today's volume over the volume USUALLY done by this minute
+    # (live_tier `rvol_live`). Blank before 09:45 ET and outside the session, so a
+    # screen on it returns nothing then rather than yesterday's names. `vol_ratio`
+    # above keeps its completed-session meaning (two saved screens key off it).
+    _range("rvol_live", "Rel Volume (by now)", "technical", "rvol_live",
+           [{"label": "Any"}, {"label": "Over 1.5×", "op": "gte", "min": 1.5},
+            {"label": "Over 2×", "op": "gte", "min": 2},
+            {"label": "Over 3×", "op": "gte", "min": 3}], unit="×"),
     _range("adr_pct", "ADR %", "technical", "adr_pct",
            [{"label": "Any"}, {"label": "Over 4%", "op": "gte", "min": 4},
             {"label": "Over 8%", "op": "gte", "min": 8}], unit="%"),
@@ -812,7 +820,7 @@ VIEWS = {
         "rs_return", "accdis"]},
     "technical": {"label": "Technical", "columns": [
         "ticker", "rsi14", "pct_vs_sma50", "pct_vs_sma200", "adr_pct",
-        "dist_52w_high_pct", "vol_ratio", "gap_pct", "pct_vs_ema20",
+        "dist_52w_high_pct", "vol_ratio", "rvol_live", "gap_pct", "pct_vs_ema20",
         "candle_type"]},
     "uct_ratings": {"label": "UCT Ratings", "columns": [
         "ticker", "uct_composite", "rs_rank", "rs_return", "accdis",

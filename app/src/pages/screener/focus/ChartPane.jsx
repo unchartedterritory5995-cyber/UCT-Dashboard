@@ -7,7 +7,7 @@ import usePreferences from '../../../hooks/usePreferences'
 import { hasFinalTickerIpo } from '../../../hooks/useTickerIpo'
 import WhyStrip from './WhyStrip'
 import { setupLine } from './setupLine'
-import { plainFact } from './plainWords'
+import { plainFact, volumeFact } from './plainWords'
 import { livePriceOf } from './livePrice'
 import { earningsText } from './dates'
 import { useThemeInk } from '../../../lib/theme'
@@ -32,7 +32,8 @@ const pct = v => (Number.isFinite(v) ? `${v > 0 ? '+' : v < 0 ? '−' : ''}${Mat
 
 // Plain words (owner decision 5): the wording lives in plainWords.js, shared with the sort menu.
 // Earnings is its own span (P8), so it can turn amber when it is near.
-const facts = row => ['vol_ratio', 'adr_pct'].map(k => plainFact(k, row[k])).filter(Boolean).join(' · ')
+// Volume prefers the live "by now" reading (rvol_live) over the completed-session ratio.
+const facts = row => [volumeFact(row), plainFact('adr_pct', row.adr_pct)].filter(Boolean).join(' · ')
 
 const isSide = key => typeof key === 'string' && SIDE_FETCH.some(p => key.startsWith(p))
 // Scoped to this pane's chart only (an SWRConfig around it), so every other chart is untouched:
