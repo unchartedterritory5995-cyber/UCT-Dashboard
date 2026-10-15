@@ -1,7 +1,7 @@
 // emptyUndo.js — the empty state's "your last change took the list from N to 0"
 // bookkeeping (spec §8.4). Pure: the orchestrator keeps the previous spec and
 // total, and asks this whether the newest change is the one that emptied it.
-import { chipLabel } from '../chipLabel'
+import { focusChipLabel } from './plainWords'
 
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 const POOL_KEYS = new Set(['universe', 'list'])
@@ -31,5 +31,6 @@ export function describeEmptying({ prevSpec, prevTotal, nextSpec, nextTotal, def
   const spec = nextSpec.filters[d.key]
   if (POOL_KEYS.has(d.key)) return { label: poolLabel(d.key, spec), from: prevTotal }
   const def = defs[d.key] || { key: d.key, label: d.key, presets: [] }
-  return { label: chipLabel(def, spec) || def.label, from: prevTotal }
+  // The pills' own wording ("Price: under $20"), so the empty state names the filter the same way.
+  return { label: focusChipLabel(def, spec) || def.label, from: prevTotal }
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { vi, test, expect, beforeEach } from 'vitest'
-vi.mock('../../shell/FilterRail', () => ({ default: p => <div data-testid="rail" data-presentation={p.presentation} /> }))
+vi.mock('../../shell/FilterRail', () => ({ default: p => <div data-testid="rail" data-presentation={p.presentation} data-labels={(p.meta?.filters || []).map(f => f.label).join('|')} /> }))
 vi.mock('../../shell/CriteriaBox', () => ({ default: () => <div data-testid="criteria" /> }))
 const describeState = { available: false, busy: false, error: null, run: vi.fn() }
 vi.mock('../useDescribe', () => ({ default: () => describeState }))
@@ -250,4 +250,9 @@ test('4: after Clear all, focus stays inside the drawer and Escape still closes 
   expect(dialog.contains(document.activeElement)).toBe(true)
   fireEvent.keyDown(document.activeElement, { key: 'Escape' })
   expect(onClose).toHaveBeenCalled()
+})
+test('the drawer hands its rail plain-word headings, never "ADR %"', () => {
+  const m = { filters: [{ key: 'adr_pct', label: 'ADR %', type: 'range', presets: [] }, { key: 'adr_pct_1w', label: 'ADR % (5-day)', type: 'range', presets: [] }, meta.filters[0]] }
+  render(<FiltersDrawer {...base} meta={m} filters={{}} />)
+  expect(screen.getByTestId('rail').dataset.labels).toBe('Avg daily range|Avg daily range (5-day)|RS Rank')
 })
