@@ -1,4 +1,4 @@
-"""Battery for the INTERNAL uct_oops_reversal detector (real-bar fixtures in tests/fixtures/uct_oops_reversal/)."""
+"""Battery for the uct_oops_reversal detector (real-bar fixtures in tests/fixtures/uct_oops_reversal/)."""
 from api.services.pattern_engine.detectors.uct.uct_oops_reversal import detect_uct_oops_reversal
 from tests.pattern_engine.detectors._uct_setup_battery import make_tests
 

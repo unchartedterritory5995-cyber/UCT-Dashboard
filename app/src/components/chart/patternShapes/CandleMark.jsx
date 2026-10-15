@@ -51,6 +51,11 @@ const PATTERN_LETTERS = {
   '52w_proximity': '52w',
   outside_bar: 'OB',
   inside_bar_breakout: 'IB',
+  // The four trader-setup detectors (public since 2026-10-15).
+  uct_kicker: 'K',
+  uct_oops_reversal: 'OR',
+  uct_slingshot: 'SL',
+  uct_hve: 'HVE',
 }
 
 function badgeLetter(detection) {

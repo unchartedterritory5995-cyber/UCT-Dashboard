@@ -1,4 +1,4 @@
-"""Shared helpers for the four UCT trader-setup detectors (INTERNAL / ADMIN-ONLY).
+"""Shared helpers for the four UCT trader-setup detectors.
 
 `uct_kicker`, `uct_oops_reversal`, `uct_slingshot` and `uct_hve` are ports of an
 offline lab study of setups as practising traders describe and scan for them.
@@ -7,10 +7,9 @@ adjudication; the production rules below are the variants that survived that
 adjudication. Looser readings are carried only as LABELS in
 `geometry.extras` (never as a reason to fire).
 
-⛔ These four ids are in `registry.INTERNAL_PATTERN_IDS`. Their detections are
-computed and stored like every other detector's, and every member-facing read
-path filters them out. Do not add them to the member catalog
-(`api/routers/patterns.py::_PATTERN_METADATA`).
+Visible to every member (owner ruling 2026-10-15): they shipped admin-only via
+`registry.INTERNAL_PATTERN_IDS` and were made public; they are listed in the
+member catalog (`api/routers/patterns.py::_PATTERN_METADATA`).
 
 Every indicator here is causal: the value at index k depends only on bars[0..k],
 so evaluating session i on the full list equals evaluating it on bars[:i+1].
@@ -259,9 +258,8 @@ def context_phrase(context: dict) -> str:
             f"and {rs} relative strength")
 
 
-INTERNAL_NOTE = (
-    "This is an internal research detector ported from an offline study of how "
-    "experienced discretionary traders define and scan for this setup; its rules "
-    "were checked against the traders' own called examples and a blind review, "
-    "and it is not shown to members."
+PROVENANCE_NOTE = (
+    "This detector is ported from an offline study of how experienced "
+    "discretionary traders define and scan for this setup; its rules were "
+    "checked against called examples of the setup and a blind review."
 )

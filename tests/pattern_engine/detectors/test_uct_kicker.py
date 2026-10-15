@@ -1,4 +1,4 @@
-"""Battery for the INTERNAL uct_kicker detector (real-bar fixtures in tests/fixtures/uct_kicker/)."""
+"""Battery for the uct_kicker detector (real-bar fixtures in tests/fixtures/uct_kicker/)."""
 from api.services.pattern_engine.detectors.uct.uct_kicker import detect_uct_kicker
 from tests.pattern_engine.detectors._uct_setup_battery import make_tests
 

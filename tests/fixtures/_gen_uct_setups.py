@@ -1,4 +1,4 @@
-"""Fixture generator for the four INTERNAL UCT trader-setup detectors.
+"""Fixture generator for the four UCT trader-setup detectors.
 
     uct_kicker · uct_oops_reversal · uct_slingshot · uct_hve
 

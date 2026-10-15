@@ -1,4 +1,4 @@
-"""UCT Slingshot detector (INTERNAL / ADMIN-ONLY) — pattern_id `uct_slingshot`.
+"""UCT Slingshot detector — pattern_id `uct_slingshot`.
 
 A slingshot is a strong stock's first close back above a short, fast average of
 its highs after a brief pullback: momentum pauses for three sessions, then
@@ -145,7 +145,6 @@ def _build(bars, c, context, geom, vol, ctx) -> dict:
         "tight_pullback": c["tight_pullback"], "trend": c["trend"], "sma50": c["sma50"],
         "hve_closes_below": c["hve_closes_below"],
         "alt_stop_prev_day_low": round(c["prev_day_low"], 2), "rvol50": c["rvol50"],
-        "internal": True,
     }
     return U.build_detection(
         pattern_id=_PATTERN_ID, pattern_name=_PATTERN_NAME, direction="bullish",
@@ -175,7 +174,7 @@ def _narrative(c, levels, context) -> dict:
         f"it. The rule also requires recent proof of strength - here {strength} - plus basic "
         f"liquidity (a close above $5 and at least 100K shares on each of the prior three days), "
         f"and, after a blind review, a close above the 50-day average so the setup is taken only "
-        f"inside an uptrend. Labels present on this session: {labels}. {U.INTERNAL_NOTE}"
+        f"inside an uptrend. Labels present on this session: {labels}. {U.PROVENANCE_NOTE}"
     )
     why_it_matters = (
         f"The setup is forming in {U.context_phrase(context)}. The pullback was "

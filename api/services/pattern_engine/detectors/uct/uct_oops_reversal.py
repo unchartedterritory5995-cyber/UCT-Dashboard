@@ -1,4 +1,4 @@
-"""UCT Oops Reversal detector (INTERNAL / ADMIN-ONLY) — pattern_id `uct_oops_reversal`.
+"""UCT Oops Reversal detector — pattern_id `uct_oops_reversal`.
 
 The oops reversal is a failed breakdown that reverses inside one session: the
 stock opens below the prior close, trades under the prior session's low (the
@@ -171,7 +171,6 @@ def _build(bars, c, context, geom, vol, ctx) -> dict:
         "gap_below_low": c["gap_below_low"], "super_oops_stage6": c["super_oops_stage6"],
         "undercut_pct": c["undercut_pct"], "rvol50": c["rvol50"],
         "prior_close": round(c["prior_close"], 2), "prior_low": round(c["prior_low"], 2),
-        "internal": True,
     }
     return U.build_detection(
         pattern_id=_PATTERN_ID, pattern_name=_PATTERN_NAME, direction="bullish",
@@ -199,7 +198,7 @@ def _narrative(c, levels, context) -> dict:
         f"offside. The rule that fires is the scan kept after a blind review: an open below the "
         f"prior close, a low below both the open and the prior low, and a close above the prior "
         f"close. A version that skipped the undercut was dropped as a trigger and is kept only as a "
-        f"label. Labels present on this session: {labels}. {U.INTERNAL_NOTE}"
+        f"label. Labels present on this session: {labels}. {U.PROVENANCE_NOTE}"
     )
     why_it_matters = (
         f"The session graded stage {c['stage']} of the six-step progression (open under the prior "

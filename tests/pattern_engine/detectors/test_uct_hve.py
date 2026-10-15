@@ -1,4 +1,4 @@
-"""Battery for the INTERNAL uct_hve detector (real-bar fixtures in tests/fixtures/uct_hve/)."""
+"""Battery for the uct_hve detector (real-bar fixtures in tests/fixtures/uct_hve/)."""
 from api.services.pattern_engine.detectors.uct.uct_hve import detect_uct_hve
 from tests.pattern_engine.detectors._uct_setup_battery import make_tests
 

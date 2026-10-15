@@ -1,4 +1,4 @@
-"""UCT Kicker candle detector (INTERNAL / ADMIN-ONLY) — pattern_id `uct_kicker`.
+"""UCT Kicker candle detector — pattern_id `uct_kicker`.
 
 A kicker is a one-session change of character: the prior day closes weak, the
 next session gaps up over that close and trades through the prior high, so
@@ -142,7 +142,6 @@ def _build(bars, c, context, geom, vol, ctx) -> dict:
         "sma200_rising_m4": c["sma200_rising_m4"], "close_to_mas": c["close_to_mas"],
         "support_or_undercut": c["support_or_undercut"],
         "prior_high": round(c["prior_high"], 2), "prior_close": round(c["prior_close"], 2),
-        "internal": True,
     }
     narrative = _narrative(c, levels, context)
     return U.build_detection(
@@ -173,7 +172,7 @@ def _narrative(c, levels, context) -> dict:
         f"after a blind review: a weak prior close (DCR at or below 0.35, or a red day closing in the "
         f"lower 60% of its range), an open above the prior close by at least a tenth of the prior day's range, and a break of the prior high. "
         f"Looser readings are recorded as labels only; the labels present on this session are: "
-        f"{labels}. {U.INTERNAL_NOTE}"
+        f"{labels}. {U.PROVENANCE_NOTE}"
     )
     why_it_matters = (
         f"The trigger session printed relative volume of {rv} its 50-bar average and closed with a "

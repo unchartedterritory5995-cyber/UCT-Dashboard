@@ -1,4 +1,4 @@
-"""Shared battery for the four INTERNAL UCT trader-setup detectors.
+"""Shared battery for the four UCT trader-setup detectors (public since 2026-10-15).
 
 Each family's test module calls `make_tests(...)` so the four batteries are
 one implementation, not four copies that can drift.
@@ -69,9 +69,8 @@ def make_tests(pattern_id, detect, required_extras, rule_fixtures, directions=("
         g = d["geometry"]
         assert g["shape"] == "candle_mark"
         assert len(g["anchors"]) == len(g["anchor_roles"]) >= 1
-        for key in required_extras + ("variant", "label_variants", "trigger_bars_ago", "internal"):
+        for key in required_extras + ("variant", "label_variants", "trigger_bars_ago"):
             assert key in g["extras"], f"missing geometry.extras.{key}"
-        assert g["extras"]["internal"] is True
 
     def test_confidence_is_canonical():
         _, d = _first_detection()
@@ -92,10 +91,12 @@ def make_tests(pattern_id, detect, required_extras, rule_fixtures, directions=("
             else:
                 assert lv["stop"] > lv["entry"] > lv["target_primary"] > lv["target_secondary"]
 
-    def test_is_internal_and_not_in_member_catalog():
+    def test_is_public_and_in_member_catalog():
+        # Owner ruling 2026-10-15: the four are visible to every member and tool.
         from api.routers.patterns import _PATTERN_METADATA
-        assert is_internal(pattern_id) and pattern_id in INTERNAL_PATTERN_IDS
-        assert pattern_id not in _PATTERN_METADATA
+        assert not is_internal(pattern_id) and pattern_id not in INTERNAL_PATTERN_IDS
+        meta = _PATTERN_METADATA.get(pattern_id)
+        assert meta and meta["category"] == "uct" and meta["description"]
 
     def test_never_raises_on_short_or_degenerate_input():
         assert detect([], {}) == []

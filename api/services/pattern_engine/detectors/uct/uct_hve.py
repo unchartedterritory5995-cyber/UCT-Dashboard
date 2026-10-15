@@ -1,4 +1,4 @@
-"""UCT High-Volume-Edge bar detector (INTERNAL / ADMIN-ONLY) — pattern_id `uct_hve`.
+"""UCT High-Volume-Edge bar detector — pattern_id `uct_hve`.
 
 A high-volume-edge (HVE) bar is a session whose volume is the highest of the
 prior 252 sessions (about a year). Its close — the high-volume close (HVC) — is
@@ -101,7 +101,6 @@ def _build(bars, c, context, geom, vol, ctx) -> dict:
         "hve_26wk": c["a26_26wk"], "full_252_history": c["full_252_history"],
         "ever_in_data": c["ever_in_data"], "bar_dcr": c["dcr"], "high_close": c["high_close"],
         "up_day": c["up_day"], "rvol50": c["rvol50"], "edge_ratio_vs_prior_max": c["edge_ratio"],
-        "internal": True,
     }
     return U.build_detection(
         pattern_id=_PATTERN_ID, pattern_name=_PATTERN_NAME, direction=d,
@@ -131,7 +130,7 @@ def _narrative(c, levels, context) -> dict:
         f"tend to defend it, and a stock that later reclaims it from below often moves quickly. "
         f"The rule requires a close above $3 so thin, low-priced issues do not qualify. A second "
         f"scan's 26-week reading is carried as a label; labels present on this session: {labels}. "
-        f"{U.INTERNAL_NOTE}"
+        f"{U.PROVENANCE_NOTE}"
     )
     why_it_matters = (
         f"The bar closed with a DCR of {c['dcr']:.2f}"

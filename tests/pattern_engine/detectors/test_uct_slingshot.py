@@ -1,4 +1,4 @@
-"""Battery for the INTERNAL uct_slingshot detector (real-bar fixtures in tests/fixtures/uct_slingshot/)."""
+"""Battery for the uct_slingshot detector (real-bar fixtures in tests/fixtures/uct_slingshot/)."""
 from api.services.pattern_engine.detectors.uct.uct_slingshot import detect_uct_slingshot
 from tests.pattern_engine.detectors._uct_setup_battery import make_tests
 
