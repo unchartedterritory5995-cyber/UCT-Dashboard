@@ -3,7 +3,7 @@
 /* "Edit as code" is a secondary door: a small muted link, never a second primary button. */
 .codeLink {
   display: inline-flex; align-items: center; min-height: 32px;
-  color: var(--text-muted); font-size: 12px; cursor: pointer;
+  color: var(--text-muted); font-size: var(--text-base); cursor: pointer;
   text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px;
   list-style: none;
 }
@@ -15,10 +15,10 @@
 .enumSearchRow { display: flex; align-items: center; gap: 8px; padding: 0 4px 6px; }
 .enumSearch {
   flex: 1; min-width: 0; box-sizing: border-box; min-height: 30px; padding: 4px 8px;
-  font: inherit; font-size: 12px; background: var(--bg-elevated);
-  border: 1px solid var(--border); border-radius: 6px; color: var(--text);
+  font: inherit; font-size: var(--text-base); background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text);
 }
-.enumHint { color: var(--text-muted); font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.enumHint { color: var(--text-muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* Empty state: the verdict alone is the live region. */
 .stateStatus { display: flex; flex-direction: column; align-items: center; gap: 10px; }
@@ -26,15 +26,15 @@
 /* Empty state: each active filter as a pill that says what removing it would give. */
 .dropPills { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 640px; margin: 0; padding: 0; list-style: none; }
 .dropPill {
-  display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 4px 12px;
-  font: inherit; font-size: 12.5px; background: var(--bg-elevated); border: 1px solid var(--border-accent);
+  display: inline-flex; align-items: center; gap: 8px; border-radius: var(--radius-pill); padding: 4px 12px;
+  font: inherit; font-size: var(--text-base); background: var(--bg-elevated); border: 1px solid var(--border-accent);
   color: var(--text); min-height: 32px; cursor: pointer;
 }
 .dropPill:hover, .dropPill:focus-visible { border-color: var(--ut-gold); }
 .dropGain { color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .dropGainSome { color: var(--success-ink); }
-.countNote { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
-.dropMore { color: var(--text-muted); font-size: 12px; align-self: center; }
+.countNote { color: var(--text-muted); font-size: var(--text-base); white-space: nowrap; }
+.dropMore { color: var(--text-muted); font-size: var(--text-base); align-self: center; }
 
 @media (max-width: 1024px) {
   .codeLink, .dropPill, .enumSearch { min-height: var(--tap-min); }

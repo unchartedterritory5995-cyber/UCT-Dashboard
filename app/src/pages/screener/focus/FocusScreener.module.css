@@ -3,7 +3,7 @@
 .listWrap { flex: 0 0 340px; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border); }
 /* The listed rows answer the previous screen; the new one's answer is on its way. */
 .listPending .list { opacity: 0.45; pointer-events: none; transition: opacity 120ms ease; }
-.listHead { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 16px; font-size: 12px; color: var(--text-muted); }
+.listHead { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 16px; font-size: var(--text-base); color: var(--text-muted); border-bottom: 1px solid var(--border); }
 .listHeadEnd { display: flex; align-items: center; gap: 10px; flex: none; }
 .stateFlags { display: flex; align-items: center; padding: 8px 20px 0; }
 .stateFlags:empty { display: none; }
@@ -24,49 +24,58 @@
 .dotOn { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ut-gold); }
 .dotOff { flex: none; width: 6px; height: 6px; }
 .rowMain { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.ticker { font-size: 15px; font-weight: 700; color: var(--text-heading); }
-.setup { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rowNums { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-variant-numeric: tabular-nums; font-size: 13px; }
-.up { color: var(--success-ink); font-size: 12px; }
-.down { color: var(--danger-ink); font-size: 12px; }
-.flat { color: var(--text-muted); font-size: 12px; }
+.ticker { font-size: var(--text-lg); font-weight: 700; letter-spacing: 0.2px; color: var(--text-heading); }
+.setup { font-size: var(--text-base); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rowNums { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--text-md); font-weight: 600; color: var(--text-bright); }
+/* change figures, in the list and the pane: tabular, so a live tick never shifts the column */
+.up, .down, .flat { font-size: var(--text-base); font-weight: 600; font-variant-numeric: tabular-nums; }
+.up { color: var(--success-ink); }
+.down { color: var(--danger-ink); }
+.flat { color: var(--text-muted); }
 .moreSentinel { height: 1px; }
-.keyHints { display: flex; gap: 12px; flex-wrap: wrap; padding: 10px 16px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--text-muted); }
+.keyHints { display: flex; gap: 12px; flex-wrap: wrap; padding: 10px 16px; border-top: 1px solid var(--border); font-size: var(--text-sm); color: var(--text-muted); }
 .keyHints b { color: var(--text); font-weight: 600; }
-.linkBtn { background: none; border: 0; padding: 0; min-height: 32px; display: inline-flex; align-items: center; gap: 0.3em; color: var(--text-muted); font: inherit; cursor: pointer; }
-.btn { background: transparent; color: var(--text); border: 1px solid var(--border-accent); border-radius: 8px; padding: 8px 14px; font: inherit; font-size: 13px; min-height: 36px; cursor: pointer; }
-.btnOn { background: var(--ut-gold-dim); color: var(--ut-gold); border: 1px solid var(--ut-gold); border-radius: 8px; padding: 8px 14px; font: inherit; font-size: 13px; min-height: 36px; cursor: pointer; }
-.btnPrimary { background: var(--ut-gold); color: var(--bg); border: 0; border-radius: 8px; padding: 8px 14px; font: inherit; font-size: 13px; font-weight: 700; min-height: 36px; cursor: pointer; }
+.linkBtn { background: none; border: 0; padding: 0; min-height: 32px; display: inline-flex; align-items: center; gap: 0.3em; color: var(--text-muted); font: inherit; font-size: var(--text-base); cursor: pointer; }
+.linkBtn:hover { color: var(--text); }
+/* Buttons ARE the app's canonical button (styles/buttons.css): one geometry, one type treatment,
+   one set of roles. Composed, never restated, so a retune of the system reaches this page too. */
+.btn { composes: btn btn-secondary from global; }
+/* a toggle that is on (Flagged): the outline role, with the selection tint held */
+.btnOn { composes: btn btn-outline from global; background: var(--ut-gold-dim); }
+.btnPrimary { composes: btn btn-primary from global; }
 .stateBox { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 40px 20px; text-align: center; flex: 1; }
-.stateHead { margin: 0; font-size: 16px; font-weight: 700; color: var(--text-heading); }
-.stateBody { margin: 0; color: var(--text-muted); max-width: 40ch; line-height: 1.5; }
+.stateHead { margin: 0; font-family: var(--font-heading); font-size: var(--text-xl); font-weight: 700; color: var(--text-heading); }
+.stateBody { margin: 0; color: var(--text-muted); max-width: 40ch; font-size: var(--text-lg); line-height: var(--lh-normal); }
 .stateActions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .skeleton { display: flex; flex-direction: column; }
 .skelRow { display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; border-bottom: 1px solid var(--bg-surface); }
-.skelA { height: 12px; border-radius: 4px; background: var(--bg-elevated); }
-.skelB { height: 9px; border-radius: 4px; background: var(--bg-surface); }
+.skelA { height: 12px; border-radius: var(--radius-sm); background: var(--bg-elevated); }
+.skelB { height: 9px; border-radius: var(--radius-sm); background: var(--bg-surface); }
 .pane { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 16px 24px 14px; }
 .paneHead { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-.paneTicker { margin: 0; font-size: 28px; font-weight: 700; color: var(--text-heading); }
-.paneSub { color: var(--text-muted); font-size: 14px; }
-.panePrice { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.paneTicker { margin: 0; font-family: var(--font-heading); font-size: var(--text-3xl); font-weight: 700; line-height: var(--lh-tight); letter-spacing: var(--ls-tight); color: var(--text-heading); }
+.paneSub { color: var(--text-muted); font-size: var(--text-lg); }
+.panePrice { font-family: var(--font-mono); font-size: var(--text-3xl); font-weight: 700; line-height: var(--lh-tight); color: var(--text-bright); font-variant-numeric: tabular-nums; }
 .spacer { flex: 1; }
 .paneMeta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.setupTag { background: var(--ut-gold-dim); color: var(--ut-gold); border-radius: 6px; padding: 4px 10px; font-weight: 600; font-size: 12.5px; }
-.paneFacts { color: var(--text-muted); font-size: 12.5px; }
-.paneEarnSoon { color: var(--warn); font-size: 12.5px; font-weight: 600; }
+.setupTag { background: var(--ut-gold-dim); color: var(--ut-gold); border: 1px solid var(--ut-gold); border-radius: var(--radius-md); padding: 3px 10px; font-weight: 600; font-size: var(--text-base); letter-spacing: 0.2px; }
+.paneFacts { color: var(--text-muted); font-size: var(--text-base); font-variant-numeric: tabular-nums; }
+.paneEarnSoon { color: var(--warn); font-size: var(--text-base); font-weight: 600; font-variant-numeric: tabular-nums; }
 .staleTag { color: var(--warn); font-weight: 600; }
-.seg { display: flex; gap: 2px; background: var(--bg-surface); border-radius: 8px; padding: 2px; }
-.segOn, .segOff { border: 0; border-radius: 6px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; min-width: 32px; }
-.segOn { background: var(--border-accent); color: var(--text-heading); }
-.segOff { background: transparent; color: var(--text-muted); }
+/* The app's segmented switch (Breadth / UCT Terminal view tabs): an outlined group, the tabs clipped
+   to its corners, the one that is on filled gold. */
+.seg { display: inline-flex; flex: none; border: 1px solid var(--border-accent); border-radius: var(--radius-lg); overflow: hidden; }
+.segOn, .segOff { border: 0; border-radius: 0; padding: 5px 13px; font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 600; line-height: var(--lh-tight); cursor: pointer; min-width: 32px; min-height: 28px; white-space: nowrap; transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
+.segOn { background: var(--ut-gold); color: var(--bg); font-weight: 700; }
+.segOff { background: transparent; color: var(--text); }
+.segOff:hover { color: var(--ut-gold); }
 .chartBox { position: relative; flex: 1; min-height: 280px; isolation: isolate; }
 /* the chart itself, as laid out without a wrapper; inert behind "Chart unavailable" */
 .chartLayer { display: contents; }
 /* while the list answers the previous screen, the pane and the empty state read as waiting */
 .paneBusy, .stateBusy { opacity: 0.55; transition: opacity 120ms ease; }
 /* B4: the chart's own state over the canvas. Loading fades in late, so a cached step never flashes it. */
-.chartLoading, .chartError { position: absolute; inset: 0; z-index: var(--z-dropdown); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+.chartLoading, .chartError { position: absolute; inset: 0; z-index: var(--z-dropdown); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: var(--text-md); color: var(--text-muted); }
 .chartLoading { pointer-events: none; opacity: 0; animation: chartStateIn 0.2s ease-out 0.25s forwards; }
 .chartError { background: var(--bg); color: var(--text); }
 @keyframes chartStateIn { to { opacity: 1; } }
@@ -75,8 +84,9 @@
 .pane:focus { outline: none; }
 .paneFoot { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; border-top: 1px solid var(--border); padding-top: 12px; }
 .paneActions { display: flex; align-items: center; gap: 10px; flex: none; white-space: nowrap; }
-.why { display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; flex: 1 1 auto; min-width: 0; font-size: 12.5px; }
-.whyLabel { color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; white-space: nowrap; flex: none; }
+.why { display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; flex: 1 1 auto; min-width: 0; font-size: var(--text-base); }
+/* the app's eyebrow label (.t-label, TileCard titles) */
+.whyLabel { color: var(--text-muted); text-transform: uppercase; letter-spacing: var(--ls-label); font-size: var(--text-xs); font-weight: 600; line-height: var(--lh-tight); white-space: nowrap; flex: none; }
 /* ONE line at every width: what does not fit is counted into the "+N more" cue (WhyStrip). */
 .whyList { display: flex; gap: 14px; flex-wrap: nowrap; flex: 1 1 auto; min-width: 0; overflow: hidden; list-style: none; margin: 0; padding: 0; }
 .whyItem { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; flex-shrink: 0; }
@@ -84,44 +94,54 @@
 .whyCheck { color: var(--success-ink); }
 .whyPool { color: var(--text-muted); }
 .whyText { color: var(--text-muted); }
-.whyValue { color: var(--text); font-variant-numeric: tabular-nums; }
-/* right padding clears the app-wide feedback "?" (FeedbackWidget: fixed, top 10, right 14, 24px wide) */
-.topBar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 52px 10px 20px; min-height: 60px; border-bottom: 1px solid var(--border); }
-.badge { display: inline-block; margin-left: 6px; background: var(--ut-gold); color: var(--bg); border-radius: 999px; padding: 0 7px; font-size: 11.5px; font-weight: 700; }
-.iconBtn { background: transparent; border: 0; color: var(--text-muted); width: var(--tap-min); height: 36px; font: inherit; font-weight: 700; cursor: pointer; }
+.whyValue { color: var(--text-bright); font-weight: 600; font-variant-numeric: tabular-nums; }
+/* The page's header bar, in the app's ONE header treatment (components/PageHeader, the Screener
+   page's own .headerFull): the surface fill, the header line and its downward shadow, 60px tall.
+   Right padding clears the app-wide feedback "?" (FeedbackWidget: fixed, top 10, right 14, 24px wide). */
+.topBar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0; box-sizing: border-box; padding: 12px 52px 12px 20px; min-height: 60px; background: var(--bg-surface); border-bottom: 1px solid var(--header-line); box-shadow: var(--header-shadow); }
+.badge { display: inline-block; margin-left: 2px; background: var(--ut-gold); color: var(--bg); border-radius: var(--radius-pill); padding: 2px 7px; font-size: var(--text-sm); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.iconBtn { background: transparent; border: 0; border-radius: var(--radius-md); color: var(--text-muted); width: var(--tap-min); height: 36px; font: inherit; font-size: var(--text-xl); font-weight: 700; cursor: pointer; }
+.iconBtn:hover { background: var(--bg-hover); color: var(--text); }
 .menuWrap { position: relative; display: inline-flex; }
-.menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; min-width: 220px; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: 10px; padding: 6px; display: flex; flex-direction: column; box-shadow: var(--shadow-popover); }
+.menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: var(--z-dropdown); min-width: 220px; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: var(--radius-lg); padding: 6px; display: flex; flex-direction: column; box-shadow: var(--shadow-popover); }
 .menuRight { left: auto; right: 0; }
-.menuItem { display: flex; justify-content: space-between; gap: 12px; text-align: left; background: transparent; border: 0; color: var(--text); padding: 9px 12px; border-radius: 8px; font: inherit; font-size: 13px; cursor: pointer; min-height: 36px; }
+.menuItem { display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: left; background: transparent; border: 0; color: var(--text); padding: var(--control-pad-y) var(--control-pad-x); border-radius: var(--radius-md); font: inherit; font-size: var(--text-md); line-height: var(--lh-snug); cursor: pointer; min-height: 36px; }
 .menuItem:hover, .menuItem:focus-visible { background: var(--bg-hover); outline: none; }
 .menuDanger { color: var(--danger-ink); }
-.menuHint { color: var(--text-muted); font-size: 12px; }
+.menuHint { color: var(--text-muted); font-size: var(--text-base); font-variant-numeric: tabular-nums; }
 .menuDivider { height: 1px; background: var(--border); margin: 4px 6px; }
-.menuHeading { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 12px 4px; }
-.receiptBtn { display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 0; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; min-height: 36px; }
+/* menu and list section headings: the app's eyebrow label (.t-label) */
+.menuHeading { color: var(--text-muted); font-size: var(--text-xs); font-weight: 600; line-height: var(--lh-tight); text-transform: uppercase; letter-spacing: var(--ls-label); padding: 10px 12px 6px; }
+.receiptBtn { display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 0; color: var(--text-muted); font: inherit; font-size: var(--text-base); font-variant-numeric: tabular-nums; cursor: pointer; min-height: 36px; }
+.receiptBtn:hover { color: var(--text); }
 .liveDot { width: 6px; height: 6px; border-radius: 50%; background: var(--gain); }
 .idleDot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); }
-.infoMark { border: 1px solid var(--border-accent); border-radius: 50%; width: 16px; height: 16px; font-size: 10px; display: inline-flex; align-items: center; justify-content: center; }
+.infoMark { border: 1px solid var(--border-accent); border-radius: 50%; width: 16px; height: 16px; font-size: var(--text-xs); display: inline-flex; align-items: center; justify-content: center; }
 .receipt { width: 320px; padding: 14px; gap: 10px; }
-.receiptHead { margin: 0; color: var(--text); font-size: 13px; line-height: 1.5; }
-.screenBtn { display: inline-flex; align-items: center; gap: 10px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text-heading); padding: 8px 14px; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; min-height: 40px; }
-.screenCount { color: var(--text-muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+.receiptHead { margin: 0; color: var(--text); font-size: var(--text-md); line-height: var(--lh-snug); }
+/* The screen button IS the page title (the sr-only h1 names the page): it reads as the app's header
+   title (PageHeader .title: heading face, bold, the gold icon before it), and shows it opens on hover. */
+.screenBtn { display: inline-flex; align-items: center; gap: 9px; background: transparent; border: 1px solid transparent; border-radius: var(--radius-lg); color: var(--text-heading); padding: 4px 10px; margin-left: -10px; font-family: var(--font-heading); font-size: var(--text-2xl); font-weight: 700; line-height: var(--lh-tight); letter-spacing: 0.2px; cursor: pointer; min-height: 36px; white-space: nowrap; transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
+.screenBtn:hover, .screenBtn[aria-expanded='true'] { background: var(--bg-hover); border-color: var(--border); }
+.screenIcon { flex: none; }
+.screenCount { color: var(--text-muted); font-family: var(--font-mono); font-size: var(--text-md); font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.screenChevron { flex: none; color: var(--text-muted); }
 .screenMenu { width: 560px; max-width: calc(100vw - 40px); max-height: min(80vh, 760px); padding: 0; overflow: hidden; }
 .smSearch { padding: 12px; border-bottom: 1px solid var(--border); }
-.smInput { width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border-accent); border-radius: 8px; color: var(--text); padding: 9px 12px; font: inherit; font-size: 13px; }
+.smInput { width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border-accent); border-radius: var(--control-radius); color: var(--text); padding: var(--control-pad-y) var(--control-pad-x); font: inherit; font-size: var(--control-font); }
 .smBody { overflow-y: auto; padding: 6px; }
-.smHead { margin: 0; padding: 12px 12px 6px; color: var(--text-muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
-.smItem { display: flex; align-items: center; gap: 8px; padding: 2px 8px; border-radius: 8px; }
+.smHead { margin: 0; padding: 12px 12px 6px; color: var(--text-muted); font-size: var(--text-xs); line-height: var(--lh-tight); letter-spacing: var(--ls-label); text-transform: uppercase; font-weight: 600; }
+.smItem { display: flex; align-items: center; gap: 8px; padding: 2px 8px; border-radius: var(--radius-md); }
 .smItem:hover { background: var(--bg-hover); }
 .smCurrent { background: var(--ut-gold-dim); }
 .smPin { background: none; border: 0; color: var(--text-muted); width: 32px; height: 36px; cursor: pointer; }
 .smPin[aria-pressed='true'] { color: var(--ut-gold); }
 .smOpen { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; text-align: left; background: none; border: 0; color: inherit; font: inherit; padding: 6px 0; cursor: pointer; }
-.smName { font-size: 13.5px; font-weight: 600; color: var(--text-heading); }
-.smDesc { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.smCount { color: var(--text-muted); font-variant-numeric: tabular-nums; font-size: 12.5px; min-width: 40px; text-align: right; }
+.smName { font-size: var(--text-md); font-weight: 600; color: var(--text-heading); }
+.smDesc { font-size: var(--text-base); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.smCount { color: var(--text-muted); font-variant-numeric: tabular-nums; font-size: var(--text-base); min-width: 40px; text-align: right; }
 .smFoot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; border-top: 1px solid var(--border); background: var(--bg); }
-.goldLink { background: none; border: 0; color: var(--ut-gold); font: inherit; font-size: 13px; cursor: pointer; min-height: 36px; }
+.goldLink { background: none; border: 0; color: var(--ut-gold); font: inherit; font-size: var(--text-md); font-weight: 600; cursor: pointer; min-height: 36px; }
 @media (max-width: 1024px) {
   .listWrap { flex-basis: 280px; }
   .btn, .btnOn, .btnPrimary, .linkBtn, .segOn, .segOff, .menuItem, .iconBtn, .receiptBtn, .screenBtn, .smPin, .smOpen, .goldLink, .pill, .pillX, .toastBtn, .dialogInput { min-height: var(--tap-min); }
@@ -135,53 +155,58 @@
   .list { padding-bottom: 72px; }
   /* The footer would take ~150px of a short pane and squeeze the chart: shrink the head, drop the
      industry part of the name line (the company name stays), keep the why strip on one line. */
-  .paneTicker { font-size: 22px; }
+  .paneTicker { font-size: var(--text-2xl); }
   .paneIndustry { display: none; }
   .keyHints { display: none; }
 }
 
 .drawer:focus { outline: none; }
-.drawerScrim { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0, 0, 0, 0.45); }
-.drawer { position: absolute; left: 0; top: 0; bottom: 0; width: 460px; max-width: 100%; background: var(--bg-surface); border-right: 1px solid var(--border-accent); display: flex; flex-direction: column; }
+/* the same dim as the app's Sheet backdrop (components/mobile/Sheet), which this page also opens */
+.drawerScrim { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0, 0, 0, 0.55); }
+.drawer { position: absolute; left: 0; top: 0; bottom: 0; width: 460px; max-width: 100%; background: var(--bg-surface); border-right: 1px solid var(--border-accent); box-shadow: var(--shadow-modal); display: flex; flex-direction: column; }
 .drawerHead { display: flex; align-items: center; gap: 10px; padding: 16px 18px 12px; }
-.drawerTitle { margin: 0; font-size: 18px; font-weight: 700; color: var(--text-heading); }
-.drawerCount { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+/* the app's dialog title (Sheet .title) */
+.drawerTitle { margin: 0; font-family: var(--font-heading); font-size: var(--text-xl); font-weight: 600; color: var(--text-heading); }
+.drawerCount { color: var(--text-muted); font-size: var(--text-md); font-variant-numeric: tabular-nums; }
 .drawerSection { padding: 12px 18px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .drawerBody { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 8px 10px; }
 .drawerFoot { display: flex; align-items: flex-start; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--border); }
 .pillRow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 6px 4px 12px; font: inherit; font-size: 12.5px; background: var(--bg-elevated); border: 1px solid var(--border-accent); color: var(--text); min-height: 32px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-pill); padding: 4px 6px 4px 12px; font: inherit; font-size: var(--text-base); background: var(--bg-elevated); border: 1px solid var(--border-accent); color: var(--text); min-height: 32px; }
 button.pill { cursor: pointer; }
+button.pill:hover { border-color: var(--ut-gold); }
 .pillKey { color: var(--text-muted); }
-.pillX { background: none; border: 0; color: var(--text-muted); font-size: 15px; width: 28px; height: 28px; cursor: pointer; }
+.pillX { background: none; border: 0; border-radius: var(--radius-pill); color: var(--text-muted); font-size: var(--text-lg); width: 28px; height: 28px; cursor: pointer; }
 .codeBox { flex: 1; min-width: 0; }
-.describeLabel { color: var(--ut-gold); font-weight: 600; font-size: 12.5px; display: block; margin-bottom: 6px; }
-.describeInput { width: 100%; box-sizing: border-box; min-height: var(--tap-min); padding: 6px 10px; font: inherit; background: var(--bg-elevated); border: 1px solid var(--border-accent); border-radius: 6px; color: var(--text); }
-.describeNote { margin: 6px 0 0; color: var(--text-muted); font-size: 12px; }
+.describeLabel { color: var(--ut-gold); font-weight: 600; font-size: var(--text-base); display: block; margin-bottom: 6px; }
+.describeInput { width: 100%; box-sizing: border-box; min-height: var(--tap-min); padding: var(--control-pad-y) var(--control-pad-x); font: inherit; font-size: var(--control-font); background: var(--bg-elevated); border: 1px solid var(--border-accent); border-radius: var(--control-radius); color: var(--text); }
+.describeNote { margin: 6px 0 0; color: var(--text-muted); font-size: var(--text-base); line-height: var(--lh-snug); }
 @media (max-width: 640px) { .drawer { width: 100%; } }
 
 /* Orchestrator (FocusScreener.jsx) */
 .tableMode { flex: 1; min-height: 0; overflow: auto; }
 .saveSlot { display: contents; }
-.dropNote { margin: 0; padding: 8px 20px; background: var(--bg-surface); color: var(--text); font-size: 12.5px; border-bottom: 1px solid var(--border); box-shadow: inset 3px 0 0 var(--ut-gold); }
-.metaNote { display: flex; align-items: center; gap: 12px; padding: 8px 20px; background: var(--bg-surface); color: var(--text); font-size: 12.5px; border-bottom: 1px solid var(--border); }
-.rowCompany { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.howToSteps { margin: 0; padding: 0 0 0 20px; color: var(--text); font-size: 14px; line-height: 1.6; }
+.dropNote { margin: 0; padding: 8px 20px; background: var(--bg-surface); color: var(--text); font-size: var(--text-base); border-bottom: 1px solid var(--border); box-shadow: inset 3px 0 0 var(--ut-gold); }
+.metaNote { display: flex; align-items: center; gap: 12px; padding: 8px 20px; background: var(--bg-surface); color: var(--text); font-size: var(--text-base); border-bottom: 1px solid var(--border); }
+.rowCompany { font-size: var(--text-base); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.howToSteps { margin: 0; padding: 0 0 0 20px; color: var(--text); font-size: var(--text-lg); line-height: var(--lh-normal); }
 .howToSteps li + li { margin-top: 6px; }
-.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: var(--z-toast); display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px); background: var(--bg-elevated); border: 1px solid var(--border-accent); color: var(--text); padding: 8px 10px 8px 16px; border-radius: 10px; font-size: 13px; box-shadow: var(--shadow-popover); }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: var(--z-toast); display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px); background: var(--bg-elevated); border: 1px solid var(--border-accent); color: var(--text); padding: 8px 10px 8px 16px; border-radius: var(--radius-lg); font-size: var(--text-md); box-shadow: var(--shadow-popover); }
 .toast .menu { top: auto; bottom: calc(100% + 6px); }
-.toastBtn { background: transparent; color: var(--ut-gold); border: 1px solid var(--border-accent); border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 13px; min-height: 32px; cursor: pointer; white-space: nowrap; }
+.toastBtn { background: transparent; color: var(--ut-gold); border: 1px solid var(--border-accent); border-radius: var(--control-radius); padding: 6px 12px; font: inherit; font-size: var(--text-md); font-weight: 600; min-height: 32px; cursor: pointer; white-space: nowrap; }
+.toastBtn:hover { border-color: var(--ut-gold); }
 .toastBtn:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
 [data-density='comfortable'] .row { padding-top: 14px; padding-bottom: 14px; }
 /* "Skip to save results": invisible and click-through until keyboard focus shows it. Clipped rather than
    opacity 0, so its ink is measured at full strength by the contrast rail. Text inks are --success-ink and
    --danger-ink, never the candle hues --gain/--loss (terminalReachableContrast). */
-.skipLink { position: absolute; top: 8px; left: 8px; z-index: 50; white-space: nowrap; padding: 8px 14px; border-radius: 8px; background: var(--bg-elevated); color: var(--text); font-size: 13px; font-weight: 600; text-decoration: none; transform: translateY(-200%); clip-path: inset(50%); pointer-events: none; }
+.skipLink { position: absolute; top: 8px; left: 8px; z-index: 50; white-space: nowrap; padding: 8px 14px; border-radius: var(--radius-lg); background: var(--bg-elevated); color: var(--text); font-size: var(--text-md); font-weight: 600; text-decoration: none; transform: translateY(-200%); clip-path: inset(50%); pointer-events: none; }
 .skipLink:focus-visible { transform: none; clip-path: none; pointer-events: auto; outline: 2px solid var(--ut-gold); outline-offset: 2px; }
 /* NameDialog: the inline "name it" box (no window.prompt). */
-.dialogScrim { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0, 0, 0, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
-.nameDialog { width: 380px; max-width: 100%; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow-popover); }
-.dialogTitle { margin: 0; font-size: 16px; font-weight: 700; color: var(--text-heading); }
-.dialogLabel { font-size: 12.5px; color: var(--text-muted); }
-.dialogInput { background: var(--bg); color: var(--text); border: 1px solid var(--border-accent); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 14px; min-height: 36px; }
+.dialogScrim { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0, 0, 0, 0.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
+/* the app's modal panel (Sheet .panel_modal): surface, hairline, the modal radius and shadow */
+.nameDialog { width: 380px; max-width: 100%; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: var(--space-lg); display: flex; flex-direction: column; gap: var(--space-md); box-shadow: var(--shadow-modal); }
+.dialogTitle { margin: 0; font-family: var(--font-heading); font-size: var(--text-xl); font-weight: 600; color: var(--text-heading); }
+.dialogLabel { font-size: var(--text-base); color: var(--text-muted); }
+.dialogInput { background: var(--bg); color: var(--text); border: 1px solid var(--border-accent); border-radius: var(--control-radius); padding: var(--control-pad-y) var(--control-pad-x); font: inherit; font-size: var(--control-font); min-height: 36px; }
 .dialogInput:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
