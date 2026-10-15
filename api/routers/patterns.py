@@ -692,7 +692,7 @@ _PATTERN_METADATA = {
         "name": "UCT High-Volume Edge",
         "category": "uct",
         "direction": "neutral",  # follows the bar: up close bullish, down close bearish
-        "description": "A session whose volume is the highest of the prior 252 sessions (about a year), close above $3. Its close (the high-volume close) is a level where the year's largest participants committed and is watched as support or resistance. Direction follows the bar; stop at the bar's low (up close) or high (down close).",
+        "description": "A session whose volume is the highest in roughly the last 10-12 months of daily data, close above $3. Its close (the high-volume close) is a level where the year's largest participants committed and is watched as support or resistance. Direction follows the bar; stop at the bar's low (up close) or high (down close).",
     },
 }
 

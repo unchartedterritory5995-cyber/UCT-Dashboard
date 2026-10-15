@@ -107,7 +107,12 @@ def valid_bar(b) -> bool:
 # ----------------------------------------------------------------------------
 HVE_MIN_PRIOR_BARS = 20          # [P] need this many prior bars to call a bar "highest volume"
 HVE_HIGH_CLOSE_DCR = 0.70        # [P] high closing range tier
-_HVE_LOOKBACK = 252              # [T] highest volume of the prior 252 sessions
+_HVE_LOOKBACK = 252              # [T] highest volume of the prior 252 sessions (at most)
+#: [P] The detector itself needs at least this many PRIOR sessions to call a bar
+#: a record. Production's daily scan passes 200 bars (api/main.py
+#: `_scan_patterns_daily`), so the lookback actually seen there is 199, never
+#: 252; the detector reports the lookback it used instead of claiming a year.
+HVE_DETECTOR_MIN_PRIOR = 190
 _HVE_PRICE = 3                   # [T] close > 3
 _HVE_26WK_LOOKBACK, _HVE_26WK_MINV = 130, 250000   # [T] 26-week variant (label)
 
@@ -115,8 +120,8 @@ _HVE_26WK_LOOKBACK, _HVE_26WK_MINV = 130, 250000   # [T] 26-week variant (label)
 def hve_bar(bars, S: dict, g: int) -> Optional[dict]:
     """Is bar g a high-volume-edge bar? Uses bars[:g+1] only.
 
-    Qualifies (a1) when its volume beats every one of the prior 252 sessions
-    and it closes above 3. The 26-week variant (volume >= the prior 130
+    Qualifies (a1) when its volume beats every one of the prior
+    min(252, g) sessions and it closes above 3; `lookback` is that count. The 26-week variant (volume >= the prior 130
     sessions' max, > 250K shares, up close) is reported as a label."""
     if g < HVE_MIN_PRIOR_BARS or g >= len(bars):
         return None
@@ -134,6 +139,7 @@ def hve_bar(bars, S: dict, g: int) -> Optional[dict]:
     return {
         "idx": g, "hvc": c, "hvo": b["o"], "hvl": b["l"], "hvh": b["h"],
         "a1_252": a1, "full_252_history": len(prior) >= _HVE_LOOKBACK,
+        "lookback": len(prior),
         "ever_in_data": v[g] > max(v[:g]), "a26_26wk": a26,
         "dcr": round(dcr(b), 3), "high_close": dcr(b) >= HVE_HIGH_CLOSE_DCR,
         "up_day": c > c1, "prior_max_volume": max(prior),

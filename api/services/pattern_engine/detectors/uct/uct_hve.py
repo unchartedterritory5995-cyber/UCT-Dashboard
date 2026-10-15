@@ -1,19 +1,22 @@
 """UCT High-Volume-Edge bar detector — pattern_id `uct_hve`.
 
 A high-volume-edge (HVE) bar is a session whose volume is the highest of the
-prior 252 sessions (about a year). Its close — the high-volume close (HVC) — is
-a level where the largest participants of the year committed, and traders
+prior N sessions, N = min(252, available prior bars) and at least 190
+(`U.HVE_DETECTOR_MIN_PRIOR`). Production's daily scan passes 200 bars, so N is
+199 there; the narrative and geometry.extras.lookback_sessions state the N used. Its close — the high-volume close (HVC) — is
+a level where the largest participants of that period committed, and traders
 watch it as support/resistance for weeks afterwards.
 
 Fires (the bar itself, on a recent session):
-  volume > the maximum volume of the prior 252 sessions          [trader rule]
+  volume > the maximum volume of the prior N sessions            [trader rule: N=252]
   close > 3                                                      [trader rule]
-  at least 20 prior sessions exist (an IPO's first weeks are not a "year")
+  at least 190 prior sessions exist (fewer is not enough history to call a record)
 
 Labels only (geometry.extras):
   26-week variant: volume >= the prior 130 sessions' max, > 250K shares, up
                    close (a second trader's scan)
-  full 252-session history present, highest volume in all available data,
+  hve_252 (only when >= 252 prior sessions exist), highest volume in all
+  available data,
   high close (DCR >= 0.70), up/down day.
 
 Direction follows the bar: an up close (close > prior close) is bullish with the
@@ -32,23 +35,24 @@ from api.services.pattern_engine.primitives.liquidity import liquidity_floor
 
 _PATTERN_ID = "uct_hve"
 _PATTERN_NAME = "UCT High-Volume Edge"
-_MIN_BARS = U.HVE_MIN_PRIOR_BARS + 1
+_MIN_BARS = U.HVE_DETECTOR_MIN_PRIOR + 1
 
 
 def evaluate(bars: list, S: dict, i: int) -> Optional[dict]:
     if not U.valid_bar(bars[i]) or not U.valid_bar(bars[i - 1]):
         return None
     hb = U.hve_bar(bars, S, i)
-    if hb is None or not hb["a1_252"]:
+    if hb is None or not hb["a1_252"] or hb["lookback"] < U.HVE_DETECTOR_MIN_PRIOR:
         return None
     direction = "bullish" if hb["up_day"] else "bearish"
     v50 = S["v50"][i]
-    labels = [n for n, f in (("hve_26wk", hb["a26_26wk"]),
+    labels = [n for n, f in (("hve_252", hb["full_252_history"]),
+                             ("hve_26wk", hb["a26_26wk"]),
                              ("ever_in_data", hb["ever_in_data"]),
                              ("high_close", hb["high_close"])) if f]
     b = bars[i]
     return {
-        **hb, "variant": "hve_252", "label_variants": labels, "direction": direction,
+        **hb, "variant": f"hve_{hb['lookback']}", "label_variants": labels, "direction": direction,
         "rvol50": round(S["v"][i] / v50, 2) if v50 else None,
         "edge_ratio": round(S["v"][i] / hb["prior_max_volume"], 2) if hb["prior_max_volume"] else None,
         "trigger": b["c"], "stop": b["l"] if direction == "bullish" else b["h"],
@@ -98,6 +102,7 @@ def _build(bars, c, context, geom, vol, ctx) -> dict:
     extras = {
         "variant": c["variant"], "label_variants": c["label_variants"],
         "hvc": round(c["hvc"], 2), "hve_low": round(c["hvl"], 2), "hve_high": round(c["hvh"], 2),
+        "lookback_sessions": c["lookback"],
         "hve_26wk": c["a26_26wk"], "full_252_history": c["full_252_history"],
         "ever_in_data": c["ever_in_data"], "bar_dcr": c["dcr"], "high_close": c["high_close"],
         "up_day": c["up_day"], "rvol50": c["rvol50"], "edge_ratio_vs_prior_max": c["edge_ratio"],
@@ -117,19 +122,21 @@ def _narrative(c, levels, context) -> dict:
     er = f"{c['edge_ratio']:.2f}x" if c["edge_ratio"] is not None else "above"
     side = "support" if d == "bullish" else "resistance"
     headline = (
-        f"UCT High-Volume Edge - the highest volume in a year ({er} the prior 252-session max, "
+        f"UCT High-Volume Edge - the highest volume in the last {c['lookback']} sessions "
+        f"({er} the prior max, "
         f"{rv} the 50-day average) on a {'up' if d == 'bullish' else 'down'} close at "
         f"${c['hvc']:.2f}; that close is now a {side} level."
     )
     what_it_is = (
-        f"A high-volume-edge bar is a session whose volume beats every session of the prior year. "
-        f"This one traded {er} the largest volume of the previous 252 sessions and closed at "
+        f"A high-volume-edge bar is a session whose volume beats every session in a long lookback; "
+        f"here that lookback is the last {c['lookback']} sessions of daily data on file. "
+        f"This one traded {er} the largest volume of those {c['lookback']} sessions and closed at "
         f"${c['hvc']:.2f}, with a range from ${c['hvl']:.2f} to ${c['hvh']:.2f}. Volume that large "
-        f"means the biggest participants of the year were active on one day, and the close they "
+        f"means the biggest participants of that period were active on one day, and the close they "
         f"left behind - the high-volume close - becomes a reference level: buyers who paid it "
         f"tend to defend it, and a stock that later reclaims it from below often moves quickly. "
         f"The rule requires a close above $3 so thin, low-priced issues do not qualify. A second "
-        f"scan's 26-week reading is carried as a label; labels present on this session: {labels}. "
+        f"scan's 26-week reading, and the full 252-session reading when that much history exists, are carried as labels; labels present on this session: {labels}. "
         f"{U.PROVENANCE_NOTE}"
     )
     why_it_matters = (
