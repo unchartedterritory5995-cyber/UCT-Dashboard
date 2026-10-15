@@ -130,8 +130,10 @@ describe('the mount (source rails)', () => {
       /smartChipsEnabled\(\) && notebookFlag\('notebook_image_docx_documents_enabled'\) === true/,
     )
   })
-  it('the metadata write goes through update + settleMetadataRevision, like onTickerChange', () => {
-    expect(src).toMatch(/await settleMetadataRevision\(await update\(\{ ticker: [a-zA-Z.]+ \}\)\)/)
+  it("the ticker write goes through the member's own door, onTickerChange (f5Freeze counts exactly three metadata doors)", () => {
+    const tag = src.slice(src.indexOf('const setTickerFromTag'), src.indexOf('const acceptScreenshotTag'))
+    expect(tag).toMatch(/=> onTickerChange\(symbol, true\)/)
+    expect(tag).not.toMatch(/settleMetadataRevision|update\(/)
   })
 })
 
@@ -312,6 +314,8 @@ describe('accepting', () => {
     expect(await screen.findByText("Tagged the screenshot NVDA · Daily. Couldn't set the note's ticker; nothing else changed.")).toBeTruthy()
     expect(imageAttrs(editor)[0].alt).toBe('NVDA daily chart')
     expect(tickerField().value).toBe('')
+    // Said ONCE: the field's own sentence stays off, because the toast above already says it.
+    expect(screen.queryByText("Couldn't change the ticker. Nothing changed.")).toBeNull()
   })
   it('a locked note takes no tag: a sentence, no alt, no ticker', async () => {
     switchesOn()

@@ -1982,11 +1982,12 @@ export default function NoteEditorPage({
   // ⛔ I2: "the note's ticker" includes what is TYPED in the Ticker field and not saved yet. A typed value is the
   // member's; the tag then labels the image only, and the chip's words say so ("Tag image …").
   // I5: the decision and its sentences live in the lazy lib/screenshotTag; the ticker WRITE stays here.
-  const setTickerFromTag = async (symbol) => {
-    await settleMetadataRevision(await update({ ticker: symbol }))
-    if (tickerInputRef.current) tickerInputRef.current.value = symbol
-    setTickerDraft(null)
-  }
+  // ⛔ Fix round 1 (f5Freeze): the write goes through the member's OWN door, `onTickerChange` (a const declared further
+  // down this body: it is read at the press, long after the render has finished, so there is no temporal dead zone).
+  // It normalises, sets the field, clears the draft and puts the field back on a refusal. `quiet` keeps its own field
+  // sentence off and lets the refusal REJECT instead: the tag's toast says "Couldn't set the note's ticker" (lib/screenshotTag),
+  // once, and never claims a ticker that was not set.
+  const setTickerFromTag = (symbol) => onTickerChange(symbol, true)
   const acceptScreenshotTag = async (offer) => {
     setScreenshotOffer(null)
     // Read AT THE PRESS, before the import's await (a re-render during it must not change what was pressed for).
@@ -3883,7 +3884,10 @@ export default function NoteEditorPage({
   // The Ticker field is checked against the server's rule BEFORE it is sent, and a refusal is
   // said in a SaveFailed sentence with the field put back -- see lib/noteTicker.js for the
   // uncaught 400 this replaced.
-  const onTickerChange = async (raw) => {
+  // `quiet` is for a caller that says the failure itself (the screenshot tag's toast): the field is still put back, its own
+  // sentence is left off, and the refusal is rethrown so that caller knows. The tag hands over an already-normalised symbol,
+  // so the two early returns below (a refused value, the value the note already has) are not its failure paths.
+  const onTickerChange = async (raw, quiet) => {
     setTickerDraft(null) // the field is being saved (or put back): from here the note's ticker is the authority
     const saved = note?.ticker || ''
     const restore = () => { if (tickerInputRef.current) tickerInputRef.current.value = saved }
@@ -3901,9 +3905,10 @@ export default function NoteEditorPage({
       setTickerFailure(null)
       await settleMetadataRevision(await update({ ticker }))
       if (tickerInputRef.current) tickerInputRef.current.value = ticker || ''
-    } catch {
-      setTickerFailure("Couldn't change the ticker. Nothing changed.")
+    } catch (e) {
       restore()
+      if (quiet) throw e
+      setTickerFailure("Couldn't change the ticker. Nothing changed.")
     }
   }
   // Wave 6 items 9 + 12: a tag change is the member's DELTA, applied to the
