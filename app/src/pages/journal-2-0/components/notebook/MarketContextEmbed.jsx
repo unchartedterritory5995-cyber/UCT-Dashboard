@@ -51,7 +51,9 @@ function CaptureNow({ setParams, onCaptured }) {
   return (
     <div {...RENDER_UNAVAILABLE}>
       {failed && <p role="status" className={blockStyles.muted}>{CAPTURE_FAILED}</p>}
-      <button type="button" className={`btn btn-ghost ${blockStyles.tap}`} disabled={busy} onClick={capture}>
+      {/* btn-secondary, not btn-ghost: a ghost button has no border or fill, so at 1280 it read as
+          bold text rather than the block's one action (F-CAPTURE-AFFORDANCE, walk 2026-10-14). */}
+      <button type="button" className={`btn btn-secondary ${blockStyles.tap}`} disabled={busy} onClick={capture}>
         Capture now
       </button>
     </div>
