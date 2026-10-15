@@ -391,22 +391,25 @@ export default function VideosSection() {
   }, [categories, progress])
 
   // "Recently added": the 10 newest videos by created_at across ALL categories
-  // — a cross-cut view (no dedupe against other shelves by design). Clicking a
+  // — a cross-cut view (no dedupe against the show shelves by design). The one
+  // exception is the featured episode: it already sits in the strip directly
+  // above, so leading this row with the same card read as a repeat. Clicking a
   // card plays within the recently-added list itself so Up Next walks the same
   // newest-first cross-section the member is looking at.
+  const heroId = heroVideo?.id
   const recentEntries = useMemo(() => {
     const all = []
     for (const cat of categories) {
       const kind = cat.kind === 'show' ? 'show' : 'library'
       for (const v of cat.videos || []) {
-        if (v.created_at) all.push({ video: v, kind })
+        if (v.created_at && v.id !== heroId) all.push({ video: v, kind })
       }
     }
     all.sort((a, b) => (b.video.created_at || 0) - (a.video.created_at || 0))
     const top = all.slice(0, 10)
     const list = top.map((e) => e.video)
     return top.map((e, i) => ({ video: e.video, list, index: i, kind: e.kind }))
-  }, [categories])
+  }, [categories, heroId])
 
   // Show shelves display (and play against) newest-first lists. updatedAt =
   // the newest episode's created_at → "· updated Jul 24" header micro-meta.
