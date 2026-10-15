@@ -1,0 +1,8 @@
+# raw output of: python tools/notebook_perf_budgets.py --dist app/dist   (built from HEAD 78282375a6 + the Task 11 working tree, which touches tests/tools/docs only)
+# UTC 20261015T203004Z
+bytes.notebook_first_open: 2,256,204 B across 61 JS chunks (budget 2,260,793 B, baseline 2,153,137 B)
+VERDICT: PASS -- within every budget checked
+# exit code: 0
+
+# git diff --stat 204234469b -- app/src/pages/journal-2-0/lib/tiptap.js  (empty output = no extension or plugin changed since Part A's typing measure)
+# (end of that diff --stat)
