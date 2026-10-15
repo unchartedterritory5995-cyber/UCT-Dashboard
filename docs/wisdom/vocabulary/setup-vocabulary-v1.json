@@ -2425,6 +2425,30 @@
      "vocab_id": null,
      "mismatch": 0,
      "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "uct_hve",
+     "vocab_id": "high_volume_close",
+     "mismatch": 1,
+     "note": "the detector marks the year's highest-VOLUME bar (High Volume Edge); the vocabulary entry is the authors' High Volume Close (HVC). Same family, different trigger; mapped with the mismatch recorded, as for setupCatalog.js \"High Volume Edge\""
+    },
+    {
+     "external_name": "uct_kicker",
+     "vocab_id": "kicker_candle",
+     "mismatch": 0,
+     "note": "the traders' kicker: weak close, then a gap up that trades above the prior high"
+    },
+    {
+     "external_name": "uct_oops_reversal",
+     "vocab_id": "oops_reversal",
+     "mismatch": 0,
+     "note": "the traders' oops scan: open below the prior close, undercut the prior low, close back above the prior close"
+    },
+    {
+     "external_name": "uct_slingshot",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
     }
    ]
   },
