@@ -84,6 +84,8 @@ NOTEBOOK_KEYS = [
     "notebook_journal_styles_enabled",
     # Tier 2 part A: the alert chip and the screenshot chip, one switch — an enablement gate.
     "notebook_smart_chips_enabled",
+    # Tier 2 part B: the earnings follow-up notice and card — an enablement gate.
+    "notebook_earnings_followup_enabled",
 ]
 
 #: Keys whose capability ships ON: unset means ON. Every other key is an enablement gate.

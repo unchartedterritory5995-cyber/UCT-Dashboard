@@ -76,6 +76,7 @@ export const FLAG_FALLBACKS = Object.freeze({
   compass_notes_tool_enabled: false, // wave 7 lane H: Compass chat can search the member's notes (COMPASS_NOTES_TOOL_ENABLED) — absent ⇒ OFF
   notebook_journal_styles_enabled: false, // P1: journal styles (kinds, styles, the manager) — absent ⇒ OFF
   notebook_smart_chips_enabled: false, // Tier 2 part A: the alert chip and the screenshot chip — absent ⇒ OFF
+  notebook_earnings_followup_enabled: false, // Tier 2 part B: the earnings follow-up card and job — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 

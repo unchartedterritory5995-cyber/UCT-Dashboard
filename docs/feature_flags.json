@@ -1877,6 +1877,16 @@
       "where": ["web"],
       "note": "Notebook P2 Tier 2 part A (R-T2A-11), built dark 2026-10-14, set on no service. Enablement gate, unset means OFF: ONE switch for both smart chips and their server route, all of which are built (branch notebook-t2a-assists). When on, (1) typing a sentence that ASKS for an alert, such as 'alert me if NVDA closes below 120' (the word 'alert' must come before 'if', 'when' or 'once'; a bare 'NVDA closes below 120' offers nothing), offers a 'Set alert' chip once the server confirms the word is a ticker ('it', 'the stock' and 'price' mean the note's own ticker); the chip opens a pre-filled sheet and the member presses Set alert, so nothing is set for them; Alt+Enter and Escape act only while the chip is on screen. (2) A chart screenshot pasted into a note is read once by the existing document OCR and, when exactly one ticker is unambiguous at the top of the image, offers 'Tag NVDA · Daily' (the timeframe only when one is clear); accepting sets the image's alt and, only when the note has no ticker (saved or typed), the note's ticker. ⛔ The screenshot chip ALSO needs NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED (the OCR pipeline it reads; NoteEditorPage.jsx handleImageInsert checks both switches); with that one off, no read is started. (3) POST /api/j2/smart-chips/tickers resolves the ticker words with the server's own resolver, and answers the one 404 while this switch is off. When off nothing new runs: no plugin work beyond one flag read, no poll, no route. Server key NOTEBOOK_SMART_CHIPS_ENABLED rides the auth payload as notebook_smart_chips_enabled (api/routers/auth.py NOTEBOOK_FLAGS); the client reads it through lib/smartChipsFlag.js, latched per tab like every Notebook capability. Arming is the owner's: railway variables --service web --set NOTEBOOK_SMART_CHIPS_ENABLED=1, then verify a new boot and the in-process read (Task 12 hands over the exact command and checks). Rollback: railway variable delete NOTEBOOK_SMART_CHIPS_ENABLED --service web, then railway redeploy --service web --yes, and confirm in-process."
     },
+    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": {
+      "member_facing": {
+        "label": "Notebook: earnings follow-up notice and card (Write follow-up)",
+        "where": "Notebook"
+      },
+      "status": "dark",
+      "since": "2026-10-15",
+      "where": ["web"],
+      "note": "Notebook P2 Tier 2 part B (R-T2B-5), built dark 2026-10-15, set on no service. Enablement gate, unset means OFF. When on: (1) a job at 16:45 and 18:00 ET mon-fri (and a boot catch-up) rings one in-app bell per member, symbol and report date for the paid member's held, watched or flagged names whose reaction session closed that day, at most 3 a day, and only while NOTEBOOK_JOURNAL_STYLES_ENABLED is also on; (2) the bell's link opens a card whose 'Write follow-up' makes an Earnings follow-up note; (3) the server accepts the earningsFollowup create payload. Never email, never Discord (info). Rides the auth payload as notebook_earnings_followup_enabled (api/routers/auth.py NOTEBOOK_FLAGS); the client reads it through lib/earningsFollowupFlag.js, latched per tab like every Notebook capability. Arming and rollback are the owner's (Task 12's packet)."
+    },
     "NOTEBOOK_EARNINGS_PREP_ENABLED": {
       "member_facing": {
         "label": "Earnings prep (Reporting soon)",

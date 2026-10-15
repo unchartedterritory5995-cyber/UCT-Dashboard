@@ -63,6 +63,7 @@ from api.services.journal_two import review_drafts
 from api.services.journal_two import document_extraction, note_semantic, note_tasks
 from api.services.journal_two import coach_chat_tools
 from api.services.journal_two import journal_styles
+from api.services.journal_two import earnings_followup
 
 REPO = Path(__file__).resolve().parents[1]
 ONE_PARSE = "api/services/notebook_flags.py"
@@ -163,6 +164,8 @@ def _server_gates() -> dict:
         "NOTEBOOK_JOURNAL_STYLES_ENABLED": journal_styles.enabled,
         # Tier 2 part A: the smart-chips ticker route's own gate function.
         "NOTEBOOK_SMART_CHIPS_ENABLED": notebook_smart_chips.enabled,
+        # Tier 2 part B: the earnings follow-up service's own gate function.
+        "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": earnings_followup.enabled,
     }
 
 
