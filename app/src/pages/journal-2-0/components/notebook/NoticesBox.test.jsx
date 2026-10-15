@@ -13,12 +13,15 @@ import { SWRConfig } from 'swr'
 import NoticesBox from './NoticesBox'
 import { AuthContext } from '../../../../context/AuthContext'
 import fx from '../../lib/__fixtures__/notices.json'
+// The follow-up row (P2 Tier 2 part B) is CAPTURED too, in its own fixture so the counts above stand.
+import fu from '../../lib/__fixtures__/notices.followup.json'
 
 const ALERTS = '/api/alerts?limit=20'
 const INSIGHTS = '/api/voice/insights'
 const reminder = fx.alertsBody.find((a) => a.type === 'notebook_task_reminder')
 const fill = fx.alertsBody.find((a) => a.type === 'notebook_entry_context_new_fill')
 const insight = fx.insightsBody.insights[0]
+const followup = fu.alertsBody[0]
 
 let state
 let calls
@@ -178,6 +181,41 @@ describe('NoticesBox', () => {
     await new Promise((r) => setTimeout(r, 30))
     expect(screen.getByText(/Notices · 3/)).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Tasks due today' })).toBeTruthy()
+  })
+
+  it('a follow-up notice is a link to the card, and opening it marks the bell row read', async () => {
+    stubFetch({ alerts: [followup], insights: [] })
+    renderBox()
+    await openBox(1)
+    const link = screen.getByRole('link', { name: 'ORCL reported: write your follow-up' })
+    expect(link.getAttribute('href')).toBe(followup.data.research_url)
+    expect(link.getAttribute('href')).toBe('/journal/notebook?followup=ORCL&reportDate=2026-10-14')
+    expect(screen.getByText(/ORCL reported earnings on Oct 14, 2026\. It is on your watchlist\./)).toBeTruthy()
+    fireEvent.click(link)
+    await waitFor(() => expect(postUrls()).toContain(`/api/alerts/${followup.id}/read`))
+    expect(screen.getByTestId('where').textContent).toBe('/journal/notebook?followup=ORCL&reportDate=2026-10-14')
+    await waitFor(() => expect(screen.queryByText(/Notices/)).toBeNull())
+  })
+
+  it('Dismiss on a follow-up marks its bell row read and stays on Home', async () => {
+    stubFetch({ alerts: [...fx.alertsBody, followup], insights: [] })
+    renderBox()
+    await openBox(3)
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss ORCL reported: write your follow-up' }))
+    await waitFor(() => expect(postUrls()).toEqual([`/api/alerts/${followup.id}/read`]))
+    await screen.findByText(/Notices · 2/)
+    expect(screen.queryByRole('link', { name: /ORCL reported/ })).toBeNull()
+    expect(screen.getByTestId('where').textContent).toBe('/journal/notebook')
+  })
+
+  it('a follow-up whose link is not the card is a plain title with a Dismiss', async () => {
+    const stray = { ...followup, data: { ...followup.data, research_url: 'https://elsewhere.example/x' } }
+    stubFetch({ alerts: [stray], insights: [] })
+    renderBox()
+    await openBox(1)
+    expect(screen.queryByRole('link')).toBeNull()
+    expect(screen.getByText('ORCL reported: write your follow-up')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Dismiss ORCL reported: write your follow-up' })).toBeTruthy()
   })
 
   it('a resurfaced note whose link is not a Notebook door is a plain title with a Dismiss', async () => {
