@@ -11,6 +11,12 @@ ANNUAL_ONLY = {"ticker": "ORCL", "quarters": [], "estimates": [],
 EMPTY = {"quarters": [], "estimates": []}
 
 
+def _writes(name):
+    def _raise(*a, **k):
+        raise AssertionError(f"held read wrote: {name}")
+    return _raise
+
+
 @pytest.fixture(autouse=True)
 def _no_build(monkeypatch):
     monkeypatch.setattr(ei, "_build", lambda sym: (_ for _ in ()).throw(AssertionError("built")))
@@ -18,6 +24,10 @@ def _no_build(monkeypatch):
     store = {}
     monkeypatch.setattr(ei.cache, "get", lambda k: store.get(("mem", k)))
     monkeypatch.setattr(ei.snap_store, "get", lambda kind, sym: store.get(("disk", kind, sym)))
+    # A held read is READ-ONLY: it must not re-prime memory, persist, or evict anything either.
+    for obj, name in ((ei.cache, "set"), (ei.cache, "invalidate"), (ei.cache, "delete_prefix"),
+                      (ei.snap_store, "put"), (ei.snap_store, "delete")):
+        monkeypatch.setattr(obj, name, _writes(f"{type(obj).__name__ if obj is ei.cache else 'snap_store'}.{name}"))
     return store
 
 
@@ -120,3 +130,38 @@ def test_it_never_calls_a_provider(_no_build, monkeypatch):
     _no_build[("disk", ei._KIND, "ORCL")] = (FULL, ei._STALE_MAX + 1, 60)
     assert ei.get_earnings_held("ORCL") is None
     assert _held_from_memory(_no_build, ANNUAL_ONLY) is None
+
+
+# ── edges ───────────────────────────────────────────────────────────────────────────────────
+
+def test_a_padded_ticker_is_stripped(_no_build):
+    _no_build[("mem", f"{ei._KIND}::ORCL")] = FULL
+    assert ei.get_earnings_held("  orcl 	") is FULL
+    _no_build.clear()
+    _no_build[("disk", ei._KIND, "ORCL")] = (FULL, 10, 60)
+    assert ei.get_earnings_held(" orcl ") is FULL
+    assert ei.get_earnings_held("   ") is None
+
+
+def test_the_stale_boundary_is_inclusive(_no_build):
+    _no_build[("disk", ei._KIND, "ORCL")] = (FULL, ei._STALE_MAX, 60)
+    assert ei.get_earnings_held("ORCL") is FULL
+    _no_build[("disk", ei._KIND, "ORCL")] = (FULL, ei._STALE_MAX + 1, 60)
+    assert ei.get_earnings_held("ORCL") is None
+
+
+@pytest.mark.parametrize("junk", [None, "a string", ["quarters"], 42])
+def test_a_non_dict_payload_is_none_from_either_layer(_no_build, junk):
+    assert _held_from_snapshot(_no_build, junk) is None
+    assert _held_from_memory(_no_build, junk) is None
+
+
+def test_a_held_read_writes_nothing_on_any_outcome(_no_build):
+    """The write seams raise (fixture); drive every exit so a re-prime or persist on any of them fails."""
+    assert _held_from_memory(_no_build, FULL) is FULL
+    assert _held_from_snapshot(_no_build, FULL) is FULL
+    assert _held_from_snapshot(_no_build, ANNUAL_ONLY) is None
+    _no_build[("disk", ei._KIND, "ORCL")] = (FULL, ei._STALE_MAX + 1, 60)
+    assert ei.get_earnings_held("ORCL") is None
+    _no_build.clear()
+    assert ei.get_earnings_held("ORCL") is None
