@@ -1,6 +1,7 @@
-// The blocks a journal style can switch on (spec P1.1/P1.2, P2). A block id IS a widget id: a block
-// is a widgetEmbed node with that widgetId (docs/notebook/p1-verify-before-building.md §a). P2 adds
-// rows here AND in journal_styles.BLOCK_KINDS (with a builder).
+// The blocks a journal style can switch on (spec P1.1/P1.2, P2). A block id IS a widget id, except
+// `reminder` (Tier 2 part B), which builds an unticked task: a block is a widgetEmbed node with that
+// widgetId (docs/notebook/p1-verify-before-building.md §a). P2 adds rows here AND in
+// journal_styles.BLOCK_KINDS (with a builder).
 // ⛔ ONE FACT IN TWO FILES, pinned by tests/test_journal_styles_store.py through Node (ids, `search`,
 // settings keys, options, defaults). Labels and optionLabels are the client's own words. NO IMPORTS.
 const YES_NO = Object.freeze({ yes: 'Yes', no: 'No' })
@@ -59,6 +60,16 @@ export const BLOCK_KINDS = Object.freeze([
     settings: Object.freeze([
       Object.freeze({ key: 'fields', label: 'Show', options: Object.freeze(['all', 'regime', 'indexes']), default: 'all',
         optionLabels: Object.freeze({ all: 'Everything', regime: 'Regime, exposure and breadth', indexes: 'SPY, QQQ and VIX' }) }),
+    ]),
+  }),
+  // Tier 2 part B: the Reminder, an unticked task "Follow up by <date>" N trading days after the note is
+  // made. NOT a widget (no `search`); created once, never re-added by Update layout.
+  Object.freeze({
+    id: 'reminder',
+    label: 'Reminder',
+    settings: Object.freeze([
+      Object.freeze({ key: 'days', label: 'Follow up after', options: Object.freeze(['1', '2', '3', '5', '10']), default: '5',
+        optionLabels: Object.freeze({ 1: '1 trading day', 2: '2 trading days', 3: '3 trading days', 5: '5 trading days', 10: '10 trading days' }) }),
     ]),
   }),
 ])

@@ -48,7 +48,8 @@ BLOCK_ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,40}$")
 BUILTIN_PREFIX = "builtin:"
 
 # ⛔ ONE FACT IN TWO FILES with app/src/pages/journal-2-0/lib/journalBlocks.js (ids, settings keys,
-# options, defaults). A block id IS a widget id. P2 adds a row here, the client row, and a builder.
+# options, defaults). A block id IS a widget id, except `reminder` (Tier 2 part B), which builds an
+# unticked task. P2 adds a row here, the client row, and a builder.
 BLOCK_KINDS: tuple[dict, ...] = (
     {"id": "chart", "settings": ({"key": "tf", "options": ("D", "W", "60", "15", "5"), "default": "D"},)},
     # P2 Tier 1 (part a). `search` is the node's searchText, set by the builder and by the client insert.
@@ -71,6 +72,9 @@ BLOCK_KINDS: tuple[dict, ...] = (
     # The market context stamp is the EXISTING marketcontext capture widget (IR-S6). No `search`.
     {"id": "marketcontext", "settings": (
         {"key": "fields", "options": ("all", "regime", "indexes"), "default": "all"},)},
+    # Tier 2 part B (R-T2B-13): the Reminder, an unticked task "Follow up by <date>". NOT a widget, so
+    # no `search`; built in create mode only (reminder_block.py).
+    {"id": "reminder", "settings": ({"key": "days", "options": ("1", "2", "3", "5", "10"), "default": "5"},)},
 )
 KNOWN_BLOCKS = frozenset(k["id"] for k in BLOCK_KINDS)
 _BLOCK_BY_ID = {k["id"]: k for k in BLOCK_KINDS}
@@ -685,8 +689,11 @@ def _build_chart(block: dict, ctx: dict) -> tuple[dict | None, str | None]:
 
 #: block id -> builder. ⛔ Every id in BLOCK_KINDS has a builder (railed); P2 adds both together.
 from api.services.journal_two import trader_blocks as _tb  # noqa: E402 -- after BLOCK_KINDS, no cycle
+from api.services.journal_two import reminder_block as _rb  # noqa: E402 -- reads no journal_styles name
 BLOCK_BUILDERS: dict[str, Callable[[dict, dict], tuple[dict | None, str | None]]] = {
-    "chart": _build_chart, **_tb.BUILDERS}
+    "chart": _build_chart, _rb.BLOCK_ID: _rb.build_reminder, **_tb.BUILDERS}
+#: Blocks built only when a note is made (R-T2B-13). Update layout neither offers nor lists them.
+CREATE_ONLY_BLOCKS = frozenset({_rb.BLOCK_ID})
 
 #: A builder's `ctx["mode"]` (IR-S11, integrator ruling R-RC-1): "create" when it serves a NEW note
 #: (a market context captures), "update" when it offers a block to a note already written (it
@@ -1029,6 +1036,12 @@ def _plan(user_id: str, row: sqlite3.Row, body: dict, style_id: str | None, conn
     built, skipped = [], []
     for b in style["blocks"]:
         if not b.get("enabled") or b["block"] in have:
+            continue
+        if b["block"] in CREATE_ONLY_BLOCKS and not inserts_outline:
+            # R-T2B-13 / F8: "N trading days after creation" means something only when the note is made,
+            # and _present cannot see a task. Update layout neither offers nor lists it -- but an EMPTY
+            # note switched to a style IS a create (mode "create"), where compose places it, so the plan
+            # lists it there and the dry run and the write agree.
             continue
         builder = BLOCK_BUILDERS.get(b["block"])
         if builder is None:

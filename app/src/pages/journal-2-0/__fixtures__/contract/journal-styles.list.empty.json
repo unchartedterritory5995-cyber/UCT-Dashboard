@@ -18,7 +18,8 @@
       "prepMovers",
       "prepLevels",
       "tradeReview",
-      "marketcontext"
+      "marketcontext",
+      "reminder"
     ],
     "kinds": [
       {
