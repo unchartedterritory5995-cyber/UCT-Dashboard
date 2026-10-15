@@ -1438,7 +1438,7 @@ def session_videos_with_headlines() -> list[dict]:
     fresh session is fixed before the back catalogue."""
     with contextlib.closing(_connect()) as c:
         rows = c.execute(
-            """SELECT id, title, headline FROM edu_videos
+            """SELECT id, title, headline, created_at FROM edu_videos
                WHERE meeting_uuid IS NOT NULL AND meeting_uuid != ''
                  AND COALESCE(headline, '') != ''
                  AND COALESCE(chapters, '') NOT IN ('', '[]')
