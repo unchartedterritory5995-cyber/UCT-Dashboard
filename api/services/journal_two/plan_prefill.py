@@ -14,6 +14,7 @@ nowhere to put a level, so nothing is placed and no source line is written.
 """
 from __future__ import annotations
 
+import copy
 import math
 from datetime import datetime
 from typing import Any
@@ -94,7 +95,8 @@ def price_line(symbol: str, ctx: dict) -> dict | None:
     except Exception:  # noqa: BLE001 -- a spent budget or a failed read is a missing line, never a failed note
         return None
     price = (q or {}).get("price")
-    if isinstance(price, bool) or not isinstance(price, (int, float)) or not math.isfinite(price) or price <= 0:
+    # ⛔ Below one cent is no line (M1): `f"{0.004:,.2f}"` prints "$0.00", and R-T2A-2 is "never a blank or a zero".
+    if isinstance(price, bool) or not isinstance(price, (int, float)) or not math.isfinite(price) or price < 0.01:
         return None
     when = _as_of_et(q.get("asOf"))
     source = q.get("source") if q.get("source") in _SOURCE_WORDS else None
@@ -128,9 +130,23 @@ def _place_levels(doc: dict, symbol: str, levels: dict) -> bool:
     return placed
 
 
+def _placed_copy(doc: dict, symbol: str, levels: dict) -> dict | None:
+    """The levels placed onto a COPY of `doc`, or None when no block took them or the outline could not take them.
+    ⛔ I4: the member's own outline can hold an embed of any shape (a chart whose symbol is a number, a sizer whose
+    params is a list, attrs that are not an object); `_place_levels` raising there used to fail the whole `/plan`
+    create. On any error nothing is placed and no source line is written (T4-2), and because the work is done on a
+    copy, a level placed before the error never ships without the line that says where it came from."""
+    try:
+        trial = copy.deepcopy(doc)
+        return trial if _place_levels(trial, symbol, levels) else None
+    except Exception:  # noqa: BLE001 -- a malformed outline is "nowhere to put a level", never a failed note
+        return None
+
+
 def apply(doc: dict, ctx: dict, conn) -> dict:
     """compose's `after_build` for a planPrefill create: the member's levels, the dated price, the
-    source link. Mutates and returns `doc`; never raises for a missing level or price."""
+    source link. Mutates and returns `doc`; never raises for a missing level or price, or for an
+    outline that cannot take a level."""
     symbol = ctx.get("ticker")
     if not symbol:
         return doc
@@ -142,7 +158,10 @@ def apply(doc: dict, ctx: dict, conn) -> dict:
     price = price_line(symbol, ctx)
     if price:
         lines.append(price)
-    if found and _place_levels(doc, symbol, found["levels"]):
+    placed = _placed_copy(doc, symbol, found["levels"]) if found else None
+    if placed is not None:
+        doc.clear()
+        doc.update(placed)  # in place: the caller's `doc` IS the note being built
         # ⛔ No title in the text: the chip resolves the note's CURRENT title (noteLinkNode.jsx), and a
         # title typed into this line could carry a colon and a number, which plan_extract's text reader
         # would take for a level the member never planned (V6: keep this line prose, no `label: number`).

@@ -296,3 +296,88 @@ def test_the_prefill_is_the_same_insert_no_second_revision(member, monkeypatch):
     note, _ = _plan(member)
     assert note["createdAt"] == note["updatedAt"]
     assert _nodes(_body(note), "chart")[0]["attrs"]["annotations"]            # and the levels are in it
+
+
+# ── Final-review fixes ────────────────────────────────────────────────────────────────────────────
+
+def _outline_style(member, content):
+    """A member style whose OUTLINE is `content` as given (the embeds a member's own outline can carry), with no
+    block toggles adding blocks of their own. The outline is written straight to the row so no cleaning step can
+    tidy the malformed embed this test is about."""
+    s = journal_styles.create_style(member.user_id, {
+        "name": "odd plan", "kindId": "trade_plan",
+        "outlineBodyJson": {"type": "doc", "content": [
+            {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Plan"}]}]},
+        "blocks": [{"block": "preEntryChecklist", "enabled": True, "settings": {}}]})
+    outline = {"type": "doc", "content": [
+        {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Plan"}]}, *content]}
+    member.conn.execute("UPDATE j2_journal_styles SET outline_body_json = ? WHERE id = ?", (json.dumps(outline), s["id"]))
+    member.conn.commit()
+    return s
+
+
+def _embed(widget_id, params):
+    return {"type": "widgetEmbed", "attrs": {"widgetId": widget_id, "params": params}}
+
+
+def test_a_malformed_member_outline_never_fails_the_plan(member, monkeypatch):
+    """I4: `/plan` is live on merge, and `_place_levels` used to raise on a member outline whose chart symbol is a
+    number (`.upper()` on an int) or whose sizer's params is a list (`dict(list)`), failing the create for that
+    member every time. Now the create succeeds with the style's blocks, places nothing and writes no source line."""
+    member.make_note("NVDA", "NVDA base", "Entry: 181.5\nStop: 174")
+    monkeypatch.setattr(tb, "price_stamp_quote", lambda sym, now=None: dict(GOOD_QUOTE))
+    s = _outline_style(member, [_embed("chart", {"symbol": 7}), _embed("positionSizing", ["x"])])
+    note, _ = journal_styles.create_styled_note(
+        member.user_id, {"styleId": s["id"], "ticker": "NVDA", "planPrefill": True}, member.conn)
+    body = _body(note)
+    text = _text(body)
+    assert "Levels from your note" not in text                       # nothing placed, so nothing claimed
+    assert "Price when planned: $182.40" in text                     # the dated price still lands
+    assert _nodes(body, "preEntryChecklist")                         # the style's own block is there
+    assert _nodes(body, "chart") and _nodes(body, "positionSizing")  # and the outline's embeds, untouched
+    assert all(not (c["attrs"].get("annotations") or []) for c in _nodes(body, "chart"))
+
+
+def test_a_level_placed_before_the_error_never_ships_without_its_source_line(member, monkeypatch):
+    """I4: a GOOD chart takes the levels, then a malformed sizer raises. The work is done on a copy, so the chart
+    keeps no level that the (unwritten) source line would have explained."""
+    member.make_note("NVDA", "NVDA base", "Entry: 181.5\nStop: 174")
+    monkeypatch.setattr(tb, "price_stamp_quote", lambda sym, now=None: None)
+    s = _outline_style(member, [_embed("chart", {"symbol": "NVDA"}), _embed("positionSizing", ["x"])])
+    note, _ = journal_styles.create_styled_note(
+        member.user_id, {"styleId": s["id"], "ticker": "NVDA", "planPrefill": True}, member.conn)
+    body = _body(note)
+    assert "Levels from your note" not in _text(body)
+    charts = [c for c in _nodes(body, "chart") if (c["attrs"].get("params") or {}).get("symbol") == "NVDA"]
+    assert charts, "control: the good chart is in the note"
+    assert all(not (c["attrs"].get("annotations") or []) for c in charts)
+
+
+def test_apply_on_a_malformed_doc_returns_the_doc_unplaced(monkeypatch):
+    """I4 at the unit: `apply` itself never raises for a malformed embed, and leaves the doc as it was."""
+    monkeypatch.setattr(plan_prefill, "member_levels", lambda *a: {"noteId": "n9", "title": "", "levels": {"entry": 1.0}})
+    monkeypatch.setattr(plan_prefill, "price_line", lambda *a: None)
+    for bad in (_embed("chart", {"symbol": 7}), _embed("positionSizing", ["x"]),
+                {"type": "widgetEmbed", "attrs": ["not", "an", "object"]}):
+        doc = {"type": "doc", "content": [bad]}
+        before = json.dumps(doc, sort_keys=True)
+        out = plan_prefill.apply(doc, {"ticker": "NVDA", "user_id": UID}, None)
+        assert out is doc
+        assert json.dumps(doc, sort_keys=True) == before
+
+
+@pytest.mark.parametrize("price", [0.004, 0.0049, 0.009999])
+def test_a_sub_cent_price_is_left_out_never_printed_as_zero(member, monkeypatch, price):
+    """M1: `price > 0` admitted 0.004, which `f"{price:,.2f}"` prints as "$0.00" -- R-T2A-2 says never a zero."""
+    monkeypatch.setattr(tb, "price_stamp_quote", lambda sym, now=None: {**GOOD_QUOTE, "price": price})
+    note, _ = _plan(member)
+    text = _text(_body(note))
+    assert "Price when planned" not in text
+    assert "$0.00" not in text
+
+
+def test_one_cent_is_a_price(member, monkeypatch):
+    """M1 control: the line's floor is one cent, and a one-cent price is printed as one."""
+    monkeypatch.setattr(tb, "price_stamp_quote", lambda sym, now=None: {**GOOD_QUOTE, "price": 0.01})
+    note, _ = _plan(member)
+    assert "Price when planned: $0.01" in _text(_body(note))
