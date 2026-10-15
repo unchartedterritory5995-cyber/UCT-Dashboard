@@ -14,7 +14,7 @@ describe('FollowupOffer', () => {
     const onCreated = vi.fn()
     render(<FollowupOffer open searchParams={params} onCreated={onCreated} onDismiss={() => {}} />)
     expect(screen.getByRole('region', { name: 'Earnings follow-up' })).toBeTruthy()
-    expect(screen.getByText('ORCL reported on Oct 14, 2026. Write what you expected, what happened, and what you’ll do differently.')).toBeTruthy()
+    expect(screen.getByText("ORCL reported on Oct 14, 2026. Write what you expected, what happened, and what you'll do differently.")).toBeTruthy()
     expect(createFollowupNote).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Write follow-up' }))
     fireEvent.click(screen.getByRole('button', { name: 'Write follow-up' }))   // a second press while busy
@@ -43,6 +43,31 @@ describe('FollowupOffer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Write follow-up' }))
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith({ id: 'n9' }))
     expect(screen.queryByRole('alert')).toBeNull()
+  })
+  it('Not now puts focus back on what had it before the card appeared, not on the body', () => {
+    const before = document.createElement('button')
+    before.textContent = 'a notice link'
+    document.body.appendChild(before)
+    before.focus()
+    render(<FollowupOffer open searchParams={params} onCreated={() => {}} onDismiss={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }))
+    expect(document.activeElement).toBe(before)
+    before.remove()
+  })
+  it('Not now, when that element is gone, lands on the Notebook pane heading', () => {
+    const pane = document.createElement('div')
+    pane.id = 'notebook-pane'
+    pane.innerHTML = '<h2 tabindex="-1">Research home</h2>'
+    document.body.appendChild(pane)
+    const gone = document.createElement('button')
+    document.body.appendChild(gone)
+    gone.focus()
+    render(<FollowupOffer open searchParams={params} onCreated={() => {}} onDismiss={() => {}} />)
+    gone.remove()
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }))
+    expect(document.activeElement).toBe(pane.querySelector('h2'))
+    expect(document.activeElement).not.toBe(document.body)
+    pane.remove()
   })
   it('Not now leaves without a note; a closed or bad link renders nothing', () => {
     const onDismiss = vi.fn()

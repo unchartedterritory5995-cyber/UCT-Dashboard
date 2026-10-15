@@ -154,6 +154,9 @@ describe('the earnings follow-up card in the Notebook (Tier 2 part B)', () => {
     expect(search().has('followup')).toBe(false)
     expect(search().has('reportDate')).toBe(false)
     expect(createNoteViaApi).not.toHaveBeenCalled()
+    // focus is not dropped to <body>: it lands on the pane heading
+    expect(document.activeElement).not.toBe(document.body)
+    expect(document.activeElement).toBe(document.querySelector('#notebook-pane [tabindex="-1"]'))
   })
 
   it('F4: a SECOND notice opened in the same tab gets a card whose button works', async () => {
