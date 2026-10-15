@@ -75,6 +75,11 @@ EARNINGS_FOLLOWUP_KEY = "notebook_earnings_followup_enabled"   # lib/earningsFol
 FOLLOWUP_SYM = "ORCL"
 JOURNAL_STYLES_PY = REPO / "api" / "services" / "journal_two" / "journal_styles.py"
 FOLLOWUP_NOTICE_TITLE = f"{FOLLOWUP_SYM} reported: write your follow-up"       # earnings_followup.notice_copy / NoticesBox.jsx:61
+# The note's number lines for the seeded quarter (notebook_fin_walk.FOLLOWUP_CHILD: EPS 1.47 vs 1.42, +3.5%, reaction -4.2%).
+# tests/test_notebook_fin_walk_followup_group.py feeds the child's own numbers through followup_prefill.number_lines and
+# compares the result to these two, so a copy change in the product reds there and not on a walk run.
+FOLLOWUP_EPS_LINE = "EPS: $1.47 actual vs $1.42 expected (+3.5% surprise)."
+FOLLOWUP_REACTION_PREFIX = "Reaction: −4.2% close to close"
 # Notebook P2b (Task 13): the four prep blocks' group names (lib/journalBlocks.js labels, the name
 # BlockNodeView gives its role="group") and the part each one captures (trader_blocks.PREP_BLOCK).
 PREP_GROUPS = {"prepWire": ("Morning wire and exposure", "wire"), "prepEarnings": ("Earnings for my names", "earnings"),
@@ -3308,8 +3313,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                     shown = C.vis_loc(summ, 45000)
                     if shown:
                         summ.first.click()
-                        p.wait_for_timeout(400)
                     link = p.locator('[data-tour="home-notices"]').get_by_role("link", name=FOLLOWUP_NOTICE_TITLE, exact=True)
+                    # wait for the Notices link itself to be visible after the unfold (no fixed sleep)
                     seen = shown and C.vis_loc(link, 15000)
                     h_ = height(link) if seen else None
                     href = link.first.get_attribute("href") if seen else None
@@ -3363,23 +3368,26 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                     head_texts = [plain(n) for n in nodes if n.get("type") == "heading"]
                     order = [t for t in head_texts if t in heads]
                     paras = [plain(n) for n in nodes if n.get("type") == "paragraph"]
-                    eps_line = "EPS: $1.47 actual vs $1.42 expected (+3.5% surprise)."
+                    eps_line = FOLLOWUP_EPS_LINE
                     reaction = next((t for t in paras if t.startswith("Reaction:")), None)
                     source = next((t for t in paras if t.startswith("Source:")), None)
                     tasks = [n for n in nodes if n.get("type") == "taskItem"]
                     dated = [t for t in tasks if any(m.get("type") == "dateMention" for m in walk_nodes(t))]
-                    kind = got.get("kindId") or (got.get("propertiesJson") or {}).get("builtin:note_kind")
+                    # The member-visible Kind of note is the property; kindId (the internal style-stamp column) is recorded beside it
+                    # as a fact and never stands in for it.
+                    kind = (got.get("propertiesJson") or {}).get("builtin:note_kind")
+                    kind_id = got.get("kindId")
                     links = [(n.get("attrs") or {}).get("noteId") for n in nodes if n.get("type") == "noteLink"]
                     prep_today = FU["day"] == C.TODAY.isoformat()
                     checks = {"headings_in_order": tuple(order) == tuple(heads) and bool(heads),
-                              "eps_line": eps_line in paras, "reaction_line": bool(reaction) and reaction.startswith("Reaction: −4.2% close to close"),
+                              "eps_line": eps_line in paras, "reaction_line": bool(reaction) and reaction.startswith(FOLLOWUP_REACTION_PREFIX),
                               "source_line": bool(source), "one_dated_task": len(tasks) == 1 and len(dated) == 1,
                               "kind": kind == "earnings_followup"}
                     ok = bool(region and nid) and all(checks.values()) and (vp == "1280" or (h_ is not None and h_ >= 44))
                     C.step(p, i, "followup.write", f"\"Write follow-up\" makes the note: three headings, the quarter's numbers, the source, one dated task, Kind of note ({vp})",
                            "PASS" if ok else "FAIL", card=region, note=nid, link_used=link, link_was_captured=bool(FU.get("link")), checks=checks, headings=head_texts, expected_headings=list(heads),
                            eps_line_present=eps_line in paras, reaction=reaction, source=source, tasks=len(tasks), dated_tasks=len(dated),
-                           kind_of_note=kind, note_title=got.get("title"), prep_links=links, write_button_height=h_)
+                           kind_of_note=kind, kind_id=kind_id, note_title=got.get("title"), prep_links=links, write_button_height=h_)
                     # The link to the prep note is present when today is the report day; any later day, the prep note (made by
                     # the setup row, today) was created AFTER the report day, which the server then (rightly) does not link.
                     if prep_today:

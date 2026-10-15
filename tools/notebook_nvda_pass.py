@@ -451,9 +451,9 @@ FOLLOWUP_SYM = "ORCL"
 FOLLOWUP_TITLE = f"{FOLLOWUP_SYM} reported: write your follow-up"   # NoticesBox.jsx:61 (the link's text; the producer's title)
 FOLLOWUP_DISMISS = f"Dismiss {FOLLOWUP_TITLE}"                # NoticesBox.jsx:65 aria-label={`Dismiss ${n.title}`}
 FOLLOWUP_ALERT_TYPE = "notebook_earnings_followup"            # earnings_followup.FOLLOWUP_SOURCE
-FOLLOWUP_REGION = "Earnings follow-up"                        # FollowupOffer.jsx:10, :57
-FOLLOWUP_HEADING = f"Earnings follow-up for {FOLLOWUP_SYM}"   # FollowupOffer.jsx:58
-FOLLOWUP_WRITE = "Write follow-up"                            # FollowupOffer.jsx:64
+FOLLOWUP_REGION = "Earnings follow-up"                        # FollowupOffer.jsx:10, :54
+FOLLOWUP_HEADING = f"Earnings follow-up for {FOLLOWUP_SYM}"   # FollowupOffer.jsx:55
+FOLLOWUP_WRITE = "Write follow-up"                            # FollowupOffer.jsx:61
 REMIND_NOTE = "SR reminder"
 T2B_ROWS = (
     {"n": 42, "keys": f"Home: unfold Notices; focus the link '{FOLLOWUP_TITLE}', then Tab to its Dismiss button (neither pressed)",

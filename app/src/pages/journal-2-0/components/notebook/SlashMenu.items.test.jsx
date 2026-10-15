@@ -529,6 +529,7 @@ describe('/remind', () => {
     ITEMS.find((i) => i.title === 'Reminder').command({ editor, range: { from: end - 7, to: end } })
     expect(editor.state.doc.textContent).toBe('Follow up @')
     expect(editor.isActive('taskItem')).toBe(true)
+    expect(editor.getAttributes('taskItem').checked).toBe(false)
     expect(dateSuggestPluginKey.getState(editor.state).active).toBe(true)
   })
 })

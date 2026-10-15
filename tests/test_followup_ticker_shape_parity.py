@@ -69,10 +69,10 @@ def _server_ticker(raw):
         return None
 
 
-def test_the_extraction_found_the_servers_numbers(client_rule):
-    length, pattern, _ = client_rule
+def test_the_extraction_found_the_servers_length(client_rule):
+    # The pattern's spelling is NOT pinned: an equivalent rewrite is not a regression, and the corpus below is the check.
+    length, _, _ = client_rule
     assert length == notes.MAX_TICKER_LENGTH
-    assert pattern == r"^[A-Z0-9.-]+$"
 
 
 CORPUS = [

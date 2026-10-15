@@ -54,7 +54,7 @@ describe('insertReminder', () => {
     expect(ed.state.doc.firstChild.textContent).toBe('Buy ORCL ')
     expect(tasks(ed).map((t) => t.text)).toEqual([`${REMINDER_LEAD}@`])
   })
-  it('inside a task with words, a new task follows it', () => {
+  it('with the caret on the trailing line after a task list, the task goes on its own line (the not-in-a-task path)', () => {
     const ed = mount(task('Call broker '))
     ed.commands.insertContent('/remind')
     insertReminder(ed, typedRange(ed, '/remind'))
@@ -89,6 +89,54 @@ describe('insertReminder', () => {
     ed.commands.insertContent('/remind')
     insertReminder(ed, typedRange(ed, '/remind'))
     expect(tasks(ed)).toEqual([{ checked: false, text: `${REMINDER_LEAD}@`, dates: [] }])
+  })
+  // M8 (final review): pin TODAY's behaviour in two blocks the other cases skip. Whatever the real roster does is
+  // what is asserted; the names say what that is. Not a design statement: a change here must be a decision.
+  const blockTypes = (ed) => ed.getJSON().content.map((n) => n.type)
+  it('inside a bullet-list item: the item becomes a task in place (toggleTaskList converts the list), nothing nests', () => {
+    const ed = mount({ type: 'bulletList', content: [{ type: 'listItem', content: [para('')] }] })
+    ed.commands.setTextSelection(3)
+    expect(ed.isActive('bulletList')).toBe(true)
+    ed.commands.insertContent('/remind')
+    expect(insertReminder(ed, typedRange(ed, '/remind'))).toBe(true)
+    expect(blockTypes(ed)).toEqual(['taskList', 'paragraph']) // the editor's trailing paragraph follows any list
+    expect(tasks(ed)).toEqual([{ checked: false, text: `${REMINDER_LEAD}@`, dates: [] }])
+    expect(ed.isActive('bulletList')).toBe(false)
+    expect(dateSuggestPluginKey.getState(ed.state).active).toBe(true)
+  })
+  it('inside a bullet-list item with words: the words stay in the bullet and the task is NESTED inside that same bullet item, after them', () => {
+    const ed = mount({ type: 'bulletList', content: [{ type: 'listItem', content: [para('Call broker ')] }] })
+    ed.commands.setTextSelection(15) // the end of "Call broker "
+    expect(ed.isActive('bulletList')).toBe(true)
+    ed.commands.insertContent('/remind')
+    expect(insertReminder(ed, typedRange(ed, '/remind'))).toBe(true)
+    expect(tasks(ed)).toEqual([{ checked: false, text: `${REMINDER_LEAD}@`, dates: [] }])
+    const bullets = ed.state.doc.firstChild
+    expect(bullets.type.name).toBe('bulletList')
+    expect(bullets.childCount).toBe(1) // still ONE bullet item, no sibling
+    const item = bullets.firstChild
+    expect(item.childCount).toBe(2)
+    expect(item.child(0).textContent).toBe('Call broker ')
+    expect(item.child(1).type.name).toBe('taskList')
+  })
+  it('on an empty heading line: the heading line is turned into the task (the heading is replaced, not kept above it)', () => {
+    const ed = mount({ type: 'heading', attrs: { level: 2 } })
+    ed.commands.setTextSelection(1)
+    expect(ed.isActive('heading')).toBe(true)
+    ed.commands.insertContent('/remind')
+    expect(insertReminder(ed, typedRange(ed, '/remind'))).toBe(true)
+    expect(blockTypes(ed)).not.toContain('heading')
+    expect(tasks(ed)).toEqual([{ checked: false, text: `${REMINDER_LEAD}@`, dates: [] }])
+  })
+  it('in a heading that has words: the heading keeps its words and the task goes on its own line after it', () => {
+    const ed = mount({ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Plan ' }] })
+    ed.commands.setTextSelection(6)
+    expect(ed.isActive('heading')).toBe(true)
+    ed.commands.insertContent('/remind')
+    expect(insertReminder(ed, typedRange(ed, '/remind'))).toBe(true)
+    expect(ed.state.doc.firstChild.type.name).toBe('heading')
+    expect(ed.state.doc.firstChild.textContent).toBe('Plan ')
+    expect(tasks(ed).map((t) => t.text)).toEqual([`${REMINDER_LEAD}@`])
   })
   it('adds no node, mark or attribute', () => {
     const ed = mount(para(''))

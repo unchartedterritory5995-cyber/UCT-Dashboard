@@ -578,6 +578,9 @@ export default function NotebookTab() {
   // lists as cards. Unlike the Trash its notes still open (archive is not trash).
   const isArchiveView = folderId === ARCHIVED_FOLDER
   const isShelfView = isTrashView || isArchiveView
+  // The sentinels are views, not folders: a note made while one is open is made unfiled (a new note is never born archived
+  // or trashed). Derived ONCE, here, for every create door below.
+  const newNoteFolderId = folderId && !['__unfiled__', '__trash__', ARCHIVED_FOLDER].includes(folderId) ? folderId : undefined
 
   // D-7 fix: on a phone, give a content-first view mode the first screen by
   // collapsing the SAME sidebar the desktop toggle already controls — never a
@@ -1678,12 +1681,8 @@ export default function NotebookTab() {
       // should not make you retype AMD. An explicit ticker always wins; focus
       // only fills the blank.
       const seededTicker = ticker || focusSymbol || null
-      // The sentinels are views, not folders: a note made while one is open is
-      // made unfiled (a new note is never born archived or trashed).
-      const safeFolderId = folderId && !['__unfiled__', '__trash__', ARCHIVED_FOLDER].includes(folderId)
-        ? folderId : undefined
       const created = await createNoteViaApi({
-        title, bodyJson, tags, ticker: seededTicker, folderId: safeFolderId, properties, styleId, kindId,
+        title, bodyJson, tags, ticker: seededTicker, folderId: newNoteFolderId, properties, styleId, kindId,
       })
       // Wave 12 (12B-2): a template's definitions start empty, and the Properties
       // section hides an empty property -- so the new note shows them (this tab only).
@@ -1755,9 +1754,7 @@ export default function NotebookTab() {
   // (`createVoiceNote` -> createNoteViaApi + settleNoteWrite), then the same tree
   // bookkeeping and open as any other new note.
   const saveVoiceNote = async ({ title, result }) => {
-    const safeFolderId = folderId && !['__unfiled__', '__trash__', ARCHIVED_FOLDER].includes(folderId)
-      ? folderId : undefined
-    const created = await createVoiceNote({ title, result, folderId: safeFolderId })
+    const created = await createVoiceNote({ title, result, folderId: newNoteFolderId })
     addNoteToTree(created)
     refreshAll()
     openNote(created, null, { fresh: true })
@@ -1848,9 +1845,7 @@ export default function NotebookTab() {
     setCreating(true)
     setPickerOpen(false)
     try {
-      const safeFolderId = folderId && !['__unfiled__', '__trash__', ARCHIVED_FOLDER].includes(folderId)
-        ? folderId : undefined
-      const created = await createTradeCanvasNote({ folderId: safeFolderId })
+      const created = await createTradeCanvasNote({ folderId: newNoteFolderId })
       addNoteToTree(created)
       refreshAll()
       openNote(created, null, { fresh: true })
@@ -1955,7 +1950,6 @@ export default function NotebookTab() {
   const followupOpen = searchParams.has('followup') && !noteId && earningsFollowupEnabled() && journalStylesEnabled()
   // F4: keyed by the raw link, so a SECOND notice opened in this same tab mounts a fresh card with a live button.
   const followupKey = `${searchParams.get('followup') || ''}:${searchParams.get('reportDate') || ''}`
-  const followupFolderId = folderId && !['__unfiled__', '__trash__', ARCHIVED_FOLDER].includes(folderId) ? folderId : undefined
   // Just leave the offer (Not now): drop both params, replacing the entry so Back does not bring the card back.
   const leaveFollowup = useCallback(() => {
     setSearchParams((prev) => {
@@ -2006,7 +2000,8 @@ export default function NotebookTab() {
         key={followupKey}
         open={followupOpen}
         searchParams={searchParams}
-        folderId={followupFolderId}
+        folderId={newNoteFolderId}
+        focusFallback={() => focusPaneTarget(null)}
         onCreated={(created) => { if (created?.id) landCreatedNote(created, { fresh: true, replace: true }) }}
         onDismiss={leaveFollowup}
       />

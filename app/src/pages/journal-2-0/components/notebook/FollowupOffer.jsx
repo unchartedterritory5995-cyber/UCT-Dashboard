@@ -8,16 +8,10 @@ import { createFollowupNote, followupWhen, parseFollowupParams } from '../../lib
 import styles from './FollowupOffer.module.css'
 
 export const FOLLOWUP_REGION = 'Earnings follow-up'
-export const FAILED_SENTENCE = "Couldn't create the follow-up. Nothing was saved."
+// True for every failure, including a create whose answer was lost: the note may have been made, so never say it was not.
+export const FAILED_SENTENCE = 'The follow-up note could not be confirmed. Check your notes before trying again.'
 
-/** Where focus goes when "Not now" removes the card: what was focused before the card appeared if it is still on the
- *  page, else the Notebook pane's heading (no note is open while the card shows, so there is no editor to land in). */
-function focusTarget(prior, card) {
-  if (prior && prior !== document.body && prior.isConnected && !card?.contains(prior)) return prior
-  return document.querySelector('#notebook-pane [tabindex="-1"]')
-}
-
-export default function FollowupOffer({ open, searchParams, folderId, onCreated, onDismiss }) {
+export default function FollowupOffer({ open, searchParams, folderId, onCreated, onDismiss, focusFallback }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const pressed = useRef(false)
@@ -29,7 +23,10 @@ export default function FollowupOffer({ open, searchParams, folderId, onCreated,
   if (!p) return null
   const notNow = () => {
     // Focus first, then leave: the card's own button holds focus until it unmounts, and an unmounted focus owner drops it to <body>.
-    focusTarget(prior, cardRef.current)?.focus?.()
+    // What was focused before the card appeared if it is still on the page, else the tab's own fallback (the Notebook pane's
+    // heading: no note is open while the card shows, so there is no editor to land in).
+    if (prior && prior !== document.body && prior.isConnected && !cardRef.current?.contains(prior)) prior.focus?.()
+    else focusFallback?.()
     onDismiss?.()
   }
   const write = async () => {
@@ -54,7 +51,7 @@ export default function FollowupOffer({ open, searchParams, folderId, onCreated,
     }
   }
   return (
-    <section ref={cardRef} className={styles.card} role="region" aria-label={FOLLOWUP_REGION} data-followup-offer>
+    <section ref={cardRef} className={styles.card} aria-label={FOLLOWUP_REGION} data-followup-offer>
       <h2 className={styles.title}>Earnings follow-up for {p.symbol}</h2>
       <p className={styles.line}>
         {p.symbol} reported on {followupWhen(p.reportDate)}. Write what you expected, what happened, and what you&apos;ll do differently.

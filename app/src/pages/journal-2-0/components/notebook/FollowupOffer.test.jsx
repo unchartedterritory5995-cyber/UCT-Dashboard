@@ -32,6 +32,8 @@ describe('FollowupOffer', () => {
     render(<FollowupOffer open searchParams={params} onCreated={() => {}} onDismiss={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: 'Write follow-up' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(FAILED_SENTENCE)
+    // The member-visible words, as a LITERAL (not only through the constant): true for a lost response too, where the note may exist.
+    expect(screen.getByRole('alert').textContent).toBe('The follow-up note could not be confirmed. Check your notes before trying again.')
     expect(screen.queryByText(/Traceback/)).toBeNull()
   })
   it('after a failure the member can press again', async () => {
@@ -49,7 +51,8 @@ describe('FollowupOffer', () => {
     const onCreated = vi.fn()
     render(<FollowupOffer open searchParams={params} onCreated={onCreated} onDismiss={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: 'Write follow-up' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't create the follow-up. Nothing was saved.")
+    expect(await screen.findByRole('alert')).toHaveTextContent('The follow-up note could not be confirmed. Check your notes before trying again.')
+    expect(screen.getByRole('alert').textContent).not.toMatch(/Nothing was saved/)
     expect(onCreated).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Write follow-up' }))   // a second press sends a second request
     await waitFor(() => expect(createFollowupNote).toHaveBeenCalledTimes(2))
@@ -66,20 +69,36 @@ describe('FollowupOffer', () => {
     expect(document.activeElement).toBe(before)
     before.remove()
   })
-  it('Not now, when that element is gone, lands on the Notebook pane heading', () => {
-    const pane = document.createElement('div')
-    pane.id = 'notebook-pane'
-    pane.innerHTML = '<h2 tabindex="-1">Research home</h2>'
-    document.body.appendChild(pane)
+  it('Not now, when that element is gone, hands focus to the fallback the tab passed (the pane heading)', () => {
+    const heading = document.createElement('h2')
+    heading.tabIndex = -1
+    document.body.appendChild(heading)
     const gone = document.createElement('button')
     document.body.appendChild(gone)
     gone.focus()
-    render(<FollowupOffer open searchParams={params} onCreated={() => {}} onDismiss={() => {}} />)
+    const focusFallback = vi.fn(() => heading.focus())
+    render(<FollowupOffer open searchParams={params} focusFallback={focusFallback} onCreated={() => {}} onDismiss={() => {}} />)
     gone.remove()
     fireEvent.click(screen.getByRole('button', { name: 'Not now' }))
-    expect(document.activeElement).toBe(pane.querySelector('h2'))
-    expect(document.activeElement).not.toBe(document.body)
-    pane.remove()
+    expect(focusFallback).toHaveBeenCalledTimes(1)
+    expect(document.activeElement).toBe(heading)
+    heading.remove()
+  })
+  it('Not now with a live prior element never calls the fallback, and with no fallback at all still leaves', () => {
+    const before = document.createElement('button')
+    document.body.appendChild(before)
+    before.focus()
+    const focusFallback = vi.fn()
+    const onDismiss = vi.fn()
+    const { unmount } = render(<FollowupOffer open searchParams={params} focusFallback={focusFallback} onCreated={() => {}} onDismiss={onDismiss} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }))
+    expect(focusFallback).not.toHaveBeenCalled()
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+    unmount()
+    before.remove()
+    render(<FollowupOffer open searchParams={params} onCreated={() => {}} onDismiss={onDismiss} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }))
+    expect(onDismiss).toHaveBeenCalledTimes(2)
   })
   it('Not now leaves without a note; a closed or bad link renders nothing', () => {
     const onDismiss = vi.fn()

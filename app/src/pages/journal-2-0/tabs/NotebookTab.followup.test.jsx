@@ -44,7 +44,8 @@ import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/noteboo
 import { setCurrentAccountId } from '../lib/offline/currentAccount'
 
 const T = { timeout: 20000 }
-vi.setConfig({ testTimeout: 40000 })   // role queries over the whole Notebook are slow in jsdom; this is a wait, not a budget
+// A ceiling for a loaded machine (a full-suite shard), not a measure: each test here takes 0.3 to 1.4 s when run alone.
+vi.setConfig({ testTimeout: 40000 })
 // The card's chunk is fetched once, up front: a test that races the first cold import is a test of the machine's speed.
 beforeAll(async () => { await import('../components/notebook/FollowupOffer') })
 
