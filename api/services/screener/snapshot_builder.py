@@ -1002,16 +1002,36 @@ def run_build(max_tickers=None) -> dict:
     try:
         global _SECURITY_TYPES_CACHE
         _SECURITY_TYPES_CACHE = None   # reload the type map fresh for this build
-        return _run_build_locked(max_tickers)
+        started = time.time()
+        stats = _run_build_locked(max_tickers)
+        snapshot_db.record_build_run({**stats, "started_at": started,
+                                      "finished_at": time.time()})
+        return stats
     finally:
         _BUILD_LOCK.release()
+
+
+def _per_run_cap(max_tickers=None):
+    """How many rows one build rebuilds. ``None`` means EVERY target.
+
+    ⚰️ The default was 4000 from the day the universe was the ~3,700-name
+    `cap_universe`. The screener's own universe later widened to every US common
+    + ADR (11,230 rows on 2026-10-15) and the cap stayed, so each nightly rebuilt
+    the stalest third: RS rank, volume vs avg and the ratings were up to three
+    nights old and the table always held three build dates. Every row is now
+    rebuilt each night; `SCREENER_SNAPSHOT_MAX_PER_RUN` remains an emergency
+    limit, and a caller (the admin refresh, the boot warm) still passes its own.
+    """
+    if max_tickers:
+        return max_tickers
+    env = (os.environ.get("SCREENER_SNAPSHOT_MAX_PER_RUN") or "").strip()
+    return int(env) if env else None
 
 
 def _run_build_locked(max_tickers=None) -> dict:
     snapshot_db.init_db()
     universe = _load_universe()
-    cap = max_tickers or int(os.environ.get("SCREENER_SNAPSHOT_MAX_PER_RUN", "4000"))
-    targets = _stalest(universe, cap)
+    targets = _stalest(universe, _per_run_cap(max_tickers))
     built = skipped = errors = 0
     batch = []
     # ⛔ DERIVED FROM THE SCHEMA, never a hand-listed set — a 66th column is
@@ -1176,5 +1196,6 @@ def _run_build_locked(max_tickers=None) -> dict:
         # `systemic` is an upstream change and the loudest line in the receipt.
         log.warning("[screener] identity refusals: %s", identity_state)
     return {"built": built, "skipped": skipped, "errors": errors,
+            "targets": len(targets),
             "populated": populated, "empty_columns": empty_columns,
             "sources": sources, "identity_refusals": identity_state}

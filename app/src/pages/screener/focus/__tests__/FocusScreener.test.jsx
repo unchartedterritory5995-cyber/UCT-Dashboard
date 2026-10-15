@@ -48,6 +48,14 @@ test('list shows up and the first stock is charted', async () => {
   // the why strip names each row's own close: the scan asks for it
   expect(scanBodies().at(-1).columns).toContain('bars_asof')
 })
+test('the data receipt reads the live overlay of the scan: a live screen says Live and its time', async () => {
+  const asOf = Date.parse('2026-10-15T14:47:00-04:00') / 1000
+  extra = url => (url === '/api/screener/scan' ? { ok: true, json: async () => ({ rows: rowsA, total: 2, page: 1, snapshot_date: '2026-10-15',
+    snapshot: { live: { state: 'live', as_of: asOf, columns: ['price', 'chg_pct_1d'] } } }) } : null)
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  expect(await screen.findByRole('button', { name: /^Live · 2:47 PM/ })).toBeInTheDocument()
+})
 test('arrow down charts the next stock', async () => {
   mount()
   await waitFor(() => screen.getByTestId('focus-row-MU'))
