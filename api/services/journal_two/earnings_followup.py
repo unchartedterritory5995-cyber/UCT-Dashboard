@@ -1,14 +1,403 @@
-"""Tier 2 part B, item 11: the earnings follow-up notice (spec §P2 Tier 2 item 11).
+# api/services/journal_two/earnings_followup.py
+"""Tier 2 part B, item 11: the earnings follow-up NOTICE (spec §P2 Tier 2 item 11).
 
-This commit holds the gate only; the job lands in Task 7 of the Tier 2 part B plan.
+After the session that first traded the earnings result of a member's held, watched or flagged name
+closes, the member's Notices box offers "<SYM> reported: write your follow-up". Its link opens a card
+whose "Write follow-up" makes the note through the ONE styled-create door (followup_prefill.py).
+
+THE RULES (R-T2B-1..6, 10):
+* NEVER WRITES A NOTE (decision R5). This rings a bell; the member makes the note.
+* WHO: paid members, over their OWN names (earnings_prep._member_sets: open positions, watchlists,
+  flagged). One notice per (member, symbol, report date), however many sets hold the name.
+* WHEN: the run on trading day T offers every report whose REACTION SESSION is T or earlier, among the
+  reports dated from the previous trading day through T (`reaction_session`, F9). 16:45 ET and 18:00 ET
+  mon-fri, plus a boot catch-up; a holiday is skipped INSIDE the run. The two switches
+  (NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED and the journal styles switch, which the card's create needs) are read
+  at every RUN, never at registration.
+* `<=` AND NOT `==` (F9): a report whose time flips from unknown to known between two days (unknown reads
+  as after the close, so its session is the next day; known as before the open, its session is the report
+  day) would otherwise be offered on neither. The claim table's primary key, (member, symbol, report date),
+  is what makes the second sight a no-op, so a report is offered exactly once however many days see it.
+* CLAIM, THEN DELIVER (note_tasks' idiom): ONE atomic INSERT claims AND enforces DAILY_CAP per member
+  per session day; a delivery that raises releases its claim.
+* Inside the cap: largest |reaction| first, an unmeasured one last, then by symbol. The rest are
+  counted (`capped`) and never written or delivered.
+* It WARMS earnings_intel (get_earnings, on this scheduler thread) for every name it ranks, so the
+  member's create reads what UCT already holds and never waits on a vendor (R-T2B-10). The warm has a
+  wall-clock budget (WARM_BUDGET_S, F21): past it a name is not warmed, ranks as unmeasured, and is counted
+  in the run ledger (`warm_skipped`).
+* NO PROVIDER CONFIGURED IS INCONCLUSIVE, NEVER "NOBODY REPORTED" (V4): calendar_alerts answers
+  `(set(), True)` for an unconfigured box exactly as it does for a quiet day, so the run looks for a key
+  (`_reporters_configured`) and, finding none, records the run as `unconfigured` (not complete) and stops.
+* SHARED HELPERS ARE IMPORTED, NEVER COPIED: trading-day arithmetic is reminder_block.add_trading_days,
+  the day wording / numbers / event lookup / symbol shape are followup_prefill's, and the in-app bell is
+  note_tasks.deliver_in_app (bound here to this job's own source).
 """
 from __future__ import annotations
 
+import json
+import os
+import time
+from datetime import date, datetime, time as dtime, timedelta, timezone
+from typing import Any
+from urllib.parse import urlencode
+
+from api.services import auth_db, session_calendar
 from api.services.notebook_flags import flag_on
+from api.services.journal_two.reminder_block import add_trading_days
+from api.services.journal_two.timeutil import ET
 
 FLAG = "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED"
+FOLLOWUP_SOURCE = "notebook_earnings_followup"
+FIRST_PASS = (16, 45)
+SECOND_PASS = (18, 0)
+MISFIRE_GRACE_S = 3600
+CATCH_UP_DELAY_S = 120
+DAILY_CAP = 3
+#: Wall-clock seconds a run may spend warming earnings_intel (F21), counted from the first warm.
+WARM_BUDGET_S = 120
+#: The reporters lookup is configured when one of these keys is set (V4); calendar_alerts reads the same two.
+PROVIDER_KEYS = ("FINNHUB_API_KEY", "FMP_API_KEY")
+SAME_SESSION = frozenset({"bmo", "dmh"})
+NOTEBOOK_PATH = "/journal/notebook"
+_WALK = 15            # calendar days a trading-day walk may step: a long weekend and a holiday fit
+
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS j2_earnings_followup_log (
+    user_id      TEXT NOT NULL,
+    symbol       TEXT NOT NULL,
+    report_date  TEXT NOT NULL,
+    session_day  TEXT NOT NULL,
+    created_at   TEXT NOT NULL,
+    status       TEXT NOT NULL DEFAULT 'claimed',
+    PRIMARY KEY (user_id, symbol, report_date)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_followup_log_day ON j2_earnings_followup_log (user_id, session_day);
+CREATE TABLE IF NOT EXISTS j2_earnings_followup_runs (
+    day       TEXT NOT NULL,
+    pass      TEXT NOT NULL,
+    ran_at    TEXT NOT NULL,
+    complete  INTEGER NOT NULL DEFAULT 0,
+    result    TEXT NOT NULL,
+    PRIMARY KEY (day, pass)
+);
+"""
+_CLAIM = ("INSERT OR IGNORE INTO j2_earnings_followup_log"
+          " (user_id, symbol, report_date, session_day, created_at, status)"
+          " SELECT ?, ?, ?, ?, ?, 'claimed' WHERE (SELECT COUNT(*) FROM j2_earnings_followup_log"
+          " WHERE user_id = ? AND session_day = ?) < ?")
 
 
 def enabled() -> bool:
     """The gate, read per call (default OFF): the job, the card and the server prefill."""
     return flag_on(FLAG, False)
+
+
+def _now() -> datetime:
+    return datetime.now(tz=ET)
+
+
+def _mono() -> float:
+    """The warm budget's clock. A function, looked up at CALL time, so a test can move it."""
+    return time.monotonic()
+
+
+def ensure_schema(conn) -> None:
+    conn.executescript(_SCHEMA)
+
+
+def prev_trading_day(d: date) -> date:
+    for _ in range(_WALK):
+        d -= timedelta(days=1)
+        if session_calendar.is_trading_day(d):
+            return d
+    return d
+
+
+def reaction_session(report_date: date, timing: str | None) -> date:
+    """The session that first traded the result (R-T2B-2, R-T2B-3)."""
+    if not session_calendar.is_trading_day(report_date):
+        return add_trading_days(report_date, 1)
+    if timing in SAME_SESSION:
+        return report_date
+    return add_trading_days(report_date, 1)
+
+
+def _fill_timing(day_iso: str, found: dict) -> None:
+    """One Finnhub call for the day, only when some symbol has no time (R-T2B-4). Never raises."""
+    if all(found.values()):
+        return
+    try:
+        from api.services.finnhub_client import fh_get
+        data = fh_get("/calendar/earnings", {"from": day_iso, "to": day_iso}, timeout=10)
+    except Exception:  # noqa: BLE001 -- no time is "after the close" (R-T2B-3), never a failed run
+        return
+    if not isinstance(data, dict):
+        return
+    for row in data.get("earningsCalendar") or []:
+        if not isinstance(row, dict):
+            continue
+        sym = str(row.get("symbol") or "").strip().upper()
+        hour = str(row.get("hour") or "").strip().lower()
+        if sym in found and not found[sym] and hour in ("bmo", "amc", "dmh"):
+            found[sym] = hour
+
+
+def _reporters_configured() -> bool:
+    """True when the reporters lookup has something to ask (V4). `calendar_alerts` answers `(set(), True)`
+    for a box with no provider key and an empty cache, which is the answer for a quiet day too: so the
+    run looks for the KEY. The walk's sandbox calendar file is its own source and needs none."""
+    from api.services.journal_two import earnings_prep as ep
+    if ep.sandbox_calendar_active():
+        return True
+    return any((os.environ.get(k) or "").strip() for k in PROVIDER_KEYS)
+
+
+def reporters_on(day: date) -> tuple[dict[str, str | None], bool]:
+    """({SYM: 'bmo'|'amc'|'dmh'|None}, clean) for reports dated `day`."""
+    from api.services.journal_two import earnings_prep as ep
+    iso = day.isoformat()
+    if ep.sandbox_calendar_active():
+        window, timing, partial, _ = ep._sandbox_window()
+        return {s: timing.get(s) for s, d in window.items() if d == iso}, not partial
+    from api.services import calendar_alerts
+    syms, ok = calendar_alerts._get_reporters_for_date_with_status(iso)
+    found = {s: ep._timing_from_calendar_cache(s, iso) for s in syms}
+    _fill_timing(iso, found)
+    return found, ok
+
+
+def todays_reports(day: date) -> tuple[dict[str, str], bool, int]:
+    """({SYM: report date}, partial, unknown-time count) for the reports whose reaction session is `day`
+    or earlier, among those dated from the previous trading day through `day` (F9)."""
+    out: dict[str, str] = {}
+    partial, unknown = False, 0
+    d = prev_trading_day(day)
+    while d <= day:
+        found, ok = reporters_on(d)
+        partial = partial or not ok
+        for sym, timing in sorted(found.items()):
+            if sym not in out and reaction_session(d, timing) <= day:
+                out[sym] = d.isoformat()
+                unknown += 0 if timing else 1
+        d += timedelta(days=1)
+    return out, partial, unknown
+
+
+def _member_ids(conn) -> list[str]:
+    return [str(r[0]) for r in conn.execute("SELECT id FROM users")]
+
+
+def _member_sets(user_id: str) -> dict[str, list[str]]:
+    from api.services.journal_two import earnings_prep
+    return earnings_prep._member_sets(user_id)
+
+
+def _paid(user_id: str, conn) -> bool:
+    try:
+        from api.middleware import auth_middleware as authmw
+        row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        if row is None:
+            return False
+        return bool(authmw.is_paid_user({**dict(row), "plan": authmw.get_user_plan(user_id)}))
+    except Exception:  # noqa: BLE001 -- an unreadable plan is "not paid", never a failed run
+        return False
+
+
+def _reaction_pct(symbol: str, report_date: str) -> float | None:
+    """The reaction for ranking, and the WARM of earnings_intel for the member's create (R-T2B-10)."""
+    try:
+        from api.services.earnings_intel import get_earnings
+        from api.services.journal_two import followup_prefill as fp
+        return fp.as_number((fp.event_for(get_earnings(symbol), report_date) or {}).get("reaction_pct"))
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def followup_url(symbol: str, report_date: str) -> str:
+    return f"{NOTEBOOK_PATH}?{urlencode({'followup': symbol, 'reportDate': report_date})}"
+
+
+def notice_copy(symbol: str, report_date: date, sources: list[str]) -> tuple[str, str]:
+    from api.services.journal_two.followup_prefill import _day_words
+    if "positions" in sources:
+        why = "You hold it."
+    elif "watchlist" in sources:
+        why = "It is on your watchlist."
+    else:
+        why = "You flagged it."
+    return (f"{symbol} reported: write your follow-up",
+            f"{symbol} reported earnings on {_day_words(report_date)}. {why} "
+            "Compare what you expected with what happened.")
+
+
+def _offer(conn, uid: str, sym: str, report_date: str, day: date, sources: list[str], deliver,
+           result: dict) -> None:
+    stamp = datetime.now(tz=ET).isoformat(timespec="seconds")
+    cur = conn.execute(_CLAIM, (uid, sym, report_date, day.isoformat(), stamp, uid, day.isoformat(), DAILY_CAP))
+    conn.commit()
+    if cur.rowcount == 0:
+        held = conn.execute("SELECT status FROM j2_earnings_followup_log WHERE user_id = ? AND symbol = ?"
+                            " AND report_date = ?", (uid, sym, report_date)).fetchone()
+        result["capped" if held is None else ("already_sent" if held[0] == "sent" else "in_flight")] += 1
+        return
+    title, message = notice_copy(sym, date.fromisoformat(report_date), sources)
+    data = {"source": FOLLOWUP_SOURCE, "research_url": followup_url(sym, report_date), "symbol": sym,
+            "reportDate": report_date, "sessionDay": day.isoformat(), "sources": list(sources)}
+    try:
+        deliver(uid, title, message, data)
+    except Exception:  # noqa: BLE001 -- one member must not stop the rest; a later pass retries
+        conn.execute("DELETE FROM j2_earnings_followup_log WHERE user_id = ? AND symbol = ? AND report_date = ?"
+                     " AND status = 'claimed'", (uid, sym, report_date))
+        conn.commit()
+        result["failed"] += 1
+        return
+    conn.execute("UPDATE j2_earnings_followup_log SET status = 'sent' WHERE user_id = ? AND symbol = ?"
+                 " AND report_date = ?", (uid, sym, report_date))
+    conn.commit()
+    result["delivered"] += 1
+
+
+def _record_run(conn, result: dict, when: datetime) -> None:
+    complete = int(result["failed"] == 0 and result["in_flight"] == 0 and not result["partial"]
+                   and result["skipped"] is None)
+    conn.execute("INSERT OR REPLACE INTO j2_earnings_followup_runs (day, pass, ran_at, complete, result)"
+                 " VALUES (?, ?, ?, ?, ?)",
+                 (result["day"], result["pass"], when.isoformat(timespec="seconds"), complete,
+                  json.dumps(result, sort_keys=True)))
+    conn.commit()
+
+
+def _warm(reactions: dict, mine: dict, reports: dict, clock: dict, result: dict) -> None:
+    """Fill `reactions` for the names in `mine` not yet read. Past WARM_BUDGET_S (counted from the first warm
+    of the run) a name is NOT warmed: it ranks as unmeasured and is counted (F21)."""
+    for s in mine:
+        if s in reactions:
+            continue
+        if clock["start"] is None:
+            clock["start"] = _mono()
+        if _mono() - clock["start"] >= WARM_BUDGET_S:
+            reactions[s] = None
+            result["warm_skipped"] += 1
+            continue
+        reactions[s] = _reaction_pct(s, reports[s])
+        result["warmed"] += 1
+
+
+def run_followups(now: datetime | None = None, *, pass_label: str = "manual", conn=None, deliver=None) -> dict:
+    """One pass for the session day of `now` (ET). Safe to run twice, and twice at once."""
+    when = (now or _now()).astimezone(ET)
+    day = when.date()
+    result: dict[str, Any] = {"day": day.isoformat(), "pass": pass_label, "skipped": None, "members": 0,
+                              "candidates": 0, "delivered": 0, "already_sent": 0, "in_flight": 0, "capped": 0,
+                              "failed": 0, "timing_unknown": 0, "partial": False, "warmed": 0,
+                              "warm_skipped": 0}
+    from api.services.journal_two import journal_styles
+    if not (enabled() and journal_styles.enabled()):
+        result["skipped"] = "switched-off"
+        return result
+    if not session_calendar.is_trading_day(day):
+        result["skipped"] = "not-a-trading-day"
+        return result
+    deliver = deliver or _deliver_in_app
+    owned = conn is None
+    conn = conn or auth_db.get_connection()
+    try:
+        ensure_schema(conn)
+        if not _reporters_configured():
+            result["skipped"] = "unconfigured"          # V4: inconclusive, never "nobody reported"
+            _record_run(conn, result, when)
+            return result
+        from api.services.journal_two import followup_prefill as fp
+        reports, result["partial"], result["timing_unknown"] = todays_reports(day)
+        reports = {s: d for s, d in reports.items() if fp.valid_symbol(s)}
+        result["candidates"] = len(reports)
+        reactions: dict[str, float | None] = {}
+        clock: dict[str, Any] = {"start": None}
+        if reports:
+            for uid in _member_ids(conn):
+                try:
+                    mine = {s: src for s, src in _member_sets(uid).items() if s in reports}
+                    if not mine or not _paid(uid, conn):
+                        continue
+                except Exception:  # noqa: BLE001 -- one member's unreadable sets must not stop the rest
+                    result["failed"] += 1
+                    continue
+                result["members"] += 1
+                _warm(reactions, mine, reports, clock, result)
+                order = sorted(mine, key=lambda s: (reactions[s] is None, -abs(reactions[s] or 0.0), s))
+                for s in order:
+                    _offer(conn, uid, s, reports[s], day, mine[s], deliver, result)
+        _record_run(conn, result, when)
+        return result
+    finally:
+        if owned:
+            conn.close()
+
+
+def catch_up_target(now: datetime) -> date:
+    """Today once its first pass time has passed; otherwise the trading day before."""
+    when = now.astimezone(ET)
+    d = when.date()
+    if session_calendar.is_trading_day(d) and (when.hour, when.minute) >= FIRST_PASS:
+        return d
+    return prev_trading_day(d)
+
+
+def catch_up_followups(now: datetime | None = None, conn=None, deliver=None) -> dict:
+    """The boot catch-up: run the latest session day whose first pass has passed, unless a pass for that
+    day completed (no failure, nothing in flight, every source clean)."""
+    target = catch_up_target(now or _now())
+    if not enabled():
+        return {"ran": False, "reason": "disabled", "day": target.isoformat()}
+    owned = conn is None
+    conn = conn or auth_db.get_connection()
+    try:
+        ensure_schema(conn)
+        done = conn.execute("SELECT 1 FROM j2_earnings_followup_runs WHERE day = ? AND complete = 1",
+                            (target.isoformat(),)).fetchone()
+        if done:
+            return {"ran": False, "reason": "already-complete", "day": target.isoformat()}
+        at = datetime.combine(target, dtime(*SECOND_PASS), tzinfo=ET)
+        return {"ran": True, **run_followups(now=at, pass_label="catch-up", conn=conn, deliver=deliver)}
+    finally:
+        if owned:
+            conn.close()
+
+
+def register_followup_jobs(scheduler) -> bool:
+    """16:45 and 18:00 ET mon-fri, each with a one-hour misfire grace, and a one-shot boot catch-up.
+    ⛔ The switch is NOT read here (read at every run). ⛔ Each body looks its run up at CALL time."""
+    from zoneinfo import ZoneInfo
+    from apscheduler.triggers.cron import CronTrigger
+    from apscheduler.triggers.date import DateTrigger
+    et = ZoneInfo("America/New_York")
+
+    def _boundary(label: str, run):
+        def body() -> None:
+            try:
+                print(f"[notebook-earnings-followup] {label}: {run()}")
+            except Exception as e:  # noqa: BLE001 -- a failed run must never break the scheduler
+                print(f"[notebook-earnings-followup] {label} failed: {e}")
+        return body
+
+    for job_id, (h, m), label in (("notebook_earnings_followup", FIRST_PASS, "16:45"),
+                                  ("notebook_earnings_followup_second", SECOND_PASS, "18:00")):
+        scheduler.add_job(
+            _boundary(f"{label} pass", lambda label=label: run_followups(pass_label=label)),
+            CronTrigger(day_of_week="mon-fri", hour=h, minute=m, timezone=et),
+            id=job_id, max_instances=1, coalesce=True, misfire_grace_time=MISFIRE_GRACE_S, replace_existing=True,
+        )
+    scheduler.add_job(
+        _boundary("boot catch-up", lambda: catch_up_followups()),
+        DateTrigger(run_date=datetime.now(tz=timezone.utc) + timedelta(seconds=CATCH_UP_DELAY_S)),
+        id="notebook_earnings_followup_catch_up", max_instances=1, misfire_grace_time=MISFIRE_GRACE_S,
+        replace_existing=True,
+    )
+    return True
+
+
+def _deliver_in_app(user_id: str, title: str, message: str, data: dict) -> None:
+    """The in-app bell ONLY, through note_tasks' one helper, bound to this job's own source."""
+    from api.services.journal_two.note_tasks import deliver_in_app
+    deliver_in_app(FOLLOWUP_SOURCE, user_id, title, message, data)

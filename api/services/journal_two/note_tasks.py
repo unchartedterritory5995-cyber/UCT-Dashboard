@@ -599,8 +599,14 @@ def register_task_reminder_job(scheduler) -> bool:
     return True
 
 
-def _deliver_in_app(user_id: str, title: str, message: str, data: dict) -> None:
-    """The in-app bell ONLY. `info` is below the Discord threshold, and this
-    path never touches email."""
+def deliver_in_app(source: str, user_id: str, title: str, message: str, data: dict) -> None:
+    """The in-app bell ONLY, under the caller's own `source` (the alert's type). `info` is below
+    the Discord threshold, and this path never touches email. The one helper every Notebook job
+    that rings a bell goes through (the earnings follow-up job binds its own source to it)."""
     from api.services.alerts import add_alert
-    add_alert(REMINDER_SOURCE, title, message, severity="info", data=data, user_id=user_id)
+    add_alert(source, title, message, severity="info", data=data, user_id=user_id)
+
+
+def _deliver_in_app(user_id: str, title: str, message: str, data: dict) -> None:
+    """The task reminder's bell: `deliver_in_app` under REMINDER_SOURCE."""
+    deliver_in_app(REMINDER_SOURCE, user_id, title, message, data)
