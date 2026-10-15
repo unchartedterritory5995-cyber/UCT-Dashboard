@@ -105,23 +105,31 @@ def _nightly_job(monkeypatch):
     return jobs["screener_snapshot_nightly"]
 
 
-@pytest.mark.parametrize("stats,alerts", [
-    ({"targets": 50, "built": 10, "skipped": 0, "errors": 0, "populated": {}}, 1),
-    ({"targets": 50, "built": 50, "skipped": 0, "errors": 0, "populated": {}}, 0),   # control
-])
-def test_the_nightly_job_alerts_on_a_short_run_and_not_on_a_full_one(monkeypatch, stats, alerts):
+def _run_nightly(monkeypatch, stats):
+    """Run the REAL registered nightly job (api.main._alert_if_nightly_short is what it calls
+    after the build) against a stubbed build result, and return the alerts it raised."""
+    import api.main as main
     from api.services import chart_health_alerts
     from api.services.screener import distribution, snapshot_builder
+    assert callable(main._alert_if_nightly_short)
     seen = []
     monkeypatch.setattr(chart_health_alerts, "emit", lambda key, sev, msg, meta=None: seen.append((key, sev, msg)) or True)
     monkeypatch.setattr(snapshot_builder, "run_build", lambda *a, **k: stats)
     monkeypatch.setattr(distribution, "distributions", lambda: None)
     _nightly_job(monkeypatch)()
-    assert len(seen) == alerts
-    if alerts:
-        key, sev, msg = seen[0]
-        assert key.startswith("screener_nightly_short:") and sev == "warning"
-        assert "10 of 50" in msg
+    return seen
+
+
+def test_the_nightly_job_alerts_on_a_run_that_stops_short(monkeypatch):
+    seen = _run_nightly(monkeypatch, {"targets": 50, "built": 10, "skipped": 0, "errors": 0, "populated": {}})
+    assert len(seen) == 1
+    key, sev, msg = seen[0]
+    assert key.startswith("screener_nightly_short:") and sev == "warning"
+    assert "10 of 50" in msg
+
+
+def test_CONTROL_a_nightly_that_reaches_every_row_alerts_nobody(monkeypatch):
+    assert _run_nightly(monkeypatch, {"targets": 50, "built": 48, "skipped": 2, "errors": 0, "populated": {}}) == []
 
 
 def test_a_crashing_nightly_still_alerts(monkeypatch):
