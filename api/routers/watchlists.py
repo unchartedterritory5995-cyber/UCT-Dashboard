@@ -180,6 +180,10 @@ _BULK_META_COLS = {
     "next_earnings": "next_earnings_date",
     "ipo_date": "ipo_date",
     "avg_vol_20d": "avg_volume_30d",
+    # The chart header's RVOL denominator, named for what it is (30 completed
+    # sessions); the same stored value, so the header and the screener's
+    # `rvol_live` divide by one number.
+    "avg_vol_30d": "avg_volume_30d",
 }
 
 # ⛔ `market_cap` CROSSES THE WIRE PRE-FORMATTED, AND THE ROW RENDERER IS WHY.

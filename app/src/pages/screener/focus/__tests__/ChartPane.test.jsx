@@ -79,6 +79,11 @@ test('plain words: the fact line says what the numbers are (owner decision 5)', 
   expect(screen.getByText('Volume 0.6× avg · Avg daily range 4.1%')).toBeInTheDocument()
   expect(screen.queryByText(/ADR|Vol \d/)).toBeNull()
 })
+test('during the session the fact line prefers volume vs usual BY NOW (rvol_live) over the session ratio', () => {
+  render(<ChartPane row={{ ...row, vol_ratio: 0.6, rvol_live: 2.34, adr_pct: 4.1 }} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.getByText('Volume 2.3× usual by now · Avg daily range 4.1%')).toBeInTheDocument()
+  expect(screen.queryByText(/0\.6× avg/)).toBeNull()
+})
 test('B2: a structure screen leads the setup tag with the matched structure; the pivot is named for the head', () => {
   const structures = { matched: [{ value: ',pocket-pivot,', label: 'Pocket Pivot', title: 'Pocket Pivot' }], labels: ['Pocket Pivot', 'Ugly Double Bottom'] }
   render(<ChartPane row={{ ...row, base_render: 'Ugly Double Bottom (Pocket Pivot)', price: 97, base_pivot_px: 100 }} structures={structures}

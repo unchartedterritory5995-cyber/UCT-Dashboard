@@ -1916,6 +1916,17 @@ def register_screener_jobs(scheduler):
                 # bands go cold with it. Compute them here, not on the first open.
                 from api.services.screener import distribution
                 distribution.distributions()
+                # The market-wide time-of-day volume curve behind the live
+                # `rvol_live` column ("volume vs usual by now"). Its own job never
+                # raises and keeps the previous curve on a thin night; this
+                # try is belt-and-braces so it cannot cost the alert below.
+                try:
+                    from api.services.screener import volume_curve
+                    vc = volume_curve.nightly_job()
+                    print(f"[scheduler] screener volume curve: stored={vc.get('stored')} "
+                          f"samples={vc.get('samples')} reason={vc.get('reason')}")
+                except Exception as e:  # noqa: BLE001
+                    print(f"[scheduler] screener volume curve error: {e}")
             _alert_if_nightly_short(stats)
         except Exception as e:
             print(f"[scheduler] screener snapshot build error: {e}")
