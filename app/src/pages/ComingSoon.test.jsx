@@ -188,21 +188,21 @@ describe('ComingSoon', () => {
     afterEach(() => { Date.now = realDateNow })
 
     it('says doors open today, not an empty countdown, on launch day', () => {
-      // 2026-10-16 12:00 ET — same ET day as the 09:00 ET target, past it.
-      Date.now = () => new Date('2026-10-16T16:00:00Z').getTime()
+      // 2026-11-14 12:00 ET (EST) — same ET day as the 09:00 ET target, past it.
+      Date.now = () => new Date('2026-11-14T17:00:00Z').getTime()
       renderPage()
       expect(screen.getByRole('status')).toHaveTextContent(/doors open today/i)
       expect(screen.queryByText(/^days?$/i)).not.toBeInTheDocument()
     })
 
     it('does not still claim "today" days later', () => {
-      Date.now = () => new Date('2026-10-20T16:00:00Z').getTime()
+      Date.now = () => new Date('2026-11-18T17:00:00Z').getTime()
       renderPage()
       expect(screen.getByRole('status')).toHaveTextContent(/opening imminently/i)
     })
 
     it('keeps capturing emails after the date passes', () => {
-      Date.now = () => new Date('2026-10-20T16:00:00Z').getTime()
+      Date.now = () => new Date('2026-11-18T17:00:00Z').getTime()
       renderPage()
       expect(screen.getByLabelText(/email address/i)).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /notify me/i })).toBeInTheDocument()
