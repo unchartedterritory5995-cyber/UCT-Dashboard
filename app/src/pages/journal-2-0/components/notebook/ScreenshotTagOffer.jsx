@@ -61,9 +61,17 @@ function useImagePos(editor, src) {
   return current.pos
 }
 
-export default function ScreenshotTagOffer({ editor, offer, noteTicker, onAccept, onDismiss }) {
+export default function ScreenshotTagOffer({ editor, offer, noteTicker, onAccept, onDismiss, onGone }) {
   const barRef = useRef(null)
   const pos = useImagePos(editor, offer.url)
+
+  // ⛔ An offer whose image is gone must END, not idle: while this component is mounted its transaction listener
+  // re-scans the whole document on every doc-changing keystroke (the scan never matches once the image is gone),
+  // which lands on the typing path F-LONGNOTE-TYPING already breaches. Tell the page, which clears the offer and
+  // so unmounts this (and its listener). Also covers an image deleted while the read was still running.
+  useEffect(() => {
+    if (pos == null) onGone?.()
+  }, [pos, onGone])
 
   useLayoutEffect(() => {
     const bar = barRef.current

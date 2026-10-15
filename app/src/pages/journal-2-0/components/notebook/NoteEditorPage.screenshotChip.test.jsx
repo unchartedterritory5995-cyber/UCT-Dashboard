@@ -30,6 +30,12 @@ vi.mock('../../hooks/useJ2Notes', () => ({
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
 vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
 vi.mock('../../lib/screenshotRead', () => ({ readScreenshot: (...a) => readMock(...a) }))
+// The REAL image finder, counted: every whole-document scan the chip runs goes through it (I3).
+const findImagePosSpy = vi.fn()
+vi.mock('../../lib/screenshotLabel', async (orig) => {
+  const real = await orig()
+  return { ...real, findImagePos: (...a) => { findImagePosSpy(...a); return real.findImagePos(...a) } }
+})
 
 const mkNote = (id, extra = {}) => ({
   id, title: `Note ${id}`, subtitle: '', folderId: null, ticker: null, tags: [], heroImageUrl: null,
@@ -190,6 +196,30 @@ describe('the offer', () => {
       editor.view.dispatch(tr)
     })
     await waitFor(() => expect(screen.queryByRole('toolbar', { name: 'Screenshot tag' })).toBeNull())
+  })
+  it('⛔ I3: deleting the image ENDS the offer, so typing afterwards runs no whole-document scan', async () => {
+    switchesOn()
+    const { editor } = await renderEditor()
+    await pasteImage()
+    await chip('Tag NVDA · Daily')
+    const typeAtStart = (t) => act(() => { editor.commands.insertContentAt(1, t) })
+    // Control: with the image there, typing maps its position (O(1)) -- no scan, so a count below is meaningful.
+    const atStart = findImagePosSpy.mock.calls.length
+    typeAtStart('a ')
+    expect(findImagePosSpy.mock.calls.length).toBe(atStart)
+    act(() => {
+      const tr = editor.state.tr
+      editor.state.doc.descendants((n, pos) => { if (n.type.name === 'image') tr.delete(pos, pos + n.nodeSize) })
+      editor.view.dispatch(tr)
+    })
+    await waitFor(() => expect(screen.queryByRole('toolbar', { name: 'Screenshot tag' })).toBeNull())
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)) })
+    const afterDelete = findImagePosSpy.mock.calls.length
+    typeAtStart('typing ')
+    typeAtStart('after ')
+    typeAtStart('the delete ')
+    expect(findImagePosSpy.mock.calls.length).toBe(afterDelete)
+    expect(screen.queryByRole('button', { name: /^Tag / })).toBeNull()
   })
 })
 

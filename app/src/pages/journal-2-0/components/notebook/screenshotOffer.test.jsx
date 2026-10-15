@@ -139,6 +139,21 @@ describe('⛔ image gone (Review Focus 3)', () => {
     expect(bar()).toBeTruthy()
     expect(labelImage(editor, '/a.png', 'NVDA daily chart')).toBe(true)
   })
+  it('⛔ I3: deleting the image tells the page, once, so it can END the offer (and the scanning with it)', () => {
+    const onGone = vi.fn()
+    render(<ScreenshotTagOffer editor={editor} offer={offer()} noteTicker={null} onAccept={vi.fn()} onDismiss={vi.fn()} onGone={onGone} />)
+    expect(onGone).not.toHaveBeenCalled() // control: the image is there, the offer lives
+    act(() => { editor.commands.insertContentAt(1, 'typing above ') })
+    expect(onGone).not.toHaveBeenCalled() // a moved image is not a gone one
+    act(() => { deleteImages() })
+    expect(onGone).toHaveBeenCalledTimes(1)
+  })
+  it('⛔ I3: an image already gone when the offer arrives (deleted during the read) ends the offer at once', () => {
+    deleteImages()
+    const onGone = vi.fn()
+    render(<ScreenshotTagOffer editor={editor} offer={offer()} noteTicker={null} onAccept={vi.fn()} onDismiss={vi.fn()} onGone={onGone} />)
+    expect(onGone).toHaveBeenCalledTimes(1)
+  })
   it('an offer for another image is not shown over this one', () => {
     render(<ScreenshotTagOffer editor={editor} offer={offer({ url: '/other.png' })} noteTicker={null} onAccept={vi.fn()} onDismiss={vi.fn()} />)
     expect(bar()).toBeNull()

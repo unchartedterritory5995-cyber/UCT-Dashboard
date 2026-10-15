@@ -1933,6 +1933,8 @@ export default function NoteEditorPage({
   // Tier 2 part A, item 10: the screenshot chip. ONE offer at a time (the newest paste); the read is aborted when
   // another image is pasted, the note changes, or the page unmounts (Review Focus 3).
   const [screenshotOffer, setScreenshotOffer] = useState(null)
+  // Dismiss, and the chip's own "the image is gone" (I3): either way the offer ends and the chip unmounts.
+  const clearScreenshotOffer = useCallback(() => setScreenshotOffer(null), [])
   const screenshotReadRef = useRef(null)
   useEffect(() => () => { screenshotReadRef.current?.abort() }, [noteId])
   useEffect(() => { setScreenshotOffer(null) }, [noteId])
@@ -5254,7 +5256,7 @@ export default function NoteEditorPage({
         {smartChipsEnabled() && screenshotOffer && screenshotOffer.noteId === noteId && (
           <Suspense fallback={null}>
             <ScreenshotTagOffer editor={editor} offer={screenshotOffer} noteTicker={note?.ticker || null}
-              onAccept={acceptScreenshotTag} onDismiss={() => setScreenshotOffer(null)} />
+              onAccept={acceptScreenshotTag} onDismiss={clearScreenshotOffer} onGone={clearScreenshotOffer} />
           </Suspense>
         )}
 
