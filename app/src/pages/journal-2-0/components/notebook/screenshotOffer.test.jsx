@@ -8,6 +8,7 @@ import { buildExtensions } from '../../lib/tiptap'
 import ScreenshotTagOffer, {
   SCREENSHOT_OFFER_LABEL, findImagePos, labelImage, offerWords,
 } from './ScreenshotTagOffer'
+import { barPlacement } from '../../lib/barPlacement'
 
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
 if (!Range.prototype.getBoundingClientRect) Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -169,5 +170,86 @@ describe('dismiss', () => {
     expect(onDismiss).toHaveBeenCalledTimes(1)
     expect(onAccept).not.toHaveBeenCalled()
     expect(images()[0].alt).not.toBe('NVDA daily chart')
+  })
+})
+
+describe('⛔ the bar stays inside the window (walk run 2: the chip sat at y 991-1018 in an 800 px window)', () => {
+  const DESKTOP = { width: 1280, height: 800 }
+  const PHONE = { width: 390, height: 844 }
+
+  it('an image whose bottom is BELOW the window puts the bar inside it, not under the image', () => {
+    const at = barPlacement({ left: 100, bottom: 985 }, { width: 220, height: 27 }, DESKTOP)
+    expect(at.top).toBeLessThanOrEqual(800 - 27 - 8)
+    expect(at.top).toBeGreaterThanOrEqual(8)
+  })
+  it('CONTROL — an image that ends well inside the window still gets the bar 6 px under it', () => {
+    expect(barPlacement({ left: 100, bottom: 300 }, { width: 220, height: 27 }, DESKTOP)).toEqual({ top: 306, left: 100 })
+  })
+  it('an image scrolled up out of the window keeps the bar at the top edge, still reachable', () => {
+    expect(barPlacement({ left: 100, bottom: -400 }, { width: 220, height: 27 }, DESKTOP).top).toBe(8)
+  })
+  it('the RIGHT edge of the bar stays inside a 390 px window, and its left edge keeps its 8 px margin', () => {
+    const wide = barPlacement({ left: 300, bottom: 200 }, { width: 250, height: 27 }, PHONE)
+    expect(wide.left + 250).toBeLessThanOrEqual(390 - 8)
+    expect(wide.left).toBeGreaterThanOrEqual(8)
+    expect(barPlacement({ left: -50, bottom: 200 }, { width: 250, height: 27 }, PHONE).left).toBe(8)
+    // wider than the window: the left margin wins (the CSS max-width wraps it), never a negative left
+    expect(barPlacement({ left: 40, bottom: 200 }, { width: 500, height: 27 }, PHONE).left).toBe(8)
+  })
+
+  describe('rendered', () => {
+    const realHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')
+    const realWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth')
+    const realInner = { w: window.innerWidth, h: window.innerHeight }
+    let box
+    beforeEach(() => {
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, get: () => 27 })
+      Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, get: () => 220 })
+      window.innerWidth = 1280
+      window.innerHeight = 800
+      box = { left: 100, bottom: 991 }
+      editor.view.nodeDOM = () => ({ getBoundingClientRect: () => ({ ...box }) })
+    })
+    afterEach(() => {
+      if (realHeight) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', realHeight)
+      if (realWidth) Object.defineProperty(HTMLElement.prototype, 'offsetWidth', realWidth)
+      window.innerWidth = realInner.w
+      window.innerHeight = realInner.h
+    })
+    const topOf = () => parseInt(bar().style.top, 10)
+
+    it('the bar is placed inside the window when the image runs past the bottom of it', () => {
+      render(<ScreenshotTagOffer editor={editor} offer={offer()} noteTicker={null} onAccept={vi.fn()} onDismiss={vi.fn()} />)
+      expect(topOf()).toBeLessThanOrEqual(800 - 27 - 8)
+      expect(topOf()).toBeGreaterThanOrEqual(8)
+    })
+    it('a page scroll (captured, so an inner scroller counts) puts it back under the image as it comes into view', () => {
+      render(<ScreenshotTagOffer editor={editor} offer={offer()} noteTicker={null} onAccept={vi.fn()} onDismiss={vi.fn()} />)
+      expect(topOf()).toBe(765)
+      box = { left: 100, bottom: 500 }
+      act(() => { fireEvent.scroll(document.body) }) // a scroll on an INNER element: it does not bubble, only the capture sees it
+      expect(topOf()).toBe(506)
+    })
+    it('a resize re-places it inside the new, shorter window', () => {
+      render(<ScreenshotTagOffer editor={editor} offer={offer()} noteTicker={null} onAccept={vi.fn()} onDismiss={vi.fn()} />)
+      window.innerHeight = 600
+      act(() => { fireEvent(window, new Event('resize')) })
+      expect(topOf()).toBe(600 - 27 - 8)
+    })
+    it('the listeners are removed on unmount (the very handlers that were added, scroll with capture)', () => {
+      const added = vi.spyOn(window, 'addEventListener')
+      const removed = vi.spyOn(window, 'removeEventListener')
+      const { unmount } = render(<ScreenshotTagOffer editor={editor} offer={offer()} noteTicker={null} onAccept={vi.fn()} onDismiss={vi.fn()} />)
+      const mine = (spy, type) => spy.mock.calls.filter(([t]) => t === type)
+      const scrollAdd = mine(added, 'scroll')[0]
+      const resizeAdd = mine(added, 'resize')[0]
+      expect(scrollAdd[2]).toEqual({ capture: true, passive: true })
+      unmount()
+      const scrollOff = mine(removed, 'scroll')
+      const resizeOff = mine(removed, 'resize')
+      expect(scrollOff.some(([, fn, opt]) => fn === scrollAdd[1] && opt?.capture === true)).toBe(true)
+      expect(resizeOff.some(([, fn]) => fn === resizeAdd[1])).toBe(true)
+      added.mockRestore(); removed.mockRestore()
+    })
   })
 })

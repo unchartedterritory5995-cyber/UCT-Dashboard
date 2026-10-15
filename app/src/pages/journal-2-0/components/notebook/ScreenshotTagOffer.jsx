@@ -8,9 +8,10 @@
  * The editor half (findImagePos / labelImage) lives in lib/screenshotLabel.js, shared with the lazy
  * accept decision (lib/screenshotTag.js); they are re-exported below for this file's own tests.
  */
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { findImagePos, isImageAt, labelImage } from '../../lib/screenshotLabel'
+import { barPlacement } from '../../lib/barPlacement'
 import styles from './ScreenshotTagOffer.module.css'
 
 export { findImagePos, labelImage }
@@ -72,15 +73,35 @@ export default function ScreenshotTagOffer({ editor, offer, noteTicker, onAccept
     if (pos == null) onGone?.()
   }, [pos, onGone])
 
-  useLayoutEffect(() => {
+  // Re-read where the image is and put the bar under it, inside the window. Runs after every render (the layout may have
+  // moved) and, below, on any scroll or resize: the image moves under a fixed bar when the page scrolls.
+  const place = useCallback(() => {
     const bar = barRef.current
     if (!bar || pos == null || !editor || editor.isDestroyed) return
     let rect = null
     try { rect = editor.view.nodeDOM(pos)?.getBoundingClientRect?.() } catch { rect = null }
     if (!rect) return
-    bar.style.left = `${Math.round(Math.max(8, rect.left))}px`
-    bar.style.top = `${Math.round(rect.bottom + 6)}px`
-  })
+    const at = barPlacement(
+      rect,
+      { width: bar.offsetWidth || 0, height: bar.offsetHeight || 0 },
+      { width: window.innerWidth, height: window.innerHeight },
+    )
+    bar.style.left = `${at.left}px`
+    bar.style.top = `${at.top}px`
+  }, [editor, pos])
+
+  useLayoutEffect(() => { place() })
+
+  // Capture + passive: the Notebook scrolls an inner element, not the window, and scroll does not bubble.
+  // Mouse/touch/scroll/resize only -- no key listener (keyListenerCensus).
+  useEffect(() => {
+    window.addEventListener('scroll', place, { capture: true, passive: true })
+    window.addEventListener('resize', place)
+    return () => {
+      window.removeEventListener('scroll', place, { capture: true })
+      window.removeEventListener('resize', place)
+    }
+  }, [place])
 
   if (pos == null) return null
   const hold = (e) => e.preventDefault()
