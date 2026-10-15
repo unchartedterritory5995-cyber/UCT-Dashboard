@@ -20,8 +20,9 @@ const realSleep = (ms, signal) => new Promise((resolve) => {
   signal?.addEventListener?.('abort', onAbort, { once: true })
 })
 
-// One bounded request: the caller's abort, or REQUEST_TIMEOUT_MS, ends it with null. Never throws.
-async function getJson(fetchImpl, url, signal) {
+// Runs makeWork(innerSignal) bounded by REQUEST_TIMEOUT_MS and the caller's abort: either ends it with null.
+// Plain AbortController + setTimeout (no AbortSignal.any/timeout: the iOS 16 floor). Never throws.
+async function bounded(makeWork, signal) {
   const ctrl = new AbortController()
   let timer = null
   let onAbort = null
@@ -31,10 +32,7 @@ async function getJson(fetchImpl, url, signal) {
     if (signal?.aborted) onAbort()
     else signal?.addEventListener?.('abort', onAbort, { once: true })
   })
-  const work = (async () => {
-    const r = await fetchImpl(url, { credentials: 'include', signal: ctrl.signal })
-    return r?.ok ? await r.json() : null
-  })().catch(() => null)
+  const work = (async () => makeWork(ctrl.signal))().catch(() => null)
   try {
     return await Promise.race([work, gone])
   } catch {
@@ -43,6 +41,13 @@ async function getJson(fetchImpl, url, signal) {
     clearTimeout(timer)
     signal?.removeEventListener?.('abort', onAbort)
   }
+}
+
+function getJson(fetchImpl, url, signal) {
+  return bounded(async (inner) => {
+    const r = await fetchImpl(url, { credentials: 'include', signal: inner })
+    return r?.ok ? await r.json() : null
+  }, signal)
 }
 
 async function readScreenshotInner({ noteId, url, signal, fetchImpl = globalThis.fetch, sleep = realSleep }) {
@@ -59,7 +64,7 @@ async function readScreenshotInner({ noteId, url, signal, fetchImpl = globalThis
   const page = await getJson(fetchImpl, `/api/j2/notes/documents/${encodeURIComponent(doc.id)}/pages/1/text`, signal)
   const head = typeof page?.text === 'string' ? page.text.slice(0, HEADER_CHARS) : ''
   if (!head.trim() || signal?.aborted) return null
-  const symbol = pickTicker(await tickersIn(head, fetchImpl))
+  const symbol = pickTicker(await bounded(() => tickersIn(head, fetchImpl), signal))
   if (!symbol || signal?.aborted) return null
   return { symbol, timeframe: timeframeFromText(head) }
 }

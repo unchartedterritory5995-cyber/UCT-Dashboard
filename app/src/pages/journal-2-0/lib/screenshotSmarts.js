@@ -37,15 +37,16 @@ export function timeframeFromText(text) {
 
 const CONFIDENT = new Set(['cashtag', 'alias', 'exact'])
 // Exchange and indicator names that a chart header prints and that read as exact-tier tickers; only an explicit $cashtag keeps one.
-export const CHART_WORDS = Object.freeze(new Set([
+export const CHART_WORDS = Object.freeze([
   'CME', 'CBOE', 'CBOT', 'NYMEX', 'COMEX', 'ICE', 'NASDAQ', 'NYSE', 'ARCA', 'AMEX', 'BATS',
   'ATR', 'BB', 'ADX', 'OBV', 'CCI', 'DMI', 'MFI', 'KC', 'VOL', 'SMA', 'EMA', 'RSI', 'MACD', 'VWAP',
-]))
+])
+const CHART_WORD_SET = new Set(CHART_WORDS) // lookup copy; not exported, so nothing can mutate it
 export function pickTicker(tickers) {
   if (!Array.isArray(tickers)) return null
   const syms = new Set(
     tickers
-      .filter((t) => CONFIDENT.has(t?.tier) && (t.tier === 'cashtag' || !CHART_WORDS.has(t.symbol)))
+      .filter((t) => CONFIDENT.has(t?.tier) && (t.tier === 'cashtag' || !CHART_WORD_SET.has(t.symbol)))
       .map((t) => t.symbol),
   )
   return syms.size === 1 ? [...syms][0] : null

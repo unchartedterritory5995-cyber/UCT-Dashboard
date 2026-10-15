@@ -104,4 +104,21 @@ describe('readScreenshot is bounded and never throws', () => {
     expect(await readScreenshot({ noteId: 'n1', url: URL_, fetchImpl: f, sleep: noSleep })).toBeNull()
     expect(f).toHaveBeenCalledTimes(POLL_DELAYS_MS.length)
   })
+  it('a ticker check that never answers is cut off at the timeout', async () => {
+    vi.useFakeTimers()
+    tickersIn.mockImplementationOnce(() => new Promise(() => {}))
+    const p = readScreenshot({ noteId: 'n1', url: URL_, fetchImpl: server(['ready']), sleep: noSleep })
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS + 1)
+    expect(await p).toBeNull()
+  })
+  it('an abort while the ticker check is pending resolves promptly', async () => {
+    vi.useFakeTimers()
+    const ctrl = new AbortController()
+    tickersIn.mockImplementationOnce(() => new Promise(() => {}))
+    const p = readScreenshot({ noteId: 'n1', url: URL_, fetchImpl: server(['ready']), sleep: noSleep, signal: ctrl.signal })
+    await vi.advanceTimersByTimeAsync(100)      // well inside the 8 s timeout
+    expect(tickersIn).toHaveBeenCalled()
+    ctrl.abort()
+    expect(await p).toBeNull()
+  })
 })

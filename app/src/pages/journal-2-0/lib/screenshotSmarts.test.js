@@ -55,9 +55,13 @@ describe('pickTicker (R-T2A-7)', () => {
   it('the real symbol survives its exchange name', () => {
     expect(pickTicker([{ symbol: 'NVDA', tier: 'alias' }, { symbol: 'NASDAQ', tier: 'exact' }])).toBe('NVDA')
   })
-  it('CHART_WORDS is frozen and holds the listed words', () => {
+  it('CHART_WORDS is a frozen array that cannot be changed to widen or narrow the filter', () => {
+    expect(Array.isArray(CHART_WORDS)).toBe(true)
     expect(Object.isFrozen(CHART_WORDS)).toBe(true)
-    for (const w of ['CME', 'NASDAQ', 'ATR', 'VWAP', 'MACD']) expect(CHART_WORDS.has(w)).toBe(true)
+    expect(() => CHART_WORDS.push('NVDA')).toThrow(TypeError)
+    expect(() => { CHART_WORDS[0] = 'NVDA' }).toThrow(TypeError)
+    for (const w of ['CME', 'NASDAQ', 'ATR', 'VWAP', 'MACD']) expect(CHART_WORDS).toContain(w)
+    expect(pickTicker([{ symbol: 'NVDA', tier: 'exact' }])).toBe('NVDA')   // the failed mutations left the filter alone
   })
   it('nothing, or a failed check', () => { expect(pickTicker([])).toBeNull(); expect(pickTicker(null)).toBeNull() })
 })
