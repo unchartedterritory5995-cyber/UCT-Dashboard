@@ -1,5 +1,5 @@
 import { expect, test, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import WhyStrip from '../WhyStrip'
 
 test('a note with a missing value shows the open circle, never a tick', () => {
@@ -44,4 +44,37 @@ test('1: everything fits: no cue', () => {
 test('1: every item is a no-wrap, no-shrink unit', () => {
   render(<WhyStrip items={five} more={0} />)
   for (const li of screen.getByRole('list', { name: "Why it's here" }).querySelectorAll('[data-why-item]')) expect(li.className).toMatch(/whyItem/)
+})
+
+// A ResizeObserver stand-in the test can fire.
+const installRO = () => {
+  const observers = []
+  const prev = globalThis.ResizeObserver
+  globalThis.ResizeObserver = class { constructor(cb) { this.cb = cb; this.els = [] } observe(el) { this.els.push(el); observers.push(this) } disconnect() { this.els = [] } }
+  return { fire: () => observers.forEach(o => o.els.length && o.cb([])), count: () => observers.filter(o => o.els.length).length, restore: () => { globalThis.ResizeObserver = prev } }
+}
+test('1: a strip that mounts empty and gets items later is still re-measured on a resize', () => {
+  const ro = installRO()
+  let listW = 2000
+  const cw = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function () { return this.tagName === 'UL' ? listW : 0 })
+  const ow = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function () { return this.hasAttribute('data-why-item') ? 100 : 0 })
+  restore = () => { cw.mockRestore(); ow.mockRestore(); ro.restore() }
+  const { rerender } = render(<WhyStrip items={[]} more={0} onMore={() => {}} />)
+  rerender(<WhyStrip items={five} more={0} onMore={() => {}} />)
+  const list = () => screen.getByRole('list', { name: "Why it's here" })
+  expect(list().querySelectorAll('[data-why-item]')).toHaveLength(5)
+  expect(ro.count()).toBe(1)
+  listW = 300
+  act(() => { ro.fire() })
+  expect(list().querySelectorAll('[data-why-item]')).toHaveLength(2)
+  expect(screen.getByRole('button', { name: '+3 more' })).toBeInTheDocument()
+})
+test('2: a new `more` alone re-measures the fit', () => {
+  restore = stubLayout(300, 100)
+  const items = five
+  const { rerender } = render(<WhyStrip items={items} more={0} onMore={() => {}} />)
+  expect(screen.getByRole('button', { name: '+3 more' })).toBeInTheDocument()
+  rerender(<WhyStrip items={items} more={4} onMore={() => {}} />)
+  expect(screen.getByRole('button', { name: '+7 more' })).toBeInTheDocument()
+  expect(screen.getByRole('list', { name: "Why it's here" }).querySelectorAll('[data-why-item]')).toHaveLength(2)
 })
