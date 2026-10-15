@@ -16,7 +16,8 @@ Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bott
 
 const T1 = '2026-10-01T14:00:00.000000+00:00'
 const P = (t) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] })
-const NVDA_DAILY = { symbol: 'NVDA', timeframe: { tf: 'D', label: 'Daily' } }
+// readScreenshot carries the alt the tag will set (I5: computed in the lazy read, never on the page)
+const NVDA_DAILY = { symbol: 'NVDA', timeframe: { tf: 'D', label: 'Daily' }, alt: 'NVDA daily chart' }
 const IMG_URL = '/api/j2/notes/attachments/u1/n1/inline/abc123.png'
 
 let NOTES
@@ -114,8 +115,15 @@ describe('the mount (source rails)', () => {
   it('the poll and its network code load only on a paste with the switch on (a dynamic import, never static)', () => {
     expect(src).not.toMatch(/^import .*screenshotRead/m)
     expect(src.match(/import\('\.\.\/\.\.\/lib\/screenshotRead'\)/g)).toHaveLength(1)
-    expect(src).toMatch(/import \{ altFor \} from '\.\.\/\.\.\/lib\/screenshotSmarts'/)
-    expect(src).toMatch(/import \{ labelImage \} from '\.\.\/\.\.\/lib\/screenshotLabel'/)
+  })
+  it('⛔ I5: nothing of the chip is eager -- the grammar, the label code and the accept decision load lazily', () => {
+    expect(src).not.toMatch(/^import .*screenshotSmarts/m)
+    expect(src).not.toMatch(/^import .*screenshotLabel/m)
+    expect(src).not.toMatch(/^import .*screenshotTag/m)
+    expect(src.match(/import\('\.\.\/\.\.\/lib\/screenshotTag'\)/g)).toHaveLength(1)
+    expect(src).not.toMatch(/^import .*planCreate/m)
+    expect(src).not.toMatch(/^import .*planLink/m)
+    expect(src.match(/import\('\.\.\/\.\.\/lib\/planLink'\)/g)).toHaveLength(1)
   })
   it('the read starts only behind BOTH switches', () => {
     expect(src).toMatch(
@@ -265,7 +273,7 @@ describe('accepting', () => {
   })
   it('the ticker set by a tag goes through the ticker door\'s own validator (normalized, never a second route)', async () => {
     switchesOn()
-    readMock.mockResolvedValue({ symbol: 'nvda', timeframe: { tf: 'D', label: 'Daily' } })
+    readMock.mockResolvedValue({ symbol: 'nvda', timeframe: { tf: 'D', label: 'Daily' }, alt: 'nvda daily chart' })
     await renderEditor()
     openDetails()
     await pasteImage()
@@ -276,7 +284,7 @@ describe('accepting', () => {
   })
   it('a symbol the ticker door refuses is not written: the alt stays and the toast says the ticker was not set', async () => {
     switchesOn()
-    readMock.mockResolvedValue({ symbol: 'NOT A TICKER', timeframe: null })
+    readMock.mockResolvedValue({ symbol: 'NOT A TICKER', timeframe: null, alt: 'NOT A TICKER chart' })
     const { editor } = await renderEditor()
     await pasteImage()
     fireEvent.click(await chip('Tag NOT A TICKER'))
@@ -286,7 +294,7 @@ describe('accepting', () => {
   })
   it('no timeframe: the alt and the toast name the symbol alone', async () => {
     switchesOn()
-    readMock.mockResolvedValue({ symbol: 'NVDA', timeframe: null })
+    readMock.mockResolvedValue({ symbol: 'NVDA', timeframe: null, alt: 'NVDA chart' })
     NOTES.n1 = mkNote('n1', { ticker: 'NVDA' })
     const { editor } = await renderEditor()
     await pasteImage()

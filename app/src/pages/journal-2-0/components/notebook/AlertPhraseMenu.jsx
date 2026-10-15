@@ -16,9 +16,8 @@
 import { Suspense, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import lazyChunk from '../../lib/lazyChunk'
-import {
-  ALERT_OFFER_EVENT, alertPhraseKey, dismissAlertOffer, setAlertOfferHosted,
-} from '../../lib/alertPhraseOffer'
+import { ALERT_OFFER_EVENT, alertPhraseKey } from '../../lib/alertPhraseOffer'
+import { dismissAlertOffer, setAlertOfferHosted } from '../../lib/alertPhraseHosting'
 import { describeAlert, parseAlertPhrase } from '../../lib/alertPhrase'
 import { confirmsSymbol, tickersIn } from '../../lib/smartChipsApi'
 import styles from './AlertPhraseMenu.module.css'

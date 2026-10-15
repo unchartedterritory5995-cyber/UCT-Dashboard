@@ -1,9 +1,9 @@
 // app/src/pages/journal-2-0/lib/screenshotLabel.js
 /**
  * Tier 2 part A, item 10 -- the editor half of "Tag NVDA · Daily": find the pasted image and give
- * it an alt. Pure ProseMirror, no React. It lives HERE (not in the lazy ScreenshotTagOffer chunk)
- * because the page's accept path needs it eagerly, while the chip itself is fetched only when an
- * offer exists; ScreenshotTagOffer.jsx re-exports both for its tests.
+ * it an alt. Pure ProseMirror, no React. Shared by the lazy chip (ScreenshotTagOffer.jsx, which
+ * re-exports both for its tests) and the lazy accept decision (lib/screenshotTag.js); the editor page
+ * imports neither eagerly (I5).
  *
  * The alt is an editor transaction on the note's own autosave path (R-T2A-8): no new write door,
  * no new node, no new attribute. Every OTHER attribute of the node is kept, so a resized image

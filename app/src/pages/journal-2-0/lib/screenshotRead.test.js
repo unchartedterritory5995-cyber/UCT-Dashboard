@@ -24,7 +24,7 @@ describe('readScreenshot', () => {
   it('waits for OCR, reads the header, confirms the ticker', async () => {
     const f = server(['pending', 'pending', 'ready'])
     expect(await readScreenshot({ noteId: 'n1', url: URL_, fetchImpl: f, sleep: noSleep }))
-      .toEqual({ symbol: 'NVDA', timeframe: { tf: 'D', label: 'Daily' } })
+      .toEqual({ symbol: 'NVDA', timeframe: { tf: 'D', label: 'Daily' }, alt: 'NVDA daily chart' }) // the alt rides on the offer (I5)
     expect(tickersIn).toHaveBeenCalledWith('NVDA · 1D · NASDAQ', f)
   })
   it('gives up after the bounded schedule', async () => {

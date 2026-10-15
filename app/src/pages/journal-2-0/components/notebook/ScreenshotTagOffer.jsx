@@ -5,9 +5,8 @@
  * path) and, when the note has no ticker yet, the page sets it through the metadata door
  * (R-T2A-8). Floated under the image; gone when the image is.
  *
- * The editor half (findImagePos / labelImage) lives in lib/screenshotLabel.js, because the page's
- * accept path needs it eagerly and this component is a lazy chunk; they are re-exported below for
- * this file's own tests.
+ * The editor half (findImagePos / labelImage) lives in lib/screenshotLabel.js, shared with the lazy
+ * accept decision (lib/screenshotTag.js); they are re-exported below for this file's own tests.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'

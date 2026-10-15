@@ -131,7 +131,6 @@ import lazyChunk from '../../lib/lazyChunk'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { CANVAS_EVENT, extraBlockCount, isTradeCanvasDoc } from '../../lib/tradeCanvas'
 import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
-import { createPlanNote } from '../../lib/planCreate'
 import { loadStyle } from './styles/lazyStyles'
 import { createTradeCanvasNote, tradeCanvasEnabled } from '../../lib/tradeCanvasCreate'
 import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
@@ -139,10 +138,9 @@ import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { TranscriptInsertHost } from './TranscriptDoors'
 import { normalizeNoteTicker } from '../../lib/noteTicker'
 import { smartChipsEnabled } from '../../lib/smartChipsFlag'
-// Item 10: the screenshot chip's EAGER halves are tiny and pure (the alt text; the editor transaction that sets it).
-// The poll and its network code (lib/screenshotRead) are a dynamic import below, and the chip itself is lazy.
-import { altFor } from '../../lib/screenshotSmarts'
-import { labelImage } from '../../lib/screenshotLabel'
+// Item 10: NOTHING of the screenshot chip is eager (I5). The poll and its network code (lib/screenshotRead, which
+// also computes the alt and carries it on the offer) and the accept decision (lib/screenshotTag) are dynamic
+// imports below, and the chip itself is lazy.
 
 // The read-only property mirror of the note's ticker. The details region carries the ONE
 // editable Ticker control, so PropertiesSection leaves this row out (stable array: its memo key).
@@ -1964,33 +1962,28 @@ export default function NoteEditorPage({
   // ticker yet, sets it through the metadata door -- `update` + `settleMetadataRevision`, exactly as onTickerChange.
   // ⛔ I2: "the note's ticker" includes what is TYPED in the Ticker field and not saved yet. A typed value is the
   // member's; the tag then labels the image only, and the chip's words say so ("Tag image …").
+  // I5: the decision and its sentences live in the lazy lib/screenshotTag; the ticker WRITE stays here.
+  const setTickerFromTag = async (symbol) => {
+    await settleMetadataRevision(await update({ ticker: symbol }))
+    if (tickerInputRef.current) tickerInputRef.current.value = symbol
+    setTickerDraft(null)
+  }
   const acceptScreenshotTag = async (offer) => {
     setScreenshotOffer(null)
-    const ed = editorRef.current
-    const words = offer.timeframe ? `${offer.symbol} · ${offer.timeframe.label}` : offer.symbol
-    if (lockedRef.current) {
-      setUploadToast({ message: 'This note is locked — unlock it in the Notebook first', tone: 'error' })
-      return
+    // Read AT THE PRESS, before the import's await (a re-render during it must not change what was pressed for).
+    const press = {
+      offer, editor: editorRef.current, noteId, locked: lockedRef.current,
+      existingTicker: fieldTicker(tickerInputRef.current?.value) || note?.ticker || null,
+      setTicker: setTickerFromTag,
     }
-    if (offer.noteId !== noteId || !labelImage(ed, offer.url, altFor(offer))) {
-      setUploadToast({ message: "Couldn't tag the screenshot — it is no longer in this note. Nothing changed.", tone: 'error' })
-      return
-    }
-    if (fieldTicker(tickerInputRef.current?.value) || note?.ticker) {
-      setUploadToast({ message: `Tagged the screenshot ${words}.`, tone: 'success' })
-      return
-    }
-    // The ticker door's own validator, never a second route around it.
-    const { ticker: symbol } = normalizeNoteTicker(offer.symbol)
+    let said
     try {
-      if (!symbol) throw new Error('not a ticker')
-      await settleMetadataRevision(await update({ ticker: symbol }))
-      if (tickerInputRef.current) tickerInputRef.current.value = symbol
-      setTickerDraft(null)
-      setUploadToast({ message: `Tagged the screenshot ${words} and set this note's ticker to ${symbol}.`, tone: 'success' })
+      const { tagScreenshot } = await import('../../lib/screenshotTag')
+      said = await tagScreenshot(press)
     } catch {
-      setUploadToast({ message: `Tagged the screenshot ${words}. Couldn't set the note's ticker; nothing else changed.`, tone: 'error' })
+      said = { message: "Couldn't tag the screenshot. Nothing changed.", tone: 'error' }
     }
+    setUploadToast(said)
   }
   const handleImageInsert = async (file) => {
     const ed = editorRef.current
@@ -2144,17 +2137,14 @@ export default function NoteEditorPage({
     }
     creatingPlanRef.current = true
     try {
-      const created = await createPlanNote({ symbol, folderId: canvasNoteRef.current?.folderId || undefined })
-      const live = editorRef.current
-      if (created?.id && live && !live.isDestroyed && live.isEditable && !lockedRef.current) {
-        live.chain().focus().insertContent([
-          { type: 'noteLink', attrs: { noteId: created.id } }, { type: 'text', text: ' ' },
-        ]).run()
-        globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
-        setUploadToast({ message: `Trade plan for ${symbol} created and linked. Open it from the link.`, tone: 'success' })
-      } else if (created?.id) {
-        setUploadToast({ message: `Trade plan for ${symbol} created. This note could not take the link.`, tone: 'error' })
-      }
+      // I5: the /plan door and its link step (lib/planLink -> lib/planCreate) load at the press, never on note
+      // open (the flag above is set first, so a second press while it loads is still one create).
+      const { createAndLinkPlan } = await import('../../lib/planLink')
+      const said = await createAndLinkPlan({
+        symbol, folderId: canvasNoteRef.current?.folderId || undefined,
+        liveEditor: () => editorRef.current, isLocked: () => lockedRef.current,
+      })
+      if (said) setUploadToast(said)
     } catch (e) {
       console.error('[notebook] /plan create failed', e)
       setUploadToast({ message: "Couldn't create the trade plan. Nothing was saved.", tone: 'error' })

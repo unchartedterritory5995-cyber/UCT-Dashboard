@@ -15,7 +15,7 @@ import { smartChipsEnabled } from './smartChipsFlag'
  * ⛔ HOSTED ONLY. `buildExtensions()` also feeds the dashboard widget, the rich-text field and the
  * version preview, none of which mounts the chip menu. Offering there would swallow Escape and
  * Alt+Enter with nothing on screen, so the plugin offers nothing until a menu has said it is
- * mounted (`setAlertOfferHosted`, called by AlertPhraseMenu's mount effect).
+ * mounted (`setAlertOfferHosted` in lib/alertPhraseHosting.js, called by AlertPhraseMenu's mount effect).
  * ⛔ THE PARSER IS HANDED IN, NEVER IMPORTED. The sentence grammar (lib/alertPhrase.js, and through it the
  * terminal's price parser) lives in the menu's LAZY chunk; the menu passes it here when it hosts
  * (`storage.parse`). "Hosted" already means "the menu is mounted", so the parser is present whenever the
@@ -53,27 +53,8 @@ export function offerAt(state, dismissed, parse) {
   }
 }
 
-/** The menu's mount/unmount handshake. Flips the flag (and, when hosting, stores the parser the menu hands
- *  over), then sends a no-op meta transaction so the plugin state recomputes at once (`meta` is `{}`: it
- *  names no dismissal). */
-export function setAlertOfferHosted(editor, hosted, parse) {
-  const store = editor?.storage?.alertPhraseOffer
-  if (!store) return
-  store.hosted = hosted === true
-  if (store.hosted && typeof parse === 'function') store.parse = parse
-  if (!store.hosted) store.showing = false
-  // ⛔ `editor.view` IS A THROWING GETTER while no view is mounted (R5-1); `isDestroyed` is false exactly
-  // when a live view exists. With none, the flag alone is enough: the first transaction reads it.
-  if (editor.isDestroyed) return
-  editor.view.dispatch(editor.state.tr.setMeta(alertPhraseKey, {}))
-}
-
-export const dismissAlertOffer = (editor) => {
-  if (!editor || editor.isDestroyed) return
-  const st = alertPhraseKey.getState(editor.state)
-  if (!st?.offer) return
-  editor.view.dispatch(editor.state.tr.setMeta(alertPhraseKey, { dismiss: st.offer.text }))
-}
+// The menu's handshake (`setAlertOfferHosted`) and dismissal (`dismissAlertOffer`) live in lib/alertPhraseHosting.js,
+// imported only by the lazy menu (I5): this module is eager, because every keystroke runs the plugin.
 
 export const AlertPhraseOffer = Extension.create({
   name: 'alertPhraseOffer',

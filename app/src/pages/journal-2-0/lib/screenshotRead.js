@@ -5,7 +5,7 @@
  * which ticker it names. BOUNDED: POLL_DELAYS_MS (about a minute) and then silence. Abortable: a
  * deleted image, another note, or an unmounted editor stops it (Review Focus 3). Never throws.
  */
-import { pickTicker, timeframeFromText, HEADER_CHARS } from './screenshotSmarts'
+import { altFor, pickTicker, timeframeFromText, HEADER_CHARS } from './screenshotSmarts'
 import { tickersIn } from './smartChipsApi'
 
 export const POLL_DELAYS_MS = [1500, 2000, 3000, 4000, 5000, 6000, 8000, 10000, 10000, 10000]
@@ -71,7 +71,10 @@ async function readScreenshotInner({ noteId, url, signal, fetchImpl = globalThis
   if (!head.trim() || signal?.aborted) return null
   const symbol = pickTicker(await bounded(() => tickersIn(head, fetchImpl), signal))
   if (!symbol || signal?.aborted) return null
-  return { symbol, timeframe: timeframeFromText(head) }
+  const timeframe = timeframeFromText(head)
+  // The alt the tag will set rides ON the offer, computed here (a lazy chunk), so the editor page never imports
+  // the screenshot grammar to open a note (I5).
+  return { symbol, timeframe, alt: altFor({ symbol, timeframe }) }
 }
 
 export async function readScreenshot(args) {

@@ -12,7 +12,8 @@ import { SuggestionPluginKey } from '@tiptap/suggestion'
 
 vi.mock('./smartChipsFlag', () => ({ smartChipsEnabled: vi.fn(() => true) }))
 import { smartChipsEnabled } from './smartChipsFlag'
-import { ALERT_OFFER_EVENT, AlertPhraseOffer, alertPhraseKey, dismissAlertOffer, offerAt, setAlertOfferHosted } from './alertPhraseOffer'
+import { ALERT_OFFER_EVENT, AlertPhraseOffer, alertPhraseKey, offerAt } from './alertPhraseOffer'
+import { dismissAlertOffer, setAlertOfferHosted } from './alertPhraseHosting'
 import { parseAlertPhrase } from './alertPhrase'
 import { buildExtensions } from './tiptap'
 
