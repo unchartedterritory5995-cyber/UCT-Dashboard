@@ -124,3 +124,50 @@ breach is the floor, not the chips.
   (loaded) at 2,000 paragraphs, a difference of about a millisecond is below what these runs can resolve.
 * The 16 ms line is not met at 2,000 paragraphs in most runs of both arms. No budget was moved.
 * The screenshot chip's cost is not in these runs: it does nothing until an image is pasted, and the harness pastes none.
+
+## Addendum: the final tree `c57a084a08` (Task 12 re-measure)
+
+Date 2026-10-15. The final fix wave changed the alert plugin's per-keystroke path (the parser now arrives through the
+menu's hosting handshake, `offerAt` is wrapped in try/catch, `handleKeyDown` reads a `showing` flag), so typing was
+re-measured on the final tree. Raw evidence, committed before this section (`36eff0dfb2`):
+`docs/notebook/evidence/t2a-perf-final-20261015T043054/`. The harness, the runner and the arguments are Task 11's
+(`--boot --busy --sizes 1,1000,2000 --opens 20 --chars 60 [--with-blocks]`); `app/dist` was rebuilt on `c57a084a08`
+before the first run. Each run's `*.flagcheck.json` records what the server served on `/api/auth/me` for the perf account
+(`true` for the switch-on runs, `false` for off). All nine runs have three CLEAN integrity checkpoints.
+
+**The box was not quiet.** Free memory was 11,500 to 13,900 MB throughout, but CPU sat at 40 to 46 percent for the whole
+session (`*.box.txt`): another session's render job (`uct_clips.idle_render`, about 8 cores) and two spinning
+`python -` processes. None is mine and I did not touch them. These runs are therefore comparable to Task 11's LOADED
+`r` runs, not its quiet `q` runs. An off-arm control on the final tree ran on the same box for that reason.
+
+Reading: `typing_busy_per_char` p95, ms. Every run exits 1 only because of the 16 ms line at 2,000 paragraphs, in both arms
+(the open F-LONGNOTE-TYPING floor).
+
+| arm (final tree) | 1 paragraph | 1,000 | 2,000 |
+|---|---|---|---|
+| switch ON, plain (f1, f2) | 8.73, 5.54 | 12.84, 12.94 | 16.03, 17.46 |
+| switch ON, alert sentence in the caret paragraph (f1, f2) | 5.17, 6.37 | 11.93, 14.59 | 18.11, 20.69 |
+| switch OFF, plain (f1, f2), same-box control | 5.62, 15.98 | 11.05, 12.35 | 19.01, 21.64 |
+| switch ON, blocks (f1, f2) | 9.07, 6.44 | 13.78, 10.36 | 30.09, 17.29 |
+| switch OFF, blocks (f1), same-box control | 12.80 | 19.38 | 29.94 |
+
+Against Task 11's switch-on numbers, same harness and same loaded conditions:
+
+| arm | Task 11 loaded runs | final tree |
+|---|---|---|
+| ON plain | 6.20, 7.67 / 11.38, 12.62 / 16.05, 21.59 | 8.73, 5.54 / 12.84, 12.94 / 16.03, 17.46 |
+| ON alert sentence | 7.28, 8.82 / 11.49, 15.72 / 14.85, 19.95 | 5.17, 6.37 / 11.93, 14.59 / 18.11, 20.69 |
+| ON blocks | 8.26 / 11.82 / 18.87 | 9.07, 6.44 / 13.78, 10.36 / 30.09, 17.29 |
+
+* **No regression from the final tree.** Every switch-on value sits inside Task 11's loaded spread at 1 and 1,000
+  paragraphs, and at 2,000 paragraphs the plain and alert arms are inside it too (16.03 and 17.46 against 16.05 to 21.59;
+  18.11 and 20.69 against 14.85 to 19.95, 0.74 ms above its top in one run of two).
+* **The single high reading is the box, shown by the control.** `on-blocks-f1` read 30.09 ms at 2,000 paragraphs, above
+  anything Task 11 recorded in its blocks runs (top 20.13, switch off). Its same-box switch-OFF control, `off-blocks-f1`, read 29.94 at 2,000 and 19.38 at
+  1,000 (and 12.80 at 1 paragraph). The off arm runs none of the new code, so the spike belongs to the box, and the next
+  switch-on blocks run (`on-blocks-f2`) read 17.29.
+* **The off arm is as high as the on arm or higher** on this box (plain at 2,000: 19.01 and 21.64 off against 16.03 and
+  17.46 on; the 15.98 at 1 paragraph in `off-plain-f2` is one tail outlier), the same pattern as Task 11.
+* **What this does not show:** with n=2 per arm and a loaded box, a difference of about a millisecond is not resolved
+  here, and the chip itself (which waits for typing to pause) is not in the timed window, as in Task 11. The decision
+  rule was "a clear regression against Task 11's switch-on numbers is a STOP"; none is present.
