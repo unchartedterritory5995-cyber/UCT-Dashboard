@@ -86,13 +86,16 @@ def weekly_report_enabled() -> bool:
     return _truthy(os.environ.get("WISDOM_WEEKLY_REPORT_ENABLED", "0"))
 
 
-def archive_admin_enabled() -> bool:
-    """The ADMIN-ONLY TSDR archive (wisdom_archive_* tables, /api/admin/wisdom/archive and the
-    push-secret batch route). Never member-visible: no member route or retrieval lane reads it."""
-    return _truthy(os.environ.get("WISDOM_ARCHIVE_ADMIN_ENABLED", "0"))
-
-
 # ── member-visible consumers (owner flips) ───────────────────────────────────
+
+def archive_enabled() -> bool:
+    """The TSDR trader archive (wisdom_archive_* tables). MEMBER-VISIBLE when on, by owner
+    ruling 2026-10-15: paid members read it at /api/wisdom/archive/* (require_paid), and Ask AI,
+    Compass chat + voice, the ticker research modal and /trader-archive consume it. Admins keep
+    /api/admin/wisdom/archive; the push-secret batch import route is gated by it too.
+    Default OFF so production stays dark until the owner sets it."""
+    return _truthy(os.environ.get("WISDOM_ARCHIVE_ENABLED", "0"))
+
 
 def brainkb_publish_enabled() -> bool:
     return _truthy(os.environ.get("WISDOM_BRAINKB_PUBLISH_ENABLED", "0"))
@@ -152,7 +155,6 @@ GATES = (
     ("WISDOM_METRICS_ENABLED", metrics_enabled, False),
     ("WISDOM_RETRIEVAL_INDEX_ENABLED", retrieval_index_enabled, False),
     ("WISDOM_WEEKLY_REPORT_ENABLED", weekly_report_enabled, False),
-    ("WISDOM_ARCHIVE_ADMIN_ENABLED", archive_admin_enabled, False),
     ("WISDOM_BRAINKB_PUBLISH_ENABLED", brainkb_publish_enabled, True),
     ("ASKAI_WISDOM_RETRIEVAL_ENABLED", askai_retrieval_enabled, True),
     ("WISDOM_DESK_MARKERS_ENABLED", desk_markers_enabled, True),
@@ -163,4 +165,5 @@ GATES = (
     ("WISDOM_DOSSIER_ENABLED", dossier_enabled, True),
     ("WISDOM_LEVEL_ALERTS_ENABLED", level_alerts_enabled, True),
     ("WISDOM_LOOKALIKE_ENABLED", lookalike_enabled, True),
+    ("WISDOM_ARCHIVE_ENABLED", archive_enabled, True),
 )

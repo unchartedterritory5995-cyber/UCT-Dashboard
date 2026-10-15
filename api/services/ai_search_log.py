@@ -230,7 +230,7 @@ def _grounding_tier(sources) -> str:
 # "wisdom": the Wisdom Loop block carries DATED team statements (calls, levels as
 # stated). An answer grounded on it is never indexed as evergreen memory, or a
 # month-old call would resurface as a timeless fact (CONTRACTS §6.6).
-_LIVE_SOURCES = {"patterns", "flow", "movers", "tape", "wisdom"}
+_LIVE_SOURCES = {"patterns", "flow", "movers", "tape", "wisdom", "trader_archive"}
 
 _EVERGREEN_RE = re.compile(
     r"\b(what (?:is|are|does|do)|who (?:is|are)|how (?:does|do|to)|explain|define|definition"

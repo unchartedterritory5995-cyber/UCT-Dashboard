@@ -2750,10 +2750,12 @@
       ],
       "note": ""
     },
-    "WISDOM_ARCHIVE_ADMIN_ENABLED": {
+    "WISDOM_ARCHIVE_ENABLED": {
       "status": "dark",
       "where": [],
-      "note": "ADMIN-ONLY TSDR archive (2026-10-15): new wisdom_archive_* tables in wisdom.db, the push-secret batch import route and the require_admin read routes under /api/admin/wisdom/archive. Internal; never member-visible, no member route or retrieval lane reads these tables. Off = every archive route answers 404."
+      "exposure": "members",
+      "note": "MEMBER-VISIBLE when on: the TSDR trader archive (wisdom_archive_* tables in wisdom.db, filled by tools/wisdom/archive_import.py through the push-secret POST /api/internal/wisdom/archive/batch). Paid members read GET /api/wisdom/archive/{ticker/{sym},setup/{setup},search,stats,trader/{author}} (require_paid, never anonymous); admins keep /api/admin/wisdom/archive (require_admin). Consumers: Ask AI's TRADER ARCHIVE grounding block (api/routers/ai_search.py), the Compass tools trader_archive_search / trader_archive_ticker in chat AND voice (both read the flag per call), the 'What the traders said' block in the ticker research modal's Catalysts tab, and the /trader-archive page. Default OFF: unset or 0 = every archive route answers 404, Ask AI adds no block, the Compass tools are hidden and refuse, and the research block and page render nothing. Replaced WISDOM_ARCHIVE_ADMIN_ENABLED (admin-only, 2026-10-15). Rollback: set 0 on web.",
+      "owner_decision": "Owner ruling 2026-10-15: the TSDR trader archive is available to PAID MEMBERS and to every in-app tool (Ask AI, Compass chat + voice, ticker research, a member page), not admin-only. 'Public' means all paid members (require_paid), never the anonymous internet. Shipped default OFF; the owner sets it on web."
     },
     "WISDOM_BADGES_ENABLED": {
       "status": "dark",

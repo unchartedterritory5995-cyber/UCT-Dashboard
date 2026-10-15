@@ -2206,6 +2206,11 @@ def _wisdom_context(query: str, meta: dict) -> tuple[str, list]:
                               query_tickers=meta.get("query_tickers") or [])
 
 
+def _archive_context(query: str, meta: dict) -> tuple[str, list]:
+    from api.services.wisdom.archive import askai as archive_askai
+    return archive_askai.archive_block(query, query_tickers=meta.get("query_tickers") or [])
+
+
 def _grounded_system(query: str) -> tuple[str, str, dict]:
     ctx, salt, meta = _uct_context(query)
     # question_type drives the Phase-2 memory blend (and is captured in the log).
@@ -2243,6 +2248,20 @@ def _grounded_system(query: str) -> tuple[str, str, dict]:
                 meta["grounding_sources"].append("wisdom")
             meta["wisdom_citations"] = wcites
             salt = f"{salt or ''}|wisdom"
+    except Exception:
+        pass
+    # TSDR trader archive (owner ruling 2026-10-15: paid members + every in-app tool).
+    # Gated by WISDOM_ARCHIVE_ENABLED alone, read per call; off returns ("", []) before any
+    # store is opened, so the prompt is byte-identical. The salt suffix keeps an answer
+    # cached before a flip from being served after it.
+    try:
+        ablock, acites = _archive_context(query, meta)
+        if ablock:
+            system += ablock
+            if "trader_archive" not in meta["grounding_sources"]:
+                meta["grounding_sources"].append("trader_archive")
+            meta["archive_citations"] = acites
+            salt = f"{salt or ''}|trader_archive"
     except Exception:
         pass
     # Phase 2 — blend in the desk's OWN prior evergreen research (best-effort,

@@ -70,6 +70,8 @@ export const MANIFEST = [
   // null, as it is for every other reachable-but-unlisted surface above.
   { path: "/open-flow", pathKind: "literal", element: "OpenFlow", kind: "surface", order: null },
   { path: "/portfolio-heat", pathKind: "literal", element: "PortfolioHeat", kind: "surface", order: null },
+  // 2026-10-15: the TSDR trader archive page (paid members). Not a sidebar entry.
+  { path: "/trader-archive", pathKind: "literal", element: "TraderArchive", kind: "surface", order: null },
   { path: "/traders", pathKind: "literal", element: "Traders", kind: "surface", order: null },
   // ⚰️ ADDED 2026-09-29 (TERM-037). App.jsx moved /provenance-demo inside <Layout/> on
   // 2026-09-25 (`7e0ab34c2`, gated with OI-17's siblings) without a row here, and this

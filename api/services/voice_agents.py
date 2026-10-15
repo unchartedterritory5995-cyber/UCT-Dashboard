@@ -364,6 +364,11 @@ def _compass_tool_union() -> set[str]:
     out.add("find_patterns_on_ticker")
     out.add("scan_active_patterns")
     out.add("list_pattern_types")
+    # TSDR trader archive (owner ruling 2026-10-15). Gated per call by
+    # WISDOM_ARCHIVE_ENABLED through voice_tools' `gate`, so listing them here is
+    # harmless while the flag is off.
+    out.add("trader_archive_search")
+    out.add("trader_archive_ticker")
     # Compass × Twitter News Ingestion (shipped 2026-05-25) — let the voice
     # agent read the same curated trader-feed surfaces the MoversSidebar +
     # EarningsModal already show.
@@ -509,6 +514,8 @@ _COMPASS_CORE_TOOLS: set[str] = {
     "ask_the_brain", "lookup_playbook", "setup_winrate",
     "find_historical_analogs", "size_a_trade", "grade_ticker",
     "portfolio_heat", "grade_watchlist",
+    # TSDR trader archive (flag-gated per call; absent from schemas while off).
+    "trader_archive_search", "trader_archive_ticker",
     # Briefings / proactive
     "morning_briefing", "closing_briefing", "plan_my_day",
     "whats_my_focus_today", "what_compass_noticed",

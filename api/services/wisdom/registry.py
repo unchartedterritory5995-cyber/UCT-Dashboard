@@ -120,7 +120,7 @@ def routers() -> list:
         except Exception:
             log.exception("[wisdom] cannot import %s; its routes are not mounted", mod_name)
             continue
-        for attr in ("router", "internal_router"):
+        for attr in ("router", "internal_router", "member_router"):
             router = getattr(mod, attr, None)
             if router is not None:
                 out.append(router)

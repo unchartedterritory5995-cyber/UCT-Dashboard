@@ -1,4 +1,12 @@
-"""Wisdom archive routes — ADMIN-ONLY browse of the TSDR Ledger backfill.
+"""Wisdom archive routes — the TSDR trader archive.
+
+MEMBER (`/api/wisdom/archive`, every route Depends(require_paid) — owner ruling 2026-10-15:
+the archive is for PAID MEMBERS and every in-app tool, never the anonymous internet):
+  GET /ticker/{sym}      records + calls for one ticker, oldest first, with outcomes + summary
+  GET /setup/{setup}     calls of one setup, best/worst by outcome r20, with the record note
+  GET /search?q=         FTS5-ranked records
+  GET /stats             counts by author / type / setup
+  GET /trader/{author}   one trader's records and calls, newest first, with a scored summary
 
 ADMIN (`/api/admin/wisdom/archive`, every route Depends(require_admin) — the admin guard
 middleware does not cover /api/admin/wisdom, so the dependency IS the gate):
@@ -10,11 +18,11 @@ middleware does not cover /api/admin/wisdom, so the dependency IS the gate):
 MACHINE (`/api/internal/wisdom/archive`, Depends(require_push_secret)):
   POST /batch            {kind: "records"|"calls", items: [...]} idempotent upsert
 
-Both halves are ALSO gated by WISDOM_ARCHIVE_ADMIN_ENABLED (default off -> 404), checked
-after the credential so an unauthenticated caller learns nothing about the flag.
+Every half is ALSO gated by WISDOM_ARCHIVE_ENABLED (default off -> 404), checked after the
+credential so an unauthenticated or unpaid caller learns nothing about the flag.
 
 ⛔ Reads and writes ONLY wisdom_archive_* (api/services/wisdom/archive/service.py). Nothing
-here reaches wisdom_records / wisdom_segments or any member-facing lane.
+here reaches wisdom_records / wisdom_segments.
 """
 from __future__ import annotations
 
@@ -23,17 +31,26 @@ import sqlite3
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from api.middleware.auth_middleware import require_admin
+from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user, require_admin
 from api.routers.wisdom_sources import require_push_secret
 from api.services.wisdom.archive import service
 from api.services.wisdom.core import flags, store
 
 router = APIRouter(prefix="/api/admin/wisdom/archive", tags=["wisdom"])
 internal_router = APIRouter(prefix="/api/internal/wisdom/archive", tags=["wisdom"])
+member_router = APIRouter(prefix="/api/wisdom/archive", tags=["wisdom"])
+
+
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Paid gate for the trader archive. Defined here, per router, with its own 402 sentence
+    (tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER…)."""
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402, detail="The trader archive requires a paid plan")
+    return user
 
 
 def _require_enabled() -> None:
-    if not flags.archive_admin_enabled():
+    if not flags.archive_enabled():
         raise HTTPException(status_code=404, detail="Not Found")
 
 
@@ -91,3 +108,61 @@ def archive_search(q: str = Query("", max_length=200), limit: int = Query(50, ge
 def archive_stats(_admin: dict = Depends(require_admin)) -> dict:
     _require_enabled()
     return _read(service.stats)
+
+
+# ── member reads (require_paid) ──────────────────────────────────────────────
+
+def _trader_name(author_id) -> str:
+    from api.services.wisdom.archive.askai import _speaker
+    return _speaker(author_id)
+
+
+def _named(payload: dict) -> dict:
+    """Adds a display `trader` beside every author_id the member payload carries, so the
+    client never restates the author roster (docs/wisdom/authors.json is the one authority)."""
+    for key in ("records", "calls", "hits", "best", "worst"):
+        for row in payload.get(key) or []:
+            if isinstance(row, dict) and "author_id" in row:
+                row["trader"] = _trader_name(row["author_id"])
+    if "author" in payload:
+        payload["trader"] = _trader_name(payload["author"])
+    return payload
+
+
+@member_router.get("/ticker/{sym}")
+def member_ticker(sym: str, limit: int = Query(500, ge=1, le=2000),
+                  _user: dict = Depends(require_paid)) -> dict:
+    _require_enabled()
+    out = _read(service.by_ticker, sym, limit=limit)
+    summary = _read(service.ticker_summary, sym)
+    return _named({**out, **{k: summary[k] for k in ("n_calls", "n_scored", "mean_r20")}})
+
+
+@member_router.get("/setup/{setup}")
+def member_setup(setup: str, limit: int = Query(25, ge=1, le=200),
+                 _user: dict = Depends(require_paid)) -> dict:
+    _require_enabled()
+    return _named(_read(service.by_setup, setup, limit=limit))
+
+
+@member_router.get("/search")
+def member_search(q: str = Query("", max_length=200), limit: int = Query(50, ge=1, le=200),
+                  _user: dict = Depends(require_paid)) -> dict:
+    _require_enabled()
+    return _named(_read(service.search, q, limit=limit))
+
+
+@member_router.get("/stats")
+def member_stats(_user: dict = Depends(require_paid)) -> dict:
+    _require_enabled()
+    out = _read(service.stats)
+    authors = set(out.get("records_by_author") or {}) | set(out.get("calls_by_author") or {})
+    out["traders"] = {a: _trader_name(a) for a in sorted(authors) if a != "(none)"}
+    return out
+
+
+@member_router.get("/trader/{author}")
+def member_trader(author: str, limit: int = Query(100, ge=1, le=500),
+                  _user: dict = Depends(require_paid)) -> dict:
+    _require_enabled()
+    return _named(_read(service.by_author, author, limit=limit))

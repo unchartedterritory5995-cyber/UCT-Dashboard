@@ -5,8 +5,12 @@ import CatalystsSection from './CatalystsSection'
 
 const ok = (body) => ({ ok: true, status: 200, json: async () => body })
 
+// The section also mounts the trader-archive block (TraderArchiveBlock), which reads its own
+// endpoint; answer it 404 (flag off) so these tests keep counting only the catalysts feed.
+const ARCHIVE_OFF = { ok: false, status: 404, json: async () => ({ detail: 'Not Found' }) }
 function mockFetch(respond) {
-  globalThis.fetch = vi.fn((url) => Promise.resolve(respond(url)))
+  globalThis.fetch = vi.fn((url) => Promise.resolve(
+    String(url).includes('/api/wisdom/archive/') ? ARCHIVE_OFF : respond(url)))
 }
 
 const EVENTS = [

@@ -2053,6 +2053,21 @@ _UNCONFIRMED_NOTE = ("unconfirmed rule-engine detection, not Opus-vision-"
                       "verified -- historically only ~16% of these hold up")
 
 
+def _archive_tool_gate() -> bool:
+    from api.services.wisdom.archive import tools as _archive_tools
+    return _archive_tools.enabled()
+
+
+def _trader_archive_search(*, query: str = "") -> dict:
+    from api.services.wisdom.archive import tools as _archive_tools
+    return _archive_tools.search(query)
+
+
+def _trader_archive_ticker(*, symbol: str = "") -> dict:
+    from api.services.wisdom.archive import tools as _archive_tools
+    return _archive_tools.ticker(symbol)
+
+
 def _find_patterns_on_ticker(
     *, symbol: str, tf: str = "D", min_conf: float = 50.0,
 ) -> dict:
@@ -3124,6 +3139,25 @@ def _register_all() -> None:
         },
         contexts=["global"],
     )(_find_patterns_on_ticker)
+
+    # TSDR trader archive (owner ruling 2026-10-15) — the voice twins of the chat tools,
+    # one implementation (api/services/wisdom/archive/tools.py). `gate` is read PER CALL:
+    # while WISDOM_ARCHIVE_ENABLED is off the tools are absent from every schema and
+    # dispatch refuses them.
+    _vt.voice_tool(
+        name="trader_archive_search",
+        description="Search the UCT team's TSDR trader archive (dated posts, lessons and scored calls by TSDR, Bracco, Manrav, Chartmaster, Jersace, AtTheAsk) for a topic, setup or ticker. Returns up to 6 posts with trader, date, record id, an excerpt and any scored call outcome. Say the trader and date when citing; these are historical posts, never current advice. Call for 'what did the traders say about X', 'has TSDR talked about Y'.",
+        parameters={"query": {"type": "string", "description": "Topic, setup or ticker to look for."}},
+        contexts=["global"],
+        gate=_archive_tool_gate,
+    )(_trader_archive_search)
+    _vt.voice_tool(
+        name="trader_archive_ticker",
+        description="What the UCT trading team posted about one ticker in the TSDR trader archive: post and call counts, scored-call summary (mean r20) and the most recent posts and calls with outcomes. Historical, never current advice. Call for 'what did the traders say about NVDA', 'did TSDR call TSLA'.",
+        parameters={"symbol": {"type": "string", "description": "Ticker, e.g. NVDA."}},
+        contexts=["global"],
+        gate=_archive_tool_gate,
+    )(_trader_archive_ticker)
 
     _vt.voice_tool(
         name="scan_active_patterns",

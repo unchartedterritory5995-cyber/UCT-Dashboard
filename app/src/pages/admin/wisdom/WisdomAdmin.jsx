@@ -446,7 +446,7 @@ function ReportsPanel() {
 // ── Archive (admin-only TSDR Ledger backfill) ───────────────────────────────
 //
 // ⛔ Reads /api/admin/wisdom/archive only — its own tables, never a member-facing lane.
-// A 404 means WISDOM_ARCHIVE_ADMIN_ENABLED is off, and says so rather than "nothing found".
+// A 404 means WISDOM_ARCHIVE_ENABLED is off, and says so rather than "nothing found".
 
 const ARCHIVE = '/api/admin/wisdom/archive'
 
@@ -458,7 +458,7 @@ function fmtR(value) {
 
 function ArchiveError({ error, what }) {
   if (error?.status === 404) {
-    return <p className={styles.muted}>The archive is off (WISDOM_ARCHIVE_ADMIN_ENABLED).</p>
+    return <p className={styles.muted}>The archive is off (WISDOM_ARCHIVE_ENABLED).</p>
   }
   return <LoadError error={error} what={what} />
 }
@@ -530,7 +530,7 @@ function ArchivePanel() {
   return (
     <div>
       <p className={styles.muted}>
-        Admin-only TSDR archive: {stats.records} records · {stats.calls} calls. Never shown to members.
+        TSDR trader archive: {stats.records} records · {stats.calls} calls. Paid members read it at /trader-archive.
       </p>
       <form className={styles.filterRow} onSubmit={(e) => { e.preventDefault(); setSym(tickerInput.trim().toUpperCase()) }}>
         <label className={styles.noteLabel} htmlFor="archive-ticker">Ticker</label>

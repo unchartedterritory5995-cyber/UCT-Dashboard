@@ -21,6 +21,7 @@ def voice_tool(
     parameters: dict,
     contexts: list[str],
     wants_user: bool = False,
+    gate: Callable[[], bool] | None = None,
 ):
     """
     Register a function as a voice tool.
@@ -32,6 +33,8 @@ def voice_tool(
         contexts: list of page contexts where this tool is available
                   (e.g. ["global"], ["chart"], ["journal"])
         wants_user: if True, dispatcher passes user dict as kwarg "user"
+        gate: optional zero-arg callable read PER CALL; while it answers False the tool is
+              left out of every schema and dispatch refuses it (no restart needed to flip).
     """
     def decorator(fn: Callable):
         _REGISTRY[name] = {
@@ -40,10 +43,22 @@ def voice_tool(
             "parameters": parameters,
             "contexts": set(contexts),
             "wants_user": wants_user,
+            "gate": gate,
             "fn": fn,
         }
         return fn
     return decorator
+
+
+def _gate_open(entry: dict) -> bool:
+    gate = entry.get("gate")
+    if gate is None:
+        return True
+    try:
+        return bool(gate())
+    except Exception:
+        _log.exception("voice tool gate for %s failed; treating it as off", entry.get("name"))
+        return False
 
 
 def get_schema_for_context(context: str) -> list[dict]:
@@ -63,7 +78,7 @@ def get_schema_for_context(context: str) -> list[dict]:
         allowed = agent.get("tool_allowlist") or set()
         out = []
         for entry in _REGISTRY.values():
-            if entry["name"] in allowed:
+            if entry["name"] in allowed and _gate_open(entry):
                 out.append({
                     "name": entry["name"],
                     "description": entry["description"],
@@ -77,7 +92,7 @@ def get_schema_for_context(context: str) -> list[dict]:
     # Standard context match (global, train_me, etc.)
     out = []
     for entry in _REGISTRY.values():
-        if context in entry["contexts"]:
+        if context in entry["contexts"] and _gate_open(entry):
             out.append({
                 "name": entry["name"],
                 "description": entry["description"],
@@ -96,6 +111,8 @@ def dispatch(name: str, args: dict, *, user: dict | None = None) -> dict:
     entry = _REGISTRY.get(name)
     if entry is None:
         raise KeyError(f"voice tool {name!r} not found")
+    if not _gate_open(entry):
+        raise KeyError(f"voice tool {name!r} is not available right now")
 
     fn = entry["fn"]
     call_kwargs = dict(args or {})

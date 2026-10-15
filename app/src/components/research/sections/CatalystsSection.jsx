@@ -17,6 +17,7 @@ import { SkeletonBlock } from '../../Skeleton'
 import { fmtDate, fmtMove } from '../../../utils/feedFormat'
 import { FETCH_FAILED, GENERATING_POLL_MS, paidFetcher } from './paidFetcher'
 import SectionLead from '../SectionLead'
+import TraderArchiveBlock from './TraderArchiveBlock'
 import { catalystsLead } from '../sectionLeads'
 import styles from './CatalystsSection.module.css'
 
@@ -141,6 +142,10 @@ export default function CatalystsSection({ sym }) {
           AI · generated catalysts, earnings reactions and the curated wire
         </div>
       )}
+
+      {/* The TSDR trader archive on this name (owner ruling 2026-10-15). Renders nothing
+          while WISDOM_ARCHIVE_ENABLED is off (404), without a paid plan, or when empty. */}
+      <TraderArchiveBlock sym={s} />
     </div>
   )
 }

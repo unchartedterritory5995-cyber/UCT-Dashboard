@@ -225,6 +225,6 @@ describe('WisdomAdmin', () => {
     serve({ ...baseQueueRoutes(), [`GET ${ARCH}/stats`]: [404, { detail: 'Not Found' }] })
     mount()
     fireEvent.click(await screen.findByRole('tab', { name: /Archive/ }))
-    expect(await screen.findByText('The archive is off (WISDOM_ARCHIVE_ADMIN_ENABLED).')).toBeInTheDocument()
+    expect(await screen.findByText('The archive is off (WISDOM_ARCHIVE_ENABLED).')).toBeInTheDocument()
   })
 })

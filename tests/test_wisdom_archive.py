@@ -1,4 +1,4 @@
-"""The ADMIN-ONLY wisdom archive (TSDR Ledger backfill) — SYNTHETIC data only.
+"""The wisdom archive (TSDR Ledger backfill) — admin routes, batch import, service. SYNTHETIC data only.
 
 WHAT THIS FILE HAS TO BE ABLE TO SAY RED FOR
 1. the batch route answering without the exact PUSH_SECRET bearer, or with the flag off;
@@ -44,7 +44,7 @@ def app():
 
 @pytest.fixture
 def on(monkeypatch):
-    monkeypatch.setenv("WISDOM_ARCHIVE_ADMIN_ENABLED", "1")
+    monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "1")
     monkeypatch.setenv("PUSH_SECRET", SECRET)
 
 
@@ -94,7 +94,7 @@ def test_batch_refuses_missing_wrong_and_blank_secret(app, wisdom_db, on, monkey
 
 
 def test_batch_is_404_with_the_flag_off_even_with_the_right_secret(app, wisdom_db, on, monkeypatch):
-    monkeypatch.delenv("WISDOM_ARCHIVE_ADMIN_ENABLED")
+    monkeypatch.delenv("WISDOM_ARCHIVE_ENABLED")
     c = _client(app, None)
     assert c.post(BATCH, json={"kind": "records", "items": [_record()]}, headers=AUTH).status_code == 404
     with store.read() as conn:
@@ -124,7 +124,7 @@ def test_admin_reads_refuse_a_member_and_admit_an_admin(app, wisdom_db, on):
 
 
 def test_admin_reads_are_404_with_the_flag_off(app, wisdom_db, on, monkeypatch):
-    monkeypatch.setenv("WISDOM_ARCHIVE_ADMIN_ENABLED", "0")
+    monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "0")
     admin = _client(app, ADMIN)
     for path in ADMIN_GETS:
         assert admin.get(path).status_code == 404, path

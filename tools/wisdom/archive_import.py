@@ -1,4 +1,4 @@
-"""Import the LOCAL TSDR Ledger backup into the admin-only wisdom archive.
+"""Import the LOCAL TSDR Ledger backup into the wisdom (TSDR trader) archive.
 
 Reads a local directory (never committed — this repo is public) and POSTs it in batches to
 POST /api/internal/wisdom/archive/batch. DRY-RUN BY DEFAULT: without --send nothing leaves

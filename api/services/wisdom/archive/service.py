@@ -342,3 +342,111 @@ def stats(conn) -> dict:
         "calls_by_setup": grouped(
             "SELECT setup, COUNT(*) FROM wisdom_archive_calls GROUP BY setup ORDER BY 2 DESC LIMIT 200"),
     }
+
+
+# ── member reads (owner ruling 2026-10-15: paid members + in-app tools) ────────
+
+_AUTHOR = re.compile(r"^[a-z0-9_\-]{1,40}$")
+
+
+def _call_summary(conn, where: str, params: tuple) -> dict:
+    agg = conn.execute(
+        "SELECT COUNT(*), SUM(json_extract(outcome_json, '$.r20') IS NOT NULL), "
+        f"AVG(json_extract(outcome_json, '$.r20')) FROM wisdom_archive_calls WHERE {where}", params).fetchone()
+    return {"n_calls": agg[0] or 0, "n_scored": agg[1] or 0, "mean_r20": agg[2]}
+
+
+def ticker_summary(conn, sym: str) -> dict:
+    t = normalize_ticker(sym)
+    return {"ticker": t, **_call_summary(conn, "ticker = ?", (t,))}
+
+
+def by_author(conn, author: str, *, limit: int = 100) -> dict:
+    """One trader: newest records first, their calls newest first, and a scored-call summary."""
+    a = (author or "").strip().lower()
+    if not _AUTHOR.match(a) or a not in team_authors():
+        raise ItemError("author is not one of the team authors")
+    records = [_record_dict(r) for r in conn.execute(
+        "SELECT record_id, author_id, stated_date, record_type, tickers, note, quote, image_count "
+        "FROM wisdom_archive_records WHERE author_id = ? ORDER BY stated_date DESC, record_id DESC LIMIT ?",
+        (a, limit))]
+    calls = [_call_dict(r) for r in conn.execute(
+        "SELECT call_id, record_id, author_id, ticker, direction, setup, action, posted, entry, stop, target, "
+        "conf, reported, outcome_json, methodology FROM wisdom_archive_calls WHERE author_id = ? "
+        "ORDER BY posted DESC, call_id DESC LIMIT ?", (a, limit))]
+    n_records = conn.execute("SELECT COUNT(*) FROM wisdom_archive_records WHERE author_id = ?", (a,)).fetchone()[0]
+    return {"author": a, "n_records": n_records, **_call_summary(conn, "author_id = ?", (a,)),
+            "records": records, "calls": calls}
+
+
+#: Words that carry no retrieval signal in a member's question; dropped before the FTS
+#: OR-query so "what did they say about X" does not rank on "what" and "say".
+_STOP = frozenset("""a an and are as at be been but by can could did do does for from had has have how i if in
+into is it its me my of on or our say said should so that the their them then there they this to us was we
+were what when where which who why will with would you your about any some think thoughts view take""".split())
+
+
+def _clip(text: Optional[str], n: int) -> str:
+    t = " ".join((text or "").split())
+    return t if len(t) <= n else t[: max(0, n - 1)].rstrip() + "…"
+
+
+def _scored_calls(conn, record_ids: list) -> dict:
+    out: dict = {}
+    if not record_ids:
+        return out
+    marks = ",".join("?" * len(record_ids))
+    for r in conn.execute(
+            "SELECT record_id, ticker, direction, setup, posted, outcome_json FROM wisdom_archive_calls "
+            f"WHERE record_id IN ({marks}) ORDER BY call_id", tuple(record_ids)):
+        d = _call_dict(r)
+        out.setdefault(d["record_id"], []).append(d)
+    return out
+
+
+def retrieval_hits(conn, query: str, *, tickers=(), limit: int = 6, excerpt_chars: int = 280) -> list:
+    """Compact, bounded hits for Ask AI and Compass: records naming a queried ticker first
+    (newest first), then FTS-ranked matches on the remaining words. Each hit carries the
+    record id, trader, date, a note excerpt and its calls' scored outcomes. Never raises on an
+    empty/odd query; returns [] when nothing matches."""
+    limit = max(1, min(int(limit or 6), 20))
+    picked: list = []
+    seen: set = set()
+    syms = []
+    for t in tickers or ():
+        try:
+            syms.append(normalize_ticker(t))
+        except ItemError:
+            continue
+    for t in list(dict.fromkeys(syms))[:3]:
+        for r in conn.execute(
+                "SELECT record_id, author_id, stated_date, record_type, tickers, note FROM wisdom_archive_records "
+                "WHERE (',' || tickers || ',') LIKE ? ORDER BY stated_date DESC, record_id DESC LIMIT ?",
+                (f"%,{t},%", limit)):
+            if r[0] not in seen and len(picked) < limit:
+                seen.add(r[0])
+                picked.append(r)
+    words = [w for w in _WORD.findall(query or "") if w.lower() not in _STOP]
+    match = build_match(" ".join(words))
+    if len(picked) < limit and match and _fts_exists(conn):
+        for r in conn.execute(
+                "SELECT f.record_id, f.author_id, f.stated_date, f.record_type, r.tickers, r.note "
+                "FROM wisdom_archive_fts f JOIN wisdom_archive_records r ON r.rowid = f.rowid "
+                "WHERE wisdom_archive_fts MATCH ? ORDER BY bm25(wisdom_archive_fts) ASC LIMIT ?",
+                (match, limit * 2)):
+            if r[0] not in seen and len(picked) < limit:
+                seen.add(r[0])
+                picked.append(r)
+    calls = _scored_calls(conn, [r[0] for r in picked])
+    hits = []
+    for r in picked:
+        rec_calls = []
+        for c in calls.get(r[0], [])[:3]:
+            o = c.get("outcome") or {}
+            rec_calls.append({"ticker": c["ticker"], "direction": c.get("direction"), "setup": c.get("setup"),
+                              "posted": c.get("posted"),
+                              "outcome": {k: o[k] for k in ("r5", "r20", "r60", "status") if k in o}})
+        hits.append({"record_id": r[0], "author_id": r[1], "stated_date": r[2], "record_type": r[3],
+                     "tickers": [t for t in (r[4] or "").split(",") if t][:8],
+                     "excerpt": _clip(r[5], excerpt_chars), "calls": rec_calls})
+    return hits
