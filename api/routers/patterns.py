@@ -128,7 +128,15 @@ from api.services.pattern_engine.detectors.candlestick import three_white_soldie
 from api.services.pattern_engine.detectors.candlestick import three_black_crows as _three_black_crows  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import marubozu as _marubozu  # noqa: F401
 from api.services.pattern_engine.detectors.classical import nr7 as _nr7  # noqa: F401
+# INTERNAL / ADMIN-ONLY trader-setup detectors (registry.INTERNAL_PATTERN_IDS):
+# registered so the universe scan computes and stores them; never in
+# _PATTERN_METADATA, and filtered out of every member-facing read.
+from api.services.pattern_engine.detectors.uct import uct_kicker as _uct_kicker  # noqa: F401
+from api.services.pattern_engine.detectors.uct import uct_oops_reversal as _uct_oops_reversal  # noqa: F401
+from api.services.pattern_engine.detectors.uct import uct_slingshot as _uct_slingshot  # noqa: F401
+from api.services.pattern_engine.detectors.uct import uct_hve as _uct_hve  # noqa: F401
 from api.services.pattern_engine import memory
+from api.services.pattern_engine.detectors import registry as _pe_registry
 
 
 router = APIRouter(prefix="/api/patterns", tags=["patterns"])
@@ -722,6 +730,10 @@ def get_detections(
         # higher bar sees a difference.
         verdicts = [v for v in verdicts
                     if float(v.get("vision_confidence") or 0.0) >= min_conf]
+        # Defence in depth: the judge only sees FOCUSED_SETUPS today, but an
+        # internal setup id must never reach a non-admin through this branch either.
+        if (_user or {}).get("role") != "admin":
+            verdicts = _pe_registry.drop_internal(verdicts, key="setup")
         # The member-facing name of each setup, from the one metadata table: the TECH tab used
         # to title-case the raw id ("Macd Bullish Cross", "Avwap Reclaim") (quality pass
         # 2026-10-05). None when the id has no entry; the client then falls back.
@@ -739,7 +751,11 @@ def get_detections(
                 # TERM-019: when the judge last ran on this ticker's window (epoch s), or None.
                 "as_of": pv_store.last_judged_at(sym, tf)}
     pattern_ids = [t.strip() for t in types.split(",")] if types else None
-    rows = memory.get_active_detections(sym.upper(), tf, pattern_ids=pattern_ids, min_conf=min_conf)
+    # ⛔ Internal/admin-only detectors (registry.INTERNAL_PATTERN_IDS) are served
+    # to admins only. memory.get_active_detections excludes them by default.
+    is_admin = (_user or {}).get("role") == "admin"
+    rows = memory.get_active_detections(sym.upper(), tf, pattern_ids=pattern_ids,
+                                        min_conf=min_conf, include_internal=is_admin)
     return {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
 
 
@@ -790,7 +806,10 @@ def patterns_confirmed(sym: str, tf: str = "D", user=Depends(require_paid)):
     """
     from api.services.pattern_vision import store as pv_store
     pv_store.init_db()
-    return {"sym": sym.upper(), "tf": tf, "verdicts": pv_store.get_confirmed(sym, tf)}
+    verdicts = pv_store.get_confirmed(sym, tf)
+    if (user or {}).get("role") != "admin":
+        verdicts = _pe_registry.drop_internal(verdicts, key="setup")
+    return {"sym": sym.upper(), "tf": tf, "verdicts": verdicts}
 
 
 @router.post("/judge/{sym}")

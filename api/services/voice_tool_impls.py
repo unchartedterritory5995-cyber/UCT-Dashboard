@@ -2143,6 +2143,11 @@ def _scan_active_patterns(
         if cat:
             sql += " AND category = ?"
             params.append(cat)
+        # ⛔ internal/admin-only detectors never reach a voice/Compass caller.
+        from api.services.pattern_engine.detectors.registry import INTERNAL_PATTERN_IDS
+        _internal = sorted(INTERNAL_PATTERN_IDS)
+        sql += f" AND pattern_id NOT IN ({','.join(['?'] * len(_internal))})"
+        params.extend(_internal)
         sql += " ORDER BY detected_at DESC, confidence DESC LIMIT ?"
         params.append(cap)
 
@@ -2213,9 +2218,9 @@ def _list_pattern_types(*, category: str = "") -> dict:
     _ensure_pattern_detectors_loaded()
     cat = (category or "").strip().lower() or None
     try:
-        from api.services.pattern_engine.detectors.registry import list_pattern_ids
+        from api.services.pattern_engine.detectors.registry import list_public_pattern_ids
         from api.routers.patterns import _PATTERN_METADATA
-        ids = list_pattern_ids()
+        ids = list_public_pattern_ids()  # internal/admin-only ids never listed
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "narration": f"Pattern registry unavailable: {e}",
                 "error": str(e)}

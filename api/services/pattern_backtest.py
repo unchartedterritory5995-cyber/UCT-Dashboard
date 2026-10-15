@@ -29,6 +29,11 @@ def backtest_pattern_on_ticker(
     pid = (pattern_id or "").strip()
     if not sym or not pid:
         return {"error": "ticker and pattern_id required"}
+    # ⛔ internal/admin-only detectors are not exposed to member-facing tools;
+    # answer exactly as for an unknown id so the gate is not an oracle.
+    from api.services.pattern_engine.detectors.registry import is_internal
+    if is_internal(pid):
+        return {"error": f"pattern_id '{pid}' not found"}
 
     # Pull bars
     try:

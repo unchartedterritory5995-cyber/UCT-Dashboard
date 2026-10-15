@@ -854,6 +854,11 @@ def _exec_scan_active_patterns(*, user_id, account_id, args, conn=None) -> dict:
     if cat:
         sql += " AND category = ?"
         params.append(cat)
+    # ⛔ internal/admin-only detectors never reach a Compass caller.
+    from api.services.pattern_engine.detectors.registry import INTERNAL_PATTERN_IDS
+    _internal = sorted(INTERNAL_PATTERN_IDS)
+    sql += f" AND pattern_id NOT IN ({','.join('?' * len(_internal))})"
+    params.extend(_internal)
     sql += " ORDER BY detected_at DESC, confidence DESC LIMIT ?"
     params.append(cap)
     c = _pattern_conn()
@@ -886,9 +891,9 @@ def _exec_list_pattern_types(*, user_id, account_id, args, conn=None) -> dict:
     _pattern_pe_load()
     cat = (args.get("category") or "").strip().lower() or None
     try:
-        from api.services.pattern_engine.detectors.registry import list_pattern_ids
+        from api.services.pattern_engine.detectors.registry import list_public_pattern_ids
         from api.routers.patterns import _PATTERN_METADATA
-        ids = list_pattern_ids()
+        ids = list_public_pattern_ids()  # internal/admin-only ids never listed
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": str(e)}
     items = []
