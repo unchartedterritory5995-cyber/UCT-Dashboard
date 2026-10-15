@@ -2409,30 +2409,6 @@
      "note": null
     },
     {
-     "external_name": "uct_hve",
-     "vocab_id": "high_volume_close",
-     "mismatch": 1,
-     "note": "a high-volume-edge bar: the highest volume of the prior ~200-252 sessions; the vocabulary names it by its close (as setupCatalog's High Volume Edge)"
-    },
-    {
-     "external_name": "uct_kicker",
-     "vocab_id": "kicker_candle",
-     "mismatch": 0,
-     "note": null
-    },
-    {
-     "external_name": "uct_oops_reversal",
-     "vocab_id": "oops_reversal",
-     "mismatch": 0,
-     "note": null
-    },
-    {
-     "external_name": "uct_slingshot",
-     "vocab_id": null,
-     "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
-    },
-    {
      "external_name": "vcp",
      "vocab_id": "vcp",
      "mismatch": 0,
