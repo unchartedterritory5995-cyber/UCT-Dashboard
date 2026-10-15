@@ -14,7 +14,7 @@ Geometric definition:
   - Retrace trough: lowest LOW in bars[p1_idx..p2_idx]
   - Retrace depth: (peak1 - trough) / peak1 in [0.05, 0.25]
   - Pattern not yet broken downward: recent closes have not breached trough
-  - Recent: p2 within the last 30 bars
+  - Recent: p2 within the last 10 bars (was 30; see _MAX_PEAK2_AGE)
   - Volume: lower on second peak than first (buying exhaustion signature)
 
 Scoring (composite 0-100):
@@ -41,7 +41,36 @@ _MAX_PEAK_SIMILARITY = 0.04        # |p1 - p2| / p1 < 0.04
 _MIN_PEAK_SPACING = 7              # p2_idx - p1_idx >= 7
 _MIN_RETRACE_DEPTH = 0.05          # (peak1 - trough)/peak1 >= 5%
 _MAX_RETRACE_DEPTH = 0.25          # (peak1 - trough)/peak1 <= 25%
-_MAX_PEAK2_AGE = 30                # p2 within last 30 bars
+# ⛔⛔ 30 PUT THIS DETECTOR IN NOISE TERRITORY. Measured 2026-10-15 through
+# `tools/base_coverage.coverage` -- the harness that owns the threshold --
+# over 650 liquid tickers at each of NINE as-of dates (2024-03-15 ..
+# 2026-09-24; 5,850 ticker-days, production read: last 200 daily bars +
+# `build_context`), the shipped value fired on 48.1% of ticker-days and
+# `classify()` returned "noise", past the 35.0% NOISE_PCT at which
+# `Compression Bar (NR4)` was DELETED for carrying no information.
+#
+# ⭐ THE RECENCY WINDOW IS THE RIGHT KNOB -- the mirror of the 2026-09-01
+# `double_bottom` decision (`_MAX_TROUGH2_AGE` 30 -> 10). One knob at a
+# time, everything else shipped, pooled over the nine dates:
+#     _MAX_PEAK2_AGE         30 -> 48.1%   20 -> 39.4%   15 -> 33.6%   12 -> 28.2%   10 -> 24.3%   5 -> 11.2%
+#     _MIN_RETRACE_DEPTH   0.05 -> 48.1% 0.08 -> 42.5% 0.12 -> 26.1% 0.20 -> 5.5%
+#     _MAX_PEAK_SIMILARITY 0.04 -> 48.1% 0.03 -> 43.2% 0.02 -> 35.8% 0.01 -> 24.2%
+#     _MIN_PEAK_SPACING       7 -> 48.1%   12 -> 45.7%   20 -> 40.4%   30 -> 33.6%
+#     _CONFIDENCE_FLOOR      50 -> 48.1%   55 -> 39.3%   60 -> 28.0%   65 -> 18.0%
+# Spacing cannot reach the band; depth and similarity reach it only by
+# discarding most of what a double top IS (a 12% retrace floor or a 1%
+# peak match); raising the confidence floor re-weights a score nobody has
+# calibrated. 12 bars still reads above 33% on four of nine dates.
+#
+# ⭐ AND IT IS THE DEFENSIBLE ONE ON MEANING. This engine emits detections
+# meant to be ACTIONABLE NOW; a second peak 30 bars old is a top that
+# completed six weeks ago. 10 bars (~2 weeks) matches `double_bottom`, so
+# the two mirror patterns share one definition of "live".
+#
+# ⚠️ MEMBER-VISIBLE: roughly half of this detector's output leaves
+# `pattern_detections` -- the half whose second peak had already aged out.
+# Rail + full measurement: `tests/test_double_top_is_in_noise_territory.py`.
+_MAX_PEAK2_AGE = 10                # p2 within last 10 bars (~2 weeks)
 _CONFIDENCE_FLOOR = 50.0
 
 
