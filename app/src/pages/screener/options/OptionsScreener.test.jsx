@@ -62,10 +62,11 @@ const wrap = (ui, auth = {}) => render(
 )
 
 describe('Screener page — the Options mode exists only while the flag rides the payload', () => {
-  it('flag absent: no mode strip, the scanner renders, nothing is fetched', () => {
+  it('flag absent: no mode strip, the scanner renders, nothing is fetched', async () => {
     wrap(<Screener />, {})
     expect(screen.queryByRole('tablist', { name: 'Screener mode' })).toBeNull()
-    expect(screen.getByTestId('scanner-shell')).toBeTruthy()
+    // ScannerShell is a lazy chunk, so it mounts after a tick.
+    expect(await screen.findByTestId('scanner-shell')).toBeTruthy()
     expect(calls).toEqual([])
   })
 
@@ -97,7 +98,7 @@ describe('Screener page — the Options mode exists only while the flag rides th
     expect(screen.queryByTestId('scanner-shell')).toBeNull()
   })
 
-  it('no ?tab= param still defaults to Stocks (unchanged behavior)', () => {
+  it('no ?tab= param still defaults to Stocks (unchanged behavior)', async () => {
     render(
       <MemoryRouter initialEntries={['/screener']}>
         <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
@@ -106,7 +107,7 @@ describe('Screener page — the Options mode exists only while the flag rides th
       </MemoryRouter>,
     )
     expect(screen.getByRole('tab', { name: 'Stocks', selected: true })).toBeTruthy()
-    expect(screen.getByTestId('scanner-shell')).toBeTruthy()
+    expect(await screen.findByTestId('scanner-shell')).toBeTruthy()
   })
 })
 

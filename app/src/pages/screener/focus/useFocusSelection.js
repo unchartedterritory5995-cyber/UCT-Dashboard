@@ -1,6 +1,13 @@
 // useFocusSelection.js
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNeighborWarm } from '../../../hooks/useNeighborWarm'
+import { prefetchBars, prefetchBarsToIDB, warmMemFromIDB } from '../../../utils/prefetchBars'
+
+// A focus walk is mostly downward: warm 4 ahead and 1 behind (not a symmetric
+// ±6), and let the NEXT 2 rows bypass the cold-start pack-ingest hold.
+export const WARM_AHEAD = 4
+export const WARM_BEHIND = 1
+export const URGENT_NEXT = 2
 
 const EMPTY = []
 
@@ -44,7 +51,23 @@ export default function useFocusSelection({
   const selected = rows[index] ?? null
 
   const symbols = useMemo(() => rows.map(r => r.ticker), [rows])
-  useNeighborWarm(symbols, selected?.ticker ?? null, tf)
+  // radius 0: useNeighborWarm only registers the list's live prices here; the bar
+  // warm is asymmetric, so it is done below.
+  useNeighborWarm(symbols, selected?.ticker ?? null, tf, { radius: 0 })
+  const selTicker = selected?.ticker ?? null
+  useEffect(() => {
+    const at = selTicker == null ? -1 : symbols.indexOf(selTicker)
+    if (at < 0) return
+    const onTf = tf || 'D'
+    const ahead = symbols.slice(at + 1, at + 1 + WARM_AHEAD).filter(Boolean)
+    const behind = symbols.slice(Math.max(0, at - WARM_BEHIND), at).filter(Boolean)
+    const around = [...ahead, ...behind]
+    if (!around.length) return
+    warmMemFromIDB(around, [onTf])                      // durable -> sync mem, no network
+    prefetchBarsToIDB(around, onTf, { priority: true }) // normal path: held during pack ingest
+    // Next rows: opt-in bypass of the cold-start hold, capped at URGENT_NEXT inside.
+    prefetchBars(ahead.slice(0, URGENT_NEXT), onTf, { urgent: true })
+  }, [symbols, selTicker, tf])
 
   // The latest derived state, updated synchronously by commit() so that two
   // keydowns before a re-render both act on the state the first one left.

@@ -1,17 +1,24 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import Input from '../../../components/ui/Input'
 import styles from './FocusScreener.module.css'
+import menuStyles from './FocusMenus.module.css'
+
+// Said in the dialog when a screen is saved while it matches nothing today (B17): saving is
+// still allowed (a screen reruns every night), the member just is not left to find out later.
+export const ZERO_MATCH_NOTE = 'Nothing matches this screen today. It will still be saved and rerun every night, so names appear when stocks qualify.'
 
 // NameDialog — the one small "name it" box the Save menu and the screen menu share
 // (spec §8.1: named inline, never window.prompt). A modal dialog: the input takes
 // focus, Enter submits, Escape cancels, Tab stays inside, and focus goes back to
-// whatever opened it. An empty name cannot be saved.
-export default function NameDialog({ title, label, initial = '', submitLabel = 'Save', onSubmit, onCancel }) {
+// whatever opened it. An empty name cannot be saved. `note` is an optional sentence under the
+// name, tied to the input by aria-describedby so a screen reader hears it with the field.
+export default function NameDialog({ title, label, initial = '', submitLabel = 'Save', note, onSubmit, onCancel }) {
   const [value, setValue] = useState(initial)
   const box = useRef(null)
   const input = useRef(null)
   const titleId = useId()
   const inputId = useId()
+  const noteId = useId()
   useEffect(() => {
     const opener = document.activeElement
     input.current?.focus()
@@ -35,7 +42,8 @@ export default function NameDialog({ title, label, initial = '', submitLabel = '
         <h2 id={titleId} className={styles.dialogTitle}>{title}</h2>
         <label htmlFor={inputId} className={styles.dialogLabel}>{label}</label>
         <Input id={inputId} ref={input} type="text" className={styles.dialogInput} value={value} maxLength={80}
-          onChange={e => setValue(e.target.value)} />
+          aria-describedby={note ? noteId : undefined} onChange={e => setValue(e.target.value)} />
+        {note && <p id={noteId} className={menuStyles.dialogNote} data-testid="name-dialog-note">{note}</p>}
         <div className={styles.stateActions}>
           <button type="button" className={styles.btn} onClick={onCancel}>Cancel</button>
           <button type="submit" className={styles.btnPrimary} disabled={!name}>{submitLabel}</button>

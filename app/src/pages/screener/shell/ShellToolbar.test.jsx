@@ -232,3 +232,20 @@ describe('ShellToolbar — live-tier disclosure', () => {
     expect(pop).toHaveTextContent(/3,540/)
   })
 })
+
+// P14: the Focus layout's Table mode folds its List | Table switch into this row.
+describe('ShellToolbar leadSlot (opt-in)', () => {
+  const props = { meta: META, view: 'overview', onView: () => {}, visibleColumns: [], allColumns: [],
+    onColumns: () => {}, onResetColumns: () => {}, total: 5, shown: 5, isLoading: false, onExport: () => {} }
+  it('renders first in the same toolbar row', () => {
+    const { container } = render(<ShellToolbar {...props} leadSlot={<div role="group" aria-label="View">switch</div>} />)
+    const bar = container.firstChild
+    expect(bar.firstChild).toBe(screen.getByRole('group', { name: 'View' }))
+    expect(bar.contains(screen.getByRole('tablist', { name: 'Column views' }))).toBe(true)
+  })
+  it('the default renders the toolbar exactly as before: column views first, nothing extra', () => {
+    const { container } = render(<ShellToolbar {...props} />)
+    expect(container.firstChild.firstChild).toBe(screen.getByRole('tablist', { name: 'Column views' }))
+    expect(screen.queryByRole('group', { name: 'View' })).toBeNull()
+  })
+})

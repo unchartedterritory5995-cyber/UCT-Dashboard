@@ -593,6 +593,9 @@ export function createScreenerSection({
  * @param {Record<string, {price?: number}>} [args.prices]  The live-stream overlay.
  * @param {boolean} [args.hasMore]
  * @param {() => void} [args.loadMore]
+ * @param {boolean} [args.busy]  Opt-in (default false): the rows are a previous screen's while a
+ *   new one loads: the cursor still moves, the shared symbol is cleared, and every row action is
+ *   disabled with the hub's unmet-requirement reason.
  * @param {() => void} [args.onOpenScans]  The page's seam onto its saved-screen picker. Omit it
  *   and the `Scans` action is ABSENT rather than inert — see the R-13 note in the header.
  * @returns {{resultsRef: {current: any}, hubToast: import('react').ReactElement,
@@ -601,7 +604,7 @@ export function createScreenerSection({
  *   through `useImperativeHandle`); `hubToast` is the section's feedback host.
  */
 export default function useScreenerHubSection({
-  displayRows, filters, prices, hasMore = false, loadMore, onOpenScans,
+  displayRows, filters, prices, hasMore = false, loadMore, onOpenScans, busy = false,
 } = {}) {
   const rows = displayRows && displayRows.length ? displayRows : NO_ROWS
   const cursor = useHubCursor(LIST_ID, rows, { key: identityKey })
@@ -622,7 +625,7 @@ export default function useScreenerHubSection({
   const [undo, setUndo] = useState(null)
   useEffect(() => { if (!toastMsg) setUndo(null) }, [toastMsg])
 
-  const symbol = tickerOf(rows[index])
+  const symbol = busy ? null : tickerOf(rows[index])
   const streamPrice = symbol ? (prices?.[symbol]?.price ?? null) : null
   // What the table is showing: the live overlay when there is one, else the row's own snapshot
   // price — the same resolution all three renderers do.
@@ -641,9 +644,14 @@ export default function useScreenerHubSection({
    * shell; clearing here would race the navigation and blank the symbol the member just chose.
    * The shared symbol is Part C4 state that outlives one section by design.
    */
+  // While `busy`, the shared symbol is CLEARED rather than left on the previous screen's row, so
+  // every symbol-requiring action (Chart it, Why, Flag, Alert, Plan trade) renders disabled with
+  // the hub's own reason, exactly as an unmet requirement does, instead of acting on a stale row
+  // or falling back to a bare route. It is written again the moment the new screen answers.
   useEffect(() => {
-    if (symbol) setSymbol(symbol)
-  }, [symbol, setSymbol])
+    if (busy) setSymbol(null)
+    else if (symbol) setSymbol(symbol)
+  }, [busy, symbol, setSymbol])
 
   /**
    * `HubListAdapter.scrollTo` — REQUIRED by the contract, because a cursor that advances

@@ -122,8 +122,12 @@ function renderScreenerPage() {
  *  by ROLE and accessible name, never by a testid — a member finds these by
  *  reading them, and a rail keyed on a private attribute stays green through a
  *  control that renders invisible. */
+// ScannerShell is a lazy chunk; the first test in a file pays its cold import, which can
+// outlast Testing Library's default 1 s wait (a test timeout does not raise that wait).
+const SHELL_CHUNK_MS = 10000
+
 async function openTheSharePanel(user) {
-  await user.click(await screen.findByRole('button', { name: 'Screener ▾' }))
+  await user.click(await screen.findByRole('button', { name: 'Screener ▾' }, { timeout: SHELL_CHUNK_MS }))
   await user.click(await screen.findByRole('button', { name: `Share ${SCREEN_NAME}` }))
 }
 
@@ -213,7 +217,7 @@ describe('⛔ nothing publishes itself', () => {
     // that keeps it that way.
     const user = userEvent.setup()
     renderScreenerPage()
-    await user.click(await screen.findByRole('button', { name: 'Screener ▾' }))
+    await user.click(await screen.findByRole('button', { name: 'Screener ▾' }, { timeout: SHELL_CHUNK_MS }))
     await user.type(await screen.findByPlaceholderText('Name this screen…'), 'Breakouts')
     await user.click(await screen.findByRole('button', { name: 'Save current' }))
 

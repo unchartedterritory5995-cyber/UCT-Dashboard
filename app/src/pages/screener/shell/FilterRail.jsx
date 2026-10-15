@@ -16,44 +16,101 @@ const CAT_ICON = {
   my_lists: 'star', my_scans: 'screener',
 }
 
-const openKey = k => `uct.screener.rail.${k}`
+// Two stores, both module constants, so the persistence census resolves every key.
+const RAIL_PREFIX = 'uct.screener.rail'
+const DRAWER_PREFIX = 'uct.screener.drawer'
+const openKey = (k, store = 'rail') => `${store === 'drawer' ? DRAWER_PREFIX : RAIL_PREFIX}.${k}`
 const readOpen = k => { try { return localStorage.getItem(openKey(k)) !== '0' } catch { return true } }
+const readStored = (store, k) => { try { return localStorage.getItem(openKey(k, store)) } catch { return null } }
 
+// The opt-in "Common" group (the Focus drawer's). Its key cannot collide with a
+// server category key, which are plain snake_case words.
+const COMMON_KEY = '__common'
+
+// Active filters in one group, counted over the group's FULL list (not the
+// search-narrowed one), so a pip never changes because the member typed.
+const countActive = (list, activeFilters) => list.filter(f => activeFilters[f.key]).length
+
+// Whether a group is open. Default mode: exactly the remembered map, as before.
+// `startCollapsed` mode: a choice the member made wins; otherwise a group with an
+// active filter starts open, Common starts open, and the rest start closed
+// unless this viewer last left them open.
+// `stored` is this viewer's remembered choice for the group ('1' / '0' / null).
+function groupOpen({ open, key, startCollapsed, stored, active }) {
+  if (!startCollapsed) return open[key]
+  if (open[key] !== undefined) return open[key]
+  if (key === COMMON_KEY) return stored !== '0'
+  return active > 0 || stored === '1'
+}
+
+// ── OPT-IN PROPS (the Focus layout's Filters drawer). Every default keeps
+// ScannerShell's rail and sheet exactly as they were:
+//   common          filter keys shown first in their own "Common" group, and
+//                   taken out of their server category so no control renders twice
+//   startCollapsed  groups start closed (see groupOpen) instead of remembered-open
+//   openStore       'rail' | 'drawer': where open/closed choices persist; the drawer's
+//                   own store keeps its choices from moving the desktop rail's
+//   showClear       the "Clear N" button beside the search box
+//   controlFor      (filter, value, onChange) => element | null: a caller-supplied
+//                   control for one filter; null falls back to the stock control
 export default function FilterRail({ meta, activeFilters, onChange, onClear, variant = 'rail',
   matchCount, matchCountEmpty, matchCountLoading, matchCountAsOf = null, criteriaSlot = null,
-  presentation = 'select' }) {
+  presentation = 'select', common = null, startCollapsed = false,
+  openStore = 'rail', showClear = true, controlFor = null }) {
   const [q, setQ] = useState('')
-  const [open, setOpen] = useState(() =>
-    Object.fromEntries((meta?.categories || []).map(c => [c.key, readOpen(c.key)])))
+  const [open, setOpen] = useState(() => (startCollapsed ? {}
+    : Object.fromEntries((meta?.categories || []).map(c => [c.key, readOpen(c.key)]))))
   const searchRef = useRef(null)
   const railRootRef = useRef(null)
 
   const needle = q.trim().toLowerCase()
+  const commonSig = Array.isArray(common) ? common.join('|') : ''
   // meta is optional-chained throughout so this hook stays stable even when
   // meta is momentarily null (before the initial fetch resolves) — the early
   // return below must come AFTER every hook, never between them.
-  const byCat = useMemo(() => {
+  //
+  // `groups` is the render order: [Common?, ...server categories]. `all` is a
+  // group's full list, `list` the search-narrowed one. With no `common` it is
+  // exactly the server's categories, each holding its own filters.
+  const groups = useMemo(() => {
+    const commonKeys = commonSig ? commonSig.split('|') : []
+    const inCommon = new Set(commonKeys)
+    const byKey = new Map((meta?.filters || []).map(f => [f.key, f]))
+    const out = []
+    const commonAll = commonKeys.map(k => byKey.get(k)).filter(Boolean)
+    if (commonAll.length) out.push({ key: COMMON_KEY, label: 'Common', icon: 'star', all: commonAll })
     const m = new Map((meta?.categories || []).map(c => [c.key, []]))
     for (const f of meta?.filters || []) {
-      if (needle && !f.label.toLowerCase().includes(needle)) continue
+      if (inCommon.has(f.key)) continue
       if (m.has(f.category)) m.get(f.category).push(f)
     }
-    return m
-  }, [meta, needle])
+    for (const c of meta?.categories || []) {
+      out.push({ key: c.key, label: c.label, icon: CAT_ICON[c.key] || 'tag', all: m.get(c.key) })
+    }
+    return out.map(g => ({ ...g, list: needle ? g.all.filter(f => f.label.toLowerCase().includes(needle)) : g.all }))
+  }, [meta, needle, commonSig])
+  // startCollapsed mode reads each group's remembered choice ONCE per set of groups (not
+  // every render); after that the member's clicks live in `open`.
+  const groupKeys = groups.map(g => g.key).join('|')
+  const stored = useMemo(() => (startCollapsed
+    ? Object.fromEntries(groupKeys.split('|').map(k => [k, readStored(openStore, k)])) : {}),
+  [groupKeys, startCollapsed, openStore])
+  const isOpen = (prevOpen, g) => groupOpen({ open: prevOpen, key: g.key, startCollapsed,
+    stored: stored[g.key] ?? null, active: countActive(g.all, activeFilters) })
 
   // The flat, VISIBLE-ORDER list of filters — exactly what the JSX below
   // renders (same category/open/needle logic), so arrow-key navigation can
   // never highlight a filter the member cannot see on screen.
   const visibleFlat = useMemo(() => {
     const out = []
-    for (const cat of (meta?.categories || [])) {
-      const list = byCat.get(cat.key) || []
-      if (needle && !list.length) continue
-      const isOpen = needle ? true : open[cat.key]
-      if (isOpen) out.push(...list)
+    for (const g of groups) {
+      if (needle && !g.list.length) continue
+      const shown = needle ? true : groupOpen({ open, key: g.key, startCollapsed,
+        stored: stored[g.key] ?? null, active: countActive(g.all, activeFilters) })
+      if (shown) out.push(...g.list)
     }
     return out
-  }, [meta, byCat, open, needle])
+  }, [groups, open, needle, startCollapsed, stored, activeFilters])
 
   // ⭐ KEYBOARD-DRIVEN FILTER EDITING — the piece of Wave A's "A9 — Screening"
   // that was genuinely missing (live match-count and saved-screen addressing
@@ -117,13 +174,11 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
 
   if (!meta) return null
 
-  const toggle = key => setOpen(prev => {
-    const next = { ...prev, [key]: !prev[key] }
-    try { localStorage.setItem(openKey(key), next[key] ? '1' : '0') } catch { /* private mode */ }
+  const toggle = g => setOpen(prev => {
+    const next = { ...prev, [g.key]: !isOpen(prev, g) }
+    try { localStorage.setItem(openKey(g.key, openStore), next[g.key] ? '1' : '0') } catch { /* private mode */ }
     return next
   })
-  const activeIn = key => (meta.filters || [])
-    .filter(f => f.category === key && activeFilters[f.key]).length
   const activeTotal = Object.keys(activeFilters).length
 
   // Node lookup by filter key — iterated rather than built as a CSS selector
@@ -184,7 +239,7 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
           placeholder={variant === 'rail' ? 'Find a filter…  ( / )' : 'Find a filter…'} value={q}
           aria-label="Find a filter" onChange={e => setQ(e.target.value)}
           onKeyDown={onSearchKeyDown} />
-        {activeTotal > 0 && (
+        {showClear && activeTotal > 0 && (
           <button type="button" className={styles.railClear} onClick={onClear}>Clear {activeTotal}</button>
         )}
       </div>
@@ -214,28 +269,28 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
           )}
         </div>
       )}
-      {(meta.categories || []).map(cat => {
-        const list = byCat.get(cat.key) || []
+      {groups.map(g => {
+        const list = g.list
         if (needle && !list.length) return null
-        const isOpen = needle ? true : open[cat.key]
-        const n = activeIn(cat.key)
+        const shown = needle ? true : isOpen(open, g)
+        const n = countActive(g.all, activeFilters)
         return (
-          <section key={cat.key} className={styles.railGroup}>
-            <button type="button" className={styles.railHead} aria-expanded={isOpen}
-              onClick={() => toggle(cat.key)}>
+          <section key={g.key} className={styles.railGroup}>
+            <button type="button" className={styles.railHead} aria-expanded={shown}
+              onClick={() => toggle(g)}>
               <span className={styles.railHeadIcon}>
-                <UIcon name={CAT_ICON[cat.key] || 'tag'} size={14} gold={false} />
+                <UIcon name={g.icon} size={14} gold={false} />
               </span>
-              <span className={styles.railHeadLabel}>{cat.label}</span>
+              <span className={styles.railHeadLabel}>{g.label}</span>
               {n > 0 && <span className={styles.railPip}>{n}</span>}
               <span className={styles.railChev}>
-                <UIcon name={isOpen ? 'chevronDown' : 'chevronRight'} size={14} gold={false} />
+                <UIcon name={shown ? 'chevronDown' : 'chevronRight'} size={14} gold={false} />
               </span>
             </button>
-            {isOpen && list.map(f => (
+            {shown && list.map(f => (
               <div key={f.key} data-filter-key={f.key}
                 className={f.key === activeKey ? styles.railFilterActive : undefined}>
-                {f.control === 'typeset' ? (
+                {controlFor?.(f, activeFilters[f.key] || null, v => onChange(f.key, v)) || (f.control === 'typeset' ? (
                   <TypeFilterControl filter={f}
                     value={activeFilters[f.key] || null}
                     onChange={v => onChange(f.key, v)} />
@@ -243,7 +298,7 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
                   <FilterControl filter={f} presentation={presentation}
                     value={activeFilters[f.key] || null}
                     onChange={v => onChange(f.key, v)} />
-                )}
+                ))}
               </div>
             ))}
           </section>

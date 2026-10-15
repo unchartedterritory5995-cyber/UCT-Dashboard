@@ -167,7 +167,7 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
   onColumns, onResetColumns, density, onDensity, snapshot, snapshotDate,
   total, shown, isLoading, onExport, onExportXlsx = null, exportState, saveBar, reviewBar = null,
   libraryBar = null,
-  presets = [], onApplyPreset, onDeletePreset, onSavePreset }) {
+  presets = [], onApplyPreset, onDeletePreset, onSavePreset, leadSlot = null }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const overviewCols = (meta?.views || []).find(v => v.key === DEFAULT_VIEW)?.columns
   // Close the column picker on a click outside its anchor (button + popover) —
@@ -183,6 +183,10 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
   }, [pickerOpen])
   return (
     <div className={styles.toolbar}>
+      {/* Opt-in, first in the row: the Focus layout's List | Table switch in Table mode, so
+          that mode has one bar instead of this toolbar under an otherwise empty one.
+          Absent (the default) on the classic page, which renders exactly as before. */}
+      {leadSlot}
       <div className={styles.viewTabs} role="tablist" aria-label="Column views">
         {/* Overview is the only firm tab. The curated firm view tabs were removed
             (owner call, 2026-09-23) — every firm column layout is chosen from the

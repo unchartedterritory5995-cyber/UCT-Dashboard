@@ -209,3 +209,77 @@ describe('FilterRail buttons presentation: search then Enter', () => {
     expect(sc.getByRole('group', { name: 'RS Rank' }).contains(document.activeElement)).toBe(true)
   })
 })
+
+// The Focus drawer's opt-in props (common / startCollapsed / openStore / showClear /
+// controlFor) must leave ScannerShell's rail and phone sheet exactly as they were.
+describe('FilterRail defaults are the old rail', () => {
+  const LONG = { key: 'industry', label: 'Industry', category: 'descriptive', type: 'enum',
+    presets: [{ label: 'Any' }, ...Array.from({ length: 20 }, (_, i) => ({ label: `Ind ${i}`, op: 'eq', value: `Ind ${i}` }))] }
+  const OLD = { ...META, filters: [...META.filters, LONG] }
+
+  it('every category expanded, no Common group, Clear N shown, stock controls everywhere', () => {
+    render(<FilterRail meta={OLD} activeFilters={{ price: { op: 'gte', min: 10 } }} onChange={() => {}} onClear={() => {}} />)
+    const heads = screen.getAllByRole('button', { name: /^(Descriptive|Momentum)/ })
+    expect(heads).toHaveLength(2)
+    for (const h of heads) expect(h).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.queryByRole('button', { name: /^Common/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Clear 1' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Price')).toBeInTheDocument()
+    expect(screen.getByLabelText('Sector')).toBeInTheDocument()
+    expect(screen.getByLabelText('Industry').tagName).toBe('SELECT')
+    expect(screen.queryByLabelText(/Narrow/)).toBeNull()
+  })
+
+  it('the phone sheet in buttons presentation still shows every preset as a button, long enums included', () => {
+    render(<FilterRail meta={OLD} activeFilters={{}} onChange={() => {}} onClear={() => {}} variant="sheet" presentation="buttons" />)
+    expect(screen.getByRole('button', { name: /^Descriptive/ })).toHaveAttribute('aria-expanded', 'true')
+    const group = screen.getByRole('group', { name: 'Industry' })
+    expect(group.querySelectorAll('button')).toHaveLength(21)
+    expect(screen.queryByRole('combobox')).toBeNull()
+  })
+
+  it('open/closed still persists under the rail key, not the drawer key', () => {
+    render(<FilterRail meta={OLD} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: /^Momentum/ }))
+    expect(localStorage.getItem('uct.screener.rail.momentum')).toBe('0')
+    expect(localStorage.getItem('uct.screener.drawer.momentum')).toBeNull()
+  })
+})
+
+describe('FilterRail opt-in: startCollapsed', () => {
+  it('starts closed, opens a group with an active filter, and remembers a choice under its prefix', () => {
+    const { unmount } = render(<FilterRail meta={META} activeFilters={{ pole_pct: { op: 'gte', min: 30 } }}
+      onChange={() => {}} onClear={() => {}} startCollapsed openStore="drawer" />)
+    expect(screen.getByRole('button', { name: /^Descriptive/ })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('button', { name: /^Momentum/ })).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(screen.getByRole('button', { name: /^Descriptive/ }))
+    expect(screen.getByLabelText('Price')).toBeInTheDocument()
+    expect(localStorage.getItem('uct.screener.drawer.descriptive')).toBe('1')
+    unmount()
+    render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} startCollapsed openStore="drawer" />)
+    expect(screen.getByRole('button', { name: /^Descriptive/ })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: /^Momentum/ })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('reads the remembered choices once, not on every render', () => {
+    const spy = vi.spyOn(Storage.prototype, 'getItem')
+    const { rerender } = render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}}
+      startCollapsed openStore="drawer" />)
+    const reads = spy.mock.calls.filter(([k]) => k.startsWith('uct.screener.drawer.')).length
+    expect(reads).toBe(2)                     // one per group
+    for (let i = 0; i < 5; i++) {
+      rerender(<FilterRail meta={META} activeFilters={{ price: { op: 'gte', min: i } }} onChange={() => {}} onClear={() => {}}
+        startCollapsed openStore="drawer" />)
+    }
+    expect(spy.mock.calls.filter(([k]) => k.startsWith('uct.screener.drawer.')).length).toBe(reads)
+    spy.mockRestore()
+  })
+
+  it('closing a group that holds an active filter sticks', () => {
+    render(<FilterRail meta={META} activeFilters={{ pole_pct: { op: 'gte', min: 30 } }}
+      onChange={() => {}} onClear={() => {}} startCollapsed openStore="drawer" />)
+    fireEvent.click(screen.getByRole('button', { name: /^Momentum/ }))
+    expect(screen.getByRole('button', { name: /^Momentum/ })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByLabelText('Prior Run (Pole %)')).toBeNull()
+  })
+})

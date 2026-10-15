@@ -105,7 +105,8 @@ def test_pattern_presets_name_real_detectors(monkeypatch):
     presets = [s for s in saved_screens.starters() if s["id"].startswith("starter_pattern_")]
     assert len(presets) == len(saved_screens.PATTERN_PRESETS) >= 15
     for s in presets:
-        (f,) = s["spec"]["filters"]
+        # every starter also carries the stocks-only Type filter (owner decision 3)
+        (f,) = [x for x in s["spec"]["filters"] if x["key"] == "pattern_engine_id"]
         token = f["value"].strip(",")
         assert f["value"] == f",{token},", "an unwrapped token is a substring test"
         assert token in known, f"{s['name']} names no detector: {token}"

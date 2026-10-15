@@ -26,3 +26,18 @@ export function SkipLinkPortal({ children }) {
   const slot = useContext(SkipLinkSlotContext)
   return slot ? createPortal(children, slot) : children
 }
+
+/**
+ * A page skip link that MOVES FOCUS to its target. `target` is a ref, an element, or a function
+ * returning one, read at click time (the target may mount after the link). ⛔ Never a hash
+ * navigation: like "Skip to main content", a bare `#id` jump would change the router's location.
+ * A target that is not on the page right now leaves focus where it is.
+ */
+export function SkipLink({ target, href = '#', className, children }) {
+  const onClick = (e) => {
+    e.preventDefault()
+    const el = typeof target === 'function' ? target() : (target && 'current' in target ? target.current : target)
+    el?.focus?.()
+  }
+  return <a href={href} className={className} onClick={onClick}>{children}</a>
+}

@@ -1439,8 +1439,14 @@ def coverage_for(spec, user_id=None) -> dict:
                   "dropped_symbols": listed})
 
 
-def preview_count(spec, user_id=None):
+def preview_count(spec, user_id=None, conn=None, overlay=None):
     """How many rows this spec WOULD return, without returning them.
+
+    ``conn`` / ``overlay`` let a caller counting many specs (the count batch,
+    ``preview_count_batch``) open ONE connection and decide the overlay ONCE.
+    Omitted, this opens its own connection and decides its own overlay, exactly
+    as before. Passing them changes no answer: the statement is still planned
+    by ``build_scan_sql`` from the same spec against the same database.
 
     Benchmark metric 450 — Zacks disables its Run button at zero, Trade Ideas
     shows a per-filter histogram before you apply it, thinkorswim shows pre-scan
@@ -1461,16 +1467,23 @@ def preview_count(spec, user_id=None):
     AND that they asked to see 50.
     """
     spec = spec or {}
-    with snapshot_db.connect() as conn:
-        plan = build_scan_sql(spec, _overlay(conn), user_id=user_id, conn=conn)
-        # FT-028: THE COUNT CARRIES ITS OWN AS-OF. `describe_rows` is the same
-        # call `run_scan` makes over the same where/params/FROM, and its `rows`
-        # IS the count (one GROUP BY), so the number and the date that describes
-        # it come from one statement and cannot disagree.
-        snap = snapshot_db.describe_rows(
-            conn, plan["where"], plan["describe_params"],
-            from_sql=plan["from_sql"], date_expr=plan["date_expr"])
-        total = snap["rows"]
+    if conn is None:
+        with snapshot_db.connect() as own:
+            return _preview_count_on(own, spec, user_id, overlay)
+    return _preview_count_on(conn, spec, user_id, overlay)
+
+
+def _preview_count_on(conn, spec, user_id, overlay):
+    plan = build_scan_sql(spec, overlay if overlay is not None else _overlay(conn),
+                          user_id=user_id, conn=conn)
+    # FT-028: THE COUNT CARRIES ITS OWN AS-OF. `describe_rows` is the same
+    # call `run_scan` makes over the same where/params/FROM, and its `rows`
+    # IS the count (one GROUP BY), so the number and the date that describes
+    # it come from one statement and cannot disagree.
+    snap = snapshot_db.describe_rows(
+        conn, plan["where"], plan["describe_params"],
+        from_sql=plan["from_sql"], date_expr=plan["date_expr"])
+    total = snap["rows"]
     rank = plan["rank"]
     return {
         "count": total,
@@ -1487,6 +1500,127 @@ def preview_count(spec, user_id=None):
         "scan_joins": plan["scan_joins"],
         "list_joins": plan["list_joins"],
     }
+
+
+# ── The count batch: one connection, one overlay, a small TTL cache ─────────
+# The screen menu asks for up to 30 counts at once. Each used to open its own
+# connection and re-decide the overlay (~7 ms a spec, ~216 ms for 30).
+# `preview_count_batch` opens ONE connection and decides the overlay ONCE, then
+# runs every spec through the same `preview_count` the single route uses.
+#
+# The cache is keyed on (normalised spec, user id, snapshot stamp). The stamp is
+# read off the database the batch is about to count, so a nightly rebuild or a
+# live-overlay sweep changes the key and a stale answer is never looked up. A
+# spec naming a member's own watchlists (`list`) or scans (`scan`) is NEVER
+# cached: those sets can change without the snapshot moving. Each cached answer
+# keeps its own `counted_at`, so the time it claims stays true.
+COUNT_CACHE_TTL_S = 60
+COUNT_CACHE_MAX = 512
+_COUNT_CACHE = None
+
+
+def _count_cache():
+    global _COUNT_CACHE
+    if _COUNT_CACHE is None:
+        from api.services.cache import TTLCache
+        _COUNT_CACHE = TTLCache(max_size=COUNT_CACHE_MAX)
+    return _COUNT_CACHE
+
+
+def _snapshot_stamp(conn, overlay):
+    """What identifies the data a count reads. ``None`` (no caching) when the
+    database cannot say.
+
+    The nightly half IS `live_tier._anchor_fingerprint` -- the stamp the live
+    sweeper already trusts to notice a rebuild (db path, row count, MAX(rowid),
+    newest `built_at`; a rebuild rewrites every rowid) -- never a second,
+    weaker one. With the overlay serving, the live table's size and newest
+    sweep are added, so each sweep moves the key.
+
+    ⛔ The in-session freshness cutoff (`min_serve_asof`, now minus max age)
+    moves every second, so it is BUCKETED to the cache TTL. Putting the raw
+    value in the key would make every RTH lookup a miss. A bucket of one TTL
+    bounds how long a row that aged past the cutoff can be counted to one TTL,
+    the same bound the cache already accepts.
+
+    ⚠️ A flag flip ON -> OFF (or OFF -> ON) changes the overlay-off marker and
+    so the key, but a success cached a moment before the flip is still served
+    for up to one TTL to a key that has not moved. Refusals and failures are
+    never cached, only successful counts.
+    """
+    try:
+        from . import live_tier
+        parts = [live_tier._anchor_fingerprint(conn)]
+        if overlay.on:
+            lv = conn.execute(
+                f'SELECT COUNT(*), MAX(live_asof) FROM "{overlay.table}"').fetchone()
+            cutoff = overlay.join_params[0] if overlay.join_params else None
+            bucket = None if cutoff is None else int(cutoff // COUNT_CACHE_TTL_S)
+            parts.append(("overlay-on", tuple(lv), bucket))
+        else:
+            parts.append("overlay-off")
+        return repr(parts)
+    except Exception:  # noqa: BLE001 -- an unreadable stamp only disables the cache
+        return None
+
+
+def _names_member_data(node):
+    if isinstance(node, dict):
+        if node.get("key") in (_LIST_KEY, _SCAN_KEY):
+            return True
+        return any(_names_member_data(v) for v in node.values())
+    if isinstance(node, list):
+        return any(_names_member_data(v) for v in node)
+    return False
+
+
+def _count_cache_key(spec, user_id, stamp):
+    if stamp is None or _names_member_data(spec):
+        return None
+    import hashlib
+    import json
+    body = json.dumps(spec, sort_keys=True, separators=(",", ":"), default=str)
+    return "|".join((str(user_id), stamp, hashlib.sha256(body.encode()).hexdigest()))
+
+
+class CountBatchUnavailable(RuntimeError):
+    """Every slot of a batch whose database could not be opened. Already
+    logged once by `preview_count_batch`; the route must not log it per slot."""
+
+
+def preview_count_batch(specs, user_id=None):
+    """``preview_count`` for each spec, in order, over ONE connection and ONE
+    overlay decision. Each slot is the count dict or the exception that spec
+    raised, so one bad spec never fails its neighbours."""
+    import copy
+    try:
+        conn = snapshot_db.connect()
+    except Exception:  # noqa: BLE001 -- logged ONCE here, not once per slot
+        import logging
+        logging.getLogger(__name__).exception(
+            "[screener] count batch could not open the snapshot database")
+        return [CountBatchUnavailable() for _ in specs]
+    out = []
+    try:
+        overlay = _overlay(conn)
+        stamp = _snapshot_stamp(conn, overlay)
+        cache = _count_cache()
+        for spec in specs:
+            try:
+                key = _count_cache_key(spec or {}, user_id, stamp)
+                hit = cache.get(key) if key else None
+                if hit is not None:
+                    out.append(copy.deepcopy(hit))
+                    continue
+                res = preview_count(spec, user_id=user_id, conn=conn, overlay=overlay)
+                if key:
+                    cache.set(key, copy.deepcopy(res), COUNT_CACHE_TTL_S)
+                out.append(res)
+            except Exception as e:  # noqa: BLE001 -- one spec, not the batch
+                out.append(e)
+    finally:
+        conn.close()
+    return out
 
 
 def run_scan(spec, user_id=None, user=None):

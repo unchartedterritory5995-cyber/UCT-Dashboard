@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { vi, test, expect, beforeEach } from 'vitest'
 vi.mock('../../shell/FilterRail', () => ({ default: p => <div data-testid="rail" data-presentation={p.presentation} /> }))
@@ -209,4 +210,44 @@ test('a universe changed during the compile is not overwritten', async () => {
   release()
   await waitFor(() => expect(base.onSetFilter).toHaveBeenCalledWith('list', fresh))
   expect(base.onSetFilter).not.toHaveBeenCalledWith('universe', old)
+})
+
+// -- Task 3 (S4) --
+test('S4: a failed count never reads as a number: "Show stocks" and "Count unavailable"', () => {
+  render(<FiltersDrawer {...base} filters={{}} count={214} countError={new Error('count 500')} />)
+  expect(screen.getByRole('button', { name: 'Show stocks' })).toBeInTheDocument()
+  expect(screen.getByTestId('drawer-count-note')).toHaveTextContent('Count unavailable')
+  expect(screen.getByText('Count unavailable', { selector: '[role="status"]' })).toBeInTheDocument()
+  expect(screen.queryByText(/214|Show 0/)).toBeNull()
+})
+test('S4: an unknown count is "Show stocks" with no note', () => {
+  render(<FiltersDrawer {...base} filters={{}} count={null} />)
+  expect(screen.getByRole('button', { name: 'Show stocks' })).toBeInTheDocument()
+  expect(screen.queryByTestId('drawer-count-note')).toBeNull()
+})
+
+test('7: pills use the plain column name and a lowercase operator word', () => {
+  const m = { filters: [{ key: 'adr_pct', label: 'ADR %', type: 'range', presets: [{ label: 'Over 4%', op: 'gte', min: 4 }] }] }
+  render(<FiltersDrawer {...base} meta={m} filters={{ adr_pct: { op: 'gte', min: 4 } }} />)
+  expect(screen.getByText('Avg daily range: over 4%')).toBeInTheDocument()
+  expect(screen.queryByText(/ADR %/)).toBeNull()
+})
+test('4: after Clear all, focus stays inside the drawer and Escape still closes it', () => {
+  const onClose = vi.fn()
+  // As on the page: clearing removes the pills, and with them the Clear all button itself.
+  function Host() {
+    const [filters, setFilters] = useState({ rs_rank: { op: 'gte', min: 80 } })
+    return <FiltersDrawer {...base} onClose={onClose} filters={filters} onClear={() => { base.onClear(); setFilters({}) }} />
+  }
+  render(<Host />)
+  const clear = screen.getByRole('button', { name: 'Clear all' })
+  clear.focus()
+  fireEvent.click(clear)
+  expect(base.onClear).toHaveBeenCalled()
+  expect(screen.queryByRole('button', { name: 'Clear all' })).toBeNull()
+  expect(document.activeElement).not.toBe(document.body)
+  const dialog = screen.getByRole('dialog', { name: 'Filters' })
+  expect(dialog.contains(document.activeElement)).toBe(true)
+  fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+  expect(onClose).toHaveBeenCalled()
 })

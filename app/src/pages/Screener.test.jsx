@@ -24,8 +24,8 @@ test('there is no tab strip — nothing to switch between', () => {
   expect(screen.queryByRole('button', { name: /live scan/i })).toBeNull()
 })
 
-test('embedded mode drops the heading — the widget shell supplies its own', () => {
+test('embedded mode drops the heading — the widget shell supplies its own', async () => {
   renderWithProviders(<Screener embedded />)
   expect(screen.queryByRole('heading', { name: /screener/i })).toBeNull()
-  expect(screen.getByText('scanner shell')).toBeInTheDocument()
+  expect(await screen.findByText('scanner shell')).toBeInTheDocument()
 })

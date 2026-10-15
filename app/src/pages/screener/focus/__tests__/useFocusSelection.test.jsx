@@ -2,6 +2,10 @@ import { renderHook, act } from '@testing-library/react'
 import { vi, expect, test } from 'vitest'
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: vi.fn() }))
 import { useNeighborWarm } from '../../../../hooks/useNeighborWarm'
+vi.mock('../../../../utils/prefetchBars', () => ({
+  prefetchBars: vi.fn(), prefetchBarsToIDB: vi.fn(), warmMemFromIDB: vi.fn(),
+}))
+import { prefetchBars, prefetchBarsToIDB, warmMemFromIDB } from '../../../../utils/prefetchBars'
 import useFocusSelection from '../useFocusSelection'
 
 const rows = n => Array.from({ length: n }, (_, i) => ({ ticker: `T${i}` }))
@@ -124,7 +128,7 @@ test('ignores modified keys so browser shortcuts still work', () => {
 
 test('warms neighbours of the selection', () => {
   renderHook(() => useFocusSelection({ rows: rows(3) }))
-  expect(useNeighborWarm).toHaveBeenCalledWith(['T0', 'T1', 'T2'], 'T0', 'D')
+  expect(useNeighborWarm).toHaveBeenCalledWith(['T0', 'T1', 'T2'], 'T0', 'D', { radius: 0 })
 })
 
 test('empty rows give no selection', () => {
@@ -166,4 +170,22 @@ test('a re-sorted stock that then leaves clamps near where it last was', () => {
   expect(result.current.index).toBe(0)
   rerender({ rows: [{ ticker: 'T0' }, { ticker: 'T1' }], resetKey: 'a' })
   expect(result.current.index).toBe(0)
+})
+
+test('warms the next 2 rows with the urgent option, and 4 ahead / 1 behind in the background', () => {
+  vi.clearAllMocks()
+  const { result } = renderHook(() => useFocusSelection({ rows: rows(20), tf: '5' }))
+  act(() => result.current.select(5))
+  expect(prefetchBars).toHaveBeenLastCalledWith(['T6', 'T7'], '5', { urgent: true })
+  expect(prefetchBarsToIDB).toHaveBeenLastCalledWith(['T6', 'T7', 'T8', 'T9', 'T4'], '5', { priority: true })
+  expect(warmMemFromIDB).toHaveBeenLastCalledWith(['T6', 'T7', 'T8', 'T9', 'T4'], ['5'])
+})
+
+test('at the list edges the window shrinks instead of wrapping', () => {
+  vi.clearAllMocks()
+  const { result } = renderHook(() => useFocusSelection({ rows: rows(4) }))
+  expect(prefetchBars).toHaveBeenLastCalledWith(['T1', 'T2'], 'D', { urgent: true })
+  expect(prefetchBarsToIDB).toHaveBeenLastCalledWith(['T1', 'T2', 'T3'], 'D', { priority: true })
+  act(() => result.current.select(3))
+  expect(prefetchBars).toHaveBeenLastCalledWith([], 'D', { urgent: true })
 })

@@ -92,6 +92,16 @@ describe('ScannerShell', () => {
     expect(screen.getByText(/no stocks match the current filters/i)).toBeInTheDocument()
   })
 
+  it('toolbarLead (the Focus Table mode switch) lands in the toolbar row; absent by default', () => {
+    scanMock.mockReturnValue(READY)
+    const { unmount } = render(<ScannerShell />)
+    expect(screen.queryByRole('group', { name: 'View' })).toBeNull()
+    unmount()
+    render(<ScannerShell toolbarLead={<div role="group" aria-label="View">List Table</div>} />)
+    const lead = screen.getByRole('group', { name: 'View' })
+    expect(lead.parentElement).toBe(screen.getByRole('tablist', { name: 'Column views' }).parentElement)
+  })
+
   it('error renders the scanError banner with Retry, which bumps _retry on the NEXT scan call', () => {
     scanMock.mockReturnValue(FAILED)
     render(<ScannerShell />)

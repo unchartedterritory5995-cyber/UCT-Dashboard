@@ -35,10 +35,10 @@ describe('Screener — ScannerShell error boundary', () => {
     console.error.mockRestore()
   })
 
-  it('a throw in ScannerShell renders the compact fallback, and Retry remounts a fixed child', () => {
+  it('a throw in ScannerShell renders the compact fallback, and Retry remounts a fixed child', async () => {
     renderWithProviders(<Screener />)
 
-    expect(screen.getByText('Screener hit an error.')).toBeInTheDocument()
+    expect(await screen.findByText('Screener hit an error.')).toBeInTheDocument()
     expect(screen.queryByText('scanner shell recovered')).not.toBeInTheDocument()
 
     // Fix the underlying condition (mirrors a transient failure clearing),
@@ -46,7 +46,7 @@ describe('Screener — ScannerShell error boundary', () => {
     shouldThrow.current = false
     fireEvent.click(screen.getByRole('button', { name: /retry/i }))
 
-    expect(screen.getByText('scanner shell recovered')).toBeInTheDocument()
+    expect(await screen.findByText('scanner shell recovered')).toBeInTheDocument()
     expect(screen.queryByText('Screener hit an error.')).not.toBeInTheDocument()
   })
 })

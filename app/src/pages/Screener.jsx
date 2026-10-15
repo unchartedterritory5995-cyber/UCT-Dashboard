@@ -1,7 +1,7 @@
-import { useContext, useState } from 'react'
+import { Suspense, useContext, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import ScannerShell from './screener/shell/ScannerShell'
-import FocusScreener from './screener/focus/FocusScreener'
+import lazy from '../utils/lazyWithRetry'
+import { SkeletonTable } from '../components/Skeleton'
 import ErrorBoundary from '../components/ErrorBoundary'
 import UIcon from '../components/ui/UIcon'
 import { useInTerminalPanel } from '../components/terminal'
@@ -9,6 +9,12 @@ import styles from './Screener.module.css'
 import { AuthContext } from '../context/AuthContext'
 import OptionsScreener from './screener/options/OptionsScreener'
 import HowToChecklist from '../components/howTo/HowToChecklist'
+import { useIsPhone } from '../hooks/useBreakpoint'
+
+// Each mode is its own chunk: a member downloads only the layout they render (the Focus layout
+// is owner-only behind a flag, so most members never need its code, and vice versa).
+const ScannerShell = lazy(() => import('./screener/shell/ScannerShell'))
+const FocusScreener = lazy(() => import('./screener/focus/FocusScreener'))
 
 // ── ScannerShell error fallback — defense-in-depth (the stress-sweep's
 // blank-root finding traced to the SPA's static asset delivery, not a React
@@ -90,7 +96,9 @@ export default function Screener({ embedded = false }) {
   const [mode, setMode] = useState(() => (searchParams.get('tab') === 'options' ? 'options' : 'stocks'))
   const showOptions = optionsOn && mode === 'options'
   // Owner-only Focus layout (SCREENER_FOCUS_LAYOUT_ENABLED). Never in an embedded widget or a terminal panel.
-  const focusOn = useContext(AuthContext)?.screenerFocusLayoutEnabled === true && !embedded && !inPanel
+  // Phones (<=640) keep the current ResultCards page: the Focus layout is tablet and up.
+  const isPhone = useIsPhone()
+  const focusOn = useContext(AuthContext)?.screenerFocusLayoutEnabled === true && !embedded && !inPanel && !isPhone
 
   const containerCls = `${styles.containerFull} ${embedded ? styles.pageEmbedded : ''}`.trim()
   const showHeading = !embedded && !inPanel && !focusOn
@@ -138,7 +146,9 @@ export default function Screener({ embedded = false }) {
           key={shellKey}
           fallback={<ScannerShellErrorFallback onRetry={() => setShellKey(k => k + 1)} />}
         >
-          {focusOn ? <FocusScreener /> : <ScannerShell embedded={embedded} />}
+          <Suspense fallback={<SkeletonTable rows={12} cols={6} />}>
+            {focusOn ? <FocusScreener /> : <ScannerShell embedded={embedded} />}
+          </Suspense>
         </ErrorBoundary>
       )}
     </div>

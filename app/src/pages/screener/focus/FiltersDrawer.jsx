@@ -2,11 +2,52 @@ import { useEffect, useRef, useState } from 'react'
 import FilterRail from '../shell/FilterRail'
 import CriteriaBox from '../shell/CriteriaBox'
 import Menu, { MenuItem } from './Menu'
-import { chipLabel } from '../chipLabel'
+import { focusChipLabel } from './plainWords'
 import { compactDigits } from './whyItsHere'
 import useDescribe from './useDescribe'
 import Input from '../../../components/ui/Input'
+import FilterControl from '../shell/FilterControl'
 import styles from './FocusScreener.module.css'
+import own from './FiltersDrawer.module.css'
+import { COMMON_FILTERS, choicesOf, isLongEnum } from './drawerFilters'
+
+// The app's select (FilterControl's `select` presentation, i.e. components/ui/Select) with
+// a components/ui/Input that narrows its choices. The chosen value is always kept in the
+// list, so narrowing can never make the select show a different answer than the one on.
+// A choice is "on" when the spec names its value: {op:'eq', value} or an `in` over a list
+// (`value: [...]` or the typeset form `values: [...]`).
+const isChosen = (p, spec) => {
+  if (!spec) return false
+  const vals = Array.isArray(spec.values) ? spec.values : Array.isArray(spec.value) ? spec.value : [spec.value]
+  return vals.includes(p.value)
+}
+function LongEnumControl({ filter, value, onChange }) {
+  const [q, setQ] = useState('')
+  const all = choicesOf(filter)
+  const needle = q.trim().toLowerCase()
+  const narrowed = needle ? all.filter(p => p.label.toLowerCase().includes(needle) || isChosen(p, value)) : all
+  const anyPreset = (filter.presets || []).find(p => p.label === 'Any') || { label: 'Any' }
+  return (
+    <div className={own.enumWrap}>
+      <div className={own.enumSearchRow}>
+        {/* FilterControl gives its select this id. */}
+        <Input className={own.enumSearch} aria-label={`Narrow ${filter.label} choices`} value={q} aria-controls={`fc_${filter.key}`}
+          placeholder={`Type to narrow ${all.length.toLocaleString('en-US')} choices`} onChange={e => setQ(e.target.value)} />
+        <span className={own.enumHint} aria-live="polite">{needle ? `${narrowed.length} of ${all.length}` : ''}</span>
+      </div>
+      <FilterControl filter={{ ...filter, presets: [anyPreset, ...narrowed] }} value={value} onChange={onChange} presentation="select" />
+    </div>
+  )
+}
+const drawerControl = (f, value, onChange) => (isLongEnum(f) ? <LongEnumControl filter={f} value={value} onChange={onChange} /> : null)
+
+// The ONE place the drawer words its match count. A count that is not known yet, or that
+// failed (S4: `countError`; the count hook keeps its PREVIOUS number on a failure), never reads
+// as a number, and a failure says so.
+const known = (count, countLoading, countError) => !countLoading && !countError && Number.isFinite(count)
+const showLabel = (count, countLoading, countError) => (known(count, countLoading, countError) ? `Show ${count.toLocaleString('en-US')} stocks` : 'Show stocks')
+const settledCount = (count, countLoading, countError) => (countError && !countLoading ? 'Count unavailable'
+  : known(count, countLoading, countError) ? `${count.toLocaleString('en-US')} matches` : '')
 
 function universeLabel(filters) {
   if (filters?.list) return filters.list.label || 'Watchlist'
@@ -31,7 +72,7 @@ const explainLine = ex => {
 // Left drawer holding every filter. A modal dialog: focus moves in on open,
 // Escape (handled on the dialog, no document listener) closes it, and focus goes
 // back to whatever opened it (or `returnFocusRef`, when the opener is remounted).
-export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic, onSetFilter, onClear, onSetLogic, count, countLoading, lists = [], returnFocusRef }) {
+export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic, onSetFilter, onClear, onSetLogic, count, countLoading, countError = null, lists = [], returnFocusRef }) {
   const panel = useRef(null)
   const describe = useDescribe(open)
   const [text, setText] = useState('')
@@ -58,6 +99,9 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
   }, [open])
   if (!open) return null
   const defs = Object.fromEntries((meta?.filters || []).map(f => [f.key, f]))
+  // Clear all removes the pill row's own button: focus goes to the panel, never to <body>, so
+  // Tab keeps cycling the drawer and Escape still closes it.
+  const clearAll = () => { onClear(); panel.current?.focus() }
   const pills = Object.entries(filters).filter(([k, v]) => v && k !== 'universe' && k !== 'list')
   const setPool = choice => {
     if (choice === 'all') { onSetFilter('universe', null); onSetFilter('list', null) }
@@ -102,7 +146,6 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
         tabIndex={-1} onKeyDown={onKeyDown}>
         <header className={styles.drawerHead}>
           <h2 className={styles.drawerTitle}>Filters</h2>
-          <span className={styles.drawerCount} aria-live="polite">{countLoading ? 'Counting…' : `${(count ?? 0).toLocaleString('en-US')} matches`}</span>
           <span className={styles.spacer} />
           <button type="button" className={styles.iconBtn} aria-label="Close filters" onClick={onClose}>×</button>
         </header>
@@ -123,7 +166,7 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
               {lists.map(l => <MenuItem key={l.value} onSelect={() => setPool(l)}>{l.label}</MenuItem>)}
             </Menu>
             {pills.map(([k, v]) => {
-              const text = compactDigits(chipLabel(defs[k] || { key: k, label: k, presets: [] }, v) || k)
+              const text = compactDigits(focusChipLabel(defs[k] || { key: k, label: k, presets: [] }, v) || k)
               return (
                 <span key={k} className={styles.pill}>
                   {text}
@@ -136,22 +179,26 @@ export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic
                 <button type="button" className={styles.pillX} aria-label="Remove Custom criteria" onClick={() => onSetLogic(null)}>×</button>
               </span>
             )}
-            {(pills.length > 0 || logic) && <button type="button" className={styles.linkBtn} onClick={onClear}>Clear all</button>}
+            {(pills.length > 0 || logic) && <button type="button" className={styles.linkBtn} onClick={clearAll}>Clear all</button>}
           </div>
         </div>
         <div className={styles.drawerBody}>
-          <FilterRail meta={meta} activeFilters={filters} onChange={onSetFilter} onClear={onClear}
-            variant="sheet" presentation="buttons" matchCount={count} matchCountLoading={countLoading} />
+          <FilterRail meta={meta} activeFilters={filters} onChange={onSetFilter} onClear={clearAll}
+            variant="sheet" presentation="buttons" common={COMMON_FILTERS} startCollapsed
+            openStore="drawer" showClear={false} controlFor={drawerControl} />
         </div>
         <footer className={styles.drawerFoot}>
           <details className={styles.codeBox}>
-            <summary className={styles.linkBtn}>Edit as code</summary>
+            <summary className={own.codeLink}>Edit as code</summary>
             <CriteriaBox logic={logic} onApply={onSetLogic} />
           </details>
           <span className={styles.spacer} />
+          {countError && !countLoading && <span className={own.countNote} aria-hidden="true" data-testid="drawer-count-note">Count unavailable</span>}
           <button type="button" className={styles.btnPrimary} onClick={onClose}>
-            {countLoading ? 'Show stocks' : `Show ${(count ?? 0).toLocaleString('en-US')} stocks`}
+            {showLabel(count, countLoading, countError)}
           </button>
+          {/* Screen readers hear the count once it settles, never the "Show stocks" in between. */}
+          <span className="sr-only" role="status">{settledCount(count, countLoading, countError)}</span>
         </footer>
       </aside>
     </div>

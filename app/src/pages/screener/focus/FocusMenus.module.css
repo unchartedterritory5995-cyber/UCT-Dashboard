@@ -1,0 +1,26 @@
+/* Focus layout: the screen menu, Save/Help, the name dialog and the shortcuts sheet.
+   Kept apart from FocusScreener.module.css so menu polish does not touch the page's sheet. */
+
+/* Screen menu: a screen with nothing in it today is still offered, but reads as such (P3). */
+.smEmpty { opacity: 0.6; }
+.smEmpty:hover { opacity: 0.85; }
+.smNone { color: var(--text-faint); font-size: var(--text-base); font-style: italic; min-width: 64px; text-align: right; white-space: nowrap; }
+.pinIcon { display: block; margin: 0 auto; }
+
+/* The screen button while the landing screen is still being chosen (B12). */
+.landing { color: var(--text-muted); font-style: italic; }
+
+/* NameDialog: a note under the name, e.g. saving a screen with no matches today (B17). */
+.dialogNote { margin: 0; font-size: var(--text-base); line-height: var(--lh-snug); color: var(--warn); background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: var(--radius-lg); padding: 8px 10px; }
+
+/* Keyboard shortcuts sheet (B10/N6). */
+.keys { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; align-items: center; font-size: var(--text-md); }
+.keyRow { display: contents; }
+.keys dt { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.keysOr { display: inline-flex; gap: 4px; align-items: center; margin-left: 4px; font-size: var(--text-base); color: var(--text-muted); }
+.keys dd { margin: 0; color: var(--text); }
+.kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; padding: 2px 7px; border: 1px solid var(--border-accent); border-bottom-width: 2px; border-radius: var(--radius-md); background: var(--bg-elevated); color: var(--text-heading); font: inherit; font-size: var(--text-base); font-weight: 600; font-variant-numeric: tabular-nums; }
+.keysNote { margin: 14px 0 0; font-size: var(--text-base); color: var(--text-muted); }
+
+/* Menu: a trigger that cannot open yet. aria-disabled, so it keeps focus and its title. */
+.triggerDisabled { opacity: 0.5; cursor: not-allowed; }

@@ -102,7 +102,9 @@ const galleryCardSelector = (ticker) => `[data-testid="gallery-card-${ticker}"]`
 // <SkeletonTable/> : …`) — verified in that file. A saved formula's scan
 // receipt reads its own store, has nothing to do with the 7 AM candidate
 // board's feed, and must never go blank because that unrelated fetch failed.
-export default function ScannerShell({ embedded = false }) {
+// `toolbarLead` (opt-in, default none) renders first in the toolbar's row; the Focus
+// layout's Table mode passes its List | Table switch so that mode has one bar.
+export default function ScannerShell({ embedded = false, toolbarLead = null }) {
   const { meta, error: metaError, retry: retryMeta } = useScreenerMeta()
   const isPhone = useIsPhone()
   const viewColumnsFor = useMemo(() => {
@@ -383,7 +385,7 @@ export default function ScannerShell({ embedded = false }) {
               pool chosen to its left. */}
           <PresetChips currentSpec={s.baseSpec} onApply={s.applySpec} />
         </div>
-        <ShellToolbar meta={meta} view={s.view} onView={s.setView}
+        <ShellToolbar meta={meta} view={s.view} onView={s.setView} leadSlot={toolbarLead}
           visibleColumns={visibleColumns} allColumns={allColumns}
           onColumns={s.setColumns} onResetColumns={() => s.setColumns(null)}
           presets={columnPresets}

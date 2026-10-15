@@ -86,10 +86,23 @@ function topLevelObjects(ast) {
   return out
 }
 
+/** `const NAME = useMemo(() => ({ ... }), deps)` anywhere in a module, by name. */
+function memoObjects(ast) {
+  const out = {}
+  walk(ast, (n) => {
+    if (n.type !== 'VariableDeclarator' || n.id.type !== 'Identifier') return
+    const call = n.init
+    if (call?.type !== 'CallExpression' || call.callee.name !== 'useMemo') return
+    const body = call.arguments[0]?.body
+    if (body?.type === 'ObjectExpression') out[n.id.name] = body
+  })
+  return out
+}
+
 /** For every <SWRConfig value={...}> in a module: whether it passes a provider. */
 function swrConfigMounts(text) {
   const ast = parse(text)
-  const consts = topLevelObjects(ast)
+  const consts = { ...memoObjects(ast), ...topLevelObjects(ast) }
   const mounts = []
   walk(ast, (n) => {
     if (n.type !== 'JSXOpeningElement' || n.name.name !== 'SWRConfig') return
@@ -138,12 +151,16 @@ describe("the list's SWR cache stays in memory", () => {
     .filter((f) => !relative(SRC_ROOT, f).replace(/\\/g, '/').startsWith('testing/'))
     .filter((f) => readFileSync(f, 'utf8').includes('<SWRConfig'))
 
-  it('App.jsx is the one production <SWRConfig>', () => {
-    expect(mounting.map((f) => relative(SRC_ROOT, f).replace(/\\/g, '/'))).toEqual(['App.jsx'])
+  // App.jsx owns the cache. The Screener Focus chart pane nests a provider-less <SWRConfig> that
+  // only adds middleware, so it shares App.jsx's in-memory cache rather than making its own.
+  const PRODUCTION_MOUNTS = ['App.jsx', 'pages/screener/focus/ChartPane.jsx']
+
+  it('App.jsx and the Focus chart pane are the only production <SWRConfig>s', () => {
+    expect(mounting.map((f) => relative(SRC_ROOT, f).replace(/\\/g, '/')).sort()).toEqual(PRODUCTION_MOUNTS)
   })
 
-  it('it passes no provider, so the cache is a Map that dies with the tab', () => {
-    const mounts = swrConfigMounts(readFileSync(join(SRC_ROOT, 'App.jsx'), 'utf8'))
+  it.each(PRODUCTION_MOUNTS)('%s passes no provider, so the cache is a Map that dies with the tab', (file) => {
+    const mounts = swrConfigMounts(readFileSync(join(SRC_ROOT, file), 'utf8'))
     expect(mounts.length).toBeGreaterThan(0)
     for (const m of mounts) {
       expect(m.resolved).toBe(true)            // an unresolvable value is not a pass
@@ -156,5 +173,9 @@ describe("the list's SWR cache stays in memory", () => {
     expect(swrConfigMounts(viaConst)).toEqual([{ resolved: true, provider: true }])
     const inline = 'export default () => <SWRConfig value={{ provider: localStorageProvider }}><a/></SWRConfig>'
     expect(swrConfigMounts(inline)).toEqual([{ resolved: true, provider: true }])
+    const viaMemo = 'export default () => { const v = useMemo(() => ({ use: [], provider: () => new Map() }), []); return <SWRConfig value={v}><a/></SWRConfig> }'
+    expect(swrConfigMounts(viaMemo)).toEqual([{ resolved: true, provider: true }])
+    const memoNoProvider = 'export default () => { const v = useMemo(() => ({ use: [] }), []); return <SWRConfig value={v}><a/></SWRConfig> }'
+    expect(swrConfigMounts(memoNoProvider)).toEqual([{ resolved: true, provider: false }])
   })
 })

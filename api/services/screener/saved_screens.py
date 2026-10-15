@@ -392,7 +392,29 @@ def pattern_starters():
     ]
 
 
+#: Every starter screen is STOCKS ONLY (owner decision 3, 2026-10-14): the
+#: momentum starters were topped by QQQ, SPY and closed-end funds. Expressed
+#: exactly as the Type filter's own Include control emits it
+#: (`TypeFilterControl.jsx`: `{op: 'in', values: [...]}` over the buckets
+#: `filters.FILTERS["security_type"]["options"]` declares). Closed-end funds and
+#: ETNs fold into the "ETF" bucket (`screener_universe._coarse_type`), so
+#: including Stock + ADR is what leaves both out. An ADR is a listed company's
+#: shares, so it stays.
+STOCKS_ONLY = {"key": "security_type", "op": "in", "values": ["Stock", "ADR"]}
+
+
+def _stocks_only(starter):
+    spec = dict(starter["spec"])
+    spec["filters"] = [*spec.get("filters", []), dict(STOCKS_ONLY,
+                                                      values=list(STOCKS_ONLY["values"]))]
+    return {**starter, "spec": spec}
+
+
 def starters():
+    return [_stocks_only(s) for s in _starter_defs()]
+
+
+def _starter_defs():
     # ── UCT Preset Scans — the firm's curated setups ──────────────────────────
     # ⛔ candle_starters() is NO LONGER surfaced here (owner call, 2026-09-20):
     # the candle-shape wall was noise as a "preset scan" list. The function is
@@ -413,7 +435,7 @@ def starters():
         # ── momentum / trend setups ──
         {"id": "starter_momentum_leaders", "name": "Leaders (RS ≥ 90)",
          "group": "Momentum leaders",
-         "description": "RS 90 or higher, 4% daily range, $20M+ traded, above the 50 day",
+         "description": "Stocks with RS 90+, 4%+ daily range, $20M+ traded, price $5+, above 50 day",
          "spec": {"filters": [
              {"key": "rs_rank", "op": "gte", "min": 90},
              {"key": "adr_pct", "op": "gte", "min": 4},
@@ -423,7 +445,7 @@ def starters():
           "view": "technical", "sort": {"key": "rs_rank", "dir": "desc"}}},
         {"id": "starter_pullback_20ema", "name": "Momentum pullbacks (20EMA)",
          "group": "Momentum leaders",
-         "description": "Strong stocks (RS 80+) resting within 2% of their 20 day EMA",
+         "description": "RS 80+ stocks within 2% of the 20 day EMA, EMAs stacked, 2 week volume low",
          "spec": {"filters": [
              {"key": "rs_rank", "op": "gte", "min": 80},
              {"key": "pct_vs_ema20", "op": "between", "min": -2, "max": 2},
@@ -432,7 +454,7 @@ def starters():
           "view": "technical", "sort": {"key": "rs_rank", "dir": "desc"}}},
         {"id": "starter_tight_base", "name": "Tight bases near highs",
          "group": "Bases & chart patterns",
-         "description": "Within 8% of the 52 week high and trading in a tight range",
+         "description": "RS 70+ stocks within 8% of the 52 week high, tight closes, up volume leads",
          "spec": {"filters": [
              {"key": "dist_52w_high_pct", "op": "gte", "min": -8},
              {"key": "close_cv_pct", "op": "lte", "max": 2.5},
@@ -442,28 +464,28 @@ def starters():
         # ── named base structures (query the delimiter-wrapped match set) ──
         {"id": "starter_base_pocket_pivot", "name": "Pocket pivots",
          "group": "Breakouts & entries",
-         "description": "Up day on volume above any down day of the last 10 sessions",
+         "description": "Stocks with an up day on volume above any down day of the last 10 sessions",
          "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",pocket-pivot,"}],
                   "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
         {"id": "starter_power_play", "name": "Power Plays",
          "group": "Momentum leaders",
-         "description": "Doubled in eight weeks, then held within 20% of the high",
+         "description": "Stocks that doubled in eight weeks, then held within 20% of the high",
          "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",power-play,"}],
                   "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
         {"id": "starter_stage2_breakout", "name": "Stage-2 breakouts",
          "group": "Breakouts & entries",
-         "description": "Broke its last swing high above a flat or rising 30 week average",
+         "description": "Stocks that broke the last swing high above a flat or rising 30 week average",
          "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",stage-2-breakout,"}],
                   "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
         {"id": "starter_three_weeks_tight", "name": "Three weeks tight",
          "group": "Bases & chart patterns",
-         "description": "Three weekly closes within 1.5% of each other",
+         "description": "Stocks with three weekly closes within 1.5% of each other",
          "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",three-weeks-tight,"}],
                   "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
         # ── gaps / breakouts / events / value ──
         {"id": "starter_value_quality", "name": "Cheap quality compounders",
          "group": "Quality & value",
-         "description": "Forward P/E 20 or less, ROE 15%+ and EPS growth 15%+",
+         "description": "Stocks with forward P/E 20 or less, ROE 15%+ and EPS growth 15%+",
          "spec": {"filters": [
              {"key": "pe_fwd", "op": "lte", "max": 20},
              {"key": "roe", "op": "gte", "min": 15},
@@ -484,7 +506,7 @@ def starters():
         #  this list, renamed; their specs are unchanged.)
         {"id": "starter_gap_movers", "name": "Gap Movers",
          "group": "Momentum leaders",
-         "description": "Gapped up 8% or more on 3x normal volume, $300M+ market cap",
+         "description": "Stocks that gapped up 8%+ on 3x normal volume, $300M+ market cap",
          "spec": {"filters": [
              {"key": "gap_pct", "op": "gte", "min": 8},
              {"key": "vol_ratio", "op": "gte", "min": 3},
@@ -492,7 +514,7 @@ def starters():
           "view": "momentum", "sort": {"key": "gap_pct", "dir": "desc"}}},
         {"id": "starter_52w_breakout", "name": "52-Week Breakout on Volume",
          "group": "Breakouts & entries",
-         "description": "New 52 week high on 1.5x volume, $10M+ traded daily",
+         "description": "Stocks at a new 52 week high on 1.5x volume, $10M+ traded daily",
          "spec": {"filters": [
              {"key": "new_52w_high", "op": "eq", "value": 1},
              {"key": "vol_ratio", "op": "gte", "min": 1.5},
@@ -519,7 +541,7 @@ def starters():
         # parity pull and populated on its first night.
         {"id": "starter_earnings_momentum", "name": "Earnings Momentum",
          "group": "Earnings",
-         "description": "Reports within 7 days, has options, RS 70 or higher",
+         "description": "Stocks that report within 7 days, have options, RS 70 or higher",
          "spec": {"filters": [
              {"key": "days_to_earnings", "op": "between", "min": 0, "max": 7},
              {"key": "optionable", "op": "eq", "value": 1},

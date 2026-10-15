@@ -1,0 +1,41 @@
+/* The Filters drawer's own pieces (Task 8). Shared drawer chrome stays in FocusScreener.module.css. */
+
+/* "Edit as code" is a secondary door: a small muted link, never a second primary button. */
+.codeLink {
+  display: inline-flex; align-items: center; min-height: 32px;
+  color: var(--text-muted); font-size: var(--text-base); cursor: pointer;
+  text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px;
+  list-style: none;
+}
+.codeLink::-webkit-details-marker { display: none; }
+.codeLink:hover, .codeLink:focus-visible { color: var(--text); }
+
+/* A long enum (Industry, Theme): the select, plus a box that narrows its choices. */
+.enumWrap { display: flex; flex-direction: column; gap: 4px; }
+.enumSearchRow { display: flex; align-items: center; gap: 8px; padding: 0 4px 6px; }
+.enumSearch {
+  flex: 1; min-width: 0; box-sizing: border-box; min-height: 30px; padding: 4px 8px;
+  font: inherit; font-size: var(--text-base); background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text);
+}
+.enumHint { color: var(--text-muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Empty state: the verdict alone is the live region. */
+.stateStatus { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+/* Empty state: each active filter as a pill that says what removing it would give. */
+.dropPills { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 640px; margin: 0; padding: 0; list-style: none; }
+.dropPill {
+  display: inline-flex; align-items: center; gap: 8px; border-radius: var(--radius-pill); padding: 4px 12px;
+  font: inherit; font-size: var(--text-base); background: var(--bg-elevated); border: 1px solid var(--border-accent);
+  color: var(--text); min-height: 32px; cursor: pointer;
+}
+.dropPill:hover, .dropPill:focus-visible { border-color: var(--ut-gold); }
+.dropGain { color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dropGainSome { color: var(--success-ink); }
+.countNote { color: var(--text-muted); font-size: var(--text-base); white-space: nowrap; }
+.dropMore { color: var(--text-muted); font-size: var(--text-base); align-self: center; }
+
+@media (max-width: 1024px) {
+  .codeLink, .dropPill, .enumSearch { min-height: var(--tap-min); }
+}

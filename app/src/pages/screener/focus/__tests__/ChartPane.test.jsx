@@ -9,7 +9,15 @@ const why = { items: [{ kind: 'check', label: 'RS Rank ≥ 80', value: '94' }, {
 test('header names the stock and the setup', () => {
   render(<ChartPane row={row} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
   expect(screen.getByRole('heading', { name: /MU/ })).toBeInTheDocument()
-  expect(screen.getByText('Micron Technology · Semiconductors')).toBeInTheDocument()
+  const company = screen.getByTestId('pane-company')
+  const industry = screen.getByTestId('pane-industry')
+  expect(company).toHaveTextContent('Micron Technology')
+  expect(industry).toHaveTextContent('· Semiconductors')
+  expect(company).not.toBe(industry)
+  expect(company.contains(industry)).toBe(false)
+  // the <=1024 media rule hides only the industry element, never the company
+  expect(industry.className).toMatch(/paneIndustry/)
+  expect(company.className).not.toMatch(/paneIndustry/)
   expect(screen.getByText('Flat Base')).toBeInTheDocument()
   expect(screen.getByTestId('stockchart')).toHaveAttribute('data-sym', 'MU')
 })
@@ -51,7 +59,7 @@ test('nothing selected shows a placeholder, no chart', () => {
 })
 
 test('live price overrides the shown price', () => {
-  render(<ChartPane row={row} livePrice={{ price: 960.5, change_pct: 1.2 }} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  render(<ChartPane row={row} livePx={960.5} liveChg={1.2} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
   expect(screen.getByText('960.50')).toBeInTheDocument()
   expect(screen.getByText('+1.2%')).toBeInTheDocument()
 })
@@ -64,4 +72,44 @@ test('the W button passes tf W to the chart', () => {
   fireEvent.click(screen.getByRole('button', { name: 'W' }))
   expect(screen.getByRole('button', { name: 'W' })).toHaveAttribute('aria-pressed', 'true')
   expect(screen.getByTestId('stockchart')).toHaveAttribute('data-tf', 'W')
+})
+
+test('plain words: the fact line says what the numbers are (owner decision 5)', () => {
+  render(<ChartPane row={{ ...row, vol_ratio: 0.6, adr_pct: 4.1 }} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.getByText('Volume 0.6× avg · Avg daily range 4.1%')).toBeInTheDocument()
+  expect(screen.queryByText(/ADR|Vol \d/)).toBeNull()
+})
+test('B2: a structure screen leads the setup tag with the matched structure; the pivot is named for the head', () => {
+  const structures = { matched: [{ value: ',pocket-pivot,', label: 'Pocket Pivot', title: 'Pocket Pivot' }], labels: ['Pocket Pivot', 'Ugly Double Bottom'] }
+  render(<ChartPane row={{ ...row, base_render: 'Ugly Double Bottom (Pocket Pivot)', price: 97, base_pivot_px: 100 }} structures={structures}
+    why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  const tag = screen.getByTestId('pane-setup')
+  expect(tag).toHaveTextContent('Pocket Pivot · also Ugly Double Bottom')
+  expect(tag).toHaveAttribute('title', 'Pocket Pivot')
+  expect(screen.getByText('Ugly Double Bottom: 3.0% below pivot 100')).toBeInTheDocument()
+})
+test('the setup tag always carries a tooltip', () => {
+  render(<ChartPane row={row} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.getByTestId('pane-setup')).toHaveAttribute('title', 'Flat Base')
+})
+
+// -- Task 3 --
+test('B5/N4: the header pairs a live price with the live change only, as the row does', () => {
+  render(<ChartPane row={row} livePx={960} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.getByText('960.00')).toBeInTheDocument()
+  // the snapshot's change belongs to a different moment: never shown beside a live price
+  expect(screen.queryByText('−3.7%')).toBeNull()
+})
+test('P8: earnings reads a date and a countdown, amber within a week', () => {
+  const now = Date.parse('2026-10-14T10:00:00-04:00')
+  const { rerender } = render(<ChartPane row={{ ...row, next_earnings_date: '2026-11-18' }} now={now} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  const far = screen.getByTestId('pane-earnings')
+  expect(far).toHaveTextContent('Earnings Nov 18 (in 35d)')
+  expect(far).not.toHaveAttribute('data-soon')
+  rerender(<ChartPane row={{ ...row, next_earnings_date: '2026-10-19' }} now={now} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  const near = screen.getByTestId('pane-earnings')
+  expect(near).toHaveTextContent('Earnings Oct 19 (in 5d)')
+  expect(near).toHaveAttribute('data-soon')
+  expect(near.className).toMatch(/paneEarnSoon/)
+  expect(screen.queryByText(/2026-10-19/)).toBeNull()
 })
