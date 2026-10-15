@@ -177,18 +177,26 @@ test('Recently added holds the newest videos across categories and plays within 
   renderSection()
   const rail = screen.getByRole('list', { name: 'Recently added' })
   // Fixture created_at ordering: id 2 (Jul 24) > id 3 (Jul 23) > id 1 (Jul 21);
-  // library videos carry no created_at so they never join the cross-cut.
+  // library videos carry no created_at so they never join the cross-cut. id 2
+  // is also the featured episode, so it is left out here (already shown above).
   const cards = within(rail).getAllByRole('button', { name: /^Play / })
   expect(cards.map((b) => b.getAttribute('aria-label'))).toEqual([
-    'Play Session — July 24 breadth day',
     'Play Evening Update — July 23',
     'Play Session — July 21',
   ])
   fireEvent.click(cards[1])
   expect(play).toHaveBeenCalledTimes(1)
   const [listArg, indexArg] = play.mock.calls[0]
-  expect(listArg.map((v) => v.id)).toEqual([2, 3, 1]) // the recently-added list itself
+  expect(listArg.map((v) => v.id)).toEqual([3, 1]) // the recently-added list itself
   expect(indexArg).toBe(1)
+})
+
+test('the featured episode is not repeated as the first Recently added card', () => {
+  renderSection()
+  const featured = screen.getAllByRole('button', { name: /July 24 breadth day/ })
+  expect(featured.length).toBeGreaterThan(0) // control: the hero really is that episode
+  const rail = screen.getByRole('list', { name: 'Recently added' })
+  expect(within(rail).queryByRole('button', { name: /July 24 breadth day/ })).toBeNull()
 })
 
 test('Recently added shows no count in its header', () => {
