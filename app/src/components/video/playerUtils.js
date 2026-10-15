@@ -29,3 +29,12 @@ export function clampMiniPos(pos, w, h, vw, vh, bottomClear = 0) {
     top: Math.min(Math.max(8, pos.y), maxTop),
   }
 }
+
+// Chapter titles come from AI over the transcript and once carried an internal
+// production note verbatim — "Intro (private recording, ep 919 season 12)".
+// A parenthetical that is a production/recording note never reaches members.
+const PRODUCTION_NOTE = /\s*\((?:[^)]*\b(?:private|internal|unlisted)\b[^)]*|[^)]*\brecording\b[^)]*\bep(?:isode)?\s*\d+[^)]*)\)/gi
+export const memberChapterTitle = (t) => {
+  const cleaned = String(t || '').replace(PRODUCTION_NOTE, '').replace(/\s{2,}/g, ' ').trim()
+  return cleaned || String(t || '')
+}

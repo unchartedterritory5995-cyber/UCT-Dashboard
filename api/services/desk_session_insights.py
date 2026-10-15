@@ -1376,6 +1376,34 @@ def refresh_description(v: dict, ins: dict, youtube=None) -> bool:
         return False
 
 
+def _record_media_duration(v: dict, rec: dict | None) -> None:
+    """Store the recording's length on a session published without one, so the
+    Desk shows "1:55:03" on the card instead of nothing (77 of 79 Live Trading
+    Sessions had no length on 2026-10-14). Only the Zoom recording's own window
+    or `duration` is used — never the edu_videos fallback, which is the value
+    being filled. A stored length is never overwritten. Never raises."""
+    try:
+        if not rec:
+            return
+        # Read the STORED row: the pending-work query does not select duration,
+        # so v.get("duration") is None even for a video that has one.
+        stored = education_service.get_video(int(v["id"])) or {}
+        if (stored.get("duration") or "").strip():
+            return
+        win = _file_window(select_largest_mp4(rec.get("recording_files")))
+        secs = int(round(win[1] - win[0])) if win else None
+        if not secs:
+            minutes = rec.get("duration")
+            if isinstance(minutes, (int, float)) and minutes > 0:
+                secs = int(round(float(minutes) * 60))
+        if secs and secs >= 60:
+            education_service.update_video(int(v["id"]), {
+                "duration": education_service.format_duration(secs)})
+            v["duration"] = education_service.format_duration(secs)
+    except Exception as de:
+        print(f"[session-insights] duration record failed (non-fatal): {de}")
+
+
 def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]) -> None:
     vid = v["id"]
     uuid = v.get("meeting_uuid") or ""
@@ -1383,6 +1411,7 @@ def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]
     age = now - int(v.get("created_at") or now)
     rec = zoom.get_recording_files(uuid)
     _capture_media_provenance(vid, uuid, rec)
+    _record_media_duration(v, rec)
     if rec is None:  # recording already gone — nothing to fetch
         education_service.mark_zoom_cleaned(vid)
         if not has_chapters:
@@ -1568,6 +1597,69 @@ def _run_ticker_backfill(results: list[dict], errors: list[dict]) -> None:
         results.append({"id": vid, "action": "ticker_backfill", "tickers": len(tickers)})
 
 
+# ── Repolish backfill — a session whose polish failed keeps Zoom's raw prose ────
+# The polish pass is best-effort (a failure must never block publishing), and
+# the 'generated' path runs once per video — so a single failed call left the
+# Zoom AI-Companion text ("The meeting focused on…", 6 long paragraphs) on the
+# Desk permanently. 9 sessions were stuck that way on 2026-10-14. This retries
+# from STORED data only (repolish_video), at most _REPOLISH_PER_PASS per pass,
+# and each video at most once per _REPOLISH_COOLDOWN_SECS per process, so a
+# persistently failing video costs a bounded number of LLM calls per day.
+
+_REPOLISH_PER_PASS = 2
+_REPOLISH_COOLDOWN_SECS = 24 * 3600
+_REPOLISH_LAST_TRY: dict[int, float] = {}
+# Openers the polish prompt forbids ("NEVER write meta-narration") — Zoom's own.
+_RAW_HEADLINE = re.compile(
+    r"^(the (meeting|session|discussion|conversation|call)\b|this was a\b|in this (meeting|session)\b"
+    r"|(patrick|brac|bracco|ravi)( and \w+)? (conducted|discussed|led|reviewed)\b)",
+    re.IGNORECASE,
+)
+
+
+def looks_unpolished(headline: str) -> bool:
+    """True when a stored headline is Zoom's raw meeting prose rather than the
+    polished one-liner (the polish prompt caps headlines at ~110 chars and
+    forbids meta-narration; Zoom's run 200-400 chars and open with it)."""
+    h = (headline or "").strip()
+    if not h:
+        return False
+    return bool(_RAW_HEADLINE.match(h)) or len(h) > 200
+
+
+def _repolish_backfill_enabled() -> bool:
+    return os.environ.get("DESK_REPOLISH_BACKFILL", "1") != "0" and _recap_polish_enabled()
+
+
+def _run_repolish_backfill(results: list[dict], errors: list[dict], now: float | None = None) -> None:
+    if not _repolish_backfill_enabled():
+        return
+    now = time.time() if now is None else now
+    try:
+        rows = education_service.session_videos_with_headlines()
+    except Exception as e:
+        print(f"[session-insights] repolish list failed: {e}")
+        return
+    tried = 0
+    for v in rows:
+        if tried >= _REPOLISH_PER_PASS:
+            break
+        vid = int(v["id"])
+        if not looks_unpolished(v.get("headline") or ""):
+            continue
+        last = _REPOLISH_LAST_TRY.get(vid)
+        if last is not None and now - last < _REPOLISH_COOLDOWN_SECS:
+            continue
+        _REPOLISH_LAST_TRY[vid] = now
+        tried += 1
+        try:
+            out = repolish_video(vid)
+            results.append({"id": vid, "action": "repolished", "headline": out.get("headline", "")})
+        except Exception as e:
+            print(f"[session-insights] repolish {vid} failed (non-fatal): {e}")
+            errors.append({"id": vid, "error": f"repolish: {str(e)[:280]}"})
+
+
 def process_pending_session_insights(*, zoom=None) -> list[dict]:
     """Backfill chapters/ticker-moments for published session videos, then trash
     the Zoom recording. One pass; safe to call on a schedule. Never raises."""
@@ -1592,6 +1684,7 @@ def process_pending_session_insights(*, zoom=None) -> list[dict]:
     # Independent of the main pass above — runs even when `pending` is empty,
     # and never touches Zoom (stored transcript only).
     _run_ticker_backfill(results, errors)
+    _run_repolish_backfill(results, errors)
     _RECENT_PASSES.append({"ts": int(time.time()), "results": list(results), "errors": errors})
     return results
 

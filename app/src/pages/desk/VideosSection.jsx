@@ -14,7 +14,7 @@ import { useAuth } from '../../context/AuthContext'
 import Sheet from '../../components/mobile/Sheet'
 import { GraduationIcon, PlusIcon, SearchIcon } from '../education/icons'
 import VideoDockSlot from '../../components/video/VideoDockSlot'
-import { play as playVideo } from '../../components/video/videoStore'
+import { play as playVideo, minimize as minimizeVideo } from '../../components/video/videoStore'
 import { subscribe, getSnapshot, hydrateFromServer } from './videoProgress'
 import FeaturedStrip from './FeaturedStrip'
 import PathView, { PathViewSkeleton } from './PathView'
@@ -152,6 +152,33 @@ export const resolvePathRows = (rows, categories) => {
   }))
 }
 
+// Back-catalogue imports stamp every video with the SAME created_at (the
+// 2026-06-19 load put ~250 videos inside one minute). That stamp is when the
+// row was written, not when the episode aired, so a show card reading
+// "Jun 19, 2026" under a November 2025 recap is wrong. Any minute holding at
+// least IMPORT_BATCH_MIN videos is treated as an import stamp: those videos
+// get `importStamped: true` and the UI shows no date for them rather than a
+// false one. Returns new objects; the SWR payload is never mutated.
+export const IMPORT_BATCH_MIN = 8
+export function markImportStamps(categories) {
+  const perMinute = new Map()
+  for (const c of categories) {
+    for (const v of c.videos || []) {
+      if (!v.created_at) continue
+      const m = Math.floor(v.created_at / 60)
+      perMinute.set(m, (perMinute.get(m) || 0) + 1)
+    }
+  }
+  const batch = new Set([...perMinute].filter(([, n]) => n >= IMPORT_BATCH_MIN).map(([m]) => m))
+  if (!batch.size) return categories
+  return categories.map((c) => ({
+    ...c,
+    videos: (c.videos || []).map((v) =>
+      v.created_at && batch.has(Math.floor(v.created_at / 60)) ? { ...v, importStamped: true } : v,
+    ),
+  }))
+}
+
 // The backend wraps matched terms in literal <b>…</b> markers. We parse those
 // markers OURSELVES and emit React nodes — every non-marker fragment becomes a
 // plain text node React escapes, so no dangerouslySetInnerHTML and no reliance
@@ -220,7 +247,7 @@ export default function VideosSection() {
 
   // Server-ordered categories — shows first, then library, each by sort_order
   // (see api/routers/education.py). No client re-sort; render verbatim.
-  const categories = useMemo(() => data?.categories || [], [data])
+  const categories = useMemo(() => markImportStamps(data?.categories || []), [data])
   const shows = useMemo(() => categories.filter((c) => c.kind === 'show'), [categories])
   const library = useMemo(() => categories.filter((c) => c.kind !== 'show'), [categories])
   const total = data?.total ?? 0
@@ -389,7 +416,11 @@ export default function VideosSection() {
         const list = [...(show.videos || [])].sort((a, b) => b.id - a.id)
         return {
           name: show.name,
-          updatedAt: list.reduce((m, v) => Math.max(m, v.created_at || 0), 0),
+          // Import stamps say nothing about when a show last aired.
+          updatedAt: list.reduce(
+            (m, v) => (v.importStamped ? m : Math.max(m, v.created_at || 0)),
+            0,
+          ),
           entries: list.map((v, i) => ({ video: v, list, index: i, kind: 'show' })),
         }
       }),
@@ -530,6 +561,14 @@ export default function VideosSection() {
     () => (pathParam ? openablePaths.find((p) => p.slug === pathParam) || null : null),
     [pathParam, openablePaths],
   )
+  // Opening a course while a video sits in the theater used to leave the
+  // full theater (video + takeaways + up-next, ~1,500px) ABOVE the syllabus,
+  // so the course page opened off-screen. Entering a course parks the player
+  // in its slim restore strip; playing a lesson docks it again as usual.
+  useEffect(() => {
+    if (pathParam) minimizeVideo()
+  }, [pathParam])
+
   const openPath = useCallback(
     (slug) => {
       setSearchParams(
@@ -925,50 +964,9 @@ export default function VideosSection() {
             />
           )}
 
-          {showShelves.some((sh) => sh.entries.length > 0) && (
-            <ZoneMarker label="SHOWS" />
-          )}
-
-          {showShelves.map((shelf) => (
-            <Shelf
-              key={shelf.name}
-              name={shelf.name}
-              icon={showGlyphName(shelf.name)}
-              entries={shelf.entries}
-              updatedAt={shelf.updatedAt}
-              onPlay={playVideo}
-              progress={progress}
-              deskThreads={deskThreads}
-              isAdmin={isAdmin}
-              onEdit={setEditing}
-              onDelete={handleDelete}
-            />
-          ))}
-
-          {(libraryShelves.length > 0 || (activeTag && library.length > 0)) && (
-            <ZoneMarker label="LIBRARY" />
-          )}
-
-          {activeTag && libraryShelves.length === 0 && (
-            <div className={styles.note}>No library videos tagged “{activeTag}”.</div>
-          )}
-
-          {libraryShelves.map((shelf) => (
-            <Shelf
-              key={shelf.name}
-              name={shelf.name}
-              entries={shelf.entries}
-              onPlay={playVideo}
-              progress={progress}
-              deskThreads={deskThreads}
-              isAdmin={isAdmin}
-              onEdit={setEditing}
-              onDelete={handleDelete}
-            />
-          ))}
-
-          {/* Courses — the Learning Paths block's successor, same landing
-              position. Quiet hairline cards: kind eyebrow (gold ONLY for the
+          {/* Learning Paths sit right under Recently added (they used to close the
+              page, ~20 shelves down, where few members ever scrolled). Hairline
+              cards: a strip of the first lessons' thumbnails, kind eyebrow (gold ONLY for the
               flagship 'course' kind — information, not decoration), name,
               one-line blurb, lesson count (+ ~total when enough durations
               parse), and a thin gold bar + "n of M" once started. Click
@@ -1016,6 +1014,13 @@ export default function VideosSection() {
                     className={s.pathCard}
                     onClick={() => openPath(p.slug)}
                   >
+                    {(p.videos || []).length > 0 && (
+                      <span className={s.pathThumbs} aria-hidden="true">
+                        {p.videos.slice(0, 3).map((v) => (
+                          <img key={v.id} className={s.pathThumb} src={ytThumb(v.youtube_id)} alt="" loading="lazy" />
+                        ))}
+                      </span>
+                    )}
                     <span
                       className={`${s.pathKind} ${p.kind === 'course' ? s.pathKindCourse : ''}`}
                     >
@@ -1044,13 +1049,58 @@ export default function VideosSection() {
               </div>
             </section>
           )}
+
+          {showShelves.some((sh) => sh.entries.length > 0) && (
+            <ZoneMarker label="SHOWS" />
+          )}
+
+          {showShelves.map((shelf) => (
+            <Shelf
+              key={shelf.name}
+              name={shelf.name}
+              icon={showGlyphName(shelf.name)}
+              entries={shelf.entries}
+              updatedAt={shelf.updatedAt}
+              onPlay={playVideo}
+              progress={progress}
+              deskThreads={deskThreads}
+              isAdmin={isAdmin}
+              onEdit={setEditing}
+              onDelete={handleDelete}
+            />
+          ))}
+
+          {(libraryShelves.length > 0 || (activeTag && library.length > 0)) && (
+            <ZoneMarker label="LIBRARY" />
+          )}
+
+          {activeTag && libraryShelves.length === 0 && (
+            <div className={styles.note}>No library videos tagged “{activeTag}”.</div>
+          )}
+
+          {libraryShelves.map((shelf) => (
+            <Shelf
+              key={shelf.name}
+              name={shelf.name}
+              entries={shelf.entries}
+              onPlay={playVideo}
+              progress={progress}
+              deskThreads={deskThreads}
+              isAdmin={isAdmin}
+              onEdit={setEditing}
+              onDelete={handleDelete}
+            />
+          ))}
+
         </>
       )}
 
       {/* ── Search / category filter active: flat filtered grid, same cards. ── */}
       {!isLoading && total > 0 && !activePath && !pathPending && !landing && (
         <>
-          {continueShelf}
+          {/* Continue Watching stays for a category chip, but not over search
+              results: someone typing a query wants the matches first. */}
+          {!query.trim() && continueShelf}
 
           {query.trim() && resultCount > 0 && (
             <div className={s.resultCount}>
@@ -1062,7 +1112,33 @@ export default function VideosSection() {
             <div className={styles.note}>No videos match “{query}”.</div>
           )}
 
-          {filtered.map((cat) => {
+          {/* A search spans many categories with a match or two each, so the
+              matches render as ONE grid with the category on each card,
+              instead of a header-per-category with a single card under it. */}
+          {query.trim() && filtered.length > 0 && (
+            <section className={s.shelf} aria-label="Matching videos">
+              <div className={s.shelfGrid}>
+                {filtered.flatMap((cat) =>
+                  cat.videos.map((v, vi) => (
+                    <YTCard
+                      key={v.id}
+                      video={v}
+                      kind={cat.kind === 'show' ? 'show' : 'library'}
+                      contextLabel={cat.name}
+                      onClick={() => playVideo(cat.videos, vi)}
+                      progress={progress}
+                      deskThreads={deskThreads}
+                      isAdmin={isAdmin}
+                      onEdit={setEditing}
+                      onDelete={handleDelete}
+                    />
+                  )),
+                )}
+              </div>
+            </section>
+          )}
+
+          {!query.trim() && filtered.map((cat) => {
             const glyph = cat.kind === 'show' ? showGlyphName(cat.name) : null
             return (
             <section key={cat.name} className={s.shelf}>

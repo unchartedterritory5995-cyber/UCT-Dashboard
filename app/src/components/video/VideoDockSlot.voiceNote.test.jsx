@@ -51,7 +51,7 @@ function mount(auth = PAID) {
     </AuthContext.Provider>,
   )
 }
-const door = () => screen.queryByRole('button', { name: 'Save to Notebook' })
+const door = () => screen.queryByRole('button', { name: 'Save transcript to Notebook…' })
 
 describe('Save to Notebook on a Desk session', () => {
   it('is absent while the gate is off', () => {

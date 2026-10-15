@@ -18,7 +18,7 @@ vi.mock('../../context/AuthContext', () => ({
   useAuth: () => ({ user: { role: 'admin' } }),
 }))
 
-vi.mock('../../components/video/videoStore', () => ({ play: vi.fn() }))
+vi.mock('../../components/video/videoStore', () => ({ play: vi.fn(), minimize: vi.fn() }))
 
 const EMPTY_PROGRESS = {}
 vi.mock('./videoProgress', () => ({

@@ -1,5 +1,9 @@
 .theater {
   margin: 0 0 18px;
+  /* Lets the layout below respond to the theater's own width. Safe for the
+     player: it lives in a position:fixed layer outside this subtree and is
+     pinned to .dockBox by measuring it, not by being its descendant. */
+  container: theater / inline-size;
 }
 
 /* Four-zone theater — CENTER video, LEFT rail (chapters + recap poster),
@@ -34,20 +38,57 @@
 .bottomBand > * {
   margin-top: 0;
 }
+/* Laptop widths: the video is the point, so it takes the whole main column and
+   the left rail (chapters + recap poster) drops UNDER it, YouTube-style. The
+   old three-column split engaged at 1025px and left a 1036px-wide window with
+   a ~300px video between two rails. The right rail spans both rows, and the
+   second row is 1fr, so a tall rail never pushes the chapters down. */
 @media (min-width: 1025px) {
   .fourZone {
     display: grid;
-    grid-template-columns: 250px minmax(0, 1fr) 330px;
-    grid-template-areas: 'left center right';
-    gap: 22px;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      'center right'
+      'left   right';
+    gap: 22px 26px;
     align-items: start;
   }
   .leftRail { grid-area: left; }
   .centerCol { grid-area: center; }
   .rightRail { grid-area: right; }
-  /* Plain videos (no chapters/poster) drop the left column entirely. */
+  /* Under the video the rail is wide: chapters and setups on the left, the
+     recap poster beside them rather than stretched across the full width. */
+  .leftRail:has(.posterWrap) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 240px);
+    align-items: start;
+    column-gap: 26px;
+  }
+  .leftRail:has(.posterWrap) > .posterWrap {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+  }
+  /* Plain videos (no chapters/poster) drop the left area entirely. */
   .fourZone.noLeft {
-    grid-template-columns: minmax(0, 1fr) 330px;
+    grid-template-rows: auto;
+    grid-template-areas: 'center right';
+  }
+}
+/* Wide screens have room for all three columns with a big video between.
+   Keyed on the theater's own width (a container query, so the sidebar's width
+   counts) rather than a new viewport breakpoint. 1360px is where the centre
+   column in the three-column split stays at least ~720px wide. */
+@container theater (min-width: 1360px) {
+  .fourZone {
+    grid-template-columns: 250px minmax(0, 1fr) 340px;
+    grid-template-rows: auto;
+    grid-template-areas: 'left center right';
+  }
+  .leftRail:has(.posterWrap) { display: flex; }
+  .leftRail:has(.posterWrap) > .posterWrap { grid-column: auto; grid-row: auto; }
+  .fourZone.noLeft {
+    grid-template-columns: minmax(0, 1fr) 340px;
     grid-template-areas: 'center right';
   }
 }
@@ -491,6 +532,27 @@
   border-radius: 50%;
   background: #dcbb5e;
 }
+.takeawaysToggle {
+  margin-top: 2px;
+  padding: 4px 0;
+  min-height: 32px;
+  background: none;
+  border: none;
+  color: var(--ut-gold, #dcbb5e);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.takeawaysToggle:hover { text-decoration: underline; }
+.takeawaysToggle:focus-visible {
+  outline: 2px solid #dcbb5e;
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+@media (max-width: 1024px) {
+  .takeawaysToggle { min-height: var(--tap-min); }
+}
 @media (max-width: 640px) {
   .recapWrap { flex-direction: column; }
   .poster { width: 100%; }
@@ -548,7 +610,27 @@
   display: flex;
   gap: 10px;
   overflow-x: auto;
-  padding-bottom: 4px;
+  padding-bottom: 6px;
+  /* Hairline gold thumb instead of the browser's bright grey bar. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(220, 187, 94, 0.28) transparent;
+}
+.upNextDuration {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: rgba(14, 15, 13, 0.85);
+  color: var(--text-bright, #f3efe2);
+  font-size: 11px;
+  font-weight: 500;
+}
+@media (hover: hover) and (pointer: fine) {
+  .upNextItem:hover .upNextThumbWrap {
+    box-shadow: 0 0 0 1px rgba(220, 187, 94, 0.55);
+  }
+  .upNextItem:hover .upNextTitle { color: var(--text-heading, #fff); }
 }
 .upNextItem {
   flex: 0 0 auto;
@@ -560,6 +642,7 @@
   padding: 0;
 }
 .upNextThumbWrap {
+  position: relative;
   display: block;
   width: 220px;
   aspect-ratio: 16 / 9;

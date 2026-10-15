@@ -37,7 +37,7 @@ vi.mock('swr', () => ({
 }))
 
 // The playback contract: everything must route through videoStore.play.
-vi.mock('../../components/video/videoStore', () => ({ play: vi.fn() }))
+vi.mock('../../components/video/videoStore', () => ({ play: vi.fn(), minimize: vi.fn() }))
 
 // Controllable watch-progress store (keyed by youtube_id).
 let mockProgress = {}
@@ -56,7 +56,7 @@ import VideosSection, {
   fmtSeekTime, renderSnippet, parseDuration, fmtCourseDuration,
 } from './VideosSection'
 import Shelf, { showGlyphName } from './Shelf'
-import { play } from '../../components/video/videoStore'
+import { play, minimize } from '../../components/video/videoStore'
 
 const fixture = () => ({
   total: 6,
@@ -769,8 +769,10 @@ test('deep section renders from /search, dedupes visible grid matches, formats s
   expect(within(chapterRow).getByText('1:02:05')).toBeTruthy()
   const headlineRow = within(section).getByRole('button', { name: 'Play Welcome to the Desk' })
   expect(within(headlineRow).queryByText(/^\d+:\d\d/)).toBeNull()
-  // The deep section sits BELOW the title-match grid.
-  const grid = screen.getByRole('heading', { level: 2, name: 'Getting Started' }).closest('section')
+  // The deep section sits BELOW the title-match grid (one flat grid while a
+  // query is typed; each card carries its category on the meta line).
+  const grid = screen.getByRole('region', { name: 'Matching videos' })
+  expect(within(grid).getByText(/Getting Started/)).toBeTruthy()
   expect(grid.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 })
 
@@ -1375,4 +1377,28 @@ test('learningPaths.js is fully deleted — no module remains beside VideosSecti
   // its test) would reappear here and fail the build-time contract.
   const mods = import.meta.glob('./learningPaths*')
   expect(Object.keys(mods)).toEqual([])
+})
+
+/* ── Desk polish 2026-10-14: paths placement, thumbnails, course entry ─── */
+
+test('Learning Paths sit above the SHOWS zone, and each card shows lesson thumbnails', () => {
+  mockPaths = pathsFixture()
+  const { container } = renderSection()
+  const head = screen.getByRole('heading', { level: 2, name: 'Learning Paths' })
+  const shows = screen.getByText('SHOWS')
+  expect(head.compareDocumentPosition(shows) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  const thumbs = courseCard('Foundations').querySelectorAll('img')
+  expect(thumbs.length).toBe(3)
+  expect(thumbs[0].getAttribute('src')).toMatch(/i\.ytimg\.com\/vi\/.+\/hqdefault\.jpg/)
+  expect(container).toBeTruthy()
+})
+
+test('opening a course parks the player so the syllabus is not pushed below the theater', () => {
+  mockPaths = pathsFixture()
+  minimize.mockClear()
+  renderSection(['/?path=' + pathsFixture().paths[0].slug])
+  expect(minimize).toHaveBeenCalled()
+  minimize.mockClear()
+  renderSection()
+  expect(minimize).not.toHaveBeenCalled()
 })

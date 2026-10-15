@@ -63,6 +63,44 @@ export const fmtShortDate = (epoch) => {
   }
 }
 
+// Card meta for show episodes: "Today" / "Yesterday" / "3 days ago" inside a
+// week, then "Oct 2" (this year) or "Oct 2, 2025". The episode title and the
+// thumbnail already carry the full date, so the meta line adds recency instead
+// of repeating it a third time.
+export const fmtRelativeDate = (epoch, nowMs = Date.now()) => {
+  if (!epoch) return ''
+  try {
+    const d = new Date(epoch * 1000)
+    const now = new Date(nowMs)
+    const dayStart = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+    const days = Math.round((dayStart(now) - dayStart(d)) / 86400000)
+    if (days <= 0) return 'Today'
+    if (days === 1) return 'Yesterday'
+    if (days < 7) return `${days} days ago`
+    return d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      ...(d.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
+    })
+  } catch {
+    return ''
+  }
+}
+
+// Card title without a repeated "Show Season N, Episode N" prefix when the
+// episode label (S1 · E5) already says it on the meta line:
+// "The Mental Game Season 1, Episode 5 Hesitation and Edge…" → "Hesitation and
+// Edge…". Only when episode_label is set and something meaningful is left;
+// otherwise the stored title is returned untouched.
+const SEASON_EP_PREFIX =
+  /^.*?\bSeason\s*\d+\s*,?\s*Episode\s*\d+\s*(?:in\s+Uncharted\s+Territory\b)?\s*[:\-–—|]?\s*/i
+export const cardTitle = (video) => {
+  const t = video?.title || ''
+  if (!video?.episode_label) return t
+  const rest = t.replace(SEASON_EP_PREFIX, '')
+  return rest !== t && rest.trim().length >= 8 ? rest.trim() : t
+}
+
 // Short "Jul 24" form for header micro-meta (no year — it's always recent).
 export const fmtMonthDay = (epoch) => {
   if (!epoch) return ''
@@ -159,7 +197,7 @@ export const pageScroller = (el, dir, fraction) => {
 // timeLeftMeta (Continue Watching) swaps the meta line for remaining minutes.
 export function YTCard({
   video, onClick, progress, kind, deskThreads, isAdmin, onEdit, onDelete,
-  timeLeftMeta = false,
+  timeLeftMeta = false, contextLabel = '',
 }) {
   const pct = progressPct(progress, video)
   const watched = !!progress?.[video.youtube_id]?.done
@@ -167,10 +205,13 @@ export function YTCard({
   const thread = deskThreads?.[String(video.id)]
   const baseMeta = timeLeftMeta
     ? timeLeftLabel(progress, video)
-    : kind === 'show' ? fmtShortDate(video.created_at) : ''
+    : kind === 'show' && !video.importStamped ? fmtRelativeDate(video.created_at) : ''
   // Episode label ("S12 · E9" / "E42.4") prepends the meta line wherever the
   // card renders: "S12 · E9 · Jul 24, 2025". No label → meta unchanged.
-  const meta = [video.episode_label, baseMeta].filter(Boolean).join(' · ')
+  // contextLabel (search results): the category leads the meta line so a
+  // flat grid of matches still says where each one lives.
+  const meta = [contextLabel, video.episode_label, baseMeta].filter(Boolean).join(' · ')
+  const title = cardTitle(video)
   return (
     <article className={s.card}>
       <button className={s.thumbBtn} onClick={onClick} aria-label={`Play ${video.title}`}>
@@ -180,6 +221,13 @@ export function YTCard({
           alt=""
           loading="lazy"
         />
+        {/* Hover/focus affordance: a centered play disc over a slightly
+            dimmed thumb (CSS-only; hidden on touch, where there is no hover). */}
+        <span className={s.playOverlay} aria-hidden="true">
+          <span className={s.playDisc}>
+            <UIcon name="play" size={18} gold={false} />
+          </span>
+        </span>
         {isNew && !watched && <span className={s.newBadge}>NEW</span>}
         {watched && <span className={s.watchedTag}>Watched</span>}
         {video.duration && <span className={s.duration}>{video.duration}</span>}
@@ -190,7 +238,9 @@ export function YTCard({
         )}
       </button>
       <div className={s.cardBody}>
-        <div className={s.cardTitle}>{video.title}</div>
+        <div className={s.cardTitle} title={title === video.title ? undefined : video.title}>
+          {title}
+        </div>
         {(meta || thread) && (
           <div className={s.cardMeta}>
             {meta && <span className={s.cardMetaText}>{meta}</span>}
@@ -200,7 +250,9 @@ export function YTCard({
                 className={s.cardMetaLink}
                 onClick={(e) => e.stopPropagation()}
               >
-                Discussion ({thread.reply_count})
+                {thread.reply_count > 0
+                  ? `${thread.reply_count} ${thread.reply_count === 1 ? 'reply' : 'replies'}`
+                  : 'Discuss'}
               </Link>
             )}
           </div>
@@ -316,7 +368,11 @@ export default function Shelf({
           {gridEntries.map((en) => <div key={en.video.id}>{card(en)}</div>)}
         </div>
       ) : (
-        <div className={s.shelfRowWrap}>
+        <div
+          className={s.shelfRowWrap}
+          data-more-left={edges.left ? '' : undefined}
+          data-more-right={edges.right ? '' : undefined}
+        >
           <div className={s.shelfRow} ref={setRowEl} role="list" aria-label={name}>
             {entries.map((en) => (
               <div role="listitem" key={en.video.id} className={s.shelfItem}>

@@ -99,6 +99,9 @@
   box-shadow: 0 0 14px var(--ut-gold-glow);
 }
 .addBtn:hover { filter: brightness(1.06); }
+/* The plus glyph is gold-on-gold by default and vanished into the button;
+   draw it in the button's dark text colour instead. */
+.addBtn svg path { stroke: currentColor; }
 
 .note {
   color: var(--text-muted);

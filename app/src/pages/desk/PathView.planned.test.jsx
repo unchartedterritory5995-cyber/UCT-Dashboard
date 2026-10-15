@@ -38,7 +38,7 @@ vi.mock('swr', () => ({
   },
 }))
 
-vi.mock('../../components/video/videoStore', () => ({ play: vi.fn() }))
+vi.mock('../../components/video/videoStore', () => ({ play: vi.fn(), minimize: vi.fn() }))
 
 let mockProgress = {}
 vi.mock('./videoProgress', () => ({

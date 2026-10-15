@@ -1086,6 +1086,34 @@ _GROUPED_PAYLOAD_STRIP_KEYS = (
 )
 
 
+# Below this a "length" is a player that reported before metadata loaded, not
+# a real video; session recordings run 20 minutes to 5 hours.
+_MIN_MEASURED_SECS = 60
+
+
+def measured_durations() -> dict[str, int]:
+    """youtube_id -> the longest length (seconds) any member's player reported
+    while watching it (edu_video_progress.duration grows monotonically per row).
+    Fills the length for videos published without one — 77 of 79 Live Trading
+    Sessions on 2026-10-14 — at READ time; nothing is written back, so a stored
+    duration always wins and an admin edit is never overridden."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT youtube_id, MAX(duration) AS d FROM edu_video_progress "
+            "WHERE duration >= ? GROUP BY youtube_id",
+            (_MIN_MEASURED_SECS,),
+        ).fetchall()
+    return {r["youtube_id"]: int(r["d"]) for r in rows}
+
+
+def format_duration(seconds: int) -> str:
+    """Seconds -> the stored text form: "12:34" or "1:02:05"."""
+    s = max(0, int(seconds or 0))
+    h, rem = divmod(s, 3600)
+    m, sec = divmod(rem, 60)
+    return f"{h}:{m:02d}:{sec:02d}" if h else f"{m}:{sec:02d}"
+
+
 def grouped_videos_payload() -> dict:
     """The /api/education/videos payload: categories ordered shows-first by
     sort_order, each with its videos (sort_order, id). Categories present on
@@ -1095,9 +1123,12 @@ def grouped_videos_payload() -> dict:
     before returning — cheap/useful fields (tags, headline, audio_url, poster,
     …) are kept."""
     vids = list_videos()
+    measured = measured_durations() if any(not (v.get("duration") or "").strip() for v in vids) else {}
     by_cat: dict[str, list[dict]] = {}
     for v in vids:
         v["tags"] = _parse_json_list(v.get("tags"))
+        if not (v.get("duration") or "").strip() and measured.get(v.get("youtube_id")):
+            v["duration"] = format_duration(measured[v["youtube_id"]])
         by_cat.setdefault(v["category"], []).append(v)
     meta = {m["name"]: m for m in list_category_meta()}
     for name, members in by_cat.items():
@@ -1397,6 +1428,21 @@ def videos_pending_insights(max_age_secs: int) -> list[dict]:
                  AND created_at >= ?
                ORDER BY created_at ASC""",
             (cutoff,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def session_videos_with_headlines() -> list[dict]:
+    """Published session videos (meeting_uuid set) that already carry chapters
+    and a headline — the repolish backfill's candidate list, newest first so a
+    fresh session is fixed before the back catalogue."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT id, title, headline FROM edu_videos
+               WHERE meeting_uuid IS NOT NULL AND meeting_uuid != ''
+                 AND COALESCE(headline, '') != ''
+                 AND COALESCE(chapters, '') NOT IN ('', '[]')
+               ORDER BY created_at DESC"""
         ).fetchall()
         return [dict(r) for r in rows]
 

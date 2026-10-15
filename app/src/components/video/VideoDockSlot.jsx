@@ -26,6 +26,7 @@ import { AuthContext } from '../../context/AuthContext'
 import { voiceNotesEnabled } from '../../pages/journal-2-0/lib/voiceNote'
 import styles from './VideoDockSlot.module.css'
 import Textarea from '../ui/Textarea'
+import { memberChapterTitle } from './playerUtils'
 
 // Heavy lazy chunk — must not load for viewers who never open the follow pane.
 const ChartPane = lazy(() => import('../chart/pane/ChartPane'))
@@ -33,6 +34,9 @@ const ChartPane = lazy(() => import('../chart/pane/ChartPane'))
 const VoiceNoteDialog = lazy(() => import('../../pages/journal-2-0/components/notebook/VoiceNoteDialog'))
 
 const thumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
+// Key takeaways shown before "Show all". Some sessions carry six long
+// paragraphs, which made the right rail taller than everything else.
+const TAKEAWAYS_SHOWN = 4
 
 const fmtT = (sec) => {
   const s = Math.max(0, Math.floor(sec || 0))
@@ -82,6 +86,9 @@ export default function VideoDockSlot() {
   const [voiceOpen, setVoiceOpen] = useState(false)
   const [voiceSaved, setVoiceSaved] = useState(null) // { videoId, noteId }
   const [savingNb, setSavingNb] = useState('')
+  // Key takeaways open collapsed; keyed by video id so the next video starts
+  // collapsed again without an effect.
+  const [takeawaysFor, setTakeawaysFor] = useState(null)
   const [savingWl, setSavingWl] = useState('') // save-tickers-to-watchlist status
   const [savingJournal, setSavingJournal] = useState('') // '', 'saving', 'saved', 'error'
   const savedNoteRef = useRef(null) // id of the journal note just created
@@ -386,6 +393,7 @@ export default function VideoDockSlot() {
   if (!active) return null
 
   const current = list[index]
+  const takeawaysOpen = takeawaysFor != null && takeawaysFor === current?.id
 
   // Minimized while still on the Desk → slim restore affordance, not the theater.
   if (!docked) {
@@ -477,7 +485,7 @@ export default function VideoDockSlot() {
                         onClick={() => seekTo(c.t)}
                       >
                         <span className={styles.chapterTime}>{fmtT(c.t)}</span>
-                        <span className={styles.chapterTitle}>{c.title}</span>
+                        <span className={styles.chapterTitle}>{memberChapterTitle(c.title)}</span>
                       </button>
                     </li>
                   ))}
@@ -536,8 +544,19 @@ export default function VideoDockSlot() {
             <div className={styles.recapBody}>
               <div className={styles.insHead}>Key takeaways</div>
               <ul className={styles.summaryList}>
-                {summary.map((s, i) => <li key={i}>{s}</li>)}
+                {(takeawaysOpen ? summary : summary.slice(0, TAKEAWAYS_SHOWN)).map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
               </ul>
+              {summary.length > TAKEAWAYS_SHOWN && (
+                <button
+                  className={styles.takeawaysToggle}
+                  aria-expanded={takeawaysOpen}
+                  onClick={() => setTakeawaysFor(takeawaysOpen ? null : current.id)}
+                >
+                  {takeawaysOpen ? 'Show fewer' : `Show all ${summary.length} takeaways`}
+                </button>
+              )}
             </div>
           )}
           {tickerMoments.length > 0 && (
@@ -679,7 +698,7 @@ export default function VideoDockSlot() {
                 >
                   {savingJournal === 'error' ? 'Couldn’t save — retry'
                     : savingJournal === 'saving' ? 'Saving…'
-                    : '★ Save session to Journal'}
+                    : '★ Save recap to Notebook'}
                 </button>
               )}
             </div>
@@ -702,7 +721,7 @@ export default function VideoDockSlot() {
                   aria-haspopup="dialog"
                   title="Save this session's transcript, an AI summary, its tickers and action items as a Notebook note"
                 >
-                  Save to Notebook
+                  Save transcript to Notebook…
                 </button>
               )}
             </div>
@@ -782,6 +801,7 @@ export default function VideoDockSlot() {
                 >
                   <span className={styles.upNextThumbWrap}>
                     <img className={styles.upNextThumb} src={thumb(v.youtube_id)} alt="" loading="lazy" />
+                    {v.duration && <span className={styles.upNextDuration}>{v.duration}</span>}
                   </span>
                   <span className={styles.upNextTitle}>{v.title}</span>
                 </button>

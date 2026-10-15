@@ -98,6 +98,25 @@ def _known_sections() -> list[str]:
     return [sec for _kw, sec in _HOST_AWARE] + [sec for _kw, sec, _p, _e in _RULES]
 
 
+def _section_key(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", (name or "").casefold())
+
+
+def _existing_section_named(t: str) -> str | None:
+    """The existing Desk category whose name matches `t` ignoring case, spacing
+    and punctuation, else None. Fail-soft: a store read error routes as before."""
+    key = _section_key(t)
+    if not key:
+        return None
+    try:
+        for name in education_service.list_categories():
+            if name != t and _section_key(name) == key:
+                return name
+    except Exception as e:
+        print(f"[desk-sessions] section lookup failed (non-fatal): {e}")
+    return None
+
+
 def _match_rules(t: str):
     low = t.lower()
     for kw, section in _HOST_AWARE:
@@ -145,7 +164,14 @@ def _route_checked(topic: str | None) -> tuple[str, str, str, str | None]:
         return t, t, t.upper(), None
     bad = guard.misspelled(t)
     if not bad:
-        return t, t, t.upper(), None   # auto: the name IS the section + title + eyebrow
+        # auto: the name IS the section + title + eyebrow — unless a shelf with
+        # the same name in different capitals already exists, which it joins
+        # ("Sharpen your trading skills" forked a one-video shelf beside
+        # "Sharpen Your Trading Skills", 2026-08).
+        same = _existing_section_named(t)
+        if same:
+            return same, same, same.upper(), None
+        return t, t, t.upper(), None
     return _DEFAULT_ROUTE + (
         f"unrecognised webinar name {t!r} (suspect words {bad}); "
         "published with the generic title",)
