@@ -912,12 +912,13 @@ def live_tier_state() -> dict:
     #
     # `LIVE_COLUMNS` is the set the tier intends to recompute;
     # `live_columns_effective()` is the set it MEASURED ITSELF RECOMPUTING on the
-    # last cycle that wrote rows. They differ today: four of the twenty-two
-    # (`chg_from_open_pct`, `gap_pct`, `new_52w_high`, `new_ath`) need feed
-    # fields `massive.get_full_market_snapshot` does not yet emit (spec §3.2
-    # unlanded), so those columns carry their NIGHTLY value forward — and
-    # naming one "live as of 10:42" while it holds the prior session's number is
-    # an honest value under a dishonest label. A member filtering `gap_pct > 3`
+    # last cycle that wrote rows. They differ whenever a feed field is missing:
+    # `chg_from_open_pct`, `gap_pct`, `new_52w_high`, `new_ath` (and the candle
+    # columns) need `day_open`/`day_high`/`day_low`, which
+    # `massive.get_full_market_snapshot` has emitted since 6c82962044 (2026-08-25)
+    # but which read None before the open or for a symbol with no print. A column
+    # that kept its NIGHTLY value must never be named "live as of 10:42" — an
+    # honest value under a dishonest label; a member filtering `gap_pct > 3`
     # during RTH would read yesterday's gappers as today's.
     #
     # ⚠️ THIS ONLY STARTED MATTERING WHEN THE OVERLAY BECAME REACHABLE. Until
