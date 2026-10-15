@@ -1,0 +1,2312 @@
+{
+ "tool": "tools/notebook_fin_walk.py",
+ "steps": [
+  {
+   "tip": "c952812a6b",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "flags",
+   "step": "auth payload: every c2 switch reads ON",
+   "verdict": "PASS",
+   "at": "2026-10-15T21:44:38+00:00",
+   "email": "q1c2m678158@local.dev",
+   "off": [],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "c952812a6b",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "followup.setup",
+   "step": "The member watches ORCL and has a prep note; the producer's pass delivers one notice, and a second pass finds it already sent",
+   "verdict": "PASS",
+   "at": "2026-10-15T21:44:39+00:00",
+   "watchlist_status": 200,
+   "watchlist_id": "9e098cc6-501",
+   "add_item_route": "POST /api/watchlists/{id}/items",
+   "add_item_status": 200,
+   "add_item": {
+    "id": "d96cfd68-d17",
+    "watchlist_id": "9e098cc6-501",
+    "sym": "ORCL",
+    "notes": "",
+    "duplicate": false
+   },
+   "prep_note_status": 200,
+   "prep_note": "2b0a863c9b3446239a931d1e15910e18",
+   "report_day": "2026-10-15",
+   "calendar_reporters": {
+    "AMZN": {
+     "date": "2026-10-20"
+    },
+    "AMD": {
+     "date": "2026-10-20"
+    },
+    "ORCL": {
+     "date": "2026-10-15",
+     "timing": "bmo"
+    }
+   },
+   "first_run": {
+    "day": "2026-10-15",
+    "pass": "walk",
+    "skipped": null,
+    "members": 1,
+    "candidates": 1,
+    "delivered": 1,
+    "already_sent": 0,
+    "in_flight": 0,
+    "capped": 0,
+    "failed": 0,
+    "timing_unknown": 0,
+    "partial": false,
+    "warmed": 1,
+    "warm_skipped": 0
+   },
+   "second_run": {
+    "day": "2026-10-15",
+    "pass": "walk",
+    "skipped": null,
+    "members": 1,
+    "candidates": 1,
+    "delivered": 0,
+    "already_sent": 1,
+    "in_flight": 0,
+    "capped": 0,
+    "failed": 0,
+    "timing_unknown": 0,
+    "partial": false,
+    "warmed": 1,
+    "warm_skipped": 0
+   },
+   "log": [
+    {
+     "user_id": "f6664237-f5a6-4ecb-aef0-bac6cc8b9690",
+     "symbol": "ORCL",
+     "report_date": "2026-10-15",
+     "session_day": "2026-10-15",
+     "created_at": "2026-10-15T17:44:39-04:00",
+     "status": "sent"
+    }
+   ],
+   "runs": [
+    {
+     "day": "2026-10-15",
+     "pass": "walk",
+     "ran_at": "2026-10-15T17:00:00-04:00",
+     "complete": 1
+    }
+   ],
+   "intel_retrieved_at": 1792184400.0,
+   "child_error": null,
+   "stderr_tail": null,
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "c952812a6b",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "followup.notice",
+   "step": "Home's Notices lists \"ORCL reported: write your follow-up\" as a link of its own; at 1280 it opens the card (820)",
+   "verdict": "PASS",
+   "at": "2026-10-15T21:44:41+00:00",
+   "summary_shown": true,
+   "link_visible": true,
+   "link_height": 44,
+   "href": "/journal/notebook?followup=ORCL&reportDate=2026-10-15",
+   "expected_href": "/journal/notebook?followup=ORCL&reportDate=2026-10-15",
+   "no_sideways_scroll": true,
+   "pressed": false,
+   "landed": null,
+   "card_region": null,
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 66,
+    "inline_links": 0,
+    "under": 1,
+    "sample": [
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"aae6607d-a54\",\"user_id\":\"f6664237-f5a6-4ecb-aef0-bac6cc8b9690\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-15T21:44:40.400148+00:00\",\"updated_at\":\"2026-10-15T21:44:40.587101+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"6d3d91b9-aa0e-4753-bfed-ee56d1867f1d\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-15T21:44:40.537Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"notebook_getting_started\",\"value\":\"{\\\"v\\\":1,\\\"done\\\":[\\\"note\\\"]}\"}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {
+    "get_started_list": 1,
+    "tour_offer": 1,
+    "reporting_soon": 1,
+    "review_box_home": 2
+   },
+   "screenshot": "c2-820-followup.notice-Home-s-Notices-lists-ORCL-reported-write-your-follow-up-as-a-link-of-its-own--06d20634.png"
+  },
+  {
+   "tip": "c952812a6b",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "followup.notice",
+   "step": "Home's Notices lists \"ORCL reported: write your follow-up\" as a link of its own; at 1280 it opens the card (390)",
+   "verdict": "PASS",
+   "at": "2026-10-15T21:44:44+00:00",
+   "summary_shown": true,
+   "link_visible": true,
+   "link_height": 44,
+   "href": "/journal/notebook?followup=ORCL&reportDate=2026-10-15",
+   "expected_href": "/journal/notebook?followup=ORCL&reportDate=2026-10-15",
+   "no_sideways_scroll": true,
+   "pressed": false,
+   "landed": null,
+   "card_region": null,
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 67,
+    "inline_links": 0,
+    "under": 3,
+    "sample": [
+     {
+      "label": "Add thesis starter views",
+      "tag": "BUTTON",
+      "w": 20,
+      "h": 66,
+      "host": "sidebar"
+     },
+     {
+      "label": "+ New folder",
+      "tag": "BUTTON",
+      "w": 22,
+      "h": 62,
+      "host": "sidebar"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"aae6607d-a54\",\"user_id\":\"f6664237-f5a6-4ecb-aef0-bac6cc8b9690\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-15T21:44:40.400148+00:00\",\"updated_at\":\"2026-10-15T21:44:43.392672+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"341a85dd-a00a-4af8-a7a1-767a22519cfd\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-15T21:44:42.955Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {
+    "get_started_list": 1,
+    "tour_offer": 1,
+    "reporting_soon": 1,
+    "passed_setups": 1,
+    "review_box_home": 2
+   },
+   "screenshot": "c2-390-followup.notice-Home-s-Notices-lists-ORCL-reported-write-your-follow-up-as-a-link-of-its-own--69786201.png"
+  },
+  {
+   "tip": "c952812a6b",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "followup.notice",
+   "step": "Home's Notices lists \"ORCL reported: write your follow-up\" as a link of its own; at 1280 it opens the card (1280)",
+   "verdict": "PASS",
+   "at": "2026-10-15T21:44:47+00:00",
+   "summary_shown": true,
+   "link_visible": true,
+   "link_height": 21.59375,
+   "href": "/journal/notebook?followup=ORCL&reportDate=2026-10-15",
+   "expected_href": "/journal/notebook?followup=ORCL&reportDate=2026-10-15",
+   "no_sideways_scroll": true,
+   "pressed": true,
+   "landed": "/journal/notebook?followup=ORCL&reportDate=2026-10-15",
+   "card_region": true,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?followup=ORCL&reportDate=2026-10-15",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"aae6607d-a54\",\"user_id\":\"f6664237-f5a6-4ecb-aef0-bac6cc8b9690\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-15T21:44:40.400148+00:00\",\"updated_at\":\"2026-10-15T21:44:46.106296+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"282f7537-de95-4830-aafe-e8b1c5e875cb\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-15T21:44:45.588Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/alerts/notebook_earnings_followup_1792100679765/read",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {
+    "get_started_list": 1,
+    "tour_offer": 1,
+    "reporting_soon": 1,
+    "passed_setups": 1,
+    "review_box_home": 2
+   },
+   "screenshot": "c2-1280-followup.notice-Home-s-Notices-lists-ORCL-reported-write-your-follow-up-as-a-link-of-its-own-284d695c.png"
+  },
+  {
+   "tip": "c952812a6b",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "followup.write",
+   "step": "\"Write follow-up\" makes the note: three headings, the quarter's numbers, the source, one dated task, Kind of note (1280)",
+   "verdict": "PASS",
+   "at": "2026-10-15T21:44:52+00:00",
+   "card": true,
+   "note": "e870435c0a84438188923d84ce9e1bc4",
+   "link_used": "/journal/notebook?followup=ORCL&reportDate=2026-10-15",
+   "link_was_captured": true,
+   "checks": {
+    "headings_in_order": true,
+    "eps_line": true,
+    "reaction_line": true,
+    "source_line": true,
+    "one_dated_task": true,
+    "kind": true
+   },
+   "headings": [
+    "What I expected",
+    "What happened",
+    "What I'll do differently"
+   ],
+   "expected_headings": [
+    "What I expected",
+    "What happened",
+    "What I'll do differently"
+   ],
+   "eps_line_present": true,
+   "reaction": "Reaction: −4.2% close to close, on the session that first traded the result.",
+   "source": "Source: UCT earnings data (consensus estimates and reported results), retrieved Oct 16, 2026, 5:00 PM ET.",
+   "tasks": 1,
+   "dated_tasks": 1,
+   "kind_of_note": "earnings_followup",
+   "note_title": "Earnings follow-up — ORCL (Oct 15)",
+   "prep_links": [
+    "2b0a863c9b3446239a931d1e15910e18"
+   ],
+   "write_button_height": null,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=e870435c0a84438188923d84ce9e1bc4",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"aae6607d-a54\",\"user_id\":\"f6664237-f5a6-4ecb-aef0-bac6cc8b9690\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-15T21:44:40.400148+00:00\",\"updated_at\":\"2026-10-15T21:44:49.059687+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes",
+     "status": 200,
+     "request": "{\"title\":\"Earnings follow-up — ORCL (Oct 15)\",\"tags\":[\"earnings\",\"earnings-followup\"],\"ticker\":\"ORCL\",\"kindId\":\"earnings_followup\",\"earningsFollowup\":{\"reportDate\":\"2026-10-15\"}}",
+     "response": "{\"note\":{\"id\":\"e870435c0a84438188923d84ce9e1bc4\",\"userId\":\"f6664237-f5a6-4ecb-aef0-bac6cc8b9690\",\"accountId\":null,\"folderId\":null,\"title\":\"Earnings follow-up — ORCL (Oct 15)\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What I expected\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Your prep note before the report: \"},{\"type\":\"noteLink\",\"attrs\":{\"noteId\":\"2b0a863c9b3446239a931d1e15910e18\"}}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"What did I expect going in, and why?\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What happened\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Quarter: FY2026 Q4, reported Oct 15, 2026.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"EPS: $1.47 actual vs $1.42 expected (+3.5% surprise).\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Revenue: $15.2B actual vs $15.0B expected (+1.3% surprise).\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Reaction: −4.2% close to close, on the session that first traded the result.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Source: UCT earnings data (consensus estimates and reported results), retrieved Oct 16, 2026, 5:00 PM ET.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"How did the numbers and the reaction compare?\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What I'll do differentl"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/e870435c0a84438188923d84ce9e1bc4/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-1280-followup.write--Write-follow-up-makes-the-note-three-headings-the-quarter-s-numbers-the-sour-bd93f25e.png"
+  },
+  {
+   "tip": "c952812a6b",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "followup.write",
+   "step": "the note links the prep note made before the report (1280)",
+   "verdict": "PASS",
+   "at": "2026-10-15T21:44:52+00:00",
+   "prep_note": "2b0a863c9b3446239a931d1e15910e18",
+   "prep_links": [
+    "2b0a863c9b3446239a931d1e15910e18"
+   ],
+   "report_day": "2026-10-15",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=e870435c0a84438188923d84ce9e1bc4",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "surfaces_present": {}
+  },
+  {
+   "tip": "c952812a6b",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "followup.write",
+   "step": "\"Write follow-up\" makes the note: three headings, the quarter's numbers, the source, one dated task, Kind of note (820)",
+   "verdict": "PASS",
+   "at": "2026-10-15T21:44:55+00:00",
+   "card": true,
+   "note": "8f3657ec93204ec3a7d90f302f173a22",
+   "link_used": "/journal/notebook?followup=ORCL&reportDate=2026-10-15",
+   "link_was_captured": true,
+   "checks": {
+    "headings_in_order": true,
+    "eps_line": true,
+    "reaction_line": true,
+    "source_line": true,
+    "one_dated_task": true,
+    "kind": true
+   },
+   "headings": [
+    "What I expected",
+    "What happened",
+    "What I'll do differently"
+   ],
+   "expected_headings": [
+    "What I expected",
+    "What happened",
+    "What I'll do differently"
+   ],
+   "eps_line_present": true,
+   "reaction": "Reaction: −4.2% close to close, on the session that first traded the result.",
+   "source": "Source: UCT earnings data (consensus estimates and reported results), retrieved Oct 16, 2026, 5:00 PM ET.",
+   "tasks": 1,
+   "dated_tasks": 1,
+   "kind_of_note": "earnings_followup",
+   "note_title": "Earnings follow-up — ORCL (Oct 15)",
+   "prep_links": [
+    "2b0a863c9b3446239a931d1e15910e18"
+   ],
+   "write_button_height": 44,
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 74,
+    "inline_links": 0,
+    "under": 5,
+    "sample": [
+     {
+      "label": "Folder",
+      "tag": "SELECT",
+      "w": 88,
+      "h": 31,
+      "host": "ask-row"
+     },
+     {
+      "label": "Note title",
+      "tag": "INPUT",
+      "w": 378,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "Earnings Prep — ORCL",
+      "tag": "BUTTON",
+      "w": 193,
+      "h": 30,
+      "host": "note-body"
+     },
+     {
+      "label": "Task item checkbox for Follow up by",
+      "tag": "INPUT",
+      "w": 16,
+      "h": 16,
+      "host": "note-body"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=8f3657ec93204ec3a7d90f302f173a22",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"aae6607d-a54\",\"user_id\":\"f6664237-f5a6-4ecb-aef0-bac6cc8b9690\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-15T21:44:40.400148+00:00\",\"updated_at\":\"2026-10-15T21:44:54.427771+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"9da072ba-05b8-4ec2-a40d-b1b35faf8212\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-15T21:44:54.230Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes",
+     "status": 200,
+     "request": "{\"title\":\"Earnings follow-up — ORCL (Oct 15)\",\"tags\":[\"earnings\",\"earnings-followup\"],\"ticker\":\"ORCL\",\"kindId\":\"earnings_followup\",\"earningsFollowup\":{\"reportDate\":\"2026-10-15\"}}",
+     "response": "{\"note\":{\"id\":\"8f3657ec93204ec3a7d90f302f173a22\",\"userId\":\"f6664237-f5a6-4ecb-aef0-bac6cc8b9690\",\"accountId\":null,\"folderId\":null,\"title\":\"Earnings follow-up — ORCL (Oct 15)\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What I expected\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Your prep note before the report: \"},{\"type\":\"noteLink\",\"attrs\":{\"noteId\":\"2b0a863c9b3446239a931d1e15910e18\"}}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"What did I expect going in, and why?\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What happened\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Quarter: FY2026 Q4, reported Oct 15, 2026.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"EPS: $1.47 actual vs $1.42 expected (+3.5% surprise).\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Revenue: $15.2B actual vs $15.0B expected (+1.3% surprise).\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Reaction: −4.2% close to close, on the session that first traded the result.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Source: UCT earnings data (consensus estimates and reported results), retrieved Oct 16, 2026, 5:00 PM ET.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"How did the numbers and the reaction compare?\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What I'll do differentl"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/8f3657ec93204ec3a7d90f302f173a22/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-820-followup.write--Write-follow-up-makes-the-note-three-headings-the-quarter-s-numbers-the-sourc-22f29290.png"
+  },
+  {
+   "tip": "c952812a6b",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "followup.write",
+   "step": "the note links the prep note made before the report (820)",
+   "verdict": "PASS",
+   "at": "2026-10-15T21:44:55+00:00",
+   "prep_note": "2b0a863c9b3446239a931d1e15910e18",
+   "prep_links": [
+    "2b0a863c9b3446239a931d1e15910e18"
+   ],
+   "report_day": "2026-10-15",
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 74,
+    "inline_links": 0,
+    "under": 5,
+    "sample": [
+     {
+      "label": "Folder",
+      "tag": "SELECT",
+      "w": 88,
+      "h": 31,
+      "host": "ask-row"
+     },
+     {
+      "label": "Note title",
+      "tag": "INPUT",
+      "w": 378,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "Earnings Prep — ORCL",
+      "tag": "BUTTON",
+      "w": 193,
+      "h": 30,
+      "host": "note-body"
+     },
+     {
+      "label": "Task item checkbox for Follow up by",
+      "tag": "INPUT",
+      "w": 16,
+      "h": 16,
+      "host": "note-body"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=8f3657ec93204ec3a7d90f302f173a22",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "surfaces_present": {}
+  },
+  {
+   "tip": "c952812a6b",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "followup.write",
+   "step": "\"Write follow-up\" makes the note: three headings, the quarter's numbers, the source, one dated task, Kind of note (390)",
+   "verdict": "PASS",
+   "at": "2026-10-15T21:44:57+00:00",
+   "card": true,
+   "note": "a4c1c009b96d4e878fa13cdf760be22f",
+   "link_used": "/journal/notebook?followup=ORCL&reportDate=2026-10-15",
+   "link_was_captured": true,
+   "checks": {
+    "headings_in_order": true,
+    "eps_line": true,
+    "reaction_line": true,
+    "source_line": true,
+    "one_dated_task": true,
+    "kind": true
+   },
+   "headings": [
+    "What I expected",
+    "What happened",
+    "What I'll do differently"
+   ],
+   "expected_headings": [
+    "What I expected",
+    "What happened",
+    "What I'll do differently"
+   ],
+   "eps_line_present": true,
+   "reaction": "Reaction: −4.2% close to close, on the session that first traded the result.",
+   "source": "Source: UCT earnings data (consensus estimates and reported results), retrieved Oct 16, 2026, 5:00 PM ET.",
+   "tasks": 1,
+   "dated_tasks": 1,
+   "kind_of_note": "earnings_followup",
+   "note_title": "Earnings follow-up — ORCL (Oct 15)",
+   "prep_links": [
+    "2b0a863c9b3446239a931d1e15910e18"
+   ],
+   "write_button_height": 44,
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 37,
+    "inline_links": 0,
+    "under": 4,
+    "sample": [
+     {
+      "label": "Note title",
+      "tag": "INPUT",
+      "w": 310,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "Earnings Prep — ORCL",
+      "tag": "BUTTON",
+      "w": 193,
+      "h": 30,
+      "host": "note-body"
+     },
+     {
+      "label": "Task item checkbox for Follow up by",
+      "tag": "INPUT",
+      "w": 16,
+      "h": 16,
+      "host": "note-body"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=a4c1c009b96d4e878fa13cdf760be22f",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"aae6607d-a54\",\"user_id\":\"f6664237-f5a6-4ecb-aef0-bac6cc8b9690\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-15T21:44:40.400148+00:00\",\"updated_at\":\"2026-10-15T21:44:56.460149+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"43efe26c-66f5-4463-82aa-0cda535e950a\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-15T21:44:56.398Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes",
+     "status": 200,
+     "request": "{\"title\":\"Earnings follow-up — ORCL (Oct 15)\",\"tags\":[\"earnings\",\"earnings-followup\"],\"ticker\":\"ORCL\",\"kindId\":\"earnings_followup\",\"earningsFollowup\":{\"reportDate\":\"2026-10-15\"}}",
+     "response": "{\"note\":{\"id\":\"a4c1c009b96d4e878fa13cdf760be22f\",\"userId\":\"f6664237-f5a6-4ecb-aef0-bac6cc8b9690\",\"accountId\":null,\"folderId\":null,\"title\":\"Earnings follow-up — ORCL (Oct 15)\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What I expected\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Your prep note before the report: \"},{\"type\":\"noteLink\",\"attrs\":{\"noteId\":\"2b0a863c9b3446239a931d1e15910e18\"}}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"What did I expect going in, and why?\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What happened\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Quarter: FY2026 Q4, reported Oct 15, 2026.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"EPS: $1.47 actual vs $1.42 expected (+3.5% surprise).\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Revenue: $15.2B actual vs $15.0B expected (+1.3% surprise).\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Reaction: −4.2% close to close, on the session that first traded the result.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Source: UCT earnings data (consensus estimates and reported results), retrieved Oct 16, 2026, 5:00 PM ET.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"How did the numbers and the reaction compare?\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What I'll do differentl"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/a4c1c009b96d4e878fa13cdf760be22f/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-390-followup.write--Write-follow-up-makes-the-note-three-headings-the-quarter-s-numbers-the-sourc-0cd1fea4.png"
+  },
+  {
+   "tip": "c952812a6b",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "followup.write",
+   "step": "the note links the prep note made before the report (390)",
+   "verdict": "PASS",
+   "at": "2026-10-15T21:44:57+00:00",
+   "prep_note": "2b0a863c9b3446239a931d1e15910e18",
+   "prep_links": [
+    "2b0a863c9b3446239a931d1e15910e18"
+   ],
+   "report_day": "2026-10-15",
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 37,
+    "inline_links": 0,
+    "under": 4,
+    "sample": [
+     {
+      "label": "Note title",
+      "tag": "INPUT",
+      "w": 310,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "Earnings Prep — ORCL",
+      "tag": "BUTTON",
+      "w": 193,
+      "h": 30,
+      "host": "note-body"
+     },
+     {
+      "label": "Task item checkbox for Follow up by",
+      "tag": "INPUT",
+      "w": 16,
+      "h": 16,
+      "host": "note-body"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=a4c1c009b96d4e878fa13cdf760be22f",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "surfaces_present": {}
+  },
+  {
+   "tip": "c952812a6b",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "followup.reminder",
+   "step": "/remind then Today: one dated task item, saved, open with the due date today, listed in Tasks (1280)",
+   "verdict": "FAIL",
+   "at": "2026-10-15T21:45:38+00:00",
+   "option_offered": true,
+   "date_list": true,
+   "date_chosen": [
+    "Today Thursday, October 15, 2026"
+   ],
+   "date_mentions": 0,
+   "mentions_in_task": 0,
+   "save_landed": false,
+   "task": {
+    "noteId": "c953d99790a14e0db436e873fcd9bb92",
+    "noteTitle": "Reminder walk 1280",
+    "noteUpdatedAt": "2026-10-15T21:45:02.892502+00:00",
+    "index": 0,
+    "checked": false,
+    "text": "Follow up @",
+    "due": null,
+    "bucket": "none",
+    "depth": 0
+   },
+   "tasks_today": "2026-10-15",
+   "due_is_today": false,
+   "tasks_view_row": true,
+   "note": "c953d99790a14e0db436e873fcd9bb92",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?view=all",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/c953d99790a14e0db436e873fcd9bb92/opened",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":213}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/c953d99790a14e0db436e873fcd9bb92",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Reminder walk 1280\"}]},{\"type\":\"taskList\",\"content\":[{\"type\":\"taskItem\",\"attrs\":{\"checked\":false},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Follow up @\"}]}]},{\"type\":\"taskItem\",\"attrs\":{\"checked\":false},\"content\":[{\"type\":\"paragraph\"}]}]},{\"type\":\"paragraph\"}]},\"baseUpdatedAt\":\"2026-10-15T21:44:57.297742+00:00\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"aae6607d-a54\",\"user_id\":\"f6664237-f5a6-4ecb-aef0-bac6cc8b9690\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-15T21:44:40.400148+00:00\",\"updated_at\":\"2026-10-15T21:45:34.833097+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-1280-followup.reminder--remind-then-Today-one-dated-task-item-saved-open-with-the-due-date-today--6ed4bb98.png"
+  },
+  {
+   "tip": "c952812a6b",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "followup.reminder",
+   "step": "/remind then Today: one dated task item, saved, open with the due date today, listed in Tasks (820)",
+   "verdict": "FAIL",
+   "at": "2026-10-15T21:46:17+00:00",
+   "option_offered": true,
+   "date_list": true,
+   "date_chosen": [
+    "Today Thursday, October 15, 2026"
+   ],
+   "date_mentions": 0,
+   "mentions_in_task": 0,
+   "save_landed": false,
+   "task": {
+    "noteId": "fc7ad06c9d3748f99502aec83289fe6f",
+    "noteTitle": "Reminder walk 820",
+    "noteUpdatedAt": "2026-10-15T21:45:41.276814+00:00",
+    "index": 0,
+    "checked": false,
+    "text": "Follow up @",
+    "due": null,
+    "bucket": "none",
+    "depth": 0
+   },
+   "tasks_today": "2026-10-15",
+   "due_is_today": false,
+   "tasks_view_row": true,
+   "note": "fc7ad06c9d3748f99502aec83289fe6f",
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 71,
+    "inline_links": 0,
+    "under": 1,
+    "sample": [
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?view=all",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"1491a2c1-99ab-44b5-bd91-0d1363841605\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-15T21:45:39.361Z\"}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/fc7ad06c9d3748f99502aec83289fe6f/opened",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":245}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/fc7ad06c9d3748f99502aec83289fe6f",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\"},{\"type\":\"paragraph\"},{\"type\":\"taskList\",\"content\":[{\"type\":\"taskItem\",\"attrs\":{\"checked\":false},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Follow up @\"}]}]},{\"type\":\"taskItem\",\"attrs\":{\"checked\":false},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Reminder walk 820\"}]}]}]},{\"type\":\"paragraph\"}]},\"baseUpdatedAt\":\"2026-10-15T21:45:38.539062+00:00\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"aae6607d-a54\",\"user_id\":\"f6664237-f5a6-4ecb-aef0-bac6cc8b9690\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-15T21:44:40.400148+00:00\",\"updated_at\":\"2026-10-15T21:46:13.505829+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-820-followup.reminder--remind-then-Today-one-dated-task-item-saved-open-with-the-due-date-today-l-9ecf792d.png"
+  },
+  {
+   "tip": "c952812a6b",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "followup.reminder",
+   "step": "/remind then Today: one dated task item, saved, open with the due date today, listed in Tasks (390)",
+   "verdict": "FAIL",
+   "at": "2026-10-15T21:46:55+00:00",
+   "option_offered": true,
+   "date_list": true,
+   "date_chosen": [
+    "Today Thursday, October 15, 2026"
+   ],
+   "date_mentions": 0,
+   "mentions_in_task": 0,
+   "save_landed": false,
+   "task": {
+    "noteId": "c8a5419b534e4b4fba58e29f66d6f34c",
+    "noteTitle": "Reminder walk 390",
+    "noteUpdatedAt": "2026-10-15T21:46:20.071577+00:00",
+    "index": 0,
+    "checked": false,
+    "text": "Follow up @",
+    "due": null,
+    "bucket": "none",
+    "depth": 0
+   },
+   "tasks_today": "2026-10-15",
+   "due_is_today": false,
+   "tasks_view_row": true,
+   "note": "c8a5419b534e4b4fba58e29f66d6f34c",
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 65,
+    "inline_links": 0,
+    "under": 9,
+    "sample": [
+     {
+      "label": "Reminder walk 390",
+      "tag": "BUTTON",
+      "w": 20,
+      "h": 44,
+      "host": "sidebar"
+     },
+     {
+      "label": "Reminder walk 820",
+      "tag": "BUTTON",
+      "w": 20,
+      "h": 44,
+      "host": "sidebar"
+     },
+     {
+      "label": "Reminder walk 1280",
+      "tag": "BUTTON",
+      "w": 20,
+      "h": 44,
+      "host": "sidebar"
+     },
+     {
+      "label": "Earnings follow-up — ORCL (Oct 15)",
+      "tag": "BUTTON",
+      "w": 20,
+      "h": 44,
+      "host": "sidebar"
+     },
+     {
+      "label": "Earnings follow-up — ORCL (Oct 15)",
+      "tag": "BUTTON",
+      "w": 20,
+      "h": 44,
+      "host": "sidebar"
+     },
+     {
+      "label": "Earnings follow-up — ORCL (Oct 15)",
+      "tag": "BUTTON",
+      "w": 20,
+      "h": 44,
+      "host": "sidebar"
+     },
+     {
+      "label": "Add thesis starter views",
+      "tag": "BUTTON",
+      "w": 20,
+      "h": 66,
+      "host": "sidebar"
+     },
+     {
+      "label": "+ New folder",
+      "tag": "BUTTON",
+      "w": 22,
+      "h": 62,
+      "host": "sidebar"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?view=all",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"63e5052a-c9a7-4d1c-930d-bd7e3c96ca2b\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-15T21:46:18.259Z\"}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/c8a5419b534e4b4fba58e29f66d6f34c/opened",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":263}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/c8a5419b534e4b4fba58e29f66d6f34c",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Reminder walk 390\"}]},{\"type\":\"taskList\",\"content\":[{\"type\":\"taskItem\",\"attrs\":{\"checked\":false},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Follow up @\"}]}]},{\"type\":\"taskItem\",\"attrs\":{\"checked\":false},\"content\":[{\"type\":\"paragraph\"}]}]},{\"type\":\"paragraph\"}]},\"baseUpdatedAt\":\"2026-10-15T21:46:17.283080+00:00\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"aae6607d-a54\",\"user_id\":\"f6664237-f5a6-4ecb-aef0-bac6cc8b9690\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-15T21:44:40.400148+00:00\",\"updated_at\":\"2026-10-15T21:46:52.175976+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-390-followup.reminder--remind-then-Today-one-dated-task-item-saved-open-with-the-due-date-today-l-eb9edfd8.png"
+  },
+  {
+   "tip": "c952812a6b",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "followup.coverage",
+   "step": "every follow-up feature left a row at each of its viewports",
+   "verdict": "PASS",
+   "at": "2026-10-15T21:46:55+00:00",
+   "missing": [],
+   "rows_not_in_coverage": [],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  }
+ ],
+ "configs": {
+  "c2": {
+   "base": "http://127.0.0.1:8132",
+   "data_dir": "C:\\data-t2b-walk\\c2",
+   "flags_on": [
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "COMPASS_NOTES_TOOL_ENABLED",
+    "J2_SHARE_LINKS_ENABLED",
+    "NOTEBOOK_AI_ACTIONS_ENABLED",
+    "NOTEBOOK_ASK_INSERT_ON",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+    "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PUBLISH_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_SMART_CHIPS_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_TRADE_CANVAS_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_VOICE_NOTES_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    "NOTEBOOK_SMART_CHIPS_ENABLED",
+    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+   ],
+   "sandbox_identity": {
+    "ok": true,
+    "sentence": "http://127.0.0.1:8132 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-t2b\\docs\\plans\\joystick\\sandbox-runs\\2026-10-15T16-43-58.md (identity c57d61ba0150..., data dir C:\\data-t2b-walk\\c2)"
+   },
+   "stop": "graceful to the shutdown checkpoint, then forced exit",
+   "integrity": {
+    "path": "docs\\notebook\\evidence\\t2b-walk-20261015T214338\\c2\\integrity-c2.md",
+    "required": [
+     "pre-boot (baseline)",
+     "post-boot (+15s)",
+     "post-prewarm (+120s)",
+     "shutdown"
+    ],
+    "checkpoints": [
+     {
+      "label": "pre-boot (baseline)",
+      "at": "2026-10-15 16:44:04",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-boot (+15s)",
+      "at": "2026-10-15 16:44:37",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-prewarm (+120s)",
+      "at": "2026-10-15 16:46:28",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "shutdown",
+      "at": "2026-10-15 16:47:02",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+   },
+   "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\\notebook\\evidence\\t2b-walk-20261015T214338\\c2\\integrity-c2.md",
+   "not_run": null,
+   "failure": null,
+   "port_free_after": true,
+   "driver_imported_api": []
+  }
+ },
+ "config": "c2",
+ "tip": "c952812a6b",
+ "tool_tree": "c952812a6bbcafa9995b2018d9f8ab3c95c97375",
+ "started": "2026-10-15T21:43:44+00:00",
+ "viewports": {
+  "1280": [
+   1280,
+   800
+  ],
+  "820": [
+   820,
+   1180
+  ],
+  "390": [
+   390,
+   844
+  ]
+ },
+ "status": "COMPLETE",
+ "flag_sets": {
+  "prod_armed": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "wave": [
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED"
+  ],
+  "c1": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "c2": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+  ],
+  "c3": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "keyed": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "keyedai": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "verify": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "verifygrip": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ]
+ },
+ "api_writes": [
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/watchlists",
+   "status": 200,
+   "request": "{\"name\": \"Follow-up walk\"}",
+   "response": "{\"id\": \"9e098cc6-501\", \"user_id\": \"f6664237-f5a6-4ecb-aef0-bac6cc8b9690\", \"name\": \"Follow-up walk\", \"description\": \"\", \"is_public\": 0, \"is_flagged_list\": 0, \"is_prebuilt\": 0, \"created_at\": \"2026-10-15T21:44:38.520004+00:00\", \"updated_at\": \"2026-10-15T21:44:38.520004+00:00\", \"items\": [], \"owner_name\": \"q1c2m\"}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/watchlists/9e098cc6-501/items",
+   "status": 200,
+   "request": "{\"sym\": \"ORCL\"}",
+   "response": "{\"id\": \"d96cfd68-d17\", \"watchlist_id\": \"9e098cc6-501\", \"sym\": \"ORCL\", \"notes\": \"\", \"duplicate\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"Earnings Prep \\u2014 ORCL\", \"ticker\": \"ORCL\", \"tags\": [\"earnings\", \"earnings-prep\"], \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"What I expect from the report.\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"2b0a863c9b3446239a931d1e15910e18\", \"userId\": \"f6664237-f5a6-4ecb-aef0-bac6cc8b9690\", \"accountId\": null, \"folderId\": null, \"title\": \"Earnings Prep \\u2014 ORCL\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"What I expect from the report.\"}]}]}, \"bodyPlain\": \"What I expect from the report.\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": \"ORCL\", \"tags\": [\"earnings\", \"earnings-prep\"], \"createdAt\": \"2026-10-15T21:44:38.550342+00:00\", \"updatedAt\": \"2026-10-15T21:44:38.550342+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}, \"styleId\": null, \"styleVersion\": null, \"kindId\": null}}"
+  }
+ ],
+ "finished": "2026-10-15T21:47:33+00:00"
+}
