@@ -1,6 +1,9 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { SWRConfig, useSWRConfig } from 'swr'
 import StockChart from '../../../components/StockChart'
+import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurfaceSettings'
+import { paneLookProps } from '../../../components/chart/pane/paneLook'
+import usePreferences from '../../../hooks/usePreferences'
 import { hasFinalTickerIpo } from '../../../hooks/useTickerIpo'
 import WhyStrip from './WhyStrip'
 import { setupLine } from './setupLine'
@@ -57,19 +60,30 @@ function sideFetchGate(settled) {
 
 // S5: the chart itself, memoised on what it draws. A live price tick re-renders the pane's header,
 // never StockChart. Every prop here is a primitive or an identity-stable value.
+//
+// It draws the member's OWN chart: the settings and /charts theme their main Chart widget renders
+// with. `useChartSurfaceSettings()` with no stored blob is the "your chart, everywhere" resolution
+// every popup uses (the named default chart widget, else the first /charts chart widget with
+// settings, else the chart_settings seed), and `paneLookProps` is the one list of look props the
+// /charts pane hands StockChart, so the two cannot drift. Both are read HERE, inside the memo, so a
+// settings or theme change re-renders the chart and a price tick still does not.
+//
+// Kept Focus-only, on purpose: no drawing tools or hotkeys (the pane's arrow keys walk the list),
+// no replay/compare/countdown chrome, no pattern detection (a /api/patterns poll per stepped-past
+// ticker), no background warm chain. Saved drawings still show, read-only.
 const PaneChart = memo(function PaneChart({ sym, tf, priceLines, settled, onDrawnBarCount, retry }) {
   const swr = useMemo(() => ({ use: [sideFetchGate(settled)] }), [settled])
+  const { prefs } = usePreferences()
+  const { cs, theme, ownChartSource } = useChartSurfaceSettings()
+  const look = paneLookProps({ cs, theme, prefs })
   return (
     <SWRConfig value={swr}>
       <StockChart key={retry} sym={sym} tf={tf}
+        {...look}
+        settingsOverride={ownChartSource}
         showDrawingTools={false} showSavedDrawings
         hideReplay hidePatterns hideCompare hideCountdown disablePatterns
         backgroundWarm={false} liveUpdates={settled} hotkeysActive={false}
-        boldCandles userCandleColors colorByNetChange candlesOnTop
-        markVolumeExtremes hideWatermark hideJournalOverlay
-        rightPadBars={4} dailyDefaultBars={126}
-        volumeSeparatePane volumePaneHeightPct={9}
-        priceScaleTopMargin={0.12} priceScaleBottomMargin={0.10}
         priceLines={priceLines} onDrawnBarCount={onDrawnBarCount} />
     </SWRConfig>
   )

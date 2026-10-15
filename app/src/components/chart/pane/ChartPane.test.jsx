@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { vi } from 'vitest'
+import { vi, test, expect, beforeEach } from 'vitest'
 
 // Same mock surface as the ChartWidget header rail (Task 1), re-based to this
 // directory. Every path below resolves to the SAME module the widget rail mocks,
@@ -70,6 +70,8 @@ vi.mock('../../../hooks/useMarketOpen', () => ({
 vi.mock('../../../utils/extSession', () => ({ getExtSessionCached: () => ({ session: 'post' }) }))
 
 import ChartPane from './ChartPane'
+import { PANE_LOOK, paneLookProps } from './paneLook'
+import { mergeChartSettings } from '../chartDefaults'
 import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 
 beforeEach(() => {
@@ -289,4 +291,21 @@ test('no charts_theme pref and no prop leaves the canvas on the dark default', (
   render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} />)
   const last = stockChartSpy.mock.calls.at(-1)[0]
   expect(last.canvasTheme).toBeNull()
+})
+
+// --- ONE look list. The /charts pane hands StockChart exactly paneLookProps — the list the
+// Screener Focus chart also reads (pages/screener/focus/__tests__/ChartPane.settings.test.jsx) —
+// so the member's main chart and every surface that draws "your chart" cannot drift apart.
+test('a /charts widget surface hands StockChart every look prop, from its own settings and the workspace theme', () => {
+  mockPrefs = { charts_vol_pane_pct: '18' }
+  const stored = { watermark: { opacity: 0.3 }, header: { colors: { legend: '#abcdef' } } }
+  render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} stored={stored} onStore={vi.fn()} chartsTheme="sunrise" />)
+  const last = stockChartSpy.mock.calls.at(-1)[0]
+  const expected = paneLookProps({ cs: mergeChartSettings(stored), theme: 'sunrise', prefs: mockPrefs })
+  for (const [k, v] of Object.entries(expected)) expect([k, last[k]]).toEqual([k, v])
+  expect(Object.keys(PANE_LOOK).length).toBeGreaterThan(10)
+  expect(last.canvasTheme).toBe('sunrise')
+  expect(last.volumePaneHeightPct).toBe(18)
+  expect(last.watermarkOpacity).toBe(0.3)
+  expect(last.legendColor).toBe('#abcdef')
 })

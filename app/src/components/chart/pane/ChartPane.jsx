@@ -8,6 +8,7 @@ import ChartIdentityRow from './ChartIdentityRow'
 import ChartTfBar from './ChartTfBar'
 import { trimTimeframes } from './headerFit'
 import useChartSurfaceSettings from './useChartSurfaceSettings'
+import { paneLookProps } from './paneLook'
 import ChartSettingsModal from '../ChartSettingsModal'
 import AttachedPineDisclosures from './AttachedPineDisclosures'
 import UIcon from '../../ui/UIcon'
@@ -682,12 +683,9 @@ function ChartPane({
     setPref('chart_saved_colors', JSON.stringify(savedColors.filter(c => String(c).toLowerCase() !== h)))
   }, [savedColors, setPref])
 
-  // Volume-pane height persists per-user across every chart surface (default 12%),
-  // so dragging the price/volume separator sticks across ticker changes + refresh.
-  const volPanePct = (() => {
-    const v = Number(prefs?.charts_vol_pane_pct)
-    return Number.isFinite(v) && v >= 5 && v <= 60 ? v : 12
-  })()
+  // Volume-pane height persists per-user across every chart surface (paneLook.js reads
+  // it, default 12%), so dragging the price/volume separator sticks across ticker
+  // changes + refresh.
   const volSaveTimerRef = useRef(null)
   const handleVolPaneResize = useCallback((pct) => {
     if (volSaveTimerRef.current) clearTimeout(volSaveTimerRef.current)
@@ -1052,34 +1050,12 @@ function ChartPane({
           /* The intraday EXT/RTH toggle lives in the pane header (beside the
              clock), so suppress the duplicate button in the chart toolbar. */
           hideExtHoursToolbarToggle
-          /* The reference look = the Model Book "Throughout the Years" main
-             chart, 1:1. boldCandles brings the crisp bold vivid palette
-             (MB_UP/MB_DOWN solid bodies + deep #0e0f0d canvas), thin 0.5px
-             curved MAs, and vivid volume bars; volumeMa + markVolumeExtremes
-             add the MB volume MA line + gold highest-volume bar. Plus a ~6-month
-             daily window, its own compact volume pane, and tight price-scale
-             margins so candles fill ~85% of the pane. A host that wants
-             something else overrides it through stockChartProps. */
-          boldCandles
-          userCandleColors
-          userCanvas
-          colorByNetChange
-          candlesOnTop
-          ema9MatchCandle
-          markVolumeExtremes
-          volumeLastValue
-          volumeMa={50}
-          hidePriceLine
-          /* A charting surface is not a journal: never overlay the viewer's
-             Journal 2.0 / connected-brokerage BUY/SELL trade markers (or
-             entry/stop lines) here. Those belong on the Journal tab — which
-             turns them back on through stockChartProps. */
-          hideJournalOverlay
-          /* Watermark opacity is user-controllable via Chart Settings → Canvas.
-             The settings default (0.07, the global faint default) is treated as
-             "unset" → the pane's strong 0.82; any value the user picks wins. */
-          watermarkOpacity={chartCs.watermark.opacity === 0.07 ? 0.82 : chartCs.watermark.opacity}
-          centerWatermarkOnPlot
+          /* THE MEMBER'S CHART LOOK (candles, canvas, volume, watermark, legend,
+             framing and the /charts theme) is ONE shared list, paneLook.js, so a
+             surface that draws "your chart" without this pane (the Screener Focus
+             layout) can never drift from it. A host that wants something else
+             overrides it through stockChartProps. */
+          {...paneLookProps({ cs: chartCs, theme: resolvedTheme, prefs })}
           /* Carry the user's manual price-scale placement (a price-axis drag that
              compresses/repositions the candles) across ticker switches — the
              captured margins are PROPORTIONAL (scaleMargins + autoScale), so each
@@ -1094,9 +1070,7 @@ function ChartPane({
           viewLockKey={chartId ? `uct.charts.viewLock.${chartId}` : 'uct.charts.viewLock'}
           keepPresentOnSymbolChange
           dragMeasure
-          verticalLegend
           lockWatermark
-          alwaysShowLegend
           /* ⚰️ `hideLegend={!hdr.showLegend}` STOOD HERE, and it is DELETED rather
              than translated to the new key. `hideLegend` is the HOST's veto — "my
              canvas is too small for chrome" — and this pane's canvas is not. It was
@@ -1106,16 +1080,8 @@ function ChartPane({
              either side learned about a mode the other didn't.
              StockChart reads `legendModeOf(cs)` off the settings this pane already
              hands it via `settingsOverride`, so the answer is computed once. */
-          legendColor={hdrColors.legend || null}
-          rightPadBars={6}
-          dailyDefaultBars={126}
-          volumeSeparatePane
           showRangeSelector
-          canvasTheme={resolvedTheme === 'sunrise' ? 'sunrise' : null}
-          volumePaneHeightPct={volPanePct}
           onVolumePaneResize={handleVolPaneResize}
-          priceScaleTopMargin={0.12}
-          priceScaleBottomMargin={0.10}
           sessionView={sessionView}
           {...(stockChartProps || {})}
           /* AFTER the host spread on purpose (the last prop wins): record the
