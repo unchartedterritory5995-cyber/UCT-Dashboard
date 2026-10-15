@@ -1,6 +1,6 @@
 // app/src/pages/journal-2-0/lib/alertPhrase.test.js
 import { describe, expect, it } from 'vitest'
-import { MAX_PHRASE_TEXT, describeAlert, parseAlertPhrase } from './alertPhrase'
+import { MAX_PHRASE_TEXT, describeAlert, parseAlertPhrase, sentencesOf } from './alertPhrase'
 
 const P = (t) => parseAlertPhrase(t)
 
@@ -31,6 +31,31 @@ describe('parseAlertPhrase -- what it reads', () => {
   })
   it('reads the LAST sentence that asks', () => {
     expect(P('Bought half. Alert me if NVDA closes below 120. Alert me if AMD closes above 160')).toMatchObject({ symbol: 'AMD' })
+  })
+  it('two sentences where only the second asks: the second is read', () => {
+    expect(P('NVDA looks heavy here! Alert me if AMD closes above 160')).toMatchObject({ symbol: 'AMD', price: 160 })
+    expect(P('Is this the top?  Alert me if it closes below 120.')).toMatchObject({ pronoun: true, price: 120 })
+  })
+})
+
+describe('sentencesOf -- the split, without a regex lookbehind (iOS 16.0-16.3)', () => {
+  // The ORACLE is the lookbehind split it replaced. Built with `new RegExp` inside this TEST file only: tests run in
+  // Node, never on a phone (app/src/noRegexLookbehind.test.js exempts them).
+  const oracle = (t) => t.split(new RegExp('(?<=[.!?])\\s+'))
+  it.each([
+    'alert me if NVDA closes below 120',
+    'Alert me if NVDA closes below 120.',
+    'Bought half. Alert me if NVDA closes below 120. Alert me if AMD closes above 160',
+    'Wow!  Really?\tYes.\nalert me if BRK.B closes below 400',
+    'alert me if NVDA closes above $5,000.50 ok',
+    'ends with a stop. ',
+    '. leading stop',
+    '...  ellipsis then text',
+    'no stops at all here',
+    'x',
+    '',
+  ])('%j splits exactly as the lookbehind did', (t) => {
+    expect(sentencesOf(t)).toEqual(oracle(t))
   })
 })
 

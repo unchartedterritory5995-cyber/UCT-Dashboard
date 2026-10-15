@@ -19,7 +19,7 @@ import lazyChunk from '../../lib/lazyChunk'
 import {
   ALERT_OFFER_EVENT, alertPhraseKey, dismissAlertOffer, setAlertOfferHosted,
 } from '../../lib/alertPhraseOffer'
-import { describeAlert } from '../../lib/alertPhrase'
+import { describeAlert, parseAlertPhrase } from '../../lib/alertPhrase'
 import { confirmsSymbol, tickersIn } from '../../lib/smartChipsApi'
 import styles from './AlertPhraseMenu.module.css'
 
@@ -53,9 +53,10 @@ export default function AlertPhraseMenu({ editor, noteTicker }) {
     return () => { editor.off('transaction', update) }
   }, [editor])
 
+  // Hosting also hands the plugin its parser: the grammar lives in THIS lazy chunk, never in the note's first open.
   useEffect(() => {
     if (!editor) return undefined
-    const host = () => setAlertOfferHosted(editor, true)
+    const host = () => setAlertOfferHosted(editor, true, parseAlertPhrase)
     host()
     editor.on('mount', host)
     editor.on('create', host)
@@ -89,6 +90,16 @@ export default function AlertPhraseMenu({ editor, noteTicker }) {
   // DERIVED, not stored: the text is the same string while the caret moves inside one sentence, so the live
   // region speaks once per offer and goes quiet when the offer goes.
   const spoken = ready ? `Alert suggestion: ${words}. Press Alt+Enter to set it, or Escape to dismiss.` : ''
+
+  // ⛔ R-T2A-10: the plugin takes Escape and Alt+Enter ONLY while this toolbar is on screen. Published in a
+  // layout effect (before the browser can deliver the next key) and cleared on unmount, beside un-hosting.
+  const chipShowing = !!(ready && !sheet)
+  useLayoutEffect(() => {
+    const store = editor?.storage?.alertPhraseOffer
+    if (!store) return undefined
+    store.showing = chipShowing
+    return () => { store.showing = false }
+  }, [editor, chipShowing])
 
   const open = () => { if (ready) setSheet({ ...offer.parsed, symbol: ready.symbol }) }
   // The listener below is attached once per editor and must call the LATEST `open`, so it reads a ref that
@@ -140,7 +151,7 @@ export default function AlertPhraseMenu({ editor, noteTicker }) {
   return (
     <>
       <span className="sr-only" role="status" aria-live="polite">{spoken}</span>
-      {ready && !sheet && (
+      {chipShowing && (
         <div ref={barRef} className={styles.bar} role="toolbar" aria-label={ALERT_MENU_LABEL}>
           <UIcon name="bell" size={14} />
           <span className={styles.words}>{words}</span>

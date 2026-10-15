@@ -205,6 +205,77 @@ describe('the Set alert chip', () => {
     expect(await screen.findByRole('dialog', { name: 'Set an alert' })).toBeTruthy()
   })
 
+  // ⛔ I1 (R-T2A-10, "while the chip is showing"). A key pressed in the REAL editor DOM, read back from the event:
+  // ProseMirror calls preventDefault exactly when a handleKeyDown took the key, and the repo's other Escape
+  // handlers (useDisclosureFocus, AskPanel, BulkActionBar) bail on defaultPrevented.
+  const press = (init) => {
+    const ev = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init })
+    editor.view.dom.dispatchEvent(ev)
+    return ev
+  }
+  describe('keys while NO chip is on screen pass through', () => {
+    it('an unconfirmed word: Escape and Alt+Enter are not taken, and the offer is unchanged', async () => {
+      tickersIn.mockResolvedValue([])
+      make(); render(<AlertPhraseMenu editor={editor} />)
+      await typeSentence('alert me if RS closes below 120')
+      await settle()
+      expect(alertPhraseKey.getState(editor.state).offer).not.toBeNull() // control: an offer exists, invisibly
+      expect(toolbar()).toBeNull()
+      expect(editor.storage.alertPhraseOffer.showing).toBe(false)
+      const before = alertPhraseKey.getState(editor.state)
+      const opened = vi.fn(); editor.view.dom.addEventListener(ALERT_OFFER_EVENT, opened)
+      expect(press({ key: 'Escape' }).defaultPrevented).toBe(false)
+      expect(press({ key: 'Enter', altKey: true }).defaultPrevented).toBe(false)
+      expect(opened).not.toHaveBeenCalled()
+      expect(alertPhraseKey.getState(editor.state).dismissed).toEqual(before.dismissed)
+      expect(alertPhraseKey.getState(editor.state).offer).toBe(before.offer)
+    })
+    it('a pronoun with no note ticker: Escape is not taken, and the offer is unchanged', async () => {
+      make(); render(<AlertPhraseMenu editor={editor} noteTicker={null} />)
+      await typeSentence('alert me if it closes below 150')
+      await settle()
+      expect(alertPhraseKey.getState(editor.state).offer).not.toBeNull()
+      expect(toolbar()).toBeNull()
+      const before = alertPhraseKey.getState(editor.state)
+      expect(press({ key: 'Escape' }).defaultPrevented).toBe(false)
+      expect(alertPhraseKey.getState(editor.state).offer).toBe(before.offer)
+      expect(alertPhraseKey.getState(editor.state).dismissed).toEqual(before.dismissed)
+    })
+    it('CONTROL -- the chip on screen: Escape IS taken and dismisses it; Alt+Enter IS taken', async () => {
+      make(); render(<AlertPhraseMenu editor={editor} />)
+      await typeSentence(NVDA)
+      await settle()
+      expect(toolbar()).not.toBeNull()
+      expect(editor.storage.alertPhraseOffer.showing).toBe(true)
+      const opened = vi.fn(); editor.view.dom.addEventListener(ALERT_OFFER_EVENT, opened)
+      let ev
+      await act(async () => { ev = press({ key: 'Enter', altKey: true }) })
+      expect(ev.defaultPrevented).toBe(true)
+      expect(opened).toHaveBeenCalledTimes(1)
+      // the sheet opened, so the chip stepped aside and the flag followed it
+      expect(toolbar()).toBeNull()
+      expect(editor.storage.alertPhraseOffer.showing).toBe(false)
+    })
+    it('CONTROL -- Escape on a showing chip is taken and dismisses it', async () => {
+      make(); render(<AlertPhraseMenu editor={editor} />)
+      await typeSentence(NVDA)
+      await settle()
+      let ev
+      await act(async () => { ev = press({ key: 'Escape' }) })
+      expect(ev.defaultPrevented).toBe(true)
+      expect(toolbar()).toBeNull()
+      expect(alertPhraseKey.getState(editor.state).dismissed).toContain(NVDA)
+    })
+    it('unmounting clears the flag', async () => {
+      make(); const { unmount } = render(<AlertPhraseMenu editor={editor} />)
+      await typeSentence(NVDA)
+      await settle()
+      expect(editor.storage.alertPhraseOffer.showing).toBe(true)
+      unmount()
+      expect(editor.storage.alertPhraseOffer.showing).toBe(false)
+    })
+  })
+
   it('the switch off: no chip and no request', async () => {
     smartChipsEnabled.mockReturnValue(false)
     make(); render(<AlertPhraseMenu editor={editor} />)

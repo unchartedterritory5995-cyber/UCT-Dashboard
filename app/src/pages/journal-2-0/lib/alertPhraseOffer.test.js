@@ -12,7 +12,8 @@ import { SuggestionPluginKey } from '@tiptap/suggestion'
 
 vi.mock('./smartChipsFlag', () => ({ smartChipsEnabled: vi.fn(() => true) }))
 import { smartChipsEnabled } from './smartChipsFlag'
-import { ALERT_OFFER_EVENT, AlertPhraseOffer, alertPhraseKey, dismissAlertOffer, setAlertOfferHosted } from './alertPhraseOffer'
+import { ALERT_OFFER_EVENT, AlertPhraseOffer, alertPhraseKey, dismissAlertOffer, offerAt, setAlertOfferHosted } from './alertPhraseOffer'
+import { parseAlertPhrase } from './alertPhrase'
 import { buildExtensions } from './tiptap'
 
 // jsdom has no Range geometry; the slash popup positions itself off the caret.
@@ -20,13 +21,15 @@ if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
 if (!Range.prototype.getBoundingClientRect) Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
 
 let editor
-// The plugin offers nothing until a menu hosts it (AlertPhraseMenu's mount effect), so every editor in
-// this file is hosted the way the menu hosts it -- except the ones that prove the unhosted case.
+// The plugin offers nothing until a menu hosts it (AlertPhraseMenu's mount effect, which also hands over the
+// parser), so every editor in this file is hosted the way the menu hosts it -- except the ones that prove the
+// unhosted case. The menu also publishes `showing` while its chip is on screen; `show()` stands in for that.
 const make = (html = '<p></p>', { hosted = true } = {}) => {
   editor = new Editor({ extensions: [StarterKit, AlertPhraseOffer], content: html })
-  if (hosted) setAlertOfferHosted(editor, true)
+  if (hosted) setAlertOfferHosted(editor, true, parseAlertPhrase)
   return editor
 }
+const show = (on = true) => { editor.storage.alertPhraseOffer.showing = on }
 const offer = () => alertPhraseKey.getState(editor.state).offer
 const typeAtEnd = (text) => { editor.commands.focus('end'); editor.commands.insertContent(text) }
 
@@ -68,7 +71,7 @@ describe('the alert offer', () => {
     typeAtEnd('.5'); expect(offer()).not.toBeNull()
   })
   it('Escape dismisses; Alt+Enter dispatches the open event on the editor DOM', () => {
-    make(); typeAtEnd('alert me if NVDA closes below 120')
+    make(); typeAtEnd('alert me if NVDA closes below 120'); show()
     const seen = vi.fn(); editor.view.dom.addEventListener(ALERT_OFFER_EVENT, seen)
     editor.view.someProp('handleKeyDown', (f) => f(editor.view, new KeyboardEvent('keydown', { key: 'Enter', altKey: true })))
     expect(seen).toHaveBeenCalledTimes(1)
@@ -77,7 +80,7 @@ describe('the alert offer', () => {
     expect(offer()).toBeNull()
   })
   it('plain Enter is never taken', () => {
-    make(); typeAtEnd('alert me if NVDA closes below 120')
+    make(); typeAtEnd('alert me if NVDA closes below 120'); show()
     // ⛔ Asked of THIS plugin's own handler, not of `someProp`: across the whole stack a plain Enter IS
     // taken -- by StarterKit's split-block keymap, which is how a paragraph ends (dateSuggest's rule:
     // ENTER ENDS A LINE). The question here is whether the OFFER takes it, and it must not.
@@ -91,8 +94,8 @@ describe('the alert offer', () => {
     expect(key({ key: 'Enter', altKey: true, metaKey: true })).toBe(false)
     expect(key({ key: 'Enter', altKey: true })).toBe(true)   // control: the one chord it does take
   })
-  it('with no offer showing it takes no key at all', () => {
-    make(); typeAtEnd('just some notes')
+  it('with no offer it takes no key at all (even with the chip flag stuck on)', () => {
+    make(); typeAtEnd('just some notes'); show()
     const plugin = editor.state.plugins.find((p) => p.spec.key === alertPhraseKey)
     expect(plugin.props.handleKeyDown(editor.view, new KeyboardEvent('keydown', { key: 'Escape' }))).toBe(false)
     expect(plugin.props.handleKeyDown(editor.view, new KeyboardEvent('keydown', { key: 'Enter', altKey: true }))).toBe(false)
@@ -113,17 +116,60 @@ describe('the alert offer', () => {
     expect(key({ key: 'Escape' })).toBe(false)
     expect(key({ key: 'Enter', altKey: true })).toBe(false)
     // Control: the SAME sentence in a hosted editor IS offered and IS taken, so the false above is a refusal.
-    setAlertOfferHosted(editor, true)
+    setAlertOfferHosted(editor, true, parseAlertPhrase); show()
     expect(offer()).not.toBeNull()
     expect(key({ key: 'Enter', altKey: true })).toBe(true)
   })
   it('un-hosting (the menu unmounting) takes the offer and the keys away at once', () => {
-    make(); typeAtEnd('alert me if NVDA closes below 120')
+    make(); typeAtEnd('alert me if NVDA closes below 120'); show()
     expect(offer()).not.toBeNull()
     setAlertOfferHosted(editor, false)
     expect(offer()).toBeNull()
+    expect(editor.storage.alertPhraseOffer.showing).toBe(false)
     const plugin = editor.state.plugins.find((p) => p.spec.key === alertPhraseKey)
     expect(plugin.props.handleKeyDown(editor.view, new KeyboardEvent('keydown', { key: 'Escape' }))).toBe(false)
+  })
+  // ⛔ I1 (R-T2A-10, "while the chip is showing"): an offer can exist with NOTHING on screen -- an unconfirmed
+  // word, a failed check, a pronoun with no note ticker. Escape then belongs to whoever else wants it
+  // (useDisclosureFocus, AskPanel, BulkActionBar bail on defaultPrevented), and Alt+Enter to nobody.
+  it('an offer that is NOT showing passes Escape and Alt+Enter through, and its state is unchanged', () => {
+    make(); typeAtEnd('alert me if NVDA closes below 120')
+    expect(offer()).not.toBeNull()                       // control: there IS an offer
+    expect(editor.storage.alertPhraseOffer.showing).toBe(false)
+    const before = alertPhraseKey.getState(editor.state)
+    const seen = vi.fn(); editor.view.dom.addEventListener(ALERT_OFFER_EVENT, seen)
+    const plugin = editor.state.plugins.find((p) => p.spec.key === alertPhraseKey)
+    const esc = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true })
+    const alt = new KeyboardEvent('keydown', { key: 'Enter', altKey: true, cancelable: true })
+    expect(plugin.props.handleKeyDown(editor.view, esc)).toBe(false)
+    expect(plugin.props.handleKeyDown(editor.view, alt)).toBe(false)
+    expect(seen).not.toHaveBeenCalled()
+    expect(alertPhraseKey.getState(editor.state)).toBe(before)
+  })
+  it('CONTROL -- the same offer while the chip IS showing takes both keys', () => {
+    make(); typeAtEnd('alert me if NVDA closes below 120'); show()
+    const seen = vi.fn(); editor.view.dom.addEventListener(ALERT_OFFER_EVENT, seen)
+    const plugin = editor.state.plugins.find((p) => p.spec.key === alertPhraseKey)
+    expect(plugin.props.handleKeyDown(editor.view, new KeyboardEvent('keydown', { key: 'Enter', altKey: true }))).toBe(true)
+    expect(seen).toHaveBeenCalledTimes(1)
+    expect(plugin.props.handleKeyDown(editor.view, new KeyboardEvent('keydown', { key: 'Escape' }))).toBe(true)
+    expect(offer()).toBeNull()
+  })
+  it('hosted WITHOUT a parser handed over: no offer (the grammar is never imported here)', () => {
+    make('<p></p>', { hosted: false })
+    setAlertOfferHosted(editor, true)
+    typeAtEnd('alert me if NVDA closes below 120')
+    expect(offer()).toBeNull()
+  })
+  // ⛔ C1 defence in depth: a parser that throws (a lookbehind on iOS 16.0-16.3 did exactly this) must cost the
+  // chip and never the keystroke -- a throw out of `apply` breaks view.dispatch for the whole paragraph.
+  it('a THROWING parser offers nothing and the typing still lands', () => {
+    make('<p></p>', { hosted: false })
+    setAlertOfferHosted(editor, true, () => { throw new SyntaxError('Invalid regular expression: invalid group specifier name') })
+    expect(() => typeAtEnd('alert me if NVDA closes below 120')).not.toThrow()
+    expect(editor.getText()).toBe('alert me if NVDA closes below 120')
+    expect(offer()).toBeNull()
+    expect(offerAt(editor.state, [], () => { throw new Error('x') })).toBeNull()
   })
   it('the hosting handshake is a meta-only transaction that dismisses nothing', () => {
     make(); typeAtEnd('alert me if NVDA closes below 120')
@@ -161,7 +207,8 @@ describe('Escape goes to an open suggestion menu before the offer', () => {
       extensions: buildExtensions(),
       content: { type: 'doc', content: [{ type: 'paragraph' }] },
     })
-    setAlertOfferHosted(editor, true)
+    setAlertOfferHosted(editor, true, parseAlertPhrase)
+    show() // the chip is on screen: the offer competes for Escape, which is the race under test
     render(createElement(EditorContent, { editor }))
     editor.commands.focus('end', { scrollIntoView: false })
     await act(async () => { editor.commands.insertContent('alert me if NVDA closes below 120 /') })

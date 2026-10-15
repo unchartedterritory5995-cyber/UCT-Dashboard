@@ -52,10 +52,32 @@ function readSentence(sentence) {
   }
 }
 
+const SPACE = /\s/
+const STOP = /[.!?]/
+// Splits after ".", "!" or "?" followed by whitespace, the stop kept with its sentence and the whitespace dropped.
+// ⛔ A manual scan, never a regex lookbehind: `(?<=…)` is a SyntaxError on Safari before 16.4, and the declared
+// floor is iOS 16 (app/src/noRegexLookbehind.test.js). This runs inside the alert plugin, on the typing path.
+export function sentencesOf(t) {
+  const out = []
+  let start = 0
+  let i = 1
+  while (i < t.length) {
+    if (SPACE.test(t[i]) && STOP.test(t[i - 1])) {
+      out.push(t.slice(start, i))
+      while (i < t.length && SPACE.test(t[i])) i += 1
+      start = i
+    } else {
+      i += 1
+    }
+  }
+  out.push(t.slice(start))
+  return out
+}
+
 export function parseAlertPhrase(text) {
   const t = String(text ?? '')
   if (!t.trim() || t.length > MAX_PHRASE_TEXT) return null
-  const sentences = t.split(/(?<=[.!?])\s+/)
+  const sentences = sentencesOf(t)
   for (let i = sentences.length - 1; i >= 0; i -= 1) {
     const p = readSentence(sentences[i])
     if (p) return p
