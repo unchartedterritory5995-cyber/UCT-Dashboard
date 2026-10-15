@@ -11,6 +11,7 @@ import { BlockHandle } from './blockHandle'
 import { Columns, Column, ColumnsGuard } from './columnsNode'
 import { LinkPreview, WebEmbed } from './webLinkNodes'
 import { LinkPasteOffer } from './linkPasteOffer'
+import { AlertPhraseOffer } from './alertPhraseOffer'
 import { LinkClickOpen } from './linkClickOpen'
 import { DateMention } from './dateMentionNode'
 import { DateSuggest } from './dateSuggest'
@@ -348,6 +349,10 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // / Embed (linkPasteOffer.js). Listed just BEFORE PasteContainers, so
     // PasteContainers still sees every paste first and this one sees it next.
     LinkPasteOffer,
+    // Tier 2 part A item 8: the offer behind the "Set alert" chip (alertPhraseOffer.js). Priority 50,
+    // so every suggestion menu sees Enter and Escape first whatever its place in this list. Dark behind
+    // the smart-chips switch: one flag read per transaction and nothing else while it is off.
+    AlertPhraseOffer,
     // Rail: pasteContainers.unit.test.js ("handles a paste after Link ...").
     PasteContainers,
   ]
