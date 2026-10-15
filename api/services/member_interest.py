@@ -43,13 +43,19 @@ def _auth_db_path() -> str:
 
 
 def _watchlist_syms(user_id: str) -> set:
+    # ⛔ The prebuilt community lists (S&P 500, Russell 2000, Sunday Scans, ...) are rows OWNED by the
+    # admin account that seeded them (`watchlist_prebuilt._create_list`). They are not that person's
+    # names: counting them made one admin's "own" set the whole index universe -- prep list, My Stocks,
+    # and three earnings follow-up bells a day. Same predicate as `passed_setups.py`; a NULL flag is a
+    # legacy row from before the column, which is the member's own.
+    # Rail: tests/test_member_interest_watchlists_real_db.py.
     try:
         conn = sqlite3.connect(_auth_db_path())
         try:
             rows = conn.execute(
                 """SELECT wi.sym FROM watchlist_items wi
                    JOIN watchlists w ON w.id = wi.watchlist_id
-                   WHERE w.user_id = ?""", (user_id,)).fetchall()
+                   WHERE w.user_id = ? AND COALESCE(w.is_prebuilt, 0) = 0""", (user_id,)).fetchall()
         finally:
             conn.close()
         return {r[0].upper() for r in rows if r and r[0]}

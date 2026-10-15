@@ -3425,14 +3425,28 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                         first_word = [re.sub(r"\s+", " ", t).strip() for t in p.locator('#uct-date-suggest [role="option"][aria-selected="true"]').all_inner_texts()]
                         p.keyboard.press("Enter")
                         p.wait_for_timeout(600)
+                    # ⛔ A LIVE task item is `<li data-checked>` under `ul[data-type="taskList"]`: TipTap's TaskItem
+                    # node view copies only the node's ATTRIBUTE-level HTML onto the <li>, never renderHTML's
+                    # `data-type="taskItem"` (@tiptap/extension-list dist/index.js, addNodeView). The selector this
+                    # replaced, `[data-type="taskItem"]`, could not match a live task at all (walk #2:
+                    # `date_mentions: 1, mentions_in_task: 0` beside a stored task due today). `CONTROL` counts the
+                    # live task items with the same selector, so a zero here can be told from a selector that
+                    # matches nothing.
                     m = p.evaluate("""() => { const ms = [...document.querySelectorAll('.ProseMirror [data-type="date-mention"]')];
-                        return { n: ms.length, inTask: ms.filter(e => e.closest('[data-type="taskItem"]')).length } }""") if listed else {"n": 0, "inTask": 0}
+                        const TASK = 'ul[data-type="taskList"] > li';
+                        return { n: ms.length, inTask: ms.filter(e => e.closest(TASK)).length,
+                                 tasks: document.querySelectorAll('.ProseMirror ' + TASK).length } }""") if listed else {"n": 0, "inTask": 0, "tasks": 0}
                     saved = False
+                    stored = {}
                     for _ in range(60):          # the save lands: the stored body holds the mention (the autosave is debounced)
-                        if any(x.get("type") == "dateMention" for x in walk_nodes(note_json(n["id"]).get("bodyJson") or {})):
+                        stored = note_json(n["id"]).get("bodyJson") or {}
+                        if any(x.get("type") == "dateMention" for x in walk_nodes(stored)):
                             saved = True
                             break
                         p.wait_for_timeout(500)
+                    # The product's own answer, beside the DOM's: the SERVER's copy holds a task item carrying the date.
+                    stored_dated = sum(1 for t in walk_nodes(stored) if t.get("type") == "taskItem"
+                                       and any(x.get("type") == "dateMention" for x in walk_nodes(t)))
                     tr = M.get(base + "/api/j2/notes/tasks?status=open")
                     tb = tr.json() if tr.status == 200 else {}
                     mine = [t for t in (tb.get("tasks") or []) if t.get("noteId") == n["id"]]
@@ -3441,11 +3455,19 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                     C.goto(p, base, "/journal/notebook?view=tasks")
                     row = p.get_by_role("button", name=re.compile(r"^Follow up.*Reminder walk " + vp))
                     in_view = C.vis_loc(row, 30000)
-                    ok = (offered and listed and m["n"] == 1 and m["inTask"] == 1 and saved and due_ok and in_view)
-                    C.step(p, i, "followup.reminder", f"/remind then Today: one dated task item, saved, open with the due date today, listed in Tasks ({vp})",
+                    # ⛔ AND THE NOTE WAS NOT FORKED. C.step only FLAGS a non-benign request; it never fails a row,
+                    # so a run that made the member a "(conflicted copy)" read PASS here (walk #2 did exactly that:
+                    # PUT 200, PUT 409 on the same base, POST "Reminder walk 1280 (conflicted copy)"). Read from the
+                    # server after the navigation, the same way blocks.integrity-tick-leave reads it.
+                    conflicted = [x for x in C.notes_list(p.context, base)
+                                  if (x.get("title") or "").startswith(f"Reminder walk {vp}") and "(conflicted copy)" in (x.get("title") or "")]
+                    ok = (offered and listed and m["n"] == 1 and m["inTask"] == 1 and m["tasks"] >= 1 and saved and stored_dated == 1
+                          and due_ok and in_view and not conflicted)
+                    C.step(p, i, "followup.reminder", f"/remind then Today: one dated task item, saved, open with the due date today, listed in Tasks, no conflicted copy ({vp})",
                            "PASS" if ok else "FAIL", option_offered=offered, date_list=listed, date_chosen=first_word, date_mentions=m["n"],
-                           mentions_in_task=m["inTask"], save_landed=saved, task=task, tasks_today=tb.get("today"), due_is_today=due_ok,
-                           tasks_view_row=in_view, note=n["id"])
+                           mentions_in_task=m["inTask"], live_task_items=m["tasks"], save_landed=saved, stored_dated_tasks=stored_dated,
+                           task=task, tasks_today=tb.get("today"), due_is_today=due_ok,
+                           tasks_view_row=in_view, conflicted=len(conflicted), note=n["id"])
                 finally:
                     if c is not None:
                         c.close()

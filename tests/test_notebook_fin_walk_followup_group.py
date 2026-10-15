@@ -139,6 +139,44 @@ def test_the_walks_expected_number_lines_are_what_the_product_writes_for_the_chi
     assert not next(ln for ln in lines2 if ln.startswith("Reaction:")).startswith(F.FOLLOWUP_REACTION_PREFIX)
 
 
+def _reminder_fn() -> ast.FunctionDef:
+    tree = ast.parse(Path(F.__file__).read_text(encoding="utf-8"))
+    fns = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "reminder"]
+    assert len(fns) == 1, "exactly one `reminder` step function"
+    return fns[0]
+
+
+def _strings(node) -> list[str]:
+    """String CONSTANTS in the code -- what the walk actually sends to the browser. Comments are not
+    in the AST at all, so prose naming a selector can never count as using it."""
+    return [n.value for n in ast.walk(node) if isinstance(n, ast.Constant) and isinstance(n.value, str)]
+
+
+def test_the_reminder_step_finds_a_live_task_item_by_the_selector_tiptap_actually_renders():
+    """TipTap's TaskItem node view puts `data-checked` on the live <li>, never `data-type="taskItem"`, so
+    `closest('[data-type="taskItem"]')` matched nothing and the step could never pass (walk #2)."""
+    src = " ".join(_strings(_reminder_fn()))
+    dead = "closest('[data-type=" + '"taskItem"' + "]')"
+    assert 'ul[data-type="taskList"] > li' in src
+    assert dead not in src
+    # CONTROL: the same check sees the dead selector when it is in code.
+    assert dead in " ".join(_strings(ast.parse("x = \"e.closest('[data-type=\\\"taskItem\\\"]')\"")))
+
+
+def test_the_reminder_verdict_fails_a_run_that_forked_the_note():
+    """C.step only flags a non-benign request, so the verdict itself must refuse a conflicted copy."""
+    def verdict_refuses(fn) -> bool:
+        for n in ast.walk(fn):
+            if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "ok" for t in n.targets):
+                return any(isinstance(u, ast.UnaryOp) and isinstance(u.op, ast.Not)
+                           and isinstance(u.operand, ast.Name) and u.operand.id == "conflicted"
+                           for u in ast.walk(n.value))
+        return False
+    assert verdict_refuses(_reminder_fn())
+    # CONTROL: a verdict without the clause is refused by the same check.
+    assert not verdict_refuses(ast.parse("def reminder():\n    ok = a and b\n").body[0])
+
+
 def test_the_walk_reads_the_kind_from_the_property_and_records_kind_id_beside_it():
     """The member-visible Kind of note is `builtin:note_kind`; `kindId` (the internal column) is a recorded fact, never a fallback."""
     src = Path(F.__file__).read_text(encoding="utf-8")
