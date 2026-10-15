@@ -1,0 +1,13 @@
+tip under test: 14298f988f (configuration c2)
+
+# Sandbox run — shared-data-root integrity log
+
+Every checkpoint below hashes the main `.db` files under the shared root.
+`-wal` / `-shm` are excluded: opening a WAL database read-only rewrites its
+`-shm` index, so mtime there is noise. See `scripts/data_root_snapshot.py`.
+
+- `2026-10-15 18:43:29`  **pre-boot (baseline)** — C:\data, 62 db files — CLEAN
+    - sandbox = C:\data-t2b-walk2\c2; identity = 02e542500cd6f723fb6123a917159381
+- `2026-10-15 18:44:13`  **post-boot (+15s)** — C:\data, 62 db files — CLEAN
+- `2026-10-15 18:46:05`  **post-prewarm (+120s)** — C:\data, 62 db files — CLEAN
+- `2026-10-15 18:46:14`  **shutdown** — C:\data, 62 db files — CLEAN
