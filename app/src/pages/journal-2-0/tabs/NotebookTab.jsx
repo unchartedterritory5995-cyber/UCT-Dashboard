@@ -66,6 +66,10 @@ import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk from '../lib/lazyChunk'
 import { journalStylesEnabled } from '../lib/journalStylesFlag'
+// Tier 2 part B (R-T2B-7): the earnings follow-up card. The slot is small and static; the card itself is a lazy
+// chunk it fetches the first time a follow-up link is open (V12: a failed fetch leaves the Notebook standing).
+import { earningsFollowupEnabled } from '../lib/earningsFollowupFlag'
+import FollowupOfferSlot from '../components/notebook/FollowupOfferSlot'
 import { loadStyle } from '../components/notebook/styles/lazyStyles'
 import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
 // Wave 14: every OTHER registered tour, beyond the base one above, runs through the generic
@@ -878,6 +882,10 @@ export default function NotebookTab() {
       // drop them here so the final URL is always clean.
       next.delete('new')
       next.delete('ticker')
+      // Tier 2 part B: opening a note (the follow-up card's own create included) ends the follow-up offer, in the
+      // same URL write -- otherwise closing the note would bring the card back.
+      next.delete('followup')
+      next.delete('reportDate')
       // Wave H: opening a note leaves the explicit "All notes" grid state —
       // same "leaving X clears Y" discipline as every other selection below.
       next.delete('view')
@@ -1646,6 +1654,18 @@ export default function NotebookTab() {
   // refresh bookkeeping) on top of it.
   // Journal styles (P1): `styleId` / `kindId` make the note from a style in ONE server insert (the
   // server composes the body), and are passed straight through to the one create door.
+  //
+  // The finish of a create, in this order: PRIME useJ2Note's SWR cache with what the POST already returned (so
+  // NoteEditorPage's first render holds the real note and builds ONE editor -- a server-composed body must never
+  // meet an empty first editor and autosave a repair transaction), put the note in the tree, reconcile the
+  // lists, open it. `createNote` and the earnings follow-up card both end here; neither may do a partial version.
+  const landCreatedNote = (created, openOptions) => {
+    globalMutate(`/api/j2/notes/${created.id}`, { note: created }, false)
+    // Instant: put it in the tree now, then reconcile from the server.
+    addNoteToTree(created)
+    refreshAll()
+    openNote(created, null, openOptions)
+  }
   const createNote = async ({
     title = '', bodyJson, tags, ticker, properties, revealPropertyIds, focusFirst = null, styleId, kindId,
   } = {}) => {
@@ -1703,10 +1723,8 @@ export default function NotebookTab() {
       // state a member reopening an already-viewed note gets from SWR's
       // ordinary cache hit -- not a new code path, just reaching the
       // already-tested one sooner.
-      globalMutate(`/api/j2/notes/${created.id}`, { note: created }, false)
-      // Instant: put it in the tree now, then reconcile from the server.
-      addNoteToTree(created)
-      refreshAll()
+      // (The sequence itself -- prime, tree, refreshAll, open -- is `landCreatedNote`, above: the follow-up card's
+      // create finishes through the same one.)
       // I-1: the one open that lands in the title -- the member made this note.
       // 13Q-2: UNLESS it is blank (no title, no template body) -- then straight
       // to the body (`blank`, computed from what the CALLER passed in, never
@@ -1714,7 +1732,7 @@ export default function NotebookTab() {
       // even an empty one, so reading `created.bodyJson` could not tell blank
       // from templated).
       // A styled note is not blank either: the server composed its body (its outline).
-      openNote(created, null, { fresh: true, blank: !title && !bodyJson && !styleId && !kindId, to: focusFirst })
+      landCreatedNote(created, { fresh: true, blank: !title && !bodyJson && !styleId && !kindId, to: focusFirst })
     } catch (e) {
       console.error('[notebook] create note failed', e)
       // Plan Task 11 / ruling R4 (a documented deviation from spec P1.6, which asks for an outbox
@@ -1928,6 +1946,24 @@ export default function NotebookTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newKey])
 
+  // Tier 2 part B: /journal/notebook?followup=SYM&reportDate=YYYY-MM-DD (the earnings follow-up bell's link).
+  // The card parses and checks the two values itself; nothing is made until its button is pressed. BOTH switches
+  // (the follow-up gate and Journal styles -- the note is made through the styled-create door) must be on, or the
+  // card never renders and its chunk is never fetched. No note open: the card is an offer, not an overlay.
+  const followupOpen = searchParams.has('followup') && !noteId && earningsFollowupEnabled() && journalStylesEnabled()
+  // F4: keyed by the raw link, so a SECOND notice opened in this same tab mounts a fresh card with a live button.
+  const followupKey = `${searchParams.get('followup') || ''}:${searchParams.get('reportDate') || ''}`
+  const followupFolderId = folderId && !['__unfiled__', '__trash__', ARCHIVED_FOLDER].includes(folderId) ? folderId : undefined
+  // Just leave the offer (Not now): drop both params, replacing the entry so Back does not bring the card back.
+  const leaveFollowup = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('followup')
+      next.delete('reportDate')
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
+
   return (
     // Wave 6 item 7: the split-view door for everything below — the sidebar's
     // Ctrl/Cmd+click and every note link inside either editor (lib/splitView.js).
@@ -1962,6 +1998,16 @@ export default function NotebookTab() {
       {actionError && (
         <div className={styles.actionError} role="alert">{actionError}</div>
       )}
+      {/* Tier 2 part B: the earnings follow-up offer. Created only on its button; opened through the SAME finish a
+          new note gets (landCreatedNote), which also strips the link's two parameters. */}
+      <FollowupOfferSlot
+        key={followupKey}
+        open={followupOpen}
+        searchParams={searchParams}
+        folderId={followupFolderId}
+        onCreated={(created) => { if (created?.id) landCreatedNote(created, { fresh: true }) }}
+        onDismiss={leaveFollowup}
+      />
       {/* Wave 5: what a bulk action did, in words — and the way back from a
           trash or a move. Rendered here, above everything the action can
           unmount; the Undo has its own notice so no later sentence replaces it.
