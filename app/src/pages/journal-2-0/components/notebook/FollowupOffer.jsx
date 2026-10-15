@@ -22,13 +22,14 @@ export default function FollowupOffer({ open, searchParams, folderId, onCreated,
   const [error, setError] = useState(null)
   const pressed = useRef(false)
   const cardRef = useRef(null)
-  // What had focus when the card appeared (a notice link, usually, or nothing on a fresh load).
-  const prior = useRef(typeof document !== 'undefined' ? document.activeElement : null)
+  // What had focus when the card appeared (a notice link, usually, or nothing on a fresh load). Read once, on the first
+  // render only (a lazy initialiser), not on every render.
+  const [prior] = useState(() => (typeof document !== 'undefined' ? document.activeElement : null))
   const p = open ? parseFollowupParams(searchParams) : null
   if (!p) return null
   const notNow = () => {
     // Focus first, then leave: the card's own button holds focus until it unmounts, and an unmounted focus owner drops it to <body>.
-    focusTarget(prior.current, cardRef.current)?.focus?.()
+    focusTarget(prior, cardRef.current)?.focus?.()
     onDismiss?.()
   }
   const write = async () => {
@@ -38,6 +39,12 @@ export default function FollowupOffer({ open, searchParams, folderId, onCreated,
     setError(null)
     try {
       const note = await createFollowupNote({ ...p, folderId })
+      // A create that answers without an id made nothing the tab can open: say so, and let the member press again.
+      if (!note?.id) {
+        pressed.current = false
+        setError(FAILED_SENTENCE)
+        return
+      }
       onCreated?.(note)
     } catch {
       pressed.current = false

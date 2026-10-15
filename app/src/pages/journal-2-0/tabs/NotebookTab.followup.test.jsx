@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 
 /**
@@ -68,7 +68,7 @@ function Probe() {
   nav = useNavigate()
   return <div data-testid="search">{loc.search}</div>
 }
-const renderTab = (url) => render(<MemoryRouter initialEntries={[url]}><Probe /><NotebookTab /></MemoryRouter>)
+const renderTab = (url, entries = [url]) => render(<MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}><Probe /><NotebookTab /></MemoryRouter>)
 const search = () => new URLSearchParams(screen.getByTestId('search').textContent)
 
 describe('the earnings follow-up card in the Notebook (Tier 2 part B)', () => {
@@ -159,6 +159,22 @@ describe('the earnings follow-up card in the Notebook (Tier 2 part B)', () => {
     expect(document.activeElement).toBe(document.querySelector('#notebook-pane [tabindex="-1"]'))
   })
 
+  it('I1: Back from the note the card made does not bring the card back, and makes no second note', async () => {
+    latchNotebookFlags(BOTH)
+    // a page the member came from, then the bell's link
+    renderTab(ORCL, ['/journal/notebook', ORCL])
+    await screen.findByRole('region', REGION, T)
+    fireEvent.click(screen.getByRole('button', { name: 'Write follow-up' }))
+    await screen.findByTestId('note-editor', {}, T)
+    expect(createNoteViaApi).toHaveBeenCalledTimes(1)
+    act(() => { nav(-1) })
+    // the create REPLACED the ?followup= entry, so Back lands on the page before it
+    await waitFor(() => expect(search().has('note')).toBe(false))
+    expect(search().has('followup')).toBe(false)
+    expect(screen.queryByRole('region', REGION)).toBeNull()
+    expect(createNoteViaApi).toHaveBeenCalledTimes(1)
+  })
+
   it('F4: a SECOND notice opened in the same tab gets a card whose button works', async () => {
     latchNotebookFlags(BOTH)
     renderTab(ORCL)
@@ -168,7 +184,7 @@ describe('the earnings follow-up card in the Notebook (Tier 2 part B)', () => {
     await screen.findByTestId('note-editor', {}, T)
     createNoteViaApi.mockImplementationOnce(async () => ({ id: 'new2', title: '', updatedAt: 'R0' }))
     // the member leaves that note and follows another bell
-    nav('/journal/notebook?followup=AMD&reportDate=2026-10-13')
+    act(() => { nav('/journal/notebook?followup=AMD&reportDate=2026-10-13') })
     await screen.findByText(/AMD reported on Oct 13, 2026\./, {}, T)
     fireEvent.click(screen.getByRole('button', { name: 'Write follow-up' }))
     await waitFor(() => expect(createNoteViaApi).toHaveBeenCalledTimes(2))
@@ -176,15 +192,23 @@ describe('the earnings follow-up card in the Notebook (Tier 2 part B)', () => {
     await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'new2'))
   })
 
-  it('V12: a card chunk that cannot be fetched leaves the Notebook standing, with no card', async () => {
+  it('V12: a card chunk whose load fails twice (one in-place retry, then give up) leaves the Notebook standing, with no card', async () => {
     latchNotebookFlags(BOTH)
-    loadSpy.mockImplementation(() => Promise.reject(new TypeError('boom: not a chunk error')))
+    // A real chunk-load error (lazyWithRetry's isChunkLoadError), with no chunk URL in it, so the one retry
+    // calls load() again after RETRY_WAIT_MS rather than importing a made-up URL.
+    loadSpy.mockImplementation(() => Promise.reject(new TypeError('Failed to fetch dynamically imported module')))
     const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
     renderTab(ORCL)
-    await waitFor(() => expect(loadSpy).toHaveBeenCalled(), T)
     await screen.findByTestId('research-home', {}, T)
-    await waitFor(() => expect(screen.queryByRole('region', REGION)).toBeNull())
+    // the retry ran: the first load, ~400 ms, then the second -- and then the card is given up on
+    await waitFor(() => expect(loadSpy).toHaveBeenCalledTimes(2), T)
+    await waitFor(() => expect(quiet).toHaveBeenCalled(), T)   // React reports the thrown load error to the boundary
+    expect(screen.queryByRole('region', REGION)).toBeNull()
+    expect(loadSpy).toHaveBeenCalledTimes(2)   // no third attempt, no reload loop
     expect(createNoteViaApi).not.toHaveBeenCalled()
+    // and the page still works: a note opens
+    act(() => { nav('/journal/notebook?note=n1') })
+    expect(await screen.findByTestId('note-editor', {}, T)).toHaveAttribute('data-note-id', 'n1')
     quiet.mockRestore()
   })
 })

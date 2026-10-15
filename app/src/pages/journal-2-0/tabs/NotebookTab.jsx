@@ -836,7 +836,7 @@ export default function NotebookTab() {
   // (NoteEditorPage, `passageFromNavigationState`). Like `task`, it is an open that aims
   // INSIDE the note, so focus goes to the passage, never to the landmark first.
   const openNote = (note, target = null, {
-    task = null, fresh = false, blank = false, to = null, passage = null,
+    task = null, fresh = false, blank = false, to = null, passage = null, replace = false,
   } = {}) => {
     // ⛔⛔ Wave 6 item 7: the note on the right is not opened a second time on
     // the left — refused, and the side pane (which has it) takes focus.
@@ -869,9 +869,11 @@ export default function NotebookTab() {
     // ⛔ `state` only WITH a passage: an open that names none must push an entry exactly as
     // it always has (no state), so nothing downstream can mistake "no passage" for "a passage
     // for nobody".
+    // `replace` is for an open that must not be returned to: the earnings follow-up card's create replaces its own
+    // `?followup=` entry, so Back from the new note does not bring the card (and a second note) back.
     const navigateOptions = passage
-      ? { replace: false, state: passageNavigationState({ ...passage, noteId: note.id }) }
-      : { replace: false }
+      ? { replace, state: passageNavigationState({ ...passage, noteId: note.id }) }
+      : { replace }
     setSearchParams((prev) => {
       const next = applyTargetToParams(prev, target)
       next.set('note', note.id)
@@ -2005,7 +2007,7 @@ export default function NotebookTab() {
         open={followupOpen}
         searchParams={searchParams}
         folderId={followupFolderId}
-        onCreated={(created) => { if (created?.id) landCreatedNote(created, { fresh: true }) }}
+        onCreated={(created) => { if (created?.id) landCreatedNote(created, { fresh: true, replace: true }) }}
         onDismiss={leaveFollowup}
       />
       {/* Wave 5: what a bulk action did, in words — and the way back from a

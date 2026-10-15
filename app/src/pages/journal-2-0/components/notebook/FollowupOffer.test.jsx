@@ -44,6 +44,18 @@ describe('FollowupOffer', () => {
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith({ id: 'n9' }))
     expect(screen.queryByRole('alert')).toBeNull()
   })
+  it('a create that answers without an id says the failed sentence, and the button is usable again', async () => {
+    createFollowupNote.mockResolvedValueOnce({}).mockResolvedValueOnce({ id: 'n11' })
+    const onCreated = vi.fn()
+    render(<FollowupOffer open searchParams={params} onCreated={onCreated} onDismiss={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Write follow-up' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't create the follow-up. Nothing was saved.")
+    expect(onCreated).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Write follow-up' }))   // a second press sends a second request
+    await waitFor(() => expect(createFollowupNote).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith({ id: 'n11' }))
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
   it('Not now puts focus back on what had it before the card appeared, not on the body', () => {
     const before = document.createElement('button')
     before.textContent = 'a notice link'
