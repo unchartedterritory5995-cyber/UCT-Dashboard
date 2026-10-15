@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 342,
+  "passed": 339,
+  "failed": 2,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 34.36,
+  "failed_files": [
+    "tests/api/test_buzz_render_panel.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "2 failed, 339 passed, 1 skipped, 7 warnings in 34.36s",
+  "ok": true
+}
