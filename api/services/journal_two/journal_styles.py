@@ -861,7 +861,7 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
 
     Raises StyleNotFound (no such live style for this member), StyleValidationError (a bad
     styleId, an unknown kind) and notes.NoteValidationError (the title, ticker, folder...)."""
-    from api.services.journal_two import notes as notes_service, plan_prefill
+    from api.services.journal_two import followup_prefill, notes as notes_service, plan_prefill
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -884,6 +884,14 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
             if style.get("kindId") != plan_prefill.PLAN_KIND or not ticker:
                 raise StyleValidationError("A trade plan needs a ticker.")
             prefill = lambda doc, ctx: plan_prefill.apply(doc, ctx, conn)  # noqa: E731
+        followup = payload.get("earningsFollowup")
+        if followup is not None:
+            # Tier 2 part B (R-T2B-9): the prep-note link and the quarter's numbers, added to the SAME body
+            # in this create's one insert. One prefill per create.
+            if prefill is not None:
+                raise StyleValidationError("Choose one: a trade plan or an earnings follow-up.")
+            report_date = followup_prefill.clean_request(followup, kind_id=style.get("kindId"), ticker=ticker)
+            prefill = lambda doc, ctx: followup_prefill.apply(doc, ctx, conn, report_date)  # noqa: E731
         composed = compose(user_id, style, ticker=ticker, conn=conn, mode="create", after_build=prefill)
         base = {k: payload[k] for k in ("title", "subtitle", "tags", "ticker", "folderId") if k in payload}
         base["bodyJson"] = composed["bodyJson"]
