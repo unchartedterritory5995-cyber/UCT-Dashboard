@@ -23,17 +23,23 @@ from __future__ import annotations
 
 import copy
 import math
-from datetime import date, datetime, timezone
+import re
+from datetime import date, datetime, time as dtime, timezone
 from typing import Any
 
 from api.services.journal_two import journal_styles as _js
 from api.services.journal_two import sample_marker
 from api.services.journal_two.earnings_prep import SRC_EARNINGS
+from api.services.journal_two.reminder_block import add_trading_days
+from api.services.journal_two.sample_examples import EARNINGS_PREP_TAG
 from api.services.journal_two.timeutil import ET
 
 FOLLOWUP_KIND = "earnings_followup"
-PREP_TAG = "earnings-prep"
-#: Newest prep notes read, at most (earnings_prep._existing_prep_notes reads the same 200).
+#: The tag a prep note carries. Its one named owner is sample_examples.EARNINGS_PREP_TAG (earnings_prep.py spells
+#: the same literal inline); this module restates nothing.
+PREP_TAG = EARNINGS_PREP_TAG
+#: Newest prep notes on THIS ticker read, at most (the ticker is passed to list_notes, so other names' notes never
+#: use up the window).
 PREP_SCAN = 200
 #: A provider can date one report a day or two apart from the calendar.
 MATCH_DAYS = 3
@@ -41,7 +47,9 @@ MAX_AGE_DAYS = 120
 DASH = "—"
 OFF_SENTENCE = "Earnings follow-ups are not on for you yet."
 NEEDS_TICKER_SENTENCE = "An earnings follow-up needs a ticker."
-DATE_SENTENCE = "Choose a report date from the last 120 days."
+DATE_SENTENCE = f"Choose a report date from the last {MAX_AGE_DAYS} days."
+#: The session that first trades a report closes at 16:00 ET (an early close only makes this later than needed).
+SESSION_CLOSE = dtime(16, 0)
 
 
 def _today_et() -> date:
@@ -62,7 +70,10 @@ def valid_symbol(raw: Any) -> bool:
 def as_number(v: Any) -> float | None:
     if isinstance(v, bool) or not isinstance(v, (int, float)):
         return None
-    f = float(v)
+    try:
+        f = float(v)
+    except OverflowError:                       # an int beyond float range (10**400) is no number we can print
+        return None
     return f if math.isfinite(f) else None
 
 
@@ -142,7 +153,7 @@ def prep_note(user_id: str, symbol: str, report_date: str, conn) -> str | None:
     rd, sym = _iso_day(report_date), symbol.upper()
     if rd is None:
         return None
-    rows = notes_service.list_notes(user_id, tag=PREP_TAG, sort="created", limit=PREP_SCAN, conn=conn)
+    rows = notes_service.list_notes(user_id, tag=PREP_TAG, ticker=sym, sort="created", limit=PREP_SCAN, conn=conn)
     ids = []
     for n in rows:
         created = _created_et_day(n.get("createdAt"))
@@ -161,17 +172,36 @@ def _day_words(d: date) -> str:
     return f"{d.strftime('%b')} {d.day}, {d.year}"
 
 
-def _eps(v: float) -> str:
-    return f"{'−' if v < 0 else ''}${abs(v):,.2f}"
+_ISO_CODE = re.compile(r"^[A-Z]{3}$")
 
 
-def _rev(v: float) -> str:
+def foreign_currency(raw: Any) -> str | None:
+    """The ISO code when the payload KNOWS the figures are not US dollars, else None.
+
+    The repo's one convention (presentationPrimitives.js: normalizeCurrencyCode / isForeignCurrency, used by
+    useLatestReport.js and FundamentalsWidget.jsx): USD and an UNKNOWN or absent currency both render with "$",
+    exactly as before; only a stated non-USD code changes anything. Revenue then carries the code, EPS carries
+    NO symbol (its sources do not all state a currency). Nothing is converted."""
+    if not isinstance(raw, str):
+        return None
+    c = raw.strip().upper()
+    return c if _ISO_CODE.match(c) and c != "USD" else None
+
+
+def _eps(v: float, bare: bool = False) -> str:
+    return f"{'−' if v < 0 else ''}{'' if bare else '$'}{abs(v):,.2f}"
+
+
+def _rev(v: float, code: str | None = None) -> str:
     a, sign = abs(v), ("−" if v < 0 else "")
+    pre = f"{code} " if code else "$"
+    if a >= 1e12:
+        return f"{sign}{pre}{a / 1e12:,.2f}T"
     if a >= 1e9:
-        return f"{sign}${a / 1e9:,.1f}B"
+        return f"{sign}{pre}{a / 1e9:,.1f}B"
     if a >= 1e6:
-        return f"{sign}${a / 1e6:,.1f}M"
-    return f"{sign}${a:,.0f}"
+        return f"{sign}{pre}{a / 1e6:,.1f}M"
+    return f"{sign}{pre}{a:,.0f}"
 
 
 def _pct(v: float) -> str:
@@ -199,6 +229,24 @@ def _metric(name: str, actual: Any, estimate: Any, surprise: Any, fmt, missing: 
     return f"{name}: {fmt(a)} actual vs {fmt(e)} expected{tail}."
 
 
+def reaction_is_measured(report_date: str, meta: Any) -> bool:
+    """True only when the payload was retrieved AFTER the close of the first trading day following the report
+    date. The event does not carry the session it measured, and earnings_reaction._move_for falls back to
+    the report-day session when the next one has no bar yet: a payload built before that close (an after-close
+    report read the same evening, a Friday report read on Saturday) holds the PRE-news session, and calling it
+    the reaction would be a number nobody earned. An unknown retrieval time reads as not measured."""
+    rd = _iso_day(report_date)
+    v = as_number(meta.get("retrieved_at")) if isinstance(meta, dict) else None
+    if rd is None or v is None:
+        return False
+    try:
+        retrieved = datetime.fromtimestamp(v, tz=timezone.utc)
+        close = datetime.combine(add_trading_days(rd, 1), SESSION_CLOSE, tzinfo=ET)
+    except (OverflowError, OSError, ValueError):
+        return False
+    return retrieved >= close
+
+
 def number_lines(symbol: str, report_date: str, intel: Any) -> list[str]:
     """The lines under "What happened". Prose, never `role: number` (plan_extract must not read them).
     Only READS `intel` (the shared held payload)."""
@@ -210,15 +258,27 @@ def number_lines(symbol: str, report_date: str, intel: Any) -> list[str]:
     if q is None:
         return [f"The numbers: {DASH} UCT's earnings data does not have the {when} report yet.", source]
     label = q.get("label") if isinstance(q.get("label"), str) and q.get("label").strip() else "The quarter"
-    r = as_number((event_for(intel, report_date) or {}).get("reaction_pct"))
+    code = foreign_currency(intel.get("currency"))
+    eps_fmt = (lambda v: _eps(v, bare=True)) if code else _eps
+    rev_fmt = (lambda v: _rev(v, code)) if code else _rev
+    if not reaction_is_measured(report_date, intel.get("meta")):
+        reaction = (f"Reaction: {DASH} (not measured yet: UCT's earnings data was read before the first session "
+                    "after this report had closed).")
+    else:
+        r = as_number((event_for(intel, report_date) or {}).get("reaction_pct"))
+        reaction = (f"Reaction: {_pct(r)} close to close, on the session that first traded the result."
+                    if r is not None
+                    else f"Reaction: {DASH} (UCT could not measure the price reaction to this report).")
+    note = ([f"Revenue in {code}, the company's reporting currency. EPS carries no currency symbol: its sources "
+             "do not all state one. Not converted to US dollars."] if code else [])
     return [
         f"Quarter: {label}, reported {when}.",
-        _metric("EPS", q.get("eps_actual"), q.get("eps_estimate"), q.get("eps_surprise_pct"), _eps,
+        _metric("EPS", q.get("eps_actual"), q.get("eps_estimate"), q.get("eps_surprise_pct"), eps_fmt,
                 "no reported EPS for this quarter in UCT's earnings data yet"),
-        _metric("Revenue", q.get("revenue_actual"), q.get("revenue_estimate"), q.get("rev_surprise_pct"), _rev,
+        _metric("Revenue", q.get("revenue_actual"), q.get("revenue_estimate"), q.get("rev_surprise_pct"), rev_fmt,
                 "no reported revenue for this quarter in UCT's earnings data yet"),
-        (f"Reaction: {_pct(r)} close to close, on the session that first traded the result." if r is not None
-         else f"Reaction: {DASH} (UCT could not measure the price reaction to this report)."),
+        reaction,
+        *note,
         source,
     ]
 
