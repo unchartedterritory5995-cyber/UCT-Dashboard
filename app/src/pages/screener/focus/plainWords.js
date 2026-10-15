@@ -34,6 +34,20 @@ export function focusChipLabel(def, spec) {
   return lowerOperator(chipLabel({ ...def, label: plain }, spec))
 }
 
+// The server's meta with each filter's label said plainly, for the Filters drawer's headings.
+// Only labels change; keys, presets and order are the server's. Same object back when nothing moves.
+export function plainMeta(meta) {
+  if (!Array.isArray(meta?.filters)) return meta
+  let moved = false
+  const filters = meta.filters.map(f => {
+    const plain = plainColumnLabel(f.key) || plainColumnLabel(f.column)
+    if (!plain || plain === f.label) return f
+    moved = true
+    return { ...f, label: plain }
+  })
+  return moved ? { ...meta, filters } : meta
+}
+
 // One short fact per column, for the chart pane's fact line.
 const FACTS = {
   vol_ratio: v => `Volume ${v.toFixed(1)}× avg`,

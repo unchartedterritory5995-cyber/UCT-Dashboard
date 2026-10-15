@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import FilterRail from '../shell/FilterRail'
 import CriteriaBox from '../shell/CriteriaBox'
 import Menu, { MenuItem } from './Menu'
-import { focusChipLabel } from './plainWords'
+import { focusChipLabel, plainMeta } from './plainWords'
 import { compactDigits } from './whyItsHere'
 import useDescribe from './useDescribe'
 import Input from '../../../components/ui/Input'
@@ -72,7 +72,9 @@ const explainLine = ex => {
 // Left drawer holding every filter. A modal dialog: focus moves in on open,
 // Escape (handled on the dialog, no document listener) closes it, and focus goes
 // back to whatever opened it (or `returnFocusRef`, when the opener is remounted).
-export default function FiltersDrawer({ open, onClose, meta, filters = {}, logic, onSetFilter, onClear, onSetLogic, count, countLoading, countError = null, lists = [], returnFocusRef }) {
+export default function FiltersDrawer({ open, onClose, meta: serverMeta, filters = {}, logic, onSetFilter, onClear, onSetLogic, count, countLoading, countError = null, lists = [], returnFocusRef }) {
+  // Headings in plain words ("Avg daily range", not "ADR %"), the same names the pills use.
+  const meta = useMemo(() => plainMeta(serverMeta), [serverMeta])
   const panel = useRef(null)
   const describe = useDescribe(open)
   const [text, setText] = useState('')
