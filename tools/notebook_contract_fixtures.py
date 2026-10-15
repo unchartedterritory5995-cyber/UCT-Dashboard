@@ -79,6 +79,8 @@ FLAGS = (
     "NOTEBOOK_ONBOARDING_ENABLED",
     # Notebook P1: journal styles and kinds of note (api/routers/notebook_journal_styles.py).
     "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    # Notebook P2 Tier 2 part A: the alert chip, the screenshot chip and their ticker route.
+    "NOTEBOOK_SMART_CHIPS_ENABLED",
 )
 
 
@@ -282,7 +284,7 @@ def build_app() -> Any:
     from fastapi import FastAPI
     from api.routers import (notebook_chart_alerts, notebook_earnings_prep, notebook_entry_context,
                              notebook_fingerprint, notebook_journal_styles, notebook_onboarding,
-                             notebook_plan_grades, notebook_playbook,
+                             notebook_plan_grades, notebook_playbook, notebook_smart_chips,
                              notebook_research_capture, notebook_review_drafts, notebook_setups_board,
                              notebook_template_gallery, notebook_thesis_chips, notebook_visual_playbook)
     app = FastAPI()
@@ -292,7 +294,8 @@ def build_app() -> Any:
               notebook_earnings_prep.router, notebook_entry_context.router,
               notebook_chart_alerts.router, notebook_research_capture.transcripts_router,
               notebook_research_capture.passed_router, notebook_template_gallery.router,
-              notebook_fingerprint.router, notebook_onboarding.router, notebook_journal_styles.router):
+              notebook_fingerprint.router, notebook_onboarding.router, notebook_journal_styles.router,
+              notebook_smart_chips.router):
         app.include_router(r)
     return app
 
@@ -1591,6 +1594,33 @@ def route_table(app: Any) -> list[tuple[str, str]]:
 
 def _concrete(path: str) -> str:
     return re.sub(r"\{[^}]+\}", "x", path)
+
+
+@builder
+def smart_chips(w: World) -> None:
+    """Notebook P2 Tier 2 part A: the smart chips' one ticker check (R-T2A-6). The server's resolver
+    answers which words in a sentence are tickers; the browser never guesses."""
+    base = "/api/j2/smart-chips/tickers"
+    w.as_user(w.member("chips", "Cass Chips"))
+    w.record("smart-chips.tickers", "POST", base, case="success", expect=200,
+             json_body={"text": "alert me if NVDA closes below 120"},
+             note="A plain symbol in a sentence is found, with the tier that found it.")
+    w.record("smart-chips.tickers.cashtag", "POST", base, case="success", expect=200,
+             json_body={"text": "alert me if $RS closes below 120"},
+             note="A cashtag makes any word a ticker.")
+    w.record("smart-chips.tickers.none", "POST", base, case="empty", expect=200,
+             json_body={"text": "alert me if EMA closes below 120"},
+             note="EMA is a word in prose without a cashtag: an empty list, not an error.")
+    w.record("smart-chips.tickers.empty-text", "POST", base, case="error", expect=422, json_body={"text": "   "})
+    w.record("smart-chips.tickers.too-long", "POST", base, case="error", expect=422,
+             json_body={"text": "x" * 2001})
+    w.as_user(w.member("chips", "Cass Chips"), FREE)
+    w.record("smart-chips.tickers.free-plan", "POST", base, case="error", expect=402,
+             json_body={"text": "NVDA"})
+    w.as_user(None)
+    w.record("smart-chips.tickers.signed-out", "POST", base, case="error", expect=401,
+             json_body={"text": "NVDA"})
+    w.as_user(MEMBER)
 
 
 @builder

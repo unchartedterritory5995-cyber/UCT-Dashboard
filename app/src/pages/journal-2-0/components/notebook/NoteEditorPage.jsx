@@ -127,20 +127,30 @@ import {
 } from '../../lib/writingHelp'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { pasteTerminalCommand } from '../../lib/terminalCommandPaste'
-import lazyChunk from '../../lib/lazyChunk'
+import lazyChunk, { RETRY_WAIT_MS, importWithOneRetry } from '../../lib/lazyChunk'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { CANVAS_EVENT, extraBlockCount, isTradeCanvasDoc } from '../../lib/tradeCanvas'
-import { STYLE_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
+import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
 import { loadStyle } from './styles/lazyStyles'
 import { createTradeCanvasNote, tradeCanvasEnabled } from '../../lib/tradeCanvasCreate'
 import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { TranscriptInsertHost } from './TranscriptDoors'
 import { normalizeNoteTicker } from '../../lib/noteTicker'
+import { smartChipsEnabled } from '../../lib/smartChipsFlag'
+// Item 10: NOTHING of the screenshot chip is eager (I5). The poll and its network code (lib/screenshotRead, which
+// also computes the alt and carries it on the offer) and the accept decision (lib/screenshotTag) are dynamic
+// imports below, and the chip itself is lazy.
 
 // The read-only property mirror of the note's ticker. The details region carries the ONE
 // editable Ticker control, so PropertiesSection leaves this row out (stable array: its memo key).
 const DETAILS_OMIT = Object.freeze(['builtin:ticker'])
+/** The Ticker field's text as a ticker (I2): the normalized symbol, the raw text when it is not one (it is still the
+ *  member's, never to be overwritten), or null when the field is blank. */
+const fieldTicker = (raw) => {
+  const text = String(raw ?? '').trim()
+  return text ? (normalizeNoteTicker(text).ticker || text) : null
+}
 /** How many tags the one-line details summary names before it says "+N". */
 const DETAILS_TAGS_SHOWN = 3
 
@@ -166,6 +176,13 @@ const TradeCanvasBoard = lazyChunk(() => import('./TradeCanvasBoard'))
 // Wave 13 lane 13D — "what you wrote then": a resurfacing insight opens the note with
 // `?resurfaceVersion=<id>`. LAZY: only that door ever renders it.
 const ResurfaceVersionSheet = lazyChunk(() => import('./ResurfaceVersionSheet'))
+// Notebook P2 Tier 2 part A, item 8: the "Set alert" chip for a sentence like "alert me if NVDA closes below
+// 120". LAZY, and mounted only while the smart-chips switch is on (an off switch never fetches it). Its mount
+// is also what switches the alert plugin on (lib/alertPhraseOffer.js: HOSTED ONLY).
+const AlertPhraseMenu = lazyChunk(() => import('./AlertPhraseMenu'))
+// Item 10: the "Tag NVDA · Daily" chip on a pasted chart screenshot. LAZY: it exists only after a paste, with both
+// switches on, once the screenshot read has found exactly one ticker.
+const ScreenshotTagOffer = lazyChunk(() => import('./ScreenshotTagOffer'))
 // Notebook P1 (spec P1.3): the "Update layout" offer, its previewed sheet, the /style chooser and the
 // "updated" confirmation, behind ONE lazy import (a second import of the same module costs first-open bytes).
 // Mounted only while journalStylesEnabled() -- a switch that is off never fetches it.
@@ -174,6 +191,19 @@ const StyleHost = lazyChunk(() => loadStyle('StyleHost'))
 // "Add a link to <plan> at the end of this note?" -- nothing is written until
 // the member presses Add (an editor transaction on THIS note's own autosave).
 export const LINK_CANVAS_PARAM = 'linkCanvas'
+
+// Tier 2 part A: the two press-time doors (/plan's link step; the screenshot tag). Loaded at the press, and through
+// importWithOneRetry like lib/lazyStyles.js: a chunk blip heals in place, and a chunk the deploy removed is said
+// in a fixed sentence (reload) instead of failing every later press in this tab. ⛔ NEVER a bare `await import`:
+// a failed dynamic import is remembered for its URL until the page reloads (lib/lazyChunk.js).
+// A property so a rail can fail the first fetch (jsdom cannot fetch a chunk), like lazyChunk's `chunkRetry`.
+export const chipDoorLoaders = {
+  planLink: () => import('../../lib/planLink'),
+  screenshotTag: () => import('../../lib/screenshotTag'),
+}
+const loadChipDoor = (name, piece) => importWithOneRetry(() => chipDoorLoaders[name](), RETRY_WAIT_MS, (m) => !!m?.[piece])
+// The repo's own reload wording ("Reload the page to try again."), then what did not happen.
+const reloadSentence = (what, nothing) => `Couldn't ${what}. Reload the page to try again. Nothing ${nothing}.`
 function LinkCanvasOffer({ canvasId, onAdd, onDismiss }) {
   const target = useNoteLinkTarget(canvasId)
   const name = target.title || 'the trade plan'
@@ -1917,12 +1947,76 @@ export default function NoteEditorPage({
       return next
     }, { replace: true })
   }, [setSearchParams])
+  // Tier 2 part A, item 10: the screenshot chip. ONE offer at a time (the newest paste); the read is aborted when
+  // another image is pasted, the note changes, or the page unmounts (Review Focus 3).
+  const [screenshotOffer, setScreenshotOffer] = useState(null)
+  // Dismiss, and the chip's own "the image is gone" (I3): either way the offer ends and the chip unmounts.
+  const clearScreenshotOffer = useCallback(() => setScreenshotOffer(null), [])
+  const screenshotReadRef = useRef(null)
+  // ⛔ I2: what the member has TYPED into the Ticker field and not saved yet (it saves on blur, and the chip's
+  // mousedown keeps focus, so a press on the chip does not save it). It feeds the chip's WORDS only, and it is
+  // tracked only while a screenshot offer is showing (the field's onChange is absent otherwise), so with no offer
+  // -- and always with the switch off -- a keystroke in the field re-renders nothing, as before this branch.
+  // Accept never trusts it: it reads the field itself (tickerInputRef).
+  const [tickerDraft, setTickerDraft] = useState(null)
+  useEffect(() => () => { screenshotReadRef.current?.abort() }, [noteId])
+  useEffect(() => { setScreenshotOffer(null); setTickerDraft(null) }, [noteId])
+  const startScreenshotRead = async (url) => {
+    screenshotReadRef.current?.abort()
+    const ctrl = new AbortController()
+    screenshotReadRef.current = ctrl
+    const forNote = noteId
+    try {
+      // The poll and its network code load only when a screenshot is pasted with the switches on.
+      const { readScreenshot } = await import('../../lib/screenshotRead')
+      const found = await readScreenshot({ noteId: forNote, url, signal: ctrl.signal })
+      if (!found || ctrl.signal.aborted) return
+      // The chip's words follow the Ticker field only while an offer shows (Minor, re-review): seed them from the
+      // field as it stands now, and its onChange keeps them current from here on.
+      setTickerDraft(tickerInputRef.current?.value ?? null)
+      setScreenshotOffer({ url, ...found, noteId: forNote })
+    } catch { /* the chip is an extra: a chunk that will not load offers nothing, and the paste itself is done */ }
+  }
+  // Accepting labels the image (an editor transaction: the note's own autosave) and, only when the note has no
+  // ticker yet, sets it through the metadata door -- `update` + `settleMetadataRevision`, exactly as onTickerChange.
+  // ⛔ I2: "the note's ticker" includes what is TYPED in the Ticker field and not saved yet. A typed value is the
+  // member's; the tag then labels the image only, and the chip's words say so ("Tag image …").
+  // I5: the decision and its sentences live in the lazy lib/screenshotTag; the ticker WRITE stays here.
+  // ⛔ Fix round 1 (f5Freeze): the write goes through the member's OWN door, `onTickerChange` (a const declared further
+  // down this body: it is read at the press, long after the render has finished, so there is no temporal dead zone).
+  // It normalises, sets the field, clears the draft and puts the field back on a refusal. `quiet` keeps its own field
+  // sentence off and lets the refusal REJECT instead: the tag's toast says "Couldn't set the note's ticker" (lib/screenshotTag),
+  // once, and never claims a ticker that was not set.
+  const setTickerFromTag = (symbol) => onTickerChange(symbol, true)
+  const acceptScreenshotTag = async (offer) => {
+    setScreenshotOffer(null)
+    // Read AT THE PRESS, before the import's await (a re-render during it must not change what was pressed for).
+    const press = {
+      offer, editor: editorRef.current, noteId, locked: lockedRef.current,
+      existingTicker: fieldTicker(tickerInputRef.current?.value) || note?.ticker || null,
+      setTicker: setTickerFromTag,
+    }
+    let door
+    try {
+      door = await loadChipDoor('screenshotTag', 'tagScreenshot')
+    } catch {
+      setUploadToast({ message: reloadSentence('tag the screenshot', 'changed'), tone: 'error' })
+      return
+    }
+    setUploadToast(await door.tagScreenshot(press)) // it never throws: every outcome is a sentence
+  }
   const handleImageInsert = async (file) => {
     const ed = editorRef.current
     if (!ed || !file) return
     try {
       const { url } = await uploadInlineImage(noteId, file)
-      ed.chain().focus().setImage({ src: url, alt: '' }).run()
+      const placed = ed.chain().focus().setImage({ src: url, alt: '' }).run()
+      // Item 10: with BOTH switches on, wait in the background for the OCR the document pipeline runs on a pasted
+      // image and, if it names exactly one ticker, offer the tag. ⛔ Never automatic; an off switch starts nothing.
+      if (placed !== false && smartChipsEnabled() && notebookFlag('notebook_image_docx_documents_enabled') === true) {
+        refreshDocuments() // the attachment path's "the id exists the moment the chip does"
+        startScreenshotRead(url)
+      }
     } catch (e) {
       // Wave 7 (G5, the camera "Scan" door): the server's reason is a sentence a
       // member can act on — a phone photo in HEIC is refused with "Only
@@ -2050,6 +2144,38 @@ export default function NoteEditorPage({
       setUploadToast({ message: "Couldn't create the trade plan. Nothing was saved.", tone: 'error' })
     } finally {
       creatingCanvasRef.current = false
+    }
+  }, [])
+  // Tier 2 part A: /plan NVDA in a note -- make the Trade plan and link it at the caret.
+  const creatingPlanRef = useRef(false)
+  const createLinkedPlan = useCallback(async (symbol) => {
+    const ed = editorRef.current
+    if (!journalStylesEnabled() || !ed || ed.isDestroyed || creatingPlanRef.current) return
+    if (lockedRef.current || !ed.isEditable) {
+      setUploadToast({ message: 'This note is locked — unlock it in the Notebook first', tone: 'error' })
+      return
+    }
+    creatingPlanRef.current = true
+    try {
+      // I5: the /plan door and its link step (lib/planLink -> lib/planCreate) load at the press, never on note
+      // open (the flag above is set first, so a second press while it loads is still one create).
+      let door
+      try {
+        door = await loadChipDoor('planLink', 'createAndLinkPlan')
+      } catch {
+        setUploadToast({ message: reloadSentence('create the trade plan', 'was saved'), tone: 'error' })
+        return
+      }
+      const said = await door.createAndLinkPlan({
+        symbol, folderId: canvasNoteRef.current?.folderId || undefined,
+        liveEditor: () => editorRef.current, isLocked: () => lockedRef.current,
+      })
+      if (said) setUploadToast(said)
+    } catch (e) {
+      console.error('[notebook] /plan create failed', e)
+      setUploadToast({ message: "Couldn't create the trade plan. Nothing was saved.", tone: 'error' })
+    } finally {
+      creatingPlanRef.current = false
     }
   }, [])
   // The canvas's "Link from a thesis": open the picked note with the offer.
@@ -3640,6 +3766,8 @@ export default function NoteEditorPage({
     // Wave 11 lane 11D: the slash menu's "Trade-plan canvas", same per-editor target.
     const onTradeCanvas = () => { createLinkedCanvas() }
     const onStyle = () => setStyleAsk((n) => n + 1)
+    // Tier 2 part A: the slash menu's "/plan SYMBOL", same per-editor target.
+    const onPlan = (e) => { createLinkedPlan(e?.detail?.symbol) }
     let dom = null
     const detach = () => {
       if (dom) {
@@ -3649,6 +3777,7 @@ export default function NoteEditorPage({
         dom.removeEventListener(VOICE_NOTE_EVENT, onVoiceNote)
         dom.removeEventListener(CANVAS_EVENT, onTradeCanvas)
         dom.removeEventListener(STYLE_EVENT, onStyle)
+        dom.removeEventListener(PLAN_EVENT, onPlan)
       }
       dom = null
     }
@@ -3664,6 +3793,7 @@ export default function NoteEditorPage({
       dom.addEventListener(VOICE_NOTE_EVENT, onVoiceNote)
       dom.addEventListener(CANVAS_EVENT, onTradeCanvas)
       dom.addEventListener(STYLE_EVENT, onStyle)
+      dom.addEventListener(PLAN_EVENT, onPlan)
     }
     attach()
     editor.on('mount', attach)
@@ -3754,7 +3884,11 @@ export default function NoteEditorPage({
   // The Ticker field is checked against the server's rule BEFORE it is sent, and a refusal is
   // said in a SaveFailed sentence with the field put back -- see lib/noteTicker.js for the
   // uncaught 400 this replaced.
-  const onTickerChange = async (raw) => {
+  // `quiet` is for a caller that says the failure itself (the screenshot tag's toast): the field is still put back, its own
+  // sentence is left off, and the refusal is rethrown so that caller knows. The tag hands over an already-normalised symbol,
+  // so the two early returns below (a refused value, the value the note already has) are not its failure paths.
+  const onTickerChange = async (raw, quiet) => {
+    setTickerDraft(null) // the field is being saved (or put back): from here the note's ticker is the authority
     const saved = note?.ticker || ''
     const restore = () => { if (tickerInputRef.current) tickerInputRef.current.value = saved }
     const { ticker, error } = normalizeNoteTicker(raw)
@@ -3771,9 +3905,10 @@ export default function NoteEditorPage({
       setTickerFailure(null)
       await settleMetadataRevision(await update({ ticker }))
       if (tickerInputRef.current) tickerInputRef.current.value = ticker || ''
-    } catch {
-      setTickerFailure("Couldn't change the ticker. Nothing changed.")
+    } catch (e) {
       restore()
+      if (quiet) throw e
+      setTickerFailure("Couldn't change the ticker. Nothing changed.")
     }
   }
   // Wave 6 items 9 + 12: a tag change is the member's DELTA, applied to the
@@ -5091,6 +5226,7 @@ export default function NoteEditorPage({
               className={styles.tickerInput}
               placeholder="e.g. NVDA"
               defaultValue={note.ticker || ''}
+              onChange={screenshotOffer ? (e) => setTickerDraft(e.target.value) : undefined}
               onBlur={(e) => onTickerChange(e.target.value)}
               autoComplete="off"
               spellCheck={false}
@@ -5151,6 +5287,16 @@ export default function NoteEditorPage({
             and renders nothing anywhere else (or on a read-only note). */}
         <TableToolbar editor={editor} />
         <LinkPasteMenu editor={editor} />
+        {smartChipsEnabled() && (
+          <Suspense fallback={null}><AlertPhraseMenu editor={editor} noteTicker={note?.ticker || null} /></Suspense>
+        )}
+        {smartChipsEnabled() && screenshotOffer && screenshotOffer.noteId === noteId && (
+          <Suspense fallback={null}>
+            <ScreenshotTagOffer editor={editor} offer={screenshotOffer}
+              noteTicker={(tickerDraft != null ? fieldTicker(tickerDraft) : null) || note?.ticker || null}
+              onAccept={acceptScreenshotTag} onDismiss={clearScreenshotOffer} onGone={clearScreenshotOffer} />
+          </Suspense>
+        )}
 
         {offerCanvasLink && (
           <LinkCanvasOffer canvasId={linkCanvasId} onAdd={acceptCanvasLink} onDismiss={clearLinkCanvasParam} />

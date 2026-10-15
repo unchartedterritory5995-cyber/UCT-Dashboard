@@ -4,9 +4,17 @@
 // prefix match (completion, nothing to eat); with args/prose = exact name.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Editor } from '@tiptap/core'
-import { widgetItems, factItems, consensusFactItems, ITEMS, groupedSlashItems, blockItemGroup, rankedBlockItems } from './SlashMenu'
+import { widgetItems, factItems, consensusFactItems, planItems, ITEMS, groupedSlashItems, blockItemGroup, rankedBlockItems } from './SlashMenu'
 import { buildExtensions } from '../../lib/tiptap'
 import { dateSuggestPluginKey } from '../../lib/dateSuggest'
+import { PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
+
+// /plan is gated on the journal-styles switch. Pass-through by default (every other test in this file runs
+// against the real flag, i.e. off); the /plan block turns it on and the gate case turns it off again.
+vi.mock('../../lib/journalStylesFlag', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, journalStylesEnabled: vi.fn(actual.journalStylesEnabled) }
+})
 
 const titles = (q) => widgetItems(q).map((i) => i.title)
 
@@ -432,5 +440,65 @@ describe('due dates are findable from the slash menu (P0.9)', () => {
     expect(editor.state.doc.textBetween(from - 1, from)).toBe('@')
     // The same "@" a member would have typed: the date list is now open.
     expect(dateSuggestPluginKey.getState(editor.state).active).toBe(true)
+  })
+})
+
+// ── Tier 2 part A: /plan NVDA makes a Trade plan note and links it at the caret ─────────────────────────────
+describe('/plan (Tier 2 part A)', () => {
+  const realFlag = journalStylesEnabled.getMockImplementation()
+  beforeEach(() => { journalStylesEnabled.mockImplementation(() => true) })
+  afterEach(() => { journalStylesEnabled.mockImplementation(realFlag) })
+
+  it('bare /plan is a hint that re-types the command', () => {
+    const [hint] = planItems('plan')
+    expect(hint.cmd).toBe('plan'); expect(hint.title).toBe('Trade plan')
+    const calls = []
+    const chain = {
+      focus: () => { calls.push('focus'); return chain },
+      deleteRange: (r) => { calls.push(['deleteRange', r]); return chain },
+      insertContent: (t) => { calls.push(['insertContent', t]); return chain },
+      run: () => calls.push('run'),
+    }
+    hint.command({ editor: { chain: () => chain }, range: { from: 1, to: 6 } })
+    expect(calls).toContainEqual(['insertContent', '/plan '])
+  })
+  it('/plan NVDA is the real item, upper-cased', () => {
+    const [item] = planItems('plan nvda')
+    expect(item.title).toBe('Trade plan — NVDA')
+    expect(item.cmd).toBe('plan')
+    expect(planItems('plan $amd')[0].title).toBe('Trade plan — AMD')
+  })
+  it('running it clears the typed text, then fires PLAN_EVENT with the symbol on the editor root', () => {
+    const seen = []
+    const dom = { dispatchEvent: (e) => seen.push({ type: e.type, detail: e.detail, bubbles: e.bubbles }) }
+    const deleted = []
+    const chain = { focus: () => chain, deleteRange: (r) => { deleted.push(r); return chain }, run: () => true }
+    planItems('plan nvda')[0].command({ editor: { chain: () => chain, view: { dom } }, range: { from: 3, to: 12 } })
+    expect(deleted).toEqual([{ from: 3, to: 12 }])
+    expect(seen).toEqual([{ type: PLAN_EVENT, detail: { symbol: 'NVDA' }, bubbles: true }])
+  })
+  it('anything that does not parse returns nothing, so Enter stays a newline', () => {
+    expect(planItems('plan nvda amd')).toEqual([])
+    expect(planItems('plan 12$')).toEqual([])
+    expect(planItems('planet')).toEqual([])
+    expect(planItems('pla nvda')).toEqual([])   // prefix + args never matches (the Enter-trap shape)
+    expect(planItems('chart')).toEqual([])
+  })
+  it('a prefix of the word is still a hint', () => { expect(planItems('pla')).toHaveLength(1) })
+  it('a bare slash lists the Trade plan hint exactly once, like Price', () => {
+    const hints = planItems('')
+    expect(hints).toHaveLength(1)
+    expect(hints[0].title).toBe('Trade plan')
+    expect(hints[0].cmd).toBe('plan')
+    const bare = groupedSlashItems(ITEMS, [...widgetItems(''), ...factItems(''), ...consensusFactItems(''), ...hints])
+    expect(bare.filter((i) => i.cmd === 'plan')).toHaveLength(1)
+    expect(bare.filter((i) => i.title === 'Trade plan')).toHaveLength(1)
+    expect(bare.find((i) => i.cmd === 'plan').group).toBe('trading')
+  })
+  it('is OFF with the journal-styles switch: nothing is offered', () => {
+    journalStylesEnabled.mockImplementation(() => false)
+    expect(planItems('plan nvda')).toEqual([])
+    expect(planItems('plan')).toEqual([])
+    expect(planItems('pla')).toEqual([])
   })
 })

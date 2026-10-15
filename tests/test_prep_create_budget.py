@@ -174,6 +174,80 @@ def test_CONTROL_inside_the_budget_every_block_keeps_its_snapshot(db_path, monke
     assert blocks["marketcontext"]["capturedAt"] and n["propertiesJson"][REGIME] == "green"
 
 
+# ── /plan's price read (Tier 2 part A): the one read a planPrefill create adds ────────────────────
+
+CLOSE = {"price": 182.4, "change_pct": 1.2, "market_closed": True, "source": "last close",
+         "asOf": "2026-10-13T20:00:00Z"}
+
+
+def _plan_create(user="u1"):
+    from api.services.journal_two import journal_styles as js
+    t0 = time.monotonic()
+    n, _ = js.create_styled_note(user, {"kindId": "trade_plan", "ticker": "NVDA", "planPrefill": True})
+    return n, time.monotonic() - t0
+
+
+def _plan_price_door(monkeypatch, sleep=0.0):
+    """The door /plan's price read goes through: price_stamp_quote's one live read. A held close answers
+    after it, so a read that finishes yields a "Price when planned" line."""
+    from api.routers import live_prices
+    from api.services.journal_two import trader_blocks as tb
+    reads: list[str] = []
+
+    def get_live_prices(tickers=None, *a, **k):
+        reads.append(tickers)
+        time.sleep(sleep)
+        return {}
+    monkeypatch.setattr(live_prices, "get_live_prices", get_live_prices)
+    monkeypatch.setattr(tb, "_quotes", lambda user_id, symbols, now=None: {"NVDA": dict(CLOSE)})
+    return reads
+
+
+def _has_price_line(note):
+    stack = list((note["bodyJson"] or {}).get("content") or [])
+    while stack:
+        n = stack.pop()
+        if isinstance(n, dict):
+            if n.get("type") == "text" and "Price when planned" in n.get("text", ""):
+                return True
+            stack.extend(n.get("content") or [])
+    return False
+
+
+def test_the_plan_price_is_read_inside_the_budget_and_never_after_it(db_path, small_budget, monkeypatch):
+    """Both directions. CONTROL: with time left the one live read is made and the line is written.
+    Spent: a block ahead of it uses the whole budget, so the read is NOT started and the line is left out."""
+    from api.services.journal_two import trader_blocks as tb
+    _fast_market(monkeypatch)
+    reads = _plan_price_door(monkeypatch)
+    n, _ = _plan_create()
+    assert reads == ["NVDA"] and _has_price_line(n)                       # CONTROL: the rail can fail
+
+    reads.clear()
+    slept: list[bool] = []
+
+    def slow_regime(memo):
+        slept.append(True)
+        time.sleep(BUDGET + 0.1)                                          # the sizer's read spends the budget
+        return {"value": "green", "source": "UCT Exposure Rating", "asOf": "2026-10-13",
+                "missing": None, "detail": None}
+    monkeypatch.setattr(tb, "_regime_field", slow_regime)
+    n, took = _plan_create()
+    assert slept, "non-vacuity: the read ahead of the price was reached"
+    assert reads == [] and not _has_price_line(n)                         # never started, never a zero
+    assert "annotations" in _embeds(n)["chart"]                           # the note itself is whole
+
+
+def test_a_stalled_plan_price_read_is_bounded_and_made_once(db_path, small_budget, monkeypatch):
+    """The read is one in-flight call the check cannot interrupt: the create is bounded by the budget plus
+    that one read (the stated margin), and the read is never repeated."""
+    _fast_market(monkeypatch)
+    reads = _plan_price_door(monkeypatch, sleep=STALL)
+    n, took = _plan_create()
+    assert reads == ["NVDA"], reads
+    assert took < BUDGET + MARGIN, took
+
+
 # ── the regime read stops at held data ─────────────────────────────────────────────────────────
 
 def _spy_breadth(monkeypatch, held):

@@ -1,0 +1,20 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/smart-chips/tickers",
+    "note": "A plain symbol in a sentence is found, with the tier that found it.",
+    "path": "/api/j2/smart-chips/tickers",
+    "requestBody": {
+      "text": "alert me if NVDA closes below 120"
+    },
+    "status": 200
+  },
+  "body": {
+    "tickers": [
+      {
+        "symbol": "NVDA",
+        "tier": "exact"
+      }
+    ]
+  }
+}

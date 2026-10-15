@@ -5,9 +5,10 @@ input/output log rather than a person's ears.
     python tools/notebook_nvda_pass.py --self-check
 
 WHAT IT IS, HONESTLY. The pass script was written for a human listening to a real screen reader.
-This drives the same rows -- 1 to 27 (the 2026-10-09 pass) and 28 to 38 (Journal styles, P1, and the
+This drives the same rows -- 1 to 27 (the 2026-10-09 pass), 28 to 38 (Journal styles, P1, and the
 trader blocks, P2; added 2026-10-13, driven only while the server under test has the journal styles
-switch on) -- with REAL OS key events (`SendInput`, so NVDA's keyboard hook sees
+switch on) and 39 to 41 (the alert chip and the screenshot tag, Tier 2 part A; added 2026-10-14,
+driven only while the smart chips switch is on, row 41 also the image-documents switch) -- with REAL OS key events (`SendInput`, so NVDA's keyboard hook sees
 them; Playwright's CDP keys do not reach it) into a headed Chromium signed in as the synthetic
 smoke account, and reads what NVDA SPOKE from its log at log level 12 (input/output), where every
 utterance is a `Speaking [...]` line. A row PASSES when every quoted phrase in the script's
@@ -39,6 +40,13 @@ for the first hour` (switched to Before entry) in the account the browser select
 account has no closed trade for the review picker -- a manual `ZZZT` trade. With the switch off or
 absent on `/api/auth/me`, rows 28-38 are NOT RUN and none of these is made; a row whose blocks the
 server does not serve (GET /api/j2/journal-styles `blockKinds`) is NOT RUN "server lacks P2b blocks".
+Rows 39-41 make a note each (`SR alert chip`, shared by 39 and 40; `SR screenshot tag`) the same way, only
+when a row that needs it runs, and only while `notebook_smart_chips_enabled` is a boolean True on
+`/api/auth/me` (row 41 also `notebook_image_docx_documents_enabled`). Row 41 pastes
+tools/fixtures/chart-header-nvda-1d.png through the OS clipboard and a real Ctrl+V, then waits up to 60 s
+for the chip; with no OCR engine on the server (`ocrUnavailable` on the note's documents) it is NOT RUN
+with that reason. WARNING: row 41 leaves an uploaded image attached to a TRASHED note, and its OCR'd
+document row: the product has no hard delete for either. The record's `made` lists the note.
 
 ⛔ NVDA must already be running with `-m --log-level=12 --log-file=<path>`; pass that path as
 --nvda-log. The box's foreground is taken by the test browser for the run's length (~8 min).
@@ -56,6 +64,7 @@ are dropped: a window title can carry an account's email). Exit: 0 every run row
 from __future__ import annotations
 
 import argparse
+import base64
 import ctypes
 import ctypes.wintypes as wt
 import datetime as dt
@@ -304,13 +313,21 @@ class Ear:
         return [ln for ln in data.splitlines() if "Speaking" in ln and "@" not in ln]
 
 
-def grade(expected: list[str], heard: list[str]) -> tuple[str, str]:
+def grade(expected: list[str], heard: list[str], once: str | None = None) -> tuple[str, str]:
+    """PASS when every phrase of `expected` is a case-insensitive substring of the heard speech.
+    `once` (row 39): a phrase that must also be spoken EXACTLY once in the window -- the alert
+    suggestion's live region announces each new offer once, and a screen reader that says it twice
+    (or never) is a finding the substring check alone would pass."""
     blob = " | ".join(heard).lower()
     missing = [e for e in expected if e.lower() not in blob]
     if not heard:
         return "FAIL", "NVDA spoke nothing in the window"
     if missing:
         return "FAIL", f"missing {missing!r}; heard: {' / '.join(heard)[:300]}"
+    if once is not None:
+        n = blob.count(once.lower())
+        if n != 1:
+            return "FAIL", f"{once!r} was spoken {n} times, not once; heard: {' / '.join(heard)[:300]}"
     return "PASS", " / ".join(heard)[:300]
 
 
@@ -321,6 +338,10 @@ def grade(expected: list[str], heard: list[str]) -> tuple[str, str]:
 # NOTEBOOK_FLAGS + _notebook_flags, the key below, on /api/auth/me) and latches only a BOOLEAN
 # (lib/offline/notebookFlags.js flagValue), so this reads the same key the same way.
 STYLES_FLAG_KEY = "notebook_journal_styles_enabled"
+# Rows 39-41 (Tier 2 part A): the two auth payload keys the chips ride, read the same way (a boolean True or off).
+SMART_CHIPS_KEY = "notebook_smart_chips_enabled"            # lib/smartChipsFlag.js
+IMAGE_DOCS_KEY = "notebook_image_docx_documents_enabled"    # NoteEditorPage handleImageInsert's second condition
+T2A_FIXTURE = pathlib.Path(__file__).resolve().parents[1] / "tools" / "fixtures" / "chart-header-nvda-1d.png"
 SR_STYLE_NAME = "SR style"
 SR_RULE_LABEL = "SR rule wait for the first hour"      # no apostrophe: the name below quotes it in ''
 SR_SETUP = "SR setup"
@@ -383,6 +404,57 @@ P1P2_ROWS = (
      "blocks": ("tradeReview",)},
 )
 P1P2_BY_N = {r["n"]: r for r in P1P2_ROWS}
+
+# ── Rows 39-41 (2026-10-14): Tier 2 part A, the alert chip and the screenshot tag ────────────
+# Every name is read from the component source; docs/notebook/screen-reader-pass.md ("Steps 39-41") quotes
+# the file:line. They exist only while NOTEBOOK_SMART_CHIPS_ENABLED is on for the server under test (row 41
+# also NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED and an OCR engine). `needs`: "chips" or "chips+docs".
+# WARNING: phrases are graded as substrings of what NVDA SPOKE, and NVDA's symbol level may say "plus" for
+# the + of Alt+Enter, "dollar" for the $ and a name or nothing for the middle dot: so the graded phrases avoid
+# those characters ("Enter to set it" survives "Alt plus Enter to set it"), and the full sentence is quoted
+# from the source in the doc, not graded.
+ALERT_SENTENCE = "alert me if NVDA closes below 120"
+ALERT_NOTE = "SR alert chip"
+SHOT_NOTE = "SR screenshot tag"
+T2A_ROWS = (
+    {"n": 39, "keys": f"open the note '{ALERT_NOTE}'; click into the body, End; type '{ALERT_SENTENCE}' with real keys; wait for the chip",
+     "expected": ["Alert suggestion", "NVDA closes below", "Enter to set it", "Escape to dismiss"],
+     "logged": ["Alert suggestion: NVDA closes below $120.00 (daily). Press Alt+Enter to set it, or Escape to dismiss."],
+     "once": "Alert suggestion", "needs": "chips",
+     "note": "(the live region speaks once per offer; graded as ONE occurrence of 'Alert suggestion' in the window)"},
+    {"n": 40, "keys": "same note, chip showing: mark, Alt+Enter, wait for the sheet, Escape",
+     "expected": ["Set an alert", "dialog", "Note body"],
+     "logged": ["Set an alert", "dialog", "Ticker", "edit", "Note body", "section", "multi line", "editable"],
+     "needs": "chips",
+     "note": "(the sheet is named by its title; Escape hands focus back to the body: the DOM note says where focus was)"},
+    {"n": 41, "keys": f"open the note '{SHOT_NOTE}'; paste the fixture image (OS clipboard, real Ctrl+V); wait up to 60 s for the chip; focus its button",
+     "expected": ["Tag NVDA", "Daily", "button"],
+     "logged": ["Tag NVDA · Daily", "button"], "needs": "chips+docs",
+     "note": "(the middle dot is not graded: NVDA may speak it as a name or not at all)"},
+)
+T2A_BY_N = {r["n"]: r for r in T2A_ROWS}
+ROW_BY_N = {**P1P2_BY_N, **T2A_BY_N}
+
+
+def switch_off(me, key: str, what: str, base: str) -> str | None:
+    """None when /api/auth/me carries a boolean True for `key`; else the NOT RUN reason. Only a boolean
+    True is ON (the client latches booleans only); absent says it is absent."""
+    if not isinstance(me, dict) or key not in me:
+        return f"{what} switch is off on {base} (/api/auth/me carries no {key})"
+    return None if me.get(key) is True else f"{what} switch is off on {base}"
+
+
+def t2a_off(me, needs: str, base: str) -> str | None:
+    """Why rows 39-41 cannot run on this server, or None. `needs` is a T2A_ROWS entry's."""
+    why = switch_off(me, SMART_CHIPS_KEY, "smart chips", base)
+    if why is None and needs == "chips+docs":
+        why = switch_off(me, IMAGE_DOCS_KEY, "image documents", base)
+    return why
+
+
+class RowNotRun(Exception):
+    """Raised by a row's action when the server cannot give it what it measures (e.g. no OCR engine).
+    The row is recorded NOT RUN with the message, never FAIL."""
 
 #: Row 28's door, in order. ⛔ `mark` (the ear starts listening) comes AFTER `focus` and its `settle`
 #: and BEFORE `enter`: the Styles button carries aria-haspopup="dialog", which NVDA speaks as "opens
@@ -558,6 +630,18 @@ class P2Fixtures:
             self.fx[key] = nid
         return self.fx[key]
 
+    def plain_note(self, title):
+        """Rows 39-41: a note with one paragraph, made through the API the first time a row needs it."""
+        key = f"plain:{title}"
+        if key not in self.fx:
+            st, j = self._send("post", "/api/j2/notes", {"title": title, "bodyJson": {"type": "doc", "content": [_para("SR chip row.")]}})
+            if st != 200 or not isinstance(j, dict):
+                raise FixtureUnavailable(f"note {title!r} not made: {st} {str(j)[:160]}")
+            nid = (j.get("note") or j)["id"]
+            self.made["notes"].append(nid); self.write()
+            self.fx[key] = nid
+        return self.fx[key]
+
     def style(self):
         """`SR style`: the chart, then the pre-entry checklist (so the checklist row's Move up is live)."""
         if "style" not in self.fx:
@@ -601,11 +685,12 @@ def p2_row(num, needs, action, *, only, styles_off, served, row, not_run, inconc
     """Rows 28-38's gate in front of `row()`. Nothing in `needs` (the fixtures) is called, and so no
     fixture is made, unless p2_decision says "run"; a fixture that cannot be made is INCONCLUSIVE
     with no key sent (`row()`, which owns the guard and every key, is never entered)."""
-    spec = P1P2_BY_N[num]
+    spec = ROW_BY_N[num]
     keys, expected, note = spec["keys"], spec["expected"], spec.get("note")
+    extra = {"once": spec["once"]} if spec.get("once") else {}      # only row 39 grades "spoken once"
     verdict, why = p2_decision(num, only, styles_off, spec.get("blocks", ()), served)
     if verdict == "skip":
-        return row(num, keys, expected, lambda: None)
+        return row(num, keys, expected, lambda: None, **extra)
     if verdict == "not_run":
         return not_run(num, keys, expected, why)
     if verdict == "inconclusive":
@@ -615,7 +700,7 @@ def p2_row(num, needs, action, *, only, styles_off, served, row, not_run, inconc
     except Exception as e:  # noqa: BLE001 -- FixtureUnavailable, or an answer of a shape not expected
         detail = str(e) if isinstance(e, FixtureUnavailable) else f"a fixture could not be made: {type(e).__name__}: {e}"
         return inconclusive(num, keys, expected, f"no key sent: {detail}")
-    return row(num, keys, expected, lambda: action(*got), note=note)
+    return row(num, keys, expected, lambda: action(*got), note=note, **extra)
 
 
 def self_check() -> int:
@@ -660,6 +745,33 @@ def self_check() -> int:
             fails.append(f"row {r['n']}: the ear cannot hear its own expected words: {why}")
     if "’" not in TIMEFRAME_NAME or "'" in TIMEFRAME_NAME:
         fails.append(f"row 30's name lost its typographic apostrophe: {TIMEFRAME_NAME!r}")
+    # Rows 39-41 (Tier 2 part A): numbers, the ear over their own words, the "once" grader and the gates.
+    if [r["n"] for r in T2A_ROWS] != [39, 40, 41]:
+        fails.append(f"T2A_ROWS numbers: {[r['n'] for r in T2A_ROWS]!r}")
+    for r in T2A_ROWS:
+        logged = "Speaking [LangChangeCommand ('en_US'), " + ", ".join(repr(x) for x in r["logged"]) + "]"
+        verdict, why = grade(r["expected"], parse_speech(logged), once=r.get("once"))
+        if verdict != "PASS":
+            fails.append(f"row {r['n']}: the ear cannot hear its own expected words: {why}")
+    said = "Alert suggestion: NVDA closes below $120.00 (daily). Press Alt plus Enter to set it, or Escape to dismiss."
+    if grade(T2A_BY_N[39]["expected"], [said], once="Alert suggestion")[0] != "PASS":
+        fails.append("row 39: the words NVDA says with 'plus' for '+' did not PASS")
+    if grade(T2A_BY_N[39]["expected"], [said, said], once="Alert suggestion")[0] != "FAIL":
+        fails.append("row 39: an announcement spoken TWICE did not FAIL the once-check")
+    if grade(T2A_BY_N[39]["expected"], ["column 3 Sort by Name button"], once="Alert suggestion")[0] != "FAIL":
+        fails.append("row 39: foreign speech did not FAIL")
+    on = {SMART_CHIPS_KEY: True, IMAGE_DOCS_KEY: True}
+    for me_, needs_, want_off in (({}, "chips", True), (None, "chips", True), ({SMART_CHIPS_KEY: "true"}, "chips", True),
+                                  ({SMART_CHIPS_KEY: False}, "chips", True), ({SMART_CHIPS_KEY: True}, "chips", False),
+                                  ({SMART_CHIPS_KEY: True}, "chips+docs", True), ({SMART_CHIPS_KEY: True, IMAGE_DOCS_KEY: False}, "chips+docs", True),
+                                  (on, "chips+docs", False)):
+        why = t2a_off(me_, needs_, base)
+        if bool(why) != want_off:
+            fails.append(f"t2a_off({me_!r}, {needs_!r}) answered {why!r}")
+    if "carries no" not in (t2a_off({}, "chips", base) or ""):
+        fails.append("t2a_off: an ABSENT key did not say it was absent")
+    if not T2A_FIXTURE.exists():
+        fails.append(f"row 41's fixture is missing: {T2A_FIXTURE}")
     # (d) The block catalog is READ from the server file, and holds the six blocks the rows build.
     try:
         kinds = block_kinds()
@@ -784,7 +896,7 @@ def main(argv=None) -> int:
     def write():
         out.write_text(json.dumps(rec, indent=1), encoding="utf-8")
 
-    def row(num, keys, expected, action, note=None):
+    def row(num, keys, expected, action, note=None, once=None):
         """Run one script row: guard, mark the ear, act, settle, grade, record."""
         if only and str(num) not in only:
             rows.append({"n": num, "keys": keys, "expected": expected, "result": "SKIPPED", "notes": "--only", "heard": []})
@@ -804,13 +916,17 @@ def main(argv=None) -> int:
                          "notes": f"keys withheld mid-row: {e}", "heard": ear.heard()})
             rec["aborted"] = f"row {num}: {e}"; write()
             raise RunAborted(str(e))
+        except RowNotRun as e:
+            rows.append({"n": num, "keys": keys, "expected": expected, "result": "NOT RUN",
+                         "notes": str(e)[:300], "heard": ear.heard()})
+            write(); print(f"  N/R  {num!s:>3}  {str(e)[:110]}"); return
         except Exception as e:  # noqa: BLE001
             rows.append({"n": num, "keys": keys, "expected": expected, "result": "FAIL",
                          "notes": f"driver error: {type(e).__name__}: {e}"[:300], "heard": ear.heard()})
             write(); print(f"  FAIL {num!s:>3}  driver error: {type(e).__name__}"); return
         time.sleep(SETTLE_S)
         heard = ear.heard()
-        result, notes = grade(expected, heard)
+        result, notes = grade(expected, heard, once=once)
         probe = PROBE.pop("txt", None)
         rows.append({"n": num, "keys": keys, "expected": expected, "result": result,
                      "notes": (note + " " if note else "") + notes, "heard": heard, "dom": probe})
@@ -1201,6 +1317,76 @@ def main(argv=None) -> int:
                 open_note(nid, target, "the trade picker", "tradeReview")
                 focus_heard(target)
             p2(38, [lambda: fxs.note("tradeReview"), fxs.trade], _p38)
+
+            # ── Rows 39-41 (2026-10-14): the alert chip and the screenshot tag (Tier 2 part A) ──────
+            # Gated on the auth payload's own keys (t2a_off), not on the journal styles switch: a
+            # server with styles on and the chips dark records 39-41 NOT RUN and makes no fixture.
+            def p_t2a(num, needs, action):
+                return p2_row(num, needs, action, only=only, styles_off=t2a_off(me, T2A_BY_N[num]["needs"], a.base),
+                              served=fxs.served_blocks, row=row, not_run=not_run, inconclusive=inconclusive)
+
+            def chip_note(nid, what):
+                """Open the note and put the caret at the end of its body, with the browser in front."""
+                page.goto(f"{a.base}/journal/notebook?note={nid}", wait_until="domcontentloaded")
+                wait_visible(page.locator(".ProseMirror"), what)
+                time.sleep(1.5); GUARD.ensure()
+                page.locator(".ProseMirror").first.click(); time.sleep(0.5)
+                press("ctrl", "end"); time.sleep(0.4); press("enter"); time.sleep(0.4)
+
+            def type_alert_sentence():
+                type_text(ALERT_SENTENCE)
+                wait_visible(page.get_by_role("toolbar", name="Alert suggestion"), "the Alert suggestion toolbar")
+
+            def _p39(nid):
+                chip_note(nid, "the SR alert chip note's body")
+                ear.mark()                                  # the window holds the typing and what the chip says
+                type_alert_sentence()
+                time.sleep(2.5)                             # the status line is spoken after the chip mounts
+                PROBE["txt"] = (f"DOM: status line {page.locator('[role=status]').first.text_content()!r}; "
+                                f"chip words {page.get_by_role('toolbar', name='Alert suggestion').first.text_content()!r}")
+            p_t2a(39, [lambda: fxs.plain_note(ALERT_NOTE)], _p39)
+
+            def _p40(nid):
+                chip_note(nid, "the SR alert chip note's body")
+                type_alert_sentence()
+                time.sleep(2.5)                             # NVDA finishes the typing and the status line
+                ear.mark()                                  # the window is Alt+Enter, the sheet, and Escape
+                press("alt", "enter")
+                wait_visible(page.get_by_role("dialog", name="Set an alert"), "the Set an alert dialog")
+                time.sleep(1.8)
+                inside = page.evaluate("() => { const d = document.querySelector('[role=dialog]');"
+                                       " return !!(d && document.activeElement && d.contains(document.activeElement)) }")
+                press("escape")
+                page.get_by_role("dialog", name="Set an alert").wait_for(state="hidden", timeout=15_000)
+                time.sleep(1.2)
+                in_body = page.evaluate("() => !!(document.activeElement && document.activeElement.closest('.ProseMirror'))")
+                PROBE["txt"] = f"DOM: focus inside the dialog after Alt+Enter {inside}; focus back in the note body after Escape {in_body}"
+            p_t2a(40, [lambda: fxs.plain_note(ALERT_NOTE)], _p40)
+
+            def _p41(nid):
+                if not T2A_FIXTURE.exists():
+                    raise FixtureUnavailable(f"{T2A_FIXTURE} is missing (python tools/gen_chart_header_fixture.py)")
+                ctx.grant_permissions(["clipboard-read", "clipboard-write"], origin=a.base)
+                chip_note(nid, "the SR screenshot tag note's body")
+                b64 = base64.b64encode(T2A_FIXTURE.read_bytes()).decode("ascii")
+                try:
+                    page.evaluate("""async (b64) => { const bin = atob(b64); const u8 = new Uint8Array(bin.length);
+                        for (let k = 0; k < bin.length; k++) u8[k] = bin.charCodeAt(k);
+                        await navigator.clipboard.write([new ClipboardItem({ 'image/png': new Blob([u8], { type: 'image/png' }) })]) }""", b64)
+                except Exception as e:  # noqa: BLE001 -- no honest paste without the clipboard
+                    raise RowNotRun(f"INCONCLUSIVE: the OS clipboard refused the image write: {str(e)[:160]}") from e
+                press("ctrl", "v")
+                button = page.get_by_role("button", name="Tag NVDA · Daily")
+                try:
+                    button.first.wait_for(state="visible", timeout=60_000)
+                except Exception as e:  # noqa: BLE001
+                    rr = req.get(f"{a.base}/api/j2/notes/{nid}/documents")
+                    docs = (rr.json().get("documents") if rr.status == 200 else None) or []
+                    if any(d.get("ocrUnavailable") for d in docs):
+                        raise RowNotRun("INCONCLUSIVE: ocrUnavailable: this server has no OCR engine") from e
+                    raise RuntimeError(f"the chip never appeared in 60 s; documents {[(d.get('status'), d.get('pagesWithText')) for d in docs]}") from e
+                focus_heard(button)
+            p_t2a(41, [lambda: fxs.plain_note(SHOT_NOTE)], _p41)
         except RunAborted as e:
             print("INCONCLUSIVE:", e); code = 2
         finally:

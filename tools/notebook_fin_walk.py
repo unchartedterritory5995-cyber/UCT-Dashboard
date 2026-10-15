@@ -86,6 +86,8 @@ WAVE_FLAGS = [
     "NOTEBOOK_GETTING_STARTED_ENABLED",
     # Notebook P1 (journal styles), dark in production; walked in c2 by the `styles` step.
     "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    # Notebook P2 Tier 2 part A (alert chip, screenshot chip), dark in production.
+    "NOTEBOOK_SMART_CHIPS_ENABLED",
 ]
 # Armed in c2 for the meaning-search TOUR only (the tour lists only while its flag is on). The
 # search itself needs an embedding key and is recorded NOT_RUN.

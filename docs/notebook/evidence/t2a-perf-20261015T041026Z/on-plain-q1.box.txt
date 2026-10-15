@@ -1,0 +1,3 @@
+03:06:19 before on-plain-q1     available_MB=14,458 cpu_mean= 16.4 cpu_max= 21.7
+03:08:04 after on-plain-q1      available_MB=14,463 cpu_mean= 26.1 cpu_max= 33.8
+started=2026-10-15T03:06:19.2584167-05:00 exit=1

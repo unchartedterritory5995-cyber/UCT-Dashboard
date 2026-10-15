@@ -1,0 +1,6 @@
+{
+ "notebook_smart_chips_enabled": true,
+ "notebook_journal_styles_enabled": false,
+ "env_NOTEBOOK_SMART_CHIPS_ENABLED": "1",
+ "alert_caret": true
+}

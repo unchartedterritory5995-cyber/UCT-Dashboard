@@ -1,0 +1,3 @@
+03:08:10 before on-alert-q1     available_MB=14,376 cpu_mean= 26.7 cpu_max= 34.7
+03:09:54 after on-alert-q1      available_MB=14,590 cpu_mean= 16.4 cpu_max= 22.5
+started=2026-10-15T03:08:10.4769675-05:00 exit=0

@@ -1,0 +1,3 @@
+04:37:44 before on-plain-f2     available_MB=12,395 cpu_mean= 46.0 cpu_max= 49.4
+04:39:46 after on-plain-f2      available_MB=13,684 cpu_mean= 40.4 cpu_max= 48.0
+started=2026-10-15T04:37:44.4614267-05:00 exit=1

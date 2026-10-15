@@ -1,0 +1,1159 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t2a-gate/app
+
+stderr | src/components/StockChart.smoke.test.jsx > StockChart render smoke > mounts without throwing (guards render-phase crashes like the earnings TDZ)
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to IndicatorLibraryDialog inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/StockChart.smoke.test.jsx > StockChart render smoke > mounts with earnings markers enabled (the exact regressed path)
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/StockChart.smoke.test.jsx > StockChart render smoke > mounts on a CUSTOM timeframe (base-fetch + resample path)
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/StockChart.smoke.test.jsx > StockChart render smoke > mounts with the /charts workspace prop recipe
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/StockChart.smoke.test.jsx > StockChart render smoke > mounts on a light + gradient canvas (the canvas-derived chrome path)
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/StockChart.smoke.test.jsx > StockChart render smoke > mounts with volume settings driven from chart settings
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/StockChart.smoke.test.jsx > StockChart render smoke > reports the drawn bar count to onDrawnBarCount
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/StockChart.smoke.test.jsx > StockChart render smoke > reports the drawn bar count to onDrawnBarCount
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ChartDrawingOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ChartDrawingOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ChartDrawingOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ChartDrawingOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ChartDrawingOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ChartDrawingOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/components/StockChart.smoke.test.jsx (9 tests) 684ms
+stdout | src/components/chart/engine/runtime/__tests__/objectLaneCallSites.measure.test.js > ⭐⭐ the call sites behind one guard > ⭐⭐ prints every script that dies on $GUARD, with its line
+
+CALL SITES — guard=runtime:library   (26 scripts)
+
+  adaptive-trend-following-suite-alpha-extract__d615e5a027.pine  [lane runtime]
+    L5: import TradingView/ta/10 as ta
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import TradingView/ta/10 as ta` — the library `TradingView/ta/10` is not in this engine's library registry, so
+
+  all-chart-patterns-theeccentrictrader__03e4633d31.pine  [lane runtime]
+    L11: import theEccentricTrader/PubLibSwing/3 as sw
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import theEccentricTrader/PubLibSwing/3 as sw` — the library `theEccentricTrader/PubLibSwing/3` is not in this
+
+  atr-trend-bands-misu__a34d44410a.pine  [lane runtime]
+    L8: import Fontiramisu/fontilab/11 as fontilab
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import Fontiramisu/fontilab/11 as fontilab` — the library `Fontiramisu/fontilab/11` is not in this engine's li
+
+  auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73.pine  [lane runtime]
+    L8: import TFlab/AlertSenderLibrary_TradingFinder/1 as AlertSender
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import TFlab/AlertSenderLibrary_TradingFinder/1 as AlertSender` — the library `TFlab/AlertSenderLibrary_Tradin
+
+  black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2.pine  [lane runtime]
+    L13: import loxx/loxxexpandedsourcetypes/4
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import loxx/loxxexpandedsourcetypes/4` — the library `loxx/loxxexpandedsourcetypes/4` is not in this engine's 
+
+  bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8.pine  [lane runtime]
+    L6: import RicardoSantos/MathOperator/2
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import RicardoSantos/MathOperator/2` — the library `RicardoSantos/MathOperator/2` is not in this engine's libr
+
+  candlestick-patterns-on-backtest__c85b9d3ec6.pine  [lane runtime]
+    L6: import MUQWISHI/CandlestickPatterns/2 as cp
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import MUQWISHI/CandlestickPatterns/2 as cp` — the library `MUQWISHI/CandlestickPatterns/2` is not in this eng
+
+  chart-vwap__804099ca2f.pine  [lane runtime]
+    L15: import PineCoders/VisibleChart/5 as PCvc
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import PineCoders/VisibleChart/5 as PCvc` — the library `PineCoders/VisibleChart/5` is not in this engine's li
+
+  cvd-cumulative-volume-delta-candles__fb6471a4d9.pine  [lane runtime]
+    L15: import PineCoders/Time/5 as PCtime
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import PineCoders/Time/5 as PCtime` — the library `PineCoders/Time/5` is not in this engine's library registry
+
+  cvd-cumulative-volume-delta-chart__84da7a14bf.pine  [lane runtime]
+    L18: import PineCoders/Time/5 as PCtime
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import PineCoders/Time/5 as PCtime` — the library `PineCoders/Time/5` is not in this engine's library registry
+
+  delta-volume-candles-lucf__qADnaAfCPp.pine  [lane runtime]
+    L23: import PineCoders/Time/2 as PCtime
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import PineCoders/Time/2 as PCtime` — the library `PineCoders/Time/2` is not in this engine's library registry
+
+  fx-market-sessions__3KZoMPYziy.pine  [lane runtime]
+    L7: import boitoki/AwesomeColor/9 as ac
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import boitoki/AwesomeColor/9 as ac` — the library `boitoki/AwesomeColor/9` is not in this engine's library re
+
+  heikin-ashi-supertrend__2fb7267210.pine  [lane runtime]
+    L12: import jordanfray/threengine_global_automation_library/89 as bot
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import jordanfray/threengine_global_automation_library/89 as bot` — the library `jordanfray/threengine_global_
+
+  machine-learning-lorentzian-classification__21f5ec5277.pine  [lane runtime]
+    L7: import jdehorty/MLExtensions/2 as ml
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import jdehorty/MLExtensions/2 as ml` — the library `jdehorty/MLExtensions/2` is not in this engine's library 
+
+  machine-learning-lorentzian-classification__5c7960db26.pine  [lane runtime]
+    L10: import jdehorty/MLExtensions/2 as ml
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import jdehorty/MLExtensions/2 as ml` — the library `jdehorty/MLExtensions/2` is not in this engine's library 
+
+  machine-learning-rsi-bullvision__50b4566edd.pine  [lane runtime]
+    L65: import TradingView/ta/7
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import TradingView/ta/7` — the library `TradingView/ta/7` is not in this engine's library registry, so its cod
+
+  rolling-vwap__043320bb57.pine  [lane runtime]
+    L15: import PineCoders/ConditionalAverages/2 as pc
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import PineCoders/ConditionalAverages/2 as pc` — the library `PineCoders/ConditionalAverages/2` is not in this
+
+  rsi-trendlines-with-breakouts-hg__033f4cab46.pine  [lane runtime]
+    L6: import HoanGhetti/SimpleTrendlines/3 as tl
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import HoanGhetti/SimpleTrendlines/3 as tl` — the library `HoanGhetti/SimpleTrendlines/3` is not in this engin
+
+  smart-money-breakout-channels-algoalpha__8c2d234156.pine  [lane runtime]
+    L6: import TradingView/ta/10
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import TradingView/ta/10` — the library `TradingView/ta/10` is not in this engine's library registry, so its c
+
+  smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669.pine  [lane runtime]
+    L8: import TFlab/OrderBlockRefiner_TradingFinder/2 as Refiner
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import TFlab/OrderBlockRefiner_TradingFinder/2 as Refiner` — the library `TFlab/OrderBlockRefiner_TradingFinde
+
+  stop-loss-clustering-breakouts-kioseff-trading__c6388de20b.pine  [lane runtime]
+    L6: import TradingView/ta/12
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import TradingView/ta/12` — the library `TradingView/ta/12` is not in this engine's library registry, so its c
+
+  strength-of-divergence-across-multiple-indicators__ff2ae4fdab.pine  [lane runtime]
+    L12: import reees/TA/11 as t
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import reees/TA/11 as t` — the library `reees/TA/11` is not in this engine's library registry, so its code can
+
+  supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df.pine  [lane runtime]
+    L6: import TradingView/ta/9 as ta
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import TradingView/ta/9 as ta` — the library `TradingView/ta/9` is not in this engine's library registry, so i
+
+  trailing-take-profit-trailing-stop-loss__41jwaH1ikz.pine  [lane runtime]
+    L67: import jason5480/chrono_utils/7 as chr
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import jason5480/chrono_utils/7 as chr` — the library `jason5480/chrono_utils/7` is not in this engine's libra
+
+  volatility-stop-mtf__K5XG42uHV9.pine  [lane runtime]
+    L15: import PineCoders/Time/5 as pcTime
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import PineCoders/Time/5 as pcTime` — the library `PineCoders/Time/5` is not in this engine's library registry
+
+  volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d.pine  [lane runtime]
+    L13: import TradingView/ta/14 as tvta
+    why: a Pine library import — this lane compiles the script it is given, not a library graph — `import TradingView/ta/14 as tvta` — the library `TradingView/ta/14` is not in this engine's library registry, 
+
+
+ ✓ src/components/chart/engine/runtime/__tests__/objectLaneCallSites.measure.test.js (2 tests) 12479ms
+     ✓ ⭐⭐ prints every script that dies on $GUARD, with its line  12477ms
+stdout | src/components/chart/engine/runtime/__tests__/objectLaneDrawerCensus.measure.test.js > ⭐⭐ the drawable ceiling, cross-tabbed against where the drawing dies > ⭐⭐ prints the ceiling and the per-guard drawer count
+
+DRAWABLE CEILING  —  266 scripts, tf=D, clock told
+contain a drawing call : 190  (71.4%)   <- nothing above this can ever draw
+contain none           : 76  (28.6%)
+
+  n  drawers  lane / guard
+ 26       26  runtime/runtime:library
+ 14       14  DREW
+ 13       13  runtime/pine:function
+ 12       12  runtime/pine:builtin
+ 10       10  runtime/runtime:call-undeclared-builtin-state
+  8        8  runtime/pine:request
+  7        7  runtime/runtime:history-expression
+  7        7  runtime/runtime:statement
+  7        7  runtime/pine:input-kind
+  7        7  runtime/runtime:history-dynamic-offset
+  6        6  runtime/runtime:object-op
+  7        5  objects/pine:no-output
+  5        5  runtime/runtime:call-text-state
+  5        5  runtime/pine:window-dependent
+  4        4  runtime/runtime:request
+  4        4  runtime/runtime:presentation
+  3        3  runtime/runtime:varip
+  3        3  runtime/interpret:bind-time-text
+  3        3  runtime/pine:statement
+  3        3  runtime/runtime:function
+  2        2  runtime/runtime:call-windowed-state
+  2        2  runtime/runtime:expression-statement
+  2        2  runtime/pine:block
+  2        2  runtime/runtime:loop
+  2        2  runtime/pine:text-value
+  2        2  runtime/runtime:block-value
+  2        2  runtime/runtime:directive
+  2        2  runtime/lower-tf:store-unmeasured
+  2        2  objects/objects:object-ops-all-dropped
+  2        2  runtime/runtime:input-state
+ 31        1  objects/objects:no-objects-in-source
+  7        1  objects/pine:module
+  4        1  objects/pine:function-def
+  2        1  objects/pine:statement
+  2        1  objects/pine:builtin
+  1        1  runtime/runtime:switch
+  1        1  runtime/pine:undefined
+  1        1  runtime/runtime:call-conversion-state
+  1        1  runtime/pine:window
+  1        1  runtime/pine:role-order
+  1        1  runtime/lower-tf:lookahead
+  1        1  runtime/pine:drawing
+  1        1  runtime/budget:lookback
+  1        1  runtime/runtime:fill-gradient
+  1        1  objects/pine:reassign
+  1        1  runtime/runtime:array
+  1        1  runtime/pine:strategy-call
+  1        1  runtime/pine:arity
+  9        0  objects/pine:block
+  6        0  objects/pine:function
+  5        0  objects/pine:request
+  4        0  objects/pine:collection
+  3        0  objects/pine:state
+  2        0  objects/pine:strategy-call
+  1        0  objects/pine:timeout
+  1        0  objects/pine:tuple
+  1        0  objects/pine:arity
+  1        0  objects/pine:na
+
+⭐ a row whose drawer count is 0 cannot move "draws end to end", however
+   large its n — its scripts have nothing for this lane to draw.
+
+
+ ✓ src/components/chart/engine/runtime/__tests__/objectLaneDrawerCensus.measure.test.js (3 tests) 12591ms
+     ✓ ⭐⭐ prints the ceiling and the per-guard drawer count  12588ms
+
+ Test Files  3 passed (3)
+      Tests  14 passed (14)
+   Start at  09:25:55
+   Duration  14.70s (transform 4.44s, setup 761ms, import 6.02s, tests 25.75s, environment 1.49s)
+

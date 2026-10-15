@@ -391,6 +391,12 @@
       },
       "status": 401
     },
+    "POST /api/j2/smart-chips/tickers": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "POST /api/j2/template-gallery": {
       "body": {
         "detail": "Not authenticated"

@@ -24,6 +24,21 @@ describe('createNoteViaApi with a style', () => {
     await createNoteViaApi({ title: 'Plain' })
     expect(JSON.parse(fetchSpy.mock.calls[1][1].body)).toEqual({ title: 'Plain' })
   })
+  // Tier 2 part A (/plan): planPrefill rides the wire only when it is EXACTLY true, like the other optional keys.
+  it('planPrefill: true is in the body; anything else is left off the wire', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true, json: async () => ({ note: { id: 'n3' }, skippedBlocks: [] }),
+    })
+    await createNoteViaApi({ kindId: 'trade_plan', ticker: 'NVDA', planPrefill: true })
+    expect(JSON.parse(fetchSpy.mock.calls[0][1].body)).toEqual({
+      title: '', ticker: 'NVDA', kindId: 'trade_plan', planPrefill: true,
+    })
+    for (const [i, bad] of ['yes', 1, 'true', {}, [], null, undefined, false].entries()) {
+      // eslint-disable-next-line no-await-in-loop
+      await createNoteViaApi({ kindId: 'trade_plan', ticker: 'NVDA', planPrefill: bad })
+      expect(JSON.parse(fetchSpy.mock.calls[i + 1][1].body)).not.toHaveProperty('planPrefill')
+    }
+  })
   it('a refusal carries its status', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: false, status: 402, json: async () => ({}) })
     await expect(createNoteViaApi({ styleId: 's1' })).rejects.toMatchObject({ status: 402 })

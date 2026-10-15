@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { latchNotebookFlags, __resetNotebookFlags, FLAG_FALLBACKS } from './offline/notebookFlags'
-import { journalStylesEnabled, JOURNAL_STYLES_FLAG, STYLE_EVENT } from './journalStylesFlag'
+import { journalStylesEnabled, JOURNAL_STYLES_FLAG, STYLE_EVENT, PLAN_EVENT } from './journalStylesFlag'
 
 afterEach(() => __resetNotebookFlags())
 
@@ -15,5 +15,8 @@ describe('the journal styles switch', () => {
   })
   it('names its event', () => {
     expect(STYLE_EVENT).toBe('uct:notebook-journal-style')
+  })
+  it('names the /plan event', () => {
+    expect(PLAN_EVENT).toBe('uct:notebook-plan')
   })
 })

@@ -65,6 +65,13 @@ export const SURFACES = Object.freeze({
   'components/notebook/NoteLinkMenu.jsx': { coveredBy: 'editor-note-link' },
   'components/notebook/LinkPasteMenu.jsx': { coveredBy: 'editor-link-paste' },
   'components/notebook/WritingHelpPanel.jsx': { coveredBy: 'editor-writing-help' },
+  // Notebook P2 Tier 2 part A (dark behind notebook_smart_chips_enabled, so no editor recipe renders them):
+  // the "Set alert" chip, the sheet it opens and the "Tag NVDA · Daily" screenshot chip; rail
+  // a11y/smartChips.a11y.test.jsx. The alert chip recipe mounts the real menu, because mounting it is what
+  // hosts the plugin.
+  'components/notebook/AlertPhraseMenu.jsx': { recipe: 'smart-alert-chip' },
+  'components/notebook/TextAlertSheet.jsx': { recipe: 'smart-alert-sheet' },
+  'components/notebook/ScreenshotTagOffer.jsx': { recipe: 'smart-screenshot-chip' },
   // Wave 11 lane 11A: the voice-note dialog (the editor's /voice, the New note sheet's
   // "Start from audio", a Desk session's Save to Notebook); rail a11y/voiceNote.a11y.test.jsx.
   'components/notebook/VoiceNoteDialog.jsx': { recipe: 'voice-note-dialog' },

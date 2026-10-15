@@ -1,0 +1,20 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/smart-chips/tickers",
+    "note": "A cashtag makes any word a ticker.",
+    "path": "/api/j2/smart-chips/tickers",
+    "requestBody": {
+      "text": "alert me if $RS closes below 120"
+    },
+    "status": 200
+  },
+  "body": {
+    "tickers": [
+      {
+        "symbol": "RS",
+        "tier": "cashtag"
+      }
+    ]
+  }
+}

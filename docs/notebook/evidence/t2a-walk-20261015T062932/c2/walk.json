@@ -1,0 +1,1665 @@
+{
+ "tool": "tools/notebook_fin_walk.py",
+ "steps": [
+  {
+   "tip": "c57a084a08",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "flags",
+   "step": "auth payload: every c2 switch reads ON",
+   "verdict": "PASS",
+   "at": "2026-10-15T11:30:27+00:00",
+   "email": "q1c2m3826709@local.dev",
+   "off": [],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "c57a084a08",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "smart.plan-slash",
+   "step": "/plan NVDA then Enter makes a linked Trade plan with chart, sizing and checklist (1280)",
+   "verdict": "PASS",
+   "at": "2026-10-15T11:30:35+00:00",
+   "offered": true,
+   "toast": true,
+   "linked": true,
+   "opened": "4636f61ca54b49c394d281fb82688df8",
+   "widgets": [
+    "chart",
+    "marketcontext",
+    "positionSizing",
+    "preEntryChecklist"
+   ],
+   "ticker": "NVDA",
+   "title": "NVDA trade plan",
+   "blocks_ok": true,
+   "blocks_on_screen": true,
+   "price_line": "Price when planned: $221.30 (last close, Oct 14, 4:00 PM ET)",
+   "price_line_present": true,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=4636f61ca54b49c394d281fb82688df8",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"df2c8b30-126\",\"user_id\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-15T11:30:29.591029+00:00\",\"updated_at\":\"2026-10-15T11:30:30.811434+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"54049ce6-275c-4722-9cf5-87e26ab8609f\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-15T11:30:30.604Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/6086054abcc54dafb61ad1806660434b/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":816}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes",
+     "status": 200,
+     "request": "{\"title\":\"NVDA trade plan\",\"ticker\":\"NVDA\",\"kindId\":\"trade_plan\",\"planPrefill\":true}",
+     "response": "{\"note\":{\"id\":\"4636f61ca54b49c394d281fb82688df8\",\"userId\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"accountId\":null,\"folderId\":null,\"title\":\"NVDA trade plan\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The setup\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Price when planned: $221.30 (last close, Oct 14, 4:00 PM ET)\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"marketcontext\",\"embedId\":\"7d18bc49ba694944aff841110d1387a0\",\"mode\":\"snapshot\",\"params\":{\"readings\":{\"marketPhase\":null,\"exposureScore\":72.0,\"exposureDelta\":null,\"breadthScore\":62.0,\"distributionDays\":0,\"pctAbove50\":61.0,\"pctAbove200\":55.0,\"powerTrend\":null,\"regime\":{\"value\":\"amber\",\"source\":\"journal_two.regime.get_current_regime\",\"asOf\":\"2026-01-02\",\"missing\":null},\"spy\":{\"value\":{\"price\":515.87,\"changePct\":-0.0639,\"closed\":true},\"source\":\"last close\",\"asOf\":\"2026-10-14T20:00:00Z\",\"missing\":null},\"qqq\":{\"value\":{\"price\":494.9,\"changePct\":-0.0848,\"closed\":true},\"source\":\"last close\",\"asOf\":\"2026-10-14T20:00:00Z\",\"missing\":null},\"vix\":{\"value\":null,\"source\":null,\"asOf\":null,\"missing\":\"VIX unavailable\"}},\"wireDate\":\"2026-01-02\",\"updated\":\"7:30 AM ET\",\"fields\":\"all\"},\"capturedAt\":\"2026-10-15T11:30:32.625162Z\",\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":null},\"fallback\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"What is the pattern, and why now?\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"w"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/6086054abcc54dafb61ad1806660434b",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Plan slash source 1280\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"noteLink\",\"attrs\":{\"noteId\":\"4636f61ca54b49c394d281fb82688df8\"}},{\"type\":\"text\",\"text\":\" \"}]}]},\"baseUpdatedAt\":\"2026-10-15T11:30:27.491136+00:00\"}",
+     "response": "{\"note\":{\"id\":\"6086054abcc54dafb61ad1806660434b\",\"userId\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"accountId\":null,\"folderId\":null,\"title\":\"Plan slash source 1280\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Plan slash source 1280\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"noteLink\",\"attrs\":{\"noteId\":\"4636f61ca54b49c394d281fb82688df8\"}},{\"type\":\"text\",\"text\":\" \"}]}]},\"bodyPlain\":\"Plan slash source 1280  \",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-15T11:30:27.491136+00:00\",\"updatedAt\":\"2026-10-15T11:30:34.949248+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{},\"styleId\":null,\"styleVersion\":null,\"kindId\":null}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/4636f61ca54b49c394d281fb82688df8/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":621}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {
+    "fingerprint_panel": 1,
+    "chart_plan_button": 1,
+    "chart_replay_button": 1,
+    "visual_playbook_door": 1
+   },
+   "screenshot": "c2-1280-smart.plan-slash--plan-NVDA-then-Enter-makes-a-linked-Trade-plan-with-chart-sizing-and-checklist-1280-.png"
+  },
+  {
+   "tip": "c57a084a08",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "smart.plan-slash",
+   "step": "/plan NVDA then Enter makes a linked Trade plan with chart, sizing and checklist (820)",
+   "verdict": "PASS",
+   "at": "2026-10-15T11:30:44+00:00",
+   "offered": true,
+   "toast": true,
+   "linked": true,
+   "opened": "0d0f3eaab53e4c8f965c29338819db60",
+   "widgets": [
+    "chart",
+    "marketcontext",
+    "positionSizing",
+    "preEntryChecklist"
+   ],
+   "ticker": "NVDA",
+   "title": "NVDA trade plan",
+   "blocks_ok": true,
+   "blocks_on_screen": true,
+   "price_line": "Price when planned: $221.30 (last close, Oct 14, 4:00 PM ET)",
+   "price_line_present": true,
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 90,
+    "inline_links": 0,
+    "under": 4,
+    "sample": [
+     {
+      "label": "Folder",
+      "tag": "SELECT",
+      "w": 88,
+      "h": 31,
+      "host": "ask-row"
+     },
+     {
+      "label": "Note title",
+      "tag": "INPUT",
+      "w": 378,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "A+ A B",
+      "tag": "SELECT",
+      "w": 43,
+      "h": 44,
+      "host": "div:embed"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=0d0f3eaab53e4c8f965c29338819db60",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"df2c8b30-126\",\"user_id\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-15T11:30:29.591029+00:00\",\"updated_at\":\"2026-10-15T11:30:38.222449+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"816b9e68-2024-456e-b9db-7d5424438abf\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-15T11:30:38.788Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/4022db8275f843f4a4e7235045e97e21/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":1231}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes",
+     "status": 200,
+     "request": "{\"title\":\"NVDA trade plan\",\"ticker\":\"NVDA\",\"kindId\":\"trade_plan\",\"planPrefill\":true}",
+     "response": "{\"note\":{\"id\":\"0d0f3eaab53e4c8f965c29338819db60\",\"userId\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"accountId\":null,\"folderId\":null,\"title\":\"NVDA trade plan\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The setup\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Price when planned: $221.30 (last close, Oct 14, 4:00 PM ET)\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"marketcontext\",\"embedId\":\"be75e1d392e8489594d8b43e66d3d728\",\"mode\":\"snapshot\",\"params\":{\"readings\":{\"marketPhase\":null,\"exposureScore\":72.0,\"exposureDelta\":null,\"breadthScore\":62.0,\"distributionDays\":0,\"pctAbove50\":61.0,\"pctAbove200\":55.0,\"powerTrend\":null,\"regime\":{\"value\":\"amber\",\"source\":\"journal_two.regime.get_current_regime\",\"asOf\":\"2026-01-02\",\"missing\":null},\"spy\":{\"value\":{\"price\":515.87,\"changePct\":-0.0639,\"closed\":true},\"source\":\"last close\",\"asOf\":\"2026-10-14T20:00:00Z\",\"missing\":null},\"qqq\":{\"value\":{\"price\":494.9,\"changePct\":-0.0848,\"closed\":true},\"source\":\"last close\",\"asOf\":\"2026-10-14T20:00:00Z\",\"missing\":null},\"vix\":{\"value\":null,\"source\":null,\"asOf\":null,\"missing\":\"VIX unavailable\"}},\"wireDate\":\"2026-01-02\",\"updated\":\"7:30 AM ET\",\"fields\":\"all\"},\"capturedAt\":\"2026-10-15T11:30:41.469618Z\",\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":null},\"fallback\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"What is the pattern, and why now?\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"w"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/4022db8275f843f4a4e7235045e97e21",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Plan slash source 820\"}]},{\"type\":\"paragraph\"}]},\"baseUpdatedAt\":\"2026-10-15T11:30:36.195025+00:00\"}",
+     "response": "{\"note\":{\"id\":\"4022db8275f843f4a4e7235045e97e21\",\"userId\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"accountId\":null,\"folderId\":null,\"title\":\"Plan slash source 820\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Plan slash source 820\"}]},{\"type\":\"paragraph\"}]},\"bodyPlain\":\"Plan slash source 820 \",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-15T11:30:36.195025+00:00\",\"updatedAt\":\"2026-10-15T11:30:42.398126+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{},\"styleId\":null,\"styleVersion\":null,\"kindId\":null}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/4022db8275f843f4a4e7235045e97e21",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Plan slash source 820\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"noteLink\",\"attrs\":{\"noteId\":\"0d0f3eaab53e4c8f965c29338819db60\"}},{\"type\":\"text\",\"text\":\" \"}]}]},\"baseUpdatedAt\":\"2026-10-15T11:30:42.398126+00:00\"}",
+     "response": "{\"note\":{\"id\":\"4022db8275f843f4a4e7235045e97e21\",\"userId\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"accountId\":null,\"folderId\":null,\"title\":\"Plan slash source 820\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Plan slash source 820\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"noteLink\",\"attrs\":{\"noteId\":\"0d0f3eaab53e4c8f965c29338819db60\"}},{\"type\":\"text\",\"text\":\" \"}]}]},\"bodyPlain\":\"Plan slash source 820  \",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-15T11:30:36.195025+00:00\",\"updatedAt\":\"2026-10-15T11:30:44.091129+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{},\"styleId\":null,\"styleVersion\":null,\"kindId\":null}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":1048}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/0d0f3eaab53e4c8f965c29338819db60/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {
+    "fingerprint_panel": 1,
+    "chart_plan_button": 1,
+    "chart_replay_button": 1,
+    "visual_playbook_door": 1
+   },
+   "screenshot": "c2-820-smart.plan-slash--plan-NVDA-then-Enter-makes-a-linked-Trade-plan-with-chart-sizing-and-checklist-820-.png"
+  },
+  {
+   "tip": "c57a084a08",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "smart.plan-slash",
+   "step": "/plan NVDA then Enter makes a linked Trade plan with chart, sizing and checklist (390)",
+   "verdict": "PASS",
+   "at": "2026-10-15T11:30:48+00:00",
+   "offered": true,
+   "toast": true,
+   "linked": true,
+   "opened": "029eb7b9fb664fbbbd0eaef7af588613",
+   "widgets": [
+    "chart",
+    "marketcontext",
+    "positionSizing",
+    "preEntryChecklist"
+   ],
+   "ticker": "NVDA",
+   "title": "NVDA trade plan",
+   "blocks_ok": true,
+   "blocks_on_screen": true,
+   "price_line": "Price when planned: $221.30 (last close, Oct 14, 4:00 PM ET)",
+   "price_line_present": true,
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 51,
+    "inline_links": 0,
+    "under": 2,
+    "sample": [
+     {
+      "label": "Note title",
+      "tag": "INPUT",
+      "w": 310,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=029eb7b9fb664fbbbd0eaef7af588613",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"df2c8b30-126\",\"user_id\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-15T11:30:29.591029+00:00\",\"updated_at\":\"2026-10-15T11:30:46.635577+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"bdfd77a8-de0f-4991-9442-a6d247c96c78\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-15T11:30:46.302Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/bda138bbde234255b8d75c5521527b43/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":652}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes",
+     "status": 200,
+     "request": "{\"title\":\"NVDA trade plan\",\"ticker\":\"NVDA\",\"kindId\":\"trade_plan\",\"planPrefill\":true}",
+     "response": "{\"note\":{\"id\":\"029eb7b9fb664fbbbd0eaef7af588613\",\"userId\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"accountId\":null,\"folderId\":null,\"title\":\"NVDA trade plan\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The setup\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Price when planned: $221.30 (last close, Oct 14, 4:00 PM ET)\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"marketcontext\",\"embedId\":\"e59eebc4400a45c3b1cb149d90918d60\",\"mode\":\"snapshot\",\"params\":{\"readings\":{\"marketPhase\":null,\"exposureScore\":72.0,\"exposureDelta\":null,\"breadthScore\":62.0,\"distributionDays\":0,\"pctAbove50\":61.0,\"pctAbove200\":55.0,\"powerTrend\":null,\"regime\":{\"value\":\"amber\",\"source\":\"journal_two.regime.get_current_regime\",\"asOf\":\"2026-01-02\",\"missing\":null},\"spy\":{\"value\":{\"price\":515.87,\"changePct\":-0.0639,\"closed\":true},\"source\":\"last close\",\"asOf\":\"2026-10-14T20:00:00Z\",\"missing\":null},\"qqq\":{\"value\":{\"price\":494.9,\"changePct\":-0.0848,\"closed\":true},\"source\":\"last close\",\"asOf\":\"2026-10-14T20:00:00Z\",\"missing\":null},\"vix\":{\"value\":null,\"source\":null,\"asOf\":null,\"missing\":\"VIX unavailable\"}},\"wireDate\":\"2026-01-02\",\"updated\":\"7:30 AM ET\",\"fields\":\"all\"},\"capturedAt\":\"2026-10-15T11:30:47.654404Z\",\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":null},\"fallback\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"What is the pattern, and why now?\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"w"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/bda138bbde234255b8d75c5521527b43",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Plan slash source 39\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"noteLink\",\"attrs\":{\"noteId\":\"029eb7b9fb664fbbbd0eaef7af588613\"}},{\"type\":\"text\",\"text\":\" 0\"}]}]},\"baseUpdatedAt\":\"2026-10-15T11:30:45.141408+00:00\"}",
+     "response": "{\"note\":{\"id\":\"bda138bbde234255b8d75c5521527b43\",\"userId\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"accountId\":null,\"folderId\":null,\"title\":\"Plan slash source 390\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Plan slash source 39\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"noteLink\",\"attrs\":{\"noteId\":\"029eb7b9fb664fbbbd0eaef7af588613\"}},{\"type\":\"text\",\"text\":\" 0\"}]}]},\"bodyPlain\":\"Plan slash source 39  0\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-15T11:30:45.141408+00:00\",\"updatedAt\":\"2026-10-15T11:30:48.229789+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{},\"styleId\":null,\"styleVersion\":null,\"kindId\":null}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/029eb7b9fb664fbbbd0eaef7af588613/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":389}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {
+    "fingerprint_panel": 1,
+    "chart_plan_button": 1,
+    "chart_replay_button": 1,
+    "visual_playbook_door": 1
+   },
+   "screenshot": "c2-390-smart.plan-slash--plan-NVDA-then-Enter-makes-a-linked-Trade-plan-with-chart-sizing-and-checklist-390-.png"
+  },
+  {
+   "tip": "c57a084a08",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "smart.alert-chip",
+   "step": "The typed sentence offers the chip; Alt+Enter opens the sheet filled in; Cancel creates nothing (1280)",
+   "verdict": "PASS",
+   "at": "2026-10-15T11:30:58+00:00",
+   "chip": true,
+   "words": "NVDA closes below $120.00 (daily)Set alert…",
+   "sheet": true,
+   "filled": {
+    "ticker": "NVDA",
+    "price": "120",
+    "when": "Closes below"
+   },
+   "expected": {
+    "ticker": "NVDA",
+    "price": "120",
+    "when": "Closes below"
+   },
+   "sheet_closed": true,
+   "alerts_before": 0,
+   "alerts_after": 0,
+   "set_alert_button_height": null,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=b6ed5303075144bd93d4165df956060c",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/4636f61ca54b49c394d281fb82688df8/images",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/4636f61ca54b49c394d281fb82688df8",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The setup\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Price when planned: $221.30 (last close, Oct 14, 4:00 PM ET)\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"marketcontext\",\"params\":{\"readings\":{\"marketPhase\":null,\"exposureScore\":72,\"exposureDelta\":null,\"breadthScore\":62,\"distributionDays\":0,\"pctAbove50\":61,\"pctAbove200\":55,\"powerTrend\":null,\"regime\":{\"value\":\"amber\",\"source\":\"journal_two.regime.get_current_regime\",\"asOf\":\"2026-01-02\",\"missing\":null},\"spy\":{\"value\":{\"price\":515.87,\"changePct\":-0.0639,\"closed\":true},\"source\":\"last close\",\"asOf\":\"2026-10-14T20:00:00Z\",\"missing\":null},\"qqq\":{\"value\":{\"price\":494.9,\"changePct\":-0.0848,\"closed\":true},\"source\":\"last close\",\"asOf\":\"2026-10-14T20:00:00Z\",\"missing\":null},\"vix\":{\"value\":null,\"source\":null,\"asOf\":null,\"missing\":\"VIX unavailable\"}},\"wireDate\":\"2026-01-02\",\"updated\":\"7:30 AM ET\",\"fields\":\"all\"},\"capturedAt\":\"2026-10-15T11:30:32.625162Z\",\"embedId\":\"7d18bc49ba694944aff841110d1387a0\",\"mode\":\"snapshot\",\"fallback\":{\"url\":\"/api/j2/notes/attachments/83b936ae-7622-48b4-9157-66393a00016e/4636f61ca54b49c394d281fb82688df8/inline/35e871a78a0fc0dc30e8ccdaf08ded17.png\",\"w\":776,\"h\":427},\"frozen\":false,\"tradeRef\":null,\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":null},\"searchText\":null,\"ta\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"What is the pattern, and why now?\"}]",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"df2c8b30-126\",\"user_id\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-15T11:30:29.591029+00:00\",\"updated_at\":\"2026-10-15T11:30:49.723415+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/b6ed5303075144bd93d4165df956060c/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":287}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/smart-chips/tickers",
+     "status": 200,
+     "request": "{\"text\":\"alert me if NVDA closes below 120Alert chip 1280\"}",
+     "response": "{\"tickers\":[{\"symbol\":\"NVDA\",\"tier\":\"exact\"}]}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/b6ed5303075144bd93d4165df956060c",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\"},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"alert me if NVDA closes below 120Alert chip 1280\"}]}]},\"baseUpdatedAt\":\"2026-10-15T11:30:48.890514+00:00\"}",
+     "response": "{\"note\":{\"id\":\"b6ed5303075144bd93d4165df956060c\",\"userId\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"accountId\":null,\"folderId\":null,\"title\":\"Alert chip 1280\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\"},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"alert me if NVDA closes below 120Alert chip 1280\"}]}]},\"bodyPlain\":\" alert me if NVDA closes below 120Alert chip 1280\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-15T11:30:48.890514+00:00\",\"updatedAt\":\"2026-10-15T11:30:55.385076+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{},\"styleId\":null,\"styleVersion\":null,\"kindId\":null}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-1280-smart.alert-chip-The-typed-sentence-offers-the-chip-Alt-Enter-opens-the-sheet-filled-in-Canc-0ad01ffe.png"
+  },
+  {
+   "tip": "c57a084a08",
+   "config": "c2",
+   "viewport": "820",
+   "feature": "smart.alert-chip",
+   "step": "The typed sentence offers the chip; Alt+Enter opens the sheet filled in; Cancel creates nothing (820)",
+   "verdict": "PASS",
+   "at": "2026-10-15T11:31:05+00:00",
+   "chip": true,
+   "words": "NVDA closes below $120.00 (daily)Set alert…",
+   "sheet": true,
+   "filled": {
+    "ticker": "NVDA",
+    "price": "120",
+    "when": "Closes below"
+   },
+   "expected": {
+    "ticker": "NVDA",
+    "price": "120",
+    "when": "Closes below"
+   },
+   "sheet_closed": true,
+   "alerts_before": 0,
+   "alerts_after": 0,
+   "set_alert_button_height": 44,
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 77,
+    "inline_links": 0,
+    "under": 3,
+    "sample": [
+     {
+      "label": "Folder",
+      "tag": "SELECT",
+      "w": 88,
+      "h": 31,
+      "host": "ask-row"
+     },
+     {
+      "label": "Note title",
+      "tag": "INPUT",
+      "w": 378,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=53e038194ba443dfb67ed9d638c7f3f2",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"df2c8b30-126\",\"user_id\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-15T11:30:29.591029+00:00\",\"updated_at\":\"2026-10-15T11:30:59.706130+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"684d0fd8-3be1-48b2-9406-ddf7fef09d3a\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-15T11:30:59.598Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/53e038194ba443dfb67ed9d638c7f3f2/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":359}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/smart-chips/tickers",
+     "status": 200,
+     "request": "{\"text\":\"alert me if NVDA closes below 120\"}",
+     "response": "{\"tickers\":[{\"symbol\":\"NVDA\",\"tier\":\"exact\"}]}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/53e038194ba443dfb67ed9d638c7f3f2",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Alert chip 820\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"alert me if NVDA closes below 120\"}]}]},\"baseUpdatedAt\":\"2026-10-15T11:30:58.676322+00:00\"}",
+     "response": "{\"note\":{\"id\":\"53e038194ba443dfb67ed9d638c7f3f2\",\"userId\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"accountId\":null,\"folderId\":null,\"title\":\"Alert chip 820\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Alert chip 820\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"alert me if NVDA closes below 120\"}]}]},\"bodyPlain\":\"Alert chip 820 alert me if NVDA closes below 120\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-15T11:30:58.676322+00:00\",\"updatedAt\":\"2026-10-15T11:31:02.414314+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{},\"styleId\":null,\"styleVersion\":null,\"kindId\":null}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-820-smart.alert-chip-The-typed-sentence-offers-the-chip-Alt-Enter-opens-the-sheet-filled-in-Cance-9e1c827a.png"
+  },
+  {
+   "tip": "c57a084a08",
+   "config": "c2",
+   "viewport": "390",
+   "feature": "smart.alert-chip",
+   "step": "The typed sentence offers the chip; Alt+Enter opens the sheet filled in; Cancel creates nothing (390)",
+   "verdict": "PASS",
+   "at": "2026-10-15T11:31:12+00:00",
+   "chip": true,
+   "words": "NVDA closes below $120.00 (daily)Set alert…",
+   "sheet": true,
+   "filled": {
+    "ticker": "NVDA",
+    "price": "120",
+    "when": "Closes below"
+   },
+   "expected": {
+    "ticker": "NVDA",
+    "price": "120",
+    "when": "Closes below"
+   },
+   "sheet_closed": true,
+   "alerts_before": 0,
+   "alerts_after": 0,
+   "set_alert_button_height": 44,
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 38,
+    "inline_links": 0,
+    "under": 2,
+    "sample": [
+     {
+      "label": "Note title",
+      "tag": "INPUT",
+      "w": 310,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=cedff1201d0f405faf203785fe9fb152",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"df2c8b30-126\",\"user_id\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-15T11:30:29.591029+00:00\",\"updated_at\":\"2026-10-15T11:31:06.846471+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"c443be80-dccc-4eba-9185-fb0974ac6c59\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-15T11:31:06.747Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/cedff1201d0f405faf203785fe9fb152/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":317}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/smart-chips/tickers",
+     "status": 200,
+     "request": "{\"text\":\"alert me if NVDA closes below 120Alert chip 390\"}",
+     "response": "{\"tickers\":[{\"symbol\":\"NVDA\",\"tier\":\"exact\"}]}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/cedff1201d0f405faf203785fe9fb152",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\"},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"alert me if NVDA closes below 120Alert chip 390\"}]}]},\"baseUpdatedAt\":\"2026-10-15T11:31:05.768778+00:00\"}",
+     "response": "{\"note\":{\"id\":\"cedff1201d0f405faf203785fe9fb152\",\"userId\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"accountId\":null,\"folderId\":null,\"title\":\"Alert chip 390\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\"},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"alert me if NVDA closes below 120Alert chip 390\"}]}]},\"bodyPlain\":\" alert me if NVDA closes below 120Alert chip 390\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-15T11:31:05.768778+00:00\",\"updatedAt\":\"2026-10-15T11:31:09.897425+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{},\"styleId\":null,\"styleVersion\":null,\"kindId\":null}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-390-smart.alert-chip-The-typed-sentence-offers-the-chip-Alt-Enter-opens-the-sheet-filled-in-Cance-af29a78b.png"
+  },
+  {
+   "tip": "c57a084a08",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "smart.screenshot-tag",
+   "step": "driver exception (the row did not finish)",
+   "verdict": "FAIL",
+   "at": "2026-10-15T11:31:49+00:00",
+   "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Tag NVDA · Daily\").first\n    - locator resolved to <button type=\"button\" class=\"_btn_1suib_18\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n  ",
+   "traceback": "ait self._channel.send(\"click\", self._timeout, locals_to_params(locals()))\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Tag NVDA · Daily\").first\n    - locator resolved to <button type=\"button\" class=\"_btn_1suib_18\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n      - waiting 100ms\n    57 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - element is outside of the viewport\n     - retrying click action\n       - waiting 500ms\n\n",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=d898e162b18e426697a201183d9038d0",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"df2c8b30-126\",\"user_id\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-15T11:30:29.591029+00:00\",\"updated_at\":\"2026-10-15T11:31:13.765097+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/d898e162b18e426697a201183d9038d0/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":248}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/d898e162b18e426697a201183d9038d0/images",
+     "status": 200,
+     "request": "",
+     "response": "{\"url\":\"/api/j2/notes/attachments/83b936ae-7622-48b4-9157-66393a00016e/d898e162b18e426697a201183d9038d0/inline/a4c6690ecfb1e7f97aaceae2c67cd5ba.png\",\"width\":900,\"height\":500}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/d898e162b18e426697a201183d9038d0",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\"},{\"type\":\"image\",\"attrs\":{\"src\":\"/api/j2/notes/attachments/83b936ae-7622-48b4-9157-66393a00016e/d898e162b18e426697a201183d9038d0/inline/a4c6690ecfb1e7f97aaceae2c67cd5ba.png\",\"alt\":\"\",\"title\":null,\"width\":null,\"height\":null,\"align\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Screenshot tag 1280\"}]}]},\"baseUpdatedAt\":\"2026-10-15T11:31:12.991407+00:00\"}",
+     "response": "{\"note\":{\"id\":\"d898e162b18e426697a201183d9038d0\",\"userId\":\"83b936ae-7622-48b4-9157-66393a00016e\",\"accountId\":null,\"folderId\":null,\"title\":\"Screenshot tag 1280\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\"},{\"type\":\"image\",\"attrs\":{\"src\":\"/api/j2/notes/attachments/83b936ae-7622-48b4-9157-66393a00016e/d898e162b18e426697a201183d9038d0/inline/a4c6690ecfb1e7f97aaceae2c67cd5ba.png\",\"alt\":\"\",\"title\":null,\"width\":null,\"height\":null,\"align\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Screenshot tag 1280\"}]}]},\"bodyPlain\":\" Screenshot tag 1280\",\"heroImageUrl\":null,\"firstImageUrl\":\"/api/j2/notes/attachments/83b936ae-7622-48b4-9157-66393a00016e/d898e162b18e426697a201183d9038d0/inline/a4c6690ecfb1e7f97aaceae2c67cd5ba.png\",\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-15T11:31:12.991407+00:00\",\"updatedAt\":\"2026-10-15T11:31:18.000640+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{},\"styleId\":null,\"styleVersion\":null,\"kindId\":null}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/smart-chips/tickers",
+     "status": 200,
+     "request": "{\"text\":\"NVDA - 1D - NASDAQ\\r\\n0121.40 H123.10 L119.80 C122.65 +1.20 (+0.99%)\"}",
+     "response": "{\"tickers\":[{\"symbol\":\"NVDA\",\"tier\":\"exact\"}]}"
+    }
+   ],
+   "surfaces_present": {},
+   "screenshot": "c2-1280-smart.screenshot-tag-driver-exception-the-row-did-not-finish-.png"
+  },
+  {
+   "tip": "c57a084a08",
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "smart.coverage",
+   "step": "every smart-chips feature left a row at each of its viewports",
+   "verdict": "FAIL",
+   "at": "2026-10-15T11:31:49+00:00",
+   "missing": [
+    "smart.screenshot-tag @ 390",
+    "smart.screenshot-tag @ 820"
+   ],
+   "rows_not_in_coverage": [],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  }
+ ],
+ "configs": {
+  "c2": {
+   "base": "http://127.0.0.1:8132",
+   "data_dir": "C:\\data-t2a-walk\\c2",
+   "flags_on": [
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "COMPASS_NOTES_TOOL_ENABLED",
+    "J2_SHARE_LINKS_ENABLED",
+    "NOTEBOOK_AI_ACTIONS_ENABLED",
+    "NOTEBOOK_ASK_INSERT_ON",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+    "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PUBLISH_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_TRADE_CANVAS_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_VOICE_NOTES_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    "NOTEBOOK_SMART_CHIPS_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+   ],
+   "sandbox_identity": {
+    "ok": true,
+    "sentence": "http://127.0.0.1:8132 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-t2a\\docs\\plans\\joystick\\sandbox-runs\\2026-10-15T06-29-39.md (identity 6269ca9e3980..., data dir C:\\data-t2a-walk\\c2)"
+   },
+   "stop": "graceful to the shutdown checkpoint, then forced exit",
+   "integrity": {
+    "path": "docs\\notebook\\evidence\\t2a-walk-20261015T062932\\c2\\integrity-c2.md",
+    "required": [
+     "pre-boot (baseline)",
+     "post-boot (+15s)",
+     "post-prewarm (+120s)",
+     "shutdown"
+    ],
+    "checkpoints": [
+     {
+      "label": "pre-boot (baseline)",
+      "at": "2026-10-15 06:29:45",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-boot (+15s)",
+      "at": "2026-10-15 06:30:24",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-prewarm (+120s)",
+      "at": "2026-10-15 06:32:16",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "shutdown",
+      "at": "2026-10-15 06:32:25",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+   },
+   "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\\notebook\\evidence\\t2a-walk-20261015T062932\\c2\\integrity-c2.md",
+   "not_run": null,
+   "failure": null,
+   "port_free_after": true,
+   "driver_imported_api": []
+  }
+ },
+ "config": "c2",
+ "tip": "c57a084a08",
+ "tool_tree": "5fd0d0102f72a328c9bc2cb41704864ffc4dc071",
+ "started": "2026-10-15T11:29:34+00:00",
+ "viewports": {
+  "1280": [
+   1280,
+   800
+  ],
+  "820": [
+   820,
+   1180
+  ],
+  "390": [
+   390,
+   844
+  ]
+ },
+ "status": "COMPLETE",
+ "flag_sets": {
+  "prod_armed": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "wave": [
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED"
+  ],
+  "c1": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "c2": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+  ],
+  "c3": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "keyed": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "keyedai": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "verify": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_SMART_CHIPS_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "verifygrip": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ]
+ },
+ "finished": "2026-10-15T11:32:56+00:00"
+}

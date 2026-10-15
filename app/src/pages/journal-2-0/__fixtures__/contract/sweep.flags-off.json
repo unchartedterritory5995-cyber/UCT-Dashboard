@@ -391,6 +391,12 @@
       },
       "status": 404
     },
+    "POST /api/j2/smart-chips/tickers": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
     "POST /api/j2/template-gallery": {
       "body": {
         "detail": "Not found"

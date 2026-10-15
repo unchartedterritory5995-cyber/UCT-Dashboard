@@ -1,0 +1,3 @@
+04:35:39 before off-plain-f1    available_MB=12,389 cpu_mean= 44.0 cpu_max= 45.1
+04:37:32 after off-plain-f1     available_MB=13,698 cpu_mean= 40.8 cpu_max= 45.4
+started=2026-10-15T04:35:39.9381751-05:00 exit=1

@@ -1,0 +1,84 @@
+/* Tier 2 part A, item 8 — the prefilled alert sheet (TextAlertSheet.jsx). The frame is components/mobile/Sheet. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0 8px;
+  font-family: var(--font-sans);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.field input,
+.field select {
+  padding: 6px 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--field-edge);
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  font: inherit;
+  font-size: 14px;
+}
+.field input:focus-visible,
+.field select:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+.note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.said {
+  margin: 0;
+  min-height: 1.4em;
+  color: var(--text-bright);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.said:empty { display: none; }
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.primary,
+.secondary {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.primary {
+  background: var(--ut-gold);
+  border-color: var(--ut-gold);
+  color: var(--bg);
+  font-weight: 600;
+}
+.primary:disabled { opacity: 0.45; cursor: default; }
+.secondary {
+  background: transparent;
+  color: var(--text-bright);
+}
+.secondary:hover { background: var(--bg-hover); }
+.primary:focus-visible,
+.secondary:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+
+/* Touch tier: every control is a finger target (phone AND tablet). */
+@media (max-width: 1024px) {
+  .field input,
+  .field select {
+    min-height: var(--tap-min);
+    font-size: 16px; /* 16px stops iOS zooming the page on focus */
+  }
+  .primary,
+  .secondary {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+    font-size: 14px;
+  }
+}

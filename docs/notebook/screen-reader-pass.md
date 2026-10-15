@@ -236,6 +236,35 @@ the rows it ran.
 | 37 | Open the note `SR block rules`; focus the rule's **Edit**. | `Edit`, `SR rule wait for the first hour`, `button` | `components/notebook/blocks/MyRulesBlock.jsx:110` (`` `'${rule.label}'` ``), `:149` (`` `Edit ${name}` ``) | **NOT RUN YET** | The full name is `Edit 'SR rule wait for the first hour'`: the rule's words in ASCII single quotes, so NVDA's log writes it double-quoted (the shape the first ear was deaf to). Graded on the three phrases in the Expected cell, not on the quote characters, which NVDA's punctuation level may drop. |
 | 38 | Open the note `SR block review`; focus the trade picker. | `Trade to review`, `combo box` | `components/notebook/blocks/TradeReviewBlock.jsx:67-68` | **NOT RUN YET** | The picker exists only with at least one closed trade (`:63`); the tool makes the `ZZZT` trade when the account has none. |
 
+### Rows 39-41 -- the alert chip and the screenshot tag (Notebook P2 Tier 2 part A)
+
+Added 2026-10-14 (Task 11). They run in Task 12's NVDA pass, and **only while the switches are on in the
+sandbox**: `tools/notebook_nvda_pass.py` reads `notebook_smart_chips_enabled` (rows 39-41) and
+`notebook_image_docx_documents_enabled` (row 41) from its own `/api/auth/me` the same way it reads the
+journal styles key, and a missing or non-boolean key records the row **NOT RUN** with the reason
+`smart chips switch is off on <base> (...)`, making no fixture. Row 41 also needs an OCR engine on the
+server: with none (`ocrUnavailable` on the note's documents) it is **NOT RUN**, never FAIL.
+
+- **Fixtures**, made through the API the first time a row needs them: the note `SR alert chip` (rows 39
+  and 40) and the note `SR screenshot tag` (row 41), both trashed in the tool's `finally`. Row 41 pastes
+  `tools/fixtures/chart-header-nvda-1d.png` (`python tools/gen_chart_header_fixture.py` makes it) through
+  the OS clipboard and a real Ctrl+V, never a synthetic event. It leaves an uploaded image attached to a
+  trashed note and that image's OCR'd document row, because the product has no hard delete for either.
+- **Run them alone:** `python tools/notebook_nvda_pass.py --out <file> --nvda-log <log> --base <sandbox> --only 39,40,41`.
+- **Graded phrases avoid the characters NVDA may speak as words.** NVDA's symbol level can say "plus" for the
+  `+` of Alt+Enter, "dollar" for the `$` and a name (or nothing) for the middle dot, so the Expected cells hold
+  phrases without them (`Enter to set it` survives "Alt plus Enter to set it"). The full sentence is quoted
+  from the source below, and the **Notes** column records what was actually heard.
+- **Row 39 is graded for "once".** The tool counts the occurrences of `Alert suggestion` in the row's window and
+  FAILS a row that spoke it twice or not at all (`grade(..., once=...)`); typing is echoed by NVDA, but the
+  phrase `Alert suggestion` comes only from the live region.
+
+| # | Keys | Expected announcement (quoted from source) | Source | PASS / FAIL | Notes |
+|---|---|---|---|---|---|
+| 39 | Open the note `SR alert chip`, click into the body, **End**, type `alert me if NVDA closes below 120`, wait for the chip. | `Alert suggestion`, `NVDA closes below`, `Enter to set it`, `Escape to dismiss` | the polite status `components/notebook/AlertPhraseMenu.jsx:142`; its text `AlertPhraseMenu.jsx:91` (`` `Alert suggestion: ${words}. Press Alt+Enter to set it, or Escape to dismiss.` ``); the chip `AlertPhraseMenu.jsx:144` (`role="toolbar" aria-label={ALERT_MENU_LABEL}`, `:29`) | **NOT RUN YET** | The full sentence is `Alert suggestion: NVDA closes below $120.00 (daily). Press Alt+Enter to set it, or Escape to dismiss.` The status line is DERIVED from the offer, so it is spoken once per offer and goes quiet when the caret moves inside the sentence (`AlertPhraseMenu.test.jsx`, "speaks once per offer"); this row measures that with a real screen reader. |
+| 40 | Same note, chip showing: **Alt+Enter**; then **Escape**. | `Set an alert`, `dialog`, `Note body` | the key `lib/alertPhraseOffer.js:90-93` (`Enter` with `altKey` dispatches `ALERT_OFFER_EVENT`); the sheet `components/notebook/TextAlertSheet.jsx:104` (`title="Set an alert"`, `labelledByTitle`); the dialog named by its title `app/src/components/mobile/Sheet.jsx:261`, `:267`, `:285`; Escape returns focus `AlertPhraseMenu.jsx:164` (`editor?.commands?.focus?.()`) and the body's name `components/notebook/NoteEditorPage.jsx:2605` (`'aria-label': 'Note body'`) | **NOT RUN YET** | Two claims in one row: focus lands INSIDE the sheet on Alt+Enter, and Escape returns it to the body. The tool records both from the DOM beside the speech. `labelledByTitle` was added in Task 11: without it the dialog had no accessible name (the a11y rail `smartChips.a11y.test.jsx` found it). |
+| 41 | Open the note `SR screenshot tag`; paste the fixture screenshot; wait for the chip; focus its button. | `Tag NVDA`, `Daily`, `button` | the chip `components/notebook/ScreenshotTagOffer.jsx:81` (`role="toolbar" aria-label={SCREENSHOT_OFFER_LABEL}`, `:18`); its button's words `ScreenshotTagOffer.jsx:20-24` (`offerWords`: `Tag ${symbol} · ${timeframe.label}`) and `:82-84`; its dismiss `:86` (`aria-label="Dismiss screenshot tag"`) | **NOT RUN YET** | The button reads `Tag NVDA · Daily`; only the words around the middle dot are graded. A note that already has a different ticker reads `Tag image NVDA · Daily` instead (`offerWords`), which this fixture does not exercise (the note has no ticker). |
+
 ## Appendix A -- the Mac-only chords, on a real Mac
 
 Read from source; never retyped from memory. On a Mac, `Mod` is Cmd and `Alt` is Option.

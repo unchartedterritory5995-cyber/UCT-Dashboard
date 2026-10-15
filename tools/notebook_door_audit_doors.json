@@ -575,6 +575,53 @@
       "390"
     ],
     "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
-    "note": "The P1 kind picker's Daily prep button (KindSection.jsx, aria-label \"New \" + the kind's name); the note it makes holds the prep pack (Daily prep v2). Reached the way row 55 reaches the menu. The button exists only after the lazy KindSection chunk and GET /api/j2/journal-styles answer, so the target wait is 15 s (as row 53's). Three counted presses, so OK is its best verdict. Rows 61 (Before / after this rule) and 62 (Mark a rule before entry) have no entry here: the audit's members cannot reach either (the card needs an account, a tagged trade and a rule; the switch lives inside a note's My rules block), so the walk measures them (blocks.before-after, blocks.my-rules): walk-measured, presence and content, not graded for clicks or fold."
+    "note": "The P1 kind picker's Daily prep button (KindSection.jsx, aria-label \"New \" + the kind's name); the note it makes holds the prep pack (Daily prep v2). Reached the way row 55 reaches the menu. The button exists only after the lazy KindSection chunk and GET /api/j2/journal-styles answer, so the target wait is 15 s (as row 53's). Three counted presses, so OK is its best verdict. Rows 61 (Before / after this rule) and 62 (Mark a rule before entry) have no entry here: the audit's members cannot reach either (the card needs an account, a tagged trade and a rule; the switch lives inside a note's My rules block), so the walk measures them (blocks.before-after, blocks.my-rules): walk-measured, presence and content, not graded for clicks or fold. Tier 2 part A's screenshot tag offer (\"Tag NVDA · Daily\", the toolbar \"Screenshot tag\") has no entry here for the same reason: it appears only after a chart screenshot is pasted and read by OCR, which an audit row cannot do, and as the file's only unmeasurable_here row it would hold the audit at exit 3 forever (ruling R-T13-1, b171f98dad). The walk measures it (smart.screenshot-tag, at 1280, 820 and 390): walk-measured, not graded for clicks or fold."
+  },
+  {
+    "feature": "Trade plan from the slash menu (Tier 2)",
+    "audit_row": 64,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "open_note": "Research: how a base"
+      },
+      {
+        "type": "\n/plan NVDA"
+      }
+    ],
+    "target": {
+      "role": "option",
+      "name": "~^Trade plan — NVDA"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    "note": "Tier 2 part A item 9: \"/plan NVDA\" in a note offers one item, \"Trade plan — NVDA\", which makes the Trade plan note and links it at the caret. The option's accessible name is its title AND its description (SlashMenu.jsx SlashList), so the name is matched from its start, as row 57's is. Reached the way row 57 reaches the same slash menu: an open note, then type. Unmeasured when added; the walk's smart.plan-slash drives the whole command."
+  },
+  {
+    "feature": "Alert chip on a typed sentence (Tier 2)",
+    "audit_row": 65,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "open_note": "Research: how a base"
+      },
+      {
+        "type": "\nalert me if NVDA closes below 120"
+      }
+    ],
+    "target": {
+      "role": "toolbar",
+      "name": "Alert suggestion"
+    },
+    "target_wait_ms": 15000,
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_SMART_CHIPS_ENABLED",
+    "note": "Tier 2 part A item 8: a typed \"alert me if NVDA closes below 120\" shows the toolbar \"Alert suggestion\" under the caret once typing pauses and the server (POST /api/j2/smart-chips/tickers) confirms the ticker, so the target wait is 15 s (as rows 53 and 63). Nothing to open: the chip is the door, and Alt+Enter or \"Set alert…\" opens the sheet. Unmeasured when added; the walk's smart.alert-chip drives it through to the sheet."
   }
 ]

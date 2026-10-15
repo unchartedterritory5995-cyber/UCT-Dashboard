@@ -263,6 +263,7 @@ NOTEBOOK_FLAGS = {
     # update-layout action. The router's gate (journal_styles.enabled) reads it through flag_on per
     # request; the payload key is `notebook_journal_styles_enabled`. Gates CREATING, never rendering.
     "NOTEBOOK_JOURNAL_STYLES_ENABLED": False,  # enablement — unset means OFF (journal styles, P1)
+    "NOTEBOOK_SMART_CHIPS_ENABLED": False,  # enablement (Tier 2 part A: alert + screenshot chips)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

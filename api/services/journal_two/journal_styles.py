@@ -737,7 +737,10 @@ def _outline_doc(user_id: str, style: dict, conn: sqlite3.Connection) -> dict:
 
 
 def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Connection | None,
-            now: datetime | None = None, mode: str = "create") -> dict:
+            now: datetime | None = None, mode: str = "create",
+            after_build: Callable[[dict, dict], dict] | None = None) -> dict:
+    """`after_build(doc, ctx) -> doc` is called in create mode only, once every block is placed (Tier 2
+    part A, /plan: one more step on the SAME body, inside the same read budget)."""
     if mode not in BUILD_MODES:
         raise ValueError(f"unknown build mode {mode!r}")
     owned = conn is None
@@ -811,6 +814,9 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
             doc["content"][i:i] = rest
         if not doc["content"]:
             doc["content"] = [{"type": "paragraph"}]
+        if mode == "create" and after_build is not None:
+            # Tier 2 part A (/plan): one more step on the SAME body, inside the same read budget.
+            doc = after_build(doc, ctx)
         props = _valid_defaults(user_id, style.get("properties") or {}, conn)
         props[_nk().NOTE_KIND_PROPERTY] = style["kindId"]
         if mode == "create":
@@ -836,7 +842,7 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
 
     Raises StyleNotFound (no such live style for this member), StyleValidationError (a bad
     styleId, an unknown kind) and notes.NoteValidationError (the title, ticker, folder...)."""
-    from api.services.journal_two import notes as notes_service
+    from api.services.journal_two import notes as notes_service, plan_prefill
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -852,7 +858,14 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
                 raise StyleValidationError("Choose a kind of note.")
             style = default_style_for_kind(user_id, kind_id, conn)
         ticker = notes_service._validate_ticker(payload.get("ticker"))
-        composed = compose(user_id, style, ticker=ticker, conn=conn, mode="create")
+        prefill = None
+        if payload.get("planPrefill") is True:
+            # Tier 2 part A (/plan): the member's own levels, a dated price and a source link, added to
+            # the SAME body in this create's one insert. Only a Trade plan with a ticker can take them.
+            if style.get("kindId") != plan_prefill.PLAN_KIND or not ticker:
+                raise StyleValidationError("A trade plan needs a ticker.")
+            prefill = lambda doc, ctx: plan_prefill.apply(doc, ctx, conn)  # noqa: E731
+        composed = compose(user_id, style, ticker=ticker, conn=conn, mode="create", after_build=prefill)
         base = {k: payload[k] for k in ("title", "subtitle", "tags", "ticker", "folderId") if k in payload}
         base["bodyJson"] = composed["bodyJson"]
         note = notes_service.create_note(

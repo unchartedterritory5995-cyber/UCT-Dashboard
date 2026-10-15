@@ -118,6 +118,9 @@ from api.routers import notebook_template_gallery as notebook_template_gallery_r
 # Notebook P1: journal styles + kinds of note (/api/j2/journal-styles, /api/j2/note-kinds, and two
 # /api/j2/notes/{id}/... "Update layout" routes), dark behind NOTEBOOK_JOURNAL_STYLES_ENABLED, paid.
 from api.routers import notebook_journal_styles as notebook_journal_styles_router
+# Notebook P2 Tier 2 part A: the smart chips' one ticker check (POST /api/j2/smart-chips/tickers), dark
+# behind NOTEBOOK_SMART_CHIPS_ENABLED, paid.
+from api.routers import notebook_smart_chips as notebook_smart_chips_router
 
 # Wave 13 lane 13I-1: the technical fingerprint + chart-block index
 # (/api/j2/notebook-fingerprint/*), dark behind NOTEBOOK_TA_FINGERPRINT_ENABLED.
@@ -9675,6 +9678,9 @@ app.include_router(notebook_template_gallery_router.router)
 # journal_two /notes/{note_id} route, so mount order does not matter
 # (tests/test_notebook_journal_styles_router.py walks the real app for a shadow).
 app.include_router(notebook_journal_styles_router.router)
+# Notebook P2 Tier 2 part A: the smart chips' ticker check, next to the styles router (its own
+# /api/j2/smart-chips prefix; no journal_two route can shadow it).
+app.include_router(notebook_smart_chips_router.router)
 
 # Wave 13 lane 13I-1 (router-level 404 while NOTEBOOK_TA_FINGERPRINT_ENABLED is off).
 app.include_router(notebook_fingerprint_router.router)
