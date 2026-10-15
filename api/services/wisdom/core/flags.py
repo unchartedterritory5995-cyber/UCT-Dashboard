@@ -86,6 +86,12 @@ def weekly_report_enabled() -> bool:
     return _truthy(os.environ.get("WISDOM_WEEKLY_REPORT_ENABLED", "0"))
 
 
+def archive_admin_enabled() -> bool:
+    """The ADMIN-ONLY TSDR archive (wisdom_archive_* tables, /api/admin/wisdom/archive and the
+    push-secret batch route). Never member-visible: no member route or retrieval lane reads it."""
+    return _truthy(os.environ.get("WISDOM_ARCHIVE_ADMIN_ENABLED", "0"))
+
+
 # ── member-visible consumers (owner flips) ───────────────────────────────────
 
 def brainkb_publish_enabled() -> bool:
@@ -146,6 +152,7 @@ GATES = (
     ("WISDOM_METRICS_ENABLED", metrics_enabled, False),
     ("WISDOM_RETRIEVAL_INDEX_ENABLED", retrieval_index_enabled, False),
     ("WISDOM_WEEKLY_REPORT_ENABLED", weekly_report_enabled, False),
+    ("WISDOM_ARCHIVE_ADMIN_ENABLED", archive_admin_enabled, False),
     ("WISDOM_BRAINKB_PUBLISH_ENABLED", brainkb_publish_enabled, True),
     ("ASKAI_WISDOM_RETRIEVAL_ENABLED", askai_retrieval_enabled, True),
     ("WISDOM_DESK_MARKERS_ENABLED", desk_markers_enabled, True),

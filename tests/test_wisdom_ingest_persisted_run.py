@@ -136,7 +136,8 @@ def test_the_gate_registry_still_holds_25_gates_and_the_five_are_among_them():
     from api.services.wisdom.core import flags
 
     # Was 25; WISDOM_TWITTER_LISTENER_ENABLED added by session 28 (2026-09-19).
-    assert len(flags.GATES) == 26, len(flags.GATES)
+    # 27: WISDOM_ARCHIVE_ADMIN_ENABLED (admin-only TSDR archive, internal, 2026-10-15).
+    assert len(flags.GATES) == 27, len(flags.GATES)
     names = {row[0] for row in flags.GATES}
     for switch in ingest.SWITCHES:
         assert switch in names, switch

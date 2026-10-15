@@ -28,6 +28,7 @@ const SECTIONS = [
   { key: 'jobs', label: 'Jobs', icon: 'clock' },
   { key: 'budget', label: 'Budget & flags', icon: 'dollar' },
   { key: 'reports', label: 'Reports', icon: 'document' },
+  { key: 'archive', label: 'Archive', icon: 'book' },
 ]
 
 const ACTIONS = [
@@ -442,6 +443,133 @@ function ReportsPanel() {
   )
 }
 
+// ── Archive (admin-only TSDR Ledger backfill) ───────────────────────────────
+//
+// ⛔ Reads /api/admin/wisdom/archive only — its own tables, never a member-facing lane.
+// A 404 means WISDOM_ARCHIVE_ADMIN_ENABLED is off, and says so rather than "nothing found".
+
+const ARCHIVE = '/api/admin/wisdom/archive'
+
+function fmtR(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '—'
+  const pct = Number(value) * 100
+  return `${pct > 0 ? '+' : ''}${pct.toFixed(1)}%`
+}
+
+function ArchiveError({ error, what }) {
+  if (error?.status === 404) {
+    return <p className={styles.muted}>The archive is off (WISDOM_ARCHIVE_ADMIN_ENABLED).</p>
+  }
+  return <LoadError error={error} what={what} />
+}
+
+function callRow(c) {
+  const o = c.outcome || {}
+  return [c.posted, c.ticker, c.author_id, c.direction, c.setup, c.action, c.entry, c.stop,
+    fmtR(o.r5), fmtR(o.r20), fmtR(o.r60), o.status]
+}
+
+const CALL_HEADERS = ['Posted', 'Ticker', 'Author', 'Dir', 'Setup', 'Action', 'Entry', 'Stop', 'R5', 'R20', 'R60', 'Status']
+
+function ArchiveTicker({ sym }) {
+  const { data, error } = useSWR(sym ? `${ARCHIVE}/ticker/${encodeURIComponent(sym)}` : null, jsonFetcher)
+  if (!sym) return null
+  if (error) return <ArchiveError error={error} what={`the archive for ${sym}`} />
+  if (!data) return <p className={styles.muted}>Loading {sym}…</p>
+  const records = (data.records || []).map((r) => [r.stated_date, r.record_type, r.author_id, r.note, r.image_count])
+  return (
+    <div>
+      <h3 className={styles.h3}>{data.ticker}: {data.records.length} records · {data.calls.length} calls</h3>
+      <Table headers={['Date', 'Type', 'Author', 'Note', 'Images']} rows={records} empty="No record names this ticker." />
+      <h4 className={styles.h4}>Calls, oldest first</h4>
+      <Table headers={CALL_HEADERS} rows={(data.calls || []).map(callRow)} empty="No calls on this ticker." />
+    </div>
+  )
+}
+
+function ArchiveSetup({ setup }) {
+  const { data, error } = useSWR(setup ? `${ARCHIVE}/setup/${encodeURIComponent(setup)}` : null, jsonFetcher)
+  if (!setup) return null
+  if (error) return <ArchiveError error={error} what={`setup ${setup}`} />
+  if (!data) return <p className={styles.muted}>Loading {setup}…</p>
+  const row = (c) => [...callRow(c), c.record_note]
+  return (
+    <div>
+      <p className={styles.muted}>
+        {data.setup}: {data.n_calls} calls, {data.n_scored} with an r20 · mean r20 {fmtR(data.mean_r20)}
+      </p>
+      <h4 className={styles.h4}>Best by r20</h4>
+      <Table headers={[...CALL_HEADERS, 'Note']} rows={(data.best || []).map(row)} empty="No scored calls." />
+      <h4 className={styles.h4}>Worst by r20</h4>
+      <Table headers={[...CALL_HEADERS, 'Note']} rows={(data.worst || []).map(row)} empty="No scored calls." />
+    </div>
+  )
+}
+
+function ArchiveSearch({ q }) {
+  const { data, error } = useSWR(q ? `${ARCHIVE}/search?q=${encodeURIComponent(q)}` : null, jsonFetcher)
+  if (!q) return null
+  if (error) return <ArchiveError error={error} what="search results" />
+  if (!data) return <p className={styles.muted}>Searching…</p>
+  const rows = (data.hits || []).map((h) => [h.stated_date, h.record_type, h.author_id, (h.tickers || []).join(', '), h.note])
+  return <Table headers={['Date', 'Type', 'Author', 'Tickers', 'Note']} rows={rows} empty="No record matches." />
+}
+
+function ArchivePanel() {
+  const { data: stats, error } = useSWR(`${ARCHIVE}/stats`, jsonFetcher)
+  const [tickerInput, setTickerInput] = useState('')
+  const [sym, setSym] = useState('')
+  const [setup, setSetup] = useState('')
+  const [qInput, setQInput] = useState('')
+  const [q, setQ] = useState('')
+  const setups = useMemo(() => Object.keys(stats?.calls_by_setup || {}), [stats])
+
+  if (error) return <ArchiveError error={error} what="archive stats" />
+  if (!stats) return <p className={styles.muted}>Loading archive…</p>
+  const countRows = (obj) => Object.entries(obj || {}).map(([k, n]) => [k, n])
+  return (
+    <div>
+      <p className={styles.muted}>
+        Admin-only TSDR archive: {stats.records} records · {stats.calls} calls. Never shown to members.
+      </p>
+      <form className={styles.filterRow} onSubmit={(e) => { e.preventDefault(); setSym(tickerInput.trim().toUpperCase()) }}>
+        <label className={styles.noteLabel} htmlFor="archive-ticker">Ticker</label>
+        <input id="archive-ticker" className={styles.select} value={tickerInput}
+          onChange={(e) => setTickerInput(e.target.value)} placeholder="e.g. NVDA" />
+        <button type="submit" className={styles.actionBtn}><UIcon name="search" size={14} /> Look up</button>
+      </form>
+      <ArchiveTicker sym={sym} />
+
+      <h3 className={styles.h3}>Setups</h3>
+      <div className={styles.filterRow}>
+        <label className={styles.noteLabel} htmlFor="archive-setup">Setup</label>
+        <select id="archive-setup" className={styles.select} value={setup} onChange={(e) => setSetup(e.target.value)}>
+          <option value="">Pick a setup…</option>
+          {setups.map((s) => <option key={s} value={s}>{s} ({stats.calls_by_setup[s]})</option>)}
+        </select>
+      </div>
+      <ArchiveSetup setup={setup} />
+
+      <h3 className={styles.h3}>Search notes and quotes</h3>
+      <form className={styles.filterRow} onSubmit={(e) => { e.preventDefault(); setQ(qInput.trim()) }}>
+        <label className={styles.noteLabel} htmlFor="archive-search">Search</label>
+        <input id="archive-search" className={styles.select} value={qInput}
+          onChange={(e) => setQInput(e.target.value)} placeholder="words to find" />
+        <button type="submit" className={styles.actionBtn}><UIcon name="search" size={14} /> Search</button>
+      </form>
+      <ArchiveSearch q={q} />
+
+      <h3 className={styles.h3}>Stats</h3>
+      <div className={styles.compare}>
+        <div><h4 className={styles.h4}>Records by author</h4><Table headers={['Author', 'n']} rows={countRows(stats.records_by_author)} /></div>
+        <div><h4 className={styles.h4}>Records by type</h4><Table headers={['Type', 'n']} rows={countRows(stats.records_by_type)} /></div>
+        <div><h4 className={styles.h4}>Calls by author</h4><Table headers={['Author', 'n']} rows={countRows(stats.calls_by_author)} /></div>
+        <div><h4 className={styles.h4}>Calls by setup</h4><Table headers={['Setup', 'n']} rows={countRows(stats.calls_by_setup)} /></div>
+      </div>
+    </div>
+  )
+}
+
 const PANELS = {
   queue: QueuePanel,
   metrics: MetricsPanel,
@@ -449,6 +577,7 @@ const PANELS = {
   jobs: JobsPanel,
   budget: BudgetFlagsPanel,
   reports: ReportsPanel,
+  archive: ArchivePanel,
 }
 
 export default function WisdomAdmin() {

@@ -23,7 +23,7 @@ from typing import Callable, Optional
 
 log = logging.getLogger(__name__)
 
-PACKAGES = ("core", "capture", "sources", "extract", "evals", "publish")
+PACKAGES = ("core", "capture", "sources", "extract", "evals", "publish", "archive")
 
 #: Import time. This is POD UPTIME, so `_staleness_window` is its ONE consumer and uses it
 #: only where no success is on record — measuring a job's staleness with it is G-33.

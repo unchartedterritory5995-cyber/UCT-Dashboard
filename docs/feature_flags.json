@@ -2750,6 +2750,11 @@
       ],
       "note": ""
     },
+    "WISDOM_ARCHIVE_ADMIN_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "ADMIN-ONLY TSDR archive (2026-10-15): new wisdom_archive_* tables in wisdom.db, the push-secret batch import route and the require_admin read routes under /api/admin/wisdom/archive. Internal; never member-visible, no member route or retrieval lane reads these tables. Off = every archive route answers 404."
+    },
     "WISDOM_BADGES_ENABLED": {
       "status": "dark",
       "where": [],
