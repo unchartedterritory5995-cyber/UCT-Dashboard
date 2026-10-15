@@ -101,7 +101,7 @@ export default function TextAlertSheet({ open, initial, onClose, onDone }) {
   }
 
   return (
-    <Sheet open={open} onClose={onClose} title="Set an alert" variant="auto">
+    <Sheet open={open} onClose={onClose} title="Set an alert" variant="auto" labelledByTitle>
       <form className={styles.form} onSubmit={submit}>
         <label className={styles.field}>Ticker
           <input value={symbol} onChange={(e) => setSymbol(e.target.value)} autoComplete="off" spellCheck={false} />

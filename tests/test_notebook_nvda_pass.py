@@ -270,12 +270,94 @@ def _doc_expected_cells():
 
 
 def test_the_docs_expected_column_is_exactly_what_the_grader_requires(mod):
-    """Fix round 1, M-2: the doc's Expected cell for rows 28-38 holds exactly P1P2_ROWS' expected,
-    one backtick span per phrase, in order (row 37 included: the grader checks three phrases)."""
+    """Fix round 1, M-2: the doc's Expected cell for rows 28-41 holds exactly P1P2_ROWS' and T2A_ROWS'
+    expected, one backtick span per phrase, in order (row 37 included: the grader checks three phrases)."""
     cells = _doc_expected_cells()
-    assert sorted(cells) == list(range(28, 39))
-    for r in mod.P1P2_ROWS:
+    assert sorted(cells) == list(range(28, 42))
+    for r in (*mod.P1P2_ROWS, *mod.T2A_ROWS):
         assert cells[r["n"]] == r["expected"], r["n"]
+
+
+# ── Rows 39-41 (Tier 2 part A): the alert chip and the screenshot tag ───────────────────────────
+def test_rows_39_to_41_numbers_and_the_ear_hears_their_own_words(mod):
+    """Each row's own words, written the way NVDA logs them, PASS; the "once" row also passes only on ONE
+    announcement; row 39 speaks no character NVDA may say as a word in its graded phrases."""
+    assert [r["n"] for r in mod.T2A_ROWS] == [39, 40, 41]
+    for r in mod.T2A_ROWS:
+        line = "Speaking [LangChangeCommand ('en_US'), " + ", ".join(repr(x) for x in r["logged"]) + "]"
+        assert mod.grade(r["expected"], mod.parse_speech(line), once=r.get("once"))[0] == "PASS", r["n"]
+        for phrase in r["expected"]:
+            assert not any(c in phrase for c in "+$\u00b7"), (r["n"], phrase)
+
+
+def test_row_39_fails_an_announcement_spoken_twice_or_not_at_all(mod):
+    said = "Alert suggestion: NVDA closes below $120.00 (daily). Press Alt plus Enter to set it, or Escape to dismiss."
+    exp, once = mod.T2A_BY_N[39]["expected"], mod.T2A_BY_N[39]["once"]
+    assert mod.grade(exp, [said], once=once)[0] == "PASS"          # "plus" for "+" still passes
+    verdict, why = mod.grade(exp, [said, said], once=once)
+    assert verdict == "FAIL" and "2 times" in why                  # the control: twice is a finding
+    assert mod.grade(exp, ["column 3 Sort by Name button"], once=once)[0] == "FAIL"
+    assert mod.grade(exp, [], once=once)[0] == "FAIL"              # silence is never a pass
+    # and without `once` the same two announcements PASS: the extra check is what catches it
+    assert mod.grade(exp, [said, said])[0] == "PASS"
+
+
+def test_rows_39_to_41_are_not_run_unless_their_switches_are_booleans_true(mod):
+    base = "https://example.invalid"
+    for me in (None, {}, {mod.SMART_CHIPS_KEY: False}, {mod.SMART_CHIPS_KEY: "true"}, {mod.SMART_CHIPS_KEY: 1}):
+        assert mod.t2a_off(me, "chips", base), me
+    assert "carries no" in mod.t2a_off({}, "chips", base)
+    assert mod.t2a_off({mod.SMART_CHIPS_KEY: True}, "chips", base) is None                   # the control: ON proceeds
+    assert mod.t2a_off({mod.SMART_CHIPS_KEY: True}, "chips+docs", base)                      # row 41 needs the second switch
+    assert mod.t2a_off({mod.SMART_CHIPS_KEY: True, mod.IMAGE_DOCS_KEY: False}, "chips+docs", base)
+    assert mod.t2a_off({mod.SMART_CHIPS_KEY: True, mod.IMAGE_DOCS_KEY: True}, "chips+docs", base) is None
+    assert [r["needs"] for r in mod.T2A_ROWS] == ["chips", "chips", "chips+docs"]
+
+
+def test_rows_39_to_41_with_a_switch_off_make_no_fixture_and_send_no_key(mod, monkeypatch):
+    """The gate runs before anything: NOT RUN, the API client never called, no key sent. The control: with the
+    switches on the same drive asks for fixtures (so the zero above is not vacuous)."""
+    keys = []
+    monkeypatch.setattr(mod, "_key", lambda vk, up=False: keys.append(vk))
+    base = "https://example.invalid"
+
+    def drive(me):
+        api = _StubApi(["chart"])
+        made = {"notes": [], "folders": [], "views": [], "styles": [], "rules": [], "trades": []}
+        fxs = mod.P2Fixtures(api, base, made)
+        out = {}
+        for r in mod.T2A_ROWS:
+            def row(num, keys_, expected, action, note=None, once=None, _o=out):
+                _o[num] = ("row", once)
+
+            def not_run(num, keys_, expected, why, _o=out):
+                _o[num] = ("not_run", why)
+
+            def inconclusive(num, keys_, expected, why, _o=out):
+                _o[num] = ("inconclusive", why)
+            mod.p2_row(r["n"], [lambda t=r["n"]: fxs.plain_note(f"SR row {t}")], lambda *_: None, only=set(),
+                       styles_off=mod.t2a_off(me, r["needs"], base), served=fxs.served_blocks,
+                       row=row, not_run=not_run, inconclusive=inconclusive)
+        return out, api, made
+
+    out, api, made = drive({})
+    assert all(v[0] == "not_run" and "smart chips switch is off" in v[1] for v in out.values()) and len(out) == 3
+    assert api.calls == [] and not any(made.values()) and keys == []
+    out_on, api_on, made_on = drive({mod.SMART_CHIPS_KEY: True, mod.IMAGE_DOCS_KEY: True})
+    assert all(v[0] == "row" for v in out_on.values())
+    assert out_on[39] == ("row", "Alert suggestion") and out_on[40] == ("row", None)       # only row 39 grades "once"
+    assert any(m == "post" for m, _ in api_on.calls) and len(made_on["notes"]) == 3 and keys == []
+    # a smart-chips-only server runs 39 and 40 and records 41 NOT RUN for the image-documents switch
+    out_half, _, _ = drive({mod.SMART_CHIPS_KEY: True})
+    assert out_half[39][0] == "row" and out_half[40][0] == "row"
+    assert out_half[41][0] == "not_run" and "image documents switch is off" in out_half[41][1]
+
+
+def test_the_screenshot_fixture_exists_and_is_the_documented_size(mod):
+    from PIL import Image
+    assert mod.T2A_FIXTURE.exists()
+    with Image.open(mod.T2A_FIXTURE) as im:
+        assert im.size == (900, 500)
 
 
 def test_extended_keys_carry_the_extended_flag_and_a_scan_code(mod):

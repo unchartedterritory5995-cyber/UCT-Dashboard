@@ -13,6 +13,7 @@ Never run on import; running it directly prints how to run the walk.
 """
 from __future__ import annotations
 
+import base64
 import json
 import math
 import re
@@ -41,7 +42,7 @@ SAMPLE_SYMS = ["AAPL", "MSFT", "NVDA", "GOOGL", "TSLA", "AMZN"]
 ORDER = ["firstrun", "sample", "examples", "checklist", "offer", "gallery", "formulas", "chartplan", "positions", "board1",
          "transcript", "passed", "child", "resurface", "thesischips", "board2", "trades", "grading", "earnings", "discipline",
          "vplaybook", "playbook", "reviews", "nokey", "layout", "tours1280", "tours820", "tours390", "whysave", "styles", "blocks",
-         "discover", "remove"]
+         "smart", "discover", "remove"]
 
 CHECKLIST_JS = """() => { const hd = [...document.querySelectorAll('h3')].find(e => e.textContent.trim() === 'Get started');
   if (!hd) return null; const card = hd.closest('section');
@@ -62,6 +63,10 @@ BLOCK_GROUPS = ("Pre-entry checklist", "Price stamps", "Position sizing")
 BLOCK_SLASH_ITEMS = (*BLOCK_GROUPS, "Market context")
 LOG_TRADE_CHECKLIST_PREF = "notebook_log_trade_checklist"   # lib/blocks/logTradeChecklist.js
 JOURNAL_STYLES_KEY = "notebook_journal_styles_enabled"     # lib/journalStylesFlag.js, the auth payload key
+# Notebook P2 Tier 2 part A (Task 11): the auth payload keys the `smart` step gates on, and the screenshot it pastes.
+SMART_CHIPS_KEY = "notebook_smart_chips_enabled"            # lib/smartChipsFlag.js
+IMAGE_DOCS_KEY = "notebook_image_docx_documents_enabled"    # the screenshot chip's second switch (NoteEditorPage handleImageInsert)
+SCREENSHOT_FIXTURE = REPO / "tools" / "fixtures" / "chart-header-nvda-1d.png"   # made by tools/gen_chart_header_fixture.py
 SELECTED_ACCOUNT_KEY = "uct.j2.selectedAccountId"          # hooks/useJ2SelectedAccount.js
 # Notebook P2b (Task 13): the four prep blocks' group names (lib/journalBlocks.js labels, the name
 # BlockNodeView gives its role="group") and the part each one captures (trader_blocks.PREP_BLOCK).
@@ -2975,6 +2980,215 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                "PASS" if not missing and not unlisted else "FAIL", missing=[f"{f} @ {vp}" for f, vp in missing],
                rows_not_in_coverage=unlisted, shot=False)
     run("blocks", blocks)
+
+    # ── Notebook P2 Tier 2 part A: /plan, the alert chip, the screenshot tag, at 1280 / 820 / 390 ──────
+    # Gated on the auth payload's own keys (never on this process's idea of the flag set): /plan rides
+    # notebook_journal_styles_enabled; the two chips ride notebook_smart_chips_enabled, and the screenshot
+    # chip also needs notebook_image_docx_documents_enabled. A switch that is off is NOT_RUN with that
+    # reason -- a row that could not be driven is neither PASS nor FAIL.
+    def smart_chips():
+        plan_on = notebook_flag_on(JOURNAL_STYLES_KEY)        # /plan rides the journal styles switch
+        chips_on = notebook_flag_on(SMART_CHIPS_KEY)
+        docs_on = notebook_flag_on(IMAGE_DOCS_KEY)
+        walked_at = {"smart.plan-slash": ("1280", "820", "390"), "smart.alert-chip": ("1280", "820", "390"),
+                     "smart.screenshot-tag": ("1280", "820", "390")}
+        state = ctx.storage_state()
+
+        def at(vp):
+            if vp == "1280":
+                return pg, inst, None
+            c = C.new_ctx(browser, vp, storage=state)
+            return c.new_page(), C.Inst(c, cfg, vp), c
+
+        def note(title, **extra):
+            body = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": title}]}]}
+            return M.post(base + "/api/j2/notes", data={"title": title, "bodyJson": body, **extra}).json()["note"]
+
+        def new_line(p_):
+            p_.locator(".ProseMirror > p").first.click()
+            p_.keyboard.press("Control+End")
+            p_.keyboard.press("Enter")
+
+        def walk_nodes(node):
+            if isinstance(node, dict):
+                yield node
+                for k in node.get("content") or []:
+                    yield from walk_nodes(k)
+
+        def widget_ids(doc):
+            return sorted({(n.get("attrs") or {}).get("widgetId") for n in walk_nodes(doc)
+                           if n.get("type") == "widgetEmbed"} - {None})
+
+        def paragraphs(doc):
+            return ["".join(t.get("text") or "" for t in (n.get("content") or [])) for n in walk_nodes(doc)
+                    if n.get("type") == "paragraph"]
+
+        def height(loc):
+            return loc.first.evaluate("e => e.getBoundingClientRect().height")
+
+        def alerts_now():
+            return len((M.get(base + "/api/indicator-alerts").json() or {}).get("alerts") or [])
+
+        def not_run(feature, vp, reason, **facts):
+            C.step(None, inst, feature, f"{vp}: could not be driven", "NOT_RUN", viewport_asked=vp,
+                   reason=f"INCONCLUSIVE: {reason}", shot=False, **facts)
+
+        # smart.plan-slash: in a seeded note type "/plan NVDA" and Enter; the toast says the plan was made and
+        #   linked; the link opens a note with the chart, the sizing and the checklist blocks, and either a
+        #   "Price when planned" line or none (this sandbox holds no live price: both are a PASS, the row says which).
+        def plan_slash():
+            for vp in ("1280", "820", "390"):
+                if not plan_on:
+                    not_run("smart.plan-slash", vp, f"{JOURNAL_STYLES_KEY} is off in this sandbox")
+                    continue
+                p, i, c = at(vp)
+                try:
+                    src = note(f"Plan slash source {vp}")
+                    C.goto(p, base, f"/journal/notebook?note={src['id']}", wait=".ProseMirror")
+                    new_line(p)
+                    p.keyboard.type("/plan NVDA", delay=40)
+                    offered = C.vis_loc(p.get_by_role("option", name=re.compile(r"^Trade plan — NVDA")), 10000)
+                    if offered:
+                        p.keyboard.press("Enter")
+                    toast = offered and C.vis_loc(p.get_by_text("Trade plan for NVDA created and linked"), 30000)
+                    link = p.locator("[data-note-link] button")
+                    linked = toast and C.vis_loc(link.first, 10000)
+                    opened_id = None
+                    if linked:
+                        link.first.click()
+                        p.wait_for_function("id => new URL(location.href).searchParams.get('note') !== id", arg=src["id"], timeout=20000)
+                        opened_id = p.evaluate("() => new URL(location.href).searchParams.get('note')")
+                        C.vis_loc(p.locator(".ProseMirror").first, 20000)
+                    got = note_json(opened_id) if opened_id else {}
+                    doc = got.get("bodyJson") or {}
+                    ids = widget_ids(doc)
+                    price_line = next((t for t in paragraphs(doc) if t.startswith("Price when planned")), None)
+                    blocks_ok = {"chart", "positionSizing", "preEntryChecklist"} <= set(ids)
+                    group_ok = (opened_id is not None
+                                and C.vis_loc(p.get_by_role("group", name="Pre-entry checklist", exact=True).first, 15000)
+                                and C.vis_loc(p.get_by_role("group", name="Position sizing", exact=True).first, 15000))
+                    ok = offered and toast and linked and blocks_ok and group_ok and (got.get("ticker") or "").upper() == "NVDA"
+                    C.step(p, i, "smart.plan-slash", f"/plan NVDA then Enter makes a linked Trade plan with chart, sizing and checklist ({vp})",
+                           "PASS" if ok else "FAIL", offered=offered, toast=toast, linked=linked, opened=opened_id,
+                           widgets=ids, ticker=got.get("ticker"), title=got.get("title"), blocks_ok=blocks_ok, blocks_on_screen=group_ok,
+                           price_line=price_line or "none (no live price in this sandbox)", price_line_present=price_line is not None)
+                finally:
+                    if c is not None:
+                        c.close()
+
+        # smart.alert-chip: type "alert me if NVDA closes below 120"; the toolbar "Alert suggestion" appears
+        #   (the server confirms NVDA); Alt+Enter opens "Set an alert" filled in; Cancel; no alert row was made.
+        def alert_chip():
+            for vp in ("1280", "820", "390"):
+                if not chips_on:
+                    not_run("smart.alert-chip", vp, f"{SMART_CHIPS_KEY} is off in this sandbox")
+                    continue
+                p, i, c = at(vp)
+                try:
+                    before = alerts_now()
+                    n = note(f"Alert chip {vp}")
+                    C.goto(p, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
+                    new_line(p)
+                    p.keyboard.type("alert me if NVDA closes below 120", delay=30)
+                    bar = p.get_by_role("toolbar", name="Alert suggestion")
+                    shown = C.vis_loc(bar, 20000)
+                    words = (bar.first.text_content() or "").strip() if shown else None
+                    btn_h = height(bar.get_by_role("button", name="Set alert…")) if shown and vp != "1280" else None
+                    if shown:
+                        p.keyboard.press("Alt+Enter")
+                    dlg = p.get_by_role("dialog", name="Set an alert")
+                    opened = shown and C.vis_loc(dlg, 15000)
+                    filled = None
+                    if opened:
+                        when = dlg.get_by_label("When")
+                        filled = {"ticker": dlg.get_by_label("Ticker").input_value(), "price": dlg.get_by_label("Price").input_value(),
+                                  "when": when.evaluate("s => s.options[s.selectedIndex].textContent")}
+                        dlg.get_by_role("button", name="Cancel", exact=True).click()
+                    closed = opened and not C.vis_loc(p.get_by_role("dialog", name="Set an alert"), 2500)
+                    after = alerts_now()
+                    want = {"ticker": "NVDA", "price": "120", "when": "Closes below"}
+                    ok = (shown and opened and filled == want and closed and after == before
+                          and (vp == "1280" or (btn_h is not None and btn_h >= 44)))
+                    C.step(p, i, "smart.alert-chip", f"The typed sentence offers the chip; Alt+Enter opens the sheet filled in; Cancel creates nothing ({vp})",
+                           "PASS" if ok else "FAIL", chip=shown, words=words, sheet=opened, filled=filled, expected=want,
+                           sheet_closed=closed, alerts_before=before, alerts_after=after, set_alert_button_height=btn_h)
+                finally:
+                    if c is not None:
+                        c.close()
+
+        # smart.screenshot-tag: paste tools/fixtures/chart-header-nvda-1d.png (the OS clipboard, then Ctrl+V: never a
+        #   synthetic ClipboardEvent); wait up to 60 s for "Tag NVDA · Daily"; accept; the image's alt and the note's
+        #   ticker follow. No OCR engine here (ocrUnavailable) is NOT_RUN with that reason, never a FAIL.
+        def screenshot_tag():
+            png_b64 = base64.b64encode(SCREENSHOT_FIXTURE.read_bytes()).decode("ascii") if SCREENSHOT_FIXTURE.exists() else None
+            for vp in ("1280", "820", "390"):
+                if not (chips_on and docs_on):
+                    off = [k for k, v in ((SMART_CHIPS_KEY, chips_on), (IMAGE_DOCS_KEY, docs_on)) if not v]
+                    not_run("smart.screenshot-tag", vp, f"{', '.join(off)} off in this sandbox")
+                    continue
+                if png_b64 is None:
+                    not_run("smart.screenshot-tag", vp, f"{SCREENSHOT_FIXTURE} is missing (python tools/gen_chart_header_fixture.py makes it)")
+                    continue
+                p, i, c = at(vp)
+                try:
+                    p.context.grant_permissions(["clipboard-read", "clipboard-write"], origin=base)
+                    n = note(f"Screenshot tag {vp}")             # no ticker: accepting sets it
+                    C.goto(p, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
+                    new_line(p)
+                    try:
+                        p.evaluate("""async (b64) => { const bin = atob(b64); const u8 = new Uint8Array(bin.length);
+                            for (let k = 0; k < bin.length; k++) u8[k] = bin.charCodeAt(k);
+                            await navigator.clipboard.write([new ClipboardItem({ 'image/png': new Blob([u8], { type: 'image/png' }) })]) }""", png_b64)
+                    except Exception as e:  # noqa: BLE001 -- no clipboard write here: the paste cannot be made honestly
+                        not_run("smart.screenshot-tag", vp, "the OS clipboard refused the image write", error=str(e)[:300])
+                        continue
+                    p.keyboard.press("Control+v")
+                    img = p.locator(".ProseMirror img")
+                    placed = C.vis_loc(img.first, 20000)
+                    chip = p.get_by_role("button", name="Tag NVDA · Daily")
+                    offered = placed and C.vis_loc(chip, 60000)
+                    docs = (M.get(base + f"/api/j2/notes/{n['id']}/documents").json() or {}).get("documents") or []
+                    doc_state = [{k: d.get(k) for k in ("status", "kind", "ocrUnavailable", "pagesWithText", "pagesAwaitingOcr", "textComplete")}
+                                 for d in docs]
+                    if placed and not offered and any(d.get("ocrUnavailable") for d in docs):
+                        not_run("smart.screenshot-tag", vp, "ocrUnavailable: this sandbox has no OCR engine", image_placed=placed,
+                                documents=doc_state)
+                        continue
+                    h_ = height(chip) if offered and vp != "1280" else None
+                    accepted = alt = tkr = None
+                    if offered:
+                        chip.first.click()
+                        accepted = C.vis_loc(p.get_by_text(re.compile(r"^Tagged the screenshot NVDA · Daily and set this note's ticker to NVDA\.")), 20000)
+                        alt = img.first.get_attribute("alt")
+                        tkr = (note_json(n["id"]).get("ticker") or "").upper()
+                    ok = offered and accepted and alt == "NVDA daily chart" and tkr == "NVDA" and (vp == "1280" or (h_ is not None and h_ >= 44))
+                    C.step(p, i, "smart.screenshot-tag", f"A pasted chart header offers \"Tag NVDA · Daily\"; accepting sets the image's alt and the note's ticker ({vp})",
+                           "PASS" if ok else "FAIL", image_placed=placed, chip=offered, accepted_toast=accepted, alt=alt, note_ticker=tkr,
+                           chip_height=h_, documents=doc_state)
+                finally:
+                    if c is not None:
+                        c.close()
+
+        rows = (("smart.plan-slash", plan_slash), ("smart.alert-chip", alert_chip), ("smart.screenshot-tag", screenshot_tag))
+        for feature, fn in rows:
+            try:
+                fn()
+            except h.SetupFailed:
+                raise
+            except Exception as e:  # noqa: BLE001 -- recorded, and the next row still runs
+                C.step(pg, inst, feature, "driver exception (the row did not finish)", "FAIL",
+                       error=f"{type(e).__name__}: {str(e)[:600]}", traceback=traceback.format_exc()[-1600:])
+        # smart.coverage: every row left a record at each of its viewports. A NOT_RUN row counts (it says why), and it
+        # carries `viewport_asked` because it is recorded without a page.
+        want = {(f, vp) for f, vps in walked_at.items() for vp in vps}
+        seen = {(s.get("feature"), s.get("viewport")) for s in C.REC["steps"] if s.get("config") == cfg}
+        seen |= {(s.get("feature"), s.get("viewport_asked")) for s in C.REC["steps"] if s.get("config") == cfg}
+        missing = sorted(want - seen)
+        unlisted = sorted(f for f, _ in rows if f not in walked_at)
+        C.step(None, inst, "smart.coverage", "every smart-chips feature left a row at each of its viewports",
+               "PASS" if not missing and not unlisted else "FAIL", missing=[f"{f} @ {vp}" for f, vp in missing],
+               rows_not_in_coverage=unlisted, shot=False)
+    run("smart", smart_chips)
 
     def discover():
         doors = (("new-note-home", d_new_note_home), ("phone-toolbar-inside", d_phone_toolbar),
