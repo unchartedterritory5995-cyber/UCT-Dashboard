@@ -4,37 +4,34 @@ What this is: everything the owner needs to turn on `NOTEBOOK_SMART_CHIPS_ENABLE
 Tier 2 part A PR has merged and `web` is serving it, and to turn it off again. Merging and arming are
 the owner's. No agent runs a `railway` command.
 
-Status when written (2026-10-15): the PR is NOT yet open, because the six-shard gate found two NEW
-failures on this branch and the walk found that the screenshot chip is unreachable on a 1280 x 800
-window. See "Open before merge" below. Nothing here has been run on production.
+Status (updated 2026-10-15, round 2, tree `6be4a827a1`): both defects the first landing found are fixed and
+re-measured. The first-landing items are CLOSED below. The round-2 six-shard gate still lists 3 NEW names, all in
+files this branch does not touch and all timing or ordering reds that pass on re-run (see item 1); they wait for the
+controller's ruling, and the PR is not yet open. Nothing here has been run on production.
 
-## What ships on merge, and what stays dark
+## Open before merge: the three items Task 12 found, and where each stands
 
-| Surface | On merge | Switch | Rollback |
-|---|---|---|---|
-| `/plan <TICKER>` in the slash menu | LIVE for every member who has the journal styles switch (`NOTEBOOK_JOURNAL_STYLES_ENABLED`, already armed on web) | the styles switch | revert the PR. There is no schema change, and notes already made stay ordinary Trade plan notes |
-| The alert chip (type "alert me if NVDA closes below 120", press Alt+Enter, a pre-filled sheet, the member presses "Set alert") | DARK | `NOTEBOOK_SMART_CHIPS_ENABLED`, unset = off | leave it unset or set it to `0` |
-| The screenshot tag chip ("Tag NVDA - Daily" on a pasted chart screenshot) | DARK | the same switch, and ALSO `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` (already armed on web) | the same |
-| `POST /api/j2/smart-chips/tickers` | answers one 404 while the switch is off | the same | the same |
-
-With the switch off nothing new runs: no plugin work beyond one latched flag read, no poll, no route.
-
-## Open before merge (found by Task 12, 2026-10-15)
-
-1. Gate: 2 NEW failures against the recorded baseline (`docs/notebook/gate-runs/t2a-landing/2026-10-15T06-10-20.md`,
-   GATE EXIT 1). Both are this branch's, and both fail alone:
-   - `src/lib/swallowedFetch.census.test.js`: `pages/journal-2-0/lib/screenshotRead.js` gains a
-     `.catch(() => null)` site (0 -> 1; line 35). The census is shrink-only.
-   - `src/pages/journal-2-0/lib/offline/f5Freeze.test.js`: the screenshot tag adds a second ticker
-     `settleMetadataRevision(await update({ ticker ... }))` call in `NoteEditorPage.jsx` (`setTickerFromTag`,
-     near line 1986); the rail allows exactly the three metadata doors (folder, tags, ticker).
-2. Walk: the screenshot chip is offered but cannot be reached on a 1280 x 800 window. The chip is
-   `position: fixed` at `top = image.bottom + 6` with no viewport clamp (`ScreenshotTagOffer.jsx` lines 79 to 82).
-   Measured chip box at 1280 x 800: y = 991 to 1018, below the window. At 820 x 1180 and 390 x 844 it is on
-   screen. Evidence: `docs/notebook/evidence/t2a-walk-20261015T062932/` (the failing row, with Playwright's
-   "element is outside of the viewport" call log) and `docs/notebook/evidence/t2a-walk-diag-20261015T063501/`
-   (the same walk with the click forced, boxes recorded).
+1. Gate. Round 1 (`c57a084a08`, `docs/notebook/gate-runs/t2a-landing/2026-10-15T06-10-20.md`) had 2 NEW failures, both
+   this branch's: the `swallowedFetch` census (`screenshotRead.js` gained a `.catch(() => null)`) and `f5Freeze`
+   (a second ticker settle call). CLOSED by `1e812a09bd` and `fc32fb88a0`: both are green in round 2.
+   Round 2 (`6be4a827a1`, `docs/notebook/gate-runs/t2a-landing-r2/2026-10-15T09-22-53.md`, commit `a4fef24ba6`): 3,439 files
+   reconcile, GATE EXIT 1, 3 NEW, none in a file this branch touches:
+   `objectLaneCallSites.measure` and `objectLaneDrawerCensus.measure` ("Test timed out in 15000ms", shard 1) and
+   `StockChart.smoke` "reports the drawn bar count" (shard 2, an async error from `PatternOverlay.jsx`). The three files pass
+   alone; shard 1 re-run as the gate runs it fails only the baseline `jsonFetcher` name; shard 2 re-run passes all 7,010
+   tests with one unhandled async error attributed to the same StockChart test. Classification: load-sensitive and
+   intermittent, not banked into the baseline. STILL OPEN: the controller's ruling (accept as flake, or re-gate once more).
+2. Walk. The screenshot chip was placed below a 1280 x 800 window. CLOSED by `6be4a827a1` (`lib/barPlacement.js`, clamped
+   into the viewport, re-places on scroll and resize). Round-2 walk, UNpatched tool, commit `f412158c88`,
+   `docs/notebook/evidence/t2a-walk-r2-20261015T095152/`: `VERDICT c2: 11 steps, 0 FAIL`; `smart.screenshot-tag` PASS at
+   1280 (800 tall, real click), 820 and 390; three real pastes, three offers, 0 misses. C:\data CLEAN at all four checkpoints.
+   Earlier evidence: `t2a-walk-20261015T062932/` (the failure) and `t2a-walk-diag-20261015T063501/` (the box that showed it).
 3. NVDA rows 39 to 41: not yet run, waits for the owner to be away. See "Before arming".
+
+Bytes on the final tree: 2,251,768 B (+6,079 over base 2,245,689; ceiling 2,251,833; budget 2,260,793).
+Typing: not re-measured after the round-2 fixes (they are off the typing path, no per-keystroke listener was added); the
+last measurement is `docs/notebook/evidence/t2a-perf-final-20261015T043054/` with the addendum in
+`docs/notebook/perf-runs/t2a/RESULT.md`: no regression from the switch.
 
 Known pre-existing reds (they fail at the base too, none is this branch's):
 `tests/test_notebook_flag_parse.py` (2 tests; offenders `tools/notebook_daily_prep_probe.py`,
@@ -57,7 +54,7 @@ Known pre-existing reds (they fail at the base too, none is this branch's):
   `-m --log-level=12 --log-file=...`), then quit NVDA with `& 'C:/Program Files/NVDA/nvda.exe' -q` and prove it gone
   (`Get-Process nvda -ErrorAction SilentlyContinue` returns nothing). Raw log first, then each row's PASS or FAIL.
   Row 39's phrase "NVDA closes below" also matches the typing echo; the row stays sound through its live-region phrases.
-- Open items 1 and 2 above are closed, and the gate is re-run on the final tree.
+- Open item 1 above is ruled on.
 
 ## The command (the owner's)
 
