@@ -1,0 +1,12 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-t2b/app[39m
+
+ [32m✓[39m src/pages/command/keyListenerCensus.test.js [2m([22m[2m7 tests[22m[2m)[22m[33m 5022[2mms[22m[39m
+     [33m[2m✓[22m[39m NON-VACUITY: it walks the whole tree, parses every file, and finds the registry [33m 5012[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m7 passed[39m[22m[90m (7)[39m
+[2m   Start at [22m 11:55:22
+[2m   Duration [22m 5.96s[2m (transform 124ms, setup 258ms, import 38ms, tests 5.02s, environment 524ms)[22m
+
+VITEST_ALONE_EXIT=0

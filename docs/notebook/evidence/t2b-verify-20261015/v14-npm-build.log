@@ -1,0 +1,983 @@
+
+> app@0.0.0 build
+> vite build && node scripts/build-cot-facts.mjs && node scripts/build-flow-facts.mjs
+
+[36mvite v7.3.1 [32mbuilding client environment for production...[36m[39m
+transforming...
+[uct] closedTable: dropped 40 prose keys, 109.7kB off the bundle
+[uct] symbolScope: dropped 21 prose keys, 13.1kB off the bundle
+[uct] market_calendar: rows grouped, dates as day gaps, 15.7kB off the bundle
+[32m✓[39m 5041 modules transformed.
+[33mExport "isDirty" of module "src/components/chart/builder/authoring/authoringState.js" was reexported through module "src/components/chart/builder/authoring/index.js" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/components/chart/builder/studio/useIndicatorConversation.js" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.[39m
+[33mExport "isDirty" of module "src/components/chart/builder/authoring/authoringState.js" was reexported through module "src/components/chart/builder/authoring/index.js" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/components/chart/builder/authoring/authoringSession.js" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.[39m
+[33mExport "newAuthoringState" of module "src/components/chart/builder/authoring/authoringState.js" was reexported through module "src/components/chart/builder/authoring/index.js" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/components/chart/builder/authoring/authoringSession.js" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.[39m
+[33mExport "applyTurn" of module "src/components/chart/builder/authoring/authoringState.js" was reexported through module "src/components/chart/builder/authoring/index.js" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/components/chart/builder/authoring/authoringSession.js" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.[39m
+[33mExport "undo" of module "src/components/chart/builder/authoring/authoringState.js" was reexported through module "src/components/chart/builder/authoring/index.js" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/components/chart/builder/authoring/authoringSession.js" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.[39m
+[33mExport "isDirty" of module "src/components/chart/builder/authoring/authoringState.js" was reexported through module "src/components/chart/builder/authoring/index.js" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/components/chart/builder/agentAuthoring.js" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.[39m
+rendering chunks...
+[33m[plugin vite:reporter] 
+(!) C:/Users/Patrick/uct-worktrees/notebook-t2b/app/src/pages/terminal/panels/HelpPanel.jsx is dynamically imported by C:/Users/Patrick/uct-worktrees/notebook-t2b/app/src/pages/terminal/panels.jsx but also statically imported by C:/Users/Patrick/uct-worktrees/notebook-t2b/app/src/pages/terminal/TerminalShell.jsx, dynamic import will not move module into another chunk.
+[39m
+computing gzip size...
+[2mdist/[22m[32massets/KaTeX_Size3-Regular-CTq5MqoE.woff         [39m[1m[2m    4.42 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size4-Regular-Dl5lxZxV.woff2        [39m[1m[2m    4.93 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size2-Regular-Dy4dx90m.woff2        [39m[1m[2m    5.21 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size1-Regular-mCD8mA8B.woff2        [39m[1m[2m    5.47 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size4-Regular-BF-4gkZK.woff         [39m[1m[2m    5.98 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size2-Regular-oD1tc_U0.woff         [39m[1m[2m    6.19 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size1-Regular-C195tn64.woff         [39m[1m[2m    6.50 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Caligraphic-Regular-Di6jR-x-.woff2  [39m[1m[2m    6.91 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Caligraphic-Bold-Dq_IR9rO.woff2     [39m[1m[2m    6.91 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size3-Regular-DgpXs0kz.ttf          [39m[1m[2m    7.59 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Caligraphic-Regular-CTRA-rTL.woff   [39m[1m[2m    7.66 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Caligraphic-Bold-BEiXGLvX.woff      [39m[1m[2m    7.72 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Script-Regular-D3wIWfF6.woff2       [39m[1m[2m    9.64 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Regular-DDBCnlJ7.woff2    [39m[1m[2m   10.34 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size4-Regular-DWFBv043.ttf          [39m[1m[2m   10.36 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Script-Regular-D5yQViql.woff        [39m[1m[2m   10.59 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Fraktur-Regular-CTYiF6lA.woff2      [39m[1m[2m   11.32 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Fraktur-Bold-CL6g_b3V.woff2         [39m[1m[2m   11.35 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size2-Regular-B7gKUWhC.ttf          [39m[1m[2m   11.51 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Italic-C3H0VqGB.woff2     [39m[1m[2m   12.03 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Bold-D1sUS0GD.woff2       [39m[1m[2m   12.22 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size1-Regular-Dbsnue_I.ttf          [39m[1m[2m   12.23 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Regular-CS6fqUqJ.woff     [39m[1m[2m   12.32 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Caligraphic-Regular-wX97UBjC.ttf    [39m[1m[2m   12.34 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Caligraphic-Bold-ATXxdsX0.ttf       [39m[1m[2m   12.37 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Fraktur-Regular-Dxdc4cR9.woff       [39m[1m[2m   13.21 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Fraktur-Bold-BsDP51OF.woff          [39m[1m[2m   13.30 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Typewriter-Regular-CO6r4hn1.woff2   [39m[1m[2m   13.57 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Italic-DN2j7dab.woff      [39m[1m[2m   14.11 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Bold-DbIhKOiC.woff        [39m[1m[2m   14.41 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Typewriter-Regular-C0xS9mPB.woff    [39m[1m[2m   16.03 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Math-BoldItalic-CZnvNsCZ.woff2      [39m[1m[2m   16.40 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Math-Italic-t53AETM-.woff2          [39m[1m[2m   16.44 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Script-Regular-C5JkGWo-.ttf         [39m[1m[2m   16.65 kB[22m[1m[22m
+[2mdist/[22m[32mindex.html                                       [39m[1m[2m   16.75 kB[22m[1m[22m[2m │ gzip:   4.83 kB[22m
+[2mdist/[22m[32massets/KaTeX_Main-BoldItalic-DxDJ3AOS.woff2      [39m[1m[2m   16.78 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Italic-NWA7e6Wa.woff2          [39m[1m[2m   16.99 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Math-BoldItalic-iY-2wyZ7.woff       [39m[1m[2m   18.67 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Math-Italic-DA0__PXp.woff           [39m[1m[2m   18.75 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-BoldItalic-SpSLRI95.woff       [39m[1m[2m   19.41 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Regular-BNo7hRIc.ttf      [39m[1m[2m   19.44 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Fraktur-Regular-CB_wures.ttf        [39m[1m[2m   19.57 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Fraktur-Bold-BdnERNNW.ttf           [39m[1m[2m   19.58 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Italic-BMLOBm91.woff           [39m[1m[2m   19.68 kB[22m[1m[22m
+[2mdist/[22m[32massets/scan-wkkSxuHq.webp                        [39m[1m[2m   20.31 kB[22m[1m[22m
+[2mdist/[22m[32massets/ai-CDSKkHV3.webp                          [39m[1m[2m   20.39 kB[22m[1m[22m
+[2mdist/[22m[32massets/research-Cxl5TjMe.webp                    [39m[1m[2m   20.42 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Italic-YYjJ1zSn.ttf       [39m[1m[2m   22.36 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Bold-CFMepnvq.ttf         [39m[1m[2m   24.50 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Bold-Cx986IdX.woff2            [39m[1m[2m   25.32 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Regular-B22Nviop.woff2         [39m[1m[2m   26.27 kB[22m[1m[22m
+[2mdist/[22m[32massets/breadth_sm-C--axXYt.webp                  [39m[1m[2m   27.28 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Typewriter-Regular-D3Ib7_Hf.ttf     [39m[1m[2m   27.56 kB[22m[1m[22m
+[2mdist/[22m[32massets/playbook-BskXEeG6.webp                    [39m[1m[2m   27.80 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_AMS-Regular-BQhdFMY1.woff2          [39m[1m[2m   28.08 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Bold-Jm3AIy58.woff             [39m[1m[2m   29.91 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Regular-Dr94JaBh.woff          [39m[1m[2m   30.77 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Math-BoldItalic-B3XSjfu4.ttf        [39m[1m[2m   31.20 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Math-Italic-flOr_0UB.ttf            [39m[1m[2m   31.31 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-BoldItalic-DzxPMmG6.ttf        [39m[1m[2m   32.97 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_AMS-Regular-DMm9YOAa.woff           [39m[1m[2m   33.52 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Italic-3WenGoN9.ttf            [39m[1m[2m   33.58 kB[22m[1m[22m
+[2mdist/[22m[32massets/flow-By7YgpOn.webp                        [39m[1m[2m   35.71 kB[22m[1m[22m
+[2mdist/[22m[32massets/workspace-CgmQDSyP.webp                   [39m[1m[2m   37.43 kB[22m[1m[22m
+[2mdist/[22m[32massets/desk-4AzRvJEv.webp                        [39m[1m[2m   39.08 kB[22m[1m[22m
+[2mdist/[22m[32massets/flow.worker-IkMGxpKV.js                   [39m[1m[2m   39.43 kB[22m[1m[22m
+[2mdist/[22m[32massets/calendar-CuUBKFIi.webp                    [39m[1m[2m   39.79 kB[22m[1m[22m
+[2mdist/[22m[32massets/wire-DgCpEOrh.webp                        [39m[1m[2m   47.03 kB[22m[1m[22m
+[2mdist/[22m[32massets/liveflow-DiXmVurJ.webp                    [39m[1m[2m   49.14 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Bold-waoOVXN0.ttf              [39m[1m[2m   51.34 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Regular-ypZvNtVU.ttf           [39m[1m[2m   53.58 kB[22m[1m[22m
+[2mdist/[22m[32massets/setups-CfwFIwXN.webp                      [39m[1m[2m   57.21 kB[22m[1m[22m
+[2mdist/[22m[32massets/compass-mark-DvndB-rt.png                 [39m[1m[2m   60.27 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_AMS-Regular-DRggAlZN.ttf            [39m[1m[2m   63.63 kB[22m[1m[22m
+[2mdist/[22m[32massets/catalysts-3wewWR48.webp                   [39m[1m[2m  102.45 kB[22m[1m[22m
+[2mdist/[22m[32massets/parchment-mark-C-pRUvxP.png               [39m[1m[2m  134.23 kB[22m[1m[22m
+[2mdist/[22m[32massets/modelbook-1VYO-kn-.webp                   [39m[1m[2m  136.77 kB[22m[1m[22m
+[2mdist/[22m[32m.vite/manifest.json                              [39m[1m[2m  399.51 kB[22m[1m[22m[2m │ gzip:  46.82 kB[22m
+[2mdist/[22m[32massets/runtimeWorker-C2CsW9ZU.js                 [39m[1m[2m1,034.08 kB[22m[1m[22m
+[2mdist/[22m[32massets/pdf.worker-TGcf_-kp.mjs                   [39m[1m[2m2,228.49 kB[22m[1m[22m
+[2mdist/[22m[35massets/ChartPanel-BQdwrVfu.css                   [39m[1m[2m    0.05 kB[22m[1m[22m[2m │ gzip:   0.07 kB[22m
+[2mdist/[22m[35massets/echartsCore-taG_xbE5.css                  [39m[1m[2m    0.06 kB[22m[1m[22m[2m │ gzip:   0.07 kB[22m
+[2mdist/[22m[35massets/EstimatesTab-Fn44ExWZ.css                 [39m[1m[2m    0.13 kB[22m[1m[22m[2m │ gzip:   0.13 kB[22m
+[2mdist/[22m[35massets/UnreadableNoteNotice-ljOSuQZK.css         [39m[1m[2m    0.18 kB[22m[1m[22m[2m │ gzip:   0.16 kB[22m
+[2mdist/[22m[35massets/CoverageNote-Jd-HWdZf.css                 [39m[1m[2m    0.21 kB[22m[1m[22m[2m │ gzip:   0.16 kB[22m
+[2mdist/[22m[35massets/ResurfaceVersionSheet-DDx6hc2v.css        [39m[1m[2m    0.30 kB[22m[1m[22m[2m │ gzip:   0.22 kB[22m
+[2mdist/[22m[35massets/HowToChecklist-D_P69BAV.css               [39m[1m[2m    0.32 kB[22m[1m[22m[2m │ gzip:   0.24 kB[22m
+[2mdist/[22m[35massets/AskInsertView-mRzIgo_M.css                [39m[1m[2m    0.39 kB[22m[1m[22m[2m │ gzip:   0.27 kB[22m
+[2mdist/[22m[35massets/SeriesChart-VZpHkHBp.css                  [39m[1m[2m    0.40 kB[22m[1m[22m[2m │ gzip:   0.25 kB[22m
+[2mdist/[22m[35massets/SinceLastVisit-CFUohHbM.css               [39m[1m[2m    0.40 kB[22m[1m[22m[2m │ gzip:   0.22 kB[22m
+[2mdist/[22m[35massets/ConfidenceStat-C8U2J4n9.css               [39m[1m[2m    0.44 kB[22m[1m[22m[2m │ gzip:   0.26 kB[22m
+[2mdist/[22m[35massets/PanelSymbol-Bj1igNkD.css                  [39m[1m[2m    0.46 kB[22m[1m[22m[2m │ gzip:   0.26 kB[22m
+[2mdist/[22m[35massets/CaptureMenu-Bv_uBcvv.css                  [39m[1m[2m    0.51 kB[22m[1m[22m[2m │ gzip:   0.28 kB[22m
+[2mdist/[22m[35massets/FiltersSheet-4ImmvxL-.css                 [39m[1m[2m    0.55 kB[22m[1m[22m[2m │ gzip:   0.29 kB[22m
+[2mdist/[22m[35massets/MyRulesBlock-CRiueEPr.css                 [39m[1m[2m    0.55 kB[22m[1m[22m[2m │ gzip:   0.31 kB[22m
+[2mdist/[22m[35massets/PullToRefresh-BQ7XyXky.css                [39m[1m[2m    0.56 kB[22m[1m[22m[2m │ gzip:   0.33 kB[22m
+[2mdist/[22m[35massets/useBrokerWarming-Dwl5LkUN.css             [39m[1m[2m    0.56 kB[22m[1m[22m[2m │ gzip:   0.34 kB[22m
+[2mdist/[22m[35massets/EarningsTradeCard-DXmeI3ym.css            [39m[1m[2m    0.61 kB[22m[1m[22m[2m │ gzip:   0.31 kB[22m
+[2mdist/[22m[35massets/LinkedNotesPanel-CgJZLirE.css             [39m[1m[2m    0.61 kB[22m[1m[22m[2m │ gzip:   0.36 kB[22m
+[2mdist/[22m[35massets/PositionSizingBlock-BOQDUTR6.css          [39m[1m[2m    0.64 kB[22m[1m[22m[2m │ gzip:   0.32 kB[22m
+[2mdist/[22m[35massets/SetupsBox-BMQNgaKc.css                    [39m[1m[2m    0.74 kB[22m[1m[22m[2m │ gzip:   0.44 kB[22m
+[2mdist/[22m[35massets/LoadFailed-XFjbJGz9.css                   [39m[1m[2m    0.77 kB[22m[1m[22m[2m │ gzip:   0.40 kB[22m
+[2mdist/[22m[35massets/Traders-66mt4aox.css                      [39m[1m[2m    0.78 kB[22m[1m[22m[2m │ gzip:   0.40 kB[22m
+[2mdist/[22m[35massets/RsBadge-C3U6yPu9.css                      [39m[1m[2m    0.81 kB[22m[1m[22m[2m │ gzip:   0.45 kB[22m
+[2mdist/[22m[35massets/econSearch-BnT-LcPN.css                   [39m[1m[2m    0.81 kB[22m[1m[22m[2m │ gzip:   0.42 kB[22m
+[2mdist/[22m[35massets/GenericTourEngine-BRivpbVw.css            [39m[1m[2m    0.87 kB[22m[1m[22m[2m │ gzip:   0.44 kB[22m
+[2mdist/[22m[35massets/PlanPanel-d1qKkZPO.css                    [39m[1m[2m    0.87 kB[22m[1m[22m[2m │ gzip:   0.40 kB[22m
+[2mdist/[22m[35massets/useMyTickers-CV-Kcqqq.css                 [39m[1m[2m    0.88 kB[22m[1m[22m[2m │ gzip:   0.40 kB[22m
+[2mdist/[22m[35massets/AlertBanner-DEh6uiOt.css                  [39m[1m[2m    0.88 kB[22m[1m[22m[2m │ gzip:   0.35 kB[22m
+[2mdist/[22m[35massets/ReadAloudButton-C-shBj5A.css              [39m[1m[2m    0.90 kB[22m[1m[22m[2m │ gzip:   0.41 kB[22m
+[2mdist/[22m[35massets/CapabilityPreview-BtwwEZPm.css            [39m[1m[2m    0.92 kB[22m[1m[22m[2m │ gzip:   0.44 kB[22m
+[2mdist/[22m[35massets/SyncFreshnessChip-uhLX52Tx.css            [39m[1m[2m    0.94 kB[22m[1m[22m[2m │ gzip:   0.46 kB[22m
+[2mdist/[22m[35massets/ScreenshotTagOffer-BgF1Tj4N.css           [39m[1m[2m    0.95 kB[22m[1m[22m[2m │ gzip:   0.45 kB[22m
+[2mdist/[22m[35massets/Toast-B2CVyuZT.css                        [39m[1m[2m    0.98 kB[22m[1m[22m[2m │ gzip:   0.49 kB[22m
+[2mdist/[22m[35massets/profileFormat-D7D-Pzpc.css                [39m[1m[2m    0.98 kB[22m[1m[22m[2m │ gzip:   0.45 kB[22m
+[2mdist/[22m[35massets/CollapsibleSection-C6X1gx7M.css           [39m[1m[2m    0.98 kB[22m[1m[22m[2m │ gzip:   0.48 kB[22m
+[2mdist/[22m[35massets/CompassTab-CfswekjQ.css                   [39m[1m[2m    1.00 kB[22m[1m[22m[2m │ gzip:   0.40 kB[22m
+[2mdist/[22m[35massets/StatsGrid-1foGD7kZ.css                    [39m[1m[2m    1.04 kB[22m[1m[22m[2m │ gzip:   0.47 kB[22m
+[2mdist/[22m[35massets/BoardFromList-C2ZZhZBq.css                [39m[1m[2m    1.08 kB[22m[1m[22m[2m │ gzip:   0.41 kB[22m
+[2mdist/[22m[35massets/CoverageLine-BbiEyRZZ.css                 [39m[1m[2m    1.09 kB[22m[1m[22m[2m │ gzip:   0.46 kB[22m
+[2mdist/[22m[35massets/AlertPhraseMenu-B9vooH9L.css              [39m[1m[2m    1.12 kB[22m[1m[22m[2m │ gzip:   0.50 kB[22m
+[2mdist/[22m[35massets/SeasonalityTab-DcQvqbwO.css               [39m[1m[2m    1.16 kB[22m[1m[22m[2m │ gzip:   0.46 kB[22m
+[2mdist/[22m[35massets/PanelState-C1KcH8Nt.css                   [39m[1m[2m    1.16 kB[22m[1m[22m[2m │ gzip:   0.46 kB[22m
+[2mdist/[22m[35massets/CheckPanel-C1P0AaCr.css                   [39m[1m[2m    1.16 kB[22m[1m[22m[2m │ gzip:   0.50 kB[22m
+[2mdist/[22m[35massets/TileCard-B-895v7q.css                     [39m[1m[2m    1.17 kB[22m[1m[22m[2m │ gzip:   0.55 kB[22m
+[2mdist/[22m[35massets/PublishFolderSheet-CteWy8nl.css           [39m[1m[2m    1.17 kB[22m[1m[22m[2m │ gzip:   0.49 kB[22m
+[2mdist/[22m[35massets/ProvenanceDemo-Ck98izbS.css               [39m[1m[2m    1.18 kB[22m[1m[22m[2m │ gzip:   0.45 kB[22m
+[2mdist/[22m[35massets/BrokerEquityCurve-0w8zH4BJ.css            [39m[1m[2m    1.21 kB[22m[1m[22m[2m │ gzip:   0.53 kB[22m
+[2mdist/[22m[35massets/FrozenList-9p_pLGCZ.css                   [39m[1m[2m    1.22 kB[22m[1m[22m[2m │ gzip:   0.53 kB[22m
+[2mdist/[22m[35massets/CompassOrb-d-YKkmgE.css                   [39m[1m[2m    1.25 kB[22m[1m[22m[2m │ gzip:   0.52 kB[22m
+[2mdist/[22m[35massets/ScreenshotPopover-BpSX9W0P.css            [39m[1m[2m    1.27 kB[22m[1m[22m[2m │ gzip:   0.56 kB[22m
+[2mdist/[22m[35massets/TourOfferPrompt-Wf2Qg5-F.css              [39m[1m[2m    1.28 kB[22m[1m[22m[2m │ gzip:   0.50 kB[22m
+[2mdist/[22m[35massets/SaveToNotebookButton--pU9t_hs.css         [39m[1m[2m    1.30 kB[22m[1m[22m[2m │ gzip:   0.53 kB[22m
+[2mdist/[22m[35massets/sizePanel-DDnIpYc4.css                    [39m[1m[2m    1.32 kB[22m[1m[22m[2m │ gzip:   0.56 kB[22m
+[2mdist/[22m[35massets/DateSuggestList-Bn5si9iV.css              [39m[1m[2m    1.33 kB[22m[1m[22m[2m │ gzip:   0.56 kB[22m
+[2mdist/[22m[35massets/SurfaceHeader-BnjiNH95.css                [39m[1m[2m    1.35 kB[22m[1m[22m[2m │ gzip:   0.51 kB[22m
+[2mdist/[22m[35massets/Notices-DrA0yS1Q.css                      [39m[1m[2m    1.38 kB[22m[1m[22m[2m │ gzip:   0.58 kB[22m
+[2mdist/[22m[35massets/FreshnessBadge-DvG6gbx-.css               [39m[1m[2m    1.41 kB[22m[1m[22m[2m │ gzip:   0.46 kB[22m
+[2mdist/[22m[35massets/useTagSuggestions-va11kgQX.css            [39m[1m[2m    1.41 kB[22m[1m[22m[2m │ gzip:   0.52 kB[22m
+[2mdist/[22m[35massets/RuleBeforeAfterCard-DC3HU5k5.css          [39m[1m[2m    1.44 kB[22m[1m[22m[2m │ gzip:   0.56 kB[22m
+[2mdist/[22m[35massets/Legal-guYk6pGt.css                        [39m[1m[2m    1.47 kB[22m[1m[22m[2m │ gzip:   0.52 kB[22m
+[2mdist/[22m[35massets/Provenance-C_1qDZfS.css                   [39m[1m[2m    1.48 kB[22m[1m[22m[2m │ gzip:   0.64 kB[22m
+[2mdist/[22m[35massets/TradeBeforeAfter-DwYYWug7.css             [39m[1m[2m    1.50 kB[22m[1m[22m[2m │ gzip:   0.63 kB[22m
+[2mdist/[22m[35massets/InfoTip-DCV9kT41.css                      [39m[1m[2m    1.51 kB[22m[1m[22m[2m │ gzip:   0.65 kB[22m
+[2mdist/[22m[35massets/alertState-DG3kBjOo.css                   [39m[1m[2m    1.55 kB[22m[1m[22m[2m │ gzip:   0.66 kB[22m
+[2mdist/[22m[35massets/Blocks-CBjOjjaM.css                       [39m[1m[2m    1.59 kB[22m[1m[22m[2m │ gzip:   0.66 kB[22m
+[2mdist/[22m[35massets/RecentlyDeleted-DEsAkeFC.css              [39m[1m[2m    1.59 kB[22m[1m[22m[2m │ gzip:   0.70 kB[22m
+[2mdist/[22m[35massets/TextAlertSheet-DbuuIvR5.css               [39m[1m[2m    1.61 kB[22m[1m[22m[2m │ gzip:   0.55 kB[22m
+[2mdist/[22m[35massets/SaveReceipt-B-0Livh7.css                  [39m[1m[2m    1.63 kB[22m[1m[22m[2m │ gzip:   0.76 kB[22m
+[2mdist/[22m[35massets/LogTradeChecklistSlot-D22yQG8W.css        [39m[1m[2m    1.63 kB[22m[1m[22m[2m │ gzip:   0.74 kB[22m
+[2mdist/[22m[35massets/OpenFlow-B_Ya4zOx.css                     [39m[1m[2m    1.66 kB[22m[1m[22m[2m │ gzip:   0.63 kB[22m
+[2mdist/[22m[35massets/ShareToFloor-BQu7la1U.css                 [39m[1m[2m    1.70 kB[22m[1m[22m[2m │ gzip:   0.68 kB[22m
+[2mdist/[22m[35massets/DarkPool-B23pTcus.css                     [39m[1m[2m    1.71 kB[22m[1m[22m[2m │ gzip:   0.45 kB[22m
+[2mdist/[22m[35massets/CaptureConnectPage-Dor1_p7a.css           [39m[1m[2m    1.74 kB[22m[1m[22m[2m │ gzip:   0.67 kB[22m
+[2mdist/[22m[35massets/WritingHelpPanel-D6gsIwzC.css             [39m[1m[2m    1.75 kB[22m[1m[22m[2m │ gzip:   0.63 kB[22m
+[2mdist/[22m[35massets/InternalCaptureEmbed-CTOdUlE8.css         [39m[1m[2m    1.75 kB[22m[1m[22m[2m │ gzip:   0.65 kB[22m
+[2mdist/[22m[35massets/GettingStartedList-Ds2M8XlE.css           [39m[1m[2m    1.75 kB[22m[1m[22m[2m │ gzip:   0.65 kB[22m
+[2mdist/[22m[35massets/ContextPopover-CiwQWpbK.css               [39m[1m[2m    1.84 kB[22m[1m[22m[2m │ gzip:   0.67 kB[22m
+[2mdist/[22m[35massets/Slider-FVi_MWsl.css                       [39m[1m[2m    1.89 kB[22m[1m[22m[2m │ gzip:   0.57 kB[22m
+[2mdist/[22m[35massets/FeatureStatus-DQSFeTQj.css                [39m[1m[2m    1.94 kB[22m[1m[22m[2m │ gzip:   0.76 kB[22m
+[2mdist/[22m[35massets/ReportingSoon-BHAAd9Li.css                [39m[1m[2m    1.99 kB[22m[1m[22m[2m │ gzip:   0.72 kB[22m
+[2mdist/[22m[35massets/EmptyState-D_LN0o1M.css                   [39m[1m[2m    2.01 kB[22m[1m[22m[2m │ gzip:   0.69 kB[22m
+[2mdist/[22m[35massets/Methodology-UMZB3boZ.css                  [39m[1m[2m    2.03 kB[22m[1m[22m[2m │ gzip:   0.65 kB[22m
+[2mdist/[22m[35massets/NoticesBox-Bgu6IGXo.css                   [39m[1m[2m    2.03 kB[22m[1m[22m[2m │ gzip:   0.72 kB[22m
+[2mdist/[22m[35massets/MarketContextWidget-C-4AHeVe.css          [39m[1m[2m    2.03 kB[22m[1m[22m[2m │ gzip:   0.74 kB[22m
+[2mdist/[22m[35massets/FormulaLibrary-3s1DNEfl.css               [39m[1m[2m    2.04 kB[22m[1m[22m[2m │ gzip:   0.70 kB[22m
+[2mdist/[22m[35massets/ExportDialog-WFGG5nZu.css                 [39m[1m[2m    2.05 kB[22m[1m[22m[2m │ gzip:   0.80 kB[22m
+[2mdist/[22m[35massets/NotebookTour-B7eCyO0f.css                 [39m[1m[2m    2.05 kB[22m[1m[22m[2m │ gzip:   0.83 kB[22m
+[2mdist/[22m[35massets/TimeSalesPanel-CkaVblfF.css               [39m[1m[2m    2.09 kB[22m[1m[22m[2m │ gzip:   0.77 kB[22m
+[2mdist/[22m[35massets/EvidenceTab-DVPujcbk.css                  [39m[1m[2m    2.09 kB[22m[1m[22m[2m │ gzip:   0.71 kB[22m
+[2mdist/[22m[35massets/CoursesSection-kSFsRSVY.css               [39m[1m[2m    2.11 kB[22m[1m[22m[2m │ gzip:   0.66 kB[22m
+[2mdist/[22m[35massets/FilingChangesTab-Ch58i3xz.css             [39m[1m[2m    2.11 kB[22m[1m[22m[2m │ gzip:   0.73 kB[22m
+[2mdist/[22m[35massets/ResearchCov-CD070hm2.css                  [39m[1m[2m    2.17 kB[22m[1m[22m[2m │ gzip:   0.70 kB[22m
+[2mdist/[22m[35massets/InboundEmailCard-L6PyDb6F.css             [39m[1m[2m    2.18 kB[22m[1m[22m[2m │ gzip:   0.64 kB[22m
+[2mdist/[22m[35massets/BreadthDrillList-CJzg3gmL.css             [39m[1m[2m    2.18 kB[22m[1m[22m[2m │ gzip:   0.72 kB[22m
+[2mdist/[22m[35massets/SharedScreen-ChmRaisL.css                 [39m[1m[2m    2.19 kB[22m[1m[22m[2m │ gzip:   0.82 kB[22m
+[2mdist/[22m[35massets/JournalLayout-loLcNbFD.css                [39m[1m[2m    2.20 kB[22m[1m[22m[2m │ gzip:   0.82 kB[22m
+[2mdist/[22m[35massets/CaptureDoors-Dvm62IYj.css                 [39m[1m[2m    2.28 kB[22m[1m[22m[2m │ gzip:   0.78 kB[22m
+[2mdist/[22m[35massets/OptionsScreener-Cgav5Ku3.css              [39m[1m[2m    2.32 kB[22m[1m[22m[2m │ gzip:   0.78 kB[22m
+[2mdist/[22m[35massets/Cited-BWAVn94v.css                        [39m[1m[2m    2.36 kB[22m[1m[22m[2m │ gzip:   0.78 kB[22m
+[2mdist/[22m[35massets/NoteTimelineView-CL6pBycA.css             [39m[1m[2m    2.39 kB[22m[1m[22m[2m │ gzip:   0.79 kB[22m
+[2mdist/[22m[35massets/IndexesWidget-ZEWKQ5ce.css                [39m[1m[2m    2.50 kB[22m[1m[22m[2m │ gzip:   0.86 kB[22m
+[2mdist/[22m[35massets/PostMarket-Bg89A5oV.css                   [39m[1m[2m    2.52 kB[22m[1m[22m[2m │ gzip:   0.87 kB[22m
+[2mdist/[22m[35massets/TranscriptPanel-CJ3-x0Bi.css              [39m[1m[2m    2.54 kB[22m[1m[22m[2m │ gzip:   0.91 kB[22m
+[2mdist/[22m[35massets/StatementPanels-BA0E6HcC.css              [39m[1m[2m    2.58 kB[22m[1m[22m[2m │ gzip:   0.83 kB[22m
+[2mdist/[22m[35massets/ResearchComparePage-B6fHN2Hg.css          [39m[1m[2m    2.61 kB[22m[1m[22m[2m │ gzip:   0.90 kB[22m
+[2mdist/[22m[35massets/NoteTasksView-DlFpAXGe.css                [39m[1m[2m    2.63 kB[22m[1m[22m[2m │ gzip:   0.90 kB[22m
+[2mdist/[22m[35massets/SourceLine-Co9dEK7x.css                   [39m[1m[2m    2.63 kB[22m[1m[22m[2m │ gzip:   0.93 kB[22m
+[2mdist/[22m[35massets/TrackRecordPage-BnCvIQv2.css              [39m[1m[2m    2.66 kB[22m[1m[22m[2m │ gzip:   0.95 kB[22m
+[2mdist/[22m[35massets/GlobalAddPositionProvider-BxtpbEMG.css    [39m[1m[2m    2.67 kB[22m[1m[22m[2m │ gzip:   0.91 kB[22m
+[2mdist/[22m[35massets/useThesisChips-8pugXu-e.css               [39m[1m[2m    2.68 kB[22m[1m[22m[2m │ gzip:   0.94 kB[22m
+[2mdist/[22m[35massets/ReportPage-BVvF7SzS.css                   [39m[1m[2m    2.72 kB[22m[1m[22m[2m │ gzip:   0.98 kB[22m
+[2mdist/[22m[35massets/SharedFormula-ChayxlxI.css                [39m[1m[2m    2.76 kB[22m[1m[22m[2m │ gzip:   0.99 kB[22m
+[2mdist/[22m[35massets/LiveFlowMassive-BV2sUTMg.css              [39m[1m[2m    2.78 kB[22m[1m[22m[2m │ gzip:   0.56 kB[22m
+[2mdist/[22m[35massets/NoteGraphView-DvQiQdSx.css                [39m[1m[2m    2.80 kB[22m[1m[22m[2m │ gzip:   0.93 kB[22m
+[2mdist/[22m[35massets/BarReplay-DKYUKTww.css                    [39m[1m[2m    2.81 kB[22m[1m[22m[2m │ gzip:   0.85 kB[22m
+[2mdist/[22m[35massets/JournalTwoRoot-DOcN9fHk.css               [39m[1m[2m    2.83 kB[22m[1m[22m[2m │ gzip:   0.94 kB[22m
+[2mdist/[22m[35massets/PublicPageMeta-C4kSoxHC.css               [39m[1m[2m    2.84 kB[22m[1m[22m[2m │ gzip:   0.95 kB[22m
+[2mdist/[22m[35massets/AbsenceReceipt-ygkp7rLc.css               [39m[1m[2m    2.85 kB[22m[1m[22m[2m │ gzip:   0.88 kB[22m
+[2mdist/[22m[35massets/VisualPlaybook-j6fZWo6_.css               [39m[1m[2m    2.92 kB[22m[1m[22m[2m │ gzip:   1.00 kB[22m
+[2mdist/[22m[35massets/AiSearchPage-Axn2w3uZ.css                 [39m[1m[2m    2.97 kB[22m[1m[22m[2m │ gzip:   0.97 kB[22m
+[2mdist/[22m[35massets/AnalystRatingsTab-0CcjIi3r.css            [39m[1m[2m    2.99 kB[22m[1m[22m[2m │ gzip:   0.99 kB[22m
+[2mdist/[22m[35massets/FormulaReference-BZ4s_Bvr.css             [39m[1m[2m    3.02 kB[22m[1m[22m[2m │ gzip:   1.02 kB[22m
+[2mdist/[22m[35massets/PdfDocumentViewer-BrzBGC4L.css            [39m[1m[2m    3.04 kB[22m[1m[22m[2m │ gzip:   1.13 kB[22m
+[2mdist/[22m[35massets/FingerprintPanel-DOTmuDik.css             [39m[1m[2m    3.07 kB[22m[1m[22m[2m │ gzip:   1.04 kB[22m
+[2mdist/[22m[35massets/GoalProgress-B78toCaj.css                 [39m[1m[2m    3.10 kB[22m[1m[22m[2m │ gzip:   1.00 kB[22m
+[2mdist/[22m[35massets/SaveTranscriptPassage-DiQHAs_M.css        [39m[1m[2m    3.18 kB[22m[1m[22m[2m │ gzip:   1.04 kB[22m
+[2mdist/[22m[35massets/ChartHealth-_EZXWhXs.css                  [39m[1m[2m    3.26 kB[22m[1m[22m[2m │ gzip:   1.01 kB[22m
+[2mdist/[22m[35massets/AuthForm-Canbxkkm.css                     [39m[1m[2m    3.27 kB[22m[1m[22m[2m │ gzip:   0.95 kB[22m
+[2mdist/[22m[35massets/Calendar-CjTCOzUR.css                     [39m[1m[2m    3.28 kB[22m[1m[22m[2m │ gzip:   0.98 kB[22m
+[2mdist/[22m[35massets/ShortcutCheatSheet-DIrKw8XV.css           [39m[1m[2m    3.32 kB[22m[1m[22m[2m │ gzip:   1.03 kB[22m
+[2mdist/[22m[35massets/ImovPanel-DXTI6UaN.css                    [39m[1m[2m    3.36 kB[22m[1m[22m[2m │ gzip:   1.01 kB[22m
+[2mdist/[22m[35massets/NoteBoardView-Bc89Jgza.css                [39m[1m[2m    3.38 kB[22m[1m[22m[2m │ gzip:   1.22 kB[22m
+[2mdist/[22m[35massets/ChartPlanPanel-D-wzmY4a.css               [39m[1m[2m    3.39 kB[22m[1m[22m[2m │ gzip:   1.00 kB[22m
+[2mdist/[22m[35massets/OffNotice-Dh8Z23f7.css                    [39m[1m[2m    3.41 kB[22m[1m[22m[2m │ gzip:   1.07 kB[22m
+[2mdist/[22m[35massets/GenerateReportModal-Du4g7_DV.css          [39m[1m[2m    3.50 kB[22m[1m[22m[2m │ gzip:   1.03 kB[22m
+[2mdist/[22m[35massets/PlanGradeCard-CZ562y0t.css                [39m[1m[2m    3.53 kB[22m[1m[22m[2m │ gzip:   1.08 kB[22m
+[2mdist/[22m[35massets/DeleteAccountModal-Dq2de4K8.css           [39m[1m[2m    3.57 kB[22m[1m[22m[2m │ gzip:   1.08 kB[22m
+[2mdist/[22m[35massets/BrokerConnectionsCard-BfZvQ2QG.css        [39m[1m[2m    3.58 kB[22m[1m[22m[2m │ gzip:   1.11 kB[22m
+[2mdist/[22m[35massets/TickerResearchWorkspace-Bey2DCTC.css      [39m[1m[2m    3.59 kB[22m[1m[22m[2m │ gzip:   1.08 kB[22m
+[2mdist/[22m[35massets/NoteCalendarView-CDNqV7la.css             [39m[1m[2m    3.62 kB[22m[1m[22m[2m │ gzip:   1.17 kB[22m
+[2mdist/[22m[35massets/PortfolioHeat-ip0rRrW8.css                [39m[1m[2m    3.63 kB[22m[1m[22m[2m │ gzip:   0.90 kB[22m
+[2mdist/[22m[35massets/myNamesPanel-C5krKKpJ.css                 [39m[1m[2m    3.66 kB[22m[1m[22m[2m │ gzip:   1.09 kB[22m
+[2mdist/[22m[35massets/PassedSetups-LlRicGZ9.css                 [39m[1m[2m    3.67 kB[22m[1m[22m[2m │ gzip:   1.12 kB[22m
+[2mdist/[22m[35massets/BreadthDrillModal-BkBbTXhz.css            [39m[1m[2m    3.71 kB[22m[1m[22m[2m │ gzip:   1.12 kB[22m
+[2mdist/[22m[35massets/LandingAnalytics-DYUvavgT.css             [39m[1m[2m    3.77 kB[22m[1m[22m[2m │ gzip:   1.15 kB[22m
+[2mdist/[22m[35massets/MoversPanel-DCCfhN1N.css                  [39m[1m[2m    3.84 kB[22m[1m[22m[2m │ gzip:   1.13 kB[22m
+[2mdist/[22m[35massets/Depth-DC2Fha-v.css                        [39m[1m[2m    4.01 kB[22m[1m[22m[2m │ gzip:   1.16 kB[22m
+[2mdist/[22m[35massets/PatternReview-BXgur0q0.css                [39m[1m[2m    4.12 kB[22m[1m[22m[2m │ gzip:   1.30 kB[22m
+[2mdist/[22m[35massets/NewsSettingsPanel-Dh9941lR.css            [39m[1m[2m    4.14 kB[22m[1m[22m[2m │ gzip:   1.19 kB[22m
+[2mdist/[22m[35massets/StyleSurfaces-xHEPbSy-.css                [39m[1m[2m    4.16 kB[22m[1m[22m[2m │ gzip:   1.11 kB[22m
+[2mdist/[22m[35massets/comparePanels-BwNBwpnP.css                [39m[1m[2m    4.31 kB[22m[1m[22m[2m │ gzip:   1.31 kB[22m
+[2mdist/[22m[35massets/EntryContextCard-DdCalLeR.css             [39m[1m[2m    4.39 kB[22m[1m[22m[2m │ gzip:   1.37 kB[22m
+[2mdist/[22m[35massets/SetupsBoard-TY5VetHN.css                  [39m[1m[2m    4.58 kB[22m[1m[22m[2m │ gzip:   1.32 kB[22m
+[2mdist/[22m[35massets/CatalystsHistory-B9BSFCyL.css             [39m[1m[2m    4.58 kB[22m[1m[22m[2m │ gzip:   1.34 kB[22m
+[2mdist/[22m[35massets/WisdomAdmin-6K9FqgAK.css                  [39m[1m[2m    4.64 kB[22m[1m[22m[2m │ gzip:   1.23 kB[22m
+[2mdist/[22m[35massets/MyPlaybook-M53zhXBh.css                   [39m[1m[2m    4.65 kB[22m[1m[22m[2m │ gzip:   1.34 kB[22m
+[2mdist/[22m[35massets/OptionsChainTab-BdW6MlmC.css              [39m[1m[2m    4.65 kB[22m[1m[22m[2m │ gzip:   1.30 kB[22m
+[2mdist/[22m[35massets/StylesManager-CSWAFUFh.css                [39m[1m[2m    4.82 kB[22m[1m[22m[2m │ gzip:   1.30 kB[22m
+[2mdist/[22m[35massets/VoiceNoteDialog-CHUHF7DX.css              [39m[1m[2m    4.84 kB[22m[1m[22m[2m │ gzip:   1.27 kB[22m
+[2mdist/[22m[35massets/marketPanels-BT0KcrQ7.css                 [39m[1m[2m    4.91 kB[22m[1m[22m[2m │ gzip:   1.37 kB[22m
+[2mdist/[22m[35massets/OwnershipPanel-tCs9kpMK.css               [39m[1m[2m    4.94 kB[22m[1m[22m[2m │ gzip:   1.39 kB[22m
+[2mdist/[22m[35massets/TemplateGallery-D5kS7Jyg.css              [39m[1m[2m    4.98 kB[22m[1m[22m[2m │ gzip:   1.28 kB[22m
+[2mdist/[22m[35massets/OptionsFlow-Dy223K0Y.css                  [39m[1m[2m    5.16 kB[22m[1m[22m[2m │ gzip:   1.26 kB[22m
+[2mdist/[22m[35massets/FundamentalSnapshot-CXevbb2l.css          [39m[1m[2m    5.38 kB[22m[1m[22m[2m │ gzip:   1.43 kB[22m
+[2mdist/[22m[35massets/BuzzRender-Bcq841ro.css                   [39m[1m[2m    5.64 kB[22m[1m[22m[2m │ gzip:   1.63 kB[22m
+[2mdist/[22m[35massets/NewsWidget-CZZa9Bn4.css                   [39m[1m[2m    5.69 kB[22m[1m[22m[2m │ gzip:   1.49 kB[22m
+[2mdist/[22m[35massets/AskPanel-MerGyudY.css                     [39m[1m[2m    5.79 kB[22m[1m[22m[2m │ gzip:   1.67 kB[22m
+[2mdist/[22m[35massets/ChartThemesModal-DY4AVpwY.css             [39m[1m[2m    5.80 kB[22m[1m[22m[2m │ gzip:   1.65 kB[22m
+[2mdist/[22m[35massets/ModalShell-cNsm7dP-.css                   [39m[1m[2m    5.83 kB[22m[1m[22m[2m │ gzip:   1.58 kB[22m
+[2mdist/[22m[35massets/MarketBreadth-CzfhKzXY.css                [39m[1m[2m    6.03 kB[22m[1m[22m[2m │ gzip:   1.63 kB[22m
+[2mdist/[22m[35massets/SetupLibrary-CnJYNopZ.css                 [39m[1m[2m    6.11 kB[22m[1m[22m[2m │ gzip:   1.68 kB[22m
+[2mdist/[22m[35massets/ColorPanel-Z9MSti7L.css                   [39m[1m[2m    6.27 kB[22m[1m[22m[2m │ gzip:   1.81 kB[22m
+[2mdist/[22m[35massets/CapturedSourceSheet-cVOA7qsQ.css          [39m[1m[2m    6.33 kB[22m[1m[22m[2m │ gzip:   1.56 kB[22m
+[2mdist/[22m[35massets/PatternAdmin-A3qf7CCC.css                 [39m[1m[2m    6.43 kB[22m[1m[22m[2m │ gzip:   1.58 kB[22m
+[2mdist/[22m[35massets/ScopeBar-CLwOVfR2.css                     [39m[1m[2m    6.64 kB[22m[1m[22m[2m │ gzip:   1.53 kB[22m
+[2mdist/[22m[35massets/AccountsTab-isHOciwh.css                  [39m[1m[2m    6.90 kB[22m[1m[22m[2m │ gzip:   1.71 kB[22m
+[2mdist/[22m[35massets/JournalLayout-Cc68GMfU.css                [39m[1m[2m    6.98 kB[22m[1m[22m[2m │ gzip:   1.71 kB[22m
+[2mdist/[22m[35massets/AlertsWidget-_iN4L3oD.css                 [39m[1m[2m    7.39 kB[22m[1m[22m[2m │ gzip:   1.69 kB[22m
+[2mdist/[22m[35massets/FlowScoreboard-Db0G9V_W.css               [39m[1m[2m    7.48 kB[22m[1m[22m[2m │ gzip:   2.02 kB[22m
+[2mdist/[22m[35massets/ObsidianConnectModal-vcGg7R0B.css         [39m[1m[2m    7.58 kB[22m[1m[22m[2m │ gzip:   1.56 kB[22m
+[2mdist/[22m[35massets/BrokersPage-DBjKzu0N.css                  [39m[1m[2m    7.72 kB[22m[1m[22m[2m │ gzip:   2.23 kB[22m
+[2mdist/[22m[35massets/PositionDetailPage-tDrB0tXZ.css           [39m[1m[2m    8.34 kB[22m[1m[22m[2m │ gzip:   2.05 kB[22m
+[2mdist/[22m[35massets/AgentPanel-DnRkAK-g.css                   [39m[1m[2m    8.48 kB[22m[1m[22m[2m │ gzip:   2.12 kB[22m
+[2mdist/[22m[35massets/CreateIndicatorPanel-BKIXE58e.css         [39m[1m[2m    8.66 kB[22m[1m[22m[2m │ gzip:   2.25 kB[22m
+[2mdist/[22m[35massets/CommunityTab-_jsL5Fcb.css                 [39m[1m[2m    8.94 kB[22m[1m[22m[2m │ gzip:   2.06 kB[22m
+[2mdist/[22m[35massets/CalendarTab-C5j-1RQY.css                  [39m[1m[2m    9.33 kB[22m[1m[22m[2m │ gzip:   2.17 kB[22m
+[2mdist/[22m[35massets/PortfolioSettingsModal-FHaq_OFt.css       [39m[1m[2m    9.45 kB[22m[1m[22m[2m │ gzip:   2.07 kB[22m
+[2mdist/[22m[35massets/ImportWizard-D_zMZPpA.css                 [39m[1m[2m    9.47 kB[22m[1m[22m[2m │ gzip:   2.30 kB[22m
+[2mdist/[22m[35massets/CalendarWidget-T9eMuCpN.css               [39m[1m[2m    9.57 kB[22m[1m[22m[2m │ gzip:   2.26 kB[22m
+[2mdist/[22m[35massets/Compare-CzHxVSMv.css                      [39m[1m[2m    9.82 kB[22m[1m[22m[2m │ gzip:   2.69 kB[22m
+[2mdist/[22m[35massets/Pricing-CEF8HJrA.css                      [39m[1m[2m   10.29 kB[22m[1m[22m[2m │ gzip:   2.82 kB[22m
+[2mdist/[22m[35massets/TradeCanvasBoard-atv0EIf-.css             [39m[1m[2m   10.62 kB[22m[1m[22m[2m │ gzip:   2.66 kB[22m
+[2mdist/[22m[35massets/Confluence-Cw-nlU-H.css                   [39m[1m[2m   10.78 kB[22m[1m[22m[2m │ gzip:   2.72 kB[22m
+[2mdist/[22m[35massets/NotebookWidget-CEEO0MXf.css               [39m[1m[2m   11.04 kB[22m[1m[22m[2m │ gzip:   2.10 kB[22m
+[2mdist/[22m[35massets/FundamentalsWidget-BxQQr1kq.css           [39m[1m[2m   11.50 kB[22m[1m[22m[2m │ gzip:   2.80 kB[22m
+[2mdist/[22m[35massets/FormulaField-BWf8sDim.css                 [39m[1m[2m   12.83 kB[22m[1m[22m[2m │ gzip:   2.70 kB[22m
+[2mdist/[22m[35massets/TradeDetailPage-cwd-HCzu.css              [39m[1m[2m   13.34 kB[22m[1m[22m[2m │ gzip:   3.06 kB[22m
+[2mdist/[22m[35massets/FolderSidebar--raoRk_E.css                [39m[1m[2m   13.58 kB[22m[1m[22m[2m │ gzip:   2.62 kB[22m
+[2mdist/[22m[35massets/TodaySurface-Drz7PkPI.css                 [39m[1m[2m   13.66 kB[22m[1m[22m[2m │ gzip:   2.69 kB[22m
+[2mdist/[22m[35massets/ImportCsvModal-aYgstnkF.css               [39m[1m[2m   14.37 kB[22m[1m[22m[2m │ gzip:   3.37 kB[22m
+[2mdist/[22m[35massets/GlobalVoiceLayer-DTP7cbsc.css             [39m[1m[2m   14.40 kB[22m[1m[22m[2m │ gzip:   3.49 kB[22m
+[2mdist/[22m[35massets/AiSearchWidget-BXh14l9f.css               [39m[1m[2m   14.45 kB[22m[1m[22m[2m │ gzip:   2.91 kB[22m
+[2mdist/[22m[35massets/ArticleReader-DBnk-458.css                [39m[1m[2m   15.57 kB[22m[1m[22m[2m │ gzip:   3.32 kB[22m
+[2mdist/[22m[35massets/Desk-DD_q_E1S.css                         [39m[1m[2m   15.93 kB[22m[1m[22m[2m │ gzip:   3.31 kB[22m
+[2mdist/[22m[35massets/ComingSoon-Be3k4vEl.css                   [39m[1m[2m   16.42 kB[22m[1m[22m[2m │ gzip:   3.89 kB[22m
+[2mdist/[22m[35massets/BreadthWidget-0dbbFcT7.css                [39m[1m[2m   16.94 kB[22m[1m[22m[2m │ gzip:   3.64 kB[22m
+[2mdist/[22m[35massets/model-DsDFL9ph.css                        [39m[1m[2m   18.65 kB[22m[1m[22m[2m │ gzip:   3.58 kB[22m
+[2mdist/[22m[35massets/Support-CYYgCtzO.css                      [39m[1m[2m   20.69 kB[22m[1m[22m[2m │ gzip:   4.13 kB[22m
+[2mdist/[22m[35massets/TranscriptPanel-CGOxk9rl.css              [39m[1m[2m   20.71 kB[22m[1m[22m[2m │ gzip:   4.02 kB[22m
+[2mdist/[22m[35massets/ResearchPage-CCzaC-K2.css                 [39m[1m[2m   20.95 kB[22m[1m[22m[2m │ gzip:   4.26 kB[22m
+[2mdist/[22m[35massets/Dashboard-Cre0hoGt.css                    [39m[1m[2m   21.85 kB[22m[1m[22m[2m │ gzip:   4.96 kB[22m
+[2mdist/[22m[35massets/TerminalShell-BQc9QKXN.css                [39m[1m[2m   22.03 kB[22m[1m[22m[2m │ gzip:   4.17 kB[22m
+[2mdist/[22m[35massets/DayDetailPage-BUgQJHmw.css                [39m[1m[2m   22.48 kB[22m[1m[22m[2m │ gzip:   4.09 kB[22m
+[2mdist/[22m[35massets/CatalystTable-GwWPBE7t.css                [39m[1m[2m   23.70 kB[22m[1m[22m[2m │ gzip:   4.63 kB[22m
+[2mdist/[22m[35massets/UCT20-BxwN_0IF.css                        [39m[1m[2m   24.84 kB[22m[1m[22m[2m │ gzip:   4.54 kB[22m
+[2mdist/[22m[35massets/tiptap-DKox71Qj.css                       [39m[1m[2m   27.31 kB[22m[1m[22m[2m │ gzip:   5.30 kB[22m
+[2mdist/[22m[35massets/katexRender-BYZTj3zW.css                  [39m[1m[2m   29.29 kB[22m[1m[22m[2m │ gzip:   8.05 kB[22m
+[2mdist/[22m[35massets/Admin-Dcpx0eXd.css                        [39m[1m[2m   33.30 kB[22m[1m[22m[2m │ gzip:   6.22 kB[22m
+[2mdist/[22m[35massets/Landing-BkfJTMbf.css                      [39m[1m[2m   33.85 kB[22m[1m[22m[2m │ gzip:   7.01 kB[22m
+[2mdist/[22m[35massets/CommunityRedesign-DpTn7lxC.css            [39m[1m[2m   35.71 kB[22m[1m[22m[2m │ gzip:   6.20 kB[22m
+[2mdist/[22m[35massets/ThemeTrackerPage-DRxnfVZK.css             [39m[1m[2m   36.50 kB[22m[1m[22m[2m │ gzip:   6.16 kB[22m
+[2mdist/[22m[35massets/TradeJournalTab-QmVgiefu.css              [39m[1m[2m   38.50 kB[22m[1m[22m[2m │ gzip:   6.96 kB[22m
+[2mdist/[22m[35massets/MorningWire-DXa8Tyqo.css                  [39m[1m[2m   44.38 kB[22m[1m[22m[2m │ gzip:   7.13 kB[22m
+[2mdist/[22m[35massets/Watchlists-CZKKTV5t.css                   [39m[1m[2m   44.83 kB[22m[1m[22m[2m │ gzip:   8.09 kB[22m
+[2mdist/[22m[35massets/AnalyticsTab-BnQi_PSF.css                 [39m[1m[2m   51.58 kB[22m[1m[22m[2m │ gzip:   8.75 kB[22m
+[2mdist/[22m[35massets/VideosSection-CdplgTY8.css                [39m[1m[2m   60.34 kB[22m[1m[22m[2m │ gzip:  10.25 kB[22m
+[2mdist/[22m[35massets/Settings-B8F-DB83.css                     [39m[1m[2m   62.01 kB[22m[1m[22m[2m │ gzip:  11.00 kB[22m
+[2mdist/[22m[35massets/Screener-DJm9idl5.css                     [39m[1m[2m   70.13 kB[22m[1m[22m[2m │ gzip:  11.98 kB[22m
+[2mdist/[22m[35massets/StockChart-GWqfuFH8.css                   [39m[1m[2m   75.64 kB[22m[1m[22m[2m │ gzip:  14.32 kB[22m
+[2mdist/[22m[35massets/ChartsWorkspace-DQPqzj2p.css              [39m[1m[2m   77.48 kB[22m[1m[22m[2m │ gzip:  13.57 kB[22m
+[2mdist/[22m[35massets/EarningsCard-CJOu7F-L.css                 [39m[1m[2m   81.66 kB[22m[1m[22m[2m │ gzip:  14.06 kB[22m
+[2mdist/[22m[35massets/Breadth-CIg8hvK9.css                      [39m[1m[2m   90.36 kB[22m[1m[22m[2m │ gzip:  15.46 kB[22m
+[2mdist/[22m[35massets/ModelBook-rhG37qUF.css                    [39m[1m[2m   92.75 kB[22m[1m[22m[2m │ gzip:  15.29 kB[22m
+[2mdist/[22m[35massets/ChartPane-VoX2pbpR.css                    [39m[1m[2m   95.98 kB[22m[1m[22m[2m │ gzip:  16.29 kB[22m
+[2mdist/[22m[35massets/NotebookFlagGate-Ds8yA-G7.css             [39m[1m[2m  115.26 kB[22m[1m[22m[2m │ gzip:  19.85 kB[22m
+[2mdist/[22m[35massets/index-BX6_NCD1.css                        [39m[1m[2m  123.34 kB[22m[1m[22m[2m │ gzip:  24.26 kB[22m
+[2mdist/[22m[35massets/PopoutShell-B9mked7y.css                  [39m[1m[2m  142.18 kB[22m[1m[22m[2m │ gzip:  23.26 kB[22m
+[2mdist/[22m[36massets/renderToken-Bn6PC_ku.js                   [39m[1m[2m    0.03 kB[22m[1m[22m[2m │ gzip:   0.05 kB[22m
+[2mdist/[22m[36massets/journalRoutes-HtVy9PaN.js                 [39m[1m[2m    0.06 kB[22m[1m[22m[2m │ gzip:   0.08 kB[22m
+[2mdist/[22m[36massets/compassScope-BdtmPm2h.js                  [39m[1m[2m    0.07 kB[22m[1m[22m[2m │ gzip:   0.08 kB[22m
+[2mdist/[22m[36massets/captureCopy-Bl6ccrXV.js                   [39m[1m[2m    0.08 kB[22m[1m[22m[2m │ gzip:   0.10 kB[22m
+[2mdist/[22m[36massets/PanelSymbol.module-Cd6Ymkjn.js            [39m[1m[2m    0.08 kB[22m[1m[22m[2m │ gzip:   0.09 kB[22m
+[2mdist/[22m[36massets/chartFont-CDkg7iii.js                     [39m[1m[2m    0.09 kB[22m[1m[22m[2m │ gzip:   0.11 kB[22m
+[2mdist/[22m[36massets/index-BW8ivCAu.js                         [39m[1m[2m    0.12 kB[22m[1m[22m[2m │ gzip:   0.12 kB[22m
+[2mdist/[22m[36massets/themeInk-AoA_RomK.js                      [39m[1m[2m    0.13 kB[22m[1m[22m[2m │ gzip:   0.13 kB[22m
+[2mdist/[22m[36massets/DrillSourceContext-DoKOBBXv.js            [39m[1m[2m    0.13 kB[22m[1m[22m[2m │ gzip:   0.14 kB[22m
+[2mdist/[22m[36massets/regimeWords-D9eQ7hTC.js                   [39m[1m[2m    0.16 kB[22m[1m[22m[2m │ gzip:   0.15 kB[22m
+[2mdist/[22m[36massets/presentationFormat-C1GMwy_w.js            [39m[1m[2m    0.16 kB[22m[1m[22m[2m │ gzip:   0.15 kB[22m
+[2mdist/[22m[36massets/journalStylesFlag-D6D5KUl0.js             [39m[1m[2m    0.18 kB[22m[1m[22m[2m │ gzip:   0.16 kB[22m
+[2mdist/[22m[36massets/Legal.module-DY6XB7hA.js                  [39m[1m[2m    0.18 kB[22m[1m[22m[2m │ gzip:   0.14 kB[22m
+[2mdist/[22m[36massets/AlertBanner.module-CqPaXHgr.js            [39m[1m[2m    0.20 kB[22m[1m[22m[2m │ gzip:   0.14 kB[22m
+[2mdist/[22m[36massets/readAloudProgress-DWtCuYlC.js             [39m[1m[2m    0.20 kB[22m[1m[22m[2m │ gzip:   0.18 kB[22m
+[2mdist/[22m[36massets/Radio-Buy-1xHe.js                         [39m[1m[2m    0.22 kB[22m[1m[22m[2m │ gzip:   0.18 kB[22m
+[2mdist/[22m[36massets/PanelTicker-LLE6p1it.js                   [39m[1m[2m    0.22 kB[22m[1m[22m[2m │ gzip:   0.18 kB[22m
+[2mdist/[22m[36massets/useJ2UnviewedEOD-BSuW3R73.js              [39m[1m[2m    0.23 kB[22m[1m[22m[2m │ gzip:   0.19 kB[22m
+[2mdist/[22m[36massets/a8Taxonomy-Cie7WdvJ.js                    [39m[1m[2m    0.24 kB[22m[1m[22m[2m │ gzip:   0.19 kB[22m
+[2mdist/[22m[36massets/sampleSize-BECa82SY.js                    [39m[1m[2m    0.25 kB[22m[1m[22m[2m │ gzip:   0.21 kB[22m
+[2mdist/[22m[36massets/UnreadableNoteNotice-DwyOgO99.js          [39m[1m[2m    0.26 kB[22m[1m[22m[2m │ gzip:   0.22 kB[22m
+[2mdist/[22m[36massets/ChartsSymContext-DqXP9sP9.js              [39m[1m[2m    0.27 kB[22m[1m[22m[2m │ gzip:   0.22 kB[22m
+[2mdist/[22m[36massets/Notices.module-6CPsegLU.js                [39m[1m[2m    0.27 kB[22m[1m[22m[2m │ gzip:   0.18 kB[22m
+[2mdist/[22m[36massets/CommunitySurface-DjAxuXhX.js              [39m[1m[2m    0.28 kB[22m[1m[22m[2m │ gzip:   0.21 kB[22m
+[2mdist/[22m[36massets/earningsPrep-Ba5DTUNb.js                  [39m[1m[2m    0.28 kB[22m[1m[22m[2m │ gzip:   0.23 kB[22m
+[2mdist/[22m[36massets/NotebookTour.module-BS_skIZ1.js           [39m[1m[2m    0.28 kB[22m[1m[22m[2m │ gzip:   0.19 kB[22m
+[2mdist/[22m[36massets/ResearchLoading-BJ5oE2_J.js               [39m[1m[2m    0.29 kB[22m[1m[22m[2m │ gzip:   0.24 kB[22m
+[2mdist/[22m[36massets/useFundamentalSnapshot-BAp3G-eX.js        [39m[1m[2m    0.30 kB[22m[1m[22m[2m │ gzip:   0.25 kB[22m
+[2mdist/[22m[36massets/useBrokerMarkPreference-e7zNfyNA.js       [39m[1m[2m    0.30 kB[22m[1m[22m[2m │ gzip:   0.22 kB[22m
+[2mdist/[22m[36massets/SwitchedOff-jDmWlNYh.js                   [39m[1m[2m    0.30 kB[22m[1m[22m[2m │ gzip:   0.25 kB[22m
+[2mdist/[22m[36massets/PoliteStatus-2M4z8PIs.js                  [39m[1m[2m    0.32 kB[22m[1m[22m[2m │ gzip:   0.25 kB[22m
+[2mdist/[22m[36massets/widgetSnapshotFetcher-B1x_-5Kd.js         [39m[1m[2m    0.33 kB[22m[1m[22m[2m │ gzip:   0.24 kB[22m
+[2mdist/[22m[36massets/researchFormat-DbkAQHMz.js                [39m[1m[2m    0.34 kB[22m[1m[22m[2m │ gzip:   0.23 kB[22m
+[2mdist/[22m[36massets/useJ2CurrentRegime-IZzZSNUS.js            [39m[1m[2m    0.34 kB[22m[1m[22m[2m │ gzip:   0.27 kB[22m
+[2mdist/[22m[36massets/tourOfferCopy-DCJTdb-I.js                 [39m[1m[2m    0.35 kB[22m[1m[22m[2m │ gzip:   0.27 kB[22m
+[2mdist/[22m[36massets/Switch-BjxoUzLx.js                        [39m[1m[2m    0.35 kB[22m[1m[22m[2m │ gzip:   0.25 kB[22m
+[2mdist/[22m[36massets/JournalSurface-CHU8Eu9g.js                [39m[1m[2m    0.36 kB[22m[1m[22m[2m │ gzip:   0.28 kB[22m
+[2mdist/[22m[36massets/useJ2AccountComparison-DbnNAO1V.js        [39m[1m[2m    0.38 kB[22m[1m[22m[2m │ gzip:   0.29 kB[22m
+[2mdist/[22m[36massets/shareRefusal-BnGAwoob.js                  [39m[1m[2m    0.38 kB[22m[1m[22m[2m │ gzip:   0.29 kB[22m
+[2mdist/[22m[36massets/feedFormat-BGgewwOj.js                    [39m[1m[2m    0.39 kB[22m[1m[22m[2m │ gzip:   0.28 kB[22m
+[2mdist/[22m[36massets/CaptureConnectPage.module-7HUsWqVD.js     [39m[1m[2m    0.41 kB[22m[1m[22m[2m │ gzip:   0.24 kB[22m
+[2mdist/[22m[36massets/tickerResolver-Ctbr721I.js                [39m[1m[2m    0.41 kB[22m[1m[22m[2m │ gzip:   0.31 kB[22m
+[2mdist/[22m[36massets/useJ2Accounts-BKlnxr0u.js                 [39m[1m[2m    0.41 kB[22m[1m[22m[2m │ gzip:   0.32 kB[22m
+[2mdist/[22m[36massets/PendingGaveUp-B6qwucNp.js                 [39m[1m[2m    0.41 kB[22m[1m[22m[2m │ gzip:   0.31 kB[22m
+[2mdist/[22m[36massets/LegacyRedirect-BY-_MjRP.js                [39m[1m[2m    0.43 kB[22m[1m[22m[2m │ gzip:   0.30 kB[22m
+[2mdist/[22m[36massets/PanelCommand-LMUAwHK8.js                  [39m[1m[2m    0.45 kB[22m[1m[22m[2m │ gzip:   0.31 kB[22m
+[2mdist/[22m[36massets/Blocks.module-C4VmgSbb.js                 [39m[1m[2m    0.45 kB[22m[1m[22m[2m │ gzip:   0.26 kB[22m
+[2mdist/[22m[36massets/warmingPoll-CaJRUhLX.js                   [39m[1m[2m    0.46 kB[22m[1m[22m[2m │ gzip:   0.31 kB[22m
+[2mdist/[22m[36massets/Checkbox-CNdboFuN.js                      [39m[1m[2m    0.47 kB[22m[1m[22m[2m │ gzip:   0.32 kB[22m
+[2mdist/[22m[36massets/useJ2BrokerPerformance-DHj8OTc1.js        [39m[1m[2m    0.48 kB[22m[1m[22m[2m │ gzip:   0.35 kB[22m
+[2mdist/[22m[36massets/ResearchCov.module-B0QoIlZR.js            [39m[1m[2m    0.50 kB[22m[1m[22m[2m │ gzip:   0.28 kB[22m
+[2mdist/[22m[36massets/screenshotLabel-DSomgTeo.js               [39m[1m[2m    0.50 kB[22m[1m[22m[2m │ gzip:   0.31 kB[22m
+[2mdist/[22m[36massets/useCommunity-DRqOVcBD.js                  [39m[1m[2m    0.51 kB[22m[1m[22m[2m │ gzip:   0.32 kB[22m
+[2mdist/[22m[36massets/Slider-HlsLeTXA.js                        [39m[1m[2m    0.52 kB[22m[1m[22m[2m │ gzip:   0.35 kB[22m
+[2mdist/[22m[36massets/FeatureStatus.module-BkzusKFG.js          [39m[1m[2m    0.52 kB[22m[1m[22m[2m │ gzip:   0.28 kB[22m
+[2mdist/[22m[36massets/documentProvenance-BdzAm6ny.js            [39m[1m[2m    0.52 kB[22m[1m[22m[2m │ gzip:   0.31 kB[22m
+[2mdist/[22m[36massets/useJ2PositionsAttention-DXstH8Sr.js       [39m[1m[2m    0.52 kB[22m[1m[22m[2m │ gzip:   0.38 kB[22m
+[2mdist/[22m[36massets/CalendarSurface-BkwAEwkU.js               [39m[1m[2m    0.53 kB[22m[1m[22m[2m │ gzip:   0.31 kB[22m
+[2mdist/[22m[36massets/useJ2Positions-EpPuu--k.js                [39m[1m[2m    0.54 kB[22m[1m[22m[2m │ gzip:   0.39 kB[22m
+[2mdist/[22m[36massets/uid-BuiH9E25.js                           [39m[1m[2m    0.54 kB[22m[1m[22m[2m │ gzip:   0.33 kB[22m
+[2mdist/[22m[36massets/disclaimer-tPtCwLAi.js                    [39m[1m[2m    0.55 kB[22m[1m[22m[2m │ gzip:   0.35 kB[22m
+[2mdist/[22m[36massets/TheStreetPanel-DjT0TKXf.js                [39m[1m[2m    0.56 kB[22m[1m[22m[2m │ gzip:   0.38 kB[22m
+[2mdist/[22m[36massets/depthChrome-Bx6sJBB-.js                   [39m[1m[2m    0.56 kB[22m[1m[22m[2m │ gzip:   0.37 kB[22m
+[2mdist/[22m[36massets/platform-BjMEggDU.js                      [39m[1m[2m    0.56 kB[22m[1m[22m[2m │ gzip:   0.34 kB[22m
+[2mdist/[22m[36massets/PanelSymbol-BeKojafN.js                   [39m[1m[2m    0.56 kB[22m[1m[22m[2m │ gzip:   0.38 kB[22m
+[2mdist/[22m[36massets/useEarningsTable-BhA72BOQ.js              [39m[1m[2m    0.56 kB[22m[1m[22m[2m │ gzip:   0.41 kB[22m
+[2mdist/[22m[36massets/tourSteps-Cw3tXbhb.js                     [39m[1m[2m    0.57 kB[22m[1m[22m[2m │ gzip:   0.26 kB[22m
+[2mdist/[22m[36massets/flowWords-Cax8LsjQ.js                     [39m[1m[2m    0.57 kB[22m[1m[22m[2m │ gzip:   0.33 kB[22m
+[2mdist/[22m[36massets/noteResurfaces.steps-CRLJ_T8_.js          [39m[1m[2m    0.57 kB[22m[1m[22m[2m │ gzip:   0.35 kB[22m
+[2mdist/[22m[36massets/useJ2OptionMarks-C0Cb1UPy.js              [39m[1m[2m    0.58 kB[22m[1m[22m[2m │ gzip:   0.42 kB[22m
+[2mdist/[22m[36massets/a8Taxonomy-BAVvVRYm.js                    [39m[1m[2m    0.58 kB[22m[1m[22m[2m │ gzip:   0.38 kB[22m
+[2mdist/[22m[36massets/AuthForm.module-CIsCp_Uv.js               [39m[1m[2m    0.58 kB[22m[1m[22m[2m │ gzip:   0.31 kB[22m
+[2mdist/[22m[36massets/entityDisplay-BWnUwTnw.js                 [39m[1m[2m    0.62 kB[22m[1m[22m[2m │ gzip:   0.38 kB[22m
+[2mdist/[22m[36massets/useNeighborWarm-IAtLtmza.js               [39m[1m[2m    0.64 kB[22m[1m[22m[2m │ gzip:   0.41 kB[22m
+[2mdist/[22m[36massets/WarmingState-LUWf8COa.js                  [39m[1m[2m    0.66 kB[22m[1m[22m[2m │ gzip:   0.42 kB[22m
+[2mdist/[22m[36massets/useSavedColors-HW8s5nfc.js                [39m[1m[2m    0.66 kB[22m[1m[22m[2m │ gzip:   0.38 kB[22m
+[2mdist/[22m[36massets/cotFormat-CAqsCoJ_.js                     [39m[1m[2m    0.67 kB[22m[1m[22m[2m │ gzip:   0.40 kB[22m
+[2mdist/[22m[36massets/weekAnchor-CUYzUzNn.js                    [39m[1m[2m    0.67 kB[22m[1m[22m[2m │ gzip:   0.27 kB[22m
+[2mdist/[22m[36massets/flowGridSort-A9V_0NoC.js                  [39m[1m[2m    0.68 kB[22m[1m[22m[2m │ gzip:   0.39 kB[22m
+[2mdist/[22m[36massets/setupGroups-C9ExwJp5.js                   [39m[1m[2m    0.68 kB[22m[1m[22m[2m │ gzip:   0.44 kB[22m
+[2mdist/[22m[36massets/gridSort-C-mRLdl6.js                      [39m[1m[2m    0.68 kB[22m[1m[22m[2m │ gzip:   0.40 kB[22m
+[2mdist/[22m[36massets/useJ2Trades-HYVz42bQ.js                   [39m[1m[2m    0.69 kB[22m[1m[22m[2m │ gzip:   0.48 kB[22m
+[2mdist/[22m[36massets/AccountsSurface-DmexFwvJ.js               [39m[1m[2m    0.69 kB[22m[1m[22m[2m │ gzip:   0.41 kB[22m
+[2mdist/[22m[36massets/index-BWu4HyuA.js                         [39m[1m[2m    0.70 kB[22m[1m[22m[2m │ gzip:   0.38 kB[22m
+[2mdist/[22m[36massets/researchReturnContext-CEE1AXQC.js         [39m[1m[2m    0.71 kB[22m[1m[22m[2m │ gzip:   0.35 kB[22m
+[2mdist/[22m[36massets/MyResearchPanel-ChgH79WB.js               [39m[1m[2m    0.72 kB[22m[1m[22m[2m │ gzip:   0.43 kB[22m
+[2mdist/[22m[36massets/frozenWorkspace-BZpHfo3H.js               [39m[1m[2m    0.73 kB[22m[1m[22m[2m │ gzip:   0.40 kB[22m
+[2mdist/[22m[36massets/smartChipsApi-C88RCnu5.js                 [39m[1m[2m    0.73 kB[22m[1m[22m[2m │ gzip:   0.46 kB[22m
+[2mdist/[22m[36massets/FiltersSheet-Bia8bghP.js                  [39m[1m[2m    0.73 kB[22m[1m[22m[2m │ gzip:   0.43 kB[22m
+[2mdist/[22m[36massets/reviewDraftsFlag-Z5yGdQys.js              [39m[1m[2m    0.73 kB[22m[1m[22m[2m │ gzip:   0.49 kB[22m
+[2mdist/[22m[36massets/TickerResearchSurface-DgE1Qt9M.js         [39m[1m[2m    0.74 kB[22m[1m[22m[2m │ gzip:   0.44 kB[22m
+[2mdist/[22m[36massets/setupsBoardText-DHyQzMkv.js               [39m[1m[2m    0.74 kB[22m[1m[22m[2m │ gzip:   0.40 kB[22m
+[2mdist/[22m[36massets/Toast-DpoFu9K2.js                         [39m[1m[2m    0.75 kB[22m[1m[22m[2m │ gzip:   0.46 kB[22m
+[2mdist/[22m[36massets/useAnimatedNumber-wAlEut-3.js             [39m[1m[2m    0.77 kB[22m[1m[22m[2m │ gzip:   0.44 kB[22m
+[2mdist/[22m[36massets/passedSetups.steps-JtoSbNfX.js            [39m[1m[2m    0.77 kB[22m[1m[22m[2m │ gzip:   0.42 kB[22m
+[2mdist/[22m[36massets/b1TaskReminders.steps-BFj0rvWj.js         [39m[1m[2m    0.79 kB[22m[1m[22m[2m │ gzip:   0.47 kB[22m
+[2mdist/[22m[36massets/WorkspaceContext-C5mvCp5f.js              [39m[1m[2m    0.79 kB[22m[1m[22m[2m │ gzip:   0.43 kB[22m
+[2mdist/[22m[36massets/chartCapture-C8xBUG2s.js                  [39m[1m[2m    0.80 kB[22m[1m[22m[2m │ gzip:   0.44 kB[22m
+[2mdist/[22m[36massets/sessionModel-DnUqq1KB.js                  [39m[1m[2m    0.80 kB[22m[1m[22m[2m │ gzip:   0.46 kB[22m
+[2mdist/[22m[36massets/TagChipPicker-DchoV4Nc.js                 [39m[1m[2m    0.81 kB[22m[1m[22m[2m │ gzip:   0.53 kB[22m
+[2mdist/[22m[36massets/articleProgress-MFehNa9t.js               [39m[1m[2m    0.81 kB[22m[1m[22m[2m │ gzip:   0.47 kB[22m
+[2mdist/[22m[36massets/drawingColors-DVGzR6Ty.js                 [39m[1m[2m    0.81 kB[22m[1m[22m[2m │ gzip:   0.51 kB[22m
+[2mdist/[22m[36massets/useJ2Calendar-wQT3pdjY.js                 [39m[1m[2m    0.81 kB[22m[1m[22m[2m │ gzip:   0.53 kB[22m
+[2mdist/[22m[36massets/ScannerEmbed-B48nLTrk.js                  [39m[1m[2m    0.82 kB[22m[1m[22m[2m │ gzip:   0.54 kB[22m
+[2mdist/[22m[36massets/TileCard-BPLtj8zL.js                      [39m[1m[2m    0.82 kB[22m[1m[22m[2m │ gzip:   0.44 kB[22m
+[2mdist/[22m[36massets/landingTrack-5DRmL-Z3.js                  [39m[1m[2m    0.82 kB[22m[1m[22m[2m │ gzip:   0.48 kB[22m
+[2mdist/[22m[36massets/b1MeaningSearch.steps-fSAs6WmH.js         [39m[1m[2m    0.82 kB[22m[1m[22m[2m │ gzip:   0.45 kB[22m
+[2mdist/[22m[36massets/memberCopy-CG5yF3BQ.js                    [39m[1m[2m    0.84 kB[22m[1m[22m[2m │ gzip:   0.48 kB[22m
+[2mdist/[22m[36massets/WatchlistEmbed-D6ZjsuiM.js                [39m[1m[2m    0.85 kB[22m[1m[22m[2m │ gzip:   0.55 kB[22m
+[2mdist/[22m[36massets/chipLabel-B3ij-Pux.js                     [39m[1m[2m    0.86 kB[22m[1m[22m[2m │ gzip:   0.42 kB[22m
+[2mdist/[22m[36massets/MemberInterestNotice-CeA3afLP.js          [39m[1m[2m    0.86 kB[22m[1m[22m[2m │ gzip:   0.55 kB[22m
+[2mdist/[22m[36massets/index-Chjiymov.js                         [39m[1m[2m    0.87 kB[22m[1m[22m[2m │ gzip:   0.52 kB[22m
+[2mdist/[22m[36massets/b1VoiceNotes.steps-BGv4Go7m.js            [39m[1m[2m    0.87 kB[22m[1m[22m[2m │ gzip:   0.46 kB[22m
+[2mdist/[22m[36massets/ReadAloudButton-DYCXV0iW.js               [39m[1m[2m    0.87 kB[22m[1m[22m[2m │ gzip:   0.50 kB[22m
+[2mdist/[22m[36massets/tourSeenState-BVbapiXu.js                 [39m[1m[2m    0.87 kB[22m[1m[22m[2m │ gzip:   0.55 kB[22m
+[2mdist/[22m[36massets/useLongPress-BFZb_6ZI.js                  [39m[1m[2m    0.88 kB[22m[1m[22m[2m │ gzip:   0.48 kB[22m
+[2mdist/[22m[36massets/highlightThesis-BY4yZGXg.js               [39m[1m[2m    0.89 kB[22m[1m[22m[2m │ gzip:   0.55 kB[22m
+[2mdist/[22m[36massets/ThemesEmbed-BKDxSvVj.js                   [39m[1m[2m    0.89 kB[22m[1m[22m[2m │ gzip:   0.60 kB[22m
+[2mdist/[22m[36massets/RsBadge-BaNRB-OA.js                       [39m[1m[2m    0.89 kB[22m[1m[22m[2m │ gzip:   0.61 kB[22m
+[2mdist/[22m[36massets/featureFlags-CqfJMM7t.js                  [39m[1m[2m    0.90 kB[22m[1m[22m[2m │ gzip:   0.50 kB[22m
+[2mdist/[22m[36massets/PanelState-B-QtUZfG.js                    [39m[1m[2m    0.91 kB[22m[1m[22m[2m │ gzip:   0.51 kB[22m
+[2mdist/[22m[36massets/myNamesPanel.module-CKjWIvtc.js           [39m[1m[2m    0.91 kB[22m[1m[22m[2m │ gzip:   0.45 kB[22m
+[2mdist/[22m[36massets/WidgetThemeSection-CV8xod-L.js            [39m[1m[2m    0.91 kB[22m[1m[22m[2m │ gzip:   0.56 kB[22m
+[2mdist/[22m[36massets/format-B-0rkmuJ.js                        [39m[1m[2m    0.92 kB[22m[1m[22m[2m │ gzip:   0.49 kB[22m
+[2mdist/[22m[36massets/b1WritingHelp.steps-_6uekR6x.js           [39m[1m[2m    0.92 kB[22m[1m[22m[2m │ gzip:   0.51 kB[22m
+[2mdist/[22m[36massets/rulesApi-20wq-3e_.js                      [39m[1m[2m    0.92 kB[22m[1m[22m[2m │ gzip:   0.61 kB[22m
+[2mdist/[22m[36massets/dataExport-BZ0gmESn.js                    [39m[1m[2m    0.96 kB[22m[1m[22m[2m │ gzip:   0.59 kB[22m
+[2mdist/[22m[36massets/earningsPrep.steps-D3LRMD3d.js            [39m[1m[2m    0.97 kB[22m[1m[22m[2m │ gzip:   0.46 kB[22m
+[2mdist/[22m[36massets/FlowGate-DcoYoEBs.js                      [39m[1m[2m    0.97 kB[22m[1m[22m[2m │ gzip:   0.58 kB[22m
+[2mdist/[22m[36massets/OptionsChainTab.module-DecfiuaB.js        [39m[1m[2m    1.02 kB[22m[1m[22m[2m │ gzip:   0.49 kB[22m
+[2mdist/[22m[36massets/CoverageNote-G-nkc9cO.js                  [39m[1m[2m    1.03 kB[22m[1m[22m[2m │ gzip:   0.67 kB[22m
+[2mdist/[22m[36massets/useJ2SelectedAccount-D1v5F6yi.js          [39m[1m[2m    1.03 kB[22m[1m[22m[2m │ gzip:   0.55 kB[22m
+[2mdist/[22m[36massets/b1TemplateGallery.steps-DeQWbnXb.js       [39m[1m[2m    1.04 kB[22m[1m[22m[2m │ gzip:   0.51 kB[22m
+[2mdist/[22m[36massets/b1Publish.steps-XVVRBi5A.js               [39m[1m[2m    1.04 kB[22m[1m[22m[2m │ gzip:   0.54 kB[22m
+[2mdist/[22m[36massets/entryContext.steps-BA58onNf.js            [39m[1m[2m    1.05 kB[22m[1m[22m[2m │ gzip:   0.56 kB[22m
+[2mdist/[22m[36massets/planLink-8_gr1CAk.js                      [39m[1m[2m    1.05 kB[22m[1m[22m[2m │ gzip:   0.64 kB[22m
+[2mdist/[22m[36massets/reviewDrafts.steps-BzetjLmJ.js            [39m[1m[2m    1.05 kB[22m[1m[22m[2m │ gzip:   0.54 kB[22m
+[2mdist/[22m[36massets/SourceLine-DKFzUw23.js                    [39m[1m[2m    1.07 kB[22m[1m[22m[2m │ gzip:   0.60 kB[22m
+[2mdist/[22m[36massets/DepthPanel-DAqgALIF.js                    [39m[1m[2m    1.07 kB[22m[1m[22m[2m │ gzip:   0.59 kB[22m
+[2mdist/[22m[36massets/Depth.module-aYHuV6Zo.js                  [39m[1m[2m    1.08 kB[22m[1m[22m[2m │ gzip:   0.54 kB[22m
+[2mdist/[22m[36massets/barTime-C-_jFuuD.js                       [39m[1m[2m    1.08 kB[22m[1m[22m[2m │ gzip:   0.52 kB[22m
+[2mdist/[22m[36massets/LinkedNotesPanel-CB4vj9C-.js              [39m[1m[2m    1.08 kB[22m[1m[22m[2m │ gzip:   0.65 kB[22m
+[2mdist/[22m[36massets/dialect-AvmNeWqQ.js                       [39m[1m[2m    1.09 kB[22m[1m[22m[2m │ gzip:   0.64 kB[22m
+[2mdist/[22m[36massets/useChecklistSources-Cy6wFqe4.js           [39m[1m[2m    1.09 kB[22m[1m[22m[2m │ gzip:   0.55 kB[22m
+[2mdist/[22m[36massets/SurfaceHeader-BackbZpL.js                 [39m[1m[2m    1.10 kB[22m[1m[22m[2m │ gzip:   0.52 kB[22m
+[2mdist/[22m[36massets/Traders-CyvjIWRh.js                       [39m[1m[2m    1.10 kB[22m[1m[22m[2m │ gzip:   0.60 kB[22m
+[2mdist/[22m[36massets/IndexesEmbed-CDrHTbyD.js                  [39m[1m[2m    1.13 kB[22m[1m[22m[2m │ gzip:   0.66 kB[22m
+[2mdist/[22m[36massets/marketPanels.module-CW4NbqEJ.js           [39m[1m[2m    1.13 kB[22m[1m[22m[2m │ gzip:   0.55 kB[22m
+[2mdist/[22m[36massets/checklistItems-B3cMETiD.js                [39m[1m[2m    1.13 kB[22m[1m[22m[2m │ gzip:   0.60 kB[22m
+[2mdist/[22m[36massets/SetupsBox-DfOG-G_T.js                     [39m[1m[2m    1.13 kB[22m[1m[22m[2m │ gzip:   0.68 kB[22m
+[2mdist/[22m[36massets/Sparkline-BFS8QAb1.js                     [39m[1m[2m    1.14 kB[22m[1m[22m[2m │ gzip:   0.69 kB[22m
+[2mdist/[22m[36massets/ConfidenceStat-BGRSBwQo.js                [39m[1m[2m    1.15 kB[22m[1m[22m[2m │ gzip:   0.73 kB[22m
+[2mdist/[22m[36massets/b1Formulas.steps-anKtEDr3.js              [39m[1m[2m    1.16 kB[22m[1m[22m[2m │ gzip:   0.59 kB[22m
+[2mdist/[22m[36massets/PullToRefresh-CmDTdcKM.js                 [39m[1m[2m    1.16 kB[22m[1m[22m[2m │ gzip:   0.69 kB[22m
+[2mdist/[22m[36massets/myPlaybook.steps-mMdsuzjN.js              [39m[1m[2m    1.16 kB[22m[1m[22m[2m │ gzip:   0.57 kB[22m
+[2mdist/[22m[36massets/taFingerprint.steps-V9dGGH7Q.js           [39m[1m[2m    1.16 kB[22m[1m[22m[2m │ gzip:   0.61 kB[22m
+[2mdist/[22m[36massets/useDoorParam-BqNT4Muz.js                  [39m[1m[2m    1.17 kB[22m[1m[22m[2m │ gzip:   0.59 kB[22m
+[2mdist/[22m[36massets/ModalShell.module-BBDh_wSF.js             [39m[1m[2m    1.17 kB[22m[1m[22m[2m │ gzip:   0.53 kB[22m
+[2mdist/[22m[36massets/planGrading.steps-DjMxBUfT.js             [39m[1m[2m    1.19 kB[22m[1m[22m[2m │ gzip:   0.59 kB[22m
+[2mdist/[22m[36massets/transcriptCapture.steps-DSKdrxxt.js       [39m[1m[2m    1.20 kB[22m[1m[22m[2m │ gzip:   0.54 kB[22m
+[2mdist/[22m[36massets/commandInterchange-GmMVjknW.js            [39m[1m[2m    1.20 kB[22m[1m[22m[2m │ gzip:   0.67 kB[22m
+[2mdist/[22m[36massets/chartPlanReplay.steps-DildB5WK.js         [39m[1m[2m    1.20 kB[22m[1m[22m[2m │ gzip:   0.61 kB[22m
+[2mdist/[22m[36massets/learnTours-DLiUM-5Q.js                    [39m[1m[2m    1.20 kB[22m[1m[22m[2m │ gzip:   0.60 kB[22m
+[2mdist/[22m[36massets/useLiveBreadth-CR4o_aSP.js                [39m[1m[2m    1.21 kB[22m[1m[22m[2m │ gzip:   0.67 kB[22m
+[2mdist/[22m[36massets/useJournalRules-Cbab-zr8.js               [39m[1m[2m    1.21 kB[22m[1m[22m[2m │ gzip:   0.63 kB[22m
+[2mdist/[22m[36massets/CompassSurface-DkGQMqtR.js                [39m[1m[2m    1.21 kB[22m[1m[22m[2m │ gzip:   0.66 kB[22m
+[2mdist/[22m[36massets/SmokeLogin-MqTXda1d.js                    [39m[1m[2m    1.21 kB[22m[1m[22m[2m │ gzip:   0.68 kB[22m
+[2mdist/[22m[36massets/useReadAloudFollow-mIt-LUGR.js            [39m[1m[2m    1.23 kB[22m[1m[22m[2m │ gzip:   0.69 kB[22m
+[2mdist/[22m[36massets/setupsBoard.steps-DoF6e9Fn.js             [39m[1m[2m    1.24 kB[22m[1m[22m[2m │ gzip:   0.57 kB[22m
+[2mdist/[22m[36massets/layoutDockPins-C1XRU9R1.js                [39m[1m[2m    1.24 kB[22m[1m[22m[2m │ gzip:   0.62 kB[22m
+[2mdist/[22m[36massets/alertModel-BQU7hhdj.js                    [39m[1m[2m    1.25 kB[22m[1m[22m[2m │ gzip:   0.71 kB[22m
+[2mdist/[22m[36massets/noteHasUnsentWork-ecJODpRH.js             [39m[1m[2m    1.25 kB[22m[1m[22m[2m │ gzip:   0.63 kB[22m
+[2mdist/[22m[36massets/useBrokerWarming-CGVmIF3l.js              [39m[1m[2m    1.26 kB[22m[1m[22m[2m │ gzip:   0.73 kB[22m
+[2mdist/[22m[36massets/useOptimisticNoteProperty-DTZjG9yd.js     [39m[1m[2m    1.26 kB[22m[1m[22m[2m │ gzip:   0.78 kB[22m
+[2mdist/[22m[36massets/b1ImageDocx.steps-ClPBkMMM.js             [39m[1m[2m    1.27 kB[22m[1m[22m[2m │ gzip:   0.61 kB[22m
+[2mdist/[22m[36massets/tourCopy-DpwDpiNh.js                      [39m[1m[2m    1.30 kB[22m[1m[22m[2m │ gzip:   0.66 kB[22m
+[2mdist/[22m[36massets/SyncFreshnessChip-Dve7Sfer.js             [39m[1m[2m    1.30 kB[22m[1m[22m[2m │ gzip:   0.79 kB[22m
+[2mdist/[22m[36massets/AlertsEmbed-DQLhOjEq.js                   [39m[1m[2m    1.31 kB[22m[1m[22m[2m │ gzip:   0.74 kB[22m
+[2mdist/[22m[36massets/NotFound-BPeUiQz5.js                      [39m[1m[2m    1.31 kB[22m[1m[22m[2m │ gzip:   0.62 kB[22m
+[2mdist/[22m[36massets/JournalLayout.module-DikITloP.js          [39m[1m[2m    1.32 kB[22m[1m[22m[2m │ gzip:   0.59 kB[22m
+[2mdist/[22m[36massets/etTime-2aeTrlyB.js                        [39m[1m[2m    1.32 kB[22m[1m[22m[2m │ gzip:   0.73 kB[22m
+[2mdist/[22m[36massets/InternalCaptureEmbed.module-llxGqkWE.js   [39m[1m[2m    1.32 kB[22m[1m[22m[2m │ gzip:   0.62 kB[22m
+[2mdist/[22m[36massets/PaywallTeaser-Dm8dLdUw.js                 [39m[1m[2m    1.33 kB[22m[1m[22m[2m │ gzip:   0.64 kB[22m
+[2mdist/[22m[36massets/PrepCapture-BSzoSbwv.js                   [39m[1m[2m    1.34 kB[22m[1m[22m[2m │ gzip:   0.77 kB[22m
+[2mdist/[22m[36massets/EmptyState-D7VF6h_t.js                    [39m[1m[2m    1.35 kB[22m[1m[22m[2m │ gzip:   0.70 kB[22m
+[2mdist/[22m[36massets/BoardFromList-DgQBcuzn.js                 [39m[1m[2m    1.35 kB[22m[1m[22m[2m │ gzip:   0.80 kB[22m
+[2mdist/[22m[36massets/TemplateGallery.module-OiVEEu7U.js        [39m[1m[2m    1.35 kB[22m[1m[22m[2m │ gzip:   0.63 kB[22m
+[2mdist/[22m[36massets/tourEligibility-CgGURd_H.js               [39m[1m[2m    1.36 kB[22m[1m[22m[2m │ gzip:   0.71 kB[22m
+[2mdist/[22m[36massets/darkPoolCluster-BJZj9bfO.js               [39m[1m[2m    1.36 kB[22m[1m[22m[2m │ gzip:   0.70 kB[22m
+[2mdist/[22m[36massets/earningsModalRow-DhQtIJ9p.js              [39m[1m[2m    1.38 kB[22m[1m[22m[2m │ gzip:   0.63 kB[22m
+[2mdist/[22m[36massets/NewsEmbed-H3nM1zOH.js                     [39m[1m[2m    1.40 kB[22m[1m[22m[2m │ gzip:   0.78 kB[22m
+[2mdist/[22m[36massets/disciplineGuards-BETme5OJ.js              [39m[1m[2m    1.41 kB[22m[1m[22m[2m │ gzip:   0.63 kB[22m
+[2mdist/[22m[36massets/ownChartSettings-COfTP0ih.js              [39m[1m[2m    1.42 kB[22m[1m[22m[2m │ gzip:   0.69 kB[22m
+[2mdist/[22m[36massets/CalendarEmbed-DoZ9FcWG.js                 [39m[1m[2m    1.42 kB[22m[1m[22m[2m │ gzip:   0.79 kB[22m
+[2mdist/[22m[36massets/BreadthEmbed-BNPsSsGS.js                  [39m[1m[2m    1.42 kB[22m[1m[22m[2m │ gzip:   0.77 kB[22m
+[2mdist/[22m[36massets/comparePanels.module-BKIfQ_gR.js          [39m[1m[2m    1.42 kB[22m[1m[22m[2m │ gzip:   0.66 kB[22m
+[2mdist/[22m[36massets/useRovingTabIndex-DLd4zs36.js             [39m[1m[2m    1.43 kB[22m[1m[22m[2m │ gzip:   0.75 kB[22m
+[2mdist/[22m[36massets/AiSearchEmbed-EYdzchrL.js                 [39m[1m[2m    1.44 kB[22m[1m[22m[2m │ gzip:   0.80 kB[22m
+[2mdist/[22m[36massets/useThemeIndexBars-DpT4NIwj.js             [39m[1m[2m    1.44 kB[22m[1m[22m[2m │ gzip:   0.80 kB[22m
+[2mdist/[22m[36massets/FailedRead-F3N2ZKsc.js                    [39m[1m[2m    1.45 kB[22m[1m[22m[2m │ gzip:   0.74 kB[22m
+[2mdist/[22m[36massets/FundamentalsEmbed-C9DmUgCv.js             [39m[1m[2m    1.45 kB[22m[1m[22m[2m │ gzip:   0.79 kB[22m
+[2mdist/[22m[36massets/InsightsSurface-o4V4gHt1.js               [39m[1m[2m    1.45 kB[22m[1m[22m[2m │ gzip:   0.73 kB[22m
+[2mdist/[22m[36massets/VerifyPending-CLlJy5ho.js                 [39m[1m[2m    1.46 kB[22m[1m[22m[2m │ gzip:   0.73 kB[22m
+[2mdist/[22m[36massets/specUrl-8skPXKvM.js                       [39m[1m[2m    1.46 kB[22m[1m[22m[2m │ gzip:   0.75 kB[22m
+[2mdist/[22m[36massets/sendToJournal-B-dSvnVv.js                 [39m[1m[2m    1.47 kB[22m[1m[22m[2m │ gzip:   0.88 kB[22m
+[2mdist/[22m[36massets/CapabilityPreview-YHYOoL-P.js             [39m[1m[2m    1.47 kB[22m[1m[22m[2m │ gzip:   0.78 kB[22m
+[2mdist/[22m[36massets/enrichment-BSHUBXz5.js                    [39m[1m[2m    1.48 kB[22m[1m[22m[2m │ gzip:   0.74 kB[22m
+[2mdist/[22m[36massets/CollapsibleSection-B_55znGc.js            [39m[1m[2m    1.48 kB[22m[1m[22m[2m │ gzip:   0.79 kB[22m
+[2mdist/[22m[36massets/index-Vcq4gwWv.js                         [39m[1m[2m    1.49 kB[22m[1m[22m[2m │ gzip:   0.82 kB[22m
+[2mdist/[22m[36massets/visualPlaybook.steps-CSbBBgpa.js          [39m[1m[2m    1.51 kB[22m[1m[22m[2m │ gzip:   0.70 kB[22m
+[2mdist/[22m[36massets/paletteGrammar-Cr53cPTD.js                [39m[1m[2m    1.52 kB[22m[1m[22m[2m │ gzip:   0.75 kB[22m
+[2mdist/[22m[36massets/useJ2Settings-DSVP3ZwP.js                 [39m[1m[2m    1.54 kB[22m[1m[22m[2m │ gzip:   0.81 kB[22m
+[2mdist/[22m[36massets/chartPlanBasics.steps-CTfl6NcY.js         [39m[1m[2m    1.54 kB[22m[1m[22m[2m │ gzip:   0.71 kB[22m
+[2mdist/[22m[36massets/InfoTip-9BgKUEmj.js                       [39m[1m[2m    1.56 kB[22m[1m[22m[2m │ gzip:   0.83 kB[22m
+[2mdist/[22m[36massets/CaptureMenu-qIyooX_N.js                   [39m[1m[2m    1.59 kB[22m[1m[22m[2m │ gzip:   0.90 kB[22m
+[2mdist/[22m[36massets/OverviewPanel-Do6KKx9C.js                 [39m[1m[2m    1.61 kB[22m[1m[22m[2m │ gzip:   0.85 kB[22m
+[2mdist/[22m[36massets/embedArchive-COl1nBQO.js                  [39m[1m[2m    1.62 kB[22m[1m[22m[2m │ gzip:   0.93 kB[22m
+[2mdist/[22m[36massets/gridWarm-BbL8EoEk.js                      [39m[1m[2m    1.64 kB[22m[1m[22m[2m │ gzip:   0.75 kB[22m
+[2mdist/[22m[36massets/alertCommand-ByslIWYN.js                  [39m[1m[2m    1.65 kB[22m[1m[22m[2m │ gzip:   0.91 kB[22m
+[2mdist/[22m[36massets/PrepEarningsBlock-BS1X3c5Z.js             [39m[1m[2m    1.65 kB[22m[1m[22m[2m │ gzip:   0.88 kB[22m
+[2mdist/[22m[36massets/OffNotice-BGxREGIw.js                     [39m[1m[2m    1.65 kB[22m[1m[22m[2m │ gzip:   0.85 kB[22m
+[2mdist/[22m[36massets/TourOfferPrompt-CZbOj17F.js               [39m[1m[2m    1.66 kB[22m[1m[22m[2m │ gzip:   0.86 kB[22m
+[2mdist/[22m[36massets/FrozenList-BgFTc6TR.js                    [39m[1m[2m    1.68 kB[22m[1m[22m[2m │ gzip:   0.77 kB[22m
+[2mdist/[22m[36massets/PublicPageMeta-DMbWJMze.js                [39m[1m[2m    1.70 kB[22m[1m[22m[2m │ gzip:   0.87 kB[22m
+[2mdist/[22m[36massets/ForgotPassword-CpK7dVda.js                [39m[1m[2m    1.71 kB[22m[1m[22m[2m │ gzip:   0.86 kB[22m
+[2mdist/[22m[36massets/ChartPanel-ZOLqwVH3.js                    [39m[1m[2m    1.72 kB[22m[1m[22m[2m │ gzip:   0.87 kB[22m
+[2mdist/[22m[36massets/drawingPanes-HVC2MldJ.js                  [39m[1m[2m    1.72 kB[22m[1m[22m[2m │ gzip:   0.82 kB[22m
+[2mdist/[22m[36massets/useWatchlistThemes-Cl0V-ycH.js            [39m[1m[2m    1.74 kB[22m[1m[22m[2m │ gzip:   0.74 kB[22m
+[2mdist/[22m[36massets/LoadFailed-DHYnHg7q.js                    [39m[1m[2m    1.75 kB[22m[1m[22m[2m │ gzip:   0.89 kB[22m
+[2mdist/[22m[36massets/VerifyEmail-60itf4ou.js                   [39m[1m[2m    1.75 kB[22m[1m[22m[2m │ gzip:   0.85 kB[22m
+[2mdist/[22m[36massets/useTagSuggestions-DhWFe3u0.js             [39m[1m[2m    1.79 kB[22m[1m[22m[2m │ gzip:   0.94 kB[22m
+[2mdist/[22m[36massets/usePlanGrade-8oq9HeWV.js                  [39m[1m[2m    1.79 kB[22m[1m[22m[2m │ gzip:   0.92 kB[22m
+[2mdist/[22m[36massets/PrepLevelsBlock-CH9eikUX.js               [39m[1m[2m    1.79 kB[22m[1m[22m[2m │ gzip:   0.97 kB[22m
+[2mdist/[22m[36massets/NotebookSurface-FIKkBRXU.js               [39m[1m[2m    1.82 kB[22m[1m[22m[2m │ gzip:   0.90 kB[22m
+[2mdist/[22m[36massets/Signup-DhTE3LHM.js                        [39m[1m[2m    1.82 kB[22m[1m[22m[2m │ gzip:   0.80 kB[22m
+[2mdist/[22m[36massets/marketRead-C11SSba_.js                    [39m[1m[2m    1.82 kB[22m[1m[22m[2m │ gzip:   1.06 kB[22m
+[2mdist/[22m[36massets/PrepWireBlock-DQOCSNEL.js                 [39m[1m[2m    1.83 kB[22m[1m[22m[2m │ gzip:   0.97 kB[22m
+[2mdist/[22m[36massets/PrepMoversBlock-Bq63LQmz.js               [39m[1m[2m    1.83 kB[22m[1m[22m[2m │ gzip:   0.96 kB[22m
+[2mdist/[22m[36massets/SaveReceipt-DFdhERxL.js                   [39m[1m[2m    1.84 kB[22m[1m[22m[2m │ gzip:   0.94 kB[22m
+[2mdist/[22m[36massets/playbookSnapshot-TTmq6BxN.js              [39m[1m[2m    1.86 kB[22m[1m[22m[2m │ gzip:   1.04 kB[22m
+[2mdist/[22m[36massets/timeframes-DNdrDnui.js                    [39m[1m[2m    1.87 kB[22m[1m[22m[2m │ gzip:   0.83 kB[22m
+[2mdist/[22m[36massets/ShareTargetPage-D5IRj8P6.js               [39m[1m[2m    1.88 kB[22m[1m[22m[2m │ gzip:   0.89 kB[22m
+[2mdist/[22m[36massets/useToolbarRoving-CoLxT1uq.js              [39m[1m[2m    1.91 kB[22m[1m[22m[2m │ gzip:   0.91 kB[22m
+[2mdist/[22m[36massets/calendar-XzuO1sW0.js                      [39m[1m[2m    1.93 kB[22m[1m[22m[2m │ gzip:   0.98 kB[22m
+[2mdist/[22m[36massets/StatsGrid-uGR-I4-I.js                     [39m[1m[2m    1.99 kB[22m[1m[22m[2m │ gzip:   0.79 kB[22m
+[2mdist/[22m[36massets/captureFinancialFact-V1cj04aR.js          [39m[1m[2m    2.00 kB[22m[1m[22m[2m │ gzip:   0.66 kB[22m
+[2mdist/[22m[36massets/TranscriptDoors-CDkC8E_W.js               [39m[1m[2m    2.01 kB[22m[1m[22m[2m │ gzip:   1.00 kB[22m
+[2mdist/[22m[36massets/InterventionBanner-D39SQtcG.js            [39m[1m[2m    2.05 kB[22m[1m[22m[2m │ gzip:   1.08 kB[22m
+[2mdist/[22m[36massets/researchCapture-BntYDuvp.js               [39m[1m[2m    2.06 kB[22m[1m[22m[2m │ gzip:   1.10 kB[22m
+[2mdist/[22m[36massets/planGradeText-Bbzi7yKv.js                 [39m[1m[2m    2.07 kB[22m[1m[22m[2m │ gzip:   0.96 kB[22m
+[2mdist/[22m[36massets/EmbedBlockActions-mdpr2-mF.js             [39m[1m[2m    2.13 kB[22m[1m[22m[2m │ gzip:   1.16 kB[22m
+[2mdist/[22m[36massets/planReview-58qHQlpp.js                    [39m[1m[2m    2.18 kB[22m[1m[22m[2m │ gzip:   1.16 kB[22m
+[2mdist/[22m[36massets/AskInsertView-DxiynE9J.js                 [39m[1m[2m    2.18 kB[22m[1m[22m[2m │ gzip:   0.97 kB[22m
+[2mdist/[22m[36massets/useMyTickers-C_weQDRV.js                  [39m[1m[2m    2.24 kB[22m[1m[22m[2m │ gzip:   1.23 kB[22m
+[2mdist/[22m[36massets/ScreenshotPopover-D3efW5Rc.js             [39m[1m[2m    2.26 kB[22m[1m[22m[2m │ gzip:   0.83 kB[22m
+[2mdist/[22m[36massets/useIndicatorAlerts-Beh-WYmY.js            [39m[1m[2m    2.35 kB[22m[1m[22m[2m │ gzip:   1.10 kB[22m
+[2mdist/[22m[36massets/SharedNotePage-Cs7VDjuF.js                [39m[1m[2m    2.43 kB[22m[1m[22m[2m │ gzip:   1.17 kB[22m
+[2mdist/[22m[36massets/ResetPassword-Dg0Uukoy.js                 [39m[1m[2m    2.46 kB[22m[1m[22m[2m │ gzip:   1.04 kB[22m
+[2mdist/[22m[36massets/EarningsTradeCard-D1Jr3c0m.js             [39m[1m[2m    2.47 kB[22m[1m[22m[2m │ gzip:   1.23 kB[22m
+[2mdist/[22m[36massets/ModelBookTab-Ch2cLpsc.js                  [39m[1m[2m    2.47 kB[22m[1m[22m[2m │ gzip:   1.09 kB[22m
+[2mdist/[22m[36massets/Subscribe-BtsnhOZO.js                     [39m[1m[2m    2.47 kB[22m[1m[22m[2m │ gzip:   1.27 kB[22m
+[2mdist/[22m[36massets/sizePanel.module-UCP1WVjG.js              [39m[1m[2m    2.47 kB[22m[1m[22m[2m │ gzip:   1.23 kB[22m
+[2mdist/[22m[36massets/SinceLastVisit-CF-pQPO8.js                [39m[1m[2m    2.48 kB[22m[1m[22m[2m │ gzip:   1.30 kB[22m
+[2mdist/[22m[36massets/ShareToFloor-K9XjFhBC.js                  [39m[1m[2m    2.48 kB[22m[1m[22m[2m │ gzip:   1.17 kB[22m
+[2mdist/[22m[36massets/ScreenshotTagOffer-B6EpQBN8.js            [39m[1m[2m    2.51 kB[22m[1m[22m[2m │ gzip:   1.25 kB[22m
+[2mdist/[22m[36massets/journalBlocks-BYR__wuj.js                 [39m[1m[2m    2.53 kB[22m[1m[22m[2m │ gzip:   0.85 kB[22m
+[2mdist/[22m[36massets/LogTradeChecklist-CPzDbfFU.js             [39m[1m[2m    2.55 kB[22m[1m[22m[2m │ gzip:   1.19 kB[22m
+[2mdist/[22m[36massets/EstimatesPanel-C-QTzGQJ.js                [39m[1m[2m    2.58 kB[22m[1m[22m[2m │ gzip:   1.33 kB[22m
+[2mdist/[22m[36massets/fontFamilies-kMTQjQyI.js                  [39m[1m[2m    2.62 kB[22m[1m[22m[2m │ gzip:   1.14 kB[22m
+[2mdist/[22m[36massets/econSearch-B5My7hOC.js                    [39m[1m[2m    2.64 kB[22m[1m[22m[2m │ gzip:   1.28 kB[22m
+[2mdist/[22m[36massets/NoticesBox-OPx2GmoQ.js                    [39m[1m[2m    2.64 kB[22m[1m[22m[2m │ gzip:   1.32 kB[22m
+[2mdist/[22m[36massets/routeFocus-CaXiWir0.js                    [39m[1m[2m    2.64 kB[22m[1m[22m[2m │ gzip:   1.20 kB[22m
+[2mdist/[22m[36massets/capabilityList-BnaZ8YE_.js                [39m[1m[2m    2.67 kB[22m[1m[22m[2m │ gzip:   1.22 kB[22m
+[2mdist/[22m[36massets/uctJson-Be6rCK2i.js                       [39m[1m[2m    2.71 kB[22m[1m[22m[2m │ gzip:   1.32 kB[22m
+[2mdist/[22m[36massets/screenshotTag-DaOt0jbr.js                 [39m[1m[2m    2.72 kB[22m[1m[22m[2m │ gzip:   1.31 kB[22m
+[2mdist/[22m[36massets/MarketContextEmbed-Cek--NgS.js            [39m[1m[2m    2.75 kB[22m[1m[22m[2m │ gzip:   1.41 kB[22m
+[2mdist/[22m[36massets/useScope-KNJr0Wi4.js                      [39m[1m[2m    2.82 kB[22m[1m[22m[2m │ gzip:   1.19 kB[22m
+[2mdist/[22m[36massets/SaveToNotebookButton-BBxngSU1.js          [39m[1m[2m    2.82 kB[22m[1m[22m[2m │ gzip:   1.42 kB[22m
+[2mdist/[22m[36massets/PostMarket-DqhLok4r.js                    [39m[1m[2m    2.88 kB[22m[1m[22m[2m │ gzip:   1.20 kB[22m
+[2mdist/[22m[36massets/ScreenerEmbed-CxUQuUTf.js                 [39m[1m[2m    2.91 kB[22m[1m[22m[2m │ gzip:   1.28 kB[22m
+[2mdist/[22m[36massets/alertState-Xblmewkv.js                    [39m[1m[2m    2.93 kB[22m[1m[22m[2m │ gzip:   1.48 kB[22m
+[2mdist/[22m[36massets/CallsTab-BSnJYpD6.js                      [39m[1m[2m    2.95 kB[22m[1m[22m[2m │ gzip:   1.27 kB[22m
+[2mdist/[22m[36massets/DateSuggestList-BtXATBsj.js               [39m[1m[2m    2.98 kB[22m[1m[22m[2m │ gzip:   1.53 kB[22m
+[2mdist/[22m[36massets/depthFormat-BF1kDWpt.js                   [39m[1m[2m    3.01 kB[22m[1m[22m[2m │ gzip:   1.37 kB[22m
+[2mdist/[22m[36massets/CoverageLine-CzBPpLMS.js                  [39m[1m[2m    3.03 kB[22m[1m[22m[2m │ gzip:   1.32 kB[22m
+[2mdist/[22m[36massets/builtinCopy-CKcqmrth.js                   [39m[1m[2m    3.03 kB[22m[1m[22m[2m │ gzip:   1.56 kB[22m
+[2mdist/[22m[36massets/Login-kuuC8OCu.js                         [39m[1m[2m    3.12 kB[22m[1m[22m[2m │ gzip:   1.23 kB[22m
+[2mdist/[22m[36massets/PublishFolderSheet-BCjuRhhk.js            [39m[1m[2m    3.13 kB[22m[1m[22m[2m │ gzip:   1.42 kB[22m
+[2mdist/[22m[36massets/screenshotRead-BYWJweZG.js                [39m[1m[2m    3.13 kB[22m[1m[22m[2m │ gzip:   1.52 kB[22m
+[2mdist/[22m[36massets/ResurfaceVersionSheet-DNcTa-Su.js         [39m[1m[2m    3.14 kB[22m[1m[22m[2m │ gzip:   1.58 kB[22m
+[2mdist/[22m[36massets/styleErrors-BILAxkGQ.js                   [39m[1m[2m    3.15 kB[22m[1m[22m[2m │ gzip:   1.55 kB[22m
+[2mdist/[22m[36massets/CotEmbed-BwEw0-wD.js                      [39m[1m[2m    3.16 kB[22m[1m[22m[2m │ gzip:   1.24 kB[22m
+[2mdist/[22m[36massets/Provenance-oncxanTm.js                    [39m[1m[2m    3.16 kB[22m[1m[22m[2m │ gzip:   1.38 kB[22m
+[2mdist/[22m[36massets/FtdPanel-DvUzKP9C.js                      [39m[1m[2m    3.23 kB[22m[1m[22m[2m │ gzip:   1.39 kB[22m
+[2mdist/[22m[36massets/SharedScreen-D-ev4uiC.js                  [39m[1m[2m    3.23 kB[22m[1m[22m[2m │ gzip:   1.38 kB[22m
+[2mdist/[22m[36massets/ChartEmbed-DjyQdoBq.js                    [39m[1m[2m    3.27 kB[22m[1m[22m[2m │ gzip:   1.66 kB[22m
+[2mdist/[22m[36massets/HowToChecklist-DPK-99iy.js                [39m[1m[2m    3.31 kB[22m[1m[22m[2m │ gzip:   1.51 kB[22m
+[2mdist/[22m[36massets/FilingsTab-unDlRFty.js                    [39m[1m[2m    3.31 kB[22m[1m[22m[2m │ gzip:   1.56 kB[22m
+[2mdist/[22m[36massets/ContextPopover-DRx4ZGat.js                [39m[1m[2m    3.34 kB[22m[1m[22m[2m │ gzip:   1.52 kB[22m
+[2mdist/[22m[36massets/RuleBeforeAfterCard-TIKGj3No.js           [39m[1m[2m    3.43 kB[22m[1m[22m[2m │ gzip:   1.65 kB[22m
+[2mdist/[22m[36massets/SeriesChart-cMOLeqnR.js                   [39m[1m[2m    3.44 kB[22m[1m[22m[2m │ gzip:   1.54 kB[22m
+[2mdist/[22m[36massets/NewsPanel-DRX1Iu0b.js                     [39m[1m[2m    3.47 kB[22m[1m[22m[2m │ gzip:   1.58 kB[22m
+[2mdist/[22m[36massets/TweetsRender-CB5WdUQL.js                  [39m[1m[2m    3.50 kB[22m[1m[22m[2m │ gzip:   1.54 kB[22m
+[2mdist/[22m[36massets/DiscordActivity-DjX9ozai.js               [39m[1m[2m    3.54 kB[22m[1m[22m[2m │ gzip:   1.75 kB[22m
+[2mdist/[22m[36massets/BrokerEquityCurve-CqLfYSXn.js             [39m[1m[2m    3.54 kB[22m[1m[22m[2m │ gzip:   1.82 kB[22m
+[2mdist/[22m[36massets/offlineFlag-C6ILIhvn.js                   [39m[1m[2m    3.54 kB[22m[1m[22m[2m │ gzip:   1.44 kB[22m
+[2mdist/[22m[36massets/TradesSurface-ZueNSQO7.js                 [39m[1m[2m    3.55 kB[22m[1m[22m[2m │ gzip:   1.62 kB[22m
+[2mdist/[22m[36massets/gridLayouts-DhI1BAwH.js                   [39m[1m[2m    3.55 kB[22m[1m[22m[2m │ gzip:   1.53 kB[22m
+[2mdist/[22m[36massets/FormulaLibrary-WWEFvMVZ.js                [39m[1m[2m    3.58 kB[22m[1m[22m[2m │ gzip:   1.60 kB[22m
+[2mdist/[22m[36massets/imovModel-gf-yxaLH.js                     [39m[1m[2m    3.64 kB[22m[1m[22m[2m │ gzip:   1.67 kB[22m
+[2mdist/[22m[36massets/PublishedPage-BIr33c4K.js                 [39m[1m[2m    3.66 kB[22m[1m[22m[2m │ gzip:   1.62 kB[22m
+[2mdist/[22m[36massets/CaptureConnectPage-CBiIGO7m.js            [39m[1m[2m    3.67 kB[22m[1m[22m[2m │ gzip:   1.54 kB[22m
+[2mdist/[22m[36massets/chartReadoutStore-Bszt-NB4.js             [39m[1m[2m    3.68 kB[22m[1m[22m[2m │ gzip:   1.63 kB[22m
+[2mdist/[22m[36massets/CompassOrb-BzpNybfd.js                    [39m[1m[2m    3.69 kB[22m[1m[22m[2m │ gzip:   1.34 kB[22m
+[2mdist/[22m[36massets/NewAccountModal-D1DmNoDJ.js               [39m[1m[2m    3.84 kB[22m[1m[22m[2m │ gzip:   1.61 kB[22m
+[2mdist/[22m[36massets/ReportingSoon-C6r1DO1R.js                 [39m[1m[2m    3.86 kB[22m[1m[22m[2m │ gzip:   1.83 kB[22m
+[2mdist/[22m[36massets/GoalProgress-DC77SQKN.js                  [39m[1m[2m    3.90 kB[22m[1m[22m[2m │ gzip:   1.76 kB[22m
+[2mdist/[22m[36massets/ProvenanceDemo-oqexzouu.js                [39m[1m[2m    3.93 kB[22m[1m[22m[2m │ gzip:   1.73 kB[22m
+[2mdist/[22m[36massets/ModelBookEmbed-BqizhU2M.js                [39m[1m[2m    3.96 kB[22m[1m[22m[2m │ gzip:   1.62 kB[22m
+[2mdist/[22m[36massets/convert-BoTesa_Q.js                       [39m[1m[2m    3.96 kB[22m[1m[22m[2m │ gzip:   1.78 kB[22m
+[2mdist/[22m[36massets/TwtPanel-4D-7DcTJ.js                      [39m[1m[2m    3.96 kB[22m[1m[22m[2m │ gzip:   1.88 kB[22m
+[2mdist/[22m[36massets/PreEntryChecklistBlock-vvWuCcce.js        [39m[1m[2m    4.01 kB[22m[1m[22m[2m │ gzip:   1.88 kB[22m
+[2mdist/[22m[36massets/RegimePanel-CUsXJn_I.js                   [39m[1m[2m    4.04 kB[22m[1m[22m[2m │ gzip:   1.83 kB[22m
+[2mdist/[22m[36massets/useThemeInk-DX1spTNB.js                   [39m[1m[2m    4.05 kB[22m[1m[22m[2m │ gzip:   1.81 kB[22m
+[2mdist/[22m[36massets/GalleryPublishForm-g0oS7n0i.js            [39m[1m[2m    4.05 kB[22m[1m[22m[2m │ gzip:   1.93 kB[22m
+[2mdist/[22m[36massets/moversModel-DrbSjoDI.js                   [39m[1m[2m    4.07 kB[22m[1m[22m[2m │ gzip:   1.89 kB[22m
+[2mdist/[22m[36massets/MoversRender-92lrYfbl.js                  [39m[1m[2m    4.08 kB[22m[1m[22m[2m │ gzip:   1.84 kB[22m
+[2mdist/[22m[36massets/CatalystsTab-CvKQ3VhO.js                  [39m[1m[2m    4.10 kB[22m[1m[22m[2m │ gzip:   1.82 kB[22m
+[2mdist/[22m[36massets/ExportDialog-DB-w8N6u.js                  [39m[1m[2m    4.13 kB[22m[1m[22m[2m │ gzip:   1.76 kB[22m
+[2mdist/[22m[36massets/InternalsRender-DjNdlo_6.js               [39m[1m[2m    4.13 kB[22m[1m[22m[2m │ gzip:   1.92 kB[22m
+[2mdist/[22m[36massets/EstimateHistoryTab-DJDmOcTX.js            [39m[1m[2m    4.13 kB[22m[1m[22m[2m │ gzip:   1.68 kB[22m
+[2mdist/[22m[36massets/optionCalcs-DDkgY4GH.js                   [39m[1m[2m    4.17 kB[22m[1m[22m[2m │ gzip:   1.61 kB[22m
+[2mdist/[22m[36massets/TextAlertSheet-TCWNlbCm.js                [39m[1m[2m    4.21 kB[22m[1m[22m[2m │ gzip:   1.92 kB[22m
+[2mdist/[22m[36massets/IndexesWidget-BgR8_zsc.js                 [39m[1m[2m    4.21 kB[22m[1m[22m[2m │ gzip:   1.93 kB[22m
+[2mdist/[22m[36massets/CatalystsRender-BYAMvWWO.js               [39m[1m[2m    4.25 kB[22m[1m[22m[2m │ gzip:   1.84 kB[22m
+[2mdist/[22m[36massets/InsiderPanel-DOWnrT-Y.js                  [39m[1m[2m    4.29 kB[22m[1m[22m[2m │ gzip:   1.86 kB[22m
+[2mdist/[22m[36massets/PostsSection-JjvHchxW.js                  [39m[1m[2m    4.31 kB[22m[1m[22m[2m │ gzip:   1.77 kB[22m
+[2mdist/[22m[36massets/drawingLabels-Cb83PCiL.js                 [39m[1m[2m    4.32 kB[22m[1m[22m[2m │ gzip:   1.95 kB[22m
+[2mdist/[22m[36massets/GenerateReportModal-DYg-RpxS.js           [39m[1m[2m    4.33 kB[22m[1m[22m[2m │ gzip:   1.82 kB[22m
+[2mdist/[22m[36massets/BookRender-BpsoK-gk.js                    [39m[1m[2m    4.36 kB[22m[1m[22m[2m │ gzip:   1.79 kB[22m
+[2mdist/[22m[36massets/EventsPanel-E9lFl9Jd.js                   [39m[1m[2m    4.39 kB[22m[1m[22m[2m │ gzip:   1.93 kB[22m
+[2mdist/[22m[36massets/PlanTradeSheet-BYsaz6Uy.js                [39m[1m[2m    4.43 kB[22m[1m[22m[2m │ gzip:   1.85 kB[22m
+[2mdist/[22m[36massets/OpenFlow-Bjjt2StW.js                      [39m[1m[2m    4.49 kB[22m[1m[22m[2m │ gzip:   1.90 kB[22m
+[2mdist/[22m[36massets/TranscriptPanel-CqB5gM_i.js               [39m[1m[2m    4.53 kB[22m[1m[22m[2m │ gzip:   2.11 kB[22m
+[2mdist/[22m[36massets/ThemesRender-O_rAhdGX.js                  [39m[1m[2m    4.53 kB[22m[1m[22m[2m │ gzip:   1.97 kB[22m
+[2mdist/[22m[36massets/SeasonalityTab-B4hXuKZG.js                [39m[1m[2m    4.57 kB[22m[1m[22m[2m │ gzip:   2.05 kB[22m
+[2mdist/[22m[36massets/CongressTradesPanel-GhboBawO.js           [39m[1m[2m    4.63 kB[22m[1m[22m[2m │ gzip:   1.86 kB[22m
+[2mdist/[22m[36massets/Cited-DCtu29yk.js                         [39m[1m[2m    4.67 kB[22m[1m[22m[2m │ gzip:   1.54 kB[22m
+[2mdist/[22m[36massets/chartScreenshot-B9txD-Fe.js               [39m[1m[2m    4.70 kB[22m[1m[22m[2m │ gzip:   2.30 kB[22m
+[2mdist/[22m[36massets/TourOfferGate-BVKGYuPX.js                 [39m[1m[2m    4.75 kB[22m[1m[22m[2m │ gzip:   2.36 kB[22m
+[2mdist/[22m[36massets/PriceStampsBlock-CYVHj2dQ.js              [39m[1m[2m    4.86 kB[22m[1m[22m[2m │ gzip:   2.44 kB[22m
+[2mdist/[22m[36massets/TradeReviewCard-BT5QuI8D.js               [39m[1m[2m    4.90 kB[22m[1m[22m[2m │ gzip:   1.93 kB[22m
+[2mdist/[22m[36massets/EconRender-DWJxINBj.js                    [39m[1m[2m    4.91 kB[22m[1m[22m[2m │ gzip:   2.17 kB[22m
+[2mdist/[22m[36massets/CaptureDoors-D6c9JNMB.js                  [39m[1m[2m    5.05 kB[22m[1m[22m[2m │ gzip:   2.28 kB[22m
+[2mdist/[22m[36massets/RsLeadersPanel-CPNfxjL5.js                [39m[1m[2m    5.05 kB[22m[1m[22m[2m │ gzip:   2.15 kB[22m
+[2mdist/[22m[36massets/FilingSearchPanel-be_KxjVl.js             [39m[1m[2m    5.06 kB[22m[1m[22m[2m │ gzip:   2.26 kB[22m
+[2mdist/[22m[36massets/IvHistoryPanel-Vfzn5DDv.js                [39m[1m[2m    5.10 kB[22m[1m[22m[2m │ gzip:   2.18 kB[22m
+[2mdist/[22m[36massets/chartPlan-BdLrESkt.js                     [39m[1m[2m    5.10 kB[22m[1m[22m[2m │ gzip:   2.03 kB[22m
+[2mdist/[22m[36massets/BreadthRender-C_b5SZnW.js                 [39m[1m[2m    5.16 kB[22m[1m[22m[2m │ gzip:   2.38 kB[22m
+[2mdist/[22m[36massets/useNoteConnectors-CPWvus1X.js             [39m[1m[2m    5.19 kB[22m[1m[22m[2m │ gzip:   1.70 kB[22m
+[2mdist/[22m[36massets/FinancialsDeep-DwYGYiHz.js                [39m[1m[2m    5.20 kB[22m[1m[22m[2m │ gzip:   2.08 kB[22m
+[2mdist/[22m[36massets/useThesisChips-CAacnAre.js                [39m[1m[2m    5.22 kB[22m[1m[22m[2m │ gzip:   2.40 kB[22m
+[2mdist/[22m[36massets/CongressLatestPanel-Ch1GHg84.js           [39m[1m[2m    5.23 kB[22m[1m[22m[2m │ gzip:   2.10 kB[22m
+[2mdist/[22m[36massets/RatingsTab-BTxXcZC5.js                    [39m[1m[2m    5.27 kB[22m[1m[22m[2m │ gzip:   2.12 kB[22m
+[2mdist/[22m[36massets/HistoryTab-BW4w_1eD.js                    [39m[1m[2m    5.31 kB[22m[1m[22m[2m │ gzip:   2.25 kB[22m
+[2mdist/[22m[36massets/FlowTab-C5RURgCn.js                       [39m[1m[2m    5.35 kB[22m[1m[22m[2m │ gzip:   2.15 kB[22m
+[2mdist/[22m[36massets/useCompassOverview-Lei0tPMU.js            [39m[1m[2m    5.36 kB[22m[1m[22m[2m │ gzip:   2.24 kB[22m
+[2mdist/[22m[36massets/TrackRecordPage-DQktT6J2.js               [39m[1m[2m    5.41 kB[22m[1m[22m[2m │ gzip:   2.25 kB[22m
+[2mdist/[22m[36massets/SharedFormula-D2Tlw_8Z.js                 [39m[1m[2m    5.43 kB[22m[1m[22m[2m │ gzip:   2.09 kB[22m
+[2mdist/[22m[36massets/GradePanel-7BXhdO9m.js                    [39m[1m[2m    5.43 kB[22m[1m[22m[2m │ gzip:   2.26 kB[22m
+[2mdist/[22m[36massets/CorrPanel-vW9k3s_T.js                     [39m[1m[2m    5.45 kB[22m[1m[22m[2m │ gzip:   2.40 kB[22m
+[2mdist/[22m[36massets/NoteTasksView-6-1AH27O.js                 [39m[1m[2m    5.50 kB[22m[1m[22m[2m │ gzip:   2.50 kB[22m
+[2mdist/[22m[36massets/Methodology-DQtHG8QG.js                   [39m[1m[2m    5.52 kB[22m[1m[22m[2m │ gzip:   2.33 kB[22m
+[2mdist/[22m[36massets/TreemapView-Db_0tnH-.js                   [39m[1m[2m    5.62 kB[22m[1m[22m[2m │ gzip:   2.59 kB[22m
+[2mdist/[22m[36massets/ThemeBoardPanel-D9tVV0pt.js               [39m[1m[2m    5.62 kB[22m[1m[22m[2m │ gzip:   2.42 kB[22m
+[2mdist/[22m[36massets/DeleteAccountModal-ETWIsQi4.js            [39m[1m[2m    5.63 kB[22m[1m[22m[2m │ gzip:   2.30 kB[22m
+[2mdist/[22m[36massets/BarReplay-BSPcHT4k.js                     [39m[1m[2m    5.64 kB[22m[1m[22m[2m │ gzip:   2.61 kB[22m
+[2mdist/[22m[36massets/PeerPanel-C6KdPSUM.js                     [39m[1m[2m    5.68 kB[22m[1m[22m[2m │ gzip:   2.51 kB[22m
+[2mdist/[22m[36massets/FlowRender-8MIWvzEN.js                    [39m[1m[2m    5.71 kB[22m[1m[22m[2m │ gzip:   2.22 kB[22m
+[2mdist/[22m[36massets/EarningsReactionPanel-C3svm4tX.js         [39m[1m[2m    5.76 kB[22m[1m[22m[2m │ gzip:   2.33 kB[22m
+[2mdist/[22m[36massets/index-JNdhxGsZ.js                         [39m[1m[2m    5.79 kB[22m[1m[22m[2m │ gzip:   2.32 kB[22m
+[2mdist/[22m[36massets/NewsSettingsPanel-DHkfo7Qk.js             [39m[1m[2m    5.87 kB[22m[1m[22m[2m │ gzip:   2.30 kB[22m
+[2mdist/[22m[36massets/FreshnessBadge-DqrBOkZG.js                [39m[1m[2m    5.95 kB[22m[1m[22m[2m │ gzip:   2.38 kB[22m
+[2mdist/[22m[36massets/FilingsFeedTab-pp_BjisL.js                [39m[1m[2m    5.95 kB[22m[1m[22m[2m │ gzip:   2.45 kB[22m
+[2mdist/[22m[36massets/MovePanel-l_9EaeK1.js                     [39m[1m[2m    5.99 kB[22m[1m[22m[2m │ gzip:   2.53 kB[22m
+[2mdist/[22m[36massets/AskAiTab-CBiwyLSF.js                      [39m[1m[2m    5.99 kB[22m[1m[22m[2m │ gzip:   2.33 kB[22m
+[2mdist/[22m[36massets/BuzzRender-ZV64I9FI.js                    [39m[1m[2m    6.01 kB[22m[1m[22m[2m │ gzip:   2.41 kB[22m
+[2mdist/[22m[36massets/MyRulesBlock-BTdgMv6N.js                  [39m[1m[2m    6.09 kB[22m[1m[22m[2m │ gzip:   2.59 kB[22m
+[2mdist/[22m[36massets/VolPanels-BT_5n3FQ.js                     [39m[1m[2m    6.10 kB[22m[1m[22m[2m │ gzip:   2.41 kB[22m
+[2mdist/[22m[36massets/PassedSetups-CTKEFRPW.js                  [39m[1m[2m    6.11 kB[22m[1m[22m[2m │ gzip:   2.66 kB[22m
+[2mdist/[22m[36massets/AlertsPanel-DcNpYF1i.js                   [39m[1m[2m    6.12 kB[22m[1m[22m[2m │ gzip:   2.62 kB[22m
+[2mdist/[22m[36massets/index-C7yKKq-w.js                         [39m[1m[2m    6.19 kB[22m[1m[22m[2m │ gzip:   2.10 kB[22m
+[2mdist/[22m[36massets/TechnicalTab-DMv72t1b.js                  [39m[1m[2m    6.29 kB[22m[1m[22m[2m │ gzip:   2.81 kB[22m
+[2mdist/[22m[36massets/NotebookTour-CD4KedoK.js                  [39m[1m[2m    6.30 kB[22m[1m[22m[2m │ gzip:   2.79 kB[22m
+[2mdist/[22m[36massets/LandingAnalytics-CGSmGGtL.js              [39m[1m[2m    6.35 kB[22m[1m[22m[2m │ gzip:   1.88 kB[22m
+[2mdist/[22m[36massets/useBoundDrawingAlerts-lE6lva8g.js         [39m[1m[2m    6.38 kB[22m[1m[22m[2m │ gzip:   2.70 kB[22m
+[2mdist/[22m[36massets/EstimatesTab-CG-A34HX.js                  [39m[1m[2m    6.39 kB[22m[1m[22m[2m │ gzip:   2.47 kB[22m
+[2mdist/[22m[36massets/voiceNote-DV6t2VFL.js                     [39m[1m[2m    6.40 kB[22m[1m[22m[2m │ gzip:   2.84 kB[22m
+[2mdist/[22m[36massets/CalendarRender-BOBpW16i.js                [39m[1m[2m    6.50 kB[22m[1m[22m[2m │ gzip:   2.81 kB[22m
+[2mdist/[22m[36massets/profileFormat-D3Qh6eOC.js                 [39m[1m[2m    6.52 kB[22m[1m[22m[2m │ gzip:   2.74 kB[22m
+[2mdist/[22m[36massets/NewsTab-C-Gl7p2h.js                       [39m[1m[2m    6.57 kB[22m[1m[22m[2m │ gzip:   2.68 kB[22m
+[2mdist/[22m[36massets/AlertPhraseMenu-BqTGS28Q.js               [39m[1m[2m    6.57 kB[22m[1m[22m[2m │ gzip:   3.14 kB[22m
+[2mdist/[22m[36massets/ResearchPage.module-CLWeVOjY.js           [39m[1m[2m    6.59 kB[22m[1m[22m[2m │ gzip:   2.49 kB[22m
+[2mdist/[22m[36massets/TradeReviewBlock-DXffJFq5.js              [39m[1m[2m    6.59 kB[22m[1m[22m[2m │ gzip:   2.83 kB[22m
+[2mdist/[22m[36massets/EarnResultsRender-0Ca0vxDn.js             [39m[1m[2m    6.64 kB[22m[1m[22m[2m │ gzip:   2.64 kB[22m
+[2mdist/[22m[36massets/RelPanel-uRYcJdM8.js                      [39m[1m[2m    6.64 kB[22m[1m[22m[2m │ gzip:   2.80 kB[22m
+[2mdist/[22m[36massets/BlockNodeView-NDm45gZz.js                 [39m[1m[2m    6.64 kB[22m[1m[22m[2m │ gzip:   2.58 kB[22m
+[2mdist/[22m[36massets/EtfPanel-uP45mxcZ.js                      [39m[1m[2m    6.67 kB[22m[1m[22m[2m │ gzip:   2.47 kB[22m
+[2mdist/[22m[36massets/GettingStartedList-Bx-Hm8CS.js            [39m[1m[2m    6.68 kB[22m[1m[22m[2m │ gzip:   3.14 kB[22m
+[2mdist/[22m[36massets/EarnCardsRender-C3jZ6XHX.js               [39m[1m[2m    6.70 kB[22m[1m[22m[2m │ gzip:   2.63 kB[22m
+[2mdist/[22m[36massets/LearnMenuPanel-DqLPtotx.js                [39m[1m[2m    6.72 kB[22m[1m[22m[2m │ gzip:   2.84 kB[22m
+[2mdist/[22m[36massets/ScanObjectCard-CoOtuzsv.js                [39m[1m[2m    6.79 kB[22m[1m[22m[2m │ gzip:   3.03 kB[22m
+[2mdist/[22m[36massets/earningsRows-BcYoZimi.js                  [39m[1m[2m    6.98 kB[22m[1m[22m[2m │ gzip:   2.58 kB[22m
+[2mdist/[22m[36massets/PortfolioHeat-Cvg5-lEG.js                 [39m[1m[2m    7.11 kB[22m[1m[22m[2m │ gzip:   2.53 kB[22m
+[2mdist/[22m[36massets/commit-Dlq85IJU.js                        [39m[1m[2m    7.12 kB[22m[1m[22m[2m │ gzip:   2.87 kB[22m
+[2mdist/[22m[36massets/WritingHelpPanel-CiiUsMfh.js              [39m[1m[2m    7.17 kB[22m[1m[22m[2m │ gzip:   3.16 kB[22m
+[2mdist/[22m[36massets/ArticlesSection-UujrYLtE.js               [39m[1m[2m    7.19 kB[22m[1m[22m[2m │ gzip:   2.74 kB[22m
+[2mdist/[22m[36massets/FilingChangesTab-Beg5H5YI.js              [39m[1m[2m    7.28 kB[22m[1m[22m[2m │ gzip:   2.69 kB[22m
+[2mdist/[22m[36massets/Desk-DzHDnxuz.js                          [39m[1m[2m    7.29 kB[22m[1m[22m[2m │ gzip:   2.89 kB[22m
+[2mdist/[22m[36massets/setupCatalog-7UP6IKDR.js                  [39m[1m[2m    7.32 kB[22m[1m[22m[2m │ gzip:   2.70 kB[22m
+[2mdist/[22m[36massets/PatternReview-XQaEgNLF.js                 [39m[1m[2m    7.32 kB[22m[1m[22m[2m │ gzip:   2.98 kB[22m
+[2mdist/[22m[36massets/CatalystsHistory-De8VdMzT.js              [39m[1m[2m    7.38 kB[22m[1m[22m[2m │ gzip:   3.09 kB[22m
+[2mdist/[22m[36massets/PlanGradeCard-DSSJxmAf.js                 [39m[1m[2m    7.38 kB[22m[1m[22m[2m │ gzip:   2.89 kB[22m
+[2mdist/[22m[36massets/calculations-DS08O3gh.js                  [39m[1m[2m    7.39 kB[22m[1m[22m[2m │ gzip:   3.04 kB[22m
+[2mdist/[22m[36massets/CoursesSection-CGDEL4fx.js                [39m[1m[2m    7.40 kB[22m[1m[22m[2m │ gzip:   3.09 kB[22m
+[2mdist/[22m[36massets/MarketContextWidget-C_aoKS-h.js           [39m[1m[2m    7.41 kB[22m[1m[22m[2m │ gzip:   3.10 kB[22m
+[2mdist/[22m[36massets/NoteCalendarView-CGfWzZ9T.js              [39m[1m[2m    7.44 kB[22m[1m[22m[2m │ gzip:   3.24 kB[22m
+[2mdist/[22m[36massets/SizePanel-BgAHHrld.js                     [39m[1m[2m    7.56 kB[22m[1m[22m[2m │ gzip:   2.89 kB[22m
+[2mdist/[22m[36massets/OptionsHistoryPanel-DQeWYjQH.js           [39m[1m[2m    7.62 kB[22m[1m[22m[2m │ gzip:   2.78 kB[22m
+[2mdist/[22m[36massets/TradeBeforeAfter-l4xO7FHs.js              [39m[1m[2m    7.64 kB[22m[1m[22m[2m │ gzip:   3.49 kB[22m
+[2mdist/[22m[36massets/NoteBoardView-mKYF-4cA.js                 [39m[1m[2m    7.92 kB[22m[1m[22m[2m │ gzip:   3.59 kB[22m
+[2mdist/[22m[36massets/FormulaReference-DxPSZrlG.js              [39m[1m[2m    7.98 kB[22m[1m[22m[2m │ gzip:   3.27 kB[22m
+[2mdist/[22m[36massets/intake-DAVnnLaf.js                        [39m[1m[2m    7.98 kB[22m[1m[22m[2m │ gzip:   3.93 kB[22m
+[2mdist/[22m[36massets/panelContract-KwURuwGx.js                 [39m[1m[2m    8.01 kB[22m[1m[22m[2m │ gzip:   3.38 kB[22m
+[2mdist/[22m[36massets/AboutPanel-BqjLvNt_.js                    [39m[1m[2m    8.05 kB[22m[1m[22m[2m │ gzip:   2.73 kB[22m
+[2mdist/[22m[36massets/TimeSalesPanel-FsGqFofv.js                [39m[1m[2m    8.07 kB[22m[1m[22m[2m │ gzip:   3.27 kB[22m
+[2mdist/[22m[36massets/AbsenceReceipt-Cd8Oz6PN.js                [39m[1m[2m    8.10 kB[22m[1m[22m[2m │ gzip:   3.51 kB[22m
+[2mdist/[22m[36massets/FundamentalSnapshot-Dis7v1Pw.js           [39m[1m[2m    8.22 kB[22m[1m[22m[2m │ gzip:   3.07 kB[22m
+[2mdist/[22m[36massets/MarketBreadth-DFeY_tVV.js                 [39m[1m[2m    8.41 kB[22m[1m[22m[2m │ gzip:   3.38 kB[22m
+[2mdist/[22m[36massets/Terms-DfNTDEC3.js                         [39m[1m[2m    8.52 kB[22m[1m[22m[2m │ gzip:   3.32 kB[22m
+[2mdist/[22m[36massets/BreakoutPanel-BnBpkCQk.js                 [39m[1m[2m    8.53 kB[22m[1m[22m[2m │ gzip:   3.67 kB[22m
+[2mdist/[22m[36massets/PatternAdmin-cPVygMRD.js                  [39m[1m[2m    8.57 kB[22m[1m[22m[2m │ gzip:   2.92 kB[22m
+[2mdist/[22m[36massets/PositionSizingBlock-BUVmzhqf.js           [39m[1m[2m    8.57 kB[22m[1m[22m[2m │ gzip:   3.39 kB[22m
+[2mdist/[22m[36massets/echartsCore-oehyN-2L.js                   [39m[1m[2m    8.59 kB[22m[1m[22m[2m │ gzip:   3.60 kB[22m
+[2mdist/[22m[36massets/widgetEmbedCore-6cPDAutl.js               [39m[1m[2m    8.71 kB[22m[1m[22m[2m │ gzip:   3.70 kB[22m
+[2mdist/[22m[36massets/RrgPanel-Da3DuI2A.js                      [39m[1m[2m    8.74 kB[22m[1m[22m[2m │ gzip:   3.61 kB[22m
+[2mdist/[22m[36massets/ConfirmModal-p8q1PfZJ.js                  [39m[1m[2m    8.76 kB[22m[1m[22m[2m │ gzip:   3.37 kB[22m
+[2mdist/[22m[36massets/DecisionRecordTab-C-ijXL9G.js             [39m[1m[2m    8.82 kB[22m[1m[22m[2m │ gzip:   3.34 kB[22m
+[2mdist/[22m[36massets/PlanPanel-DQ16SLJf.js                     [39m[1m[2m    8.87 kB[22m[1m[22m[2m │ gzip:   3.81 kB[22m
+[2mdist/[22m[36massets/ConsensusEstimates-99MieIoO.js            [39m[1m[2m    8.88 kB[22m[1m[22m[2m │ gzip:   2.81 kB[22m
+[2mdist/[22m[36massets/SaveTranscriptPassage-DVJ8xLxk.js         [39m[1m[2m    8.94 kB[22m[1m[22m[2m │ gzip:   3.57 kB[22m
+[2mdist/[22m[36massets/useCloses-CwhJ6drj.js                     [39m[1m[2m    8.99 kB[22m[1m[22m[2m │ gzip:   4.16 kB[22m
+[2mdist/[22m[36massets/SentimentPanel-CgmUzIff.js                [39m[1m[2m    9.05 kB[22m[1m[22m[2m │ gzip:   3.37 kB[22m
+[2mdist/[22m[36massets/BrokersPage-C7nxbS1i.js                   [39m[1m[2m    9.05 kB[22m[1m[22m[2m │ gzip:   3.26 kB[22m
+[2mdist/[22m[36massets/WatchlistPanel-C-hlfYHp.js                [39m[1m[2m    9.12 kB[22m[1m[22m[2m │ gzip:   3.78 kB[22m
+[2mdist/[22m[36massets/BreadthDrillList-CvWkqcyw.js              [39m[1m[2m    9.15 kB[22m[1m[22m[2m │ gzip:   4.07 kB[22m
+[2mdist/[22m[36massets/Compare-dTNNhrwB.js                       [39m[1m[2m    9.20 kB[22m[1m[22m[2m │ gzip:   3.20 kB[22m
+[2mdist/[22m[36massets/TickerResearchWorkspace-BxZ5cLoN.js       [39m[1m[2m    9.22 kB[22m[1m[22m[2m │ gzip:   3.19 kB[22m
+[2mdist/[22m[36massets/PeopleTab-C7vyFjVj.js                     [39m[1m[2m    9.24 kB[22m[1m[22m[2m │ gzip:   2.64 kB[22m
+[2mdist/[22m[36massets/VoiceInputButton-DG7O7myL.js              [39m[1m[2m    9.27 kB[22m[1m[22m[2m │ gzip:   3.41 kB[22m
+[2mdist/[22m[36massets/TeamSection-DFWMDVZa.js                   [39m[1m[2m    9.28 kB[22m[1m[22m[2m │ gzip:   2.86 kB[22m
+[2mdist/[22m[36massets/RecentlyDeleted--KeRw9_F.js               [39m[1m[2m    9.29 kB[22m[1m[22m[2m │ gzip:   3.53 kB[22m
+[2mdist/[22m[36massets/editPreview-wtAd5bI7.js                   [39m[1m[2m    9.32 kB[22m[1m[22m[2m │ gzip:   3.85 kB[22m
+[2mdist/[22m[36massets/ShortcutCheatSheet-D2daThYN.js            [39m[1m[2m    9.33 kB[22m[1m[22m[2m │ gzip:   3.58 kB[22m
+[2mdist/[22m[36massets/NoteTimelineView-DeNHh0IG.js              [39m[1m[2m    9.35 kB[22m[1m[22m[2m │ gzip:   4.01 kB[22m
+[2mdist/[22m[36massets/GlobalAddPositionProvider-_FPtzcW-.js     [39m[1m[2m    9.39 kB[22m[1m[22m[2m │ gzip:   3.93 kB[22m
+[2mdist/[22m[36massets/reviewDrafts-B6tyLQFO.js                  [39m[1m[2m    9.41 kB[22m[1m[22m[2m │ gzip:   3.99 kB[22m
+[2mdist/[22m[36massets/EntryContextCard-cOU_IMAl.js              [39m[1m[2m    9.43 kB[22m[1m[22m[2m │ gzip:   3.65 kB[22m
+[2mdist/[22m[36massets/index-jb_zvbfm.js                         [39m[1m[2m    9.47 kB[22m[1m[22m[2m │ gzip:   3.28 kB[22m
+[2mdist/[22m[36massets/AccountsTab-BQ2bdVzY.js                   [39m[1m[2m    9.49 kB[22m[1m[22m[2m │ gzip:   3.61 kB[22m
+[2mdist/[22m[36massets/OwnershipPanel-Bzeao16Z.js                [39m[1m[2m    9.57 kB[22m[1m[22m[2m │ gzip:   3.26 kB[22m
+[2mdist/[22m[36massets/ScatterPanel-CrWK25ED.js                  [39m[1m[2m    9.74 kB[22m[1m[22m[2m │ gzip:   4.10 kB[22m
+[2mdist/[22m[36massets/Pricing-CyfC-a62.js                       [39m[1m[2m    9.77 kB[22m[1m[22m[2m │ gzip:   3.48 kB[22m
+[2mdist/[22m[36massets/JournalTwoRoot-BRLhYffv.js                [39m[1m[2m    9.79 kB[22m[1m[22m[2m │ gzip:   4.08 kB[22m
+[2mdist/[22m[36massets/MentionSeriesPanel-4Csmfrdk.js            [39m[1m[2m    9.79 kB[22m[1m[22m[2m │ gzip:   3.37 kB[22m
+[2mdist/[22m[36massets/AiActionsPanel-CoMWyo2t.js                [39m[1m[2m    9.81 kB[22m[1m[22m[2m │ gzip:   3.59 kB[22m
+[2mdist/[22m[36massets/drawingsStore-BFYRuH6i.js                 [39m[1m[2m    9.92 kB[22m[1m[22m[2m │ gzip:   3.56 kB[22m
+[2mdist/[22m[36massets/AiSearchPage-DbRQoHAL.js                  [39m[1m[2m    9.99 kB[22m[1m[22m[2m │ gzip:   3.63 kB[22m
+[2mdist/[22m[36massets/NewsWidget-Bj1WlgUT.js                    [39m[1m[2m   10.13 kB[22m[1m[22m[2m │ gzip:   4.32 kB[22m
+[2mdist/[22m[36massets/ReportPage-DZGmcnL1.js                    [39m[1m[2m   10.17 kB[22m[1m[22m[2m │ gzip:   2.72 kB[22m
+[2mdist/[22m[36massets/MoversPanel-DbLuSoUu.js                   [39m[1m[2m   10.40 kB[22m[1m[22m[2m │ gzip:   4.20 kB[22m
+[2mdist/[22m[36massets/SetupLibrary-BdCrmsgC.js                  [39m[1m[2m   10.40 kB[22m[1m[22m[2m │ gzip:   3.19 kB[22m
+[2mdist/[22m[36massets/MarketTidePanel-DEGTtAJ6.js               [39m[1m[2m   10.42 kB[22m[1m[22m[2m │ gzip:   3.48 kB[22m
+[2mdist/[22m[36massets/AlertsWidget-DZ7J9HXr.js                  [39m[1m[2m   10.60 kB[22m[1m[22m[2m │ gzip:   4.19 kB[22m
+[2mdist/[22m[36massets/ScopeBar-CTTcMd1Z.js                      [39m[1m[2m   10.79 kB[22m[1m[22m[2m │ gzip:   3.77 kB[22m
+[2mdist/[22m[36massets/InboundEmailCard-D0KYPVSd.js              [39m[1m[2m   10.98 kB[22m[1m[22m[2m │ gzip:   3.83 kB[22m
+[2mdist/[22m[36massets/NoteGraphView-BfnR05Do.js                 [39m[1m[2m   11.10 kB[22m[1m[22m[2m │ gzip:   4.82 kB[22m
+[2mdist/[22m[36massets/AddTradeModal-CbYDFzoD.js                 [39m[1m[2m   11.15 kB[22m[1m[22m[2m │ gzip:   3.60 kB[22m
+[2mdist/[22m[36massets/AnalystRatingsTab-B-7Fzxes.js             [39m[1m[2m   11.26 kB[22m[1m[22m[2m │ gzip:   4.42 kB[22m
+[2mdist/[22m[36massets/VisualPlaybook-rcYYHDlt.js                [39m[1m[2m   11.28 kB[22m[1m[22m[2m │ gzip:   4.31 kB[22m
+[2mdist/[22m[36massets/ObsidianConnectModal-aA5un-_z.js          [39m[1m[2m   11.28 kB[22m[1m[22m[2m │ gzip:   3.93 kB[22m
+[2mdist/[22m[36massets/Confluence-gfkCWpLp.js                    [39m[1m[2m   11.36 kB[22m[1m[22m[2m │ gzip:   4.38 kB[22m
+[2mdist/[22m[36massets/presentation-BKMLneTA.js                  [39m[1m[2m   11.55 kB[22m[1m[22m[2m │ gzip:   4.25 kB[22m
+[2mdist/[22m[36massets/econUi-B7-4Mg1Y.js                        [39m[1m[2m   11.59 kB[22m[1m[22m[2m │ gzip:   4.91 kB[22m
+[2mdist/[22m[36massets/ColorPanel-Bowqltll.js                    [39m[1m[2m   11.60 kB[22m[1m[22m[2m │ gzip:   4.48 kB[22m
+[2mdist/[22m[36massets/Privacy-KpYbVLU6.js                       [39m[1m[2m   11.72 kB[22m[1m[22m[2m │ gzip:   4.03 kB[22m
+[2mdist/[22m[36massets/fundamentalFormat-GnnCJmmf.js             [39m[1m[2m   11.87 kB[22m[1m[22m[2m │ gzip:   4.73 kB[22m
+[2mdist/[22m[36massets/ChartHealth-B7ngiI7r.js                   [39m[1m[2m   11.90 kB[22m[1m[22m[2m │ gzip:   3.56 kB[22m
+[2mdist/[22m[36massets/BacktestPanel-Dpl_3zJJ.js                 [39m[1m[2m   12.00 kB[22m[1m[22m[2m │ gzip:   4.62 kB[22m
+[2mdist/[22m[36massets/FlowScoreboard-BRAUWBDx.js                [39m[1m[2m   12.12 kB[22m[1m[22m[2m │ gzip:   4.10 kB[22m
+[2mdist/[22m[36massets/ImovPanel-DWqowppA.js                     [39m[1m[2m   12.35 kB[22m[1m[22m[2m │ gzip:   4.63 kB[22m
+[2mdist/[22m[36massets/MyStocksHub-BDCEVXFt.js                   [39m[1m[2m   12.40 kB[22m[1m[22m[2m │ gzip:   4.54 kB[22m
+[2mdist/[22m[36massets/BrokerConnectionsCard-CVd1Ycht.js         [39m[1m[2m   12.48 kB[22m[1m[22m[2m │ gzip:   4.01 kB[22m
+[2mdist/[22m[36massets/MyPlaybook-D2kvA1EQ.js                    [39m[1m[2m   12.72 kB[22m[1m[22m[2m │ gzip:   4.74 kB[22m
+[2mdist/[22m[36massets/computed-DFSFrGp8.js                      [39m[1m[2m   12.83 kB[22m[1m[22m[2m │ gzip:   4.99 kB[22m
+[2mdist/[22m[36massets/GenericTourEngine-Bq2biK3R.js             [39m[1m[2m   13.11 kB[22m[1m[22m[2m │ gzip:   5.03 kB[22m
+[2mdist/[22m[36massets/StrategyScreensPanel-BocxL-Yq.js          [39m[1m[2m   13.23 kB[22m[1m[22m[2m │ gzip:   3.49 kB[22m
+[2mdist/[22m[36massets/OptionsScreener-CYcDQDXN.js               [39m[1m[2m   13.36 kB[22m[1m[22m[2m │ gzip:   4.28 kB[22m
+[2mdist/[22m[36massets/TradeDrawer-CSyFiuKv.js                   [39m[1m[2m   13.37 kB[22m[1m[22m[2m │ gzip:   4.05 kB[22m
+[2mdist/[22m[36massets/ComingSoon-Bt54eOAv.js                    [39m[1m[2m   13.61 kB[22m[1m[22m[2m │ gzip:   5.15 kB[22m
+[2mdist/[22m[36massets/OwnershipTab-7O9f39MB.js                  [39m[1m[2m   13.70 kB[22m[1m[22m[2m │ gzip:   4.44 kB[22m
+[2mdist/[22m[36massets/EvidenceTab-B_JkdcfL.js                   [39m[1m[2m   14.04 kB[22m[1m[22m[2m │ gzip:   4.37 kB[22m
+[2mdist/[22m[36massets/ResearchComparePage-DJp8HouL.js           [39m[1m[2m   14.26 kB[22m[1m[22m[2m │ gzip:   4.61 kB[22m
+[2mdist/[22m[36massets/CommunityTab-BKFNR8KF.js                  [39m[1m[2m   14.46 kB[22m[1m[22m[2m │ gzip:   4.29 kB[22m
+[2mdist/[22m[36massets/StatementPanels-BazQJKOt.js               [39m[1m[2m   14.55 kB[22m[1m[22m[2m │ gzip:   5.14 kB[22m
+[2mdist/[22m[36massets/OverviewTab-zJoagpM3.js                   [39m[1m[2m   15.21 kB[22m[1m[22m[2m │ gzip:   5.44 kB[22m
+[2mdist/[22m[36massets/NotebookWidget-8Xz5p94m.js                [39m[1m[2m   15.22 kB[22m[1m[22m[2m │ gzip:   5.91 kB[22m
+[2mdist/[22m[36massets/WisdomAdmin-BKJvMzB_.js                   [39m[1m[2m   15.23 kB[22m[1m[22m[2m │ gzip:   5.19 kB[22m
+[2mdist/[22m[36massets/SetupsBoard-D09GYU6a.js                   [39m[1m[2m   15.23 kB[22m[1m[22m[2m │ gzip:   5.82 kB[22m
+[2mdist/[22m[36massets/DepthTab-Dagzd2tR.js                      [39m[1m[2m   15.33 kB[22m[1m[22m[2m │ gzip:   5.47 kB[22m
+[2mdist/[22m[36massets/VoiceNoteDialog-CyONrcIO.js               [39m[1m[2m   15.34 kB[22m[1m[22m[2m │ gzip:   5.38 kB[22m
+[2mdist/[22m[36massets/ramp200-BRVqmtmF.js                       [39m[1m[2m   15.47 kB[22m[1m[22m[2m │ gzip:   4.55 kB[22m
+[2mdist/[22m[36massets/sampleNotebook-BJyQyvOo.js                [39m[1m[2m   15.49 kB[22m[1m[22m[2m │ gzip:   6.06 kB[22m
+[2mdist/[22m[36massets/PositioningPanel-Dl3RQeB3.js              [39m[1m[2m   15.55 kB[22m[1m[22m[2m │ gzip:   4.97 kB[22m
+[2mdist/[22m[36massets/LogTradeChecklistSlot-BR5yoRRg.js         [39m[1m[2m   15.78 kB[22m[1m[22m[2m │ gzip:   6.43 kB[22m
+[2mdist/[22m[36massets/StyleSurfaces-Dvhns3FB.js                 [39m[1m[2m   15.79 kB[22m[1m[22m[2m │ gzip:   6.18 kB[22m
+[2mdist/[22m[36massets/AddPositionModal-CFLQ2gtu.js              [39m[1m[2m   15.80 kB[22m[1m[22m[2m │ gzip:   5.51 kB[22m
+[2mdist/[22m[36massets/BreadthDrillModal-CgBXzROW.js             [39m[1m[2m   16.03 kB[22m[1m[22m[2m │ gzip:   6.69 kB[22m
+[2mdist/[22m[36massets/ChartPlanPanel-DXpHzRYS.js                [39m[1m[2m   16.05 kB[22m[1m[22m[2m │ gzip:   6.69 kB[22m
+[2mdist/[22m[36massets/FundamentalsWidget-Bvhkt-R4.js            [39m[1m[2m   16.18 kB[22m[1m[22m[2m │ gzip:   5.80 kB[22m
+[2mdist/[22m[36massets/ArticleReader-Bh_MJl5W.js                 [39m[1m[2m   16.28 kB[22m[1m[22m[2m │ gzip:   5.73 kB[22m
+[2mdist/[22m[36massets/CalendarWidget-DCkTQh_A.js                [39m[1m[2m   16.50 kB[22m[1m[22m[2m │ gzip:   6.35 kB[22m
+[2mdist/[22m[36massets/index-BbFJOtbt.js                         [39m[1m[2m   16.51 kB[22m[1m[22m[2m │ gzip:   5.23 kB[22m
+[2mdist/[22m[36massets/ChartRender-DlH3HNpv.js                   [39m[1m[2m   16.86 kB[22m[1m[22m[2m │ gzip:   6.68 kB[22m
+[2mdist/[22m[36massets/ResearchPage-DPm_W-vp.js                  [39m[1m[2m   16.91 kB[22m[1m[22m[2m │ gzip:   6.51 kB[22m
+[2mdist/[22m[36massets/FingerprintPanel-CR0tT2GI.js              [39m[1m[2m   17.04 kB[22m[1m[22m[2m │ gzip:   6.87 kB[22m
+[2mdist/[22m[36massets/TemplateGallery-BvsT9Kcn.js               [39m[1m[2m   17.36 kB[22m[1m[22m[2m │ gzip:   5.39 kB[22m
+[2mdist/[22m[36massets/CalendarTab-CK19Ni9q.js                   [39m[1m[2m   17.83 kB[22m[1m[22m[2m │ gzip:   6.72 kB[22m
+[2mdist/[22m[36massets/JournalLayout-Dgfnnq3_.js                 [39m[1m[2m   18.38 kB[22m[1m[22m[2m │ gzip:   5.57 kB[22m
+[2mdist/[22m[36massets/useUserDefinitions-7DkTotKH.js            [39m[1m[2m   19.26 kB[22m[1m[22m[2m │ gzip:   6.17 kB[22m
+[2mdist/[22m[36massets/MorningWire-DX-i-vjr.js                   [39m[1m[2m   19.71 kB[22m[1m[22m[2m │ gzip:   7.93 kB[22m
+[2mdist/[22m[36massets/vendor-swr-DMX8TUtE.js                    [39m[1m[2m   20.26 kB[22m[1m[22m[2m │ gzip:   8.35 kB[22m
+[2mdist/[22m[36massets/CheckPanel-DIopYGwL.js                    [39m[1m[2m   20.37 kB[22m[1m[22m[2m │ gzip:   6.58 kB[22m
+[2mdist/[22m[36massets/CreateIndicatorPanel-CSLMjUy2.js          [39m[1m[2m   20.62 kB[22m[1m[22m[2m │ gzip:   7.70 kB[22m
+[2mdist/[22m[36massets/PositionDetailPage-CMehGfru.js            [39m[1m[2m   20.96 kB[22m[1m[22m[2m │ gzip:   7.47 kB[22m
+[2mdist/[22m[36massets/useDurableNote-CtoNy2qL.js                [39m[1m[2m   21.84 kB[22m[1m[22m[2m │ gzip:   7.57 kB[22m
+[2mdist/[22m[36massets/AskPanel.module-B7FujHSb.js               [39m[1m[2m   23.12 kB[22m[1m[22m[2m │ gzip:   9.52 kB[22m
+[2mdist/[22m[36massets/registry-l_yjlU-T.js                      [39m[1m[2m   23.17 kB[22m[1m[22m[2m │ gzip:   6.38 kB[22m
+[2mdist/[22m[36massets/index-5_BQjH9m.js                         [39m[1m[2m   24.39 kB[22m[1m[22m[2m │ gzip:   9.64 kB[22m
+[2mdist/[22m[36massets/BreadthWidget-BX-Zpo4f.js                 [39m[1m[2m   25.12 kB[22m[1m[22m[2m │ gzip:   9.39 kB[22m
+[2mdist/[22m[36massets/FormulaField-BZSfUygB.js                  [39m[1m[2m   25.87 kB[22m[1m[22m[2m │ gzip:  10.06 kB[22m
+[2mdist/[22m[36massets/StylesManager-BVOfK4BI.js                 [39m[1m[2m   26.71 kB[22m[1m[22m[2m │ gzip:   9.21 kB[22m
+[2mdist/[22m[36massets/ChartThemesModal-ClqTJR1Z.js              [39m[1m[2m   27.02 kB[22m[1m[22m[2m │ gzip:   9.17 kB[22m
+[2mdist/[22m[36massets/CapturedSourceSheet-CtTaPq90.js           [39m[1m[2m   27.76 kB[22m[1m[22m[2m │ gzip:   9.65 kB[22m
+[2mdist/[22m[36massets/GlobalVoiceLayer-DxPCmzZU.js              [39m[1m[2m   29.11 kB[22m[1m[22m[2m │ gzip:  10.22 kB[22m
+[2mdist/[22m[36massets/AiSearchWidget-C3zwn89-.js                [39m[1m[2m   29.97 kB[22m[1m[22m[2m │ gzip:  10.92 kB[22m
+[2mdist/[22m[36massets/PortfolioSettingsModal-C4Uj4ho7.js        [39m[1m[2m   30.22 kB[22m[1m[22m[2m │ gzip:   8.65 kB[22m
+[2mdist/[22m[36massets/TodaySurface-0eEilFFN.js                  [39m[1m[2m   32.38 kB[22m[1m[22m[2m │ gzip:  11.07 kB[22m
+[2mdist/[22m[36massets/FlowCharts-BPDcF5v2.js                    [39m[1m[2m   32.97 kB[22m[1m[22m[2m │ gzip:   9.13 kB[22m
+[2mdist/[22m[36massets/heatmapMetrics-CrPsr05h.js                [39m[1m[2m   35.37 kB[22m[1m[22m[2m │ gzip:  10.27 kB[22m
+[2mdist/[22m[36massets/ImportCsvModal-D0eHNdta.js                [39m[1m[2m   35.92 kB[22m[1m[22m[2m │ gzip:  12.87 kB[22m
+[2mdist/[22m[36massets/Dashboard-LB4E6QGD.js                     [39m[1m[2m   37.31 kB[22m[1m[22m[2m │ gzip:  13.56 kB[22m
+[2mdist/[22m[36massets/ImportWizard-CeAKMtjV.js                  [39m[1m[2m   37.32 kB[22m[1m[22m[2m │ gzip:  12.86 kB[22m
+[2mdist/[22m[36massets/TranscriptPanel-BtmbwECl.js               [39m[1m[2m   37.47 kB[22m[1m[22m[2m │ gzip:  12.84 kB[22m
+[2mdist/[22m[36massets/DayDetailPage-YxQLlpdY.js                 [39m[1m[2m   38.54 kB[22m[1m[22m[2m │ gzip:  12.98 kB[22m
+[2mdist/[22m[36massets/CompassTab-CSICtYp8.js                    [39m[1m[2m   39.85 kB[22m[1m[22m[2m │ gzip:  11.04 kB[22m
+[2mdist/[22m[36massets/intraday5m-DlrZrBfk.js                    [39m[1m[2m   41.48 kB[22m[1m[22m[2m │ gzip:   9.93 kB[22m
+[2mdist/[22m[36massets/flowCompute-Bhbxj1OX.js                   [39m[1m[2m   41.78 kB[22m[1m[22m[2m │ gzip:  15.68 kB[22m
+[2mdist/[22m[36massets/AlertTester-CE6Zhglb.js                   [39m[1m[2m   41.97 kB[22m[1m[22m[2m │ gzip:   9.85 kB[22m
+[2mdist/[22m[36massets/chartDefaults-Bd-r5IHn.js                 [39m[1m[2m   42.04 kB[22m[1m[22m[2m │ gzip:  14.24 kB[22m
+[2mdist/[22m[36massets/indicatorRegistry-DrSDrUO9.js             [39m[1m[2m   42.12 kB[22m[1m[22m[2m │ gzip:  13.38 kB[22m
+[2mdist/[22m[36massets/TradeDetailPage-CtLGesDy.js               [39m[1m[2m   42.24 kB[22m[1m[22m[2m │ gzip:  14.84 kB[22m
+[2mdist/[22m[36massets/TradeCanvasBoard-CKjYsNYs.js              [39m[1m[2m   43.27 kB[22m[1m[22m[2m │ gzip:  14.75 kB[22m
+[2mdist/[22m[36massets/FolderSidebar-Csz1GbQG.js                 [39m[1m[2m   44.35 kB[22m[1m[22m[2m │ gzip:  12.89 kB[22m
+[2mdist/[22m[36massets/ThemeTrackerPage-BKtR8eMZ.js              [39m[1m[2m   49.09 kB[22m[1m[22m[2m │ gzip:  17.34 kB[22m
+[2mdist/[22m[36massets/UCT20-CdrvGImi.js                         [39m[1m[2m   49.11 kB[22m[1m[22m[2m │ gzip:  16.15 kB[22m
+[2mdist/[22m[36massets/Support-DBPsvGy-.js                       [39m[1m[2m   49.72 kB[22m[1m[22m[2m │ gzip:  16.78 kB[22m
+[2mdist/[22m[36massets/OptionsChainTab-C_qsLXvi.js               [39m[1m[2m   52.65 kB[22m[1m[22m[2m │ gzip:  16.99 kB[22m
+[2mdist/[22m[36massets/CommunityRedesign-CixoASs5.js             [39m[1m[2m   55.40 kB[22m[1m[22m[2m │ gzip:  18.73 kB[22m
+[2mdist/[22m[36massets/Landing-CPbORn5d.js                       [39m[1m[2m   55.42 kB[22m[1m[22m[2m │ gzip:  17.38 kB[22m
+[2mdist/[22m[36massets/parseCommand-DbDMDuvf.js                  [39m[1m[2m   62.09 kB[22m[1m[22m[2m │ gzip:  21.79 kB[22m
+[2mdist/[22m[36massets/colours-DJPQqMeX.js                       [39m[1m[2m   67.51 kB[22m[1m[22m[2m │ gzip:  21.83 kB[22m
+[2mdist/[22m[36massets/Calendar-CL2X6vTk.js                      [39m[1m[2m   79.88 kB[22m[1m[22m[2m │ gzip:  26.50 kB[22m
+[2mdist/[22m[36massets/EarningsCard-BlB_c14b.js                  [39m[1m[2m   85.62 kB[22m[1m[22m[2m │ gzip:  29.84 kB[22m
+[2mdist/[22m[36massets/VideosSection-BKeZtIST.js                 [39m[1m[2m   88.66 kB[22m[1m[22m[2m │ gzip:  27.16 kB[22m
+[2mdist/[22m[36massets/Watchlists-Nl8CG3Lt.js                    [39m[1m[2m   95.44 kB[22m[1m[22m[2m │ gzip:  31.47 kB[22m
+[2mdist/[22m[36massets/Admin-CmvTYzv9.js                         [39m[1m[2m   96.84 kB[22m[1m[22m[2m │ gzip:  24.10 kB[22m
+[2mdist/[22m[36massets/askInsert-CIoEfc4b.js                     [39m[1m[2m   96.98 kB[22m[1m[22m[2m │ gzip:  29.89 kB[22m
+[2mdist/[22m[36massets/codeHighlight-CO64Lchc.js                 [39m[1m[2m  101.14 kB[22m[1m[22m[2m │ gzip:  32.93 kB[22m
+[2mdist/[22m[36massets/DarkPool-CTSGOKD6.js                      [39m[1m[2m  106.44 kB[22m[1m[22m[2m │ gzip:  30.06 kB[22m
+[2mdist/[22m[36massets/LiveFlowMassive-52d3eyE7.js               [39m[1m[2m  108.57 kB[22m[1m[22m[2m │ gzip:  31.86 kB[22m
+[2mdist/[22m[36massets/TradeJournalTab-DvYjQFqn.js               [39m[1m[2m  110.83 kB[22m[1m[22m[2m │ gzip:  34.40 kB[22m
+[2mdist/[22m[36massets/AnalyticsTab-LXdadKix.js                  [39m[1m[2m  111.06 kB[22m[1m[22m[2m │ gzip:  35.43 kB[22m
+[2mdist/[22m[36massets/TerminalShell-Dlh_TkDH.js                 [39m[1m[2m  127.69 kB[22m[1m[22m[2m │ gzip:  44.58 kB[22m
+[2mdist/[22m[36massets/interpret-C9BLcbOd.js                     [39m[1m[2m  136.31 kB[22m[1m[22m[2m │ gzip:  45.62 kB[22m
+[2mdist/[22m[36massets/nativeRegistry-OwT89cZ4.js                [39m[1m[2m  138.80 kB[22m[1m[22m[2m │ gzip:  42.41 kB[22m
+[2mdist/[22m[36massets/registry-BEihgkEQ.js                      [39m[1m[2m  149.40 kB[22m[1m[22m[2m │ gzip:  61.49 kB[22m
+[2mdist/[22m[36massets/index-COz2YCmt.js                         [39m[1m[2m  149.65 kB[22m[1m[22m[2m │ gzip:  44.75 kB[22m
+[2mdist/[22m[36massets/CatalystTable-P8VRHlsa.js                 [39m[1m[2m  155.49 kB[22m[1m[22m[2m │ gzip:  47.95 kB[22m
+[2mdist/[22m[36massets/ChartPane-CPdRzg74.js                     [39m[1m[2m  163.08 kB[22m[1m[22m[2m │ gzip:  50.49 kB[22m
+[2mdist/[22m[36massets/sentence-dva8jABj.js                      [39m[1m[2m  181.23 kB[22m[1m[22m[2m │ gzip:  50.11 kB[22m
+[2mdist/[22m[36massets/vendor-charts-DHOb9Clg.js                 [39m[1m[2m  185.38 kB[22m[1m[22m[2m │ gzip:  59.55 kB[22m
+[2mdist/[22m[36massets/ModelBook-DvYIzRu_.js                     [39m[1m[2m  188.76 kB[22m[1m[22m[2m │ gzip:  60.52 kB[22m
+[2mdist/[22m[36massets/index-bvFgMCXR.js                         [39m[1m[2m  216.08 kB[22m[1m[22m[2m │ gzip:  67.28 kB[22m
+[2mdist/[22m[36massets/Settings-BhOFkmjw.js                      [39m[1m[2m  220.00 kB[22m[1m[22m[2m │ gzip:  55.95 kB[22m
+[2mdist/[22m[36massets/runtimeAsync-A7a0QeXD.js                  [39m[1m[2m  224.42 kB[22m[1m[22m[2m │ gzip:  72.21 kB[22m
+[2mdist/[22m[36massets/Screener-D0eFjmPj.js                      [39m[1m[2m  228.16 kB[22m[1m[22m[2m │ gzip:  76.02 kB[22m
+[2mdist/[22m[36massets/katexRender-Am29EVkZ.js                   [39m[1m[2m  261.25 kB[22m[1m[22m[2m │ gzip:  77.60 kB[22m
+[2mdist/[22m[36massets/tiptap-BkAvtYLB.js                        [39m[1m[2m  281.45 kB[22m[1m[22m[2m │ gzip:  93.66 kB[22m
+[2mdist/[22m[36massets/PopoutShell-DzD4FfaM.js                   [39m[1m[2m  305.10 kB[22m[1m[22m[2m │ gzip:  96.35 kB[22m
+[2mdist/[22m[36massets/OptionsFlow-PLZr-oGF.js                   [39m[1m[2m  321.17 kB[22m[1m[22m[2m │ gzip:  85.87 kB[22m
+[2mdist/[22m[36massets/ChartsWorkspace-DjkMF5ls.js               [39m[1m[2m  334.92 kB[22m[1m[22m[2m │ gzip: 107.47 kB[22m
+[2mdist/[22m[36massets/NotebookFlagGate-BvNYPs2F.js              [39m[1m[2m  347.59 kB[22m[1m[22m[2m │ gzip: 111.72 kB[22m
+[2mdist/[22m[36massets/CodeEditor-BQTfwo0S.js                    [39m[1m[2m  356.75 kB[22m[1m[22m[2m │ gzip: 116.17 kB[22m
+[2mdist/[22m[36massets/vendor-react-BrA_wePN.js                  [39m[1m[2m  378.38 kB[22m[1m[22m[2m │ gzip: 121.39 kB[22m
+[2mdist/[22m[36massets/BarChart-CQNDeV_q.js                      [39m[1m[2m  379.59 kB[22m[1m[22m[2m │ gzip: 104.49 kB[22m
+[2mdist/[22m[36massets/model-BuV4B0-D.js                         [39m[1m[2m  422.42 kB[22m[1m[22m[2m │ gzip: 137.06 kB[22m
+[2mdist/[22m[36massets/AgentPanel-BYJjmoRe.js                    [39m[1m[2m  436.71 kB[22m[1m[22m[2m │ gzip: 143.98 kB[22m
+[2mdist/[22m[36massets/pine-BKIm1WdY.js                          [39m[1m[2m  466.48 kB[22m[1m[22m[2m │ gzip: 152.59 kB[22m
+[2mdist/[22m[36massets/Breadth-Blt7fu2c.js                       [39m[1m[2m  471.15 kB[22m[1m[22m[2m │ gzip: 157.03 kB[22m
+[2mdist/[22m[36massets/PdfDocumentViewer-BWZPNhet.js             [39m[1m[2m  482.83 kB[22m[1m[22m[2m │ gzip: 145.18 kB[22m
+[2mdist/[22m[36massets/index-DAprnzvy.js                         [39m[1m[2m  502.23 kB[22m[1m[22m[2m │ gzip: 131.00 kB[22m
+[2mdist/[22m[36massets/index-BoeTxg4R.js                         [39m[1m[2m  562.43 kB[22m[1m[22m[2m │ gzip: 185.40 kB[22m
+[2mdist/[22m[36massets/index-DuDZN9su.js                         [39m[1m[2m  571.79 kB[22m[1m[22m[2m │ gzip: 189.61 kB[22m
+[2mdist/[22m[36massets/index-ibFC5x0Y.js                         [39m[1m[2m  587.47 kB[22m[1m[22m[2m │ gzip: 199.17 kB[22m
+[2mdist/[22m[36massets/StockChart-FgqrmyVw.js                    [39m[1m[2m  758.22 kB[22m[1m[22m[2m │ gzip: 249.57 kB[22m
+[32m✓ built in 44.29s[39m
+
+  dist\cot-facts.cjs  39.0kb
+
+Done in 11ms
+cot-facts: wrote C:\Users\Patrick\uct-worktrees\notebook-t2b\app\dist\cot-facts.cjs
+
+  dist\flow-facts.cjs  81.8kb
+
+Done in 13ms
+flow-facts: wrote C:\Users\Patrick\uct-worktrees\notebook-t2b\app\dist\flow-facts.cjs
+BUILD_EXIT=0

@@ -1,0 +1,11 @@
+
+### mode=write (separate process)
+  Model keys   : BLANKED ANTHROPIC_API_KEY, WISDOM_ANTHROPIC_API_KEY, OPENAI_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_AUTH_TOKEN; keyring -> null backend (opt in: --allow-model-keys or HUB_SANDBOX_ALLOW_MODEL_KEYS=1)
+V6_WRITE {"id": "notebook_earnings_followup_1792083636851", "user_id": "probe-user-1", "pid_cache_has": true}
+### mode=read (separate process)
+  Model keys   : BLANKED ANTHROPIC_API_KEY, WISDOM_ANTHROPIC_API_KEY, OPENAI_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_AUTH_TOKEN; keyring -> null backend (opt in: --allow-model-keys or HUB_SANDBOX_ALLOW_MODEL_KEYS=1)
+[email] RESEND_API_KEY not set — emails disabled
+V6_READ {"router_fn": "api.routers.alerts.list_alerts", "service_fn": "api.services.alerts.get_alerts", "rows_for_user1": [{"id": "notebook_earnings_followup_1792083636851", "type": "notebook_earnings_followup", "data": {"research_url": "/journal/notebook?followup=ORCL&reportDate=2026-10-14"}}], "rows_for_user2": 0}
+### mode=collide 200 members
+  Model keys   : BLANKED ANTHROPIC_API_KEY, WISDOM_ANTHROPIC_API_KEY, OPENAI_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_AUTH_TOKEN; keyring -> null backend (opt in: --allow-model-keys or HUB_SANDBOX_ALLOW_MODEL_KEYS=1)
+V6_COLLIDE {"members": 200, "distinct_ids": 200, "durable_rows": 200, "ephemeral_rows": 200, "secs": 1.59, "ms_per_call": 7.95}

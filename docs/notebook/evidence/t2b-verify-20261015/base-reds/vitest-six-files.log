@@ -1,0 +1,71 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-t2b/app[39m
+
+ [32m✓[39m src/pages/journal-2-0/lib/notices.test.js [2m([22m[2m10 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/surfaceCoverage.test.js [2m([22m[2m13 tests[22m[2m)[22m[33m 3633[2mms[22m[39m
+     [33m[2m✓[22m[39m every recipe and coveredBy id is registered by an axe rail in a11y/ [33m 3537[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/lib/dateSuggest.test.js[2m > [22m[2mthe extension on the real roster[2m > [22m[2mnever beside another suggestion[2m > [22m[2m⛔ typing "@" inside an open slash command does not open the date list; Enter is not a date
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/dateSuggest.test.js[2m > [22m[2mthe extension on the real roster[2m > [22m[2mnever beside another suggestion[2m > [22m[2m⛔ typing "@" inside an open [[ note link does not open the date list
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+ [32m✓[39m src/pages/journal-2-0/lib/dateSuggest.test.js [2m([22m[2m32 tests[22m[2m)[22m[33m 5521[2mms[22m[39m
+     [33m[2m✓[22m[39m end to end: "@tom", ArrowDown, Enter inserts tomorrow and leaves no @tom text behind [33m 4204[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ "@tom" then Enter inserts NO date either (and "@mon", "@fri", "@next") [33m 467[2mms[22m[39m
+ [31m❯[39m src/pages/command/keyListenerCensus.test.js [2m([22m[2m7 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 16673[2mms[22m[39m
+     [32m✓[39m CONTROL: a comment or prose mention is not a listener; a real call is[32m 12[2mms[22m[39m
+     [32m✓[39m CONTROL: a dynamic registration and a wrapper hook are caught as orphans[32m 4[2mms[22m[39m
+     [32m✓[39m CONTROL: dispatching a key event is not listening for one[32m 2[2mms[22m[39m
+[31m     [31m×[31m NON-VACUITY: it walks the whole tree, parses every file, and finds the registry[39m[33m 16650[2mms[22m[39m
+     [32m✓[39m no file holds MORE raw key listeners than its baseline (new ones go through the registry)[32m 1[2mms[22m[39m
+     [32m✓[39m no baseline row is STALE (a migrated listener must leave the baseline in the same commit)[32m 0[2mms[22m[39m
+     [32m✓[39m the baseline sits at or under the stated CEILING, and the CEILING is tight[32m 0[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/doorEnumeration.test.js [2m([22m[2m41 tests[22m[2m)[22m[33m 28773[2mms[22m[39m
+     [33m[2m✓[22m[39m ② every OTHER server-side writer of j2_notes is a known second writer [33m 325[2mms[22m[39m
+     [33m[2m✓[22m[39m ⑤ SERVER-side doors OUTSIDE journal_two.py are a LEDGER, each with its settle story [33m 550[2mms[22m[39m
+     [33m[2m✓[22m[39m ③ CLIENT: every write to a door route lands its revision, or is a NAMED exception [33m 15742[2mms[22m[39m
+     [33m[2m✓[22m[39m ④ a write whose URL is a VARIABLE is resolved and checked like any other [33m 600[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — the variable-URL scan really does see delete_folder as a door [33m 926[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — the route derivation really does find the door routes [33m 365[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — rail ② reads routers OUTSIDE journal_two.py, through module-qualified service delegation [33m 345[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ every SITE_EXCEPTIONS entry still names a current, unsettled client write site [33m 1571[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — a stale exception (no such site, or a site that now settles) is reported [33m 1365[2mms[22m[39m
+     [33m[2m✓[22m[39m every request in a note-touching file has a readable method, and every door write lands its revision [33m 856[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — both of journalStyles.js's note-moving calls resolve to their routes and are seen as settled [33m 1091[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ the GENERAL check (not only the control above) goes RED when journalStyles.js loses a settle [33m 795[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — an in-memory copy of journalStyles.js with a settle deleted makes the rail go RED, and says where [33m 1079[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ the favourite toggle, blind to every rail until now, resolves to both routes and is not a door [33m 1319[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — a DIRECT fetch to a derived style door with no settle is RED, and settled it is clean [33m 365[2mms[22m[39m
+     [33m[2m✓[22m[39m the real tree has NO helper exceptions: every injected or forwarded fetch resolves or is fixed [33m 797[2mms[22m[39m
+     [33m[2m✓[22m[39m the door universe is DERIVED and non-empty (non-vacuity) [33m 316[2mms[22m[39m
+     [33m[2m✓[22m[39m every door is classified, nothing stale, and NO door is a loss [33m 346[2mms[22m[39m
+ [32m✓[39m src/components/screener/reachable.test.js [2m([22m[2m17 tests[22m[2m)[22m[33m 50079[2mms[22m[39m
+     [33m[2m✓[22m[39m PLANTED CUT: remove the mount's import and ScanResults goes unreachable [33m 15386[2mms[22m[39m
+     [33m[2m✓[22m[39m THE DYNAMIC EDGE IS LOAD-BEARING: static-only imports never reach the page [33m 7528[2mms[22m[39m
+     [33m[2m✓[22m[39m THE WORKER EDGE IS LOAD-BEARING: `new Worker(new URL(…))` is followed [33m 14122[2mms[22m[39m
+     [33m[2m✓[22m[39m THE SWEEP REPORTS A TRACKED ORPHAN, and exempts an UNTRACKED one [33m 6674[2mms[22m[39m
+     [33m[2m✓[22m[39m THE ALLOW-LIST GUARDS BITE: a wired entry and a vanished one are each caught [33m 6343[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/command/keyListenerCensus.test.js[2m > [22mTERM-063 — the census can see (controls)[2m > [22mNON-VACUITY: it walks the whole tree, parses every file, and finds the registry
+[31m[1mError[22m: Test timed out in 15000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".[39m
+[36m [2m❯[22m src/pages/command/keyListenerCensus.test.js:[2m298:5[22m[39m
+    [90m296| [39m  })
+    [90m297| [39m
+    [90m298| [39m  it('NON-VACUITY: it walks the whole tree, parses every file, and fin…
+    [90m   | [39m    [31m^[39m
+    [90m299| [39m    [35mconst[39m { failures[33m,[39m parsed } [33m=[39m [34mcensus[39m()
+    [90m300| [39m    expect(failures, 'a file the census cannot parse is a file it cann…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m5 passed[39m[22m[90m (6)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m119 passed[39m[22m[90m (120)[39m
+[2m   Start at [22m 11:52:27
+[2m   Duration [22m 90.62s[2m (transform 7.49s, setup 27.91s, import 25.20s, tests 104.69s, environment 104.54s)[22m
+
+VITEST_EXIT=1

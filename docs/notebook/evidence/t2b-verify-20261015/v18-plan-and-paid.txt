@@ -1,0 +1,12 @@
+  Model keys   : BLANKED ANTHROPIC_API_KEY, WISDOM_ANTHROPIC_API_KEY, OPENAI_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_AUTH_TOKEN; keyring -> null backend (opt in: --allow-model-keys or HUB_SANDBOX_ALLOW_MODEL_KEYS=1)
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\61625d99-f8db-4269-a728-231c08d3da11\scratchpad\t2b-v18-data\auth.db
+V18 {"free_old": {"plan": "free", "role": "member", "is_paid_user": false, "columns_sample": ["created_at", "display_name", "email", "email_verified", "full_name", "id", "last_login_at", "password_hash", "referral_code", "role", "toolkit"]}, "pro_comped": {"plan": "pro", "role": "member", "is_paid_user": true, "columns_sample": ["created_at", "display_name", "email", "email_verified", "full_name", "id", "last_login_at", "password_hash", "referral_code", "role", "toolkit"]}, "admin": {"plan": "free", "role": "admin", "is_paid_user": true, "columns_sample": ["created_at", "display_name", "email", "email_verified", "full_name", "id", "last_login_at", "password_hash", "referral_code", "role", "toolkit"]}, "is_paid_user_without_plan_key_free_old": false, "PAID_PLANS": ["lifetime", "premium", "pro"]}
