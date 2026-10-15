@@ -1,0 +1,18 @@
+{
+  "captured_at": "2026-10-15T18:58:49+00:00",
+  "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\t2b-capture-2k1xq0zc",
+  "pinned_day": "2026-10-14",
+  "producer": "earnings_followup.run_followups (default delivery -> note_tasks.deliver_in_app -> alerts.add_alert)",
+  "route": "GET /api/alerts?limit=20 (api.routers.alerts, get_current_user overridden)",
+  "seams_patched": [
+    "reporters_on",
+    "_reporters_configured",
+    "_member_ids",
+    "_member_sets",
+    "_paid",
+    "_reaction_pct"
+  ],
+  "symbol": "ORCL",
+  "tip": "86e386c810f3502f99505b1b1c23f7109180b91b",
+  "tool": "tools/capture_followup_notice.py"
+}
