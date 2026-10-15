@@ -1,0 +1,46 @@
+{
+ "base": "https://uctintelligence.com",
+ "started": "2026-10-15T17:24:54Z",
+ "checks": [
+  {
+   "name": "slash menu offers 'Trade plan \u2014 NVDA'",
+   "ok": false,
+   "detail": false
+  },
+  {
+   "name": "toast: plan created and linked",
+   "ok": false,
+   "detail": false
+  },
+  {
+   "name": "the link opens the new plan note",
+   "ok": false,
+   "detail": null
+  },
+  {
+   "name": "plan note holds chart, sizing and checklist",
+   "ok": false,
+   "detail": []
+  },
+  {
+   "name": "plan note ticker is NVDA",
+   "ok": false,
+   "detail": null
+  },
+  {
+   "name": "no uncaught page errors",
+   "ok": true,
+   "detail": []
+  }
+ ],
+ "page_errors": [],
+ "notes": [
+  "c448e643c6ba46fda24ba4db1d99f6e3"
+ ],
+ "cleanup": [
+  {
+   "id": "c448e643c6ba46fda24ba4db1d99f6e3",
+   "delete_status": 200
+  }
+ ]
+}

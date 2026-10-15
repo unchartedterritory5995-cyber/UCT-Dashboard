@@ -1,0 +1,7 @@
+PASS slash menu offers 'Trade plan — NVDA' :: True
+PASS toast: plan created and linked :: True
+PASS the link opens the new plan note :: 95c9425f9dae418f93114008c48430ec
+PASS plan note holds chart, sizing and checklist :: ['marketcontext', 'chart', 'preEntryChecklist', 'positionSizing']
+PASS plan note ticker is NVDA :: NVDA
+PASS no uncaught page errors :: []
+VERDICT: PASS

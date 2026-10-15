@@ -1,0 +1,10 @@
+nav entries derived from NavBar.jsx: 19
+extra routes R-27 names that the nav cannot supply: /settings, /journal/notebook
+rig profile: C:\Users\Patrick\uct-q1-observe\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+(node:31840) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+viewport pinned to 1440x900 (desktop NavBar tier)
+
+opt-in keys on the rig, as found: {'uct.j2.offline.enabled': '0', 'uct.nb.capture.enabled': None}
+INCONCLUSIVE — an opt-in key is SET on this browser, so this run would measure a different product from the member's.
+   Re-run with --reset-keys to clear them first.
