@@ -17,6 +17,20 @@ def _writes(name):
     return _raise
 
 
+def _held(ticker):
+    """get_earnings_held with every write seam raising for the duration of THIS call only.
+
+    Scoped to the call on purpose: a fixture-lifetime patch also catches whatever another fixture or
+    module legitimately does to the shared cache in its own setup/teardown (green alone, red in
+    company)."""
+    with pytest.MonkeyPatch.context() as mp:
+        for obj, label, name in ((ei.cache, "cache", "set"), (ei.cache, "cache", "invalidate"),
+                                 (ei.cache, "cache", "delete_prefix"),
+                                 (ei.snap_store, "snap_store", "put"), (ei.snap_store, "snap_store", "delete")):
+            mp.setattr(obj, name, _writes(f"{label}.{name}"))
+        return ei.get_earnings_held(ticker)
+
+
 @pytest.fixture(autouse=True)
 def _no_build(monkeypatch):
     monkeypatch.setattr(ei, "_build", lambda sym: (_ for _ in ()).throw(AssertionError("built")))
@@ -24,30 +38,26 @@ def _no_build(monkeypatch):
     store = {}
     monkeypatch.setattr(ei.cache, "get", lambda k: store.get(("mem", k)))
     monkeypatch.setattr(ei.snap_store, "get", lambda kind, sym: store.get(("disk", kind, sym)))
-    # A held read is READ-ONLY: it must not re-prime memory, persist, or evict anything either.
-    for obj, name in ((ei.cache, "set"), (ei.cache, "invalidate"), (ei.cache, "delete_prefix"),
-                      (ei.snap_store, "put"), (ei.snap_store, "delete")):
-        monkeypatch.setattr(obj, name, _writes(f"{type(obj).__name__ if obj is ei.cache else 'snap_store'}.{name}"))
     return store
 
 
 def test_memory_first(_no_build):
     _no_build[("mem", f"{ei._KIND}::ORCL")] = FULL
-    assert ei.get_earnings_held("orcl") is FULL
+    assert _held("orcl") is FULL
 
 
 def test_a_stale_snapshot_is_still_held(_no_build):
     _no_build[("disk", ei._KIND, "ORCL")] = (FULL, ei._STALE_MAX - 1, 60)
-    assert ei.get_earnings_held("ORCL") is FULL
+    assert _held("ORCL") is FULL
 
 
 def test_too_old_partial_or_absent_is_none(_no_build):
-    assert ei.get_earnings_held("ORCL") is None
+    assert _held("ORCL") is None
     _no_build[("disk", ei._KIND, "ORCL")] = (FULL, ei._STALE_MAX + 1, 60)
-    assert ei.get_earnings_held("ORCL") is None
+    assert _held("ORCL") is None
     _no_build[("disk", ei._KIND, "ORCL")] = ({"quarters": [], "estimates": []}, 10, 60)
-    assert ei.get_earnings_held("ORCL") is None
-    assert ei.get_earnings_held("") is None
+    assert _held("ORCL") is None
+    assert _held("") is None
 
 
 # ── the two layers agree (preflight A13 / F22) ──────────────────────────────────────────────
@@ -55,13 +65,13 @@ def test_too_old_partial_or_absent_is_none(_no_build):
 def _held_from_memory(store, payload):
     store.clear()
     store[("mem", f"{ei._KIND}::ORCL")] = payload
-    return ei.get_earnings_held("ORCL")
+    return _held("ORCL")
 
 
 def _held_from_snapshot(store, payload):
     store.clear()
     store[("disk", ei._KIND, "ORCL")] = (payload, 10, 60)
-    return ei.get_earnings_held("ORCL")
+    return _held("ORCL")
 
 
 @pytest.mark.parametrize("name,payload,held", [
@@ -86,7 +96,7 @@ def test_a_partial_in_memory_does_not_hide_a_good_snapshot(_no_build):
     is the better answer and is still served."""
     _no_build[("mem", f"{ei._KIND}::ORCL")] = ANNUAL_ONLY
     _no_build[("disk", ei._KIND, "ORCL")] = (FULL, 10, 60)
-    assert ei.get_earnings_held("ORCL") is FULL
+    assert _held("ORCL") is FULL
 
 
 # ── it never reaches a provider ─────────────────────────────────────────────────────────────
@@ -122,13 +132,13 @@ def test_it_never_calls_a_provider(_no_build, monkeypatch):
     assert _held_from_memory(_no_build, FULL) is FULL
     assert _held_from_snapshot(_no_build, FULL) is FULL
     _no_build.clear()
-    assert ei.get_earnings_held("ORCL") is None
-    assert ei.get_earnings_held(None) is None
+    assert _held("ORCL") is None
+    assert _held(None) is None
     # The two rejected-snapshot exits are separate lines from "nothing held", and a fall-through to a
     # builder would live on exactly those.
     assert _held_from_snapshot(_no_build, ANNUAL_ONLY) is None
     _no_build[("disk", ei._KIND, "ORCL")] = (FULL, ei._STALE_MAX + 1, 60)
-    assert ei.get_earnings_held("ORCL") is None
+    assert _held("ORCL") is None
     assert _held_from_memory(_no_build, ANNUAL_ONLY) is None
 
 
@@ -136,18 +146,18 @@ def test_it_never_calls_a_provider(_no_build, monkeypatch):
 
 def test_a_padded_ticker_is_stripped(_no_build):
     _no_build[("mem", f"{ei._KIND}::ORCL")] = FULL
-    assert ei.get_earnings_held("  orcl 	") is FULL
+    assert _held("  orcl 	") is FULL
     _no_build.clear()
     _no_build[("disk", ei._KIND, "ORCL")] = (FULL, 10, 60)
-    assert ei.get_earnings_held(" orcl ") is FULL
-    assert ei.get_earnings_held("   ") is None
+    assert _held(" orcl ") is FULL
+    assert _held("   ") is None
 
 
 def test_the_stale_boundary_is_inclusive(_no_build):
     _no_build[("disk", ei._KIND, "ORCL")] = (FULL, ei._STALE_MAX, 60)
-    assert ei.get_earnings_held("ORCL") is FULL
+    assert _held("ORCL") is FULL
     _no_build[("disk", ei._KIND, "ORCL")] = (FULL, ei._STALE_MAX + 1, 60)
-    assert ei.get_earnings_held("ORCL") is None
+    assert _held("ORCL") is None
 
 
 @pytest.mark.parametrize("junk", [None, "a string", ["quarters"], 42])
@@ -162,6 +172,6 @@ def test_a_held_read_writes_nothing_on_any_outcome(_no_build):
     assert _held_from_snapshot(_no_build, FULL) is FULL
     assert _held_from_snapshot(_no_build, ANNUAL_ONLY) is None
     _no_build[("disk", ei._KIND, "ORCL")] = (FULL, ei._STALE_MAX + 1, 60)
-    assert ei.get_earnings_held("ORCL") is None
+    assert _held("ORCL") is None
     _no_build.clear()
-    assert ei.get_earnings_held("ORCL") is None
+    assert _held("ORCL") is None
