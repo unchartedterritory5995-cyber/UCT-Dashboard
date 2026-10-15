@@ -71,16 +71,27 @@ function sideFetchGate(settled) {
 // Kept Focus-only, on purpose: no drawing tools or hotkeys (the pane's arrow keys walk the list),
 // no replay/compare/countdown chrome, no pattern detection (a /api/patterns poll per stepped-past
 // ticker), no background warm chain. Saved drawings still show, read-only.
+// `onVolumePaneResize` is deliberately NOT passed: this pane is read-only, so dragging the volume
+// separator here does not persist; the height is read from the member's saved /charts preference.
 const PaneChart = memo(function PaneChart({ sym, tf, priceLines, settled, onDrawnBarCount, retry }) {
   const swr = useMemo(() => ({ use: [sideFetchGate(settled)] }), [settled])
   const { prefs } = usePreferences()
   const { cs, theme, ownChartSource } = useChartSurfaceSettings()
   const look = paneLookProps({ cs, theme, prefs })
+  // Perf 2 for the member's dark-pool overlay: StockChart fetches /api/darkpool/ticker-detail with
+  // a raw fetch (outside SWR, so the side-fetch gate cannot hold it), once per symbol. While the
+  // ticker is unsettled the overlay is held OFF through the override, and it comes back on settle.
+  // The same identity is kept for as long as `settled` and the inputs do not change (a memo dep).
+  // The override never persists: StockChart restores overridden keys before any settings write.
+  const dpOn = !!cs.darkPool?.enabled
+  const settingsOverride = useMemo(() => (settled || !dpOn
+    ? ownChartSource
+    : { ...(ownChartSource || {}), darkPool: { ...cs.darkPool, enabled: false } }), [settled, dpOn, ownChartSource, cs.darkPool])
   return (
     <SWRConfig value={swr}>
       <StockChart key={retry} sym={sym} tf={tf}
         {...look}
-        settingsOverride={ownChartSource}
+        settingsOverride={settingsOverride}
         showDrawingTools={false} showSavedDrawings
         hideReplay hidePatterns hideCompare hideCountdown disablePatterns
         backgroundWarm={false} liveUpdates={settled} hotkeysActive={false}
