@@ -228,6 +228,11 @@ def test_run_build_names_the_columns_that_came_out_empty(tmp_path, monkeypatch):
     assert stats["sources"]["rs_ranking"] == {"no_rank": 2}
     # ...and a column that WAS filled is not slandered.
     assert "price" not in stats["empty_columns"]
+    # ...and a LIVE-ONLY column (NULL at 03:00 by design: `rvol_live`, volume vs
+    # usual by now) is not reported as a gap either, while still being written NULL.
+    from api.services.screener import snapshot_db as sdb
+    assert sdb.LIVE_ONLY_COLUMNS and stats["populated"]["rvol_live"] == 0
+    assert not (sdb.LIVE_ONLY_COLUMNS & set(stats["empty_columns"]))
 
 
 def test_run_build_stops_naming_a_column_once_it_is_filled(tmp_path, monkeypatch):

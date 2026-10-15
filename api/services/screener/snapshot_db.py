@@ -148,9 +148,20 @@ COLUMNS = [
     # strings `vcp`/`flat_base` on purpose (pattern_join's D6 note) and are
     # different instruments, which is why the names carry `engine`.
     "pattern_engine_vcp", "pattern_engine_flat_base",
+    # ⭐ LIVE-ONLY: volume vs usual BY NOW. Written only by the live tier's overlay
+    # (`live_tier.LIVE_COLUMNS`); the nightly build leaves it NULL, because outside
+    # the session there is no "by now". It lives in this list so the query layer's
+    # COALESCE(overlay, nightly) can serve and filter it. See LIVE_ONLY_COLUMNS and
+    # docs/superpowers/specs/2026-10-15-screener-live-relative-volume-design.md.
+    "rvol_live",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
+
+#: Columns whose NIGHTLY value is NULL by design (only the live overlay fills
+#: them). The build's `empty_columns` receipt does not name these: a column that
+#: is meant to be empty at 03:00 is not a column that "came out 0/N".
+LIVE_ONLY_COLUMNS = frozenset({"rvol_live"})
 
 _TEXT = {"ticker", "company", "sector", "industry", "exchange", "security_type", "ma_stack",
          "candle_type", "candle_label", "candle_matches", "candle_trend",

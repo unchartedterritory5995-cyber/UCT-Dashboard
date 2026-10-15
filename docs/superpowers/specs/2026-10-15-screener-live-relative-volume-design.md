@@ -1,7 +1,12 @@
 # Screener: live relative volume ("volume vs usual by now")
 
-Status: **proposal, waiting on the owner.** Written 2026-10-15 after the owner asked for the
-screener to be live like the charts, never a delayed scan.
+Status: **approved 2026-10-15 (approach A, plus the chart header RVOL switched to the same
+number); built on `feat/screener-live-rvol`.** Approach B is not in scope. Written 2026-10-15 after
+the owner asked for the screener to be live like the charts, never a delayed scan.
+
+Where it lives: `api/services/screener/volume_curve.py` (nightly curve, table
+`screener_volume_curve`, `GET /api/screener/volume-curve`), `live_tier.LIVE_COLUMNS` (`rvol_live`),
+`app/src/lib/volumeCurve.js` (the browser mirror the chart header uses).
 
 ## The problem
 

@@ -285,7 +285,10 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # snapshot_db COLUMNS (the newest session's close × volume, written by
     # `technicals.compute_technicals` beside `price`) and is DECLARED — a number a formula
     # can compare, bar-derived, so `as_of` is `bars_asof` like `price`. Nothing retired.
-    assert (len(declared), len(excluded)) == (138, 67)
+    # ⭐ 67 → 68 (2026-10-15): `rvol_live` (volume vs usual by now) joined snapshot_db
+    # COLUMNS as LIVE-ONLY — NULL in every nightly row by design — so it is EXCLUDED: a
+    # scalar over it would be a hole at every hour. JS mirror: freshness.test.js.
+    assert (len(declared), len(excluded)) == (138, 68)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():

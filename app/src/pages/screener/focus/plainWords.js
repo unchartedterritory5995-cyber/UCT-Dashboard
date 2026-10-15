@@ -8,6 +8,8 @@ import { chipLabel } from '../chipLabel'
 // "ADR" collides with the "ADRs" type filter, so the range is spelled out.
 export const PLAIN_COLUMN_LABELS = {
   vol_ratio: 'Volume vs avg',
+  // Live only: today's volume against what the stock usually trades by this minute.
+  rvol_live: 'Volume vs usual by now',
   adr_pct: 'Avg daily range',
   adr_pct_1w: 'Avg daily range (5-day)',
   atr_pct: 'Avg true range',
@@ -74,6 +76,7 @@ export function plainMeta(meta) {
 // One short fact per column, for the chart pane's fact line.
 const FACTS = {
   vol_ratio: v => `Volume ${v.toFixed(1)}× avg`,
+  rvol_live: v => `Volume ${v.toFixed(1)}× usual by now`,
   adr_pct: v => `Avg daily range ${v.toFixed(1)}%`,
 }
 
@@ -81,6 +84,10 @@ export function plainFact(key, v) {
   const f = FACTS[key]
   return f && typeof v === 'number' && Number.isFinite(v) ? f(v) : null
 }
+
+// The chart pane's ONE volume fact: the live "by now" reading when the session has one, else the
+// completed-session ratio. Never both: two volume numbers side by side read as a contradiction.
+export const volumeFact = row => plainFact('rvol_live', row?.rvol_live) || plainFact('vol_ratio', row?.vol_ratio)
 
 // Structure names that are trader shorthand, said plainly. The textbook name stays in the tooltip.
 export const PLAIN_STRUCTURE_NAMES = {

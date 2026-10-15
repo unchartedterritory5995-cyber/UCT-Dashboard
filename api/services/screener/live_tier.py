@@ -78,7 +78,8 @@ import sqlite3
 import time
 from datetime import date, timedelta
 
-from api.services.screener import candle_catalog, contention_trace_temp, snapshot_db, technicals
+from api.services.screener import (candle_catalog, contention_trace_temp, snapshot_db,
+                                   technicals, volume_curve)
 
 log = logging.getLogger(__name__)
 
@@ -138,7 +139,33 @@ LIVE_COLUMNS = (
     "close_position",           # 26
     "candle_type",              # 27 SHAPE only — see the note above
     "candle_label",             # 28 carries the "(forming)" marker
+    # ── volume vs usual BY NOW (spec change, owner-approved 2026-10-15) ────
+    # ⭐ THIS IS A SPEC CHANGE, MADE ON PURPOSE. Design + approval:
+    # `docs/superpowers/specs/2026-10-15-screener-live-relative-volume-design.md`
+    # (approach A). It enters the live set by the same rule as every column
+    # above: the screener's only volume reading was nightly `vol_ratio`, so at
+    # 10:42 a live price sat beside YESTERDAY'S volume story, and a member
+    # filtering "heavy volume" during the session read yesterday's names.
+    # ⛔ It is NOT `vol_ratio` recomputed live — the rejection recorded in the
+    # header above still stands: today-so-far over a full-day mean is a
+    # different quantity that reads ~0.8x at 10:00 for a 3x name. This column
+    # divides by the volume USUALLY done by this minute
+    # (`avg_volume_30d * curve(minute)`, `volume_curve`), and the anchor
+    # contract holds: `avg_volume_30d` is a level from the 30 sessions
+    # through `bars_asof`, the curve is built nightly from completed full
+    # sessions only, and today's session is only ever the numerator.
+    # Nightly value is NULL by design: outside the session there is no
+    # "by now", and faking one from `vol_ratio` would be a second quantity
+    # under this column's name.
+    "rvol_live",                # 29 today_vol / (avg_volume_30d * share_by_now)
 )
+
+#: ⭐ COLUMNS THAT NEED THE SESSION CLOCK AND THE NIGHTLY VOLUME CURVE, on top of
+#: a feed field. They are blank before 09:45 ET, on a night the curve could not be
+#: built, and for a symbol with no `today_vol`; so, like the feed-dependent
+#: columns, the first cycle of a process does not get to CLAIM them before it has
+#: measured itself recomputing them (`live_columns_effective`).
+CURVE_DEPENDENT_COLUMNS = ("rvol_live",)
 
 #: ⭐ THE COLUMNS THAT NEED A FEED FIELD THE SNAPSHOT PARSE MAY NOT EMIT, and
 #: the field each one needs. Everything else in ``LIVE_COLUMNS`` derives from
@@ -180,8 +207,11 @@ FEED_FIELD_DEPENDENCIES = {
 # so reusing them intraday is the contract working as designed rather than a
 # relaxation of it: the trend a bar prints INTO is by definition the trend
 # before it.
+#
+# ⭐ `avg_volume_30d` is the denominator level of `rvol_live`: the mean of the 30
+# sessions through `bars_asof` (`snapshot_builder`), i.e. completed sessions only.
 ANCHOR_COLUMNS = ("bars_asof", "atr_pct", "pt_target",
-                  "candle_trend", "avg_body", "avg_range")
+                  "candle_trend", "avg_body", "avg_range", "avg_volume_30d")
 
 #: The one SELECT the sweep runs against `screener_rows`. Derived from the two
 #: lists above so a 23rd live column cannot be forgotten here.
@@ -237,7 +267,9 @@ def live_columns_effective() -> tuple:
     """
     if _EFFECTIVE_COLUMNS is not None:
         return _EFFECTIVE_COLUMNS
-    return tuple(c for c in LIVE_COLUMNS if c not in FEED_FIELD_DEPENDENCIES)
+    return tuple(c for c in LIVE_COLUMNS
+                 if c not in FEED_FIELD_DEPENDENCIES
+                 and c not in CURVE_DEPENDENT_COLUMNS)
 
 
 def columns_not_recomputed() -> tuple:
@@ -517,7 +549,8 @@ def sanity_reason(anchor_row: dict, quote, ymd: int) -> str | None:
 # --------------------------------------------------------------------------- #
 
 def derive_row(anchor_row: dict, quote, ymd: int, live_asof: float,
-               recomputed_out: set | None = None) -> dict | None:
+               recomputed_out: set | None = None,
+               volume_share: float | None = None) -> dict | None:
     """One overlay row, or ``None`` when the sanity gate refuses the symbol.
 
     ⭐ THE WRITE RULE IS "COPY THE NIGHTLY VALUE FORWARD". An overlay row
@@ -533,6 +566,11 @@ def derive_row(anchor_row: dict, quote, ymd: int, live_asof: float,
     this row genuinely recomputed. ⭐ That is what makes the disclosure
     measured rather than declared: ``live_cols`` says HOW MANY kept 03:00, and
     only the names say WHICH — and a surface cannot subtract a count.
+
+    ``volume_share`` is the usual share of a session's volume done by now
+    (``volume_curve.live_share``), computed ONCE per sweep by the caller so this
+    stays pure. ``None`` (before 09:45 ET, or no stored curve) leaves
+    ``rvol_live`` at its nightly value, which is NULL.
     """
     if sanity_reason(anchor_row, quote, ymd) is not None:
         return None
@@ -625,6 +663,15 @@ def derive_row(anchor_row: dict, quote, ymd: int, live_asof: float,
     pt_target = _num(anchor_row.get("pt_target"))
     if pt_target is not None and pt_target > 0:
         put("pt_upside_pct", round((pt_target / p1 - 1) * 100, 2))
+
+    # 29 — volume vs usual BY NOW. The level (`avg_volume_30d`) is from completed
+    # sessions; the share is the nightly curve read at this minute; only the
+    # numerator is today's. `volume_curve.rvol` refuses any missing/non-positive
+    # input, so a blank share or a zero average stays NULL, never a guess.
+    if volume_share is not None:
+        put("rvol_live", volume_curve.rvol(quote.get("today_vol"),
+                                           anchor_row.get("avg_volume_30d"),
+                                           volume_share))
 
     # ── the FORMING bar's shape ────────────────────────────────────────────
     # ⭐ ONE CLASSIFIER, NOT A SECOND ONE. This builds the same `BarCtx` the
@@ -753,6 +800,11 @@ def _blank_receipt(**over) -> dict:
         # `test_every_cycle_returns_the_same_key_set` exists because a receipt whose key set
         # varies by path cannot be compared across cycles, and it caught exactly that.
         "snapshot_ms": 0.0,
+        # The usual share of a session's volume done by this sweep's minute, the
+        # one number every row's `rvol_live` divides by. None = blank this cycle
+        # (before 09:45 ET, or no stored curve), named so the receipt says WHY
+        # `rvol_live` is in `columns_not_recomputed`.
+        "volume_share": None,
         "duration_ms": 0.0,
         # R72 (D-21): the three SQLite touches inside `_sweep_locked`, timed
         # separately, each split into busy-wait (retrying because someone else
@@ -864,6 +916,10 @@ def run_sweep() -> dict:
     snap = scan_volume.full_market_snapshot() or {}
     receipt["snapshot_ms"] = round((time.time() - t_snap) * 1000, 2)
 
+    # ONE share per sweep, read before the lock (the curve is not an anchor the
+    # build rewrites under us, and a per-row read would be a per-row fanout).
+    receipt["volume_share"] = _volume_share(now)
+
     t_lock = time.time()
     if not snapshot_builder._BUILD_LOCK.acquire(blocking=False):
         receipt["skipped_reason"] = "build_in_flight"
@@ -888,6 +944,18 @@ def run_sweep() -> dict:
         snapshot_builder._BUILD_LOCK.release()
         receipt["held_lock_ms"] = round((time.time() - t_held) * 1000, 2)
     return _finish(receipt, t0)
+
+
+def _volume_share(now_et) -> float | None:
+    """The usual share of the day's volume done by ``now_et``, from the stored
+    nightly curve, or ``None``. Never raises: a curve that cannot be read blanks
+    ``rvol_live`` for this cycle and costs nothing else."""
+    try:
+        return volume_curve.live_share(now_et, volume_curve.latest_curve())
+    except Exception as e:                                  # noqa: BLE001
+        log.warning("[screener-live] volume curve unreadable: %s: %s",
+                    type(e).__name__, e)
+        return None
 
 
 #: Which screener.db files this PROCESS has already run the DDL against, keyed
@@ -950,7 +1018,8 @@ def _sweep_locked(receipt: dict, ymd: int, scan_volume, snap: dict) -> None:
             receipt["skipped"][reason] += 1
             continue
         got: set = set()
-        derived = derive_row(row, quote, ymd, as_of, recomputed_out=got)
+        derived = derive_row(row, quote, ymd, as_of, recomputed_out=got,
+                             volume_share=receipt.get("volume_share"))
         if derived is None:          # defensive; the gate already answered
             receipt["skipped"]["no_feed"] += 1
             continue

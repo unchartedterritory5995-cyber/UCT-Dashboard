@@ -1181,7 +1181,8 @@ def _run_build_locked(max_tickers=None) -> dict:
         snapshot_db.upsert_rows(batch)
 
     empty_columns = sorted(c for c in snapshot_db.COLUMNS
-                           if built and populated[c] == 0)
+                           if built and populated[c] == 0
+                           and c not in snapshot_db.LIVE_ONLY_COLUMNS)
     log.info("[screener] build done built=%s skipped=%s errors=%s "
              "rs_map=%s bulk_map=%s empty_columns=%s",
              built, skipped, errors, len(rs_map), len(bulk_map),
