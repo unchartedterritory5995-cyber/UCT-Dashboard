@@ -64,17 +64,39 @@ def test_the_calendar_edit_keeps_the_existing_reporters_and_the_indent_1_shape(t
 def test_the_child_applies_the_sandbox_env_before_it_imports_any_api_module():
     """The live-data-root rule rests on this ORDER: the sandbox env is applied first, or the first `api` import resolves
     its data paths to the live files. Compared by string index, with a control proving the check can see a real
-    occurrence (a child with the two lines swapped must fail the same comparison)."""
+    occurrence (a child with the two lines swapped must fail the same comparison). CODE, never prose: the source is read
+    as TOKENS, so a comment or a string that merely mentions either statement is not an occurrence."""
+    import io
+    import tokenize
+
+    def code_tokens(src: str) -> list:
+        skip = (tokenize.COMMENT, tokenize.STRING, tokenize.NL, tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT)
+        return [t for t in tokenize.generate_tokens(io.StringIO(src).readline) if t.type not in skip]
+
+    def first(toks: list, pair: tuple) -> tuple | None:
+        for a, b in zip(toks, toks[1:]):
+            if (a.string, b.string) == pair:
+                return a.start
+        return None
+
     def order_ok(src: str) -> bool:
-        apply_at = src.find("apply_sandbox_env(")
-        api_at = min([i for i in (src.find("from api"), src.find("import api")) if i >= 0], default=-1)
-        return 0 <= apply_at < api_at          # both found, and the sandbox first
+        toks = code_tokens(src)
+        apply_at = first(toks, ("apply_sandbox_env", "("))
+        api_at = min([p for p in (first(toks, ("from", "api")), first(toks, ("import", "api"))) if p], default=None)
+        return apply_at is not None and api_at is not None and apply_at < api_at   # both found, and the sandbox first
+
     assert order_ok(C.FOLLOWUP_CHILD)
     # CONTROL: the same two statements in the wrong order are refused, and a source with no api import cannot pass.
     swapped = "from api.services import auth_db\nb.apply_sandbox_env(data_dir)\n"
     assert not order_ok(swapped)
     assert not order_ok("b.apply_sandbox_env(data_dir)\n")
-    assert C.FOLLOWUP_CHILD.find("apply_sandbox_env(") >= 0 and C.FOLLOWUP_CHILD.find("from api") >= 0
+    # CONTROL: a comment or a string naming the call above the real import is NOT the call (decoys are refused) ...
+    assert not order_ok("# b.apply_sandbox_env(data_dir)\nfrom api.services import auth_db\nb.apply_sandbox_env(d)\n")
+    assert not order_ok('"""b.apply_sandbox_env(d)"""\nfrom api.services import auth_db\nb.apply_sandbox_env(d)\n')
+    # ... and a commented-out api import before the call does not make a correct child fail.
+    assert order_ok("# from api.services import auth_db\nb.apply_sandbox_env(d)\nfrom api.services import auth_db\n")
+    toks = code_tokens(C.FOLLOWUP_CHILD)
+    assert first(toks, ("apply_sandbox_env", "(")) and first(toks, ("from", "api"))
 
 
 def test_the_walks_expected_number_lines_are_what_the_product_writes_for_the_childs_seed():

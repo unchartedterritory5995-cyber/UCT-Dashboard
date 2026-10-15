@@ -17,7 +17,8 @@ one field both the memory and the snapshot layers carry (never `age_seconds` or 
 
 SHARED HELPERS (one place, for the follow-up job, Task 7, to import rather than restate): `_day_words`,
 `as_number`, `quarter_for`, `event_for`, `valid_symbol` (the server's own ticker shape, notes._validate_ticker),
-`_today_et`. Trading-day arithmetic is reminder_block.add_trading_days; there is no copy of it here.
+`_today_et`. Which session reacted is earnings_followup.reaction_session (over reminder_block.add_trading_days);
+there is no copy of either here.
 """
 from __future__ import annotations
 
@@ -30,7 +31,6 @@ from typing import Any
 from api.services.journal_two import journal_styles as _js
 from api.services.journal_two import sample_marker
 from api.services.journal_two.earnings_prep import SRC_EARNINGS
-from api.services.journal_two.reminder_block import add_trading_days
 from api.services.journal_two.sample_examples import EARNINGS_PREP_TAG
 from api.services.journal_two.timeutil import ET
 
