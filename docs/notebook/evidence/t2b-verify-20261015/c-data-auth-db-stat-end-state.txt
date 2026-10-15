@@ -1,0 +1,7 @@
+END STATE, taken after the run, NO pre-run capture exists. A stat only (read-only); nothing under the shared data root was opened for write.
+taken_at: 2026-10-15T12:17:37.0882105-05:00
+path: C:\data\auth.db
+length_bytes: 1011220480
+LastWriteTime: 2026-10-02T23:58:04.0443364-05:00
+LastWriteTimeUtc: 2026-10-03T04:58:04.0443364Z
+What this shows and does not show: an mtime older than every probe is consistent with no write; it is not proof of one. The protection is the census pin: the V2-V4, V6 and V18 probes call hub_sandbox_boot.apply_sandbox_env before any api.* import (read the scripts in probes/), and only the V2-V4 probe also prints auth_db_path in its HEAD line (a scratchpad path). The V16 probe opens no data path at all.

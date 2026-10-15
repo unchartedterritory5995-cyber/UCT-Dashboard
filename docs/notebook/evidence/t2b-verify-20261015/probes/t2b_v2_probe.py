@@ -13,6 +13,7 @@ import json
 import os
 import sys
 import time
+import random
 from collections import Counter
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
@@ -46,6 +47,12 @@ head = {"at": now.isoformat(), "today": today.isoformat(), "prev": prev.isoforma
 print("HEAD " + json.dumps(head), flush=True)
 
 
+def spread(syms, k):
+    """A SEEDED spread over the day's reporters, not the alphabetical head (sorted()[:k] is biased to A-names)."""
+    syms = sorted(syms)
+    return sorted(random.Random(20261015).sample(syms, min(k, len(syms))))
+
+
 def reporters(day):
     t0 = time.monotonic()
     syms, ok = calendar_alerts._get_reporters_for_date_with_status(day.isoformat())
@@ -57,7 +64,7 @@ if part in ("v2", "all"):
     rows = []
     for day in (today, prev):
         syms, ok, secs = reporters(day)
-        for sym in syms[:6]:
+        for sym in spread(syms, 6):
             t0 = time.monotonic()
             p = earnings_intel._build(sym)
             q = next((q for q in p.get("quarters") or [] if q.get("reported")), {})
@@ -69,13 +76,13 @@ if part in ("v2", "all"):
                          "n_quarters": len(p.get("quarters") or [])})
             picked.append((day, sym))
         rows.append({"day": day.isoformat(), "reporters_count": len(syms), "ok": ok, "lookup_secs": secs,
-                     "sample_only": syms[:6]})
+                     "sample_only": spread(syms, 6)})
     print("V2 " + json.dumps(rows), flush=True)
 
 if part in ("v3", "all"):
     from api.services import bars_fetch
     out = []
-    for day, sym in (picked[:2] or [(today, s) for s in reporters(today)[0][:2]]):
+    for day, sym in (picked[:2] or [(today, s) for s in spread(reporters(today)[0], 2)]):
         t0 = time.monotonic()
         r = bars_fetch._get_bars_inner(sym, "D", 5)
         bars = r.get("bars") if isinstance(r, dict) else r
@@ -88,7 +95,7 @@ if part in ("v4", "all"):
     syms, ok, secs = reporters(prev)
     cal = cache.get("calendar_weekly") or {}
     leg_cache = bool(((cal.get("days") or {}).get(prev.isoformat()) or {}))
-    timing = {s: earnings_prep._timing_from_calendar_cache(s, prev.isoformat()) for s in syms[:12]}
+    timing = {s: earnings_prep._timing_from_calendar_cache(s, prev.isoformat()) for s in spread(syms, 12)}
     from api.services.finnhub_client import fh_get
     t0 = time.monotonic()
     fh = fh_get("/calendar/earnings", {"from": prev.isoformat(), "to": prev.isoformat()}, timeout=10)

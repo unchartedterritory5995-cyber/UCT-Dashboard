@@ -1,10 +1,10 @@
   Model keys   : BLANKED ANTHROPIC_API_KEY, WISDOM_ANTHROPIC_API_KEY, OPENAI_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_AUTH_TOKEN; keyring -> null backend (opt in: --allow-model-keys or HUB_SANDBOX_ALLOW_MODEL_KEYS=1)
-HEAD {"at": "2026-10-15T12:59:18.675808-04:00", "today": "2026-10-15", "prev": "2026-10-14", "part": "all", "keys_present": {"FINNHUB_API_KEY": false, "FMP_API_KEY": false, "MASSIVE_API_KEY": false}, "MEASUREMENT_VALID": false, "data_dir_outside_C_data": true, "auth_db_path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\61625d99-f8db-4269-a728-231c08d3da11\\scratchpad\\t2b-v2-data-smoke\\auth.db"}
+HEAD {"at": "2026-10-15T13:17:28.640783-04:00", "today": "2026-10-15", "prev": "2026-10-14", "part": "all", "keys_present": {"FINNHUB_API_KEY": false, "FMP_API_KEY": false, "MASSIVE_API_KEY": false}, "MEASUREMENT_VALID": false, "data_dir_outside_C_data": true, "auth_db_path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\61625d99-f8db-4269-a728-231c08d3da11\\scratchpad\\t2b-v2-data-smoke2\\auth.db"}
 V2 [{"day": "2026-10-15", "reporters_count": 0, "ok": true, "lookup_secs": 0.09, "sample_only": []}, {"day": "2026-10-14", "reporters_count": 0, "ok": true, "lookup_secs": 0.0, "sample_only": []}]
 FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
 FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
-FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
 V3_BARS []
+FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
 FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
 FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
 V4 {"prev": "2026-10-14", "reporters_count": 0, "ok": true, "lookup_secs": 0.0, "answered_by_cache_leg": false, "timing_from_calendar_cache": {}, "finnhub_returned_dict": false, "finnhub_rows": null, "finnhub_hour_values": {}, "finnhub_row_keys": null, "finnhub_secs": 0.0}
