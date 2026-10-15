@@ -13,6 +13,10 @@ import { smartChipsEnabled } from './smartChipsFlag'
  * the menu's reducer bails (the TY7 lesson in LinkPasteMenu.jsx). Switch off -> one flag read.
  * ⛔ IT NEVER SETS AN ALERT. Alt+Enter asks the editor page to open the sheet; the member presses.
  * ⛔ PRIORITY 50: every suggestion menu (slash, @ dates, note links) sees Enter and Escape first.
+ * ⛔ HOSTED ONLY. `buildExtensions()` also feeds the dashboard widget, the rich-text field and the
+ * version preview, none of which mounts the chip menu. Offering there would swallow Escape and
+ * Alt+Enter with nothing on screen, so the plugin offers nothing until a menu has said it is
+ * mounted (`setAlertOfferHosted`, called by AlertPhraseMenu's mount effect).
  */
 export const alertPhraseKey = new PluginKey('uctAlertPhraseOffer')
 export const ALERT_OFFER_EVENT = 'uct:notebook-alert-offer'
@@ -31,6 +35,18 @@ export function offerAt(state, dismissed) {
   return parsed ? { from: $head.start(), to: $head.end(), text, parsed } : null
 }
 
+/** The menu's mount/unmount handshake. Flips the flag, then sends a no-op meta transaction so the
+ *  plugin state recomputes at once (`meta` is `{}`: it names no dismissal). */
+export function setAlertOfferHosted(editor, hosted) {
+  const store = editor?.storage?.alertPhraseOffer
+  if (!store) return
+  store.hosted = hosted === true
+  // ⛔ `editor.view` IS A THROWING GETTER while no view is mounted (R5-1); `isDestroyed` is false exactly
+  // when a live view exists. With none, the flag alone is enough: the first transaction reads it.
+  if (editor.isDestroyed) return
+  editor.view.dispatch(editor.state.tr.setMeta(alertPhraseKey, {}))
+}
+
 export const dismissAlertOffer = (editor) => {
   if (!editor || editor.isDestroyed) return
   const st = alertPhraseKey.getState(editor.state)
@@ -41,6 +57,9 @@ export const dismissAlertOffer = (editor) => {
 export const AlertPhraseOffer = Extension.create({
   name: 'alertPhraseOffer',
   priority: 50,
+  addStorage() {
+    return { hosted: false }
+  },
   addProseMirrorPlugins() {
     const editor = this.editor
     return [new Plugin({
@@ -49,6 +68,7 @@ export const AlertPhraseOffer = Extension.create({
         init: () => EMPTY,
         apply(tr, value, _old, next) {
           if (!smartChipsEnabled()) return EMPTY
+          if (editor?.storage?.alertPhraseOffer?.hosted !== true) return EMPTY
           const meta = tr.getMeta(alertPhraseKey)
           let { dismissed } = value
           if (meta?.dismiss) dismissed = [...dismissed, meta.dismiss].slice(-DISMISS_KEEP)

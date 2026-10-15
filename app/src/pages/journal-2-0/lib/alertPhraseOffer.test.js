@@ -12,7 +12,7 @@ import { SuggestionPluginKey } from '@tiptap/suggestion'
 
 vi.mock('./smartChipsFlag', () => ({ smartChipsEnabled: vi.fn(() => true) }))
 import { smartChipsEnabled } from './smartChipsFlag'
-import { ALERT_OFFER_EVENT, AlertPhraseOffer, alertPhraseKey, dismissAlertOffer } from './alertPhraseOffer'
+import { ALERT_OFFER_EVENT, AlertPhraseOffer, alertPhraseKey, dismissAlertOffer, setAlertOfferHosted } from './alertPhraseOffer'
 import { buildExtensions } from './tiptap'
 
 // jsdom has no Range geometry; the slash popup positions itself off the caret.
@@ -20,8 +20,11 @@ if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
 if (!Range.prototype.getBoundingClientRect) Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
 
 let editor
-const make = (html = '<p></p>') => {
+// The plugin offers nothing until a menu hosts it (AlertPhraseMenu's mount effect), so every editor in
+// this file is hosted the way the menu hosts it -- except the ones that prove the unhosted case.
+const make = (html = '<p></p>', { hosted = true } = {}) => {
   editor = new Editor({ extensions: [StarterKit, AlertPhraseOffer], content: html })
+  if (hosted) setAlertOfferHosted(editor, true)
   return editor
 }
 const offer = () => alertPhraseKey.getState(editor.state).offer
@@ -99,6 +102,40 @@ describe('the alert offer', () => {
     make(); typeAtEnd('alert me if NVDA closes below 120')
     expect(offer()).toBeNull()
   })
+  it('an UNHOSTED editor offers nothing and takes neither Escape nor Alt+Enter', () => {
+    // The dashboard widget, the rich-text field and the version preview build the same roster but mount
+    // no chip menu: here the plugin must be invisible, or it swallows two keys with nothing on screen.
+    make('<p></p>', { hosted: false })
+    typeAtEnd('alert me if NVDA closes below 120')
+    expect(offer()).toBeNull()
+    const plugin = editor.state.plugins.find((p) => p.spec.key === alertPhraseKey)
+    const key = (init) => plugin.props.handleKeyDown(editor.view, new KeyboardEvent('keydown', init))
+    expect(key({ key: 'Escape' })).toBe(false)
+    expect(key({ key: 'Enter', altKey: true })).toBe(false)
+    // Control: the SAME sentence in a hosted editor IS offered and IS taken, so the false above is a refusal.
+    setAlertOfferHosted(editor, true)
+    expect(offer()).not.toBeNull()
+    expect(key({ key: 'Enter', altKey: true })).toBe(true)
+  })
+  it('un-hosting (the menu unmounting) takes the offer and the keys away at once', () => {
+    make(); typeAtEnd('alert me if NVDA closes below 120')
+    expect(offer()).not.toBeNull()
+    setAlertOfferHosted(editor, false)
+    expect(offer()).toBeNull()
+    const plugin = editor.state.plugins.find((p) => p.spec.key === alertPhraseKey)
+    expect(plugin.props.handleKeyDown(editor.view, new KeyboardEvent('keydown', { key: 'Escape' }))).toBe(false)
+  })
+  it('the hosting handshake is a meta-only transaction that dismisses nothing', () => {
+    make(); typeAtEnd('alert me if NVDA closes below 120')
+    const before = alertPhraseKey.getState(editor.state)
+    editor.view.dispatch(editor.state.tr.setMeta(alertPhraseKey, {}))   // what setAlertOfferHosted sends
+    const after = alertPhraseKey.getState(editor.state)
+    expect(after.dismissed).toBe(before.dismissed)                       // meta?.dismiss stayed undefined
+    expect(after.offer).toBe(before.offer)
+    expect(after).toBe(before)                                           // identity held: the menu does not re-render
+    dismissAlertOffer(editor)                                           // and dismiss still works after one
+    expect(offer()).toBeNull()
+  })
   it('a read-only editor offers nothing', () => {
     make('<p>alert me if NVDA closes below 120</p>'); editor.setEditable(false)
     editor.commands.setTextSelection(5)
@@ -124,6 +161,7 @@ describe('Escape goes to an open suggestion menu before the offer', () => {
       extensions: buildExtensions(),
       content: { type: 'doc', content: [{ type: 'paragraph' }] },
     })
+    setAlertOfferHosted(editor, true)
     render(createElement(EditorContent, { editor }))
     editor.commands.focus('end', { scrollIntoView: false })
     await act(async () => { editor.commands.insertContent('alert me if NVDA closes below 120 /') })

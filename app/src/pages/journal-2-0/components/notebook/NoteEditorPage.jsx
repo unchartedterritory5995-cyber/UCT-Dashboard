@@ -138,6 +138,7 @@ import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { TranscriptInsertHost } from './TranscriptDoors'
 import { normalizeNoteTicker } from '../../lib/noteTicker'
+import { smartChipsEnabled } from '../../lib/smartChipsFlag'
 
 // The read-only property mirror of the note's ticker. The details region carries the ONE
 // editable Ticker control, so PropertiesSection leaves this row out (stable array: its memo key).
@@ -167,6 +168,10 @@ const TradeCanvasBoard = lazyChunk(() => import('./TradeCanvasBoard'))
 // Wave 13 lane 13D — "what you wrote then": a resurfacing insight opens the note with
 // `?resurfaceVersion=<id>`. LAZY: only that door ever renders it.
 const ResurfaceVersionSheet = lazyChunk(() => import('./ResurfaceVersionSheet'))
+// Notebook P2 Tier 2 part A, item 8: the "Set alert" chip for a sentence like "alert me if NVDA closes below
+// 120". LAZY, and mounted only while the smart-chips switch is on (an off switch never fetches it). Its mount
+// is also what switches the alert plugin on (lib/alertPhraseOffer.js: HOSTED ONLY).
+const AlertPhraseMenu = lazyChunk(() => import('./AlertPhraseMenu'))
 // Notebook P1 (spec P1.3): the "Update layout" offer, its previewed sheet, the /style chooser and the
 // "updated" confirmation, behind ONE lazy import (a second import of the same module costs first-open bytes).
 // Mounted only while journalStylesEnabled() -- a switch that is off never fetches it.
@@ -5185,6 +5190,9 @@ export default function NoteEditorPage({
             and renders nothing anywhere else (or on a read-only note). */}
         <TableToolbar editor={editor} />
         <LinkPasteMenu editor={editor} />
+        {smartChipsEnabled() && (
+          <Suspense fallback={null}><AlertPhraseMenu editor={editor} noteTicker={note?.ticker || null} /></Suspense>
+        )}
 
         {offerCanvasLink && (
           <LinkCanvasOffer canvasId={linkCanvasId} onAdd={acceptCanvasLink} onDismiss={clearLinkCanvasParam} />
