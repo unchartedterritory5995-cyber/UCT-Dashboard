@@ -1603,12 +1603,21 @@ def _run_ticker_backfill(results: list[dict], errors: list[dict]) -> None:
 # Zoom AI-Companion text ("The meeting focused on…", 6 long paragraphs) on the
 # Desk permanently. 9 sessions were stuck that way on 2026-10-14. This retries
 # from STORED data only (repolish_video), at most _REPOLISH_PER_PASS per pass,
-# and each video at most once per _REPOLISH_COOLDOWN_SECS per process, so a
-# persistently failing video costs a bounded number of LLM calls per day.
+# each video at most once per _REPOLISH_COOLDOWN_SECS and at most
+# _REPOLISH_MAX_ATTEMPTS times EVER. The attempt record lives on the volume
+# (desk_repolish_attempts.json), not in memory: web restarts several times a
+# day, and an in-memory cooldown would hand a persistently failing video a fresh
+# LLM call after every deploy. If that record cannot be written, nothing is
+# attempted (fail closed: an unrecordable attempt is an unbounded one).
 
 _REPOLISH_PER_PASS = 2
 _REPOLISH_COOLDOWN_SECS = 24 * 3600
-_REPOLISH_LAST_TRY: dict[int, float] = {}
+_REPOLISH_MAX_ATTEMPTS = 3
+
+
+def _repolish_ledger_path() -> str:
+    from api.services import desk_creative
+    return os.path.join(desk_creative._data_dir(), "desk_repolish_attempts.json")
 # Openers the polish prompt forbids ("NEVER write meta-narration") — Zoom's own.
 _RAW_HEADLINE = re.compile(
     r"^(the (meeting|session|discussion|conversation|call)\b|this was a\b|in this (meeting|session)\b"
@@ -1627,19 +1636,40 @@ def looks_unpolished(headline: str) -> bool:
     return bool(_RAW_HEADLINE.match(h)) or len(h) > 200
 
 
+# ⛔ NOT gated on DESK_RECAP_POLISH (owner ruling 2026-10-15). Production runs
+# with that OFF on purpose: the polish moved to an off-box PC script on the
+# Claude subscription (docs/terminal-research/08-ai/existing-ai-systems.md §5e),
+# which polishes nearly every session overnight. Measured 2026-10-15: 21 of the
+# last 25 sessions polished, while 8 it had missed sat with raw Zoom prose for
+# up to three months. So this backfill is the safety net for THAT lane: it only
+# touches a session older than _repolish_min_age_secs(), by which time the PC
+# script has had its turn, so the two never polish the same fresh session.
+# Cost is bounded by the per-pass, per-day and lifetime limits above.
+# Kill switch: DESK_REPOLISH_BACKFILL=0.
+def _repolish_min_age_secs() -> int:
+    try:
+        return int(os.environ.get("DESK_REPOLISH_MIN_AGE_SECS", str(3 * 24 * 3600)))
+    except ValueError:
+        return 3 * 24 * 3600
+
+
 def _repolish_backfill_enabled() -> bool:
-    return os.environ.get("DESK_REPOLISH_BACKFILL", "1") != "0" and _recap_polish_enabled()
+    return os.environ.get("DESK_REPOLISH_BACKFILL", "1") != "0"
 
 
 def _run_repolish_backfill(results: list[dict], errors: list[dict], now: float | None = None) -> None:
     if not _repolish_backfill_enabled():
         return
     now = time.time() if now is None else now
+    min_age = _repolish_min_age_secs()
     try:
         rows = education_service.session_videos_with_headlines()
     except Exception as e:
         print(f"[session-insights] repolish list failed: {e}")
         return
+    from api.services import desk_cover_retry  # its atomic JSON read/write
+    path = _repolish_ledger_path()
+    ledger = desk_cover_retry._read(path)
     tried = 0
     for v in rows:
         if tried >= _REPOLISH_PER_PASS:
@@ -1647,10 +1677,20 @@ def _run_repolish_backfill(results: list[dict], errors: list[dict], now: float |
         vid = int(v["id"])
         if not looks_unpolished(v.get("headline") or ""):
             continue
-        last = _REPOLISH_LAST_TRY.get(vid)
-        if last is not None and now - last < _REPOLISH_COOLDOWN_SECS:
+        if now - float(v.get("created_at") or 0) < min_age:
+            continue  # still the off-box polish script's turn
+        rec = ledger.get(str(vid)) or {}
+        attempts = int(rec.get("attempts") or 0)
+        if attempts >= _REPOLISH_MAX_ATTEMPTS:
             continue
-        _REPOLISH_LAST_TRY[vid] = now
+        if rec.get("last") is not None and now - float(rec["last"]) < _REPOLISH_COOLDOWN_SECS:
+            continue
+        ledger[str(vid)] = {"attempts": attempts + 1, "last": int(now)}
+        try:
+            desk_cover_retry._write(path, ledger)
+        except Exception as e:
+            print(f"[session-insights] repolish ledger unwritable, skipping pass: {e}")
+            return
         tried += 1
         try:
             out = repolish_video(vid)

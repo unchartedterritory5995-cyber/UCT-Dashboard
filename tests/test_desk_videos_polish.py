@@ -1,6 +1,7 @@
 """Desk Videos polish (2026-10-14): measured lengths, recorded lengths, the
 repolish backfill for sessions stuck with Zoom's raw prose, and same-name show
 routing. No network, no LLM: repolish_video is stubbed and the DB is a temp file."""
+import json
 import os
 import tempfile
 
@@ -110,11 +111,26 @@ def test_polished_headlines_are_left_alone(h):
     assert not si.looks_unpolished(h)
 
 
-def test_repolish_backfill_is_bounded_per_pass_and_per_day(monkeypatch):
-    rows = [{"id": i, "title": f"S{i}", "headline": "The meeting focused on things."} for i in range(1, 6)]
-    rows.append({"id": 99, "title": "ok", "headline": "Semis lead as QQQ reclaims the 50-day"})
+OLD = 1_000_000 - 10 * 86400  # created well past the 3-day hand-off
+
+
+@pytest.fixture
+def ledger(monkeypatch, tmp_path):
+    path = str(tmp_path / "desk_repolish_attempts.json")
+    monkeypatch.setattr(si, "_repolish_ledger_path", lambda: path)
+    monkeypatch.delenv("DESK_REPOLISH_BACKFILL", raising=False)
+    monkeypatch.delenv("DESK_REPOLISH_MIN_AGE_SECS", raising=False)
+    return path
+
+
+def _raw(i, created=OLD):
+    return {"id": i, "title": f"S{i}", "headline": "The meeting focused on things.", "created_at": created}
+
+
+def test_repolish_backfill_is_bounded_per_pass_and_per_day(monkeypatch, ledger):
+    rows = [_raw(i) for i in range(1, 6)]
+    rows.append({"id": 99, "title": "ok", "headline": "Semis lead as QQQ reclaims the 50-day", "created_at": OLD})
     monkeypatch.setattr(edu, "session_videos_with_headlines", lambda: rows)
-    monkeypatch.setattr(si, "_REPOLISH_LAST_TRY", {})
     called = []
     monkeypatch.setattr(si, "repolish_video", lambda vid: called.append(vid) or {"headline": "new"})
     res, errs = [], []
@@ -130,23 +146,71 @@ def test_repolish_backfill_is_bounded_per_pass_and_per_day(monkeypatch):
     assert called[-2:] == [1, 2]                          # retried after a day
 
 
-def test_repolish_failure_is_recorded_not_raised(monkeypatch):
+def test_repolish_leaves_a_fresh_session_to_the_off_box_polish_script(monkeypatch, ledger):
+    now = 1_000_000
+    rows = [_raw(1, created=now - 2 * 86400), _raw(2, created=now - 4 * 86400)]
+    monkeypatch.setattr(edu, "session_videos_with_headlines", lambda: rows)
+    called = []
+    monkeypatch.setattr(si, "repolish_video", lambda vid: called.append(vid) or {"headline": "new"})
+    si._run_repolish_backfill([], [], now=now)
+    assert called == [2]                                  # 2 days old waits, 4 days old is fixed
+
+
+def test_repolish_runs_while_server_polish_is_off(monkeypatch, ledger):
+    # Production runs DESK_RECAP_POLISH=0 (the PC script polishes); the safety
+    # net must still cover what that script missed.
+    monkeypatch.setenv("DESK_RECAP_POLISH", "0")
+    monkeypatch.setattr(edu, "session_videos_with_headlines", lambda: [_raw(5)])
+    called = []
+    monkeypatch.setattr(si, "repolish_video", lambda vid: called.append(vid) or {"headline": "new"})
+    si._run_repolish_backfill([], [], now=1_000_000)
+    assert called == [5]
+
+
+def test_repolish_attempts_survive_a_restart_and_stop_after_three(monkeypatch, ledger):
+    monkeypatch.setattr(edu, "session_videos_with_headlines", lambda: [_raw(7)])
+    calls = []
+
+    def boom(vid):
+        calls.append(vid)
+        raise RuntimeError("thin recap")
+    monkeypatch.setattr(si, "repolish_video", boom)
+    day = 24 * 3600 + 1
+    for k in range(6):                                    # six days of passes
+        si._run_repolish_backfill([], [], now=1_000_000 + k * day)
+        si._run_repolish_backfill([], [], now=1_000_000 + k * day + 900)  # a restart's fresh pass
+    assert calls == [7, 7, 7]                             # once a day, three times ever
+    assert json.loads(open(ledger, encoding="utf-8").read())["7"]["attempts"] == 3
+
+
+def test_repolish_attempts_nothing_when_its_record_cannot_be_written(monkeypatch, ledger):
+    from api.services import desk_cover_retry
+    monkeypatch.setattr(edu, "session_videos_with_headlines", lambda: [_raw(8)])
+
+    def cannot_write(_path, _data):
+        raise OSError("read-only volume")
+    monkeypatch.setattr(desk_cover_retry, "_write", cannot_write)
+    monkeypatch.setattr(si, "repolish_video", lambda vid: pytest.fail("an unrecorded attempt is unbounded"))
+    si._run_repolish_backfill([], [], now=1_000_000)
+
+
+def test_repolish_failure_is_recorded_not_raised(monkeypatch, ledger):
     monkeypatch.setattr(edu, "session_videos_with_headlines",
-                        lambda: [{"id": 7, "title": "S", "headline": "The meeting was long."}])
-    monkeypatch.setattr(si, "_REPOLISH_LAST_TRY", {})
+                        lambda: [{"id": 7, "title": "S", "headline": "The meeting was long.", "created_at": OLD}])
 
     def boom(_vid):
         raise RuntimeError("llm down")
     monkeypatch.setattr(si, "repolish_video", boom)
     res, errs = [], []
-    si._run_repolish_backfill(res, errs, now=5)
+    si._run_repolish_backfill(res, errs, now=1_000_000)
     assert errs and errs[0]["id"] == 7 and "llm down" in errs[0]["error"]
 
 
-def test_repolish_backfill_kill_switch(monkeypatch):
+def test_repolish_backfill_kill_switch(monkeypatch, ledger):
     monkeypatch.setenv("DESK_REPOLISH_BACKFILL", "0")
+    monkeypatch.setattr(edu, "session_videos_with_headlines", lambda: [_raw(9)])
     monkeypatch.setattr(si, "repolish_video", lambda vid: pytest.fail("must not run"))
-    si._run_repolish_backfill([], [], now=1)
+    si._run_repolish_backfill([], [], now=1_000_000)
 
 
 def test_session_videos_with_headlines_lists_only_enriched_sessions(db):
