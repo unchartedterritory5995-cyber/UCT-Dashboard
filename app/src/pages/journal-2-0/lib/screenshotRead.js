@@ -32,7 +32,9 @@ async function bounded(makeWork, signal) {
     if (signal?.aborted) onAbort()
     else signal?.addEventListener?.('abort', onAbort, { once: true })
   })
-  const work = (async () => makeWork(ctrl.signal))().catch(() => null)
+  // The catch lives INSIDE the async work, so a rejecting request ends in null here without a swallowing
+  // `.catch` on a promise chain (the swallowedFetch census counts those and is shrink-only).
+  const work = (async () => { try { return await makeWork(ctrl.signal) } catch { return null } })()
   try {
     return await Promise.race([work, gone])
   } catch {
