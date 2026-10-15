@@ -1,0 +1,3 @@
+04:44:25 before on-blocks-f1    available_MB=13,940 cpu_mean= 42.1 cpu_max= 50.9
+04:46:22 after on-blocks-f1     available_MB=13,877 cpu_mean= 42.5 cpu_max= 47.4
+started=2026-10-15T04:44:25.4750229-05:00 exit=1
