@@ -20,7 +20,8 @@ THE RULES (R-T2B-1..6, 10):
   is what makes the second sight a no-op, so a report is offered exactly once however many days see it.
 * CLAIM, THEN DELIVER (note_tasks' idiom): ONE atomic INSERT claims AND enforces DAILY_CAP per member
   per session day; a delivery that raises releases its claim.
-* Inside the cap: largest |reaction| first, an unmeasured one last, then by symbol. The rest are
+* Inside the cap: largest |reaction| first, an unmeasured one last (a move counts only when MEASURED: the reacting
+  session's close + 30 minutes had passed when UCT read it, followup_prefill.measured_move), then by symbol. The rest are
   counted (`capped`) and RECORDED in the claim table with status 'capped': capped is FINAL, the same
   primary key keeps every later pass, day and catch-up from delivering them (they never roll over to
   the next session). `session_day` is the DELIVERY day (the run's day, which is what the cap counts),
@@ -210,11 +211,15 @@ def _paid(user_id: str, conn) -> bool:
 
 
 def _reaction_pct(symbol: str, report_date: str) -> float | None:
-    """The reaction for ranking, and the WARM of earnings_intel for the member's create (R-T2B-10)."""
+    """The reaction for ranking, and the WARM of earnings_intel for the member's create (R-T2B-10).
+
+    ⛔ Only a MEASURED move (followup_prefill.measured_move: the same gate the note's "Reaction:" line uses). A
+    payload read before the reacting session closed (+30 min) holds the pre-news session's move, and ranking by it
+    would fix a wrong order for good (capped is final), so an unmeasured move ranks as no move."""
     try:
         from api.services.earnings_intel import get_earnings
         from api.services.journal_two import followup_prefill as fp
-        return fp.as_number((fp.event_for(get_earnings(symbol), report_date) or {}).get("reaction_pct"))
+        return fp.measured_move(symbol, report_date, get_earnings(symbol))
     except Exception:  # noqa: BLE001
         return None
 
@@ -304,8 +309,10 @@ def _scan(conn, day: date, deliver, result: dict) -> None:
         return
     for uid in _member_ids(conn):
         try:
+            if not _paid(uid, conn):          # first: an unpaid member's sets are never read (M6)
+                continue
             mine = {s: src for s, src in _member_sets(uid).items() if s in reports}
-            if not mine or not _paid(uid, conn):
+            if not mine:
                 continue
         except Exception:  # noqa: BLE001 -- one member's unreadable sets must not stop the rest
             result["failed"] += 1

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
 
+import pytest
+
 from api.services import session_calendar
 from api.services.journal_two import journal_styles as js
 from api.services.journal_two import note_tasks, reminder_block as rb
@@ -64,3 +66,40 @@ def test_the_block_is_catalogued_with_a_builder_and_is_create_only():
                                                           "default": rb.DEFAULT_DAYS}
     assert "search" not in js._BLOCK_BY_ID["reminder"]     # not a widget: no searchText
     assert js.CREATE_ONLY_BLOCKS == frozenset({"reminder"})
+
+
+# ── the horizon guard: never a date the calendar dataset cannot vouch for ──────────────────────────────────────────
+
+def test_add_trading_days_refuses_past_the_calendar_dataset():
+    edge = session_calendar.horizon()                           # the last covered day (a Sunday: 2028-12-31)
+    last = edge
+    while not session_calendar.is_trading_day(last):
+        last -= timedelta(days=1)                               # the last covered SESSION
+    before_last = last - timedelta(days=1)
+    while not session_calendar.is_trading_day(before_last):
+        before_last -= timedelta(days=1)
+    assert rb.add_trading_days(before_last, 1) == last          # the last covered session is still reachable
+    with pytest.raises(rb.CalendarRangeError):
+        rb.add_trading_days(last, 1)                            # the next one lies beyond the dataset
+    with pytest.raises(rb.CalendarRangeError):
+        rb.add_trading_days(edge + timedelta(days=3), 1)        # a start already beyond it
+    with pytest.raises(rb.CalendarRangeError):
+        rb.add_trading_days(session_calendar.calendar().coverage_start - timedelta(days=1), 1)
+    assert issubclass(rb.CalendarRangeError, ValueError)
+
+
+def test_a_weekday_guess_past_the_range_would_have_been_a_holiday():
+    """Non-vacuity for the guard: Jan 1 2029 is a Monday NYSE holiday. is_trading_day, past the dataset, answers
+    from the weekday alone, so without the guard the walk would hand back a holiday."""
+    day = date(2029, 1, 1)
+    assert day.weekday() == 0 and not session_calendar.covers(day)
+    assert session_calendar.is_trading_day(day) is True         # the unvouched-for answer the guard refuses to use
+    with pytest.raises(rb.CalendarRangeError):
+        rb.add_trading_days(date(2028, 12, 29), 1)
+
+
+def test_the_reminder_block_is_skipped_not_dated_past_the_range():
+    edge = session_calendar.horizon()
+    now = datetime(edge.year, edge.month, edge.day, 15, 0, tzinfo=timezone.utc)
+    node, reason = rb.build_reminder({"settings": {"days": "1"}}, {"now": now, "mode": "create"})
+    assert node is None and reason == rb.CALENDAR_RANGE_REASON

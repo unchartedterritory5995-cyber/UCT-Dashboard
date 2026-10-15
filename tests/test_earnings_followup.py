@@ -803,3 +803,76 @@ def test_unknown_times_are_counted_and_reach_the_run(db, world):
         {"AAA": "2026-10-14", "BBB": "2026-10-14", "CCC": "2026-10-14"}, False, 2)
     world["sets"], world["paid"] = {"u1": {"AAA": ["watchlist"]}}, {"u1"}
     assert ring(db, at(date(2026, 10, 15)))[0]["timing_unknown"] == 2
+
+
+# ── FW-A M1: the cap's ranking uses the SAME measured gate as the note's Reaction line ─────────────────────────────
+
+_REAL_REACTION_PCT = ef._reaction_pct       # captured before the world fixture replaces it
+
+
+def _held_move(report, pct, read_at):
+    return {"quarters": [{"report_date": report, "reported": True}],
+            "reaction": {"events": [{"report_date": report, "reaction_pct": pct}]},
+            "meta": {"retrieved_at": read_at.timestamp()}}
+
+
+def test_an_unmeasured_move_ranks_as_no_move_and_never_as_a_pre_news_number(db, world, monkeypatch):
+    """Four before-the-open reports on the 15th, a cap of three. AAA's payload was read at 16:10 ET (inside the
+    30 minutes after the close) and holds a big -9.0: a pre-news number. It must rank LAST (unmeasured), so the
+    cap keeps the three measured names, biggest first, and AAA is the one capped."""
+    from api.services import earnings_intel
+    from api.services.journal_two import earnings_prep
+    monkeypatch.setattr(ef, "_reaction_pct", _REAL_REACTION_PCT)
+    monkeypatch.setattr(earnings_prep, "_timing_from_calendar_cache", lambda sym, day: "bmo")
+    read_ok, read_early = datetime(2026, 10, 15, 17, 0, tzinfo=ET), datetime(2026, 10, 15, 16, 10, tzinfo=ET)
+    held = {"AAA": _held_move("2026-10-15", -9.0, read_early), "BBB": _held_move("2026-10-15", 2.0, read_ok),
+            "CCC": _held_move("2026-10-15", 5.0, read_ok), "DDD": _held_move("2026-10-15", 1.0, read_ok)}
+    monkeypatch.setattr(earnings_intel, "get_earnings", lambda sym: held[sym])
+    world["reports"] = {"2026-10-15": {s: "bmo" for s in held}}
+    world["sets"], world["paid"] = {"u1": {s: ["watchlist"] for s in held}}, {"u1"}
+    result, sent = ring(db, at(date(2026, 10, 15)))
+    assert _symbols(sent) == ["CCC", "BBB", "DDD"] and result["capped"] == 1
+    assert db.execute("SELECT status FROM j2_earnings_followup_log WHERE symbol = 'AAA'").fetchone()[0] == "capped"
+
+
+def test_reaction_pct_is_the_measured_move_only(monkeypatch):
+    from api.services import earnings_intel
+    from api.services.journal_two import earnings_prep
+    monkeypatch.setattr(earnings_prep, "_timing_from_calendar_cache", lambda sym, day: "amc")
+    payload = {}
+    monkeypatch.setattr(earnings_intel, "get_earnings", lambda sym: payload["p"])
+    payload["p"] = _held_move("2026-10-14", -3.0, datetime(2026, 10, 14, 17, 0, tzinfo=ET))      # AMC, read the same evening
+    assert _REAL_REACTION_PCT("AAA", "2026-10-14") is None
+    payload["p"] = _held_move("2026-10-14", -3.0, datetime(2026, 10, 15, 16, 30, tzinfo=ET))     # the next close + 30 min
+    assert _REAL_REACTION_PCT("AAA", "2026-10-14") == -3.0
+    payload["p"] = _held_move("2026-10-14", 0.0, datetime(2026, 10, 15, 16, 30, tzinfo=ET))      # a measured 0.0 stays 0.0
+    assert _REAL_REACTION_PCT("AAA", "2026-10-14") == 0.0
+
+
+# ── FW-A M6: an unpaid member's sets are never read ────────────────────────────────────────────────────────────────
+
+def test_an_unpaid_members_sets_are_never_read(db, world, monkeypatch):
+    read = []
+    monkeypatch.setattr(ef, "_member_sets", lambda uid: read.append(uid) or {"ORCL": ["watchlist"]})
+    world["reports"] = {"2026-10-15": {"ORCL": "bmo"}}
+    world["sets"], world["paid"] = {"u1": {}, "u2": {}, "u3": {}}, {"u2"}
+    result, sent = ring(db, at(date(2026, 10, 15)))
+    assert read == ["u2"] and [uid for uid, *_ in sent] == ["u2"] and result["members"] == 1
+
+
+# ── FW-A parked: the shared trading-day walk refuses past the calendar dataset ─────────────────────────────────────────
+
+def test_a_run_past_the_calendar_range_is_ledgered_as_failed_never_dated_wrongly(db, world):
+    """A report after the close on Tue Jan 2 2029 (past the dataset, which ends 2028-12-31): its reaction session
+    would be a weekday-only guess, so reaction_session raises CalendarRangeError; the run catches it, offers
+    nothing, and records an INCOMPLETE run (the next pass retries once the calendar is refreshed)."""
+    from api.services.journal_two.reminder_block import CalendarRangeError
+    day = date(2029, 1, 2)
+    assert not session_calendar.covers(day)
+    with pytest.raises(CalendarRangeError):
+        ef.reaction_session(day, "amc")
+    world["reports"] = {day.isoformat(): {"ORCL": "amc"}}
+    world["sets"], world["paid"] = {"u1": {"ORCL": ["watchlist"]}}, {"u1"}
+    result, sent = ring(db, at(day))
+    assert sent == [] and result["failed"] == 1 and result["error"] == "CalendarRangeError"
+    assert db.execute("SELECT complete FROM j2_earnings_followup_runs").fetchone()[0] == 0

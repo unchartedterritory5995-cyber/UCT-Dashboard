@@ -498,14 +498,17 @@ def _utc(*a):
 @pytest.mark.parametrize("report, retrieved, shown", [
     ("2026-10-14", _utc(2026, 10, 14, 20, 52), False),    # an after-close report read the evening it came out
     ("2026-10-14", _utc(2026, 10, 15, 19, 59), False),    # one minute before the next session's 16:00 ET close
-    ("2026-10-14", _utc(2026, 10, 15, 20, 0), True),      # exactly at that close
+    ("2026-10-14", _utc(2026, 10, 15, 20, 0), False),     # exactly at that close: inside the 30-minute buffer (FW-A)
+    ("2026-10-14", _utc(2026, 10, 15, 20, 29), False),    # one minute inside the buffer
+    ("2026-10-14", _utc(2026, 10, 15, 20, 30), True),     # the close + 30 minutes
     ("2026-10-14", _utc(2026, 10, 16, 9, 0), True),
     ("2026-10-09", _utc(2026, 10, 10, 14, 0), False),     # a Friday report read Saturday: the date is later, the session is not
     ("2026-10-09", _utc(2026, 10, 12, 19, 59), False),    # Monday, one minute before the close
-    ("2026-10-09", _utc(2026, 10, 12, 20, 0), True),
+    ("2026-10-09", _utc(2026, 10, 12, 20, 0), False),     # Monday at the close: inside the buffer
+    ("2026-10-09", _utc(2026, 10, 12, 20, 30), True),
 ])
 def test_the_reaction_waits_for_the_first_session_after_the_report_to_close(member, monkeypatch, report, retrieved, shown):
-    """The event carries no session date and earnings_reaction._move_for falls back to the report-day session when the
+    """With the report's time of day unknown (no calendar entry held). The event carries no session date and earnings_reaction._move_for falls back to the report-day session when the
     next one has no bar yet, so only the payload's retrieval time can say whether the move is the reaction."""
     held = _held_at(report, retrieved)
     monkeypatch.setattr(earnings_intel, "get_earnings_held", lambda sym: held)
@@ -593,3 +596,168 @@ def test_the_numbers_come_through_the_real_held_read(member, monkeypatch):
         assert "Reaction: −4.2% close to close" in text
     finally:
         cache.invalidate(key)
+
+
+# ---- FW-A I1: the gate follows the session that ACTUALLY reacted, plus a 30-minute buffer ----------------------------------
+
+def _timing(monkeypatch, value):
+    """The held calendar's time of day for the symbol and date (source 2): earnings_prep's cache read, the one seam."""
+    from api.services.journal_two import earnings_prep
+    monkeypatch.setattr(earnings_prep, "_timing_from_calendar_cache", lambda sym, day: value)
+
+
+def _reaction_line(member, monkeypatch, report, retrieved, timing):
+    _timing(monkeypatch, timing)
+    held = _held_at(report, retrieved)
+    monkeypatch.setattr(earnings_intel, "get_earnings_held", lambda sym: held)
+    text = _happened(_body(_followup(member, report=report)[0]))
+    return next(line for line in text.split("\n") if line.startswith("Reaction: "))
+
+
+def _et(*a):
+    return datetime(*a, tzinfo=fp.ET)
+
+
+def test_a_before_the_open_report_read_that_evening_has_its_number(member, monkeypatch):
+    """I1: BMO on Wed Oct 14, read 17:00 ET the same day. The reacting session is the 14th and it closed at 16:00."""
+    line = _reaction_line(member, monkeypatch, REPORT, _et(2026, 10, 14, 17, 0), "bmo")
+    assert line == "Reaction: −4.2% close to close, on the session that first traded the result."
+
+
+def test_an_after_the_close_report_read_that_evening_is_a_dash_naming_the_next_session(member, monkeypatch):
+    line = _reaction_line(member, monkeypatch, REPORT, _et(2026, 10, 14, 17, 0), "amc")
+    assert line.startswith("Reaction: — (not measured yet") and "−4.2%" not in line
+    assert "Oct 15, 2026 session" in line and "first to trade this report" in line       # the NEXT session, named
+    assert "read on Oct 14, 2026, 5:00 PM ET" in line                                   # and what was actually read
+
+
+def test_a_read_inside_the_buffer_is_a_dash_whose_sentence_is_true(member, monkeypatch):
+    """BMO on the 14th read at 16:10 ET: the session HAS closed, so the sentence must not say it had not."""
+    line = _reaction_line(member, monkeypatch, REPORT, _et(2026, 10, 14, 16, 10), "bmo")
+    assert line.startswith("Reaction: — (not measured yet") and "−4.2%" not in line
+    assert "before 30 minutes had passed after the 4:00 PM ET close of the Oct 14, 2026 session" in line
+    assert "4:10 PM ET" in line
+    assert "had not closed" not in line and "before the Oct 14, 2026 session had closed" not in line
+
+
+def test_the_buffer_edge_is_exact_for_a_known_before_the_open_report(member, monkeypatch):
+    assert _reaction_line(member, monkeypatch, REPORT, _et(2026, 10, 14, 16, 30), "bmo").startswith("Reaction: −4.2%")
+    assert _reaction_line(member, monkeypatch, REPORT, _et(2026, 10, 14, 16, 29, 59), "bmo"
+                          ).startswith("Reaction: — (not measured yet")
+
+
+def test_an_unknown_time_of_day_keeps_the_conservative_rule_and_says_so(member, monkeypatch):
+    """No calendar entry held: the next session (the 15th), and the sentence says the time is not known."""
+    line = _reaction_line(member, monkeypatch, REPORT, _et(2026, 10, 14, 17, 0), None)
+    assert line.startswith("Reaction: — (not measured yet") and "−4.2%" not in line
+    assert "does not know whether this report came before the open or after the close" in line
+    assert "Oct 15, 2026 session" in line and "first to trade this report" not in line
+    assert _reaction_line(member, monkeypatch, REPORT, _et(2026, 10, 15, 16, 30), None).startswith("Reaction: −4.2%")
+
+
+def test_an_unrecorded_retrieval_time_is_a_true_sentence(member, monkeypatch):
+    _timing(monkeypatch, "bmo")
+    held = _held_at(REPORT, None, drop_retrieved=True)
+    monkeypatch.setattr(earnings_intel, "get_earnings_held", lambda sym: held)
+    text = _happened(_body(_followup(member)[0]))
+    assert "Reaction: — (not measured yet: UCT did not record when its earnings data was read)." in text
+
+
+def test_a_failing_calendar_cache_reads_as_an_unknown_time(member, monkeypatch):
+    from api.services.journal_two import earnings_prep
+
+    def boom(sym, day):
+        raise RuntimeError("cache down")
+    monkeypatch.setattr(earnings_prep, "_timing_from_calendar_cache", boom)
+    held = _held_at(REPORT, _et(2026, 10, 14, 17, 0))
+    monkeypatch.setattr(earnings_intel, "get_earnings_held", lambda sym: held)
+    assert "Reaction: — (not measured yet" in _happened(_body(_followup(member)[0]))
+
+
+def test_the_session_comes_from_the_jobs_own_reaction_session_rule(monkeypatch):
+    """ONE rule: reacting_session calls earnings_followup.reaction_session, it does not restate it."""
+    from api.services.journal_two import earnings_followup as ef
+    seen = []
+    monkeypatch.setattr(ef, "reaction_session", lambda d, t: seen.append((d, t)) or date(2026, 12, 2))
+    _timing(monkeypatch, "bmo")
+    assert fp.reacting_session("ORCL", REPORT) == (date(2026, 12, 2), True)
+    assert seen == [(date(2026, 10, 14), "bmo")]
+
+
+def test_the_held_reaction_event_carries_no_session_date(monkeypatch):
+    """Source 1 does not exist: the event is exactly what earnings_reaction.reaction_for builds, and it names no
+    session. If it ever does, the gate should read it (followup_prefill.reacting_session's docstring)."""
+    from api.services import earnings_reaction
+    bars = [{"t": f"2026-10-{d:02d}", "o": 100.0, "c": 100.0 + d} for d in (13, 14, 15, 16)]
+    monkeypatch.setattr(earnings_reaction, "_daily_bars", lambda sym, since: bars)
+    got = earnings_reaction.reaction_for("ORCL", [{"reported": True, "report_date": "2026-10-14", "label": "Q"}],
+                                         min_computed=1)
+    assert got and set(got["events"][0]) == {"quarter", "report_date", "reaction_pct", "eps_actual", "eps_estimate"}
+
+
+def test_past_the_calendar_dataset_there_is_no_session_and_the_sentence_is_still_true():
+    from api.services import session_calendar
+    edge = session_calendar.horizon()
+    held = copy.deepcopy(INTEL)
+    held["quarters"][0]["report_date"] = edge.isoformat()
+    held["meta"] = {"retrieved_at": datetime(2026, 10, 15, 21, 0, tzinfo=timezone.utc).timestamp()}
+    assert fp.reacting_session("ORCL", edge.isoformat()) == (None, False)
+    lines = fp.number_lines("ORCL", edge.isoformat(), held)
+    reaction = next(line for line in lines if line.startswith("Reaction: "))
+    assert reaction == "Reaction: — (not measured yet: UCT cannot work out which session first traded this report)."
+
+
+def test_measured_move_is_none_until_measured(monkeypatch):
+    _timing(monkeypatch, "amc")
+    early = _held_at(REPORT, _et(2026, 10, 14, 17, 0))
+    late = _held_at(REPORT, _et(2026, 10, 15, 17, 0))
+    assert fp.measured_move("ORCL", REPORT, early) is None
+    assert fp.measured_move("ORCL", REPORT, late) == -4.2
+    assert fp.measured_move("ORCL", REPORT, None) is None
+
+
+# ---- FW-A M7: a create that is not a follow-up never loads followup_prefill ------------------------------------------------
+
+_PREFILL = "api.services.journal_two.followup_prefill"
+
+
+def _forget_prefill(monkeypatch):
+    import sys
+    pkg = sys.modules["api.services.journal_two"]
+    monkeypatch.delitem(sys.modules, _PREFILL)
+    monkeypatch.delattr(pkg, "followup_prefill")              # `from pkg import name` would find the attribute
+    return sys, pkg
+
+
+def test_a_plain_styled_create_never_imports_followup_prefill(member, monkeypatch):
+    sys, pkg = _forget_prefill(monkeypatch)
+    note, _ = journal_styles.create_styled_note(UID, {"kindId": "earnings_followup", "ticker": "ORCL"}, member.conn)
+    assert note["id"] and _PREFILL not in sys.modules and not hasattr(pkg, "followup_prefill")
+
+
+def test_a_follow_up_create_does_import_it(member, monkeypatch):
+    """The control for the test above: the same probe sees the import when the payload asks for the follow-up."""
+    sys, _ = _forget_prefill(monkeypatch)
+    monkeypatch.setattr(earnings_intel, "get_earnings_held", lambda sym: None)
+    journal_styles.create_styled_note(
+        UID, {"kindId": "earnings_followup", "ticker": "ORCL", "earningsFollowup": {"reportDate": REPORT}}, member.conn)
+    assert _PREFILL in sys.modules
+
+
+# ---- FW-A parked: the reminder reaches the daily task bell through note_tasks._due_counts_by_member -------------------------
+
+def test_the_reminder_is_counted_by_the_daily_task_bell(member, monkeypatch):
+    """The follow-up note's reminder is a task whose own paragraph holds a dateMention: the bell's per-member
+    query counts it due today on its day, overdue after it, and not before it."""
+    from api.services.journal_two import note_tasks
+
+    class _Fixed(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 11, 20, 14, 0, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(journal_styles, "datetime", _Fixed)
+    _followup(member)                                            # its reminder is due 2026-11-30
+    assert note_tasks._due_counts_by_member(member.conn, "2026-11-29") == {}
+    assert note_tasks._due_counts_by_member(member.conn, "2026-11-30") == {UID: {"due_today": 1, "overdue": 0}}
+    assert note_tasks._due_counts_by_member(member.conn, "2026-12-02") == {UID: {"due_today": 0, "overdue": 1}}

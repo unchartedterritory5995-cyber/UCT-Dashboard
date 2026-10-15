@@ -24,7 +24,7 @@ from __future__ import annotations
 import copy
 import math
 import re
-from datetime import date, datetime, time as dtime, timezone
+from datetime import date, datetime, time as dtime, timedelta, timezone
 from typing import Any
 
 from api.services.journal_two import journal_styles as _js
@@ -229,22 +229,90 @@ def _metric(name: str, actual: Any, estimate: Any, surprise: Any, fmt, missing: 
     return f"{name}: {fmt(a)} actual vs {fmt(e)} expected{tail}."
 
 
-def reaction_is_measured(report_date: str, meta: Any) -> bool:
-    """True only when the payload was retrieved AFTER the close of the first trading day following the report
-    date. The event does not carry the session it measured, and earnings_reaction._move_for falls back to
-    the report-day session when the next one has no bar yet: a payload built before that close (an after-close
-    report read the same evening, a Friday report read on Saturday) holds the PRE-news session, and calling it
-    the reaction would be a number nobody earned. An unknown retrieval time reads as not measured."""
+#: A payload read less than this long after the reacting session's close is not trusted for its reaction: the
+#: closing bar may not be in the vendor's daily bars yet, and `earnings_reaction._move_for` then falls back to
+#: the other session it considers.
+MEASURE_BUFFER = timedelta(minutes=30)
+
+
+def reacting_session(symbol: str, report_date: str) -> tuple[date | None, bool]:
+    """(the session that first traded the report, whether UCT KNOWS the report's time of day).
+
+    The same rule as the follow-up job's offer: `earnings_followup.reaction_session` (BMO / DMH -> the report
+    day; AMC or unknown -> the next trading day). It is never copied here. Derived SERVER-side, in this order:
+      1. the reaction event's own session date. ⛔ The held payload does not carry one: `earnings_reaction.
+         reaction_for` writes `quarter`, `report_date`, `reaction_pct`, `eps_actual`, `eps_estimate` and nothing
+         about the session it measured, so there is nothing to read;
+      2. the report's time of day from the calendar UCT already HOLDS for that symbol and date
+         (`earnings_prep._timing_from_calendar_cache`: cache reads only, never a vendor call or a build);
+      3. otherwise the conservative rule, the next trading day.
+    (None, False) when the date is unreadable or lies outside the trading calendar's range."""
+    from api.services.journal_two import earnings_followup, earnings_prep
+    rd = _iso_day(report_date)
+    if rd is None:
+        return None, False
+    try:
+        timing = earnings_prep._timing_from_calendar_cache(str(symbol).upper(), rd.isoformat())
+    except Exception:  # noqa: BLE001 -- an unreadable cache is "time not known", never a failed note
+        timing = None
+    try:
+        return earnings_followup.reaction_session(rd, timing), timing in ("bmo", "amc", "dmh")
+    except ValueError:                                  # past the calendar dataset's range: no session to name
+        return None, False
+
+
+def _measured_after(session: date) -> datetime:
+    """The earliest retrieval time that counts: the session's 16:00 ET close plus MEASURE_BUFFER."""
+    return datetime.combine(session, SESSION_CLOSE, tzinfo=ET) + MEASURE_BUFFER
+
+
+def reaction_is_measured(report_date: str, meta: Any, session: date | None = None) -> bool:
+    """True only when the payload was retrieved at or after the close of the session that REACTED, plus
+    MEASURE_BUFFER. `session` is `reacting_session`'s answer; without it the conservative rule applies (the first
+    trading day after the report date, the same `earnings_followup.reaction_session` rule with an unknown time).
+    The event does not carry the session it measured, and `earnings_reaction._move_for` falls back to the other
+    candidate session when the reacting one has no bar yet: a payload built before that session closed holds the
+    PRE-news session, and calling it the reaction would be a number nobody earned. An unknown retrieval time
+    reads as not measured."""
     rd = _iso_day(report_date)
     v = as_number(meta.get("retrieved_at")) if isinstance(meta, dict) else None
     if rd is None or v is None:
         return False
     try:
+        if session is None:
+            from api.services.journal_two import earnings_followup
+            session = earnings_followup.reaction_session(rd, None)
         retrieved = datetime.fromtimestamp(v, tz=timezone.utc)
-        close = datetime.combine(add_trading_days(rd, 1), SESSION_CLOSE, tzinfo=ET)
+        return retrieved >= _measured_after(session)
     except (OverflowError, OSError, ValueError):
         return False
-    return retrieved >= close
+
+
+def measured_move(symbol: str, report_date: str, intel: Any) -> float | None:
+    """The reaction % for `report_date` only when it is MEASURED (the gate above), else None. The follow-up job
+    ranks its daily cap with this, so an unmeasured move ranks as no move and never as a pre-news number."""
+    if not isinstance(intel, dict):
+        return None
+    session, _ = reacting_session(symbol, report_date)
+    if session is None or not reaction_is_measured(report_date, intel.get("meta"), session):
+        return None
+    return as_number((event_for(intel, report_date) or {}).get("reaction_pct"))
+
+
+def _unmeasured_sentence(session: date | None, known: bool, meta: Any) -> str:
+    """The dash line when the reaction is not measured. TRUE in every case it can appear: it says what was read
+    and when, and which session it waits for."""
+    if as_number(meta.get("retrieved_at") if isinstance(meta, dict) else None) is None:
+        why = "UCT did not record when its earnings data was read"
+    elif session is None:
+        why = "UCT cannot work out which session first traded this report"
+    else:
+        cause = (f"it was the first to trade this report" if known else
+                 "UCT does not know whether this report came before the open or after the close, so it counts "
+                 "the next session")
+        why = (f"UCT's earnings data was read on {_retrieved(meta)}, before 30 minutes had passed after the "
+               f"4:00 PM ET close of the {_day_words(session)} session ({cause})")
+    return f"Reaction: {DASH} (not measured yet: {why})."
 
 
 def number_lines(symbol: str, report_date: str, intel: Any) -> list[str]:
@@ -261,9 +329,9 @@ def number_lines(symbol: str, report_date: str, intel: Any) -> list[str]:
     code = foreign_currency(intel.get("currency"))
     eps_fmt = (lambda v: _eps(v, bare=True)) if code else _eps
     rev_fmt = (lambda v: _rev(v, code)) if code else _rev
-    if not reaction_is_measured(report_date, intel.get("meta")):
-        reaction = (f"Reaction: {DASH} (not measured yet: UCT's earnings data was read before the first session "
-                    "after this report had closed).")
+    session, known = reacting_session(symbol, report_date)
+    if not reaction_is_measured(report_date, intel.get("meta"), session):
+        reaction = _unmeasured_sentence(session, known, intel.get("meta"))
     else:
         r = as_number((event_for(intel, report_date) or {}).get("reaction_pct"))
         reaction = (f"Reaction: {_pct(r)} close to close, on the session that first traded the result."
