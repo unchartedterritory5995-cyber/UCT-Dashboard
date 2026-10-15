@@ -1,0 +1,9 @@
+# esbuild --minify, one file at a time, no bundling: a rough size of each new EAGER module (not the budget's number)
+lib/alertPhrase.js 1841
+../terminal/alertModel.js 1378
+lib/alertPhraseOffer.js 1979
+lib/smartChipsFlag.js 185
+lib/screenshotLabel.js 569
+lib/screenshotSmarts.js 1500
+lib/planCreate.js 532
+# lazy (not in the closure): TextAlertSheet, AlertPhraseMenu, ScreenshotTagOffer, screenshotRead, smartChipsApi

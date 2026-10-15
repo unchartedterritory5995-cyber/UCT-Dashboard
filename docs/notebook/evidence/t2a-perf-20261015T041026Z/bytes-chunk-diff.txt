@@ -1,0 +1,10 @@
+base closure: 55 names, 2,245,689 B
+tip closure:  56 names, 2,257,499 B
+delta: +11,810 B
+changed chunks, by name (delta, base -> tip):
+    +5,849  NotebookFlagGate  344,261 -> 350,110
+    +4,392  tiptap  278,961 -> 283,353
+    +1,253  alertModel  0 -> 1,253   (NEW in the closure)
+      +254  index  834,965 -> 835,219
+       +33  NotebookSurface  1,815 -> 1,848
+       +29  journalStylesFlag  153 -> 182
