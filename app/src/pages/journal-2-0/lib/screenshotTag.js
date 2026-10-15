@@ -14,8 +14,16 @@ import { normalizeNoteTicker } from './noteTicker'
 
 export const LOCKED_SENTENCE = 'This note is locked — unlock it in the Notebook first'
 
-/** `{ message, tone }` for the page's toast. */
-export async function tagScreenshot({ offer, editor, noteId, locked, existingTicker, setTicker }) {
+/** `{ message, tone }` for the page's toast. Never throws: anything unexpected is said, and nothing more is done. */
+export async function tagScreenshot(press) {
+  try {
+    return await decide(press)
+  } catch {
+    return { message: "Couldn't tag the screenshot. Nothing changed.", tone: 'error' }
+  }
+}
+
+async function decide({ offer, editor, noteId, locked, existingTicker, setTicker }) {
   const words = offer.timeframe ? `${offer.symbol} · ${offer.timeframe.label}` : offer.symbol
   if (locked) return { message: LOCKED_SENTENCE, tone: 'error' }
   if (offer.noteId !== noteId || !offer.alt || !labelImage(editor, offer.url, offer.alt)) {

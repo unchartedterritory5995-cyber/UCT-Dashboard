@@ -142,3 +142,50 @@ describe('/plan in an ordinary note', () => {
     await waitFor(() => expect(linkIds(ed)).toEqual(['p9']))
   })
 })
+
+// ⛔ N1 (re-review): /plan's door loads at the press. A failed dynamic import is remembered for its URL until the
+// page reloads, so a bare `await import` would fail every later /plan in this tab after one network blip or a
+// deploy. It loads through importWithOneRetry (lib/lazyChunk.js): a blip heals in place; a chunk that is gone is
+// said in a fixed sentence that tells the member to reload, and nothing is written.
+describe('N1: the /plan door survives a failed chunk fetch', () => {
+  const chromeError = () => new TypeError(
+    `Failed to fetch dynamically imported module: ${window.location.origin}/assets/planLink-Abc12345.js`)
+  let loaders, realPlanLink, chunkRetry, realImportUrl
+  beforeEach(async () => {
+    loaders = (await import('./NoteEditorPage')).chipDoorLoaders
+    realPlanLink = loaders.planLink
+    chunkRetry = (await import('../../lib/lazyChunk')).chunkRetry
+    realImportUrl = chunkRetry.importUrl
+  })
+  afterEach(() => { loaders.planLink = realPlanLink; chunkRetry.importUrl = realImportUrl })
+
+  it('the first fetch fails and the in-place retry succeeds: the plan is made and linked, once', async () => {
+    flagOn()
+    createPlanNoteMock.mockResolvedValue({ id: 'p9', title: 'NVDA trade plan', updatedAt: T1 })
+    loaders.planLink = vi.fn().mockRejectedValue(chromeError())
+    chunkRetry.importUrl = vi.fn(() => import('../../lib/planLink'))
+    const ed = await renderEditor()
+    await firePlan(ed, 'NVDA')
+    await waitFor(() => expect(linkIds(ed)).toEqual(['p9']), { timeout: 3000 })
+    expect(loaders.planLink).toHaveBeenCalledTimes(1)
+    expect(chunkRetry.importUrl).toHaveBeenCalledTimes(1)
+    expect(new URL(chunkRetry.importUrl.mock.calls[0][0]).pathname).toBe('/assets/planLink-Abc12345.js')
+    expect(createPlanNoteMock).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText('Trade plan for NVDA created and linked. Open it from the link.')).toBeTruthy()
+  })
+
+  it('both attempts fail: the member is told to reload, nothing is created or linked, and a later press can try again', async () => {
+    flagOn()
+    loaders.planLink = vi.fn().mockRejectedValue(chromeError())
+    chunkRetry.importUrl = vi.fn().mockRejectedValue(chromeError())
+    const ed = await renderEditor()
+    await firePlan(ed, 'NVDA')
+    expect(await screen.findByText(
+      "Couldn't create the trade plan. Reload the page to try again. Nothing was saved.", {}, { timeout: 3000 })).toBeTruthy()
+    expect(createPlanNoteMock).not.toHaveBeenCalled()
+    expect(linkIds(ed)).toEqual([])
+    // the in-flight flag was released: the next press asks again
+    await firePlan(ed, 'NVDA')
+    await waitFor(() => expect(loaders.planLink).toHaveBeenCalledTimes(2), { timeout: 3000 })
+  })
+})

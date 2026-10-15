@@ -127,7 +127,7 @@ import {
 } from '../../lib/writingHelp'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { pasteTerminalCommand } from '../../lib/terminalCommandPaste'
-import lazyChunk from '../../lib/lazyChunk'
+import lazyChunk, { RETRY_WAIT_MS, importWithOneRetry } from '../../lib/lazyChunk'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { CANVAS_EVENT, extraBlockCount, isTradeCanvasDoc } from '../../lib/tradeCanvas'
 import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
@@ -191,6 +191,19 @@ const StyleHost = lazyChunk(() => loadStyle('StyleHost'))
 // "Add a link to <plan> at the end of this note?" -- nothing is written until
 // the member presses Add (an editor transaction on THIS note's own autosave).
 export const LINK_CANVAS_PARAM = 'linkCanvas'
+
+// Tier 2 part A: the two press-time doors (/plan's link step; the screenshot tag). Loaded at the press, and through
+// importWithOneRetry like lib/lazyStyles.js: a chunk blip heals in place, and a chunk the deploy removed is said
+// in a fixed sentence (reload) instead of failing every later press in this tab. ⛔ NEVER a bare `await import`:
+// a failed dynamic import is remembered for its URL until the page reloads (lib/lazyChunk.js).
+// A property so a rail can fail the first fetch (jsdom cannot fetch a chunk), like lazyChunk's `chunkRetry`.
+export const chipDoorLoaders = {
+  planLink: () => import('../../lib/planLink'),
+  screenshotTag: () => import('../../lib/screenshotTag'),
+}
+const loadChipDoor = (name, piece) => importWithOneRetry(() => chipDoorLoaders[name](), RETRY_WAIT_MS, (m) => !!m?.[piece])
+// The repo's own reload wording ("Reload the page to try again."), then what did not happen.
+const reloadSentence = (what, nothing) => `Couldn't ${what}. Reload the page to try again. Nothing ${nothing}.`
 function LinkCanvasOffer({ canvasId, onAdd, onDismiss }) {
   const target = useNoteLinkTarget(canvasId)
   const name = target.title || 'the trade plan'
@@ -1941,7 +1954,10 @@ export default function NoteEditorPage({
   const clearScreenshotOffer = useCallback(() => setScreenshotOffer(null), [])
   const screenshotReadRef = useRef(null)
   // ⛔ I2: what the member has TYPED into the Ticker field and not saved yet (it saves on blur, and the chip's
-  // mousedown keeps focus, so a press on the chip does not save it). Null while the field shows the saved value.
+  // mousedown keeps focus, so a press on the chip does not save it). It feeds the chip's WORDS only, and it is
+  // tracked only while a screenshot offer is showing (the field's onChange is absent otherwise), so with no offer
+  // -- and always with the switch off -- a keystroke in the field re-renders nothing, as before this branch.
+  // Accept never trusts it: it reads the field itself (tickerInputRef).
   const [tickerDraft, setTickerDraft] = useState(null)
   useEffect(() => () => { screenshotReadRef.current?.abort() }, [noteId])
   useEffect(() => { setScreenshotOffer(null); setTickerDraft(null) }, [noteId])
@@ -1955,6 +1971,9 @@ export default function NoteEditorPage({
       const { readScreenshot } = await import('../../lib/screenshotRead')
       const found = await readScreenshot({ noteId: forNote, url, signal: ctrl.signal })
       if (!found || ctrl.signal.aborted) return
+      // The chip's words follow the Ticker field only while an offer shows (Minor, re-review): seed them from the
+      // field as it stands now, and its onChange keeps them current from here on.
+      setTickerDraft(tickerInputRef.current?.value ?? null)
       setScreenshotOffer({ url, ...found, noteId: forNote })
     } catch { /* the chip is an extra: a chunk that will not load offers nothing, and the paste itself is done */ }
   }
@@ -1976,14 +1995,14 @@ export default function NoteEditorPage({
       existingTicker: fieldTicker(tickerInputRef.current?.value) || note?.ticker || null,
       setTicker: setTickerFromTag,
     }
-    let said
+    let door
     try {
-      const { tagScreenshot } = await import('../../lib/screenshotTag')
-      said = await tagScreenshot(press)
+      door = await loadChipDoor('screenshotTag', 'tagScreenshot')
     } catch {
-      said = { message: "Couldn't tag the screenshot. Nothing changed.", tone: 'error' }
+      setUploadToast({ message: reloadSentence('tag the screenshot', 'changed'), tone: 'error' })
+      return
     }
-    setUploadToast(said)
+    setUploadToast(await door.tagScreenshot(press)) // it never throws: every outcome is a sentence
   }
   const handleImageInsert = async (file) => {
     const ed = editorRef.current
@@ -2139,8 +2158,14 @@ export default function NoteEditorPage({
     try {
       // I5: the /plan door and its link step (lib/planLink -> lib/planCreate) load at the press, never on note
       // open (the flag above is set first, so a second press while it loads is still one create).
-      const { createAndLinkPlan } = await import('../../lib/planLink')
-      const said = await createAndLinkPlan({
+      let door
+      try {
+        door = await loadChipDoor('planLink', 'createAndLinkPlan')
+      } catch {
+        setUploadToast({ message: reloadSentence('create the trade plan', 'was saved'), tone: 'error' })
+        return
+      }
+      const said = await door.createAndLinkPlan({
         symbol, folderId: canvasNoteRef.current?.folderId || undefined,
         liveEditor: () => editorRef.current, isLocked: () => lockedRef.current,
       })
@@ -5196,7 +5221,7 @@ export default function NoteEditorPage({
               className={styles.tickerInput}
               placeholder="e.g. NVDA"
               defaultValue={note.ticker || ''}
-              onChange={(e) => setTickerDraft(e.target.value)}
+              onChange={screenshotOffer ? (e) => setTickerDraft(e.target.value) : undefined}
               onBlur={(e) => onTickerChange(e.target.value)}
               autoComplete="off"
               spellCheck={false}

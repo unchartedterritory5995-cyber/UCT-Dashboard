@@ -370,3 +370,64 @@ describe('⛔ the read is abortable (Review Focus 3)', () => {
     expect(signal.aborted).toBe(true)
   })
 })
+
+// ⛔ N1 (re-review): the accept decision loads at the press. Through importWithOneRetry, never a bare
+// `await import` (a failed dynamic import stays failed for its URL until reload): a blip heals in place, and a
+// chunk that is gone is said in a fixed sentence that tells the member to reload, with nothing written.
+describe('N1: the screenshot tag door survives a failed chunk fetch', () => {
+  const chromeError = () => new TypeError(
+    `Failed to fetch dynamically imported module: ${window.location.origin}/assets/screenshotTag-Abc12345.js`)
+  let loaders, realTag, chunkRetry, realImportUrl
+  beforeEach(async () => {
+    loaders = (await import('./NoteEditorPage')).chipDoorLoaders
+    realTag = loaders.screenshotTag
+    chunkRetry = (await import('../../lib/lazyChunk')).chunkRetry
+    realImportUrl = chunkRetry.importUrl
+  })
+  afterEach(() => { loaders.screenshotTag = realTag; chunkRetry.importUrl = realImportUrl })
+
+  it('the first fetch fails and the in-place retry succeeds: the image is tagged and the ticker set, once', async () => {
+    switchesOn()
+    loaders.screenshotTag = vi.fn().mockRejectedValue(chromeError())
+    chunkRetry.importUrl = vi.fn(() => import('../../lib/screenshotTag'))
+    const { editor } = await renderEditor()
+    await pasteImage()
+    fireEvent.click(await chip('Tag NVDA · Daily'))
+    expect(await screen.findByText("Tagged the screenshot NVDA · Daily and set this note's ticker to NVDA.", {}, { timeout: 3000 })).toBeTruthy()
+    expect(loaders.screenshotTag).toHaveBeenCalledTimes(1)
+    expect(chunkRetry.importUrl).toHaveBeenCalledTimes(1)
+    expect(new URL(chunkRetry.importUrl.mock.calls[0][0]).pathname).toBe('/assets/screenshotTag-Abc12345.js')
+    expect(updateMock).toHaveBeenCalledTimes(1)
+    expect(imageAttrs(editor)[0].alt).toBe('NVDA daily chart')
+  })
+
+  it('both attempts fail: the member is told to reload, and nothing is written (no alt, no ticker)', async () => {
+    switchesOn()
+    loaders.screenshotTag = vi.fn().mockRejectedValue(chromeError())
+    chunkRetry.importUrl = vi.fn().mockRejectedValue(chromeError())
+    const { editor } = await renderEditor()
+    await pasteImage()
+    fireEvent.click(await chip('Tag NVDA · Daily'))
+    expect(await screen.findByText(
+      "Couldn't tag the screenshot. Reload the page to try again. Nothing changed.", {}, { timeout: 3000 })).toBeTruthy()
+    expect(updateMock).not.toHaveBeenCalled()
+    expect(imageAttrs(editor)[0].alt).toBe('')
+  })
+})
+
+// Minor (re-review): the Ticker field re-renders nothing while no screenshot offer shows -- its onChange is absent,
+// so with the switch off the field behaves exactly as it did before this branch.
+describe('the Ticker field with no offer showing', () => {
+  it('has no change handler until an offer shows, and gets one while it does', async () => {
+    switchesOn()
+    readMock.mockImplementation(() => new Promise(() => {})) // the read never answers: no offer
+    await renderEditor()
+    openDetails()
+    const reactProps = (el) => el[Object.keys(el).find((k) => k.startsWith('__reactProps$'))]
+    expect(reactProps(tickerField()).onChange).toBeUndefined()
+    readMock.mockResolvedValue(NVDA_DAILY)
+    await pasteImage()
+    await chip('Tag NVDA · Daily')
+    expect(typeof reactProps(tickerField()).onChange).toBe('function')
+  })
+})
