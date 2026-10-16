@@ -76,6 +76,7 @@ _PLAIN = {
     "pe_fwd": r"\bP/E\b",
     "roe": r"\bROE\b",
     "eps_growth": r"\bEPS growth\b",
+    "op_margin": r"\boperating margin\b",
     "gap_pct": r"\bgapped\b",
     "vol_ratio": r"\bvolume\b",
     "market_cap": r"\bmarket cap\b",
@@ -124,6 +125,24 @@ def test_the_description_check_can_fail(monkeypatch):
     s = next(x for x in _all(monkeypatch) if x["id"] == "starter_momentum_leaders")
     assert re.search(_PLAIN["price"], s["description"], re.I)
     assert not re.search(_PLAIN["price"], s["description"].replace("price $5+", ""), re.I)
+
+
+def test_cheap_quality_compounders_uses_only_published_thresholds(monkeypatch):
+    """The value starter was retuned on production (386 -> 48, 2026-10-16) without
+    inventing a number: every condition is a preset the filter registry already
+    publishes. A threshold that is not one of them (or the old `lte 20`, which let a
+    negative forward P/E through as "cheap") fails here by name."""
+    from api.services.screener import filters as F
+    s = next(x for x in _all(monkeypatch) if x["id"] == "starter_value_quality")
+    conds = [f for f in s["spec"]["filters"] if f["key"] != "security_type"]
+    assert {f["key"] for f in conds} == {"pe_fwd", "roe", "eps_growth", "op_margin", "market_cap"}
+    for f in conds:
+        shape = {k: f.get(k) for k in ("op", "min", "max")}
+        presets = [{k: p.get(k) for k in ("op", "min", "max")}
+                   for p in F.FILTERS[f["key"]]["presets"] if p.get("op")]
+        assert shape in presets, (f["key"], shape, presets)
+    pe = next(f for f in conds if f["key"] == "pe_fwd")
+    assert pe["min"] == 0, "a negative forward P/E is expected losses, not cheap"
 
 
 def test_every_starter_is_stocks_only(monkeypatch):

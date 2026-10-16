@@ -35,6 +35,10 @@ export const PLAIN_COLUMN_LABELS = {
   dist_20d_low_pct: 'From 20-day low',
   dist_ath_pct: 'From all-time high',
   new_ath: 'Hit an all-time high',
+  // The pattern-engine library, never the base read: the row's setup line names base_catalog's
+  // structures, and the two detectors share names (Flat Base, Double Bottom, VCP) while
+  // disagreeing about which stocks carry them. "Pattern engine: VCP" says whose verdict it is.
+  pattern_engine_id: 'Pattern engine',
   pattern_entry_dist_pct: 'To pattern entry',
   pattern_stop_dist_pct: 'To pattern stop',
   pt_upside_pct: 'To price target',
@@ -143,6 +147,23 @@ export function structureSentence(label) {
   const plain = PLAIN_STRUCTURE_NAMES[label]
   const name = plain ? plain.replace(/^[A-Z](?=[a-z])/, c => c.toLowerCase()) : String(label ?? '')
   return `Has ${/^[aeiou]/i.test(name) ? 'an' : 'a'} ${name}`
+}
+
+// A pattern-engine filter, said as the ENGINE's verdict: "Pattern engine flagged a VCP", "...flagged
+// a flat base". Never "Has a flat base": that is what the base read says (structureSentence), and the
+// engine and the base read disagree about which stocks carry the same-named pattern. `label` is the
+// preset label the server ships; with none, the delimiter-wrapped detector id (",flat_base,").
+// Article by sound: "an" before a vowel, or before an acronym whose first letter's name starts
+// with one ("an NR7", "an RSI"), else "a".
+export function patternEngineSentence(label, value) {
+  const raw = label || String(value ?? '').replace(/^,+|,+$/g, '').replace(/_/g, ' ')
+  const name = String(raw).trim().split(' ')
+    .map(w => (/^[A-Z][a-z]+$/.test(w) ? w.toLowerCase() : w)).join(' ')
+  if (!name) return 'Pattern engine flagged a pattern'
+  const first = name.split(' ')[0]
+  // An all-caps word is read letter by letter: "an NR7", "a VCP", "a U and R".
+  const an = /^[A-Z0-9]+$/.test(first) ? /^[AEFHILMNORSX]/.test(first) : /^[aeiou]/i.test(first)
+  return `Pattern engine flagged ${an ? 'an' : 'a'} ${name}`
 }
 
 // "Flat Base" -> "Flat base": a title read mid-sentence ("Flat base pivot"). Capitalised words after

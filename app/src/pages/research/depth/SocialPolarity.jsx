@@ -2,6 +2,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { depthFetcher } from './depthFetch'
 import styles from './Depth.module.css'
+import Select from '../../../components/ui/Select'
 import { memberSentence } from '../../../lib/presentation/memberCopy'
 
 // FT-080 polarity — owner ruling 2026-10-11 ("store text but allow sorting, one week, one month
@@ -99,14 +100,12 @@ export default function SocialPolarity({ sym, polarity }) {
         )}
         <div className={styles.form}>
           <label className={styles.muted}>Sort{' '}
-            <select className={styles.select} value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort posts">
-              {SORTS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
+            <Select className={styles.select} value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort posts"
+              options={SORTS.map(([k, v]) => ({ value: k, label: v }))} />
           </label>
           <label className={styles.muted}>Show{' '}
-            <select className={styles.select} value={label} onChange={(e) => setLabel(e.target.value)} aria-label="Filter posts by label">
-              {LABELS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
+            <Select className={styles.select} value={label} onChange={(e) => setLabel(e.target.value)} aria-label="Filter posts by label"
+              options={LABELS.map(([k, v]) => ({ value: k, label: v }))} />
           </label>
           <span className={styles.muted} data-testid="polarity-count">{posts.length} of {dash(data.posts_matching)} shown</span>
         </div>

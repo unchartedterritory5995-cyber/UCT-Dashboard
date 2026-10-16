@@ -937,7 +937,7 @@
   },
   "_refused_why": "EACH REASON NAMES THE WORD, because a member who is refused needs to know which of their words could not be ground -- not that `something` failed. These are words a member will plausibly say and this vocabulary deliberately declines to guess at.",
   "_refused": {
-    "cheap": "\"cheap\" has no defensible definition here. The firm's own screen that uses the word -- `Cheap quality compounders` -- bundles a forward-P/E ceiling with an ROE floor and an EPS-growth floor, so the word alone does not say which multiple you mean, or whether quality is part of it. Say `forward P/E under 20`, or name the screen.",
+    "cheap": "\"cheap\" has no defensible definition here. The firm's own screen that uses the word -- `Cheap quality compounders` -- bundles a forward-P/E ceiling with ROE, EPS-growth, operating-margin and market-cap floors, so the word alone does not say which multiple you mean, or whether quality is part of it. Say `forward P/E under 20`, or name the screen.",
     "expensive": "\"expensive\" is the mirror of `cheap` and has the same problem: no single multiple is the firm's answer, and picking one would be somebody's opinion presented as the house view.",
     "strong": "\"strong\" is ambiguous between three different scans -- relative strength (`rs_rank`), price momentum (`chg_pct_1w` / `chg_pct_1m`) and fundamental quality (`uct_composite`). Name which one and the vocabulary can ground it.",
     "quality": "\"quality\" is not one measure. `roe`, `op_margin`, `net_margin` and `uct_composite` are four different screens and the firm has never declared one of them to be the definition.",
