@@ -112,6 +112,13 @@ def test_the_new_live_starters_match_the_row_they_describe(snap):
         assert _tickers(_by_id(sid)["spec"]) == ["HIT"], sid
 
 
+def test_gapping_up_on_volume_starts_at_a_2_pct_gap(snap):
+    """Recalibrated 2026-10-16 (6 matches at 3% in two in-session readings, 14 at 2%)."""
+    common = dict(security_type="Stock", rvol_live=2.0, dollar_vol_30d=3e7, price=20.0)
+    db.upsert_rows([_row("GAP2", gap_pct=2.0, **common), _row("GAP19", gap_pct=1.9, **common)])
+    assert _tickers(_by_id("starter_gap_up_volume")["spec"]) == ["GAP2"]
+
+
 def test_the_tight_base_compares_this_weeks_range_to_the_monthly_one(snap):
     common = dict(security_type="Stock", dist_52w_high_pct=-3.0, close_cv_pct=1.0, above_50sma=1,
                   dollar_vol_30d=3e7, rs_rank=80, adr_pct=4.0)

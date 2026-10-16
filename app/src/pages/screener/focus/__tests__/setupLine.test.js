@@ -33,6 +33,9 @@ test('leading whitespace before a parenthetical keeps the render instead of goin
 })
 test('pivot under 10 keeps two decimals', () => {
   expect(pivotDetail(4.5, 4.75)).toBe('5.3% below pivot 4.75')
+  // ERIC on production 2026-10-16: rounded to the dollar this read "1.3% above pivot 11".
+  expect(pivotDetail(10.68, 10.54)).toBe('1.3% above pivot 10.54')
+  expect(pivotDetail(33.46, 33.56)).toBe('0.3% below pivot 33.56')
 })
 
 // The structure library as meta ships it: the filter reading base_matches, its presets the labels.
