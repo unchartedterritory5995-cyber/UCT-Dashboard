@@ -3,6 +3,7 @@
 Built nightly by ``snapshot_builder``; queried by ``query``. All numeric fields
 nullable so a ticker missing fundamentals still screens on technicals.
 """
+import json
 import os
 import sqlite3
 import threading
@@ -711,8 +712,21 @@ CREATE TABLE IF NOT EXISTS screener_build_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     started_at REAL, finished_at REAL,
     targets INTEGER, built INTEGER, skipped INTEGER, errors INTEGER,
-    empty_columns TEXT
+    empty_columns TEXT, settled_bars TEXT
 )"""
+
+
+def _ensure_build_runs(conn) -> None:
+    """Create the receipts table, and add ``settled_bars`` to one that predates it.
+
+    ``settled_bars`` is the JSON of ``run_build``'s ``stats["settled_bars"]``: the
+    session whose settled whole-market bars replaced each row's newest stored bar,
+    how many came back, and what happened per ticker — or the error that left the
+    build on its stored bars. An ADD COLUMN, never a rebuild, so old receipts stay."""
+    conn.execute(_BUILD_RUNS_SQL)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(screener_build_runs)")}
+    if "settled_bars" not in cols:
+        conn.execute("ALTER TABLE screener_build_runs ADD COLUMN settled_bars TEXT")
 
 
 def record_build_run(stats: dict) -> None:
@@ -720,13 +734,15 @@ def record_build_run(stats: dict) -> None:
     not cost the build it describes."""
     try:
         with connect() as conn:
-            conn.execute(_BUILD_RUNS_SQL)
+            _ensure_build_runs(conn)
+            settled = stats.get("settled_bars")
             conn.execute(
                 "INSERT INTO screener_build_runs (started_at, finished_at, targets, built, "
-                "skipped, errors, empty_columns) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "skipped, errors, empty_columns, settled_bars) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (stats.get("started_at"), stats.get("finished_at"), stats.get("targets"),
                  stats.get("built"), stats.get("skipped"), stats.get("errors"),
-                 ",".join(stats.get("empty_columns") or [])))
+                 ",".join(stats.get("empty_columns") or []),
+                 json.dumps(settled, sort_keys=True) if settled is not None else None))
             conn.execute(
                 "DELETE FROM screener_build_runs WHERE id NOT IN (SELECT id FROM "
                 "screener_build_runs ORDER BY id DESC LIMIT ?)", (BUILD_RUNS_KEEP,))
@@ -740,7 +756,7 @@ def last_build_run() -> dict | None:
     """The newest build receipt, or None when no build has recorded one yet."""
     try:
         with connect() as conn:
-            conn.execute(_BUILD_RUNS_SQL)
+            _ensure_build_runs(conn)
             r = conn.execute("SELECT * FROM screener_build_runs ORDER BY id DESC LIMIT 1").fetchone()
     except Exception:                                       # noqa: BLE001
         return None
@@ -748,6 +764,10 @@ def last_build_run() -> dict | None:
         return None
     d = dict(r)
     d["empty_columns"] = [c for c in (d.get("empty_columns") or "").split(",") if c]
+    try:
+        d["settled_bars"] = json.loads(d["settled_bars"]) if d.get("settled_bars") else None
+    except (TypeError, ValueError):
+        d["settled_bars"] = None
     # A build that reached every row it targeted accounts for each one as built, skipped
     # (no bars) or errored. Anything short of that was cut off partway.
     seen = (d.get("built") or 0) + (d.get("skipped") or 0) + (d.get("errors") or 0)
