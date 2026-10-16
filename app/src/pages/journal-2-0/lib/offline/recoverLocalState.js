@@ -218,10 +218,11 @@ export function editorStateDiscardsUnsentWork(prev, incoming) {
  * `nextEditSeq`, `useDurableNote.js`): an id that names one live view of one note
  * in one tab, ROTATED whenever that view is replaced by anything but the member
  * (a load, a reconcile's swap to the server copy, an adoption, a Restore, a
- * version restore, a rebuilt editor), and a sequence number taken at every
- * capture. Within one lineage the view only moves by the member's own
- * transactions (and by merges that only ADD blocks), so a later capture is the
- * member's evolution of an earlier one.
+ * version restore, a rebuilt editor — and every UNDO or REDO, because a swap is
+ * an undoable step and Undo can put back a document from before it), and a
+ * sequence number taken at every capture. Within one lineage the view only moves
+ * by the member's own transactions (and by merges that only ADD blocks), so a
+ * later capture is the member's evolution of an earlier one.
  *
  * ⛔⛔ AND THE CLAIM IS BOUND TO THE WORDS IT WAS MADE ABOUT. The record carries
  * the lineage it was captured from AND a digest of the authored content at that

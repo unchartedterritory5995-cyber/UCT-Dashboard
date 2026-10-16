@@ -78,6 +78,7 @@ import TableToolbar from './TableToolbar'
 import LinkPasteMenu from './LinkPasteMenu'
 import UnlinkedMentions from './UnlinkedMentions'
 import { TextSelection } from '@tiptap/pm/state'
+import { isHistoryTransaction } from '@tiptap/pm/history'
 import { taskIndexFromParams, findTaskItemPos } from '../../lib/noteTasks'
 import { NOTEBOOK_EVENTS, startNoteOpenTimer, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { noteIsLocked, setNoteLock } from '../../lib/lockedNote'
@@ -850,6 +851,9 @@ export default function NoteEditorPage({
   // `f5p1OwnerSendsQueued.test.jsx`). Rotating more often than needed is safe;
   // missing a swap is the hazard, so every whole-view swap rotates, before it
   // moves anything (the title included).
+  // ⛔⛔ AND EVERY UNDO OR REDO ROTATES TOO (fix round 1, C1): a swap is an
+  // undoable step, so Undo is a SECOND way the view can be replaced by a document
+  // the member did not write in it (`onUpdate`, beside `useEditor` below).
   const editLineageRef = useRef(null)
   if (!editLineageRef.current) editLineageRef.current = newEditLineage()
   const viewReplaced = () => { editLineageRef.current = newEditLineage() }
@@ -2713,7 +2717,21 @@ export default function NoteEditorPage({
     // scheduled (words typed before a lock arrived) still goes out; queued
     // offline words adopted on open go through `scheduleAutosaveRef` directly
     // and still send (the server never refuses a body write for a lock).
-    onUpdate: () => { if (!lockedRef.current) scheduleAutosaveRef.current() },
+    // ⛔⛔ HOTFIX FIX ROUND 1 (C1): AN UNDO OR REDO IS A NEW LINEAGE. A whole-view
+    // swap is an ordinary undoable step, so Undo can put back the document from
+    // BEFORE a swap -- words this view never authored -- inside the swap's own
+    // lineage, where they would supersede the adopted or Restored words the swap
+    // put on screen and drop them from every layer. prosemirror-history marks
+    // every undo/redo transaction with its plugin meta (the keyboard, the touch
+    // buttons and the `historyUndo` input event all dispatch through it), so the
+    // capture that follows is taken on a fresh lineage and keeps the
+    // containment test. Undo itself is untouched; over-rotating is safe.
+    // Rail: `lib/offline/swapLineageRotation.test.jsx`.
+    onUpdate: ({ transaction }) => {
+      if (lockedRef.current) return
+      if (transaction && isHistoryTransaction(transaction)) viewReplaced()
+      scheduleAutosaveRef.current()
+    },
   }, [note?.id])
   // Keep the ref current so the paste/drop handlers (captured at creation) always
   // reach the live editor instance.
