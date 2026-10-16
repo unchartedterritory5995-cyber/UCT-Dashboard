@@ -1882,10 +1882,10 @@
         "label": "Notebook: earnings follow-up notice and card (Write follow-up)",
         "where": "Notebook"
       },
-      "status": "dark",
-      "since": "2026-10-15",
+      "status": "armed",
+      "since": "2026-10-16",
       "where": ["web"],
-      "note": "Notebook P2 Tier 2 part B (R-T2B-5), built dark 2026-10-15, set on no service. Enablement gate, unset means OFF. When on: (1) a job at 16:45 and 18:00 ET mon-fri (and a boot catch-up) rings one in-app bell per member, symbol and report date for the paid member's held, watched or flagged names whose reaction session closed that day, at most 3 a day, and only while NOTEBOOK_JOURNAL_STYLES_ENABLED is also on; (2) the bell's link opens a card whose 'Write follow-up' makes an Earnings follow-up note; (3) the server accepts the earningsFollowup create payload. Never email, never Discord (info). Rides the auth payload as notebook_earnings_followup_enabled (api/routers/auth.py NOTEBOOK_FLAGS); the client reads it through lib/earningsFollowupFlag.js, latched per tab like every Notebook capability. Arming and rollback are the owner's (Task 12's packet)."
+      "note": "ARMED 2026-10-16 12:49:03Z on web by the owner (railway variables --set NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED=1, after #346 merged as e1684f8692); new boot 12:52Z (deploy SUCCESS, /api/health uptime 60); /api/auth/me for the smoke account returned notebook_earnings_followup_enabled: true and notebook_journal_styles_enabled: true. The first 16:45 ET pass and its j2_earnings_followup_runs row are the next check (docs/notebook/t2b-arming.md, check 5). Notebook P2 Tier 2 part B (R-T2B-5), built dark 2026-10-15. Enablement gate, unset means OFF. When on: (1) a job at 16:45 and 18:00 ET mon-fri (and a boot catch-up) rings one in-app bell per member, symbol and report date for the paid member's held, watched or flagged names whose reaction session closed that day, at most 3 a day, and only while NOTEBOOK_JOURNAL_STYLES_ENABLED is also on; (2) the bell's link opens a card whose 'Write follow-up' makes an Earnings follow-up note; (3) the server accepts the earningsFollowup create payload. Never email, never Discord (info). Rides the auth payload as notebook_earnings_followup_enabled (api/routers/auth.py NOTEBOOK_FLAGS); the client reads it through lib/earningsFollowupFlag.js, latched per tab like every Notebook capability. Arming and rollback are the owner's (Task 12's packet)."
     },
     "NOTEBOOK_EARNINGS_PREP_ENABLED": {
       "member_facing": {
