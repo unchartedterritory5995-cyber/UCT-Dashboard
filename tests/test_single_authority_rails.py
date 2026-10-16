@@ -516,13 +516,25 @@ def test_atr_pct_is_wilder_true_range_and_differs_from_adr_when_there_are_gaps()
 
 
 def test_atr_pct_refuses_rather_than_falling_back_to_adr_on_a_short_series():
-    """Fewer than `period + 1` bars is 'not computable', not 'here is ADR'."""
+    """Fewer than `period + 1` bars is 'not computable', not 'here is ADR'.
+
+    ⚠️ Since the 2026-10-15 accuracy audit (#2) ADR refuses on a short series
+    too — it needs its full 21-session window — so at 10 bars BOTH are None and
+    that case alone can no longer tell a fallback from a refusal. The
+    discriminating case is the second half: on a full window with gaps, ATR
+    (true range, includes the gap) and ADR (h−l only) must be DIFFERENT numbers,
+    which `atr_pct = adr_pct` would make identical."""
     from api.services.screener import technicals
     bars = [{"t": 20250101 + i, "o": 10.0, "h": 10.5, "l": 9.5, "c": 10.0, "v": 1}
             for i in range(10)]
     out = technicals.compute_technicals(bars)
     assert out["atr_pct"] is None
-    assert out["adr_pct"] is not None
+    assert out["adr_pct"] is None
+    gappy = [{"t": 20250101 + i, "o": c, "h": c + 0.5, "l": c - 0.5, "c": c, "v": 1}
+             for i, c in enumerate([10.0, 12.0] * 15)]
+    full = technicals.compute_technicals(gappy)
+    assert full["atr_pct"] is not None and full["adr_pct"] is not None
+    assert full["atr_pct"] != full["adr_pct"]
 
 
 def test_adr_counts_the_same_bars_in_its_numerator_and_its_denominator():

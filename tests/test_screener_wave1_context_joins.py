@@ -67,19 +67,24 @@ def test_index_flags_a_missing_list_stays_not_computable(monkeypatch):
     assert fails["index_lists"]["missing:1"] == 1
 
 
-def test_etf_flags_one_leg_can_die_alone(monkeypatch):
+def test_etf_flags_a_dead_ssetf_leg_is_not_computable_and_is_etf_is_never_emitted(monkeypatch):
+    """`is_etf` is no longer this reader's (it is derived from `security_type`
+    in `build_row`, audit 2026-10-15 #3). With its one remaining leg dead the
+    reader answers {} — not-computable — and counts the failure by name; and it
+    does not consult the Finviz industry list at all any more."""
     from api.services import industry_map, single_stock_etfs
+    consulted = []
     monkeypatch.setattr(industry_map, "tickers_in_industry",
-                        lambda industry: ["SPY"])
+                        lambda industry: consulted.append(industry) or ["SPY"])
 
     def boom():
         raise RuntimeError("no db")
     monkeypatch.setattr(single_stock_etfs, "_connect", boom)
     fails = {}
     out = context_joins.read_etf_flags(["SPY", "NVDA"], failures=fails)
-    assert out["SPY"] == {"is_etf": True}          # no is_leveraged key at all
-    assert out["NVDA"] == {"is_etf": False}
+    assert out == {}
     assert "RuntimeError" in fails["ssetf"]
+    assert consulted == []                          # the second authority is gone
 
 
 def test_theme_captured_by_read_fundamentals(monkeypatch):
