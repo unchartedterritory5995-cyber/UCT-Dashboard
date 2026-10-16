@@ -3,7 +3,7 @@
 // this minute). Before 9:45 ET, outside the session, or with no stored curve it is
 // blank — never the raw today/full-day ratio, which reads ~0.8x at 10:00 for a 3x name.
 import { describe, expect, it } from 'vitest'
-import { CURVE_HEADER_KEYS, META_HEADER_KEYS, QUOTE_HEADER_KEYS, resolveHeaderField } from './headerFields'
+import { CURVE_HEADER_KEYS, HEADER_FIELD_BY_KEY, META_HEADER_KEYS, QUOTE_HEADER_KEYS, resolveHeaderField } from './headerFields'
 
 const LINEAR = Array.from({ length: 391 }, (_, m) => m / 390)
 const volCurve = { curve: LINEAR, session: { date: '2026-08-24', open_min: 570, close_min: 960 }, suppress_first_min: 15, full_session_min: 390 }
@@ -36,5 +36,25 @@ describe("header field 'rvol'", () => {
     expect(META_HEADER_KEYS.has('rvol')).toBe(true)
     expect(CURVE_HEADER_KEYS.has('rvol')).toBe(true)
     expect(CURVE_HEADER_KEYS.has('vol')).toBe(false)
+  })
+})
+
+
+describe("header field 'rvol' — the symbol's OWN curve (approach B)", () => {
+  // Front-loaded: twice the linear pace. At 10:42 its share is 14.4/39, not 72/390.
+  const FRONT_KNOTS = Array.from({ length: 79 }, (_, k) => Math.min(1, k / 39))
+  const withOwn = { ...volCurve, bar_min: 5, ticker_knots: { NVDA: FRONT_KNOTS } }
+  it("divides by the chart symbol's own usual volume by now when the payload carries it", () => {
+    // 1e6 / (2e6 × 14.4/39) = 1.35 -> "1.4x"; on the market curve it is 2.71 -> "2.7x".
+    expect(resolveHeaderField('rvol', ctx({ volCurve: withOwn, sym: 'NVDA' })).value).toBe('1.4x')
+    expect(resolveHeaderField('rvol', ctx({ volCurve: withOwn, sym: 'AAPL' })).value).toBe('2.7x')
+    expect(resolveHeaderField('rvol', ctx({ volCurve: withOwn })).value).toBe('2.7x')
+  })
+  it("is still blank before 9:45 ET with the symbol's own curve", () => {
+    expect(resolveHeaderField('rvol', ctx({ volCurve: withOwn, sym: 'NVDA', now: new Date('2026-08-24T13:40:00Z') })).value).toBeNull()
+  })
+  it('carries the shared tooltip', () => {
+    expect(HEADER_FIELD_BY_KEY.rvol.title).toBe('Volume vs usual by this time of day')
+    expect(HEADER_FIELD_BY_KEY.rvol.label).toBe('RVOL')
   })
 })

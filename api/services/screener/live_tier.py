@@ -568,7 +568,8 @@ def derive_row(anchor_row: dict, quote, ymd: int, live_asof: float,
     only the names say WHICH — and a surface cannot subtract a count.
 
     ``volume_share`` is the usual share of a session's volume done by now
-    (``volume_curve.live_share``), computed ONCE per sweep by the caller so this
+    (``volume_curve.live_share``, or — approach B — the ticker's OWN share from the
+    ``volume_curve.ticker_live_shares`` map), computed ONCE per sweep by the caller so this
     stays pure. ``None`` (before 09:45 ET, or no stored curve) leaves
     ``rvol_live`` at its nightly value, which is NULL.
     """
@@ -805,6 +806,11 @@ def _blank_receipt(**over) -> dict:
         # (before 09:45 ET, or no stored curve), named so the receipt says WHY
         # `rvol_live` is in `columns_not_recomputed`.
         "volume_share": None,
+        # APPROACH B: how many symbols had their OWN per-ticker share this cycle
+        # (read ONCE per sweep into a dict, one query), and how many written rows
+        # actually divided by one. Every other row divided by `volume_share`.
+        "ticker_shares": 0,
+        "rows_on_ticker_curve": 0,
         "duration_ms": 0.0,
         # R72 (D-21): the three SQLite touches inside `_sweep_locked`, timed
         # separately, each split into busy-wait (retrying because someone else
@@ -919,6 +925,13 @@ def run_sweep() -> dict:
     # ONE share per sweep, read before the lock (the curve is not an anchor the
     # build rewrites under us, and a per-row read would be a per-row fanout).
     receipt["volume_share"] = _volume_share(now)
+    # ⭐ APPROACH B — and ONE per-ticker dict per sweep, from ONE query, likewise
+    # before the lock. A row looks its ticker up in it; a miss reads the market
+    # share. No market share (before 09:45 ET, no curve) ⇒ no ticker shares either:
+    # the blank is the same blank whichever curve a name would have read.
+    ticker_shares = (_ticker_shares(now) if receipt["volume_share"] is not None
+                     else {})
+    receipt["ticker_shares"] = len(ticker_shares)
 
     t_lock = time.time()
     if not snapshot_builder._BUILD_LOCK.acquire(blocking=False):
@@ -932,7 +945,7 @@ def run_sweep() -> dict:
     # and `held_lock_ms` in exactly the same state, with one release site.
     t_held = time.time()
     try:
-        _sweep_locked(receipt, ymd, scan_volume, snap)
+        _sweep_locked(receipt, ymd, scan_volume, snap, ticker_shares)
     except sqlite3.OperationalError:
         # The one thing a once-per-process DDL flag can get wrong: the file it
         # was true of is gone (a wiped volume, a fresh mount, a test swapping
@@ -944,6 +957,18 @@ def run_sweep() -> dict:
         snapshot_builder._BUILD_LOCK.release()
         receipt["held_lock_ms"] = round((time.time() - t_held) * 1000, 2)
     return _finish(receipt, t0)
+
+
+def _ticker_shares(now_et) -> dict:
+    """``{ticker: share}`` from the per-ticker curves (approach B), ONE query for the
+    whole universe, or ``{}``. Never raises: unreadable per-ticker curves leave every
+    row on the market share, which is still a right answer."""
+    try:
+        return volume_curve.ticker_live_shares(now_et)
+    except Exception as e:                                  # noqa: BLE001
+        log.warning("[screener-live] per-ticker volume curves unreadable: %s: %s",
+                    type(e).__name__, e)
+        return {}
 
 
 def _volume_share(now_et) -> float | None:
@@ -975,7 +1000,8 @@ def _forget_schema() -> None:
     _SCHEMA_READY.discard(snapshot_db.get_db_path())
 
 
-def _sweep_locked(receipt: dict, ymd: int, scan_volume, snap: dict) -> None:
+def _sweep_locked(receipt: dict, ymd: int, scan_volume, snap: dict,
+                  ticker_shares: dict | None = None) -> None:
     """The derivation and the write, both UNDER the build lock — the anchors
     must be read from a snapshot that is not being rewritten underneath us.
 
@@ -1018,12 +1044,18 @@ def _sweep_locked(receipt: dict, ymd: int, scan_volume, snap: dict) -> None:
             receipt["skipped"][reason] += 1
             continue
         got: set = set()
+        # The ticker's OWN usual share by now when it has a curve, else the market's.
+        # A dict lookup into the per-sweep map — never a read.
+        own = (ticker_shares or {}).get(str(row.get("ticker") or "").upper())
+        share = own if own is not None else receipt.get("volume_share")
         derived = derive_row(row, quote, ymd, as_of, recomputed_out=got,
-                             volume_share=receipt.get("volume_share"))
+                             volume_share=share)
         if derived is None:          # defensive; the gate already answered
             receipt["skipped"]["no_feed"] += 1
             continue
         receipt["cols_recomputed_total"] += derived["live_cols"]
+        if own is not None and "rvol_live" in got:
+            receipt["rows_on_ticker_curve"] += 1
         for c in got:
             per_col[c] += 1
         out_rows.append(derived)

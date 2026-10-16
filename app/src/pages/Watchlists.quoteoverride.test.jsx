@@ -125,7 +125,7 @@ test('NON-VACUITY: without the override the same render has no prices at all', (
 })
 
 test('RVOL renders from a directly-supplied ratio, with no raw volume anywhere', () => {
-  // The derived form needs avg_vol_20d AND a live q.volume; a recorded breadth
+  // The derived form needs avg_vol_30d, a live q.volume AND the curve; a recorded breadth
   // drill has neither, so without the direct path the column is always blank.
   render(
     <Watchlists

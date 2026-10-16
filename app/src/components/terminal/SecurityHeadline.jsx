@@ -1,11 +1,11 @@
 // UCT Terminal — the one-line headline every one-stock panel carries under its title
-// (wave 3, product list item #2): `NVDA 182.40 +3.1% · vol 2.4× avg · earnings Thu Nov 19`.
+// (wave 3, product list item #2): `NVDA 182.40 +3.1% · RVOL 2.4x · earnings Thu Nov 19`.
 //
 // Mounted ONCE by the shell's `Panel` frame (pages/terminal/TerminalShell.jsx) whenever the
 // panel shows a security, so no panel draws its own copy. It reads SHARED data only:
 //   * the price, % change and volume from the app-wide live-price pool (`useLivePrices` →
 //     livePriceStore: one poll of the union of every subscriber's tickers);
-//   * the next earnings date and 20-session average volume from `/api/research/snapshot-batch`
+//   * the next earnings date and 30-session average volume from `/api/research/snapshot-batch`
 //     under the SWR key `['/api/research/snapshot-batch', [SYM]]` — so two panels on the same
 //     ticker share ONE request (SWR dedupes by key), never one fetch per panel.
 // Honest states: "loading quote", "no quote for XYZ" (an unknown ticker, never a crash), and
@@ -22,6 +22,14 @@
 //     "at the Fri 4:00 PM ET close", from the row's `session_close_at` (live-prices, additive).
 //     An extended-hours print carries its own ET time from `observed_at`.
 //
+// RVOL (2026-10-15) is "volume vs usual by this time of day" — the screener's live
+// `rvol_live`, the chart header's and the watchlist's number: today's volume over (the
+// 30-session average × the share of a normal day this stock, or the market, has usually
+// traded by this minute), from `lib/volumeCurve.js` and ONE `/api/screener/volume-curve`
+// request per symbol. Blank before 09:45 ET, outside the session, or without a curve. It
+// was today's volume over the 20-session FULL-day average, which reads ~0.8x at 10:00 for
+// a 3x name.
+//
 // Wave 5: the earnings date carries BMO / AMC when the earnings calendar data already cached
 // for that day knows the session (`session: true` on the same batch request; the server reads
 // its calendar cache and never builds a week). No new request: it rides the existing key.
@@ -29,6 +37,8 @@ import useSWR from 'swr'
 import useLivePrices from '../../hooks/useLivePrices'
 import useMarketOpen from '../../hooks/useMarketOpen'
 import useFundamentalSnapshot from '../../hooks/useFundamentalSnapshot'
+import useVolumeCurve from '../../hooks/useVolumeCurve'
+import { RVOL_TOOLTIP, formatRvol, rvolForSymbol } from '../../lib/volumeCurve'
 import TickerNotFound, { notFoundOf } from './TickerNotFound'
 import styles from './SecurityHeadline.module.css'
 
@@ -76,13 +86,9 @@ export function fmtPct(v) {
   return `${sign}${Math.abs(n).toFixed(2)}%`
 }
 
-/** Today's volume over the 20-session average, as `2.4×`; null when either side is missing. */
-export function volRatio(volume, avg) {
-  const v = fin(volume)
-  const a = fin(avg)
-  if (v == null || a == null || a <= 0) return null
-  const r = v / a
-  return `${r >= 10 ? r.toFixed(0) : r.toFixed(1)}×`
+/** Volume vs usual by this time of day, as `2.4x`; null when blank (see the header). */
+export function headlineRvol(volCurve, sym, volume, avg30, now = new Date()) {
+  return formatRvol(rvolForSymbol(volCurve, sym, fin(volume), fin(avg30), now))
 }
 
 const ET = 'America/New_York'
@@ -164,6 +170,7 @@ export default function SecurityHeadline({ sym, onRun = null }) {
   // cannot price — never for a healthy ticker.
   const unknown = !!name && !price && !!snap && !(meta && meta.name)
   const { data: presence } = useFundamentalSnapshot(name, unknown)
+  const volCurve = useVolumeCurve(!!name, name ? [name] : [])
   if (!name) return null
 
   if (!price) {
@@ -184,7 +191,7 @@ export default function SecurityHeadline({ sym, onRun = null }) {
 
   const pct = fmtPct(row?.change_pct)
   const dir = fin(row?.change_pct) > 0 ? 'up' : fin(row?.change_pct) < 0 ? 'down' : 'flat'
-  const vol = volRatio(row?.volume, meta?.avg_vol_20d)
+  const vol = headlineRvol(volCurve, name, row?.volume, meta?.avg_vol_30d)
   const earn = fmtEarnings(meta?.next_earnings)
   const earnSession = earn ? EARNINGS_SESSION[String(meta?.next_earnings_session || '').toLowerCase()] || null : null
   const session = sessionClause(row, market)
@@ -204,7 +211,7 @@ export default function SecurityHeadline({ sym, onRun = null }) {
         </span>
       )}
       {clause && <span className={styles.clause} data-testid="security-headline-session">{clause}{extPrice ? ` ${extPrice}` : ''}{extAt ? ` at ${extAt}` : ''}</span>}
-      {vol && <span className={styles.part} data-testid="security-headline-vol" title="Today's volume vs the 20-session average">· vol {vol} avg</span>}
+      {vol && <span className={styles.part} data-testid="security-headline-vol" title={RVOL_TOOLTIP}>· RVOL {vol}</span>}
       {earn && (
         <span className={styles.part} data-testid="security-headline-earn"
           title={`Next earnings date (ET)${earnSession ? `, ${earnSession.long}` : ''}`}>

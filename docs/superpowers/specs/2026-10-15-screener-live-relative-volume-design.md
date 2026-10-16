@@ -1,7 +1,8 @@
 # Screener: live relative volume ("volume vs usual by now")
 
 Status: **approved 2026-10-15 (approach A, plus the chart header RVOL switched to the same
-number); built on `feat/screener-live-rvol`.** Approach B is not in scope. Written 2026-10-15 after
+number); built on `feat/screener-live-rvol`.** Approach B (per-stock curves) was built
+next on `feat/screener-rvol-per-stock` — see *Approach B, as built* at the end. Written 2026-10-15 after
 the owner asked for the screener to be live like the charts, never a delayed scan.
 
 Where it lives: `api/services/screener/volume_curve.py` (nightly curve, table
@@ -78,3 +79,24 @@ and an early-close day must scale to its own length.
 
 1. Approve A as the first step (and B later)?
 2. OK to add `rvol_live` to the live columns, and to change the chart header's RVOL to match?
+
+## Approach B, as built (2026-10-15, `feat/screener-rvol-per-stock`)
+
+- **Nightly** (`volume_curve.build_nightly`): the same 20 full sessions of the top-300 liquid
+  names. A name with at least `PER_TICKER_MIN_SESSIONS` (15) complete sessions also gets its own
+  curve from the same `build_knots` (median per 5-minute knot, running maximum, pinned 0 and 1),
+  blended toward the market's knots by `sessions / 20` (`blend_knots`), stored as 79 knot shares
+  in `screener_volume_curve_ticker` keyed by the market build id, in the same transaction. Only
+  the newest build's rows are kept and read.
+- **Live tier**: `run_sweep` reads `volume_curve.ticker_live_shares(now)` ONCE per sweep (one
+  query) into a dict, beside the market share; each row uses its ticker's own share when present,
+  else the market share. No market share (before 09:45 ET, no curve) blanks both. Receipt:
+  `ticker_shares`, `rows_on_ticker_curve`. AST rail: the per-row path reaches `volume_curve` only
+  for `rvol`.
+- **Endpoint**: `GET /api/screener/volume-curve?ticker=SYM` or `?tickers=A,B,C` (up to 500) adds
+  `ticker_knots` from the same cached payload.
+- **Every RVOL display is this number**: the chart header (one request per chart symbol), the
+  Watchlist column (ONE batch request for the list; past 500 symbols the tail reads the market
+  curve) and the terminal `SecurityHeadline` (`· RVOL 2.4x`), all through
+  `lib/volumeCurve.rvolForSymbol` over `avg_vol_30d`, label RVOL, tooltip "Volume vs usual by
+  this time of day". The 20-session full-day ratio is gone from all three.
