@@ -10,6 +10,8 @@ the archive is for PAID MEMBERS and every in-app tool, never the anonymous inter
   GET /playbooks         one row per setup playbook (most-called first)
   GET /playbook/{setup}  a setup's playbook: definition, measured stats, context cuts,
                          teaching record ids, best and worst calls
+  GET /image/{image_id}  one stored chart image (private storage, never a public URL)
+Record-bearing payloads carry ``images: [image_id, ...]`` on rows whose post has stored charts.
 
 ADMIN (`/api/admin/wisdom/archive`, every route Depends(require_admin) — the admin guard
 middleware does not cover /api/admin/wisdom, so the dependency IS the gate):
@@ -20,6 +22,8 @@ middleware does not cover /api/admin/wisdom, so the dependency IS the gate):
 
 MACHINE (`/api/internal/wisdom/archive`, Depends(require_push_secret)):
   POST /batch            {kind: "records"|"calls"|"setups", items: [...]} idempotent upsert
+  POST /image            {record_id, ordinal, data_b64} one chart image, idempotent by sha256
+  POST /images/missing   {image_ids: [...]} -> the ones not yet stored (resumable import)
 
 Every half is ALSO gated by WISDOM_ARCHIVE_ENABLED (default off -> 404), checked after the
 credential so an unauthenticated or unpaid caller learns nothing about the flag.
@@ -29,14 +33,16 @@ here reaches wisdom_records / wisdom_segments.
 """
 from __future__ import annotations
 
+import base64
+import binascii
 import sqlite3
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user, require_admin
 from api.routers.wisdom_sources import require_push_secret
-from api.services.wisdom.archive import service
+from api.services.wisdom.archive import images, service
 from api.services.wisdom.core import flags, store
 
 router = APIRouter(prefix="/api/admin/wisdom/archive", tags=["wisdom"])
@@ -74,6 +80,38 @@ def archive_batch(body: BatchIn, _worker: None = Depends(require_push_secret)) -
         raise HTTPException(status_code=422, detail=str(exc))
     except sqlite3.Error as exc:
         raise HTTPException(status_code=503, detail=f"wisdom.db unavailable: {exc}")
+
+
+class ImageIn(BaseModel):
+    record_id: str = Field(max_length=16)
+    ordinal: int = 0
+    data_b64: str = Field(max_length=(images.MAX_BYTES * 4) // 3 + 16)
+
+
+class MissingIn(BaseModel):
+    image_ids: list = Field(default_factory=list, max_length=2000)
+
+
+@internal_router.post("/image")
+def archive_image(body: ImageIn, _worker: None = Depends(require_push_secret)) -> dict:
+    _require_enabled()
+    try:
+        data = base64.b64decode(body.data_b64, validate=True)
+    except (binascii.Error, ValueError):
+        raise HTTPException(status_code=422, detail="data_b64 is not valid base64")
+    try:
+        with store.write() as conn:
+            return images.store_image(conn, body.record_id, body.ordinal, data)
+    except images.ImageError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except sqlite3.Error as exc:
+        raise HTTPException(status_code=503, detail=f"wisdom.db unavailable: {exc}")
+
+
+@internal_router.post("/images/missing")
+def archive_images_missing(body: MissingIn, _worker: None = Depends(require_push_secret)) -> dict:
+    _require_enabled()
+    return {"missing": _read(images.missing, body.image_ids)}
 
 
 def _read(fn, *args, **kwargs):
@@ -129,7 +167,7 @@ def _named(payload: dict) -> dict:
                 row["trader"] = _trader_name(row["author_id"])
     if "author" in payload:
         payload["trader"] = _trader_name(payload["author"])
-    return payload
+    return images.attach(payload)              # chart ids beside each post that has them
 
 
 @member_router.get("/ticker/{sym}")
@@ -185,3 +223,19 @@ def member_playbook(setup: str, _user: dict = Depends(require_paid)) -> dict:
         raise HTTPException(status_code=404, detail="No playbook for that setup")
     out["used_by"] = [{"author": a, "trader": _trader_name(a)} for a in out.get("used_by") or []]
     return _named(out)
+
+
+@member_router.get("/image/{image_id}")
+def member_image(image_id: str, _user: dict = Depends(require_paid)) -> Response:
+    _require_enabled()
+    try:
+        with store.read(for_request=True) as conn:
+            got = images.load(conn, image_id)
+    except sqlite3.Error as exc:
+        raise HTTPException(status_code=503, detail=f"wisdom.db unavailable: {exc}")
+    if got is None:
+        raise HTTPException(status_code=404, detail="No such image")
+    data, ctype = got
+    # private: a paid image must never sit in a shared cache; immutable: the id IS the content
+    return Response(content=data, media_type=ctype,
+                    headers={"Cache-Control": "private, max-age=604800, immutable"})

@@ -13,6 +13,11 @@ Layout read under --src:
   records/retired.json      {record_id: reason}  -- these records are skipped
   images/by_record.json     {record_id: [image, ...]}  -- optional, only the COUNT is sent
   scored/calls.jsonl        one call per line (call_id, record, author, ticker, ...)
+  images/<author>/<yyyy-mm>/*.png|jpg|webp   chart images, sent only with --only images:
+                            --scope library = the charts the setup library's winners, failures and
+                            teachings show; calls = every chart of a record with a scored call;
+                            all = every chart of every sent record. One POST per image, after asking
+                            the server which ones it is missing, so a re-run sends only the rest.
   structured/setup_library/<setup>.json   one setup playbook per file (index.json is skipped);
                             traders are display names there and are mapped back to author slugs.
                             Image paths and long quotes are NOT sent; teachings and examples
@@ -39,6 +44,7 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from api.services.wisdom.archive import images as archive_images  # noqa: E402
 from api.services.wisdom.archive import service  # noqa: E402
 
 BATCH = 1000
@@ -187,6 +193,123 @@ def validate_locally(kind: str, items: list, counts: dict) -> list:
     return good
 
 
+IMAGE_SCOPES = ("library", "calls", "all")
+
+
+def _library_image_paths(src: pathlib.Path) -> dict:
+    """{record_id: [relative image path, ...]} exactly as the setup library shows them."""
+    out: dict = {}
+    lib = src / "structured" / "setup_library"
+    for f in sorted(lib.glob("*.json")) if lib.is_dir() else []:
+        if f.name == "index.json":
+            continue
+        raw = json.loads(f.read_text(encoding="utf-8"))
+        for key in ("winners", "failures", "teachings"):
+            for row in raw.get(key) or []:
+                rid = row.get("record_id") or row.get("record")
+                for path in row.get("images") or []:
+                    lst = out.setdefault(rid, [])
+                    if path not in lst:
+                        lst.append(path)
+    return out
+
+
+def build_images(src: pathlib.Path, counts: dict, sent_records: set, scope: str, max_mb: float) -> list:
+    """[{record_id, ordinal, path, image_id, bytes}] for the scope, validated like the server does.
+    ordinal = the image's position in the record's own list (images/by_record.json)."""
+    by_record = _load_json(src / "images" / "by_record.json", {}) or {}
+    if scope == "library":
+        wanted = _library_image_paths(src)
+    elif scope == "calls":
+        scored: set = set()
+        path = src / "scored" / "calls.jsonl"
+        if path.exists():
+            with path.open(encoding="utf-8") as fh:
+                for line in fh:
+                    if line.strip():
+                        raw = json.loads(line)
+                        if raw.get("status") == "scored":
+                            scored.add(raw.get("record"))
+        wanted = {rid: by_record.get(rid) or [] for rid in scored}
+    else:
+        wanted = dict(by_record)
+    cap = int(max_mb * 1024 * 1024)
+    out, seen = [], set()
+    for rid in sorted(wanted):
+        if rid not in sent_records:
+            counts["images_record_not_sent"] += len(wanted[rid] or [])
+            continue
+        own = by_record.get(rid) or []
+        for rel in wanted[rid] or []:
+            counts["images_read"] += 1
+            f = src / rel
+            if not f.is_file():
+                counts["images_missing_file"] += 1
+                continue
+            size = f.stat().st_size
+            if size > min(cap, archive_images.MAX_BYTES):
+                counts["images_oversize"] += 1
+                continue
+            data = f.read_bytes()
+            try:
+                image_id, _ = archive_images.validate(data)
+            except archive_images.ImageError:
+                counts["images_bad_type"] += 1
+                continue
+            if image_id in seen:
+                counts["images_duplicate"] += 1
+                continue
+            seen.add(image_id)
+            ordinal = own.index(rel) if rel in own else 0
+            out.append({"record_id": rid, "ordinal": ordinal, "path": str(f), "image_id": image_id,
+                        "bytes": size})
+    counts["images_to_send"] = len(out)
+    counts["images_to_send_mb"] = round(sum(i["bytes"] for i in out) / 1024 / 1024, 1)
+    return out
+
+
+def _post_json(url: str, secret: str, path: str, body: dict, timeout: int = 120) -> dict:
+    data = json.dumps(body).encode("utf-8")
+    last = None
+    for attempt in range(RETRIES):
+        req = urllib.request.Request(
+            url.rstrip("/") + path, data=data, method="POST",
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {secret}",
+                     "User-Agent": "Mozilla/5.0 (uct-wisdom-archive-import)"})
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            if exc.code in (401, 403, 404, 422):
+                raise SystemExit(f"{path} refused: HTTP {exc.code} {exc.read()[:300]!r}")
+            last = f"HTTP {exc.code}"
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            last = type(exc).__name__
+        time.sleep(2 ** attempt)
+    raise SystemExit(f"{path} failed after {RETRIES} attempts ({last})")
+
+
+def send_images(url: str, secret: str, items: list, totals: dict) -> None:
+    import base64
+
+    need: set = set()
+    ids = [i["image_id"] for i in items]
+    for i in range(0, len(ids), 1000):
+        need |= set(_post_json(url, secret, "/api/internal/wisdom/archive/images/missing",
+                               {"image_ids": ids[i:i + 1000]}).get("missing") or [])
+    totals["images_already_stored"] = len(items) - len(need)
+    todo = [i for i in items if i["image_id"] in need]
+    for n, item in enumerate(todo, 1):
+        data = pathlib.Path(item["path"]).read_bytes()
+        res = _post_json(url, secret, "/api/internal/wisdom/archive/image",
+                         {"record_id": item["record_id"], "ordinal": item["ordinal"],
+                          "data_b64": base64.b64encode(data).decode("ascii")})
+        key = f"images_{res.get('status', 'unknown')}"
+        totals[key] = totals.get(key, 0) + 1
+        if n % 100 == 0 or n == len(todo):
+            print(f"  images {n}/{len(todo)}", flush=True)
+
+
 def post_batch(url: str, secret: str, kind: str, items: list) -> dict:
     data = json.dumps({"kind": kind, "items": items}).encode("utf-8")
     last = None
@@ -214,7 +337,11 @@ def main(argv=None) -> int:
     ap.add_argument("--src", required=True, help="local TSDR-Ledger-Backup directory")
     ap.add_argument("--url", default="https://uctintelligence.com", help="dashboard base URL")
     ap.add_argument("--send", action="store_true", help="actually POST (default: dry run)")
-    ap.add_argument("--only", choices=service.KINDS, help="import one kind only")
+    ap.add_argument("--only", choices=service.KINDS + ("images",),
+                    help="import one kind only (images are sent ONLY when named here)")
+    ap.add_argument("--scope", choices=IMAGE_SCOPES, default="library",
+                    help="with --only images: which charts (default library)")
+    ap.add_argument("--max-mb", type=float, default=3.0, help="with --only images: skip larger files")
     ap.add_argument("--batch", type=int, default=BATCH)
     args = ap.parse_args(argv)
 
@@ -225,13 +352,17 @@ def main(argv=None) -> int:
     counts = {k: 0 for k in ("records_read", "records_retired", "records_unknown_author", "records_bad_type",
                              "records_invalid", "calls_read", "calls_unknown_author", "calls_orphan_record",
                              "calls_invalid", "setups_read", "setups_invalid", "setup_teachings_dropped",
-                             "setup_examples_dropped")}
+                             "setup_examples_dropped", "images_read", "images_record_not_sent",
+                             "images_missing_file", "images_oversize", "images_bad_type",
+                             "images_duplicate")}
     records = validate_locally("records", build_records(src, counts), counts)
     calls = validate_locally("calls", build_calls(src, counts, {r["record_id"] for r in records}), counts)
     setups = validate_locally("setups", build_setups(src, counts, {r["record_id"] for r in records}), counts)
     counts["records_to_send"] = len(records)
     counts["calls_to_send"] = len(calls)
     counts["setups_to_send"] = len(setups)
+    imgs = (build_images(src, counts, {r["record_id"] for r in records}, args.scope, args.max_mb)
+            if args.only == "images" else [])
 
     totals: dict = {}
     if args.send:
@@ -240,6 +371,8 @@ def main(argv=None) -> int:
             print("PUSH_SECRET is not set in the environment", file=sys.stderr)
             return 2
         batch = max(1, min(args.batch, 2000))
+        if args.only == "images":
+            send_images(args.url, secret, imgs, totals)
         for kind, items in (("records", records), ("calls", calls), ("setups", setups)):
             if args.only and args.only != kind:
                 continue

@@ -116,6 +116,31 @@ describe('TraderArchive page', () => {
     expect(screen.getByText('None recorded.')).toBeInTheDocument()
   })
 
+  it('shows a post\'s stored charts as lazy thumbnails from the paid image route, and enlarges one', async () => {
+    const id = 'a'.repeat(64)
+    serve({
+      [`${API}/stats`]: ok(STATS),
+      [`${API}/search`]: ok({ q: 'chart', hits: [
+        { record_id: 't3', author_id: 'tsdr', trader: 'TSDR', stated_date: '2025-02-01', record_type: 'CALL', tickers: ['ZZTA'], note: 'synthetic post with a chart', images: [id] },
+        { record_id: 't4', author_id: 'tsdr', trader: 'TSDR', stated_date: '2025-02-02', record_type: 'CALL', tickers: ['ZZTB'], note: 'synthetic post without one' },
+      ] }),
+    })
+    mount()
+    await screen.findByTestId('ta-stats')
+    fireEvent.change(screen.getByLabelText('Search posts'), { target: { value: 'chart' } })
+    fireEvent.click(screen.getByRole('button', { name: /Search$/ }))
+    await screen.findByText('synthetic post with a chart')
+    const imgs = screen.getAllByRole('img', { name: 'Chart 1' })
+    expect(imgs).toHaveLength(1)                                                   // control: t4 has none
+    expect(imgs[0]).toHaveAttribute('src', `${API}/image/${id}`)
+    expect(imgs[0]).toHaveAttribute('loading', 'lazy')
+    fireEvent.click(screen.getByRole('button', { name: /Open chart 1 of 1/ }))
+    const box = screen.getByTestId('archive-lightbox')
+    expect(box.querySelector('img')).toHaveAttribute('src', `${API}/image/${id}`)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByTestId('archive-lightbox')).toBeNull()
+  })
+
   it('a 404 says the archive is not available, not that nothing was found', async () => {
     serve({ [`${API}/stats`]: fail(404) })
     mount()

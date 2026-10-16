@@ -17,6 +17,7 @@ import useSWR from 'swr'
 import jsonFetcher from '../../utils/jsonFetcher'
 import UIcon from '../../components/ui/UIcon'
 import { ARCHIVE_API, clip, dayOf, fmtR, rTone, traderOf } from '../../utils/traderArchive'
+import ArchiveThumbs from './ArchiveThumbs'
 import styles from './TraderArchive.module.css'
 
 const VIEWS = [
@@ -63,6 +64,7 @@ function RecordList({ records, empty }) {
           </div>
           {r.note && <p className={styles.note}>{r.note}</p>}
           {r.quote && <blockquote className={styles.quote}>{clip(r.quote, 600)}</blockquote>}
+          <ArchiveThumbs ids={r.images} />
         </li>
       ))}
     </ul>
@@ -304,6 +306,7 @@ function PlaybookView() {
                     <span className={styles.kind}>{t.record_id}</span>
                   </div>
                   {t.note && <p className={styles.note}>{t.note}</p>}
+                  <ArchiveThumbs ids={t.images} />
                 </li>
               ))}
             </ul>
@@ -323,7 +326,7 @@ function ExampleTable({ rows }) {
   return (
     <div className={styles.tableWrap}>
       <table className={styles.table}>
-        <thead><tr><th>Posted</th><th>Ticker</th><th>Trader</th><th>Dir</th><th>Trade R</th><th>R20</th><th>Market</th><th>In their words</th></tr></thead>
+        <thead><tr><th>Posted</th><th>Ticker</th><th>Trader</th><th>Dir</th><th>Trade R</th><th>R20</th><th>Market</th><th>In their words</th><th>Chart</th></tr></thead>
         <tbody>
           {rows.map((e) => (
             <tr key={e.call_id}>
@@ -335,6 +338,7 @@ function ExampleTable({ rows }) {
               <td><Outcome value={e.r20} /></td>
               <td>{e.regime || '—'}</td>
               <td className={styles.noteCell}>{clip(e.evidence, 160)}</td>
+              <td><ArchiveThumbs ids={e.images} max={1} /></td>
             </tr>
           ))}
         </tbody>
