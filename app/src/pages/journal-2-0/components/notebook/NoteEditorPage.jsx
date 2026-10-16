@@ -862,18 +862,21 @@ export default function NoteEditorPage({
   // on it pinned the record to the pre-undo words for the rest of the view, so
   // leaving re-sent the undone text silently or made a `(conflicted copy)`.
   // ⭐⭐ C-1 (2026-10-16): AND THE LINEAGE NAMES THE BLOCKS THE 409 RECONCILE MERGED
-  // INTO THIS VIEW (`mergedKeysRef`, by `nodeKeyOf`, reset with the lineage). They
-  // are another device's — not the member's — so a capture or a landed save of this
-  // view that drops one never supersedes the record silently: the record follows the
-  // page and what it held becomes a queued `(conflicted copy)` (`dropsMergedBlocks`,
-  // recoverLocalState.js). Every other block is the member's own to remove.
+  // INTO THIS EDITOR (`mergedKeysRef`, by `nodeKeyOf`). They are another device's —
+  // not the member's — so a capture or a landed save that drops one never supersedes
+  // the record silently: the record follows the page and what it held becomes a
+  // queued `(conflicted copy)` (`dropsMergedBlocks`, recoverLocalState.js). Every
+  // other block is the member's own to remove.
+  // ⛔ C-1 fix round 1 (review CR-1/MI-1): the set lives as long as the editor's
+  // HISTORY, not the lineage — a merge stays undoable across every later swap and
+  // every Undo-crossing rotation, so clearing it there let an Undo of the merge,
+  // taken after a rotation, drop the block unprotected. Reset only where history
+  // starts over: a note load and a rebuilt editor (`resetMergedKeys`).
   const editLineageRef = useRef(null)
   const mergedKeysRef = useRef(new Set())
   if (!editLineageRef.current) editLineageRef.current = newEditLineage()
-  const viewReplaced = () => {
-    editLineageRef.current = newEditLineage()
-    mergedKeysRef.current = new Set()
-  }
+  const viewReplaced = () => { editLineageRef.current = newEditLineage() }
+  const resetMergedKeys = () => { mergedKeysRef.current = new Set() }
   const editLineageNow = () => ({
     id: editLineageRef.current, seq: nextEditSeq(), merged: [...mergedKeysRef.current],
   })
@@ -1380,6 +1383,7 @@ export default function NoteEditorPage({
   useEffect(() => {
     if (!note) return undefined
     viewReplaced()   // hotfix 2026-10-15: a note load is a new view — a new lineage
+    resetMergedKeys()   // C-1 r1: nothing merged into this note's history yet
     restoreSwapRef.current = null   // I-A: no Restore on this note's page yet
     setRefusedCopies([]); setCopyBusy(null); setCopyNote({}); setCopySavedNotice(null)
     setRecoveryDecidedFor(null)
@@ -1651,14 +1655,27 @@ export default function NoteEditorPage({
     scheduleSwapCapture(snap)
   }
   /** Called from `onUpdate` for every undo or redo, BEFORE the lineage rotates.
-   *  Across the Restore boundary it writes the page being left (from
-   *  `tr.before`, under ITS lineage) and marks the next capture — the page being
-   *  brought back — as a swap capture too. */
-  const noteRestoreCrossing = (tr) => {
+   *  Across the Restore boundary — or ACROSS ANY WHOLE-VIEW SWAP (`crosses`, the
+   *  editor's `undoCrossesSwap`) — it writes the page being left (from `tr.before`,
+   *  under ITS lineage) and marks the next capture — the page being brought back —
+   *  as a swap capture too.
+   *  ⭐⭐ C-1 FIX ROUND 1 (review CR-1): a swap can bring SERVER content onto the
+   *  page without writing anything durable — the clean re-read's adoption, a
+   *  version restore, the reconcile's fork swap — so an Undo across it used to put
+   *  the old page back and the autosave PUT it over the server's newer copy (200):
+   *  the other device's widget or paragraph was in no layer (measured, both,
+   *  `undoAcrossServerSwap.test.jsx`). Now the page being left is written first and
+   *  the page coming back is a swap capture, so whatever the old page cannot carry
+   *  becomes a queued `(conflicted copy)` (`swapCaptureSpills`) and the record
+   *  follows the page — never a pin. ⚠️ A duplicate whenever the page coming back
+   *  lacks what was left (an Undo across a version restore copies the restored
+   *  version), and in the degraded history mode every Undo is such a crossing. */
+  const noteSwapCrossing = (tr, crosses) => {
     const swap = restoreSwapRef.current
     const ed = editorRef.current
-    if (!swap || !ed || ed.isDestroyed || !tr?.before || isUnreadable(ed)) return
-    if (!ed.state.doc.eq(swap.preDoc) && !tr.before.eq(swap.preDoc)) return
+    if (!ed || ed.isDestroyed || !tr?.before || isUnreadable(ed)) return
+    const acrossRestore = Boolean(swap) && (ed.state.doc.eq(swap.preDoc) || tr.before.eq(swap.preDoc))
+    if (!crosses && !acrossRestore) return
     scheduleSwapCapture({
       title: titleRef.current,
       subtitle: subtitleRef.current,
@@ -2985,18 +3002,21 @@ export default function NoteEditorPage({
     // loss). Any other undo or redo is the member editing this view and
     // supersedes like a keystroke — including a further Undo of the old view's own
     // typing past a Restore, as the I-A note above already rules ("removing it is
-    // the member's edit"). ⚰️ Rotating also whenever `noteRestoreCrossing` fired
+    // the member's edit"). ⚰️ Rotating also whenever `noteRestoreCrossing` (now `noteSwapCrossing`) fired
     // was tried and dropped: no rail could tell it apart (mutant M3, evidence
     // `offline-undo-20261016T130135Z/`), and its only effect was that pinning.
     // Rail: `lib/offline/ordinaryUndoNoPin.test.jsx`.
     // ⭐ I-A (2026-10-16): an undo or redo across a crash-draft Restore first
-    // writes the page it is leaving (`noteRestoreCrossing`), under the lineage
+    // writes the page it is leaving (`noteSwapCrossing`), under the lineage
     // that page had — so it is taken BEFORE the rotation.
+    // ⭐⭐ C-1 fix round 1 (CR-1): and so does one across ANY whole-view swap — the
+    // swaps that bring server content in included (`noteSwapCrossing`).
     onUpdate: ({ editor: ed, transaction }) => {
       if (lockedRef.current) return
       if (transaction && isHistoryTransaction(transaction)) {
-        noteRestoreCrossing(transaction)
-        if (undoCrossesSwap(transaction, ed.state)) viewReplaced()
+        const crosses = undoCrossesSwap(transaction, ed.state)
+        noteSwapCrossing(transaction, crosses)
+        if (crosses) viewReplaced()
       }
       scheduleAutosaveRef.current()
     },
@@ -3518,7 +3538,7 @@ export default function NoteEditorPage({
   // ⭐ HOTFIX 2026-10-15: a REBUILT editor is a new view (`useEditor` constructs it
   // from the note's stored body) — a new lineage, before the gate below arms.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (editor) viewReplaced() }, [editor])
+  useEffect(() => { if (editor) { viewReplaced(); resetMergedKeys() } }, [editor])
   useEffect(() => {
     hydratedRef.current = Boolean(editor && !editor.isDestroyed && note && !isUnreadable(editor))
   }, [note?.id, editor, note, unreadable])

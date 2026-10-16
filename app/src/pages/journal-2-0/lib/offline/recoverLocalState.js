@@ -180,6 +180,22 @@ const carriesWords = (incoming, prev) =>
  * ⛔ Independent of `prev.dirty`: a CLEAN record holding the merged block is the
  * server's copy, and the write that drops it is about to replace that copy too.
  *
+ * ⚠️ UX, STATED (fix round 1, review MI-4/MI-5), each deliberate:
+ *   · a merged block the member deletes ON PURPOSE makes a sibling copy of the WHOLE
+ *     note; after a reload (a new editor, so no merge in its history) the same
+ *     delete is an ordinary edit and is silent;
+ *   · offline, when the queued entry still sits on a revision older than the merge,
+ *     the drain's own append-merge (`classifyServerChange` → APPEND_ONLY) can put the
+ *     block back on the server — the member's Undo reversed there, the copy beside it;
+ *   · ALL of this protection lives in the offline layer. With the layer off
+ *     (`NOTEBOOK_OFFLINE_DEFAULT_ON=0`, or no IndexedDB) nothing captures or copies,
+ *     and the online variant deletes the block silently, as before C-1.
+ *
+ * ⭐ FIX ROUND 1 (review CR-1): the same class is wider than the reconcile's merge —
+ * an Undo across ANY swap that brought server content in. That half is decided by
+ * the editor's swap crossing (`noteSwapCrossing`, NoteEditorPage), which writes the
+ * page being left and asks `swapCaptureSpills` of the page coming back.
+ *
  * @param prev      the durable record as the store holds it, or null
  * @param incoming  the content about to replace it
  * @param lineage   the edit lineage of the view `incoming` came from ({ id, seq, merged })

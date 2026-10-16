@@ -442,14 +442,23 @@ export async function settleLandedSave({
       queuedAt: Date.now(),
       writtenSchema: record.writtenSchema,
     }
-    // ⭐⭐ C-1 (2026-10-16): the landed save dropped a block the 409 reconcile merged
-    // into the view it was sent from (`sentFrom.merged`), and the record is about to
-    // let go of `prev`'s words — so they go to a queued `(conflicted copy)` in THIS
-    // transaction, as `persist` does for the capture (`dropsMergedBlocks`). ⚰️ A save
-    // that landed before the Undo's own durable write otherwise retired the record
-    // holding the block, and the block was in no layer. When the record KEEPS
-    // `prev` (unsent work), nothing is let go and no copy is needed.
-    const copies = (!unsentWork && dropsMergedBlocks(prev, acked, sentFrom))
+    // ⭐⭐ C-1 (2026-10-16): the record is about to replace `prev`'s words with words
+    // that drop a block the 409 reconcile merged into the editor — so `prev`'s words
+    // go to a queued `(conflicted copy)` in THIS transaction, as `persist` does for
+    // the capture (`dropsMergedBlocks`). ⚰️ A save that landed before the Undo's own
+    // durable write otherwise retired the record holding the block, and the block
+    // was in no layer.
+    // ⛔ C-1 fix round 1 (review IM-1): asked of what the record WRITES (`record`,
+    // whose words are `state`), never of `acked`. When the save has not caught up the
+    // record takes `current` — the Undo's page — while `acked` still held the block,
+    // so asking of `acked` found nothing dropped and the queued entry later deleted
+    // the block under compare-and-set. The merged set is the union of the lineage the
+    // save SENT and the one `current` was captured on. When the record keeps `prev`
+    // (unsent work), nothing is dropped and no copy is made.
+    const mergedNow = {
+      merged: [...new Set([...(sentFrom?.merged || []), ...(current?.editLineage?.merged || [])])],
+    }
+    const copies = dropsMergedBlocks(prev, record, mergedNow)
       ? [copyEntryFor({ noteId, words: prev, writtenSchema: prev.writtenSchema, sessionId: SESSION_ID })]
       : []
     await putNoteWithIntent(db, record, intent, { copies })

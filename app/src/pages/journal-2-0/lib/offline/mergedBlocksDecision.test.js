@@ -129,6 +129,23 @@ describe('2. the outbox retire path (`settleLandedSave`)', () => {
     },
   )
 
+  it('⭐⭐ IM-1: the save has NOT caught up (it carried W; the page after the Undo does not) — the record takes `current`, so a copy is due', async () => {
+    // The reviewer's probe B: the retry PUT carrying W lands after the Undo, before the
+    // Undo's own durable write. `acked` holds W, `current` (the record's new words) does not.
+    await seed(recordFrom(body(MINE, WIDGET)))
+    const acked = { title: 'n', subtitle: '', bodyJson: body(MINE, WIDGET) }
+    const current = { title: 'n', subtitle: '', bodyJson: body(MINE), editLineage: { id: 'L', seq: 3, merged: [nodeKeyOf(WIDGET)] } }
+    await settleLandedSave({
+      accountId: 'u42', noteId: 'n1', acked, current, updatedAt: T2, connect,
+      sentFrom: { id: 'L', seq: 2, merged: [nodeKeyOf(WIDGET)] },
+    })
+    const rec = await getNote(db, 'n1')
+    const queued = await listOutbox(db)
+    expect(JSON.stringify(rec?.bodyJson), 'precondition: the record took the page after the Undo').not.toContain('CAPTION-KEEP')
+    expect(queued.filter(isNoteCopy).map((e) => JSON.stringify(e.patch)).join(''),
+      `the record let go of W without a copy: queued=${JSON.stringify(queued)}`).toContain('CAPTION-KEEP')
+  })
+
   it('⛔ CONTROL — the member’s own block (not merged) removed: the save retires the record, no copy', async () => {
     await seed(recordFrom(body(MINE, WIDGET)))
     const acked = { title: 'n', subtitle: '', bodyJson: body(MINE) }
