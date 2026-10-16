@@ -142,6 +142,9 @@ class TurnIn(BaseModel):
     # The ONE bounded second call after the model asked for more action groups (need_groups):
     # the member's message is already stored, so it is not stored again.
     reroute: bool = False
+    # NL-1 (model-first interpretation): "nl1" asks for it; turn.run_turn honours it ONLY when the
+    # server's UCT_AGENT_NL1 flag is on. Admin-only like every other field here (require_admin_dark).
+    interpreter: Optional[str] = None
     pending: Optional[dict] = None
     recentOutcome: Optional[str] = None
     voice: bool = False
@@ -297,7 +300,8 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
                              pending=body.pending, recent_outcome=body.recentOutcome,
                              manifest_version=body.manifestVersion, routing=body.routing,
                              conversation_title=nameable, on_event=on_event,
-                             meter=budget.Meter(user_id=uid, request_id=request_id), reroute=body.reroute)
+                             meter=budget.Meter(user_id=uid, request_id=request_id), reroute=body.reroute,
+                             interpreter=body.interpreter)
     except budget.BudgetRefused as e:
         # refused BEFORE a paid call: nothing was sent, nothing changed; the day's count is given back
         _give_back(uid)

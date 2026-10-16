@@ -37,6 +37,7 @@ import { registerBuiltins } from './builtins'
 import { routeManifest, routingEnabled, routingNames } from './routing'
 import { createMemory, tickersOfAnswer } from './memory'
 import { resolveReference, subjectTarget } from './references'
+import { nl1Enabled, exactLane, buildNl1Request, correctionPlan } from './nl1/interpreter'
 import { takeIndicatorTouch } from './capabilities/indicatorEdits'
 import { correctTypos, lexiconFor } from './nl/lexicon'
 import { agentTurn, agentTurnStream, serverStreams, loadAgentConfig, agentRecord, agentConversation } from './agentClient'
@@ -304,6 +305,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const lastActionsRef = useRef([])         // actions of the last plan (routing keeps follow-ups' groups)
   const saidRef = useRef('')                // the member's words this turn (how much an answer shows)
   const memoryRef = useRef(null)            // GATE C session memory (agent/memory.js) — this chat only
+  // NL-1 (flag off by default): the question UCT is waiting on, sent to the model with the next message
+  // (pending_question) so a TYPED answer is read with the question in front of it
+  const lastQuestionRef = useRef(null)      // the newest question shown (local or the model's)
+  const pendingQuestionRef = useRef(null)   // the MODEL's open question: { text, choices: [{ label, ref }] }
   if (!memoryRef.current) memoryRef.current = createMemory()
   const [, force] = useState(0)
   const rerender = () => force(n => n + 1)
@@ -321,6 +326,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (['agent', 'refusal', 'error'].includes(item?.role) && !String(item.text || '').trim()
         && !item.present && !item.table && !item.link) return
     if (item?.role && item.role !== 'member') turnOutput(item.role)
+    if (item?.role === 'question') lastQuestionRef.current = item
     setItems(xs => [...xs, { id: nid(), at: Date.now(), ...item }])
   }, [])
   const patchItem = useCallback((id, patch) => setItems(xs => xs.map(x => (x.id === id ? { ...x, ...patch } : x))), [])
@@ -915,15 +921,17 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         push({ role: 'receipt', lines: res.lines, undoId: null, isUndo: true, unsaved: true, notes: [UNSAVED_NOTE[saved.reason] || UNSAVED_NOTE['not-saved']] })
         record({ member, outcome: `${res.lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'undo-unsaved' }, telemetry: { path: 'fast', undo: true, voice, refused: true } })
         rerender()
-        return
+        return false
       }
       push({ role: 'receipt', lines: res.lines, undoId: null, isUndo: true })
       record({ member, outcome: res.lines.join(' · '), outcomeData: { kind: 'undo' }, telemetry: { path: 'fast', undo: true, voice } })
-    } else {
-      push({ role: 'refusal', text: res.reason })
-      record({ member, outcome: res.reason, outcomeData: { kind: 'undo-refused' }, telemetry: { path: 'fast', undo: true, refused: true, voice } })
+      rerender()
+      return true                             // NL-1 corrections apply their new change only after this
     }
+    push({ role: 'refusal', text: res.reason })
+    record({ member, outcome: res.reason, outcomeData: { kind: 'undo-refused' }, telemetry: { path: 'fast', undo: true, refused: true, voice } })
     rerender()
+    return false
   }, [host, push, record, withdrawPending])
 
   const approve = useCallback(async (count = null, { member, voice } = {}) => {
@@ -1019,6 +1027,18 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member: text, outcome: t, outcomeData: { kind: 'unsupported' }, telemetry: { path: 'local', disposition: 'unsupported', unsupported: 'multichart', voice } })
         return
       }
+      // ⭐ NL-1 (owner 2026-10-16; flag off by default): the MODEL reads the request. Only EXACT Undo /
+      // Confirm / Cancel stay instant, and only when there is something for them to act on. Everything
+      // else — references, corrections, a typed answer to a question — is read by the model (with the
+      // question it answers: pending_question), then checked and executed by the same code as always.
+      const nl1 = nl1Enabled()
+      if (nl1) {
+        const x = exactLane(text)
+        if (x?.kind === 'undo') return await doUndo(null, { member: text, voice })
+        if (x?.kind === 'confirm' && pendingRef.current?.kind === 'proposal') return await approve(null, { member: text, voice })
+        if (x?.kind === 'dismiss' && (pendingRef.current || pendingQuestionRef.current)) { pendingQuestionRef.current = null; return dismiss({ member: text }) }
+      }
+      if (!nl1) { // ── the legacy instant path: unchanged (not re-indented, so its diff stays empty) ──
       // A choice clicked under the MODEL's own question answers that question:
       // it goes back to the model (which has the conversation), never through the
       // fast path, which would act on the bare label ("Hide volume") out of context.
@@ -1149,6 +1169,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member: text, outcome: ref.text, outcomeData: { kind: 'clarify-save-target' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
         return
       }
+      } // ── end of the legacy instant path ──
       // ── model path ──
       // Context from every registered provider; actions from every AVAILABLE
       // capability's manifest. Nothing here names a feature. Data that can change outside
@@ -1159,6 +1180,32 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // (need_groups); we ask ONCE more with those groups. Nothing has executed in between.
       // M2 indicator writes are offered only when some chart on this board can manage indicators.
       const manageIndicators = (() => { try { return host?.charts?.list().some(c => host.charts.canManageIndicators?.(c.ref) === true) } catch { return false } })()
+      let res, refMap, live
+      if (nl1) {
+        // NL-1: the whole catalog, every context section (none gated on the member's words), the session
+        // memory with the last change, and the question this message may answer
+        turnPath('model')
+        await refreshContext(1500)
+        mark('context:refreshed')
+        // a local question's stored plan is dropped: the model re-plans the request with the answer in view
+        // (the chart's Create Indicator / Modify door asked "What indicator would you like to build?": the answer
+        // is read by the model with that question — indicator.draft is in the catalog — never routed by words)
+        const authoringAsked = !pendingQuestionRef.current && p?.kind !== 'target' && peekAuthoringIntent() ? (takeAuthoringIntent(), lastQuestionRef.current) : null
+        const asked = pendingQuestionRef.current || (p?.kind === 'target' ? lastQuestionRef.current : null) || authoringAsked
+        if (p?.kind === 'target') pendingRef.current = null
+        pendingQuestionRef.current = null
+        const req = buildNl1Request({ host, text, capCtx, manageIndicators, memory: memoryRef.current, epoch: epochOf(host),
+          pendingQuestion: asked ? { text: asked.text, choices: (asked.choices || []).map(c => ({ label: c.label, ref: c.ref || null })) } : null,
+          pendingProposal: p?.kind === 'proposal' ? p : null })
+        refMap = req.refMap
+        mark('context:built')
+        live = streamLine()
+        const b = { ...req.body, conversationId: conversationRef.current, voice }
+        mark('turn:sent')
+        res = await (serverStreams() ? agentTurnStream(b, live.onEvent) : agentTurn(b))
+        mark('turn:received', res.ok ? stagesOf(res.data) : res.status || 'error')
+      }
+      if (!nl1) { // ── the legacy routed request: unchanged (not re-indented) ──
       const full = manifestFor({ ...capCtx, manageIndicators })
       // limit = the server's per-request maximum; budget = what one routed request may carry.
       // Gate B (0C): the member's live names and the lexicon's typo readings route too (routing.js)
@@ -1171,14 +1218,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       turnPath('model')
       await refreshContext(1500, { groups: routed.routing ? (routed.refresh || routed.routing.selected) : null })
       mark('context:refreshed')
-      let { context, refMap } = buildContext(host, { ...capCtx, message: text })
+      let context;
+      ({ context, refMap } = buildContext(host, { ...capCtx, message: text }))
       mark('context:built')
       const back = Object.fromEntries(Object.entries(refMap).map(([k, v]) => [v.ref, k]))
       const pending = p?.kind === 'proposal'
         // Transaction-local aliases (new1…) are not context refs: they pass through.
         ? { ops: p.ops.map(o => ({ ...o, target: back[o.target] || o.target })) }
         : null
-      const live = streamLine()
+      live = streamLine()
       // ⭐ GATE C: what this chat showed and did (tickers in the order shown, the last change's actions), so a
       // follow-up the instant path could not read still reaches the model with its referent. Never values.
       const memoryFor = () => {
@@ -1195,7 +1243,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         return serverStreams() ? agentTurnStream(b, live.onEvent) : agentTurn(b)
       }
       mark('turn:sent')
-      let res = await ask(routed)
+      res = await ask(routed)
       mark('turn:received', res.ok ? stagesOf(res.data) : res.status || 'error')
       const need = res.ok ? (res.data.envelope?.need_groups || []).filter(g => !routed.routing?.selected?.includes(g)) : []
       if (res.ok && routed.routing && need.length) {
@@ -1220,6 +1268,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           return
         }
       }
+      } // ── end of the legacy routed request ──
       if (!res.ok) { live.settle(null); push({ role: 'error', text: res.error }); return }
       if (res.data.conversationId !== conversationRef.current) setConversationId(res.data.conversationId)
       const env = res.data.envelope
@@ -1229,6 +1278,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const streamed = live.settle(talk ? { text: env.reply, sources } : null)
       if (talk) {
         if (!streamed) push({ role: 'agent', text: env.reply, sources })
+        return
+      }
+      if (env.disposition === 'clarify' && nl1) {
+        // NL-1: choices carry the context ref they stand for; kept (as real refs) for the next message, so
+        // a click on a choice — or "the right one", "2", "AMD" typed — is read against them
+        const choices = (env.question?.choices || []).map(c => (typeof c === 'string' ? { label: c, ref: null } : { label: c.label, ref: (c.ref && refMap[c.ref]?.ref) || null }))
+        pendingRef.current = p?.kind === 'proposal' ? p : null
+        pendingQuestionRef.current = { text: env.question?.text || env.reply, choices }
+        push({ role: 'question', text: env.question?.text || env.reply, choices: choices.map(c => ({ label: c.label })) })
         return
       }
       if (env.disposition === 'clarify') {
@@ -1277,6 +1335,19 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // S6 F4: a new chart for a named ticker is born on it (not linked), even if the plan dropped the ticker
       const ops = screenNewChart(screened.ops, text).ops
       lastActionsRef.current = ops.map(o => o.action)
+      // ⭐ NL-1 CORRECTION ("no, I meant 15"): the Agent's previous change is reversed FIRST, through the
+      // existing Undo — which refuses when the change is protected, on another board, or was modified since
+      // (fingerprints). Only then does the corrected change run. If it cannot be reversed, nothing is undone
+      // and the corrected change is only PROPOSED: the member decides, never silently.
+      if (nl1 && env.correction) {
+        const cp = correctionPlan({ env, memory: memoryRef.current, epoch: epochOf(host), undoStack: undoRef.current })
+        const reversed = cp?.ok ? await doUndo(cp.undoId, { member: null, voice }) : false
+        if (!reversed) {
+          push({ role: 'agent', text: `I didn't reverse my earlier change${cp && !cp.ok ? ` (${cp.reason})` : ''}, so here is the corrected change on its own — apply it only if you still want it.` })
+          await execute(ops, { path: 'model', mode: 'propose', member: null, voice })
+          return
+        }
+      }
       await execute(ops, { path: 'model', mode: env.disposition, member: null, voice })
     } finally {
       lockRef.current = false
