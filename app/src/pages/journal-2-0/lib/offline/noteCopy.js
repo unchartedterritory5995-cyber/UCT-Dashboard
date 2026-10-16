@@ -1,0 +1,51 @@
+/**
+ * ⭐⭐ I-A FIX ROUND 1 — A QUEUED `(conflicted copy)`: the durable home for unsent
+ * words a member's own swap pushed out of the durable record.
+ *
+ * When a crash-draft Restore, or an Undo or Redo across one, puts a page on
+ * screen that does not carry the record's unsent words, `persist` writes those
+ * words here in the SAME transaction as the record (`swapCaptureSpills`,
+ * `recoverLocalState.js`). The entry sits in the outbox like any other — durable,
+ * counted as pending — and the sweep (`drainOutbox`) turns it into a sibling note
+ * with the same `fork` that makes every other `(conflicted copy)`. It is a NEW
+ * note, so no editor owns it and nothing has to wait for the note to close.
+ *
+ * ⛔ ITS `noteId` IS NOT THE NOTE'S. Every per-note reader keys on the note id:
+ * `putNoteWithIntent` deletes a note's entries through the `byNote` index when the
+ * record settles clean, recovery finds "the note's queued entry" by note id, and
+ * the door guard counts a note's entries. A copy is none of those things, so it is
+ * keyed `copy:<note>:<digest>` and names its source in `copyOf`. A settle of the
+ * note can never delete it, and it can never be mistaken for the note's own work.
+ *
+ * ⭐ Keyed by a digest of the words, so spilling the same words twice (an Undo,
+ * a Redo, an Undo) queues ONE copy while it is still waiting.
+ */
+import { authoredDigest } from './recoverLocalState'
+
+export const NOTE_COPY = 'note-copy'
+
+export const isNoteCopy = (entry) => entry?.kind === NOTE_COPY
+
+/**
+ * @param noteId    the note the words were pushed out of
+ * @param words     { title, subtitle, bodyJson } — the record's words
+ * @param writtenSchema  the level of the editor that wrote them (B1), travels as is
+ * @param sessionId the tab that queued it
+ */
+export function copyEntryFor({ noteId, words, writtenSchema, sessionId }) {
+  const key = `copy:${noteId}:${authoredDigest(words)}`
+  return {
+    mutationId: key,
+    noteId: key,
+    copyOf: noteId,
+    kind: NOTE_COPY,
+    patch: {
+      title: words?.title ?? '',
+      subtitle: words?.subtitle ?? '',
+      bodyJson: words?.bodyJson ?? null,
+    },
+    writtenSchema,
+    sessionId,
+    queuedAt: Date.now(),
+  }
+}

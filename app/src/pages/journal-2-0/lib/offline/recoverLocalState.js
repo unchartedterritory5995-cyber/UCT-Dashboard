@@ -194,7 +194,8 @@ export function editorStateDiscardsUnsentWork(prev, incoming) {
 }
 
 /**
- * ⭐⭐ I-A (2026-10-16) — WORDS AN UNDO PUSHES OFF THE PAGE, WHEN NO LAYER HOLDS THEM.
+ * ⭐⭐ I-A (2026-10-16) — A SWAP THE MEMBER MAKES NEVER LEAVES A WORD OUTSIDE THE
+ * DURABLE LAYERS.
  *
  * ⚰️ MEASURED (`restoreUndoKeepsWords.test.jsx`, RED on the hotfix tip AND on
  * master; raw logs in `docs/notebook/evidence/restore-undo-20261016T040937Z/`).
@@ -207,35 +208,41 @@ export function editorStateDiscardsUnsentWork(prev, incoming) {
  * capture overwrote the only copy: not the server, not the record, not the queue,
  * not the draft, not a fork.
  *
- * ⭐ THE TWO SLOTS, AND WHY SWAPPING WHAT THEY HOLD LOSES NOTHING. The record holds
- * one body; the crash draft holds whatever is on the page. After an Undo past a
- * Restore the page shows the pre-Restore view, and the capture of it is about to
- * become the record exactly when it carries the record's words (that is what
- * "not a discard" means here). So the record's words are on the page and in the
- * crash draft already, and the record is free to hold the words the Undo pushed
- * off the page. Both survive; the next keystroke on either side only adds.
+ * ⚰️ FIX ROUND 0 SWAPPED WHAT THE RECORD AND THE CRASH DRAFT HELD, AND THE
+ * INDEPENDENT REVIEW (`restore-undo-review.md`) SHOWED WHY THAT IS NOT ENOUGH.
+ * It kept the restored words in the record only when the page after the Undo
+ * carried the record's words, so an earlier Undo in the old view (C1a) or a
+ * different title (C1b) still dropped them; and when it did swap, the record's
+ * OWN queued words went to the crash draft (I1), which the next keystroke on a
+ * reopened page rewrites. The crash draft follows the page: it is convenience,
+ * never a word's only home. And a no-base Restore captured nothing at all, so a
+ * reload before the next keystroke lost the restored words (C2).
  *
- * ⛔ WHAT IT DOES NOT DO — each keeps today's answer:
- *   · the displaced words are the server's last-known copy (already on the server);
- *   · the page still carries them (the crash draft has them);
- *   · the record is KEEPING older words the page does not carry
- *     (`editorStateDiscardsUnsentWork` true). Swapping then would drop those, so
- *     nothing changes.
- * ⛔ AND IT IS ONLY ASKED ABOUT AN UNDO OR REDO THAT CROSSES A CRASH-DRAFT RESTORE
- * (the editor hands `displaced` for nothing else). An Undo of the member's own
- * typing is the member removing it; keeping it queued would make a spurious
- * `(conflicted copy)` out of every quick Undo.
+ * ⭐ FIX ROUND 1: THE RECORD FOLLOWS THE PAGE, AND WHAT IT CANNOT CARRY BECOMES A
+ * `(conflicted copy)`. A capture taken at a WHOLE-PAGE SWAP the member made — a
+ * crash-draft Restore, and an Undo or Redo that crosses one — asks this. When the
+ * record holds unsent words the new page does not carry (another lineage, not
+ * contained), those words are queued as a copy entry (`noteCopy.js`) in the same
+ * transaction, and the record takes the page. The copy entry is durable (the
+ * outbox), and the sweep turns it into a sibling note when it can reach the
+ * server. Duplicates are the accepted price: a spurious copy is recoverable, a
+ * word in no durable layer is not. There is no "three bodies, two slots" wall,
+ * because copies are not slots.
  *
- * @param prev       the durable record as the store holds it, or null
- * @param incoming   the capture about to be written (the page after the Undo)
- * @param displaced  the page BEFORE the Undo, as the editor captured it, or null
- * @returns true when the record must hold `displaced` instead of `incoming`
+ * ⛔ WHAT KEEPS TODAY'S ANSWER: an ordinary keystroke never spills (the editor
+ * asks only at a swap it made); a record the page carries is simply superseded;
+ * a clean record owes nothing. So a second writer that this page lacks is never
+ * silently replaced by an ordinary capture — only by a member's own swap, and
+ * then preserved as a copy.
+ *
+ * @param prev            the durable record as the store holds it, or null
+ * @param incoming        the capture about to be written
+ * @param spillRequested  true only for a capture the editor took at a swap
+ * @returns true when `prev`'s words must be queued as a copy before the write
  */
-export function keepDisplacedWords(prev, incoming, displaced) {
-  if (!displaced) return false
-  if (displaced.serverBase && sameAuthoredContent(displaced, displaced.serverBase)) return false
-  if (authoredText(incoming).includes(authoredText(displaced))) return false
-  return !editorStateDiscardsUnsentWork(prev, incoming)
+export function swapCaptureSpills(prev, incoming, spillRequested) {
+  if (!spillRequested) return false
+  return editorStateDiscardsUnsentWork(prev, incoming)
 }
 
 /**

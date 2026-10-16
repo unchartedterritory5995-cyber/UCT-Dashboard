@@ -21,6 +21,7 @@ import {
 import { usableBaseline, isUsableBaseline, landedBaseline, isSupersededBaseline } from './baseline'
 import { isMarkerLive, markerKeyFor, landedKeyFor, IN_FLIGHT_TTL_MS } from './inFlight'
 import { baseMayStandFor, sameAuthoredContent } from './recoverLocalState'
+import { isNoteCopy } from './noteCopy'
 import {
   APPEND_ONLY, BODY_REWRITE, METADATA_ONLY, appendedServerNodes, classifyServerChange,
   lastKnownServerCopy, missingServerNodes, serverAppendedKeysIn, snapshotOfServerCopy,
@@ -415,6 +416,24 @@ export async function drainOutbox(db, {
     // `summarize().blocked` undercounted exactly while the member was looking.
     if (entry.permanent) {
       results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: BLOCKED })
+      continue
+    }
+    // ⭐⭐ I-A FIX ROUND 1 — A QUEUED `(conflicted copy)` (`noteCopy.js`): words a
+    // member's own swap pushed out of the record. It is a NEW note, so it needs no
+    // baseline, no ownership and no classification: the same `fork` that makes
+    // every other copy makes it, and only then is the entry removed. ⛔ A failed
+    // fork leaves it exactly where it was (offline, the server down): durable, and
+    // retried by the next sweep. It never touches the source note's record.
+    if (isNoteCopy(entry)) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await fork({ ...entry, noteId: entry.copyOf })
+        // eslint-disable-next-line no-await-in-loop
+        await clearOutboxEntry(db, entry.mutationId)
+        results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: FORKED, copy: true })
+      } catch (fe) {
+        results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: KEPT, error: fe, copy: true })
+      }
       continue
     }
     if (excludeNoteId && entry.noteId === excludeNoteId) {

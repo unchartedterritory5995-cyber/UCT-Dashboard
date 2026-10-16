@@ -38,8 +38,9 @@ import { offlineEnabled } from './offlineFlag'
 import {
   chooseLocalRecovery, newSessionId, sameAuthoredContent, discardsUnsentWork,
   editorStateDiscardsUnsentWork, queuedWorkToAdopt, baseOfRecovered,
-  editorLineageStamp, editorLineageSupersedes, keepDisplacedWords,
+  editorLineageStamp, editorLineageSupersedes, swapCaptureSpills,
 } from './recoverLocalState'
+import { copyEntryFor } from './noteCopy'
 import { settleForkedNote } from './outboxDrain'
 import { lastKnownServerCopy, snapshotOfServerCopy } from './serverChange'
 import { usableBaseline, isUsableBaseline, isSupersededBaseline } from './baseline'
@@ -639,22 +640,24 @@ export function useDurableNote({
         editLineage: state?.editLineage,
       }
       const unsentWork = editorStateDiscardsUnsentWork(prev, incoming)
-      // ⭐⭐ I-A (2026-10-16): an Undo or Redo across a crash-draft Restore hands
-      // the page it pushed off (`displaced`). When no layer would hold those words
-      // after this write, the record holds them and the page (the crash draft)
-      // holds the record's — see the note above `keepDisplacedWords`.
-      const displaced = keepDisplacedWords(prev, incoming, state?.displaced) ? state.displaced : null
-      const source = displaced || (unsentWork ? prev : state)
-      // ⛔ Displaced words travel on the OLDER of the two baselines (the record's
-      // own while it is dirty, and the one they were captured on): an older base
-      // can only 409 more often, never land over a door's append it never saw.
-      const keepPrevBase = Boolean(displaced) && Boolean(prev?.dirty)
-        && isUsableBaseline(prev.baseUpdatedAt)
-        && (!isUsableBaseline(displaced.baseUpdatedAt)
-          || usableBaseline(prev.baseUpdatedAt) === usableBaseline(displaced.baseUpdatedAt)
-          || isSupersededBaseline(prev.baseUpdatedAt, displaced.baseUpdatedAt))
-      let baseFrom = unsentWork ? prev?.baseUpdatedAt : state?.baseUpdatedAt
-      if (displaced) baseFrom = keepPrevBase ? prev.baseUpdatedAt : displaced.baseUpdatedAt
+      // ⭐⭐ I-A FIX ROUND 1: a capture taken at a swap the member made (a
+      // crash-draft Restore, an Undo or Redo across one) never leaves the record
+      // pinned on words the page no longer carries. Those words go to a queued
+      // `(conflicted copy)` in this same transaction and the record follows the
+      // page — see the note above `swapCaptureSpills`.
+      const spill = swapCaptureSpills(prev, incoming, state?.spill)
+      const keepsPrev = unsentWork && !spill
+      const source = keepsPrev ? prev : state
+      // ⛔ After a spill the record's words travel on the OLDER of the two
+      // baselines (the record's own, and the one the page was captured on): an
+      // older base can only 409 more often, never land over a door's append it
+      // never saw.
+      const keepPrevBase = spill && isUsableBaseline(prev.baseUpdatedAt)
+        && (!isUsableBaseline(state?.baseUpdatedAt)
+          || usableBaseline(prev.baseUpdatedAt) === usableBaseline(state.baseUpdatedAt)
+          || isSupersededBaseline(prev.baseUpdatedAt, state.baseUpdatedAt))
+      let baseFrom = keepsPrev ? prev?.baseUpdatedAt : state?.baseUpdatedAt
+      if (spill && keepPrevBase) baseFrom = prev.baseUpdatedAt
       const record = {
         noteId,
         title: source?.title ?? '',
@@ -670,7 +673,7 @@ export function useDurableNote({
         // ⛔ 0/1, not a boolean — IndexedDB cannot index a boolean, and
         // `byDirty` exists so a reconnect can find unsynced work without
         // reading every note.
-        dirty: (state?.synced && !unsentWork && !displaced) ? 0 : 1,
+        dirty: (state?.synced && !unsentWork) ? 0 : 1,
         // ⛔⛔ B1: the level of the editor that WROTE these words, taken from
         // the SAME place as the words. When fix 6 keeps `prev`, the stamp is
         // prev's: the editor's snapshot stamp on an old bundle's words is the
@@ -681,21 +684,18 @@ export function useDurableNote({
       // stamp: `prev`'s own when fix 6 keeps `prev`'s words, the capture's when the
       // editor's words are written. Absent (a door's or `discardDraft`'s server
       // copy) claims nothing.
-      let lineageStamp = unsentWork
+      const lineageStamp = keepsPrev
         ? prev?.editorLineage
         : editorLineageStamp(record, state?.editLineage)
-      // I-A: displaced words carry the lineage of the page they were captured
-      // from, so a keystroke on the page the Undo brought back never supersedes them.
-      if (displaced) lineageStamp = editorLineageStamp(record, displaced.editLineage)
       if (lineageStamp) record.editorLineage = lineageStamp
       // ⛔ `null` when clean — a clean record IS the base and a second copy of
-      // one value is a second authority over it. Displaced words keep the copy
-      // that matches the baseline chosen above.
+      // one value is a second authority over it. After a spill the copy matches
+      // the baseline chosen above.
       let serverBase = null
       if (record.dirty) {
-        serverBase = displaced && !keepPrevBase
-          ? (snapshotOfServerCopy(displaced.serverBase) || lastKnownServerCopy(prev))
-          : (lastKnownServerCopy(prev) || snapshotOfServerCopy((displaced || state)?.serverBase))
+        serverBase = spill && !keepPrevBase
+          ? (snapshotOfServerCopy(state?.serverBase) || lastKnownServerCopy(prev))
+          : (lastKnownServerCopy(prev) || snapshotOfServerCopy(state?.serverBase))
       }
       record.serverBase = serverBase
       const intent = record.dirty
@@ -712,9 +712,13 @@ export function useDurableNote({
           writtenSchema: record.writtenSchema,
         }
         : null
-      // ⛔⛔ ONE TRANSACTION. The working copy and what we still owe the server
-      // move together or not at all.
-      await putNoteWithIntent(db, record, intent)
+      // I-A fix round 1: the record's spilled words, as a queued copy.
+      const copies = spill
+        ? [copyEntryFor({ noteId, words: prev, writtenSchema: prev.writtenSchema, sessionId: SESSION_ID })]
+        : []
+      // ⛔⛔ ONE TRANSACTION. The working copy, what we still owe the server, and
+      // any copy a swap pushed out move together or not at all.
+      await putNoteWithIntent(db, record, intent, { copies })
       committedDirtyRef.current = Boolean(record.dirty)
     }
 
