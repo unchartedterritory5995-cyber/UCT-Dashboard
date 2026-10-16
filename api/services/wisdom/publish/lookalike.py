@@ -143,6 +143,37 @@ def reference_vectors(conn, session: date) -> list[tuple[str, dict]]:
             f = None
         if f:
             refs.append((c["record_id"], f))
+    return refs + archive_reference_vectors(conn, session)
+
+
+#: The archive reference set is TSDR's own stated long calls, the same population the Loop half
+#: draws, capped so a nightly run reads a bounded number of bar windows.
+ARCHIVE_REFERENCE_CAP = 400
+ARCHIVE_REFERENCE_ACTIONS = ("entry", "idea", "add")
+
+
+def archive_reference_vectors(conn, session: date) -> list[tuple[str, dict]]:
+    """TSDR's long calls from the trader archive, featurised AS OF the session each was posted
+    (no look-ahead), keyed `archive:<call_id>`. [] while WISDOM_ARCHIVE_ENABLED is off. Owner
+    decisions 2026-10-16: the archive is its own provider, outside the R89 floor. The D20
+    delivery gates are untouched; this only widens what the silent scorer compares against."""
+    from api.services.wisdom.archive import provider
+    from api.services.wisdom.publish.adapters import common
+
+    if not provider.enabled():
+        return []
+    since = (session - timedelta(days=CALL_WINDOW_DAYS)).isoformat()
+    calls = provider.calls(conn, authors=(OWNER_AUTHOR,), directions=("long",), actions=ARCHIVE_REFERENCE_ACTIONS,
+                           since=since, until=session.isoformat(), limit=ARCHIVE_REFERENCE_CAP)
+    refs = []
+    for c in calls:
+        as_of = date.fromisoformat(str(c["posted"])[:10])
+        try:
+            f = features(_daily_bars(common.normalize_ticker(c["ticker"]), _ymd(as_of), BARS_NEEDED))
+        except Exception:
+            f = None
+        if f:
+            refs.append((f"archive:{c['call_id']}", f))
     return refs
 
 
@@ -228,6 +259,8 @@ def reconcile(conn) -> int:
         hit = common.select_records(conn, types=("CALL",), authors=(OWNER_AUTHOR,), ticker=row["ticker"], since_iso=lo,
                                     extra_where="r.stated_at_et < ? AND r.hindsight = 0", extra_params=(hi,),
                                     order="r.stated_at_et ASC", limit=1)
+        if not hit:
+            hit = _archive_match(conn, row["ticker"], start)
         if hit:
             conn.execute("UPDATE wisdom_lookalike_scores SET matched_record_id = ?, matched_session = ? "
                          "WHERE session_date = ? AND ticker = ? AND model_version = ?",
@@ -235,6 +268,21 @@ def reconcile(conn) -> int:
                           MODEL_VERSION))
             matched += 1
     return matched
+
+
+def _archive_match(conn, ticker: str, start: date) -> list[dict]:
+    """A TSDR archive call on `ticker` inside the match window, in the shape `reconcile` writes
+    (`record_id` + a date `record_date` can read). [] when the archive is off."""
+    from api.services.wisdom.archive import provider
+
+    if not provider.enabled():
+        return []
+    calls = provider.calls(conn, tickers=[ticker], authors=(OWNER_AUTHOR,), actions=ARCHIVE_REFERENCE_ACTIONS,
+                           since=(start + timedelta(days=1)).isoformat(),
+                           until=(start + timedelta(days=MATCH_CALENDAR_DAYS)).isoformat(),
+                           order="c.posted ASC, c.call_id ASC", limit=1)
+    return [{"record_id": f"archive:{c['call_id']}", "stated_at_et": f"{str(c['posted'])[:10]}T12:00:00-04:00"}
+            for c in calls]
 
 
 def silent_precision(conn, *, today: date) -> dict:

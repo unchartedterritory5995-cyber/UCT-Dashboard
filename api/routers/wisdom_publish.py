@@ -29,7 +29,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
-from api.middleware.auth_middleware import require_admin
+from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user, require_admin
 from api.services.wisdom import registry
 from api.services.wisdom.core import flags, heartbeat, store, timeutil
 from api.services.wisdom.core.owner import is_owner, require_owner
@@ -40,6 +40,10 @@ log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin/wisdom/publish", tags=["wisdom"])
 internal_router = APIRouter(prefix="/api/internal/wisdom/publish", tags=["wisdom"])
+#: The ONE member route here: the TSDR-archive "team called it" lane (badges adapter), for the
+#: UCT20 card line and any watchlist surface. Paid only, never anonymous (owner ruling
+#: 2026-10-15); 404 while either gate is off, checked after the credential.
+member_router = APIRouter(prefix="/api/wisdom/team-calls", tags=["wisdom"])
 
 ADAPTER_ROUTES_MODULE = "api.services.wisdom.publish.adapters.routes"
 ADAPTERS_PREFIX = "/adapters"
@@ -238,3 +242,30 @@ def _include_adapter_routes() -> dict:
 
 
 ADAPTER_ROUTES = _include_adapter_routes()
+
+
+# ── member: the TSDR-archive team-call lane ──────────────────────────────────
+
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Paid gate for the team-call lane, defined here per router with its own 402 sentence
+    (tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER…)."""
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402, detail="Team call history requires a paid plan")
+    return user
+
+
+@member_router.get("")
+def team_calls(tickers: str = Query("", max_length=4000), _user: dict = Depends(require_paid)) -> dict:
+    """`{badges: {TICKER: recent call}, history: {TICKER: all-time summary}}` for up to 200 tickers."""
+    from api.services.wisdom.publish.adapters import badges
+
+    if not badges.archive_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+    wanted = badges.parse_tickers(tickers)
+    if not wanted:
+        return {"badges": {}, "history": {}, "lookback_days": badges.lookback_days()}
+    try:
+        return {"badges": badges.archive_badges(wanted), "history": badges.archive_history(wanted),
+                "lookback_days": badges.lookback_days()}
+    except sqlite3.Error as exc:
+        raise HTTPException(status_code=503, detail=f"wisdom.db unavailable: {exc}")

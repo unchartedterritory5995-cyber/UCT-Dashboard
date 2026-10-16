@@ -2772,12 +2772,12 @@
     "WISDOM_BADGES_ENABLED": {
       "status": "dark",
       "where": [],
-      "note": "MEMBER-VISIBLE when on: 'UCT said' badges for Catalysts/Terminal. W1 ships the admin endpoint only. Owner flips (W1 §0.4c)."
+      "note": "MEMBER-VISIBLE when on: 'UCT said' badges for Catalysts/Terminal. W1 ships the admin endpoint only. Owner flips (W1 §0.4c). 2026-10-16: also gates the TSDR-archive team-call lane (GET /api/wisdom/team-calls, paid; UCT20 card line, watchlist team-call fact, digest line), double-gated with WISDOM_ARCHIVE_ENABLED."
     },
     "WISDOM_BRAINKB_PUBLISH_ENABLED": {
       "status": "dark",
       "where": [],
-      "note": "MEMBER-VISIBLE when on: Wisdom publish into the Brain KB (D18 sequencing). Owner flips (W1 §0.4c). Read in api/services/wisdom/core/flags.py.",
+      "note": "MEMBER-VISIBLE when on: Wisdom publish into the Brain KB (D18 sequencing). Owner flips (W1 §0.4c). Read in api/services/wisdom/core/flags.py. 2026-10-16: also stages TSDR-archive LESSON/MACRO posts as KB rows, double-gated with WISDOM_ARCHIVE_ENABLED.",
       "exposure": "public",
       "default": "0",
       "values": [
@@ -2800,7 +2800,7 @@
     "WISDOM_DESK_MARKERS_ENABLED": {
       "status": "dark",
       "where": [],
-      "note": "MEMBER-VISIBLE when on: Wisdom CALL/MENTION markers on Desk charts via ticker_mentions. Owner flips (W1 §0.4c)."
+      "note": "MEMBER-VISIBLE when on: Wisdom CALL/MENTION markers on Desk charts via ticker_mentions. Owner flips (W1 §0.4c). 2026-10-16: also adds TSDR-archive calls as markers (levels only on calls older than 20 sessions), double-gated with WISDOM_ARCHIVE_ENABLED."
     },
     "WISDOM_DISCORD_LISTENER_ENABLED": {
       "status": "armed",
@@ -2819,7 +2819,7 @@
     "WISDOM_DOSSIER_ENABLED": {
       "status": "dark",
       "where": [],
-      "note": "MEMBER-VISIBLE when on: 'what UCT actually said' lines in AI ticker dossiers, dated and cited. Owner flips (W1 §0.4c)."
+      "note": "MEMBER-VISIBLE when on: 'what UCT actually said' lines in AI ticker dossiers, dated and cited. Owner flips (W1 §0.4c). 2026-10-16: also adds TSDR-archive stance lines (scrubbed), double-gated with WISDOM_ARCHIVE_ENABLED."
     },
     "WISDOM_EXTRACT_AUDIT_ENABLED": {
       "status": "dark",

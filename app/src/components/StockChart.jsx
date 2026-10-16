@@ -765,6 +765,17 @@ export function buildDeskMentionMarkers(mentions, resolvedTf) {
   return out
 }
 
+// A trader-archive marker whose call carries levels (the server only sends them for a call
+// older than its price gate) draws that call's entry/stop/target on click instead of
+// navigating. Returns null for every other row, so every other marker keeps its door.
+export function archiveCallLevels(mention) {
+  if (mention?.source_detail !== 'archive') return null
+  const call = mention.call
+  const levels = (call?.levels || []).filter((l) => Number.isFinite(Number(l?.price)) && Number(l.price) > 0)
+  if (!levels.length) return null
+  return { key: call.call_id, trader: call.trader || 'Team', levels }
+}
+
 // The Desk deep link a marker click opens (spec §B.1: VideosSection reads ?v= and
 // seeks to ?t=). `t` is omitted when the mention has none, so the video just starts
 // at 0 instead of the player being handed a NaN seek.
@@ -772,6 +783,10 @@ export function buildDeskMentionMarkers(mentions, resolvedTf) {
 // both 0, so a `Number.isFinite` gate alone turns "this mention has no timestamp" into
 // an explicit "&t=0". A real 0 (a mention at the very top of the session) still gets it.
 export function deskMentionHref(mention) {
+  // A TSDR trader-archive row has no video: its door is the archive page for that ticker.
+  if (!mention?.youtube_id && mention?.source_detail === 'archive' && mention?.archive_ticker) {
+    return `/trader-archive?sym=${encodeURIComponent(mention.archive_ticker)}`
+  }
   if (!mention?.youtube_id) return null
   const t = _mentionSeek(mention)
   const seek = Number.isFinite(t) && t >= 0 ? `&t=${Math.round(t)}` : ''
@@ -3304,6 +3319,31 @@ export default function StockChart({
     () => buildDeskMentionMarkers(deskData?.mentions, resolvedTf),
     [deskData, resolvedTf],
   )
+  // The trader-archive call whose levels a desk-marker click drew (archiveCallLevels). One at a
+  // time; a second click on the same marker clears it, and a symbol change always clears it.
+  const [deskCallLevels, setDeskCallLevels] = useState(null)
+  const deskCallLinesRef = useRef([])
+  useEffect(() => { setDeskCallLevels(null) }, [sym])
+  useEffect(() => {
+    const series = candleSeriesRef.current
+    if (!series) return undefined
+    for (const pl of deskCallLinesRef.current) { try { series.removePriceLine(pl) } catch {} }
+    deskCallLinesRef.current = []
+    if (!deskCallLevels || !deskEnabled) return undefined
+    const style = { entry: ['#60a5fa', 0], stop: ['#f87171', 2], target: ['#4ade80', 2] }
+    for (const l of deskCallLevels.levels) {
+      const [color, lineStyle] = style[l.kind] || ['#c9a84c', 2]
+      deskCallLinesRef.current.push(series.createPriceLine({
+        price: Number(l.price), color, lineWidth: 1, lineStyle, axisLabelVisible: true,
+        title: `${deskCallLevels.trader} ${l.kind}`,
+      }))
+    }
+    return () => {
+      const s2 = candleSeriesRef.current
+      for (const pl of deskCallLinesRef.current) { try { s2?.removePriceLine(pl) } catch {} }
+      deskCallLinesRef.current = []
+    }
+  }, [deskCallLevels, deskEnabled])
 
   const chartEventMarkers = useMemo(() => {
     // Only show event markers on daily/weekly — intraday bars don't line up with quarter dates
@@ -17444,6 +17484,8 @@ export default function StockChart({
         }
         return String(m.time) === String(param.time)
       })
+      const lv = archiveCallLevels(matching?._deskMention)
+      if (lv) { setDeskCallLevels((prev) => (prev?.key === lv.key ? null : lv)); return }
       const href = deskMentionHref(matching?._deskMention)
       if (href) window.open(href, '_self')
     }

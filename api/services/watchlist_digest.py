@@ -3,6 +3,7 @@ Watchlist digest — daily/weekly performance email summaries.
 Uses existing email service + watchlist performance for data.
 """
 
+import html
 import json
 import logging
 from api.services.auth_db import get_connection
@@ -52,6 +53,7 @@ def _build_digest_html(user_id: str, display_name: str, frequency: str) -> str |
         return None
 
     returns = get_batch_returns(list(set(all_tickers)))
+    team_calls = _team_calls_for(user_id, list(set(all_tickers)))
     period_key = "1d" if frequency == "daily" else "1w"
     period_label = "Today" if frequency == "daily" else "This Week"
 
@@ -76,12 +78,18 @@ def _build_digest_html(user_id: str, display_name: str, frequency: str) -> str |
                 color = "#f87171"
             rows_html += f'<tr><td style="padding:4px 8px;color:#e8e0d0;font-size:13px;">{sym}</td><td style="padding:4px 8px;text-align:right;color:{color};font-size:13px;font-weight:600;">{val_str}</td></tr>'
 
+        called = [team_calls[it["sym"]] for it in items[:20] if it.get("sym") in team_calls]
+        team_html = ""
+        if called:
+            team_html = ('<p style="color:#a8a294;font-size:12px;margin:6px 8px 0;">Team calls: '
+                         + " · ".join(html.escape(c) for c in called) + "</p>")
         sections.append(f"""
             <div style="margin-bottom:20px;">
                 <h3 style="color:#c9a84c;font-size:13px;margin:0 0 8px;text-transform:uppercase;letter-spacing:1px;">{wl['name']}</h3>
                 <table style="width:100%;border-collapse:collapse;">
                     {rows_html}
                 </table>
+                {team_html}
             </div>
         """)
 
@@ -92,6 +100,27 @@ def _build_digest_html(user_id: str, display_name: str, frequency: str) -> str |
         <p style="color:#6b6a60;font-size:11px;margin:16px 0 0;">View your watchlists at uctintelligence.com/watchlists</p>
     """
     return _wrap_html(content)
+
+
+def _team_calls_for(user_id: str, tickers: list[str]) -> dict[str, str]:
+    """{SYM: "SYM (trader, setup, date)"} for a PAID member's names the team called in the badge
+    lookback. Paid content (owner ruling 2026-10-15), so an unpaid subscriber gets {}; gated
+    again inside by WISDOM_BADGES_ENABLED + WISDOM_ARCHIVE_ENABLED. Never raises."""
+    try:
+        from api.middleware.auth_middleware import get_user_plan, is_paid_user
+        conn = get_connection()
+        try:
+            row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        finally:
+            conn.close()
+        if row is None or not is_paid_user({**dict(row), "plan": get_user_plan(user_id)}):
+            return {}
+        from api.services.watchlist_intelligence import team_call_facts
+        facts = team_call_facts(tickers)
+    except Exception as e:
+        _logger.warning("[watchlist_digest] team calls unavailable: %s", e)
+        return {}
+    return {sym: f"{sym} ({f['label'].split(': ', 1)[-1]}, {f['as_of'] or 'undated'})" for sym, f in facts.items()}
 
 
 def send_daily_digest(user_id: str, email: str, display_name: str) -> bool:

@@ -69,6 +69,10 @@ DECLARED_DOORS = {
     # Compass chat reaches the archive through these voice twins, so this is its one door.
     "api/services/voice_tool_impls.py": ("archive.tools", "MEMBER", "WISDOM_ARCHIVE_ENABLED"),
     "api/services/brain_service.py": ("archive.team_record", "MEMBER", "WISDOM_ARCHIVE_ENABLED"),
+    # 2026-10-16 (owner decisions, docs/wisdom/LEDGER.md): the team-call fact reads the TSDR
+    # archive through the badges adapter's archive lane, never wisdom_records; double-gated by
+    # this gate AND WISDOM_ARCHIVE_ENABLED, and asked for only by the paid watchlist route.
+    "api/services/watchlist_intelligence.py": ("publish.adapters.badges", "MEMBER", "WISDOM_BADGES_ENABLED"),
 }
 
 
@@ -138,6 +142,20 @@ def test_a_member_doors_gate_is_read_before_the_records_are(monkeypatch):
     assert askai.wisdom_block("what did UCT say", user_id="u1") == ("", [])
 
 
+def test_the_team_call_door_reads_nothing_with_either_gate_off(monkeypatch):
+    """The watchlist door: badges gate off, OR archive gate off, means no store read at all."""
+    from api.services import watchlist_intelligence
+    from api.services.wisdom.publish.adapters import badges
+
+    monkeypatch.setattr("api.services.wisdom.core.store.read", _never_called)
+    for badges_on, archive_on in (("0", "1"), ("1", "0"), ("0", "0")):
+        monkeypatch.setenv("WISDOM_BADGES_ENABLED", badges_on)
+        monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", archive_on)
+        assert badges.archive_badges(["NVDA"]) == {}
+        assert badges.archive_history(["NVDA"]) == {}
+        assert watchlist_intelligence.team_call_facts(["NVDA"]) == {}
+
+
 def _never_called(*_a, **_k):  # pragma: no cover - the point is that it is not
     raise AssertionError("a member door opened the wisdom store with its gate off")
 
@@ -158,7 +176,9 @@ DECLARED_CONSUMERS = {
     "publish/adapters/modelbook.py": "MEMBER",
     "publish/retrieval.py": "MEMBER",
     # --- owner / admin / machine-credential surfaces --------------------------------------
-    "publish/adapters/badges.py": "OWNER",
+    # MEMBER since 2026-10-16 for its TSDR-archive lane (GET /api/wisdom/team-calls, paid);
+    # its wisdom_records half is still served only by the admin adapter endpoint.
+    "publish/adapters/badges.py": "MEMBER",
     "publish/adapters/clips.py": "OWNER",
     "publish/adapters/pv_examples.py": "OWNER",
     "publish/report.py": "OWNER",

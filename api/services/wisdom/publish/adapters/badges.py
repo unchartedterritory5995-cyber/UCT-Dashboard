@@ -4,6 +4,9 @@ W1 surface: `GET /api/admin/wisdom/publish/adapters/badges?tickers=A,B` (require
 server flag `WISDOM_BADGES_ENABLED` only. No CatalystTable / Calendar / VITE flag change in
 W1 (CONTRACTS §0 #15: render-loop class H14; auth.py has an unmerged edit elsewhere).
 
+⭐ The TSDR-archive lane at the bottom of this module (`archive_badges`, `archive_history`) IS
+member-visible — see its section comment. The Loop half described here stays admin-only.
+
 Response: `{TICKER: {kind, speaker, stated_at, label}}` — the newest CALL/MENTION per
 ticker inside the last `WISDOM_BADGES_LOOKBACK_DAYS` (default 10). With the flag off the
 mapping is empty, unless an admin asks for `preview=true`, which returns the same shape
@@ -73,6 +76,91 @@ def badges_for(tickers: Iterable[str], *, preview: bool = False, now: Optional[d
         if not flag_on:
             badge["preview"] = True
         out[ticker] = badge
+    return out
+
+
+# ── the TSDR archive lane (owner decisions 2026-10-16) ───────────────────────
+#
+# A MEMBER lane, unlike the Loop half above (admin endpoint only in W1): it is served to paid
+# members by `GET /api/wisdom/team-calls` (`api/routers/wisdom_publish.py`), feeds the
+# watchlist intelligence "team called it" fact, the watchlist digest line and the UCT20 card
+# line. Gated by THIS adapter's flag AND `WISDOM_ARCHIVE_ENABLED`, both read per call before
+# any store read. Reads only `archive.provider` (the archive is its own provider, outside the
+# R89 floor — docs/wisdom/LEDGER.md). Never carries an entry/stop/target: a badge is a fact
+# about a call, not a level.
+
+#: action -> (badge kind, label). Exits and trims are not "called it"; flow posts are reads.
+ARCHIVE_LABELS = {
+    "entry": ("call", "Team took it"), "add": ("call", "Team added"), "idea": ("call", "Team called it"),
+    "watch": ("mention", "On the team's watchlist"),
+}
+
+
+def archive_enabled() -> bool:
+    from api.services.wisdom.archive import provider
+
+    return flags.badges_enabled() and provider.enabled()
+
+
+def archive_badges(tickers: Iterable[str], *, now: Optional[datetime] = None,
+                   days: Optional[int] = None) -> dict:
+    """{TICKER: badge} for the newest archive call per ticker inside the lookback. {} when off."""
+    if not archive_enabled():
+        return {}
+    from api.services.wisdom.archive import provider
+    from api.services.wisdom.core import store, timeutil
+    from api.services.wisdom.publish.adapters import common, provenance
+
+    wanted = [t for t in dict.fromkeys(common.normalize_ticker(t) for t in tickers if t) if t][:MAX_TICKERS]
+    if not wanted:
+        return {}
+    now = timeutil.to_et(now) if now else timeutil.now_et()
+    since = (now - timedelta(days=days or lookback_days())).date().isoformat()
+    with store.read(for_request=True) as conn:
+        calls = provider.calls(conn, tickers=wanted, actions=tuple(ARCHIVE_LABELS), since=since)
+    out: dict = {}
+    for c in calls:  # newest first
+        ticker = c["ticker"]
+        if ticker in out:
+            continue
+        kind, label = ARCHIVE_LABELS[c["action"]]
+        call = provider.public_call(c)
+        out[ticker] = {"kind": kind, "label": label, "speaker": call["trader"],
+                       "stated_at": call["posted"], "setup": call["setup"], "setup_name": call["setup_name"],
+                       "direction": call["direction"], "action": call["action"], "record_id": call["record_id"],
+                       "call_id": call["call_id"], "outcome": call["outcome"], "source_detail": "archive",
+                       **provenance.marker(consumer=CONSUMER, subject_ref=provider.subject_ref(c),
+                                           locator=call["locator"], flag_env=FLAG_ENV)}
+    return out
+
+
+def archive_history(tickers: Iterable[str]) -> dict:
+    """{TICKER: {n_calls, n_traders, n_scored, mean_r20, last}} over the whole archive. {} when off."""
+    if not archive_enabled():
+        return {}
+    from api.services.wisdom.archive import provider
+    from api.services.wisdom.core import store
+    from api.services.wisdom.publish.adapters import common, provenance
+
+    wanted = [t for t in dict.fromkeys(common.normalize_ticker(t) for t in tickers if t) if t][:MAX_TICKERS]
+    if not wanted:
+        return {}
+    with store.read(for_request=True) as conn:
+        calls = provider.calls(conn, tickers=wanted)
+    grouped: dict = {}
+    for c in calls:  # newest first
+        grouped.setdefault(c["ticker"], []).append(c)
+    out: dict = {}
+    for ticker, cs in grouped.items():
+        r20 = [c["outcome"].get("r20") for c in cs if isinstance(c["outcome"].get("r20"), (int, float))]
+        last = next((c for c in cs if c.get("action") in ARCHIVE_LABELS), cs[0])
+        call = provider.public_call(last)
+        out[ticker] = {"n_calls": len(cs), "n_traders": len({c["author_id"] for c in cs}),
+                       "n_scored": len(r20), "mean_r20": (sum(r20) / len(r20)) if r20 else None,
+                       "last": {k: call[k] for k in ("trader", "posted", "setup", "setup_name", "direction",
+                                                      "action", "record_id", "outcome")},
+                       **provenance.marker(consumer=CONSUMER, subject_ref=provider.subject_ref(last),
+                                           locator=call["locator"], flag_env=FLAG_ENV)}
     return out
 
 

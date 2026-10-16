@@ -274,7 +274,18 @@ class IntelRequest(BaseModel):
 def watchlist_intelligence(body: IntelRequest, user: dict = Depends(get_current_user)):
     from api.services.watchlist_intelligence import get_intelligence_for_symbols
     tickers = list(set(t.upper() for t in body.tickers[:100]))  # cap at 100, mirrors watchlist-performance
-    return get_intelligence_for_symbols(tickers, body.changes, body.price_observed_at)
+    # The TSDR-archive "team called it" fact is paid content (owner ruling 2026-10-15), so it
+    # is asked for only on a paid member's request. Every other fact is unchanged.
+    return get_intelligence_for_symbols(tickers, body.changes, body.price_observed_at,
+                                        include_team_calls=_is_paid(user))
+
+
+def _is_paid(user: dict) -> bool:
+    try:
+        from api.middleware.auth_middleware import get_user_plan, is_paid_user
+        return is_paid_user({**user, "plan": get_user_plan(user["id"])})
+    except Exception:  # never accidentally-paid
+        return False
 
 
 # ── Digest settings ──
