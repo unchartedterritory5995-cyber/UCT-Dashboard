@@ -285,8 +285,9 @@ describe('fix round 2 — the REAL fork path (`forkConflictedCopy` → `createNo
 
   it('the suffix fit counts CHARACTERS the way the server does, and never splits one', () => {
     expect(typeof nc.conflictedCopyTitle).toBe('function')
-    const t = nc.conflictedCopyTitle('\u{1F600}'.repeat(299))
-    expect([...t].length).toBeLessThanOrEqual(300)
+    // An odd prefix puts the cut inside a surrogate pair for a UTF-16 slice.
+    const t = nc.conflictedCopyTitle(`a${'\u{1F600}'.repeat(299)}`)
+    expect([...t].length, 'a long title keeps as much of itself as fits — exactly 300 characters').toBe(300)
     expect(t.endsWith(' (conflicted copy)')).toBe(true)
     expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(t), 'a character was split in half').toBe(false)
     expect(nc.conflictedCopyTitle('  Thesis  ')).toBe('Thesis (conflicted copy)')
