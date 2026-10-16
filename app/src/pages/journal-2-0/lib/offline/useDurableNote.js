@@ -38,7 +38,7 @@ import { offlineEnabled } from './offlineFlag'
 import {
   chooseLocalRecovery, newSessionId, sameAuthoredContent, discardsUnsentWork,
   editorStateDiscardsUnsentWork, queuedWorkToAdopt, baseOfRecovered,
-  editorLineageStamp, editorLineageSupersedes, swapCaptureSpills,
+  editorLineageStamp, editorLineageSupersedes, swapCaptureSpills, dropsMergedBlocks,
 } from './recoverLocalState'
 import { copyEntryFor } from './noteCopy'
 import { discardRefusedCopy, refusedCopiesOf, saveRefusedCopy } from './refusedCopy'
@@ -277,7 +277,7 @@ export async function recordLandedRevision({
 }
 
 /**
- * @param sentFrom  ⭐ HOTFIX 2026-10-15 — { id, seq }: the edit lineage the
+ * @param sentFrom  ⭐ HOTFIX 2026-10-15 — { id, seq, merged }: the edit lineage the
  *                  editor's CONTENT save read its body from, at the moment it read
  *                  it. Passed by `commitSave` and by nothing else: there `acked`
  *                  is exactly the body that PUT carried, and the server took it.
@@ -442,7 +442,17 @@ export async function settleLandedSave({
       queuedAt: Date.now(),
       writtenSchema: record.writtenSchema,
     }
-    await putNoteWithIntent(db, record, intent)
+    // ⭐⭐ C-1 (2026-10-16): the landed save dropped a block the 409 reconcile merged
+    // into the view it was sent from (`sentFrom.merged`), and the record is about to
+    // let go of `prev`'s words — so they go to a queued `(conflicted copy)` in THIS
+    // transaction, as `persist` does for the capture (`dropsMergedBlocks`). ⚰️ A save
+    // that landed before the Undo's own durable write otherwise retired the record
+    // holding the block, and the block was in no layer. When the record KEEPS
+    // `prev` (unsent work), nothing is let go and no copy is needed.
+    const copies = (!unsentWork && dropsMergedBlocks(prev, acked, sentFrom))
+      ? [copyEntryFor({ noteId, words: prev, writtenSchema: prev.writtenSchema, sessionId: SESSION_ID })]
+      : []
+    await putNoteWithIntent(db, record, intent, { copies })
     // ⛔ The save this marker was raised for has landed, so the marker comes
     // down. A separate write, in a separate store — and the ordering is safe in
     // the only direction that matters: the record is settled FIRST, so a drain

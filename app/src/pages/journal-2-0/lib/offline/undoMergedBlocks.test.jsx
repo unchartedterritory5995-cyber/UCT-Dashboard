@@ -261,6 +261,45 @@ describe.each(Object.keys(OTHER_DEVICE))('(a)/(b) a %s another device appended s
   })
 })
 
+describe('(a″) the record FOLLOWS the page after the Undo — it is never pinned to the pre-undo words', () => {
+  it('⭐⭐ offline: after the Undo the member keeps typing ⇒ the durable copy holds the newest words, and the block still ends in a copy', async () => {
+    const marker = await mergeThenUndo('widgetEmbed', { offline: true })
+    await edit((c) => c.focus('end').insertContent(' gh'))
+    await ticks(2, 300)
+    expect(JSON.stringify(record()?.bodyJson), `the record was pinned: the member's newest words are in no durable layer: ${JSON.stringify(record()?.bodyJson)}`).toContain('ab cd ef gh')
+    server.offline = false
+    await ticks(12, 300)
+    await leaveAndDrain()
+    const at = whereIs(marker)
+    expect(at.onServer || at.inAConflictedCopy, `the widget is in no layer: ${JSON.stringify(at)}`).toBe(true)
+    expect(serverText(), 'the member’s newest words did not land').toContain('ab cd ef gh')
+  })
+})
+
+describe('(a′) an Undo INSIDE the durable writer’s coalescing window after the merge', () => {
+  it('⭐ offline: the Undo comes before the merge’s own capture could land — the widget still ends in a layer', async () => {
+    const { node, marker } = OTHER_DEVICE.widgetEmbed
+    server = makeServer({ body: doc(para('ab cd')), updatedAt: T0 })
+    await openTheNote()
+    await edit((c) => c.focus('end').insertContent(' ef'))
+    await tick(300)
+    server.body = doc(para('ab cd'), node)
+    server.stamp()
+    server.dropAfterRead = true
+    // Step until the merge is on the page, then Undo AT ONCE (well inside ~200 ms).
+    for (let i = 0; i < 40 && !(await viewJson()).includes(marker); i += 1) await tick(50)  // eslint-disable-line no-await-in-loop
+    expect(await viewJson(), 'precondition: the reconcile merged the block').toContain(marker)
+    await undo()
+    expect(await viewJson(), 'precondition: the Undo took the block off the page').not.toContain(marker)
+    await ticks(3, 300)
+    server.offline = false
+    await ticks(12, 300)
+    await leaveAndDrain()
+    const at = whereIs(marker)
+    expect(at.onServer || at.inAConflictedCopy, `the widget is in no layer: ${JSON.stringify(at)} server=${serverText()} forks=${JSON.stringify(server.forks)}`).toBe(true)
+  })
+})
+
 // ── (c) ─────────────────────────────────────────────────────────────────────
 describe('(c) the member’s OWN inserted widget removed by Undo is the member’s edit', () => {
   const OWN = {

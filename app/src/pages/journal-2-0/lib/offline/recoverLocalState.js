@@ -20,7 +20,7 @@
  */
 
 import { usableBaseline, isSupersededBaseline } from './baseline'
-import { APPEND_ONLY, classifyServerChange, lastKnownServerCopy } from './serverChange'
+import { APPEND_ONLY, classifyServerChange, lastKnownServerCopy, serverAppendedKeysIn } from './serverChange'
 import { writtenSchemaOf } from '../notebookSchema'
 
 /** B1: two stamps describing the SAME words ⇒ the lower. Absent ⇒ 0. */
@@ -132,6 +132,65 @@ const authoredText = (o) => {
 }
 
 /**
+ * ⭐⭐ C-1 (2026-10-16) — THE BLOCKS `prev` HOLDS THAT `incoming` DOES NOT.
+ *
+ * `authoredText` walks text nodes only, so a block that is ALL attributes — a
+ * `widgetEmbed` (its `caption` is free text, its `annotations` frozen drawings), a
+ * `financialFact`, a `documentExcerpt` — was invisible to every "does the new copy
+ * still carry the old one" question. Those are exactly the blocks the server
+ * appends on another device's behalf, so they are compared by IDENTITY
+ * (`nodeKeyOf`, the key the reconcile merge and the drain already match on).
+ */
+function serverBlocksDropped(prev, incoming) {
+  const kept = serverAppendedKeysIn(incoming?.bodyJson)
+  return [...serverAppendedKeysIn(prev?.bodyJson)].filter((k) => !kept.has(k))
+}
+
+/** ⛔ CARRIES, block identities included: the containment test every write whose
+ *  provenance is not proved falls back to. */
+const carriesWords = (incoming, prev) =>
+  authoredText(incoming).includes(authoredText(prev)) && serverBlocksDropped(prev, incoming).length === 0
+
+/**
+ * ⭐⭐ C-1 (2026-10-16) — WOULD THIS WRITE DROP A BLOCK THE 409 RECONCILE MERGED INTO
+ * THE LIVE VIEW IT CAME FROM? ONE authority, asked by both editor-provenance
+ * decisions: `persist` (through `swapCaptureSpills`) and `settleLandedSave` (with
+ * the lineage the save SENT). Never a third copy beside them.
+ *
+ * ⚰️ MEASURED (`undoMergedBlocks.test.jsx`, red on `928ba69bd6` for all three
+ * block types, offline and online). The reconcile merges a block another device
+ * appended (`reconcileConflict`, `insertContent(missing)`); the merge is an
+ * ordinary undoable step, so it is the newest history event and an Undo removes
+ * the BLOCK. Its capture is the same live view's, so the lineage let it supersede
+ * the record that held the block; the save then landed on the adopted revision and
+ * nothing forked. The block was in no layer, and `append_widget_embed` captures no
+ * server version to bring it back.
+ *
+ * ⭐ "THE MEMBER'S OWN BLOCK" is any block this live view did NOT get from the
+ * reconcile's merge: one the member inserted here, or one the note opened with.
+ * Removing it is the member's edit, like deleting a sentence. A block the merge put
+ * on the page is another device's, and the editor names those on its edit lineage
+ * (`lineage.merged`, the keys the merge inserted since the view's last swap). A
+ * write that would drop one never supersedes silently: the record follows the page
+ * and what it held becomes a queued `(conflicted copy)` (`swapCaptureSpills`, and
+ * the same in the settle). ⚠️ A merged block the member deletes ON PURPOSE spills a
+ * copy too: from the page the two cannot be told apart, and the copy is the safe
+ * direction (a duplicate, never a loss).
+ *
+ * ⛔ Independent of `prev.dirty`: a CLEAN record holding the merged block is the
+ * server's copy, and the write that drops it is about to replace that copy too.
+ *
+ * @param prev      the durable record as the store holds it, or null
+ * @param incoming  the content about to replace it
+ * @param lineage   the edit lineage of the view `incoming` came from ({ id, seq, merged })
+ */
+export function dropsMergedBlocks(prev, incoming, lineage) {
+  const merged = Array.isArray(lineage?.merged) ? lineage.merged : []
+  if (!prev || !merged.length) return false
+  return serverBlocksDropped(prev, incoming).some((k) => merged.includes(k))
+}
+
+/**
  * ⛔⛔ THE SAME INVARIANT, ASKED OF A WRITE WHOSE PROVENANCE IS THE EDITOR.
  *
  * ⚰️ WHY THERE ARE TWO OF THESE, WHICH LOOKS LIKE THE DEFECT THIS FILE EXISTS TO
@@ -187,10 +246,14 @@ export function editorStateDiscardsUnsentWork(prev, incoming) {
   if (sameAuthoredContent(incoming, prev)) return false
   // ⭐ PROVENANCE FIRST: the same live view, later, with `prev`'s words exactly as
   // that view captured them ⇒ the member edited them; nothing is discarded.
+  // ⛔ C-1: a block the reconcile MERGED into that view is not the member's to drop
+  // — that decision is `swapCaptureSpills`'s (the record follows the page, and what
+  // it held becomes a copy), never a second copy of it here.
   if (editorLineageSupersedes(prev, incoming?.editLineage)) return false
   // ⛔ CARRIES, not EQUALS. This one word is the whole difference between the
   // member typing more and something handing us a copy that never saw the words.
-  return !authoredText(incoming).includes(authoredText(prev))
+  // ⭐ C-1: and it carries the server-appended BLOCKS too, not only the text.
+  return !carriesWords(incoming, prev)
 }
 
 /**
@@ -235,12 +298,18 @@ export function editorStateDiscardsUnsentWork(prev, incoming) {
  * silently replaced by an ordinary capture — only by a member's own swap, and
  * then preserved as a copy.
  *
+ * ⭐⭐ C-1 (2026-10-16): AND A CAPTURE THAT DROPS A BLOCK THE RECONCILE MERGED INTO
+ * ITS VIEW SPILLS THE SAME WAY, swap or not (`dropsMergedBlocks`). Refusing it
+ * instead would PIN the record to the pre-undo page, and every later keystroke of
+ * the view would be written nowhere durable — the `fix6KeepsTyping` loss.
+ *
  * @param prev            the durable record as the store holds it, or null
- * @param incoming        the capture about to be written
+ * @param incoming        the capture about to be written (with its `editLineage`)
  * @param spillRequested  true only for a capture the editor took at a swap
  * @returns true when `prev`'s words must be queued as a copy before the write
  */
 export function swapCaptureSpills(prev, incoming, spillRequested) {
+  if (dropsMergedBlocks(prev, incoming, incoming?.editLineage)) return true
   if (!spillRequested) return false
   return editorStateDiscardsUnsentWork(prev, incoming)
 }

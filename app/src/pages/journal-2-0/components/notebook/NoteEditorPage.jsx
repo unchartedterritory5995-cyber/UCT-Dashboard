@@ -861,10 +861,22 @@ export default function NoteEditorPage({
   // of the member's own typing is an edit of this view, like a keystroke. Rotating
   // on it pinned the record to the pre-undo words for the rest of the view, so
   // leaving re-sent the undone text silently or made a `(conflicted copy)`.
+  // ⭐⭐ C-1 (2026-10-16): AND THE LINEAGE NAMES THE BLOCKS THE 409 RECONCILE MERGED
+  // INTO THIS VIEW (`mergedKeysRef`, by `nodeKeyOf`, reset with the lineage). They
+  // are another device's — not the member's — so a capture or a landed save of this
+  // view that drops one never supersedes the record silently: the record follows the
+  // page and what it held becomes a queued `(conflicted copy)` (`dropsMergedBlocks`,
+  // recoverLocalState.js). Every other block is the member's own to remove.
   const editLineageRef = useRef(null)
+  const mergedKeysRef = useRef(new Set())
   if (!editLineageRef.current) editLineageRef.current = newEditLineage()
-  const viewReplaced = () => { editLineageRef.current = newEditLineage() }
-  const editLineageNow = () => ({ id: editLineageRef.current, seq: nextEditSeq() })
+  const viewReplaced = () => {
+    editLineageRef.current = newEditLineage()
+    mergedKeysRef.current = new Set()
+  }
+  const editLineageNow = () => ({
+    id: editLineageRef.current, seq: nextEditSeq(), merged: [...mergedKeysRef.current],
+  })
 
   // ⛔⛔ A DIFFERENT AXIS FROM `saveStatus` BELOW — a READ signal, not a write
   // one. Wave Q1's durable working copy lets a member reopen a previously-
@@ -3740,7 +3752,21 @@ export default function NoteEditorPage({
       // position, never a NodeSelection that would swallow a trailing atom.
       // caretAfterWidgetEmbed: nor may the INSERT leave one armed (the typing-
       // after-insert trap).
-      if (missing.length) editor.chain().focus('end').insertContent(missing).caretAfterWidgetEmbed().run()
+      if (missing.length) {
+        // ⭐⭐ C-1: the lineage names these blocks as MERGED, before the insert (its
+        // own capture runs inside it) and again as the editor normalised them.
+        for (const n of missing) { const k = nodeKeyOf(n); if (k) mergedKeysRef.current.add(k) }
+        editor.chain().focus('end').insertContent(missing).caretAfterWidgetEmbed().run()
+        editor.state.doc.descendants((n) => {
+          const k = nodeKeyOf({ type: n.type.name, attrs: n.attrs })
+          if (k && !localKeys.has(k)) mergedKeysRef.current.add(k)
+          return true
+        })
+        // ⭐ C-1: the merged page is written NOW. An Undo inside the durable
+        // writer's coalescing window would otherwise replace this capture before it
+        // landed, and the record would never have held the block it must keep.
+        durableRef.current.flush()
+      }
       lastSavedRef.current.updatedAt = fresh.updatedAt || null
       return true
     }

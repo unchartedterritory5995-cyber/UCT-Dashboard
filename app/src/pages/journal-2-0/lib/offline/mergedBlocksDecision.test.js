@@ -58,8 +58,7 @@ describe('1. the editor’s capture (`persist`)', () => {
     (_k, node) => {
       const prev = recordFrom(body(MINE, node))
       const incoming = capture(body(MINE), { id: 'L', seq: 2, merged: [nodeKeyOf(node)] })
-      expect(editorStateDiscardsUnsentWork(prev, incoming), 'the capture superseded the merged block').toBe(true)
-      expect(swapCaptureSpills(prev, incoming, false), 'the record was pinned instead of following the page').toBe(true)
+      expect(swapCaptureSpills(prev, incoming, false), 'the capture superseded the merged block without a copy').toBe(true)
     },
   )
 

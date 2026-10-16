@@ -235,9 +235,14 @@ export function replacesWholeDocument(tr) {
  * ⭐⭐ REVIEW I-1 — HAS EVERY DOC CHANGE IN THIS EDITOR GONE INTO HISTORY?
  *
  * A plugin whose state starts true and turns false, for good, at the first applied
- * transaction that CHANGES THE DOCUMENT with `addToHistory: false` — the one meta
- * prosemirror-history skips a transaction on. Plugin state sees every applied
- * transaction, appended ones included, so no dispatch path is missed.
+ * transaction that CHANGES THE DOCUMENT and that prosemirror-history does not
+ * record: one carrying `addToHistory: false`, OR one APPENDED to a top-level
+ * transaction that carries it (history skips both — dist `applyTransaction`).
+ * ⚰️ MINOR-1 (re-review of the offline-undo fix): only the first was checked, so
+ * TrailingNode's paragraph, appended to a focus transaction outside history after a
+ * swap that skipped it, left the watch "complete" while history had not recorded
+ * the change (rail: `ordinaryUndoNoPin.test.jsx`, MINOR-1). Plugin state sees every
+ * applied transaction, appended ones included, so no dispatch path is missed.
  * ⛔ A step-less one (focus, blur, the code highlighter's ready flag) changes
  * nothing history could later map through, so it does not count.
  *
@@ -260,7 +265,9 @@ export const HistoryCompleteWatch = Extension.create({
       state: {
         init: () => true,
         apply: (tr, complete) => {
-          if (!complete || !tr.docChanged || tr.getMeta('addToHistory') !== false) return complete
+          const outsideHistory = tr.getMeta('addToHistory') === false
+            || tr.getMeta('appendedTransaction')?.getMeta('addToHistory') === false
+          if (!complete || !tr.docChanged || !outsideHistory) return complete
           // eslint-disable-next-line no-console
           console.warn('[notebook] a document change outside history: from here every Undo/Redo of this view is treated as crossing a swap (noteContentGuard.js, review I-1)')
           return false
