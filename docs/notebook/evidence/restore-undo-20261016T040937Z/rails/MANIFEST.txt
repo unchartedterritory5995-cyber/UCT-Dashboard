@@ -1,0 +1,13 @@
+Raw vitest output, written before any interpretation (R-RAW).
+
+red-hotfix-b69eb71e86.log
+  tree: hotfix/notebook-midtext-fork tip b69eb71e86 (product files unmodified),
+        plus the new rail lib/offline/restoreUndoKeepsWords.test.jsx
+  cmd:  (app/) npx vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx --maxWorkers=2
+
+red-master-810b07fe53.log
+  tree: same, with the three hotfix product files (NoteEditorPage.jsx,
+        recoverLocalState.js, useDurableNote.js) written from origin/master
+        810b07fe53 blobs by swap_blobs_ru.py, then restored byte-exact and
+        verified against `git cat-file blob HEAD:<path>` (CRLF->LF)
+  cmd:  python swap_blobs_ru.py origin/master <log> src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx
