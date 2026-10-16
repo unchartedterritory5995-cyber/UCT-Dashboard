@@ -30,3 +30,25 @@ describe('createNoteViaApi — subtitle', () => {
     expect('subtitle' in lastBody).toBe(false)
   })
 })
+
+// Tier 2 part B: the earnings follow-up's report date. Sent only as { reportDate: <string> }.
+describe('createNoteViaApi -- earningsFollowup (Tier 2 part B)', () => {
+  it('puts { reportDate } in the body', async () => {
+    await createNoteViaApi({ title: 'x', kindId: 'earnings_followup', ticker: 'ORCL', earningsFollowup: { reportDate: '2026-10-14' } })
+    expect(lastBody.earningsFollowup).toEqual({ reportDate: '2026-10-14' })
+  })
+  it('sends nothing else the caller put inside it', async () => {
+    await createNoteViaApi({ title: 'x', earningsFollowup: { reportDate: '2026-10-14', extra: 'no' } })
+    expect(lastBody.earningsFollowup).toEqual({ reportDate: '2026-10-14' })
+  })
+  it('a non-object, or a date that is not a string, stays off the wire', async () => {
+    await createNoteViaApi({ title: 'x', earningsFollowup: 'yes' })
+    expect('earningsFollowup' in lastBody).toBe(false)
+    await createNoteViaApi({ title: 'x', earningsFollowup: { reportDate: 5 } })
+    expect('earningsFollowup' in lastBody).toBe(false)
+  })
+  it('CONTROL -- every pre-existing caller sends no such key', async () => {
+    await createNoteViaApi({ title: 'x' })
+    expect('earningsFollowup' in lastBody).toBe(false)
+  })
+})

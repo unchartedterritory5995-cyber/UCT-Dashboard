@@ -81,6 +81,8 @@ FLAGS = (
     "NOTEBOOK_JOURNAL_STYLES_ENABLED",
     # Notebook P2 Tier 2 part A: the alert chip, the screenshot chip and their ticker route.
     "NOTEBOOK_SMART_CHIPS_ENABLED",
+    # Notebook P2 Tier 2 part B: the earnings follow-up notice and card.
+    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
 )
 
 

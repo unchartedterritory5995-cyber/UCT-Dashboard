@@ -1,0 +1,25 @@
+import { describe, it, expect } from 'vitest'
+import { Editor } from '@tiptap/core'
+import { buildExtensions } from '../pages/journal-2-0/lib/tiptap'
+describe('V11 probe', () => {
+  it('commands exist', () => {
+    const el = document.createElement('div'); document.body.appendChild(el)
+    const editor = new Editor({ element: el, extensions: buildExtensions(), content: '<p>x</p>' })
+    const out = {
+      splitBlock: typeof editor.commands.splitBlock,
+      splitListItem: typeof editor.commands.splitListItem,
+      toggleTaskList: typeof editor.commands.toggleTaskList,
+      isActiveFn: typeof editor.isActive,
+      isActiveTaskItem_before: editor.isActive('taskItem'),
+    }
+    editor.commands.toggleTaskList()
+    out.isActiveTaskItem_after_toggle = editor.isActive('taskItem')
+    out.splitListItem_taskItem_result = editor.commands.splitListItem('taskItem')
+    out.docJson = JSON.stringify(editor.getJSON())
+    out.schemaHasTaskItem = !!editor.schema.nodes.taskItem
+    out.schemaHasDateMention = Object.keys(editor.schema.nodes).filter(n => /date|mention/i.test(n))
+    console.log('V11PROBE ' + JSON.stringify(out))
+    editor.destroy()
+    expect(out.splitBlock).toBe('function')
+  })
+})

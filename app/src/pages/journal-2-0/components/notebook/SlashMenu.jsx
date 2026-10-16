@@ -20,6 +20,7 @@ import { applyComboboxWiring } from '../../lib/comboboxWiring'
 import { BLOCK_MATH, INLINE_MATH, insertMathAndEdit } from '../../lib/mathNodes'
 import { inColumn, insertColumns } from '../../lib/columnsNode'
 import { insertTableOfContents } from '../../lib/tableOfContentsNode'
+import { insertReminder } from '../../lib/reminderItem'
 import { DICTATE_EVENT } from '../../lib/dictationInsert'
 import { WRITING_HELP_EVENT } from '../../lib/writingHelp'
 import { VOICE_NOTE_EVENT } from '../../lib/voiceNote'
@@ -138,6 +139,14 @@ export const ITEMS = [
     description: 'Add a due date: today, tomorrow or pick one',
     keywords: ['date', 'due', 'reminder', 'deadline'],
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertContent('@').run(),
+  },
+  {
+    // Tier 2 part B, item 12: a follow-up task with a date. It makes the task and types "@", which opens
+    // the date list (lib/dateSuggest.js): one door for the date, not a second picker.
+    title: 'Reminder',
+    description: 'A follow-up task with a date',
+    keywords: ['remind', 'reminder', 'follow up'],
+    command: ({ editor, range }) => insertReminder(editor, range),
   },
   {
     title: 'Callout',
@@ -334,7 +343,7 @@ export const SLASH_GROUPS = [
   { id: 'more', label: 'More' },
 ]
 const BASICS = new Set([
-  'Heading 1', 'Heading 2', 'Heading 3', 'Bullet list', 'Numbered list', 'Checklist', 'Due date', 'Quote',
+  'Heading 1', 'Heading 2', 'Heading 3', 'Bullet list', 'Numbered list', 'Checklist', 'Due date', 'Reminder', 'Quote',
   'Divider', 'Table', 'Callout', 'Toggle', 'Image',
 ])
 const TRADING_BLOCKS = new Set(['Trade-plan canvas', 'Transcript passage', 'Journal style'])

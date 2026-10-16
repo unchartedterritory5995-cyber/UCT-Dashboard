@@ -48,7 +48,8 @@ BLOCK_ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,40}$")
 BUILTIN_PREFIX = "builtin:"
 
 # ⛔ ONE FACT IN TWO FILES with app/src/pages/journal-2-0/lib/journalBlocks.js (ids, settings keys,
-# options, defaults). A block id IS a widget id. P2 adds a row here, the client row, and a builder.
+# options, defaults). A block id IS a widget id, except `reminder` (Tier 2 part B), which builds an
+# unticked task. P2 adds a row here, the client row, and a builder.
 BLOCK_KINDS: tuple[dict, ...] = (
     {"id": "chart", "settings": ({"key": "tf", "options": ("D", "W", "60", "15", "5"), "default": "D"},)},
     # P2 Tier 1 (part a). `search` is the node's searchText, set by the builder and by the client insert.
@@ -71,6 +72,9 @@ BLOCK_KINDS: tuple[dict, ...] = (
     # The market context stamp is the EXISTING marketcontext capture widget (IR-S6). No `search`.
     {"id": "marketcontext", "settings": (
         {"key": "fields", "options": ("all", "regime", "indexes"), "default": "all"},)},
+    # Tier 2 part B (R-T2B-13): the Reminder, an unticked task "Follow up by <date>". NOT a widget, so
+    # no `search`; built in create mode only (reminder_block.py).
+    {"id": "reminder", "settings": ({"key": "days", "options": ("1", "2", "3", "5", "10"), "default": "5"},)},
 )
 KNOWN_BLOCKS = frozenset(k["id"] for k in BLOCK_KINDS)
 _BLOCK_BY_ID = {k["id"]: k for k in BLOCK_KINDS}
@@ -123,6 +127,11 @@ def _never_empty(before: list, after: list) -> list:
     return after if (after or not before) else [{"type": "paragraph"}]
 
 
+#: Tier 2 part B (R-T2B-8): the follow-up's three headings. ONE constant: the built-in outline below and
+#: followup_prefill.py (which places the prep link and the numbers under the first two, by exact text)
+#: both read it. Straight apostrophes everywhere (pre-flight F24).
+FOLLOWUP_HEADINGS = ("What I expected", "What happened", "What I'll do differently")
+
 # One built-in style per built-in kind. Versions are bumped BY HAND when an outline here changes,
 # which is what offers "update layout" to notes made from the older one.
 BUILTIN_STYLES: dict[str, dict] = {
@@ -153,6 +162,13 @@ BUILTIN_STYLES: dict[str, dict] = {
         _h("What the market expects"), _p("Consensus, and the move the options price in:"), _ph("chart"),
         _h("My view"), _p("What would surprise the market?"),
         _h("The plan around the report"), _p("Hold, trim, or wait?"))},
+    # Tier 2 part B (R-T2B-8): the earnings follow-up. followup_prefill.py adds the prep-note link and the
+    # quarter's numbers under the first two headings; the reminder lands at the end.
+    "earnings_followup": {"name": "Earnings follow-up", "version": 1, "properties": {},
+                          "blocks": [_blk("reminder")], "outline": _doc(
+        _h(FOLLOWUP_HEADINGS[0]), _p("What did I expect going in, and why?"),
+        _h(FOLLOWUP_HEADINGS[1]), _p("How did the numbers and the reaction compare?"),
+        _h(FOLLOWUP_HEADINGS[2]), _p(), _ph("reminder"))},
     # v2 (Notebook P2b, Task 12): the review block, above the chart it explains.
     "post_trade_review": {"name": "Post-trade review", "version": 2, "properties": {},
                           "blocks": [_chart("D"), _blk("tradeReview")],
@@ -685,8 +701,11 @@ def _build_chart(block: dict, ctx: dict) -> tuple[dict | None, str | None]:
 
 #: block id -> builder. ⛔ Every id in BLOCK_KINDS has a builder (railed); P2 adds both together.
 from api.services.journal_two import trader_blocks as _tb  # noqa: E402 -- after BLOCK_KINDS, no cycle
+from api.services.journal_two import reminder_block as _rb  # noqa: E402 -- reads no journal_styles name
 BLOCK_BUILDERS: dict[str, Callable[[dict, dict], tuple[dict | None, str | None]]] = {
-    "chart": _build_chart, **_tb.BUILDERS}
+    "chart": _build_chart, _rb.BLOCK_ID: _rb.build_reminder, **_tb.BUILDERS}
+#: Blocks built only when a note is made (R-T2B-13). Update layout neither offers nor lists them.
+CREATE_ONLY_BLOCKS = frozenset({_rb.BLOCK_ID})
 
 #: A builder's `ctx["mode"]` (IR-S11, integrator ruling R-RC-1): "create" when it serves a NEW note
 #: (a market context captures), "update" when it offers a block to a note already written (it
@@ -865,6 +884,17 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
             if style.get("kindId") != plan_prefill.PLAN_KIND or not ticker:
                 raise StyleValidationError("A trade plan needs a ticker.")
             prefill = lambda doc, ctx: plan_prefill.apply(doc, ctx, conn)  # noqa: E731
+        followup = payload.get("earningsFollowup")
+        if followup is not None:
+            # Tier 2 part B (R-T2B-9): the prep-note link and the quarter's numbers, added to the SAME body
+            # in this create's one insert. One prefill per create.
+            # Imported HERE and not at the top: a create that is not a follow-up never loads followup_prefill
+            # (and through it earnings_prep and sample_examples).
+            from api.services.journal_two import followup_prefill
+            if prefill is not None:
+                raise StyleValidationError("Choose one: a trade plan or an earnings follow-up.")
+            report_date = followup_prefill.clean_request(followup, kind_id=style.get("kindId"), ticker=ticker)
+            prefill = lambda doc, ctx: followup_prefill.apply(doc, ctx, conn, report_date)  # noqa: E731
         composed = compose(user_id, style, ticker=ticker, conn=conn, mode="create", after_build=prefill)
         base = {k: payload[k] for k in ("title", "subtitle", "tags", "ticker", "folderId") if k in payload}
         base["bodyJson"] = composed["bodyJson"]
@@ -1029,6 +1059,12 @@ def _plan(user_id: str, row: sqlite3.Row, body: dict, style_id: str | None, conn
     built, skipped = [], []
     for b in style["blocks"]:
         if not b.get("enabled") or b["block"] in have:
+            continue
+        if b["block"] in CREATE_ONLY_BLOCKS and not inserts_outline:
+            # R-T2B-13 / F8: "N trading days after creation" means something only when the note is made,
+            # and _present cannot see a task. Update layout neither offers nor lists it -- but an EMPTY
+            # note switched to a style IS a create (mode "create"), where compose places it, so the plan
+            # lists it there and the dry run and the write agree.
             continue
         builder = BLOCK_BUILDERS.get(b["block"])
         if builder is None:

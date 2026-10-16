@@ -1,0 +1,13 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-t2b/app[39m
+
+[90mstdout[2m | src/__t2b_probe__/v11.t2bprobe.test.js[2m > [22m[2mV11 probe[2m > [22m[2mcommands exist
+[22m[39mV11PROBE {"splitBlock":"function","splitListItem":"function","toggleTaskList":"function","isActiveFn":"function","isActiveTaskItem_before":false,"isActiveTaskItem_after_toggle":true,"splitListItem_taskItem_result":true,"docJson":"{\"type\":\"doc\",\"content\":[{\"type\":\"taskList\",\"content\":[{\"type\":\"taskItem\",\"attrs\":{\"checked\":false},\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"taskItem\",\"attrs\":{\"checked\":false},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"x\"}]}]}]},{\"type\":\"paragraph\"}]}","schemaHasTaskItem":true,"schemaHasDateMention":["dateMention"]}
+
+ [32m✓[39m src/__t2b_probe__/v11.t2bprobe.test.js [2m([22m[2m1 test[22m[2m)[22m[32m 79[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m   Start at [22m 11:56:38
+[2m   Duration [22m 1.71s[2m (transform 609ms, setup 235ms, import 797ms, tests 79ms, environment 477ms)[22m
+

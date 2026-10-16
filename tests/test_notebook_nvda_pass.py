@@ -270,11 +270,11 @@ def _doc_expected_cells():
 
 
 def test_the_docs_expected_column_is_exactly_what_the_grader_requires(mod):
-    """Fix round 1, M-2: the doc's Expected cell for rows 28-41 holds exactly P1P2_ROWS' and T2A_ROWS'
+    """Fix round 1, M-2: the doc's Expected cell for rows 28-44 holds exactly P1P2_ROWS', T2A_ROWS' and T2B_ROWS'
     expected, one backtick span per phrase, in order (row 37 included: the grader checks three phrases)."""
     cells = _doc_expected_cells()
-    assert sorted(cells) == list(range(28, 42))
-    for r in (*mod.P1P2_ROWS, *mod.T2A_ROWS):
+    assert sorted(cells) == list(range(28, 45))
+    for r in (*mod.P1P2_ROWS, *mod.T2A_ROWS, *mod.T2B_ROWS):
         assert cells[r["n"]] == r["expected"], r["n"]
 
 
@@ -351,6 +351,82 @@ def test_rows_39_to_41_with_a_switch_off_make_no_fixture_and_send_no_key(mod, mo
     out_half, _, _ = drive({mod.SMART_CHIPS_KEY: True})
     assert out_half[39][0] == "row" and out_half[40][0] == "row"
     assert out_half[41][0] == "not_run" and "image documents switch is off" in out_half[41][1]
+
+
+# ── Rows 42-44 (Tier 2 part B): the follow-up notice, its card, and /remind ─────────────────────
+def test_rows_42_to_44_numbers_and_the_ear_hears_their_own_words(mod):
+    """Each row's own words, written the way NVDA logs them, PASS; foreign speech and silence FAIL; the graded phrases
+    carry no character NVDA may say as a word (the colon of the notice's title is left out)."""
+    assert [r["n"] for r in mod.T2B_ROWS] == [42, 43, 44]
+    for r in mod.T2B_ROWS:
+        line = "Speaking [LangChangeCommand ('en_US'), " + ", ".join(repr(x) for x in r["logged"]) + "]"
+        assert mod.grade(r["expected"], mod.parse_speech(line))[0] == "PASS", r["n"]
+        assert mod.grade(r["expected"], ["column 3 Sort by Name button"])[0] == "FAIL", r["n"]
+        assert mod.grade(r["expected"], [])[0] == "FAIL", r["n"]
+        for phrase in r["expected"]:
+            assert not any(c in phrase for c in ":+$·'"), (r["n"], phrase)
+
+
+def test_the_follow_up_names_are_the_ones_the_components_render(mod):
+    """The notice's link text and Dismiss name, and the card's region, heading and button, are read off the component
+    files (the doc quotes their lines), so a renamed control fails here, by name, not on a screen reader."""
+    j2 = TOOL.parents[1] / "app" / "src" / "pages" / "journal-2-0" / "components" / "notebook"
+    box = (j2 / "NoticesBox.jsx").read_text(encoding="utf-8")
+    assert "aria-label={`Dismiss ${n.title}`}" in box and mod.FOLLOWUP_DISMISS == f"Dismiss {mod.FOLLOWUP_TITLE}"
+    offer = (j2 / "FollowupOffer.jsx").read_text(encoding="utf-8")
+    assert f"FOLLOWUP_REGION = '{mod.FOLLOWUP_REGION}'" in offer
+    assert f"<h2 className={{styles.title}}>{mod.FOLLOWUP_HEADING.replace(mod.FOLLOWUP_SYM, '{p.symbol}')}</h2>" in offer
+    assert f">{mod.FOLLOWUP_WRITE}</button>" in offer
+    producer = (TOOL.parents[1] / "api" / "services" / "journal_two" / "earnings_followup.py").read_text(encoding="utf-8")
+    assert f'FOLLOWUP_SOURCE = "{mod.FOLLOWUP_ALERT_TYPE}"' in producer
+    assert '(f"{symbol} reported: write your follow-up"' in producer          # the title the link shows
+
+
+def test_rows_42_to_44_gates_follow_the_switches_and_row_44_rides_neither(mod):
+    base = "https://example.invalid"
+    both = {mod.FOLLOWUP_KEY: True, mod.STYLES_FLAG_KEY: True}
+    for me in (None, {}, {mod.FOLLOWUP_KEY: True}, {mod.STYLES_FLAG_KEY: True}, {mod.FOLLOWUP_KEY: "true", mod.STYLES_FLAG_KEY: True},
+               {mod.FOLLOWUP_KEY: False, mod.STYLES_FLAG_KEY: True}, {mod.FOLLOWUP_KEY: 1, mod.STYLES_FLAG_KEY: True}):
+        assert mod.t2b_off(me, "followup", base), me
+    assert "earnings follow-up switch is off" in mod.t2b_off({mod.STYLES_FLAG_KEY: True}, "followup", base)
+    assert "carries no" in mod.t2b_off({mod.STYLES_FLAG_KEY: True}, "followup", base)       # absent says it is absent
+    assert mod.t2b_off(both, "followup", base) is None                                       # the control: ON proceeds
+    assert mod.t2b_off({}, "none", base) is None and mod.t2b_off(None, "none", base) is None  # /remind rides neither
+    assert [r["needs"] for r in mod.T2B_ROWS] == ["followup", "followup", "none"]
+
+
+def test_rows_42_to_44_with_a_switch_off_make_no_fixture_and_send_no_key(mod, monkeypatch):
+    """The gate runs before anything: rows 42-43 NOT RUN, the API client never called for them, no key. The control:
+    with the switches on, row 44 (which rides neither) still asks for its fixture, and rows 42-43 are driven."""
+    keys = []
+    monkeypatch.setattr(mod, "_key", lambda vk, up=False: keys.append(vk))
+    base = "https://example.invalid"
+
+    def drive(me):
+        api = _StubApi(["chart"])
+        made = {"notes": [], "folders": [], "views": [], "styles": [], "rules": [], "trades": []}
+        fxs = mod.P2Fixtures(api, base, made)
+        out = {}
+        for r in mod.T2B_ROWS:
+            def row(num, keys_, expected, action, note=None, once=None, _o=out):
+                _o[num] = "row"
+
+            def not_run(num, keys_, expected, why, _o=out):
+                _o[num] = ("not_run", why)
+
+            def inconclusive(num, keys_, expected, why, _o=out):
+                _o[num] = ("inconclusive", why)
+            needs = [lambda: fxs.plain_note(mod.REMIND_NOTE)] if r["n"] == 44 else []
+            mod.p2_row(r["n"], needs, lambda *_: None, only=set(), styles_off=mod.t2b_off(me, r["needs"], base),
+                       served=fxs.served_blocks, row=row, not_run=not_run, inconclusive=inconclusive)
+        return out, api, made
+
+    out, api, made = drive({})
+    assert out[42][0] == "not_run" and out[43][0] == "not_run" and "earnings follow-up switch is off" in out[42][1]
+    assert out[44] == "row" and len(made["notes"]) == 1 and keys == []          # row 44 asks for its note and only that
+    assert [m for m, _ in api.calls] == ["post"]
+    out_on, api_on, made_on = drive({mod.FOLLOWUP_KEY: True, mod.STYLES_FLAG_KEY: True})
+    assert out_on == {42: "row", 43: "row", 44: "row"} and keys == []
 
 
 def test_the_screenshot_fixture_exists_and_is_the_documented_size(mod):

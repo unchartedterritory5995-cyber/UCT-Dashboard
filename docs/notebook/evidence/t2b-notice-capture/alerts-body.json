@@ -1,0 +1,22 @@
+[
+  {
+    "data": {
+      "reportDate": "2026-10-14",
+      "research_url": "/journal/notebook?followup=ORCL&reportDate=2026-10-14",
+      "sessionDay": "2026-10-14",
+      "source": "notebook_earnings_followup",
+      "sources": [
+        "watchlist"
+      ],
+      "symbol": "ORCL"
+    },
+    "id": "notebook_earnings_followup_1792090729546",
+    "message": "ORCL reported earnings on Oct 14, 2026. It is on your watchlist. Compare what you expected with what happened.",
+    "read": false,
+    "severity": "info",
+    "timestamp": "2026-10-15T14:58:49.546584-04:00",
+    "title": "ORCL reported: write your follow-up",
+    "type": "notebook_earnings_followup",
+    "user_id": "602b989a-58c9-469d-83e7-bb22396c412c"
+  }
+]

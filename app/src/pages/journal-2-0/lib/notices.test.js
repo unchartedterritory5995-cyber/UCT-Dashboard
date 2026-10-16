@@ -6,21 +6,26 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { toNotices } from './notices'
 import fx from './__fixtures__/notices.json'
+// The follow-up row is CAPTURED too, but lives in its own fixture so the literal counts the box's other
+// tests assert on notices.json stand (see its _provenance).
+import fu from './__fixtures__/notices.followup.json'
+
+const ALERTS = [...fx.alertsBody, ...fu.alertsBody]
 
 describe('toNotices', () => {
   it('keeps notebook reminders, fills and note resurfacing; drops everything else', () => {
-    const alerts = [...fx.alertsBody, { id: 'x', type: 'price_alert', title: 'NVDA', data: {} }]
+    const alerts = [...ALERTS, { id: 'x', type: 'price_alert', title: 'NVDA', data: {} }]
     const insights = { insights: [...fx.insightsBody.insights, { id: 99, kind: 'market_move', headline: 'SPY', link: '/x' }] }
     const kinds = toNotices(alerts, insights).map((n) => n.kind).sort()
-    expect(kinds).toEqual(['fill', 'reminder', 'resurface'])
+    expect(kinds).toEqual(['fill', 'followup', 'reminder', 'resurface'])
   })
   it('the fixture is not vacuous: it holds one captured row of each kind', () => {
-    const types = fx.alertsBody.map((r) => r.type).sort()
-    expect(types).toEqual(['notebook_entry_context_new_fill', 'notebook_task_reminder'])
+    const types = ALERTS.map((r) => r.type).sort()
+    expect(types).toEqual(['notebook_earnings_followup', 'notebook_entry_context_new_fill', 'notebook_task_reminder'])
     expect(fx.insightsBody.insights.map((r) => r.kind)).toEqual(['note_level_touch'])
   })
   it('skips read alerts and dismissed insights', () => {
-    const a = fx.alertsBody.map((r) => ({ ...r, read: true }))
+    const a = ALERTS.map((r) => ({ ...r, read: true }))
     const i = { insights: fx.insightsBody.insights.map((r) => ({ ...r, dismissed_at: '2026-10-11 12:00:00' })) }
     expect(toNotices(a, i)).toEqual([])
   })
@@ -34,6 +39,43 @@ describe('toNotices', () => {
     const fill = toNotices(fx.alertsBody, { insights: [] }).find((n) => n.kind === 'fill')
     expect(fill.href).toBe('/journal?j2tab=positions')
   })
+  it('a follow-up says what the bell said and opens the card', () => {
+    const f = toNotices(ALERTS, { insights: [] }).find((n) => n.kind === 'followup')
+    expect(f.title).toBe('ORCL reported: write your follow-up')
+    expect(f.line).toMatch(/^ORCL reported earnings on [A-Z][a-z]{2} \d{1,2}, \d{4}\. It is on your watchlist\./)
+    expect(f.href).toMatch(/^\/journal\/notebook\?followup=ORCL&reportDate=\d{4}-\d{2}-\d{2}$/)
+    expect(f.source).toBe('alert')
+  })
+  it('a follow-up row whose link is not the card has no link', () => {
+    const row = { ...fu.alertsBody.find((r) => r.type === 'notebook_earnings_followup') }
+    for (const url of ['https://elsewhere.example/x', '/journal/notebook?note=abc', '/journal/notebook?followupx=1', null, undefined, 7]) {
+      row.data = { ...row.data, research_url: url }
+      expect(toNotices([row], { insights: [] })[0].href).toBeNull()
+    }
+    delete row.data
+    expect(toNotices([row], { insights: [] })[0].href).toBeNull()
+  })
+  it('a follow-up row with no title or line still reads as a follow-up', () => {
+    const row = { id: 'f1', type: 'notebook_earnings_followup', data: { research_url: '/journal/notebook?followup=AMD&reportDate=2026-10-14' } }
+    const n = toNotices([row], { insights: [] })[0]
+    expect(n.title).toBe('Write an earnings follow-up')
+    expect(n.line).toBe('')
+    expect(n.href).toBe(row.data.research_url)
+  })
+  it('the captured follow-up is the raw capture, not a retyped row', () => {
+    const raw = JSON.parse(readFileSync(resolve(globalThis.process.cwd(), '..', 'docs', 'notebook', 'evidence', 't2b-notice-capture', 'alerts-body.json'), 'utf8'))
+    expect(raw).toHaveLength(1)
+    expect(fu.alertsBody).toEqual(raw)
+  })
+  it('the captured follow-up link opens the card the server builds (derived from the source, not restated)', () => {
+    const src = readFileSync(resolve(globalThis.process.cwd(), '..', 'api', 'services', 'journal_two', 'earnings_followup.py'), 'utf8')
+    const m = src.match(/^NOTEBOOK_PATH = "(.+)"$/m)
+    expect(m).not.toBeNull()
+    const row = fu.alertsBody[0]
+    expect(row.data.research_url.startsWith(`${m[1]}?followup=`)).toBe(true)
+    expect(toNotices([row], { insights: [] })[0].href).toBe(row.data.research_url)
+  })
+
   it('a resurfaced note opens its note, version door included', () => {
     const r = toNotices([], fx.insightsBody)[0]
     expect(r.kind).toBe('resurface')

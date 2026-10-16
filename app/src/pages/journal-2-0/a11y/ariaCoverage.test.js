@@ -38,6 +38,8 @@ export const EXEMPT = Object.freeze({
     'a native <button> named by its visible text ("Save from a transcript") plus a host that mounts SaveTranscriptPassage (itself a named dialog); no markup that needs aria',
   'components/notebook/blocks/PrepWireBlock.jsx':
     'plain paragraphs of text (headline, exposure, wire date) inside PrepCapture, which carries the status line and the named Capture button; the group around the block is named by BlockNodeView',
+  'components/notebook/FollowupOfferSlot.jsx':
+    'the eager gate: renders the lazy FollowupOffer (a named region "Earnings follow-up" with its heading and two named buttons) or null; no markup or control of its own',
 })
 
 /** Another lane's file in the population. Classified, but its staleness is the

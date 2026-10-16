@@ -261,6 +261,18 @@ NOT_REHEARSED = {
                                       "click drafts a daily/weekly/monthly review's data, the leak "
                                       "finder's findings; waits for the wave-13 PR and the owner's "
                                       "arming order",
+    # Journal styles programme (P1 / P2 Tier 2 part A). Both ARMED on web (docs/feature_flags.json carries the flip
+    # times); walked by notebook_fin_walk (c2: the styles groups and `smart`), no rendered on/off probe written here.
+    "NOTEBOOK_JOURNAL_STYLES_ENABLED": "armed (journal styles P1, 2026-10-14): note kinds, styles and trader blocks; "
+                                       "walked by the fin walk's styles groups, no rendered probe in this tool",
+    "NOTEBOOK_SMART_CHIPS_ENABLED": "armed (P2 Tier 2 part A, 2026-10-15): /plan, the alert chip and the screenshot "
+                                    "tag; walked by the fin walk's `smart` group, no rendered probe in this tool",
+    # Tier 2 part B. Its evidence is a scheduled pass (a j2_earnings_followup_runs row) and a delivered
+    # notice, not a page read: walked by notebook_fin_walk's followup group (c2), not rehearsed.
+    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": "dark (Tier 2 part B): the 16:45 / 18:00 ET earnings follow-up "
+                                          "pass, its bell, card and prefill; evidence is a run-ledger "
+                                          "row and a delivered notice (the fin walk's followup group); "
+                                          "waits for the owner's arming (docs/notebook/t2b-arming.md)",
     # Wave 14 lane W14-D.
     "NOTEBOOK_GETTING_STARTED_ENABLED": "dark (wave 14 W14-D): the get started checklist on Research "
                                         "Home (shows only with NOTEBOOK_ONBOARDING_ENABLED also on); "

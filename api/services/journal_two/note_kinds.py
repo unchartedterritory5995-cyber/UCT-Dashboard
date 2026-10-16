@@ -44,6 +44,7 @@ BUILTIN_NOTE_KINDS: tuple[dict, ...] = (
     {"id": "daily_prep", "name": "Daily prep", "icon": "sun"},
     {"id": "weekend_prep", "name": "Weekend prep", "icon": "calendar"},
     {"id": "earnings", "name": "Earnings", "icon": "earnings"},
+    {"id": "earnings_followup", "name": "Earnings follow-up", "icon": "edit"},
     {"id": "post_trade_review", "name": "Post-trade review", "icon": "check"},
     {"id": "weekly_review", "name": "Weekly review", "icon": "refresh"},
     {"id": "thesis", "name": "Thesis", "icon": "book"},

@@ -9050,6 +9050,16 @@ async def lifespan(app: FastAPI):
                 print("[startup] notebook task reminders registered (07:00 + 09:00 ET, boot catch-up)")
         except Exception as e:
             print(f"[startup] notebook task reminders registration failed (non-fatal): {e}")
+        # Tier 2 part B (R-T2B-2): Notebook earnings follow-up notices. The registrar wires 16:45 ET and
+        # 18:00 ET mon-fri and a one-shot boot catch-up; NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED (and the
+        # journal styles switch) are read at every RUN, never here. In-app bell only.
+        try:
+            from api.services.journal_two import earnings_followup as _j2_followup
+            if _j2_followup.register_followup_jobs(_scheduler):
+                print("[startup] notebook earnings follow-ups registered (16:45 + 18:00 ET mon-fri, boot "
+                      "catch-up; inert unless NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED)")
+        except Exception as e:
+            print(f"[startup] notebook earnings follow-ups registration failed (non-fatal): {e}")
         # Wave 7 (controller wiring, lane H) — Notebook semantic-search index
         # sweep. DARK: run_sweep() answers {"skipped": "dark"} and touches nothing
         # unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED is set, read at every RUN, never

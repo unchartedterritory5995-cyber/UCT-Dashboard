@@ -1,0 +1,170 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  5%]
+........................................................................ [ 10%]
+........................................................................ [ 15%]
+........................................................................ [ 21%]
+........................................................................ [ 26%]
+.................F..................................................F... [ 31%]
+........................................................................ [ 37%]
+........................................................................ [ 42%]
+........................................................................ [ 47%]
+........................................................................ [ 53%]
+.........................................................F.F............ [ 58%]
+........................................................................ [ 63%]
+........................................................................ [ 69%]
+........................................................................ [ 74%]
+........................................................................ [ 79%]
+........................................................................ [ 85%]
+........................................................................ [ 90%]
+........................................................................ [ 95%]
+...........................................................              [100%]
+================================== FAILURES ===================================
+___ test_the_import_graph_never_reaches_alphavantage_or_the_recap_generator ___
+
+    def test_the_import_graph_never_reaches_alphavantage_or_the_recap_generator():
+        reached = _reach(["api.services.journal_two.earnings_prep", "api.routers.notebook_earnings_prep"])
+        # non-vacuity: the walk really follows function-level imports into the services it reuses
+        assert {"api.services.calendar_alerts", "api.services.earnings_intel", "api.services.implied_store",
+                "api.services.call_recap_store", "api.services.journal_two.ticker_research"} <= reached
+>       assert not reached & FORBIDDEN_MODULES, sorted(reached & FORBIDDEN_MODULES)
+E       AssertionError: ['api.services.alphavantage_client']
+E       assert not ({'api', 'api.alpha_gold_eod', 'api.backfill_from_patches', 'api.color_rebuild', 'api.confluence_flow', 'api.cream_card', ...} & {'api.routers.earnings', 'api.routers.earnings_intel', 'api.services.alphavantage_client', 'api.services.av_transcripts', 'api.services.call_recap', 'api.services.call_recap_grounded', ...})
+
+tests\test_notebook_earnings_prep.py:726: AssertionError
+____ test_every_reader_of_a_note_table_is_guarded_or_exempt_with_a_reason _____
+
+    def test_every_reader_of_a_note_table_is_guarded_or_exempt_with_a_reason():
+        readers = _readers()
+        unknown = sorted(set(readers) - set(GUARDED) - set(EXEMPT))
+>       assert not unknown, (
+            "These modules read a note table and are in neither list. If a note's content becomes a "
+            "fact about the member there (a statistic, a grade, an alert, a chip), add it to GUARDED "
+            "and filter with sample_marker; otherwise add it to EXEMPT with the reason: " + ", ".join(unknown))
+E       AssertionError: These modules read a note table and are in neither list. If a note's content becomes a fact about the member there (a statistic, a grade, an alert, a chip), add it to GUARDED and filter with sample_marker; otherwise add it to EXEMPT with the reason: api/services/journal_two/followup_prefill.py
+E       assert not ['api/services/journal_two/followup_prefill.py']
+
+tests\test_sample_never_feeds_real_numbers.py:497: AssertionError
+_____________ test_NO_notebook_flag_is_read_outside_the_one_parse _____________
+
+    def test_NO_notebook_flag_is_read_outside_the_one_parse():
+        names = set(auth_router.NOTEBOOK_FLAGS)
+        reads = _scan(ffi.repo_roots(REPO))
+        # \u2b50 NON-VACUITY: the scan saw real reads, including one this file KNOWS is
+        # there (auth.py reads the hub kill switch by literal). An empty walk passes
+        # the assertion below over nothing.
+        assert len(reads) > 50, f"the env-read scan collapsed to {len(reads)} files"
+        assert any(n == "HUB_PREVIEW_ENABLED" for _, n in reads.get("api/routers/auth.py", [])), (
+            "the scan no longer sees auth.py's literal HUB_PREVIEW_ENABLED read -- the reader is broken")
+        offenders = sorted(
+            f"{path}:{line}  {name}"
+            for path, rs in reads.items() if path != ONE_PARSE
+            for line, name in rs if name in names)
+>       assert offenders == [], (
+            "these read a Notebook capability flag with their OWN parse. Call "
+            "api.services.notebook_flags.flag_on(<name>, <default>) instead -- a second "
+            "parse is how the payload and the route came to disagree:\n  " + "\n  ".join(offenders))
+E       AssertionError: these read a Notebook capability flag with their OWN parse. Call api.services.notebook_flags.flag_on(<name>, <default>) instead -- a second parse is how the payload and the route came to disagree:
+E           tools/notebook_daily_prep_probe.py:282  NOTEBOOK_SETUPS_BOARD_ENABLED
+E           tools/notebook_daily_prep_probe.py:283  NOTEBOOK_CHART_PLAN_ENABLED
+E       assert ['tools/noteb...PLAN_ENABLED'] == []
+E         
+E         Left contains 2 more items, first extra item: 'tools/notebook_daily_prep_probe.py:282  NOTEBOOK_SETUPS_BOARD_ENABLED'
+E         Use -v to get more diff
+
+tests\test_notebook_flag_parse.py:245: AssertionError
+________________ test_every_flag_on_call_names_a_payload_flag _________________
+
+    def test_every_flag_on_call_names_a_payload_flag():
+        names = set(auth_router.NOTEBOOK_FLAGS)
+        calls = {}
+        for root in ffi.repo_roots(REPO):
+            for p in sorted(Path(root).rglob("*.py")):
+                if "__pycache__" in p.parts:
+                    continue
+                try:
+                    tree = ast.parse(p.read_text(encoding="utf-8", errors="ignore"))
+                except SyntaxError:
+                    continue
+                for line, name in _flag_on_literals(tree):
+                    calls.setdefault(p.relative_to(REPO).as_posix(), []).append((line, name))
+        # \u2b50 NON-VACUITY: the share gate reads through flag_on, and this scan must see it.
+        assert ("J2_SHARE_LINKS_ENABLED" in {n for _, n in calls.get(
+            "api/services/journal_two/note_shares.py", [])}), (
+            f"the flag_on scan did not see note_shares' gate; it saw {sorted(calls)}")
+        strays = sorted(f"{path}:{line}  {name}" for path, cs in calls.items()
+                        for line, name in cs if name not in names)
+>       assert strays == [], (
+            "flag_on() reads a name that is not in auth.NOTEBOOK_FLAGS -- a gate the "
+            "feature-flag index cannot see and the payload does not carry. Add the row "
+            "to NOTEBOOK_FLAGS (and the ledger), or read it another way:\n  " + "\n  ".join(strays))
+E       AssertionError: flag_on() reads a name that is not in auth.NOTEBOOK_FLAGS -- a gate the feature-flag index cannot see and the payload does not carry. Add the row to NOTEBOOK_FLAGS (and the ledger), or read it another way:
+E           tools/runtime_pane_smoke.py:234  x={VITE_PINE_RUNTIME_PANE_ENABLED:"1",B:2}
+E           tools/runtime_pane_smoke.py:236  nothing
+E           tools/runtime_pane_smoke.py:236  x={VITE_PINE_RUNTIME_PANE_ENABLED:"",B:2}
+E       assert ['tools/runti...BLED:"",B:2}'] == []
+E         
+E         Left contains 3 more items, first extra item: 'tools/runtime_pane_smoke.py:234  x={VITE_PINE_RUNTIME_PANE_ENABLED:"1",B:2}'
+E         Use -v to get more diff
+
+tests\test_notebook_flag_parse.py:307: AssertionError
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 43153 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 1355 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\slowapi\extension.py:717: 13 warnings
+tests/test_notebook_journal_styles_router.py: 28 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\slowapi\extension.py:717: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(func):
+
+..\..\AppData\Roaming\Python\Python314\site-packages\fastapi\routing.py:233: 85 warnings
+tests/test_journal_styles_compose.py: 1 warning
+tests/test_journal_styles_create.py: 2820 warnings
+tests/test_prep_create_budget.py: 250 warnings
+tests/test_notebook_earnings_prep.py: 933 warnings
+tests/test_notebook_journal_styles_router.py: 3581 warnings
+tests/test_notebook_contract_fixtures.py: 1545 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\fastapi\routing.py:233: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    is_coroutine = asyncio.iscoroutinefunction(dependant.call)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\starlette\_utils.py:39: 85 warnings
+tests/test_journal_styles_compose.py: 1 warning
+tests/test_journal_styles_create.py: 2900 warnings
+tests/test_prep_create_budget.py: 312 warnings
+tests/test_notebook_earnings_prep.py: 1126 warnings
+tests/test_notebook_journal_styles_router.py: 3706 warnings
+tests/test_notebook_contract_fixtures.py: 2639 warnings
+tests/test_paywall_gate_free_tier.py: 201 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\starlette\_utils.py:39: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or (callable(obj) and asyncio.iscoroutinefunction(obj.__call__))
+
+tests/test_earnings_followup.py::test_reaction_session[rd0-bmo-session0]
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+tests/test_notebook_journal_styles_router.py::test_every_route_resolves_to_this_router_in_the_real_app
+  C:\Users\Patrick\uct-worktrees\notebook-t2b\api\baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_notebook_flag_parse.py::test_NO_notebook_flag_is_read_outside_the_one_parse
+tests/test_notebook_flag_parse.py::test_every_flag_on_call_names_a_payload_flag
+tests/test_feature_flag_ledger.py::test_every_off_by_default_gate_is_declared
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+  <unknown>:7: SyntaxWarning: "\d" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\d"? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_earnings_prep.py::test_the_import_graph_never_reaches_alphavantage_or_the_recap_generator
+FAILED tests/test_sample_never_feeds_real_numbers.py::test_every_reader_of_a_note_table_is_guarded_or_exempt_with_a_reason
+FAILED tests/test_notebook_flag_parse.py::test_NO_notebook_flag_is_read_outside_the_one_parse
+FAILED tests/test_notebook_flag_parse.py::test_every_flag_on_call_names_a_payload_flag
+4 failed, 1351 passed, 64742 warnings in 394.45s (0:06:34)

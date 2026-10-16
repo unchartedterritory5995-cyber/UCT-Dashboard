@@ -1,0 +1,22 @@
+[email] RESEND_API_KEY not set — emails disabled
+[entry_context] fingerprint unreadable for ECZZ 2026-10-05
+Traceback (most recent call last):
+  File "C:\Users\Patrick\uct-worktrees\notebook-t2b\api\services\journal_two\entry_context.py", line 519, in _fingerprint_field
+    fp = tfp.compute(symbol, entry_day)
+  File "C:\Users\Patrick\uct-worktrees\notebook-t2b\tools\notebook_contract_fixtures.py", line 1094, in compute
+    raise RuntimeError("the fingerprint source is down")
+RuntimeError: the fingerprint source is down
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\notebook_contract_7zt8ks3d.db
+[sqlite-migration] Applied purge_tf60_2f42e55: deleted 0 rows
+[sqlite-migration] Applied purge_tf60_3cbe1cf_src_cap: deleted 0 rows
+[sqlite-migration] Applied purge_intraday_pagination_v1: deleted 0 rows
+OK: 261 contract fixtures match the server

@@ -1,0 +1,49 @@
+{
+ "styles_flag": true,
+ "chips_flag": null,
+ "options_after_slash": [
+  "Unfiled",
+  "Default",
+  "Sans Serif",
+  "Serif",
+  "Monospace",
+  "Arial",
+  "Helvetica",
+  "Verdana",
+  "Tahoma",
+  "Trebuchet MS",
+  "Calibri",
+  "Century Gothic"
+ ],
+ "options_after_plan": [
+  "Unfiled",
+  "Default",
+  "Sans Serif",
+  "Serif",
+  "Monospace",
+  "Arial",
+  "Helvetica",
+  "Verdana",
+  "Tahoma",
+  "Trebuchet MS",
+  "Calibri",
+  "Century Gothic"
+ ],
+ "options_after_plan_nvda": [
+  "Unfiled",
+  "Default",
+  "Sans Serif",
+  "Serif",
+  "Monospace",
+  "Arial",
+  "Helvetica",
+  "Verdana",
+  "Tahoma",
+  "Trebuchet MS",
+  "Calibri",
+  "Century Gothic"
+ ],
+ "focused": "tiptap ProseMirror _proseEditor_1w4ry_238 ProseMirror-focused",
+ "console_errors": [],
+ "delete": 200
+}

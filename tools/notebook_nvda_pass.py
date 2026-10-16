@@ -7,8 +7,10 @@ input/output log rather than a person's ears.
 WHAT IT IS, HONESTLY. The pass script was written for a human listening to a real screen reader.
 This drives the same rows -- 1 to 27 (the 2026-10-09 pass), 28 to 38 (Journal styles, P1, and the
 trader blocks, P2; added 2026-10-13, driven only while the server under test has the journal styles
-switch on) and 39 to 41 (the alert chip and the screenshot tag, Tier 2 part A; added 2026-10-14,
-driven only while the smart chips switch is on, row 41 also the image-documents switch) -- with REAL OS key events (`SendInput`, so NVDA's keyboard hook sees
+switch on), 39 to 41 (the alert chip and the screenshot tag, Tier 2 part A; added 2026-10-14,
+driven only while the smart chips switch is on, row 41 also the image-documents switch) and 42 to 44 (the earnings
+follow-up notice, its card and /remind, Tier 2 part B; added 2026-10-15, rows 42-43 driven only while the follow-up
+and journal styles switches are on) -- with REAL OS key events (`SendInput`, so NVDA's keyboard hook sees
 them; Playwright's CDP keys do not reach it) into a headed Chromium signed in as the synthetic
 smoke account, and reads what NVDA SPOKE from its log at log level 12 (input/output), where every
 utterance is a `Speaking [...]` line. A row PASSES when every quoted phrase in the script's
@@ -47,6 +49,11 @@ tools/fixtures/chart-header-nvda-1d.png through the OS clipboard and a real Ctrl
 for the chip; with no OCR engine on the server (`ocrUnavailable` on the note's documents) it is NOT RUN
 with that reason. WARNING: row 41 leaves an uploaded image attached to a TRASHED note, and its OCR'd
 document row: the product has no hard delete for either. The record's `made` lists the note.
+Rows 42-44 (Tier 2 part B): row 42 needs the producer to have run for THIS account (an unread
+`notebook_earnings_followup` row on GET /api/alerts): this tool makes no notice (the bell has no member write), so
+without one the row is NOT RUN and says so; it only focuses the link and its Dismiss button, never presses them.
+Row 43 opens the card by its URL and focuses "Write follow-up" (never pressed: pressing makes a note). Row 44 makes the
+note `SR reminder` and types `/remind`; it rides neither follow-up switch, so it runs whenever the others do.
 
 ⛔ NVDA must already be running with `-m --log-level=12 --log-file=<path>`; pass that path as
 --nvda-log. The box's foreground is taken by the test browser for the run's length (~8 min).
@@ -433,7 +440,37 @@ T2A_ROWS = (
      "note": "(the middle dot is not graded: NVDA may speak it as a name or not at all)"},
 )
 T2A_BY_N = {r["n"]: r for r in T2A_ROWS}
-ROW_BY_N = {**P1P2_BY_N, **T2A_BY_N}
+
+# ── Rows 42-44 (2026-10-15): Tier 2 part B, the earnings follow-up notice, its card, and /remind ──────
+# Every name is read from the component source; docs/notebook/screen-reader-pass.md quotes the file:line. Rows 42 and
+# 43 exist only while NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED and NOTEBOOK_JOURNAL_STYLES_ENABLED are both on for the
+# server under test (`needs`: "followup"); /remind rides neither (`needs`: "none"; the audit's row 66 has flag null).
+# The graded phrases avoid the colon of the notice's title (NVDA's symbol level may speak it) and the apostrophe.
+FOLLOWUP_KEY = "notebook_earnings_followup_enabled"          # lib/earningsFollowupFlag.js
+FOLLOWUP_SYM = "ORCL"
+FOLLOWUP_TITLE = f"{FOLLOWUP_SYM} reported: write your follow-up"   # NoticesBox.jsx:61 (the link's text; the producer's title)
+FOLLOWUP_DISMISS = f"Dismiss {FOLLOWUP_TITLE}"                # NoticesBox.jsx:65 aria-label={`Dismiss ${n.title}`}
+FOLLOWUP_ALERT_TYPE = "notebook_earnings_followup"            # earnings_followup.FOLLOWUP_SOURCE
+FOLLOWUP_REGION = "Earnings follow-up"                        # FollowupOffer.jsx:10, :54
+FOLLOWUP_HEADING = f"Earnings follow-up for {FOLLOWUP_SYM}"   # FollowupOffer.jsx:55
+FOLLOWUP_WRITE = "Write follow-up"                            # FollowupOffer.jsx:61
+REMIND_NOTE = "SR reminder"
+T2B_ROWS = (
+    {"n": 42, "keys": f"Home: unfold Notices; focus the link '{FOLLOWUP_TITLE}', then Tab to its Dismiss button (neither pressed)",
+     "expected": ["ORCL reported", "write your follow-up", "link", "Dismiss", "button"],
+     "logged": [FOLLOWUP_TITLE, "link", FOLLOWUP_DISMISS, "button"], "needs": "followup",
+     "note": "(the notice must already be on this account's bell: this tool cannot make one)"},
+    {"n": 43, "keys": f"open /journal/notebook?followup={FOLLOWUP_SYM}&reportDate=<yesterday>; focus '{FOLLOWUP_WRITE}' (never pressed)",
+     "expected": [FOLLOWUP_REGION, "region", FOLLOWUP_WRITE, "button"],
+     "logged": [FOLLOWUP_REGION, "region", FOLLOWUP_WRITE, "button"], "needs": "followup",
+     "note": "(the heading 'Earnings follow-up for ORCL' is read in browse mode, not on a focus move: its presence is recorded from the DOM)"},
+    {"n": 44, "keys": f"open the note '{REMIND_NOTE}'; click into the body, End, Enter; type '/remind' with real keys; Enter on the option; Down in the date list",
+     "expected": ["Reminder", "Today"],
+     "logged": ["Insert block", "Reminder", "A follow-up task with a date", "Insert a date", "Today"], "needs": "none",
+     "note": "(no follow-up switch: the Reminder slash item is a Basics item)"},
+)
+T2B_BY_N = {r["n"]: r for r in T2B_ROWS}
+ROW_BY_N = {**P1P2_BY_N, **T2A_BY_N, **T2B_BY_N}
 
 
 def switch_off(me, key: str, what: str, base: str) -> str | None:
@@ -450,6 +487,15 @@ def t2a_off(me, needs: str, base: str) -> str | None:
     if why is None and needs == "chips+docs":
         why = switch_off(me, IMAGE_DOCS_KEY, "image documents", base)
     return why
+
+
+def t2b_off(me, needs: str, base: str) -> str | None:
+    """Why rows 42-44 cannot run on this server, or None. `needs` is a T2B_ROWS entry's: "followup" (rows 42-43: the
+    follow-up switch AND the journal styles switch, which the card's create needs) or "none" (row 44)."""
+    if needs != "followup":
+        return None
+    why = switch_off(me, FOLLOWUP_KEY, "earnings follow-up", base)
+    return why or switch_off(me, STYLES_FLAG_KEY, "journal styles", base)
 
 
 class RowNotRun(Exception):
@@ -772,6 +818,26 @@ def self_check() -> int:
         fails.append("t2a_off: an ABSENT key did not say it was absent")
     if not T2A_FIXTURE.exists():
         fails.append(f"row 41's fixture is missing: {T2A_FIXTURE}")
+    # Rows 42-44 (Tier 2 part B): numbers, the ear over their own words, and the gates.
+    if [r["n"] for r in T2B_ROWS] != [42, 43, 44]:
+        fails.append(f"T2B_ROWS numbers: {[r['n'] for r in T2B_ROWS]!r}")
+    for r in T2B_ROWS:
+        logged = "Speaking [LangChangeCommand ('en_US'), " + ", ".join(repr(x) for x in r["logged"]) + "]"
+        verdict, why = grade(r["expected"], parse_speech(logged))
+        if verdict != "PASS":
+            fails.append(f"row {r['n']}: the ear cannot hear its own expected words: {why}")
+        if grade(r["expected"], ["column 3 Sort by Name button"])[0] != "FAIL":
+            fails.append(f"row {r['n']}: foreign speech did not FAIL")
+    both = {FOLLOWUP_KEY: True, STYLES_FLAG_KEY: True}
+    for me_, needs_, want_off in (({}, "followup", True), (None, "followup", True), ({FOLLOWUP_KEY: "true"}, "followup", True),
+                                  ({FOLLOWUP_KEY: True}, "followup", True), ({STYLES_FLAG_KEY: True}, "followup", True),
+                                  ({FOLLOWUP_KEY: False, STYLES_FLAG_KEY: True}, "followup", True), (both, "followup", False),
+                                  ({}, "none", False), (None, "none", False)):
+        why = t2b_off(me_, needs_, base)
+        if bool(why) != want_off:
+            fails.append(f"t2b_off({me_!r}, {needs_!r}) answered {why!r}")
+    if "carries no" not in (t2b_off({STYLES_FLAG_KEY: True}, "followup", base) or ""):
+        fails.append("t2b_off: an ABSENT follow-up key did not say it was absent")
     # (d) The block catalog is READ from the server file, and holds the six blocks the rows build.
     try:
         kinds = block_kinds()
@@ -1387,6 +1453,60 @@ def main(argv=None) -> int:
                     raise RuntimeError(f"the chip never appeared in 60 s; documents {[(d.get('status'), d.get('pagesWithText')) for d in docs]}") from e
                 focus_heard(button)
             p_t2a(41, [lambda: fxs.plain_note(SHOT_NOTE)], _p41)
+
+            # ── Rows 42-44 (2026-10-15): the earnings follow-up notice, its card, and /remind (Tier 2 part B) ──
+            # Rows 42-43 are gated on the auth payload's own keys (t2b_off); row 44 rides neither switch.
+            def p_t2b(num, needs, action):
+                return p2_row(num, needs, action, only=only, styles_off=t2b_off(me, T2B_BY_N[num]["needs"], a.base),
+                              served=fxs.served_blocks, row=row, not_run=not_run, inconclusive=inconclusive)
+
+            def _p42():
+                al = req.get(f"{a.base}/api/alerts?limit=20")
+                bell = al.json() if al.status == 200 and isinstance(al.json(), list) else []
+                held = [r_ for r_ in bell if isinstance(r_, dict) and r_.get("type") == FOLLOWUP_ALERT_TYPE and not r_.get("read")]
+                if not held:
+                    # This tool cannot make the notice (the bell has no member write), and a made-up row would not be the
+                    # producer's. NOT RUN, with how to get one, never a FAIL.
+                    raise RowNotRun("INCONCLUSIVE: this account's bell holds no unread earnings follow-up notice "
+                                    f"(GET /api/alerts: {len(bell)} rows, none of type {FOLLOWUP_ALERT_TYPE})")
+                page.goto(f"{a.base}/journal/notebook", wait_until="domcontentloaded")
+                summary = page.locator('[data-tour="home-notices"] > summary')
+                wait_visible(summary, "the Notices box")
+                time.sleep(1.5); GUARD.ensure()
+                summary.first.focus(); time.sleep(0.6); press("enter")        # unfold it the way a keyboard member does
+                link = page.get_by_role("link", name=FOLLOWUP_TITLE, exact=True)
+                wait_visible(link, "the follow-up notice's link")
+                focus_heard(link)
+                press("tab"); time.sleep(0.9)                                 # the Dismiss button follows the link
+                PROBE["txt"] = f"DOM after Tab: {page.evaluate(ACTIVE_NAME)}"
+            p_t2b(42, [], _p42)
+
+            def _p43():
+                day = (dt.date.today() - dt.timedelta(days=1)).isoformat()
+                page.goto(f"{a.base}/journal/notebook?followup={FOLLOWUP_SYM}&reportDate={day}", wait_until="domcontentloaded")
+                region = page.get_by_role("region", name=FOLLOWUP_REGION, exact=True)
+                wait_visible(region, "the Earnings follow-up card")
+                time.sleep(1.5); GUARD.ensure()
+                heading = region.get_by_role("heading", name=FOLLOWUP_HEADING, level=2)
+                button = region.get_by_role("button", name=FOLLOWUP_WRITE, exact=True)
+                focus_heard(button)
+                PROBE["txt"] = f"DOM: {page.evaluate(ACTIVE_NAME)}; the heading {FOLLOWUP_HEADING!r} on screen: {heading.count() == 1}"
+            p_t2b(43, [], _p43)
+
+            def _p44(nid):
+                chip_note(nid, "the SR reminder note's body")
+                ear.mark()                                  # the window holds the typing, the option, and the date list
+                type_text("/remind")
+                wait_visible(page.get_by_role("option", name=re.compile(r"^Reminder")), "the Reminder option")
+                time.sleep(1.5)
+                press("enter")
+                wait_visible(page.locator('#uct-date-suggest [role="option"]'), "the date list")
+                time.sleep(1.2)
+                press("down"); time.sleep(1.5)
+                PROBE["txt"] = ("DOM: date list options "
+                                f"{page.locator('#uct-date-suggest [role=option]').all_inner_texts()[:3]!r}; selected "
+                                f"{page.locator('#uct-date-suggest [role=option][aria-selected=true]').all_inner_texts()[:1]!r}")
+            p_t2b(44, [lambda: fxs.plain_note(REMIND_NOTE)], _p44)
         except RunAborted as e:
             print("INCONCLUSIVE:", e); code = 2
         finally:

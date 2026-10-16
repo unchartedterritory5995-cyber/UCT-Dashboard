@@ -502,3 +502,34 @@ describe('/plan (Tier 2 part A)', () => {
     expect(planItems('pla')).toEqual([])
   })
 })
+
+// Tier 2 part B, item 12 (R-T2B-12): "/remind" -- a follow-up task with a date, through the @ date list.
+describe('/remind', () => {
+  let editor
+  afterEach(() => { editor?.destroy(); editor = null; document.body.innerHTML = '' })
+  it('the Reminder row is a Basics item and ranks first for "remind"', () => {
+    const reminder = ITEMS.find((i) => i.title === 'Reminder')
+    expect(reminder.keywords).toEqual(['remind', 'reminder', 'follow up'])
+    expect(blockItemGroup(reminder)).toBe('basics')
+    expect(rankedBlockItems(ITEMS, 'remind')[0].title).toBe('Reminder')
+    expect(rankedBlockItems(ITEMS, 'follow').map((i) => i.title)).toContain('Reminder')
+  })
+  it('sits in Basics right after "Due date", in the menu and in the bare-slash order', () => {
+    const titles = ITEMS.map((i) => i.title)
+    expect(titles.indexOf('Reminder')).toBe(titles.indexOf('Due date') + 1)
+    const basics = groupedSlashItems(ITEMS, []).filter((i) => i.group === 'basics').map((i) => i.title)
+    expect(basics.indexOf('Reminder')).toBe(basics.indexOf('Due date') + 1)
+  })
+  it('running it replaces "/remind" with an unticked task that holds the lead and an "@", and the date list opens', () => {
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    editor = new Editor({ element: el, extensions: buildExtensions(), content: '<p>/remind</p>' })
+    editor.commands.focus('end')
+    const end = editor.state.selection.from
+    ITEMS.find((i) => i.title === 'Reminder').command({ editor, range: { from: end - 7, to: end } })
+    expect(editor.state.doc.textContent).toBe('Follow up @')
+    expect(editor.isActive('taskItem')).toBe(true)
+    expect(editor.getAttributes('taskItem').checked).toBe(false)
+    expect(dateSuggestPluginKey.getState(editor.state).active).toBe(true)
+  })
+})
