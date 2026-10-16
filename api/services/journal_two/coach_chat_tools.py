@@ -1945,28 +1945,30 @@ _TOOLS_UNGATED["search_my_notes"] = {
 # ── TSDR trader archive (owner ruling 2026-10-15) — chat AND voice, DARK by flag ──
 #
 # ONE implementation (api/services/wisdom/archive/tools.py) serves both Compass surfaces;
-# the voice twins are registered in voice_tool_impls.py. Gated by WISDOM_ARCHIVE_ENABLED,
+# the voice twins are registered in voice_tool_impls.py and chat reaches the archive THROUGH
+# them, so voice_tool_impls is the one Compass door into the wisdom package (R50
+# DECLARED_DOORS) and the two surfaces can never diverge. Gated by WISDOM_ARCHIVE_ENABLED,
 # read PER CALL by the registry below (hidden while off) and again inside the tool (a
 # call that raced a flip is refused). Read-only, bounded output.
 
 def _archive_tool_enabled() -> bool:
-    from api.services.wisdom.archive import tools as _archive_tools
-    return _archive_tools.enabled()
+    from api.services import voice_tool_impls as _vti
+    return _vti._archive_tool_gate()
 
 
 def _exec_trader_archive_search(*, user_id, account_id, args, conn=None) -> dict:
-    from api.services.wisdom.archive import tools as _archive_tools
-    return _archive_tools.search(str((args or {}).get("query") or ""))
+    from api.services import voice_tool_impls as _vti
+    return _vti._trader_archive_search(query=str((args or {}).get("query") or ""))
 
 
 def _exec_trader_archive_ticker(*, user_id, account_id, args, conn=None) -> dict:
-    from api.services.wisdom.archive import tools as _archive_tools
-    return _archive_tools.ticker(str((args or {}).get("symbol") or ""))
+    from api.services import voice_tool_impls as _vti
+    return _vti._trader_archive_ticker(symbol=str((args or {}).get("symbol") or ""))
 
 
 def _exec_trader_archive_setup(*, user_id, account_id, args, conn=None) -> dict:
-    from api.services.wisdom.archive import tools as _archive_tools
-    return _archive_tools.setup(str((args or {}).get("setup") or ""))
+    from api.services import voice_tool_impls as _vti
+    return _vti._trader_archive_setup(setup=str((args or {}).get("setup") or ""))
 
 
 _TOOLS_UNGATED["trader_archive_search"] = {

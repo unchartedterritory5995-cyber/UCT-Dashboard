@@ -64,6 +64,11 @@ DECLARED_DOORS = {
     "api/services/ticker_mentions.py": ("core.flags + publish.adapters.desk_markers", "MEMBER",
                                         "WISDOM_DESK_MARKERS_ENABLED"),
     "api/services/desk_session_insights.py": ("core.ids + core.r2", "NO_RECORD_READ", ""),
+    # The TSDR trader archive (wisdom_archive_* tables, never wisdom_records). Owner ruling
+    # 2026-10-15: paid members and every in-app tool, behind WISDOM_ARCHIVE_ENABLED read per call.
+    # Compass chat reaches the archive through these voice twins, so this is its one door.
+    "api/services/voice_tool_impls.py": ("archive.tools", "MEMBER", "WISDOM_ARCHIVE_ENABLED"),
+    "api/services/brain_service.py": ("archive.team_record", "MEMBER", "WISDOM_ARCHIVE_ENABLED"),
 }
 
 

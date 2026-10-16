@@ -13,6 +13,9 @@ the archive is for PAID MEMBERS and every in-app tool, never the anonymous inter
   GET /pattern/{id}?ticker=  the playbook of the setup a chart detector belongs to (through
                          the vocabulary's trader_archive map), today's market cut and the
                          ticker's team record; no price levels (the pattern side panel)
+  GET /check?ticker=&setup=  the Terminal's CHK: a setup's measured team record (engine name,
+                         detector id or alias), today's tape cut, and the team's calls in the
+                         ticker (of that setup when one resolves); no price levels
 
 ADMIN (`/api/admin/wisdom/archive`, every route Depends(require_admin) — the admin guard
 middleware does not cover /api/admin/wisdom, so the dependency IS the gate):
@@ -39,7 +42,7 @@ from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user, require_admin
 from api.routers.wisdom_sources import require_push_secret
-from api.services.wisdom.archive import service, setup_map
+from api.services.wisdom.archive import service, setup_map, team_record
 from api.services.wisdom.core import flags, store
 
 router = APIRouter(prefix="/api/admin/wisdom/archive", tags=["wisdom"])
@@ -222,6 +225,24 @@ def member_pattern(pattern_id: str, ticker: str = Query("", max_length=16),
                         "r20": (last.get("outcome") or {}).get("r20")}
             out["ticker"] = {**summary, "last_call": last}
     return _named(out)
+
+
+@member_router.get("/check")
+def member_check(ticker: str = Query(..., min_length=1, max_length=16),
+                 setup: str = Query("", max_length=80),
+                 _user: dict = Depends(require_paid)) -> dict:
+    """The Terminal's CHK reads the team archive here when the engine has no answer, and beside
+    it when it has one. Labelled as the team archive; never a price level."""
+    _require_enabled()
+    try:
+        service.normalize_ticker(ticker)
+    except service.ItemError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    rec = team_record.setup_record(setup, for_request=True) if setup.strip() else None
+    trec = team_record.ticker_record(ticker, setup=(rec or {}).get("setup_id") or None, for_request=True)
+    if trec is None:
+        raise HTTPException(status_code=503, detail="wisdom.db unavailable")
+    return {"label": team_record.LABEL, "setup": rec, "ticker": trec}
 
 
 @member_router.get("/playbook/{setup}")

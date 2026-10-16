@@ -9,6 +9,11 @@
 //   Risk       GET /api/risk-summary, the member's open book against today's phase limits.
 //   This ticker GET /api/analogs with `symbol`, the setup's past trades in this ticker only, and
 //              GET /api/j2/trades?symbol=, the member's own closed journal trades in it (read only).
+//   Team archive GET /api/wisdom/archive/check, the UCT team's own posted calls: the setup's
+//              measured record, today's tape, and the team's calls in this ticker. A SEPARATE,
+//              labelled section, never merged into the engine's numbers; a 404 (switched off) draws
+//              nothing. When the engine has no setup list, the picker offers the archive's setups
+//              (GET /api/wisdom/archive/playbooks), so CHK still answers without the Brain pack.
 //
 // Every section loads and fails on its own: one failed read never blanks the panel, a failed read
 // is an error with Retry (never an empty section), a 402 says paid plan. The engine's own "not
@@ -28,9 +33,10 @@ import { formatCurrency, formatNumber, formatPercent } from '../../../lib/presen
 import { canRetry, stampedRead, failureText } from './marketRead'
 import { checkLevels, parseNum } from './sizeMath'
 import {
-  RISK_URL, TEMPLATES_URL, MAX_HEAT_PCT, analogRows, analogsUrl, bookChecks, checklistChecks, checklistUrl,
-  engineMissing, journalRows, journalTradesUrl, num, perfUrl, phaseOf, riskEngineMissing, setupOptions,
-  tickerAnalogView, tickerAnalogsUrl,
+  ARCHIVE_PLAYBOOKS_URL, RISK_URL, TEMPLATES_URL, MAX_HEAT_PCT, analogRows, analogsUrl, archiveCallRows,
+  archiveCheckUrl, archiveSetupOptions, bookChecks, checklistChecks, checklistUrl, engineMissing, journalRows,
+  journalTradesUrl, num, perfUrl, phaseOf, pts, riskEngineMissing, setupOptions, tickerAnalogView,
+  tickerAnalogsUrl,
 } from './checkModel'
 import shared from './myNamesPanel.module.css'
 import form from './sizePanel.module.css'
@@ -200,6 +206,80 @@ function JournalTable({ rows, setup }) {
   )
 }
 
+/** One line of the archive's measured record, its verdict said as the archive says it. */
+function TeamStats({ label, st, testId }) {
+  if (!st) return null
+  return (
+    <p className={shared.muted} data-testid={testId}>
+      {label}: {formatNumber(num(st.n_scored), { decimals: 0, absent: 'n/a' })} scored team calls,{' '}
+      {pct(pts(st.win20), 0)} up after 20 sessions, median {signedPct(pts(st.med_edge20))} versus the same stock
+      on a random day; edge {st.verdict}.
+    </p>
+  )
+}
+
+/** The team archive: a separate, labelled source. Its numbers are never merged into the engine's. */
+function TeamArchive({ s, setup, read }) {
+  const body = read.body
+  const rec = body?.setup || null
+  const t = body?.ticker || null
+  const rows = archiveCallRows(body)
+  const cut = rec?.today?.cut || null
+  return (
+    <>
+      <p className={shared.note} data-testid="terminal-chk-team-label">
+        {body?.label || 'UCT team archive'}. A separate source from the setup engine above.
+      </p>
+      {setup && !rec ? (
+        <p className={shared.muted} data-testid="terminal-chk-team-nosetup">The team archive has no record for {setup}.</p>
+      ) : null}
+      {rec ? (
+        <>
+          <TeamStats label={rec.name || rec.setup_id} st={rec.all_calls} testId="terminal-chk-team-setup" />
+          {cut ? (
+            <TeamStats label={`In today's tape (QQQ ${rec.today.state})`} st={cut} testId="terminal-chk-team-today" />
+          ) : rec.today?.state ? (
+            <p className={shared.muted} data-testid="terminal-chk-team-today-thin">
+              Too few team calls in a QQQ {rec.today.state} tape to judge it on its own.
+            </p>
+          ) : null}
+        </>
+      ) : null}
+      {t ? (
+        <p className={shared.muted} data-testid="terminal-chk-team-ticker">
+          {s}: {formatNumber(num(t.n_calls), { decimals: 0, absent: '0' })} team calls on record
+          {num(t.mean_r20) !== null ? `, averaging ${signedPct(pts(t.mean_r20))} after 20 sessions` : ''}.
+        </p>
+      ) : null}
+      {rows.length ? (
+        <div className={shared.tableBox}>
+          <table className={shared.table} aria-label={`The team's calls in ${s}`} data-testid="terminal-chk-team-table">
+            <thead>
+              <tr><th scope="col">Posted</th><th scope="col">Trader</th><th scope="col" className={shared.phoneHide}>Setup</th>
+                <th scope="col" className={shared.phoneHide}>Side</th><th scope="col">20 sessions later</th></tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.key}>
+                  <td>{r.date || 'n/a'}</td>
+                  <td>{r.trader || 'n/a'}</td>
+                  <td className={shared.phoneHide}>{r.setup || 'n/a'}</td>
+                  <td className={shared.phoneHide}>{r.direction || 'n/a'}</td>
+                  <td className={r.r20 > 0 ? shared.up : r.r20 < 0 ? shared.down : undefined}>
+                    {r.r20 === null ? 'Not scored yet' : signedPct(r.r20)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : t && setup && rec ? (
+        <p className={shared.muted} data-testid="terminal-chk-team-none">No team calls of this setup in {s}.</p>
+      ) : null}
+    </>
+  )
+}
+
 /** One win-rate row from a setup-performance read (or the words for why there is none). */
 function perfRow(key, label, read) {
   if (!read.asked) return { key, label, data: null, note: 'Needs today\'s market phase.' }
@@ -252,10 +332,18 @@ export default function CheckPanel({ sym }) {
   const mine = useChkRead(s && setup && phase ? tickerAnalogsUrl(setup, phase, s) : null)
   const journal = useChkRead(s ? journalTradesUrl(s) : null)
 
-  const options = useMemo(() => setupOptions(templates.body), [templates.body])
+  const engineOptions = useMemo(() => setupOptions(templates.body), [templates.body])
+  // No setup list from the engine (not loaded, or empty): offer the team archive's setups instead.
+  const engineHasNone = Boolean(templates.body) && (Boolean(engineMissing(templates.body)) || engineOptions.length === 0)
+  const archiveSetups = useChkRead(s && engineHasNone ? ARCHIVE_PLAYBOOKS_URL : null)
+  const archiveOptions = useMemo(() => archiveSetupOptions(archiveSetups.body), [archiveSetups.body])
+  const fromArchive = engineHasNone && archiveOptions.length > 0
+  const options = fromArchive ? archiveOptions : engineOptions
+  const team = useChkRead(s ? archiveCheckUrl(s, setup) : null)
+  const teamOff = team.error?.status === 404
 
   // As of: the oldest read that has landed, so the panel never claims to be fresher than its parts.
-  const stamps = [templates, risk, checklist, perfAll, perfPhase, analogs, mine, journal].map((r) => r.receivedAt).filter(Boolean).sort()
+  const stamps = [templates, risk, checklist, perfAll, perfPhase, analogs, mine, journal, team].map((r) => r.receivedAt).filter(Boolean).sort()
   // panelAsOf: a bare { observedAt } read as "undated" in the header (seen live 2026-10-09).
   usePanelFreshness(stamps.length ? panelAsOf('UCT intelligence engine (setups, analogs, risk) and your journal', stamps[0]) : null)
 
@@ -293,10 +381,15 @@ export default function CheckPanel({ sym }) {
       </div>
 
       <Section id="setup" title="Your plan" read={templates} what="The setup list">
-        {engineMissing(templates.body) || (templates.body && options.length === 0) ? (
+        {engineHasNone && !fromArchive ? (
           <EngineOff id="setup" reason={engineMissing(templates.body) || 'The setup library is empty on this server'} />
         ) : (
           <>
+            {fromArchive ? (
+              <p className={shared.muted} data-testid="terminal-chk-setup-archive">
+                The setup engine is not on for this server, so these are the team archive&apos;s setups.
+              </p>
+            ) : null}
             <div className={shared.group} role="group" aria-label="Trade side">
               <button type="button" className={shared.chip} aria-pressed={side === 'long'} onClick={() => setSide('long')}
                 data-testid="terminal-chk-side-long">Long (stop below entry)</button>
@@ -413,6 +506,12 @@ export default function CheckPanel({ sym }) {
             </>
           )}
       </Section>
+
+      {teamOff ? null : (
+        <Section id="team" title="The team's own calls" read={team} what="The team archive">
+          <TeamArchive s={s} setup={setup} read={team} />
+        </Section>
+      )}
 
       <Section id="risk" title="Your open book" read={risk} what="Your risk summary">
         {riskOff ? <EngineOff id="risk" reason="The risk engine is not loaded on this server" /> : risk.body ? (
