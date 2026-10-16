@@ -390,53 +390,21 @@ def _overlay(conn) -> _Overlay:
 # statement, and an ordinary night costs one MIN/MAX read and nothing else.
 # ═══════════════════════════════════════════════════════════════════════════
 
-#: How far back the cutoff search walks before concluding the threshold is so
-#: wide nothing can be behind it (~10 years of calendar days).
-_STALE_SEARCH_DAYS = 3700
-
-
-def _ymd_int(d) -> int:
-    return d.year * 10000 + d.month * 100 + d.day
-
-
 def stale_gate(conn):
     """The stale-row exclusion for THIS database, or ``None`` when no row is
     behind (or the table cannot say).
 
     Returns ``{"sql", "params", "cutoff", "reference", "max_sessions"}`` —
-    ``sql`` keeps a row whose own ``bars_asof`` is at or after ``cutoff``, the
-    oldest session ``snapshot_builder.price_is_stale`` still calls fresh when
-    measured against ``reference`` (the newest ``bars_asof`` in the table).
-    The cutoff is FOUND by walking the builder's own predicate back one day at
-    a time, never by restating its session arithmetic here.
+    ``sql`` keeps a row whose own ``bars_asof`` is at or after ``cutoff``.
+
+    ⭐ THE GATE LIVES IN ``snapshot_builder.stale_row_gate`` NOW, beside the
+    predicate it walks, because it has TWO readers: this scan path and the nightly
+    saved-scan sweep (``scan_evaluator``), which must not import this SQL builder
+    (``test_the_evaluator_never_NAMES_the_overlay__BY_AST``). One implementation,
+    asked from both doors; this name is kept so every caller and rail is unchanged.
     """
-    if conn is None:
-        return None
     from . import snapshot_builder
-    try:
-        mx, mn = conn.execute(
-            f'SELECT MAX(CAST("bars_asof" AS INTEGER)), MIN(CAST("bars_asof" AS INTEGER)) '
-            f'FROM {_ROWS} WHERE "bars_asof" IS NOT NULL').fetchone()
-        ref = _dt.date(int(mx) // 10000, (int(mx) // 100) % 100, int(mx) % 100)
-    except Exception:  # noqa: BLE001 — no table / no column / no parseable date
-        return None
-    reference = _ymd_int(ref)
-    day, cutoff = ref, None
-    for _ in range(_STALE_SEARCH_DAYS):
-        prev = day - _dt.timedelta(days=1)
-        if snapshot_builder.price_is_stale(_ymd_int(prev), reference):
-            cutoff = _ymd_int(day)
-            break
-        day = prev
-    if cutoff is None or mn is None or int(mn) >= cutoff:
-        return None
-    # ⛔ THE NIGHTLY ROW'S OWN DATE, never an overlaid value: the question is
-    # whether THIS ROW's bars stopped, and the live tier never serves a row
-    # whose anchor is that old anyway (its own `stale_anchor` gate).
-    return {"sql": (f'({_ROWS}."bars_asof" IS NULL OR '
-                    f'CAST({_ROWS}."bars_asof" AS INTEGER) >= ?)'),
-            "params": [cutoff], "cutoff": cutoff, "reference": reference,
-            "max_sessions": snapshot_builder.stale_price_sessions()}
+    return snapshot_builder.stale_row_gate(conn, table=_ROWS)
 
 
 def _ymd_text(v) -> str:
