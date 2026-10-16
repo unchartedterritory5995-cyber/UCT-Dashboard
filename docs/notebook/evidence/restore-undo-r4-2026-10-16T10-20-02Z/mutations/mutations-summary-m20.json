@@ -1,0 +1,18 @@
+[
+  {
+    "mutant": "R4-M20 harness: the PUT writes the module server after it is released",
+    "file": "app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "M-12",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "1 failed | 3 passed | 51 skipped (55)",
+        "log": "m19-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  }
+]

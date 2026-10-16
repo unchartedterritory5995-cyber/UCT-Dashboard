@@ -1,0 +1,50 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/blockedEntryIsVisible.test.jsx[2m > [22m[2m⛔ WHAT THE MEMBER IS TOLD[2m > [22m[2m⭐ the OPEN note says so honestly when the server does not have the work
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/blockedEntryIsVisible.test.jsx:166:48
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:12) {
+  status: [33m0[39m
+}
+
+ [32m✓[39m src/pages/journal-2-0/lib/offline/blockedEntryIsVisible.test.jsx [2m([22m[2m8 tests[22m[2m)[22m[33m 3798[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ the OPEN note says so honestly when the server does not have the work [33m 2196[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ THE OPEN NOTE says so when ITS OWN queued write was refused [33m 443[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ CONTROL: ANOTHER note’s block does not badge the note on screen [33m 490[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/doorEnumeration.test.js [2m([22m[2m41 tests[22m[2m)[22m[33m 6384[2mms[22m[39m
+     [33m[2m✓[22m[39m ③ CLIENT: every write to a door route lands its revision, or is a NAMED exception [33m 393[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — the variable-URL scan really does see delete_folder as a door [33m 327[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ every SITE_EXCEPTIONS entry still names a current, unsettled client write site [33m 498[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — a stale exception (no such site, or a site that now settles) is reported [33m 440[2mms[22m[39m
+     [33m[2m✓[22m[39m every request in a note-touching file has a readable method, and every door write lands its revision [33m 437[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — both of journalStyles.js's note-moving calls resolve to their routes and are seen as settled [33m 608[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ the GENERAL check (not only the control above) goes RED when journalStyles.js loses a settle [33m 379[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — an in-memory copy of journalStyles.js with a settle deleted makes the rail go RED, and says where [33m 608[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ the favourite toggle, blind to every rail until now, resolves to both routes and is not a door [33m 674[2mms[22m[39m
+     [33m[2m✓[22m[39m the real tree has NO helper exceptions: every injected or forwarded fetch resolves or is fixed [33m 375[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/blockedNoteSurface.test.jsx [2m([22m[2m12 tests[22m[2m)[22m[33m 2061[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ says the words are held and names the action that releases them [33m 685[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ CONTROL: a queued-but-still-retrying entry says NOTHING [33m 345[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ THE GATE: with the offline layer OFF, nothing is read and nothing is said [33m 346[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/doorFamilies.settle.test.jsx [2m([22m[2m43 tests[22m[2m)[22m[33m 446[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/blockedBaselineEvent.test.jsx [2m([22m[2m17 tests[22m[2m)[22m[33m 1151[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/doorDefersWhileUnsent.test.js [2m([22m[2m22 tests[22m[2m)[22m[32m 180[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/crashDraftBase.test.jsx [2m([22m[2m25 tests[22m[2m)[22m[32m 103[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/deferralReachesTheMember.test.jsx [2m([22m[2m4 tests[22m[2m)[22m[32m 114[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/baseline.test.js [2m([22m[2m8 tests[22m[2m)[22m[32m 76[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/configServedEvent.test.jsx [2m([22m[2m12 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m10 passed[39m[22m[90m (10)[39m
+[2m      Tests [22m [1m[32m192 passed[39m[22m[90m (192)[39m
+[2m   Start at [22m 05:09:23
+[2m   Duration [22m 10.82s[2m (transform 2.24s, setup 1.30s, import 500ms, tests 14.33s, environment 4.05s)[22m
+

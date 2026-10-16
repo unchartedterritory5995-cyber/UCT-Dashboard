@@ -1,0 +1,122 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+[90mstdout[2m | src/pages/journal-2-0/lib/offline/offlineWordsSurvive.property.test.jsx[2m > [22m[2m🔬 WHERE DO THE WORDS GO — diagnostic, printed not asserted[2m > [22m[2mafter a hero write discards the queued entry, what is left on the device?
+[22m[39mBEFORE  outbox entries: [33m1[39m
+BEFORE  working copy body: {"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"typed online. typed offline — THIS is the sentence that must survive."}]}]}
+DRAIN   results: [{}]
+AFTER   outbox entries: [33m0[39m
+AFTER   working copy body: {"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"typed online. typed offline — THIS is the sentence that must survive."}]}]}
+AFTER   working copy dirty flag: [33m0[39m
+AFTER   server body: {"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"typed online. typed offline — THIS is the sentence that must survive."}]}]}
+AFTER   forks created: [33m0[39m
+FORK    body handed to fork(): {}
+VERDICT sentence in the FORK? [33mfalse[39m
+VERDICT sentence on device? [33mtrue[39m
+
+ [32m✓[39m src/pages/journal-2-0/lib/offline/outboxDrain.test.js [2m([22m[2m30 tests[22m[2m)[22m[33m 3342[2mms[22m[39m
+     [33m[2m✓[22m[39m the compare-and-set PUT carries title, subtitle, bodyJson, baseUpdatedAt — and nothing else [33m 651[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/ownerForkSettleOneTransaction.test.js [2m([22m[2m8 tests[22m[2m)[22m[33m 856[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/ownerSendsQueuedWork.test.jsx [2m([22m[2m28 tests[22m[2m)[22m[33m 856[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/offlineOptInEvent.test.jsx [2m([22m[2m18 tests[22m[2m)[22m[33m 607[2mms[22m[39m
+     [33m[2m✓[22m[39m an opted-in browser reports once on mount [33m 595[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/outboxLeader.test.js [2m([22m[2m12 tests[22m[2m)[22m[32m 82[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/notebookFlags.test.jsx [2m([22m[2m20 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/ownerReconcile.test.js [2m([22m[2m10 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/notebookFlags.serverDefaults.test.js [2m([22m[2m6 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/notebookFlags.askInsert.test.js [2m([22m[2m4 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/offlineWordsSurvive.property.test.jsx [2m([22m[2m132 tests[22m[2m)[22m[33m 54475[2mms[22m[39m
+     [33m[2m✓[22m[39m folder door · slow PUT (landed, ring populated) [33m 317[2mms[22m[39m
+     [33m[2m✓[22m[39m folder door · a metadata door settles after it (the editor could report local state) [33m 302[2mms[22m[39m
+     [33m[2m✓[22m[39m ticker door · marker LIVE [32m 300[2mms[22m[39m
+     [33m[2m✓[22m[39m ticker door · the editor merged it and saved; its settle read the pre-merge record [33m 309[2mms[22m[39m
+     [33m[2m✓[22m[39m tags door · marker LIVE [33m 302[2mms[22m[39m
+     [33m[2m✓[22m[39m tags door · marker EXPIRED [33m 302[2mms[22m[39m
+     [33m[2m✓[22m[39m tags door · reload mid-flight (marker from a dead tab) [33m 301[2mms[22m[39m
+     [33m[2m✓[22m[39m tags door · a metadata door settles after it (the editor could report local state) [33m 316[2mms[22m[39m
+     [33m[2m✓[22m[39m hero door · marker LIVE [32m 300[2mms[22m[39m
+     [33m[2m✓[22m[39m hero door · slow PUT (landed, ring populated) [33m 316[2mms[22m[39m
+     [33m[2m✓[22m[39m hero door · reload mid-flight (marker from a dead tab) [33m 314[2mms[22m[39m
+     [33m[2m✓[22m[39m hero door · a metadata door settles after it (the editor could report local state) [33m 314[2mms[22m[39m
+     [33m[2m✓[22m[39m hero door · the editor merged it and saved; its settle read the pre-merge record [33m 314[2mms[22m[39m
+     [33m[2m✓[22m[39m append_widget_embed door · marker LIVE [33m 316[2mms[22m[39m
+     [33m[2m✓[22m[39m append_widget_embed door · slow PUT (landed, ring populated) [33m 317[2mms[22m[39m
+     [33m[2m✓[22m[39m append_financial_fact door · marker LIVE [33m 301[2mms[22m[39m
+     [33m[2m✓[22m[39m append_financial_fact door · a metadata door settles after it (the editor could report local state) [32m 300[2mms[22m[39m
+     [33m[2m✓[22m[39m append_document_excerpt door · reload mid-flight (marker from a dead tab) [32m 300[2mms[22m[39m
+     [33m[2m✓[22m[39m append_document_excerpt door · a metadata door settles after it (the editor could report local state) [33m 302[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · tab B sweeps → open → type → reconnect → owner saves → close [33m 475[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · open → tab B sweeps → type → reconnect → owner saves → close [33m 438[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · open → type → tab B sweeps → reconnect → owner saves → close [33m 333[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · open → type → reconnect → tab B sweeps → owner saves → close [33m 455[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · open → type → reconnect → owner saves → tab B sweeps → close [33m 492[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · open → type → reconnect → owner saves → close → tab B sweeps [33m 491[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · tab B sweeps → open → tab B sweeps → type → reconnect → owner saves → close [33m 555[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · tab B sweeps → open → type → tab B sweeps → reconnect → owner saves → close [33m 502[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · tab B sweeps → open → type → reconnect → tab B sweeps → owner saves → close [33m 555[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · tab B sweeps → open → type → reconnect → owner saves → tab B sweeps → close [33m 523[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · tab B sweeps → open → type → reconnect → owner saves → close → tab B sweeps [33m 538[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · open → tab B sweeps → type → tab B sweeps → reconnect → owner saves → close [33m 553[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · open → tab B sweeps → type → reconnect → tab B sweeps → owner saves → close [33m 553[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · open → tab B sweeps → type → reconnect → owner saves → tab B sweeps → close [33m 554[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · open → tab B sweeps → type → reconnect → owner saves → close → tab B sweeps [33m 555[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · open → type → tab B sweeps → reconnect → tab B sweeps → owner saves → close [33m 536[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · open → type → tab B sweeps → reconnect → owner saves → tab B sweeps → close [33m 541[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · open → type → tab B sweeps → reconnect → owner saves → close → tab B sweeps [33m 541[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · open → type → reconnect → tab B sweeps → owner saves → tab B sweeps → close [33m 556[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · open → type → reconnect → tab B sweeps → owner saves → close → tab B sweeps [33m 489[2mms[22m[39m
+     [33m[2m✓[22m[39m typed while open · open → type → reconnect → owner saves → tab B sweeps → close → tab B sweeps [33m 539[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · tab B sweeps → type → open → reconnect → owner saves → close [33m 473[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · type → tab B sweeps → open → reconnect → owner saves → close [33m 490[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · type → open → tab B sweeps → reconnect → owner saves → close [33m 475[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · type → open → reconnect → tab B sweeps → owner saves → close [33m 506[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · type → open → reconnect → owner saves → tab B sweeps → close [33m 459[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · type → open → reconnect → owner saves → close → tab B sweeps [33m 401[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · tab B sweeps → type → tab B sweeps → open → reconnect → owner saves → close [33m 537[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · tab B sweeps → type → open → tab B sweeps → reconnect → owner saves → close [33m 538[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · tab B sweeps → type → open → reconnect → tab B sweeps → owner saves → close [33m 554[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · tab B sweeps → type → open → reconnect → owner saves → tab B sweeps → close [33m 539[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · tab B sweeps → type → open → reconnect → owner saves → close → tab B sweeps [33m 538[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · type → tab B sweeps → open → tab B sweeps → reconnect → owner saves → close [33m 555[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · type → tab B sweeps → open → reconnect → tab B sweeps → owner saves → close [33m 538[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · type → tab B sweeps → open → reconnect → owner saves → tab B sweeps → close [33m 364[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · type → tab B sweeps → open → reconnect → owner saves → close → tab B sweeps [33m 537[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · type → open → tab B sweeps → reconnect → tab B sweeps → owner saves → close [33m 528[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · type → open → tab B sweeps → reconnect → owner saves → tab B sweeps → close [33m 537[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · type → open → tab B sweeps → reconnect → owner saves → close → tab B sweeps [33m 554[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · type → open → reconnect → tab B sweeps → owner saves → tab B sweeps → close [33m 552[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · type → open → reconnect → tab B sweeps → owner saves → close → tab B sweeps [33m 570[2mms[22m[39m
+     [33m[2m✓[22m[39m typed on an earlier visit, reopened · type → open → reconnect → owner saves → tab B sweeps → close → tab B sweeps [33m 553[2mms[22m[39m
+     [33m[2m✓[22m[39m a crash draft alone · the other device saves before the member reopens [33m 554[2mms[22m[39m
+     [33m[2m✓[22m[39m a crash draft alone · the other device saves after reopening, before Restore [33m 569[2mms[22m[39m
+     [33m[2m✓[22m[39m a crash draft alone · the other device saves after Restore, before the keystroke [33m 553[2mms[22m[39m
+     [33m[2m✓[22m[39m a crash draft ahead of a lagging durable copy · the other device saves before the member reopens [33m 679[2mms[22m[39m
+     [33m[2m✓[22m[39m a crash draft ahead of a lagging durable copy · the other device saves after reopening, before Restore [33m 633[2mms[22m[39m
+     [33m[2m✓[22m[39m a crash draft ahead of a lagging durable copy · the other device saves after Restore, before the keystroke [33m 651[2mms[22m[39m
+     [33m[2m✓[22m[39m a durable record whose base the entry refuses · the other device saves before the member reopens [33m 683[2mms[22m[39m
+     [33m[2m✓[22m[39m a durable record whose base the entry refuses · the other device saves after reopening, before Restore [33m 650[2mms[22m[39m
+     [33m[2m✓[22m[39m a durable record whose base the entry refuses · the other device saves after Restore, before the keystroke [33m 666[2mms[22m[39m
+     [33m[2m✓[22m[39m the keystroke's write lands before the check [33m 364[2mms[22m[39m
+     [33m[2m✓[22m[39m the keystroke's write lands after the note read [33m 317[2mms[22m[39m
+     [33m[2m✓[22m[39m the write lands before Kb [33m 714[2mms[22m[39m
+     [33m[2m✓[22m[39m the write lands before the flush [33m 759[2mms[22m[39m
+     [33m[2m✓[22m[39m the write lands before the new view’s keystroke [33m 758[2mms[22m[39m
+     [33m[2m✓[22m[39m the write lands last [33m 790[2mms[22m[39m
+     [33m[2m✓[22m[39m A hydrated before B’s PUT landed · B claims → A opens → B’s PUT lands → B settles → A saves [33m 584[2mms[22m[39m
+     [33m[2m✓[22m[39m A hydrated before B’s PUT landed · B claims → A opens → B’s PUT lands → A saves → B settles [33m 543[2mms[22m[39m
+     [33m[2m✓[22m[39m A hydrated before B’s PUT landed · B claims → A opens → A saves → B’s PUT lands → B settles [33m 561[2mms[22m[39m
+     [33m[2m✓[22m[39m A hydrated before B’s PUT landed · B claims → B’s PUT lands → A opens → B settles → A saves [33m 569[2mms[22m[39m
+     [33m[2m✓[22m[39m A hydrated before B’s PUT landed · B claims → B’s PUT lands → A opens → A saves → B settles [33m 557[2mms[22m[39m
+     [33m[2m✓[22m[39m A hydrated before B’s PUT landed · B claims → B’s PUT lands → B settles → A opens → A saves [33m 585[2mms[22m[39m
+     [33m[2m✓[22m[39m A hydrated when it opened · B claims → A opens → B’s PUT lands → B settles → A saves [33m 585[2mms[22m[39m
+     [33m[2m✓[22m[39m A hydrated when it opened · B claims → A opens → B’s PUT lands → A saves → B settles [33m 602[2mms[22m[39m
+     [33m[2m✓[22m[39m A hydrated when it opened · B claims → A opens → A saves → B’s PUT lands → B settles [33m 603[2mms[22m[39m
+     [33m[2m✓[22m[39m A hydrated when it opened · B claims → B’s PUT lands → A opens → B settles → A saves [33m 586[2mms[22m[39m
+     [33m[2m✓[22m[39m A hydrated when it opened · B claims → B’s PUT lands → A opens → A saves → B settles [33m 420[2mms[22m[39m
+     [33m[2m✓[22m[39m A hydrated when it opened · B claims → B’s PUT lands → B settles → A opens → A saves [33m 497[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m10 passed[39m[22m[90m (10)[39m
+[2m      Tests [22m [1m[32m268 passed[39m[22m[90m (268)[39m
+[2m   Start at [22m 05:11:35
+[2m   Duration [22m 55.30s[2m (transform 1.24s, setup 1.33s, import 413ms, tests 60.26s, environment 3.56s)[22m
+

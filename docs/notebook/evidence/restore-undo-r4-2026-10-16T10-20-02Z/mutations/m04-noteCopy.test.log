@@ -1,0 +1,74 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+ [31m❯[39m src/pages/journal-2-0/lib/offline/noteCopy.test.js [2m([22m[2m42 tests[22m[2m | [22m[31m1 failed[39m[2m | [22m[33m35 skipped[39m[2m)[22m[33m 935[2mms[22m[39m
+     [2m[90m↓[39m[22m spills: a swap capture over a dirty record of ANOTHER lineage whose words the page does not carry
+     [2m[90m↓[39m[22m refuses: an ordinary capture (no swap) — today's answer keeps the record
+     [2m[90m↓[39m[22m refuses: no record, or a clean one — nothing is owed
+     [2m[90m↓[39m[22m refuses: the page carries the record's words (they move with it)
+     [2m[90m↓[39m[22m refuses: the same live view, later (the record is superseded, not pushed out)
+     [2m[90m↓[39m[22m spills on a TITLE the page does not carry (review C1b)
+     [2m[90m↓[39m[22m is keyed off the note, names its source, and is keyed by its words (one copy per body while queued)
+     [2m[90m↓[39m[22m ⛔ a CLEAN settle of the note (null intent) cannot delete it
+     [2m[90m↓[39m[22m forks it with the SAME fork, against its source note, then clears it — even while the editor owns the source
+     [2m[90m↓[39m[22m ⛔ a copy an OLDER bundle blocked (it read it as a baseline-less update) is still forked here
+     [2m[90m↓[39m[22m ⛔ a failed fork (offline) leaves the copy exactly where it was
+     [2m[90m↓[39m[22m ⛔⛔ C-1: every authored field the copy holds lands in the created note — title, a NON-EMPTY subtitle, body — then the entry clears
+     [2m[90m↓[39m[22m I-1: the SOURCE is gone (trashed or deleted: 404) ⇒ the copy is still created, in no folder — it never needed the source
+     [2m[90m↓[39m[22m offline (the source GET cannot be made) ⇒ KEPT, nothing posted, retried later
+     [2m[90m↓[39m[22m ⛔ I-3: a create the server REFUSES (400) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4)
+     [2m[90m↓[39m[22m ⛔ I-3: a create the server REFUSES (413) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4)
+     [2m[90m↓[39m[22m ⛔ I-3: a create the server REFUSES (422) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4)
+     [2m[90m↓[39m[22m I-3: a create that fails 403 is transient ⇒ KEPT, not refused, and posted again next sweep
+     [2m[90m↓[39m[22m I-3: a create that fails 404 is transient ⇒ KEPT, not refused, and posted again next sweep
+     [2m[90m↓[39m[22m I-3: a create that fails 405 is transient ⇒ KEPT, not refused, and posted again next sweep
+     [2m[90m↓[39m[22m I-3: a create that fails 409 is transient ⇒ KEPT, not refused, and posted again next sweep
+     [2m[90m↓[39m[22m I-3: the SOURCE read fails 400 ⇒ transient: KEPT, nothing posted, never refused (no create was attempted)
+     [2m[90m↓[39m[22m I-3: the SOURCE read fails 403 ⇒ transient: KEPT, nothing posted, never refused (no create was attempted)
+     [2m[90m↓[39m[22m I-3: the SOURCE read fails 405 ⇒ transient: KEPT, nothing posted, never refused (no create was attempted)
+     [2m[90m↓[39m[22m I-3: the SOURCE read fails 409 ⇒ transient: KEPT, nothing posted, never refused (no create was attempted)
+     [2m[90m↓[39m[22m I-3: the SOURCE read fails 413 ⇒ transient: KEPT, nothing posted, never refused (no create was attempted)
+     [2m[90m↓[39m[22m I-3: the SOURCE read fails 422 ⇒ transient: KEPT, nothing posted, never refused (no create was attempted)
+     [2m[90m↓[39m[22m I-3: the SOURCE read fails 500 ⇒ transient: KEPT, nothing posted, never refused (no create was attempted)
+     [2m[90m↓[39m[22m ⛔ C-3 cause: a LONG title gets the whole " (conflicted copy)" suffix and still fits the 300-character limit
+     [2m[90m↓[39m[22m the suffix fit counts CHARACTERS the way the server does, and never splits one
+     [2m[90m↓[39m[22m the client limit IS the server's MAX_TITLE_CHARS (parsed from notes.py, never restated)
+     [2m[90m↓[39m[22m ⛔ I-4: a copy deleted while its create was in flight is NOT brought back by the refusal
+     [2m[90m↓[39m[22m a create that fails 401 is transient ⇒ KEPT, not blocked
+     [2m[90m↓[39m[22m a create that fails 429 is transient ⇒ KEPT, not blocked
+     [2m[90m↓[39m[22m a create that fails 503 is transient ⇒ KEPT, not blocked
+     [32m✓[39m each of the server’s create refusals lands in its class (sentences parsed from notes.py)[32m 2[2mms[22m[39m
+     [32m✓[39m the offer’s sentence never carries the server’s detail, and names what each button does[32m 1[2mms[22m[39m
+     [32m✓[39m the view carries the copy’s words as plain text, and offers plain text only after a content refusal[32m 1[2mms[22m[39m
+     [32m✓[39m ⛔ the plain body is paragraphs of one non-empty text node each (never an empty text node), shallow, every word kept[32m 0[2mms[22m[39m
+[31m     [31m×[31m "Save as plain text" sends the flattened body through the same fork, against the source note, and clears the copy[39m[33m 365[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ a refused plain-text save keeps the copy with its ORIGINAL words and marks it so [33m 327[2mms[22m[39m
+     [32m✓[39m a transient failure says whether it was the NETWORK (offline) or not[32m 238[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/noteCopy.test.js[2m > [22mfix round 4 — a refused copy shows its words and speaks for itself[2m > [22m"Save as plain text" sends the flattened body through the same fork, against the source note, and clears the copy
+[31m[1mAssertionError[22m: {"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Plan H2"}]},{"type":"paragraph"},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"first "},{"type":"text","text":"point","marks":[{"type":"bold"}]}]}]}]},{"type":"paragraph","content":[{"type":"text","text":"line one"},{"type":"hardBreak"},{"type":"text","text":"line two"}]},{"type":"image","attrs":{"src":"data:image/png;base64,AAAA"}}]}: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/offline/noteCopy.test.js:[2m458:78[22m[39m
+    [90m456| [39m    [34mexpect[39m(sent[33m.[39mpatch[33m.[39mtitle)[33m.[39m[34mtoBe[39m([32m'Thesis'[39m)
+    [90m457| [39m    [34mexpect[39m(sent[33m.[39mpatch[33m.[39msubtitle)[33m.[39m[34mtoBe[39m([32m'sub'[39m)
+    [90m458| [39m    expect(isFlat(sent.patch.bodyJson), JSON.stringify(sent.patch.body…
+    [90m   | [39m                                                                             [31m^[39m
+    [90m459| [39m    [34mexpect[39m([35mawait[39m [34mlistOutbox[39m(db))[33m.[39m[34mtoEqual[39m([])
+    [90m460| [39m  })
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m6 passed[39m[22m[2m | [22m[33m35 skipped[39m[90m (42)[39m
+[2m   Start at [22m 05:06:51
+[2m   Duration [22m 1.80s[2m (transform 195ms, setup 201ms, import 164ms, tests 935ms, environment 398ms)[22m
+
