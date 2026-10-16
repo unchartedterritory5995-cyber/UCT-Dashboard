@@ -10,6 +10,7 @@ WHAT THIS FILE HAS TO BE ABLE TO SAY RED FOR
 """
 from __future__ import annotations
 
+import datetime as dt
 import hashlib
 import importlib.util
 import pathlib
@@ -125,3 +126,129 @@ def test_without_a_wisdom_copy_sample_text_evidence_is_not_invented(bonde_kb):
     plan = bonde_tool.attribute(str(bonde_kb))
     assert plan["sample_text_checked"] is False
     assert {p["kb_id"]: p["proposed_author"] for p in plan["proposals"]}[7] == "unknown"
+
+
+# -- Bonde attribution: section text from the local intake file, and the reviewed relabel --
+
+reattr_tool = _load("publish_bonde_reattribute")
+
+_INTAKE = """SUBSTACK CONTENT
+=== CONTENT ===
+
+=== [SUNDAY SCAN] SUNDAY SCANS ===
+Date: 2026-01-04
+Synthetic opening words about patience while the tape chops sideways for weeks.
+Bracco's Breakdown & Top Ideas
+Synthetic copper miners rotation leadership broadening across smelters and royalty names.
+TSDR's Weekly Outlook & Watchlist
+Synthetic semiconductor equipment watchlist with lithography and memory names lining up.
+"""
+
+
+@pytest.fixture
+def intake(tmp_path):
+    path = tmp_path / "sunday_scans_intake.txt"
+    path.write_text(_INTAKE, encoding="utf-8")
+    return path
+
+
+@pytest.fixture
+def section_kb(tmp_path):
+    path = tmp_path / "engine_sections.db"
+    conn = sqlite3.connect(path)
+    conn.executescript(_KB_DDL)
+    rows = [
+        ("SECTOR", "Copper miners rotation", "Synthetic: copper miners rotation leadership broadening "
+         "across smelters and royalty names.", "Bonde", UCT, ""),
+        ("SETUP", "Semi equipment watchlist", "Synthetic: semiconductor equipment watchlist with "
+         "lithography and memory names lining up.", "Bonde", UCT, ""),
+        ("RULE", "Unrelated", "Synthetic zebra quantum orchard text matching no section.", "Bonde", UCT, ""),
+        ("RULE", "Not bonde", "Synthetic copper miners rotation leadership.", "TSDR", UCT, ""),
+    ]
+    conn.executemany("INSERT INTO knowledge_base(category, title, content, trader, source, source_ref) "
+                     "VALUES (?, ?, ?, ?, ?, ?)", rows)
+    conn.commit()
+    conn.close()
+    return path
+
+
+def test_section_text_attributes_a_distilled_row_to_the_section_it_came_from(section_kb, intake):
+    before = _sha(section_kb)
+    plan = bonde_tool.attribute(str(section_kb), intake=[str(intake)])
+    got = {p["kb_id"]: (p["proposed_author"], p["evidence"]) for p in plan["proposals"]}
+    assert got[1] == ("bracco", "substack_section_text")
+    assert got[2] == ("tsdr", "substack_section_text")
+    assert got[3] == ("unknown", "none")                       # words match no section: never guessed
+    assert plan["intake_sections_checked"] >= 3
+    reattr = {r["kb_id"]: r for r in plan["legacy_plan"]["reattribute"]}
+    assert set(reattr) == {1, 2} and all(len(r["content_sha256"]) == 64 for r in reattr.values())
+    assert "Synthetic" not in str(plan)                         # ids, proposals and hashes only
+    assert _sha(section_kb) == before                           # the KB is opened read-only
+
+
+def test_without_an_intake_file_section_text_evidence_is_not_invented(section_kb):
+    plan = bonde_tool.attribute(str(section_kb))
+    assert plan["intake_sections_checked"] == 0
+    assert {p["kb_id"]: p["proposed_author"] for p in plan["proposals"]}[1] == "unknown"
+
+
+def test_a_row_shared_by_two_authors_sections_is_not_attributed(tmp_path):
+    shared = "Synthetic identical sentence about breadth thrusts and leadership."
+    text = ("=== CONTENT ===\n\n=== [SUNDAY SCAN] SUNDAY SCANS ===\nDate: 2026-01-11\n"
+            f"Bracco's Breakdown & Top Ideas\n{shared}\nTSDR's Weekly Outlook & Watchlist\n{shared}\n")
+    intake_path = tmp_path / "tie.txt"
+    intake_path.write_text(text, encoding="utf-8")
+    index = bonde_tool.load_intake_index([str(intake_path)], bonde_tool.section_headings())
+    assert bonde_tool.section_text_author(bonde_tool._content_words(shared), index) is None
+
+
+def _early():
+    return dt.datetime(2026, 1, 5, 14, 0, tzinfo=reattr_tool.kb_sync.CT)
+
+
+def test_reattribution_dry_run_writes_nothing_and_commit_relabels_only_reviewed_rows(section_kb, intake, tmp_path):
+    plan = bonde_tool.attribute(str(section_kb), intake=[str(intake)])
+    before = _sha(section_kb)
+    dry = reattr_tool.run(str(section_kb), plan)
+    assert dry["dry_run"] and dry["relabel"] == 2 and dry["by_label"] == {"Bracco": 1, "TSDR": 1}
+    assert _sha(section_kb) == before
+    done = reattr_tool.run(str(section_kb), plan, commit=True, clock=_early, backup_dir=str(tmp_path / "bk"))
+    assert done["relabel"] == 2 and pathlib.Path(done["backup"]).exists()
+    conn = sqlite3.connect(section_kb)
+    rows = {r[0]: (r[1], r[2]) for r in conn.execute("SELECT id, trader, content FROM knowledge_base")}
+    conn.close()
+    assert rows[1][0] == "Bracco" and rows[2][0] == "TSDR" and rows[3][0] == "Bonde"
+    assert reattr_tool.provenance.is_marked(rows[1][1])        # every row it wrote carries the marker
+    assert len(rows) == 4                                       # nothing deleted
+    again = reattr_tool.run(str(section_kb), plan)             # re-run: nothing left to relabel
+    assert again["relabel"] == 0 and again["skip_reasons"] == {"no longer credited to Bonde": 2}
+
+
+def test_reattribution_skips_a_row_whose_content_changed_after_review(section_kb, intake):
+    plan = bonde_tool.attribute(str(section_kb), intake=[str(intake)])
+    conn = sqlite3.connect(section_kb)
+    conn.execute("UPDATE knowledge_base SET content = content || ' edited' WHERE id = 1")
+    conn.commit()
+    conn.close()
+    out = reattr_tool.run(str(section_kb), plan)
+    assert out["relabel"] == 1 and out["skip_reasons"] == {"content changed since the plan was reviewed": 1}
+
+
+def test_reattribution_refuses_past_the_deadline_and_rolls_back_if_it_crosses_it(section_kb, intake, tmp_path):
+    plan = bonde_tool.attribute(str(section_kb), intake=[str(intake)])
+    late = lambda: dt.datetime(2026, 1, 5, 20, 56, tzinfo=reattr_tool.kb_sync.CT)  # noqa: E731
+    with pytest.raises(reattr_tool.SyncAborted):
+        reattr_tool.run(str(section_kb), plan, commit=True, clock=late, backup_dir=str(tmp_path / "bk"))
+    ticks = iter([_early(), dt.datetime(2026, 1, 5, 20, 56, tzinfo=reattr_tool.kb_sync.CT)])
+    with pytest.raises(reattr_tool.SyncAborted):
+        reattr_tool.run(str(section_kb), plan, commit=True, clock=lambda: next(ticks),
+                        backup_dir=str(tmp_path / "bk"))
+    conn = sqlite3.connect(section_kb)
+    assert conn.execute("SELECT COUNT(*) FROM knowledge_base WHERE trader = 'Bonde'").fetchone()[0] == 3
+    conn.close()
+
+
+def test_the_kb_label_is_derived_from_authors_json():
+    assert reattr_tool.kb_label("tsdr") == "TSDR"
+    assert reattr_tool.kb_label("bracco") == "Bracco"
+    assert reattr_tool.kb_label("not-an-author") is None
