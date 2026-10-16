@@ -56,7 +56,7 @@ vi.mock('../components/TickerPopup', () => ({
 }))
 
 import useSWR from 'swr'
-import UCT20 from './UCT20'
+import UCT20, { teamHistoryLine } from './UCT20'
 
 function mockOneStock(thesis = 'AI infrastructure leader, base breakout') {
   useSWR.mockImplementation((key) => ({
@@ -213,5 +213,46 @@ describe('row/chip nesting fix (A2R-05 continuation)', () => {
     await user.click(screen.getByText('1'))
     expect(screen.getByText(/AI infrastructure leader, base breakout/)).toBeInTheDocument()
     expect(screen.queryByTestId('chart-modal')).not.toBeInTheDocument()
+  })
+})
+
+// ── TSDR trader-archive team line (owner decisions 2026-10-16) ───────────────
+// /api/wisdom/team-calls answers 402/404 when unpaid or dark; then no line and no badge.
+describe('team history', () => {
+  const HISTORY = { n_calls: 3, n_traders: 2, last: { trader: 'TSDR', posted: '2026-10-01', setup: 'kicker',
+    setup_name: 'Kicker candle', direction: 'long', action: 'entry', outcome: { r20: 0.123 } } }
+
+  test('teamHistoryLine reads the last call, its outcome and the archive count', () => {
+    expect(teamHistoryLine(HISTORY)).toBe('TSDR, 2026-10-01: Kicker candle long · r20 +12.3% · 3 calls in the archive')
+    expect(teamHistoryLine({ ...HISTORY, n_calls: 1, last: { ...HISTORY.last, outcome: {} } }))
+      .toBe('TSDR, 2026-10-01: Kicker candle long · 1 call in the archive')
+    expect(teamHistoryLine(null)).toBeNull()
+    expect(teamHistoryLine({ n_calls: 0, last: HISTORY.last })).toBeNull()
+  })
+
+  function mockWithTeam(team) {
+    useSWR.mockImplementation((key) => ({
+      data: key === '/api/leadership'
+        ? { stocks: [{ sym: 'NVDA', rs_score: 95.5, thesis: 'x' }], status: 'ok', last_updated: '2026-08-29' }
+        : (String(key || '').startsWith('/api/wisdom/team-calls') ? team : undefined),
+      mutate: vi.fn(),
+    }))
+  }
+
+  test('a card shows the TEAM badge and, expanded, the team history line', async () => {
+    mockWithTeam({ badges: { NVDA: { label: 'Team took it', speaker: 'TSDR' } }, history: { NVDA: HISTORY } })
+    renderWithProviders(<UCT20 />)
+    expect(screen.getByTestId('uct20-team-badge')).toHaveTextContent('TEAM')
+    expect(useSWR.mock.calls.some(([k]) => String(k).startsWith('/api/wisdom/team-calls?tickers=NVDA'))).toBe(true)
+    await userEvent.click(screen.getByRole('button', { name: /Expand NVDA details/ }))
+    expect(screen.getByTestId('uct20-team-history')).toHaveTextContent('TSDR, 2026-10-01: Kicker candle long')
+  })
+
+  test('no team data (402/404) means no badge and no line', async () => {
+    mockWithTeam(undefined)
+    renderWithProviders(<UCT20 />)
+    expect(screen.queryByTestId('uct20-team-badge')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: /Expand NVDA details/ }))
+    expect(screen.queryByTestId('uct20-team-history')).toBeNull()
   })
 })

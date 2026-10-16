@@ -13,6 +13,13 @@ before `WISDOM_DESK_MARKERS_ENABLED` is flipped on; it is not a second thing to 
 time, and `wisdom_rows` must never gain an `include_unstable=True` to "make the preview look
 populated". An empty preview with the floor serving is the correct reading.
 
+⭐ THE ARCHIVE HALF IS NOT FLOORED, BY OWNER DECISION (2026-10-16, docs/wisdom/LEDGER.md).
+`archive_rows` reads the TSDR trader archive through `archive.provider`, a separate store of
+dated, attributed, outcome-scored posts the owner made a member surface on 2026-10-15. It is
+gated twice: this adapter's flag (the consumer hook) and `WISDOM_ARCHIVE_ENABLED`, read per
+call before any store read. Its entry/stop/target appear only on calls older than the price
+gate (`provider.PRICE_AGE_SESSIONS`). The Loop half above is untouched and still floored.
+
 THE GATE LIVES OUTSIDE THE PER-SYMBOL CACHE. `ticker_mentions` caches video rows per
 symbol for 600 s. The flag is read on every call AFTER the cache, so a flip either way
 takes effect on the next request and a cached payload never carries Wisdom rows past a
@@ -86,9 +93,53 @@ def wisdom_rows(sym: str) -> list[dict]:
     return out
 
 
+ARCHIVE_CAP = 60
+
+
+def archive_rows(sym: str) -> list[dict]:
+    """TSDR-archive calls as desk markers (owner decisions 2026-10-16: the archive is its own
+    provider, outside the R89 floor; levels only on calls older than the price-gate age).
+
+    Same row shape as `wisdom_rows`, plus `source_detail='archive'`, the call's setup/direction/
+    outcome, and `levels` ONLY for an aged call. No video, so the chart's click opens the
+    archive page for the ticker (`deskMentionHref`)."""
+    from api.services.wisdom.archive import provider
+    from api.services.wisdom.core import store
+    from api.services.wisdom.publish.adapters import common, provenance
+
+    if not provider.enabled():  # the archive's own gate, read per call, before any store read
+        return []
+    ticker = common.normalize_ticker(sym)
+    if not ticker:
+        return []
+    with store.read(for_request=True) as conn:
+        calls = provider.calls(conn, tickers=[ticker], limit=ARCHIVE_CAP)
+        aged = provider.levels(conn, [c["call_id"] for c in calls])
+    out = []
+    for c in calls:
+        anchor = str(c.get("posted") or "")[:10]
+        if not anchor:
+            continue
+        call = provider.public_call(c, aged.get(c["call_id"]))
+        bits = [call["setup_name"] or "", call["direction"] or "", call["action"] or ""]
+        r20 = provider.pct(call["outcome"].get("r20"))
+        line = " ".join(b for b in bits if b) + (f" · r20 {r20}" if r20 else "")
+        out.append({
+            "video_id": None, "youtube_id": None, "title": "Trader archive",
+            "anchor_date": anchor, "t": 0,
+            "note": f"{call['trader']}: {line}",
+            "kind": "call" if c.get("action") in provider.CALL_ACTIONS else "mention",
+            "status": "archive", "speaker": call["trader"], "locator": call["locator"],
+            "source_detail": "archive", "archive_ticker": ticker, "call": call,
+            **provenance.marker(consumer=CONSUMER, subject_ref=provider.subject_ref(c),
+                                locator=call["locator"], flag_env=FLAG_ENV),
+        })
+    return out
+
+
 def merge(payload: dict, sym: str) -> dict:
     """A NEW payload with Wisdom rows added; the cached `payload` is never mutated."""
-    rows = wisdom_rows(sym)
+    rows = wisdom_rows(sym) + _archive_rows_safely(sym)
     if not rows:
         return payload
     videos = list(payload.get("mentions") or [])
@@ -99,6 +150,14 @@ def merge(payload: dict, sym: str) -> dict:
     tagged.sort(key=lambda x: x[1])
     tagged.sort(key=lambda x: str(x[0].get("anchor_date") or ""), reverse=True)
     return {**payload, "mentions": [m for m, _ in tagged]}
+
+
+def _archive_rows_safely(sym: str) -> list[dict]:
+    try:
+        return archive_rows(sym)
+    except Exception:  # the archive half never takes the Loop rows or the video rows down
+        log.exception("[wisdom] archive desk markers failed for %s", sym)
+        return []
 
 
 def daily_preview(ctx) -> dict:

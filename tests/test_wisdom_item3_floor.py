@@ -502,6 +502,10 @@ def test_the_three_migrations_are_one_statement_each():
 #: `scripts/wisdom_dark_check.wisdom_get_routes()`, the same registry walk `api/main.py` mounts
 #: them with, and re-derived on every run below. Item 3 must change none of them.
 EXPECTED_GET_ROUTES = [
+    ("/api/admin/wisdom/archive/search", "admin"),
+    ("/api/admin/wisdom/archive/setup/{setup}", "admin"),
+    ("/api/admin/wisdom/archive/stats", "admin"),
+    ("/api/admin/wisdom/archive/ticker/{sym}", "admin"),
     ("/api/admin/wisdom/capture/health", "admin"),
     ("/api/admin/wisdom/capture/runs", "admin"),
     ("/api/admin/wisdom/core/private/{record_id}", "owner"),
@@ -529,7 +533,19 @@ EXPECTED_GET_ROUTES = [
     ("/api/internal/wisdom/publish/adapters/clip-candidates", "internal"),
     ("/api/internal/wisdom/publish/adapters/kb-export", "internal"),
     ("/api/internal/wisdom/publish/golden-candidates", "internal"),
+    # Member routes, by owner ruling: the trader archive (2026-10-15) and its team-call lane
+    # (2026-10-16). Every one is require_paid (test_8b asserts the guard, not just the class).
+    ("/api/wisdom/archive/playbook/{setup}", "authed"),
+    ("/api/wisdom/archive/playbooks", "authed"),
+    ("/api/wisdom/archive/search", "authed"),
+    ("/api/wisdom/archive/setup/{setup}", "authed"),
+    ("/api/wisdom/archive/stats", "authed"),
+    ("/api/wisdom/archive/ticker/{sym}", "authed"),
+    ("/api/wisdom/archive/trader/{author}", "authed"),
+    ("/api/wisdom/team-calls", "authed"),
 ]
+#: The only places a member-facing Wisdom GET route may live (owner rulings 2026-10-15/16).
+MEMBER_PREFIXES = ("/api/wisdom/archive/", "/api/wisdom/team-calls")
 
 
 def _routes():
@@ -551,13 +567,21 @@ def test_8_the_route_list_is_unchanged_byte_for_byte():
     assert got == EXPECTED_GET_ROUTES
 
 
-def test_8b_every_route_is_admin_owner_or_internal_and_none_is_member_facing():
+def test_8b_every_route_is_admin_owner_or_internal_except_the_ruled_paid_member_routes():
+    """⚰️ This was `..._and_none_is_member_facing`, and it held until the owner made the trader
+    archive a paid member surface (2026-10-15) and added its team-call lane (2026-10-16). The
+    rule now: a member-facing route may exist ONLY under MEMBER_PREFIXES, and every one of those
+    carries require_paid. Anything else member-facing is still a failure by name."""
     dark, routes = _routes()
-    classes = {dark.classify(r) for r in routes}
-    assert classes <= {"admin", "owner", "internal"}, f"a member-facing Wisdom GET route appeared: {classes}"
+    member = [r for r in routes if dark.classify(r) not in {"admin", "owner", "internal"}]
+    stray = [r["path"] for r in member if not r["path"].startswith(MEMBER_PREFIXES)]
+    assert stray == [], f"a member-facing Wisdom GET route appeared outside the ruled prefixes: {stray}"
+    unpaid = [r["path"] for r in member if "require_paid" not in (r.get("guards") or [])]
+    assert unpaid == [], f"a ruled member route is not require_paid: {unpaid}"
+    assert member, "non-vacuity: the ruled member routes were not found at all"
     assert not [r for r in routes if dark.classify(r) == "UNGUARDED"]
     # non-vacuity: the walk must actually have found routes to classify
-    assert len(routes) == len(EXPECTED_GET_ROUTES) == 27
+    assert len(routes) == len(EXPECTED_GET_ROUTES) == 39
 
 
 def test_8c_no_route_path_is_doubled():

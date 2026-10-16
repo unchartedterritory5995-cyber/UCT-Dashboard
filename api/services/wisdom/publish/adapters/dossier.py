@@ -68,6 +68,40 @@ def _lines_from(conn, sym: str, limit: int) -> list[str]:
     return lines
 
 
+_ARCHIVE_STANCE = {"entry": "took the trade", "add": "added to it", "idea": "flagged it as an idea",
+                   "watch": "watching it", "trim": "trimmed it", "exit": "exited", "flow": "noted options flow in it"}
+
+
+def _archive_lines_from(conn, sym: str, limit: int, seen: set) -> list[str]:
+    """TSDR-archive stance lines (owner decisions 2026-10-16: the archive is its own provider,
+    outside the R89 floor). Same label, same firewall: no prices, no levels, no dates — the
+    record note is scrubbed exactly like a Loop thesis, and no outcome number is carried."""
+    from api.services.wisdom.archive import provider
+    from api.services.wisdom.publish.adapters import common, provenance
+
+    if limit <= 0 or not provider.enabled():  # the archive's own gate, read per call
+        return []
+    lines = []
+    for c in provider.calls(conn, tickers=[sym], limit=60):
+        stance = _ARCHIVE_STANCE.get(c.get("action"), "mentioned it")
+        text = f"{c.get('direction') or 'long'} bias, {stance}"
+        if c.get("setup_name") or c.get("setup"):
+            text += f", setup {c.get('setup_name') or c.get('setup')}"
+        if c.get("record_note"):
+            text += f": {c['record_note']}"
+        text = common.clip(common.scrub_levels_and_dates(text), 220)
+        key = (c["author_id"], text.lower())
+        if not text or key in seen:
+            continue
+        seen.add(key)
+        mark = provenance.marker_text(consumer=CONSUMER, subject_ref=provider.subject_ref(c),
+                                      locator=None, flag_env=FLAG_ENV)
+        lines.append(f"{LABEL} {common.speaker(c['author_id'])}: {text} (trader archive) {mark}")
+        if len(lines) >= limit:
+            break
+    return lines
+
+
 def wisdom_lines(sym: str, *, limit: int = MAX_LINES) -> list[str]:
     if not flags.dossier_enabled():  # before any store read: flag off is byte-identical
         return []
@@ -79,9 +113,8 @@ def wisdom_lines(sym: str, *, limit: int = MAX_LINES) -> list[str]:
         if not ticker:
             return []
         with store.read() as conn:  # dossier synthesis runs on its own daemon thread
-            if not common.table_exists(conn, "wisdom_records"):
-                return []
-            return _lines_from(conn, ticker, limit)
+            loop = _lines_from(conn, ticker, limit) if common.table_exists(conn, "wisdom_records") else []
+            return loop + _archive_lines_from(conn, ticker, limit - len(loop), set())
     except Exception:
         log.exception("[wisdom] dossier lines failed for %s", sym)
         return []

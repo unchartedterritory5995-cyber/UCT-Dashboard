@@ -260,6 +260,38 @@ def _earnings_facts(symbols: list[str]) -> tuple[dict[str, dict], bool]:
     return out, any_day_failed
 
 
+def _team_call_facts(symbols: list[str]) -> dict[str, dict]:
+    """{SYM: fact} for symbols the UCT trading team called inside the badge lookback.
+
+    One batch read through the Wisdom badges adapter's TSDR-archive lane, gated there by
+    `WISDOM_BADGES_ENABLED` AND `WISDOM_ARCHIVE_ENABLED` (both off = no read at all). The
+    fact's date is the CALL's own posted date, never today (this module's evidence-date
+    rule). It is not counted as a source: an archive outage leaves `status` untouched, it
+    only means no team-call fact this round."""
+    try:
+        from api.services.wisdom.publish.adapters import badges
+
+        if not badges.archive_enabled():
+            return {}
+        found = badges.archive_badges(symbols)
+    except Exception as e:  # never takes the other facts down
+        log.warning("[watchlist_intelligence] team-call facts failed: %s", e)
+        return {}
+    out: dict[str, dict] = {}
+    for sym, b in found.items():
+        setup = b.get("setup_name") or b.get("setup")
+        who = b.get("speaker") or "the team"
+        label = f"{b.get('label') or 'Team called it'}: {who}" + (f", {setup}" if setup else "")
+        out[sym.upper()] = _fact("team_call", label, as_of=str(b.get("stated_at") or "")[:10] or None,
+                                 source="UCT trader archive", freshness="fresh")
+    return out
+
+
+def team_call_facts(symbols: list[str]) -> dict[str, dict]:
+    """Public door to the team-call facts for the watchlist digest (same gates, same shape)."""
+    return _team_call_facts([(s or "").upper().strip() for s in symbols if s])
+
+
 def _rating_context(sym: str) -> dict:
     """Informational current-value context (NOT a "changed" fact -- no
     rating-HISTORY source was confirmed to exist in Phase A, so no delta is
@@ -286,6 +318,7 @@ def get_intelligence_for_symbols(
     tickers: list[str],
     changes: Optional[dict[str, float]] = None,
     price_observed_at: Optional[dict[str, float]] = None,
+    include_team_calls: bool = False,
 ) -> dict[str, dict]:
     """{SYM: {status, notable, facts, context}} for every requested symbol.
 
@@ -293,6 +326,9 @@ def get_intelligence_for_symbols(
     some facts may still be present) | "unavailable" (every source failed).
     Never conflates "zero facts fired" with "we couldn't check" -- a caller
     reads `status`, not the emptiness of `facts`, to tell those apart.
+
+    `include_team_calls` (2026-10-16): adds a `team_call` fact from the TSDR trader archive.
+    Default False; see the comment at its use.
 
     `price_observed_at` (Seam 8, 2026-09-07): optional, additive, per-symbol
     vendor observation epoch (seconds) alongside `changes` -- a caller that
@@ -307,6 +343,11 @@ def get_intelligence_for_symbols(
         return {}
 
     earnings_by_sym, earnings_batch_failed = _earnings_facts(symbols)
+    # ⛔ OPT-IN, and only the WATCHLIST route opts in (for a paid member). This function also
+    # answers the Journal 2.0 position banner and the terminal grammar: joining member
+    # positions to the trader archive is the "matching" HARD-RULES §0.4b forbids, and a
+    # session-only caller would hand paid archive content to an unpaid account (§0.4g).
+    team_calls_by_sym = _team_call_facts(symbols) if include_team_calls else {}
 
     out: dict[str, dict] = {}
     for sym in symbols:
@@ -337,6 +378,10 @@ def get_intelligence_for_symbols(
         ef = earnings_by_sym.get(sym)
         if ef:
             facts.append(ef)
+
+        tc = team_calls_by_sym.get(sym)
+        if tc:
+            facts.append(tc)
         if earnings_batch_failed:
             # Earnings is a shared, batch-level source (one lookup answers
             # for every requested symbol) -- a day the batch could not trust

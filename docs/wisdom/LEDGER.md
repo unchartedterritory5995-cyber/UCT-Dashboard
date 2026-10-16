@@ -770,6 +770,40 @@ external red in every gate, never as a new failure.
 
 *(none)*
 
+### Owner decisions 2026-10-16 — the TSDR archive as a provider to the publish adapters
+
+Owner instruction 2026-10-16: *"implement all of the plan and objectives … completed fully"*, taking
+the recommended answer on each open decision of the archive integration plan (kept privately, outside
+this public repo). Recorded here because each changes what a publish adapter may read or show.
+
+1. **The archive bypasses the R89 floor.** The TSDR archive (`wisdom_archive_*`) is not an
+   extraction awaiting stability votes: every row is a dated, attributed post with a measured
+   outcome, imported by the owner, and the owner made it a member surface on 2026-10-15. It is
+   read through ONE explicit provider, `api/services/wisdom/archive/provider.py`, never through
+   `common.select_records`. `floor.py` is untouched and the Loop's floored reads still fail closed.
+2. **Prices only on aged calls.** entry / stop / target leave the provider only for calls posted
+   more than `provider.PRICE_AGE_SESSIONS` (20) trading sessions ago (CONTRACTS:463, HARD-RULES
+   §0.4d). `provider.levels` and `provider.public_call` are the only two readers of those columns.
+3. **Display only on scanner and pattern surfaces** (recorded by the surfaces branch).
+4. **Chart images go to private storage, paid only** (recorded by the images branch).
+
+What reads the archive through the provider, each still behind its own adapter flag (unset = off)
+AND `WISDOM_ARCHIVE_ENABLED`, both read per call:
+
+| adapter | flag | what a member sees once both flags are on |
+|---|---|---|
+| `desk_markers` | `WISDOM_DESK_MARKERS_ENABLED` | team calls as chart markers; an aged call's click draws its levels |
+| `badges` (archive lane) | `WISDOM_BADGES_ENABLED` | `GET /api/wisdom/team-calls` (paid): UCT20 TEAM badge + history line, watchlist "team called it" fact, digest line |
+| `dossier` | `WISDOM_DOSSIER_ENABLED` | stance lines in the Ask AI house view, prices and dates scrubbed |
+| `brainkb` | `WISDOM_BRAINKB_PUBLISH_ENABLED` | LESSON and MACRO posts staged as signed, dated KB rows |
+| `lookalike` | `WISDOM_LOOKALIKE_ENABLED` | nothing yet: wider silent reference set; D20 delivery gates unchanged |
+| `level_alerts` | `WISDOM_LEVEL_ALERTS_ENABLED` | nothing yet: aged open calls scored silently; D20 delivery gates unchanged |
+| voice principle sourcing | (drafts, owner review) | archive LESSON records offered as sourcing candidates |
+
+R50: `badges.py` is now MEMBER (its archive lane); `watchlist_intelligence.py` is a declared MEMBER
+door. The watchlist route asks for the team-call fact only on a paid member's request; the Journal
+2.0 position banner and the terminal grammar never ask (HARD-RULES §0.4b, §0.4g).
+
 ## Section 4 — flags declared by this program
 
 All declared in `ca0b9b801` with their read site in `api/services/wisdom/core/flags.py`; status `dark`; nobody has flipped any.

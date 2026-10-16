@@ -14,7 +14,7 @@ import { render, cleanup, waitFor } from '@testing-library/react'
 
 // Shared with the lightweight-charts mock: the marker arrays handed to the marker
 // controller, and every click handler the chart's effects subscribe.
-const lw = vi.hoisted(() => ({ markerSets: [], clickHandlers: [] }))
+const lw = vi.hoisted(() => ({ markerSets: [], clickHandlers: [], priceLines: [], removedLines: [] }))
 
 // ── Render harness: copied from StockChart.anchor.test.jsx (same mocks) so the
 // component body actually executes in jsdom, with two additions — createSeriesMarkers
@@ -22,7 +22,7 @@ const lw = vi.hoisted(() => ({ markerSets: [], clickHandlers: [] }))
 vi.mock('lightweight-charts', () => {
   const series = {
     setData: () => {}, update: () => {}, applyOptions: () => {}, priceScale: () => ({ applyOptions: () => {} }),
-    createPriceLine: () => ({}), removePriceLine: () => {}, setMarkers: () => {}, attachPrimitive: () => {},
+    createPriceLine: (o) => { const pl = { ...o }; lw.priceLines.push(pl); return pl }, removePriceLine: (pl) => { lw.removedLines.push(pl) }, setMarkers: () => {}, attachPrimitive: () => {},
     detachPrimitive: () => {}, priceToCoordinate: () => 0, coordinateToPrice: () => 0, options: () => ({}),
     dataByIndex: () => null, getPane: () => ({ getHeight: () => 300, paneIndex: () => 0 }),
     barsInLogicalRange: () => null, data: () => [], seriesType: () => 'Candlestick',
@@ -127,7 +127,7 @@ const barsOrPayload = (url) => {
     const tf = new URLSearchParams(url.split('?')[1] || '').get('tf') || 'D'
     return { ticker: 'AAPL', bars: /^\d+$/.test(tf) ? INTRADAY_BARS : FIXTURE_BARS }
   }
-  if (url.includes('/mentions')) return { mentions: MENTIONS, as_of: '2026-02-20' }
+  if (url.includes('/mentions')) return { mentions: url.includes('ARCH') ? ARCHIVE_MENTIONS : MENTIONS, as_of: '2026-02-20' }
   return {}
 }
 
@@ -138,6 +138,8 @@ beforeEach(() => {
   cleanup()
   lw.markerSets = []
   lw.clickHandlers = []
+  lw.priceLines = []
+  lw.removedLines = []
   fetchSpy = vi.fn((url) => Promise.resolve({
     ok: true,
     json: () => Promise.resolve(barsOrPayload(String(url))),
@@ -146,7 +148,7 @@ beforeEach(() => {
 })
 
 // Import AFTER the mocks are registered.
-const { default: StockChart, buildDeskMentionMarkers, deskMentionHref, DESK_MARKER_COLOR } =
+const { default: StockChart, buildDeskMentionMarkers, deskMentionHref, archiveCallLevels, DESK_MARKER_COLOR } =
   await import('./StockChart')
 
 const mentionUrls = () =>
@@ -377,6 +379,69 @@ describe('desk markers reach the chart', () => {
     await waitFor(() => expect(deskMarkersDrawn()).toHaveLength(3), { timeout: 3000 })
     clickMarker(BAR_DATES[7])
     expect(open).not.toHaveBeenCalled()
+    open.mockRestore()
+  })
+})
+
+/* ── 4. TSDR trader-archive rows (owner decisions 2026-10-16) ─────────────────
+   An archive row has no video. Its door is the archive page for the ticker, unless the
+   server sent levels for it (only for a call older than the price gate), in which case a
+   click draws that call's entry/stop/target and a second click clears them. */
+
+const ARCH_DAY_AGED = BAR_DATES[120]
+const ARCH_DAY_RECENT = BAR_DATES[130]
+const ARCHIVE_MENTIONS = [
+  { video_id: null, youtube_id: null, title: 'Trader archive', anchor_date: ARCH_DAY_RECENT, t: 0,
+    note: 'TSDR: Kicker long add', kind: 'call', source_detail: 'archive', archive_ticker: 'ZZTA',
+    call: { call_id: 't9002#0', trader: 'TSDR', outcome: {} } },
+  { video_id: null, youtube_id: null, title: 'Trader archive', anchor_date: ARCH_DAY_AGED, t: 0,
+    note: 'TSDR: Kicker long entry', kind: 'call', source_detail: 'archive', archive_ticker: 'ZZTA',
+    call: { call_id: 't9001#0', trader: 'TSDR', outcome: { r20: 0.08 },
+            levels: [{ kind: 'entry', price: 10 }, { kind: 'stop', price: 9 }, { kind: 'target', price: 13 }] } },
+]
+
+describe('archive desk rows', () => {
+  it('an archive row with no levels opens the trader archive for its ticker', () => {
+    expect(deskMentionHref(ARCHIVE_MENTIONS[0])).toBe('/trader-archive?sym=ZZTA')
+    expect(archiveCallLevels(ARCHIVE_MENTIONS[0])).toBeNull()
+  })
+
+  it('levels are drawn only for an archive row that carries them, and bad prices are dropped', () => {
+    const lv = archiveCallLevels(ARCHIVE_MENTIONS[1])
+    expect(lv).toEqual({ key: 't9001#0', trader: 'TSDR', levels: ARCHIVE_MENTIONS[1].call.levels })
+    expect(archiveCallLevels({ ...ARCHIVE_MENTIONS[1], source_detail: 'wisdom' })).toBeNull()
+    const junk = { ...ARCHIVE_MENTIONS[1], call: { call_id: 'x', levels: [{ kind: 'stop', price: 0 }, { kind: 'entry', price: 'n/a' }] } }
+    expect(archiveCallLevels(junk)).toBeNull()
+    expect(archiveCallLevels(MENTIONS[0])).toBeNull()                 // a video row never draws levels
+  })
+
+  const clickArchive = (day) => {
+    for (const h of [...lw.clickHandlers]) h({ time: day, point: { x: 10, y: 10 }, hoveredObjectId: `desk-${day}` })
+  }
+
+  it('clicking an aged call draws its lines instead of navigating; a second click clears them', async () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+    render(<StockChart sym="ARCH1" tf="D" barsOverride={FIXTURE_BARS}
+      settingsOverride={{ markers: { desk: true } }} />)
+    await waitFor(() => expect(deskMarkersDrawn()).toHaveLength(2), { timeout: 3000 })
+    clickArchive(ARCH_DAY_AGED)
+    await waitFor(() => expect(lw.priceLines.filter(l => /^TSDR /.test(l.title || ''))).toHaveLength(3), { timeout: 3000 })
+    expect(lw.priceLines.filter(l => /^TSDR /.test(l.title || '')).map(l => [l.title, l.price]))
+      .toEqual([['TSDR entry', 10], ['TSDR stop', 9], ['TSDR target', 13]])
+    expect(open).not.toHaveBeenCalled()
+    clickArchive(ARCH_DAY_AGED)
+    await waitFor(() => expect(lw.removedLines.filter(l => /^TSDR /.test(l.title || ''))).toHaveLength(3), { timeout: 3000 })
+    open.mockRestore()
+  })
+
+  it('clicking a recent call opens the archive page and draws nothing', async () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+    render(<StockChart sym="ARCH2" tf="D" barsOverride={FIXTURE_BARS}
+      settingsOverride={{ markers: { desk: true } }} />)
+    await waitFor(() => expect(deskMarkersDrawn()).toHaveLength(2), { timeout: 3000 })
+    clickArchive(ARCH_DAY_RECENT)
+    expect(open).toHaveBeenCalledWith('/trader-archive?sym=ZZTA', '_self')
+    expect(lw.priceLines.filter(l => /^TSDR /.test(l.title || ''))).toEqual([])
     open.mockRestore()
   })
 })

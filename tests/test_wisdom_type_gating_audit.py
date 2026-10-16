@@ -64,6 +64,19 @@ DECLARED_DOORS = {
     "api/services/ticker_mentions.py": ("core.flags + publish.adapters.desk_markers", "MEMBER",
                                         "WISDOM_DESK_MARKERS_ENABLED"),
     "api/services/desk_session_insights.py": ("core.ids + core.r2", "NO_RECORD_READ", ""),
+    # 2026-10-16 (owner decisions, docs/wisdom/LEDGER.md): the team-call fact reads the TSDR
+    # archive through the badges adapter's archive lane, never wisdom_records; double-gated by
+    # this gate AND WISDOM_ARCHIVE_ENABLED, and asked for only by the paid watchlist route.
+    "api/services/watchlist_intelligence.py": ("publish.adapters.badges", "MEMBER", "WISDOM_BADGES_ENABLED"),
+    # The Compass archive tools' VOICE door, shipped 2026-10-15 with the trader archive and
+    # undeclared until 2026-10-16: it reads wisdom_archive_* only, through archive/tools.py,
+    # which re-reads WISDOM_ARCHIVE_ENABLED per call and hides the tools while it is off.
+    # ⚠️ The CHAT door (Compass's coach chat tools module) is the same shape and is still
+    # undeclared: this file is in the exclusion grep's scope, and naming that module's path
+    # here is a live reference that grep fails on. It needs a ruling (route chat
+    # through the voice registry, as the parity tools already do, or an exemption), not a
+    # workaround, so this census stays red on that one module until then.
+    "api/services/voice_tool_impls.py": ("archive.tools", "MEMBER", "WISDOM_ARCHIVE_ENABLED"),
 }
 
 
@@ -133,6 +146,20 @@ def test_a_member_doors_gate_is_read_before_the_records_are(monkeypatch):
     assert askai.wisdom_block("what did UCT say", user_id="u1") == ("", [])
 
 
+def test_the_team_call_door_reads_nothing_with_either_gate_off(monkeypatch):
+    """The watchlist door: badges gate off, OR archive gate off, means no store read at all."""
+    from api.services import watchlist_intelligence
+    from api.services.wisdom.publish.adapters import badges
+
+    monkeypatch.setattr("api.services.wisdom.core.store.read", _never_called)
+    for badges_on, archive_on in (("0", "1"), ("1", "0"), ("0", "0")):
+        monkeypatch.setenv("WISDOM_BADGES_ENABLED", badges_on)
+        monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", archive_on)
+        assert badges.archive_badges(["NVDA"]) == {}
+        assert badges.archive_history(["NVDA"]) == {}
+        assert watchlist_intelligence.team_call_facts(["NVDA"]) == {}
+
+
 def _never_called(*_a, **_k):  # pragma: no cover - the point is that it is not
     raise AssertionError("a member door opened the wisdom store with its gate off")
 
@@ -153,7 +180,9 @@ DECLARED_CONSUMERS = {
     "publish/adapters/modelbook.py": "MEMBER",
     "publish/retrieval.py": "MEMBER",
     # --- owner / admin / machine-credential surfaces --------------------------------------
-    "publish/adapters/badges.py": "OWNER",
+    # MEMBER since 2026-10-16 for its TSDR-archive lane (GET /api/wisdom/team-calls, paid);
+    # its wisdom_records half is still served only by the admin adapter endpoint.
+    "publish/adapters/badges.py": "MEMBER",
     "publish/adapters/clips.py": "OWNER",
     "publish/adapters/pv_examples.py": "OWNER",
     "publish/report.py": "OWNER",
