@@ -281,6 +281,16 @@ def screener_alerts_unsubscribe(def_hash: str, user=Depends(require_paid)):
                                                  def_hash)}
 
 
+@router.get("/api/screener/sparks")
+def screener_sparks(tickers: str = "", user=Depends(require_paid)):
+    """~3 months of daily closes for up to 60 tickers: the Focus list's per-row
+    price line. One read of the local bars store per symbol (cached), never a
+    provider call. Same paid gate as the scan it decorates."""
+    from api.services.screener import sparks
+    syms = sparks.parse_tickers(tickers)
+    return {"sessions": sparks.SESSIONS, "sparks": sparks.closes_for(syms)}
+
+
 @router.post("/api/screener/count")
 def screener_count(spec: ScanSpec, user=Depends(require_paid)):
     """How many rows this spec would return — benchmark metric 450.
