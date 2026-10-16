@@ -82,7 +82,7 @@ def test_run_pull_earliest_future_date_wins_and_receipt_rows_is_deduped_union(mo
     monkeypatch.setenv("SCREENER_EDATES_ARTIFACT", str(artifact_path))
     today = datetime.date(2026, 8, 22)
 
-    def fake_fmp_get(path, params):
+    def fake_fmp_get(path, params, timeout=None):
         assert path == "/stable/earnings-calendar"
         d0 = params["from"]
         if d0 == today.isoformat():
@@ -121,7 +121,7 @@ def test_run_pull_skips_a_past_date_seen_in_the_window(monkeypatch, tmp_path):
     monkeypatch.setenv("SCREENER_EDATES_ARTIFACT", str(tmp_path / "edates.json"))
     today = datetime.date(2026, 8, 22)
 
-    def fake_fmp_get(path, params):
+    def fake_fmp_get(path, params, timeout=None):
         if params["from"] == today.isoformat():
             return [{"symbol": "OLD", "date": "2026-08-01"}]  # already reported — not "next"
         return []
@@ -141,7 +141,7 @@ def test_run_pull_all_chunks_failing_preserves_a_prior_artifact(monkeypatch, tmp
     artifact_path.write_text(json.dumps(prior))
 
     monkeypatch.setattr(
-        "api.services.earnings_estimates._fmp_get", lambda path, params: None)
+        "api.services.earnings_estimates._fmp_get", lambda path, params, timeout=None: None)
 
     receipt = ed.run_pull(now=datetime.datetime(2026, 8, 22, 20, 0))
     assert receipt["chunks_failed"] == 84
@@ -154,7 +154,7 @@ def test_run_pull_malformed_rows_are_skipped_not_fatal(monkeypatch, tmp_path):
     monkeypatch.setenv("SCREENER_EDATES_ARTIFACT", str(tmp_path / "edates.json"))
     today = datetime.date(2026, 8, 22)
 
-    def fake_fmp_get(path, params):
+    def fake_fmp_get(path, params, timeout=None):
         if params["from"] == today.isoformat():
             return [
                 {"symbol": "", "date": "2026-08-25"},       # blank symbol
@@ -178,7 +178,7 @@ def test_run_pull_flags_a_chunk_at_the_fmp_row_cap_but_keeps_its_rows(monkeypatc
     today = datetime.date(2026, 8, 22)
     cap_day = (today + datetime.timedelta(days=5)).isoformat()
 
-    def fake_fmp_get(path, params):
+    def fake_fmp_get(path, params, timeout=None):
         if params["from"] == cap_day:
             # exactly 4,000 rows — the measured FMP response cap
             return [{"symbol": f"SYM{i}", "date": cap_day} for i in range(4000)]
@@ -203,7 +203,7 @@ def test_run_pull_no_chunks_at_cap_when_every_day_is_ordinary(monkeypatch, tmp_p
     monkeypatch.setenv("SCREENER_EDATES_ARTIFACT", str(tmp_path / "edates.json"))
     today = datetime.date(2026, 8, 22)
 
-    def fake_fmp_get(path, params):
+    def fake_fmp_get(path, params, timeout=None):
         if params["from"] == today.isoformat():
             return [{"symbol": "NORMAL", "date": today.isoformat()}]
         return []
@@ -240,7 +240,7 @@ def test_run_pull_et_evening_does_not_discard_a_report_dated_todays_et_date(monk
     et_today = datetime.date(2026, 8, 21)
     aware_now = datetime.datetime(2026, 8, 21, 23, 15, tzinfo=ZoneInfo("America/New_York"))
 
-    def fake_fmp_get(path, params):
+    def fake_fmp_get(path, params, timeout=None):
         if params["from"] == et_today.isoformat():
             return [{"symbol": "TODAYREP", "date": et_today.isoformat()}]
         return []
