@@ -45,7 +45,7 @@ import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
 import {
   useDurableNote, settleLandedSave, beginInFlightSave, endInFlightSave,
-  recordLandedRevision, settleOwnerFork, SESSION_ID,
+  recordLandedRevision, settleOwnerFork, SESSION_ID, newEditLineage, nextEditSeq,
 } from '../../lib/offline/useDurableNote'
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
 import { blockedLabel, unsyncedLabel, OFFLINE_VIEWING_BANNER } from '../../lib/offline/unsyncedCopy'
@@ -78,6 +78,7 @@ import TableToolbar from './TableToolbar'
 import LinkPasteMenu from './LinkPasteMenu'
 import UnlinkedMentions from './UnlinkedMentions'
 import { TextSelection } from '@tiptap/pm/state'
+import { isHistoryTransaction } from '@tiptap/pm/history'
 import { taskIndexFromParams, findTaskItemPos } from '../../lib/noteTasks'
 import { NOTEBOOK_EVENTS, startNoteOpenTimer, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { noteIsLocked, setNoteLock } from '../../lib/lockedNote'
@@ -831,6 +832,32 @@ export default function NoteEditorPage({
   // filter yields another member's research. It degrades to `supported: false`
   // (private windows, old browsers) without taking the editor with it.
   const durable = useDurableNote({ accountId: user?.id, noteId })
+  // ⭐⭐ HOTFIX 2026-10-15 — THE EDIT LINEAGE OF THIS VIEW.
+  //
+  // Every capture (`captureLocalState`) and every content save (`commitSave`'s
+  // `sentFrom`) says which live view it came from and when. The durable layer
+  // then lets the member's own later edit of that view — a character changed in
+  // the middle of a line, text put before existing text, a deletion — supersede
+  // the record the view wrote earlier, instead of keeping the OLDER words queued
+  // to fork the moment the member leaves (cell E, 5/5 on master; the note above
+  // `authoredDigest` in `lib/offline/recoverLocalState.js`).
+  //
+  // ⛔⛔ `viewReplaced()` MINTS A NEW LINEAGE WHENEVER THE VIEW IS REPLACED BY
+  // ANYTHING BUT THE MEMBER: a note load, a rebuilt editor, a version restore
+  // (`adoptServerCopy`), a crash-draft Restore, a queued-work adoption, and the
+  // reconcile's swap to the server copy. Words the old view wrote that the new
+  // view does not hold are then NOT superseded by keystrokes on the new view —
+  // they keep today's containment test and reach a second fork (R1/S1 in
+  // `f5p1OwnerSendsQueued.test.jsx`). Rotating more often than needed is safe;
+  // missing a swap is the hazard, so every whole-view swap rotates, before it
+  // moves anything (the title included).
+  // ⛔⛔ AND EVERY UNDO OR REDO ROTATES TOO (fix round 1, C1): a swap is an
+  // undoable step, so Undo is a SECOND way the view can be replaced by a document
+  // the member did not write in it (`onUpdate`, beside `useEditor` below).
+  const editLineageRef = useRef(null)
+  if (!editLineageRef.current) editLineageRef.current = newEditLineage()
+  const viewReplaced = () => { editLineageRef.current = newEditLineage() }
+  const editLineageNow = () => ({ id: editLineageRef.current, seq: nextEditSeq() })
 
   // ⛔⛔ A DIFFERENT AXIS FROM `saveStatus` BELOW — a READ signal, not a write
   // one. Wave Q1's durable working copy lets a member reopen a previously-
@@ -1005,6 +1032,7 @@ export default function NoteEditorPage({
   // the Delete gate) both go through it, never through a second copy.
   const adoptServerCopy = (restoredNote) => {
     if (!restoredNote) return
+    viewReplaced()   // hotfix 2026-10-15: a server copy replaces the view — a new lineage
     const t = restoredNote.title || ''
     const s = restoredNote.subtitle || ''
     setTitle(t)
@@ -1318,6 +1346,7 @@ export default function NoteEditorPage({
 
   useEffect(() => {
     if (!note) return undefined
+    viewReplaced()   // hotfix 2026-10-15: a note load is a new view — a new lineage
     setRecoveryDecidedFor(null)
     setTitle(note.title || '')
     titleRef.current = note.title || ''
@@ -1450,6 +1479,9 @@ export default function NoteEditorPage({
       // draft, the durable copy and the queue all carry it, so a later page
       // load sends these words at that level and never at its own.
       writtenSchema: editorWrittenSchema(),
+      // ⭐ HOTFIX 2026-10-15: which live view this capture came from, and when
+      // (`editLineageRef`). Only the durable layer reads it; the draft does not.
+      editLineage: editLineageNow(),
     }
   }
   const saveDraftLocally = (state) => {
@@ -1543,6 +1575,7 @@ export default function NoteEditorPage({
     const draftTitle = pendingDraft.title || ''
     const draftSubtitle = pendingDraft.subtitle || ''
     const draftBodyJson = pendingDraft.bodyJson
+    viewReplaced()   // hotfix 2026-10-15: a Restore replaces the view — a new lineage
     setTitle(draftTitle)
     titleRef.current = draftTitle
     setSubtitle(draftSubtitle)
@@ -2684,7 +2717,21 @@ export default function NoteEditorPage({
     // scheduled (words typed before a lock arrived) still goes out; queued
     // offline words adopted on open go through `scheduleAutosaveRef` directly
     // and still send (the server never refuses a body write for a lock).
-    onUpdate: () => { if (!lockedRef.current) scheduleAutosaveRef.current() },
+    // ⛔⛔ HOTFIX FIX ROUND 1 (C1): AN UNDO OR REDO IS A NEW LINEAGE. A whole-view
+    // swap is an ordinary undoable step, so Undo can put back the document from
+    // BEFORE a swap -- words this view never authored -- inside the swap's own
+    // lineage, where they would supersede the adopted or Restored words the swap
+    // put on screen and drop them from every layer. prosemirror-history marks
+    // every undo/redo transaction with its plugin meta (the keyboard, the touch
+    // buttons and the `historyUndo` input event all dispatch through it), so the
+    // capture that follows is taken on a fresh lineage and keeps the
+    // containment test. Undo itself is untouched; over-rotating is safe.
+    // Rail: `lib/offline/swapLineageRotation.test.jsx`.
+    onUpdate: ({ transaction }) => {
+      if (lockedRef.current) return
+      if (transaction && isHistoryTransaction(transaction)) viewReplaced()
+      scheduleAutosaveRef.current()
+    },
   }, [note?.id])
   // Keep the ref current so the paste/drop handlers (captured at creation) always
   // reach the live editor instance.
@@ -3089,7 +3136,10 @@ export default function NoteEditorPage({
     try {
       const current = JSON.stringify(editor.getJSON())
       const fresh = JSON.stringify(bodyForEditor)
-      if (current !== fresh) replaceDocument(editor, bodyForEditor, EMIT_NOTHING)
+      if (current !== fresh) {
+        viewReplaced()   // hotfix 2026-10-15: the stored body replaces the view — a new lineage
+        replaceDocument(editor, bodyForEditor, EMIT_NOTHING)
+      }
     } catch {
       /* editor view not mounted yet — content already loaded via useEditor */
     }
@@ -3182,6 +3232,10 @@ export default function NoteEditorPage({
   // server holds with no body at all must still be editable, and gating on the
   // body would leave that member typing into a page that saves nothing.
   // ⛔ S1/H14: and never armed for a note this bundle cannot read.
+  // ⭐ HOTFIX 2026-10-15: a REBUILT editor is a new view (`useEditor` constructs it
+  // from the note's stored body) — a new lineage, before the gate below arms.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (editor) viewReplaced() }, [editor])
   useEffect(() => {
     hydratedRef.current = Boolean(editor && !editor.isDestroyed && note && !isUnreadable(editor))
   }, [note?.id, editor, note, unreadable])
@@ -3237,6 +3291,7 @@ export default function NoteEditorPage({
     // from the editor, not from `state`. If the view cannot take them, nothing is
     // saved as though it had — they are offered, and the durable copy and the
     // queue still hold them.
+    viewReplaced()   // hotfix 2026-10-15: adopted words replace the view — a new lineage
     try {
       if (!replaceDocument(editor, state.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)) {
         offer(); return undefined
@@ -3450,6 +3505,11 @@ export default function NoteEditorPage({
 
     // The editor now shows what the SERVER has — the canonical version — so the
     // member is not typing into a document that no longer exists anywhere.
+    // ⛔⛔ HOTFIX 2026-10-15: A NEW LINEAGE, BEFORE ANYTHING MOVES. The words the
+    // old view flushed above (R1) are not in the sibling; keystrokes on the server
+    // copy must not supersede them, so they keep the containment test and reach a
+    // second fork. After the flush, never before it: the flush is the old view's.
+    viewReplaced()
     setTitle(fresh.title || '')
     titleRef.current = fresh.title || ''
     setSubtitle(fresh.subtitle || '')
@@ -3504,6 +3564,10 @@ export default function NoteEditorPage({
     retryTimerRef.current = null
 
     const bodyJson = editor.getJSON()
+    // ⭐ HOTFIX 2026-10-15: the live view this body was read from, in the same
+    // instant as the body. Handed to the settle ONLY if this exact body lands, so
+    // a durable record that view wrote EARLIER is known to be superseded by it.
+    const sentFrom = editLineageNow()
     // ⛔⛔ B1: the level of whoever WROTE these words, read in the same instant
     // as the words — recovered words keep their writer's level.
     const writtenSchema = editorWrittenSchema()
@@ -3656,6 +3720,9 @@ export default function NoteEditorPage({
         accountId: user?.id, noteId,
         acked: ackedNow, current: currentNow,
         updatedAt: lastSavedRef.current.updatedAt,
+        // ⭐ HOTFIX 2026-10-15: `ackedNow` is exactly the body this PUT carried
+        // (or, via `outcome.landed`, what the server already held of it).
+        sentFrom,
       })
       conflictRetriedRef.current = false
       setSaveStatus('saved')

@@ -1,0 +1,100 @@
+M9-undo-rotation | Test Files  1 failed (1) | Tests  4 failed | 5 passed (9)
+    ? adoption, OFFLINE: adopt queued words, the durable write lands, type, Undo past the adoption ? the words are still in a layer 4000ms
+    ? adoption, ONLINE, the Undo before the first PUT: the words are still in a layer 1617ms
+    ? crash-draft Restore WITH a base (the adoption effect), OFFLINE: Undo past it ? the draft words are still in a layer 2247ms
+    ? crash-draft Restore WITHOUT a base, OFFLINE: Restore, type, Undo past the Restore ? the draft words are still in a layer 2321ms
+   restored NoteEditorPage.jsx sha-match | equals HEAD blob (CRLF->LF): True
+-- M9-undo-rotation exit=0
+M13-5895-product | Test Files  1 failed (1) | Tests  4 failed | 5 passed (9)
+    ? adoption, OFFLINE: adopt queued words, the durable write lands, type, Undo past the adoption ? the words are still in a layer 5026ms
+    ? adoption, ONLINE, the Undo before the first PUT: the words are still in a layer 1979ms
+    ? crash-draft Restore WITH a base (the adoption effect), OFFLINE: Undo past it ? the draft words are still in a layer 2440ms
+    ? crash-draft Restore WITHOUT a base, OFFLINE: Restore, type, Undo past the Restore ? the draft words are still in a layer 2443ms
+   restored NoteEditorPage.jsx sha-match | equals HEAD blob (CRLF->LF): True
+   restored recoverLocalState.js sha-match | equals HEAD blob (CRLF->LF): True
+-- M13-5895-product exit=0
+M10-restore-rotation | Test Files  2 failed (2) | Tests  2 failed | 47 passed (49)
+    ? crash-draft Restore WITHOUT a base: words the old view typed before Restore survive typing on the restored draft 1242ms
+    ? each one is preceded, in the same synchronous span, by `viewReplaced()` 6ms
+   restored NoteEditorPage.jsx sha-match | equals HEAD blob (CRLF->LF): True
+-- M10-restore-rotation exit=0
+M11-adoption-rotation | Test Files  2 failed (2) | Tests  3 failed | 46 passed (49)
+    ? crash-draft Restore WITH a base (the adoption effect): words the old view typed before Restore survive typing on the restored draft 1153ms
+    ? each one is preceded, in the same synchronous span, by `viewReplaced()` 6ms
+    ? queued-work adoption: the adoption mints a lineage, and the adopted words are captured under it 828ms
+   restored NoteEditorPage.jsx sha-match | equals HEAD blob (CRLF->LF): True
+-- M11-adoption-rotation exit=0
+M7-adopt-server-copy-rotation | Test Files  2 failed (2) | Tests  2 failed | 47 passed (49)
+    ? each one is preceded, in the same synchronous span, by `viewReplaced()` 6ms
+    ? version restore (`adoptServerCopy`): the old view?s unsent words survive typing on the restored version 1077ms
+   restored NoteEditorPage.jsx sha-match | equals HEAD blob (CRLF->LF): True
+-- M7-adopt-server-copy-rotation exit=0
+M1-persist | Test Files  1 failed | 1 passed (2) | Tests  7 failed | 42 passed (49)
+    ? ?? CONTROL ? a GENUINE SECOND WRITER still forks, and the fork carries the member's NEWEST words 1189ms
+    ? ? delete a character, by the SAME live view, later ? not a discard 0ms
+    ? ? delete a character: the record AND the queued entry hold the newer words 189ms
+    ? ? insert before existing text, by the SAME live view, later ? not a discard 1ms
+    ? ? insert before existing text: the record AND the queued entry hold the newer words 155ms
+    ? ? insert in the middle, by the SAME live view, later ? not a discard 6ms
+    ? ? insert in the middle: the record AND the queued entry hold the newer words 172ms
+   restored recoverLocalState.js sha-match | equals HEAD blob (CRLF->LF): True
+-- M1-persist exit=0
+M2-settle | Test Files  1 failed | 1 passed (2) | Tests  2 failed | 47 passed (49)
+    ? ?? RED BEFORE THE FIX: the save the same view sent lands ? queue retired, record clean, the drain forks nothing 52ms
+    ? ?? the member leaves while the save is ON THE WIRE and the edit?s durable write never landed: the landed save still retires the older entry 1542ms
+   restored useDurableNote.js sha-match | equals HEAD blob (CRLF->LF): True
+-- M2-settle exit=0
+M12-both | Test Files  1 failed | 1 passed (2) | Tests  12 failed | 37 passed (49)
+    ? ?? CONTROL ? a GENUINE SECOND WRITER still forks, and the fork carries the member's NEWEST words 1080ms
+    ? ? delete a character, by the SAME live view, later ? not a discard 0ms
+    ? ? delete a character: the record AND the queued entry hold the newer words 165ms
+    ? ? insert before existing text, by the SAME live view, later ? not a discard 1ms
+    ? ? insert before existing text: the record AND the queued entry hold the newer words 133ms
+    ? ? insert in the middle, by the SAME live view, later ? not a discard 6ms
+    ? ? insert in the middle: the record AND the queued entry hold the newer words 171ms
+    ? ?? RED BEFORE THE FIX: the save the same view sent lands ? queue retired, record clean, the drain forks nothing 62ms
+    ? ?? delete a character: no (conflicted copy), and the server holds the newest words 1140ms
+    ? ?? insert before existing text: no (conflicted copy), and the server holds the newest words 1138ms
+    ? ?? insert in the middle: no (conflicted copy), and the server holds the newest words 3085ms
+    ? ?? the member leaves while the save is ON THE WIRE and the edit?s durable write never landed: the landed save still retires the older entry 1470ms
+   restored recoverLocalState.js sha-match | equals HEAD blob (CRLF->LF): True
+   restored useDurableNote.js sha-match | equals HEAD blob (CRLF->LF): True
+-- M12-both exit=0
+M4-digest | Test Files  1 failed | 1 passed (2) | Tests  2 failed | 47 passed (49)
+    ? ? the record's words moved under its stamp ? strict, the entry stays queued 63ms
+    ? ?? a record whose WORDS moved under its stamp is not vouched for (the drain's mergeAppends spreads `...rec`) 4ms
+   restored recoverLocalState.js sha-match | equals HEAD blob (CRLF->LF): True
+-- M4-digest exit=0
+M5-seq | Test Files  1 failed | 1 passed (2) | Tests  4 failed | 45 passed (49)
+    ? ? delete a character, from an OLDER capture than the record (a stale snapshot landing late) ? today's answer (true) 1ms
+    ? ? insert before existing text, from an OLDER capture than the record (a stale snapshot landing late) ? today's answer (true) 1ms
+    ? ? insert in the middle, from an OLDER capture than the record (a stale snapshot landing late) ? today's answer (true) 5ms
+    ? ? the record is a LATER capture than the body the save carried (typed during the PUT) ? strict, the entry stays queued 52ms
+   restored recoverLocalState.js sha-match | equals HEAD blob (CRLF->LF): True
+-- M5-seq exit=0
+M6-id | Test Files  2 failed (2) | Tests  12 failed | 37 passed (49)
+    ? adoption, OFFLINE: adopt queued words, the durable write lands, type, Undo past the adoption ? the words are still in a layer 5361ms
+    ? adoption, ONLINE, the Undo before the first PUT: the words are still in a layer 2061ms
+    ? crash-draft Restore WITH a base (the adoption effect), OFFLINE: Undo past it ? the draft words are still in a layer 2473ms
+    ? crash-draft Restore WITH a base (the adoption effect): words the old view typed before Restore survive typing on the restored draft 1950ms
+    ? crash-draft Restore WITHOUT a base, OFFLINE: Restore, type, Undo past the Restore ? the draft words are still in a layer 2526ms
+    ? crash-draft Restore WITHOUT a base: words the old view typed before Restore survive typing on the restored draft 1834ms
+    ? version restore (`adoptServerCopy`): the old view?s unsent words survive typing on the restored version 1862ms
+    ? ? a DIFFERENT lineage sent the save (the record was written by another view) ? strict, the entry stays queued 47ms
+    ? ? a DIFFERENT view's mid-text content keeps the older record (fix 6, unchanged) 175ms
+    ? ? delete a character, from a DIFFERENT lineage (a swapped view, a remount, another tab) ? today's answer (true) 0ms
+    ? ? insert before existing text, from a DIFFERENT lineage (a swapped view, a remount, another tab) ? today's answer (true) 1ms
+    ? ? insert in the middle, from a DIFFERENT lineage (a swapped view, a remount, another tab) ? today's answer (true) 5ms
+   restored recoverLocalState.js sha-match | equals HEAD blob (CRLF->LF): True
+-- M6-id exit=0
+M3-reconcile-rotation | Test Files  2 failed | 1 passed (3) | Tests  3 failed | 81 passed (84)
+    ? each one is preceded, in the same synchronous span, by `viewReplaced()` 6ms
+    ? ?? R1: typing ACROSS the view swap ? words typed during the create request survive the next keystroke on the new view 3643ms
+    ? ?? a keystroke queued behind an IN-FLIGHT durable write survives the fork fallback?s flush and the view swap 4084ms
+   restored NoteEditorPage.jsx sha-match | equals HEAD blob (CRLF->LF): True
+-- M3-reconcile-rotation exit=0
+M8-sentFrom-not-passed | Test Files  1 failed | 1 passed (2) | Tests  1 failed | 48 passed (49)
+    ? ?? the member leaves while the save is ON THE WIRE and the edit?s durable write never landed: the landed save still retires the older entry 1553ms
+   restored NoteEditorPage.jsx sha-match | equals HEAD blob (CRLF->LF): True
+-- M8-sentFrom-not-passed exit=0
+ALLDONE

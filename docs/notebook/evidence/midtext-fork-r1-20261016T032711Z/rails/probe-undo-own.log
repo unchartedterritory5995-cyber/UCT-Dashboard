@@ -1,0 +1,18 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-midtext-fork/app
+
+stdout | src/pages/journal-2-0/lib/offline/zzProbeUndoOwn.test.jsx > 4 · end to end — the real editor, a pause, a mid-text edit, the save lands, the member leaves > PROBE undo back to the SAVED text
+PROBE undo back to the SAVED text {"view":"ab cd ef","before":{"server":"{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"ab cd ef\"}]}]}","outbox":["{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"abX cd ef\"}]}]}"],"rec":"{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"abX cd ef\"}]}]}","dirty":1},"outcomes":["sent"],"forks":0,"serverAfter":"{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"abX cd ef\"}]}]}"}
+
+stdout | src/pages/journal-2-0/lib/offline/zzProbeUndoOwn.test.jsx > 4 · end to end — the real editor, a pause, a mid-text edit, the save lands, the member leaves > PROBE undo to an UNSAVED state
+PROBE undo to an UNSAVED state {"view":"ab cd ef gh","before":{"server":"{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"ab cd ef gh\"}]}]}","outbox":["{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"abX cd ef gh\"}]}]}"],"rec":"{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"abX cd ef gh\"}]}]}","dirty":1},"outcomes":["forked"],"forks":1,"serverAfter":"{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"ab cd ef gh\"}]}]}"}
+
+ ✓ src/pages/journal-2-0/lib/offline/zzProbeUndoOwn.test.jsx (2 tests) 11405ms
+     ✓ PROBE undo back to the SAVED text  9294ms
+     ✓ PROBE undo to an UNSAVED state  2107ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  22:02:41
+   Duration  14.16s (transform 6.86s, setup 580ms, import 472ms, tests 11.40s, environment 1.39s)
+

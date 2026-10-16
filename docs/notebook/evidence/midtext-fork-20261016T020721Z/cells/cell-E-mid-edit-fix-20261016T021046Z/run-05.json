@@ -1,0 +1,1637 @@
+{
+ "run": 5,
+ "flow": "mid",
+ "nav": true,
+ "viewport": "1280",
+ "note_id": "8bd4f27cfdc343cab0a48394f6896627",
+ "email_domain": "local.dev",
+ "marks": {
+  "t_run_start": 1792116779.253,
+  "note_created_rev": "2026-10-16T02:13:20.745062+00:00",
+  "t_editor_ready": 1792116802.211,
+  "t_pick_key": 1792116803.409,
+  "t_after_pick": 1792116804.071,
+  "t_save_seen": 1792116804.625,
+  "t_tasks_read": 1792116804.646,
+  "t_idb_before_nav": 1792116804.652,
+  "t_goto_start": 1792116804.652,
+  "t_goto_returned": 1792116808.685,
+  "t_row_wait_done": 1792116808.685,
+  "t_settled": 1792116816.7,
+  "t_read": 1792116816.763
+ },
+ "step": {
+  "tr_hook": "hooked",
+  "date_list": true,
+  "mentions": {
+   "n": 1,
+   "inTask": 0
+  },
+  "save_landed": true,
+  "open_tasks_mine": [],
+  "tasks_view_row": null
+ },
+ "forked": false,
+ "fork_notes": [],
+ "notes_after": [
+  {
+   "id": "8bd4f27cfdc343cab0a48394f6896627",
+   "title": "Reminder walk 1280",
+   "updatedAt": "2026-10-16T02:13:24.249317+00:00",
+   "tags": []
+  }
+ ],
+ "server_note_after": {
+  "updatedAt": "2026-10-16T02:13:24.249317+00:00",
+  "title": "Reminder walk 1280",
+  "body": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Reminder walk 1280\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"abX cd\"}]}]}"
+ },
+ "put_statuses": [
+  200
+ ],
+ "idb_before_nav": {
+  "uct_notebook_f37454af-b72d-4883-a6a6-5a516001ca64": {
+   "meta": [
+    {
+     "name": "inflight:8bd4f27cfdc343cab0a48394f6896627",
+     "value": null
+    },
+    {
+     "name": "landed:8bd4f27cfdc343cab0a48394f6896627",
+     "value": [
+      "2026-10-16T02:13:24.249317+00:00"
+     ]
+    }
+   ],
+   "notes": [
+    {
+     "noteId": "8bd4f27cfdc343cab0a48394f6896627",
+     "title": "Reminder walk 1280",
+     "subtitle": "",
+     "bodyJson": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "Reminder walk 1280"
+         }
+        ]
+       },
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "abX cd"
+         }
+        ]
+       }
+      ]
+     },
+     "baseUpdatedAt": "2026-10-16T02:13:24.249317+00:00",
+     "generation": 7,
+     "sessionId": "ef3211aa-a16e-473e-96fd-fae1e15e8e53",
+     "localSavedAt": 1792116804267,
+     "dirty": 0,
+     "serverBase": null,
+     "writtenSchema": null,
+     "editorLineage": {
+      "id": "ef3211aa-a16e-473e-96fd-fae1e15e8e53:v5",
+      "seq": 9,
+      "digest": 879065384087848
+     }
+    }
+   ],
+   "outbox": []
+  }
+ },
+ "idb_after": {
+  "uct_notebook_f37454af-b72d-4883-a6a6-5a516001ca64": {
+   "meta": [
+    {
+     "name": "inflight:8bd4f27cfdc343cab0a48394f6896627",
+     "value": null
+    },
+    {
+     "name": "landed:8bd4f27cfdc343cab0a48394f6896627",
+     "value": [
+      "2026-10-16T02:13:24.249317+00:00"
+     ]
+    }
+   ],
+   "notes": [
+    {
+     "noteId": "8bd4f27cfdc343cab0a48394f6896627",
+     "title": "Reminder walk 1280",
+     "subtitle": "",
+     "bodyJson": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "Reminder walk 1280"
+         }
+        ]
+       },
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "abX cd"
+         }
+        ]
+       }
+      ]
+     },
+     "baseUpdatedAt": "2026-10-16T02:13:24.249317+00:00",
+     "generation": 7,
+     "sessionId": "ef3211aa-a16e-473e-96fd-fae1e15e8e53",
+     "localSavedAt": 1792116804267,
+     "dirty": 0,
+     "serverBase": null,
+     "writtenSchema": null,
+     "editorLineage": {
+      "id": "ef3211aa-a16e-473e-96fd-fae1e15e8e53:v5",
+      "seq": 9,
+      "digest": 879065384087848
+     }
+    }
+   ],
+   "outbox": []
+  }
+ },
+ "followup_after_leaving": null,
+ "flow_complete": true,
+ "wire": [
+  {
+   "i": 0,
+   "t_sent": 1792116801.878,
+   "method": "GET",
+   "url": "/api/j2/notes/folder-counts",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116801.993,
+   "response": "{\"counts\":{},\"unfiled\":1,\"total\":1}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116801.993
+  },
+  {
+   "i": 1,
+   "t_sent": 1792116801.878,
+   "method": "GET",
+   "url": "/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.168,
+   "response": "{\"notes\":[{\"id\":\"8bd4f27cfdc343cab0a48394f6896627\",\"userId\":\"f37454af-b72d-4883-a6a6-5a516001ca64\",\"accountId\":null,\"folderId\":null,\"title\":\"Reminder walk 1280\",\"subtitle\":null,\"bodyPlain\":\"Reminder walk 1280\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-16T02:13:20.745062+00:00\",\"updatedAt\":\"2026-10-16T02:13:20.745062+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"propertiesJson\":{}}],\"total\":1,\"limit\":1,\"offset\":0}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.162
+  },
+  {
+   "i": 2,
+   "t_sent": 1792116801.879,
+   "method": "GET",
+   "url": "/api/j2/notes?sort=updated&limit=1&deleted=true",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.021,
+   "response": "{\"notes\":[],\"total\":0,\"limit\":1,\"offset\":0}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.021
+  },
+  {
+   "i": 3,
+   "t_sent": 1792116801.879,
+   "method": "GET",
+   "url": "/api/j2/notes?folder_id=__archived__&sort=updated&limit=1",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.033,
+   "response": "{\"notes\":[],\"total\":0,\"limit\":1,\"offset\":0}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.032
+  },
+  {
+   "i": 4,
+   "t_sent": 1792116801.879,
+   "method": "GET",
+   "url": "/api/j2/notes/favorites",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.055,
+   "response": "{\"notes\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.054
+  },
+  {
+   "i": 5,
+   "t_sent": 1792116801.879,
+   "method": "GET",
+   "url": "/api/j2/notes/recents",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.058,
+   "response": "{\"notes\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.058
+  },
+  {
+   "i": 6,
+   "t_sent": 1792116801.88,
+   "method": "GET",
+   "url": "/api/j2/notes/tags",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.169,
+   "response": "{\"tags\":[],\"tree\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.162
+  },
+  {
+   "i": 7,
+   "t_sent": 1792116801.88,
+   "method": "GET",
+   "url": "/api/j2/notes/8bd4f27cfdc343cab0a48394f6896627",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.076,
+   "response": "{\"note\":{\"id\":\"8bd4f27cfdc343cab0a48394f6896627\",\"userId\":\"f37454af-b72d-4883-a6a6-5a516001ca64\",\"accountId\":null,\"folderId\":null,\"title\":\"Reminder walk 1280\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Reminder walk 1280\"}]}]},\"bodyPlain\":\"Reminder walk 1280\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-16T02:13:20.745062+00:00\",\"updatedAt\":\"2026-10-16T02:13:20.745062+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{},\"styleId\":null,\"styleVersion\":null,\"kindId\":null,\"isFavorite\":false}}",
+   "response_rev": {
+    "updatedAt": "2026-10-16T02:13:20.745062+00:00",
+    "title": "Reminder walk 1280",
+    "id": "8bd4f27cfdc343cab0a48394f6896627"
+   },
+   "failure": null,
+   "t_resp": 1792116802.076
+  },
+  {
+   "i": 8,
+   "t_sent": 1792116801.88,
+   "method": "GET",
+   "url": "/api/j2/notes/8bd4f27cfdc343cab0a48394f6896627/documents",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.175,
+   "response": "{\"documents\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.166
+  },
+  {
+   "i": 9,
+   "t_sent": 1792116801.88,
+   "method": "GET",
+   "url": "/api/j2/notes/8bd4f27cfdc343cab0a48394f6896627/excerpts",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.172,
+   "response": "{\"excerpts\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.164
+  },
+  {
+   "i": 10,
+   "t_sent": 1792116801.881,
+   "method": "GET",
+   "url": "/api/j2/notes/8bd4f27cfdc343cab0a48394f6896627/facts",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.173,
+   "response": "{\"facts\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.164
+  },
+  {
+   "i": 11,
+   "t_sent": 1792116801.881,
+   "method": "GET",
+   "url": "/api/j2/notes/8bd4f27cfdc343cab0a48394f6896627/evidence-candidates",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.174,
+   "response": "{\"candidates\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.166
+  },
+  {
+   "i": 12,
+   "t_sent": 1792116801.881,
+   "method": "GET",
+   "url": "/api/j2/notes/8bd4f27cfdc343cab0a48394f6896627/thesis-summary",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.224,
+   "response": "{\"evidence\":[],\"changelog\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.224
+  },
+  {
+   "i": 13,
+   "t_sent": 1792116801.881,
+   "method": "GET",
+   "url": "/api/j2/notes/8bd4f27cfdc343cab0a48394f6896627/properties",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.217,
+   "response": "{\"properties\":[{\"id\":\"builtin:ticker\",\"name\":\"Ticker\",\"type\":\"text\",\"source\":\"financial_derived\",\"value\":null},{\"id\":\"builtin:sector\",\"name\":\"Sector\",\"type\":\"text\",\"source\":\"financial_derived\",\"value\":null},{\"id\":\"builtin:industry\",\"name\":\"Industry\",\"type\":\"text\",\"source\":\"financial_derived\",\"value\":null},{\"id\":\"builtin:theme\",\"name\":\"Theme\",\"type\":\"text\",\"source\":\"financial_derived\",\"value\":null},{\"id\":\"builtin:trade_ref\",\"name\":\"Linked Trade\",\"type\":\"text\",\"source\":\"financial_derived\",\"value\":null},{\"id\":\"builtin:thesis_status\",\"name\":\"Thesis Status\",\"type\":\"select\",\"source\":\"user_set\",\"options\":[{\"id\":\"watching\",\"label\":\"Watching\",\"color\":\"blue\"},{\"id\":\"active\",\"label\":\"Active\",\"color\":\"green\"},{\"id\":\"invalidated\",\"label\":\"Invalidated\",\"color\":\"red\"},{\"id\":\"closed\",\"label\":\"Closed\",\"color\":\"gray\"}],\"value\":null},{\"id\":\"builtin:confidence\",\"name\":\"Confidence\",\"type\":\"select\",\"source\":\"user_set\",\"options\":[{\"id\":\"low\",\"label\":\"Low\",\"color\":\"gray\"},{\"id\":\"medium\",\"label\":\"Medium\",\"color\":\"amber\"},{\"id\":\"high\",\"label\":\"High\",\"color\":\"green\"}],\"value\":null},{\"id\":\"builtin:research_type\",\"name\":\"Research Type\",\"type\":\"select\",\"source\":\"user_set\",\"options\":[{\"id\":\"long_thesis\",\"label\":\"Long Thesis\",\"color\":\"green\"},{\"id\":\"short_thesis\",\"label\":\"Short Thesis\",\"color\":\"red\"},{\"id\":\"earnings_play\",\"label\":\"Earnings Play\",\"color\":\"amber\"},{\"id\":\"sector_note\",\"label\":\"Sector Note\",\"color\":\"blue\"},{\"id\":\"watchlist_note\",\"label\":\"Watchlist Note\",\"color\":\"gray\"}],\"value\":null},{\"id\":\"builtin:review_date\",\"name\":\"Review Date\",\"type\":\"date\",\"source\":\"user_set\",\"value\":null},{\"id\":\"builtin:note_kind\",\"name\":\"Kind of note\",\"type\":\"select\",\"source\":\"user_set\",\"options\":[{\"id\":\"trade_plan\",\"label\":\"Trade plan\",\"color\":\"gray\"},{\"id\":\"daily_prep\",\"label\":\"Daily prep\",\"color\":\"gray\"},{\"id\":\"weekend_prep\",\"label\":\"Weekend prep\",\"color\":\"gray\"},{\"id\":\"earnings\",\"label\":\"Earnings\",\"color\":\"gray\"},{\"id\":\"post_trade_review\",\"label\":\"Post-trade review\",\"color\":\"gray\"},{\"id\":\"weekly_review\",\"label\":\"Weekly review\",\"color\":\"gray\"},{\"id\":\"thesis\",\"label\":\"Thesis\",\"color\":\"gray\"},{\"id\":\"watchlist_note\",\"label\":\"Watchlist note\",\"color\":\"gray\"}],\"value\":null},{\"id\":\"builtin:regime_at_write\",\"name\":\"Regime when written\",\"type\":\"select\",\"source\":\"captured\",\"options\":[{\"id\":\"green\",\"label\":\"Green\",\"color\":\"green\"},{\"id\":\"amber\",\"label\":\"Yellow\",\"color\":\"amber\"},{\"id\":\"orange\",\"label\":\"Orange\",\"color\":\"amber\"},{\"id\":\"red\",\"label\":\"Red\",\"color\":\"red\"}],\"value\":null}]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.216
+  },
+  {
+   "i": 14,
+   "t_sent": 1792116801.882,
+   "method": "GET",
+   "url": "/api/j2/notes?sort=updated",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.229,
+   "response": "{\"notes\":[{\"id\":\"8bd4f27cfdc343cab0a48394f6896627\",\"userId\":\"f37454af-b72d-4883-a6a6-5a516001ca64\",\"accountId\":null,\"folderId\":null,\"title\":\"Reminder walk 1280\",\"subtitle\":null,\"bodyPlain\":\"Reminder walk 1280\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-16T02:13:20.745062+00:00\",\"updatedAt\":\"2026-10-16T02:13:20.745062+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"propertiesJson\":{}}],\"total\":1,\"limit\":100,\"offset\":0}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.228
+  },
+  {
+   "i": 15,
+   "t_sent": 1792116801.882,
+   "method": "GET",
+   "url": "/api/j2/notes?sort=title",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.234,
+   "response": "{\"notes\":[{\"id\":\"8bd4f27cfdc343cab0a48394f6896627\",\"userId\":\"f37454af-b72d-4883-a6a6-5a516001ca64\",\"accountId\":null,\"folderId\":null,\"title\":\"Reminder walk 1280\",\"subtitle\":null,\"bodyPlain\":\"Reminder walk 1280\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-16T02:13:20.745062+00:00\",\"updatedAt\":\"2026-10-16T02:13:20.745062+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"propertiesJson\":{}}],\"total\":1,\"limit\":100,\"offset\":0}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.233
+  },
+  {
+   "i": 16,
+   "t_sent": 1792116802.124,
+   "method": "GET",
+   "url": "/api/j2/notes/8bd4f27cfdc343cab0a48394f6896627/trade-ref/resolve",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.34,
+   "response": "{\"links\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.34
+  },
+  {
+   "i": 17,
+   "t_sent": 1792116802.125,
+   "method": "GET",
+   "url": "/api/j2/notes/8bd4f27cfdc343cab0a48394f6896627/backlinks",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.372,
+   "response": "{\"count\":0,\"notes\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.372
+  },
+  {
+   "i": 18,
+   "t_sent": 1792116802.125,
+   "method": "GET",
+   "url": "/api/j2/notes/8bd4f27cfdc343cab0a48394f6896627/related-from",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.38,
+   "response": "{\"count\":0,\"notes\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.38
+  },
+  {
+   "i": 19,
+   "t_sent": 1792116802.125,
+   "method": "GET",
+   "url": "/api/j2/notes/8bd4f27cfdc343cab0a48394f6896627/unlinked-mentions",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.39,
+   "response": "{\"title\":\"Reminder walk 1280\",\"count\":0,\"notes\":[],\"skipped\":null}",
+   "response_rev": {
+    "title": "Reminder walk 1280"
+   },
+   "failure": null,
+   "t_resp": 1792116802.388
+  },
+  {
+   "i": 20,
+   "t_sent": 1792116802.159,
+   "method": "POST",
+   "url": "/api/j2/notes/8bd4f27cfdc343cab0a48394f6896627/opened",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.449,
+   "response": "{\"ok\":true}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.39
+  },
+  {
+   "i": 21,
+   "t_sent": 1792116802.39,
+   "method": "GET",
+   "url": "/api/j2/notes/recents",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116802.408,
+   "response": "{\"notes\":[{\"id\":\"8bd4f27cfdc343cab0a48394f6896627\",\"userId\":\"f37454af-b72d-4883-a6a6-5a516001ca64\",\"accountId\":null,\"folderId\":null,\"title\":\"Reminder walk 1280\",\"subtitle\":null,\"bodyPlain\":\"Reminder walk 1280\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-16T02:13:20.745062+00:00\",\"updatedAt\":\"2026-10-16T02:13:20.745062+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"propertiesJson\":{}}]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116802.408
+  },
+  {
+   "i": 22,
+   "t_sent": 1792116804.235,
+   "method": "PUT",
+   "url": "/api/j2/notes/8bd4f27cfdc343cab0a48394f6896627",
+   "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Reminder walk 1280\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"abX cd\"}]}]},\"baseUpdatedAt\":\"2026-10-16T02:13:20.745062+00:00\"}",
+   "request_rev": {
+    "baseUpdatedAt": "2026-10-16T02:13:20.745062+00:00"
+   },
+   "status": 200,
+   "t_done": 1792116804.26,
+   "response": "{\"note\":{\"id\":\"8bd4f27cfdc343cab0a48394f6896627\",\"userId\":\"f37454af-b72d-4883-a6a6-5a516001ca64\",\"accountId\":null,\"folderId\":null,\"title\":\"Reminder walk 1280\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Reminder walk 1280\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"abX cd\"}]}]},\"bodyPlain\":\"Reminder walk 1280 abX cd\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-16T02:13:20.745062+00:00\",\"updatedAt\":\"2026-10-16T02:13:24.249317+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{},\"styleId\":null,\"styleVersion\":null,\"kindId\":null}}",
+   "response_rev": {
+    "updatedAt": "2026-10-16T02:13:24.249317+00:00",
+    "title": "Reminder walk 1280",
+    "id": "8bd4f27cfdc343cab0a48394f6896627"
+   },
+   "failure": null,
+   "t_resp": 1792116804.26
+  },
+  {
+   "i": 23,
+   "t_sent": 1792116804.934,
+   "method": "GET",
+   "url": "/api/j2/notes/folder-counts",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116805.004,
+   "response": "{\"counts\":{},\"unfiled\":1,\"total\":1}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116805.004
+  },
+  {
+   "i": 24,
+   "t_sent": 1792116804.934,
+   "method": "GET",
+   "url": "/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116805.035,
+   "response": "{\"notes\":[{\"id\":\"8bd4f27cfdc343cab0a48394f6896627\",\"userId\":\"f37454af-b72d-4883-a6a6-5a516001ca64\",\"accountId\":null,\"folderId\":null,\"title\":\"Reminder walk 1280\",\"subtitle\":null,\"bodyPlain\":\"Reminder walk 1280 abX cd\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-16T02:13:20.745062+00:00\",\"updatedAt\":\"2026-10-16T02:13:24.249317+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"propertiesJson\":{}}],\"total\":1,\"limit\":1,\"offset\":0}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116805.035
+  },
+  {
+   "i": 25,
+   "t_sent": 1792116804.934,
+   "method": "GET",
+   "url": "/api/j2/notes?sort=updated&limit=1&deleted=true",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116805.059,
+   "response": "{\"notes\":[],\"total\":0,\"limit\":1,\"offset\":0}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116805.058
+  },
+  {
+   "i": 26,
+   "t_sent": 1792116804.934,
+   "method": "GET",
+   "url": "/api/j2/notes?folder_id=__archived__&sort=updated&limit=1",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116805.078,
+   "response": "{\"notes\":[],\"total\":0,\"limit\":1,\"offset\":0}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116805.078
+  },
+  {
+   "i": 27,
+   "t_sent": 1792116804.934,
+   "method": "GET",
+   "url": "/api/j2/notes/favorites",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116805.081,
+   "response": "{\"notes\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116805.08
+  },
+  {
+   "i": 28,
+   "t_sent": 1792116804.935,
+   "method": "GET",
+   "url": "/api/j2/notes/recents",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116805.091,
+   "response": "{\"notes\":[{\"id\":\"8bd4f27cfdc343cab0a48394f6896627\",\"userId\":\"f37454af-b72d-4883-a6a6-5a516001ca64\",\"accountId\":null,\"folderId\":null,\"title\":\"Reminder walk 1280\",\"subtitle\":null,\"bodyPlain\":\"Reminder walk 1280 abX cd\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-16T02:13:20.745062+00:00\",\"updatedAt\":\"2026-10-16T02:13:24.249317+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"propertiesJson\":{}}]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116805.091
+  },
+  {
+   "i": 29,
+   "t_sent": 1792116804.935,
+   "method": "GET",
+   "url": "/api/j2/notes/tags",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116805.082,
+   "response": "{\"tags\":[],\"tree\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116805.082
+  },
+  {
+   "i": 30,
+   "t_sent": 1792116804.935,
+   "method": "GET",
+   "url": "/api/j2/notes/connectors/status",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116805.097,
+   "response": "{\"enabled\":false,\"providers\":{\"roam\":{\"configured\":true,\"connectKind\":\"token\",\"connected\":false,\"status\":null,\"accountLabel\":null,\"sources\":[]},\"craft\":{\"configured\":true,\"connectKind\":\"token\",\"connected\":false,\"status\":null,\"accountLabel\":null,\"sources\":[]},\"notion\":{\"configured\":false,\"connectKind\":\"oauth\",\"connected\":false,\"status\":null,\"accountLabel\":null,\"sources\":[]},\"dropbox\":{\"configured\":false,\"connectKind\":\"oauth\",\"connected\":false,\"status\":null,\"accountLabel\":null,\"sources\":[]},\"onenote\":{\"configured\":false,\"connectKind\":\"oauth\",\"connected\":false,\"status\":null,\"accountLabel\":null,\"sources\":[]},\"onedrive\":{\"configured\":false,\"connectKind\":\"oauth\",\"connected\":false,\"status\":null,\"accountLabel\":null,\"sources\":[]},\"obsidian\":{\"configured\":false,\"connectKind\":\"device\",\"connected\":false,\"status\":null,\"accountLabel\":null,\"sources\":[]}}}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116805.097
+  },
+  {
+   "i": 31,
+   "t_sent": 1792116804.935,
+   "method": "GET",
+   "url": "/api/j2/notes/tasks?status=open",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116805.142,
+   "response": "{\"today\":\"2026-10-15\",\"count\":0,\"tasks\":[],\"truncated\":false}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116805.142
+  },
+  {
+   "i": 32,
+   "t_sent": 1792116804.935,
+   "method": "GET",
+   "url": "/api/j2/notes?sort=updated",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116805.189,
+   "response": "{\"notes\":[{\"id\":\"8bd4f27cfdc343cab0a48394f6896627\",\"userId\":\"f37454af-b72d-4883-a6a6-5a516001ca64\",\"accountId\":null,\"folderId\":null,\"title\":\"Reminder walk 1280\",\"subtitle\":null,\"bodyPlain\":\"Reminder walk 1280 abX cd\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-16T02:13:20.745062+00:00\",\"updatedAt\":\"2026-10-16T02:13:24.249317+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"propertiesJson\":{}}],\"total\":1,\"limit\":100,\"offset\":0}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116805.189
+  },
+  {
+   "i": 33,
+   "t_sent": 1792116804.936,
+   "method": "GET",
+   "url": "/api/j2/notes?sort=title",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1792116805.204,
+   "response": "{\"notes\":[{\"id\":\"8bd4f27cfdc343cab0a48394f6896627\",\"userId\":\"f37454af-b72d-4883-a6a6-5a516001ca64\",\"accountId\":null,\"folderId\":null,\"title\":\"Reminder walk 1280\",\"subtitle\":null,\"bodyPlain\":\"Reminder walk 1280 abX cd\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-16T02:13:20.745062+00:00\",\"updatedAt\":\"2026-10-16T02:13:24.249317+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"propertiesJson\":{}}],\"total\":1,\"limit\":100,\"offset\":0}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1792116805.203
+  }
+ ],
+ "events": [
+  {
+   "t_recv": 1792116800.846,
+   "pt": 1792116800841.6,
+   "href": "blank",
+   "k": "init"
+  },
+  {
+   "t_recv": 1792116800.85,
+   "pt": 1792116800848.3,
+   "href": "blank",
+   "k": "life",
+   "ev": "beforeunload",
+   "vis": "visible"
+  },
+  {
+   "t_recv": 1792116800.861,
+   "pt": 1792116800858.5,
+   "href": "blank",
+   "k": "life",
+   "ev": "pagehide",
+   "vis": "visible"
+  },
+  {
+   "t_recv": 1792116800.862,
+   "pt": 1792116800858.7002,
+   "href": "blank",
+   "k": "life",
+   "ev": "visibilitychange",
+   "vis": "hidden"
+  },
+  {
+   "t_recv": 1792116800.863,
+   "pt": 1792116800858.8,
+   "href": "blank",
+   "k": "life",
+   "ev": "unload",
+   "vis": "hidden"
+  },
+  {
+   "t_recv": 1792116800.864,
+   "k": "framenavigated",
+   "url": "http://127.0.0.1:8144/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "main": true
+  },
+  {
+   "t_recv": 1792116800.866,
+   "pt": 1792116800863.5,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "init"
+  },
+  {
+   "t_recv": 1792116800.987,
+   "k": "framenavigated",
+   "url": "http://127.0.0.1:8144/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "main": true
+  },
+  {
+   "t_recv": 1792116802.125,
+   "pt": 1792116802122.3,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "fetch",
+   "method": "POST",
+   "url": "/api/j2/notes/8bd4f27cfdc343cab0a48394f6896627/opened",
+   "keepalive": false,
+   "body": {
+    "nonString": "[object Undefined]"
+   },
+   "stack": [
+    "at window.fetch (<anonymous>:51:56)",
+    "at recordNoteOpened (http://127.0.0.1:8144/assets/index-F8MaTog-.js:10306:3)",
+    "at http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:8110:25",
+    "at commitHookEffectListMount (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:6511:26)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7661:25)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7758:9)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7758:9)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7758:9)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7758:9)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7758:9)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7758:9)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7655:9)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7655:9)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7655:9)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7758:9)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7655:9)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7758:9)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7655:9)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7734:124)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7717:9)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7758:9)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)",
+    "at commitPassiveMountOnFiber (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7758:9)",
+    "at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8144/assets/vendor-react-DehSgxuO.js:7642:9)"
+   ]
+  },
+  {
+   "t_recv": 1792116802.298,
+   "pt": 1792116802297,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "draft",
+   "key": "uct.j2.notedraft.8bd4f27cfdc343cab0a48394f6896627",
+   "d": {
+    "keys": [
+     "title",
+     "subtitle",
+     "bodyJson",
+     "savedAt",
+     "sessionId",
+     "baseUpdatedAt",
+     "writtenSchema"
+    ],
+    "text": "Reminder walk 1280||",
+    "baseUpdatedAt": "2026-10-16T02:13:20.745062+00:00"
+   },
+   "stack": [
+    "at Storage.setItem (<anonymous>:75:47)",
+    "at saveDraftLocally (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:8430:20)",
+    "at Object.scheduleAutosave [as current] (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:8591:5)",
+    "at Object.onUpdate (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:9248:51)",
+    "at Editor.onUpdate (http://127.0.0.1:8144/assets/index-d0HgZRXw.js:12514:82)",
+    "at http://127.0.0.1:8144/assets/index-d0HgZRXw.js:8534:48",
+    "at Array.forEach (<anonymous>)",
+    "at Editor.emit (http://127.0.0.1:8144/assets/index-d0HgZRXw.js:8534:17)"
+   ]
+  },
+  {
+   "t_recv": 1792116802.503,
+   "pt": 1792116802501.1,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "idb",
+   "op": "put",
+   "store": "notes",
+   "db": "uct_notebook_f37454af-b72d-4883-a6a6-5a516001ca64",
+   "arg": {
+    "keys": [
+     "noteId",
+     "title",
+     "subtitle",
+     "bodyJson",
+     "baseUpdatedAt",
+     "generation",
+     "sessionId",
+     "localSavedAt",
+     "dirty",
+     "writtenSchema",
+     "editorLineage",
+     "serverBase"
+    ],
+    "noteId": "8bd4f27cfdc343cab0a48394f6896627",
+    "baseUpdatedAt": "2026-10-16T02:13:20.745062+00:00",
+    "dirty": 1,
+    "generation": 1,
+    "sessionId": "ef3211aa-a16e-473e-96fd-fae1e15e8e53",
+    "localSavedAt": 1792116802500,
+    "text": "Reminder walk 1280||"
+   },
+   "stack": [
+    "at proto.<computed> [as put] (<anonymous>:90:148)",
+    "at stageNoteWithIntent (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:96:9)",
+    "at putNoteWithIntent (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:91:3)",
+    "at persist (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:1281:13)",
+    "at async startWrite (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:40:7)"
+   ]
+  },
+  {
+   "t_recv": 1792116802.504,
+   "pt": 1792116802501.4001,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "idb",
+   "op": "put",
+   "store": "outbox",
+   "db": "uct_notebook_f37454af-b72d-4883-a6a6-5a516001ca64",
+   "arg": {
+    "keys": [
+     "mutationId",
+     "noteId",
+     "kind",
+     "patch",
+     "baseUpdatedAt",
+     "generation",
+     "sessionId",
+     "queuedAt",
+     "writtenSchema"
+    ],
+    "mutationId": "note:8bd4f27cfdc343cab0a48394f6896627",
+    "noteId": "8bd4f27cfdc343cab0a48394f6896627",
+    "kind": "note-update",
+    "baseUpdatedAt": "2026-10-16T02:13:20.745062+00:00",
+    "generation": 1,
+    "sessionId": "ef3211aa-a16e-473e-96fd-fae1e15e8e53",
+    "queuedAt": 1792116802500,
+    "patchKeys": [
+     "title",
+     "subtitle",
+     "bodyJson"
+    ],
+    "patchTitle": "Reminder walk 1280",
+    "text": "Reminder walk 1280||"
+   },
+   "stack": [
+    "at proto.<computed> [as put] (<anonymous>:90:148)",
+    "at stageNoteWithIntent (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:98:12)",
+    "at putNoteWithIntent (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:91:3)",
+    "at persist (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:1281:13)",
+    "at async startWrite (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:40:7)"
+   ]
+  },
+  {
+   "t_recv": 1792116802.62,
+   "pt": 1792116802618.6,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "tr",
+   "docChanged": true,
+   "steps": 1,
+   "meta": [],
+   "text": "Reminder walk 1280|a|"
+  },
+  {
+   "t_recv": 1792116802.621,
+   "pt": 1792116802619.5,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "draft",
+   "key": "uct.j2.notedraft.8bd4f27cfdc343cab0a48394f6896627",
+   "d": {
+    "keys": [
+     "title",
+     "subtitle",
+     "bodyJson",
+     "savedAt",
+     "sessionId",
+     "baseUpdatedAt",
+     "writtenSchema"
+    ],
+    "text": "Reminder walk 1280|a|",
+    "baseUpdatedAt": "2026-10-16T02:13:20.745062+00:00"
+   },
+   "stack": [
+    "at Storage.setItem (<anonymous>:75:47)",
+    "at saveDraftLocally (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:8430:20)",
+    "at Object.scheduleAutosave [as current] (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:8591:5)",
+    "at Object.onUpdate (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:9248:51)",
+    "at Editor.onUpdate (http://127.0.0.1:8144/assets/index-d0HgZRXw.js:12514:82)",
+    "at http://127.0.0.1:8144/assets/index-d0HgZRXw.js:8534:48",
+    "at Array.forEach (<anonymous>)",
+    "at Editor.emit (http://127.0.0.1:8144/assets/index-d0HgZRXw.js:8534:17)"
+   ]
+  },
+  {
+   "t_recv": 1792116802.625,
+   "pt": 1792116802619.7,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "ed.update",
+   "text": "Reminder walk 1280|a|"
+  },
+  {
+   "t_recv": 1792116802.675,
+   "pt": 1792116802673.6,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "tr",
+   "docChanged": true,
+   "steps": 1,
+   "meta": [],
+   "text": "Reminder walk 1280|ab|"
+  },
+  {
+   "t_recv": 1792116802.676,
+   "pt": 1792116802674,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "draft",
+   "key": "uct.j2.notedraft.8bd4f27cfdc343cab0a48394f6896627",
+   "d": {
+    "keys": [
+     "title",
+     "subtitle",
+     "bodyJson",
+     "savedAt",
+     "sessionId",
+     "baseUpdatedAt",
+     "writtenSchema"
+    ],
+    "text": "Reminder walk 1280|ab|",
+    "baseUpdatedAt": "2026-10-16T02:13:20.745062+00:00"
+   },
+   "stack": [
+    "at Storage.setItem (<anonymous>:75:47)",
+    "at saveDraftLocally (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:8430:20)",
+    "at Object.scheduleAutosave [as current] (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:8591:5)",
+    "at Object.onUpdate (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:9248:51)",
+    "at Editor.onUpdate (http://127.0.0.1:8144/assets/index-d0HgZRXw.js:12514:82)",
+    "at http://127.0.0.1:8144/assets/index-d0HgZRXw.js:8534:48",
+    "at Array.forEach (<anonymous>)",
+    "at Editor.emit (http://127.0.0.1:8144/assets/index-d0HgZRXw.js:8534:17)"
+   ]
+  },
+  {
+   "t_recv": 1792116802.678,
+   "pt": 1792116802674.1,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "ed.update",
+   "text": "Reminder walk 1280|ab|"
+  },
+  {
+   "t_recv": 1792116802.736,
+   "pt": 1792116802734.9001,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "tr",
+   "docChanged": true,
+   "steps": 1,
+   "meta": [],
+   "text": "Reminder walk 1280|ab |"
+  },
+  {
+   "t_recv": 1792116802.737,
+   "pt": 1792116802735.3,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "draft",
+   "key": "uct.j2.notedraft.8bd4f27cfdc343cab0a48394f6896627",
+   "d": {
+    "keys": [
+     "title",
+     "subtitle",
+     "bodyJson",
+     "savedAt",
+     "sessionId",
+     "baseUpdatedAt",
+     "writtenSchema"
+    ],
+    "text": "Reminder walk 1280|ab |",
+    "baseUpdatedAt": "2026-10-16T02:13:20.745062+00:00"
+   },
+   "stack": [
+    "at Storage.setItem (<anonymous>:75:47)",
+    "at saveDraftLocally (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:8430:20)",
+    "at Object.scheduleAutosave [as current] (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:8591:5)",
+    "at Object.onUpdate (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:9248:51)",
+    "at Editor.onUpdate (http://127.0.0.1:8144/assets/index-d0HgZRXw.js:12514:82)",
+    "at http://127.0.0.1:8144/assets/index-d0HgZRXw.js:8534:48",
+    "at Array.forEach (<anonymous>)",
+    "at Editor.emit (http://127.0.0.1:8144/assets/index-d0HgZRXw.js:8534:17)"
+   ]
+  },
+  {
+   "t_recv": 1792116802.738,
+   "pt": 1792116802735.4001,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "ed.update",
+   "text": "Reminder walk 1280|ab |"
+  },
+  {
+   "t_recv": 1792116802.797,
+   "pt": 1792116802796.3,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "tr",
+   "docChanged": true,
+   "steps": 1,
+   "meta": [],
+   "text": "Reminder walk 1280|ab c|"
+  },
+  {
+   "t_recv": 1792116802.798,
+   "pt": 1792116802796.6,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "draft",
+   "key": "uct.j2.notedraft.8bd4f27cfdc343cab0a48394f6896627",
+   "d": {
+    "keys": [
+     "title",
+     "subtitle",
+     "bodyJson",
+     "savedAt",
+     "sessionId",
+     "baseUpdatedAt",
+     "writtenSchema"
+    ],
+    "text": "Reminder walk 1280|ab c|",
+    "baseUpdatedAt": "2026-10-16T02:13:20.745062+00:00"
+   },
+   "stack": [
+    "at Storage.setItem (<anonymous>:75:47)",
+    "at saveDraftLocally (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:8430:20)",
+    "at Object.scheduleAutosave [as current] (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:8591:5)",
+    "at Object.onUpdate (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:9248:51)",
+    "at Editor.onUpdate (http://127.0.0.1:8144/assets/index-d0HgZRXw.js:12514:82)",
+    "at http://127.0.0.1:8144/assets/index-d0HgZRXw.js:8534:48",
+    "at Array.forEach (<anonymous>)",
+    "at Editor.emit (http://127.0.0.1:8144/assets/index-d0HgZRXw.js:8534:17)"
+   ]
+  },
+  {
+   "t_recv": 1792116802.799,
+   "pt": 1792116802796.7,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "ed.update",
+   "text": "Reminder walk 1280|ab c|"
+  },
+  {
+   "t_recv": 1792116802.846,
+   "pt": 1792116802844.5,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "tr",
+   "docChanged": true,
+   "steps": 1,
+   "meta": [],
+   "text": "Reminder walk 1280|ab cd|"
+  },
+  {
+   "t_recv": 1792116802.847,
+   "pt": 1792116802845,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "draft",
+   "key": "uct.j2.notedraft.8bd4f27cfdc343cab0a48394f6896627",
+   "d": {
+    "keys": [
+     "title",
+     "subtitle",
+     "bodyJson",
+     "savedAt",
+     "sessionId",
+     "baseUpdatedAt",
+     "writtenSchema"
+    ],
+    "text": "Reminder walk 1280|ab cd|",
+    "baseUpdatedAt": "2026-10-16T02:13:20.745062+00:00"
+   },
+   "stack": [
+    "at Storage.setItem (<anonymous>:75:47)",
+    "at saveDraftLocally (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:8430:20)",
+    "at Object.scheduleAutosave [as current] (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:8591:5)",
+    "at Object.onUpdate (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:9248:51)",
+    "at Editor.onUpdate (http://127.0.0.1:8144/assets/index-d0HgZRXw.js:12514:82)",
+    "at http://127.0.0.1:8144/assets/index-d0HgZRXw.js:8534:48",
+    "at Array.forEach (<anonymous>)",
+    "at Editor.emit (http://127.0.0.1:8144/assets/index-d0HgZRXw.js:8534:17)"
+   ]
+  },
+  {
+   "t_recv": 1792116802.848,
+   "pt": 1792116802845,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "ed.update",
+   "text": "Reminder walk 1280|ab cd|"
+  },
+  {
+   "t_recv": 1792116803.063,
+   "pt": 1792116803061.3,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "idb",
+   "op": "put",
+   "store": "notes",
+   "db": "uct_notebook_f37454af-b72d-4883-a6a6-5a516001ca64",
+   "arg": {
+    "keys": [
+     "noteId",
+     "title",
+     "subtitle",
+     "bodyJson",
+     "baseUpdatedAt",
+     "generation",
+     "sessionId",
+     "localSavedAt",
+     "dirty",
+     "writtenSchema",
+     "editorLineage",
+     "serverBase"
+    ],
+    "noteId": "8bd4f27cfdc343cab0a48394f6896627",
+    "baseUpdatedAt": "2026-10-16T02:13:20.745062+00:00",
+    "dirty": 1,
+    "generation": 6,
+    "sessionId": "ef3211aa-a16e-473e-96fd-fae1e15e8e53",
+    "localSavedAt": 1792116803061,
+    "text": "Reminder walk 1280|ab cd|"
+   },
+   "stack": [
+    "at proto.<computed> [as put] (<anonymous>:90:148)",
+    "at stageNoteWithIntent (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:96:9)",
+    "at putNoteWithIntent (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:91:3)",
+    "at persist (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:1281:13)",
+    "at async startWrite (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:40:7)"
+   ]
+  },
+  {
+   "t_recv": 1792116803.064,
+   "pt": 1792116803061.6,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "idb",
+   "op": "put",
+   "store": "outbox",
+   "db": "uct_notebook_f37454af-b72d-4883-a6a6-5a516001ca64",
+   "arg": {
+    "keys": [
+     "mutationId",
+     "noteId",
+     "kind",
+     "patch",
+     "baseUpdatedAt",
+     "generation",
+     "sessionId",
+     "queuedAt",
+     "writtenSchema"
+    ],
+    "mutationId": "note:8bd4f27cfdc343cab0a48394f6896627",
+    "noteId": "8bd4f27cfdc343cab0a48394f6896627",
+    "kind": "note-update",
+    "baseUpdatedAt": "2026-10-16T02:13:20.745062+00:00",
+    "generation": 6,
+    "sessionId": "ef3211aa-a16e-473e-96fd-fae1e15e8e53",
+    "queuedAt": 1792116803061,
+    "patchKeys": [
+     "title",
+     "subtitle",
+     "bodyJson"
+    ],
+    "patchTitle": "Reminder walk 1280",
+    "text": "Reminder walk 1280|ab cd|"
+   },
+   "stack": [
+    "at proto.<computed> [as put] (<anonymous>:90:148)",
+    "at stageNoteWithIntent (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:98:12)",
+    "at putNoteWithIntent (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:91:3)",
+    "at persist (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:1281:13)",
+    "at async startWrite (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:40:7)"
+   ]
+  },
+  {
+   "t_recv": 1792116803.404,
+   "pt": 1792116803403.2,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "tr",
+   "docChanged": false,
+   "steps": 0,
+   "meta": [],
+   "text": "Reminder walk 1280|ab cd|"
+  },
+  {
+   "t_recv": 1792116803.412,
+   "pt": 1792116803411.1,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "tr",
+   "docChanged": true,
+   "steps": 1,
+   "meta": [],
+   "text": "Reminder walk 1280|abX cd|"
+  },
+  {
+   "t_recv": 1792116803.413,
+   "pt": 1792116803411.3,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "draft",
+   "key": "uct.j2.notedraft.8bd4f27cfdc343cab0a48394f6896627",
+   "d": {
+    "keys": [
+     "title",
+     "subtitle",
+     "bodyJson",
+     "savedAt",
+     "sessionId",
+     "baseUpdatedAt",
+     "writtenSchema"
+    ],
+    "text": "Reminder walk 1280|abX cd|",
+    "baseUpdatedAt": "2026-10-16T02:13:20.745062+00:00"
+   },
+   "stack": [
+    "at Storage.setItem (<anonymous>:75:47)",
+    "at saveDraftLocally (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:8430:20)",
+    "at Object.scheduleAutosave [as current] (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:8591:5)",
+    "at Object.onUpdate (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:9248:51)",
+    "at Editor.onUpdate (http://127.0.0.1:8144/assets/index-d0HgZRXw.js:12514:82)",
+    "at http://127.0.0.1:8144/assets/index-d0HgZRXw.js:8534:48",
+    "at Array.forEach (<anonymous>)",
+    "at Editor.emit (http://127.0.0.1:8144/assets/index-d0HgZRXw.js:8534:17)"
+   ]
+  },
+  {
+   "t_recv": 1792116803.413,
+   "pt": 1792116803411.4001,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "ed.update",
+   "text": "Reminder walk 1280|abX cd|"
+  },
+  {
+   "t_recv": 1792116803.622,
+   "pt": 1792116803620.9001,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "idb",
+   "op": "put",
+   "store": "notes",
+   "db": "uct_notebook_f37454af-b72d-4883-a6a6-5a516001ca64",
+   "arg": {
+    "keys": [
+     "noteId",
+     "title",
+     "subtitle",
+     "bodyJson",
+     "baseUpdatedAt",
+     "generation",
+     "sessionId",
+     "localSavedAt",
+     "dirty",
+     "writtenSchema",
+     "editorLineage",
+     "serverBase"
+    ],
+    "noteId": "8bd4f27cfdc343cab0a48394f6896627",
+    "baseUpdatedAt": "2026-10-16T02:13:20.745062+00:00",
+    "dirty": 1,
+    "generation": 7,
+    "sessionId": "ef3211aa-a16e-473e-96fd-fae1e15e8e53",
+    "localSavedAt": 1792116803620,
+    "text": "Reminder walk 1280|abX cd|"
+   },
+   "stack": [
+    "at proto.<computed> [as put] (<anonymous>:90:148)",
+    "at stageNoteWithIntent (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:96:9)",
+    "at putNoteWithIntent (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:91:3)",
+    "at persist (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:1281:13)",
+    "at async startWrite (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:40:7)"
+   ]
+  },
+  {
+   "t_recv": 1792116803.623,
+   "pt": 1792116803621.1,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "idb",
+   "op": "put",
+   "store": "outbox",
+   "db": "uct_notebook_f37454af-b72d-4883-a6a6-5a516001ca64",
+   "arg": {
+    "keys": [
+     "mutationId",
+     "noteId",
+     "kind",
+     "patch",
+     "baseUpdatedAt",
+     "generation",
+     "sessionId",
+     "queuedAt",
+     "writtenSchema"
+    ],
+    "mutationId": "note:8bd4f27cfdc343cab0a48394f6896627",
+    "noteId": "8bd4f27cfdc343cab0a48394f6896627",
+    "kind": "note-update",
+    "baseUpdatedAt": "2026-10-16T02:13:20.745062+00:00",
+    "generation": 7,
+    "sessionId": "ef3211aa-a16e-473e-96fd-fae1e15e8e53",
+    "queuedAt": 1792116803620,
+    "patchKeys": [
+     "title",
+     "subtitle",
+     "bodyJson"
+    ],
+    "patchTitle": "Reminder walk 1280",
+    "text": "Reminder walk 1280|abX cd|"
+   },
+   "stack": [
+    "at proto.<computed> [as put] (<anonymous>:90:148)",
+    "at stageNoteWithIntent (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:98:12)",
+    "at putNoteWithIntent (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:91:3)",
+    "at persist (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:1281:13)",
+    "at async startWrite (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:40:7)"
+   ]
+  },
+  {
+   "t_recv": 1792116804.228,
+   "pt": 1792116804226.7,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "idb",
+   "op": "put",
+   "store": "meta",
+   "db": "uct_notebook_f37454af-b72d-4883-a6a6-5a516001ca64",
+   "arg": {
+    "keys": [
+     "name",
+     "value"
+    ],
+    "name": "inflight:8bd4f27cfdc343cab0a48394f6896627",
+    "valueKeys": [
+     "sessionId",
+     "startedAt",
+     "baseUpdatedAt"
+    ]
+   },
+   "stack": [
+    "at proto.<computed> [as put] (<anonymous>:90:148)",
+    "at putMeta (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:162:30)",
+    "at beginInFlightSave (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:1052:11)"
+   ]
+  },
+  {
+   "t_recv": 1792116804.234,
+   "pt": 1792116804232.7,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "fetch",
+   "method": "PUT",
+   "url": "/api/j2/notes/8bd4f27cfdc343cab0a48394f6896627",
+   "keepalive": false,
+   "body": {
+    "keys": [
+     "baseUpdatedAt",
+     "bodyJson"
+    ],
+    "baseUpdatedAt": "2026-10-16T02:13:20.745062+00:00",
+    "text": "Reminder walk 1280|abX cd|"
+   },
+   "stack": [
+    "at window.fetch (<anonymous>:51:56)",
+    "at update (http://127.0.0.1:8144/assets/index-F8MaTog-.js:10167:25)",
+    "at async Object.commitSave (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:9645:17)"
+   ]
+  },
+  {
+   "t_recv": 1792116804.261,
+   "pt": 1792116804260.2,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "idb",
+   "op": "put",
+   "store": "meta",
+   "db": "uct_notebook_f37454af-b72d-4883-a6a6-5a516001ca64",
+   "arg": {
+    "keys": [
+     "name",
+     "value"
+    ],
+    "name": "landed:8bd4f27cfdc343cab0a48394f6896627",
+    "valueKeys": [
+     "0"
+    ]
+   },
+   "stack": [
+    "at proto.<computed> [as put] (<anonymous>:90:148)",
+    "at putMeta (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:162:30)",
+    "at recordLandedRevision (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:1084:11)",
+    "at async update (http://127.0.0.1:8144/assets/index-F8MaTog-.js:10180:7)",
+    "at async Object.commitSave (http://127.0.0.1:8144/assets/NotebookFlagGate-pjQiilL4.js:9645:17)"
+   ]
+  },
+  {
+   "t_recv": 1792116804.269,
+   "pt": 1792116804267.4001,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "idb",
+   "op": "put",
+   "store": "notes",
+   "db": "uct_notebook_f37454af-b72d-4883-a6a6-5a516001ca64",
+   "arg": {
+    "keys": [
+     "noteId",
+     "title",
+     "subtitle",
+     "bodyJson",
+     "baseUpdatedAt",
+     "generation",
+     "sessionId",
+     "localSavedAt",
+     "dirty",
+     "writtenSchema",
+     "editorLineage",
+     "serverBase"
+    ],
+    "noteId": "8bd4f27cfdc343cab0a48394f6896627",
+    "baseUpdatedAt": "2026-10-16T02:13:24.249317+00:00",
+    "dirty": 0,
+    "generation": 8,
+    "sessionId": "ef3211aa-a16e-473e-96fd-fae1e15e8e53",
+    "localSavedAt": 1792116804267,
+    "text": "Reminder walk 1280|abX cd|"
+   },
+   "stack": [
+    "at proto.<computed> [as put] (<anonymous>:90:148)",
+    "at stageNoteWithIntent (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:96:9)",
+    "at putNoteWithIntent (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:91:3)",
+    "at persist (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:1281:13)",
+    "at async startWrite (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:40:7)"
+   ]
+  },
+  {
+   "t_recv": 1792116804.27,
+   "pt": 1792116804268,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "idb",
+   "op": "put",
+   "store": "notes",
+   "db": "uct_notebook_f37454af-b72d-4883-a6a6-5a516001ca64",
+   "arg": {
+    "keys": [
+     "noteId",
+     "title",
+     "subtitle",
+     "bodyJson",
+     "baseUpdatedAt",
+     "generation",
+     "sessionId",
+     "localSavedAt",
+     "dirty",
+     "serverBase",
+     "writtenSchema",
+     "editorLineage"
+    ],
+    "noteId": "8bd4f27cfdc343cab0a48394f6896627",
+    "baseUpdatedAt": "2026-10-16T02:13:24.249317+00:00",
+    "dirty": 0,
+    "generation": 7,
+    "sessionId": "ef3211aa-a16e-473e-96fd-fae1e15e8e53",
+    "localSavedAt": 1792116804267,
+    "text": "Reminder walk 1280|abX cd|"
+   },
+   "stack": [
+    "at proto.<computed> [as put] (<anonymous>:90:148)",
+    "at stageNoteWithIntent (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:96:9)",
+    "at putNoteWithIntent (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:91:3)",
+    "at settleLandedSave (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:1166:11)"
+   ]
+  },
+  {
+   "t_recv": 1792116804.273,
+   "pt": 1792116804269.9001,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "idb",
+   "op": "cursor.delete",
+   "store": "outbox",
+   "arg": {
+    "keys": [
+     "mutationId",
+     "noteId",
+     "kind",
+     "patch",
+     "baseUpdatedAt",
+     "generation",
+     "sessionId",
+     "queuedAt",
+     "writtenSchema"
+    ],
+    "mutationId": "note:8bd4f27cfdc343cab0a48394f6896627",
+    "noteId": "8bd4f27cfdc343cab0a48394f6896627",
+    "kind": "note-update",
+    "baseUpdatedAt": "2026-10-16T02:13:20.745062+00:00",
+    "generation": 7,
+    "sessionId": "ef3211aa-a16e-473e-96fd-fae1e15e8e53",
+    "queuedAt": 1792116803620,
+    "patchKeys": [
+     "title",
+     "subtitle",
+     "bodyJson"
+    ],
+    "patchTitle": "Reminder walk 1280",
+    "text": "Reminder walk 1280|abX cd|"
+   },
+   "stack": [
+    "at IDBCursor.delete (<anonymous>:101:217)",
+    "at cursorReq.onsuccess (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:106:19)"
+   ]
+  },
+  {
+   "t_recv": 1792116804.275,
+   "pt": 1792116804273.9001,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "idb",
+   "op": "put",
+   "store": "meta",
+   "db": "uct_notebook_f37454af-b72d-4883-a6a6-5a516001ca64",
+   "arg": {
+    "keys": [
+     "name",
+     "value"
+    ],
+    "name": "inflight:8bd4f27cfdc343cab0a48394f6896627"
+   },
+   "stack": [
+    "at proto.<computed> [as put] (<anonymous>:90:148)",
+    "at putMeta (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:162:30)",
+    "at settleLandedSave (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:1168:54)"
+   ]
+  },
+  {
+   "t_recv": 1792116804.277,
+   "pt": 1792116804276.2,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "idb",
+   "op": "put",
+   "store": "meta",
+   "db": "uct_notebook_f37454af-b72d-4883-a6a6-5a516001ca64",
+   "arg": {
+    "keys": [
+     "name",
+     "value"
+    ],
+    "name": "landed:8bd4f27cfdc343cab0a48394f6896627",
+    "valueKeys": [
+     "0"
+    ]
+   },
+   "stack": [
+    "at proto.<computed> [as put] (<anonymous>:90:148)",
+    "at putMeta (http://127.0.0.1:8144/assets/offlineFlag-CKrAk5F3.js:162:30)",
+    "at settleLandedSave (http://127.0.0.1:8144/assets/useDurableNote-DFAmZFkS.js:1169:11)"
+   ]
+  },
+  {
+   "t_recv": 1792116804.655,
+   "pt": 1792116804654.3,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "life",
+   "ev": "beforeunload",
+   "vis": "visible"
+  },
+  {
+   "t_recv": 1792116804.664,
+   "pt": 1792116804663.4001,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "life",
+   "ev": "pagehide",
+   "vis": "visible"
+  },
+  {
+   "t_recv": 1792116804.665,
+   "pt": 1792116804663.9001,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "life",
+   "ev": "visibilitychange",
+   "vis": "hidden"
+  },
+  {
+   "t_recv": 1792116804.666,
+   "pt": 1792116804664.2,
+   "href": "/journal/notebook?note=8bd4f27cfdc343cab0a48394f6896627",
+   "k": "life",
+   "ev": "unload",
+   "vis": "hidden"
+  },
+  {
+   "t_recv": 1792116804.667,
+   "k": "framenavigated",
+   "url": "http://127.0.0.1:8144/journal/notebook?view=tasks",
+   "main": true
+  },
+  {
+   "t_recv": 1792116804.674,
+   "pt": 1792116804669.5,
+   "href": "/journal/notebook?view=tasks",
+   "k": "init"
+  },
+  {
+   "t_recv": 1792116804.702,
+   "k": "framenavigated",
+   "url": "http://127.0.0.1:8144/journal/notebook?view=tasks",
+   "main": true
+  },
+  {
+   "t_recv": 1792116804.936,
+   "k": "framenavigated",
+   "url": "http://127.0.0.1:8144/journal/notebook?view=all",
+   "main": true
+  }
+ ],
+ "console": [
+  "1792116801.896 error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "1792116805.21 error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+ ]
+}
