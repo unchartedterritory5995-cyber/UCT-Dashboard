@@ -17,6 +17,7 @@ middleware does not cover /api/admin/wisdom, so the dependency IS the gate):
   GET /setup/{setup}     calls of one setup, best/worst by outcome r20, with the record note
   GET /search?q=         FTS5-ranked records
   GET /stats             counts by author / type / setup
+  GET /desk/{video_id}   a Desk session's ticker moments beside the team's archive calls
 
 MACHINE (`/api/internal/wisdom/archive`, Depends(require_push_secret)):
   POST /batch            {kind: "records"|"calls"|"setups", items: [...]} idempotent upsert
@@ -111,6 +112,22 @@ def archive_search(q: str = Query("", max_length=200), limit: int = Query(50, ge
 def archive_stats(_admin: dict = Depends(require_admin)) -> dict:
     _require_enabled()
     return _read(service.stats)
+
+
+@router.get("/desk/{video_id}")
+def archive_desk_links(video_id: int, _admin: dict = Depends(require_admin)) -> dict:
+    """A Desk session's ticker moments beside the team's archive calls (ADMIN ONLY).
+
+    Computed on read; nothing is written back to the session, so no archive data can reach
+    the public outputs that read its stored ticker moments (§0.4g)."""
+    _require_enabled()
+    from api.services import education_service
+    from api.services.wisdom.archive import desk_links
+
+    video = education_service.get_video(video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="Not Found")
+    return _read(desk_links.links, video)
 
 
 # ── member reads (require_paid) ──────────────────────────────────────────────
