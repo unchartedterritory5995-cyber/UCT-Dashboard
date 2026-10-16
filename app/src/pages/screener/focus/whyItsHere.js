@@ -3,7 +3,7 @@
 // (scan joins, logic trees, ranks, field-to-field, structure contains) is a
 // plain sentence. Never a ✓ we cannot back with the row's own value.
 import { chipLabel } from '../chipLabel'
-import { plainColumnLabel, structureSentence, lowerOperator } from './plainWords'
+import { plainColumnLabel, structureSentence, patternEngineSentence, lowerOperator } from './plainWords'
 import { sessionCloseLabel } from './dates'
 
 export const NOT_CHECKABLE_KEYS = new Set([
@@ -92,6 +92,11 @@ function noteLabel(key, def, spec) {
   const preset = (def.presets || []).find(o => o.op === spec.op && o.value === spec.value && o.label && o.label !== 'Any')
   if (key === 'base_structure' && preset) {
     return structureSentence(preset.label)
+  }
+  // The engine's verdict, not the row's structure: the setup line beside this strip names the
+  // base read, which can call the same stock something else (or nothing).
+  if (key === 'pattern_engine_id' && spec.op === 'contains') {
+    return patternEngineSentence(preset?.label, spec.value)
   }
   return chip && chip !== def.label ? compactDigits(chip) : `Matches ${def.label}`
 }

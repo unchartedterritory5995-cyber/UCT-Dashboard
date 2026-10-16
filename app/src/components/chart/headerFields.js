@@ -13,7 +13,7 @@
 // under `<colorKey>:pos` / `<colorKey>:neg` in header.colors, defaulting to green / red.
 
 import { formatCompact } from '../../lib/presentation/presentationPrimitives'
-import { liveShare, rvolByNow } from '../../lib/volumeCurve'
+import { RVOL_TOOLTIP, formatRvol, rvolForSymbol } from '../../lib/volumeCurve'
 
 // `short` is the abbreviated label shown when the pane narrows enough that the
 // info row would collide with the timeframe bar (see headerFit.js). Values are
@@ -23,7 +23,7 @@ export const HEADER_FIELDS = [
   { key: 'price', label: 'Price', short: 'PX', colorKey: 'price', dflt: null },
   { key: 'vol', label: 'Volume', short: 'VOL', colorKey: 'vol', dflt: null },
   { key: 'chg', label: '% Change', short: '%CHG', colorKey: 'chg', dflt: null, signed: true },
-  { key: 'rvol', label: 'RVOL', short: 'RVOL', colorKey: 'rvol', dflt: null },
+  { key: 'rvol', label: 'RVOL', short: 'RVOL', colorKey: 'rvol', dflt: null, title: RVOL_TOOLTIP },
   { key: 'ipoDate', label: 'IPO Date', short: 'IPO', colorKey: 'ipoDate', dflt: null },
   // Owner defaults 2026-08-27: Market Cap + Next Earnings share one value color; UCT
   // Rating is the brand gold. (Field TITLES are muted via .chartMetaLabel CSS.)
@@ -57,7 +57,8 @@ export const PERF_HEADER_KEYS = new Set(Object.keys(PERF_HEADER_PERIOD))
 // Which fields need which single-symbol data source (so ChartPane only fetches what's shown).
 export const QUOTE_HEADER_KEYS = new Set(['price', 'chg', 'vol', 'dchg', 'fromopen', 'fromhigh', 'fromlow', 'dcr', 'dolvol', 'rvol'])
 export const META_HEADER_KEYS = new Set(['rvol', 'ipoDate'])
-// Fields that need the market-wide volume curve (GET /api/screener/volume-curve).
+// Fields that need the volume curve (GET /api/screener/volume-curve?tickers=SYM — the
+// symbol's own curve when it has one, the market curve otherwise).
 export const CURVE_HEADER_KEYS = new Set(['rvol'])
 export const THEME_HEADER_KEYS = new Set(['theme'])
 
@@ -116,7 +117,7 @@ function fmtEarn(iso) {
 /** Resolve one field → { value, color }. `color` is set only for sign-tinted fields;
  *  ChartPane applies the per-field default/override otherwise. */
 export function resolveHeaderField(key, ctx) {
-  const { fund, quote, meta, perf, theme, name, isFundLike, volCurve, now } = ctx || {}
+  const { fund, quote, meta, perf, theme, name, isFundLike, volCurve, now, sym } = ctx || {}
   const q = quote || {}
   const m = meta || {}
   const p = q.price
@@ -158,13 +159,14 @@ export function resolveHeaderField(key, ctx) {
       return { value: num(v) ? `${v.toFixed(0)}%` : null }
     }
     // Volume vs usual BY NOW — the screener's live `rvol_live`, same formula and same
-    // inputs: today's volume over (30-session average × the share of a normal day the
-    // market has usually traded by this minute). Blank before 9:45 ET, outside the
-    // session, or with no stored curve: today-so-far over a FULL-day average reads ~0.8x
-    // at 10:00 for a 3x name, so the raw ratio is not shown in its place.
+    // inputs: today's volume over (30-session average × the share of a normal day THIS
+    // stock — or, without its own curve, the market — has usually traded by this minute).
+    // Blank before 9:45 ET, outside the session, or with no stored curve: today-so-far
+    // over a FULL-day average reads ~0.8x at 10:00 for a 3x name, so the raw ratio is not
+    // shown in its place.
     case 'rvol': {
-      const r = rvolByNow(q.volume, m.avg_vol_30d, liveShare(volCurve, now || new Date()))
-      return { value: num(r) ? `${r.toFixed(1)}x` : null }
+      const r = rvolForSymbol(volCurve, sym, q.volume, m.avg_vol_30d, now || new Date())
+      return { value: formatRvol(r) }
     }
     case 'ipoDate': return { value: fmtIpo(m.ipo_date) }
     default:

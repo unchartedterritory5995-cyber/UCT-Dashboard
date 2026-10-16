@@ -527,9 +527,10 @@ function ChartPane({
   const { metaData: hdrMeta } = useWatchlistMeta(wantsMeta ? [sym] : [])
   const { themeData: hdrTheme } = useWatchlistThemes(wantsTheme ? [sym] : [])
   const { perfData } = useWatchlistPerformance(wantsPerf ? [sym] : [])
-  const volCurve = useVolumeCurve(wantsCurve)
+  // One request per chart symbol (its own curve rides the market one), never per tick.
+  const volCurve = useVolumeCurve(wantsCurve, wantsCurve ? [sym] : [])
   const metaItems = useMemo(() => {
-    const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike, volCurve }
+    const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike, volCurve, sym }
     return infoFieldKeys.map((key) => {
       const f = HEADER_FIELD_BY_KEY[key]
       if (!f) return null
@@ -543,7 +544,7 @@ function ChartPane({
       } else {
         finalColor = (f.colorKey ? hdrColors[f.colorKey] : null) || color || f.dflt || null
       }
-      return { key, label: f.label, short: f.short || f.label, value, color: finalColor }
+      return { key, label: f.label, short: f.short || f.label, title: f.title, value, color: finalColor }
     }).filter(Boolean)
   }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym, companyName, isFundLike, volCurve])
 
