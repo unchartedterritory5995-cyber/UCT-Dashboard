@@ -38,11 +38,11 @@ import { offlineEnabled } from './offlineFlag'
 import {
   chooseLocalRecovery, newSessionId, sameAuthoredContent, discardsUnsentWork,
   editorStateDiscardsUnsentWork, queuedWorkToAdopt, baseOfRecovered,
-  editorLineageStamp, editorLineageSupersedes, keepDisplacedWords,
+  editorLineageStamp, editorLineageSupersedes,
 } from './recoverLocalState'
 import { settleForkedNote } from './outboxDrain'
 import { lastKnownServerCopy, snapshotOfServerCopy } from './serverChange'
-import { usableBaseline, isUsableBaseline, isSupersededBaseline } from './baseline'
+import { usableBaseline, isUsableBaseline } from './baseline'
 import { holdNoteOwnerLock } from './noteOwnerLock'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../notebookTelemetry'
 
@@ -632,29 +632,13 @@ export function useDurableNote({
       // mid-text edit, an insert before existing text or a deletion made by the
       // same live view supersedes the record it wrote earlier instead of being
       // refused as a discard (the note above `authoredDigest`).
-      const incoming = {
+      const unsentWork = editorStateDiscardsUnsentWork(prev, {
         title: state?.title ?? '',
         subtitle: state?.subtitle ?? '',
         bodyJson: state?.bodyJson ?? null,
         editLineage: state?.editLineage,
-      }
-      const unsentWork = editorStateDiscardsUnsentWork(prev, incoming)
-      // ⭐⭐ I-A (2026-10-16): an Undo or Redo across a crash-draft Restore hands
-      // the page it pushed off (`displaced`). When no layer would hold those words
-      // after this write, the record holds them and the page (the crash draft)
-      // holds the record's — see the note above `keepDisplacedWords`.
-      const displaced = keepDisplacedWords(prev, incoming, state?.displaced) ? state.displaced : null
-      const source = displaced || (unsentWork ? prev : state)
-      // ⛔ Displaced words travel on the OLDER of the two baselines (the record's
-      // own while it is dirty, and the one they were captured on): an older base
-      // can only 409 more often, never land over a door's append it never saw.
-      const keepPrevBase = Boolean(displaced) && Boolean(prev?.dirty)
-        && isUsableBaseline(prev.baseUpdatedAt)
-        && (!isUsableBaseline(displaced.baseUpdatedAt)
-          || usableBaseline(prev.baseUpdatedAt) === usableBaseline(displaced.baseUpdatedAt)
-          || isSupersededBaseline(prev.baseUpdatedAt, displaced.baseUpdatedAt))
-      let baseFrom = unsentWork ? prev?.baseUpdatedAt : state?.baseUpdatedAt
-      if (displaced) baseFrom = keepPrevBase ? prev.baseUpdatedAt : displaced.baseUpdatedAt
+      })
+      const source = unsentWork ? prev : state
       const record = {
         noteId,
         title: source?.title ?? '',
@@ -663,14 +647,16 @@ export function useDurableNote({
         // ⛔ The baseline does NOT move while work is unsent. Moving it is
         // precisely what lets `landedBaseline` hand the drain a "newer landed
         // save" whose contents nobody checked.
-        baseUpdatedAt: usableBaseline(baseFrom),
+        baseUpdatedAt: usableBaseline(
+          unsentWork ? prev?.baseUpdatedAt : state?.baseUpdatedAt,
+        ),
         generation,
         sessionId: SESSION_ID,
         localSavedAt: Date.now(),
         // ⛔ 0/1, not a boolean — IndexedDB cannot index a boolean, and
         // `byDirty` exists so a reconnect can find unsynced work without
         // reading every note.
-        dirty: (state?.synced && !unsentWork && !displaced) ? 0 : 1,
+        dirty: (state?.synced && !unsentWork) ? 0 : 1,
         // ⛔⛔ B1: the level of the editor that WROTE these words, taken from
         // the SAME place as the words. When fix 6 keeps `prev`, the stamp is
         // prev's: the editor's snapshot stamp on an old bundle's words is the
@@ -681,23 +667,15 @@ export function useDurableNote({
       // stamp: `prev`'s own when fix 6 keeps `prev`'s words, the capture's when the
       // editor's words are written. Absent (a door's or `discardDraft`'s server
       // copy) claims nothing.
-      let lineageStamp = unsentWork
+      const lineageStamp = unsentWork
         ? prev?.editorLineage
         : editorLineageStamp(record, state?.editLineage)
-      // I-A: displaced words carry the lineage of the page they were captured
-      // from, so a keystroke on the page the Undo brought back never supersedes them.
-      if (displaced) lineageStamp = editorLineageStamp(record, displaced.editLineage)
       if (lineageStamp) record.editorLineage = lineageStamp
       // ⛔ `null` when clean — a clean record IS the base and a second copy of
-      // one value is a second authority over it. Displaced words keep the copy
-      // that matches the baseline chosen above.
-      let serverBase = null
-      if (record.dirty) {
-        serverBase = displaced && !keepPrevBase
-          ? (snapshotOfServerCopy(displaced.serverBase) || lastKnownServerCopy(prev))
-          : (lastKnownServerCopy(prev) || snapshotOfServerCopy((displaced || state)?.serverBase))
-      }
-      record.serverBase = serverBase
+      // one value is a second authority over it.
+      record.serverBase = record.dirty
+        ? (lastKnownServerCopy(prev) || snapshotOfServerCopy(state?.serverBase))
+        : null
       const intent = record.dirty
         ? {
           mutationId: outboxIdFor(noteId),

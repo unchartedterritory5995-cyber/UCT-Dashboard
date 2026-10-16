@@ -194,51 +194,6 @@ export function editorStateDiscardsUnsentWork(prev, incoming) {
 }
 
 /**
- * ⭐⭐ I-A (2026-10-16) — WORDS AN UNDO PUSHES OFF THE PAGE, WHEN NO LAYER HOLDS THEM.
- *
- * ⚰️ MEASURED (`restoreUndoKeepsWords.test.jsx`, RED on the hotfix tip AND on
- * master; raw logs in `docs/notebook/evidence/restore-undo-20261016T040937Z/`).
- * Offline: the member types in the open note (the record now holds those words,
- * dirty), presses Restore on a crash draft, and undoes past the Restore. When the
- * restored words were captured, `editorStateDiscardsUnsentWork` kept the OLDER
- * record (another lineage, and the draft does not contain the old view's words) —
- * correctly, both copies must survive — so the restored words lived ONLY on the
- * page and in the crash draft. The crash draft mirrors the page, so the Undo's own
- * capture overwrote the only copy: not the server, not the record, not the queue,
- * not the draft, not a fork.
- *
- * ⭐ THE TWO SLOTS, AND WHY SWAPPING WHAT THEY HOLD LOSES NOTHING. The record holds
- * one body; the crash draft holds whatever is on the page. After an Undo past a
- * Restore the page shows the pre-Restore view, and the capture of it is about to
- * become the record exactly when it carries the record's words (that is what
- * "not a discard" means here). So the record's words are on the page and in the
- * crash draft already, and the record is free to hold the words the Undo pushed
- * off the page. Both survive; the next keystroke on either side only adds.
- *
- * ⛔ WHAT IT DOES NOT DO — each keeps today's answer:
- *   · the displaced words are the server's last-known copy (already on the server);
- *   · the page still carries them (the crash draft has them);
- *   · the record is KEEPING older words the page does not carry
- *     (`editorStateDiscardsUnsentWork` true). Swapping then would drop those, so
- *     nothing changes.
- * ⛔ AND IT IS ONLY ASKED ABOUT AN UNDO OR REDO THAT CROSSES A CRASH-DRAFT RESTORE
- * (the editor hands `displaced` for nothing else). An Undo of the member's own
- * typing is the member removing it; keeping it queued would make a spurious
- * `(conflicted copy)` out of every quick Undo.
- *
- * @param prev       the durable record as the store holds it, or null
- * @param incoming   the capture about to be written (the page after the Undo)
- * @param displaced  the page BEFORE the Undo, as the editor captured it, or null
- * @returns true when the record must hold `displaced` instead of `incoming`
- */
-export function keepDisplacedWords(prev, incoming, displaced) {
-  if (!displaced) return false
-  if (displaced.serverBase && sameAuthoredContent(displaced, displaced.serverBase)) return false
-  if (authoredText(incoming).includes(authoredText(displaced))) return false
-  return !editorStateDiscardsUnsentWork(prev, incoming)
-}
-
-/**
  * ⭐⭐ HOTFIX 2026-10-15 — THE EDITOR'S OWN NEWER STATE IS NOT "A COPY THAT NEVER
  * SAW THE WORDS". WHERE THE WORDS CAME FROM DECIDES IT, NOT WHETHER ONE STRING
  * HOLDS THE OTHER.

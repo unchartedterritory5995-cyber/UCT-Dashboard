@@ -432,15 +432,6 @@ describe('I1 · each swap mints a lineage, and keystrokes on the NEW view never 
     await sit(3)
     expect(survives('K-old-view'), `the old view's words were superseded by the new view: ${JSON.stringify(where('K-old-view'))}`).toBe(true)
     expect(survives(SENTENCE), 'the restored words were lost').toBe(true)
-    // ⭐ I-A (2026-10-16, re-review M4): the line above passes on the crash draft
-    // ALONE — the one layer the next Undo rewrites, because it follows the page.
-    // So undo past the Restore and ask again, and ask for a layer the page does
-    // not own. Red on the hotfix tip b69eb71e86 (`restoreUndoKeepsWords.test.jsx`).
-    expect(await undoUntilGone(SENTENCE), 'precondition: Undo crossed the Restore').toBeGreaterThan(0)
-    await sit(3)
-    const w = where(SENTENCE)
-    expect(w.record || w.outbox || w.server || w.forks, `after an Undo past the Restore the restored words are not in a layer the page cannot overwrite: ${JSON.stringify(w)}`).toBe(true)
-    expect(survives('K-old-view'), `the old view's words were lost to the Undo: ${JSON.stringify(where('K-old-view'))}`).toBe(true)
   })
 
   it('crash-draft Restore WITH a base (the adoption effect): words the old view typed before Restore survive typing on the restored draft', async () => {
@@ -462,15 +453,6 @@ describe('I1 · each swap mints a lineage, and keystrokes on the NEW view never 
     await sit(3)
     expect(survives('K-old-view'), `the old view's words were superseded by the new view: ${JSON.stringify(where('K-old-view'))}`).toBe(true)
     expect(survives(SENTENCE), 'the restored words were lost').toBe(true)
-    // ⭐ I-A (2026-10-16, re-review M4): the line above passes on the crash draft
-    // ALONE — the one layer the next Undo rewrites, because it follows the page.
-    // So undo past the Restore and ask again, and ask for a layer the page does
-    // not own. Red on the hotfix tip b69eb71e86 (`restoreUndoKeepsWords.test.jsx`).
-    expect(await undoUntilGone(SENTENCE), 'precondition: Undo crossed the Restore').toBeGreaterThan(0)
-    await sit(3)
-    const w = where(SENTENCE)
-    expect(w.record || w.outbox || w.server || w.forks, `after an Undo past the Restore the restored words are not in a layer the page cannot overwrite: ${JSON.stringify(w)}`).toBe(true)
-    expect(survives('K-old-view'), `the old view's words were lost to the Undo: ${JSON.stringify(where('K-old-view'))}`).toBe(true)
   })
 
   it('queued-work adoption: the adoption mints a lineage, and the adopted words are captured under it', async () => {

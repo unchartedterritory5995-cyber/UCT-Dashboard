@@ -1,8 +1,0 @@
-12090
-[offline-0] exit=0 files=12 :: Test Files  12 passed (12) | Tests  213 passed (213)
-[offline-1] exit=0 files=12 :: Test Files  12 passed (12) | Tests  319 passed (319)
-[offline-2] exit=0 files=12 :: Test Files  12 passed (12) | Tests  143 passed (143)
-[offline-3] exit=0 files=12 :: Test Files  12 passed (12) | Tests  135 passed (135)
-EXIT: 0
-
-[exited with code 0]
