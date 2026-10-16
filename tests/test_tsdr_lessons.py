@@ -1,5 +1,6 @@
 """#tsdr video lessons: scan, channel setup, recap/post, YouTube stage, gating.
 Discord, ffmpeg/Whisper, Claude and YouTube are all stubbed."""
+import json
 from datetime import datetime, timezone
 
 import pytest
@@ -155,8 +156,10 @@ def test_channel_override_env(monkeypatch):
 
 # ── recap + post ─────────────────────────────────────────────────────────────
 
-RECAP = {"title": "Wait for the reclaim of the 21 EMA",
-         "recap": "One. Two. Three. Four.", "question": ""}
+RECAP = {"is_lesson": True, "title": "Wait for the reclaim of the 21 EMA",
+         "recap": "One. Two. Three. Four.", "question": "",
+         "takeaway": "Let the stock prove itself first.", "tickers": ["NVDA", "AMD"],
+         "tags": ["entries", "setups"]}
 
 
 def _pipeline(monkeypatch, message, *, transcript="word " * 50, recap=None, seen=None):
@@ -190,8 +193,22 @@ def test_posts_embed_with_jump_link(monkeypatch):
     link = f"https://discord.com/channels/{GUILD}/{TSDR}/{m['id']}"
     assert embed["url"] == link and link in embed["description"]
     assert embed["title"] == RECAP["title"] and "2:05" in embed["footer"]["text"]
+    assert "**Key takeaway:** Let the stock prove itself first." in embed["description"]
+    body = fake.posts("/channels/lessons/messages")[0]
+    assert body["content"] == "Entries · Setups · $NVDA $AMD"
+    assert body["allowed_mentions"] == {"parse": []}
     row = tl.get_lesson("a1")
     assert row["status"] == "posted" and row["discord_post_id"] == "post1"
+    assert json.loads(row["tags"]) == ["entries", "setups"]
+
+
+def test_clip_that_is_not_a_lesson_is_skipped(monkeypatch):
+    m = msg(sf(2026, 10, 15), attachments=[video("nl")])
+    tl.record_message(m, TSDR)
+    fake = _pipeline(monkeypatch, m, recap={"is_lesson": False})
+    assert tl.run_lessons(limit=3, deadline=9e12)["skipped"] == 1
+    assert fake.posts("/channels/lessons/messages") == []
+    assert tl.get_lesson("nl")["last_error"] == "not a lesson"
 
 
 def test_reply_question_passed_in_memory_and_only_paraphrase_stored(monkeypatch):
@@ -259,7 +276,9 @@ def test_generate_recap_validates_and_caps(monkeypatch):
         type = "text"
         text = ('{"title": "Cut losers fast", "recap": "' + " ".join(
             f"Sentence {i}." for i in range(8)) + '", "question_needed": false, '
-            '"question": "ignored"}')
+            '"question": "ignored", "is_lesson": true, "takeaway": "Small losses.", '
+            '"tickers": ["$nvda", "NVDA", "not a ticker", "BRK.B"], '
+            '"tags": ["Risk", "made-up", "risk", "exits"]}')
 
     class Msg:
         stop_reason = "end_turn"
@@ -283,6 +302,9 @@ def test_generate_recap_validates_and_caps(monkeypatch):
     assert out["title"] == "Cut losers fast"
     assert len(tl.split_sentences(out["recap"])) == 6
     assert out["question"] == ""
+    assert out["tickers"] == ["NVDA", "BRK.B"]
+    assert out["tags"] == ["risk", "exits"]
+    assert out["takeaway"] == "Small losses."
     assert sent["model"] == "claude-opus-5-5"
 
 
@@ -294,14 +316,44 @@ def test_youtube_title_fits_and_dates():
     assert len(t) <= 100 and t.endswith("| TSDR 3/9/26")
 
 
-def test_youtube_stage_uploads_unlisted_and_adds_to_library(monkeypatch):
-    m = msg(sf(2026, 10, 15), attachments=[video("y1")])
+def _posted_lesson(monkeypatch, aid, *, post_exists=True):
+    m = msg(sf(2026, 10, 15), attachments=[video(aid)])
     tl.record_message(m, TSDR)
-    tl._update("y1", status="posted", title="Lesson", recap="A. B. C. D.",
-               transcript="the words", duration_s=65.0)
-    monkeypatch.setattr(tl, "_discord", FakeDiscord(
-        {("GET", f"/channels/{TSDR}/messages/{m['id']}"): m}))
+    tl._update(aid, status="posted", title="Lesson", recap="A. B. C. D.",
+               transcript="the words", duration_s=65.0, discord_post_id="lp1",
+               tags=json.dumps(["risk"]), tickers=json.dumps(["SPY"]))
+    monkeypatch.setenv("TSDR_LESSONS_CHANNEL_ID", "lessons")
+
+    def lesson_post(p, b):
+        if not post_exists:
+            raise tl.DiscordError(404, "Unknown Message")
+        return {"id": "lp1"}
+
+    fake = FakeDiscord({
+        ("GET", f"/channels/{TSDR}/messages/{m['id']}"): m,
+        ("GET", "/channels/lessons/messages/lp1"): lesson_post,
+        ("PATCH", "/channels/lessons/messages/lp1"): {"id": "lp1"},
+    })
+    monkeypatch.setattr(tl, "_discord", fake)
     monkeypatch.setattr(tl, "download", lambda url, dest: dest.write_bytes(b"x") or 1)
+    return fake
+
+
+def test_deleting_the_lesson_post_keeps_it_off_youtube(monkeypatch):
+    _posted_lesson(monkeypatch, "y0", post_exists=False)
+    import api.services.youtube_client as ytc
+
+    class YT:
+        def upload(self, *a, **k):
+            raise AssertionError("must not upload")
+
+    monkeypatch.setattr(ytc, "YouTubeClient", YT)
+    assert tl.run_youtube(deadline=9e12)["uploaded"] == 0
+    assert tl.get_lesson("y0")["yt_error"] == "lesson post was deleted in Discord"
+
+
+def test_youtube_stage_uploads_unlisted_and_adds_to_library(monkeypatch):
+    fake = _posted_lesson(monkeypatch, "y1")
     uploads = []
 
     class YT:
@@ -314,6 +366,7 @@ def test_youtube_stage_uploads_unlisted_and_adds_to_library(monkeypatch):
     monkeypatch.setattr(es, "register_category_if_missing", lambda *a, **k: None)
     monkeypatch.setattr(es, "create_video", lambda p: made.update(p) or {"id": 77})
     monkeypatch.setattr(es, "set_video_insights", lambda vid, **kw: made.update(kw))
+    monkeypatch.setattr(es, "set_video_tags", lambda vid, tags: made.update(tags=tags))
     import api.services.youtube_client as ytc
     monkeypatch.setattr(ytc, "YouTubeClient", YT)
     monkeypatch.setenv("TSDR_LESSONS_YT_PER_DAY", "1")
@@ -321,7 +374,12 @@ def test_youtube_stage_uploads_unlisted_and_adds_to_library(monkeypatch):
     assert uploads == ["unlisted"]
     assert made["category"] == "TSDR Lessons" and made["youtube_id"] == "YTID1234567"
     assert made["summary"] == ["A.", "B.", "C.", "D."] and made["duration"] == "1:05"
+    assert made["tags"] == ["risk"]
     assert tl.get_lesson("y1")["edu_video_id"] == 77
+    patch = [c[3] for c in fake.calls if c[0] == "PATCH"][0]
+    assert "[Watch on UCT](https://uctintelligence.com/desk?section=videos&v=YTID1234567)" \
+        in patch["embeds"][0]["description"]
+    assert patch["content"] == "Risk · $SPY"
     assert tl._yt_quota_left() == 0           # daily cap respected
 
 

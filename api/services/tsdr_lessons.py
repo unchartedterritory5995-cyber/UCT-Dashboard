@@ -193,6 +193,9 @@ CREATE TABLE IF NOT EXISTS tsdr_lessons (
   title           TEXT,
   recap           TEXT,
   question        TEXT,                  -- the model's anonymous paraphrase, only when used
+  takeaway        TEXT,
+  tickers         TEXT,                  -- JSON list
+  tags            TEXT,                  -- JSON list, from TAGS
   discord_post_id TEXT,
   lesson_posted_at INTEGER,
   yt_attempts     INTEGER NOT NULL DEFAULT 0,
@@ -513,6 +516,11 @@ def transcribe(video: Path, work: Path) -> tuple[str, float]:
 
 # ── the recap ────────────────────────────────────────────────────────────────
 
+# Lowercase single words, the same shape as the library's existing tags
+# ("earnings", "macro"), so they become Desk > Videos filter chips as-is.
+TAGS = ("setups", "entries", "exits", "risk", "market", "psychology", "process", "review")
+_TICKER = re.compile(r"^[A-Z]{1,5}(?:\.[A-Z])?$")
+
 _SYS = (
     "You write the lesson log for a stock-trading community's Discord. The head trader "
     "records short videos during and after the trading day, and each one becomes a "
@@ -528,6 +536,11 @@ _SYS = (
     "what was asked.\n"
     '  "question": when question_needed, a one-sentence anonymous paraphrase of what the '
     'member asked (never a name or handle); otherwise "".\n'
+    '  "takeaway": ONE short sentence a member should remember and apply.\n'
+    '  "tickers": the stock/ETF symbols actually discussed, uppercase, no "$", at most 8.\n'
+    f'  "tags": 1 to 3 topics, chosen ONLY from: {", ".join(TAGS)}.\n'
+    '  "is_lesson": false when the clip teaches nothing (a joke, a quick "look at this" '
+    "with no explanation, a tech test, an announcement); true otherwise.\n"
     "Rules: ground every claim in the transcript or caption; never invent tickers, prices "
     "or results; no position sizes or share counts; no hype; plain text, no markdown."
 )
@@ -551,7 +564,8 @@ def _parse_json_object(text: str) -> dict:
 
 def generate_recap(*, transcript: str, caption: str, posted: datetime,
                    question: str = "") -> dict:
-    """{title, recap, question} from Claude. Raises on an unusable reply."""
+    """{is_lesson, title, recap, question, takeaway, tickers, tags} from Claude.
+    Raises on an unusable reply."""
     from api.services.engine import _get_anthropic_client
 
     et = posted.astimezone(_ET)
@@ -573,12 +587,50 @@ def generate_recap(*, transcript: str, caption: str, posted: datetime,
         raise ValueError("the model declined to write this recap")
     text = "".join(getattr(b, "text", "") for b in msg.content if getattr(b, "type", "") == "text")
     data = _parse_json_object(text)
+    if data.get("is_lesson") is False:
+        return {"is_lesson": False}
     title = re.sub(r"\s+", " ", str(data.get("title") or "")).strip().strip('"')[:120]
     sentences = split_sentences(str(data.get("recap") or ""))
     if not title or len(sentences) < 3:
         raise ValueError("model reply was missing a title or a recap")
     q = str(data.get("question") or "").strip() if data.get("question_needed") else ""
-    return {"title": title, "recap": " ".join(sentences[:6]), "question": q[:400]}
+    tickers = []
+    for t in data.get("tickers") or []:
+        sym = str(t).strip().lstrip("$").upper()
+        if _TICKER.match(sym) and sym not in tickers:
+            tickers.append(sym)
+    tags = []
+    for t in data.get("tags") or []:
+        tag = str(t).strip().lower()
+        if tag in TAGS and tag not in tags:
+            tags.append(tag)
+    return {"is_lesson": True, "title": title, "recap": " ".join(sentences[:6]),
+            "question": q[:400], "takeaway": str(data.get("takeaway") or "").strip()[:300],
+            "tickers": tickers[:8], "tags": tags[:3]}
+
+
+def _json_list(raw) -> list:
+    if isinstance(raw, list):
+        return raw
+    try:
+        out = json.loads(raw or "[]")
+    except (TypeError, ValueError):
+        return []
+    return out if isinstance(out, list) else []
+
+
+def website_link(youtube_id: str) -> str:
+    return f"https://uctintelligence.com/desk?section=videos&v={youtube_id}"
+
+
+def search_line(lesson: dict) -> str:
+    """The plain-text line above the embed: tags and $tickers, so Discord's search
+    bar finds a lesson by topic or symbol."""
+    parts = [t.capitalize() for t in _json_list(lesson.get("tags"))]
+    tickers = " ".join(f"${t}" for t in _json_list(lesson.get("tickers")))
+    if tickers:
+        parts.append(tickers)
+    return " · ".join(parts)
 
 
 def build_embed(lesson: dict, link: str) -> dict:
@@ -587,7 +639,12 @@ def build_embed(lesson: dict, link: str) -> dict:
     if lesson.get("question"):
         body += f"**Question:** {lesson['question']}\n\n"
     body += lesson["recap"]
-    body = body[:_DESCRIPTION_MAX - 60] + f"\n\n[▶ Watch the video]({link})"
+    if lesson.get("takeaway"):
+        body += f"\n\n**Key takeaway:** {lesson['takeaway']}"
+    links = f"[▶ Watch the video]({link})"
+    if lesson.get("youtube_id"):
+        links += f"  ·  [Watch on UCT]({website_link(lesson['youtube_id'])})"
+    body = body[:_DESCRIPTION_MAX - 160] + f"\n\n{links}"
     minutes = ""
     if lesson.get("duration_s"):
         s = int(lesson["duration_s"])
@@ -597,11 +654,25 @@ def build_embed(lesson: dict, link: str) -> dict:
             "footer": {"text": f"From #tsdr{minutes}"}}
 
 
+def _lesson_body(lesson: dict, link: str) -> dict:
+    return {"content": search_line(lesson), "embeds": [build_embed(lesson, link)],
+            "allowed_mentions": {"parse": []}}
+
+
 def post_lesson(channel_id: str, lesson: dict, link: str) -> str:
-    out = _discord("POST", f"/channels/{channel_id}/messages",
-                   body={"embeds": [build_embed(lesson, link)],
-                         "allowed_mentions": {"parse": []}})
+    out = _discord("POST", f"/channels/{channel_id}/messages", body=_lesson_body(lesson, link))
     return str((out or {}).get("id") or "")
+
+
+def lesson_post_exists(channel_id: str, post_id: str) -> bool:
+    """False once Patrick has deleted the lesson post — his 'not this one' signal."""
+    try:
+        _discord("GET", f"/channels/{channel_id}/messages/{post_id}")
+        return True
+    except DiscordError as e:
+        if e.status == 404:
+            return False
+        raise
 
 
 def _question_for(msg: dict) -> str:
@@ -638,7 +709,13 @@ def process_lesson(row: dict, lesson_channel: str) -> str:
     posted = datetime.fromtimestamp(int(row["posted_at"]), tz=timezone.utc)
     recap = generate_recap(transcript=transcript, caption=caption, posted=posted,
                            question=_question_for(msg) if row.get("is_reply") else "")
-    _update(aid, duration_s=seconds, transcript=transcript, **recap)
+    if not recap.pop("is_lesson", True):
+        _update(aid, status="skipped", duration_s=seconds, transcript=transcript,
+                last_error="not a lesson")
+        return "skipped"
+    _update(aid, duration_s=seconds, transcript=transcript, title=recap["title"],
+            recap=recap["recap"], question=recap["question"], takeaway=recap["takeaway"],
+            tickers=json.dumps(recap["tickers"]), tags=json.dumps(recap["tags"]))
     lesson = {**row, **recap, "duration_s": seconds}
     link = jump_link(guild_id(), row["channel_id"], row["message_id"])
     post_id = post_lesson(lesson_channel, lesson, link)
@@ -697,6 +774,8 @@ def youtube_description(lesson: dict) -> str:
     if lesson.get("question"):
         text += f"Question: {lesson['question']}\n\n"
     text += lesson["recap"]
+    if lesson.get("takeaway"):
+        text += f"\n\nKey takeaway: {lesson['takeaway']}"
     text += (f"\n\nOriginally shared in the Uncharted Territory Discord (#tsdr) on "
              f"{posted:%B} {posted.day}, {posted.year}.")
     return text.replace("<", "").replace(">", "")[:4900]
@@ -707,6 +786,11 @@ def upload_lesson(row: dict, yt_client=None) -> str:
     from api.services.youtube_client import YouTubeClient
 
     aid = row["attachment_id"]
+    lesson_channel = ensure_lesson_channel()
+    if row.get("discord_post_id") and not lesson_post_exists(lesson_channel,
+                                                             row["discord_post_id"]):
+        _update(aid, yt_error="lesson post was deleted in Discord", yt_attempts=MAX_ATTEMPTS)
+        return "skipped"
     msg = fetch_message(row["channel_id"], row["message_id"])
     att = next((a for a in (msg or {}).get("attachments") or []
                 if str(a.get("id")) == aid), None)
@@ -737,7 +821,20 @@ def upload_lesson(row: dict, yt_client=None) -> str:
     education_service.set_video_insights(
         int(created["id"]), transcript=row.get("transcript") or "",
         headline=row["title"], summary=split_sentences(row["recap"]))
+    tags = _json_list(row.get("tags"))
+    if tags:
+        education_service.set_video_tags(int(created["id"]), tags)
     _update(aid, edu_video_id=int(created["id"]))
+    if row.get("discord_post_id"):
+        # Add the "Watch on UCT" link to the Discord post. Best effort: the
+        # upload already succeeded and must not be retried over a failed edit.
+        try:
+            link = jump_link(guild_id(), row["channel_id"], row["message_id"])
+            _discord("PATCH", f"/channels/{lesson_channel}/messages/{row['discord_post_id']}",
+                     body=_lesson_body({**row, "youtube_id": vid}, link))
+        except Exception as e:  # noqa: BLE001
+            log.warning("[tsdr-lessons] could not add the website link to %s: %s",
+                        row["discord_post_id"], e)
     return "uploaded"
 
 
