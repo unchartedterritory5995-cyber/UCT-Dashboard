@@ -22,6 +22,7 @@ An edge is called measured only at |z| >= EDGE_Z; below that the line says "not 
 from __future__ import annotations
 
 import logging
+import re
 from typing import Iterable, Optional
 
 from api.services.wisdom.core import flags
@@ -136,6 +137,36 @@ def format_playbook(pb: dict, market_state: Optional[str] = None) -> tuple[str, 
     return text, cites
 
 
+#: A question about what is setting up today gets ONE bounded "this rhymes" line: today's scanner
+#: hits beside the archive's precedent (archive/rhymes.py). Display only, cited, never a level.
+RHYMES_KIND = "trader_archive_rhymes"
+RHYMES_CHARS = 900
+_RHYMES_RE = re.compile(r"\brhym|what'?s setting up|setting up today|today'?s (?:setups?|scan|scanner|hits)"
+                        r"|scanner (?:hits|today)", re.I)
+
+
+def asks_for_rhymes(query: Optional[str]) -> bool:
+    return bool(_RHYMES_RE.search(query or ""))
+
+
+def rhymes_line() -> tuple[str, list]:
+    """The bounded rhymes line and its citations (the newest team call on each named ticker)."""
+    from api.services.wisdom.archive import rhymes
+
+    payload = rhymes.today()
+    line = rhymes.format_line(payload, max_chars=RHYMES_CHARS)
+    if not line:
+        return "", []
+    cites = []
+    for h in (payload or {}).get("hits", [])[:5]:
+        last = (h.get("ticker_history") or {}).get("last_call")
+        if last and last.get("record_id"):
+            cites.append({"record_id": last["record_id"], "trader": last.get("trader"),
+                          "date": (last.get("posted") or "")[:10], "ticker": h.get("ticker"),
+                          "kind": RHYMES_KIND, "flag_env": FLAG_ENV})
+    return line, cites
+
+
 def archive_block(query: Optional[str], *, query_tickers: Iterable[str] = ()) -> tuple[str, list]:
     """(block text, citations) or ("", []). Never raises."""
     try:
@@ -151,6 +182,12 @@ def archive_block(query: Optional[str], *, query_tickers: Iterable[str] = ()) ->
             for sid in service.match_setups(conn, query or "", limit=1):
                 pb = service.playbook(conn, sid)
         parts, cites, used = [], [], len(HEADER)
+        if asks_for_rhymes(query):
+            rline, rcites = rhymes_line()
+            if rline:
+                parts.append(rline)
+                cites.extend(rcites)
+                used += len(rline) + 3
         if pb:
             from api.services.wisdom.archive import setup_map
 

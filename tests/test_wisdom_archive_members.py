@@ -175,7 +175,7 @@ def test_every_member_route_is_require_paid_and_the_registry_mounts_it():
                      "/api/wisdom/archive/trader/{author}", "/api/wisdom/archive/playbooks",
                      "/api/wisdom/archive/playbook/{setup}", "/api/wisdom/archive/pattern/{pattern_id}",
                      "/api/wisdom/archive/check", "/api/wisdom/archive/ticker/{sym}/daily",
-                     "/api/wisdom/archive/image/{image_id}"}
+                     "/api/wisdom/archive/image/{image_id}", "/api/wisdom/archive/rhymes"}
     for r in wisdom_archive.member_router.routes:
         deps = _dep_names(r)
         assert "require_paid" in deps, r.path

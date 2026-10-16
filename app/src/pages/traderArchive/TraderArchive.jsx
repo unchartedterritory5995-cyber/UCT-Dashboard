@@ -19,6 +19,7 @@ import UIcon from '../../components/ui/UIcon'
 import { ARCHIVE_API, MIN_CONTEXT_N, clip, dayOf, edgeVerdict, fmtR, rTone, traderOf } from '../../utils/traderArchive'
 import PlaybookCharts from './PlaybookCharts'
 import ArchiveThumbs from './ArchiveThumbs'
+import TodayRhymes from './TodayRhymes'
 import styles from './TraderArchive.module.css'
 
 const VIEWS = [
@@ -27,6 +28,7 @@ const VIEWS = [
   { key: 'setups', label: 'Setups' },
   { key: 'traders', label: 'Traders' },
   { key: 'playbooks', label: 'Playbooks' },
+  { key: 'today', label: 'Today' },
 ]
 
 
@@ -374,6 +376,7 @@ export default function TraderArchive() {
           {view === 'setups' && <SetupsView stats={stats} />}
           {view === 'traders' && <TradersView stats={stats} />}
           {view === 'playbooks' && <PlaybookView initial={initialSetup} />}
+          {view === 'today' && <TodayRhymes />}
         </>
       )}
     </div>

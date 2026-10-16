@@ -21,7 +21,7 @@ from api.services.wisdom.core import flags
 
 log = logging.getLogger(__name__)
 
-NAMES = ("trader_archive_search", "trader_archive_ticker", "trader_archive_setup")
+NAMES = ("trader_archive_search", "trader_archive_ticker", "trader_archive_setup", "trader_archive_rhymes")
 OFF_MESSAGE = "The trader archive isn't available right now."
 MAX_HITS = 6
 MAX_CALLS = 12
@@ -107,6 +107,32 @@ def ticker(symbol: str) -> dict:
     return {"ok": True, "symbol": sym, "n_records": len(full.get("records") or []), **summary,
             "recent_posts": recent, "recent_calls": compact_calls, "narration": narration,
             "note": "Historical posts by the UCT team; outcomes measured after the fact; not current advice."}
+
+
+MAX_RHYMES = 8
+
+
+def rhymes(limit: int = MAX_RHYMES) -> dict:
+    """THIS RHYMES: today's scanner hits that map to an archive setup, each with the setup's measured
+    record, the ticker's team history and the closest past team calls (archive/rhymes.py).
+    Display only; never a price level; never a recommendation."""
+    if not enabled():
+        return {"ok": False, "error": OFF_MESSAGE, "narration": OFF_MESSAGE}
+    from api.services.wisdom.archive import rhymes as _rhymes
+
+    payload = _rhymes.today()
+    if payload is None:
+        msg = "Today's scan or the archive isn't available right now."
+        return {"ok": False, "error": msg, "narration": msg}
+    n = max(1, min(int(limit or MAX_RHYMES), MAX_RHYMES))
+    hits = payload.get("hits") or []
+    narration = (f"{len(hits)} of today's scanner hits rhyme with the team archive "
+                 f"(market {payload.get('market_state') or 'unknown'})." if hits
+                 else "None of today's scanner hits map to a setup in the team archive.")
+    return {"ok": True, "market_state": payload.get("market_state"), "count": len(hits),
+            "hits": hits[:n], "narration": narration,
+            "note": "Display only: the team's past calls beside today's detections, measured after "
+                    "the fact; cite trader, date and record id; not a signal or advice."}
 
 
 def setup(setup_or_question: str) -> dict:

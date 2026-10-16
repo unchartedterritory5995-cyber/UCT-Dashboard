@@ -1971,6 +1971,15 @@ def _exec_trader_archive_setup(*, user_id, account_id, args, conn=None) -> dict:
     return _vti._trader_archive_setup(setup=str((args or {}).get("setup") or ""))
 
 
+def _exec_trader_archive_rhymes(*, user_id, account_id, args, conn=None) -> dict:
+    from api.services import voice_tool_impls as _vti
+    try:
+        limit = int((args or {}).get("limit") or 8)
+    except (TypeError, ValueError):
+        limit = 8
+    return _vti._trader_archive_rhymes(limit=limit)
+
+
 _TOOLS_UNGATED["trader_archive_search"] = {
     "name": "trader_archive_search",
     "description": (
@@ -2018,6 +2027,23 @@ _TOOLS_UNGATED["trader_archive_setup"] = {
     "input_schema": {"type": "object", "properties": {
         "setup": {"type": "string", "description": "Setup name or a question naming it, e.g. 'oops reversal'."}},
         "required": ["setup"]},
+}
+
+
+_TOOLS_UNGATED["trader_archive_rhymes"] = {
+    "name": "trader_archive_rhymes",
+    "description": (
+        "THIS RHYMES: today's active scanner detections that match a setup in the UCT team's TSDR "
+        "trader archive, each with the setup's measured record (win rate, edge versus the same stock, "
+        "z verdict), the ticker's own team history and the closest past team calls of that setup in "
+        "the same market state. Use for 'what's rhyming today', 'which of today's setups has the team "
+        "traded before'. Display only: cite trader + date + record id; never a signal or advice."
+    ),
+    "requires_confirm": False,
+    "executor": _exec_trader_archive_rhymes,
+    "input_schema": {"type": "object", "properties": {
+        "limit": {"type": "integer", "description": "How many hits, 1-8. Defaults to 8."}},
+        "required": []},
 }
 
 
@@ -2089,4 +2115,5 @@ class _GatedToolRegistry(dict):
 TOOLS = _GatedToolRegistry(_TOOLS_UNGATED, {"search_my_notes": notes_tool_enabled,
                                              "trader_archive_search": _archive_tool_enabled,
                                              "trader_archive_ticker": _archive_tool_enabled,
-                                             "trader_archive_setup": _archive_tool_enabled})
+                                             "trader_archive_setup": _archive_tool_enabled,
+                                             "trader_archive_rhymes": _archive_tool_enabled})

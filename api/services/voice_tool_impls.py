@@ -2073,6 +2073,11 @@ def _trader_archive_setup(*, setup: str = "") -> dict:
     return _archive_tools.setup(setup)
 
 
+def _trader_archive_rhymes(*, limit: int = 8) -> dict:
+    from api.services.wisdom.archive import tools as _archive_tools
+    return _archive_tools.rhymes(limit)
+
+
 def _find_patterns_on_ticker(
     *, symbol: str, tf: str = "D", min_conf: float = 50.0,
 ) -> dict:
@@ -3175,6 +3180,13 @@ def _register_all() -> None:
         contexts=["global"],
         gate=_archive_tool_gate,
     )(_trader_archive_setup)
+    _vt.voice_tool(
+        name="trader_archive_rhymes",
+        description="THIS RHYMES: today's active scanner detections that match a setup in the UCT team's TSDR trader archive, each with the setup's measured record (win rate, edge versus the same stock, z verdict), the ticker's own team history and the closest past team calls of that setup in the same market state. Display only: cite trader, date and record id; an edge is proven only at |z| >= 3; never a signal or advice. Call for 'what's rhyming today', 'which of today's setups has the team traded before'.",
+        parameters={"limit": {"type": "integer", "description": "How many hits, 1-8. Defaults to 8."}},
+        contexts=["global"],
+        gate=_archive_tool_gate,
+    )(_trader_archive_rhymes)
 
     _vt.voice_tool(
         name="scan_active_patterns",

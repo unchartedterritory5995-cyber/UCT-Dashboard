@@ -541,6 +541,7 @@ EXPECTED_GET_ROUTES = [
     ("/api/wisdom/archive/pattern/{pattern_id}", "authed"),
     ("/api/wisdom/archive/playbook/{setup}", "authed"),
     ("/api/wisdom/archive/playbooks", "authed"),
+    ("/api/wisdom/archive/rhymes", "authed"),
     ("/api/wisdom/archive/search", "authed"),
     ("/api/wisdom/archive/setup/{setup}", "authed"),
     ("/api/wisdom/archive/stats", "authed"),
@@ -586,7 +587,7 @@ def test_8b_every_route_is_admin_owner_or_internal_except_the_ruled_paid_member_
     assert member, "non-vacuity: the ruled member routes were not found at all"
     assert not [r for r in routes if dark.classify(r) == "UNGUARDED"]
     # non-vacuity: the walk must actually have found routes to classify
-    assert len(routes) == len(EXPECTED_GET_ROUTES) == 44
+    assert len(routes) == len(EXPECTED_GET_ROUTES) == 45
 
 
 def test_8c_no_route_path_is_doubled():

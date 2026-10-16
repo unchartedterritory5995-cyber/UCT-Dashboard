@@ -16,6 +16,7 @@ the archive is for PAID MEMBERS and every in-app tool, never the anonymous inter
   GET /check?ticker=&setup=  the Terminal's CHK: a setup's measured team record (engine name,
                          detector id or alias), today's tape cut, and the team's calls in the
                          ticker (of that setup when one resolves); no price levels
+  GET /rhymes            today's scanner hits beside the archive's precedent (display only)
   GET /ticker/{sym}/daily team posts and calls per day on one ticker (Terminal ATTN)
   GET /image/{image_id}  one stored chart image (private storage, never a public URL)
 Record-bearing payloads carry ``images: [image_id, ...]`` on rows whose post has stored charts.
@@ -50,7 +51,7 @@ from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user, require_admin
 from api.routers.wisdom_sources import require_push_secret
-from api.services.wisdom.archive import images, service, setup_map, team_record
+from api.services.wisdom.archive import images, rhymes, service, setup_map, team_record
 from api.services.wisdom.core import flags, store
 
 router = APIRouter(prefix="/api/admin/wisdom/archive", tags=["wisdom"])
@@ -299,6 +300,19 @@ def member_check(ticker: str = Query(..., min_length=1, max_length=16),
     if trec is None:
         raise HTTPException(status_code=503, detail="wisdom.db unavailable")
     return {"label": team_record.LABEL, "setup": rec, "ticker": trec}
+
+
+@member_router.get("/rhymes")
+def member_rhymes(limit: int = Query(60, ge=1, le=rhymes.MAX_HITS),
+                  _user: dict = Depends(require_paid)) -> dict:
+    """THIS RHYMES: today's active scanner detections that map to an archive setup, each with the
+    setup's measured record, the ticker's archive history and the closest past team calls. Display
+    only; never a price level. 503 when the scan or the store cannot be read."""
+    _require_enabled()
+    out = rhymes.today()
+    if out is None:
+        raise HTTPException(status_code=503, detail="The scan or the archive is unavailable")
+    return {**out, "hits": out["hits"][:limit]}
 
 
 @member_router.get("/playbook/{setup}")
