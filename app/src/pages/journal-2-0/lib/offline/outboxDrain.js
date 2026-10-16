@@ -17,6 +17,7 @@
  */
 import {
   clearOutboxEntry, getMeta, getNote, listOutbox, putNoteWithIntent, putNoteWithIntentIf,
+  putOutboxEntry,
 } from './notebookDb'
 import { usableBaseline, isUsableBaseline, landedBaseline, isSupersededBaseline } from './baseline'
 import { isMarkerLive, markerKeyFor, landedKeyFor, IN_FLIGHT_TTL_MS } from './inFlight'
@@ -41,6 +42,10 @@ export const SUPERSEDED = 'superseded'  // a save this browser landed is newer; 
 export const NO_BASELINE = 'no-baseline'
 
 const isTransient = (e) => !e?.status || e.status >= 500
+/** I-A fix round 2: a copy's create refused for good — a 4xx that is not a
+ *  session (401), a timeout (408) or a rate limit (429). Anything else is retried. */
+const copyRefusedForGood = (e) => Number.isFinite(e?.status) && e.status >= 400 && e.status < 500
+  && ![401, 408, 429].includes(e.status)
 
 /**
  * The note caught up with the server — or did not, because it moved on while
@@ -424,6 +429,14 @@ export async function drainOutbox(db, {
     // as a baseline-less update and BLOCKS it (kept, never sent). This bundle
     // still forks it — a blocked copy is not a reason to strand words.
     if (isNoteCopy(entry)) {
+      // ⭐ FIX ROUND 2 (review I-1): a copy THIS bundle saw refused is blocked —
+      // kept, never re-posted every sweep, shown on its source note
+      // (`listBlockedNoteIds`) and offered there for Restore (`recover`). A copy
+      // an OLDER bundle blocked (no `copyRefused`) is still tried, as before.
+      if (entry.copyRefused) {
+        results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: BLOCKED, copy: true })
+        continue
+      }
       try {
         // eslint-disable-next-line no-await-in-loop
         await fork({ ...entry, noteId: entry.copyOf })
@@ -431,7 +444,21 @@ export async function drainOutbox(db, {
         await clearOutboxEntry(db, entry.mutationId)
         results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: FORKED, copy: true })
       } catch (fe) {
-        results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: KEPT, error: fe, copy: true })
+        if (copyRefusedForGood(fe)) {
+          // ⛔ Kept, never deleted: marked with its reason, words intact.
+          // eslint-disable-next-line no-await-in-loop
+          await putOutboxEntry(db, {
+            ...entry,
+            permanent: true,
+            copyRefused: { status: fe.status, error: String(fe?.message || fe) },
+            lastError: String(fe?.message || fe),
+            lastStatus: fe.status,
+            attempts: (entry.attempts || 0) + 1,
+          })
+          results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: BLOCKED, error: fe, copy: true })
+        } else {
+          results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: KEPT, error: fe, copy: true })
+        }
       }
       continue
     }

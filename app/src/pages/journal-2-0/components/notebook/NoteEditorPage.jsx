@@ -1583,12 +1583,38 @@ export default function NoteEditorPage({
   /** The page now on screen, captured at once as a swap capture: the crash draft
    *  (convenience) and the durable record (flushed — the record follows the page
    *  and spills what it cannot carry). */
-  const captureSwapNow = () => {
+  /** THE one swap-capture write: the durable record takes `snap` and anything it
+   *  displaces becomes a queued copy (`swapCaptureSpills`). Flushed, so nothing
+   *  scheduled later can coalesce it away. */
+  const scheduleSwapCapture = (snap, extra = {}) => {
+    if (!snap) return
+    durableRef.current.schedule({ ...snap, ...extra, spill: true })
+    durableRef.current.flush()
+  }
+  /** ⭐ FIX ROUND 2 (review C-2): the page a Restore is about to replace, written
+   *  as a swap capture under ITS lineage — call BEFORE `viewReplaced()`. When the
+   *  record holds other unsent words (an earlier session's, refused against every
+   *  keystroke since), they go to a copy and the record takes this page; the
+   *  Restore's own capture then compares the restored page with THIS page, so
+   *  words typed while the banner was up are never compared away.
+   *  ⛔ ONLY a page holding work the server lacks (`unsentInEditor`, the Delete
+   *  gate's own answer). A page equal to the server's copy has nothing to keep,
+   *  and capturing it anyway wrote the SERVER's words into the record as if
+   *  unsent — the Restore's capture then spilled them into a junk copy on every
+   *  Restore. An unknown base (no body) is captured: a spare copy, never a loss. */
+  const captureOutgoingPage = () => {
+    if (!baseHasNoBody(lastSavedRef.current) && unsentInEditor().length === 0) return
+    scheduleSwapCapture(captureLocalState())
+  }
+  /** The page now on screen, captured at once as a swap capture: the crash draft
+   *  (convenience) and the durable record. `extra.retiresCopy` names a refused
+   *  copy whose words this page now holds (I-1): persist retires it in the same
+   *  transaction that writes them into the record. */
+  const captureSwapNow = (extra = {}) => {
     const snap = captureLocalState()
     if (!snap) return
     saveDraftLocally(snap)
-    durableRef.current.schedule({ ...snap, spill: true })
-    durableRef.current.flush()
+    scheduleSwapCapture(snap, extra)
   }
   /** Called from `onUpdate` for every undo or redo, BEFORE the lineage rotates.
    *  Across the Restore boundary it writes the page being left (from
@@ -1599,7 +1625,7 @@ export default function NoteEditorPage({
     const ed = editorRef.current
     if (!swap || !ed || ed.isDestroyed || !tr?.before || isUnreadable(ed)) return
     if (!ed.state.doc.eq(swap.preDoc) && !tr.before.eq(swap.preDoc)) return
-    durableRef.current.schedule({
+    scheduleSwapCapture({
       title: titleRef.current,
       subtitle: subtitleRef.current,
       bodyJson: draftJSONRef.current(tr.before),
@@ -1607,9 +1633,7 @@ export default function NoteEditorPage({
       serverBase: { ...lastSavedRef.current },
       writtenSchema: editorWrittenSchema(),
       editLineage: editLineageNow(),
-      spill: true,
     })
-    durableRef.current.flush()
     spillNextCaptureRef.current = true
   }
 
@@ -1658,12 +1682,13 @@ export default function NoteEditorPage({
     const draftTitle = pendingDraft.title || ''
     const draftSubtitle = pendingDraft.subtitle || ''
     const draftBodyJson = pendingDraft.bodyJson
+    // I-A fix round 2 (C-2): the page being replaced is written FIRST, as a swap
+    // capture under its own lineage (before the rotation below) — never a plain
+    // flush, which `persist` refuses whenever the record holds other unsent words.
+    captureOutgoingPage()
     viewReplaced()   // hotfix 2026-10-15: a Restore replaces the view — a new lineage
-    // I-A: the old view's last keystroke, still in the durable writer's window,
-    // is written before anything of the restored page can follow it (the R1
-    // flush); then the Restore becomes its own undo step and remembers the page
-    // it replaced (see `markRestoreSwap`).
-    durableRef.current.flush()
+    // I-A: the Restore becomes its own undo step and remembers the page it
+    // replaced (see `markRestoreSwap`).
     if (draftBodyJson) markRestoreSwap(editorRef.current)
     setTitle(draftTitle)
     titleRef.current = draftTitle
@@ -1685,10 +1710,11 @@ export default function NoteEditorPage({
     // ⭐ I-A fix round 1 (review C2): the restored page is durable NOW, before the
     // PUT is even sent — the record takes it and the old view's unsent words go to
     // a queued copy. A keystroke after the Restore is its own undo step.
-    if (draftBodyJson) {
-      closeUndoStep(editorRef.current)
-      captureSwapNow()
-    }
+    // Review M-8: captured even for a body-less legacy draft (its title and
+    // subtitle are on screen too). I-1: a refused copy offered as the draft is
+    // retired in the same transaction that writes its words into the record.
+    if (draftBodyJson) closeUndoStep(editorRef.current)
+    captureSwapNow(recovery?.retiresCopy ? { retiresCopy: recovery.retiresCopy } : {})
     const carriedAtSend = carriedRef.current
     setPendingDraft(null)
     setRecovery(null)
@@ -3405,14 +3431,13 @@ export default function NoteEditorPage({
     // from the editor, not from `state`. If the view cannot take them, nothing is
     // saved as though it had — they are offered, and the durable copy and the
     // queue still hold them.
+    // I-A fix round 2 (C-2): a Restore the member chose (not the automatic
+    // adoption, whose words ARE the record's) first writes the page it replaces
+    // as a swap capture, under its own lineage, BEFORE the rotation below.
+    if (!auto) captureOutgoingPage()
     viewReplaced()   // hotfix 2026-10-15: adopted words replace the view — a new lineage
-    // I-A: a Restore the member chose (not the automatic adoption, whose words
-    // ARE the record's) flushes the old view's pending keystroke first, then
-    // becomes its own undo step and remembers the page it replaced.
-    if (!auto) {
-      durableRef.current.flush()
-      markRestoreSwap(editor)
-    }
+    // I-A: and becomes its own undo step and remembers the page it replaced.
+    if (!auto) markRestoreSwap(editor)
     try {
       if (!replaceDocument(editor, state.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)) {
         if (!auto) restoreSwapRef.current = null

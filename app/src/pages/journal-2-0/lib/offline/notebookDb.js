@@ -154,13 +154,23 @@ const done = (tx) => new Promise((resolve, reject) => {
  * in the outbox the instant the record stops holding them, never between. Their
  * `noteId` is not this note's, so the null-intent delete below cannot reach them.
  */
-export async function putNoteWithIntent(db, noteRecord, outboxEntry, { copies = [] } = {}) {
+export async function putNoteWithIntent(db, noteRecord, outboxEntry, { copies = [], retire = [] } = {}) {
   const tx = db.transaction([STORE_NOTES, STORE_OUTBOX], 'readwrite')
   const outbox = tx.objectStore(STORE_OUTBOX)
   stageNoteWithIntent(tx.objectStore(STORE_NOTES), outbox, noteRecord, outboxEntry)
   for (const copy of copies) outbox.put(copy)
+  // ⭐ I-A fix round 2 (I-1): a refused copy whose words THIS record now holds —
+  // removed in the same transaction that writes them, never before.
+  for (const mutationId of retire) outbox.delete(mutationId)
   await done(tx)
   return noteRecord
+}
+
+/** Rewrite one outbox entry in place (a copy the server refused: kept, marked). */
+export async function putOutboxEntry(db, entry) {
+  const tx = db.transaction(STORE_OUTBOX, 'readwrite')
+  tx.objectStore(STORE_OUTBOX).put(entry)
+  await done(tx)
 }
 
 /**

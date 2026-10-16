@@ -28,6 +28,7 @@ import { usableBaseline, isUsableBaseline } from './baseline'
 import { sameAuthoredContent } from './recoverLocalState'
 import { liveSessionIds } from './inFlight'
 import { isNoteOwned } from './noteOwnerLock'
+import { isNoteCopy } from './noteCopy'
 
 /** How often a leader re-tries what is still queued. ⛔ The `online` event only
  *  fires on a NETWORK transition — a server that came back up produces no event
@@ -139,11 +140,23 @@ export async function sendNoteUpdate(entry) {
  */
 export async function forkConflictedCopy(entry) {
   const res = await fetch(`/api/j2/notes/${entry.noteId}`, { credentials: 'include' })
-  if (!res.ok) throw new Error(`could not read the server note (${res.status})`)
-  const serverNote = (await res.json()).note
+  let serverNote = null
+  if (res.ok) {
+    serverNote = (await res.json()).note
+  } else if (!(res.status === 404 && isNoteCopy(entry))) {
+    const err = new Error(`could not read the server note (${res.status})`)
+    err.status = res.status
+    throw err
+  }
+  // ⭐ I-A fix round 2 (review I-1): a queued copy needs its source ONLY for the
+  // folder. A source that is gone (trashed, deleted elsewhere: 404) must not
+  // strand the words, so the copy is created in no folder.
   const title = `${entry.patch?.title || 'Untitled note'} (conflicted copy)`.trim()
   await createNoteViaApi({
     title,
+    // ⛔⛔ Review C-1: EVERY authored field the copy holds. The subtitle was
+    // dropped here, and the drain clears the entry after this resolves.
+    subtitle: entry.patch?.subtitle || undefined,
     bodyJson: entry.patch?.bodyJson,
     tags: ['sync-conflict'],
     folderId: serverNote?.folderId || undefined,
@@ -291,7 +304,8 @@ export function useOutboxDrain({
       // editor. One event per forked entry; a telemetry POST never changes
       // the drain's own outcome (trackNotebookEvent swallows its own errors).
       for (const r of results) {
-        if (r?.outcome !== FORKED) continue
+        // Review M-2: a member's own swap copy is not a sync conflict.
+        if (r?.outcome !== FORKED || r.copy) continue
         trackNotebookEvent('conflict_forked', { door: 'outbox', queued: true })
       }
       // ⭐ Wave 10 (10D, R-16, study task T8): a queued save the drain SENT is a

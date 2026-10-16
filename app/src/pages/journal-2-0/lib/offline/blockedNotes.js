@@ -13,6 +13,7 @@
  * (`settleBlocked`).
  */
 import { listOutbox } from './notebookDb'
+import { isNoteCopy } from './noteCopy'
 
 /** The one predicate. Every BLOCKED outcome in `drainOutbox` persists this. */
 export function isBlockedEntry(entry) {
@@ -28,7 +29,10 @@ export async function listBlockedNoteIds(db) {
   const entries = await listOutbox(db)
   const ids = new Set()
   for (const e of entries) {
-    if (isBlockedEntry(e) && e.noteId) ids.add(e.noteId)
+    // I-A fix round 2 (I-1): a blocked copy shows on the note it came from — the
+    // one a member can open, where it is offered for Restore.
+    if (isBlockedEntry(e) && isNoteCopy(e) && e.copyOf) ids.add(e.copyOf)
+    else if (isBlockedEntry(e) && e.noteId) ids.add(e.noteId)
   }
   return [...ids]
 }
