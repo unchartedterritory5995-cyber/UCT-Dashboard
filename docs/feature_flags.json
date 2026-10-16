@@ -2773,16 +2773,18 @@
       "note": ""
     },
     "WISDOM_ARCHIVE_ENABLED": {
-      "status": "dark",
-      "where": [],
+      "status": "armed",
+      "since": "2026-10-16",
+      "where": ["web"],
       "exposure": "members",
-      "note": "MEMBER-VISIBLE when on: the TSDR trader archive (wisdom_archive_* tables in wisdom.db, filled by tools/wisdom/archive_import.py through the push-secret POST /api/internal/wisdom/archive/batch). Paid members read GET /api/wisdom/archive/{ticker/{sym},setup/{setup},search,stats,trader/{author}} (require_paid, never anonymous); admins keep /api/admin/wisdom/archive (require_admin). Consumers: Ask AI's TRADER ARCHIVE grounding block (api/routers/ai_search.py), the Compass tools trader_archive_search / trader_archive_ticker in chat AND voice (both read the flag per call), the 'What the traders said' block in the ticker research modal's Catalysts tab, and the /trader-archive page. Default OFF: unset or 0 = every archive route answers 404, Ask AI adds no block, the Compass tools are hidden and refuse, and the research block and page render nothing. Replaced WISDOM_ARCHIVE_ADMIN_ENABLED (admin-only, 2026-10-15). Rollback: set 0 on web.",
+      "note": "ARMED on web 2026-10-16 15:12Z (owner-run single --set of six flags; deploy 2dfda105 SUCCESS, fresh boot uptime 35s, /api/health ok). Set earlier 2026-10-16 by the owner for the archive import; read back =1 alongside the six. PRIOR: MEMBER-VISIBLE when on: the TSDR trader archive (wisdom_archive_* tables in wisdom.db, filled by tools/wisdom/archive_import.py through the push-secret POST /api/internal/wisdom/archive/batch). Paid members read GET /api/wisdom/archive/{ticker/{sym},setup/{setup},search,stats,trader/{author}} (require_paid, never anonymous); admins keep /api/admin/wisdom/archive (require_admin). Consumers: Ask AI's TRADER ARCHIVE grounding block (api/routers/ai_search.py), the Compass tools trader_archive_search / trader_archive_ticker in chat AND voice (both read the flag per call), the 'What the traders said' block in the ticker research modal's Catalysts tab, and the /trader-archive page. Default OFF: unset or 0 = every archive route answers 404, Ask AI adds no block, the Compass tools are hidden and refuse, and the research block and page render nothing. Replaced WISDOM_ARCHIVE_ADMIN_ENABLED (admin-only, 2026-10-15). Rollback: set 0 on web.",
       "owner_decision": "Owner ruling 2026-10-15: the TSDR trader archive is available to PAID MEMBERS and to every in-app tool (Ask AI, Compass chat + voice, ticker research, a member page), not admin-only. 'Public' means all paid members (require_paid), never the anonymous internet. Shipped default OFF; the owner sets it on web."
     },
     "WISDOM_BADGES_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "MEMBER-VISIBLE when on: 'UCT said' badges for Catalysts/Terminal. W1 ships the admin endpoint only. Owner flips (W1 §0.4c). 2026-10-16: also gates the TSDR-archive team-call lane (GET /api/wisdom/team-calls, paid; UCT20 card line, watchlist team-call fact, digest line), double-gated with WISDOM_ARCHIVE_ENABLED."
+      "status": "armed",
+      "since": "2026-10-16",
+      "where": ["web"],
+      "note": "ARMED on web 2026-10-16 15:12Z (owner-run single --set of six flags; deploy 2dfda105 SUCCESS, fresh boot uptime 35s, /api/health ok). Owner decision: brain and analysis use of the TSDR archive. PRIOR: MEMBER-VISIBLE when on: 'UCT said' badges for Catalysts/Terminal. W1 ships the admin endpoint only. Owner flips (W1 §0.4c). 2026-10-16: also gates the TSDR-archive team-call lane (GET /api/wisdom/team-calls, paid; UCT20 card line, watchlist team-call fact, digest line), double-gated with WISDOM_ARCHIVE_ENABLED."
     },
     "WISDOM_BRAINKB_PUBLISH_ENABLED": {
       "status": "dark",
@@ -2808,9 +2810,10 @@
       "note": "Wisdom D11 CONTEXT_SNAPSHOT at call time (stream S-E). Read-only on existing stores; internal wisdom.db writes only. ARMED 2026-09-19 13:24 UTC on `web`, session 28, alongside its three S-E siblings (WISDOM_OUTCOMES_ENABLED, WISDOM_REPLAY_ENABLED, WISDOM_METRICS_ENABLED) -- D11-D20 owner-GO per PROGRAM-MANIFEST.md, no paid API in any of the four steps (pipeline.py docstring), verify boot before trusting."
     },
     "WISDOM_DESK_MARKERS_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "MEMBER-VISIBLE when on: Wisdom CALL/MENTION markers on Desk charts via ticker_mentions. Owner flips (W1 §0.4c). 2026-10-16: also adds TSDR-archive calls as markers (levels only on calls older than 20 sessions), double-gated with WISDOM_ARCHIVE_ENABLED."
+      "status": "armed",
+      "since": "2026-10-16",
+      "where": ["web"],
+      "note": "ARMED on web 2026-10-16 15:12Z (owner-run single --set of six flags; deploy 2dfda105 SUCCESS, fresh boot uptime 35s, /api/health ok). Owner decision: brain and analysis use of the TSDR archive. PRIOR: MEMBER-VISIBLE when on: Wisdom CALL/MENTION markers on Desk charts via ticker_mentions. Owner flips (W1 §0.4c). 2026-10-16: also adds TSDR-archive calls as markers (levels only on calls older than 20 sessions), double-gated with WISDOM_ARCHIVE_ENABLED."
     },
     "WISDOM_DISCORD_LISTENER_ENABLED": {
       "status": "armed",
@@ -2827,9 +2830,10 @@
       "note": "Wisdom Twitter/X source (stream 'x', session 28, 2026-09-19). Reads the existing tweets.db cache read-only for the three official trader accounts only; never calls the Twitter API itself. Internal. Ledger corrected 2026-09-24: this entry said dark while the variable was SET ON web (value 1), read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv`. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
     },
     "WISDOM_DOSSIER_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "MEMBER-VISIBLE when on: 'what UCT actually said' lines in AI ticker dossiers, dated and cited. Owner flips (W1 §0.4c). 2026-10-16: also adds TSDR-archive stance lines (scrubbed), double-gated with WISDOM_ARCHIVE_ENABLED."
+      "status": "armed",
+      "since": "2026-10-16",
+      "where": ["web"],
+      "note": "ARMED on web 2026-10-16 15:12Z (owner-run single --set of six flags; deploy 2dfda105 SUCCESS, fresh boot uptime 35s, /api/health ok). Owner decision: brain and analysis use of the TSDR archive. PRIOR: MEMBER-VISIBLE when on: 'what UCT actually said' lines in AI ticker dossiers, dated and cited. Owner flips (W1 §0.4c). 2026-10-16: also adds TSDR-archive stance lines (scrubbed), double-gated with WISDOM_ARCHIVE_ENABLED."
     },
     "WISDOM_EXTRACT_AUDIT_ENABLED": {
       "status": "dark",
@@ -2856,14 +2860,16 @@
       "note": "UCT Wisdom Loop MASTER switch (docs/wisdom/CONTRACTS.md §4). Every Wisdom job no-ops unless set. Internal ingest only, nothing member-visible. Read in api/services/wisdom/core/flags.py; armed by the Wisdom integrator after the Wave 1 merges. Ledger corrected 2026-09-24: this entry said dark while the variable was SET ON web (value 1), read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv`. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
     },
     "WISDOM_LEVEL_ALERTS_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "D20 level-reached alerts on open CALLs, admin cohort. Also hard-gated in code on CALL-REPLAY n>=100 and 14 days of silent scoring. Owner flips."
+      "status": "armed",
+      "since": "2026-10-16",
+      "where": ["web"],
+      "note": "ARMED on web 2026-10-16 15:12Z (owner-run single --set of six flags; deploy 2dfda105 SUCCESS, fresh boot uptime 35s, /api/health ok). Silent scoring only: code hard-gates output on CALL-REPLAY n>=100 and 14 days of scoring. PRIOR: D20 level-reached alerts on open CALLs, admin cohort. Also hard-gated in code on CALL-REPLAY n>=100 and 14 days of silent scoring. Owner flips."
     },
     "WISDOM_LOOKALIKE_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "D20 daily 'looks like what TSDR buys' list, admin cohort. Also hard-gated in code on CALL-REPLAY n>=100 and 14 days of silent scoring. Owner flips."
+      "status": "armed",
+      "since": "2026-10-16",
+      "where": ["web"],
+      "note": "ARMED on web 2026-10-16 15:12Z (owner-run single --set of six flags; deploy 2dfda105 SUCCESS, fresh boot uptime 35s, /api/health ok). Silent scoring only: code hard-gates output on CALL-REPLAY n>=100 and 14 days of scoring. PRIOR: D20 daily 'looks like what TSDR buys' list, admin cohort. Also hard-gated in code on CALL-REPLAY n>=100 and 14 days of silent scoring. Owner flips."
     },
     "WISDOM_METRICS_ENABLED": {
       "status": "armed",
@@ -2873,9 +2879,10 @@
       "note": "Wisdom metrics computation and the grounding eval (stream S-E, W1 Part 6). Internal; results shown on the admin dashboard only. ARMED 2026-09-19 13:24 UTC on `web`, session 28, with its three S-E siblings; now also computes the new call_track_record metric (CONTRACTS §6.5)."
     },
     "WISDOM_MODELBOOK_DRAFTS_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "MEMBER-VISIBLE when on: Model Book / Setup Library drafts and the 17 playbooks, approval queue first (D19). Owner flips."
+      "status": "armed",
+      "since": "2026-10-16",
+      "where": ["web"],
+      "note": "ARMED on web 2026-10-16 15:12Z (owner-run single --set of six flags; deploy 2dfda105 SUCCESS, fresh boot uptime 35s, /api/health ok). Owner decision: drafts go to the approval queue first. PRIOR: MEMBER-VISIBLE when on: Model Book / Setup Library drafts and the 17 playbooks, approval queue first (D19). Owner flips."
     },
     "WISDOM_OUTCOMES_ENABLED": {
       "status": "armed",
