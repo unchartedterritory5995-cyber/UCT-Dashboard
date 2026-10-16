@@ -29,7 +29,9 @@ THE RULES (R-T2B-1..6, 10):
 * It WARMS earnings_intel (get_earnings, on this scheduler thread) for every name it ranks, so the
   member's create reads what UCT already holds and never waits on a vendor (R-T2B-10). The warm has a
   wall-clock budget (WARM_BUDGET_S, F21): past it a name is not warmed, ranks as unmeasured, and is counted
-  in the run ledger (`warm_skipped`).
+  in the run ledger (`warm_skipped`). A copy read before the reacting session closed (+30 min) is REBUILT once,
+  inside the same budget, and the rank uses the fresh copy (final fix C, I1: `refreshed`, `refresh_failed`,
+  `refresh_skipped` in the ledger).
 * NO PROVIDER CONFIGURED IS INCONCLUSIVE, NEVER "NOBODY REPORTED" (V4): calendar_alerts answers
   `(set(), True)` for an unconfigured box exactly as it does for a quiet day, so the run looks for a key
   (`_reporters_configured`) and, finding none, records the run as `unconfigured` (not complete) and stops.
@@ -210,16 +212,58 @@ def _paid(user_id: str, conn) -> bool:
         return False
 
 
-def _reaction_pct(symbol: str, report_date: str) -> float | None:
+def _refresh_due(symbol: str, report_date: str, intel: Any, now: datetime) -> bool:
+    """True when the held copy is UNMEASURED and the reacting session has, by `now`, closed (+MEASURE_BUFFER): a
+    fresh build would be measured. Both halves are followup_prefill's own gate (reacting_session,
+    reaction_is_measured, _measured_after); nothing is restated here. A MEASURED copy is never rebuilt."""
+    from api.services.journal_two import followup_prefill as fp
+    if not isinstance(intel, dict):
+        return False
+    session, _ = fp.reacting_session(symbol, report_date)
+    if session is None or fp.reaction_is_measured(report_date, intel.get("meta"), session):
+        return False
+    return now >= fp._measured_after(session)
+
+
+def _count(tally: dict | None, key: str) -> None:
+    if tally is not None:
+        tally[key] = tally.get(key, 0) + 1
+
+
+def _reaction_pct(symbol: str, report_date: str, now: datetime | None = None, may_refresh=None,
+                  tally: dict | None = None) -> float | None:
     """The reaction for ranking, and the WARM of earnings_intel for the member's create (R-T2B-10).
 
     ⛔ Only a MEASURED move (followup_prefill.measured_move: the same gate the note's "Reaction:" line uses). A
     payload read before the reacting session closed (+30 min) holds the pre-news session's move, and ranking by it
-    would fix a wrong order for good (capped is final), so an unmeasured move ranks as no move."""
+    would fix a wrong order for good (capped is final), so an unmeasured move ranks as no move.
+    ⛔ get_earnings serves a copy read before the close for its whole TTL (24 h once the next report is far), so
+    a warm alone cannot move it (final fix C, I1). When the copy is unmeasured and the session HAS closed by `now`
+    (`_refresh_due`), ONE fresh build runs through earnings_intel.refresh_earnings and the rank uses it. Inside the
+    warm budget: `may_refresh()` is asked first, and a refused or failed refresh ranks as unmeasured (counted in
+    `tally` as refresh_skipped / refresh_failed; a good one as refreshed). Never raises."""
     try:
-        from api.services.earnings_intel import get_earnings
+        from api.services import earnings_intel
         from api.services.journal_two import followup_prefill as fp
-        return fp.measured_move(symbol, report_date, get_earnings(symbol))
+        intel = earnings_intel.get_earnings(symbol)
+        move = fp.measured_move(symbol, report_date, intel)
+        if move is not None or not _refresh_due(symbol, report_date, intel, now or _now()):
+            return move
+    except Exception:  # noqa: BLE001
+        return None
+    if may_refresh is not None and not may_refresh():
+        _count(tally, "refresh_skipped")
+        return None
+    try:
+        fresh = earnings_intel.refresh_earnings(symbol)
+    except Exception:  # noqa: BLE001 -- refresh_earnings never raises; a broken seam still must not
+        fresh = None
+    if fresh is None:
+        _count(tally, "refresh_failed")
+        return None
+    _count(tally, "refreshed")
+    try:
+        return fp.measured_move(symbol, report_date, fresh)
     except Exception:  # noqa: BLE001
         return None
 
@@ -282,29 +326,35 @@ def _record_run(conn, result: dict, when: datetime) -> None:
     conn.commit()
 
 
+def _within_budget(clock: dict) -> bool:
+    """True while the run's warm budget (WARM_BUDGET_S, counted from the first warm) has time left."""
+    if clock["start"] is None:
+        clock["start"] = _mono()
+    return _mono() - clock["start"] < WARM_BUDGET_S
+
+
 def _warm(reactions: dict, mine: dict, reports: dict, clock: dict, result: dict) -> None:
     """Fill `reactions` for the names in `mine` not yet read. Past WARM_BUDGET_S (counted from the first warm
-    of the run) a name is NOT warmed: it ranks as unmeasured and is counted (F21)."""
+    of the run) a name is NOT warmed: it ranks as unmeasured and is counted (F21). The same budget bounds a
+    name's one refresh (I1)."""
     for s in mine:
         if s in reactions:
             continue
-        if clock["start"] is None:
-            clock["start"] = _mono()
-        if _mono() - clock["start"] >= WARM_BUDGET_S:
+        if not _within_budget(clock):
             reactions[s] = None
             result["warm_skipped"] += 1
             continue
-        reactions[s] = _reaction_pct(s, reports[s])
+        reactions[s] = _reaction_pct(s, reports[s], clock["now"], lambda: _within_budget(clock), result)
         result["warmed"] += 1
 
 
-def _scan(conn, day: date, deliver, result: dict) -> None:
+def _scan(conn, day: date, deliver, result: dict, when: datetime | None = None) -> None:
     from api.services.journal_two import followup_prefill as fp
     reports, result["partial"], result["timing_unknown"] = todays_reports(day)
     reports = {s: d for s, d in reports.items() if fp.valid_symbol(s)}
     result["candidates"] = len(reports)
     reactions: dict[str, float | None] = {}
-    clock: dict[str, Any] = {"start": None}
+    clock: dict[str, Any] = {"start": None, "now": when or _now()}
     if not reports:
         return
     for uid in _member_ids(conn):
@@ -338,7 +388,7 @@ def run_followups(now: datetime | None = None, *, pass_label: str = "manual", co
     result: dict[str, Any] = {"day": day.isoformat(), "pass": pass_label, "skipped": None, "members": 0,
                               "candidates": 0, "delivered": 0, "already_sent": 0, "in_flight": 0, "capped": 0,
                               "failed": 0, "timing_unknown": 0, "partial": False, "warmed": 0,
-                              "warm_skipped": 0}
+                              "warm_skipped": 0, "refreshed": 0, "refresh_failed": 0, "refresh_skipped": 0}
     from api.services.journal_two import journal_styles
     if not (enabled() and journal_styles.enabled()):
         result["skipped"] = "switched-off"
@@ -356,7 +406,7 @@ def run_followups(now: datetime | None = None, *, pass_label: str = "manual", co
             _record_run(conn, result, when)
             return result
         try:
-            _scan(conn, day, deliver, result)
+            _scan(conn, day, deliver, result, when)
         except Exception as e:  # noqa: BLE001 -- whatever broke, the run is still ledgered, as incomplete
             result["failed"] += 1
             result["error"] = type(e).__name__

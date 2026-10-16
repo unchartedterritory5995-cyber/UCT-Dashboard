@@ -764,16 +764,40 @@ def get_earnings(ticker: str) -> dict:
                 _schedule_refresh(sym)
                 return payload
     out = _build(sym)
-    ttl = _ttl_for(out)
-    if _has_quarterly(out):
-        cache.set(ck, out, ttl)
-        snap_store.put(_KIND, sym, out, ttl)
-    else:
+    if not _keep(sym, out):
         # Partial or empty: hold it briefly so a burst of requests doesn't
         # re-hammer the providers, but NEVER persist it and never let it reach
         # the 45-day stale window. It retries on its own within the hour.
         cache.set(ck, out, _PARTIAL_TTL if _has_content(out) else 600)
     return out
+
+
+def _keep(sym: str, payload: dict) -> bool:
+    """Remember a build in BOTH layers at its proximity TTL, only when it carries the quarterly series
+    (`_has_quarterly`). The one keep-gate for get_earnings' build branch and refresh_earnings."""
+    if not (isinstance(payload, dict) and _has_quarterly(payload)):
+        return False
+    ttl = _ttl_for(payload)
+    cache.set(f"{_KIND}::{sym}", payload, ttl)
+    snap_store.put(_KIND, sym, payload, ttl)
+    return True
+
+
+def refresh_earnings(ticker: str) -> dict | None:
+    """Build ONE fresh payload NOW, on the caller's thread, through `_build` (this module's only fetcher), and keep
+    it the way get_earnings keeps a build. For the follow-up job (Tier 2 part B, final fix C, I1): a copy read
+    before the reacting session closed holds the pre-news move, and get_earnings serves it for its whole TTL.
+    ⛔ A build that raises, or comes back without the quarterly series, returns None and writes NOTHING: the copy
+    UCT already holds stays exactly as it was. Never raises. Scheduler threads only: it waits on the vendors."""
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        return None
+    try:
+        fresh = _build(sym)
+    except Exception as e:  # noqa: BLE001 -- a failed rebuild is "no fresh copy", never a failed caller
+        _log.warning("earnings rebuild %s failed: %s", sym, e)
+        return None
+    return fresh if _keep(sym, fresh) else None
 
 
 def get_earnings_held(ticker: str) -> dict | None:

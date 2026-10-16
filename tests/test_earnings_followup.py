@@ -79,7 +79,7 @@ def world(monkeypatch):
     monkeypatch.setattr(ef, "_member_sets", lambda uid: dict(w["sets"].get(uid, {})))
     monkeypatch.setattr(ef, "_paid", lambda uid, conn: uid in w["paid"])
 
-    def reaction(sym, rd):
+    def reaction(sym, rd, *a, **k):
         w["warmed"].append(sym)
         return w["reactions"].get(sym)
     monkeypatch.setattr(ef, "_reaction_pct", reaction)
@@ -359,7 +359,7 @@ def test_the_warm_stops_at_its_budget_and_the_ledger_counts_the_skipped(db, worl
     clock = {"t": 1000.0}
     monkeypatch.setattr(ef, "_mono", lambda: clock["t"])
 
-    def slow(sym, rd):
+    def slow(sym, rd, *a, **k):
         world["warmed"].append(sym)
         clock["t"] += 70.0
         return {"AAA": 1.0, "BBB": 5.0, "CCC": 9.0}.get(sym)
@@ -729,7 +729,7 @@ def test_the_warm_budget_is_per_run_not_per_member(db, world, monkeypatch):
     clock = {"t": 1000.0}
     monkeypatch.setattr(ef, "_mono", lambda: clock["t"])
 
-    def slow(sym, rd):
+    def slow(sym, rd, *a, **k):
         world["warmed"].append(sym)
         clock["t"] += 50.0
         return 1.0
@@ -876,3 +876,106 @@ def test_a_run_past_the_calendar_range_is_ledgered_as_failed_never_dated_wrongly
     result, sent = ring(db, at(day))
     assert sent == [] and result["failed"] == 1 and result["error"] == "CalendarRangeError"
     assert db.execute("SELECT complete FROM j2_earnings_followup_runs").fetchone()[0] == 0
+
+
+# ── final fix C, I1: a copy read before the reaction closed is refreshed ONCE, inside the warm budget ──────────────
+
+def _refresh_world(monkeypatch, held, fresh, *, timing="bmo"):
+    """The REAL _reaction_pct over a fake earnings_intel: `held[sym]` is what get_earnings answers (the cached copy),
+    `fresh[sym]` what earnings_intel.refresh_earnings builds (None = the build failed). Returns the refresh calls."""
+    from api.services import earnings_intel
+    from api.services.journal_two import earnings_prep
+    monkeypatch.setattr(ef, "_reaction_pct", _REAL_REACTION_PCT)
+    monkeypatch.setattr(earnings_prep, "_timing_from_calendar_cache", lambda sym, day: timing)
+    monkeypatch.setattr(earnings_intel, "get_earnings", lambda sym: held[sym])
+    calls = []
+
+    def refresh(sym):
+        calls.append(sym)
+        return fresh.get(sym)
+    monkeypatch.setattr(earnings_intel, "refresh_earnings", refresh)
+    return calls
+
+
+def test_an_unmeasured_cached_copy_after_the_close_is_refreshed_once_and_ranked_by_the_fresh_value(
+        db, world, monkeypatch):
+    """The review's ORCL: AAA was read at 10:00 ET on its before-the-open report day (unmeasured). By the 16:45 pass
+    the session has closed (+30 min), so the job builds AAA once more and ranks it by the fresh -9.0, which beats
+    every measured name. The three measured names are never refreshed."""
+    d15 = date(2026, 10, 15)
+    read_early, read_ok = datetime(2026, 10, 15, 10, 0, tzinfo=ET), datetime(2026, 10, 15, 17, 0, tzinfo=ET)
+    held = {"AAA": _held_move("2026-10-15", -9.0, read_early), "BBB": _held_move("2026-10-15", 2.0, read_ok),
+            "CCC": _held_move("2026-10-15", 5.0, read_ok), "DDD": _held_move("2026-10-15", 1.0, read_ok)}
+    fresh = {"AAA": _held_move("2026-10-15", -9.0, datetime(2026, 10, 15, 16, 45, tzinfo=ET))}
+    calls = _refresh_world(monkeypatch, held, fresh)
+    world["reports"] = {"2026-10-15": {s: "bmo" for s in held}}
+    world["sets"], world["paid"] = {"u1": {s: ["watchlist"] for s in held}}, {"u1"}
+    result, sent = ring(db, at(d15, 16, 45))
+    assert calls == ["AAA"]                                          # exactly one refresh, of the unmeasured name
+    assert _symbols(sent) == ["AAA", "CCC", "BBB"] and result["capped"] == 1
+    assert result["refreshed"] == 1 and result["refresh_failed"] == 0 and result["refresh_skipped"] == 0
+    ledger = json.loads(db.execute("SELECT result FROM j2_earnings_followup_runs").fetchone()[0])
+    assert ledger["refreshed"] == 1
+
+
+def test_a_measured_cached_copy_is_never_refreshed(db, world, monkeypatch):
+    read_ok = datetime(2026, 10, 15, 17, 0, tzinfo=ET)
+    held = {"AAA": _held_move("2026-10-15", 3.0, read_ok)}
+    calls = _refresh_world(monkeypatch, held, {"AAA": _held_move("2026-10-15", 9.0, read_ok)})
+    assert _REAL_REACTION_PCT("AAA", "2026-10-15", at(date(2026, 10, 15), 18)) == 3.0
+    assert calls == []
+    held["AAA"] = {**held["AAA"], "reaction": {"events": []}}       # measured, but no move for the date: still no
+    assert _REAL_REACTION_PCT("AAA", "2026-10-15", at(date(2026, 10, 15), 18)) is None     # rebuild (the ruling)
+    assert calls == []
+
+
+def test_no_refresh_before_the_reacting_session_has_closed(db, world, monkeypatch):
+    """16:10 ET on a before-the-open report day: the session closed ten minutes ago, inside the 30-minute buffer,
+    so a rebuild could still miss the closing bar. Nothing is built; the name ranks as unmeasured."""
+    read_early = datetime(2026, 10, 15, 10, 0, tzinfo=ET)
+    held = {"AAA": _held_move("2026-10-15", -9.0, read_early)}
+    calls = _refresh_world(monkeypatch, held, {"AAA": _held_move("2026-10-15", -9.0, read_early)})
+    world["reports"] = {"2026-10-15": {"AAA": "bmo"}}
+    world["sets"], world["paid"] = {"u1": {"AAA": ["watchlist"]}}, {"u1"}
+    result, sent = ring(db, at(date(2026, 10, 15), 16, 10))
+    assert calls == [] and result["refreshed"] == 0 and _symbols(sent) == ["AAA"]
+    late = _REAL_REACTION_PCT("AAA", "2026-10-15", at(date(2026, 10, 15), 16, 30))
+    assert calls == ["AAA"] and late is None                   # control: at close + 30 min it does refresh
+
+
+def test_a_refresh_that_fails_ranks_as_unmeasured_and_never_raises(db, world, monkeypatch):
+    from api.services import earnings_intel
+    read_early, read_ok = datetime(2026, 10, 15, 10, 0, tzinfo=ET), datetime(2026, 10, 15, 17, 0, tzinfo=ET)
+    held = {"AAA": _held_move("2026-10-15", -9.0, read_early), "BBB": _held_move("2026-10-15", 2.0, read_ok)}
+    calls = _refresh_world(monkeypatch, held, {})                    # refresh_earnings answers None: build failed
+    monkeypatch.setattr(ef, "DAILY_CAP", 1)
+    world["reports"] = {"2026-10-15": {s: "bmo" for s in held}}
+    world["sets"], world["paid"] = {"u1": {s: ["watchlist"] for s in held}}, {"u1"}
+    result, sent = ring(db, at(date(2026, 10, 15), 16, 45))
+    assert calls == ["AAA"] and _symbols(sent) == ["BBB"]            # AAA unmeasured, last, capped
+    assert result["refresh_failed"] == 1 and result["refreshed"] == 0
+
+    def boom(sym):
+        raise RuntimeError("vendor down")
+    monkeypatch.setattr(earnings_intel, "refresh_earnings", boom)
+    assert _REAL_REACTION_PCT("AAA", "2026-10-15", at(date(2026, 10, 15), 18)) is None
+
+
+def test_the_warm_budget_also_stops_a_refresh(db, world, monkeypatch):
+    """The cached read itself spends the budget (130 s on a 120 s budget): the refresh is not started, it is counted,
+    and the name ranks as unmeasured."""
+    from api.services import earnings_intel
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(ef, "_mono", lambda: clock["t"])
+    read_early = datetime(2026, 10, 15, 10, 0, tzinfo=ET)
+    held = {"AAA": _held_move("2026-10-15", -9.0, read_early)}
+    calls = _refresh_world(monkeypatch, held, {"AAA": _held_move("2026-10-15", -9.0, at(date(2026, 10, 15), 17))})
+
+    def slow_read(sym):
+        clock["t"] += 130.0
+        return held[sym]
+    monkeypatch.setattr(earnings_intel, "get_earnings", slow_read)
+    world["reports"] = {"2026-10-15": {"AAA": "bmo"}}
+    world["sets"], world["paid"] = {"u1": {"AAA": ["watchlist"]}}, {"u1"}
+    result, sent = ring(db, at(date(2026, 10, 15), 16, 45))
+    assert calls == [] and result["refresh_skipped"] == 1 and result["refreshed"] == 0 and len(sent) == 1
