@@ -7,6 +7,7 @@ import { render, screen } from '@testing-library/react'
 // stays a unit test of the tab's own error-vs-empty rendering.
 vi.mock('../../../components/FundamentalSnapshot', () => ({ default: () => <div>fundamental-snapshot</div> }))
 vi.mock('../DeskCoverage', () => ({ default: () => null }))
+vi.mock('../TeamCoverage', () => ({ default: () => null }))
 vi.mock('../LeadershipBadge', () => ({ default: () => null }))
 vi.mock('../ConfidenceBadge', () => ({ default: () => null }))
 vi.mock('../../../components/chart/pane/ChartPane', () => ({ default: () => <div>chart-pane</div> }))

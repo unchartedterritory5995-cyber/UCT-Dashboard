@@ -15,7 +15,7 @@ import json
 import math
 import re
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from api.services.wisdom.core import authors as core_authors
@@ -682,3 +682,50 @@ def match_setups(conn, text: str, *, limit: int = 2) -> list:
         if best:
             found[sid] = best
     return [sid for sid, _ in sorted(found.items(), key=lambda kv: (-kv[1], kv[0]))][:max(1, limit)]
+
+# ── research surfaces: per-ticker daily activity ─────────────────────────────
+
+#: The longest window ticker_daily answers, in calendar days.
+MAX_DAILY_DAYS = 3650
+
+
+def ticker_daily(conn, sym: str, *, days: int = 365, today: Optional[str] = None) -> dict:
+    """Team posts and calls on one ticker, per stated day, oldest first, for the last `days`
+    calendar days ending `today` (an ISO date; default the newest archived day for the ticker).
+
+    A day with no team post is ABSENT, never a zero row: the archive records what was posted, so
+    a missing day says the team did not post about the name that day, not that something was
+    measured as zero.
+    `archive_through` is the newest day in the WHOLE archive: past it, nothing is known yet.
+    """
+    t = normalize_ticker(sym)
+    n = max(1, min(int(days or 365), MAX_DAILY_DAYS))
+    like = f"%,{t},%"
+    # How far the archive reaches at all: a day after this is UNKNOWN (not yet imported), never
+    # "the team did not post". A surface laying these counts on a calendar needs both facts.
+    reach = conn.execute("SELECT MAX(stated_date) FROM wisdom_archive_records").fetchone()[0]
+    archive_through = str(reach)[:10] if reach else None
+    end = today or (conn.execute(
+        "SELECT MAX(stated_date) FROM wisdom_archive_records WHERE (',' || tickers || ',') LIKE ?",
+        (like,)).fetchone()[0])
+    if not end:
+        return {"ticker": t, "through": None, "days": [], "posts_total": 0, "calls_total": 0,
+                "last_post": None, "archive_through": archive_through}
+    end = str(end)[:10]
+    start = (datetime.fromisoformat(end) - timedelta(days=n - 1)).date().isoformat()
+    posts = dict(conn.execute(
+        "SELECT substr(stated_date, 1, 10) AS d, COUNT(*) FROM wisdom_archive_records "
+        "WHERE (',' || tickers || ',') LIKE ? AND substr(stated_date, 1, 10) BETWEEN ? AND ? "
+        "GROUP BY d", (like, start, end)).fetchall())
+    calls = dict(conn.execute(
+        "SELECT substr(posted, 1, 10) AS d, COUNT(*) FROM wisdom_archive_calls "
+        "WHERE ticker = ? AND substr(posted, 1, 10) BETWEEN ? AND ? GROUP BY d",
+        (t, start, end)).fetchall())
+    rows = [{"date": d, "posts": posts.get(d, 0), "calls": calls.get(d, 0)}
+            for d in sorted(set(posts) | set(calls))]
+    last = conn.execute(
+        "SELECT MAX(stated_date) FROM wisdom_archive_records WHERE (',' || tickers || ',') LIKE ?",
+        (like,)).fetchone()[0]
+    return {"ticker": t, "from": start, "through": end, "days": rows,
+            "posts_total": sum(r["posts"] for r in rows), "calls_total": sum(r["calls"] for r in rows),
+            "last_post": str(last)[:10] if last else None, "archive_through": archive_through}

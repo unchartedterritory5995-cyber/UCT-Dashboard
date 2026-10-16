@@ -50,6 +50,7 @@ export const PANEL_IMPORTERS = {
   Peer: () => import('./panels/PeerPanel'),
   Etf: () => import('./panels/EtfPanel'),
   Twt: () => import('./panels/TwtPanel'),
+  TraderArchive: () => import('./panels/TraderArchivePanel'),
   Size: () => import('./panels/SizePanel'),
   // ── wave 8 lane F: CHK pre-trade check ──
   Check: () => import('./panels/CheckPanel'),
