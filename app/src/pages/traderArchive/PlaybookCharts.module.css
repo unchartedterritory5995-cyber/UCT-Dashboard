@@ -1,0 +1,13 @@
+.wrap { margin: var(--space-md) 0; }
+.toggle { min-height: var(--tap-min); display: inline-flex; align-items: center; padding: 0 var(--space-md); background: var(--bg-elevated); color: var(--text-bright); border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; font-size: var(--text-base); }
+.toggle:focus-visible { outline: var(--focus-ring); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr)); gap: var(--space-md); margin-top: var(--space-md); }
+.card { margin: 0; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--bg-elevated); }
+.caption { display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: baseline; padding: var(--space-sm) var(--space-md); font-size: var(--text-sm); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.ticker { color: var(--text-bright); font-weight: 700; }
+.best { color: var(--success-ink); font-weight: 700; }
+.fail { color: var(--danger-ink); font-weight: 700; }
+.up { color: var(--success-ink); }
+.down { color: var(--danger-ink); }
+.chart { height: 240px; }
+.note { color: var(--text-muted); font-size: var(--text-sm); padding: var(--space-sm) var(--space-md); }

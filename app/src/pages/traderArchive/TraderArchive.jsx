@@ -17,6 +17,7 @@ import useSWR from 'swr'
 import jsonFetcher from '../../utils/jsonFetcher'
 import UIcon from '../../components/ui/UIcon'
 import { ARCHIVE_API, MIN_CONTEXT_N, clip, dayOf, edgeVerdict, fmtR, rTone, traderOf } from '../../utils/traderArchive'
+import PlaybookCharts from './PlaybookCharts'
 import styles from './TraderArchive.module.css'
 
 const VIEWS = [
@@ -304,6 +305,7 @@ function PlaybookView({ initial = '' }) {
           <ExampleTable rows={data.winners || []} />
           <h3 className={styles.h3}>Failures</h3>
           <ExampleTable rows={data.failures || []} />
+          <PlaybookCharts winners={data.winners || []} failures={data.failures || []} />
         </div>
       )}
     </div>
