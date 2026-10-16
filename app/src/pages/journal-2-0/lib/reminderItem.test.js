@@ -4,7 +4,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { Editor } from '@tiptap/core'
 import { buildExtensions } from './tiptap'
 import { dateSuggestPluginKey, runDateCommand } from './dateSuggest'
-import { insertReminder, REMINDER_LEAD } from './reminderItem'
+import { caretInTaskLine, insertReminder, REMINDER_LEAD } from './reminderItem'
 
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
 if (!Range.prototype.getBoundingClientRect) Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -137,6 +137,60 @@ describe('insertReminder', () => {
     expect(ed.state.doc.firstChild.type.name).toBe('heading')
     expect(ed.state.doc.firstChild.textContent).toBe('Plan ')
     expect(tasks(ed).map((t) => t.text)).toEqual([`${REMINDER_LEAD}@`])
+  })
+  // final fix C, M6: a bullet or numbered list NESTED inside a task. `isActive('taskItem')` is true there, the
+  // task split failed, and "Follow up @" landed as plain text in the nested item. The ruling: always an unticked
+  // task item holding the lead, with the date list open; a nested item becomes a task item (the task-list toggle).
+  const leadParents = (ed) => {
+    const o = []
+    ed.state.doc.descendants((n, pos) => {
+      if (n.type.name === 'paragraph' && n.textContent.includes(REMINDER_LEAD.trim())) {
+        o.push(ed.state.doc.resolve(pos).parent.type.name)
+      }
+    })
+    return o
+  }
+  const nestedInTask = (listType, text) => ({
+    type: 'taskList',
+    content: [{ type: 'taskItem', attrs: { checked: false }, content: [para('Parent '), { type: listType, content: [{ type: 'listItem', content: [para(text)] }] }] }],
+  })
+  const caretInNestedItem = (ed, text) => {
+    let at = -1
+    ed.state.doc.descendants((n, pos) => { if (n.type.name === 'listItem' && at < 0) at = pos + 2 + text.length })
+    ed.commands.setTextSelection(at)
+  }
+  for (const listType of ['bulletList', 'orderedList']) {
+    for (const text of ['', 'note ']) {
+      it(`in a ${listType} item nested inside a task (${text ? 'with words' : 'empty'}): the reminder is a task item, never plain text`, () => {
+        const ed = mount(nestedInTask(listType, text))
+        caretInNestedItem(ed, text)
+        expect(ed.isActive('taskItem')).toBe(true) // the trap: true under a task, though this line is a list item
+        ed.commands.insertContent('/remind')
+        expect(insertReminder(ed, typedRange(ed, '/remind'))).toBe(true)
+        expect(leadParents(ed)).toEqual(['taskItem']) // the lead is a task's OWN line, nowhere else
+        expect(tasks(ed)).toContainEqual({ checked: false, text: `${REMINDER_LEAD}@`, dates: [] })
+        if (text) expect(ed.getText()).toContain('note ') // the item's words stay
+        const s = dateSuggestPluginKey.getState(ed.state)
+        expect(s.active).toBe(true)
+        expect(runDateCommand(ed, { date: '2026-10-21' }, s.range)).toBe(true)
+        // the date sits in that task's OWN paragraph (what note_tasks reads as its due date), not merely under it
+        const owners = []
+        ed.state.doc.descendants((n, pos) => {
+          if (n.type.name !== 'dateMention') return
+          const $p = ed.state.doc.resolve(pos)
+          owners.push({ owner: $p.node(-1).type.name, checked: $p.node(-1).attrs.checked, line: $p.parent.textContent, date: n.attrs.date })
+        })
+        expect(owners).toEqual([{ owner: 'taskItem', checked: false, line: expect.stringContaining(REMINDER_LEAD.trim()), date: '2026-10-21' }])
+      })
+    }
+  }
+  it('caretInTaskLine: a task\'s own line is in a task; a list item nested in a task is not', () => {
+    const ed = mount(nestedInTask('bulletList', 'note '))
+    caretAtEndOfTaskText(ed) // the end of "Parent "
+    expect(caretInTaskLine(ed.state)).toBe(true)
+    caretInNestedItem(ed, 'note ')
+    expect(caretInTaskLine(ed.state)).toBe(false)
+    expect(ed.isActive('taskItem')).toBe(true)
   })
   it('adds no node, mark or attribute', () => {
     const ed = mount(para(''))
