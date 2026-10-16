@@ -102,7 +102,7 @@ def _current_regime() -> str:
     return vrc.band_of(r.get("regime"))
 
 
-def lookup_playbook(setup_name: str) -> dict:
+def _engine_lookup_playbook(setup_name: str) -> dict:
     uct = _engine()
     if uct is None:
         return dict(_UNAVAILABLE)
@@ -138,7 +138,7 @@ def lookup_playbook(setup_name: str) -> dict:
         return {"ok": False, "error": str(e)}
 
 
-def setup_winrate(setup: str, regime: str = "ALL") -> dict:
+def _engine_setup_winrate(setup: str, regime: str = "ALL") -> dict:
     uct = _engine()
     if uct is None:
         return dict(_UNAVAILABLE)
@@ -160,8 +160,8 @@ def setup_winrate(setup: str, regime: str = "ALL") -> dict:
         return {"ok": False, "error": str(e)}
 
 
-def find_historical_analogs(setup_type: str, regime: str = "", sector: str = "",
-                            limit: int = 5) -> dict:
+def _engine_find_historical_analogs(setup_type: str, regime: str = "", sector: str = "",
+                                    limit: int = 5) -> dict:
     uct = _engine()
     if uct is None:
         return dict(_UNAVAILABLE)
@@ -173,6 +173,65 @@ def find_historical_analogs(setup_type: str, regime: str = "", sector: str = "",
     except Exception as e:
         log.exception("find_historical_analogs failed")
         return {"ok": False, "error": str(e)}
+
+
+# ── the team archive: a LABELLED second source beside the engine ─────────────
+#
+# ⛔ The engine stays the primary answer wherever it answers. The team archive (the UCT team's own
+# posted calls, outcomes measured after the fact) rides beside it under `team_archive`, never
+# averaged into or substituted for an engine number. Off (WISDOM_ARCHIVE_ENABLED unset), not
+# imported, or unmapped: the key is simply absent, and every engine answer is byte-identical to
+# what it was before. One door into the wisdom package (R50 DECLARED_DOORS), here, so voice,
+# chat and grade_ticker can never diverge.
+
+def _team_archive_module():
+    try:
+        from api.services.wisdom.archive import team_record
+        return team_record
+    except Exception:  # noqa: BLE001
+        log.exception("team archive unavailable")
+        return None
+
+
+def team_archive_setup(setup_name: str):
+    """The archive's measured record for a setup (engine name, detector id or alias), or None."""
+    tr = _team_archive_module()
+    return tr.setup_record(setup_name) if tr is not None else None
+
+
+def team_archive_analogs(setup_name: str, limit: int = 5):
+    tr = _team_archive_module()
+    return tr.analogs(setup_name, limit=limit) if tr is not None else None
+
+
+def team_archive_ticker(symbol: str, setup: str = ""):
+    tr = _team_archive_module()
+    return tr.ticker_record(symbol, setup=setup or None) if tr is not None else None
+
+
+def team_archive_sentence(setup_rec, ticker_rec=None) -> str:
+    tr = _team_archive_module()
+    return tr.sentence(setup_rec, ticker_rec) if tr is not None else ""
+
+
+def _with_team_archive(result: dict, rec) -> dict:
+    if not rec:
+        return result
+    return {**(result or {}), "team_archive": rec}
+
+
+def lookup_playbook(setup_name: str) -> dict:
+    return _with_team_archive(_engine_lookup_playbook(setup_name), team_archive_setup(setup_name))
+
+
+def setup_winrate(setup: str, regime: str = "ALL") -> dict:
+    return _with_team_archive(_engine_setup_winrate(setup, regime), team_archive_setup(setup))
+
+
+def find_historical_analogs(setup_type: str, regime: str = "", sector: str = "",
+                            limit: int = 5) -> dict:
+    return _with_team_archive(_engine_find_historical_analogs(setup_type, regime, sector, limit),
+                              team_archive_analogs(setup_type, limit))
 
 
 def size_a_trade(entry: float, stop: float, account: float, regime: str = "",

@@ -173,7 +173,8 @@ def test_every_member_route_is_require_paid_and_the_registry_mounts_it():
     assert paths == {"/api/wisdom/archive/ticker/{sym}", "/api/wisdom/archive/setup/{setup}",
                      "/api/wisdom/archive/search", "/api/wisdom/archive/stats",
                      "/api/wisdom/archive/trader/{author}", "/api/wisdom/archive/playbooks",
-                     "/api/wisdom/archive/playbook/{setup}", "/api/wisdom/archive/pattern/{pattern_id}"}
+                     "/api/wisdom/archive/playbook/{setup}", "/api/wisdom/archive/pattern/{pattern_id}",
+                     "/api/wisdom/archive/check"}
     for r in wisdom_archive.member_router.routes:
         deps = _dep_names(r)
         assert "require_paid" in deps, r.path
@@ -508,3 +509,78 @@ def test_deep_research_carries_the_archive_block_only_with_the_flag(wisdom_db, o
     monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "0")
     assert "TRADER ARCHIVE" not in ai_search_deep._desk_block("what did they say about ZZTA breakout")
     assert "CTX" in ai_search_deep._desk_block("what did they say about ZZTA breakout")   # control
+
+
+# ── 8. the Terminal's CHK and the team record Compass reads ──────────────────
+
+CHECK = "/api/wisdom/archive/check?ticker=ZZTA&setup=Kicker%20Candle"
+
+
+def _keys(o):
+    if isinstance(o, dict):
+        for k, v in o.items():
+            yield k
+            yield from _keys(v)
+    elif isinstance(o, list):
+        for v in o:
+            yield from _keys(v)
+
+
+def test_chk_resolves_an_engine_setup_name_through_the_aliases_and_shows_no_levels(wisdom_db, on, monkeypatch):
+    from api.services.wisdom.archive import setup_map
+
+    _seed_kicker()
+    monkeypatch.setattr(setup_map, "market_state", lambda: "downtrend")
+    body = _client(PAID_MEMBER).get(CHECK).json()
+    assert "team archive" in body["label"].lower() and "not advice" in body["label"]
+    rec = body["setup"]
+    assert rec["setup_id"] == "kicker" and rec["source"] == "team_archive"          # "Kicker Candle" -> kicker
+    assert rec["all_calls"]["n_scored"] == 140 and rec["all_calls"]["verdict"] == "not proven"
+    assert rec["today"]["state"] == "downtrend" and rec["today"]["cut"]["n_scored"] == 40
+    assert len(rec["best"]) == 3 and [w["ticker"] for w in rec["worst"]] == ["ZZL"]
+    t = body["ticker"]
+    assert t["ticker"] == "ZZTA" and t["n_calls"] == 1 and t["setup_id"] == "kicker"
+    assert t["calls"] == []                                   # ZZTA's one call is not a kicker
+    assert not {"entry", "stop", "target"} & set(_keys(body))
+
+
+def test_chk_without_a_resolvable_setup_still_answers_the_tickers_record(wisdom_db, on):
+    _seed_kicker()
+    body = _client(PAID_MEMBER).get("/api/wisdom/archive/check?ticker=zzta&setup=not%20a%20setup").json()
+    assert body["setup"] is None
+    assert body["ticker"]["setup_id"] is None
+    assert [c["call_id"] for c in body["ticker"]["calls"]] == ["t9101#0"]
+    assert body["ticker"]["calls"][0]["r20"] == 0.10 and body["ticker"]["calls"][0]["trader"]
+
+
+def test_chk_is_paid_flag_gated_and_refuses_a_malformed_ticker(wisdom_db, on, monkeypatch):
+    _seed_kicker()
+    assert _client(PAID_MEMBER).get(CHECK).status_code == 200                       # control
+    assert _client(FREE_MEMBER).get(CHECK).status_code == 402
+    assert _client(None).get(CHECK).status_code in (401, 403)
+    assert _client(PAID_MEMBER).get("/api/wisdom/archive/check?ticker=%24%24%24").status_code == 422
+    monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "0")
+    assert _client(PAID_MEMBER).get(CHECK).status_code == 404
+
+
+@pytest.mark.parametrize("z,n,want", [(3.0, 30, "measured edge"), (-3.2, 40, "measured edge"),
+                                       (3.0, 29, "not proven"), (2.9, 500, "not proven"),
+                                       (None, 500, "not proven"), (5.0, 0, "no scored calls")])
+def test_the_team_record_verdict_is_the_shared_line(z, n, want):
+    from api.services.wisdom.archive import team_record
+
+    assert team_record.verdict({"n_scored": n, "edgeR_z": z}) == want
+
+
+def test_the_team_record_is_none_with_the_flag_off_and_never_opens_the_store(monkeypatch):
+    from api.services.wisdom.archive import team_record
+
+    monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "0")
+
+    def boom(*a, **k):
+        raise AssertionError("the store was opened while the flag is off")
+
+    monkeypatch.setattr(store, "read", boom)
+    assert team_record.setup_record("kicker") is None
+    assert team_record.ticker_record("ZZTA") is None
+    assert team_record.analogs("kicker") is None

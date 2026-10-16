@@ -509,6 +509,20 @@ def last_call(conn, sym: str) -> Optional[dict]:
     return _call_dict(r) if r is not None else None
 
 
+def calls_for_ticker(conn, sym: str, *, setup: Optional[str] = None, limit: int = 10) -> list:
+    """A ticker's calls (optionally of one setup), newest first, WITHOUT price levels."""
+    t = normalize_ticker(sym)
+    sql = ("SELECT call_id, record_id, author_id, ticker, direction, setup, action, posted, outcome_json "
+           "FROM wisdom_archive_calls WHERE ticker = ?")
+    params: list = [t]
+    if setup:
+        sql += " AND setup = ? COLLATE NOCASE"
+        params.append(setup)
+    sql += " ORDER BY posted DESC, call_id DESC LIMIT ?"
+    params.append(max(1, min(int(limit or 10), 200)))
+    return [_call_dict(r) for r in conn.execute(sql, tuple(params))]
+
+
 def by_author(conn, author: str, *, limit: int = 100) -> dict:
     """One trader: newest records first, their calls newest first, and a scored-call summary."""
     a = (author or "").strip().lower()

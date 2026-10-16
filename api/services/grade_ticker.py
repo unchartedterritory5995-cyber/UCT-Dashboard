@@ -120,6 +120,19 @@ def _default_playbook_fn(setup_name):
     return brain_service.lookup_playbook(setup_name)
 
 
+def _default_archive_fn(symbol, setup):
+    """The team archive beside the verdict, through the brain facade (the one wisdom door).
+    {"setup": record|None, "ticker": record|None} or None. ⛔ Never feeds the verdict: no flag,
+    grade, size or GO/HOLD/SKIP reads it."""
+    from api.services import brain_service
+    setup_rec = brain_service.team_archive_setup(setup) if setup else None
+    ticker_rec = brain_service.team_archive_ticker(symbol, setup or "")
+    if not setup_rec and not (ticker_rec and ticker_rec.get("n_calls")):
+        return None
+    return {"setup": setup_rec, "ticker": ticker_rec,
+            "sentence": brain_service.team_archive_sentence(setup_rec, ticker_rec)}
+
+
 def _default_size_fn(entry, stop, account, regime="", grade="A", risk_pct=1.0):
     from api.services import brain_service
     out = brain_service.size_a_trade(entry=entry, stop=stop, account=account,
@@ -136,7 +149,7 @@ def _default_size_fn(entry, stop, account, regime="", grade="A", risk_pct=1.0):
 
 
 def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
-                 patterns_fn=None, playbook_fn=None, size_fn=None) -> dict:
+                 patterns_fn=None, playbook_fn=None, size_fn=None, archive_fn=None) -> dict:
     sym = (symbol or "").upper().strip()
     if not sym:
         return {"ok": False, "reason": "no symbol"}
@@ -145,6 +158,7 @@ def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
     patterns_fn = patterns_fn or _default_patterns_fn
     playbook_fn = playbook_fn or _default_playbook_fn
     size_fn = size_fn or _default_size_fn
+    archive_fn = archive_fn or _default_archive_fn
     account = float(account_size or _DEFAULT_ACCOUNT)
 
     # ── the gate: regime + quote must be available ──────────────────────────
@@ -179,12 +193,17 @@ def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
     target = levels.get("target_primary")
 
     if not top or entry is None or stop is None:
+        team = _team_archive(archive_fn, sym, (top or {}).get("pattern_name"))
+        basis = f"No clean, tradable setup on {sym} right now — nothing to grade. Wait for a real pattern to form."
+        if team and team.get("sentence"):
+            basis += " " + team["sentence"]
+            sources.append("team archive (labelled; does not change the verdict)")
         return _verdict(ok=True, symbol=sym, verdict="SKIP", regime=band,
                         regime_note=regime_note, setup=None, grade=None,
                         entry=None, stop=None, size_pct=None, account_risk_pct=None,
                         first_target=None,
-                        basis=f"No clean, tradable setup on {sym} right now — nothing to grade. Wait for a real pattern to form.",
-                        hard_flags=["no_setup"], sources=sources)
+                        basis=basis,
+                        hard_flags=["no_setup"], sources=sources, team_archive=team)
 
     setup = top.get("pattern_name") or "setup"
     grade = _grade_from_confidence(top.get("confidence"))
@@ -262,19 +281,33 @@ def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
         basis += " Live price unavailable — cannot confirm this hasn't already run; treat as HOLD."
     elif verdict == "HOLD":
         basis += " Tape or extension is the knock — half size or wait for it to firm up."
+    # The team archive is read AFTER the verdict is fixed, and only appended: it is a labelled
+    # second source, never an input to any flag above.
+    team = _team_archive(archive_fn, sym, setup)
+    if team and team.get("sentence"):
+        basis += " " + team["sentence"]
+        sources.append("team archive (labelled; does not change the verdict)")
 
     return _verdict(ok=True, symbol=sym, verdict=verdict, regime=band,
                     regime_note=regime_note, setup=setup, grade=grade,
                     entry=entry, stop=stop, size_pct=size_pct,
                     account_risk_pct=account_risk_pct, first_target=first_target,
                     basis=basis, hard_flags=hard_flags, sources=sources,
-                    stop_pct=stop_pct)
+                    stop_pct=stop_pct, team_archive=team)
+
+
+def _team_archive(archive_fn, symbol, setup):
+    try:
+        return archive_fn(symbol, setup) or None
+    except Exception:  # noqa: BLE001 — the archive can never break a verdict
+        _log.exception("team archive read failed in grade_ticker")
+        return None
 
 
 def _verdict(*, ok, symbol, verdict, regime, regime_note, setup, grade, entry,
              stop, size_pct, account_risk_pct, first_target, basis, hard_flags,
-             sources, stop_pct=None):
-    return {
+             sources, stop_pct=None, team_archive=None):
+    out = {
         "ok": ok, "symbol": symbol, "verdict": verdict, "regime": regime,
         "regime_note": regime_note, "setup": setup, "grade": grade,
         "entry": entry, "stop": stop,
@@ -284,3 +317,6 @@ def _verdict(*, ok, symbol, verdict, regime, regime_note, setup, grade, entry,
         "first_target": first_target, "basis": basis,
         "hard_flags": hard_flags, "sources": sources,
     }
+    if team_archive:
+        out["team_archive"] = team_archive
+    return out
