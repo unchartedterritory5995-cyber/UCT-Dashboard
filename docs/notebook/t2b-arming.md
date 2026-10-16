@@ -54,7 +54,10 @@ Dark until the switch is armed: the 16:45 / 18:00 ET job, the bell, the card, an
 4. The app-wide client smoke (R-27): `python tools/hub_nav_smoke.py --auth` (0 PASS, 1 measured, 2 INCONCLUSIVE; H15 on 1).
 5. The next trading day's first pass in the logs: `[notebook-earnings-followup] 16:45 pass: {...}`. Read its row in
    `j2_earnings_followup_runs` (over `railway ssh`, `/opt/venv/bin/python`) and check the `result`: `candidates > 0` on
-   a day with reporters, `timing_unknown` small, `partial` false, `warm_skipped` recorded. This is the FIRST real test of
+   a day with reporters, `partial` false, `warm_skipped` recorded. Since final fix C, `candidates` and `timing_unknown`
+   count the WHOLE day (the calendar board plus Finnhub's full list), not only the names a member holds: hundreds of
+   candidates on a busy day is expected, and `timing_unknown` is read as a share of `candidates`, not as a small
+   number. `delivered`, `already_sent` and `capped` are the ones that count member-matched names. This is the FIRST real test of
    the calendar's past-date answer (V2-V4 below). Since final fix C: `partial` is also true when the one Finnhub call
    for a scanned day failed (the run then used the calendar board alone and is not complete), and `refreshed` /
    `refresh_failed` / `refresh_skipped` count the names whose held earnings copy, read before the reaction closed,
@@ -80,6 +83,10 @@ Dark until the switch is armed: the 16:45 / 18:00 ET job, the bell, the card, an
   have that report's numbers yet; it never shows another quarter's. The numbers are a record: they do not refresh later.
 - **The reaction line** is measured only when the held data was read at least 30 minutes after the close of the session
   that reacted; otherwise it is a dash with a sentence naming that session. The server learns which session reacted from the earnings calendar it already holds (cache only); a same-evening bell finds it there. For an older report no longer in that cache it assumes the conservative next session, so the line can be a dash where a number was possible; the sentence then says exactly that.
+- **A rebuild can be thinner than the copy it replaces.** The job rebuilds a held earnings copy once when it was read
+  before the reaction closed; if that rebuild comes back with the quarters but without a section the old copy had
+  (the consensus tier, say), the thinner copy is kept until the next normal rebuild. Only copies that were already
+  unmeasured are ever rebuilt.
 - **The bell says a company "reported"** on the strength of the earnings calendar listing; nothing re-confirms the
   report before the bell rings.
 - **Revenue for a foreign issuer whose reporting currency could not be read** prints with "$" (the repo-wide

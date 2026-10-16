@@ -815,6 +815,12 @@ def test_unknown_times_are_counted_and_reach_the_run(db, world):
 _REAL_REACTION_PCT = ef._reaction_pct       # captured before the world fixture replaces it
 
 
+def _no_rebuild(sym):
+    """A rebuild that finds nothing: the copy UCT holds stays as it was (earnings_intel.refresh_earnings's own
+    failure answer). Without it the real `_reaction_pct` calls `_build` and reaches live vendors (re-review N1)."""
+    return None
+
+
 def _held_move(report, pct, read_at):
     return {"quarters": [{"report_date": report, "reported": True}],
             "reaction": {"events": [{"report_date": report, "reaction_pct": pct}]},
@@ -829,6 +835,8 @@ def test_an_unmeasured_move_ranks_as_no_move_and_never_as_a_pre_news_number(db, 
     from api.services.journal_two import earnings_prep
     monkeypatch.setattr(ef, "_reaction_pct", _REAL_REACTION_PCT)
     monkeypatch.setattr(earnings_prep, "_timing_from_calendar_cache", lambda sym, day: "bmo")
+    # The real `_reaction_pct` now rebuilds an unmeasured copy (final fix C, I1); no rebuild here, so it reaches no vendor.
+    monkeypatch.setattr(earnings_intel, "refresh_earnings", _no_rebuild)
     read_ok, read_early = datetime(2026, 10, 15, 17, 0, tzinfo=ET), datetime(2026, 10, 15, 16, 10, tzinfo=ET)
     held = {"AAA": _held_move("2026-10-15", -9.0, read_early), "BBB": _held_move("2026-10-15", 2.0, read_ok),
             "CCC": _held_move("2026-10-15", 5.0, read_ok), "DDD": _held_move("2026-10-15", 1.0, read_ok)}
@@ -844,6 +852,7 @@ def test_reaction_pct_is_the_measured_move_only(monkeypatch):
     from api.services import earnings_intel
     from api.services.journal_two import earnings_prep
     monkeypatch.setattr(earnings_prep, "_timing_from_calendar_cache", lambda sym, day: "amc")
+    monkeypatch.setattr(earnings_intel, "refresh_earnings", _no_rebuild)      # never a live vendor (re-review N1)
     payload = {}
     monkeypatch.setattr(earnings_intel, "get_earnings", lambda sym: payload["p"])
     payload["p"] = _held_move("2026-10-14", -3.0, datetime(2026, 10, 14, 17, 0, tzinfo=ET))      # AMC, read the same evening
