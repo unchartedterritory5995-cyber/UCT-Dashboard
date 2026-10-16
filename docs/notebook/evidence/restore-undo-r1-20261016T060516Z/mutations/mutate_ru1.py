@@ -44,6 +44,7 @@ MUTATIONS = {
     "R1-M16-drain-clears-without-forking": (DRN, [("        await fork({ ...entry, noteId: entry.copyOf })\n", "")]),
     "R1-M17-drain-treats-copy-as-update": (DRN, [("    if (isNoteCopy(entry)) {\n", "    if (false && isNoteCopy(entry)) {\n")]),
     "R1-M18-no-crossing-gate": (NEP, [("    if (!ed.state.doc.eq(swap.preDoc) && !tr.before.eq(swap.preDoc)) return\n", "")]),
+    "R1-M20-blocked-copy-not-forked": (DRN, [("    if (isNoteCopy(entry)) {\n", "    if (!entry.permanent && isNoteCopy(entry)) {\n")]),
     "R1-M19-onUpdate-never-notes-crossing": (NEP, [("        noteRestoreCrossing(transaction)\n", "")]),
 }
 

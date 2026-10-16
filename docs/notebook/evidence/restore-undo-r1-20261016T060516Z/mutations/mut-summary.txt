@@ -122,3 +122,17 @@ R1-M8-swap-capture-not-flushed: Test Files  1 failed | 2 passed (3) | Tests  1 f
      × a keystroke INSIDE the 200 ms window right after a with-base Restore (nothing else in flight) cannot coalesce the Restore's capture away 1964ms
 R1-M10-no-close-before-restore: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 41 passed (42)  [restored OK]
      × M1: a keystroke under 500 ms BEFORE the Restore is its own undo step too (one Undo takes back only the Restore) 1409ms
+R1-M20-blocked-copy-not-forked: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 42 passed (43)  [restored OK]
+     × ⛔ a copy an OLDER bundle blocked (it read it as a baseline-less update) is still forked here 225ms
+R1-M17-drain-treats-copy-as-update: Test Files  2 failed | 1 passed (3) | Tests  4 failed | 39 passed (43)  [restored OK]
+     × back online after the Undo: the page saves, and nothing is settled away 4348ms
+     × forks it with the SAME fork, against its source note, then clears it — even while the editor owns the source 223ms
+     × ⛔ a copy an OLDER bundle blocked (it read it as a baseline-less update) is still forked here 219ms
+     × ⛔ a failed fork (offline) leaves the copy exactly where it was 224ms
+R1-M16-drain-clears-without-forking: Test Files  2 failed | 1 passed (3) | Tests  6 failed | 37 passed (43)  [restored OK]
+     × C2: no-base Restore offline after old-view typing, then the tab closes with no keystroke ⇒ W durable, and still durable after reopening 2552ms
+     × I1: Undo past the Restore, close, reopen, type before choosing, close ⇒ W and the old words durable throughout 3366ms
+     × back online after the Undo: the page saves, and nothing is settled away 4558ms
+     × forks it with the SAME fork, against its source note, then clears it — even while the editor owns the source 242ms
+     × ⛔ a copy an OLDER bundle blocked (it read it as a baseline-less update) is still forked here 218ms
+     × ⛔ a failed fork (offline) leaves the copy exactly where it was 225ms
