@@ -64,6 +64,7 @@
 import * as priceStreamManager from './priceStreamManager'
 import * as barsStreamManager from './barsStreamManager'
 import * as chainStreamManager from './chainStreamManager'
+import * as timeSalesStreamManager from './timeSalesStreamManager'
 
 export const DELIVERY = Object.freeze({
   LAST_VALUE_WINS: 'last-value-wins',
@@ -78,6 +79,10 @@ const DELIVERY_VALUES = Object.freeze(Object.values(DELIVERY))
  * `pool`/`subscribe`/`read` name the shared pool entry point and the two of its
  * exports a handle forwards to. They are looked up AT CALL TIME, never captured
  * at declare time, so a module-level mock or a pool reload reaches the handle.
+ * An optional `retry` names a third export, and only a need that declares it
+ * gets a `retry` on its handle (a pool whose stream can end for good and that a
+ * member can reopen — the TAS Retry button). It is still a verb on the shared
+ * pool, never a URL or a connection.
  */
 const NEEDS = Object.freeze({
   prices: Object.freeze({
@@ -93,6 +98,12 @@ const NEEDS = Object.freeze({
   chain: Object.freeze({
     delivery: DELIVERY.EVERY_MESSAGE_MATTERS,
     pool: chainStreamManager, subscribe: 'subscribe', read: 'getSnapshot',
+  }),
+  // TAS (COV-08 / FT-077): each pushed batch of prints is merged into the tape the pool holds,
+  // so none may be dropped (lib/timeSalesStreamManager.js).
+  'time-and-sales': Object.freeze({
+    delivery: DELIVERY.EVERY_MESSAGE_MATTERS,
+    pool: timeSalesStreamManager, subscribe: 'subscribe', read: 'getSnapshot', retry: 'retry',
   }),
   tape: Object.freeze({
     delivery: DELIVERY.EVERY_MESSAGE_MATTERS,
@@ -128,7 +139,7 @@ export function deliveryOf(kind) {
  * Declare what a panel needs, and get back a handle — never a URL.
  *
  * @param {{kind: string, delivery: string}} spec  both REQUIRED, nothing else allowed
- * @returns {{kind: string, delivery: string, subscribe: Function, read: Function}}
+ * @returns {{kind: string, delivery: string, subscribe: Function, read: Function, retry?: Function}}
  */
 export function declareNeed(spec) {
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) {
@@ -160,10 +171,12 @@ export function declareNeed(spec) {
     throw new PanelContractError(`need ${JSON.stringify(kind)} is declared but not yet `
       + `servable: ${need.unavailable}`)
   }
-  return Object.freeze({
+  const handle = {
     kind,
     delivery,
     subscribe: (...args) => need.pool[need.subscribe](...args),
     read: (...args) => need.pool[need.read](...args),
-  })
+  }
+  if (need.retry) handle.retry = (...args) => need.pool[need.retry](...args)
+  return Object.freeze(handle)
 }
