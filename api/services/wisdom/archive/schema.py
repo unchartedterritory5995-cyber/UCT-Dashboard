@@ -77,4 +77,19 @@ MIGRATIONS: list[tuple[str, str]] = [
      " failures_json TEXT NOT NULL DEFAULT '[]',"
      " sha TEXT NOT NULL,"
      " imported_at TEXT NOT NULL)"),
+    # Chart images (owner decision 4, 2026-10-16): metadata only. The bytes live in private
+    # storage (R2, else the volume) -- see archive/images.py. image_id = sha256 of the bytes.
+    ("archive_008_images",
+     "CREATE TABLE IF NOT EXISTS wisdom_archive_images ("
+     " image_id TEXT PRIMARY KEY,"
+     " record_id TEXT NOT NULL,"
+     " ordinal INTEGER NOT NULL DEFAULT 0,"
+     " storage_key TEXT NOT NULL,"
+     " bytes INTEGER NOT NULL,"
+     " width INTEGER,"
+     " height INTEGER,"
+     " content_type TEXT NOT NULL,"
+     " imported_at TEXT NOT NULL)"),
+    ("archive_009_images_record_idx",
+     "CREATE INDEX IF NOT EXISTS ix_wisdom_archive_images_record ON wisdom_archive_images(record_id, ordinal)"),
 ]
