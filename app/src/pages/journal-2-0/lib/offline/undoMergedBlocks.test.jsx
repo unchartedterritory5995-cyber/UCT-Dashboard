@@ -31,7 +31,8 @@
  */
 import { render, screen, act, waitFor, cleanup } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { AsyncLocalStorage } from 'node:async_hooks'
+import { describe, it as vitestIt, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createFakeIndexedDbFactory, settleIdb } from './__fixtures__/fakeIndexedDb'
 import { dbNameFor } from './notebookDb'
 import { drainOutbox, FORKED } from './outboxDrain'
@@ -42,6 +43,22 @@ import { isNoteCopy } from './noteCopy'
 
 // The real editor and several durable windows per rail: past the default budget.
 vi.setConfig({ testTimeout: 60_000 })
+
+/*
+ * ⭐ FIX ROUND 1 (review MI-2, the I-A M-12 pattern): EVERY REQUEST IS BOUND TO THE
+ * CELL THAT MADE IT. The mocks used to read the module's `server` when they wrote, so
+ * a save or a fork one cell left in flight landed in the NEXT cell's server (the M7
+ * log showed (d) with two forks for that reason). `update` is bound per mount
+ * (`updateFor`), and `fetch` / `createNoteViaApi` resolve their server through
+ * `cellScope`; the fake clock is installed inside the cell's scope, so timers it
+ * fires carry that cell's server.
+ */
+const cellScope = new AsyncLocalStorage()
+const it = (name, fn, ...rest) => vitestIt(name, (...args) => cellScope.run({ server: null }, () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  return fn(...args)
+}), ...rest)
+const serverNow = () => cellScope.getStore()?.server ?? server
 
 Range.prototype.getClientRects = () => []
 Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -87,33 +104,45 @@ function makeServer({ body, updatedAt }) {
     }),
     stamp: () => { rev += 1; s.updatedAt = `2026-10-16T20:10:${String(10 + rev).padStart(2, '0')}.000000+00:00` },
   }
+  const box = cellScope.getStore()
+  if (box) box.server = s
   return s
 }
 /** Compare-and-set: the editor's save AND the drain's send meet the same server. */
-function casPut(patch) {
-  if (patch.baseUpdatedAt && patch.baseUpdatedAt !== server.updatedAt) {
+function casPut(patch, s = serverNow()) {
+  if (patch.baseUpdatedAt && patch.baseUpdatedAt !== s.updatedAt) {
     const e = new Error('note changed — refresh and retry'); e.status = 409; throw e
   }
-  if (patch.bodyJson) server.body = patch.bodyJson
-  if ('title' in patch) server.title = patch.title
-  if ('subtitle' in patch) server.subtitle = patch.subtitle ?? ''
-  server.stamp()
-  return server.note()
+  if (patch.bodyJson) s.body = patch.bodyJson
+  if ('title' in patch) s.title = patch.title
+  if ('subtitle' in patch) s.subtitle = patch.subtitle ?? ''
+  s.stamp()
+  return s.note()
 }
-const update = vi.fn(async (patch) => {
-  if (server.offline) throw new Error('network down')      // no status ⇒ retried, never forked
-  return casPut(patch)
-})
+/** Records every PUT an editor makes (assertions only); the write is `updateFor`'s. */
+const update = vi.fn()
+const boundUpdates = new WeakMap()
+function updateFor(s) {
+  if (!boundUpdates.has(s)) {
+    boundUpdates.set(s, async (patch, ...rest) => {
+      update(patch, ...rest)
+      if (s.offline) throw new Error('network down')    // no status ⇒ retried, never forked
+      return casPut(patch, s)
+    })
+  }
+  return boundUpdates.get(s)
+}
 let mountedNote = null
+let mountedUpdate = null
 vi.mock('../../hooks/useJ2Notes', () => ({
-  useJ2Note: () => ({ note: mountedNote, isLoading: false, error: null, update, refresh: vi.fn() }),
+  useJ2Note: () => ({ note: mountedNote, isLoading: false, error: null, update: mountedUpdate, refresh: vi.fn() }),
   recordNoteOpened: vi.fn(),
   setNoteFavorite: vi.fn(),
 }))
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u42', role: 'member' } }) }))
 vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
 vi.mock('../noteCreation', () => ({
-  createNoteViaApi: vi.fn(async (args) => { server.forks.push(args); return { id: 'fork-1', ...args } }),
+  createNoteViaApi: vi.fn(async (args) => { serverNow().forks.push(args); return { id: 'fork-1', ...args } }),
 }))
 
 const ACCOUNT_DB = dbNameFor('u42')
@@ -129,16 +158,19 @@ beforeEach(() => {
   Object.defineProperty(globalThis.navigator, 'locks', { configurable: true, value: undefined })
   global.fetch = vi.fn((url) => {
     if (String(url) === '/api/j2/notes/n1') {
-      const note = server.note()
-      if (server.dropAfterRead) { server.dropAfterRead = false; server.offline = true }
+      const s = serverNow()                              // MI-2: the cell that made the request
+      const note = s.note()
+      if (s.dropAfterRead) { s.dropAfterRead = false; s.offline = true }
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ note }) })
     }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
   })
-  vi.useFakeTimers({ shouldAdvanceTime: true })
+  // MI-2: the fake clock is installed by `it`, inside the cell's scope.
 })
-afterEach(() => {
+afterEach(async () => {
   cleanup()
+  // MI-2: let the outgoing editor's own work settle before the next cell begins.
+  await act(async () => { await settleIdb(8) })
   vi.useRealTimers()
   vi.clearAllMocks()
   localStorage.clear()
@@ -155,6 +187,7 @@ async function ticks(n, ms) {
 }
 async function openTheNote() {
   mountedNote = server.note()
+  mountedUpdate = updateFor(server)
   const NoteEditorPage = (await import('../../components/notebook/NoteEditorPage')).default
   render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={() => {}} /></MemoryRouter>)
   await screen.findByPlaceholderText('Title')
