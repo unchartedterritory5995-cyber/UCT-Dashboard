@@ -14,6 +14,30 @@ Point = dict   # Anchor-shaped: {"t": number, "price": number}
 Line = tuple[Point, Point]
 
 
+def bar_time(bars: list, idx) -> int:
+    """The real bar `t` at bar INDEX `idx` — for EMITTING an anchor.
+
+    Several detectors fit their lines on a bar-index x axis (the right axis for
+    a chart that skips weekends) and used to emit that index as the anchor's
+    `t`. An index is only meaningful inside the scan window it came from, and
+    the window is not stored with the detection, so a stored index anchor can
+    never be placed on a chart (lab/geometry_eval REPORT.md, fix 1, 2026-10-16).
+
+    Display-only: the fit and every firing decision still run on indices; only
+    the emitted anchor is translated. Clamped into the window so a malformed
+    index can never raise inside a detector (a raise there is swallowed by
+    `detect_all` and would silently stop the detector firing); no shipped
+    detector produces an out-of-window endpoint (measured on every fixture).
+    """
+    n = len(bars)
+    i = int(round(float(idx)))
+    if i < 0:
+        i = 0
+    elif i >= n:
+        i = n - 1
+    return int(bars[i]["t"])
+
+
 def slope_angle_deg(p1: Point, p2: Point) -> float:
     """Angle of the line through p1->p2 in degrees, relative to time axis."""
     dt = p2["t"] - p1["t"]

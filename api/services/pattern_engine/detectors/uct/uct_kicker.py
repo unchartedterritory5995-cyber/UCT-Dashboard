@@ -144,12 +144,17 @@ def _build(bars, c, context, geom, vol, ctx) -> dict:
         "prior_high": round(c["prior_high"], 2), "prior_close": round(c["prior_close"], 2),
     }
     narrative = _narrative(c, levels, context)
+    secondary = [
+        U.hline(bars, i - 1, i, c["prior_close"], "weak_close",
+                f"Weak close {c['prior_close']:.2f}"),
+        U.hline(bars, i - 1, i, c["prior_high"], "pivot", f"Prior high {c['prior_high']:.2f}"),
+    ]
     return U.build_detection(
         pattern_id=_PATTERN_ID, pattern_name=_PATTERN_NAME, direction="bullish",
         bars=bars, trig_idx=i, start_idx=i - 1, anchors=anchors,
         anchor_roles=["weak_prior_close", "kicker_session"], extras=extras,
         levels=levels, context=context, narrative=narrative,
-        geom=geom, vol=vol, ctx=ctx)
+        geom=geom, vol=vol, ctx=ctx, secondary=secondary)
 
 
 def _narrative(c, levels, context) -> dict:

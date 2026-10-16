@@ -162,11 +162,20 @@ def _build(bars, c, context, geom, vol, ctx) -> dict:
         "falling_volume": c["falling_volume"], "gap_below_pct": c["gap_below_pct"],
         "rvol50": c["rvol50"], "bb_lower": round(c["bb_lower"], 2),
     }
+    s0 = max(0, i - 4)
+    secondary = [
+        U.hline(bars, s0, i, c["low"], "flush_low", f"Flush low {c['low']:.2f}"),
+        U.hline(bars, s0, i, c["bb_lower"], "band", f"Lower band {c['bb_lower']:.2f}"),
+    ]
+    if c["gap_below_pct"] is not None:
+        gl = bars[i - 1]["l"]
+        secondary.append(U.hline(bars, i - 1, i, gl, "gap_edge", f"Gap edge {gl:.2f}"))
     return U.build_detection(
         pattern_id=_PATTERN_ID, pattern_name=_PATTERN_NAME, direction="bullish",
         bars=bars, trig_idx=i, start_idx=max(0, i - 4), anchors=anchors,
         anchor_roles=["capitulation_session"], extras=extras, levels=levels, context=context,
-        narrative=_narrative(c, levels, context), geom=geom, vol=vol, ctx=ctx)
+        narrative=_narrative(c, levels, context), geom=geom, vol=vol, ctx=ctx,
+        secondary=secondary)
 
 
 def _narrative(c, levels, context) -> dict:

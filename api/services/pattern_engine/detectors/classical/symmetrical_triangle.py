@@ -35,6 +35,7 @@ from api.services.pattern_engine.primitives.geometry import intersect_at, price_
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.primitives.trendlines import fit_trendline
 from api.services.pattern_engine.types import Bar, Detection
+from api.services.pattern_engine.primitives.geometry import bar_time as _bar_time
 
 
 _PATTERN_ID = "symmetrical_triangle"
@@ -484,12 +485,18 @@ def _build_detection(bars, c, confidence, context,
         "geometry": {
             "shape": "trendline_pair",
             "anchors": [
-                {"t": int(c["upper_line"]["p1"]["t"]), "price": float(c["upper_line"]["p1"]["price"])},
-                {"t": int(c["upper_line"]["p2"]["t"]), "price": float(c["upper_line"]["p2"]["price"])},
-                {"t": int(c["lower_line"]["p1"]["t"]), "price": float(c["lower_line"]["p1"]["price"])},
-                {"t": int(c["lower_line"]["p2"]["t"]), "price": float(c["lower_line"]["p2"]["price"])},
+                {"t": _bar_time(bars, c["upper_line"]["p1"]["t"]), "price": float(c["upper_line"]["p1"]["price"])},
+                {"t": _bar_time(bars, c["upper_line"]["p2"]["t"]), "price": float(c["upper_line"]["p2"]["price"])},
+                {"t": _bar_time(bars, c["lower_line"]["p1"]["t"]), "price": float(c["lower_line"]["p1"]["price"])},
+                {"t": _bar_time(bars, c["lower_line"]["p2"]["t"]), "price": float(c["lower_line"]["p2"]["price"])},
             ],
             "extras": {
+                # Display-only: the space each drawn line was fitted in, so a log line
+                # renders as its curve, not the chord between the anchors.
+                "line_spaces": [c["upper_line"].get("space") or "price",
+                                c["lower_line"].get("space") or "price"],
+                "anchor_bar_index": [int(c["upper_line"]["p1"]["t"]), int(c["upper_line"]["p2"]["t"]),
+                                     int(c["lower_line"]["p1"]["t"]), int(c["lower_line"]["p2"]["t"])],
                 "pattern_bars": c["pattern_count"],
                 # ⛔ RAW FITTED SLOPES; the unit follows `trendline_space` —
                 # dollars per bar under "price", log-units (a fractional rate)

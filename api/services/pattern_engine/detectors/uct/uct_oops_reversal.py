@@ -172,12 +172,17 @@ def _build(bars, c, context, geom, vol, ctx) -> dict:
         "undercut_pct": c["undercut_pct"], "rvol50": c["rvol50"],
         "prior_close": round(c["prior_close"], 2), "prior_low": round(c["prior_low"], 2),
     }
+    secondary = [
+        U.hline(bars, i - 1, i, c["prior_low"], "prior_low", f"Prior low {c['prior_low']:.2f}"),
+        U.hline(bars, i - 1, i, c["prior_close"], "pivot",
+                f"Reclaim {c['prior_close']:.2f}"),
+    ]
     return U.build_detection(
         pattern_id=_PATTERN_ID, pattern_name=_PATTERN_NAME, direction="bullish",
         bars=bars, trig_idx=i, start_idx=i - 1, anchors=anchors,
         anchor_roles=["prior_low", "undercut_low", "reclaim_close"], extras=extras,
         levels=levels, context=context, narrative=_narrative(c, levels, context),
-        geom=geom, vol=vol, ctx=ctx)
+        geom=geom, vol=vol, ctx=ctx, secondary=secondary)
 
 
 def _narrative(c, levels, context) -> dict:

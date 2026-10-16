@@ -740,6 +740,7 @@ def get_detections(
     types: Optional[str] = Query(default=None, description="comma-separated pattern_ids to filter"),
     min_conf: float = Query(default=50.0, ge=0.0, le=100.0),
     confirmed_only: bool = Query(default=True, description="only Opus-vision-confirmed verdicts"),
+    include_structures: bool = Query(default=False, description="admin + AUTO_STRUCTURES_ENABLED: add the current base boxes"),
 ):
     """Return detections for a symbol.
 
@@ -787,7 +788,17 @@ def get_detections(
     is_admin = (_user or {}).get("role") == "admin"
     rows = memory.get_active_detections(sym.upper(), tf, pattern_ids=pattern_ids,
                                         min_conf=min_conf, include_internal=is_admin)
-    return {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
+    # Display-only drawing policy per row, from the ONE registry constant
+    # (registry.display_policy). Additive keys: no existing field changes.
+    rows = [{**r, **_pe_registry.display_policy(r.get("pattern_id"))} for r in rows]
+    out = {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
+    # Base boxes (AUTO_STRUCTURES_ENABLED, ADMINS ONLY until a later flip). A
+    # member asking for them gets the payload exactly as before — no key at all.
+    if include_structures and is_admin:
+        from api.services import auto_structures
+        if auto_structures.enabled():
+            out["structures"] = auto_structures.structures_for(sym)
+    return out
 
 
 class FeedbackBody(BaseModel):

@@ -107,12 +107,16 @@ def _build(bars, c, context, geom, vol, ctx) -> dict:
         "ever_in_data": c["ever_in_data"], "bar_dcr": c["dcr"], "high_close": c["high_close"],
         "up_day": c["up_day"], "rvol50": c["rvol50"], "edge_ratio_vs_prior_max": c["edge_ratio"],
     }
+    # The level runs to the newest bar the detector read: it already checked
+    # every later bar (stopped_out_since) to report the setup as intact.
+    secondary = [U.hline(bars, i, len(bars) - 1, c["hvc"], "hve_close",
+                         f"HVE close {c['hvc']:.2f}")]
     return U.build_detection(
         pattern_id=_PATTERN_ID, pattern_name=_PATTERN_NAME, direction=d,
         bars=bars, trig_idx=i, start_idx=i, anchors=anchors,
         anchor_roles=["high_volume_close"], extras=extras, levels=levels,
         context=context, narrative=_narrative(c, levels, context),
-        geom=geom, vol=vol, ctx=ctx)
+        geom=geom, vol=vol, ctx=ctx, secondary=secondary)
 
 
 def _narrative(c, levels, context) -> dict:
