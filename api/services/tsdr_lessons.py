@@ -400,24 +400,40 @@ def scan_channel(channel_id: str, *, max_pages: int = MAX_PAGES_PER_TICK) -> dic
 
 # ── the lesson channel ───────────────────────────────────────────────────────
 
-def _read_only_overwrites(source: list[dict], bot_id: str, guild: str) -> list[dict]:
-    """The source channel's audience, with posting removed for everyone but the
-    bot. Admins bypass overwrites, so Patrick can still post or pin."""
+def _read_only_overwrites(source: list[dict], bot_id: str, guild: str, *,
+                          deny_bits: int = _POSTING_BITS,
+                          bot_bits: int = _VIEW_CHANNEL | _SEND_MESSAGES | _EMBED_LINKS
+                          | _READ_HISTORY,
+                          copy_audience: bool = True) -> list[dict]:
+    """The source channel's AUDIENCE (only its View Channel bit — Discord refuses
+    an overwrite naming any permission the bot does not hold itself, so the
+    source's other bits are never copied), with posting denied for everyone but
+    the bot. Admins bypass overwrites, so Patrick can still post or pin."""
     out, seen_everyone = [], False
-    for ow in source or []:
+    for ow in (source or []) if copy_audience else []:
         oid = str(ow.get("id") or "")
         if not oid or oid == bot_id:
             continue
-        allow = int(ow.get("allow") or 0) & ~_POSTING_BITS
-        deny = int(ow.get("deny") or 0) | _POSTING_BITS
+        allow = int(ow.get("allow") or 0) & _VIEW_CHANNEL
+        deny = (int(ow.get("deny") or 0) & _VIEW_CHANNEL) | deny_bits
         seen_everyone |= oid == guild
         out.append({"id": oid, "type": int(ow.get("type") or 0),
                     "allow": str(allow), "deny": str(deny)})
     if not seen_everyone:
-        out.append({"id": guild, "type": 0, "allow": "0", "deny": str(_POSTING_BITS)})
-    out.append({"id": bot_id, "type": 1, "deny": "0",
-                "allow": str(_VIEW_CHANNEL | _SEND_MESSAGES | _EMBED_LINKS | _READ_HISTORY)})
+        out.append({"id": guild, "type": 0, "allow": "0", "deny": str(deny_bits)})
+    out.append({"id": bot_id, "type": 1, "deny": "0", "allow": str(bot_bits)})
     return out
+
+
+# Tried in order until Discord accepts one: each later step names fewer
+# permissions, for a bot role that lacks the thread or embed bits. The last
+# drops the audience copy (the channel then inherits the category's).
+_OVERWRITE_LADDER = (
+    {},
+    {"deny_bits": _SEND_MESSAGES, "bot_bits": _VIEW_CHANNEL | _SEND_MESSAGES | _EMBED_LINKS},
+    {"deny_bits": _SEND_MESSAGES, "bot_bits": _VIEW_CHANNEL | _SEND_MESSAGES},
+    {"deny_bits": _SEND_MESSAGES, "bot_bits": _SEND_MESSAGES, "copy_audience": False},
+)
 
 
 def ensure_lesson_channel() -> str:
@@ -447,24 +463,23 @@ def ensure_lesson_channel() -> str:
                             body={"name": category_name(), "type": 4})
     me = _discord("GET", "/users/@me") or {}
     source = _discord("GET", f"/channels/{source_channels()[0]}") or {}
-    overwrites = _read_only_overwrites(source.get("permission_overwrites") or [],
-                                       str(me.get("id") or ""), guild)
-    body = {"name": channel_name(), "type": 0, "parent_id": str(category["id"]),
-            "topic": ("Every video lesson from #tsdr, recapped in a few sentences. "
-                      "Click a title to watch the original video."),
-            "permission_overwrites": overwrites}
-    try:
-        created = _discord("POST", f"/guilds/{guild}/channels", body=body)
-    except DiscordError as e:
-        if e.status != 403:
-            raise
-        # The bot can only deny permissions it holds itself; fall back to the
-        # one that matters (no posting) if it lacks the thread ones.
-        for ow in overwrites:
-            if ow["id"] != str(me.get("id") or ""):
-                ow["allow"] = str(int(ow["allow"]) & ~_SEND_MESSAGES)
-                ow["deny"] = str(_SEND_MESSAGES | (int(ow["deny"]) & ~_POSTING_BITS))
-        created = _discord("POST", f"/guilds/{guild}/channels", body=body)
+    created, last_error = None, None
+    for step in _OVERWRITE_LADDER:
+        body = {"name": channel_name(), "type": 0, "parent_id": str(category["id"]),
+                "topic": ("Every video lesson from #tsdr, recapped in a few sentences. "
+                          "Click a title to watch the original video."),
+                "permission_overwrites": _read_only_overwrites(
+                    source.get("permission_overwrites") or [], str(me.get("id") or ""),
+                    guild, **step)}
+        try:
+            created = _discord("POST", f"/guilds/{guild}/channels", body=body)
+            break
+        except DiscordError as e:
+            if e.status != 403:
+                raise
+            last_error = e
+    if created is None:
+        raise last_error
     set_state("lesson_channel_id", str(created["id"]))
     log.info("[tsdr-lessons] created #%s (%s) under %s", channel_name(), created["id"],
              category_name())
