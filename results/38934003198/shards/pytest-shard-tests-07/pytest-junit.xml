@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="1" failures="0" skipped="1" tests="2" time="72.421" timestamp="2026-10-16T16:59:43.489293+00:00" hostname="runnervm8k3b6"><testcase classname="" name="tests.test_mobile_audit_route_validity" time="0.000"><skipped message="collection skipped">('/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_mobile_audit_route_validity.py', 34, "Skipped: mobile_audit import failed: No module named 'playwright'")</skipped></testcase><testcase classname="" name="tests.test_notebook_fin_walk_followup_group" time="0.000"><error message="collection failure">ImportError while importing test module '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_fin_walk_followup_group.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_notebook_fin_walk_followup_group.py:18: in &lt;module&gt;
+    import notebook_fin_walk_features as F  # noqa: E402
+tools/notebook_fin_walk_features.py:30: in &lt;module&gt;
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+E   ModuleNotFoundError: No module named 'playwright'</error></testcase></testsuite></testsuites>
