@@ -235,6 +235,8 @@ export const COLUMN_DEFS = {
   new_ath: { label: 'New ATH', fmt: bool },
   dollar_vol_30d: { label: '$Vol 30d', fmt: dollarVol,
     desc: 'Price times 30-day average share volume — a liquidity measure, not an activity signal. Verified to hold exactly against price x avg volume on every row.' },
+  dollar_vol_1d: { label: '$Vol 1d', fmt: dollarVol,
+    desc: 'Price times the share volume of the last completed session — one day of trading, so it swings with news days; $Vol 30d is the steadier liquidity floor.' },
   // Wave 1 momentum mechanics
   pole_pct: { label: 'Pole%', fmt: pctPlain(0),
     desc: 'The prior advance: percent gained from the lowest low to the highest high within the last 22 sessions — the "pole" a flag or consolidation forms after.' },
@@ -270,6 +272,8 @@ export const COLUMN_DEFS = {
   // pre-Wave-1 filters that were also filterable-but-undisplayable — same gap
   // class, caught by the same rail (filters.py unchanged since 5d7b16033)
   exchange: { label: 'Exch', fmt: v => v || '—' },
+  security_type: { label: 'Type', fmt: v => v || '—',
+    desc: 'Instrument class: Stock, ADR (a foreign company listed through depositary receipts) or ETF.' },
   avg_volume_30d: { label: 'Avg Vol 30d', fmt: shares },
   above_50sma: { label: 'Abv 50', fmt: bool },
   ma_stack: { label: 'MA Stack', fmt: v => v || '—',
