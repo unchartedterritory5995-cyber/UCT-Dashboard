@@ -18,6 +18,11 @@ Live for every member the moment the PR merges (O-T2B-2, the P0.9 precedent):
 - **the `@` date list now takes Enter inside a task.** Before this branch, `@` inside a task followed by ArrowDown and
   Enter split the task instead of picking the date (TipTap ran the task item's Enter before the date list's; click and
   Tab worked). The walk found it on `/remind`; the fix is the extension order in `lib/tiptap.js` (`563069bb54`).
+- **The prebuilt community watchlists stop counting as anyone's own names** (`33646af3eb`,
+  `member_interest._watchlist_syms` now skips `is_prebuilt` lists). The admin account that owns the prebuilt lists
+  (S&P 500, Russell 2000, Sunday Scans, ...) stops seeing those names in its **earnings-prep list** and in the
+  **Calendar's My Stocks**; only the lists it made itself remain. Every other member is unaffected (they own no
+  prebuilt list). This reader is shared, so it changes on merge, not on arming.
 
 Dark until the switch is armed: the 16:45 / 18:00 ET job, the bell, the card, and the server's prefill.
 
@@ -50,7 +55,10 @@ Dark until the switch is armed: the 16:45 / 18:00 ET job, the bell, the card, an
 5. The next trading day's first pass in the logs: `[notebook-earnings-followup] 16:45 pass: {...}`. Read its row in
    `j2_earnings_followup_runs` (over `railway ssh`, `/opt/venv/bin/python`) and check the `result`: `candidates > 0` on
    a day with reporters, `timing_unknown` small, `partial` false, `warm_skipped` recorded. This is the FIRST real test of
-   the calendar's past-date answer (V2-V4 below).
+   the calendar's past-date answer (V2-V4 below). Since final fix C: `partial` is also true when the one Finnhub call
+   for a scanned day failed (the run then used the calendar board alone and is not complete), and `refreshed` /
+   `refresh_failed` / `refresh_skipped` count the names whose held earnings copy, read before the reaction closed,
+   was rebuilt once for the ranking.
 6. `docs/feature_flags.json`: move the entry to `armed` with the flip time, in the same docs push.
 
 ## What not to expect
