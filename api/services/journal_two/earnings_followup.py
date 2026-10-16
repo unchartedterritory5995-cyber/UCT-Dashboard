@@ -318,13 +318,16 @@ def followup_url(symbol: str, report_date: str) -> str:
 
 
 def notice_copy(symbol: str, report_date: date, sources: list[str]) -> tuple[str, str]:
+    """The bell's title and message. ⛔ The reason is the MOST SPECIFIC source: positions, then flagged, then
+    watchlist. The Flagged list is a watchlist row (member_interest._watchlist_syms joins it), so a flagged name
+    always carries "watchlist" too; testing watchlist first made "You flagged it." unreachable (final fix C, M1)."""
     from api.services.journal_two.followup_prefill import _day_words
     if "positions" in sources:
         why = "You hold it."
-    elif "watchlist" in sources:
-        why = "It is on your watchlist."
-    else:
+    elif "flagged" in sources:
         why = "You flagged it."
+    else:
+        why = "It is on your watchlist."
     return (f"{symbol} reported: write your follow-up",
             f"{symbol} reported earnings on {_day_words(report_date)}. {why} "
             "Compare what you expected with what happened.")

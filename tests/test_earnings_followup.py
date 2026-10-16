@@ -1072,3 +1072,27 @@ def test_one_finnhub_call_per_scanned_day(monkeypatch):
     reports, partial, _ = ef.todays_reports(date(2026, 10, 15))
     assert reports == {"AAA": D14, "BBB": "2026-10-15"} and partial is False
     assert [p["from"] for _, p in calls] == [D14, "2026-10-15"]
+
+
+# ── final fix C, M1: the more specific reason wins (positions > flagged > watchlist) ───────────────────────────────
+
+@pytest.mark.parametrize("sources, why", [
+    (["watchlist", "flagged"], "You flagged it."),            # a flagged name is ALSO a watchlist row (member_interest)
+    (["flagged"], "You flagged it."),
+    (["watchlist"], "It is on your watchlist."),
+    (["positions", "watchlist", "flagged"], "You hold it."),
+    (["positions"], "You hold it."),
+])
+def test_the_notice_names_the_most_specific_reason(sources, why):
+    title, message = ef.notice_copy("ORCL", date(2026, 10, 14), sources)
+    assert title == "ORCL reported: write your follow-up"
+    assert f" {why} " in message
+    assert message.count("You hold it.") + message.count("You flagged it.") + message.count("on your watchlist") == 1
+
+
+def test_a_flagged_name_is_told_it_was_flagged_end_to_end(db, world):
+    """Through the job: the member sets list a flagged name under both watchlist and flagged (MEMBER_SOURCES order)."""
+    world["reports"] = {"2026-10-15": {"HOOD": "bmo"}}
+    world["sets"], world["paid"] = {"u1": {"HOOD": ["watchlist", "flagged"]}}, {"u1"}
+    _, sent = ring(db, at(date(2026, 10, 15)))
+    assert len(sent) == 1 and "You flagged it." in sent[0][2] and "watchlist" not in sent[0][2]
