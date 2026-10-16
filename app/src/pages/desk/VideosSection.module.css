@@ -368,6 +368,11 @@
      padding is pulled back out with a matching negative margin. */
   padding: 8px 6px 10px;
   margin: -6px -6px 0;
+  /* Snap to the padding, not the scroll edge. Without it the mandatory snap
+     scrolls the row 6px at rest: the first card's title loses its first letter
+     on a phone, and Shelf reads scrollLeft > 2 as "more to the left" (fade +
+     left paddle with nothing there). */
+  scroll-padding-inline: 6px;
   /* A quiet hairline thumb instead of the browser's bright default track. */
   scrollbar-width: thin;
   scrollbar-color: rgba(220, 187, 94, 0.28) transparent;
@@ -596,6 +601,12 @@
   text-decoration: none;
 }
 .cardMetaLink:hover { color: var(--text-bright); text-decoration: underline; }
+/* The link draws 18px tall; on touch, widen what a finger can hit to the 44px
+   floor without changing what it looks like. */
+@media (pointer: coarse) {
+  .cardMetaLink { position: relative; }
+  .cardMetaLink::after { content: ''; position: absolute; inset: -13px -8px; }
+}
 
 /* Admin Edit/Delete — subtle text links in the card body (old-grid pattern). */
 .cardAdmin {

@@ -55,6 +55,91 @@ def test_a_stored_length_always_wins_and_nothing_is_written_back(db):
     assert db.get_video(v["id"])["duration"] == "10:00"
 
 
+def test_the_payload_never_reads_the_bulk_columns(db, monkeypatch):
+    v = _vid(db, "eeeeeeeeeee", title="Kept")
+    db.set_video_insights(v["id"], transcript="x" * 50_000, headline="Kept headline",
+                          chapters=[{"t": 0, "title": "c"}])
+    sql = []
+    real = edu._connect
+
+    def traced():
+        c = real()
+        c.set_trace_callback(sql.append)
+        return c
+    monkeypatch.setattr(edu, "_connect", traced)
+    row = _all_videos(db.grouped_videos_payload())["eeeeeeeeeee"]
+    reads = [s for s in sql if "FROM edu_videos" in s]
+    assert reads, "control: the payload query must be traced"
+    for s in reads:
+        assert "transcript" not in s and "SELECT *" not in s, s
+    assert row["title"] == "Kept" and row["headline"] == "Kept headline"
+    assert not set(edu._GROUPED_PAYLOAD_STRIP_KEYS) & set(row)
+
+
+def _reads(monkeypatch):
+    built = []
+    real = edu._build_grouped_base
+
+    def counted():
+        built.append(1)
+        return real()
+    monkeypatch.setattr(edu, "_build_grouped_base", counted)
+    return built
+
+
+def _warm(db):
+    # The first load registers a brand-new category, which is itself a write, so
+    # the second load rebuilds once more; from then on it is stable.
+    db.grouped_videos_payload()
+    db.grouped_videos_payload()
+
+
+def test_a_repeat_load_is_served_from_memory(db, monkeypatch):
+    _vid(db, "ggggggggggg")
+    _warm(db)
+    built = _reads(monkeypatch)
+    db.grouped_videos_payload()
+    db.grouped_videos_payload()
+    assert built == []
+
+
+def test_every_kind_of_edit_shows_on_the_very_next_load(db):
+    v = _vid(db, "hhhhhhhhhhh", title="Before")
+    assert _all_videos(db.grouped_videos_payload())["hhhhhhhhhhh"]["title"] == "Before"
+    db.update_video(v["id"], {"title": "After"})
+    assert _all_videos(db.grouped_videos_payload())["hhhhhhhhhhh"]["title"] == "After"
+    # set_video_insights does not stamp updated_at — the write lock still catches it
+    db.set_video_insights(v["id"], headline="Fresh headline")
+    assert _all_videos(db.grouped_videos_payload())["hhhhhhhhhhh"]["headline"] == "Fresh headline"
+    db.delete_video(v["id"])
+    assert "hhhhhhhhhhh" not in _all_videos(db.grouped_videos_payload())
+
+
+def test_watch_progress_does_not_rebuild_but_still_fills_a_length(db, monkeypatch):
+    _vid(db, "iiiiiiiiiii")
+    _warm(db)
+    built = _reads(monkeypatch)
+    db.upsert_progress("u1", "iiiiiiiiiii", 30, duration=4000)
+    assert _all_videos(db.grouped_videos_payload())["iiiiiiiiiii"]["duration"] == "1:06:40"
+    assert built == []
+
+
+def test_the_duration_fill_never_leaks_into_the_cached_copy(db):
+    _vid(db, "jjjjjjjjjjj")
+    db.upsert_progress("u1", "jjjjjjjjjjj", 1, duration=600)
+    db.grouped_videos_payload()
+    base = edu._GROUPED_CACHE["entry"][1]
+    assert not _all_videos(base)["jjjjjjjjjjj"]["duration"]
+
+
+def test_a_session_category_is_still_registered_as_a_show(db):
+    v = _vid(db, "fffffffffff", category="Brand New Show")
+    db.set_meeting_uuid(v["id"], "uuid-1")
+    payload = db.grouped_videos_payload()
+    cat = next(c for c in payload["categories"] if c["name"] == "Brand New Show")
+    assert cat["kind"] == "show"
+
+
 def test_a_sub_minute_measurement_is_not_a_length(db):
     _vid(db, "ddddddddddd")
     db.upsert_progress("u1", "ddddddddddd", 1, duration=12)
