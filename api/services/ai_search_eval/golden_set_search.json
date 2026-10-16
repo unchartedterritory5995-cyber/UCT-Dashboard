@@ -148,6 +148,25 @@
       "great_answer": "The tool-sourced market cap and forward P/E attributed to UCT desk data; missing fields named as missing rather than filled from memory."
     },
     {
+      "id": "S1-09-archive-ticker",
+      "rung": 1,
+      "question": "Has the UCT trading team called NVDA in its archive, and how did those calls work out?",
+      "must_call_tools": [
+        [
+          "trader_archive_ticker",
+          "trader_archive_search"
+        ]
+      ],
+      "must_cite": [
+        "trader, date and record id for every archived call it mentions"
+      ],
+      "forbidden": [
+        "archive_uncited",
+        "archive_fabricated_record"
+      ],
+      "great_answer": "Names the traders who called it with each call's date and record id, gives the measured outcome (r20) of the scored calls, says they are historical posts and not current advice, and invents no record id."
+    },
+    {
       "id": "S2-01-news-catalyst",
       "rung": 2,
       "question": "What's the latest on AAPL's AI strategy and how is the street reading it?",
@@ -257,6 +276,25 @@
       ],
       "forbidden": [],
       "great_answer": "The recent-meeting takeaway with [n] citations mapped to provided indices; no dates or figures beyond what the cited findings carry."
+    },
+    {
+      "id": "S2-07-archive-playbook",
+      "rung": 2,
+      "question": "What did the UCT traders teach about the oops reversal setup, and has it actually worked across their calls?",
+      "must_call_tools": [
+        [
+          "trader_archive_setup",
+          "trader_archive_search"
+        ]
+      ],
+      "must_cite": [
+        "the teaching posts by trader, date and record id; the measured record of the setup"
+      ],
+      "forbidden": [
+        "archive_uncited",
+        "archive_fabricated_record"
+      ],
+      "great_answer": "Summarises the traders' own definition with record-id citations, then the setup's measured record (scored calls, win rate, edge versus the same stock) and says plainly whether the edge is proven (|z| >= 3) or not, without presenting it as a current signal."
     },
     {
       "id": "S3-01-verdict-direct",

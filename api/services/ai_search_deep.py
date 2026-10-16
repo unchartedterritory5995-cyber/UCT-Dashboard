@@ -407,6 +407,14 @@ def _desk_block(query: str) -> str:
         kb = _router._brain_context(query, qtype, bool(_router._VERDICT_RE.search(query)))
         if kb:
             parts.append(kb.strip())
+        # The TSDR trader archive, exactly as the ask box carries it (WISDOM_ARCHIVE_ENABLED,
+        # read per call; off returns "" before any store is opened).
+        try:
+            ablock, _cites = _router._archive_context(query, meta)
+            if ablock:
+                parts.append(ablock.strip())
+        except Exception:
+            pass
     except Exception:
         pass
     return "\n\n".join(parts)

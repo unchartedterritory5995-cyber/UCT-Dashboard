@@ -83,8 +83,12 @@ def _num(v) -> Optional[float]:
         return None
 
 
-def format_playbook(pb: dict) -> tuple[str, list]:
-    """(one bounded playbook line, its citations). "" when the playbook has no scored calls."""
+def format_playbook(pb: dict, market_state: Optional[str] = None) -> tuple[str, list]:
+    """(one bounded playbook line, its citations). "" when the playbook has no scored calls.
+
+    `market_state` is today's QQQ state under the archive's own rule (setup_map.market_state):
+    when the playbook's `market` cut for it rests on MIN_CONTEXT_N scored calls, the line leads
+    with "this tape" and keeps one best other cut; otherwise it shows the two best cuts."""
     st = ((pb.get("stats") or {}).get("all")) or {}
     n = st.get("n_scored")
     if not n:
@@ -108,7 +112,15 @@ def format_playbook(pb: dict) -> tuple[str, list]:
                 cuts.append((ce, f"{group.replace('_', ' ')} {value} (n {int(cst['n_scored'])}, edge R {ce:+.2f})"))
     cuts.sort(key=lambda c: -c[0])
     text = f"[PLAYBOOK · {pb.get('name') or pb.get('setup_id')}] " + ", ".join(bits)
-    if cuts:
+    tape = ((pb.get("context") or {}).get("market") or {}).get(market_state) if market_state else None
+    tape_edge = _num((tape or {}).get("mean_edgeR"))
+    if tape_edge is not None and ((tape or {}).get("n_scored") or 0) >= MIN_CONTEXT_N:
+        tape_label = f"market {market_state} (n {int(tape['n_scored'])}, edge R {tape_edge:+.2f})"
+        text += f"; this tape, QQQ {market_state}: n {int(tape['n_scored'])}, edge R {tape_edge:+.2f}"
+        others = [c for c in cuts if c[1] != tape_label]
+        if others:
+            text += "; best other context: " + others[0][1]
+    elif cuts:
         text += "; best context: " + "; ".join(c[1] for c in cuts[:2])
     cites = []
     teach = []
@@ -140,7 +152,9 @@ def archive_block(query: Optional[str], *, query_tickers: Iterable[str] = ()) ->
                 pb = service.playbook(conn, sid)
         parts, cites, used = [], [], len(HEADER)
         if pb:
-            line, pcites = format_playbook(pb)
+            from api.services.wisdom.archive import setup_map
+
+            line, pcites = format_playbook(pb, setup_map.market_state())
             if line:
                 parts.append(line)
                 cites.extend(pcites)

@@ -257,7 +257,7 @@ def test_every_tool_the_golden_set_names_is_reachable_from_a_desk_pack():
         (Path(runner.__file__).parent / "golden_set_search.json").read_text(encoding="utf-8"))
     tools = {t for q in data["questions"]
              for g in (q.get("must_call_tools") or []) for t in g}
-    mapped = set(runner._PACK_TOOL_ALIAS.values())
+    mapped = set(runner._PACK_TOOL_ALIAS.values()) | {t for ts in runner._PACK_ALSO_TOOLS.values() for t in ts}
     # web_search has no desk pack by construction — the fast lane's web leg is
     # evidenced by its CITATIONS, added separately in _fast_lane_capture.
     unreachable = sorted(tools - mapped - {"web_search"})

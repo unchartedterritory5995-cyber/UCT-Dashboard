@@ -10,6 +10,9 @@ the archive is for PAID MEMBERS and every in-app tool, never the anonymous inter
   GET /playbooks         one row per setup playbook (most-called first)
   GET /playbook/{setup}  a setup's playbook: definition, measured stats, context cuts,
                          teaching record ids, best and worst calls
+  GET /pattern/{id}?ticker=  the playbook of the setup a chart detector belongs to (through
+                         the vocabulary's trader_archive map), today's market cut and the
+                         ticker's team record; no price levels (the pattern side panel)
   GET /ticker/{sym}/daily team posts and calls per day on one ticker (Terminal ATTN)
 
 ADMIN (`/api/admin/wisdom/archive`, every route Depends(require_admin) — the admin guard
@@ -37,7 +40,7 @@ from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user, require_admin
 from api.routers.wisdom_sources import require_push_secret
-from api.services.wisdom.archive import service
+from api.services.wisdom.archive import service, setup_map
 from api.services.wisdom.core import flags, store
 
 router = APIRouter(prefix="/api/admin/wisdom/archive", tags=["wisdom"])
@@ -176,6 +179,50 @@ def member_trader(author: str, limit: int = Query(100, ge=1, le=500),
 def member_playbooks(_user: dict = Depends(require_paid)) -> dict:
     _require_enabled()
     return _read(service.playbooks)
+
+
+#: Examples shown beside a live detection: the strongest and weakest few, never the whole list.
+PATTERN_EXAMPLES = 3
+
+
+@member_router.get("/pattern/{pattern_id}")
+def member_pattern(pattern_id: str, ticker: str = Query("", max_length=16),
+                   _user: dict = Depends(require_paid)) -> dict:
+    """The archive's record for the setup a chart detection belongs to (the pattern side panel).
+    404 when the detector maps to no archive setup or the setup has no playbook, so the panel
+    keeps its own placeholder. Display only: nothing here feeds what fires or its score."""
+    _require_enabled()
+    setup = setup_map.setup_for_pattern(pattern_id)
+    if setup is None:
+        raise HTTPException(status_code=404, detail="No archive setup for that pattern")
+    pb = _read(service.playbook, setup)
+    if pb is None:
+        raise HTTPException(status_code=404, detail="No playbook for that setup")
+    state = setup_map.market_state()
+    market_cut = ((pb.get("context") or {}).get("market") or {}).get(state) if state else None
+    out = {
+        "pattern_id": pattern_id, "setup_id": pb["setup_id"], "name": pb.get("name"),
+        "used_by": [{"author": a, "trader": _trader_name(a)} for a in pb.get("used_by") or []],
+        "stats": pb.get("stats") or {},
+        "market": {"state": state, "cut": market_cut},
+        "best": (pb.get("winners") or [])[:PATTERN_EXAMPLES],
+        "worst": (pb.get("failures") or [])[:PATTERN_EXAMPLES],
+        "ticker": None,
+    }
+    sym = (ticker or "").strip()
+    if sym:
+        try:
+            summary = _read(service.ticker_summary, sym)
+            last = _read(service.last_call, sym)
+        except HTTPException:
+            summary, last = None, None
+        if summary is not None:
+            if last is not None:
+                last = {"posted": last.get("posted"), "setup": last.get("setup"), "author_id": last.get("author_id"),
+                        "trader": _trader_name(last.get("author_id")), "direction": last.get("direction"),
+                        "r20": (last.get("outcome") or {}).get("r20")}
+            out["ticker"] = {**summary, "last_call": last}
+    return _named(out)
 
 
 @member_router.get("/playbook/{setup}")

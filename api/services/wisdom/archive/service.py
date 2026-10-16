@@ -500,6 +500,15 @@ def ticker_summary(conn, sym: str) -> dict:
     return {"ticker": t, **_call_summary(conn, "ticker = ?", (t,))}
 
 
+def last_call(conn, sym: str) -> Optional[dict]:
+    """The newest call on a ticker, without its price levels (the member surfaces never show them)."""
+    t = normalize_ticker(sym)
+    r = conn.execute(
+        "SELECT call_id, record_id, author_id, ticker, direction, setup, action, posted, outcome_json "
+        "FROM wisdom_archive_calls WHERE ticker = ? ORDER BY posted DESC, call_id DESC LIMIT 1", (t,)).fetchone()
+    return _call_dict(r) if r is not None else None
+
+
 def by_author(conn, author: str, *, limit: int = 100) -> dict:
     """One trader: newest records first, their calls newest first, and a scored-call summary."""
     a = (author or "").strip().lower()

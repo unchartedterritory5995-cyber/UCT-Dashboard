@@ -16,7 +16,7 @@ import useSWR from 'swr'
 
 import jsonFetcher from '../../utils/jsonFetcher'
 import UIcon from '../../components/ui/UIcon'
-import { ARCHIVE_API, clip, dayOf, fmtR, rTone, traderOf } from '../../utils/traderArchive'
+import { ARCHIVE_API, MIN_CONTEXT_N, clip, dayOf, edgeVerdict, fmtR, rTone, traderOf } from '../../utils/traderArchive'
 import styles from './TraderArchive.module.css'
 
 const VIEWS = [
@@ -27,10 +27,6 @@ const VIEWS = [
   { key: 'playbooks', label: 'Playbooks' },
 ]
 
-/** An edge is called measured only at |z| >= 3, the same line Ask AI and Compass use. */
-const EDGE_Z = 3
-/** A context cut shows only when it rests on at least this many scored calls. */
-const MIN_CONTEXT_N = 30
 
 const SWR_OPTS = { revalidateOnFocus: false, shouldRetryOnError: false }
 
@@ -218,11 +214,7 @@ function TradersView({ stats }) {
 const pct0 = (v) => (v === null || v === undefined ? '—' : `${Math.round(Number(v) * 100)}%`)
 const fmtEdge = (v) => (v === null || v === undefined ? '—' : `${Number(v) > 0 ? '+' : ''}${Number(v).toFixed(2)}`)
 
-function verdictOf(st) {
-  if (!st?.n_scored) return 'no scored calls'
-  if (st.edgeR_z === null || st.edgeR_z === undefined) return 'z unavailable'
-  return Math.abs(st.edgeR_z) >= EDGE_Z ? `measured edge (z ${st.edgeR_z})` : `not proven (z ${st.edgeR_z})`
-}
+const verdictOf = edgeVerdict
 
 function StatsRow({ label, st }) {
   return (
@@ -237,9 +229,9 @@ function StatsRow({ label, st }) {
   )
 }
 
-function PlaybookView() {
+function PlaybookView({ initial = '' }) {
   const { data: index, error: indexError } = useSWR(`${ARCHIVE_API}/playbooks`, jsonFetcher, SWR_OPTS)
-  const [setup, setSetup] = useState('')
+  const [setup, setSetup] = useState(initial)
   const { data, error } = useSWR(setup ? `${ARCHIVE_API}/playbook/${encodeURIComponent(setup)}` : null, jsonFetcher, SWR_OPTS)
   const cuts = useMemo(() => {
     const out = []
@@ -346,7 +338,10 @@ function ExampleTable({ rows }) {
 export default function TraderArchive() {
   const [params] = useSearchParams()
   const initialSym = (params.get('sym') || '').toUpperCase().trim()
-  const [view, setView] = useState(initialSym ? 'ticker' : 'search')
+  const initialSetup = (params.get('setup') || '').toLowerCase().trim()
+  const askedView = params.get('view')
+  // ?view=playbooks&setup=kicker is the pattern side panel's "Open the full playbook" link.
+  const [view, setView] = useState(VIEWS.some((v) => v.key === askedView) ? askedView : (initialSym ? 'ticker' : 'search'))
   const { data: stats, error } = useSWR(`${ARCHIVE_API}/stats`, jsonFetcher, SWR_OPTS)
 
   return (
@@ -372,7 +367,7 @@ export default function TraderArchive() {
           {view === 'ticker' && <TickerView initial={initialSym} />}
           {view === 'setups' && <SetupsView stats={stats} />}
           {view === 'traders' && <TradersView stats={stats} />}
-          {view === 'playbooks' && <PlaybookView />}
+          {view === 'playbooks' && <PlaybookView initial={initialSetup} />}
         </>
       )}
     </div>
