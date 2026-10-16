@@ -161,3 +161,66 @@ def test_a_crashing_nightly_still_alerts(monkeypatch):
     monkeypatch.setattr(snapshot_builder, "run_build", boom)
     _nightly_job(monkeypatch)()
     assert seen and "crashed" in seen[0] and "disk full" in seen[0]
+
+
+# -- the watchdog: a nightly KILLED partway writes no receipt -------------------
+
+def _et(y, mo, d, h, mi=0):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    return datetime(y, mo, d, h, mi, tzinfo=ZoneInfo("America/New_York"))
+
+
+@pytest.mark.parametrize("started,why", [
+    (None, "no build has recorded a receipt"),
+    ("yesterday", "the newest finished build started Thu Oct 15 03:00 ET"),
+    ("killed_window", "the newest finished build started Fri Oct 16 02:59 ET"),
+    ("today", None),
+])
+def test_the_watchdog_names_a_nightly_that_never_finished(started, why):
+    import api.main as main
+    now = _et(2026, 10, 16, 6)
+    ts = {None: None, "yesterday": _et(2026, 10, 15, 3).timestamp(),
+          "killed_window": _et(2026, 10, 16, 2, 59).timestamp(),
+          "today": _et(2026, 10, 16, 3).timestamp()}[started]
+    last = None if ts is None else {"id": 7, "started_at": ts}
+    assert main._nightly_missing(last, now) == why
+
+
+def _run_watchdog(monkeypatch, last, in_flight=False):
+    import api.main as main
+    from api.services import chart_health_alerts
+    from api.services.screener import snapshot_builder, snapshot_db
+    seen = []
+    monkeypatch.setenv("SCREENER_SNAPSHOT_ENABLED", "1")
+    monkeypatch.setattr(main, "start_screener_snapshot_warm", lambda: None)
+    monkeypatch.setattr(chart_health_alerts, "emit", lambda key, sev, msg, meta=None: seen.append((key, sev, msg)) or True)
+    monkeypatch.setattr(snapshot_db, "last_build_run", lambda: last)
+    monkeypatch.setattr(snapshot_builder, "build_in_flight", lambda: in_flight)
+    jobs = {}
+
+    class _FakeScheduler:
+        def add_job(self, func, **kw):
+            jobs[kw.get("id")] = (func, kw)
+
+    assert main.register_screener_jobs(_FakeScheduler()) is True
+    func, kw = jobs["screener_nightly_watchdog"]
+    assert kw.get("misfire_grace_time", 0) >= 3600 and kw.get("coalesce") is True
+    func()
+    return seen
+
+
+def test_the_registered_watchdog_alerts_when_no_build_finished_today(monkeypatch):
+    seen = _run_watchdog(monkeypatch, {"id": 1, "started_at": 1.0}, in_flight=True)
+    assert len(seen) == 1
+    key, sev, msg = seen[0]
+    assert key.startswith("screener_nightly_missing:") and sev == "warning"
+    assert "has not finished" in msg and "still running" in msg
+
+
+def test_CONTROL_the_watchdog_is_quiet_after_a_build_that_started_today(monkeypatch):
+    # Today's 03:00 ET exactly, so the answer does not depend on the hour the suite runs.
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    today_3 = datetime.now(ZoneInfo("America/New_York")).replace(hour=3, minute=0, second=0, microsecond=0)
+    assert _run_watchdog(monkeypatch, {"id": 2, "started_at": today_3.timestamp()}) == []

@@ -1917,6 +1917,53 @@ def _alert_if_nightly_short(stats: dict) -> None:
         print(f"[scheduler] could not raise the screener nightly alert: {e}")
 
 
+# ⛔ A BUILD KILLED PARTWAY WRITES NO RECEIPT, so the alert above never runs for it.
+# Measured 2026-10-16: a redeploy at 08:49 ET killed a full rebuild 40 minutes in;
+# nothing was recorded and nothing alerted. A redeploy or restart during the 03:00
+# nightly would leave members on the previous build all day, silently. This check
+# reads the ABSENCE: by NIGHTLY_WATCHDOG_HOUR_ET the newest finished build must have
+# started at or after today's 03:00 ET.
+#: The 03:00 build took 44 minutes on 2026-10-16; three hours covers a slow night.
+NIGHTLY_WATCHDOG_HOUR_ET = 6
+
+
+def _nightly_missing(last, now=None):
+    """Why no build has finished since today's 03:00 ET, in words, or None when one has."""
+    now = now or datetime.now(_ET)
+    cutoff = now.replace(hour=3, minute=0, second=0, microsecond=0).timestamp()
+    started = (last or {}).get("started_at")
+    if started is not None and started >= cutoff:
+        return None
+    if started is None:
+        return "no build has recorded a receipt"
+    when = datetime.fromtimestamp(started, _ET).strftime("%a %b %d %H:%M ET")
+    return f"the newest finished build started {when}"
+
+
+def _check_nightly_finished() -> None:
+    """The watchdog job. Never raises."""
+    try:
+        from api.services.screener import snapshot_builder, snapshot_db
+        last = snapshot_db.last_build_run()
+        why = _nightly_missing(last)
+        if not why:
+            return
+        if snapshot_builder.build_in_flight():
+            why += "; a build is still running"
+        from api.services import chart_health_alerts
+        day = datetime.now(_ET).strftime("%Y-%m-%d")
+        chart_health_alerts.emit(
+            f"screener_nightly_missing:{day}", "warning",
+            f"The screener's 03:00 nightly rebuild has not finished by "
+            f"{NIGHTLY_WATCHDOG_HOUR_ET:02d}:00 ET ({why}). Until a full build "
+            "finishes, members screen on the previous build's prices, ratings and volume.",
+            {"last_build": {k: (last or {}).get(k) for k in
+                            ("id", "started_at", "finished_at", "targets", "built")}},
+        )
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] could not run the screener nightly watchdog: {e}")
+
+
 def register_screener_jobs(scheduler):
     """Register the nightly full-market screener snapshot build (03:00 ET, after
     the ratings nightly at 02:30). Gated by SCREENER_SNAPSHOT_ENABLED (default on).
@@ -1965,6 +2012,13 @@ def register_screener_jobs(scheduler):
     scheduler.add_job(_run, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                       id="screener_snapshot_nightly", max_instances=1,
                       replace_existing=True)
+    # The watchdog for a nightly that never finished (see `_nightly_missing`). Its
+    # grace and coalesce are set for the reason given at the scan sweep below: a
+    # once-a-day job missed by a restart is a whole day missed, silently.
+    scheduler.add_job(_check_nightly_finished,
+                      trigger=CronTrigger(hour=NIGHTLY_WATCHDOG_HOUR_ET, minute=0, timezone=_ET),
+                      id="screener_nightly_watchdog", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=3600)
 
     # -- the scan sweep: a SEPARATE job at a LATER hour ------------------------
     #
