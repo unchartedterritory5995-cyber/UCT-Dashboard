@@ -187,7 +187,19 @@ def _drive_calendar_audit(payload, monkeypatch):
     return audit.rows_of(audit._get_week(date(2026, 10, 12)))
 
 
+def _drive_followup_board(payload, monkeypatch):
+    """Tier 2 part B, final fix C (I2): the earnings follow-up job's board leg. It catches the violation (a broken
+    board is an unclean day, never a failed run), so the driver returns its (names, clean) answer either way."""
+    from api.services.cache import cache
+    from api.services.journal_two import earnings_followup as ef
+    real_get = cache.get
+    monkeypatch.setattr(cache, "get",
+                        lambda k, *a, **kw: payload if k == "calendar_weekly" else real_get(k, *a, **kw))
+    return ef._board_names(DAY)
+
+
 DRIVERS = {
+    "api.services.journal_two.earnings_followup._board_names": _drive_followup_board,
     "api.services.calendar_week_poster.build_payloads": _drive_week_poster,
     "api.services.earnings_calendar_audit._get_week": _drive_calendar_audit,
     "api.routers.calendar._collect_reporters_for_ics": _drive_ics,

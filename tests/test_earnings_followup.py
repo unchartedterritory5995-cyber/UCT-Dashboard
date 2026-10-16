@@ -448,7 +448,9 @@ def test_main_calls_the_registrar():
 
 # ── the time fill ──────────────────────────────────────────────────────────────────────────────────
 
-def test_the_time_fill_reads_finnhubs_hour_and_never_raises(monkeypatch):
+def test_the_day_call_and_the_time_fill(monkeypatch):
+    """_finnhub_day is the ONE call for a day (its rows, or None for a failure); _fill_timing gives Finnhub's hour
+    only to a name with no time yet, and only bmo / amc / dmh count."""
     from api.services import finnhub_client
     calls = []
 
@@ -456,61 +458,60 @@ def test_the_time_fill_reads_finnhubs_hour_and_never_raises(monkeypatch):
         calls.append((path, params))
         return {"earningsCalendar": [{"symbol": "ORCL", "hour": "amc"}, {"symbol": "AMD", "hour": ""}, "junk"]}
     monkeypatch.setattr(finnhub_client, "fh_get", answer)
-    found = {"ORCL": None, "AMD": None, "NVDA": "bmo"}
-    ef._fill_timing("2026-10-14", found)
-    assert found == {"ORCL": "amc", "AMD": None, "NVDA": "bmo"}
+    rows = ef._finnhub_day("2026-10-14")
+    assert rows == [{"symbol": "ORCL", "hour": "amc"}, {"symbol": "AMD", "hour": ""}]
     assert calls == [("/calendar/earnings", {"from": "2026-10-14", "to": "2026-10-14"})]
+    found = {"ORCL": None, "AMD": None, "NVDA": "bmo"}
+    ef._fill_timing(found, rows + [{"symbol": "NVDA", "hour": "amc"}])
+    assert found == {"ORCL": "amc", "AMD": None, "NVDA": "bmo"}         # NVDA keeps the time it had
 
     def down(*a, **k):
         raise RuntimeError("finnhub down")
     monkeypatch.setattr(finnhub_client, "fh_get", down)
-    found = {"ORCL": None, "NVDA": "bmo"}
-    ef._fill_timing("2026-10-14", found)
-    assert found == {"ORCL": None, "NVDA": "bmo"}
-
-    def never(*a, **k):
-        raise AssertionError("every symbol already has a time")
-    monkeypatch.setattr(finnhub_client, "fh_get", never)
-    full = {"ORCL": "amc", "NVDA": "bmo"}
-    ef._fill_timing("2026-10-14", full)
-    assert full == {"ORCL": "amc", "NVDA": "bmo"}
+    assert ef._finnhub_day("2026-10-14") is None
+    monkeypatch.setattr(finnhub_client, "fh_get", lambda *a, **k: None)
+    assert ef._finnhub_day("2026-10-14") is None
+    monkeypatch.setattr(finnhub_client, "fh_get", lambda *a, **k: {"earningsCalendar": []})
+    assert ef._finnhub_day("2026-10-14") == []                          # a quiet day is an answer, not a failure
 
 
 # ── F10: the real seams ────────────────────────────────────────────────────────────────────────────
 
 def test_reporters_on_merges_the_calendar_names_with_their_times(monkeypatch):
-    from api.services import calendar_alerts, finnhub_client
+    """The board's time wins where it names one (ORCL from the cache); Finnhub's hour fills the rest (AMD)."""
+    from api.services import finnhub_client
     from api.services.journal_two import earnings_prep as ep
     monkeypatch.setattr(ep, "sandbox_calendar_active", lambda: False)
     asked = []
 
-    def lookup(iso):
+    def board(iso):
         asked.append(iso)
         return {"ORCL", "AMD", "NVDA"}, True
-    monkeypatch.setattr(calendar_alerts, "_get_reporters_for_date_with_status", lookup)
+    monkeypatch.setattr(ef, "_board_names", board)
     monkeypatch.setattr(ep, "_timing_from_calendar_cache", lambda sym, day: {"ORCL": "amc"}.get(sym))
     fills = []
 
     def fh(path, params, timeout=None, **kw):
         fills.append(params)
-        return {"earningsCalendar": [{"symbol": "AMD", "hour": "bmo"}, {"symbol": "NVDA", "hour": ""}]}
+        return {"earningsCalendar": [{"symbol": "AMD", "hour": "bmo"}, {"symbol": "NVDA", "hour": ""},
+                                     {"symbol": "ORCL", "hour": "bmo"}]}
     monkeypatch.setattr(finnhub_client, "fh_get", fh)
     found, clean = ef.reporters_on(date(2026, 10, 14))
     assert found == {"ORCL": "amc", "AMD": "bmo", "NVDA": None} and clean is True
     assert asked == ["2026-10-14"] and fills == [{"from": "2026-10-14", "to": "2026-10-14"}]
 
 
-def test_reporters_on_passes_the_providers_unclean_flag_through_and_skips_the_fill_when_timed(monkeypatch):
-    from api.services import calendar_alerts, finnhub_client
+def test_reporters_on_passes_the_boards_unclean_flag_through_and_asks_finnhub_even_when_timed(monkeypatch):
+    """The call is made whenever the day is looked up (I2): a fully timed board can still be missing names."""
+    from api.services import finnhub_client
     from api.services.journal_two import earnings_prep as ep
     monkeypatch.setattr(ep, "sandbox_calendar_active", lambda: False)
-    monkeypatch.setattr(calendar_alerts, "_get_reporters_for_date_with_status", lambda iso: ({"ORCL"}, False))
+    monkeypatch.setattr(ef, "_board_names", lambda iso: ({"ORCL"}, False))
     monkeypatch.setattr(ep, "_timing_from_calendar_cache", lambda sym, day: "bmo")
-
-    def never(*a, **k):
-        raise AssertionError("the cache named every time")
-    monkeypatch.setattr(finnhub_client, "fh_get", never)
+    calls = []
+    monkeypatch.setattr(finnhub_client, "fh_get", lambda *a, **k: calls.append(a) or {"earningsCalendar": []})
     assert ef.reporters_on(date(2026, 10, 14)) == ({"ORCL": "bmo"}, False)
+    assert len(calls) == 1
 
 
 def test_reporters_on_in_the_walks_sandbox_reads_only_the_calendar_file(monkeypatch):
@@ -520,9 +521,13 @@ def test_reporters_on_in_the_walks_sandbox_reads_only_the_calendar_file(monkeypa
     monkeypatch.setattr(ep, "_sandbox_window",
                         lambda: ({"ORCL": "2026-10-14", "AMD": "2026-10-15"}, {"ORCL": "amc"}, True, "asof"))
 
-    def never(iso):
+    def never(*a, **k):
         raise AssertionError("the sandbox never asks the live calendar")
+    from api.services import finnhub_client
     monkeypatch.setattr(calendar_alerts, "_get_reporters_for_date_with_status", never)
+    monkeypatch.setattr(calendar_alerts, "_fmp_reporters_for_date_with_status", never)
+    monkeypatch.setattr(ef, "_board_names", never)
+    monkeypatch.setattr(finnhub_client, "fh_get", never)
     assert ef.reporters_on(date(2026, 10, 14)) == ({"ORCL": "amc"}, False)      # a partial file is unclean
     assert ef.reporters_on(date(2026, 10, 15)) == ({"AMD": None}, False)
 
@@ -576,7 +581,7 @@ def test_every_private_name_the_job_calls_in_another_module_exists_with_the_shap
     from api.services import calendar_alerts
     from api.services.journal_two import earnings_prep, followup_prefill, note_tasks, reminder_block
     calls = [
-        (calendar_alerts, "_get_reporters_for_date_with_status", ("2026-10-14",)),
+        (calendar_alerts, "_fmp_reporters_for_date_with_status", ("2026-10-14",)),
         (earnings_prep, "_timing_from_calendar_cache", ("ORCL", "2026-10-14")),
         (earnings_prep, "_sandbox_window", ()),
         (earnings_prep, "_member_sets", ("u1",)),
@@ -788,7 +793,7 @@ def test_the_time_fill_reads_dmh_and_ignores_what_is_not_a_time(monkeypatch):
     monkeypatch.setattr(finnhub_client, "fh_get", lambda *a, **k: {"earningsCalendar": [
         {"symbol": "ORCL", "hour": "dmh"}, {"symbol": "AMD", "hour": " AMC "}, {"symbol": "NVDA", "hour": "tbd"}]})
     found = {"ORCL": None, "AMD": None, "NVDA": None}
-    ef._fill_timing("2026-10-14", found)
+    ef._fill_timing(found, ef._finnhub_day("2026-10-14"))
     assert found == {"ORCL": "dmh", "AMD": "amc", "NVDA": None}
 
 
@@ -979,3 +984,91 @@ def test_the_warm_budget_also_stops_a_refresh(db, world, monkeypatch):
     world["sets"], world["paid"] = {"u1": {"AAA": ["watchlist"]}}, {"u1"}
     result, sent = ring(db, at(date(2026, 10, 15), 16, 45))
     assert calls == [] and result["refresh_skipped"] == 1 and result["refreshed"] == 0 and len(sent) == 1
+
+
+# ── final fix C, I2: the reporters are the board UNION Finnhub's whole day, one Finnhub call per day ──────────────
+
+def _calendar(monkeypatch, board, fh, fmp=(set(), True)):
+    """The real reporters_on over fake legs. `board` = {day_iso: {bucket: [SYM, ...]}} held as the calendar_weekly
+    cache (None = no board), `fh` = Finnhub's answer (a dict, None for a failed call, or an exception to raise),
+    `fmp` = calendar_alerts' FMP leg. Returns the Finnhub calls."""
+    from api.services import calendar_alerts, finnhub_client
+    from api.services.cache import cache
+    from api.services.journal_two import earnings_prep as ep
+    monkeypatch.setattr(ep, "sandbox_calendar_active", lambda: False)
+    week = None if board is None else {"days": {d: {b: [{"sym": s} for s in v.get(b, [])] for b in ("bmo", "amc", "tbd")}
+                                                for d, v in board.items()}}
+    real_get = cache.get
+
+    def get(key, *a, **kw):
+        if key == "calendar_weekly":
+            return week
+        if str(key).startswith("calendar_week_"):
+            return None
+        return real_get(key, *a, **kw)
+    monkeypatch.setattr(cache, "get", get)
+    calls = []
+
+    def fake_fh(path, params, timeout=None, **kw):
+        calls.append((path, dict(params)))
+        if isinstance(fh, Exception):
+            raise fh
+        return fh
+    monkeypatch.setattr(finnhub_client, "fh_get", fake_fh)
+    monkeypatch.setattr(calendar_alerts, "_fmp_reporters_for_date_with_status", lambda d: fmp)
+    return calls
+
+
+def _fh(*rows):
+    return {"earningsCalendar": [{"symbol": s, "hour": h} for s, h in rows]}
+
+
+D14 = "2026-10-14"
+
+
+def test_a_name_the_board_dropped_is_found_with_finnhubs_hour(monkeypatch):
+    """The review's busy Tuesday, small: the board kept three names, Finnhub's whole day has five. Every one is found;
+    the two the board dropped carry Finnhub's hour, and a time the board already names is kept (CCC)."""
+    calls = _calendar(monkeypatch, {D14: {"bmo": ["AAA", "BBB"], "amc": ["CCC"]}},
+                      _fh(("AAA", "bmo"), ("BBB", "bmo"), ("CCC", "bmo"), ("DDD", "amc"), ("EEE", "")))
+    found, clean = ef.reporters_on(date(2026, 10, 14))
+    assert found == {"AAA": "bmo", "BBB": "bmo", "CCC": "amc", "DDD": "amc", "EEE": None} and clean is True
+    assert calls == [("/calendar/earnings", {"from": D14, "to": D14})]          # one call for the day
+
+
+@pytest.mark.parametrize("answer", [None, "junk", RuntimeError("finnhub down")])
+def test_finnhub_failing_leaves_the_boards_answer_and_marks_the_day_partial(monkeypatch, answer):
+    calls = _calendar(monkeypatch, {D14: {"bmo": ["AAA"], "amc": ["CCC"]}}, answer)
+    assert ef.reporters_on(date(2026, 10, 14)) == ({"AAA": "bmo", "CCC": "amc"}, False)
+    assert len(calls) == 1
+
+
+def test_an_empty_board_takes_finnhubs_day_in_one_call(monkeypatch):
+    calls = _calendar(monkeypatch, None, _fh(("AAA", "bmo"), ("BBB", "amc")))
+    assert ef.reporters_on(date(2026, 10, 14)) == ({"AAA": "bmo", "BBB": "amc"}, True)
+    assert len(calls) == 1
+
+
+def test_a_quiet_board_and_a_quiet_finnhub_still_ask_fmp(monkeypatch):
+    calls = _calendar(monkeypatch, None, _fh(), fmp=({"ZZZ"}, True))
+    assert ef.reporters_on(date(2026, 10, 14)) == ({"ZZZ": None}, True) and len(calls) == 1
+    calls = _calendar(monkeypatch, None, None, fmp=({"ZZZ"}, True))          # Finnhub down: FMP's names, partial
+    assert ef.reporters_on(date(2026, 10, 14)) == ({"ZZZ": None}, False) and len(calls) == 1
+    _calendar(monkeypatch, {D14: {"bmo": ["AAA"]}}, _fh(), fmp=({"ZZZ"}, True))   # a board answer: FMP not asked
+    assert ef.reporters_on(date(2026, 10, 14)) == ({"AAA": "bmo"}, True)
+
+
+def test_a_malformed_board_is_unclean_and_finnhubs_names_still_count(monkeypatch):
+    from api.services.cache import cache
+    calls = _calendar(monkeypatch, None, _fh(("AAA", "bmo")))
+    real_get = cache.get
+    monkeypatch.setattr(cache, "get", lambda k, *a, **kw: {"days": {D14: {"bmo": [{"symbol": "AAA"}], "amc": []}}}
+                        if k == "calendar_weekly" else real_get(k, *a, **kw))
+    assert ef.reporters_on(date(2026, 10, 14)) == ({"AAA": "bmo"}, False) and len(calls) == 1
+
+
+def test_one_finnhub_call_per_scanned_day(monkeypatch):
+    calls = _calendar(monkeypatch, {D14: {"amc": ["AAA"]}, "2026-10-15": {"bmo": ["BBB"]}}, _fh())
+    reports, partial, _ = ef.todays_reports(date(2026, 10, 15))
+    assert reports == {"AAA": D14, "BBB": "2026-10-15"} and partial is False
+    assert [p["from"] for _, p in calls] == [D14, "2026-10-15"]

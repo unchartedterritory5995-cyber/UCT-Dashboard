@@ -32,6 +32,9 @@ THE RULES (R-T2B-1..6, 10):
   in the run ledger (`warm_skipped`). A copy read before the reacting session closed (+30 min) is REBUILT once,
   inside the same budget, and the rank uses the fresh copy (final fix C, I1: `refreshed`, `refresh_failed`,
   `refresh_skipped` in the ledger).
+* WHO REPORTED IS THE CALENDAR BOARD UNION FINNHUB'S WHOLE DAY (final fix C, I2, `reporters_on`): the board keeps
+  the top names per session only, so a smaller name comes from Finnhub's list. One Finnhub call per scanned day;
+  a failed one leaves the board's answer and a PARTIAL day (the ledger says so).
 * NO PROVIDER CONFIGURED IS INCONCLUSIVE, NEVER "NOBODY REPORTED" (V4): calendar_alerts answers
   `(set(), True)` for an unconfigured box exactly as it does for a quiet day, so the run looks for a key
   (`_reporters_configured`) and, finding none, records the run as `unconfigured` (not complete) and stops.
@@ -131,24 +134,49 @@ def reaction_session(report_date: date, timing: str | None) -> date:
     return add_trading_days(report_date, 1)
 
 
-def _fill_timing(day_iso: str, found: dict) -> None:
-    """One Finnhub call for the day, only when some symbol has no time (R-T2B-4). Never raises."""
-    if all(found.values()):
-        return
+def _finnhub_day(day_iso: str) -> list[dict] | None:
+    """Finnhub's WHOLE earnings day: the ONE Finnhub call per scanned day (R-T2B-4, the shared token bucket).
+    The rows, or None when the call failed (fh_get answers None for a failure, an unset key and a cooldown alike;
+    each is a day the job could not confirm). Never raises."""
     try:
         from api.services.finnhub_client import fh_get
         data = fh_get("/calendar/earnings", {"from": day_iso, "to": day_iso}, timeout=10)
-    except Exception:  # noqa: BLE001 -- no time is "after the close" (R-T2B-3), never a failed run
-        return
+    except Exception:  # noqa: BLE001
+        return None
     if not isinstance(data, dict):
-        return
-    for row in data.get("earningsCalendar") or []:
-        if not isinstance(row, dict):
-            continue
-        sym = str(row.get("symbol") or "").strip().upper()
+        return None
+    rows = data.get("earningsCalendar") or []
+    return [r for r in rows if isinstance(r, dict)] if isinstance(rows, list) else None
+
+
+def _row_symbol(row: dict) -> str:
+    return str(row.get("symbol") or "").strip().upper()
+
+
+def _fill_timing(found: dict, rows: list[dict]) -> None:
+    """Finnhub's hour for each name that has no time yet; a time the board already names is kept, and only
+    bmo / amc / dmh count as a time (an empty or unknown hour stays "after the close", R-T2B-3)."""
+    for row in rows:
+        sym = _row_symbol(row)
         hour = str(row.get("hour") or "").strip().lower()
         if sym in found and not found[sym] and hour in ("bmo", "amc", "dmh"):
             found[sym] = hour
+
+
+def _board_names(day_iso: str) -> tuple[set[str], bool]:
+    """(the calendar board's names for `day_iso`, clean). The board is the `calendar_weekly` cache: a DISPLAY
+    board that keeps EarningsWhispers' top names per session (40 for a coming day, 150 for a finished one), never
+    a census, which is why reporters_on unions Finnhub's whole day into it (final fix C, I2). Cache read only,
+    shape-checked by the week contract's one assertion; a malformed board is (no names, unclean). Never raises."""
+    try:
+        from api.services.cache import cache
+        from api.services.calendar_week_contract import BUCKETS, week_days
+        days = week_days(cache.get("calendar_weekly"),
+                         reader="api.services.journal_two.earnings_followup._board_names") or {}
+    except Exception:  # noqa: BLE001 -- a broken board is unclean, never a failed run
+        return set(), False
+    day = days.get(day_iso) or {}
+    return {e["sym"].strip().upper() for b in BUCKETS for e in day.get(b) or [] if e["sym"].strip()}, True
 
 
 def _reporters_configured() -> bool:
@@ -162,16 +190,33 @@ def _reporters_configured() -> bool:
 
 
 def reporters_on(day: date) -> tuple[dict[str, str | None], bool]:
-    """({SYM: 'bmo'|'amc'|'dmh'|None}, clean) for reports dated `day`."""
+    """({SYM: 'bmo'|'amc'|'dmh'|None}, clean) for reports dated `day`.
+
+    THE BOARD UNION FINNHUB'S WHOLE DAY (final fix C, I2): the calendar board keeps only the top names per session,
+    so a member's small name is found through Finnhub's full list for the day, with Finnhub's hour. ONE Finnhub call
+    per scanned day, made whenever the day is looked up. When both come back empty, calendar_alerts' FMP leg is
+    asked (its breadth leg for a throttled day). Clean only when every leg that ran answered cleanly: a failed
+    Finnhub call leaves the board's answer and an unclean (partial) day, never a raise. The walk's sandbox
+    calendar file is its own source and is read alone."""
     from api.services.journal_two import earnings_prep as ep
     iso = day.isoformat()
     if ep.sandbox_calendar_active():
         window, timing, partial, _ = ep._sandbox_window()
         return {s: timing.get(s) for s, d in window.items() if d == iso}, not partial
-    from api.services import calendar_alerts
-    syms, ok = calendar_alerts._get_reporters_for_date_with_status(iso)
-    found = {s: ep._timing_from_calendar_cache(s, iso) for s in syms}
-    _fill_timing(iso, found)
+    board, ok = _board_names(iso)
+    rows = _finnhub_day(iso)
+    found = {s: ep._timing_from_calendar_cache(s, iso) for s in sorted(board)}
+    for sym in (_row_symbol(r) for r in rows or []):
+        if sym:
+            found.setdefault(sym, None)
+    if rows is None:
+        ok = False
+    else:
+        _fill_timing(found, rows)
+    if not found:
+        from api.services import calendar_alerts
+        fmp, fmp_ok = calendar_alerts._fmp_reporters_for_date_with_status(iso)
+        found, ok = {s: None for s in sorted(fmp)}, ok and fmp_ok
     return found, ok
 
 
