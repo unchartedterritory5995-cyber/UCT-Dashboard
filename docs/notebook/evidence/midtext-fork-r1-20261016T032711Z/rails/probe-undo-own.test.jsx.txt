@@ -1,0 +1,219 @@
+/**
+ * ⭐⭐ HOTFIX 2026-10-15 — A MID-TEXT EDIT, A PAUSE, AND LEAVING THE NOTE MUST NOT
+ * FORK IT. A GENUINE SECOND WRITER MUST STILL FORK IT.
+ *
+ * ⚰️ THE DEFECT, measured in a real browser before any of this was written
+ * (`docs/notebook/evidence/t2b-forkdiag-20261015T235943Z/`, cells E and E-master,
+ * 5/5 on master `4649e2d03e` and on the Tier-2 branch): one tab, no other
+ * writer. The member types, pauses past the durable writer's ~200 ms window,
+ * changes a character in the MIDDLE of the line, the autosave lands (PUT 200),
+ * and the member leaves. The drain then sends a STALE queued entry on the OLD
+ * revision: 409, BODY_REWRITE, and a `(conflicted copy)` holding the OLDER text.
+ *
+ * Two answers made it, both read and both reproduced below:
+ *   1. `editorStateDiscardsUnsentWork` asked whether the new text CONTAINS the
+ *      old one. No edit but an append does, so `persist` kept the older record
+ *      and its queued entry (and offline, the member's newest words reached the
+ *      crash draft only — never the durable copy or the queue).
+ *   2. `settleLandedSave`'s strict question then left that older entry queued
+ *      after the newer save — which the member's own view had produced — landed.
+ *
+ * ⭐ THE FIX ANSWERS BY PROVENANCE: the editor's EDIT LINEAGE (which live view a
+ * capture came from, and when), stamped on the record with a digest of its words.
+ * The same view, later, supersedes what it wrote earlier. Anything else — no
+ * lineage, another lineage, an older capture, a record whose words moved under
+ * its stamp — keeps today's conservative answer. Both halves are railed here.
+ *
+ * Layers, smallest first: the predicate; the durable hook (`persist`); the
+ * mount-independent settle and the REAL drain; and the REAL editor and the REAL
+ * drain end to end, with a compare-and-set server.
+ */
+import { render, screen, act, waitFor, cleanup } from '@testing-library/react'
+import { renderHook } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { join, dirname } from 'node:path'
+import { createFakeDb, createFakeIndexedDbFactory, settleIdb, installKeyRange } from './__fixtures__/fakeIndexedDb'
+import { getNote, listOutbox, putNoteWithIntent, dbNameFor } from './notebookDb'
+import { drainOutbox, FORKED } from './outboxDrain'
+import { useDurableNote, settleLandedSave, __resetNotebookConnections } from './useDurableNote'
+import { serverCopyIsOursDefault } from './useOutboxDrain'
+import {
+  editorStateDiscardsUnsentWork, editorLineageStamp, editorLineageSupersedes, authoredDigest,
+} from './recoverLocalState'
+import { OFFLINE_FLAG_KEY } from './offlineFlag'
+
+Range.prototype.getClientRects = () => []
+Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
+
+const para = (t) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] })
+const doc = (...blocks) => ({ type: 'doc', content: blocks })
+const T0 = '2026-10-15T20:00:00.000000+00:00'
+const T1 = '2026-10-15T20:00:09.000000+00:00'
+
+const BEFORE = 'ab cd'
+// The four shapes of a member's edit of `BEFORE`. Only `append` CONTAINS it.
+const EDITS = {
+  'insert in the middle': 'abX cd',
+  'insert before existing text': 'Xab cd',
+  'delete a character': 'a cd',
+  append: 'ab cd ef',
+}
+
+const L = 'tab-1:v1'           // one live view
+const OTHER = 'tab-1:v2'       // a replaced view, another pane, another tab
+const words = (t) => ({ title: 'Note', subtitle: '', bodyJson: doc(para(t)) })
+/** A durable record the view `id` wrote from its capture `seq`. */
+function stampedRecord(t, { id = L, seq = 1, dirty = 1 } = {}) {
+  const rec = { noteId: 'n1', ...words(t), dirty, baseUpdatedAt: T0 }
+  rec.editorLineage = editorLineageStamp(rec, { id, seq })
+  return rec
+}
+
+// ── 4. the REAL editor and the REAL drain, end to end ───────────────────────
+let server
+function makeServer({ body, updatedAt }) {
+  let rev = 0
+  const s = {
+    title: 'Note', subtitle: '', body, updatedAt, forks: [], offline: false, hold: null,
+    note: () => ({
+      id: 'n1', title: s.title, subtitle: s.subtitle, folderId: null, ticker: null, tags: [],
+      heroImageUrl: null, isFavorite: false, bodyJson: s.body, updatedAt: s.updatedAt,
+    }),
+    stamp: () => { rev += 1; s.updatedAt = `2026-10-15T20:10:${String(10 + rev).padStart(2, '0')}.000000+00:00` },
+  }
+  return s
+}
+/** Compare-and-set, the one axis that matters. Used by the editor's save AND by
+ *  the drain's send, so both meet the same server. */
+function casPut(patch) {
+  if (patch.baseUpdatedAt && patch.baseUpdatedAt !== server.updatedAt) {
+    const e = new Error('note changed — refresh and retry'); e.status = 409; throw e
+  }
+  if (patch.bodyJson) server.body = patch.bodyJson
+  if ('title' in patch) server.title = patch.title
+  if ('subtitle' in patch) server.subtitle = patch.subtitle ?? ''
+  server.stamp()
+  return server.note()
+}
+const update = vi.fn(async (patch) => {
+  if (server.offline) throw new Error('network down')      // no status ⇒ retried
+  if (server.hold) await server.hold                         // a PUT on the wire
+  return casPut(patch)
+})
+// ⭐ A durable write that never lands (IndexedDB's measured p95 is as long as the
+// whole autosave debounce, and a write can fail outright). Pass-through unless a
+// rail sets `gate.refuse`.
+const gate = vi.hoisted(() => ({ refuse: null }))
+vi.mock('./notebookDb', async (importOriginal) => {
+  const real = await importOriginal()
+  return {
+    ...real,
+    putNoteWithIntent: async (db, rec, intent) => {
+      if (gate.refuse && gate.refuse(rec)) throw new Error('injected: this durable write did not land')
+      return real.putNoteWithIntent(db, rec, intent)
+    },
+  }
+})
+let mountedNote = null
+vi.mock('../../hooks/useJ2Notes', () => ({
+  useJ2Note: () => ({ note: mountedNote, isLoading: false, error: null, update, refresh: vi.fn() }),
+  recordNoteOpened: vi.fn(),
+  setNoteFavorite: vi.fn(),
+}))
+vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u42', role: 'member' } }) }))
+vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
+vi.mock('../noteCreation', () => ({
+  createNoteViaApi: vi.fn(async (args) => { server.forks.push(args); return { id: 'fork-1', ...args } }),
+}))
+
+const ACCOUNT_DB = dbNameFor('u42')
+let factory
+
+describe('4 · end to end — the real editor, a pause, a mid-text edit, the save lands, the member leaves', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    localStorage.setItem(OFFLINE_FLAG_KEY, '1')
+    update.mockClear()
+    __resetNotebookConnections()
+    factory = createFakeIndexedDbFactory()
+    globalThis.indexedDB = factory
+    Object.defineProperty(globalThis.navigator, 'locks', { configurable: true, value: undefined })
+    global.fetch = vi.fn((url) => {
+      if (String(url) === '/api/j2/notes/n1') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: server.note() }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    })
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+  })
+  afterEach(() => {
+    gate.refuse = null
+    cleanup()
+    vi.useRealTimers()
+    vi.clearAllMocks()
+    localStorage.clear()
+    delete globalThis.indexedDB
+  })
+
+  async function openTheNote() {
+    mountedNote = server.note()
+    const NoteEditorPage = (await import('../../components/notebook/NoteEditorPage')).default
+    render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={() => {}} /></MemoryRouter>)
+    await screen.findByPlaceholderText('Title')
+    await tick(600)
+  }
+  async function tick(ms) {
+    await act(async () => { vi.advanceTimersByTime(ms); await settleIdb(6) })
+  }
+  async function editor() {
+    const dom = await waitFor(() => {
+      const el = document.querySelector('.ProseMirror')
+      if (!el?.editor) throw new Error('editor not mounted')
+      return el
+    })
+    return dom.editor
+  }
+  /** A real editor transaction, so the editor's own draft / durable / autosave paths run. */
+  async function edit(fn) {
+    const ed = await editor()
+    await act(async () => { fn(ed.chain()).run(); await settleIdb(2) })
+  }
+  const store = () => factory.databases.get(ACCOUNT_DB)
+  /** The member left: the editor unmounts and the sweep drains, as on the page they landed on. */
+  async function leaveAndDrain() {
+    cleanup()
+    await tick(50)
+    const fork = vi.fn(async (entry) => { server.forks.push(entry); return server.note() })
+    const send = vi.fn(async (entry) => casPut({
+      title: entry.patch?.title ?? '', subtitle: entry.patch?.subtitle || null,
+      ...(entry.patch?.bodyJson ? { bodyJson: entry.patch.bodyJson } : {}),
+      ...(entry.baseUpdatedAt ? { baseUpdatedAt: entry.baseUpdatedAt } : {}),
+    }))
+    const results = await drainOutbox(store(), { send, fork, serverCopyIsOurs: serverCopyIsOursDefault })
+    return { fork, send, results }
+  }
+  const text = () => JSON.stringify(server.body)
+
+
+  async function undo() { const ed = await editor(); await act(async () => { ed.chain().focus().undo().run(); await settleIdb(2) }) }
+  for (const [label, landSecond] of [['undo back to the SAVED text', false], ['undo to an UNSAVED state', true]]) {
+    it('PROBE ' + label, async () => {
+      server = makeServer({ body: doc(para('ab cd')), updatedAt: T0 })
+      await openTheNote()
+      await edit((c) => c.focus('end').insertContent(' ef'))
+      await tick(1500)                                   // lands: 'ab cd ef'
+      if (landSecond) { await edit((c) => c.focus('end').insertContent(' gh')); await tick(300) }
+      await edit((c) => c.insertContentAt(3, 'X'))
+      await tick(300)                                    // durable write of the mid-text edit
+      await undo()
+      const view = (await editor()).getText()
+      await tick(1500)
+      const before = { server: text(), outbox: store().dump('outbox').map((e) => JSON.stringify(e.patch.bodyJson)), rec: JSON.stringify(store().dump('notes')[0]?.bodyJson), dirty: store().dump('notes')[0]?.dirty }
+      const { fork, results } = await leaveAndDrain()
+      console.log('PROBE', label, JSON.stringify({ view, before, outcomes: results.map((r) => r.outcome), forks: fork.mock.calls.length, serverAfter: text() }))
+    })
+  }
+})

@@ -1,0 +1,4 @@
+SERVING c2 at http://127.0.0.1:8144; create docs\notebook\evidence\midtext-fork-20261016T020721Z\serve-tip\c2\STOP to stop
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\notebook\evidence\midtext-fork-20261016T020721Z\serve-tip\c2\integrity-c2.md
+VERDICT c2: 0 steps, 0 FAIL
+raw log written: docs\notebook\evidence\midtext-fork-20261016T020721Z\serve-tip\c2\walk.json
