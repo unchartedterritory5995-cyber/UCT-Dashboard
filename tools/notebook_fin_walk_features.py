@@ -13,6 +13,7 @@ Never run on import; running it directly prints how to run the walk.
 """
 from __future__ import annotations
 
+import ast
 import base64
 import json
 import math
@@ -42,7 +43,7 @@ SAMPLE_SYMS = ["AAPL", "MSFT", "NVDA", "GOOGL", "TSLA", "AMZN"]
 ORDER = ["firstrun", "sample", "examples", "checklist", "offer", "gallery", "formulas", "chartplan", "positions", "board1",
          "transcript", "passed", "child", "resurface", "thesischips", "board2", "trades", "grading", "earnings", "discipline",
          "vplaybook", "playbook", "reviews", "nokey", "layout", "tours1280", "tours820", "tours390", "whysave", "styles", "blocks",
-         "smart", "discover", "remove"]
+         "smart", "followup", "discover", "remove"]
 
 CHECKLIST_JS = """() => { const hd = [...document.querySelectorAll('h3')].find(e => e.textContent.trim() === 'Get started');
   if (!hd) return null; const card = hd.closest('section');
@@ -68,6 +69,17 @@ SMART_CHIPS_KEY = "notebook_smart_chips_enabled"            # lib/smartChipsFlag
 IMAGE_DOCS_KEY = "notebook_image_docx_documents_enabled"    # the screenshot chip's second switch (NoteEditorPage handleImageInsert)
 SCREENSHOT_FIXTURE = REPO / "tools" / "fixtures" / "chart-header-nvda-1d.png"   # made by tools/gen_chart_header_fixture.py
 SELECTED_ACCOUNT_KEY = "uct.j2.selectedAccountId"          # hooks/useJ2SelectedAccount.js
+# Notebook P2 Tier 2 part B (Task 11): the `followup` step's switch (it also needs the journal styles one, which the card's
+# create does) and the symbol it walks. The producer's own pass is run by notebook_fin_walk.FOLLOWUP_CHILD.
+EARNINGS_FOLLOWUP_KEY = "notebook_earnings_followup_enabled"   # lib/earningsFollowupFlag.js
+FOLLOWUP_SYM = "ORCL"
+JOURNAL_STYLES_PY = REPO / "api" / "services" / "journal_two" / "journal_styles.py"
+FOLLOWUP_NOTICE_TITLE = f"{FOLLOWUP_SYM} reported: write your follow-up"       # earnings_followup.notice_copy / NoticesBox.jsx:61
+# The note's number lines for the seeded quarter (notebook_fin_walk.FOLLOWUP_CHILD: EPS 1.47 vs 1.42, +3.5%, reaction -4.2%).
+# tests/test_notebook_fin_walk_followup_group.py feeds the child's own numbers through followup_prefill.number_lines and
+# compares the result to these two, so a copy change in the product reds there and not on a walk run.
+FOLLOWUP_EPS_LINE = "EPS: $1.47 actual vs $1.42 expected (+3.5% surprise)."
+FOLLOWUP_REACTION_PREFIX = "Reaction: −4.2% close to close"
 # Notebook P2b (Task 13): the four prep blocks' group names (lib/journalBlocks.js labels, the name
 # BlockNodeView gives its role="group") and the part each one captures (trader_blocks.PREP_BLOCK).
 PREP_GROUPS = {"prepWire": ("Morning wire and exposure", "wire"), "prepEarnings": ("Earnings for my names", "earnings"),
@@ -96,6 +108,13 @@ def block_labels() -> dict:
     (blockLabel). Read, never restated, so a renamed block fails the walk by name."""
     src = JOURNAL_BLOCKS_JS.read_text(encoding="utf-8")
     return dict(re.findall(r"id:\s*'(\w+)',\s*label:\s*'([^']*)'", src))
+
+
+def followup_headings() -> tuple:
+    """journal_styles.py FOLLOWUP_HEADINGS: the three headings an Earnings follow-up note opens with, in order. Read from the
+    product's own file, never restated, so a renamed heading fails the walk by name."""
+    m = re.search(r"FOLLOWUP_HEADINGS\s*=\s*(\([^)]*\))", JOURNAL_STYLES_PY.read_text(encoding="utf-8"))
+    return ast.literal_eval(m.group(1)) if m else ()
 
 
 def regime_words() -> dict:
@@ -3189,6 +3208,290 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                "PASS" if not missing and not unlisted else "FAIL", missing=[f"{f} @ {vp}" for f, vp in missing],
                rows_not_in_coverage=unlisted, shot=False)
     run("smart", smart_chips)
+
+    # ── Notebook P2 Tier 2 part B (Task 11): the earnings follow-up, from the bell's row to the note, and /remind ──────
+    # Gated on the auth payload's own keys (never this process's idea of the flag set): the notice and the card ride
+    # notebook_earnings_followup_enabled AND the journal styles switch (the card's create is a styled create); /remind
+    # rides neither. A switch that is off is NOT_RUN with that reason -- a row that could not be driven is neither PASS
+    # nor FAIL. The producer is not driven through a clock: notebook_fin_walk.FOLLOWUP_CHILD seeds the intel snapshot
+    # and runs earnings_followup.run_followups itself, twice, with the default delivery (the bell's durable copy).
+    def followup():
+        follow_on = notebook_flag_on(EARNINGS_FOLLOWUP_KEY) and notebook_flag_on(JOURNAL_STYLES_KEY)
+        walked_at = {"followup.setup": ("1280",), "followup.notice": ("1280", "820", "390"),
+                     "followup.write": ("1280", "820", "390"), "followup.reminder": ("1280", "820", "390")}
+        state = ctx.storage_state()
+        FU: dict = {}      # delivered / day / prep_id / link: what a later row needs from an earlier one
+
+        def at(vp):
+            if vp == "1280":
+                return pg, inst, None
+            c = C.new_ctx(browser, vp, storage=state)
+            return c.new_page(), C.Inst(c, cfg, vp), c
+
+        def note(title, **extra):
+            body = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": title}]}]}
+            return M.post(base + "/api/j2/notes", data={"title": title, "bodyJson": body, **extra}).json()["note"]
+
+        def new_line(p_):
+            p_.locator(".ProseMirror > p").first.click()
+            p_.keyboard.press("Control+End")
+            p_.keyboard.press("Enter")
+
+        def walk_nodes(node):
+            if isinstance(node, dict):
+                yield node
+                for k in node.get("content") or []:
+                    yield from walk_nodes(k)
+
+        def plain(node):
+            return "".join(n.get("text") or "" for n in walk_nodes(node) if n.get("type") == "text")
+
+        def height(loc):
+            return loc.first.evaluate("e => e.getBoundingClientRect().height")
+
+        def no_sideways_scroll(p_):
+            return p_.evaluate("() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1")
+
+        def not_run(feature, vp, reason, **facts):
+            C.step(None, inst, feature, f"{vp}: could not be driven", "NOT_RUN", viewport_asked=vp,
+                   reason=f"INCONCLUSIVE: {reason}", shot=False, **facts)
+
+        def off_reason():
+            offs = [k for k, v in ((EARNINGS_FOLLOWUP_KEY, notebook_flag_on(EARNINGS_FOLLOWUP_KEY)),
+                                   (JOURNAL_STYLES_KEY, notebook_flag_on(JOURNAL_STYLES_KEY))) if not v]
+            return f"{', '.join(offs)} off in this sandbox"
+
+        def undelivered(feature, vp):
+            if not follow_on:
+                not_run(feature, vp, off_reason())
+            else:
+                not_run(feature, vp, "followup.setup did not deliver the notice (see its row), so there is nothing to open")
+            return True
+
+        # followup.setup (API, 1280): the member WATCHES the name (POST /api/watchlists, then POST /api/watchlists/{id}/items:
+        #   api/routers/watchlists.py create_watchlist / add_item), has an earnings-prep note on it, and the producer's pass
+        #   is run twice. PASS: the first run delivered 1; the second found it already sent and delivered 0 (Review Focus 7).
+        def setup():
+            if not follow_on:
+                not_run("followup.setup", "1280", off_reason())
+                return
+            st_w, wl = C.api(ctx, inst, "POST", base, "/api/watchlists", {"name": "Follow-up walk"})
+            wl_id = wl.get("id") if isinstance(wl, dict) else None
+            st_i, item = C.api(ctx, inst, "POST", base, f"/api/watchlists/{wl_id}/items", {"sym": FOLLOWUP_SYM}) if wl_id else (None, None)
+            prep_body = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "What I expect from the report."}]}]}
+            st_n, prep = C.api(ctx, inst, "POST", base, "/api/j2/notes",
+                               {"title": f"Earnings Prep — {FOLLOWUP_SYM}", "ticker": FOLLOWUP_SYM,
+                                "tags": ["earnings", "earnings-prep"], "bodyJson": prep_body})
+            prep_id = ((prep or {}).get("note") or {}).get("id") if isinstance(prep, dict) else None
+            spec = {"flags": [k.upper() for k in (EARNINGS_FOLLOWUP_KEY, JOURNAL_STYLES_KEY)], "symbol": FOLLOWUP_SYM}
+            d = C.run_followup_child(data_dir, C.OUT, {**spec, "mode": "day"})
+            day = d.get("day")
+            reporters = C.add_calendar_reporter(data_dir, FOLLOWUP_SYM, day, "bmo") if day else None
+            ran = C.run_followup_child(data_dir, C.OUT, {**spec, "mode": "run"}) if reporters else {"error": d.get("error") or "no report day"}
+            first, second = ran.get("first") or {}, ran.get("second") or {}
+            ok = (bool(wl_id) and st_i in (200, 201) and bool(prep_id) and first.get("delivered") == 1
+                  and second.get("already_sent") == 1 and second.get("delivered") == 0)
+            FU.update(delivered=bool(ok), day=day, prep_id=prep_id)
+            C.step(None, inst, "followup.setup", "The member watches ORCL and has a prep note; the producer's pass delivers one notice, and a second pass finds it already sent",
+                   "PASS" if ok else "FAIL", watchlist_status=st_w, watchlist_id=wl_id, add_item_route="POST /api/watchlists/{id}/items",
+                   add_item_status=st_i, add_item=item, prep_note_status=st_n, prep_note=prep_id, report_day=day,
+                   calendar_reporters=reporters, first_run=first, second_run=second, log=ran.get("log"), runs=ran.get("runs"),
+                   intel_retrieved_at=ran.get("retrieved_at"), child_error=ran.get("error"), stderr_tail=ran.get("stderr_tail"), shot=False)
+
+        # followup.notice: Home, "Notices · N" unfolded; the row link "ORCL reported: write your follow-up" is visible, at least
+        #   44 px tall on touch, and the page does not scroll sideways. 820 and 390 FIRST: pressing the link marks the row read.
+        #   At 1280, then press it: the URL carries followup=ORCL&reportDate=<day> and the region "Earnings follow-up" shows.
+        def notice():
+            for vp in ("820", "390", "1280"):
+                if not FU.get("delivered"):
+                    undelivered("followup.notice", vp)
+                    continue
+                p, i, c = at(vp)
+                try:
+                    C.goto(p, base, "/journal/notebook")
+                    summ = p.locator('[data-tour="home-notices"] > summary')
+                    shown = C.vis_loc(summ, 45000)
+                    if shown:
+                        summ.first.click()
+                    link = p.locator('[data-tour="home-notices"]').get_by_role("link", name=FOLLOWUP_NOTICE_TITLE, exact=True)
+                    # wait for the Notices link itself to be visible after the unfold (no fixed sleep)
+                    seen = shown and C.vis_loc(link, 15000)
+                    h_ = height(link) if seen else None
+                    href = link.first.get_attribute("href") if seen else None
+                    flat = seen and no_sideways_scroll(p)
+                    want_href = f"/journal/notebook?followup={FOLLOWUP_SYM}&reportDate={FU['day']}"
+                    if href:
+                        FU.setdefault("link", href)      # the link captured on the first page that showed it; 1280 presses it last
+                    landed, region = None, None
+                    if vp == "1280" and seen:
+                        link.first.click()
+                        p.wait_for_function("(day) => location.search.includes('followup=') && location.search.includes('reportDate=' + day)",
+                                            arg=FU["day"], timeout=30000)
+                        landed = p.evaluate("() => location.pathname + location.search")
+                        region = C.vis_loc(p.get_by_role("region", name="Earnings follow-up"), 45000)
+                    tall = (vp == "1280") or (h_ is not None and h_ >= 44)
+                    ok = bool(seen and flat and tall and href == want_href
+                              and (vp != "1280" or (f"followup={FOLLOWUP_SYM}&reportDate={FU['day']}" in (landed or "") and region)))
+                    C.step(p, i, "followup.notice", f"Home's Notices lists \"{FOLLOWUP_NOTICE_TITLE}\" as a link of its own; at 1280 it opens the card ({vp})",
+                           "PASS" if ok else "FAIL", summary_shown=shown, link_visible=seen, link_height=h_, href=href, expected_href=want_href,
+                           no_sideways_scroll=flat, pressed=(vp == "1280"), landed=landed, card_region=region)
+                finally:
+                    if c is not None:
+                        c.close()
+
+        # followup.write: "Write follow-up" makes the note (the server prefill: the three headings, the quarter's numbers, the
+        #   source line, one reminder task with a date, the Kind of note), and the page moves to ?note=<id>.
+        def write():
+            heads = followup_headings()
+            for vp in ("1280", "820", "390"):
+                if not FU.get("delivered"):
+                    undelivered("followup.write", vp)
+                    continue
+                p, i, c = at(vp)
+                try:
+                    # The link captured by followup.notice; if no notice page showed one, the one the producer writes
+                    # (earnings_followup.followup_url), so a missing capture is recorded and does not hide the card.
+                    link = FU.get("link") or f"/journal/notebook?followup={FOLLOWUP_SYM}&reportDate={FU['day']}"
+                    C.goto(p, base, link)
+                    region = C.vis_loc(p.get_by_role("region", name="Earnings follow-up"), 45000)
+                    btn = p.get_by_role("button", name="Write follow-up")
+                    h_ = height(btn) if region and vp != "1280" else None
+                    nid = None
+                    if region:
+                        btn.first.click()
+                        p.wait_for_function("() => new URL(location.href).searchParams.get('note')", timeout=60000)
+                        nid = p.evaluate("() => new URL(location.href).searchParams.get('note')")
+                        C.vis_loc(p.locator(".ProseMirror").first, 45000)
+                    got = note_json(nid) if nid else {}
+                    doc = got.get("bodyJson") or {}
+                    nodes = list(walk_nodes(doc))
+                    head_texts = [plain(n) for n in nodes if n.get("type") == "heading"]
+                    order = [t for t in head_texts if t in heads]
+                    paras = [plain(n) for n in nodes if n.get("type") == "paragraph"]
+                    eps_line = FOLLOWUP_EPS_LINE
+                    reaction = next((t for t in paras if t.startswith("Reaction:")), None)
+                    source = next((t for t in paras if t.startswith("Source:")), None)
+                    tasks = [n for n in nodes if n.get("type") == "taskItem"]
+                    dated = [t for t in tasks if any(m.get("type") == "dateMention" for m in walk_nodes(t))]
+                    # The member-visible Kind of note is the property; kindId (the internal style-stamp column) is recorded beside it
+                    # as a fact and never stands in for it.
+                    kind = (got.get("propertiesJson") or {}).get("builtin:note_kind")
+                    kind_id = got.get("kindId")
+                    links = [(n.get("attrs") or {}).get("noteId") for n in nodes if n.get("type") == "noteLink"]
+                    prep_today = FU["day"] == C.TODAY.isoformat()
+                    checks = {"headings_in_order": tuple(order) == tuple(heads) and bool(heads),
+                              "eps_line": eps_line in paras, "reaction_line": bool(reaction) and reaction.startswith(FOLLOWUP_REACTION_PREFIX),
+                              "source_line": bool(source), "one_dated_task": len(tasks) == 1 and len(dated) == 1,
+                              "kind": kind == "earnings_followup"}
+                    ok = bool(region and nid) and all(checks.values()) and (vp == "1280" or (h_ is not None and h_ >= 44))
+                    C.step(p, i, "followup.write", f"\"Write follow-up\" makes the note: three headings, the quarter's numbers, the source, one dated task, Kind of note ({vp})",
+                           "PASS" if ok else "FAIL", card=region, note=nid, link_used=link, link_was_captured=bool(FU.get("link")), checks=checks, headings=head_texts, expected_headings=list(heads),
+                           eps_line_present=eps_line in paras, reaction=reaction, source=source, tasks=len(tasks), dated_tasks=len(dated),
+                           kind_of_note=kind, kind_id=kind_id, note_title=got.get("title"), prep_links=links, write_button_height=h_)
+                    # The link to the prep note is present when today is the report day; any later day, the prep note (made by
+                    # the setup row, today) was created AFTER the report day, which the server then (rightly) does not link.
+                    if prep_today:
+                        C.step(p, i, "followup.write", f"the note links the prep note made before the report ({vp})",
+                               "PASS" if FU["prep_id"] in links else "FAIL", prep_note=FU["prep_id"], prep_links=links, report_day=FU["day"],
+                               shot=False)
+                    else:
+                        not_run("followup.write", vp, f"the report day {FU['day']} is not today ({C.TODAY.isoformat()}): the prep note was "
+                                "made AFTER it, so the prep link is not expected", sub_check="prep note link")
+                finally:
+                    if c is not None:
+                        c.close()
+
+        # followup.reminder: in a new note type /remind, pick "Reminder", pick Today from the date list: ONE date mention
+        #   inside a task item. After the save lands the open-tasks route holds "Follow up" due today for that note, and the
+        #   Tasks view lists it. Needs neither follow-up switch.
+        def reminder():
+            for vp in ("1280", "820", "390"):
+                p, i, c = at(vp)
+                try:
+                    n = note(f"Reminder walk {vp}")
+                    C.goto(p, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
+                    new_line(p)
+                    p.keyboard.type("/remind", delay=40)
+                    opt = p.get_by_role("option", name=re.compile(r"^Reminder"))
+                    offered = C.vis_loc(opt, 10000)
+                    if offered:
+                        p.keyboard.press("Enter")
+                    lst = p.locator('#uct-date-suggest [role="option"]')
+                    listed = offered and C.vis_loc(lst, 10000)
+                    first_word = None
+                    if listed:
+                        p.keyboard.press("ArrowDown")
+                        p.wait_for_timeout(200)
+                        first_word = [re.sub(r"\s+", " ", t).strip() for t in p.locator('#uct-date-suggest [role="option"][aria-selected="true"]').all_inner_texts()]
+                        p.keyboard.press("Enter")
+                        p.wait_for_timeout(600)
+                    # ⛔ A LIVE task item is `<li data-checked>` under `ul[data-type="taskList"]`: TipTap's TaskItem
+                    # node view copies only the node's ATTRIBUTE-level HTML onto the <li>, never renderHTML's
+                    # `data-type="taskItem"` (@tiptap/extension-list dist/index.js, addNodeView). The selector this
+                    # replaced, `[data-type="taskItem"]`, could not match a live task at all (walk #2:
+                    # `date_mentions: 1, mentions_in_task: 0` beside a stored task due today). `CONTROL` counts the
+                    # live task items with the same selector, so a zero here can be told from a selector that
+                    # matches nothing.
+                    m = p.evaluate("""() => { const ms = [...document.querySelectorAll('.ProseMirror [data-type="date-mention"]')];
+                        const TASK = 'ul[data-type="taskList"] > li';
+                        return { n: ms.length, inTask: ms.filter(e => e.closest(TASK)).length,
+                                 tasks: document.querySelectorAll('.ProseMirror ' + TASK).length } }""") if listed else {"n": 0, "inTask": 0, "tasks": 0}
+                    saved = False
+                    stored = {}
+                    for _ in range(60):          # the save lands: the stored body holds the mention (the autosave is debounced)
+                        stored = note_json(n["id"]).get("bodyJson") or {}
+                        if any(x.get("type") == "dateMention" for x in walk_nodes(stored)):
+                            saved = True
+                            break
+                        p.wait_for_timeout(500)
+                    # The product's own answer, beside the DOM's: the SERVER's copy holds a task item carrying the date.
+                    stored_dated = sum(1 for t in walk_nodes(stored) if t.get("type") == "taskItem"
+                                       and any(x.get("type") == "dateMention" for x in walk_nodes(t)))
+                    tr = M.get(base + "/api/j2/notes/tasks?status=open")
+                    tb = tr.json() if tr.status == 200 else {}
+                    mine = [t for t in (tb.get("tasks") or []) if t.get("noteId") == n["id"]]
+                    task = next((t for t in mine if str(t.get("text") or "").startswith("Follow up")), None)
+                    due_ok = bool(task) and task.get("due") == tb.get("today")
+                    C.goto(p, base, "/journal/notebook?view=tasks")
+                    row = p.get_by_role("button", name=re.compile(r"^Follow up.*Reminder walk " + vp))
+                    in_view = C.vis_loc(row, 30000)
+                    # ⛔ AND THE NOTE WAS NOT FORKED. C.step only FLAGS a non-benign request; it never fails a row,
+                    # so a run that made the member a "(conflicted copy)" read PASS here (walk #2 did exactly that:
+                    # PUT 200, PUT 409 on the same base, POST "Reminder walk 1280 (conflicted copy)"). Read from the
+                    # server after the navigation, the same way blocks.integrity-tick-leave reads it.
+                    conflicted = [x for x in C.notes_list(p.context, base)
+                                  if (x.get("title") or "").startswith(f"Reminder walk {vp}") and "(conflicted copy)" in (x.get("title") or "")]
+                    ok = (offered and listed and m["n"] == 1 and m["inTask"] == 1 and m["tasks"] >= 1 and saved and stored_dated == 1
+                          and due_ok and in_view and not conflicted)
+                    C.step(p, i, "followup.reminder", f"/remind then Today: one dated task item, saved, open with the due date today, listed in Tasks, no conflicted copy ({vp})",
+                           "PASS" if ok else "FAIL", option_offered=offered, date_list=listed, date_chosen=first_word, date_mentions=m["n"],
+                           mentions_in_task=m["inTask"], live_task_items=m["tasks"], save_landed=saved, stored_dated_tasks=stored_dated,
+                           task=task, tasks_today=tb.get("today"), due_is_today=due_ok,
+                           tasks_view_row=in_view, conflicted=len(conflicted), note=n["id"])
+                finally:
+                    if c is not None:
+                        c.close()
+
+        rows = (("followup.setup", setup), ("followup.notice", notice), ("followup.write", write), ("followup.reminder", reminder))
+        for feature, fn in rows:
+            try:
+                fn()
+            except h.SetupFailed:
+                raise
+            except Exception as e:  # noqa: BLE001 -- recorded, and the next row still runs
+                C.step(pg, inst, feature, "driver exception (the row did not finish)", "FAIL",
+                       error=f"{type(e).__name__}: {str(e)[:600]}", traceback=traceback.format_exc()[-1600:])
+        # followup.coverage: every row left a record at each of its viewports. A NOT_RUN row counts (it says why), and it carries
+        # `viewport_asked` because it is recorded without a page.
+        want = {(f, vp) for f, vps in walked_at.items() for vp in vps}
+        seen = {(s.get("feature"), s.get("viewport")) for s in C.REC["steps"] if s.get("config") == cfg}
+        seen |= {(s.get("feature"), s.get("viewport_asked")) for s in C.REC["steps"] if s.get("config") == cfg}
+        missing = sorted(want - seen)
+        unlisted = sorted(f for f, _ in rows if f not in walked_at)
+        C.step(None, inst, "followup.coverage", "every follow-up feature left a row at each of its viewports",
+               "PASS" if not missing and not unlisted else "FAIL", missing=[f"{f} @ {vp}" for f, vp in missing],
+               rows_not_in_coverage=unlisted, shot=False)
+    run("followup", followup)
 
     def discover():
         doors = (("new-note-home", d_new_note_home), ("phone-toolbar-inside", d_phone_toolbar),

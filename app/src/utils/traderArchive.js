@@ -9,6 +9,20 @@
 
 export const ARCHIVE_API = '/api/wisdom/archive'
 
+/** An edge is called measured only at |z| >= 3, the same line Ask AI and Compass use. */
+export const EDGE_Z = 3
+/** A context cut shows only when it rests on at least this many scored calls. */
+export const MIN_CONTEXT_N = 30
+
+/** 'measured edge (z …)' / 'not proven (z …)' for a playbook stats block. */
+export function edgeVerdict(st) {
+  if (!st?.n_scored) return 'no scored calls'
+  if (st.edgeR_z === null || st.edgeR_z === undefined) return 'z unavailable'
+  return Math.abs(st.edgeR_z) >= EDGE_Z && st.n_scored >= MIN_CONTEXT_N
+    ? `measured edge (z ${st.edgeR_z})`
+    : `not proven (z ${st.edgeR_z})`
+}
+
 /** An outcome fraction (0.1) as a signed percent ("+10.0%"); missing → em dash. */
 export function fmtR(value) {
   if (value === null || value === undefined || value === '' || Number.isNaN(Number(value))) return '—'

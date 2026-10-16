@@ -313,3 +313,46 @@ def test_the_body_is_read_raw_from_the_row(db_path, monkeypatch):
         assert js.plan_style_update("u1", n["id"])["add"] == []
         js.apply_style_update("u1", n["id"], expected_updated_at=note["updatedAt"])
     assert notes.get_note("u1", n["id"])["bodyJson"] == stored
+
+
+def _reminder_style(user="u1", extra=()):
+    from api.services.journal_two import journal_styles as js
+    return js.create_style(user, {"name": "With reminder", "kindId": "thesis",
+        "blocks": [{"block": "reminder", "enabled": True, "settings": {"days": "5"}}, *extra]})
+
+
+def _tasks(body):
+    from api.services.journal_two import note_tasks
+    return note_tasks.extract_tasks(body)
+
+
+def test_update_layout_never_offers_or_lists_a_reminder(db_path):
+    """R-T2B-13: _present finds widgets only, so a reminder would be re-offered on every update."""
+    from api.services.journal_two import journal_styles as js
+    style = _reminder_style()
+    n = _styled_note("u1", style["id"], "NVDA")
+    assert len(_tasks(n["bodyJson"])) == 1                  # the create DID place it (the control)
+    js.update_style("u1", style["id"], {"blocks": [
+        {"block": "reminder", "enabled": True, "settings": {"days": "5"}},
+        {"block": "chart", "enabled": True, "settings": {"tf": "W"}}]})
+    plan = js.plan_style_update("u1", n["id"])
+    assert [a["block"] for a in plan["add"]] == ["chart"]   # the plan has something to say, so it is not empty
+    assert all(s["block"] != "reminder" for s in plan["skipped"])
+    note, applied = js.apply_style_update("u1", n["id"])
+    assert [a["block"] for a in applied["add"]] == ["chart"]
+    assert len(_tasks(note["bodyJson"])) == 1               # still ONE reminder: never added twice
+
+
+def test_empty_note_switch_lists_the_reminder_the_write_places(db_path):
+    """F8: on an EMPTY note switched to a style the write is a create (compose places the reminder), so the
+    dry run must list it too -- the plan and the write never disagree."""
+    from api.services.journal_two import journal_styles as js, notes
+    style = _reminder_style()
+    n = notes.create_note("u1", {"title": "empty", "ticker": "AMD"})
+    dry = js.plan_style_update("u1", n["id"], style_id=style["id"])
+    assert dry["insertsOutline"] is True and dry["mode"] == "create"
+    assert [a["block"] for a in dry["add"]] == ["reminder"]
+    assert all(s["block"] != "reminder" for s in dry["skipped"])
+    note, written = js.apply_style_update("u1", n["id"], style_id=style["id"], expected_updated_at=n["updatedAt"])
+    assert written["add"] == dry["add"] and written["skipped"] == dry["skipped"]
+    assert len(_tasks(note["bodyJson"])) == 1               # what the dry run listed is what landed

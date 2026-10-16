@@ -168,7 +168,20 @@ def test_allowlist_is_read_only_by_naming_discipline():
     # (create_/add_/close_/cancel_/change_/flag_…) slipping in here would give
     # the ask box unconsented mutations.
     for name in agent._AGENT_ALLOWED:
-        assert name.split("_")[0] in ("get", "find", "grade", "ask"), name
+        assert name.split("_")[0] in ("get", "find", "grade", "ask") or name in agent._READ_ONLY_BY_MODULE, name
+    # the exception list is exact: only the archive's readers, each of which is in the allow-list
+    assert agent._READ_ONLY_BY_MODULE == {"trader_archive_search", "trader_archive_ticker", "trader_archive_setup",
+                                          "trader_archive_rhymes"}
+    assert agent._READ_ONLY_BY_MODULE <= set(agent._AGENT_ALLOWED)
+
+
+def test_the_archive_tools_are_offered_only_while_the_archive_is_on(monkeypatch):
+    names = {"trader_archive_search", "trader_archive_ticker", "trader_archive_setup", "trader_archive_rhymes"}
+    monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "0")
+    assert not names & {t["name"] for t in agent._tool_schemas()}
+    monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "1")
+    offered = {t["name"] for t in agent._tool_schemas()}
+    assert names <= offered and "get_quote" in offered                              # control
 
 
 def test_available_gates_on_the_dollar_cap(monkeypatch):

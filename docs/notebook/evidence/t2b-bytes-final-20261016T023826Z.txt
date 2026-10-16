@@ -1,0 +1,17 @@
+Notebook Tier 2 Part B - first-open bytes, final tree vs merge-base (20261016T023826Z)
+command (both): python tools/notebook_perf_budgets.py --dist app/dist   (npm run build in app/ first, exit 0)
+
+FINAL    worktree notebook-t2b-final           HEAD 00703930aa437b57b9d9f373525072c703c6fe74
+         tree  839a299054eee594ec1b951523d47670e935d08e
+         bytes.notebook_first_open: 2,257,813 B across 61 JS chunks (budget 2,260,793 B, baseline 2,153,137 B)
+BASELINE worktree notebook-t2b-forkdiag-base   HEAD fbb25ee6496d69a19d577733aed749b2ebddc1f2 (local merge commit, not pushed)
+         = origin/master 34bf314585 merged with hotfix/notebook-midtext-fork 2e62ab8659 (the honest base; hotfix touches NoteEditorPage.jsx, recoverLocalState.js, useDurableNote.js)
+         tree  46223a9fc6d64ce94cebd916652e3caf5652c6d6
+         bytes.notebook_first_open: 2,256,066 B across 61 JS chunks (budget 2,260,793 B, baseline 2,153,137 B)
+
+final    = 2,257,813 B
+baseline = 2,256,066 B
+delta    = +1,747 B
+rule 1: delta <= 2,048 B (ruling)        -> 1,747 <= 2,048, headroom 301 B   PASS
+rule 2: final <= 2,260,793 B (budget)    -> 2,257,813 <= 2,260,793, headroom 2,980 B   PASS
+tool verdict (final): PASS -- within every budget checked

@@ -240,10 +240,10 @@ def test_no_archive_sql_names_a_member_facing_table():
     import re
     text = open(service.__file__, encoding="utf-8").read()
     found = set(re.findall(r"(?:FROM|INTO|UPDATE|JOIN)\s+(\w+)", text))
-    # every table-shaped name (the f-string {table} placeholders resolve to the two archive tables)
+    # every table-shaped name (the {table} placeholders resolve to the three archive tables)
     tables = {t for t in found if t.startswith(("wisdom", "sqlite"))}
     assert tables and tables <= {"wisdom_archive_records", "wisdom_archive_calls", "wisdom_archive_fts",
-                                 "sqlite_master"}, tables
+                                 "wisdom_archive_setups", "sqlite_master"}, tables
 
 
 # ── 7. mounted through the registry, with its gates ──────────────────────────

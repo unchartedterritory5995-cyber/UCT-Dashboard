@@ -1945,23 +1945,39 @@ _TOOLS_UNGATED["search_my_notes"] = {
 # ── TSDR trader archive (owner ruling 2026-10-15) — chat AND voice, DARK by flag ──
 #
 # ONE implementation (api/services/wisdom/archive/tools.py) serves both Compass surfaces;
-# the voice twins are registered in voice_tool_impls.py. Gated by WISDOM_ARCHIVE_ENABLED,
+# the voice twins are registered in voice_tool_impls.py and chat reaches the archive THROUGH
+# them, so voice_tool_impls is the one Compass door into the wisdom package (R50
+# DECLARED_DOORS) and the two surfaces can never diverge. Gated by WISDOM_ARCHIVE_ENABLED,
 # read PER CALL by the registry below (hidden while off) and again inside the tool (a
 # call that raced a flip is refused). Read-only, bounded output.
 
 def _archive_tool_enabled() -> bool:
-    from api.services.wisdom.archive import tools as _archive_tools
-    return _archive_tools.enabled()
+    from api.services import voice_tool_impls as _vti
+    return _vti._archive_tool_gate()
 
 
 def _exec_trader_archive_search(*, user_id, account_id, args, conn=None) -> dict:
-    from api.services.wisdom.archive import tools as _archive_tools
-    return _archive_tools.search(str((args or {}).get("query") or ""))
+    from api.services import voice_tool_impls as _vti
+    return _vti._trader_archive_search(query=str((args or {}).get("query") or ""))
 
 
 def _exec_trader_archive_ticker(*, user_id, account_id, args, conn=None) -> dict:
-    from api.services.wisdom.archive import tools as _archive_tools
-    return _archive_tools.ticker(str((args or {}).get("symbol") or ""))
+    from api.services import voice_tool_impls as _vti
+    return _vti._trader_archive_ticker(symbol=str((args or {}).get("symbol") or ""))
+
+
+def _exec_trader_archive_setup(*, user_id, account_id, args, conn=None) -> dict:
+    from api.services import voice_tool_impls as _vti
+    return _vti._trader_archive_setup(setup=str((args or {}).get("setup") or ""))
+
+
+def _exec_trader_archive_rhymes(*, user_id, account_id, args, conn=None) -> dict:
+    from api.services import voice_tool_impls as _vti
+    try:
+        limit = int((args or {}).get("limit") or 8)
+    except (TypeError, ValueError):
+        limit = 8
+    return _vti._trader_archive_rhymes(limit=limit)
 
 
 _TOOLS_UNGATED["trader_archive_search"] = {
@@ -1993,6 +2009,41 @@ _TOOLS_UNGATED["trader_archive_ticker"] = {
     "input_schema": {"type": "object", "properties": {
         "symbol": {"type": "string", "description": "Ticker, e.g. NVDA."}},
         "required": ["symbol"]},
+}
+
+
+_TOOLS_UNGATED["trader_archive_setup"] = {
+    "name": "trader_archive_setup",
+    "description": (
+        "The UCT team's playbook for one setup (kicker, oops reversal, EP, launch pad, slingshot, "
+        "HVE, flag, pullback...) from the TSDR trader archive: definition and aliases, its measured "
+        "record across every archived call (win rate, edge versus the same stock, z), the contexts "
+        "it worked best and worst in, the traders' own teachings (record ids) and its best and worst "
+        "calls. Use for 'what makes a good kicker', 'does the oops setup work', 'show me launch pad "
+        "examples'. Cite trader + date + record id; measured after the fact, never current advice."
+    ),
+    "requires_confirm": False,
+    "executor": _exec_trader_archive_setup,
+    "input_schema": {"type": "object", "properties": {
+        "setup": {"type": "string", "description": "Setup name or a question naming it, e.g. 'oops reversal'."}},
+        "required": ["setup"]},
+}
+
+
+_TOOLS_UNGATED["trader_archive_rhymes"] = {
+    "name": "trader_archive_rhymes",
+    "description": (
+        "THIS RHYMES: today's active scanner detections that match a setup in the UCT team's TSDR "
+        "trader archive, each with the setup's measured record (win rate, edge versus the same stock, "
+        "z verdict), the ticker's own team history and the closest past team calls of that setup in "
+        "the same market state. Use for 'what's rhyming today', 'which of today's setups has the team "
+        "traded before'. Display only: cite trader + date + record id; never a signal or advice."
+    ),
+    "requires_confirm": False,
+    "executor": _exec_trader_archive_rhymes,
+    "input_schema": {"type": "object", "properties": {
+        "limit": {"type": "integer", "description": "How many hits, 1-8. Defaults to 8."}},
+        "required": []},
 }
 
 
@@ -2063,4 +2114,6 @@ class _GatedToolRegistry(dict):
 
 TOOLS = _GatedToolRegistry(_TOOLS_UNGATED, {"search_my_notes": notes_tool_enabled,
                                              "trader_archive_search": _archive_tool_enabled,
-                                             "trader_archive_ticker": _archive_tool_enabled})
+                                             "trader_archive_ticker": _archive_tool_enabled,
+                                             "trader_archive_setup": _archive_tool_enabled,
+                                             "trader_archive_rhymes": _archive_tool_enabled})

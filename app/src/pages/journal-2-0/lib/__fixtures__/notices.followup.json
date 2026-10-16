@@ -1,0 +1,25 @@
+{
+  "_provenance": "CAPTURED, not typed. A sandbox process (census-pinned data dir, no C:\\data) ran the real producer, earnings_followup.run_followups (default delivery -> note_tasks.deliver_in_app -> alerts.add_alert), with its seams patched to one BMO report of ORCL on the member's watchlist, then read GET /api/alerts?limit=20 through the real alerts router. The body below is that route's verbatim JSON, 2026-10-15, by tools/capture_followup_notice.py; the raw capture (body, child log, run meta) is docs/notebook/evidence/t2b-notice-capture/. It lives in its own file, not in notices.json, so the literal counts the box's other tests assert on that fixture stand. /api/alerts answers a BARE LIST, and `type` and `data.source` carry the same string.",
+  "alertsBody": [
+    {
+      "data": {
+        "reportDate": "2026-10-14",
+        "research_url": "/journal/notebook?followup=ORCL&reportDate=2026-10-14",
+        "sessionDay": "2026-10-14",
+        "source": "notebook_earnings_followup",
+        "sources": [
+          "watchlist"
+        ],
+        "symbol": "ORCL"
+      },
+      "id": "notebook_earnings_followup_1792090729546",
+      "message": "ORCL reported earnings on Oct 14, 2026. It is on your watchlist. Compare what you expected with what happened.",
+      "read": false,
+      "severity": "info",
+      "timestamp": "2026-10-15T14:58:49.546584-04:00",
+      "title": "ORCL reported: write your follow-up",
+      "type": "notebook_earnings_followup",
+      "user_id": "602b989a-58c9-469d-83e7-bb22396c412c"
+    }
+  ]
+}

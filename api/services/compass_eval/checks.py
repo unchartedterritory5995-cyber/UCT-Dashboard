@@ -1,6 +1,7 @@
 """Mechanical (judge-can't-fudge) checks for the report card."""
 from __future__ import annotations
 
+import json
 import re
 
 # Price-shaped numbers only — this feeds the fabricated-QUOTE check, so the
@@ -68,6 +69,11 @@ _STOP_WORD_RE = re.compile(r"\b(?<!no )stop\b", re.I)
 _REGIME_RED_RE = re.compile(r"\b(RED|ORANGE)\b", re.I)
 _FIRST_SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 _TICKER_RE = re.compile(r"\b[A-Z]{2,5}\b")
+#: The trader archive's readers, and its record ids ("t1234"): an archive answer cites the
+#: trader, the date and the record id, and a record id it cites must be one a tool returned.
+ARCHIVE_TOOLS = frozenset({"trader_archive_search", "trader_archive_ticker", "trader_archive_setup",
+                           "trader_archive_rhymes"})
+_RECORD_ID_RE = re.compile(r"\bt\d{1,7}\b")
 _TICKER_STOP = {"THE", "AND", "FOR", "NOT", "YOU", "ETF", "CEO", "USD", "PM", "AM",
                 "RED", "HOLD", "SKIP", "BUY", "SELL", "GO", "KB", "AI"}
 
@@ -289,6 +295,21 @@ def run_mechanical_checks(transcript: dict) -> dict:
         if _MUTE_VERB_RE.search(answer[lo:hi]):
             flags.append("muted_on_thin_sample")
             break
+
+    # archive_uncited / archive_fabricated_record: an answer grounded on the trader archive
+    # must cite at least one record id, and every record id it cites must be one the archive
+    # tools actually returned (a plausible "t1234" the tools never saw is a fabricated source).
+    archive_calls = [c for c in fired if c.get("name") in ARCHIVE_TOOLS]
+    if archive_calls:
+        try:
+            returned = set(_RECORD_ID_RE.findall(json.dumps([c.get("result") for c in archive_calls], default=str)))
+        except (TypeError, ValueError):
+            returned = set()
+        cited = set(_RECORD_ID_RE.findall(answer))
+        if not cited:
+            flags.append("archive_uncited")
+        elif cited - returned:
+            flags.append("archive_fabricated_record")
 
     armed = set(q.get("forbidden") or [])
     auto_fails = sorted({f for f in flags if f in armed})

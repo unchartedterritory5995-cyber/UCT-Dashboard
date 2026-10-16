@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import FundamentalSnapshot from '../../../components/FundamentalSnapshot'
 import DeskCoverage from '../DeskCoverage'
+import TeamCoverage from '../TeamCoverage'
 import LeadershipBadge from '../LeadershipBadge'
 import ConfidenceBadge from '../ConfidenceBadge'
 import { ABSENT, formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
@@ -151,6 +152,9 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, reportState,
       {/* What the desk has actually written about this name. Renders null when
           the archive has never covered it. */}
       <DeskCoverage sym={sym} />
+      {/* What the trading team has CALLED on this name (the trader archive), with each
+          call's measured outcome. Renders null when the team never called it. */}
+      <TeamCoverage sym={sym} />
       <section className={`${styles.card} ${styles.chartCard}`}>
         <div className={styles.ovChart}>
           {/* tf="D" is hardcoded — this page has no timeframe state and no

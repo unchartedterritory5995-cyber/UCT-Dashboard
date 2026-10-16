@@ -96,3 +96,38 @@ class TestPersistenceGate:
         monkeypatch.setattr(ei.snap_store, "put", lambda *a, **k: None)
         ei.get_earnings("MU")
         assert built == [], "must not rebuild what is already good"
+
+
+class TestRefreshNow:
+    """final fix C, I1: the follow-up job's one forced rebuild. It goes through `_build` (the module's own fetcher)
+    and the SAME keep-gate as get_earnings' build branch; a failed or partial build leaves the held copy alone."""
+
+    def _seams(self, monkeypatch, build):
+        sets, puts = [], []
+        monkeypatch.setattr(ei, "_build", build)
+        monkeypatch.setattr(ei.cache, "set", lambda k, v, t: sets.append((k, v, t)))
+        monkeypatch.setattr(ei.snap_store, "put", lambda kind, sym, v, t: puts.append((kind, sym, v, t)))
+        return sets, puts
+
+    def test_a_good_build_is_returned_and_kept_in_both_layers(self, monkeypatch):
+        fresh = dict(FULL)
+        sets, puts = self._seams(monkeypatch, lambda sym: fresh)
+        assert ei.refresh_earnings(" mu ") is fresh
+        ttl = ei._ttl_for(fresh)
+        assert sets == [(f"{ei._KIND}::MU", fresh, ttl)] and puts == [(ei._KIND, "MU", fresh, ttl)]
+
+    def test_a_partial_build_is_none_and_kept_nowhere(self, monkeypatch):
+        sets, puts = self._seams(monkeypatch, lambda sym: dict(ANNUAL_ONLY))
+        assert ei.refresh_earnings("MU") is None
+        assert sets == [] and puts == [], "a partial rebuild must not replace the held copy"
+
+    def test_a_build_that_raises_is_none_and_never_raises(self, monkeypatch):
+        def boom(sym):
+            raise RuntimeError("vendor down")
+        sets, puts = self._seams(monkeypatch, boom)
+        assert ei.refresh_earnings("MU") is None
+        assert sets == [] and puts == []
+
+    def test_no_ticker_builds_nothing(self, monkeypatch):
+        sets, puts = self._seams(monkeypatch, lambda sym: (_ for _ in ()).throw(AssertionError("built")))
+        assert ei.refresh_earnings("  ") is None and sets == [] and puts == []

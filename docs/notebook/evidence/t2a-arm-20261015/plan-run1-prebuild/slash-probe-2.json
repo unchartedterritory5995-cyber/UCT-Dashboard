@@ -1,0 +1,26 @@
+{
+ "styles_flag": true,
+ "chips_flag": null,
+ "options_after_slash": [
+  "Chart\nType a symbol \u2014 e.g. /chart AMD 15m or /chart AMD D 3/13",
+  "MTF stack\nType a symbol \u2014 e.g. /mtf AMD (D + 1h + 15m), /mtf AMD W (W + D + 1h); add a date to anchor",
+  "Before / after\nType symbol + day \u2014 e.g. /compare AMD 3/13 (add 15m for intraday)",
+  "Versus\nType a symbol \u2014 e.g. /vs AMD (beside SPY, QQQ, its sector or theme ETF)",
+  "Price\nType a symbol \u2014 e.g. /price NVDA",
+  "Analyst Consensus\nType a symbol \u2014 e.g. /consensus NVDA",
+  "Trade-plan canvas\nA board for charts, entry/stop/target and notes \u2014 linked here",
+  "Transcript passage\nQuote an earnings call, cited with the call, its date and the speaker turn",
+  "Journal style\nSwitch to a style",
+  "Pre-entry checklist\nA trader block",
+  "Price stamps\nA trader block",
+  "Position sizing\nA trader block"
+ ],
+ "options_after_plan": [
+  "Trade-plan canvas\nA board for charts, entry/stop/target and notes \u2014 linked here",
+  "Key levels from my plans\nThe levels in your trade plans"
+ ],
+ "options_after_plan_nvda": [],
+ "focused": "tiptap ProseMirror _proseEditor_1w4ry_238 ProseMirror-focused",
+ "console_errors": [],
+ "delete": 200
+}

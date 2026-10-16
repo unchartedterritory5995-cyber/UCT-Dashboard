@@ -1,0 +1,7 @@
+FAIL slash menu offers 'Trade plan — NVDA' :: False
+FAIL toast: plan created and linked :: False
+FAIL the link opens the new plan note :: None
+FAIL plan note holds chart, sizing and checklist :: []
+FAIL plan note ticker is NVDA :: None
+PASS no uncaught page errors :: []
+VERDICT: FAIL

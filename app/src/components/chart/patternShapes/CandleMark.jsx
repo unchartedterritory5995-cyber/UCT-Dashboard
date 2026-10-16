@@ -56,6 +56,11 @@ const PATTERN_LETTERS = {
   uct_oops_reversal: 'OR',
   uct_slingshot: 'SL',
   uct_hve: 'HVE',
+  // The second set (2026-10-16) ships INTERNAL: only an admin's chart draws them.
+  uct_launch_pad: 'LP',
+  uct_gap_support: 'GS',
+  uct_capitulation: 'CAP',
+  uct_go_signal: 'GO',
 }
 
 function badgeLetter(detection) {

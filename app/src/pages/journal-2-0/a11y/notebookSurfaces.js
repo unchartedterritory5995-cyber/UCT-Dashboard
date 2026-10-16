@@ -255,6 +255,11 @@ export const SURFACES = Object.freeze({
   // P0.4: Research Home's Notices box. ResearchHome's own rail renders no signed-in member, and the
   // box reads nothing without one; a11y/notices.a11y.test.jsx reads it closed and OPEN, with rows.
   'components/notebook/NoticesBox.jsx': { recipe: 'notices-box' },
+  // Notebook P2 Tier 2 part B: the earnings follow-up card a notice links to (dark behind
+  // notebook_earnings_followup_enabled + Journal styles, so no tab recipe renders it); a11y/followupCard.a11y.test.jsx
+  // reads it through its slot, with the failure sentence on screen. The slot is the card's eager half.
+  'components/notebook/FollowupOffer.jsx': { recipe: 'followup-card' },
+  'components/notebook/FollowupOfferSlot.jsx': { coveredBy: 'followup-card' },
   // P0.5: Research Home's Active setups box. ResearchHome's own rail runs with the setups board switch
   // off (so the box is not on screen there); a11y/setupsBox.a11y.test.jsx reads it with a count,
   // with none open, and with the read failed.

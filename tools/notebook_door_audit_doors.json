@@ -623,5 +623,45 @@
     ],
     "flag": "NOTEBOOK_SMART_CHIPS_ENABLED",
     "note": "Tier 2 part A item 8: a typed \"alert me if NVDA closes below 120\" shows the toolbar \"Alert suggestion\" under the caret once typing pauses and the server (POST /api/j2/smart-chips/tickers) confirms the ticker, so the target wait is 15 s (as rows 53 and 63). Nothing to open: the chip is the door, and Alt+Enter or \"Set alert…\" opens the sheet. Unmeasured when added; the walk's smart.alert-chip drives it through to the sheet."
+  },
+  {
+    "feature": "Reminder from the slash menu (Tier 2)",
+    "audit_row": 66,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "open_note": "Research: how a base"
+      },
+      {
+        "type": "\n/remind"
+      }
+    ],
+    "target": {
+      "role": "option",
+      "name": "~^Reminder"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": null,
+    "note": "Tier 2 part B item 12: \"/remind\" in a note offers one item, \"Reminder\", which makes a task that starts \"Follow up\" and opens the date list for its due date. The option's accessible name is its title AND its description (SlashMenu.jsx SlashList), so the name is matched from its start, as rows 57 and 64 are. Reached the way row 64 reaches the same slash menu: an open note, then type. It rides no switch (it is a Basics item beside Due date), so the flag is null. Unmeasured when added; the walk's followup.reminder drives it through to the saved task and the Tasks view."
+  },
+  {
+    "feature": "Earnings follow-up card (Tier 2)",
+    "audit_row": 67,
+    "path": "/journal/notebook?followup=ORCL&reportDate=2026-10-14",
+    "steps": [],
+    "target": {
+      "role": "region",
+      "name": "Earnings follow-up"
+    },
+    "target_wait_ms": 15000,
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+    "note": "Tier 2 part B item 11: the link a follow-up notice carries opens Research Home with the card, a region named \"Earnings follow-up\" holding \"Write follow-up\" and \"Not now\". It is reached by the path alone, so there are no steps; the card is the lazy FollowupOffer chunk, so the target wait is 15 s (as rows 53 and 63). Whether the card shows does not depend on the report date, so a fixed one is safe; pressing \"Write follow-up\" does (MAX_AGE_DAYS), and the audit never presses it. Unmeasured when added; the walk's followup.notice and followup.write drive the notice, the card and the note it makes."
   }
 ]

@@ -253,9 +253,6 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // date: the name and the `date` attr are a contract. Citation leafText =
     // the ISO date; schema 2. Same "never remove" rule as WidgetEmbed.
     DateMention,
-    // P0.9: typing `@` lists today / tomorrow / next Monday... / a date picker and inserts the
-    // SAME dateMention above (dateSuggest.js). A suggestion plugin only: no node, mark or attribute.
-    DateSuggest,
     // Wave 6: /toc -- the note's headings, live, each a jump (tableOfContentsNode.js).
     // A block leaf with no text (_LEAF_TYPES only); schema 2.
     TableOfContents,
@@ -290,6 +287,15 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // type (lib/tableTools.js says why). A read-only editor gets no handles.
     Table.configure({ resizable: true }), TableRow, TableHeader, TableCell,
     TaskList, TaskItem.configure({ nested: true }),
+    // P0.9: typing `@` lists today / tomorrow / next Monday... / a date picker and inserts the
+    // SAME dateMention above (dateSuggest.js). A suggestion plugin only: no node, mark or attribute.
+    // ⛔ THIS POSITION IS LOAD-BEARING. TipTap builds plugins from the REVERSED list, so an extension
+    // listed AFTER TaskItem has its keys tried BEFORE TaskItem's Enter (splitListItem). Listed above
+    // TaskList, "@" + Enter inside a task split the task instead of picking the date. It must stay
+    // listed BEFORE SlashMenuExtension and NoteLinkMenuExtension, so that their plugins come earlier
+    // in plugin order: dateSuggest.js's otherSuggestionOpen reads their state and needs it to be
+    // this transaction's already.
+    DateSuggest,
     AttachmentChip,
     SlashMenuExtension,
     // Wave 5: `:` emoji picker -- inserts plain Unicode text (no node type).

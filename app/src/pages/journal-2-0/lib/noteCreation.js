@@ -23,10 +23,12 @@ import { settleNoteWrite } from './offline/settleNoteWrite'
  * styled create passes no bodyJson/properties and makes no follow-up PUT (no second revision).
  * `planPrefill` (Tier 2 part A) is sent only when it is exactly `true`; the server ignores it without a
  * `kindId`/`styleId`.
+ * `earningsFollowup` (Tier 2 part B) is sent only as `{ reportDate }` with a string date; the server refuses
+ * it without the follow-up kind, a ticker and a real recent date.
  * A refusal throws an Error carrying `.status` (402 free plan, 404 switch off, 400, ...) and the body's
  * `.detail` (review M-3: a styled create's sentence, e.g. a kind deleted in another tab). */
 export async function createNoteViaApi({
-  title = '', subtitle, bodyJson, tags, ticker, folderId, properties, styleId, kindId, planPrefill,
+  title = '', subtitle, bodyJson, tags, ticker, folderId, properties, styleId, kindId, planPrefill, earningsFollowup,
 } = {}) {
   const res = await fetch('/api/j2/notes', {
     method: 'POST',
@@ -44,6 +46,10 @@ export async function createNoteViaApi({
       // Tier 2 part A (/plan): the server fills a Trade plan with the member's own levels. Sent only when
       // exactly `true` (like the keys above, an unset or non-boolean value stays off the wire).
       ...(planPrefill === true ? { planPrefill: true } : {}),
+      // Tier 2 part B: the server adds the prep-note link and the quarter's numbers. Sent only as
+      // { reportDate: 'YYYY-MM-DD' }; any other shape stays off the wire.
+      ...(earningsFollowup && typeof earningsFollowup.reportDate === 'string'
+        ? { earningsFollowup: { reportDate: earningsFollowup.reportDate } } : {}),
     }),
   })
   if (!res.ok) {

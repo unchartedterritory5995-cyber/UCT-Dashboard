@@ -7,6 +7,9 @@ const live = { prices: {} }
 vi.mock('../../hooks/useLivePrices', () => ({ default: () => ({ prices: live.prices, isLoading: false }) }))
 const market = { isOpen: false, isPremarket: false, isExtended: false }
 vi.mock('../../hooks/useMarketOpen', () => ({ default: () => market }))
+// The RVOL curve request is SecurityHeadline.test.jsx's subject; this file pins the
+// snapshot request, so the curve hook is stubbed (RVOL reads blank).
+vi.mock('../../hooks/useVolumeCurve', () => ({ default: () => null }))
 
 import SecurityHeadline from './SecurityHeadline'
 

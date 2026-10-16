@@ -3,7 +3,7 @@
 // (scan joins, logic trees, ranks, field-to-field, structure contains) is a
 // plain sentence. Never a ✓ we cannot back with the row's own value.
 import { chipLabel } from '../chipLabel'
-import { plainColumnLabel, structureSentence, lowerOperator } from './plainWords'
+import { plainColumnLabel, structureSentence, patternEngineSentence, lowerOperator } from './plainWords'
 import { sessionCloseLabel } from './dates'
 
 export const NOT_CHECKABLE_KEYS = new Set([
@@ -93,7 +93,29 @@ function noteLabel(key, def, spec) {
   if (key === 'base_structure' && preset) {
     return structureSentence(preset.label)
   }
+  // The engine's verdict, not the row's structure: the setup line beside this strip names the
+  // base read, which can call the same stock something else (or nothing).
+  if (key === 'pattern_engine_id' && spec.op === 'contains') {
+    return patternEngineSentence(preset?.label, spec.value)
+  }
   return chip && chip !== def.label ? compactDigits(chip) : `Matches ${def.label}`
+}
+
+// Trader archive (2026-10-16): ONE evidence item naming the team's newest call
+// on the name. Always a 'note', never a ✓: it is context the screen did not
+// test, so nothing here may read as a condition the row met. Present only when
+// the row carries the archive columns (the Team Archive view, or a member who
+// added them) and the team has actually called the name.
+export function archiveNote(row) {
+  const n = Number(row?.archive_calls_n)
+  if (!Number.isFinite(n) || n < 1) return null
+  const setup = row?.archive_last_setup ? String(row.archive_last_setup).replace(/_/g, ' ') : null
+  const date = row?.archive_last_call_date ? String(row.archive_last_call_date).slice(0, 10) : null
+  const r20 = Number(row?.archive_last_r20)
+  const outcome = row?.archive_last_r20 != null && Number.isFinite(r20)
+    ? ` (r20 ${r20 >= 0 ? '+' : ''}${r20.toFixed(1)}%)` : ''
+  const head = setup && date ? `Team: ${setup} called ${date}${outcome}` : date ? `Team: called ${date}${outcome}` : 'Team: called'
+  return { kind: 'note', label: `${head} · ${n} call${n === 1 ? '' : 's'}` }
 }
 
 export function whyItsHere({ filters = {}, logic = null, rank = null, metaFilters = [], row = {}, live = null, snapshotDate = null } = {}) {
@@ -130,5 +152,7 @@ export function whyItsHere({ filters = {}, logic = null, rank = null, metaFilter
   }
   if (logic) all.push({ kind: 'note', label: 'Matches your custom criteria' })
   if (rank) all.push({ kind: 'note', label: rank.top_n ? `Ranked in the top ${rank.top_n} by your weights` : 'Ranked by your weights' })
+  const team = archiveNote(row)
+  if (team) all.push(team)
   return { items: all.slice(0, MAX), more: Math.max(0, all.length - MAX) }
 }

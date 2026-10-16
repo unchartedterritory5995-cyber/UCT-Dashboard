@@ -10,6 +10,14 @@
 //
 // When the engine is not loaded on the server, the routes say so in their body (`error`, or an
 // empty `heat`), and the panel says so too. It never fills a section in.
+//
+// THE TEAM ARCHIVE is a SEPARATE, labelled source (api/routers/wisdom_archive.py, paid, behind
+// WISDOM_ARCHIVE_ENABLED; a 404 means switched off and the section is not drawn):
+//   GET /api/wisdom/archive/playbooks              the archive's setups, offered ONLY when the
+//                                                  engine has no setup list of its own
+//   GET /api/wisdom/archive/check?ticker&setup     a setup's measured team record, today's tape cut
+//                                                  and the team's calls in the ticker; no price levels
+// ⛔ Its numbers are never merged into the engine's rows: they render in their own section.
 
 export const TEMPLATES_URL = '/api/setup-templates'
 export const RISK_URL = '/api/risk-summary'
@@ -212,4 +220,46 @@ export function journalRows(body, sym, n = JOURNAL_N) {
         r: num(t?.rMultiple),
       }
     })
+}
+
+export const ARCHIVE_PLAYBOOKS_URL = '/api/wisdom/archive/playbooks'
+/** How many of the team's calls in this ticker the archive section lists. */
+export const ARCHIVE_CALLS_N = 10
+
+/** The team-archive read: always the ticker, and the setup when one is picked. */
+export function archiveCheckUrl(sym, setup = '') {
+  if (!sym) return null
+  const base = `/api/wisdom/archive/check?ticker=${q(sym)}`
+  return setup ? `${base}&setup=${q(setup)}` : base
+}
+
+/** The archive's setups as Select options (used only when the engine offers none). */
+export function archiveSetupOptions(body) {
+  const list = Array.isArray(body?.setups) ? body.setups : []
+  const out = []
+  const seen = new Set()
+  for (const r of list) {
+    const id = String(r?.setup_id || '').trim()
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    const n = num(r?.n)
+    out.push({ value: id, label: `${String(r?.name || id).split(' / ')[0]}${n ? ` (${n} team calls)` : ''}` })
+  }
+  return out
+}
+
+/** An outcome fraction (0.1) as percent points (10), or null. */
+export const pts = (v) => (num(v) === null ? null : num(v) * 100)
+
+/** The team's calls in this ticker as table rows (no price levels exist in the payload). */
+export function archiveCallRows(body, n = ARCHIVE_CALLS_N) {
+  const list = Array.isArray(body?.ticker?.calls) ? body.ticker.calls : []
+  return list.slice(0, n).map((c, i) => ({
+    key: `${c?.call_id ?? i}-${i}`,
+    date: typeof c?.posted === 'string' ? c.posted.slice(0, 10) : null,
+    trader: c?.trader || null,
+    setup: c?.setup || null,
+    direction: c?.direction || null,
+    r20: pts(c?.r20),
+  }))
 }

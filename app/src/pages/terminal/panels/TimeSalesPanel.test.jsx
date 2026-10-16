@@ -7,6 +7,7 @@
 //   * the server's `unavailable` (flag off) is said in words and the stream is closed, not retried;
 //   * a refused request is an error with Retry, never "no trades";
 //   * the stream closes on unmount and while the tab is hidden;
+//   * two panels on one ticker share one stream (the pool, TERM-024);
 //   * the registry: `NVDA TAS` resolves to this panel.
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup, act, within, fireEvent } from '@testing-library/react'
@@ -204,6 +205,27 @@ describe('TimeSalesPanel', () => {
       delete document.visibilityState
       if (vis) Object.defineProperty(Document.prototype, 'visibilityState', vis)
     }
+  })
+
+  it('two TAS panels on one ticker share ONE stream; Retry on either reopens both; the last one out closes it', () => {
+    const { unmount: unmountA } = render(<TimeSalesPanel sym="NVDA" />)
+    const { unmount: unmountB } = render(<TimeSalesPanel sym="nvda" />)
+    expect(FakeEventSource.all).toHaveLength(1)
+    last().fail(2)
+    const errs = screen.getAllByTestId('terminal-tas-error')
+    expect(errs).toHaveLength(2)
+    fireEvent.click(within(errs[0]).getByRole('button', { name: 'Retry' }))
+    expect(FakeEventSource.all).toHaveLength(2)
+    expect(FakeEventSource.all[0].closed).toBe(true)
+    expect(screen.queryAllByTestId('terminal-tas-error')).toHaveLength(0)
+    last().emit('snapshot', { session: 'regular', prints: [P(1, 10, 100)] })
+    expect(screen.getAllByTestId('terminal-tas-row-1')).toHaveLength(2)
+    const shared = last()
+    unmountA()
+    expect(shared.closed).toBe(false)
+    unmountB()
+    expect(shared.closed).toBe(true)
+    expect(FakeEventSource.all).toHaveLength(2)
   })
 
   it('needs a ticker and opens nothing without one', () => {

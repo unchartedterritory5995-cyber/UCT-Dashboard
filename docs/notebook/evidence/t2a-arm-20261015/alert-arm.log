@@ -1,0 +1,6 @@
+PASS auth payload carries smart chips ON :: True
+PASS the chip is offered :: NVDA closes below $120.00 (daily)Set alert…
+PASS Alt+Enter opens the sheet filled in :: {'ticker': 'NVDA', 'price': '120', 'when': 'Closes below'}
+PASS Cancel created no alert :: {'before': {'indicator': 0, 'watchlist': 0}, 'after': {'indicator': 0, 'watchlist': 0}}
+PASS no uncaught page errors :: []
+VERDICT: PASS

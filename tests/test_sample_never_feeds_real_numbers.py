@@ -406,6 +406,9 @@ GUARDED = {
     "api/services/journal_two/plan_prefill.py": "/plan copies the member's own entry, stop and target from "
                                                  "their newest note about the ticker; an example's levels are "
                                                  "never copied onto a real plan",
+    "api/services/journal_two/followup_prefill.py": "the earnings follow-up links the member's own prep note on "
+                                                     "the ticker; an example prep note is never linked into a real "
+                                                     "follow-up",
 }
 
 #: Readers that do NOT turn a note into a fact about the member, each with the reason.

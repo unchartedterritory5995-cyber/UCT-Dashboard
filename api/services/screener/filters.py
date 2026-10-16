@@ -19,6 +19,7 @@ free to be wrong, so it was; it is load-bearing the moment data arrives.
 """
 
 
+import re
 import threading
 
 from . import bar_character, base_catalog, candle_catalog
@@ -31,7 +32,7 @@ def _range(key, label, category, column, presets, unit=None):
 
 
 def _enum(key, label, category, column, presets, options_column=None,
-          options_list_column=None):
+          options_list_column=None, description=None):
     """``options_column`` names the snapshot column whose DISTINCT values become
     this filter's preset list at ``meta()`` time — see ``_distinct_options``.
 
@@ -40,10 +41,38 @@ def _enum(key, label, category, column, presets, options_column=None,
     whole cell. Both markers ride on the FILTER, never in ``meta()``'s body —
     the second-authority trap ``_distinct_options`` records.
     """
-    return key, {"label": label, "category": category, "type": "enum",
-                 "column": column, "presets": presets, "allow_custom": False,
-                 "unit": None, "options_column": options_column,
-                 "options_list_column": options_list_column}
+    spec = {"label": label, "category": category, "type": "enum",
+            "column": column, "presets": presets, "allow_custom": False,
+            "unit": None, "options_column": options_column,
+            "options_list_column": options_list_column}
+    if description:
+        spec["description"] = description
+    return key, spec
+
+
+#: What the `pattern_engine_id` filter screens, said to a member. It is the
+#: engine's verdict, not the base read the row's setup line names.
+PATTERN_ENGINE_DESCRIPTION = (
+    "Patterns flagged by the pattern-engine detector library (daily bars, last 7 days). "
+    "This is a separate detector from Base Structure, the base read named on each "
+    "row's setup line, so the two can disagree about the same stock: a stock the "
+    "pattern engine flags as a VCP or flat base may show a different structure, "
+    "or none, on its setup line.")
+
+#: Detector-id words that are acronyms or codes, written as traders write them.
+#: `title()` alone turned `vcp` into "Vcp" and `nr7` into "Nr7".
+_TOKEN_WORDS = {"vcp": "VCP", "nr7": "NR7", "macd": "MACD", "rsi": "RSI",
+                "avwap": "AVWAP", "td": "TD", "vsa": "VSA", "uct": "UCT",
+                "and": "and"}
+
+
+def _token_label(tok: str) -> str:
+    """`flat_base` -> "Flat Base", `vcp` -> "VCP", `pullback_to_10ema` -> "Pullback To 10 EMA"."""
+    out = []
+    for w in tok.split("_"):
+        m = re.fullmatch(r"(\d+)ema", w)
+        out.append(f"{m.group(1)} EMA" if m else _TOKEN_WORDS.get(w, w.title()))
+    return " ".join(out)
 
 
 def _open_range(key, label, category, column, unit=None, factual=()):
@@ -576,6 +605,11 @@ FILTERS = dict([
     _enum("theme", "UCT Theme", "context", "theme",
           [{"label": "Any"}], options_column="theme"),
     _bool("in_uct20", "In UCT 20", "context", "in_uct20"),
+    # TRADER ARCHIVE (2026-10-16, display-only context): how many archived
+    # team calls name this ticker. Blank when the archive is off; 0 is a real
+    # "never called". Backs the "Names the team has called" starter.
+    _open_range("archive_calls_n", "Team Archive Calls", "context",
+                "archive_calls_n"),
     _bool("index_sp500", "S&P 500", "context", "index_sp500"),
     _bool("index_ndx", "Nasdaq 100", "context", "index_ndx"),
     _bool("index_dow", "Dow 30", "context", "index_dow"),
@@ -668,9 +702,18 @@ FILTERS = dict([
     # D1 dropped the eight near-universal ids and raised the cap, so the column
     # truncates 0% of symbols, and wrapping made `contains` an exact-token
     # test. `candle_matches` and `base_matches` are the same idiom.
-    _enum("pattern_engine_id", "Pattern Engine Detection", "pattern",
+    # ⛔ TWO DEFINITIONS, ONE NAME. The engine library and the base catalog
+    # (`base_structure` above) are separate detectors that share names: Flat
+    # Base, Double Bottom, High Tight Flag, Wyckoff Spring, and the engine's VCP
+    # beside the catalog's Volatility Contraction. Measured on production
+    # 2026-10-15: Flat Base 269 by the engine vs 257 by the catalog, 79 in both;
+    # VCP 386 vs 58, 6 in both. So the label NAMES the engine ("Pattern Engine:
+    # VCP" on a chip, never a bare "VCP") and the description says the row's
+    # own setup line can name a different structure.
+    _enum("pattern_engine_id", "Pattern Engine", "pattern",
           "pattern_engine_ids", [{"label": "Any"}],
-          options_list_column="pattern_engine_ids"),
+          options_list_column="pattern_engine_ids",
+          description=PATTERN_ENGINE_DESCRIPTION),
     _open_range("pattern_engine_conf", "Pattern Engine Confidence", "pattern",
                 "pattern_engine_conf"),
     # Reader-encoded direction (ruling D4): +1 bullish · -1 bearish · 0 neutral.
@@ -914,6 +957,15 @@ VIEWS = {
         "candle_monthly",
         "body_pct", "upper_wick_pct", "lower_wick_pct", "close_position",
         "inside_bar_run", "nr7", "vol_ratio", "chg_pct_1d"]},
+    # TRADER ARCHIVE (2026-10-16): DISPLAY-ONLY context from the private
+    # archive -- the team's calls on the name, and the archive playbook's
+    # control-relative edge for the setup the best detection maps to. Nothing
+    # here feeds what fires or how it scores (owner decision 3).
+    "team": {"label": "Team Archive", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "archive_calls_n",
+        "archive_traders_n", "archive_last_call_date", "archive_last_setup",
+        "archive_last_r20", "archive_setup", "archive_setup_edge_r",
+        "archive_setup_edge_20d", "archive_setup_n"]},
 }
 
 # ── The Type filter (instrument class) ──────────────────────────────────────
@@ -1209,7 +1261,7 @@ def _distinct_list_options(column):
         return [{"label": "Any"}]
     out = [{"label": "Any"}]
     for tok in sorted(seen):
-        out.append({"label": tok.replace("_", " ").title(),
+        out.append({"label": _token_label(tok),
                     "op": "contains", "value": f",{tok},"})
     return out
 
@@ -1307,6 +1359,8 @@ def _build_shared_filters(dist):
             entry["control"] = f["control"]
         if f.get("options"):
             entry["options"] = list(f["options"])
+        if f.get("description"):
+            entry["description"] = f["description"]
         # ⭐ A column that only holds a value while the live tier is recomputing it (blank
         # before 09:45 ET and outside the session). Derived from the snapshot's own
         # declaration, never typed here, so the Focus screen can say "live during the

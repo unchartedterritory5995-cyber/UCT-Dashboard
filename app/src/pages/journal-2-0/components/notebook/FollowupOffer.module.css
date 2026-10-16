@@ -1,0 +1,84 @@
+/* Tier 2 part B: the earnings follow-up card (FollowupOffer.jsx). Tokens are the ones NoticesBox.module.css
+   uses for its box (an undefined var() is a silent no-op, styles/tokens.reachable.test.js). The touch tier is
+   <=1024px (phone AND tablet): both buttons get the 44px floor there. */
+.card {
+  max-width: 820px;
+  margin: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-surface);
+}
+.title {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+.line {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.error {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--loss-border);
+  border-radius: 6px;
+  background: var(--loss-bg);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-bright);
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.primary,
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.primary {
+  border: 1px solid var(--ut-gold);
+  background: var(--ut-gold);
+  color: var(--bg);
+}
+.secondary {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-bright);
+}
+.secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+.secondary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1024px) {
+  .primary,
+  .secondary {
+    min-height: var(--tap-min);
+  }
+}
+@media (max-width: 640px) {
+  .actions {
+    flex-wrap: wrap;
+  }
+}

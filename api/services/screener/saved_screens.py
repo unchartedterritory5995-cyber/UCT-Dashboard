@@ -357,26 +357,28 @@ def pattern_presets_enabled() -> bool:
     return os.environ.get(PATTERN_PRESETS_FLAG, "0").strip() == "1"
 
 #: Member-facing one-liners for the pattern presets, keyed by detector id. Each says only what
-#: the preset filters for: the engine detected that pattern on the stock.
+#: the preset filters for: the pattern ENGINE detected that pattern on the stock. It names the
+#: engine because the base read on each row's setup line is a different detector that shares
+#: some of these names ("scanner" said neither).
 PATTERN_DESCRIPTIONS = {
-    "cup_handle": "Stocks with a cup and handle the scanner detected",
-    "ascending_triangle": "Stocks with an ascending triangle the scanner detected",
-    "symmetrical_triangle": "Stocks with a symmetrical triangle the scanner detected",
-    "descending_triangle": "Stocks with a descending triangle the scanner detected",
-    "bull_flag": "Stocks with a bull flag the scanner detected",
-    "bear_flag": "Stocks with a bear flag the scanner detected",
-    "pennant": "Stocks with a pennant the scanner detected",
-    "falling_wedge": "Stocks with a falling wedge the scanner detected",
-    "rising_wedge": "Stocks with a rising wedge the scanner detected",
-    "double_bottom": "Stocks with a double bottom the scanner detected",
-    "double_top": "Stocks with a double top the scanner detected",
-    "triple_bottom": "Stocks with a triple bottom the scanner detected",
-    "triple_top": "Stocks with a triple top the scanner detected",
-    "inverse_head_shoulders": "Stocks with an inverse head and shoulders the scanner detected",
-    "head_shoulders": "Stocks with a head and shoulders the scanner detected",
-    "rounded_base": "Stocks with a rounded base the scanner detected",
-    "rectangle": "Stocks trading in a rectangle the scanner detected",
-    "channel": "Stocks trading in a channel the scanner detected",
+    "cup_handle": "Stocks with a cup and handle the pattern engine detected",
+    "ascending_triangle": "Stocks with an ascending triangle the pattern engine detected",
+    "symmetrical_triangle": "Stocks with a symmetrical triangle the pattern engine detected",
+    "descending_triangle": "Stocks with a descending triangle the pattern engine detected",
+    "bull_flag": "Stocks with a bull flag the pattern engine detected",
+    "bear_flag": "Stocks with a bear flag the pattern engine detected",
+    "pennant": "Stocks with a pennant the pattern engine detected",
+    "falling_wedge": "Stocks with a falling wedge the pattern engine detected",
+    "rising_wedge": "Stocks with a rising wedge the pattern engine detected",
+    "double_bottom": "Stocks with a double bottom the pattern engine detected",
+    "double_top": "Stocks with a double top the pattern engine detected",
+    "triple_bottom": "Stocks with a triple bottom the pattern engine detected",
+    "triple_top": "Stocks with a triple top the pattern engine detected",
+    "inverse_head_shoulders": "Stocks with an inverse head and shoulders the pattern engine detected",
+    "head_shoulders": "Stocks with a head and shoulders the pattern engine detected",
+    "rounded_base": "Stocks with a rounded base the pattern engine detected",
+    "rectangle": "Stocks trading in a rectangle the pattern engine detected",
+    "channel": "Stocks trading in a channel the pattern engine detected",
 }
 
 
@@ -390,6 +392,26 @@ def pattern_starters():
                   "sort": {"key": "pattern_engine_conf", "dir": "desc"}}}
         for pid, label in PATTERN_PRESETS
     ]
+
+
+def archive_starters():
+    """"Names the team has called" (2026-10-16). Shown only while the trader
+    archive is on: with it off `archive_calls_n` is blank on every row, so the
+    screen would return nothing and read as "the team never called anything".
+    Display-only context; it changes nothing about what any detector fires."""
+    try:
+        from api.services.wisdom.core import flags
+        if not flags.archive_enabled():
+            return []
+    except Exception:  # noqa: BLE001 -- an unreadable gate shows nothing
+        return []
+    return [{
+        "id": "starter_team_called", "name": "Names the team has called",
+        "group": "Team archive",
+        "description": "Stocks the trading team has called in the trader archive, most-called first",
+        "spec": {"filters": [{"key": "archive_calls_n", "op": "gte", "min": 1}],
+                 "view": "team",
+                 "sort": {"key": "archive_calls_n", "dir": "desc"}}}]
 
 
 #: Every starter screen is STOCKS ONLY (owner decision 3, 2026-10-14): the
@@ -541,13 +563,25 @@ def _starter_defs():
                               {"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000}],
                   "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
         # ── gaps / breakouts / events / value ──
+        # Was P/E <= 20, ROE 15%+, EPS growth 15%+: 386 names on production
+        # (2026-10-15 snapshot), so it filtered almost nothing, and `lte 20` also
+        # let a NEGATIVE forward P/E (expected losses) through as "cheap". Every
+        # threshold below is one this registry already publishes as a preset
+        # (Forward P/E "Under 20", ROE "Over 25%", EPS Growth "Over 25%",
+        # Operating Margin "Over 20%", Market Cap "Large (>$10B)"), so no new
+        # number ships. Calibrated read-only on production 2026-10-16 against the
+        # 2026-10-15 snapshot, stocks only: 386 before, 48 after (ROE 25 + EPS 25
+        # + cap $10B without the margin: 75).
         {"id": "starter_value_quality", "name": "Cheap quality compounders",
          "group": "Quality & value",
-         "description": "Stocks with forward P/E 20 or less, ROE 15%+ and EPS growth 15%+",
+         "description": ("Stocks with forward P/E under 20, ROE 25%+, EPS growth 25%+, "
+                         "operating margin 20%+ and market cap $10B+"),
          "spec": {"filters": [
-             {"key": "pe_fwd", "op": "lte", "max": 20},
-             {"key": "roe", "op": "gte", "min": 15},
-             {"key": "eps_growth", "op": "gte", "min": 15}],
+             {"key": "pe_fwd", "op": "between", "min": 0, "max": 20},
+             {"key": "roe", "op": "gte", "min": 25},
+             {"key": "eps_growth", "op": "gte", "min": 25},
+             {"key": "op_margin", "op": "gte", "min": 20},
+             {"key": "market_cap", "op": "gte", "min": 1e10}],
           "view": "valuation", "sort": {"key": "uct_composite", "dir": "desc"}}},
         # ── flagship presets (spec §7, owner-confirmed 2026-08-21) ──
         # Registry starters are the publication surface for these numbers —
@@ -661,4 +695,4 @@ def _starter_defs():
              {"key": "optionable", "op": "eq", "value": 1},
              {"key": "rs_rank", "op": "gte", "min": 70}],
           "view": "events", "sort": {"key": "days_to_earnings", "dir": "asc"}}},
-    ] + (pattern_starters() if pattern_presets_enabled() else [])
+    ] + (pattern_starters() if pattern_presets_enabled() else []) + archive_starters()

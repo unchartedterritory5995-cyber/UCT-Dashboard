@@ -315,7 +315,21 @@
 
 @media (max-width: 640px) {
   .section { padding: var(--space-md); }
-  .tabBar { padding: 8px var(--space-md); gap: 6px; }
+  /* One swipeable line instead of wrapping to two (which pushed every section
+     ~50px down). The phone top bar already says "The Desk", so the brand tag
+     goes; the icons collapse too so Videos..Team fit a 390px screen without
+     swiping. ⛔ Collapse them, never display:none — each icon carries the gold
+     <linearGradient> the page's other copies of that icon point at, and a
+     gradient inside a display:none subtree paints nothing (the "Educational
+     Videos" header icon went blank when this was display:none). */
+  .tabBar {
+    padding: 6px var(--space-md); gap: 4px; min-height: 0;
+    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+  }
+  .tabBar::-webkit-scrollbar { display: none; }
+  .brandRow { display: none; }
+  .tab { padding: 8px 11px; flex: none; gap: 0; }
+  .tabIcon { width: 0; overflow: hidden; }
   .cardGrid { grid-template-columns: 1fr; }
   .teamGrid { grid-template-columns: 1fr 1fr; gap: var(--space-md); }
   .sectionTitle { font-size: 20px; }

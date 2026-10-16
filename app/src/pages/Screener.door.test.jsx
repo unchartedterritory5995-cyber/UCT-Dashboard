@@ -202,7 +202,10 @@ function renderScreenerPage() {
     </MemoryRouter>,
   )
 }
-const openMenu = async (user) => user.click(await screen.findByRole('button', { name: 'Screener ▾' }))
+// ScannerShell is a lazy chunk (PR #332), so the 'Screener ▾' door appears only once that
+// chunk loads; under a loaded box that can exceed Testing Library's 1 s default.
+const SHELL_CHUNK_MS = 10000
+const openMenu = async (user) => user.click(await screen.findByRole('button', { name: 'Screener ▾' }, { timeout: SHELL_CHUNK_MS }))
 // ⛔ WRITES TO THE STORE'S OWN DOOR, not every non-GET on the page. Since PACKET-AB CP1
 // the shell also POSTs the cheap /api/screener/count preview (and the scan itself is a
 // POST), so "every non-GET" counted 3 on a single Save and read as a triple write. The

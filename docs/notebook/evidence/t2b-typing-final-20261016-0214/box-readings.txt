@@ -1,0 +1,117 @@
+02:13:02 | before A1 | availMB=14166 | cpu_mean=15.5 cpu_max=16.3 samples=[15.9,15.1,15.2,14.8,16.3]
+    heavy: 55584:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\nodejs\npx.CMD" vitest run src/pages/journal-2-0/lib/offline
+    heavy: 60692:node.exe:65MB:"C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\npm\bin\npx-cli.js" vitest run src
+    heavy: 57708:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.j
+    heavy: 57328:node.exe:156MB:"node"   "C:\Users\Patrick\uct-worktrees\notebook-restore-undo\app\node_modules\.bin\\..\vitest\vitest.mjs" ru
+    heavy: 33424:node.exe:433MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    run A1 exit=1 started=02:13:03 ended=02:15:03
+02:15:10 | after A1 | availMB=13653 | cpu_mean=22.3 cpu_max=23.5 samples=[21.2,23.5,23.3,21.6,22]
+    heavy: 49052:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\nodejs\npx.CMD" vitest run src/pages/journal-2-0/lib/offline
+    heavy: 44332:node.exe:64MB:"C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\npm\bin\npx-cli.js" vitest run src
+    heavy: 58932:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.j
+    heavy: 62384:node.exe:353MB:"node"   "C:\Users\Patrick\uct-worktrees\notebook-restore-undo\app\node_modules\.bin\\..\vitest\vitest.mjs" ru
+    heavy: 49244:node.exe:418MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    heavy: 59964:node.exe:387MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+02:15:21 | before B1 | availMB=13224 | cpu_mean=25.5 cpu_max=27.7 samples=[27.7,26.1,25.4,26.7,21.5]
+    heavy: 49052:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\nodejs\npx.CMD" vitest run src/pages/journal-2-0/lib/offline
+    heavy: 44332:node.exe:64MB:"C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\npm\bin\npx-cli.js" vitest run src
+    heavy: 58932:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.j
+    heavy: 62384:node.exe:176MB:"node"   "C:\Users\Patrick\uct-worktrees\notebook-restore-undo\app\node_modules\.bin\\..\vitest\vitest.mjs" ru
+    heavy: 49244:node.exe:457MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    heavy: 59964:node.exe:296MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    run B1 exit=0 started=02:15:21 ended=02:16:57
+02:17:03 | after B1 | availMB=15911 | cpu_mean=40.8 cpu_max=44.5 samples=[38.1,35.4,41.5,44.3,44.5]
+    heavy: 45108:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\nodejs\npx.CMD" vitest run src/pages/journal-2-0/lib/offline
+    heavy: 10888:node.exe:76MB:"C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\npm\bin\npx-cli.js" vitest run src
+    heavy: 54224:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.j
+    heavy: 31180:node.exe:251MB:"node"   "C:\Users\Patrick\uct-worktrees\notebook-restore-undo\app\node_modules\.bin\\..\vitest\vitest.mjs" ru
+    heavy: 42128:node.exe:212MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    heavy: 14404:node.exe:182MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+02:17:14 | before A2 | availMB=15171 | cpu_mean=36.8 cpu_max=38.5 samples=[36.5,36.1,38.5,35.3,37.4]
+    heavy: 45108:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\nodejs\npx.CMD" vitest run src/pages/journal-2-0/lib/offline
+    heavy: 10888:node.exe:64MB:"C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\npm\bin\npx-cli.js" vitest run src
+    heavy: 54224:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.j
+    heavy: 31180:node.exe:208MB:"node"   "C:\Users\Patrick\uct-worktrees\notebook-restore-undo\app\node_modules\.bin\\..\vitest\vitest.mjs" ru
+    heavy: 42128:node.exe:297MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    heavy: 2428:node.exe:380MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    run A2 exit=0 started=02:17:14 ended=02:18:38
+02:18:45 | after A2 | availMB=15561 | cpu_mean=37.1 cpu_max=38 samples=[37.3,38,36.5,37.5,36.2]
+    heavy: 45108:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\nodejs\npx.CMD" vitest run src/pages/journal-2-0/lib/offline
+    heavy: 10888:node.exe:64MB:"C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\npm\bin\npx-cli.js" vitest run src
+    heavy: 54224:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.j
+    heavy: 31180:node.exe:184MB:"node"   "C:\Users\Patrick\uct-worktrees\notebook-restore-undo\app\node_modules\.bin\\..\vitest\vitest.mjs" ru
+    heavy: 2428:node.exe:406MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+02:18:56 | before B2 | availMB=16007 | cpu_mean=36.3 cpu_max=37.4 samples=[36.4,35.5,37.4,36.4,35.9]
+    heavy: 45108:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\nodejs\npx.CMD" vitest run src/pages/journal-2-0/lib/offline
+    heavy: 10888:node.exe:64MB:"C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\npm\bin\npx-cli.js" vitest run src
+    heavy: 54224:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.j
+    heavy: 31180:node.exe:184MB:"node"   "C:\Users\Patrick\uct-worktrees\notebook-restore-undo\app\node_modules\.bin\\..\vitest\vitest.mjs" ru
+    heavy: 2428:node.exe:301MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    run B2 exit=0 started=02:18:56 ended=02:20:36
+02:20:43 | after B2 | availMB=13999 | cpu_mean=16.3 cpu_max=17.5 samples=[14.3,15.3,17,17.5,17.5]
+    heavy: 50296:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\nodejs\npx.CMD" vitest run src/pages/journal-2-0/lib/offline
+    heavy: 33748:node.exe:65MB:"C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\npm\bin\npx-cli.js" vitest run src
+    heavy: 16864:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.j
+    heavy: 58112:node.exe:187MB:"node"   "C:\Users\Patrick\uct-worktrees\notebook-restore-undo\app\node_modules\.bin\\..\vitest\vitest.mjs" ru
+    heavy: 15664:node.exe:398MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    heavy: 29888:node.exe:436MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+02:20:54 | before A3 | availMB=14286 | cpu_mean=14.5 cpu_max=16.7 samples=[13.5,16.7,14.2,13.9,14.1]
+    heavy: 50296:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\nodejs\npx.CMD" vitest run src/pages/journal-2-0/lib/offline
+    heavy: 33748:node.exe:65MB:"C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\npm\bin\npx-cli.js" vitest run src
+    heavy: 16864:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.j
+    heavy: 58112:node.exe:193MB:"node"   "C:\Users\Patrick\uct-worktrees\notebook-restore-undo\app\node_modules\.bin\\..\vitest\vitest.mjs" ru
+    heavy: 15664:node.exe:410MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    run A3 exit=0 started=02:20:54 ended=02:22:28
+02:22:34 | after A3 | availMB=14162 | cpu_mean=17.9 cpu_max=22.9 samples=[14.5,15.1,22.9,19.5,17.5]
+    heavy: 33696:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\nodejs\npx.CMD" vitest run src/pages/journal-2-0/lib/offline
+    heavy: 2964:node.exe:65MB:"C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\npm\bin\npx-cli.js" vitest run src
+    heavy: 60312:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.j
+    heavy: 34292:node.exe:184MB:"node"   "C:\Users\Patrick\uct-worktrees\notebook-restore-undo\app\node_modules\.bin\\..\vitest\vitest.mjs" ru
+    heavy: 25212:node.exe:326MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    heavy: 43612:node.exe:371MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+02:22:45 | before B3 | availMB=14369 | cpu_mean=12.5 cpu_max=13.8 samples=[13.4,13.3,13.8,11.5,10.7]
+    heavy: 33696:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\nodejs\npx.CMD" vitest run src/pages/journal-2-0/lib/offline
+    heavy: 2964:node.exe:65MB:"C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\npm\bin\npx-cli.js" vitest run src
+    heavy: 60312:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.j
+    heavy: 34292:node.exe:184MB:"node"   "C:\Users\Patrick\uct-worktrees\notebook-restore-undo\app\node_modules\.bin\\..\vitest\vitest.mjs" ru
+    heavy: 25212:node.exe:366MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    heavy: 43612:node.exe:425MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    run B3 exit=1 started=02:22:45 ended=02:24:17
+02:24:24 | after B3 | availMB=15941 | cpu_mean=73.4 cpu_max=82.3 samples=[78.4,77.4,72.7,56.3,82.3]
+    heavy: 34420:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\nodejs\npx.CMD" vitest run src/pages/journal-2-0/lib/offline
+    heavy: 41160:node.exe:64MB:"C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\npm\bin\npx-cli.js" vitest run src
+    heavy: 22072:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.j
+    heavy: 13636:node.exe:175MB:"node"   "C:\Users\Patrick\uct-worktrees\notebook-restore-undo\app\node_modules\.bin\\..\vitest\vitest.mjs" ru
+    heavy: 36224:node.exe:258MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    heavy: 61524:node.exe:594MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+02:24:35 | before A4 | availMB=15967 | cpu_mean=71.5 cpu_max=83.8 samples=[74.1,46.6,75.8,77.3,83.8]
+    heavy: 34420:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\nodejs\npx.CMD" vitest run src/pages/journal-2-0/lib/offline
+    heavy: 41160:node.exe:64MB:"C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\npm\bin\npx-cli.js" vitest run src
+    heavy: 22072:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.j
+    heavy: 13636:node.exe:175MB:"node"   "C:\Users\Patrick\uct-worktrees\notebook-restore-undo\app\node_modules\.bin\\..\vitest\vitest.mjs" ru
+    heavy: 36224:node.exe:270MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    heavy: 61524:node.exe:638MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    run A4 exit=0 started=02:24:35 ended=02:26:17
+02:26:23 | after A4 | availMB=14465 | cpu_mean=16.2 cpu_max=17.2 samples=[16.7,17.2,15.4,15.9,15.7]
+    heavy: 48040:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\nodejs\npx.CMD" vitest run src/pages/journal-2-0/lib/offline
+    heavy: 18852:node.exe:64MB:"C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\npm\bin\npx-cli.js" vitest run src
+    heavy: 42048:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.j
+    heavy: 45296:node.exe:176MB:"node"   "C:\Users\Patrick\uct-worktrees\notebook-restore-undo\app\node_modules\.bin\\..\vitest\vitest.mjs" ru
+    heavy: 61772:node.exe:451MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    heavy: 55180:node.exe:267MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+02:26:34 | before B4 | availMB=14463 | cpu_mean=16 cpu_max=18.6 samples=[17,14.3,18.6,17.2,12.7]
+    heavy: 48040:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\nodejs\npx.CMD" vitest run src/pages/journal-2-0/lib/offline
+    heavy: 18852:node.exe:64MB:"C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\npm\bin\npx-cli.js" vitest run src
+    heavy: 42048:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.j
+    heavy: 45296:node.exe:176MB:"node"   "C:\Users\Patrick\uct-worktrees\notebook-restore-undo\app\node_modules\.bin\\..\vitest\vitest.mjs" ru
+    heavy: 61772:node.exe:376MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    heavy: 55180:node.exe:328MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    run B4 exit=0 started=02:26:34 ended=02:28:08
+02:28:14 | after B4 | availMB=15668 | cpu_mean=27.4 cpu_max=50.5 samples=[50.5,32.8,17.5,26.4,9.7]
+    heavy: 20760:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\nodejs\npx.CMD" vitest run src/pages/journal-2-0/lib/offline
+    heavy: 56072:node.exe:64MB:"C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\npm\bin\npx-cli.js" vitest run src
+    heavy: 33964:cmd.exe:8MB:C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.j
+    heavy: 26648:node.exe:175MB:"node"   "C:\Users\Patrick\uct-worktrees\notebook-restore-undo\app\node_modules\.bin\\..\vitest\vitest.mjs" ru
+    heavy: 1756:node.exe:517MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+    heavy: 37880:node.exe:401MB:"C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+ALL RUNS DONE

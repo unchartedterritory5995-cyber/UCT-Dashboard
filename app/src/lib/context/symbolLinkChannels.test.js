@@ -138,6 +138,10 @@ const HAND_TYPED_BASELINE = [
   // this app's location. There is no authority to route it through: it is
   // TradingView's parameter, parsed off a URL object the member pasted.
   'pages/journal-2-0/lib/webEmbeds.js',
+  // The TSDR trader archive (e3f019c75e, dark behind WISDOM_ARCHIVE_ENABLED) reads `?sym=` once to
+  // seed its OWN ticker-lookup box, the way App.jsx seeds OptionsFlow's GEX ticker: the archive's
+  // search state, never a /charts deep link, so there is no charts authority to route it through.
+  'pages/traderArchive/TraderArchive.jsx',
   // The dev-only atomic-handoff harness (`scan-harness.html`). Its `?tf=&syms=`
   // are HARNESS CONFIGURATION — which fixture list to plant and drive — not a
   // member deep link into a charts surface, so there is no authority to route

@@ -43,14 +43,19 @@ def list_pattern_ids() -> list[str]:
 #: default, the voice and Compass pattern tools, the pattern backtest). An
 #: internal id must also stay out of the member catalog (`_PATTERN_METADATA`).
 #:
-#: EMPTY ON PURPOSE. The four trader-setup detectors (uct_kicker,
+#: The first four trader-setup detectors (uct_kicker,
 #: uct_oops_reversal, uct_slingshot, uct_hve) shipped here first; the owner
 #: ruled them PUBLIC on 2026-10-15 (visible to every member and every tool).
 #: The set and its call sites stay as the kill switch for any future internal
 #: detector: add an id here and every member path drops it, no other edit.
 #: Rail: tests/test_uct_internal_detectors_gate.py proves the gate with a
 #: synthetic id, and that the four are visible on each member path.
-INTERNAL_PATTERN_IDS: frozenset = frozenset()
+INTERNAL_PATTERN_IDS: frozenset = frozenset({
+    # Second trader-setup set (2026-10-16): launch pad, gap support,
+    # capitulation, go signal. Lab-measured and independently blind-adjudicated
+    # (86-92% precision); internal until the owner rules them public.
+    "uct_launch_pad", "uct_gap_support", "uct_capitulation", "uct_go_signal",
+})
 
 
 def is_internal(pattern_id) -> bool:

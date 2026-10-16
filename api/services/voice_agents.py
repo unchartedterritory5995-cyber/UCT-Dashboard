@@ -369,6 +369,8 @@ def _compass_tool_union() -> set[str]:
     # harmless while the flag is off.
     out.add("trader_archive_search")
     out.add("trader_archive_ticker")
+    out.add("trader_archive_setup")
+    out.add("trader_archive_rhymes")
     # Compass × Twitter News Ingestion (shipped 2026-05-25) — let the voice
     # agent read the same curated trader-feed surfaces the MoversSidebar +
     # EarningsModal already show.
@@ -515,7 +517,7 @@ _COMPASS_CORE_TOOLS: set[str] = {
     "find_historical_analogs", "size_a_trade", "grade_ticker",
     "portfolio_heat", "grade_watchlist",
     # TSDR trader archive (flag-gated per call; absent from schemas while off).
-    "trader_archive_search", "trader_archive_ticker",
+    "trader_archive_search", "trader_archive_ticker", "trader_archive_setup", "trader_archive_rhymes",
     # Briefings / proactive
     "morning_briefing", "closing_briefing", "plan_my_day",
     "whats_my_focus_today", "what_compass_noticed",

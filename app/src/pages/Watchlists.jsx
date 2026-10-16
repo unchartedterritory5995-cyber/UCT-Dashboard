@@ -74,6 +74,9 @@ import useThesisChips from './journal-2-0/hooks/useThesisChips'
 import ThesisChip from './journal-2-0/components/notebook/ThesisChip'
 import useWatchlistIntelligence from '../hooks/useWatchlistIntelligence'
 import useWatchlistMeta from '../hooks/useWatchlistMeta'
+import useVolumeCurve from '../hooks/useVolumeCurve'
+import { RVOL_TOOLTIP, formatRvol } from '../lib/volumeCurve'
+import { watchlistRvol } from './watchlist/watchlistRvol'
 import useWatchlistThemes from '../hooks/useWatchlistThemes'
 import { sendCaptureToJournal } from './journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from './journal-2-0/lib/useJournalToast'
@@ -517,10 +520,11 @@ const WatchRow = React.memo(function WatchRow({
       <FlashCell key="dolvol" value={dolvol} className={styles.metaCell} flashEnabled={tintEnabled}
         display={fmtDolVol(dolvol)} />
     )
-    // Relative volume: today's live volume vs the 20-session average, as a multiple
-    // (2.0x = twice the average). Value is stored ×100 (sort-compatible); shown /100.
+    // Relative volume: volume vs usual by this time of day (watchlist/watchlistRvol.js —
+    // the screener's and the chart header's number), as a multiple. Value is stored ×100
+    // (sort-compatible); shown /100.
     if (key === 'rvol') return (
-      <span key="rvol" className={styles.metaCell}>{rvol != null ? `${(rvol / 100).toFixed(1)}x` : '—'}</span>
+      <span key="rvol" className={styles.metaCell} title={RVOL_TOOLTIP}>{rvol != null ? formatRvol(rvol / 100) : '—'}</span>
     )
     // IPO / first-trade date (compact M/D/YY).
     if (key === 'ipoDate') return <span key="ipoDate" className={styles.metaCell}>{fmtIpo(ipoDate)}</span>
@@ -2031,6 +2035,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // columns ($ chg / % from open·high·low / DCR) read prices[sym] — no meta fetch.
   const extraVisible = orderedKeys.some(k => META_KEYS.has(k))
   const { metaData: rawMetaData } = useWatchlistMeta(extraVisible ? listUniverseOrScan : [])
+  // RVOL's time-of-day curve: ONE batch request for the whole list (each symbol's own
+  // curve rides the market one; the server answers at most 500 symbols per request, so a
+  // longer list's tail reads the market curve), fetched only while the column is shown.
+  const rvolVisible = orderedKeys.includes('rvol')
+  const volCurve = useVolumeCurve(rvolVisible, rvolVisible ? listUniverseOrScan : [])
   // Watchlist Intelligence V1 — only fetched when the Attention column is shown.
   // `changes` is intentionally NOT part of the SWR key (it ticks every ~15s with
   // the live quote feed; keying on it would refetch the whole batch every tick) —
@@ -2192,12 +2201,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       }
       const m = metaData?.[s]
       if (key === 'rvol') {
-        // Prefer a directly-supplied ratio, exactly as the cell does — otherwise
-        // sorting a drill by RVOL would order every row as null while the column
-        // visibly shows values.
-        if (Number.isFinite(m?.rvol)) return m.rvol
-        const av = m?.avg_vol_20d, v = q?.volume
-        return (Number.isFinite(av) && av > 0 && Number.isFinite(v)) ? (v / av) * 100 : null
+        // The SAME helper the cell renders from (a directly-supplied ratio first) —
+        // otherwise sorting a drill by RVOL would order every row as null while the
+        // column visibly shows values.
+        return watchlistRvol(s, m, q, volCurve)
       }
       if (key === 'ipoDate') return ipoSortValue(m?.ipo_date)
       if (key === 'mcap') return parseMcap(m?.market_cap)
@@ -2246,7 +2253,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       }
       return mul * (va - vb)
     })
-  }, [colSort, sortBasis, prices, metaData, perfData, themeData, intelData])
+  }, [colSort, sortBasis, prices, metaData, perfData, themeData, intelData, volCurve])
 
   // ── The sorted order of every expanded list, computed ONCE ──────────────────
   //
@@ -2389,6 +2396,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         role="button"
         tabIndex={0}
         aria-label={`Sort by ${label}`}
+        title={key === 'rvol' ? RVOL_TOOLTIP : undefined}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleColSort(key) }
         }}
@@ -2485,19 +2493,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       if (Number.isFinite(ref) && ref > 0 && Number.isFinite(p)) return ((p - ref) / ref) * 100
       return perfData[sym]?.[period] ?? null
     }
-    // RVOL: today's LIVE volume vs the 20-session average (from the meta batch), as a %.
-    // Live-updates because q.volume ticks; null until the average has loaded.
-    const _avg20 = metaData[sym]?.avg_vol_20d
-    // A caller that ALREADY knows the ratio can supply `rvol` directly via
-    // metaOverride — the breadth drill's payload carries `vr` (relative volume)
-    // but no raw volume, so the derived form below can never resolve for it.
-    // Stored as a PERCENT to match the derived form (the cell divides by 100).
-    const _rvolDirect = metaData[sym]?.rvol
-    const rvolVal = Number.isFinite(_rvolDirect)
-      ? _rvolDirect
-      : (Number.isFinite(_avg20) && _avg20 > 0 && Number.isFinite(q?.volume))
-        ? (q.volume / _avg20) * 100
-        : null
+    // RVOL: volume vs usual by this time of day (the screener's `rvol_live` and the chart
+    // header's number) from the LIVE volume, the meta batch's 30-session average and the
+    // time-of-day curve, as a %. Live-updates because q.volume ticks; blank before 09:45
+    // ET or until the average and the curve have loaded. A caller that ALREADY knows the
+    // ratio supplies `rvol` via metaOverride (the breadth drill's `vr`) and wins.
+    const rvolVal = watchlistRvol(sym, metaData[sym], q, volCurve)
     // Entity Master UC-2: the row's identity stays `sym`; only what it SAYS changes.
     const ent = entity ? entityDisplay(entity) : null
     return (

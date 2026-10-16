@@ -1027,6 +1027,18 @@ def _buzz_poll() -> None:
         log.warning("[buzz] digest catch-up error: %s", e)
 
 
+def _tsdr_lessons_tick() -> None:
+    """One #tsdr video-lessons pass (scan → recap/post → YouTube). Never raises."""
+    log = logging.getLogger(__name__)
+    try:
+        from api.services import tsdr_lessons
+        out = tsdr_lessons.tick()
+        if out.get("ran"):
+            log.info("[tsdr-lessons] tick: %s", out)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[tsdr-lessons] tick error: %s", e)
+
+
 def _buzz_digest(slot: str | None = None) -> None:
     """One scheduled buzz post. `slot` is the job's own "HH:MM" label, passed so
     the per-slot dedup keys off what was SCHEDULED rather than off the clock at
@@ -1865,7 +1877,25 @@ def _nightly_shortfall(stats: dict):
         return f"it stopped after {built + skipped + errors:,} of {targets:,} rows"
     if errors > targets * NIGHTLY_ERROR_SHARE:
         return f"{errors:,} of {targets:,} rows errored"
+    # ⭐ A COMPLETE build can still be built on OLD prices. Measured 2026-10-16:
+    # every row built, and only 1,534 of 11,091 ended on the last completed
+    # session. `current_rows` is counted in the build loop after the settled step
+    # and the catch-up; it is absent when the settled frame itself failed (that
+    # error is in the receipt), and then this check stays silent rather than guess.
+    sb = stats.get("settled_bars") or {}
+    current = sb.get("current_rows")
+    if sb.get("error"):
+        return f"the settled bars for {sb.get('session')} could not be fetched ({sb['error']})"
+    if current is not None and built and current < built * NIGHTLY_CURRENT_SHARE:
+        return (f"only {current:,} of {built:,} rows end on the last session "
+                f"({sb.get('session')}); the rest were built on older prices")
     return None
+
+
+#: The share of built rows that must end on the last completed session. Halts,
+#: delistings inside the stale window and names the grouped frame does not carry
+#: legitimately fall short; measured below 1% on 2026-10-16 once caught up.
+NIGHTLY_CURRENT_SHARE = 0.95
 
 
 def _alert_if_nightly_short(stats: dict) -> None:
@@ -1877,10 +1907,11 @@ def _alert_if_nightly_short(stats: dict) -> None:
         day = datetime.now(_ET).strftime("%Y-%m-%d")
         chart_health_alerts.emit(
             f"screener_nightly_short:{day}", "warning",
-            f"The screener's nightly rebuild did not cover every stock: {why}. "
-            "Rows it missed keep yesterday's RS rank, volume vs avg and ratings.",
-            {k: stats.get(k) for k in ("targets", "built", "skipped", "errors",
-                                       "skipped_reason", "crashed")},
+            f"The screener's nightly rebuild fell short: {why}. Until the next "
+            "full build, the rows concerned show older prices, ratings and volume.",
+            {**{k: stats.get(k) for k in ("targets", "built", "skipped", "errors",
+                                          "skipped_reason", "crashed")},
+             "settled_bars": stats.get("settled_bars")},
         )
     except Exception as e:  # noqa: BLE001
         print(f"[scheduler] could not raise the screener nightly alert: {e}")
@@ -7154,6 +7185,20 @@ async def lifespan(app: FastAPI):
                 print("[startup] buzz digest: NO slots configured -- nothing will post")
         except Exception as e:
             print(f"[scheduler] buzz digest registration error: {e}")
+        try:
+            # #tsdr video lessons. Always registered; tick() gates on
+            # TSDR_LESSONS_ENABLED per call, so a flag flip is the only lever.
+            # A tick can download + transcribe several videos, hence
+            # max_instances=1 plus the module's own non-blocking tick lock.
+            _scheduler.add_job(
+                _tsdr_lessons_tick,
+                trigger=CronTrigger(minute="4,19,34,49", timezone=_ET),
+                id="tsdr_lessons_tick", replace_existing=True,
+                misfire_grace_time=300, max_instances=1, coalesce=True,
+            )
+            print("[startup] tsdr video lessons scheduled (every 15 min)")
+        except Exception as e:
+            print(f"[scheduler] tsdr lessons registration error: {e}")
         if os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0":
             try:
                 # 15-min refresh under theme_index's 30-min cache TTL; the
@@ -9024,6 +9069,16 @@ async def lifespan(app: FastAPI):
                 print("[startup] notebook task reminders registered (07:00 + 09:00 ET, boot catch-up)")
         except Exception as e:
             print(f"[startup] notebook task reminders registration failed (non-fatal): {e}")
+        # Tier 2 part B (R-T2B-2): Notebook earnings follow-up notices. The registrar wires 16:45 ET and
+        # 18:00 ET mon-fri and a one-shot boot catch-up; NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED (and the
+        # journal styles switch) are read at every RUN, never here. In-app bell only.
+        try:
+            from api.services.journal_two import earnings_followup as _j2_followup
+            if _j2_followup.register_followup_jobs(_scheduler):
+                print("[startup] notebook earnings follow-ups registered (16:45 + 18:00 ET mon-fri, boot "
+                      "catch-up; inert unless NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED)")
+        except Exception as e:
+            print(f"[startup] notebook earnings follow-ups registration failed (non-fatal): {e}")
         # Wave 7 (controller wiring, lane H) — Notebook semantic-search index
         # sweep. DARK: run_sweep() answers {"skipped": "dark"} and touches nothing
         # unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED is set, read at every RUN, never

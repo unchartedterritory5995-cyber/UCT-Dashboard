@@ -8,6 +8,7 @@ import { SWRConfig } from 'swr'
 
 vi.mock('../../components/FundamentalSnapshot', () => ({ default: () => null }))
 vi.mock('./DeskCoverage', () => ({ default: () => null }))
+vi.mock('./TeamCoverage', () => ({ default: () => null }))
 vi.mock('./LeadershipBadge', () => ({ default: () => null }))
 vi.mock('./ConfidenceBadge', () => ({ default: () => null }))
 vi.mock('../../components/chart/pane/ChartPane', () => ({ default: () => null }))

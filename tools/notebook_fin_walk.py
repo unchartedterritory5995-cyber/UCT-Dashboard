@@ -88,6 +88,8 @@ WAVE_FLAGS = [
     "NOTEBOOK_JOURNAL_STYLES_ENABLED",
     # Notebook P2 Tier 2 part A (alert chip, screenshot chip), dark in production.
     "NOTEBOOK_SMART_CHIPS_ENABLED",
+    # Notebook P2 Tier 2 part B (earnings follow-up), dark in production.
+    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
 ]
 # Armed in c2 for the meaning-search TOUR only (the tour lists only while its flag is on). The
 # search itself needs an embedding key and is recorded NOT_RUN.
@@ -651,6 +653,105 @@ def run_post_child(data_dir: Path, out: Path, spec: dict) -> dict:
     if r.returncode != 0 or not line:
         return {"error": f"post child rc {r.returncode}; see post-seed-child.log", "stderr_tail": (r.stderr or "")[-600:]}
     return json.loads(line[-1][len("POSTSEED "):])
+
+
+# ── the earnings follow-up (Notebook P2 Tier 2 part B, Task 11): the producer, run once for the walk ─────────────
+# The walk's `followup` group needs the bell's row to exist, and the row is made by the job's own pass
+# (earnings_followup.run_followups), which runs on a scheduler at 16:45 and 18:00 ET. So this child seeds what the
+# job reads, then runs the pass itself, twice, with the DEFAULT delivery (note_tasks.deliver_in_app -> alerts.add_alert:
+# the bell's durable copy is how the sandbox server sees the row). Two modes: "day" prints the report day alone (the
+# parent needs it to write the sandbox calendar BEFORE the pass reads it), "run" does the rest.
+FOLLOWUP_CHILD = r'''
+import json, os, sys, time
+repo, data_dir, spec = sys.argv[1], sys.argv[2], json.loads(sys.argv[3])
+sys.path.insert(0, repo); sys.path.insert(0, repo + "/scripts")
+import hub_sandbox_boot as b
+b.apply_sandbox_env(data_dir, reclaim_conftest_temp=True)
+for k in spec["flags"]:
+    os.environ[k] = "1"
+os.environ["NOTEBOOK_EARNINGS_PREP_SANDBOX_CALENDAR"] = spec["calendar"]
+from datetime import date, datetime, time as dtime, timedelta
+from api.services import auth_db, earnings_intel, fundamentals_snapshot_store as snap_store, session_calendar
+from api.services.journal_two import earnings_followup as ef
+from api.services.journal_two.reminder_block import add_trading_days
+from api.services.journal_two.timeutil import ET
+
+# The report day: the last trading day on or before today in ET (session_calendar, the job's own calendar).
+day = datetime.now(tz=ET).date()
+while not session_calendar.is_trading_day(day):
+    day -= timedelta(days=1)
+if spec["mode"] == "day":
+    print("FOLLOWUPDAY " + day.isoformat())
+    sys.exit(0)
+
+sym = spec["symbol"]
+def ago(n):
+    return (day - timedelta(days=n)).isoformat()
+quarters = [
+    ("FY2026 Q4", 2026, 4, day.isoformat(), 1.47, 1.42, 3.5, 15.2e9, 15.0e9, 1.3),
+    ("FY2026 Q3", 2026, 3, ago(95), 1.34, 1.30, 3.1, 14.1e9, 14.0e9, 0.7),
+    ("FY2026 Q2", 2026, 2, ago(186), 1.19, 1.15, 3.5, 13.2e9, 13.1e9, 0.8),
+    ("FY2026 Q1", 2026, 1, ago(277), 1.01, 0.98, 3.1, 12.4e9, 12.3e9, 0.8),
+]
+q_rows = [{"label": l, "fiscal_year": fy, "fiscal_quarter": fq, "report_date": rd, "reported": True,
+           "eps_actual": ea, "eps_estimate": ee, "eps_surprise_pct": ep, "eps_beat": ea > ee,
+           "revenue_actual": ra, "revenue_estimate": re_, "rev_surprise_pct": rp, "rev_beat": ra > re_,
+           "eps_basis": "consensus_comparable"} for (l, fy, fq, rd, ea, ee, ep, ra, re_, rp) in quarters]
+# ⛔ meta.retrieved_at is NOT "now" for a bmo report dated today: followup_prefill.reaction_is_measured only calls a
+# reaction measured when the payload was retrieved AFTER the close of the first trading day following the report date,
+# and that close is still in the future when the report day is today. The stamp is therefore the close of that next
+# session plus an hour (a seeded stamp, labelled by actuals_source), so the note's "Reaction:" line is the number the
+# seed holds and not the "not measured yet" sentence. The snapshot's own age (fund_snapshots.updated_at) is real, now.
+nxt_close = datetime.combine(add_trading_days(day, 1), dtime(16, 0), tzinfo=ET) + timedelta(hours=1)
+retrieved_at = max(time.time(), nxt_close.timestamp())
+payload = {
+    "ticker": sym, "quarters": q_rows, "estimates": [], "annual": {},
+    "summary": {"next_report_date": None},
+    "reaction": {"events": [{"quarter": "FY2026 Q4", "report_date": day.isoformat(), "reaction_pct": -4.2}],
+                 "avg_abs_move_pct": 4.2, "n_quarters": 1},
+    "next_report_date": None,
+    "meta": {"retrieved_at": retrieved_at, "actuals_source": "walk-seed"},
+}
+snap_store.put(earnings_intel._KIND, sym, payload, 7 * 86400)
+held = earnings_intel.get_earnings_held(sym)
+
+when = datetime(day.year, day.month, day.day, 17, 0, tzinfo=ET)
+first = ef.run_followups(now=when, pass_label="walk")
+second = ef.run_followups(now=when, pass_label="walk")
+conn = auth_db.get_connection()
+log = [dict(r) for r in conn.execute("SELECT * FROM j2_earnings_followup_log ORDER BY user_id, symbol, report_date")]
+runs = [dict(r) for r in conn.execute("SELECT day, pass, ran_at, complete FROM j2_earnings_followup_runs ORDER BY day, pass")]
+conn.close()
+print("FOLLOWUP " + json.dumps({"day": day.isoformat(), "first": first, "second": second, "log": log, "runs": runs,
+                                "held_after_seed": bool(held), "retrieved_at": retrieved_at}, default=str))
+'''
+
+
+def run_followup_child(data_dir: Path, out: Path | None, spec: dict) -> dict:
+    """Run FOLLOWUP_CHILD in a census-pinned child (the driver never imports api.*). Returns the printed JSON, or
+    {"error": ...}. `spec["mode"]` is "day" (print the report day) or "run" (seed, then two passes)."""
+    spec = {**spec, "calendar": str(data_dir / CAL_FILE)}
+    env = {k: v for k, v in os.environ.items() if not k.startswith("RAILWAY_")}
+    r = subprocess.run([sys.executable, "-c", FOLLOWUP_CHILD, str(REPO), str(data_dir), json.dumps(spec)],
+                       cwd=str(REPO), env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
+    if out is not None:
+        (out / f"followup-child-{spec['mode']}.log").write_text(newline=chr(10), data=f"tip: {REC.get('tip')}\n" + (r.stdout or "")[-6000:]
+                                                                + "\n--- stderr ---\n" + (r.stderr or "")[-8000:], encoding="utf-8")
+    tag = "FOLLOWUPDAY " if spec["mode"] == "day" else "FOLLOWUP "
+    line = [ln for ln in (r.stdout or "").splitlines() if ln.startswith(tag)]
+    if r.returncode != 0 or not line:
+        return {"error": f"followup child ({spec['mode']}) rc {r.returncode}", "stderr_tail": (r.stderr or "")[-600:]}
+    return {"day": line[-1][len(tag):].strip()} if spec["mode"] == "day" else json.loads(line[-1][len(tag):])
+
+
+def add_calendar_reporter(data_dir: Path, symbol: str, day: str, timing: str) -> dict:
+    """Add one reporter to the sandbox calendar file the walk already wrote: read it, add the key, write it back in
+    the same `indent=1` shape run_config writes. Returns the reporters now held."""
+    path = data_dir / CAL_FILE
+    cal = json.loads(path.read_text(encoding="utf-8"))
+    cal.setdefault("reporters", {})[symbol] = {"date": day, "timing": timing}
+    path.write_text(newline=chr(10), data=json.dumps(cal, indent=1), encoding="utf-8")
+    return cal["reporters"]
 
 
 # ── c1: flags as production has them today ─────────────────────────────────────────────────

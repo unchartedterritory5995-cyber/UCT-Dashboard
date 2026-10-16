@@ -7,7 +7,9 @@
 //   * the entry is prefilled from the live price; the member's typing wins;
 //   * the reads carry the setup, phase, entry and stop the routes take, under CHK's own SWR key;
 //   * the panel links GRADE and SIZE for the same ticker;
-//   * the registry: `NVDA CHK` opens this panel, ticker-only.
+//   * the registry: `NVDA CHK` opens this panel, ticker-only;
+//   * the team archive is its OWN labelled section, never merged into the engine's rows; switched
+//     off (404) it draws nothing; with no engine setup list the picker offers the archive's setups.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/react'
 import { SWRConfig } from 'swr'
@@ -21,8 +23,9 @@ vi.mock('../../../hooks/useLivePrices', () => ({
 import jsonFetcher from '../../../utils/jsonFetcher'
 import CheckPanel, { chkKey } from './CheckPanel'
 import {
-  RISK_URL, TEMPLATES_URL, analogRows, analogsUrl, bookChecks, checklistChecks, checklistUrl, phaseOf,
-  perfUrl, riskEngineMissing, setupOptions, tickerAnalogsUrl, tickerAnalogView, journalTradesUrl, journalRows,
+  ARCHIVE_PLAYBOOKS_URL, RISK_URL, TEMPLATES_URL, analogRows, analogsUrl, archiveCallRows, archiveCheckUrl,
+  archiveSetupOptions, bookChecks, checklistChecks, checklistUrl, phaseOf, perfUrl, riskEngineMissing,
+  setupOptions, tickerAnalogsUrl, tickerAnalogView, journalTradesUrl, journalRows,
 } from './checkModel'
 import { checkLevels, computeSize } from './sizeMath'
 import { BY_CODE, variantFor } from '../functions'
@@ -72,6 +75,8 @@ function serve(over = {}) {
     if (url.startsWith('/api/analogs') && url.includes('&symbol=')) return MINE
     if (url.startsWith('/api/analogs')) return ANALOGS
     if (url.startsWith('/api/j2/trades')) return JOURNAL
+    // The team archive is switched off unless a test turns it on.
+    if (url.startsWith('/api/wisdom/archive/')) throw Object.assign(new Error('404'), { status: 404 })
     throw Object.assign(new Error(`unserved ${url}`), { status: 500 })
   })
 }
@@ -380,5 +385,98 @@ describe('CHK in the registry', () => {
     expect(BY_CODE.CHK.ticker.flag).toBeUndefined()
     expect(parseCommand('NVDA CHK').ok).toBe(true)
     expect((await PANEL_IMPORTERS.Check()).default).toBe(CheckPanel)
+  })
+})
+
+// ── the team archive (wave 2a): a separate, labelled source ──────────────────
+
+const TEAM = {
+  label: 'UCT team archive (the team\'s own posted calls, outcomes measured after the fact; not advice)',
+  setup: {
+    source: 'team_archive', setup_id: 'vcp', name: 'Volatility contraction pattern',
+    all_calls: { n_scored: 86, win20: 0.55, med_edge20: 0.012, mean_edgeR: 0.17, edgeR_z: 1.2, verdict: 'not proven' },
+    today: { state: 'downtrend', cut: { n_scored: 34, win20: 0.62, med_edge20: 0.05, mean_edgeR: 0.9, edgeR_z: 3.1, verdict: 'measured edge' } },
+    best: [], worst: [], teachings: [],
+  },
+  ticker: { ticker: 'NVDA', n_calls: 41, n_scored: 39, mean_r20: 0.034, setup_id: 'vcp', calls: [
+    { call_id: 't1#0', record_id: 't1', trader: 'TSDR', posted: '2025-04-03', setup: 'vcp', direction: 'long', r5: 0.01, r20: 0.12 },
+    { call_id: 't2#0', record_id: 't2', trader: 'Manrav', posted: '2025-01-09', setup: 'vcp', direction: 'long', r5: null, r20: null },
+  ] },
+}
+
+describe('CHK panel: the team archive', () => {
+  it('builds its read URLs and rows without price levels', () => {
+    expect(archiveCheckUrl('NVDA')).toBe('/api/wisdom/archive/check?ticker=NVDA')
+    expect(archiveCheckUrl('NVDA', 'Kicker Candle')).toBe('/api/wisdom/archive/check?ticker=NVDA&setup=Kicker%20Candle')
+    expect(archiveCheckUrl(null)).toBeNull()
+    const rows = archiveCallRows(TEAM)
+    expect(rows.map((r) => r.r20)).toEqual([12, null])
+    expect(Object.keys(rows[0]).sort()).toEqual(['date', 'direction', 'key', 'r20', 'setup', 'trader'])
+    expect(archiveSetupOptions({ setups: [{ setup_id: 'ep', name: 'Episodic pivot (EP) / news gap', n: 213 }, { setup_id: 'ep' }] }))
+      .toEqual([{ value: 'ep', label: 'Episodic pivot (EP) (213 team calls)' }])
+  })
+
+  it('switched off (404) it draws nothing, and the rest of CHK is unchanged', async () => {
+    serve()
+    renderPanel()
+    expect(await screen.findByTestId('terminal-chk-phase')).toBeTruthy()
+    await waitFor(() => expect(asked('/api/wisdom/archive/check')).toContain(archiveCheckUrl('NVDA')))
+    await new Promise((r) => setTimeout(r, 50))
+    expect(screen.queryByTestId('terminal-chk-team')).toBeNull()
+    expect(asked(ARCHIVE_PLAYBOOKS_URL)).toEqual([])            // the engine has setups: no archive list asked
+  })
+
+  it('on, it is its own labelled section beside the engine rows, never inside them', async () => {
+    serve({ '/api/wisdom/archive/check': TEAM })
+    renderPanel()
+    await plan()
+    await waitFor(() => expect(asked('/api/wisdom/archive/check')).toContain(archiveCheckUrl('NVDA', 'VCP')))
+    const team = await screen.findByTestId('terminal-chk-team')
+    expect(within(team).getByTestId('terminal-chk-team-label').textContent).toMatch(/team archive.*separate source from the setup engine/i)
+    expect(within(team).getByTestId('terminal-chk-team-setup').textContent)
+      .toMatch(/86 scored team calls, 55% up after 20 sessions, median \+1\.2% versus the same stock.*edge not proven/)
+    expect(within(team).getByTestId('terminal-chk-team-today').textContent).toMatch(/QQQ downtrend.*34 scored.*edge measured edge/)
+    expect(within(team).getByTestId('terminal-chk-team-ticker').textContent).toMatch(/NVDA: 41 team calls on record, averaging \+3\.4%/)
+    const table = within(team).getByTestId('terminal-chk-team-table')
+    expect(table.textContent).toContain('TSDR')
+    expect(table.textContent).toContain('+12.0%')
+    expect(table.textContent).toContain('Not scored yet')
+    expect(table.textContent).not.toMatch(/Entry|Stop/)
+    // the engine's win-rate row still says the engine's number, untouched
+    expect((await screen.findByTestId('terminal-chk-perf-all')).textContent).toMatch(/62%.*26/)
+  })
+
+  it('with no engine setup list, the picker offers the archive setups and CHK still answers', async () => {
+    serve({
+      [TEMPLATES_URL]: { error: 'Intelligence engine not available' },
+      [ARCHIVE_PLAYBOOKS_URL]: { setups: [{ setup_id: 'vcp', name: 'Volatility contraction pattern', n: 102 }] },
+      '/api/wisdom/archive/check': TEAM,
+      '/api/pre-trade-checklist': { error: 'Intelligence engine not available' },
+      '/api/setup-performance/': { error: 'Intelligence engine not available' },
+    })
+    renderPanel()
+    expect((await screen.findByTestId('terminal-chk-setup-archive')).textContent).toContain("team archive's setups")
+    expect(screen.queryByTestId('terminal-chk-setup-off')).toBeNull()
+    await plan({ setup: 'vcp' })
+    await waitFor(() => expect(asked('/api/wisdom/archive/check')).toContain(archiveCheckUrl('NVDA', 'vcp')))
+    expect((await screen.findByTestId('terminal-chk-team-setup')).textContent).toContain('86 scored team calls')
+    expect((await screen.findByTestId('terminal-chk-perf-all')).textContent).toContain('Not switched on')
+  })
+
+  it('a failed archive read is an error with Retry in its own section only', async () => {
+    serve({ '/api/wisdom/archive/check': err(503) })
+    renderPanel()
+    const e = await screen.findByTestId('terminal-chk-team-error')
+    expect(e.textContent).toContain('The team archive could not be read just now')
+    expect(within(e).getByRole('button', { name: 'Retry' })).toBeTruthy()
+    expect(await screen.findByTestId('terminal-chk-phase')).toBeTruthy()
+  })
+
+  it('an unresolved setup says the archive has no record, and still shows the ticker', async () => {
+    serve({ '/api/wisdom/archive/check': { ...TEAM, setup: null } })
+    renderPanel()
+    await plan()
+    expect((await screen.findByTestId('terminal-chk-team-nosetup')).textContent).toContain('no record for VCP')
+    expect(screen.getByTestId('terminal-chk-team-ticker').textContent).toContain('41 team calls')
   })
 })

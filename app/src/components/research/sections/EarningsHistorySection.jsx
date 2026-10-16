@@ -1,11 +1,14 @@
 // app/src/components/research/sections/EarningsHistorySection.jsx
 //
 // §4.3.2 — EPS story and price story, ONE axis, ONE section. This section
-// fetches NOTHING: everything comes from the calendar enrichment already on
+// fetches NOTHING itself: everything comes from the calendar enrichment already on
 // `row` plus the shell's expected-move payload (`expectedMove.live.pct` for
 // tonight's implied bracket). That is deliberate — it is the section
 // arrow-stepping lands on most often after Setup, and a zero-fetch section
 // cannot participate in a fetch storm.
+// The one fetch in its TREE is TeamAroundEarnings (the trader archive), a
+// child keyed on the archive read the Catalysts tab already makes, so stepping
+// onto this section adds at most one cached request per ticker.
 //
 // GOLD BUDGET: ReactionBars' implied ± bracket is this canvas's single gold
 // highlight (§3.1). Nothing else here may be gold.
@@ -22,6 +25,7 @@ import {
 } from '../../../lib/presentation/presentationPrimitives'
 import SectionLead from '../SectionLead'
 import { historyLead } from '../sectionLeads'
+import TeamAroundEarnings from './TeamAroundEarnings'
 import styles from './EarningsHistorySection.module.css'
 
 // `Number(null) === 0` — the phantom-zero trap that has bitten this branch
@@ -234,6 +238,11 @@ export default function EarningsHistorySection({ sym, row, reportDate, expectedM
       </div>
 
       <div className={styles.basis} data-testid="history-basis">{historyBasis(quarters)}</div>
+
+      {/* The team's archived calls around these same reports. The one fetch this section's
+          tree makes, isolated in a child that renders nothing until it has a match, and keyed
+          on the archive read the Catalysts tab already shares (useArchiveTicker). */}
+      <TeamAroundEarnings sym={sym} quarters={quarters} />
     </div>
   )
 }

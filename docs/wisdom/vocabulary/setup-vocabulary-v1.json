@@ -2449,6 +2449,30 @@
      "vocab_id": null,
      "mismatch": 0,
      "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "uct_launch_pad",
+     "vocab_id": "launchpad",
+     "mismatch": 0,
+     "note": "the traders' launch pad: converged 8/21/50 (or 9/20/50/200) averages with price just above them and a curling 50-day"
+    },
+    {
+     "external_name": "uct_gap_support",
+     "vocab_id": "open_bull_gap",
+     "mismatch": 1,
+     "note": "the detector is the SETUP of testing an unfilled volume gap; the vocabulary entry is the gap LEVEL itself (alias 'gap support'). Same family, different object"
+    },
+    {
+     "external_name": "uct_capitulation",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (rubber-band capitulation long was not named in the Session 0 samples)"
+    },
+    {
+     "external_name": "uct_go_signal",
+     "vocab_id": "go_signal",
+     "mismatch": 1,
+     "note": "the detector reads the DAILY footprint (weak open, support sweep, strong close); the vocabulary's Go Signal is an intraday entry the daily bar cannot see"
     }
    ]
   },
@@ -3196,6 +3220,375 @@
      "vocab_id": null,
      "mismatch": 0,
      "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    }
+   ]
+  },
+  "trader_archive": {
+   "source": "TSDR trader archive setup taxonomy (structured/taxonomy.json in the private ledger; not in this repository)",
+   "derivable_in_ci": false,
+   "measured": {
+    "at": "2026-10-16",
+    "rows": 45
+   },
+   "rows": [
+    {
+     "external_name": "ep",
+     "vocab_id": "earnings_gap_up",
+     "mismatch": 1,
+     "note": "the traders' EP is any catalyst gap; the vocabulary entry names the earnings case",
+     "pattern_engine_ids": [
+      "episodic_pivot"
+     ]
+    },
+    {
+     "external_name": "kicker",
+     "vocab_id": "kicker_candle",
+     "mismatch": 0,
+     "pattern_engine_ids": [
+      "uct_kicker"
+     ]
+    },
+    {
+     "external_name": "delayed_earnings",
+     "vocab_id": "delayed_reaction",
+     "mismatch": 0,
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "peg_flag",
+     "vocab_id": "earnings_gap_up",
+     "mismatch": 1,
+     "note": "the flag that forms after a post-earnings gap; the vocabulary names the gap itself",
+     "pattern_engine_ids": [
+      "power_earnings_gap"
+     ]
+    },
+    {
+     "external_name": "gap_support",
+     "vocab_id": "open_bull_gap",
+     "mismatch": 0,
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "launch_pad",
+     "vocab_id": "launchpad",
+     "mismatch": 0,
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "flat_top_breakout",
+     "vocab_id": "range_breakout",
+     "mismatch": 1,
+     "note": "flat-top and blue-skies breakouts are the flat-base case of a range breakout",
+     "pattern_engine_ids": [
+      "flat_base"
+     ]
+    },
+    {
+     "external_name": "flag_htf",
+     "vocab_id": "flag",
+     "mismatch": 0,
+     "pattern_engine_ids": [
+      "bull_flag",
+      "high_tight_flag",
+      "pennant"
+     ]
+    },
+    {
+     "external_name": "inside_day",
+     "vocab_id": "inside_day",
+     "mismatch": 0,
+     "pattern_engine_ids": [
+      "inside_bar_breakout",
+      "nr7"
+     ]
+    },
+    {
+     "external_name": "stage1_base",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "breakout_other",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)",
+     "pattern_engine_ids": [
+      "cup_handle",
+      "cup_handle_uct",
+      "qullamaggie_setup"
+     ]
+    },
+    {
+     "external_name": "pullback_ma",
+     "vocab_id": "20ema_tap",
+     "mismatch": 1,
+     "note": "the archive setup spans the 8, 10, 20 and 21 EMAs and the 50 SMA; the vocabulary names the 20 EMA tap",
+     "pattern_engine_ids": [
+      "pullback_to_10ema",
+      "pullback_to_21ema",
+      "pullback_to_50sma"
+     ]
+    },
+    {
+     "external_name": "undercut_reclaim",
+     "vocab_id": "undercut_and_rally",
+     "mismatch": 0,
+     "pattern_engine_ids": [
+      "u_and_r",
+      "wyckoff_spring"
+     ]
+    },
+    {
+     "external_name": "wedge_pop",
+     "vocab_id": "wedge_pop",
+     "mismatch": 0,
+     "pattern_engine_ids": [
+      "kell_cycle"
+     ]
+    },
+    {
+     "external_name": "slingshot",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)",
+     "pattern_engine_ids": [
+      "uct_slingshot"
+     ]
+    },
+    {
+     "external_name": "hve",
+     "vocab_id": "high_volume_close",
+     "mismatch": 1,
+     "note": "HVE is the year's highest-volume bar, HVC is the authors' High Volume Close: same family, different trigger",
+     "pattern_engine_ids": [
+      "uct_hve"
+     ]
+    },
+    {
+     "external_name": "oops",
+     "vocab_id": "oops_reversal",
+     "mismatch": 0,
+     "pattern_engine_ids": [
+      "uct_oops_reversal"
+     ]
+    },
+    {
+     "external_name": "go_signal",
+     "vocab_id": "go_signal",
+     "mismatch": 0,
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "day1_day2",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "capitulation_long",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "intraday_pivot",
+     "vocab_id": "30_min_pivot",
+     "mismatch": 1,
+     "note": "the archive setup also files opening-range, VWAP-reclaim and red-to-green entries",
+     "pattern_engine_ids": [
+      "opening_range_breakout"
+     ]
+    },
+    {
+     "external_name": "index_0dte",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "not a chart setup in the vocabulary's sense",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "catalyst_event",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "not a chart setup in the vocabulary's sense",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "leveraged_theme",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "not a chart setup in the vocabulary's sense",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "parabolic_short",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)",
+     "pattern_engine_ids": [
+      "parabolic_short"
+     ]
+    },
+    {
+     "external_name": "short_other",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)",
+     "pattern_engine_ids": [
+      "bear_flag"
+     ]
+    },
+    {
+     "external_name": "flow_call_buy",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "an options-flow read, not a chart setup",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "flow_put_buy",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "an options-flow read, not a chart setup",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "flow_put_write",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "an options-flow read, not a chart setup",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "flow_call_write",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "an options-flow read, not a chart setup",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "flow_dark_pool",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "an options-flow read, not a chart setup",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "watchlist",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a watchlist mention, not a setup",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "support_level",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a buy at a level; the AVWAP reclaim is the one level a detector finds",
+     "pattern_engine_ids": [
+      "avwap_reclaim"
+     ]
+    },
+    {
+     "external_name": "rs_leader",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "thesis",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "not a chart setup in the vocabulary's sense",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "engulfing",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)",
+     "pattern_engine_ids": [
+      "bullish_engulfing",
+      "bearish_engulfing"
+     ]
+    },
+    {
+     "external_name": "position_update",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "not a chart setup in the vocabulary's sense",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "entry_unspecified",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "not a chart setup in the vocabulary's sense",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "option_selling",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "not a chart setup in the vocabulary's sense",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "bearish_view",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "not a chart setup in the vocabulary's sense",
+     "pattern_engine_ids": []
+    },
+    {
+     "external_name": "ma_reclaim",
+     "vocab_id": "remount",
+     "mismatch": 0,
+     "pattern_engine_ids": [
+      "remount"
+     ]
+    },
+    {
+     "external_name": "reversal_candle",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)",
+     "pattern_engine_ids": [
+      "hammer",
+      "doji"
+     ]
+    },
+    {
+     "external_name": "vcp",
+     "vocab_id": "vcp",
+     "mismatch": 0,
+     "pattern_engine_ids": [
+      "vcp"
+     ]
+    },
+    {
+     "external_name": "classical_pattern",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)",
+     "pattern_engine_ids": [
+      "inverse_head_shoulders",
+      "double_bottom",
+      "falling_wedge"
+     ]
+    },
+    {
+     "external_name": "other",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "not a chart setup in the vocabulary's sense",
+     "pattern_engine_ids": []
     }
    ]
   }

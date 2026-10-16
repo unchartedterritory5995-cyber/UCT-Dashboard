@@ -134,6 +134,12 @@ from api.services.pattern_engine.detectors.uct import uct_kicker as _uct_kicker 
 from api.services.pattern_engine.detectors.uct import uct_oops_reversal as _uct_oops_reversal  # noqa: F401
 from api.services.pattern_engine.detectors.uct import uct_slingshot as _uct_slingshot  # noqa: F401
 from api.services.pattern_engine.detectors.uct import uct_hve as _uct_hve  # noqa: F401
+# The second set ships INTERNAL (registry.INTERNAL_PATTERN_IDS): computed and stored,
+# visible to admins only, kept out of _PATTERN_METADATA until ruled public.
+from api.services.pattern_engine.detectors.uct import uct_launch_pad as _uct_launch_pad  # noqa: F401
+from api.services.pattern_engine.detectors.uct import uct_gap_support as _uct_gap_support  # noqa: F401
+from api.services.pattern_engine.detectors.uct import uct_capitulation as _uct_capitulation  # noqa: F401
+from api.services.pattern_engine.detectors.uct import uct_go_signal as _uct_go_signal  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors import registry as _pe_registry
 

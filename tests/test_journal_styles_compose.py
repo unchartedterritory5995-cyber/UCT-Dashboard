@@ -406,3 +406,46 @@ def test_a_my_rules_block_keeps_its_style_setting(db_path):
     style["blocks"][0]["settings"] = {}
     out = js.compose("u1", style, ticker=None, conn=None, now=NOW)
     assert _by_id(out["bodyJson"], "myRules")["attrs"]["params"] == {"which": "active"}
+
+
+# -- Tier 2 part B (R-T2B-8): the Earnings follow-up style -----------------------------------------------
+
+def test_the_earnings_followup_style_is_three_headings_and_a_reminder():
+    from api.services.journal_two import journal_styles as js
+    s = js.BUILTIN_STYLES["earnings_followup"]
+    heads = [js._plain(n) for n in s["outline"]["content"] if n.get("type") == "heading"]
+    assert heads == list(js.FOLLOWUP_HEADINGS)
+    assert [b["block"] for b in s["blocks"]] == ["reminder"] and s["version"] == 1
+
+
+def test_the_followup_headings_are_the_agreed_sentences_with_straight_apostrophes():
+    """followup_prefill (Task 6) finds the first two by their exact text; the third carries the apostrophe
+    pre-flight F24 settled as straight everywhere (the NVDA ear's blind spot is the curly one)."""
+    from api.services.journal_two import journal_styles as js
+    assert js.FOLLOWUP_HEADINGS == ("What I expected", "What happened", "What I'll do differently")
+    assert chr(0x2019) not in "".join(js.FOLLOWUP_HEADINGS)       # the curly one
+
+
+def test_the_followup_outline_ends_on_the_reminder_after_the_last_heading():
+    from api.services.journal_two import journal_styles as js
+    outline = js.BUILTIN_STYLES["earnings_followup"]["outline"]["content"]
+    assert js._plain(outline[-1]) == "{{block:reminder}}"                  # the reminder lands at the end
+    last_head = max(i for i, n in enumerate(outline) if n.get("type") == "heading")
+    assert js._plain(outline[last_head]) == js.FOLLOWUP_HEADINGS[2] and last_head < len(outline) - 1
+
+
+def test_composing_the_followup_style_in_create_mode_places_an_unticked_reminder_task(db_path):
+    from api.services.journal_two import journal_styles as js, note_tasks
+    s = js.get_style("u1", js.builtin_style_id("earnings_followup"))
+    out = js.compose("u1", s, ticker="NVDA", conn=None, now=NOW)
+    heads = [js._plain(n) for n in out["bodyJson"]["content"] if n.get("type") == "heading"]
+    assert heads == list(js.FOLLOWUP_HEADINGS)
+    tasks = note_tasks.extract_tasks(out["bodyJson"])
+    assert len(tasks) == 1 and tasks[0]["checked"] is False and tasks[0]["due"]       # control: a task WAS placed
+    assert "{{block:" not in str(out["bodyJson"])                                       # no placeholder left behind
+
+
+def test_the_kind_of_note_property_lists_the_new_kind():
+    from api.services.journal_two import note_properties as np_
+    opts = [o["id"] for o in np_._BUILTIN_BY_ID["builtin:note_kind"]["options"]]
+    assert "earnings_followup" in opts

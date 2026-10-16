@@ -732,6 +732,37 @@ def _row_is_current(row: Optional[Mapping[str, Any]], as_of: int) -> bool:
         return False
 
 
+def _stale_rows() -> tuple:
+    """``(gate, {TICKER: bars_asof})`` for the rows an interactive scan EXCLUDES.
+
+    🔴 THE SWEEP USED TO SCREEN THEM (data-accuracy audit 2026-10-15, follow-up to
+    PR #340). `query.stale_gate` keeps a row out of every interactive scan when its
+    OWN `bars_asof` is more than `snapshot_builder.stale_price_sessions()` behind the
+    snapshot's newest — a delisted or halted name answering today's screen with
+    June's numbers. The nightly sweep reads `screener_rows` without `query.py`, so
+    a saved screen's hits, alerts and "new names" could still fire on exactly those
+    rows. `_row_is_current` does not catch them: the nightly build RE-STAMPS a dead
+    name's `snapshot_date` every night while its `bars_asof` stays where its bars
+    stopped.
+
+    ⛔ THE PREDICATE IS `query.stale_gate`'S — the one implementation both doors
+    call, `snapshot_builder.stale_row_gate` (this module may not import the SQL
+    builder; `test_the_evaluator_never_NAMES_the_overlay__BY_AST`). No threshold
+    and no session arithmetic is restated here: the gate's `sql` keeps a row, so
+    its negation is the excluded set. ``(None, {})`` when the gate does not bite
+    (or the table cannot say), exactly as an interactive scan then excludes
+    nothing.
+    """
+    with contextlib.closing(snapshot_db.connect()) as conn:
+        gate = snapshot_builder.stale_row_gate(conn)
+        if not gate:
+            return None, {}
+        rows = conn.execute(
+            f"SELECT ticker, bars_asof FROM screener_rows WHERE NOT {gate['sql']}",
+            gate["params"]).fetchall()
+    return gate, {str(r[0]).upper(): r[1] for r in rows}
+
+
 def cadence_ceiling(tree: Any, opts: Optional[Mapping[str, Any]] = None) -> Optional[str]:
     """How often re-running THIS tree can honestly say something new.
 
@@ -1573,6 +1604,15 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
             short_benchmarks.append("%s (%d of %d bars)" % (ticker, len(series), want))
 
     rows_by_ticker = snapshot_db.get_rows(kept) if scalar_columns else {}
+    # ⭐ THE INTERACTIVE SCAN'S STALE-ROW EXCLUSION, SAME PREDICATE — see
+    # `_stale_rows`. Asked only where the row is READ: a bars-only tree never
+    # touches `screener_rows`, and its own bars are already held to this session
+    # by `_last_confirmed_index` below (a name whose bars stopped is `stale-bars`
+    # there). ⛔ The row is DROPPED, never not-computable — the same booking
+    # `query.coverage_for` gives it — and the reason is the existing
+    # `stale-bars` word, because what is stale is the row's bars.
+    stale_gate, stale_rows = _stale_rows() if scalar_columns else (None, {})
+    stale_excluded = 0
 
     record_rev = rev if (isinstance(rev, int) and not isinstance(rev, bool)
                          and rev >= 0) else None
@@ -1614,6 +1654,14 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                             detail=(None if row is None else
                                     f"row stamped {row.get('snapshot_date')!r}"))
                 dropped += 1
+                continue
+            if sym in stale_rows:
+                _unanswered(sym, "stale-bars", detail=(
+                    f"row priced off bars_asof {stale_rows[sym]!r}, more than "
+                    f"{stale_gate['max_sessions']} sessions behind the snapshot's "
+                    f"newest ({stale_gate['reference']}); scans exclude it"))
+                dropped += 1
+                stale_excluded += 1
                 continue
 
             bars = _read_bars(sym, tf_code, want)
@@ -1918,6 +1966,8 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
         "evaluated": evaluated,
         "answered": answered,
         "dropped": dropped,
+        # Of `dropped`, the rows the interactive scan's stale gate excludes.
+        "stale_excluded": stale_excluded,
         "not_computable": not_computable,
         "withheld": withheld,
         "withheld_reason": withheld_reason,
@@ -2155,11 +2205,14 @@ def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
     entries = _resume_order(entries, tf_code, session)
 
     # ⭐ PHASE 2 -- SWEEP UNDER THE CLOCK.
-    totals = {"hits": 0, "recorded": 0}
+    totals = {"hits": 0, "recorded": 0, "stale_excluded": 0}
 
     def _tally(out) -> None:
         totals["hits"] += len(out["hits"])
         totals["recorded"] += out["recorded"]
+        # Symbol-rows the stale gate kept out (booked as `dropped` in each
+        # definition's own `scan_coverage` row, reason `stale-bars`).
+        totals["stale_excluded"] += out.get("stale_excluded", 0)
 
     swept_handles, unswept, refused2, refusals2, stopped = _sweep_entries(
         entries,
@@ -2187,10 +2240,10 @@ def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
     # otherwise log identically.
     log.info("[scan] sweep done as_of=%s handed=%s distinct=%s swept=%s "
              "refused=%s duplicate=%s unswept=%s stopped_early=%s hits=%s "
-             "recorded=%s elapsed=%.1fs deadline=%s",
+             "recorded=%s stale_excluded=%s elapsed=%.1fs deadline=%s",
              session, len(definitions), len(seen), swept, refused, duplicate,
-             len(unswept), stopped_early, hit_rows, recorded, elapsed,
-             deadline.isoformat())
+             len(unswept), stopped_early, hit_rows, recorded,
+             totals["stale_excluded"], elapsed, deadline.isoformat())
     if stopped_early:
         log.warning(
             "[scan] sweep STOPPED EARLY on its wall-clock budget (%s): %s of %s "
@@ -2206,6 +2259,7 @@ def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
             "definitions": len(definitions), "distinct": len(seen),
             "swept": swept, "refused": refused, "duplicate": duplicate,
             "hits": hit_rows, "recorded": recorded, "refusals": refusals,
+            "stale_excluded": totals["stale_excluded"],
             "unswept": len(unswept),
             "unswept_definitions": unswept[:_DROPPED_LISTED_MAX],
             "unswept_listed": len(unswept[:_DROPPED_LISTED_MAX]),

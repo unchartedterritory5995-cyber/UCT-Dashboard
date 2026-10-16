@@ -8,30 +8,27 @@
 // WISDOM_ARCHIVE_ENABLED is off and 402 without a paid plan, and the block must not turn
 // either into an empty-looking panel on a tab that already has its own content. Loading,
 // error and an empty archive render nothing too.
-import useSWR from 'swr'
-
-import jsonFetcher from '../../../utils/jsonFetcher'
-import { ARCHIVE_API, clip, dayOf, fmtR, rTone, traderOf } from '../../../utils/traderArchive'
+import { clip, dayOf, fmtR, rTone, traderOf } from '../../../utils/traderArchive'
+import useArchiveTicker, { newestCalls } from './useArchiveTicker'
 import styles from './TraderArchiveBlock.module.css'
 
 const MAX_POSTS = 4
 const MAX_CALLS = 5
 
-// A failure is a state this block hides, not one it reports: resolve to null so SWR does
-// not retry a 404 on every focus.
-const quietFetcher = (url) => jsonFetcher(url).catch(() => null)
+// A failure is a state this block hides, not one it reports. The fetcher THROWS (TERM-033:
+// never swallow a failure into a value) and the render below treats an error like "nothing to
+// show"; shouldRetryOnError:false keeps SWR from re-asking a 404 on every focus (useArchiveTicker).
 
 export default function TraderArchiveBlock({ sym }) {
   const s = (sym || '').toUpperCase().trim()
-  const { data } = useSWR(s ? `${ARCHIVE_API}/ticker/${encodeURIComponent(s)}?limit=500` : null, quietFetcher,
-    { revalidateOnFocus: false, shouldRetryOnError: false })
-  if (!s || !data) return null
+  const { data, error } = useArchiveTicker(s)
+  if (!s || error || !data) return null
   const records = Array.isArray(data.records) ? data.records : []
   const calls = Array.isArray(data.calls) ? data.calls : []
   if (records.length === 0 && calls.length === 0) return null
 
   const posts = [...records].sort((a, b) => String(b.stated_date).localeCompare(String(a.stated_date))).slice(0, MAX_POSTS)
-  const recentCalls = [...calls].sort((a, b) => String(b.posted || '').localeCompare(String(a.posted || ''))).slice(0, MAX_CALLS)
+  const recentCalls = newestCalls(data).slice(0, MAX_CALLS)
   const nScored = data.n_scored ?? null
 
   return (
@@ -58,9 +55,9 @@ export default function TraderArchiveBlock({ sym }) {
       )}
 
       {recentCalls.length > 0 && (
-        <table className={styles.calls} data-testid="trader-archive-calls">
+        <table className={styles.calls} data-testid="trader-archive-calls" aria-label="Recent scored calls">
           <thead>
-            <tr><th>Posted</th><th>Trader</th><th>Dir</th><th>Setup</th><th>R20</th></tr>
+            <tr><th scope="col">Posted</th><th scope="col">Trader</th><th scope="col">Dir</th><th scope="col">Setup</th><th scope="col">R20</th></tr>
           </thead>
           <tbody>
             {recentCalls.map((c) => {

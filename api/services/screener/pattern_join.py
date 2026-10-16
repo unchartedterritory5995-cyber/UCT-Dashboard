@@ -418,6 +418,10 @@ def read_pattern_fields(targets, failures=None) -> dict:
         if best is not None:
             best_row, best_levels = best
             row["pattern_engine_dir"] = _direction_num(best_row["direction"])
+            # Third CARRIER (never a column): the best detection's id, so
+            # archive_join can name the team's record for the setup it maps to
+            # without re-deciding "best" (one rule, this one).
+            row["pattern_best_id"] = best_row["pattern_id"]
             entry_px = best_levels.get("entry")
             stop_px = best_levels.get("stop")
             if entry_px is not None:

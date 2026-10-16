@@ -142,6 +142,50 @@ def build_rows(conn) -> list[dict]:
     return rows
 
 
+#: Archive record type -> KB category. A LESSON naming tickers is a worked example; one that
+#: names none is a rule. MACRO is a dated market read.
+_ARCHIVE_TYPES = ("LESSON", "MACRO")
+ARCHIVE_QUOTE_CHARS = 1000
+
+
+def archive_rows(conn) -> list[dict]:
+    """Signed, dated KB rows from the TSDR archive's LESSON and MACRO posts (owner decisions
+    2026-10-16: the archive is its own provider, outside the R89 floor). [] while
+    WISDOM_ARCHIVE_ENABLED is off. Same row rules as `build_rows`: date, signature and source
+    locator in the TITLE and the first lines of CONTENT, provenance marker stamped, priority 3."""
+    from api.services.wisdom.archive import provider
+
+    if not provider.enabled():
+        return []
+    rows: list[dict] = []
+    for r in provider.records(conn, types=_ARCHIVE_TYPES):
+        note = common.clip(r.get("note"), 1200)
+        if not note:
+            continue
+        date = (r.get("stated_date") or "")[:10] or None
+        trader = common.speaker(r["author_id"])
+        loc = provider.locator(r["record_id"])
+        kind = "lesson" if r["record_type"] == "LESSON" else "market_read"
+        category = ("MACRO" if r["record_type"] == "MACRO"
+                    else ("CASE_STUDY" if (r.get("tickers") or "").strip() else "RULE"))
+        label = "Lesson" if kind == "lesson" else "Market read"
+        words = common.clip(r.get("quote"), ARCHIVE_QUOTE_CHARS)
+        body = [f"UCT said — {trader}, Trader archive, {date or 'undated'}.", f"Source: {loc}", note]
+        if words:
+            body.append(f"In their words: {words}")
+        rows.append(_finish({
+            "source_ref": f"wisdom:archive:{r['record_id']}", "kind": f"archive_{kind}",
+            "subject_key": r["record_id"], "category": category,
+            "title": common.clip(f"{trader} — {date or 'undated'} — {label}: {note}", 160),
+            "content": provenance.stamp_text(
+                "\n".join(body), consumer=CONSUMER, subject_ref=f"wisdom_archive_records:{r['record_id']}",
+                locator=loc, flag_env=FLAG_ENV),
+            "tags": ",".join(t for t in ("wisdom", "archive", kind, (r.get("tickers") or "").replace(",", " ")) if t),
+            "trader": trader, "knowledge_epoch": _epoch(date), "provisional": 0,
+        }))
+    return rows
+
+
 def stage(conn, rows: list[dict], *, at: Optional[str] = None) -> dict:
     """Upsert into wisdom_kb_rows; a ref Wisdom no longer builds is marked superseded, never deleted."""
     at = at or common.now_iso()
@@ -248,14 +292,35 @@ def voice_principle_candidates(*, limit: int = 3) -> list[dict]:
         # below-floor principle is exactly the kind it must still be able to see; hiding it here
         # would make the owner's own review blind to the records the floor is holding back.
         hits = retrieval.search(query, limit=limit, for_request=False, include_unstable=True)
+        candidates = [{"locator": h["locator"], "doc_kind": h["doc_kind"], "speaker": common.speaker(h["author_id"]),
+                       "status": h["status"], "stated_at": h["stated_at"], "rank": i + 1}
+                      for i, h in enumerate(hits)]
+        candidates += _archive_candidates(query, limit=limit, start_rank=len(candidates) + 1)
         out.append({
             "voice_kb_id": entry["id"], "category": entry.get("category"), "title": entry.get("title"),
-            "candidates": [{"locator": h["locator"], "doc_kind": h["doc_kind"], "speaker": common.speaker(h["author_id"]),
-                            "status": h["status"], "stated_at": h["stated_at"], "rank": i + 1}
-                           for i, h in enumerate(hits)],
-            "proposed_action": "link_to_wisdom_source" if hits else "unsourced_owner_decides",
+            "candidates": candidates,
+            "proposed_action": "link_to_wisdom_source" if candidates else "unsourced_owner_decides",
         })
     return out
+
+
+def _archive_candidates(query: str, *, limit: int, start_rank: int) -> list[dict]:
+    """TSDR-archive LESSON records as sourcing candidates for a voice principle. The owner
+    still decides (D18); this only widens what the proposal can point at. [] when the archive
+    is off or unreachable — a sourcing draft never fails because the archive did."""
+    from api.services.wisdom.archive import provider
+
+    if not provider.enabled():
+        return []
+    try:
+        with store.read() as conn:
+            hits = provider.search(conn, query, limit=limit, types=("LESSON",))
+    except Exception:
+        log.exception("[wisdom] archive sourcing candidates failed")
+        return []
+    return [{"locator": provider.locator(h["record_id"]), "doc_kind": "archive_lesson",
+             "speaker": common.speaker(h["author_id"]), "status": "archive", "stated_at": h["stated_date"],
+             "rank": start_rank + i} for i, h in enumerate(hits)]
 
 
 def enqueue_review_items(items: list) -> dict:
@@ -296,7 +361,7 @@ def daily(ctx) -> dict:
     with store.read() as conn:
         if not common.table_exists(conn, "wisdom_kb_rows"):
             return {"skipped": "publish_adapters_001 is not applied"}
-        rows = build_rows(conn)
+        rows = build_rows(conn) + archive_rows(conn)
     sourcing = voice_principle_candidates()
     if getattr(ctx, "dry_run", False):
         return {"dry_run": True, "rows": len(rows), "voice_principles": len(sourcing), "flag_on": flag_on}

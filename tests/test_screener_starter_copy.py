@@ -4,7 +4,8 @@ import re
 from api.services.screener import saved_screens
 from api.services.screener.saved_screens import PATTERN_PRESETS, starters
 
-GROUPS = {"Momentum leaders", "Breakouts & entries", "Bases & chart patterns", "Earnings", "Quality & value"}
+GROUPS = {"Momentum leaders", "Breakouts & entries", "Bases & chart patterns", "Earnings", "Quality & value",
+          "Team archive"}
 _JS = os.path.join(os.path.dirname(__file__), "..", "app", "src", "pages", "screener", "focus", "screenGroups.js")
 
 
@@ -52,9 +53,16 @@ def test_server_groups_match_the_clients_fallback_map():
     body = re.search(r"FALLBACK_GROUP = \{(.*?)\n\}", js, re.S).group(1)
     fallback = dict(re.findall(r"(\w+): '(\w+)'", body))
     assert fallback and label_to_key
+    # A flag-GATED starter (pattern presets, the team-archive starter) always
+    # carries its own `group` and is absent from a default run, so it never
+    # needed the Phase-1 fallback; it is held to the label map instead.
+    gated = ("starter_pattern_", "starter_team_")
     for s in starters():
+        if s["id"].startswith(gated):
+            assert s["group"] == "Chart Patterns" or s["group"] in label_to_key, s["id"]
+            continue
         assert label_to_key[s["group"]] == fallback[s["id"]], s["id"]
-    assert {s["id"] for s in starters()} == set(fallback)
+    assert {s["id"] for s in starters() if not s["id"].startswith(gated)} == set(fallback)
 
 
 # -- every description names every condition its screen applies (N8) ---------
@@ -62,6 +70,7 @@ def test_server_groups_match_the_clients_fallback_map():
 # this map does not know fails below, so the copy cannot silently fall behind.
 _PLAIN = {
     "security_type": r"\bstocks?\b",
+    "archive_calls_n": r"\bteam has called\b",
     "rs_rank": r"\bRS\b",
     "adr_pct": r"daily range",
     "dollar_vol_30d": r"traded",
@@ -76,6 +85,7 @@ _PLAIN = {
     "pe_fwd": r"\bP/E\b",
     "roe": r"\bROE\b",
     "eps_growth": r"\bEPS growth\b",
+    "op_margin": r"\boperating margin\b",
     "gap_pct": r"\bgapped\b",
     "vol_ratio": r"\bvolume\b",
     "market_cap": r"\bmarket cap\b",
@@ -124,6 +134,24 @@ def test_the_description_check_can_fail(monkeypatch):
     s = next(x for x in _all(monkeypatch) if x["id"] == "starter_momentum_leaders")
     assert re.search(_PLAIN["price"], s["description"], re.I)
     assert not re.search(_PLAIN["price"], s["description"].replace("price $5+", ""), re.I)
+
+
+def test_cheap_quality_compounders_uses_only_published_thresholds(monkeypatch):
+    """The value starter was retuned on production (386 -> 48, 2026-10-16) without
+    inventing a number: every condition is a preset the filter registry already
+    publishes. A threshold that is not one of them (or the old `lte 20`, which let a
+    negative forward P/E through as "cheap") fails here by name."""
+    from api.services.screener import filters as F
+    s = next(x for x in _all(monkeypatch) if x["id"] == "starter_value_quality")
+    conds = [f for f in s["spec"]["filters"] if f["key"] != "security_type"]
+    assert {f["key"] for f in conds} == {"pe_fwd", "roe", "eps_growth", "op_margin", "market_cap"}
+    for f in conds:
+        shape = {k: f.get(k) for k in ("op", "min", "max")}
+        presets = [{k: p.get(k) for k in ("op", "min", "max")}
+                   for p in F.FILTERS[f["key"]]["presets"] if p.get("op")]
+        assert shape in presets, (f["key"], shape, presets)
+    pe = next(f for f in conds if f["key"] == "pe_fwd")
+    assert pe["min"] == 0, "a negative forward P/E is expected losses, not cheap"
 
 
 def test_every_starter_is_stocks_only(monkeypatch):

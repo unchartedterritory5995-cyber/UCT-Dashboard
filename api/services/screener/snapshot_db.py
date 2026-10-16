@@ -3,6 +3,7 @@
 Built nightly by ``snapshot_builder``; queried by ``query``. All numeric fields
 nullable so a ticker missing fundamentals still screens on technicals.
 """
+import json
 import os
 import sqlite3
 import threading
@@ -148,6 +149,14 @@ COLUMNS = [
     # strings `vcp`/`flat_base` on purpose (pattern_join's D6 note) and are
     # different instruments, which is why the names carry `engine`.
     "pattern_engine_vcp", "pattern_engine_flat_base",
+    # TRADER ARCHIVE context (2026-10-16) -- DISPLAY ONLY, one writer:
+    # `archive_join`. The team's calls on the name, and the archive playbook's
+    # control-relative edge for the setup the best detection maps to. Nothing
+    # here feeds what fires or how it scores. Blank when WISDOM_ARCHIVE_ENABLED
+    # is off (never a guessed 0).
+    "archive_calls_n", "archive_traders_n", "archive_last_call_date",
+    "archive_last_setup", "archive_last_r20", "archive_setup",
+    "archive_setup_edge_r", "archive_setup_edge_20d", "archive_setup_n",
     # ⭐ LIVE-ONLY: volume vs usual BY NOW. Written only by the live tier's overlay
     # (`live_tier.LIVE_COLUMNS`); the nightly build leaves it NULL, because outside
     # the session there is no "by now". It lives in this list so the query layer's
@@ -183,7 +192,9 @@ _TEXT = {"ticker", "company", "sector", "industry", "exchange", "security_type",
          # `patterns`. `pattern_engine_dir` is NOT here: the reader re-encodes
          # the store's TEXT direction to a NUMBER (+1/-1/0) before it reaches
          # this table (ruling D4) -- see `_INT` below.
-         "pattern_engine_ids"}
+         "pattern_engine_ids",
+         # trader archive (display only)
+         "archive_last_call_date", "archive_last_setup", "archive_setup"}
 _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         "candle_recent_bars_ago",
         "consecutive_up", "consecutive_down", "built_at",
@@ -207,7 +218,9 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         "optionable", "shortable",
         # Wave 6 -- per-pattern engine flags stored 0/1 (never a guessed 0;
         # an unscanned symbol stays NULL -- see `pattern_join`).
-        "pattern_engine_vcp", "pattern_engine_flat_base"}
+        "pattern_engine_vcp", "pattern_engine_flat_base",
+        # trader archive counts (display only)
+        "archive_calls_n", "archive_traders_n", "archive_setup_n"}
 
 
 # ---------------------------------------------------------------------------
@@ -711,8 +724,21 @@ CREATE TABLE IF NOT EXISTS screener_build_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     started_at REAL, finished_at REAL,
     targets INTEGER, built INTEGER, skipped INTEGER, errors INTEGER,
-    empty_columns TEXT
+    empty_columns TEXT, settled_bars TEXT
 )"""
+
+
+def _ensure_build_runs(conn) -> None:
+    """Create the receipts table, and add ``settled_bars`` to one that predates it.
+
+    ``settled_bars`` is the JSON of ``run_build``'s ``stats["settled_bars"]``: the
+    session whose settled whole-market bars replaced each row's newest stored bar,
+    how many came back, and what happened per ticker — or the error that left the
+    build on its stored bars. An ADD COLUMN, never a rebuild, so old receipts stay."""
+    conn.execute(_BUILD_RUNS_SQL)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(screener_build_runs)")}
+    if "settled_bars" not in cols:
+        conn.execute("ALTER TABLE screener_build_runs ADD COLUMN settled_bars TEXT")
 
 
 def record_build_run(stats: dict) -> None:
@@ -720,13 +746,15 @@ def record_build_run(stats: dict) -> None:
     not cost the build it describes."""
     try:
         with connect() as conn:
-            conn.execute(_BUILD_RUNS_SQL)
+            _ensure_build_runs(conn)
+            settled = stats.get("settled_bars")
             conn.execute(
                 "INSERT INTO screener_build_runs (started_at, finished_at, targets, built, "
-                "skipped, errors, empty_columns) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "skipped, errors, empty_columns, settled_bars) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (stats.get("started_at"), stats.get("finished_at"), stats.get("targets"),
                  stats.get("built"), stats.get("skipped"), stats.get("errors"),
-                 ",".join(stats.get("empty_columns") or [])))
+                 ",".join(stats.get("empty_columns") or []),
+                 json.dumps(settled, sort_keys=True) if settled is not None else None))
             conn.execute(
                 "DELETE FROM screener_build_runs WHERE id NOT IN (SELECT id FROM "
                 "screener_build_runs ORDER BY id DESC LIMIT ?)", (BUILD_RUNS_KEEP,))
@@ -740,7 +768,7 @@ def last_build_run() -> dict | None:
     """The newest build receipt, or None when no build has recorded one yet."""
     try:
         with connect() as conn:
-            conn.execute(_BUILD_RUNS_SQL)
+            _ensure_build_runs(conn)
             r = conn.execute("SELECT * FROM screener_build_runs ORDER BY id DESC LIMIT 1").fetchone()
     except Exception:                                       # noqa: BLE001
         return None
@@ -748,6 +776,10 @@ def last_build_run() -> dict | None:
         return None
     d = dict(r)
     d["empty_columns"] = [c for c in (d.get("empty_columns") or "").split(",") if c]
+    try:
+        d["settled_bars"] = json.loads(d["settled_bars"]) if d.get("settled_bars") else None
+    except (TypeError, ValueError):
+        d["settled_bars"] = None
     # A build that reached every row it targeted accounts for each one as built, skipped
     # (no bars) or errored. Anything short of that was cut off partway.
     seen = (d.get("built") or 0) + (d.get("skipped") or 0) + (d.get("errors") or 0)

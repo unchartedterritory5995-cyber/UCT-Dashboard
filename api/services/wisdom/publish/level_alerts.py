@@ -94,6 +94,41 @@ def stated_levels(conn, record_ids: list[str]) -> dict:
     return out
 
 
+ARCHIVE_OPEN_ACTIONS = ("entry", "idea", "add")
+ARCHIVE_CLOSING_ACTIONS = ("exit", "trim")
+
+
+def archive_open_calls(conn, session: date) -> tuple[list[dict], dict]:
+    """(calls, {record_id: levels}) for the TSDR archive's still-open calls, keyed `archive:<call_id>`.
+
+    ⛔ AGED ONLY (owner decision 2026-10-16 #2): a call's levels are read through
+    `provider.levels`, which returns nothing for a call younger than the price gate, so a
+    recent call's entry/stop is never scored, stored or crossed here. Open means: an entry,
+    idea or add inside MAX_AGE_DAYS with no later exit/trim by the same trader on the same
+    ticker. [] while WISDOM_ARCHIVE_ENABLED is off. Silent like the Loop half; D20 gates stay."""
+    from api.services.wisdom.archive import provider
+
+    if not provider.enabled():
+        return [], {}
+    since = (session - timedelta(days=MAX_AGE_DAYS)).isoformat()
+    opened = provider.calls(conn, actions=ARCHIVE_OPEN_ACTIONS, since=since, until=session.isoformat(),
+                            order="c.posted ASC, c.call_id ASC")
+    closed: dict = {}
+    for c in provider.calls(conn, actions=ARCHIVE_CLOSING_ACTIONS, since=since, until=session.isoformat()):
+        key = (c["author_id"], c["ticker"])
+        closed[key] = max(closed.get(key, ""), str(c["posted"]))
+    still_open = [c for c in opened if closed.get((c["author_id"], c["ticker"]), "") <= str(c["posted"])]
+    aged = provider.levels(conn, [c["call_id"] for c in still_open], today=session)
+    calls, levels = [], {}
+    for c in still_open:
+        if c["call_id"] not in aged:
+            continue
+        rid = f"archive:{c['call_id']}"
+        calls.append({"record_id": rid, "ticker": c["ticker"], "author_id": c["author_id"]})
+        levels[rid] = list(aged[c["call_id"]])
+    return calls, levels
+
+
 def score_silently(ctx) -> dict:
     from api.services.wisdom.core import store
     from api.services.wisdom.publish.adapters import common
@@ -105,6 +140,8 @@ def score_silently(ctx) -> dict:
             return {"skipped": "publish_adapters_001 is not applied"}
         calls = open_calls(conn, session)
         levels = stated_levels(conn, [c["record_id"] for c in calls])
+        archive_calls, archive_levels = archive_open_calls(conn, session)
+        calls, levels = calls + archive_calls, {**levels, **archive_levels}
     crosses, scored, no_bars = [], 0, 0
     for call in calls:
         lv = levels.get(call["record_id"])

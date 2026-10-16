@@ -146,7 +146,20 @@ function TradePlan({ entry, stop, target1, target2 }) {
   )
 }
 
-function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, hasInsiderBuy, rsData }) {
+// The TSDR trader-archive line for one card: the team's most recent call on the name and how
+// many calls the archive holds. Facts only, never a level, and nothing at all when the
+// archive answers 402/404 or holds nothing for the name (`teamHistory` absent).
+export function teamHistoryLine(history) {
+  const last = history?.last
+  if (!last || !history?.n_calls) return null
+  const r20 = Number(last.outcome?.r20)
+  const outcome = Number.isFinite(r20) ? ` · r20 ${r20 >= 0 ? '+' : ''}${(r20 * 100).toFixed(1)}%` : ''
+  const what = [last.setup_name || last.setup, last.direction].filter(Boolean).join(' ')
+  const calls = `${history.n_calls} call${history.n_calls === 1 ? '' : 's'} in the archive`
+  return `${last.trader}, ${last.posted?.slice(0, 10) || 'undated'}${what ? `: ${what}` : ''}${outcome} · ${calls}`
+}
+
+function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, hasInsiderBuy, rsData, teamHistory, teamBadge }) {
   const sym      = item.ticker ?? item.sym ?? item.symbol ?? '—'
   const company  = item.company ?? ''
   const rating   = num(item.score ?? item.rs_score)
@@ -211,6 +224,7 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
           </span>
           {isNew && <span className={styles.newBadge}>NEW</span>}
           {hasInsiderBuy && <span className={styles.insiderBadge}>INSIDER</span>}
+          {teamBadge && <span className={styles.insiderBadge} title={`${teamBadge.label}: ${teamBadge.speaker}`} data-testid="uct20-team-badge">TEAM</span>}
           {earnings && earnings.days <= ER_BADGE_MAX_DAYS && (
             <span className={`${styles.erBadge} ${earnings.soon ? styles.erBadgeSoon : ''}`}>{earnings.badge}</span>
           )}
@@ -264,6 +278,12 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
               <p className={styles.legacyThesis}>{legacyThesis}</p>
             ) : (
               <p className={styles.sectionText}>No thesis available for this name yet.</p>
+            )}
+            {teamHistoryLine(teamHistory) && (
+              <div className={styles.section} data-testid="uct20-team-history">
+                <span className={styles.sectionLabel}>TEAM HISTORY</span>
+                <p className={styles.sectionText}>{teamHistoryLine(teamHistory)}</p>
+              </div>
             )}
             <ReadAloudButton
               trackId={`uct20-pick-${sym}`}
@@ -432,6 +452,10 @@ export default function UCT20() {
     [stocks]
   )
   const { prices } = useRealtimePrices(allTickers)
+  // The trader archive's team-call lane. A 402/404 (gate off, unpaid) throws through jsonFetcher
+  // and leaves `teamCalls` undefined, so every card simply shows no team line.
+  const teamKey = allTickers.length ? `/api/wisdom/team-calls?tickers=${encodeURIComponent(allTickers.join(','))}` : null
+  const { data: teamCalls } = useSWR(teamKey, fetcher, { revalidateOnFocus: false, shouldRetryOnError: false })
 
   const rsMap = useMemo(() => {
     const map = {}
@@ -683,6 +707,8 @@ export default function UCT20() {
                   liveData={prices[sym] ?? null}
                   hasInsiderBuy={insiderBuySyms.has(sym)}
                   rsData={rsMap[sym] ?? null}
+                  teamHistory={teamCalls?.history?.[sym] ?? null}
+                  teamBadge={teamCalls?.badges?.[sym] ?? null}
                 />
               )
             })}

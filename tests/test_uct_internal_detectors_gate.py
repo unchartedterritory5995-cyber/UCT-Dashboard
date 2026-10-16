@@ -1,5 +1,5 @@
-"""The internal-detector gate still works, and the four trader-setup detectors
-are now PUBLIC.
+"""The internal-detector gate still works, the first four trader-setup detectors
+are PUBLIC, and the second four (2026-10-16) ship INTERNAL.
 
 History: uct_kicker · uct_oops_reversal · uct_slingshot · uct_hve shipped in
 `registry.INTERNAL_PATTERN_IDS` (admin-only). Owner ruling 2026-10-15 made them
@@ -36,6 +36,8 @@ from api.services.pattern_engine.detectors import registry
 from tests.authclients import ADMIN, PAID_MEMBER, signed_in_as
 
 _UCT = ("uct_kicker", "uct_oops_reversal", "uct_slingshot", "uct_hve")
+#: The second trader-setup set, shipped INTERNAL on 2026-10-16.
+_UCT2 = ("uct_launch_pad", "uct_gap_support", "uct_capitulation", "uct_go_signal")
 _CONTROL = "bull_flag"
 _PROBE = "zz_internal_gate_probe"
 _SYM = "GATEX"
@@ -100,12 +102,15 @@ _ADMIN_VIEW = {*_UCT, _CONTROL, _PROBE}    # what an admin's raw read sees
 
 # ── the registry: owner ruling recorded, gate machinery intact ────────────
 
-def test_the_shipped_internal_set_is_empty_and_the_four_are_public():
+def test_the_shipped_internal_set_is_the_second_four_and_the_first_four_are_public():
     import api.routers.patterns  # noqa: F401
-    assert registry.INTERNAL_PATTERN_IDS == frozenset(), (
-        "owner ruling 2026-10-15: no detector is internal today")
+    assert registry.INTERNAL_PATTERN_IDS == frozenset(_UCT2), (
+        "owner ruling 2026-10-15: the first four are public; the second four ship internal")
     assert set(_UCT) <= set(registry.list_public_pattern_ids())
     assert not any(registry.is_internal(p) for p in _UCT)
+    # the internal four are registered (computed and stored) and not public
+    assert set(_UCT2) <= set(registry.list_pattern_ids())
+    assert not set(_UCT2) & set(registry.list_public_pattern_ids())
 
 
 def test_the_gate_helpers_drop_a_synthetic_internal_id(gate_on):
@@ -158,17 +163,87 @@ def test_memory_drops_the_probe_by_default_and_serves_the_four(seeded):
     assert _pids(memory.get_active_detections(_SYM, "D", pattern_ids=["uct_kicker"])) == {"uct_kicker"}
 
 
-def test_memory_with_the_shipped_empty_set_serves_everything(monkeypatch, tmp_path):
-    """The real configuration: an EMPTY set must not break the SQL (`NOT IN ()`)."""
+def test_memory_with_an_empty_set_serves_everything(monkeypatch, tmp_path):
+    """An EMPTY set must not break the SQL (`NOT IN ()`) -- the gate's resting state."""
     monkeypatch.setenv("PATTERN_DB_PATH", str(tmp_path / "patterns.db"))
+    monkeypatch.setattr(registry, "INTERNAL_PATTERN_IDS", frozenset())
     from api.services.pattern_engine import pattern_db
     pattern_db._initialized_paths.clear()
     pattern_db.init_db()
     for k, pid in enumerate(_UCT):
         memory.store_detection(_det(f"uct-{k}", pid))
-    assert registry.INTERNAL_PATTERN_IDS == frozenset()
     assert _pids(memory.get_active_detections(_SYM, "D")) == set(_UCT)
     pattern_db._initialized_paths.clear()
+
+
+# -- the SHIPPED set, unpatched: the second four never reach a member ----------
+
+@pytest.fixture
+def seeded_shipped(monkeypatch, tmp_path):
+    """The real registry (no monkeypatched set): first four + second four + a control."""
+    import api.routers.patterns  # noqa: F401
+    monkeypatch.setenv("PATTERN_DB_PATH", str(tmp_path / "patterns.db"))
+    from api.services.pattern_engine import pattern_db
+    pattern_db._initialized_paths.clear()
+    pattern_db.init_db()
+    # the internal four carry the highest confidences, so the canonical shadow
+    # (one winner per symbol) would pick one of them if the gate did not hold
+    for k, pid in enumerate(_UCT2):
+        memory.store_detection(_det(f"uct2-{k}", pid, confidence=99.0 - k))
+    for k, pid in enumerate(_UCT):
+        memory.store_detection(_det(f"uct-{k}", pid, confidence=90.0 - k))
+    memory.store_detection(_det("ctl-1", _CONTROL, category="classical", confidence=80.0))
+    yield
+    pattern_db._initialized_paths.clear()
+
+
+def test_shipped_set_memory_drops_the_second_four_for_members(seeded_shipped):
+    assert _pids(memory.get_active_detections(_SYM, "D")) == {*_UCT, _CONTROL}
+    assert _pids(memory.get_active_detections(_SYM, "D", include_internal=True)) == {*_UCT, *_UCT2, _CONTROL}
+    for pid in _UCT2:  # naming one does not open the door
+        assert memory.get_active_detections(_SYM, "D", pattern_ids=[pid]) == []
+
+
+def test_shipped_set_screener_carries_none_of_the_second_four(seeded_shipped):
+    from api.services.screener import pattern_join as pj
+    ids = {k for k in (pj.read_pattern_fields([_SYM])[_SYM]["pattern_engine_ids"] or "").split(",") if k}
+    assert _CONTROL in ids and set(_UCT) <= ids, "non-vacuous: the public ids must be read"
+    assert not ids & set(_UCT2)
+    picked = pj.read_pattern_fields_canonical_shadow([_SYM])[_SYM]["pattern_id"]
+    assert picked not in _UCT2
+
+
+def test_shipped_set_raw_route_member_vs_admin(seeded_shipped):
+    assert _raw(PAID_MEMBER) == {*_UCT, _CONTROL}
+    assert _raw(ADMIN) == {*_UCT, *_UCT2, _CONTROL}
+
+
+def test_shipped_set_compass_and_voice_never_list_the_second_four(seeded_shipped):
+    from api.services.journal_two.coach_chat_tools import TOOLS
+    from api.services.voice_tool_impls import _find_patterns_on_ticker, _list_pattern_types
+    args = dict(user_id="u1", account_id="a1", conn=None)
+    found = TOOLS["find_patterns_on_ticker"]["executor"](args={"symbol": _SYM, "min_conf": 0}, **args)
+    assert _pids(found["detections"]) == {*_UCT, _CONTROL}
+    assert _pids(_find_patterns_on_ticker(symbol=_SYM, tf="D", min_conf=0)["detections"]) == {*_UCT, _CONTROL}
+    listed = {p["id"] for p in _list_pattern_types()["patterns"]}
+    assert set(_UCT) <= listed and not listed & set(_UCT2)
+
+
+def test_the_second_four_are_not_in_the_member_catalog():
+    for pid in _UCT2:
+        assert pid not in patterns_router._PATTERN_METADATA
+
+
+def test_the_universe_scan_runs_the_second_four():
+    """`detect_all` computes and stores them like any detector (admins read them)."""
+    from api.services.pattern_engine import detect_all
+    from api.services.pattern_engine.primitives.context import build_context
+    from tests.pattern_engine.detectors.fixture_loader import load_all_fixtures
+    fired = set()
+    for pid in _UCT2:
+        f = next(f for f in load_all_fixtures(pid) if f.category == "positive")
+        fired |= _pids(detect_all(f.bars, build_context(f.bars, sym="T"), pattern_ids=[pid]))
+    assert fired == set(_UCT2)
 
 
 # ── screener ──────────────────────────────────────────────────────────────
