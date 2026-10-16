@@ -195,6 +195,143 @@ _CALL_COLS = ("call_id", "record_id", "author_id", "ticker", "direction", "setup
               "imported_at")
 
 
+# ── setup playbooks ──────────────────────────────────────────────────────────
+
+SETUP_FIELDS = {"setup_id", "name", "family", "aliases", "used_by", "stats", "stats_trades", "context",
+                "teachings", "winners", "failures", "sha"}
+#: The measured numbers a playbook's stats may carry; anything else is refused.
+STAT_FIELDS = ("n", "n_scored", "win20", "med_r20", "mean_r20", "med_edge20", "mean_simR", "mean_edgeR",
+               "edgeR_z", "thin")
+CONTEXT_GROUPS = ("trader", "kind", "market", "entry", "extension_from_50", "direction")
+TEACHING_FIELDS = {"record_id", "author_id", "date", "note"}
+EXAMPLE_FIELDS = {"call_id", "record_id", "ticker", "author_id", "posted", "direction", "action", "evidence",
+                  "r20", "sim_R", "regime"}
+MAX_ALIASES = 40
+MAX_CONTEXT_VALUES = 20
+MAX_TEACHINGS = 20
+MAX_EXAMPLES = 20
+TEACHING_NOTE_CHARS = 400
+EVIDENCE_CHARS = 200
+_SETUP_ID = re.compile(r"^[a-z0-9_]{1,60}$")
+
+
+def _stats(raw: Any, where: str) -> dict:
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ItemError(f"{where} must be an object")
+    bad = sorted(set(raw) - set(STAT_FIELDS))
+    if bad:
+        raise ItemError(f"unknown {where} fields: {', '.join(bad)[:120]}")
+    out: dict = {}
+    for k in STAT_FIELDS:
+        if k not in raw or raw[k] is None:
+            continue
+        if k == "thin":
+            if not isinstance(raw[k], bool):
+                raise ItemError(f"{where}.thin must be a boolean")
+            out[k] = raw[k]
+        else:
+            out[k] = _num(raw, k)
+    return out
+
+
+def _bounded_list(item: dict, key: str, cap: int) -> list:
+    v = item.get(key) or []
+    if not isinstance(v, list) or len(v) > cap:
+        raise ItemError(f"{key} must be a list of at most {cap}")
+    return v
+
+
+def _teaching(t: Any) -> dict:
+    if not isinstance(t, dict):
+        raise ItemError("teaching must be an object")
+    _unknown(t, TEACHING_FIELDS)
+    rid = _str(t, "record_id", required=True)
+    if not _RECORD_ID.match(rid):
+        raise ItemError("teaching record_id malformed")
+    date = _str(t, "date", limit=40)
+    if date is not None and not _DATE.match(date):
+        raise ItemError("teaching date must start YYYY-MM-DD")
+    return {"record_id": rid, "author_id": _author(t), "date": date,
+            "note": _clip(_str(t, "note", limit=MAX_TEXT), TEACHING_NOTE_CHARS)}
+
+
+def _example(e: Any) -> dict:
+    if not isinstance(e, dict):
+        raise ItemError("example must be an object")
+    _unknown(e, EXAMPLE_FIELDS)
+    cid = _str(e, "call_id", required=True)
+    m = _CALL_ID.match(cid)
+    if not m or _str(e, "record_id", required=True) != m.group(1):
+        raise ItemError("example call_id/record_id malformed")
+    direction = _str(e, "direction")
+    if direction is not None and direction not in DIRECTIONS:
+        raise ItemError("example direction not in long/short/neutral")
+    return {"call_id": cid, "record_id": m.group(1), "ticker": normalize_ticker(e.get("ticker")),
+            "author_id": _author(e), "posted": _str(e, "posted", limit=40), "direction": direction,
+            "action": _str(e, "action", limit=60),
+            "evidence": _clip(_str(e, "evidence", limit=MAX_TEXT), EVIDENCE_CHARS),
+            "r20": _num(e, "r20"), "sim_R": _num(e, "sim_R"), "regime": _str(e, "regime", limit=60)}
+
+
+def validate_setup(item: Any) -> dict:
+    if not isinstance(item, dict):
+        raise ItemError("item must be an object")
+    _unknown(item, SETUP_FIELDS)
+    sid = _str(item, "setup_id", required=True, limit=60)
+    if not _SETUP_ID.match(sid):
+        raise ItemError("setup_id malformed")
+    aliases = _bounded_list(item, "aliases", MAX_ALIASES)
+    if not all(isinstance(a, str) and 0 < len(a.strip()) <= 80 for a in aliases):
+        raise ItemError("aliases must be short strings")
+    used_by = _bounded_list(item, "used_by", 10)
+    if not all(isinstance(a, str) and a in team_authors() for a in used_by):
+        raise ItemError("used_by must name team authors")
+    context = item.get("context") or {}
+    if not isinstance(context, dict):
+        raise ItemError("context must be an object")
+    bad = sorted(set(context) - set(CONTEXT_GROUPS))
+    if bad:
+        raise ItemError(f"unknown context groups: {', '.join(bad)[:120]}")
+    clean_ctx: dict = {}
+    for g in CONTEXT_GROUPS:
+        rows = context.get(g)
+        if rows is None:
+            continue
+        if not isinstance(rows, dict) or len(rows) > MAX_CONTEXT_VALUES:
+            raise ItemError(f"context.{g} must be an object of at most {MAX_CONTEXT_VALUES}")
+        clean_ctx[g] = {}
+        for v, st in rows.items():
+            if not isinstance(v, str) or not 0 < len(v) <= 60:
+                raise ItemError(f"context.{g} value malformed")
+            clean_ctx[g][v] = _stats(st, f"context.{g}")
+    row = {
+        "setup_id": sid, "name": _str(item, "name", required=True), "family": _str(item, "family", limit=60),
+        "aliases_json": json.dumps([a.strip() for a in aliases], ensure_ascii=False),
+        "used_by_json": json.dumps(used_by),
+        "stats_json": json.dumps({"all": _stats(item.get("stats"), "stats"),
+                                  "trades": _stats(item.get("stats_trades"), "stats_trades")}, sort_keys=True),
+        "context_json": json.dumps(clean_ctx, sort_keys=True, ensure_ascii=False),
+        "teachings_json": json.dumps([_teaching(t) for t in _bounded_list(item, "teachings", MAX_TEACHINGS)],
+                                     ensure_ascii=False),
+        "winners_json": json.dumps([_example(e) for e in _bounded_list(item, "winners", MAX_EXAMPLES)],
+                                   ensure_ascii=False),
+        "failures_json": json.dumps([_example(e) for e in _bounded_list(item, "failures", MAX_EXAMPLES)],
+                                    ensure_ascii=False),
+    }
+    sha = _str(item, "sha", limit=64)
+    if sha is not None and not _SHA.match(sha):
+        raise ItemError("sha must be lower-case hex")
+    row["sha"] = sha or _canonical_sha(row)
+    return row
+
+
+_SETUP_COLS = ("setup_id", "name", "family", "aliases_json", "used_by_json", "stats_json", "context_json",
+               "teachings_json", "winners_json", "failures_json", "sha", "imported_at")
+KINDS = ("records", "calls", "setups")
+
+
 def _upsert_sql(table: str, cols: tuple, pk: str) -> str:
     sets = ", ".join(f"{c} = excluded.{c}" for c in cols if c != pk)
     return (f"INSERT INTO {table} ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))}) "
@@ -208,13 +345,15 @@ def _fts_exists(conn) -> bool:
 
 def upsert_batch(conn: sqlite3.Connection, kind: str, items: list) -> dict:
     """Idempotent by primary key + sha: same sha -> unchanged, new sha -> updated."""
-    if kind not in ("records", "calls"):
-        raise ValueError("kind must be 'records' or 'calls'")
+    if kind not in KINDS:
+        raise ValueError("kind must be 'records', 'calls' or 'setups'")
     if len(items) > MAX_BATCH:
         raise ValueError(f"at most {MAX_BATCH} items per batch")
-    validate = validate_record if kind == "records" else validate_call
-    table, pk, cols = (("wisdom_archive_records", "record_id", _RECORD_COLS) if kind == "records"
-                       else ("wisdom_archive_calls", "call_id", _CALL_COLS))
+    validate, table, pk, cols = {
+        "records": (validate_record, "wisdom_archive_records", "record_id", _RECORD_COLS),
+        "calls": (validate_call, "wisdom_archive_calls", "call_id", _CALL_COLS),
+        "setups": (validate_setup, "wisdom_archive_setups", "setup_id", _SETUP_COLS),
+    }[kind]
     counts = {"received": len(items), "inserted": 0, "updated": 0, "unchanged": 0, "rejected": 0}
     errors: list = []
     fts = kind == "records" and _fts_exists(conn)
@@ -450,3 +589,73 @@ def retrieval_hits(conn, query: str, *, tickers=(), limit: int = 6, excerpt_char
                      "tickers": [t for t in (r[4] or "").split(",") if t][:8],
                      "excerpt": _clip(r[5], excerpt_chars), "calls": rec_calls})
     return hits
+
+
+# ── setup playbooks: reads ───────────────────────────────────────────────────
+
+def _setup_dict(r) -> dict:
+    d = dict(r)
+    for k in ("aliases", "used_by", "stats", "context", "teachings", "winners", "failures"):
+        try:
+            d[k] = json.loads(d.pop(f"{k}_json") or "null")
+        except ValueError:
+            d[k] = None
+    return d
+
+
+_PLAYBOOK_SQL = ("SELECT setup_id, name, family, aliases_json, used_by_json, stats_json, context_json, "
+                 "teachings_json, winners_json, failures_json FROM wisdom_archive_setups")
+
+
+def playbook(conn, setup: str) -> Optional[dict]:
+    """One setup's playbook, or None when no such setup was imported."""
+    s = (setup or "").strip().lower()
+    if not _SETUP_ID.match(s):
+        raise ItemError("setup malformed")
+    r = conn.execute(_PLAYBOOK_SQL + " WHERE setup_id = ?", (s,)).fetchone()
+    return _setup_dict(r) if r is not None else None
+
+
+def playbooks(conn) -> dict:
+    """Index rows, most-called first."""
+    rows = []
+    for r in conn.execute(_PLAYBOOK_SQL):
+        d = _setup_dict(r)
+        st = (d.get("stats") or {}).get("all") or {}
+        rows.append({"setup_id": d["setup_id"], "name": d["name"], "family": d.get("family"),
+                     "n": st.get("n"), "n_scored": st.get("n_scored"), "mean_edgeR": st.get("mean_edgeR"),
+                     "edgeR_z": st.get("edgeR_z"), "n_teachings": len(d.get("teachings") or []),
+                     "n_examples": len(d.get("winners") or []) + len(d.get("failures") or [])})
+    rows.sort(key=lambda x: (-(x["n"] or 0), x["setup_id"]))
+    return {"setups": rows}
+
+
+def _alias_pattern(alias: str) -> Optional[re.Pattern]:
+    a = " ".join((alias or "").split())
+    if len(a) < 2:
+        return None
+    # short all-caps aliases (EP, HVE, LP) match case-sensitively, so "ep" inside prose does not
+    flags = 0 if (a.isupper() and len(a) <= 4) else re.I
+    return re.compile(r"(?<![A-Za-z0-9])" + re.escape(a) + r"(?![A-Za-z0-9])", flags)
+
+
+def match_setups(conn, text: str, *, limit: int = 2) -> list:
+    """Setup ids the text names (by id, name or a stored alias), longest match first."""
+    t = text or ""
+    if not t.strip():
+        return []
+    found: dict = {}
+    for sid, name, aliases_json in conn.execute(
+            "SELECT setup_id, name, aliases_json FROM wisdom_archive_setups"):
+        try:
+            aliases = json.loads(aliases_json or "[]")
+        except ValueError:
+            aliases = []
+        best = 0
+        for a in [sid.replace("_", " "), (name or "").split("/")[0].split("(")[0], *aliases]:
+            p = _alias_pattern(a)
+            if p is not None and p.search(t):
+                best = max(best, len(a.strip()))
+        if best:
+            found[sid] = best
+    return [sid for sid, _ in sorted(found.items(), key=lambda kv: (-kv[1], kv[0]))][:max(1, limit)]

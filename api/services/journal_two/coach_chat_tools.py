@@ -1964,6 +1964,11 @@ def _exec_trader_archive_ticker(*, user_id, account_id, args, conn=None) -> dict
     return _archive_tools.ticker(str((args or {}).get("symbol") or ""))
 
 
+def _exec_trader_archive_setup(*, user_id, account_id, args, conn=None) -> dict:
+    from api.services.wisdom.archive import tools as _archive_tools
+    return _archive_tools.setup(str((args or {}).get("setup") or ""))
+
+
 _TOOLS_UNGATED["trader_archive_search"] = {
     "name": "trader_archive_search",
     "description": (
@@ -1993,6 +1998,24 @@ _TOOLS_UNGATED["trader_archive_ticker"] = {
     "input_schema": {"type": "object", "properties": {
         "symbol": {"type": "string", "description": "Ticker, e.g. NVDA."}},
         "required": ["symbol"]},
+}
+
+
+_TOOLS_UNGATED["trader_archive_setup"] = {
+    "name": "trader_archive_setup",
+    "description": (
+        "The UCT team's playbook for one setup (kicker, oops reversal, EP, launch pad, slingshot, "
+        "HVE, flag, pullback...) from the TSDR trader archive: definition and aliases, its measured "
+        "record across every archived call (win rate, edge versus the same stock, z), the contexts "
+        "it worked best and worst in, the traders' own teachings (record ids) and its best and worst "
+        "calls. Use for 'what makes a good kicker', 'does the oops setup work', 'show me launch pad "
+        "examples'. Cite trader + date + record id; measured after the fact, never current advice."
+    ),
+    "requires_confirm": False,
+    "executor": _exec_trader_archive_setup,
+    "input_schema": {"type": "object", "properties": {
+        "setup": {"type": "string", "description": "Setup name or a question naming it, e.g. 'oops reversal'."}},
+        "required": ["setup"]},
 }
 
 
@@ -2063,4 +2086,5 @@ class _GatedToolRegistry(dict):
 
 TOOLS = _GatedToolRegistry(_TOOLS_UNGATED, {"search_my_notes": notes_tool_enabled,
                                              "trader_archive_search": _archive_tool_enabled,
-                                             "trader_archive_ticker": _archive_tool_enabled})
+                                             "trader_archive_ticker": _archive_tool_enabled,
+                                             "trader_archive_setup": _archive_tool_enabled})

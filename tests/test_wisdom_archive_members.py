@@ -8,6 +8,8 @@ WHAT THIS FILE HAS TO BE ABLE TO SAY RED FOR
 3. the flag being admin/internal again (it is member-visible and declared so in the ledger);
 4. Ask AI carrying a TRADER ARCHIVE block while the flag is off, or touching wisdom.db to decide;
 5. the block being unbounded, uncited, or missing the scored outcome;
+6. a setup playbook accepting an unknown field, a non-team author or an oversized list, or the
+   Ask AI playbook line appearing with the flag off, uncited, or unbounded;
 (The Compass tools are railed in tests/test_trader_archive_compass_tools.py.)
 """
 from __future__ import annotations
@@ -31,7 +33,8 @@ BATCH = "/api/internal/wisdom/archive/batch"
 AUTH = {"Authorization": f"Bearer {SECRET}"}
 MEMBER_GETS = ("/api/wisdom/archive/ticker/ZZTA", "/api/wisdom/archive/setup/synthetic_setup",
                "/api/wisdom/archive/search?q=breakout", "/api/wisdom/archive/stats",
-               "/api/wisdom/archive/trader/tsdr")
+               "/api/wisdom/archive/trader/tsdr", "/api/wisdom/archive/playbooks",
+               "/api/wisdom/archive/playbook/synthetic_setup")
 
 
 @pytest.fixture
@@ -75,6 +78,34 @@ def _seed():
     ]
     assert c.post(BATCH, json={"kind": "records", "items": recs}, headers=AUTH).json()["inserted"] == 2
     assert c.post(BATCH, json={"kind": "calls", "items": calls}, headers=AUTH).json()["inserted"] == 1
+    assert c.post(BATCH, json={"kind": "setups", "items": [_playbook()]}, headers=AUTH).json()["inserted"] == 1
+
+
+def _stats(n, edge, z=None):
+    out = {"n": n, "n_scored": n, "win20": 0.55, "med_r20": 0.01, "mean_r20": 0.02, "med_edge20": 0.012,
+           "mean_simR": 0.4, "mean_edgeR": edge, "thin": n < 30}
+    if z is not None:
+        out["edgeR_z"] = z
+    return out
+
+
+def _playbook(**over):
+    pb = {
+        "setup_id": "synthetic_setup", "name": "Synthetic setup / test pattern", "family": "test",
+        "aliases": ["synthetic setup", "SYN"], "used_by": ["tsdr", "bracco"],
+        "stats": _stats(140, 0.25, 1.4), "stats_trades": _stats(60, 0.3, 1.1),
+        "context": {"market": {"downtrend": _stats(40, 0.9), "uptrend": _stats(90, -0.1)},
+                    "trader": {"TSDR": _stats(12, 1.5)}},
+        "teachings": [{"record_id": "t9102", "author_id": "bracco", "date": "2025-03-04",
+                       "note": "synthetic lesson about patience in a breakout"},
+                      {"record_id": "t9101", "author_id": "tsdr", "date": "2025-01-02", "note": "x" * 900}],
+        "winners": [{"call_id": "t9101#0", "record_id": "t9101", "ticker": "ZZTA", "author_id": "tsdr",
+                     "posted": "2025-01-02", "direction": "long", "action": "entry",
+                     "evidence": "synthetic pivot", "r20": 0.1, "sim_R": 3.0, "regime": "uptrend"}],
+        "failures": [],
+    }
+    pb.update(over)
+    return pb
 
 
 # ── 1. the paid gate and the flag ────────────────────────────────────────────
@@ -141,7 +172,8 @@ def test_every_member_route_is_require_paid_and_the_registry_mounts_it():
     paths = {r.path for r in wisdom_archive.member_router.routes}
     assert paths == {"/api/wisdom/archive/ticker/{sym}", "/api/wisdom/archive/setup/{setup}",
                      "/api/wisdom/archive/search", "/api/wisdom/archive/stats",
-                     "/api/wisdom/archive/trader/{author}"}
+                     "/api/wisdom/archive/trader/{author}", "/api/wisdom/archive/playbooks",
+                     "/api/wisdom/archive/playbook/{setup}"}
     for r in wisdom_archive.member_router.routes:
         deps = _dep_names(r)
         assert "require_paid" in deps, r.path
@@ -216,3 +248,85 @@ def test_grounded_system_carries_the_block_only_with_the_flag(wisdom_db, on, mon
     system_off, salt_off, meta_off = ai._grounded_system("what did they say about ZZTA")
     assert "TRADER ARCHIVE" not in system_off and "trader_archive" not in meta_off["grounding_sources"]
     assert system_off == system_on.split(archive_askai.HEADER)[0]            # byte-identical prefix
+
+
+# ── 6. setup playbooks ───────────────────────────────────────────────────────
+
+def test_a_playbook_reads_back_named_and_clipped_and_an_unknown_setup_is_404(wisdom_db, on):
+    _seed()
+    paid = _client(PAID_MEMBER)
+    pb = paid.get("/api/wisdom/archive/playbook/synthetic_setup").json()
+    assert pb["name"].startswith("Synthetic setup") and pb["stats"]["all"]["n_scored"] == 140
+    assert [u["author"] for u in pb["used_by"]] == ["tsdr", "bracco"] and pb["used_by"][0]["trader"]
+    assert pb["teachings"][0]["trader"] and pb["winners"][0]["ticker"] == "ZZTA"
+    from api.services.wisdom.archive import service
+    assert len(pb["teachings"][1]["note"]) <= service.TEACHING_NOTE_CHARS          # clipped, not refused
+    rows = paid.get("/api/wisdom/archive/playbooks").json()["setups"]
+    assert [r["setup_id"] for r in rows] == ["synthetic_setup"] and rows[0]["n_teachings"] == 2
+    missing = paid.get("/api/wisdom/archive/playbook/no_such_setup")
+    assert missing.status_code == 404 and missing.json()["detail"] == "No playbook for that setup"
+
+
+@pytest.mark.parametrize("bad, why", [
+    ({"images": ["a.png"]}, "unknown fields"),
+    ({"used_by": ["somebody_else"]}, "used_by"),
+    ({"stats": {"n": 3, "share_count": 100}}, "unknown stats fields"),
+    ({"teachings": [{"record_id": "t1", "author_id": "not_a_trader", "date": "2025-01-01", "note": "x"}]},
+     "team authors"),
+    ({"winners": [{"call_id": "t1#0", "record_id": "t2", "ticker": "ZZTA", "author_id": "tsdr"}]},
+     "call_id/record_id"),
+    ({"context": {"weather": {}}}, "unknown context groups"),
+    ({"aliases": ["a"] * 41}, "aliases"),
+    ({"setup_id": "Has Spaces"}, "setup_id malformed"),
+])
+def test_the_setup_validator_refuses_what_it_does_not_name(wisdom_db, on, bad, why):
+    c = _client(None)
+    out = c.post(BATCH, json={"kind": "setups", "items": [_playbook(**bad)]}, headers=AUTH).json()
+    assert out["rejected"] == 1 and why in out["errors"][0]["error"], out
+    ok = c.post(BATCH, json={"kind": "setups", "items": [_playbook()]}, headers=AUTH).json()
+    assert ok["inserted"] == 1                                                      # control: valid lands
+
+
+def test_the_batch_names_setups_among_its_kinds(wisdom_db, on):
+    r = _client(None).post(BATCH, json={"kind": "nope", "items": []}, headers=AUTH)
+    assert r.status_code == 422 and "setups" in r.json()["detail"]
+
+
+def test_match_setups_reads_aliases_word_bounded_and_case_sensitive_when_short(wisdom_db, on):
+    _seed()
+    from api.services.wisdom.archive import service
+
+    with store.read() as conn:
+        assert service.match_setups(conn, "is the synthetic setup any good") == ["synthetic_setup"]
+        assert service.match_setups(conn, "what about a SYN today") == ["synthetic_setup"]
+        assert service.match_setups(conn, "syn is lower case so not the alias") == []
+        assert service.match_setups(conn, "synthetics are not a word match") == []
+
+
+def test_ask_ai_carries_one_cited_bounded_playbook_line_when_a_setup_is_named(wisdom_db, on):
+    _seed()
+    text, cites = archive_askai.archive_block("does the synthetic setup work", query_tickers=[])
+    line = text[len(archive_askai.HEADER):].split(" | ")[0]
+    assert line.startswith("[PLAYBOOK · Synthetic setup")
+    assert "140 scored calls" in line and "not proven" in line                     # z 1.4 < 3
+    assert "market downtrend (n 40" in line and "TSDR (n 12" not in line          # n >= 30 only
+    assert "t9102" in line and len(line) <= archive_askai.PLAYBOOK_CHARS
+    pcites = [c for c in cites if c["kind"] == archive_askai.PLAYBOOK_KIND]
+    assert [c["record_id"] for c in pcites] == ["t9102", "t9101"]
+    assert len(text) <= archive_askai.MAX_BLOCK_CHARS
+    plain, _ = archive_askai.archive_block("zzzunmatchedword", query_tickers=[])
+    assert plain == ""                                                             # control: no setup named
+
+
+def test_a_z_of_three_reads_as_a_measured_edge(wisdom_db, on):
+    _seed()
+    c = _client(None)
+    c.post(BATCH, json={"kind": "setups", "items": [_playbook(stats=_stats(500, 0.4, 3.2))]}, headers=AUTH)
+    text, _ = archive_askai.archive_block("synthetic setup", query_tickers=[])
+    assert "measured edge" in text and "not proven" not in text
+
+
+def test_the_playbook_line_is_absent_with_the_flag_off(wisdom_db, on, monkeypatch):
+    _seed()
+    monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "0")
+    assert archive_askai.archive_block("does the synthetic setup work", query_tickers=[]) == ("", [])

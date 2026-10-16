@@ -1,13 +1,15 @@
 """Compass tools over the TSDR trader archive — ONE implementation for chat AND voice.
 
-`trader_archive_search(query)` and `trader_archive_ticker(symbol)` are registered in BOTH
+`trader_archive_search(query)`, `trader_archive_ticker(symbol)` and
+`trader_archive_setup(setup_or_question)` are registered in BOTH
 Compass registries (text chat: coach_chat_tools.TOOLS; voice: voice_tool_impls via
 voice_tools.voice_tool + the voice_agents union/core). Each surface is a thin wrapper over
 the two functions here so the two can never diverge.
 
 ⛔ Gated by WISDOM_ARCHIVE_ENABLED, read PER CALL: off, the tools are hidden from both
 registries and a call that raced a flip is refused, not served. Read-only. Bounded output:
-at most MAX_HITS records (excerpts clipped), at most MAX_CALLS calls.
+at most MAX_HITS records (excerpts clipped), at most MAX_CALLS calls; a playbook carries
+at most MAX_CUTS context cuts, MAX_TEACHINGS teachings and MAX_EXAMPLES winners/failures each.
 """
 from __future__ import annotations
 
@@ -19,11 +21,14 @@ from api.services.wisdom.core import flags
 
 log = logging.getLogger(__name__)
 
-NAMES = ("trader_archive_search", "trader_archive_ticker")
+NAMES = ("trader_archive_search", "trader_archive_ticker", "trader_archive_setup")
 OFF_MESSAGE = "The trader archive isn't available right now."
 MAX_HITS = 6
 MAX_CALLS = 12
 EXCERPT_CHARS = 280
+MAX_CUTS = 4
+MAX_TEACHINGS = 4
+MAX_EXAMPLES = 5
 
 
 def enabled() -> bool:
@@ -102,3 +107,59 @@ def ticker(symbol: str) -> dict:
     return {"ok": True, "symbol": sym, "n_records": len(full.get("records") or []), **summary,
             "recent_posts": recent, "recent_calls": compact_calls, "narration": narration,
             "note": "Historical posts by the UCT team; outcomes measured after the fact; not current advice."}
+
+
+def setup(setup_or_question: str) -> dict:
+    """A setup's playbook: definition, measured record, the contexts it did best and worst in,
+    the traders' teachings (record ids) and its best and worst archived calls."""
+    if not enabled():
+        return {"ok": False, "error": OFF_MESSAGE, "narration": OFF_MESSAGE}
+    q = str(setup_or_question or "").strip()[:200]
+    if not q:
+        return {"ok": False, "error": "Which setup?", "narration": "Which setup?"}
+    from api.services.wisdom.archive import askai, service
+    from api.services.wisdom.core import store
+
+    try:
+        with store.read() as conn:
+            pb = None
+            key = q.lower().replace(" ", "_").replace("-", "_")
+            if re.fullmatch(r"[a-z0-9_]{1,60}", key):
+                pb = service.playbook(conn, key)
+            if pb is None:
+                for sid in service.match_setups(conn, q, limit=1):
+                    pb = service.playbook(conn, sid)
+            if pb is None:
+                names = [r["name"] for r in service.playbooks(conn)["setups"][:8]]
+    except Exception as exc:  # noqa: BLE001
+        log.exception("[wisdom] trader_archive_setup failed")
+        return {"ok": False, "error": f"archive unavailable: {exc}"}
+    if pb is None:
+        msg = "No setup playbook matches that." + (f" Some setups: {', '.join(names)}." if names else "")
+        return {"ok": False, "error": msg, "narration": msg}
+    cuts = []
+    for group, rows in (pb.get("context") or {}).items():
+        for value, st in (rows or {}).items():
+            if (st or {}).get("n_scored", 0) >= askai.MIN_CONTEXT_N and st.get("mean_edgeR") is not None:
+                cuts.append({"group": group, "value": value, "n_scored": st["n_scored"],
+                             "edge_R": st["mean_edgeR"], "win20": st.get("win20")})
+    cuts.sort(key=lambda c: -c["edge_R"])
+    half = MAX_CUTS // 2
+    best_ctx, worst_ctx = cuts[:half], [c for c in cuts[::-1][:half] if c not in cuts[:half]]
+
+    def ex(rows):
+        return [{**{k: e.get(k) for k in ("call_id", "record_id", "ticker", "posted", "direction", "action",
+                                           "evidence", "r20", "sim_R", "regime")},
+                 "trader": _trader(e.get("author_id"))} for e in (rows or [])[:MAX_EXAMPLES]]
+
+    line, _ = askai.format_playbook(pb)
+    return {"ok": True, "setup_id": pb["setup_id"], "name": pb["name"], "aliases": pb.get("aliases") or [],
+            "used_by": [_trader(a) for a in pb.get("used_by") or []],
+            "stats": (pb.get("stats") or {}).get("all") or {},
+            "best_context": best_ctx, "worst_context": worst_ctx,
+            "teachings": [{**{k: t.get(k) for k in ("record_id", "date")}, "trader": _trader(t.get("author_id")),
+                           "note": t.get("note")} for t in (pb.get("teachings") or [])[:MAX_TEACHINGS]],
+            "winners": ex(pb.get("winners")), "failures": ex(pb.get("failures")),
+            "narration": line or f"{pb['name']}: no scored calls yet.",
+            "note": ("Measured across all archived calls of this setup; edge = versus the same stock on a "
+                     "random day, proven only at |z| >= 3. Historical, not current advice.")}
