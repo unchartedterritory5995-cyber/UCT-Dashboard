@@ -8,47 +8,87 @@ vi.mock('../../hooks/useLivePrices', () => ({ default: () => ({ prices: live.pri
 const market = { isOpen: true, isPremarket: false, isExtended: false }
 vi.mock('../../hooks/useMarketOpen', () => ({ default: () => market }))
 
-import SecurityHeadline, { fmtEarnings, fmtPct, headlineKey, sessionClause, volRatio } from './SecurityHeadline'
+import SecurityHeadline, { fmtEarnings, fmtPct, headlineKey, headlineRvol, sessionClause } from './SecurityHeadline'
+
+// RVOL is "volume vs usual by this time of day" (lib/volumeCurve.js), from ONE
+// /api/screener/volume-curve?tickers=SYM request. The clock is pinned to 10:42 ET on the
+// payload's session day, 72 minutes in: the market curve's share is 72/390, NVDA's own
+// (front-loaded) curve's is 14.4/39.
+const LINEAR = Array.from({ length: 391 }, (_, m) => m / 390)
+const FRONT_KNOTS = Array.from({ length: 79 }, (_, k) => Math.min(1, k / 39))
+const curvePayload = (ticker_knots = {}) => ({
+  curve: LINEAR, session: { date: '2026-08-24', open_min: 570, close_min: 960 },
+  suppress_first_min: 15, full_session_min: 390, bar_min: 5, ticker_knots,
+})
+const AT_1042 = new Date('2026-08-24T14:42:00Z')
+const curve = { knots: {} }
+const isCurve = (u) => String(u).startsWith('/api/screener/volume-curve')
 
 let fetchMock
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(AT_1042)
   live.prices = {}
+  curve.knots = {}
   Object.assign(market, { isOpen: true, isPremarket: false, isExtended: false })
   fetchMock = vi.fn(async (url, init) => {
+    if (isCurve(url)) return { ok: true, json: async () => curvePayload(curve.knots) }
     const { tickers } = JSON.parse(init.body)
     const out = {}
     for (const t of tickers) {
       out[t] = t === 'ZZZQ'
-        ? { name: null, next_earnings: null, avg_vol_20d: null }
-        : { name: `${t} Corp`, next_earnings: '2099-11-19', avg_vol_20d: 1_000_000 }
+        ? { name: null, next_earnings: null, avg_vol_20d: null, avg_vol_30d: null }
+        : { name: `${t} Corp`, next_earnings: '2099-11-19', avg_vol_20d: 1_000_000, avg_vol_30d: 2_000_000 }
     }
     return { ok: true, json: async () => out }
   })
   globalThis.fetch = fetchMock
 })
-afterEach(() => { cleanup(); vi.restoreAllMocks() })
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks() })
 
 const fresh = (ui) => render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 60000 }}>{ui}</SWRConfig>)
 
 describe('SecurityHeadline', () => {
-  it('shows price, % change, volume vs average and the next earnings date', async () => {
-    live.prices = { NVDA: { price: 182.4, change_pct: 3.1, volume: 2_400_000 } }
+  it('shows price, % change, RVOL (volume vs usual by now) and the next earnings date', async () => {
+    live.prices = { NVDA: { price: 182.4, change_pct: 3.1, volume: 3_000_000 } }
     fresh(<SecurityHeadline sym="nvda" />)
     expect(screen.getByTestId('security-headline-price').textContent).toBe('182.40')
     expect(screen.getByTestId('security-headline-pct').textContent).toContain('+3.10%')
-    await waitFor(() => expect(screen.getByTestId('security-headline-vol').textContent).toContain('2.4× avg'))
+    // 3e6 / (2e6 x 72/390) = 8.13 -> "8.1x". The old raw 20-day ratio read "3.0x avg".
+    await waitFor(() => expect(screen.getByTestId('security-headline-vol').textContent).toBe('· RVOL 8.1x'))
+    expect(screen.getByTestId('security-headline-vol').getAttribute('title')).toBe('Volume vs usual by this time of day')
     expect(screen.getByTestId('security-headline-earn').textContent).toContain('Thu Nov 19')
     expect(screen.getByTestId('security-headline').getAttribute('data-state')).toBe('live')
     expect(screen.queryByTestId('security-headline-session')).toBeNull()
   })
 
-  it('two panels on the same ticker make ONE snapshot request (shared SWR key)', async () => {
+  it('two panels on the same ticker make ONE snapshot request and ONE curve request (shared SWR keys)', async () => {
     live.prices = { NVDA: { price: 1, change_pct: 0 } }
     fresh(<><SecurityHeadline sym="NVDA" /><SecurityHeadline sym="NVDA" /></>)
     await waitFor(() => expect(screen.getAllByTestId('security-headline-earn')).toHaveLength(2))
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/research/snapshot-batch')
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([u]) => isCurve(u))).toHaveLength(1))
+    const snaps = fetchMock.mock.calls.filter(([u]) => !isCurve(u))
+    expect(snaps).toHaveLength(1)
+    expect(snaps[0][0]).toBe('/api/research/snapshot-batch')
+    expect(fetchMock.mock.calls.find(([u]) => isCurve(u))[0]).toBe('/api/screener/volume-curve?tickers=NVDA')
     expect(headlineKey('nvda')).toEqual(headlineKey('NVDA'))
+  })
+
+  it("uses the symbol's OWN curve when the payload carries one", async () => {
+    curve.knots = { NVDA: FRONT_KNOTS }
+    live.prices = { NVDA: { price: 182.4, change_pct: 3.1, volume: 3_000_000 } }
+    fresh(<SecurityHeadline sym="NVDA" />)
+    // 3e6 / (2e6 x 14.4/39) = 4.06 -> "4.1x"
+    await waitFor(() => expect(screen.getByTestId('security-headline-vol').textContent).toBe('· RVOL 4.1x'))
+  })
+
+  it('RVOL is blank before 09:45 ET', async () => {
+    vi.setSystemTime(new Date('2026-08-24T13:44:00Z'))
+    live.prices = { NVDA: { price: 182.4, change_pct: 3.1, volume: 3_000_000 } }
+    fresh(<SecurityHeadline sym="NVDA" />)
+    await waitFor(() => expect(screen.getByTestId('security-headline-earn')).toBeTruthy())
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => isCurve(u))).toBe(true))
+    expect(screen.queryByTestId('security-headline-vol')).toBeNull()
   })
 
   it('a closed market is labelled "at last close" and greyed', () => {
@@ -85,9 +125,11 @@ describe('headline formatting', () => {
     expect(fmtEarnings('2026-11-20T01:00:00Z', now)).toBe('Thu Nov 19')
     expect(fmtEarnings('garbage', now)).toBeNull()
   })
-  it('volume ratio and percent', () => {
-    expect(volRatio(2_400_000, 1_000_000)).toBe('2.4×')
-    expect(volRatio(5, 0)).toBeNull()
+  it('RVOL and percent', () => {
+    const p = curvePayload()
+    expect(headlineRvol(p, 'NVDA', 3_000_000, 2_000_000, AT_1042)).toBe('8.1x')
+    expect(headlineRvol(p, 'NVDA', 3_000_000, 0, AT_1042)).toBeNull()
+    expect(headlineRvol(null, 'NVDA', 3_000_000, 2_000_000, AT_1042)).toBeNull()
     expect(fmtPct(0)).toBe('0.00%')
   })
   it('session clause', () => {

@@ -1431,3 +1431,121 @@ def test_the_share_is_read_ONCE_per_sweep_not_per_row(live_env, monkeypatch):
                         lambda: reads.append(1) or real())
     r = live_tier.run_sweep()
     assert r["rows_written"] == 5 and len(reads) == 1
+
+
+# --------------------------------------------------------------------------- #
+# APPROACH B — the ticker's OWN curve, read ONCE per sweep (2026-10-15)
+# --------------------------------------------------------------------------- #
+
+#: A front-loaded per-ticker curve: twice the linear pace, capped at 1.0. At 10:42
+#: (72 minutes in = knot 14.4) its share is 14.4/39, against the market's 72/390.
+FRONT_KNOTS = [min(1.0, k / 39) for k in range(volume_curve.BARS_PER_SESSION + 1)]
+
+
+def _with_ticker_curves(rows):
+    volume_curve.store(LINEAR_CURVE, first_session=20260727, last_session=20260821,
+                       sessions=20, tickers=300, samples=6000, ticker_curves=rows)
+
+
+def test_rvol_live_uses_the_tickers_OWN_curve_over_the_market_curve(live_env,
+                                                                     monkeypatch):
+    """AAA has its own (front-loaded) curve, BBB does not. 1e6 by 10:42 against a
+    2e6/day stock: AAA divides by 2e6 * 14.4/39 = 1.35; BBB by the market's
+    2e6 * 72/390 = 2.71."""
+    _with_ticker_curves([("AAA", 20, FRONT_KNOTS)])
+    snapshot_db.upsert_rows([_nightly_row("AAA"), _nightly_row("BBB")])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0, vol=1_000_000),
+                        "BBB": _quote(last=110.0, vol=1_000_000)})
+    r = live_tier.run_sweep()
+    assert _overlay("AAA")["rvol_live"] == 1.35
+    assert _overlay("BBB")["rvol_live"] == 2.71
+    assert r["volume_share"] == pytest.approx(72 / 390)       # the market's, named
+    assert r["ticker_shares"] == 1 and r["rows_on_ticker_curve"] == 1
+    assert r["cols_recomputed_by_column"]["rvol_live"] == 2
+    assert "rvol_live" in live_tier.live_columns_effective()
+
+
+def test_a_name_without_its_own_curve_reads_the_market_share_exactly(live_env,
+                                                                    monkeypatch):
+    """The control for the test above: with no per-ticker rows, AAA is 2.71 too."""
+    snapshot_db.upsert_rows([_nightly_row("AAA")])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0, vol=1_000_000)})
+    r = live_tier.run_sweep()
+    assert _overlay("AAA")["rvol_live"] == 2.71
+    assert r["ticker_shares"] == 0 and r["rows_on_ticker_curve"] == 0
+
+
+def test_a_tickers_own_curve_is_BLANK_before_0945_too(live_env, monkeypatch):
+    _with_ticker_curves([("AAA", 20, FRONT_KNOTS)])
+    snapshot_db.upsert_rows([_nightly_row("AAA")])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0, vol=1_000_000)})
+    _at(monkeypatch, 9, 40)
+    r = live_tier.run_sweep()
+    assert r["rows_written"] == 1 and r["ticker_shares"] == 0
+    assert _overlay("AAA")["rvol_live"] is None
+    assert "rvol_live" in r["columns_not_recomputed"]
+    _at(monkeypatch, 9, 46)                                    # control
+    r = live_tier.run_sweep()
+    assert _overlay("AAA")["rvol_live"] is not None and r["rows_on_ticker_curve"] == 1
+
+
+def test_no_market_curve_blanks_a_tickers_own_curve_too(live_env, monkeypatch):
+    """One blank, whichever curve a name would have read: an unreadable market curve
+    is not answered for half the universe."""
+    _with_ticker_curves([("AAA", 20, FRONT_KNOTS)])
+    monkeypatch.setattr(volume_curve, "latest_curve", lambda: None)
+    snapshot_db.upsert_rows([_nightly_row("AAA")])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0, vol=1_000_000)})
+    r = live_tier.run_sweep()
+    assert r["volume_share"] is None and r["ticker_shares"] == 0
+    assert _overlay("AAA")["rvol_live"] is None
+
+
+def test_the_per_ticker_shares_are_read_ONCE_per_sweep_not_per_row(live_env,
+                                                                  monkeypatch):
+    _with_ticker_curves([(f"T{i}", 20, FRONT_KNOTS) for i in range(5)])
+    snapshot_db.upsert_rows([_nightly_row(f"T{i}") for i in range(5)])
+    _feed(monkeypatch, {f"T{i}": _quote(last=110.0) for i in range(5)})
+    reads = []
+    real = volume_curve.ticker_knots
+    monkeypatch.setattr(volume_curve, "ticker_knots",
+                        lambda: reads.append(1) or real())
+    r = live_tier.run_sweep()
+    assert r["rows_written"] == 5 and r["rows_on_ticker_curve"] == 5
+    assert len(reads) == 1
+
+
+def _curve_calls(fn_node):
+    return {n.func.attr for n in ast.walk(fn_node)
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+            and getattr(n.func.value, "id", None) == "volume_curve"}
+
+
+def _named_calls(fn_node):
+    return {n.func.id for n in ast.walk(fn_node)
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+
+
+def test_no_per_row_curve_read_by_AST():
+    """⛔ The per-row path (`_sweep_locked`, `derive_row`) may reach `volume_curve` for
+    arithmetic only (`rvol`), and may never call the per-sweep readers. The readers
+    are called from `run_sweep`, once."""
+    import inspect
+    tree = ast.parse(inspect.getsource(live_tier))
+    fns = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    for name in ("_sweep_locked", "derive_row"):
+        assert _curve_calls(fns[name]) <= {"rvol"}, name
+        assert not (_named_calls(fns[name]) & {"_volume_share", "_ticker_shares"}), name
+    assert {"_volume_share", "_ticker_shares"} <= _named_calls(fns["run_sweep"])
+    assert _curve_calls(fns["_ticker_shares"]) == {"ticker_live_shares"}
+
+
+def test_the_per_row_probe_control_sees_a_planted_read():
+    planted = ast.parse(chr(10).join([
+        "def _sweep_locked(r):",
+        "    for row in r:",
+        "        volume_curve.ticker_live_shares(now)",
+        "        _ticker_shares(now)",
+    ])).body[0]
+    assert _curve_calls(planted) == {"ticker_live_shares"}
+    assert "_ticker_shares" in _named_calls(planted)
