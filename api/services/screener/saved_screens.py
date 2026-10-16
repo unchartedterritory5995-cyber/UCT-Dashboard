@@ -357,26 +357,28 @@ def pattern_presets_enabled() -> bool:
     return os.environ.get(PATTERN_PRESETS_FLAG, "0").strip() == "1"
 
 #: Member-facing one-liners for the pattern presets, keyed by detector id. Each says only what
-#: the preset filters for: the engine detected that pattern on the stock.
+#: the preset filters for: the pattern ENGINE detected that pattern on the stock. It names the
+#: engine because the base read on each row's setup line is a different detector that shares
+#: some of these names ("scanner" said neither).
 PATTERN_DESCRIPTIONS = {
-    "cup_handle": "Stocks with a cup and handle the scanner detected",
-    "ascending_triangle": "Stocks with an ascending triangle the scanner detected",
-    "symmetrical_triangle": "Stocks with a symmetrical triangle the scanner detected",
-    "descending_triangle": "Stocks with a descending triangle the scanner detected",
-    "bull_flag": "Stocks with a bull flag the scanner detected",
-    "bear_flag": "Stocks with a bear flag the scanner detected",
-    "pennant": "Stocks with a pennant the scanner detected",
-    "falling_wedge": "Stocks with a falling wedge the scanner detected",
-    "rising_wedge": "Stocks with a rising wedge the scanner detected",
-    "double_bottom": "Stocks with a double bottom the scanner detected",
-    "double_top": "Stocks with a double top the scanner detected",
-    "triple_bottom": "Stocks with a triple bottom the scanner detected",
-    "triple_top": "Stocks with a triple top the scanner detected",
-    "inverse_head_shoulders": "Stocks with an inverse head and shoulders the scanner detected",
-    "head_shoulders": "Stocks with a head and shoulders the scanner detected",
-    "rounded_base": "Stocks with a rounded base the scanner detected",
-    "rectangle": "Stocks trading in a rectangle the scanner detected",
-    "channel": "Stocks trading in a channel the scanner detected",
+    "cup_handle": "Stocks with a cup and handle the pattern engine detected",
+    "ascending_triangle": "Stocks with an ascending triangle the pattern engine detected",
+    "symmetrical_triangle": "Stocks with a symmetrical triangle the pattern engine detected",
+    "descending_triangle": "Stocks with a descending triangle the pattern engine detected",
+    "bull_flag": "Stocks with a bull flag the pattern engine detected",
+    "bear_flag": "Stocks with a bear flag the pattern engine detected",
+    "pennant": "Stocks with a pennant the pattern engine detected",
+    "falling_wedge": "Stocks with a falling wedge the pattern engine detected",
+    "rising_wedge": "Stocks with a rising wedge the pattern engine detected",
+    "double_bottom": "Stocks with a double bottom the pattern engine detected",
+    "double_top": "Stocks with a double top the pattern engine detected",
+    "triple_bottom": "Stocks with a triple bottom the pattern engine detected",
+    "triple_top": "Stocks with a triple top the pattern engine detected",
+    "inverse_head_shoulders": "Stocks with an inverse head and shoulders the pattern engine detected",
+    "head_shoulders": "Stocks with a head and shoulders the pattern engine detected",
+    "rounded_base": "Stocks with a rounded base the pattern engine detected",
+    "rectangle": "Stocks trading in a rectangle the pattern engine detected",
+    "channel": "Stocks trading in a channel the pattern engine detected",
 }
 
 
