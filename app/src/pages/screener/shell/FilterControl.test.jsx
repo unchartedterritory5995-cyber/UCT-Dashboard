@@ -64,8 +64,9 @@ describe('FilterControl', () => {
 })
 
 // The misreading happens when a member picks a THRESHOLD, not only when they
-// read a cell — so the same `columnDefs.desc` has to reach the rail. `meta()`
-// ships no description of its own; the join is filter.key → COLUMN_DEFS[key].
+// read a cell — so the same `columnDefs.desc` has to reach the rail. A filter
+// whose `meta()` entry carries a `description` shows that; otherwise the join is
+// filter.key → COLUMN_DEFS[key].
 const DP = { key: 'dp_notional_1d', label: 'Dark Pool Block Notional (1d)',
   type: 'range', allow_custom: true, presets: [{ label: 'Any' }], unit: '$' }
 const infoButtons = () => screen.queryAllByRole('button', { name: /^What .+ means$/ })
@@ -259,5 +260,43 @@ describe('FilterControl — column description surface', () => {
 
     render(<FilterControl filter={DP} value={null} onChange={() => {}} />)
     expect(infoButtons().map(b => b.dataset.coldesc)).toEqual(['dp_notional_1d'])
+  })
+})
+
+// `api/services/screener/filters.py` ships a `description` on some filters
+// (pattern_engine_id first). The info popover must show THAT text, in both the
+// old page's select row and the Focus drawer's buttons layout, and fall back to
+// COLUMN_DEFS when the filter carries none.
+describe('FilterControl — a meta description reaches the info popover', () => {
+  const META_DESC = 'Screens on the pattern ENGINE label the row carries today.'
+  const PAT = { key: 'pattern_engine_id', label: 'Pattern Engine', type: 'enum',
+    presets: [{ label: 'Any' }], description: META_DESC }
+
+  it.each(['select', 'buttons'])('%s presentation shows the filter meta description', async (presentation) => {
+    const user = userEvent.setup()
+    expect(COLUMN_DEFS.pattern_engine_id?.desc).toBeUndefined() // only the meta text can be shown
+    render(<FilterControl filter={PAT} value={null} onChange={() => {}} presentation={presentation} />)
+    await user.click(screen.getByRole('button', { name: 'What Pattern Engine means' }))
+    expect(screen.getByRole('note')).toHaveTextContent(META_DESC)
+  })
+
+  it('the meta description wins over a COLUMN_DEFS desc for the same key', async () => {
+    const user = userEvent.setup()
+    render(<FilterControl filter={{ ...DP, description: META_DESC }} value={null} onChange={() => {}} />)
+    await user.click(screen.getByRole('button', { name: 'What Dark Pool Block Notional (1d) means' }))
+    expect(screen.getByRole('note')).toHaveTextContent(META_DESC)
+    expect(screen.getByRole('note')).not.toHaveTextContent(COLUMN_DEFS.dp_notional_1d.desc)
+  })
+
+  it.each(['select', 'buttons'])('%s presentation with no meta description falls back to COLUMN_DEFS', async (presentation) => {
+    const user = userEvent.setup()
+    render(<FilterControl filter={{ ...DP, description: '  ' }} value={null} onChange={() => {}} presentation={presentation} />)
+    await user.click(screen.getByRole('button', { name: 'What Dark Pool Block Notional (1d) means' }))
+    expect(screen.getByRole('note')).toHaveTextContent(COLUMN_DEFS.dp_notional_1d.desc)
+  })
+
+  it('no meta description and no COLUMN_DEFS desc still grows no affordance', () => {
+    render(<FilterControl filter={{ ...PAT, description: undefined }} value={null} onChange={() => {}} />)
+    expect(infoButtons()).toHaveLength(0)
   })
 })
