@@ -27,6 +27,8 @@
  * file) is `api/services/journal_two/notebook_schema.py`.
  */
 import { useLayoutEffect, useSyncExternalStore } from 'react'
+import { Extension } from '@tiptap/core'
+import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { SCHEMA_REFUSAL_DETAIL } from './notebookSchema'
 
 /**
@@ -209,7 +211,16 @@ export function replaceDocument(editor, json, options) {
  * ⚠️ The member's own whole-document replace (select all, then type or delete) is
  * answered true as well — the safe direction, it only returns that Undo to the
  * conservative containment test.
- * Rail: `lib/offline/ordinaryUndoNoPin.test.jsx` (and every swap's own shape).
+ * ⛔⛔ COUPLING (review I-1, offline-undo fix round 1): the shape is only exact
+ * while EVERY doc change in this editor goes into history. prosemirror-history maps
+ * an undone step through changes it never recorded, so a swap's inverse mapped past
+ * a block inserted with `addToHistory: false` covers the doc MINUS that block
+ * (`to = 18` on a doc of 19, measured) and this answers false. So this is never
+ * asked alone: `undoCrossesSwap` below also asks `historyIsComplete`, which turns
+ * false for the life of the editor at the first step-carrying non-history
+ * transaction, and every undo and redo after it is then treated as a crossing.
+ * Rail: `lib/offline/ordinaryUndoNoPin.test.jsx` (and every swap's own shape; (f)
+ * for the coupling).
  */
 export function replacesWholeDocument(tr) {
   if (!tr || !Array.isArray(tr.steps)) return false
@@ -218,6 +229,57 @@ export function replacesWholeDocument(tr) {
     // A replace step carries a `slice`; a mark or attribute step does not.
     return Boolean(before && step?.slice && step.from === 0 && step.to === before.content.size)
   })
+}
+
+/**
+ * ⭐⭐ REVIEW I-1 — HAS EVERY DOC CHANGE IN THIS EDITOR GONE INTO HISTORY?
+ *
+ * A plugin whose state starts true and turns false, for good, at the first applied
+ * transaction that CHANGES THE DOCUMENT with `addToHistory: false` — the one meta
+ * prosemirror-history skips a transaction on. Plugin state sees every applied
+ * transaction, appended ones included, so no dispatch path is missed.
+ * ⛔ A step-less one (focus, blur, the code highlighter's ready flag) changes
+ * nothing history could later map through, so it does not count.
+ *
+ * ⭐ WHY DEGRADE INSTEAD OF REFUSING THE TRANSACTION: refusing a non-history doc
+ * change would make it silently vanish — and the change that tempts it next is a
+ * door's appended block (the reconcile merge, review C-1), whose vanishing a later
+ * save would carry to the server. Degrading costs only over-rotation: the view
+ * returns to round 1's rotate-on-every-undo, which can pin the record (a duplicate,
+ * never a loss). It warns in the console when it trips, and (f) in
+ * `ordinaryUndoNoPin.test.jsx` rails both the trip and the step-less control. ⚠️ A
+ * feature that adds a non-history doc change on an ordinary path would bring the
+ * pinning back for every view it touches — the warning is how that shows.
+ */
+export const historyCompleteKey = new PluginKey('uctHistoryComplete')
+export const HistoryCompleteWatch = Extension.create({
+  name: 'uctHistoryCompleteWatch',
+  addProseMirrorPlugins() {
+    return [new Plugin({
+      key: historyCompleteKey,
+      state: {
+        init: () => true,
+        apply: (tr, complete) => {
+          if (!complete || !tr.docChanged || tr.getMeta('addToHistory') !== false) return complete
+          // eslint-disable-next-line no-console
+          console.warn('[notebook] a document change outside history: from here every Undo/Redo of this view is treated as crossing a swap (noteContentGuard.js, review I-1)')
+          return false
+        },
+      },
+    })]
+  },
+})
+
+/** True only while the watch is installed and has seen no doc change outside
+ *  history. ⛔ An editor without the watch answers false: unknown is not complete. */
+export function historyIsComplete(state) {
+  return historyCompleteKey.getState(state) === true
+}
+
+/** ⭐ The ONE question the editor asks of an undo or redo: does it cross a
+ *  whole-view swap, so its capture must take a new edit lineage? */
+export function undoCrossesSwap(tr, state) {
+  return !historyIsComplete(state) || replacesWholeDocument(tr)
 }
 
 function subscribe(fn) {

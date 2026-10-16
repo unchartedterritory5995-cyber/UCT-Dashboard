@@ -112,7 +112,7 @@ import { refreshEvidenceCandidates } from '../../hooks/useEvidenceCandidates'
 import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import {
-  noteContentGuardOptions, replaceDocument, replacesWholeDocument, isUnreadable, useUnreadableNote,
+  noteContentGuardOptions, replaceDocument, undoCrossesSwap, HistoryCompleteWatch, isUnreadable, useUnreadableNote,
 } from '../../lib/noteContentGuard'
 import {
   OWN_READ, bodyWrittenSchema, isSchemaRefusal, writtenSchemaOf,
@@ -2834,7 +2834,10 @@ export default function NoteEditorPage({
   )
 
   const editor = useEditor({
-    extensions: buildExtensions(),
+    // ⭐ Review I-1: `HistoryCompleteWatch` is what keeps the Undo crossing
+    // detector honest (`undoCrossesSwap`, noteContentGuard.js) — ONLY this editor
+    // carries an edit lineage, so only this editor needs it.
+    extensions: [...buildExtensions(), HistoryCompleteWatch],
     // ⛔ S1/H14: content the schema cannot read LOCKS the editor instead of
     // opening it empty (noteContentGuard.js) -- the empty stand-in is what the
     // next save used to write over the note.
@@ -2962,7 +2965,12 @@ export default function NoteEditorPage({
     // rotates only when it crosses one: when it replaces the whole document (every
     // `replaceDocument` swap is one whole-document replace step, and so are its
     // Undo and its Redo — `replacesWholeDocument`; a crash-draft Restore is one of
-    // those swaps). Any other undo or redo is the member editing this view and
+    // those swaps), or when a doc change OUTSIDE history has made that shape
+    // unreliable for the rest of this view (`historyIsComplete`, review I-1: both
+    // asked through `undoCrossesSwap`). ⚠️ An Undo or Redo of the member's own
+    // select-all replace or delete is a whole-document step too, so it still reads
+    // as a crossing and pins the record (the safe direction: a duplicate, never a
+    // loss). Any other undo or redo is the member editing this view and
     // supersedes like a keystroke — including a further Undo of the old view's own
     // typing past a Restore, as the I-A note above already rules ("removing it is
     // the member's edit"). ⚰️ Rotating also whenever `noteRestoreCrossing` fired
@@ -2972,11 +2980,11 @@ export default function NoteEditorPage({
     // ⭐ I-A (2026-10-16): an undo or redo across a crash-draft Restore first
     // writes the page it is leaving (`noteRestoreCrossing`), under the lineage
     // that page had — so it is taken BEFORE the rotation.
-    onUpdate: ({ transaction }) => {
+    onUpdate: ({ editor: ed, transaction }) => {
       if (lockedRef.current) return
       if (transaction && isHistoryTransaction(transaction)) {
         noteRestoreCrossing(transaction)
-        if (replacesWholeDocument(transaction)) viewReplaced()
+        if (undoCrossesSwap(transaction, ed.state)) viewReplaced()
       }
       scheduleAutosaveRef.current()
     },
