@@ -1096,3 +1096,45 @@ def test_a_flagged_name_is_told_it_was_flagged_end_to_end(db, world):
     world["sets"], world["paid"] = {"u1": {"HOOD": ["watchlist", "flagged"]}}, {"u1"}
     _, sent = ring(db, at(date(2026, 10, 15)))
     assert len(sent) == 1 and "You flagged it." in sent[0][2] and "watchlist" not in sent[0][2]
+
+
+# ── final fix C, M5: a slot freed by a failed delivery is not refilled inside the same pass ──────────────────────────
+
+def test_a_failed_delivery_does_not_hand_its_slot_to_a_smaller_move(db, world):
+    """Ranks AAA > BBB > CCC > DDD, a cap of three, AAA's bell raises. This pass rings BBB and CCC only: DDD does not
+    take AAA's freed slot (it is over the cap, so recorded capped, which is final). The next pass rings AAA."""
+    names = ("AAA", "BBB", "CCC", "DDD")
+    world["reports"] = {"2026-10-15": {s: "bmo" for s in names}}
+    world["sets"], world["paid"] = {"u1": {s: ["watchlist"] for s in names}}, {"u1"}
+    world["reactions"] = {"AAA": 9.0, "BBB": 5.0, "CCC": 3.0, "DDD": 1.0}
+    sent = []
+
+    def flaky(uid, title, message, data):
+        if data["symbol"] == "AAA":
+            raise RuntimeError("bell down")
+        sent.append(data["symbol"])
+    d15 = date(2026, 10, 15)
+    first = ef.run_followups(now=at(d15, 16, 45), pass_label="16:45", conn=db, deliver=flaky)
+    assert sent == ["BBB", "CCC"] and first["failed"] == 1 and first["delivered"] == 2 and first["capped"] == 1
+    status = dict(tuple(r) for r in db.execute("SELECT symbol, status FROM j2_earnings_followup_log").fetchall())
+    assert status == {"BBB": "sent", "CCC": "sent", "DDD": "capped"}            # AAA's claim released for a retry
+    second, again = ring(db, at(d15, 18), pass_label="18:00")
+    assert _symbols(again) == ["AAA"] and second["delivered"] == 1
+    assert db.execute("SELECT COUNT(*) FROM j2_earnings_followup_log WHERE status = 'sent'").fetchone()[0] == 3
+
+
+def test_a_failure_for_one_member_does_not_shrink_another_members_cap(db, world):
+    names = ("AAA", "BBB", "CCC")
+    world["reports"] = {"2026-10-15": {s: "bmo" for s in names}}
+    world["sets"] = {"u1": {s: ["watchlist"] for s in names}, "u2": {s: ["watchlist"] for s in names}}
+    world["paid"] = {"u1", "u2"}
+    world["reactions"] = {"AAA": 9.0, "BBB": 5.0, "CCC": 3.0}
+    sent = []
+
+    def flaky(uid, title, message, data):
+        if uid == "u1" and data["symbol"] == "AAA":
+            raise RuntimeError("bell down")
+        sent.append((uid, data["symbol"]))
+    ef.run_followups(now=at(date(2026, 10, 15)), conn=db, deliver=flaky)
+    assert [s for u, s in sent if u == "u2"] == ["AAA", "BBB", "CCC"]
+    assert [s for u, s in sent if u == "u1"] == ["BBB", "CCC"]

@@ -19,7 +19,9 @@ THE RULES (R-T2B-1..6, 10):
   day) would otherwise be offered on neither. The claim table's primary key, (member, symbol, report date),
   is what makes the second sight a no-op, so a report is offered exactly once however many days see it.
 * CLAIM, THEN DELIVER (note_tasks' idiom): ONE atomic INSERT claims AND enforces DAILY_CAP per member
-  per session day; a delivery that raises releases its claim.
+  per session day; a delivery that raises releases its claim, and the slot it frees is NOT refilled in the same
+  pass (final fix C, M5: a smaller move must not take it and leave the bigger one capped for good); the next pass
+  retries in rank order.
 * Inside the cap: largest |reaction| first, an unmeasured one last (a move counts only when MEASURED: the reacting
   session's close + 30 minutes had passed when UCT read it, followup_prefill.measured_move), then by symbol. The rest are
   counted (`capped`) and RECORDED in the claim table with status 'capped': capped is FINAL, the same
@@ -334,9 +336,13 @@ def notice_copy(symbol: str, report_date: date, sources: list[str]) -> tuple[str
 
 
 def _offer(conn, uid: str, sym: str, report_date: str, day: date, sources: list[str], deliver,
-           result: dict) -> None:
+           result: dict, cap: int | None = None) -> bool:
+    """Claim, then deliver, one name. True when the DELIVERY failed (its claim is released for a later pass).
+    `cap` is the cap this claim may fill (DAILY_CAP less the deliveries that already failed for this member in
+    this pass, final fix C, M5)."""
+    cap = DAILY_CAP if cap is None else cap
     stamp = datetime.now(tz=ET).isoformat(timespec="seconds")
-    cur = conn.execute(_CLAIM, (uid, sym, report_date, day.isoformat(), stamp, uid, day.isoformat(), DAILY_CAP))
+    cur = conn.execute(_CLAIM, (uid, sym, report_date, day.isoformat(), stamp, uid, day.isoformat(), cap))
     conn.commit()
     if cur.rowcount == 0:
         held = conn.execute("SELECT status FROM j2_earnings_followup_log WHERE user_id = ? AND symbol = ?"
@@ -346,7 +352,7 @@ def _offer(conn, uid: str, sym: str, report_date: str, day: date, sources: list[
             conn.commit()
         result["capped" if held is None or held[0] == "capped"
                else ("already_sent" if held[0] == "sent" else "in_flight")] += 1
-        return
+        return False
     title, message = notice_copy(sym, date.fromisoformat(report_date), sources)
     data = {"source": FOLLOWUP_SOURCE, "research_url": followup_url(sym, report_date), "symbol": sym,
             "reportDate": report_date, "sessionDay": day.isoformat(), "sources": list(sources)}
@@ -357,11 +363,12 @@ def _offer(conn, uid: str, sym: str, report_date: str, day: date, sources: list[
                      " AND status = 'claimed'", (uid, sym, report_date))
         conn.commit()
         result["failed"] += 1
-        return
+        return True
     conn.execute("UPDATE j2_earnings_followup_log SET status = 'sent' WHERE user_id = ? AND symbol = ?"
                  " AND report_date = ?", (uid, sym, report_date))
     conn.commit()
     result["delivered"] += 1
+    return False
 
 
 def _record_run(conn, result: dict, when: datetime) -> None:
@@ -419,8 +426,10 @@ def _scan(conn, day: date, deliver, result: dict, when: datetime | None = None) 
         _warm(reactions, mine, reports, clock, result)
         order = sorted(mine, key=lambda s: (reactions[s] is None, -abs(reactions[s] or 0.0), s))
         try:
+            failed_here = 0           # M5: a slot a failed delivery frees is not refilled in this pass
             for s in order:
-                _offer(conn, uid, s, reports[s], day, mine[s], deliver, result)
+                failed_here += _offer(conn, uid, s, reports[s], day, mine[s], deliver, result,
+                                      cap=DAILY_CAP - failed_here)
         except Exception:  # noqa: BLE001 -- e.g. a locked database on the claim: this member only
             try:
                 conn.rollback()
