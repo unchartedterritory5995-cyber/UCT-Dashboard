@@ -2780,6 +2780,18 @@
       "note": "ARMED on web 2026-10-16 15:12Z (owner-run single --set of six flags; deploy 2dfda105 SUCCESS, fresh boot uptime 35s, /api/health ok). Set earlier 2026-10-16 by the owner for the archive import; read back =1 alongside the six. PRIOR: MEMBER-VISIBLE when on: the TSDR trader archive (wisdom_archive_* tables in wisdom.db, filled by tools/wisdom/archive_import.py through the push-secret POST /api/internal/wisdom/archive/batch). Paid members read GET /api/wisdom/archive/{ticker/{sym},setup/{setup},search,stats,trader/{author}} (require_paid, never anonymous); admins keep /api/admin/wisdom/archive (require_admin). Consumers: Ask AI's TRADER ARCHIVE grounding block (api/routers/ai_search.py), the Compass tools trader_archive_search / trader_archive_ticker in chat AND voice (both read the flag per call), the 'What the traders said' block in the ticker research modal's Catalysts tab, and the /trader-archive page. Default OFF: unset or 0 = every archive route answers 404, Ask AI adds no block, the Compass tools are hidden and refuse, and the research block and page render nothing. Replaced WISDOM_ARCHIVE_ADMIN_ENABLED (admin-only, 2026-10-15). Rollback: set 0 on web.",
       "owner_decision": "Owner ruling 2026-10-15: the TSDR trader archive is available to PAID MEMBERS and to every in-app tool (Ask AI, Compass chat + voice, ticker research, a member page), not admin-only. 'Public' means all paid members (require_paid), never the anonymous internet. Shipped default OFF; the owner sets it on web."
     },
+    "WISDOM_ARCHIVE_LINES_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-16",
+      "where": [],
+      "exposure": "members",
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ],
+      "note": "Built 2026-10-16, shipped dark; the owner flips it on web. MEMBER-VISIBLE when on (paid only, double-gated with WISDOM_ARCHIVE_ENABLED): 'auto chart' reference lines on trader-archive setup charts, from the 2026-10-16 ledger level study. Breakout family -> prior-day high + 10-day high (trigger); pullback_ma -> 10 EMA + prior-day low (entry); both -> prior-day low + 20 EMA (stop). One authority: api/services/wisdom/archive/levels.py. Adds a `lines` field to GET /api/wisdom/archive/playbook/{setup} (per best/worst call, as of its posted date; a call's own stated entry/stop replaces the generic line only when it is older than 20 sessions, via provider.levels) and to GET /api/wisdom/archive/pattern/{id}?ticker= (as of today). Display only: never changes what fires, its score, confidence, HIST_SCORE or confirmed_only. Off (either flag) = the field is absent and no lines are drawn. Rollback: set 0 or unset on web."
+    },
     "WISDOM_BADGES_ENABLED": {
       "status": "armed",
       "since": "2026-10-16",

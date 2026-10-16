@@ -82,7 +82,7 @@ function Subsection({ title, defaultOpen = false, children }) {
 
 // ─── Main component ──────────────────────────────────────────────────────────
 
-export default function PatternSidePanel({ detection, onClose }) {
+export default function PatternSidePanel({ detection, onClose, onArchiveLines }) {
   const { user } = useAuth()
   const [rating, setRating] = useState(null)
   const [note, setNote] = useState('')
@@ -338,7 +338,7 @@ export default function PatternSidePanel({ detection, onClose }) {
               <span>Historical Stats</span>
             </div>
             <div className={styles.sectionBody}>
-              <PatternArchiveStats patternId={detection.pattern_id} sym={detection.sym} />
+              <PatternArchiveStats patternId={detection.pattern_id} sym={detection.sym} onLines={onArchiveLines} />
             </div>
           </section>
         </div>

@@ -9,10 +9,17 @@
 //
 // ⛔ DISPLAY ONLY. Nothing here feeds the detection's confidence, its historical score or
 // what fires. No price levels are shown for archive calls.
+//
+// Reference lines ("auto chart"): when the server adds `lines` (WISDOM_ARCHIVE_LINES_ENABLED), they
+// are handed up through `onLines` as chart price lines: the team's usual trigger / entry / stop
+// lines for this setup on this ticker, as of today. `onLines(null)` when there are none, when the
+// read fails, and when the panel closes. `onLines` must be a stable function (StockChart passes a
+// state setter), or this effect re-runs every render.
 
+import { useEffect } from 'react'
 import useSWR from 'swr'
 import jsonFetcher from '../../utils/jsonFetcher'
-import { ARCHIVE_API, MIN_CONTEXT_N, dayOf, edgeVerdict, fmtR, rTone, traderOf } from '../../utils/traderArchive'
+import { ARCHIVE_API, MIN_CONTEXT_N, archiveRefPriceLines, dayOf, edgeVerdict, fmtR, rTone, traderOf } from '../../utils/traderArchive'
 import styles from './PatternSidePanel.module.css'
 
 export const PLACEHOLDER = 'Pattern stats available after Phase 7 launch — outcome tracker pending.'
@@ -44,8 +51,16 @@ export function archiveUrl(patternId, sym) {
   return `${ARCHIVE_API}/pattern/${encodeURIComponent(patternId)}${q}`
 }
 
-export default function PatternArchiveStats({ patternId, sym }) {
+export default function PatternArchiveStats({ patternId, sym, onLines }) {
   const { data, error } = useSWR(archiveUrl(patternId, sym), jsonFetcher, SWR_OPTS)
+  const rawLines = error ? null : data?.lines
+
+  useEffect(() => {
+    if (typeof onLines !== 'function') return undefined
+    const drawn = archiveRefPriceLines(rawLines)
+    onLines(drawn.length ? drawn : null)
+    return () => onLines(null)
+  }, [rawLines, onLines])
 
   if (error || !patternId) return <div className={styles.placeholder}>{PLACEHOLDER}</div>
   if (!data) return <div className={styles.placeholder} data-testid="archive-stats-loading">Loading the team&apos;s record…</div>
