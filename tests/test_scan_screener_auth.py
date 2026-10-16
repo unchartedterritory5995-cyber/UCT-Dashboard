@@ -99,7 +99,12 @@ ROOT = Path(__file__).resolve().parents[1]
 #: `paid`, which is what it must be: it returns the full criteria library
 #: including verbatim source quotes.
 EXPECTED_SCANS_ROUTES = 16
-EXPECTED_SCREENER_ROUTES = 25  # +1 2026-10-14: POST /api/screener/count/batch (up to 30
+EXPECTED_SCREENER_ROUTES = 27  # +1 2026-10-16: GET /api/screener/sparks (~3 months of daily
+#   closes for up to 60 tickers, the Focus list's per-row line). PAID like /scan,
+#   whose rows it decorates; it reads the local bars store only.
+#                              # +1 2026-10-15: GET /api/screener/volume-curve (dadb1b1d48 added
+#   it without moving this pin; PAID, the market-wide time-of-day volume curve).
+#                              # +1 2026-10-14: POST /api/screener/count/batch (up to 30
 #   counts in one request for the screen menu). PAID like /count: it runs each
 #   spec through the same preview_count with the same dependency-sourced user id.
 #                              # +1 2026-10-07: GET /api/screener/fields (the filter
