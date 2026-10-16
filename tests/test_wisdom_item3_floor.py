@@ -502,6 +502,7 @@ def test_the_three_migrations_are_one_statement_each():
 #: `scripts/wisdom_dark_check.wisdom_get_routes()`, the same registry walk `api/main.py` mounts
 #: them with, and re-derived on every run below. Item 3 must change none of them.
 EXPECTED_GET_ROUTES = [
+    ("/api/admin/wisdom/archive/desk/{video_id}", "admin"),
     ("/api/admin/wisdom/archive/search", "admin"),
     ("/api/admin/wisdom/archive/setup/{setup}", "admin"),
     ("/api/admin/wisdom/archive/stats", "admin"),
@@ -535,12 +536,16 @@ EXPECTED_GET_ROUTES = [
     ("/api/internal/wisdom/publish/golden-candidates", "internal"),
     # Member routes, by owner ruling: the trader archive (2026-10-15) and its team-call lane
     # (2026-10-16). Every one is require_paid (test_8b asserts the guard, not just the class).
+    ("/api/wisdom/archive/check", "authed"),
+    ("/api/wisdom/archive/image/{image_id}", "authed"),
+    ("/api/wisdom/archive/pattern/{pattern_id}", "authed"),
     ("/api/wisdom/archive/playbook/{setup}", "authed"),
     ("/api/wisdom/archive/playbooks", "authed"),
     ("/api/wisdom/archive/search", "authed"),
     ("/api/wisdom/archive/setup/{setup}", "authed"),
     ("/api/wisdom/archive/stats", "authed"),
     ("/api/wisdom/archive/ticker/{sym}", "authed"),
+    ("/api/wisdom/archive/ticker/{sym}/daily", "authed"),
     ("/api/wisdom/archive/trader/{author}", "authed"),
     ("/api/wisdom/team-calls", "authed"),
 ]
@@ -581,7 +586,7 @@ def test_8b_every_route_is_admin_owner_or_internal_except_the_ruled_paid_member_
     assert member, "non-vacuity: the ruled member routes were not found at all"
     assert not [r for r in routes if dark.classify(r) == "UNGUARDED"]
     # non-vacuity: the walk must actually have found routes to classify
-    assert len(routes) == len(EXPECTED_GET_ROUTES) == 39
+    assert len(routes) == len(EXPECTED_GET_ROUTES) == 44
 
 
 def test_8c_no_route_path_is_doubled():

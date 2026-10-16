@@ -73,6 +73,10 @@ DECLARED_DOORS = {
     # archive through the badges adapter's archive lane, never wisdom_records; double-gated by
     # this gate AND WISDOM_ARCHIVE_ENABLED, and asked for only by the paid watchlist route.
     "api/services/watchlist_intelligence.py": ("publish.adapters.badges", "MEMBER", "WISDOM_BADGES_ENABLED"),
+    # 2026-10-16: the screener's display-only archive columns and its "Names the team has
+    # called" starter read the archive behind WISDOM_ARCHIVE_ENABLED (off -> {} / no starter).
+    "api/services/screener/archive_join.py": ("archive.setup_map + core.store", "MEMBER", "WISDOM_ARCHIVE_ENABLED"),
+    "api/services/screener/saved_screens.py": ("core.flags", "MEMBER", "WISDOM_ARCHIVE_ENABLED"),
 }
 
 
