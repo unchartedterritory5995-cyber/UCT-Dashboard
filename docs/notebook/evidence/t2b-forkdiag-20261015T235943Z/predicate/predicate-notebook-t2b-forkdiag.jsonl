@@ -1,0 +1,6 @@
+{"case":"typed more at the end (prev \"Follow up @\" -> \"Follow up @x\")","editorStateDiscardsUnsentWork":false,"discardsUnsentWork":true}
+{"case":"chip replaces the \"@\" (prev \"Follow up @\" -> \"Follow up \" + chip + \" \")","editorStateDiscardsUnsentWork":true,"discardsUnsentWork":true}
+{"case":"chip replaces \"@\" when prev is \"Follow up \" (the \"@\" never persisted)","editorStateDiscardsUnsentWork":false,"discardsUnsentWork":true}
+{"case":"insert in the MIDDLE of a later paragraph (\"ab\" -> \"aXb\")","editorStateDiscardsUnsentWork":true,"discardsUnsentWork":true}
+{"case":"insert BEFORE existing text (\"Reminder\" -> \"Follow up Reminder\")","editorStateDiscardsUnsentWork":true,"discardsUnsentWork":true}
+{"case":"backspace one char (\"abc\" -> \"ab\")","editorStateDiscardsUnsentWork":true,"discardsUnsentWork":true}

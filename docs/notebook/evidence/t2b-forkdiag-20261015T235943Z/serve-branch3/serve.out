@@ -1,0 +1,4 @@
+SERVING c2 at http://127.0.0.1:8143; create C:\Users\Patrick\uct-worktrees\notebook-t2b-forkdiag\docs\notebook\evidence\t2b-forkdiag-20261015T235943Z\serve-branch3\c2\STOP to stop
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: C:\Users\Patrick\uct-worktrees\notebook-t2b-forkdiag\docs\notebook\evidence\t2b-forkdiag-20261015T235943Z\serve-branch3\c2\integrity-c2.md
+VERDICT c2: 0 steps, 0 FAIL
+raw log written: C:\Users\Patrick\uct-worktrees\notebook-t2b-forkdiag\docs\notebook\evidence\t2b-forkdiag-20261015T235943Z\serve-branch3\c2\walk.json

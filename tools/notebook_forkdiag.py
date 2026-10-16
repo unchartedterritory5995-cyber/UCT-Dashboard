@@ -176,7 +176,7 @@ def new_line(p):
 
 
 def one_run(browser, admin, base: str, idx: int, flow: str, nav: bool, vp: str, hold_s: int, nav_path: str,
-            followup_nav: bool = False, dwell_ms: int = 0) -> dict:
+            followup_nav: bool = False, dwell_ms: int = 0, nav_how: str = "goto") -> dict:
     t0 = now()
     ctx, email, _me = C.member(browser, admin.request, base, f"fd{idx}", vp)
     title = f"Reminder walk {vp}"
@@ -224,6 +224,18 @@ def one_run(browser, admin, base: str, idx: int, flow: str, nav: bool, vp: str, 
             pg.keyboard.press("Enter")
             pg.wait_for_timeout(600)
         step.update({"option_offered": offered, "date_list": listed})
+    elif flow == "mid":
+        # NOT a chip: plain typing. Type a line, let the durable copy persist it, then insert one character
+        # in the MIDDLE of that line (a member fixing a typo), and leave the way the walk does.
+        pg.keyboard.type("ab cd", delay=40)
+        pg.wait_for_timeout(dwell_ms or 500)
+        pg.keyboard.press("Home")
+        pg.keyboard.press("ArrowRight")
+        pg.keyboard.press("ArrowRight")
+        marks["t_pick_key"] = now()
+        pg.keyboard.type("X", delay=40)
+        pg.wait_for_timeout(600)
+        step["date_list"] = True
     else:   # task: by hand, then @, Tab
         pg.keyboard.type("[ ] Follow up ", delay=40)
         step["task_items_before_at"] = pg.locator('.ProseMirror [data-type="taskItem"]').count()
@@ -239,7 +251,7 @@ def one_run(browser, admin, base: str, idx: int, flow: str, nav: bool, vp: str, 
             pg.keyboard.press("Tab")
             pg.wait_for_timeout(600)
     step["mentions"] = pg.evaluate("""() => { const ms = [...document.querySelectorAll('.ProseMirror [data-type="date-mention"]')];
-        return { n: ms.length, inTask: ms.filter(e => e.closest('[data-type="taskItem"]')).length } }""") if step.get("date_list") else {"n": 0, "inTask": 0}
+        return { n: ms.length, inTask: ms.filter(e => e.closest('[data-type="taskItem"]')).length } }""") if (step.get("date_list") and flow != "mid") else ({"n": 1, "inTask": 0} if flow == "mid" else {"n": 0, "inTask": 0})
     marks["t_after_pick"] = now()
 
     def note_json():
@@ -248,7 +260,8 @@ def one_run(browser, admin, base: str, idx: int, flow: str, nav: bool, vp: str, 
 
     saved = False
     for _ in range(60):
-        if any(x.get("type") == "dateMention" for x in walk_nodes(note_json().get("bodyJson") or {})):
+        want = (lambda x: x.get("type") == "text" and x.get("text") == "abX cd") if flow == "mid" else (lambda x: x.get("type") == "dateMention")
+        if any(want(x) for x in walk_nodes(note_json().get("bodyJson") or {})):
             saved = True
             break
         pg.wait_for_timeout(500)
@@ -263,10 +276,14 @@ def one_run(browser, admin, base: str, idx: int, flow: str, nav: bool, vp: str, 
     marks["t_idb_before_nav"] = now()
     if nav:
         marks["t_goto_start"] = now()
-        C.goto(pg, base, nav_path)
+        if nav_how == "click":
+            # in-app navigation (the editor UNMOUNTS, the page lives on): the folder panel's All notes row at 1280
+            pg.locator("[data-all-notes-row]").first.click(timeout=10000)
+        else:
+            C.goto(pg, base, nav_path)
         marks["t_goto_returned"] = now()
         row = pg.get_by_role("button", name=re.compile(r"^Follow up.*Reminder walk " + vp))
-        step["tasks_view_row"] = C.vis_loc(row, 30000)
+        step["tasks_view_row"] = C.vis_loc(row, 30000) if flow != "mid" else None   # mid has no task row to wait for
         marks["t_row_wait_done"] = now()
         pg.wait_for_timeout(8000)
     else:
@@ -305,13 +322,14 @@ def main(argv=None) -> int:
     ap.add_argument("--base", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--cell", required=True)
-    ap.add_argument("--flow", choices=["remind", "task"], required=True)
+    ap.add_argument("--flow", choices=["remind", "task", "mid"], required=True)
     ap.add_argument("--no-nav", action="store_true")
     ap.add_argument("--runs", type=int, default=5)
     ap.add_argument("--viewport", default="1280")
     ap.add_argument("--hold-s", type=int, default=10)
     ap.add_argument("--nav-path", default="/journal/notebook?view=tasks")
     ap.add_argument("--code", default="", help="label only: the tree the sandbox serves")
+    ap.add_argument("--nav-how", choices=["goto", "click"], default="goto", help="goto = full document navigation (the walk); click = in-app, editor unmounts")
     ap.add_argument("--dwell-ms", type=int, default=0, help="flow task: pause between the date list appearing and the Tab that picks")
     ap.add_argument("--followup-nav", action="store_true", help="with --no-nav: after the cell's own read, leave the page and read again (recorded separately)")
     ap.add_argument("--max-attempts", type=int, default=0, help="stop after this many attempts (default 2 x --runs); --runs counts runs whose FLOW completed")
@@ -330,7 +348,7 @@ def main(argv=None) -> int:
         i = 0
         while sum(1 for r in results if r.get("flow_complete")) < a.runs and i < cap_n:
             try:
-                res = one_run(browser, admin, a.base, i, a.flow, not a.no_nav, a.viewport, a.hold_s, a.nav_path, a.followup_nav, a.dwell_ms)
+                res = one_run(browser, admin, a.base, i, a.flow, not a.no_nav, a.viewport, a.hold_s, a.nav_path, a.followup_nav, a.dwell_ms, a.nav_how)
             except Exception as e:  # noqa: BLE001
                 import traceback
                 res = {"run": i, "error": f"{type(e).__name__}: {str(e)[:400]}", "traceback": traceback.format_exc()[-1500:]}
