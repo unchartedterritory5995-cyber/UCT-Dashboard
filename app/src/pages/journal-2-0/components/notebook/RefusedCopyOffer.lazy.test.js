@@ -7,6 +7,10 @@
 // one dynamic import is NoteEditorPage's `refusedCopyDoorLoaders`. The DECISION half
 // (`lib/offline/refusedCopy.js`) stays static -- the drain and the durable layer run it on every
 // open -- and must never reach the display half either.
+// Controller ruling (2026-10-16), same rail: the keyboard-shortcut cheat sheet
+// (components/ShortcutCheatSheet.jsx) is opened only by `?` or the header button, so no file
+// imports it statically either; its one dynamic import is components/ShortcutCheatSheetDoor.jsx,
+// which JournalLayout and JournalTwoRoot render in its place.
 // Read by AST, never grep: a path in a comment is not an import (same shape as
 // GettingStartedList.lazy.test.js and onboarding/tourLazy.test.js).
 import { describe, it, expect } from 'vitest'
@@ -22,6 +26,8 @@ const WAVE = path.resolve(HERE, '..', '..')                // .../pages/journal-
 const OFFER = /(^|\/)RefusedCopyOffer(\.jsx)?$/
 const DISPLAY = /(^|\/)refusedCopyDisplay(\.js)?$/
 const DECISION = /(^|\/)offline\/refusedCopy(\.js)?$|^\.\/refusedCopy(\.js)?$/
+const SHEET = /(^|\/)ShortcutCheatSheet(\.jsx)?$/
+const SHEET_DOOR = /(^|\/)ShortcutCheatSheetDoor(\.jsx)?$/
 
 function walk(dir, out = []) {
   for (const name of fs.readdirSync(dir)) {
@@ -91,5 +97,28 @@ describe('the refused-copy offer stays out of the first-open closure', () => {
     // the decision half's name must not be read as the display half's, or the other way round
     expect(importsOf("import { holdRefusedCopy } from './refusedCopy'\n", DISPLAY).statics).toEqual([])
     expect(importsOf("import { copyBodyText } from './refusedCopyDisplay'\n", DECISION).statics).toEqual([])
+  })
+})
+
+describe('the keyboard-shortcut cheat sheet stays out of the first-open closure', () => {
+  it('NON-VACUITY: the door holds its one dynamic import, and JournalLayout renders the door', () => {
+    expect(scan(SHEET).filter((f) => f.dynamics.length).map((f) => [f.file, f.dynamics]))
+      .toEqual([['components/ShortcutCheatSheetDoor.jsx', ['./ShortcutCheatSheet']]])
+    // The walk sees the page's own static import, so the cell below cannot pass for want of one.
+    expect(scan(SHEET_DOOR).filter((f) => f.statics.length).map((f) => f.file))
+      .toEqual(expect.arrayContaining(['JournalLayout.jsx', 'JournalTwoRoot.jsx']))
+  })
+
+  it('no file imports the cheat sheet statically -- JournalLayout above all', () => {
+    const offenders = scan(SHEET).filter((f) => f.statics.length).map((f) => f.file)
+    expect(offenders).toEqual([])
+  })
+
+  it('CONTROLS: the sheet’s static import is seen, its door is not mistaken for it, a comment is ignored', () => {
+    expect(importsOf("import ShortcutCheatSheet from './components/ShortcutCheatSheet'\n", SHEET).statics).toHaveLength(1)
+    expect(importsOf("import S from './components/ShortcutCheatSheetDoor'\n", SHEET).statics).toEqual([])
+    expect(importsOf("// import S from './components/ShortcutCheatSheet'\nexport const a = 1\n", SHEET).statics).toEqual([])
+    expect(importsOf("const L = () => import('./ShortcutCheatSheet')\n", SHEET))
+      .toEqual({ statics: [], dynamics: ['./ShortcutCheatSheet'] })
   })
 })

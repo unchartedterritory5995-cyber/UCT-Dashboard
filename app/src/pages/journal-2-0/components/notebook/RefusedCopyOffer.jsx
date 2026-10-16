@@ -38,7 +38,7 @@ import {
   copyClipboardText, discardRefusedCopy, refusedCopyView, saveRefusedCopy,
 } from '../../lib/offline/refusedCopyDisplay'
 import { conflictedCopyTitle } from '../../lib/offline/noteCopy'
-import styles from './NoteEditorPage.module.css'
+import styles from './RefusedCopyOffer.module.css'
 
 const COPIED = 'The words are on your clipboard.'
 // ⛔ Fix round 5 (wording ruling): no keyboard is assumed.

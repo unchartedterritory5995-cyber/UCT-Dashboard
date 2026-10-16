@@ -237,19 +237,14 @@ function RefusedCopyDoor(props) {
   const [failed, setFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
   const retriedRef = useRef(false)
-  const loadingRef = useRef(false)
+  // A second Try again while one is loading only restarts it: the cleanup drops the first.
   useEffect(() => {
     let live = true
-    loadingRef.current = true
-    loadRefusedCopyDoor().then(
-      (m) => { if (live) { setOffers(() => m.RefusedCopyOffers); setFailed(false) } },
-      () => { if (live) setFailed(true) },
-    ).finally(() => { if (live) loadingRef.current = false })
+    loadRefusedCopyDoor().then((m) => { if (live) setOffers(() => m.RefusedCopyOffers) }, () => { if (live) setFailed(true) })
     return () => { live = false }
   }, [attempt])
   if (Offers) return <Offers {...props} focusFirst={retriedRef.current} />
   const tryAgain = () => {
-    if (loadingRef.current) return
     retriedRef.current = true
     setAttempt((a) => a + 1)
   }

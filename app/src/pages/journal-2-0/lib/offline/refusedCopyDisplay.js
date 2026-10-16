@@ -20,13 +20,19 @@
  * The history of each rule below (fix rounds 3-5, reviews C-3, C-4, I-6, I-7, I-8, M-18) is in
  * `refusedCopy.js`'s header; the rules are unchanged by the split.
  */
-import { clearOutboxEntry, getOutboxEntry, putOutboxEntryIfPresent } from './notebookDb'
+import { clearOutboxEntry, listOutbox, putOutboxEntryIfPresent } from './notebookDb'
 import { conflictedCopyTitle, isNoteCopy } from './noteCopy'
 import {
   COPY_CONTENT, COPY_OTHER, COPY_TOO_LARGE, copyRefusedForGood, holdRefusedCopy, refusedCopiesOf,
 } from './refusedCopy'
 import { citationLeafText } from '../askCitation'
 import { fmtTime } from '../../../../components/video/playerUtils'
+
+/** One outbox entry by its key, or null. Read through `listOutbox`, which the static layer already
+ *  carries, so no reader exists in the first-open bytes only for this rare offer. */
+const getOutboxEntry = async (db, mutationId) => (
+  (await listOutbox(db)).find((e) => e?.mutationId === mutationId) || null
+)
 
 /**
  * ⭐ I-A fix round 4 (review I-7): the CLASS of a refusal, which picks the offer's own

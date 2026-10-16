@@ -39,7 +39,10 @@ import J2PriceProvider from './J2PriceProvider'
 import { runJ2LocalStorageMigrations } from './lib/localStorageMigrate'
 import AccountSelector from './components/accounts/AccountSelector'
 import lazyChunk from './lib/lazyChunk'
-import ShortcutCheatSheet from './components/ShortcutCheatSheet'
+// ⭐ I-A bytes: the cheat sheet loads on its first open (`?` or the header button), through its
+// chunk door, never with the page. ⛔ Never a static import of ShortcutCheatSheet
+// (rail: components/notebook/RefusedCopyOffer.lazy.test.js).
+import ShortcutCheatSheet from './components/ShortcutCheatSheetDoor'
 import LogTradeButton from './LogTradeButton'
 import JournalMobileNav from './JournalMobileNav'
 import JournalLogFab from './JournalLogFab'
