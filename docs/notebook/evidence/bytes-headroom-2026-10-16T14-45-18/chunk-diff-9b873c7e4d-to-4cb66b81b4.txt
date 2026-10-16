@@ -1,0 +1,6 @@
+   -5627  DeleteAccountModal  5627 -> None
+    -156  ShortcutCheatSheetDoor  6214 -> 6058
+    +100  JournalLayout  18308 -> 18408
+    +106  index  838507 -> 838613
+   +2058  DeleteAccountModalDoor  None -> 2058
+total -3519
