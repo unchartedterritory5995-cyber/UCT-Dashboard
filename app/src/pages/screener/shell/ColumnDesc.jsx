@@ -130,8 +130,12 @@ const place = r => {
     : { left, top: below }
 }
 
-export default function ColumnDesc({ colKey, name, tapTarget = false }) {
-  const desc = descFor(colKey)
+// `desc` (optional) is text the CALLER already holds from the server — a
+// filter's `description` in the screener `meta()` payload. When present it is
+// what the panel shows; when absent (or blank) the column's `COLUMN_DEFS` desc
+// is the fallback, as before. This component still writes no copy of its own.
+export default function ColumnDesc({ colKey, name, tapTarget = false, desc: given }) {
+  const desc = (typeof given === 'string' && given.trim()) ? given : descFor(colKey)
   const [open, setOpen] = useState(null) // null = closed; otherwise the placement
   const btnRef = useRef(null)
   const panelRef = useRef(null)
