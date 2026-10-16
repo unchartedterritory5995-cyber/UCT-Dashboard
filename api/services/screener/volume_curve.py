@@ -290,8 +290,10 @@ def ticker_live_shares(now_et: datetime) -> dict:
     per-ticker curves). ⭐ ONE query (:func:`ticker_knots`) for the whole universe —
     the live tier calls this once per sweep and looks rows up in the dict, never a
     per-row read. Never raises."""
+    # Suppression is `knot_share_at`'s (via `_scaled_minute`), the SAME guard the market
+    # read uses: one guard, never a second copy here.
     clock = session_clock(now_et)
-    if clock is None or clock[0] < SUPPRESS_FIRST_MIN:
+    if clock is None:
         return {}
     out = {}
     for t, knots in ticker_knots().items():
