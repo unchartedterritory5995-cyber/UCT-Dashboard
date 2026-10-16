@@ -1,0 +1,21 @@
+M1-capture-spill-removed: vitest exit 1; restored app/src/pages/journal-2-0/lib/offline/recoverLocalState.js sha256 476d04c1642992ff == HEAD blob
+M2-settle-copy-removed: vitest exit 1; restored app/src/pages/journal-2-0/lib/offline/useDurableNote.js sha256 d174eb41cfbc36e5 == HEAD blob
+M3-containment-text-only: vitest exit 1; restored app/src/pages/journal-2-0/lib/offline/recoverLocalState.js sha256 476d04c1642992ff == HEAD blob
+M4-editor-merged-not-recorded: vitest exit 1; restored app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx sha256 11182b648f116aff == HEAD blob
+M5-merge-not-flushed: vitest exit 1; restored app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx sha256 11182b648f116aff == HEAD blob
+M6-MINOR1-reverted: vitest exit 1; restored app/src/pages/journal-2-0/lib/noteContentGuard.js sha256 7c6682579c6777e2 == HEAD blob
+M7-control-c-protect-every-block: vitest exit 1; restored app/src/pages/journal-2-0/lib/offline/recoverLocalState.js sha256 476d04c1642992ff == HEAD blob
+M8-control-d-reconcile-never-forks: vitest exit 1; restored app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx sha256 11182b648f116aff == HEAD blob
+tree after:  M app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx
+ M app/src/pages/journal-2-0/lib/noteContentGuard.js
+ M app/src/pages/journal-2-0/lib/offline/recoverLocalState.js
+ M app/src/pages/journal-2-0/lib/offline/useDurableNote.js
+?? docs/notebook/evidence/undo-merged-blocks-20261016T153952Z/mut-M1-capture-spill-removed.log
+?? docs/notebook/evidence/undo-merged-blocks-20261016T153952Z/mut-M2-settle-copy-removed.log
+?? docs/notebook/evidence/undo-merged-blocks-20261016T153952Z/mut-M3-containment-text-only.log
+?? docs/notebook/evidence/undo-merged-blocks-20261016T153952Z/mut-M4-editor-merged-not-recorded.log
+?? docs/notebook/evidence/undo-merged-blocks-20261016T153952Z/mut-M5-merge-not-flushed.log
+?? docs/notebook/evidence/undo-merged-blocks-20261016T153952Z/mut-M6-MINOR1-reverted.log
+?? docs/notebook/evidence/undo-merged-blocks-20261016T153952Z/mut-M7-control-c-protect-every-block.log
+?? docs/notebook/evidence/undo-merged-blocks-20261016T153952Z/mut-M8-control-d-reconcile-never-forks.log
+

@@ -1,0 +1,188 @@
+MUTATION M6-MINOR1-reverted on app/src/pages/journal-2-0/lib/noteContentGuard.js (HEAD 16d1dd1c7e51dc3d76a7e98687334f6b67abd6d1)
+  - "          const outsideHistory = tr.getMeta('addToHistory') === false\n            || tr.getMeta('appendedTransaction')?.getMeta('addToHistory') === false\n"
+  + "          const outsideHistory = tr.getMeta('addToHistory') === false\n"
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m[2m(b) type (unsent), Undo, keep typing, leave ⇒ the server ends with the final text and no (conflicted copy)[2m > [22m[2m⭐⭐ offline: type, Undo, keep typing, come back online and leave — the durable copy and the queue hold the FINAL text
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:87:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1997:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m[2m(d) an Undo across a whole-view swap still rotates[2m > [22m[2mversion restore: an ordinary Undo on the restored version mints nothing; the Undo across it mints a lineage
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:87:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1997:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m[2m(f) ⛔⛔ review I-1 — a doc change OUTSIDE history must never blind the crossing detector[2m > [22m[2m⭐⭐ a swap, then an insert outside history, then an Undo across the swap ⇒ the lineage is still minted
+[22m[39m[notebook] a document change outside history: from here every Undo/Redo of this view is treated as crossing a swap (noteContentGuard.js, review I-1)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m[2m(f) ⛔⛔ review I-1 — a doc change OUTSIDE history must never blind the crossing detector[2m > [22m[2m⭐ after a doc change outside history, every Undo and Redo of this view is treated as a crossing (the safe direction)
+[22m[39mAn update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m[2m(f) ⛔⛔ review I-1 — a doc change OUTSIDE history must never blind the crossing detector[2m > [22m[2m⭐ after a doc change outside history, every Undo and Redo of this view is treated as a crossing (the safe direction)
+[22m[39m[notebook] a document change outside history: from here every Undo/Redo of this view is treated as crossing a swap (noteContentGuard.js, review I-1)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m[2m(f) ⛔⛔ review I-1 — a doc change OUTSIDE history must never blind the crossing detector[2m > [22m[2mCONTROL — a transaction outside history that changes NOTHING (focus, blur, a highlighter ready flag) does not degrade it
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m[2m(f) ⛔⛔ review I-1 — a doc change OUTSIDE history must never blind the crossing detector[2m > [22m[2mCONTROL — a transaction outside history that changes NOTHING (focus, blur, a highlighter ready flag) does not degrade it
+[22m[39mAn update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m[2m(e) ⛔⛔ CONTROL — a genuine second writer still forks[2m > [22m[2moffline: type, Undo, keep typing; another device rewrites the note; leaving forks ONCE, with the member’s NEWEST words
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m[2m(e) ⛔⛔ CONTROL — a genuine second writer still forks[2m > [22m[2moffline: type, Undo, keep typing; another device rewrites the note; leaving forks ONCE, with the member’s NEWEST words
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:87:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1997:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+ [31m❯[39m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx [2m([22m[2m16 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 36937[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ Undo back to text that has already landed: the undone text is NOT re-sent behind the member’s back [33m 10971[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ the plain one-edit case: type, it lands, Undo it, it lands, leave [33m 1486[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ online: the Undo comes before the first save, the next save lands, the member leaves [33m 1808[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ offline: type, Undo, keep typing, come back online and leave — the durable copy and the queue hold the FINAL text [33m 2114[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ (a) by Redo: a landed deletion, Undo, Redo back to the landed text, leave ⇒ no silent revert [33m 1838[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ (b) by Redo: delete (unsent), Undo, Redo, keep typing, leave ⇒ the final text, no (conflicted copy) [33m 2216[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ an ordinary Undo and Redo mint no lineage (they are the member’s edits of this view) [33m 1240[2mms[22m[39m
+     [33m[2m✓[22m[39m version restore: an ordinary Undo on the restored version mints nothing; the Undo across it mints a lineage [33m 2451[2mms[22m[39m
+     [33m[2m✓[22m[39m a swap’s own Undo and Redo each mint a lineage; an Undo inside the swapped-in view does not [33m 1916[2mms[22m[39m
+     [33m[2m✓[22m[39m the reconcile FORK swap (the editor shows the server copy after preserving both): an Undo across it mints a lineage [33m 1891[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ a swap, then an insert outside history, then an Undo across the swap ⇒ the lineage is still minted [33m 1745[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ after a doc change outside history, every Undo and Redo of this view is treated as a crossing (the safe direction) [33m 1391[2mms[22m[39m
+[31m     [31m×[31m ⭐⭐ MINOR-1: a doc change APPENDED to a transaction outside history is outside history too ⇒ the Undo across the swap still mints[39m[33m 1555[2mms[22m[39m
+     [33m[2m✓[22m[39m CONTROL — a transaction outside history that changes NOTHING (focus, blur, a highlighter ready flag) does not degrade it [33m 956[2mms[22m[39m
+     [33m[2m✓[22m[39m offline: type, Undo, keep typing; another device rewrites the note; leaving forks ONCE, with the member’s NEWEST words [33m 1667[2mms[22m[39m
+     [33m[2m✓[22m[39m online, after an Undo: another device writes while this view holds unsent words ⇒ the editor’s save forks, never clobbers (both-ways control) [33m 1691[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m(f) ⛔⛔ review I-1 — a doc change OUTSIDE history must never blind the crossing detector[2m > [22m⭐⭐ MINOR-1: a doc change APPENDED to a transaction outside history is outside history too ⇒ the Undo across the swap still mints
+[31m[1mAssertionError[22m: an Undo across a swap, after a doc change APPENDED outside history, did NOT mint a lineage: expected 3 to be 4 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 4[39m
+[31m+ 3[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:[2m500:121[22m[39m
+    [90m498| [39m    [35mawait[39m [34mundo[39m()
+    [90m499| [39m    expect(await viewText(), 'precondition: the Undo crossed the swap'…
+    [90m500| [39m    expect(minted.length, 'an Undo across a swap, after a doc change A…
+    [90m   | [39m                                                                                                                        [31m^[39m
+    [90m501| [39m  })
+    [90m502| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m15 passed[39m[22m[90m (16)[39m
+[2m   Start at [22m 11:36:06
+[2m   Duration [22m 39.63s[2m (transform 8.87s, setup 366ms, import 684ms, tests 36.94s, environment 963ms)[22m
+
+
+VITEST EXIT: 1

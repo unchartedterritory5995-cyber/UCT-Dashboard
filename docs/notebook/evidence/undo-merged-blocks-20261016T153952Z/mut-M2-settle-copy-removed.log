@@ -1,0 +1,422 @@
+MUTATION M2-settle-copy-removed on app/src/pages/journal-2-0/lib/offline/useDurableNote.js (HEAD 16d1dd1c7e51dc3d76a7e98687334f6b67abd6d1)
+  - 'const copies = (!unsentWork && dropsMergedBlocks(prev, acked, sentFrom))'
+  + 'const copies = (false && dropsMergedBlocks(prev, acked, sentFrom))'
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a)/(b) a widgetEmbed another device appended survives the member’s Undo[2m > [22m[2m⭐⭐ the reviewer's trace, offline: the widgetEmbed ends on the server or in a (conflicted copy), never in no layer
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3996:79
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at doIntervalTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2353:16)
+[90m    at listOnTimeout (node:internal/timers:605:17)[39m
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a)/(b) a widgetEmbed another device appended survives the member’s Undo[2m > [22m[2m⭐⭐ the reviewer's trace, offline: the widgetEmbed ends on the server or in a (conflicted copy), never in no layer
+[22m[39mautosave failed (retry 2 in 2000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1997:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a)/(b) a widgetEmbed another device appended survives the member’s Undo[2m > [22m[2m⭐⭐ the reviewer's trace, offline: the widgetEmbed ends on the server or in a (conflicted copy), never in no layer
+[22m[39mautosave failed (retry 3 in 4000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:4072:62
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a)/(b) a widgetEmbed another device appended survives the member’s Undo[2m > [22m[2m⭐⭐ the reviewer's trace, offline: the widgetEmbed ends on the server or in a (conflicted copy), never in no layer
+[22m[39mautosave failed (retry 4 in 8000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:4072:62
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a)/(b) a widgetEmbed another device appended survives the member’s Undo[2m > [22m[2m⭐⭐ the reviewer's trace, offline: the widgetEmbed ends on the server or in a (conflicted copy), never in no layer
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1997:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a)/(b) a financialFact another device appended survives the member’s Undo[2m > [22m[2m⭐⭐ the reviewer's trace, offline: the financialFact ends on the server or in a (conflicted copy), never in no layer
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3996:79
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at doIntervalTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2353:16)
+[90m    at listOnTimeout (node:internal/timers:605:17)[39m
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a)/(b) a financialFact another device appended survives the member’s Undo[2m > [22m[2m⭐⭐ the reviewer's trace, offline: the financialFact ends on the server or in a (conflicted copy), never in no layer
+[22m[39mautosave failed (retry 2 in 2000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1997:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a)/(b) a financialFact another device appended survives the member’s Undo[2m > [22m[2m⭐⭐ the reviewer's trace, offline: the financialFact ends on the server or in a (conflicted copy), never in no layer
+[22m[39mautosave failed (retry 3 in 4000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:4072:62
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a)/(b) a financialFact another device appended survives the member’s Undo[2m > [22m[2m⭐⭐ the reviewer's trace, offline: the financialFact ends on the server or in a (conflicted copy), never in no layer
+[22m[39mautosave failed (retry 4 in 8000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:4072:62
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a)/(b) a financialFact another device appended survives the member’s Undo[2m > [22m[2m⭐⭐ the reviewer's trace, offline: the financialFact ends on the server or in a (conflicted copy), never in no layer
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1997:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a)/(b) a documentExcerpt another device appended survives the member’s Undo[2m > [22m[2m⭐⭐ the reviewer's trace, offline: the documentExcerpt ends on the server or in a (conflicted copy), never in no layer
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3996:79
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at doIntervalTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2353:16)
+[90m    at listOnTimeout (node:internal/timers:605:17)[39m
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a)/(b) a documentExcerpt another device appended survives the member’s Undo[2m > [22m[2m⭐⭐ the reviewer's trace, offline: the documentExcerpt ends on the server or in a (conflicted copy), never in no layer
+[22m[39mautosave failed (retry 2 in 2000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1997:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a)/(b) a documentExcerpt another device appended survives the member’s Undo[2m > [22m[2m⭐⭐ the reviewer's trace, offline: the documentExcerpt ends on the server or in a (conflicted copy), never in no layer
+[22m[39mautosave failed (retry 3 in 4000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:4072:62
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a)/(b) a documentExcerpt another device appended survives the member’s Undo[2m > [22m[2m⭐⭐ the reviewer's trace, offline: the documentExcerpt ends on the server or in a (conflicted copy), never in no layer
+[22m[39mautosave failed (retry 4 in 8000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:4072:62
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a)/(b) a documentExcerpt another device appended survives the member’s Undo[2m > [22m[2m⭐⭐ the reviewer's trace, offline: the documentExcerpt ends on the server or in a (conflicted copy), never in no layer
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1997:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a″) the record FOLLOWS the page after the Undo — it is never pinned to the pre-undo words[2m > [22m[2m⭐⭐ offline: after the Undo the member keeps typing ⇒ the durable copy holds the newest words, and the block still ends in a copy
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3996:79
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at doIntervalTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2353:16)
+[90m    at listOnTimeout (node:internal/timers:605:17)[39m
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a″) the record FOLLOWS the page after the Undo — it is never pinned to the pre-undo words[2m > [22m[2m⭐⭐ offline: after the Undo the member keeps typing ⇒ the durable copy holds the newest words, and the block still ends in a copy
+[22m[39mautosave failed (retry 2 in 2000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1997:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a″) the record FOLLOWS the page after the Undo — it is never pinned to the pre-undo words[2m > [22m[2m⭐⭐ offline: after the Undo the member keeps typing ⇒ the durable copy holds the newest words, and the block still ends in a copy
+[22m[39mautosave failed (retry 3 in 4000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:4072:62
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a″) the record FOLLOWS the page after the Undo — it is never pinned to the pre-undo words[2m > [22m[2m⭐⭐ offline: after the Undo the member keeps typing ⇒ the durable copy holds the newest words, and the block still ends in a copy
+[22m[39mautosave failed (retry 4 in 8000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:4072:62
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a″) the record FOLLOWS the page after the Undo — it is never pinned to the pre-undo words[2m > [22m[2m⭐⭐ offline: after the Undo the member keeps typing ⇒ the durable copy holds the newest words, and the block still ends in a copy
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1997:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a″) the record FOLLOWS the page after the Undo — it is never pinned to the pre-undo words[2m > [22m[2m⭐⭐ offline: after the Undo the member keeps typing ⇒ the durable copy holds the newest words, and the block still ends in a copy
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:4072:62
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a″) the record FOLLOWS the page after the Undo — it is never pinned to the pre-undo words[2m > [22m[2m⭐⭐ offline: after the Undo the member keeps typing ⇒ the durable copy holds the newest words, and the block still ends in a copy
+[22m[39mautosave failed (retry 2 in 2000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1997:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a′) an Undo INSIDE the durable writer’s coalescing window after the merge[2m > [22m[2m⭐ offline: the Undo comes before the merge’s own capture could land — the widget still ends in a layer
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3996:79
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at doIntervalTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2353:16)
+[90m    at listOnTimeout (node:internal/timers:605:17)[39m
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(a′) an Undo INSIDE the durable writer’s coalescing window after the merge[2m > [22m[2m⭐ offline: the Undo comes before the merge’s own capture could land — the widget still ends in a layer
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1997:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+autosave failed (retry 2 in 2000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1997:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(c) the member’s OWN inserted widget removed by Undo is the member’s edit[2m > [22m[2m⭐⭐ offline: type, insert a widget, Undo it, come back online and leave ⇒ no copy, no pin, the Undo holds on the server
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1997:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx[2m > [22m[2m(d) ⛔⛔ CONTROL — a genuine second writer of prose still forks[2m > [22m[2moffline: type; another device rewrites the prose AND appends a widget; leaving forks once, with the member’s words
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx:104:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3965:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1997:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+ [32m✓[39m src/pages/journal-2-0/lib/offline/undoMergedBlocks.test.jsx [2m([22m[2m11 tests[22m[2m)[22m[33m 59248[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ the reviewer's trace, offline: the widgetEmbed ends on the server or in a (conflicted copy), never in no layer [33m 13258[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ the online variant: the retry landed WITH the widgetEmbed; the Undo's save removes it from the note — and it survives in a (conflicted copy) [33m 5138[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ the reviewer's trace, offline: the financialFact ends on the server or in a (conflicted copy), never in no layer [33m 5655[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ the online variant: the retry landed WITH the financialFact; the Undo's save removes it from the note — and it survives in a (conflicted copy) [33m 5858[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ the reviewer's trace, offline: the documentExcerpt ends on the server or in a (conflicted copy), never in no layer [33m 6615[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ the online variant: the retry landed WITH the documentExcerpt; the Undo's save removes it from the note — and it survives in a (conflicted copy) [33m 6155[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ offline: after the Undo the member keeps typing ⇒ the durable copy holds the newest words, and the block still ends in a copy [33m 7222[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ offline: the Undo comes before the merge’s own capture could land — the widget still ends in a layer [33m 5077[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ offline: type, insert a widget, Undo it, come back online and leave ⇒ no copy, no pin, the Undo holds on the server [33m 2148[2mms[22m[39m
+     [33m[2m✓[22m[39m online: another device rewrites the prose while this view holds unsent words ⇒ preserve both, never a merge [33m 1216[2mms[22m[39m
+     [33m[2m✓[22m[39m offline: type; another device rewrites the prose AND appends a widget; leaving forks once, with the member’s words [33m 902[2mms[22m[39m
+ [31m❯[39m src/pages/journal-2-0/lib/offline/mergedBlocksDecision.test.js [2m([22m[2m11 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 25[2mms[22m[39m
+     [32m✓[39m ⭐⭐ the same view dropping a widgetEmbed the reconcile MERGED does not supersede: it spills the record to a copy[32m 2[2mms[22m[39m
+     [32m✓[39m ⭐⭐ the same view dropping a financialFact the reconcile MERGED does not supersede: it spills the record to a copy[32m 1[2mms[22m[39m
+     [32m✓[39m ⭐⭐ the same view dropping a documentExcerpt the reconcile MERGED does not supersede: it spills the record to a copy[32m 0[2mms[22m[39m
+     [32m✓[39m ⭐ the same holds when the record is CLEAN (the retry landed the merged block before the Undo)[32m 0[2mms[22m[39m
+     [32m✓[39m ⛔ CONTROL — the member’s OWN block (not merged) removed in the same view supersedes: no discard, no copy[32m 0[2mms[22m[39m
+     [32m✓[39m ⛔ CONTROL — the merged block still on the page: an ordinary capture, no copy[32m 0[2mms[22m[39m
+     [32m✓[39m ⭐⭐ the containment test (no proven lineage) counts blocks as well as text[32m 1[2mms[22m[39m
+     [32m✓[39m ⛔ CONTROL — containment with every block carried is still not a discard[32m 0[2mms[22m[39m
+[31m     [31m×[31m ⭐⭐ a landed save from the same view that drops a MERGED block (record dirty) retires the record only with a copy of it[39m[32m 12[2mms[22m[39m
+[31m     [31m×[31m ⭐⭐ a landed save from the same view that drops a MERGED block (record clean) retires the record only with a copy of it[39m[32m 3[2mms[22m[39m
+     [32m✓[39m ⛔ CONTROL — the member’s own block (not merged) removed: the save retires the record, no copy[32m 2[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/mergedBlocksDecision.test.js[2m > [22m2. the outbox retire path (`settleLandedSave`)[2m > [22m⭐⭐ a landed save from the same view that drops a MERGED block (record dirty) retires the record only with a copy of it
+[31m[1mAssertionError[22m: the merged block left every layer: record={"noteId":"n1","title":"n","subtitle":"","bodyJson":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"ab cd ef"}]}]},"baseUpdatedAt":"2026-10-16T20:00:20.000000+00:00","generation":1,"sessionId":"2ce5ac0c-b097-44bb-82fd-354356081edb","localSavedAt":1792168338113,"dirty":0,"serverBase":null} queued=[]: expected '{"noteId":"n1","title":"n","subtitle"…' to contain 'CAPTION-KEEP'[39m
+
+Expected: [32m"CAPTION-KEEP"[39m
+Received: [31m"{"noteId":"n1","title":"n","subtitle":"","bodyJson":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"ab cd ef"}]}]},"baseUpdatedAt":"2026-10-16T20:00:20.000000+00:00","generation":1,"sessionId":"2ce5ac0c-b097-44bb-82fd-354356081edb","localSavedAt":1792168338113,"dirty":0,"serverBase":null}[]"[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/offline/mergedBlocksDecision.test.js:[2m128:122[22m[39m
+    [90m126| [39m      [35mconst[39m queued [33m=[39m [35mawait[39m [34mlistOutbox[39m(db)
+    [90m127| [39m      [35mconst[39m where [33m=[39m [33mJSON[39m[33m.[39m[34mstringify[39m(rec) [33m+[39m [33mJSON[39m[33m.[39m[34mstringify[39m(queued)
+    [90m128| [39m      expect(where, `the merged block left every layer: record=${JSON.…
+    [90m   | [39m                                                                                                                         [31m^[39m
+    [90m129| [39m    }[33m,[39m
+    [90m130| [39m  )
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/mergedBlocksDecision.test.js[2m > [22m2. the outbox retire path (`settleLandedSave`)[2m > [22m⭐⭐ a landed save from the same view that drops a MERGED block (record clean) retires the record only with a copy of it
+[31m[1mAssertionError[22m: the merged block left every layer: record={"noteId":"n1","title":"n","subtitle":"","bodyJson":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"ab cd ef"}]}]},"baseUpdatedAt":"2026-10-16T20:00:20.000000+00:00","generation":1,"sessionId":"2ce5ac0c-b097-44bb-82fd-354356081edb","localSavedAt":1792168338123,"dirty":0,"serverBase":null} queued=[]: expected '{"noteId":"n1","title":"n","subtitle"…' to contain 'CAPTION-KEEP'[39m
+
+Expected: [32m"CAPTION-KEEP"[39m
+Received: [31m"{"noteId":"n1","title":"n","subtitle":"","bodyJson":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"ab cd ef"}]}]},"baseUpdatedAt":"2026-10-16T20:00:20.000000+00:00","generation":1,"sessionId":"2ce5ac0c-b097-44bb-82fd-354356081edb","localSavedAt":1792168338123,"dirty":0,"serverBase":null}[]"[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/offline/mergedBlocksDecision.test.js:[2m128:122[22m[39m
+    [90m126| [39m      [35mconst[39m queued [33m=[39m [35mawait[39m [34mlistOutbox[39m(db)
+    [90m127| [39m      [35mconst[39m where [33m=[39m [33mJSON[39m[33m.[39m[34mstringify[39m(rec) [33m+[39m [33mJSON[39m[33m.[39m[34mstringify[39m(queued)
+    [90m128| [39m      expect(where, `the merged block left every layer: record=${JSON.…
+    [90m   | [39m                                                                                                                         [31m^[39m
+    [90m129| [39m    }[33m,[39m
+    [90m130| [39m  )
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m1 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m20 passed[39m[22m[90m (22)[39m
+[2m   Start at [22m 11:31:13
+[2m   Duration [22m 65.05s[2m (transform 7.36s, setup 992ms, import 826ms, tests 59.27s, environment 2.26s)[22m
+
+
+VITEST EXIT: 1
