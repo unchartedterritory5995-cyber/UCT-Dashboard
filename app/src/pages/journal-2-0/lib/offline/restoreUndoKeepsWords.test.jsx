@@ -210,7 +210,9 @@ function expectBothSurvive(label) {
 }
 
 /** Open offline on S, type in the old view, let the durable write land, wait
- *  `beforeRestoreMs`, press Restore. Returns once the draft is on the page. */
+ *  `beforeRestoreMs`, press Restore. Returns once the draft is on the page.
+ *  With `beforeRestoreMs` under the 200 ms durable window (0: straight after the
+ *  keystroke) the old view's words are still PENDING in the writer at Restore. */
 async function typeThenRestore({ base = null, beforeRestoreMs = 1000 } = {}) {
   server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
   server.down = true
@@ -218,13 +220,22 @@ async function typeThenRestore({ base = null, beforeRestoreMs = 1000 } = {}) {
   await openTheNote()
   await sit(2)
   await typeAtEnd(` ${OLD}`)
-  await tick(400)
-  expect(JSON.stringify(record()?.bodyJson ?? null), 'precondition: the old view wrote its words to the record').toContain(OLD)
-  expect(record()?.dirty, 'precondition: the record is dirty (unsent)').toBeTruthy()
-  if (beforeRestoreMs > 400) await tick(beforeRestoreMs - 400)
+  const typedAt = Date.now()
+  if (beforeRestoreMs < 200) {
+    // ⚠️ No tick: under `shouldAdvanceTime` every `settleIdb` round lets the fake
+    // clock run ~20 ms, so Restore goes in straight after the keystroke.
+    expect(JSON.stringify(record()?.bodyJson ?? null), 'precondition: the old view\'s words are not durable yet').not.toContain(OLD)
+  } else {
+    await tick(Math.min(beforeRestoreMs, 400))
+    expect(JSON.stringify(record()?.bodyJson ?? null), 'precondition: the old view wrote its words to the record').toContain(OLD)
+    expect(record()?.dirty, 'precondition: the record is dirty (unsent)').toBeTruthy()
+    if (beforeRestoreMs > 400) await tick(beforeRestoreMs - 400)
+  }
   update.mockClear()
+  const gapMs = Date.now() - typedAt          // the fake clock prosemirror-history stamps transactions with
   await pressRestore()
   expect(await until(async () => (await viewText()).includes(SENTENCE)), 'precondition: the draft is on the page').toBe(true)
+  return { gapMs }
 }
 
 describe('I-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)', () => {
@@ -240,6 +251,10 @@ describe('I-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored
     await tick(400)
     await sit(4)
     expectBothSurvive('no-base Restore, keystroke, Undo')
+    // ⭐ And W is now in a layer the NEXT view change cannot overwrite (the crash
+    // draft follows the page; the record and the queue do not).
+    expect(where(SENTENCE).record && where(SENTENCE).outbox, `W is only in the crash draft ${JSON.stringify(where(SENTENCE))}`).toBe(true)
+    expect(where(OLD).draft, "the old view's words are on the page the Undo brought back (the crash draft)").toBe(true)
   })
 
   it('Restore WITH a base (the adoption effect) after old-view typing, a keystroke, then Undo past it ⇒ W and the old words survive', async () => {
@@ -282,7 +297,8 @@ describe('I-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored
     // prosemirror-history merges adjacent transactions less than 500 ms apart,
     // and a whole-document swap is adjacent to anything — so without a boundary
     // ONE Undo would take back the old-view typing AND the Restore together.
-    await typeThenRestore({ beforeRestoreMs: 400 })
+    const { gapMs } = await typeThenRestore({ beforeRestoreMs: 200 })
+    expect(gapMs, 'precondition: the keystroke and the Restore were under newGroupDelay (500 ms) apart').toBeLessThan(500)
     await tick(400)
     await typeAtEnd('!')
     await tick(400)
@@ -291,4 +307,106 @@ describe('I-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored
     await sit(4)
     expectBothSurvive('typing + Restore in one group, keystroke, Undo')
   })
+
+  it('Undo past the Restore, then Redo, then Undo again ⇒ both survive every step (the swap is symmetric)', async () => {
+    await typeThenRestore()
+    await tick(400)
+    await typeAtEnd('!')
+    await tick(400)
+    expect(await undoUntilGone(SENTENCE), 'precondition: Undo crossed the Restore').toBeGreaterThan(0)
+    await sit(2)
+    expectBothSurvive('after the Undo')
+    await redoOnce()
+    expect(await viewText(), 'precondition: Redo put the restored page back').toContain(SENTENCE)
+    await sit(2)
+    expectBothSurvive('after the Redo')
+    expect(where(OLD).record, `the Redo pushed the old view's words off the page; the record must hold them ${JSON.stringify(where(OLD))}`).toBe(true)
+    expect(await undoUntilGone(SENTENCE), 'precondition: Undo crossed the Restore again').toBeGreaterThan(0)
+    await sit(2)
+    expectBothSurvive('after the second Undo')
+  })
+
+  it('a keystroke INSIDE the 200 ms window right after the Undo cannot coalesce the displaced words away', async () => {
+    await typeThenRestore()
+    await tick(400)
+    await typeAtEnd('!')
+    await tick(400)
+    expect(await undoUntilGone(SENTENCE)).toBeGreaterThan(0)
+    await typeAtEnd(' typed-after-undo')                        // no tick: same coalescing window
+    await sit(3)
+    expectBothSurvive('Undo then an immediate keystroke')
+    expect(survives('typed-after-undo'), 'the keystroke after the Undo').toBe(true)
+  })
+
+  it('back online after the Undo: the page saves, and the displaced words stay QUEUED (a copy on leave, never settled away)', async () => {
+    await typeThenRestore()
+    await tick(400)
+    await typeAtEnd('!')
+    await tick(400)
+    expect(await undoUntilGone(SENTENCE)).toBeGreaterThan(0)
+    await sit(2)
+    server.down = false
+    await typeAtEnd(' online')
+    await sit(6)                                                  // the 800 ms autosave lands
+    expect(JSON.stringify(server.body), 'precondition: the page saved').toContain('online')
+    expect(where(OLD).server, "the old view's words reached the server with the page").toBe(true)
+    expect(where(SENTENCE).record && where(SENTENCE).outbox, `the landed save settled W away ${JSON.stringify(where(SENTENCE))}`).toBe(true)
+    expect(record()?.dirty, 'W is still owed to the server').toBeTruthy()
+  })
+
+  it('⛔ displaced words travel on the OLDER baseline: a Restore whose draft was typed on an earlier revision queues W on that revision', async () => {
+    const T_OLD = '2026-10-16T19:00:00.000000+00:00'
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    server.down = true
+    crashDraftFromEarlierSession({ base: T_OLD })             // the server has moved since
+    await openTheNote()
+    await sit(2)
+    await typeAtEnd(` ${OLD}`)
+    await tick(400)
+    expect(record()?.baseUpdatedAt, 'precondition: the old view typed on the current revision').toBe(T0)
+    await sit(2)
+    await pressRestore()
+    expect(await until(async () => (await viewText()).includes(SENTENCE)), 'precondition: the draft is on the page').toBe(true)
+    await tick(400)
+    expect(await undoUntilGone(SENTENCE)).toBeGreaterThan(0)
+    await sit(3)
+    expectBothSurvive('older-base Restore, Undo')
+    const entry = outbox().find((e) => JSON.stringify(e.patch).includes(SENTENCE))
+    expect(entry?.baseUpdatedAt, 'W must be queued on the revision it was typed on, so a moved server 409s').toBe(T_OLD)
+    expect(record()?.baseUpdatedAt).toBe(T_OLD)
+  })
+
+  it("⛔ control: an Undo of the member's OWN typing after a Restore (not across it) keeps nothing extra — the undone keystroke is not queued", async () => {
+    // Without the crossing gate, the page before this Undo would be "displaced"
+    // and, with no record yet, queued: every quick Undo a spurious copy.
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    server.down = true
+    crashDraftFromEarlierSession()
+    await openTheNote()
+    await sit(2)
+    await pressRestore()
+    expect(await viewText()).toContain(SENTENCE)
+    await sit(2)                                                  // the Restore and the next keystroke are separate steps
+    await typeAtEnd('#')
+    await undoOnce()                                              // inside the durable window: no record yet
+    expect(await viewText(), 'precondition: the Undo took back only the keystroke').toContain(SENTENCE)
+    await sit(3)
+    expect(survives(SENTENCE), 'the restored words').toBe(true)
+    expect(JSON.stringify(record()?.bodyJson ?? null), 'the undone keystroke was queued as if it were displaced words').not.toContain('dropped.#')
+  })
+
+  for (const base of [null, T0]) {
+    const path = base ? 'WITH a base (the adoption effect)' : 'WITHOUT a base'
+    it(`Restore ${path} pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and both survive an Undo past it`, async () => {
+      await typeThenRestore({ base, beforeRestoreMs: 0 })
+      await tick(400)
+      await typeAtEnd('!')
+      await sit(2)
+      expect(survives(OLD), `the words typed just before Restore are in no layer ${JSON.stringify(where(OLD))}`).toBe(true)
+      const undos = await undoUntilGone(SENTENCE)
+      expect(undos, 'precondition: Undo crossed the Restore').toBeGreaterThan(0)
+      await sit(4)
+      expectBothSurvive(`${path} Restore inside the durable window, Undo`)
+    })
+  }
 })
