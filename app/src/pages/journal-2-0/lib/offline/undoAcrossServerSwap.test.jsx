@@ -284,9 +284,41 @@ describe('IM-1: the retry carrying the merged block lands after the Undo, before
     expect(JSON.stringify(record()?.bodyJson), 'precondition: the record holds W').toContain(W_MARK)
     await undo()                                         // W off the page; its durable write is ~200 ms away
     expect(await onScreen()).not.toContain(W_MARK)
+    // ⛔ m2 (round 2): the ORDER this cell exists for — the Undo's own durable write has
+    // NOT landed yet, so the record the settle meets still holds W. Without this the
+    // cell could pass through `persist`'s spill instead of the settle's.
+    expect(JSON.stringify(record()?.bodyJson), 'precondition: the Undo’s durable write landed BEFORE the settle — this cell would not test the settle').toContain(W_MARK)
     await act(async () => { net.held.release(); await settleIdb(10) })   // the retry lands; the settle runs — no timer moved
     await sit(10, 300)
     await leaveAndDrain()
     expectKept(W_MARK, 'the merged widget')
+  })
+})
+
+// ── 6 ───────────────────────────────────────────────────────────────────────
+describe('m4: a version restore over a DIRTY record never pins it', () => {
+  it('⭐⭐ offline: unsent words, version restore, type, close and reopen ⇒ the old words are durable AND the newer words are in the record', async () => {
+    await openTheNote()
+    await sit(6)
+    net.offline = true
+    await edit((c) => c.focus('end').insertContent(' OLD-UNSENT-WORDS'))
+    await sit(2, 300)
+    expect(JSON.stringify(record()?.bodyJson), 'precondition: the record holds the unsent words').toContain('OLD-UNSENT-WORDS')
+    expect(record()?.dirty, 'precondition: the record is dirty').toBeTruthy()
+    server.note.bodyJson = doc(para('a restored version'))
+    server.note.updatedAt = RESTORED_AT
+    versionGate.note = { ...server.note }
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'rail: restore a version' })); await settleIdb(6) })
+    await waitFor(async () => expect(await onScreen()).toContain('a restored version'))
+    await sit(3)
+    await edit((c) => c.focus('end').insertContent(' NEWER-WORDS'))
+    await sit(3, 300)
+    cleanup()                                            // close the note
+    await sit(1, 50)
+    await openTheNote()                                  // and reopen it, still offline
+    await sit(6)
+    const durable = JSON.stringify(record() ?? null) + JSON.stringify(outbox())
+    expect(durable, `the pre-restore unsent words are in no durable layer: ${durable}`).toContain('OLD-UNSENT-WORDS')
+    expect(JSON.stringify(record()?.bodyJson), `the record is PINNED: the newer words are in no durable layer: ${JSON.stringify(record()?.bodyJson)}`).toContain('NEWER-WORDS')
   })
 })
