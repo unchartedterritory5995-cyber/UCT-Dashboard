@@ -33,6 +33,8 @@
 .down { color: var(--danger-ink); }
 .flat { color: var(--text-muted); }
 .moreSentinel { height: 1px; }
+/* the per-row price line: fixed box, so rows do not shift when lines arrive */
+.rowSpark { flex: 0 0 56px; width: 56px; height: 20px; display: inline-flex; align-items: center; margin: 0 10px 0 6px; opacity: 0.9; }
 .keyHints { display: flex; gap: 12px; flex-wrap: wrap; padding: 10px 16px; border-top: 1px solid var(--border); font-size: var(--text-sm); color: var(--text-muted); }
 .keyHints b { color: var(--text); font-weight: 600; }
 .linkBtn { background: none; border: 0; padding: 0; min-height: 32px; display: inline-flex; align-items: center; gap: 0.3em; color: var(--text-muted); font: inherit; font-size: var(--text-base); cursor: pointer; }
