@@ -14,8 +14,9 @@
  * the crash draft.
  *
  * ⭐ THE RULING: an undo or redo transaction that CROSSES a swap mints a new
- * lineage (it replaces the whole document — `replacesWholeDocument` — or crosses a
- * crash-draft Restore). Undo itself is unchanged for the member. ⚰️ Fix round 1
+ * lineage (it replaces the whole document — `replacesWholeDocument`; every
+ * `replaceDocument` swap is one whole-document replace step, and so are its Undo
+ * and its Redo). Undo itself is unchanged for the member. ⚰️ Fix round 1
  * minted one on EVERY undo and redo (`isHistoryTransaction`), which pinned the
  * record on an ordinary Undo: `ordinaryUndoNoPin.test.jsx`.
  *

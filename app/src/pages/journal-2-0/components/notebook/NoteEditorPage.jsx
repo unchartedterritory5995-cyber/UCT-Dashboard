@@ -1641,13 +1641,12 @@ export default function NoteEditorPage({
   /** Called from `onUpdate` for every undo or redo, BEFORE the lineage rotates.
    *  Across the Restore boundary it writes the page being left (from
    *  `tr.before`, under ITS lineage) and marks the next capture — the page being
-   *  brought back — as a swap capture too. Returns true when it did: that undo or
-   *  redo is then a crossing, and the lineage rotates (`onUpdate`). */
+   *  brought back — as a swap capture too. */
   const noteRestoreCrossing = (tr) => {
     const swap = restoreSwapRef.current
     const ed = editorRef.current
-    if (!swap || !ed || ed.isDestroyed || !tr?.before || isUnreadable(ed)) return false
-    if (!ed.state.doc.eq(swap.preDoc) && !tr.before.eq(swap.preDoc)) return false
+    if (!swap || !ed || ed.isDestroyed || !tr?.before || isUnreadable(ed)) return
+    if (!ed.state.doc.eq(swap.preDoc) && !tr.before.eq(swap.preDoc)) return
     scheduleSwapCapture({
       title: titleRef.current,
       subtitle: subtitleRef.current,
@@ -1658,7 +1657,6 @@ export default function NoteEditorPage({
       editLineage: editLineageNow(),
     })
     spillNextCaptureRef.current = true
-    return true
   }
 
   const restoreDraft = async () => {
@@ -2961,11 +2959,15 @@ export default function NoteEditorPage({
     // the same view wrote a moment earlier, and so did every later capture and
     // every later landed save. Leaving re-sent the undone text SILENTLY (the Undo
     // reversed on the server) or made a `(conflicted copy)`. Now an undo or redo
-    // rotates only when it crosses: when it replaces the whole document (every
+    // rotates only when it crosses one: when it replaces the whole document (every
     // `replaceDocument` swap is one whole-document replace step, and so are its
-    // Undo and its Redo — `replacesWholeDocument`), or when it crosses a
-    // crash-draft Restore (`noteRestoreCrossing`). Any other undo or redo is the
-    // member editing this view and supersedes like a keystroke.
+    // Undo and its Redo — `replacesWholeDocument`; a crash-draft Restore is one of
+    // those swaps). Any other undo or redo is the member editing this view and
+    // supersedes like a keystroke — including a further Undo of the old view's own
+    // typing past a Restore, as the I-A note above already rules ("removing it is
+    // the member's edit"). ⚰️ Rotating also whenever `noteRestoreCrossing` fired
+    // was tried and dropped: no rail could tell it apart (mutant M3, evidence
+    // `offline-undo-20261016T130135Z/`), and its only effect was that pinning.
     // Rail: `lib/offline/ordinaryUndoNoPin.test.jsx`.
     // ⭐ I-A (2026-10-16): an undo or redo across a crash-draft Restore first
     // writes the page it is leaving (`noteRestoreCrossing`), under the lineage
@@ -2973,8 +2975,8 @@ export default function NoteEditorPage({
     onUpdate: ({ transaction }) => {
       if (lockedRef.current) return
       if (transaction && isHistoryTransaction(transaction)) {
-        const acrossRestore = noteRestoreCrossing(transaction)
-        if (acrossRestore || replacesWholeDocument(transaction)) viewReplaced()
+        noteRestoreCrossing(transaction)
+        if (replacesWholeDocument(transaction)) viewReplaced()
       }
       scheduleAutosaveRef.current()
     },

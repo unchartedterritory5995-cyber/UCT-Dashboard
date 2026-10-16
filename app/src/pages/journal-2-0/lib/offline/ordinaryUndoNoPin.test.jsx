@@ -17,9 +17,10 @@
  *
  * ⭐ THE RULING: the lineage rotates on an undo or redo only when it CROSSES a
  * whole-view swap — when the history transaction replaces the whole document
- * (every `replaceDocument` swap is one whole-document replace step, and so is its
- * undo and its redo), or when it crosses a crash-draft Restore (`noteRestoreCrossing`).
- * Anything else is the member editing the view, and supersedes like a keystroke.
+ * (every `replaceDocument` swap, a crash-draft Restore included, is one
+ * whole-document replace step, and so is its undo and its redo:
+ * `replacesWholeDocument`). Anything else is the member editing the view, and
+ * supersedes like a keystroke.
  *
  * (a) type, let it land, Undo, leave ⇒ the server ends with the post-undo text, no fork
  * (b) type (unsent), Undo, keep typing, leave ⇒ the server ends with the final text,
