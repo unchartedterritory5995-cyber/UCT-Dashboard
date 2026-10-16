@@ -125,6 +125,13 @@ def stale_price_sessions() -> int:
     between the healthy population (2,886 of 3,714 rows at ≤1 session) and the
     coverage-hole population (812 rows at 21+), so any value in 5..20 separates
     them and none of them can misfire on a normal weekend or holiday.
+
+    ⭐ TWO CONSUMERS, ONE QUESTION. ``query.stale_gate`` asks this same
+    predicate whether a row may be SCANNED beside current rows (measured there
+    against the snapshot's newest ``bars_asof``, not the wall clock). Dividing a
+    current number by a stale price and ranking a stale price beside current
+    ones are the same cross-clock defect, so they share one threshold; tune it
+    here and both move.
     """
     try:
         return int(os.environ.get("SCREENER_STALE_PRICE_SESSIONS") or 10)
@@ -372,9 +379,17 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     row = {c: None for c in snapshot_db.COLUMNS}
     row["ticker"] = (ticker or "").upper()
     # The coarse instrument bucket (Stock / ADR / ETF) the Type filter narrows on,
-    # from the generator's type map. Cheap dict lookup; defaults to "Stock" so a
-    # name not yet in the map is never blank/unfilterable.
-    row["security_type"] = _security_types().get(row["ticker"], "Stock")
+    # from the generator's type map. Cheap dict lookup.
+    #
+    # 🔴 A NAME THE MAP DOES NOT KNOW IS NULL, NEVER "Stock" (data-accuracy audit
+    # 2026-10-15, #3). This defaulted to "Stock" so an unmapped name was "never
+    # blank/unfilterable" — and SPY and QQQ were stored as Stock, so "Stocks only"
+    # returned the two largest ETFs in the market and "exclude ETFs" kept them.
+    # Failing OPEN made the Type filter confidently wrong exactly where the map
+    # had a gap (an empty map — a missing types file — made EVERY row a "Stock").
+    # NULL is honest and still filterable: `not_in [ETF]` keeps it (query.py's
+    # explicit NULL clause), `in [Stock, ADR]` does not.
+    row["security_type"] = _security_types().get(row["ticker"])
     # ⚠️ ORDER IS AUTHORITY. Later sources win, so `rs_fields` is LAST and owns
     # `rs_rank`/`rs_return` outright. `enrich.ratings_fields` no longer emits
     # either (see its docstring) — this ordering is the belt to that braces, so
@@ -384,6 +399,15 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
         for k, v in src.items():
             if k in row and v is not None:
                 row[k] = v
+    # ⭐ `is_etf` IS DERIVED FROM `security_type`, never read from a second
+    # classification. It used to come from Finviz's "Exchange Traded Fund"
+    # industry list (`context_joins.read_etf_flags`) while the Type filter read
+    # the universe generator's type map — two authorities over "is this an ETF",
+    # so the "ETF" flag and the "Type: ETF" filter could disagree about the same
+    # row, and "exclude ETFs" meant whichever one a screen happened to use. One
+    # map, one answer; NULL type -> NULL flag (unknown, not "not an ETF").
+    _st = row.get("security_type")
+    row["is_etf"] = None if _st is None else (_st == "ETF")
     # ONE sanitize for all four bar consumers below. Each of them does bare
     # OHLC arithmetic, so a single null close (halt, thin tape, provider gap)
     # used to raise out of whichever ran first and lose the whole row — the
@@ -442,9 +466,11 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
 
     if bars:
         row.update(_step("bars_technicals",
-                         lambda: technicals.compute_technicals(bars)))
+                         lambda: technicals.compute_technicals(
+                             bars, ipo_date=row.get("ipo_date"))))
         row.update(_step("bars_ath_fields",
-                         lambda: technicals.ath_fields(bars_full)))
+                         lambda: technicals.ath_fields(
+                             bars_full, ipo_date=row.get("ipo_date"))))
         row.update(_step("bars_single_candle",
                          lambda: candles.single_candle(bars)))
         row.update(_step("bars_multi_candle",

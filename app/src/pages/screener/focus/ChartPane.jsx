@@ -6,7 +6,7 @@ import { paneLookProps } from '../../../components/chart/pane/paneLook'
 import usePreferences from '../../../hooks/usePreferences'
 import { hasFinalTickerIpo } from '../../../hooks/useTickerIpo'
 import WhyStrip from './WhyStrip'
-import { setupLine } from './setupLine'
+import { setupLine, pivotLine } from './setupLine'
 import { plainFact, volumeFact } from './plainWords'
 import { livePriceOf } from './livePrice'
 import { earningsText } from './dates'
@@ -111,9 +111,13 @@ const isEditable = t => /^(input|textarea|select)$/i.test(t?.tagName || '') || !
 function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFlagged, onWatch, onNavKey, onRefocus, structures, busy = false }) {
   const [tf, setTf] = useState('D')
   const ink = useThemeInk(PIVOT_INK)
-  const pivot = row?.base_pivot_px
-  const priceLines = useMemo(() => (Number.isFinite(pivot)
-    ? [{ price: pivot, color: ink.pivot, title: 'pivot' }] : []), [pivot, ink.pivot])
+  // The head structure's pivot, titled for it ("Flat base pivot"), and hidden once the row's bars
+  // are stale (setupLine.pivotLine). Primitives into the memo, so a tick never rebuilds the lines.
+  const line = row ? pivotLine(row, structures, now ?? Date.now()) : null
+  const linePx = line?.price
+  const lineTitle = line?.title
+  const priceLines = useMemo(() => (Number.isFinite(linePx)
+    ? [{ price: linePx, color: ink.pivot, title: lineTitle }] : []), [linePx, lineTitle, ink.pivot])
   const sym = row?.ticker || null
 
   // Perf 2: the ticker has stayed put SETTLE_MS.
@@ -154,7 +158,7 @@ function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFl
   // B5/N4: the same price and change the row shows (livePrice.js).
   const live = Number.isFinite(livePx) ? { price: livePx, change_pct: liveChg } : null
   const { price, chg } = livePriceOf(row, live)
-  const s = setupLine({ ...row, price }, structures)
+  const s = setupLine({ ...row, price }, structures, { now: now ?? Date.now() })
   const factText = facts(row)
   const earn = earningsText(row.next_earnings_date, now)
   const industry = row.industry || row.sector

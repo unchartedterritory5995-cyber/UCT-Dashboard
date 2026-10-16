@@ -152,10 +152,18 @@ test('P10: a structure screen says what the stock has, in plain words', () => {
     { label: 'Any' }, { label: 'Pocket Pivot', op: 'contains', value: ',pocket-pivot,' },
     { label: 'Cheat (3-C)', op: 'contains', value: ',cheat-3c,' }, { label: 'Inside Day', op: 'contains', value: ',inside-day,' }] }]
   const one = v => whyItsHere({ filters: { base_structure: { op: 'contains', value: v } }, metaFilters: m, row: {} }).items[0]
-  expect(one(',pocket-pivot,')).toEqual({ kind: 'note', label: 'Has a Pocket Pivot' })
-  expect(one(',cheat-3c,').label).toBe('Has an Early entry inside a cup (3-C)')
+  expect(one(',pocket-pivot,')).toEqual({ kind: 'note', label: 'Has an up day on more volume than recent selling' })
+  expect(one(',cheat-3c,').label).toBe('Has an early entry inside a cup (3-C)')
   expect(one(',inside-day,').label).toBe('Has an Inside Day')
   expect(one(',gone,').label).not.toMatch(/^Matches/)
+})
+test('P10: a trend shape reads as what the stock is doing, never "Has a Declining Structure"', () => {
+  const m = [{ key: 'base_structure', label: 'Base Structure', type: 'enum', presets: [
+    { label: 'Declining Structure', op: 'contains', value: ',declining-structure,' },
+    { label: 'Undefined Structure', op: 'contains', value: ',undefined-structure,' }] }]
+  const one = v => whyItsHere({ filters: { base_structure: { op: 'contains', value: v } }, metaFilters: m, row: {} }).items[0].label
+  expect(one(',declining-structure,')).toBe('In a downtrend: lower highs and lows')
+  expect(one(',undefined-structure,')).toBe('No clear trend in its swings')
 })
 
 test('7: the operator word reads lowercase mid-sentence, with the plain column name', () => {

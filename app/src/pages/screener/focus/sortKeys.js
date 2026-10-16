@@ -29,10 +29,15 @@ export function isNumericColumn(key, types, columnDefs = COLUMN_DEFS) {
   return typeof columnDefs[key]?.heat === 'function'
 }
 
-// The sort menu's keys, in order: the default sort, the current sort, then the view's columns,
-// each once and only when numeric. The default sort is always offered.
-export function sortableColumns({ meta, columns = [], sortKey = null, defaultKey, columnDefs = COLUMN_DEFS }) {
+// Offered in EVERY view, after the view's own columns: the two orderings a momentum trader asks of
+// any list. "Volume vs usual by now" (live in the session) and "distance to the pattern entry".
+// Neither is in most views, so a view-only menu could not rank by them. Still numeric-checked.
+export const ALWAYS_SORTABLE = ['rvol_live', 'pattern_entry_dist_pct']
+
+// The sort menu's keys, in order: the default sort, the current sort, the view's columns, then
+// ALWAYS_SORTABLE; each once and only when numeric. The default sort is always offered.
+export function sortableColumns({ meta, columns = [], sortKey = null, defaultKey, columnDefs = COLUMN_DEFS, always = ALWAYS_SORTABLE }) {
   const types = columnTypes(meta)
-  return [...new Set([defaultKey, ...(sortKey ? [sortKey] : []), ...(columns || [])])]
+  return [...new Set([defaultKey, ...(sortKey ? [sortKey] : []), ...(columns || []), ...(always || [])])]
     .filter(k => k && (k === defaultKey || isNumericColumn(k, types, columnDefs)))
 }

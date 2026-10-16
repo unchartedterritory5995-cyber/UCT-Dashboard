@@ -21,7 +21,9 @@ def test_ath_distance_reads_full_history_not_the_400_tail():
 
 
 def test_new_ath_flag():
-    bars = [bar(100.0) for _ in range(50)] + [bar(120.0, h=125.0)]
+    # A full year of history: an "all-time" high needs at least the 52-week
+    # window (audit 2026-10-15 #2 — see test_screener_short_history.py).
+    bars = [bar(100.0) for _ in range(260)] + [bar(120.0, h=125.0)]
     out = technicals.ath_fields(bars)
     assert out["new_ath"] is True
     assert out["dist_ath_pct"] == round((120.0 - 125.0) / 125.0 * 100, 2)

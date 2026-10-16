@@ -8,7 +8,7 @@
 //   pattern_engine_dir >= 1          the pattern engine's best active detection is bullish
 //   pattern_entry_dist_pct -2 to +5  price is within 5% below that detection's entry (the pivot),
 //                                    or at most 2% through it
-//   close_cv_pct < 4                 the closes are clustered (the screener's "Tight band" preset)
+//   close_cv_pct < 4                 the closes are clustered (the 7 AM scanner rubric's 4% band)
 //   rs_line_trend = up               the RS line vs SPY is rising over 20 bars
 //   rs_rank >= 70                    a leader by RS rank (1 to 99)
 // `pattern_entry_dist_pct` is `(entry / price - 1) x 100` (live_tier.py), so the pivot price is

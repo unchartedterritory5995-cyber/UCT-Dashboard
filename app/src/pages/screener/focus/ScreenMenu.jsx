@@ -2,6 +2,7 @@ import { useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from
 import useLazyCounts from './useLazyCounts'
 import { capToTopN, withPool } from './counts'
 import { GROUPS, groupOf } from './screenGroups'
+import { emptyReason, presenceKeys, usePresence, REASON_SHORT } from './emptyReason'
 import Input from '../../../components/ui/Input'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './FocusScreener.module.css'
@@ -11,19 +12,22 @@ const norm = s => String(s || '').toLowerCase()
 
 // A count of exactly 0 is a real answer ("nothing matches today"), so the row is dimmed and
 // says so; an unknown count (undefined: not asked yet, null: the count failed) never reads as 0.
-function Item({ item, pinned, count, current, onApply, onTogglePin }) {
+// A zero that comes from the DATA (a live-only column outside the session, or a column no stock
+// holds yet) says that instead (`reason`, emptyReason.js): it is not a quiet market.
+function Item({ item, pinned, count, current, onApply, onTogglePin, reason = null }) {
   const none = count === 0
+  const noneText = (none && reason && REASON_SHORT[reason.kind]) || 'none today'
   return (
     <div className={`${styles.smItem} ${current ? styles.smCurrent : ''} ${none ? menuStyles.smEmpty : ''}`} data-empty={none ? '' : undefined}>
       <button type="button" className={styles.smPin} aria-pressed={pinned} aria-label={`${pinned ? 'Unpin' : 'Pin'} ${item.name}`} onClick={() => onTogglePin(String(item.id))}>
         <UIcon name="pin" size={16} gold={false} className={menuStyles.pinIcon} fill={pinned ? 'currentColor' : 'none'} />
       </button>
-      <button type="button" className={styles.smOpen} aria-label={`Open ${item.name}${none ? ', none today' : ''}`} onClick={() => onApply(item)}>
+      <button type="button" className={styles.smOpen} aria-label={`Open ${item.name}${none ? `, ${noneText}` : ''}`} onClick={() => onApply(item)}>
         <span className={styles.smName}>{item.name}</span>
         {item.description && <span className={styles.smDesc}>{item.description}</span>}
       </button>
       {none
-        ? <span className={menuStyles.smNone}>none today</span>
+        ? <span className={menuStyles.smNone} data-reason={reason?.kind}>{noneText}</span>
         : <span className={styles.smCount}>{count === undefined ? '' : count === null ? '—' : count.toLocaleString('en-US')}</span>}
     </div>
   )
@@ -31,7 +35,7 @@ function Item({ item, pinned, count, current, onApply, onTogglePin }) {
 
 // `landing`: the page is still choosing which screen to land on, so the button shows a
 // placeholder instead of naming a "Custom screen" that is about to be replaced (B12).
-export default function ScreenMenu({ currentName, currentId, isEdited, count, countPending = false, landing = false, pool = null, starters = [], saved = [], pinned = [], onTogglePin, onApply, onSaveChanges, onSaveAsNew, onRename, onNewScreen, myScans = [], onUseScan, apiRef }) {
+export default function ScreenMenu({ currentName, currentId, isEdited, count, countPending = false, landing = false, pool = null, starters = [], saved = [], pinned = [], onTogglePin, onApply, onSaveChanges, onSaveAsNew, onRename, onNewScreen, myScans = [], onUseScan, apiRef, meta = null }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const btn = useRef(null), box = useRef(null)
@@ -69,11 +73,16 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, co
   // Each screen is counted where it would run: in the member's universe/list when it names none.
   const specs = useMemo(() => Object.fromEntries(all.map(it => [String(it.id), withPool(it.spec, pool)])), [all, pool])
   const counts = useLazyCounts(specs, open)
+  // Only the screens that came back 0 are asked why: one presence count per column they read.
+  const zeroIds = all.map(it => String(it.id)).filter(id => capToTopN(counts[id], specs[id]) === 0)
+  const probe = [...new Set(zeroIds.flatMap(id => presenceKeys(specs[id], meta)))]
+  const presence = usePresence(probe, open && !!meta)
+  const reasonOf = id => (zeroIds.includes(id) ? emptyReason({ spec: specs[id], meta, presence }) || null : null)
   const pick = it => { onApply(it.spec || { filters: [] }, it); close() }
   const label = landing ? 'Loading screen…' : `${currentName || 'Custom screen'}${isEdited ? ' (edited)' : ''}`
   const pinnedSet = pinnedIds
   const row = it => <Item key={`${it.kind}-${it.id}`} item={it} pinned={pinnedSet.includes(String(it.id))}
-    count={capToTopN(counts[String(it.id)], specs[String(it.id)])} current={String(it.id) === String(currentId)} onApply={pick} onTogglePin={onTogglePin} />
+    count={capToTopN(counts[String(it.id)], specs[String(it.id)])} current={String(it.id) === String(currentId)} onApply={pick} onTogglePin={onTogglePin} reason={reasonOf(String(it.id))} />
 
   return (
     <span className={styles.menuWrap} ref={box} onBlur={onBlur}>

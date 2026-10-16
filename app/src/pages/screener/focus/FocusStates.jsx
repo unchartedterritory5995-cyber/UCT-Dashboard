@@ -3,6 +3,7 @@ import own from './FiltersDrawer.module.css'
 import useLazyCounts from './useLazyCounts'
 import { dropOptions, MAX_DROP_PILLS, LOGIC_ID } from './drawerFilters'
 import { capToTopN } from './counts'
+import { emptyReason, presenceKeys, usePresence, reasonHead, reasonBody } from './emptyReason'
 
 export function ListSkeleton() {
   return (
@@ -24,9 +25,14 @@ const countText = n => (n === undefined ? 'counting…' : n === null ? 'count un
   : `${n.toLocaleString('en-US')} ${n === 1 ? 'match' : 'matches'}`)
 
 
-export function EmptyState({ filterCount, lastChange, onUndo, onOpenFilters, spec = null, meta = null, onRemoveFilter = null, onRemoveLogic = null, pending = false }) {
-  const head = filterCount === 0 ? 'No stocks match this screen'
-    : filterCount === 1 ? 'No stocks match this filter' : `No stocks match all ${filterCount} filters`
+export function EmptyState({ filterCount, lastChange, onUndo, onOpenFilters, spec = null, meta = null, coverage = null, onRemoveFilter = null, onRemoveLogic = null, pending = false }) {
+  // A zero the DATA caused (a live-only column outside the session, a column nobody holds, rows
+  // that could not be checked) is said as that, never as "no stocks match" (emptyReason.js).
+  const presence = usePresence(presenceKeys(spec, meta, { liveOnly: true }), !!meta)
+  const reason = emptyReason({ spec, meta, presence, coverage, liveOnly: true }) || null
+  const head = reasonHead(reason) || (filterCount === 0 ? 'No stocks match this screen'
+    : filterCount === 1 ? 'No stocks match this filter' : `No stocks match all ${filterCount} filters`)
+  const why = reasonBody(reason, coverage)
   const options = onRemoveFilter ? dropOptions(spec, meta, !!onRemoveLogic) : []
   const shown = options.slice(0, MAX_DROP_PILLS)
   // A pill's count is keyed on the spec it describes, not just its filter: after any edit the
@@ -38,7 +44,8 @@ export function EmptyState({ filterCount, lastChange, onUndo, onOpenFilters, spe
     <div className={`${styles.stateBox} ${pending ? styles.stateBusy : ''}`} aria-busy={pending || undefined} data-testid="focus-empty">
       {/* Only the verdict is a live region; the pills' eight async counts must not be announced. */}
       <div role="status" className={own.stateStatus}>
-        <p className={styles.stateHead}>{head}</p>
+        <p className={styles.stateHead} data-reason={reason?.kind}>{head}</p>
+        {why && <p className={styles.stateBody}>{why}</p>}
         {lastChange && (
           <p className={styles.stateBody}>
             Your last change, <b>{lastChange.label}</b>, took the list from {lastChange.from} to 0.

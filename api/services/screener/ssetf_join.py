@@ -92,7 +92,8 @@ it and a second authority over one value is this repo's most repeated defect:
 
 * `is_leveraged` — `context_joins.read_etf_flags` owns it, off `etf_ticker`
   membership in this same table. This module never reads `etf_ticker`.
-* `is_etf` — `context_joins.read_etf_flags` owns it, off `industry_map`.
+* `is_etf` — `snapshot_builder.build_row` derives it from `security_type`
+  (the universe generator's type map), the same answer the Type filter reads.
 * Anything about a fund's own price, name or listing. This module's subject is
   the underlying; the fund side is not its business.
 
