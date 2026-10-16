@@ -17,15 +17,15 @@ import styles from './TraderArchiveBlock.module.css'
 const MAX_POSTS = 4
 const MAX_CALLS = 5
 
-// A failure is a state this block hides, not one it reports: resolve to null so SWR does
-// not retry a 404 on every focus.
-const quietFetcher = (url) => jsonFetcher(url).catch(() => null)
+// A failure is a state this block hides, not one it reports: the fetcher throws (so SWR
+// carries it as `error`, TERM-033), and the options stop SWR retrying a 404 on every focus.
+const SWR_OPTS = { revalidateOnFocus: false, shouldRetryOnError: false }
 
 export default function TraderArchiveBlock({ sym }) {
   const s = (sym || '').toUpperCase().trim()
-  const { data } = useSWR(s ? `${ARCHIVE_API}/ticker/${encodeURIComponent(s)}?limit=500` : null, quietFetcher,
-    { revalidateOnFocus: false, shouldRetryOnError: false })
-  if (!s || !data) return null
+  const { data, error } = useSWR(s ? `${ARCHIVE_API}/ticker/${encodeURIComponent(s)}?limit=500` : null, jsonFetcher,
+    SWR_OPTS)
+  if (!s || error || !data) return null
   const records = Array.isArray(data.records) ? data.records : []
   const calls = Array.isArray(data.calls) ? data.calls : []
   if (records.length === 0 && calls.length === 0) return null

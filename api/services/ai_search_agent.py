@@ -42,7 +42,13 @@ _AGENT_ALLOWED = [
     "get_earnings_intel", "get_options_flow", "get_short_interest",
     "get_sector_strength", "get_bar_summary", "get_polygon_news",
     "get_scanner_candidates", "get_fundamentals", "get_insider_activity",
+    # The TSDR trader archive's three readers (api/services/wisdom/archive/tools.py, read-only).
+    # Each carries a registry gate (WISDOM_ARCHIVE_ENABLED); _tool_schemas honours it.
+    "trader_archive_search", "trader_archive_ticker", "trader_archive_setup",
 ]
+#: Allowed readers whose names do not start with a read verb; tests/test_ai_search_agent_lane.py
+#: names them so the read-only naming rail stays exact rather than loosened.
+_READ_ONLY_BY_MODULE = frozenset({"trader_archive_search", "trader_archive_ticker", "trader_archive_setup"})
 
 
 def _model() -> str:
@@ -77,7 +83,7 @@ def _tool_schemas() -> list[dict]:
     out: list[dict] = []
     for name in _AGENT_ALLOWED:
         entry = voice_tools._REGISTRY.get(name)
-        if not entry:
+        if not entry or not voice_tools._gate_open(entry):   # a gated-off tool is not offered
             continue
         out.append({
             "name": name,

@@ -15,7 +15,8 @@
 //                                  context_score, historical_score }  → quality bars
 //
 // Feedback POSTs to /api/patterns/{detection_id}/feedback with `credentials: 'include'`.
-// Historical Stats section is a placeholder until Phase 7 outcome tracker lands.
+// Historical Stats come from the TSDR trader archive (PatternArchiveStats.jsx): the team's
+// record on the setup this detector belongs to. Display only; it never feeds the scores above.
 //
 // Closes via ESC, backdrop click, or the X button. Slides from right at 420px desktop /
 // full-width <640px.
@@ -23,6 +24,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../ui/UIcon'
+import PatternArchiveStats from './PatternArchiveStats'
 import styles from './PatternSidePanel.module.css'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -336,9 +338,7 @@ export default function PatternSidePanel({ detection, onClose }) {
               <span>Historical Stats</span>
             </div>
             <div className={styles.sectionBody}>
-              <div className={styles.placeholder}>
-                Pattern stats available after Phase 7 launch — outcome tracker pending.
-              </div>
+              <PatternArchiveStats patternId={detection.pattern_id} sym={detection.sym} />
             </div>
           </section>
         </div>

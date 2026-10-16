@@ -104,7 +104,15 @@ _PACK_TOOL_ALIAS = {
     "news_ticker": "get_polygon_news",
     "tape": "get_polygon_news",
     "catalyst": "get_polygon_news",
+    # the TSDR trader archive: dated posts (search) and a setup's playbook (setup)
+    "trader_archive": "trader_archive_search",
+    "trader_archive_playbook": "trader_archive_setup",
 }
+_ARCHIVE_PACK_TOOLS = frozenset({"trader_archive_search", "trader_archive_ticker", "trader_archive_setup"})
+#: A pack that one agent tool cannot fully stand for. The archive block retrieves dated posts by
+#: the question's tickers AND by its words, which is what trader_archive_ticker and
+#: trader_archive_search each fetch, so the one pack evidences both.
+_PACK_ALSO_TOOLS = {"trader_archive": ("trader_archive_ticker",)}
 
 
 def _fast_lane_capture(meta: dict, result: dict) -> list[dict]:
@@ -123,9 +131,13 @@ def _fast_lane_capture(meta: dict, result: dict) -> list[dict]:
     ctx = meta.get("ctx_block") or ""
     seen: dict[str, dict] = {}
     for pack in (meta.get("grounding_sources") or []):
-        tool = _PACK_TOOL_ALIAS.get(pack)
-        if tool and tool not in seen:
-            seen[tool] = {"name": tool, "args": {"pack": pack}, "result": ctx}
+        for tool in (_PACK_TOOL_ALIAS.get(pack), *_PACK_ALSO_TOOLS.get(pack, ())):
+            if not tool or tool in seen:
+                continue
+            # The archive block rides the system prompt, not the desk context: its evidence is
+            # the citations it attached (record ids), which archive_fabricated_record reads.
+            evidence = (meta.get("archive_citations") or []) if tool in _ARCHIVE_PACK_TOOLS else ctx
+            seen[tool] = {"name": tool, "args": {"pack": pack}, "result": evidence}
     cites = (result or {}).get("citations") or []
     if cites:
         seen["web_search"] = {"name": "web_search", "args": {},

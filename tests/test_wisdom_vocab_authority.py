@@ -127,6 +127,10 @@ DERIVABLE = {
     "pattern_engine": (lambda root: detector_ids(root / "api/services/pattern_engine/detectors"), 80),
 }
 ENGINE_LISTS = ("engine_setup_triggers", "engine_leadership_setup_type", "engine_setup_templates")
+#: Lists whose names live outside this repository but which the vocabulary still maps. The
+#: trader archive's setup taxonomy is built in the private ledger; its rows also carry the
+#: pattern-engine detectors that find each setup (the archive surfaces resolve detector -> setup).
+ARCHIVE_LISTS = ("trader_archive",)
 W1_MISMATCHES = (  # (list, external name, vocab_id) — W1 §3.3
     ("pattern_engine", "pullback_to_21ema", "20ema_tap"),
     ("setupCatalog.js", "High Volume Edge", "high_volume_close"),
@@ -172,7 +176,7 @@ def test_no_map_row_describes_a_name_its_list_no_longer_has(vocabulary, list_nam
 
 def test_every_row_names_a_known_vocab_id_and_every_mismatch_says_why(vocabulary):
     known = {e["vocab_id"] for e in vocabulary["entries"]}
-    assert set(vocabulary["maps"]) == set(DERIVABLE) | set(ENGINE_LISTS)
+    assert set(vocabulary["maps"]) == set(DERIVABLE) | set(ENGINE_LISTS) | set(ARCHIVE_LISTS)
     for list_name, spec in vocabulary["maps"].items():
         names = [r["external_name"] for r in spec["rows"]]
         assert len(names) == len(set(names)), f"{list_name}: a duplicated row"
@@ -194,6 +198,58 @@ def test_the_engine_lists_are_declared_measured_and_mapped(vocabulary):
     for list_name in ENGINE_LISTS:
         spec = vocabulary["maps"][list_name]
         assert spec["derivable_in_ci"] is False and spec["measured"]["at"] and spec["rows"], list_name
+
+
+def archive_link_problems(vocabulary: dict, detectors) -> list[str]:
+    """Every way the trader_archive map's detector links can be wrong, named."""
+    known = set(detectors)
+    engine_vocab = {r["external_name"]: r["vocab_id"] for r in vocabulary["maps"]["pattern_engine"]["rows"]}
+    owner: dict = {}
+    problems = []
+    for row in vocabulary["maps"]["trader_archive"]["rows"]:
+        ids = row.get("pattern_engine_ids")
+        if not isinstance(ids, list):
+            problems.append(f"{row['external_name']}: pattern_engine_ids is not a list")
+            continue
+        for pid in ids:
+            if pid not in known:
+                problems.append(f"{row['external_name']}: unknown detector {pid}")
+            if pid in owner:
+                problems.append(f"{pid}: linked to both {owner[pid]} and {row['external_name']}")
+            owner[pid] = row["external_name"]
+            ev = engine_vocab.get(pid)
+            if ev and row["vocab_id"] and ev != row["vocab_id"]:
+                problems.append(f"{row['external_name']} ({row['vocab_id']}) and {pid} ({ev}) disagree on the vocabulary")
+    return problems
+
+
+def test_the_archive_list_is_declared_measured_and_its_detector_links_are_real(vocabulary):
+    spec = vocabulary["maps"]["trader_archive"]
+    assert spec["derivable_in_ci"] is False and spec["measured"]["at"]
+    assert spec["measured"]["rows"] == len(spec["rows"]) == 45
+    detectors = DERIVABLE["pattern_engine"][0](REPO)
+    assert not archive_link_problems(vocabulary, detectors)
+    linked = {pid for r in spec["rows"] for pid in r["pattern_engine_ids"]}
+    # the trader-defined detectors are the reason the map exists; each must reach its setup
+    for pid, setup in (("uct_kicker", "kicker"), ("uct_oops_reversal", "oops"),
+                       ("uct_slingshot", "slingshot"), ("uct_hve", "hve")):
+        row = next(r for r in spec["rows"] if r["external_name"] == setup)
+        assert pid in row["pattern_engine_ids"], (pid, setup)
+    assert len(linked) >= 25, "the detector links went missing"
+
+
+def test_a_bad_archive_link_is_named(vocabulary):
+    detectors = DERIVABLE["pattern_engine"][0](REPO)
+    planted = json.loads(json.dumps(vocabulary))
+    rows = planted["maps"]["trader_archive"]["rows"]
+    next(r for r in rows if r["external_name"] == "vcp")["pattern_engine_ids"].append("no_such_detector")
+    next(r for r in rows if r["external_name"] == "oops")["pattern_engine_ids"].append("vcp")
+    next(r for r in rows if r["external_name"] == "flag_htf")["vocab_id"] = "launchpad"
+    problems = archive_link_problems(planted, detectors)
+    assert "vcp: unknown detector no_such_detector" in problems
+    assert "vcp: linked to both oops and vcp" in problems
+    assert "oops (oops_reversal) and vcp (vcp) disagree on the vocabulary" in problems
+    assert any(p.startswith("flag_htf (launchpad) and bull_flag (flag)") for p in problems)
 
 
 def test_the_engine_strings_still_have_rows_when_the_engine_db_is_reachable(vocabulary):

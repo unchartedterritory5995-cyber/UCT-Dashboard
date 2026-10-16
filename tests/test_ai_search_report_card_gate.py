@@ -23,8 +23,8 @@ def test_pass_bars_pinned_unbaselined():
 
 def test_golden_set_integrity():
     qs = gs.load_golden_set()
-    assert len(qs) == 30
-    assert gs.rung_question_counts() == {1: 8, 2: 6, 3: 6, 4: 5, 5: 5}
+    assert len(qs) == 32          # 30 + the two trader-archive questions (S1-09, S2-07)
+    assert gs.rung_question_counts() == {1: 9, 2: 7, 3: 6, 4: 5, 5: 5}
     ids = [q["id"] for q in qs]
     assert len(set(ids)) == len(ids)
     # every gated tool must be one the agent lane can actually fire
