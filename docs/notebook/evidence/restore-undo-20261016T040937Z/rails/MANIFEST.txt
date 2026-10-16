@@ -1,0 +1,22 @@
+Raw vitest output, written before any interpretation (R-RAW).
+
+red-hotfix-b69eb71e86.log
+  tree: hotfix/notebook-midtext-fork tip b69eb71e86 (product files unmodified),
+        plus the new rail lib/offline/restoreUndoKeepsWords.test.jsx
+  cmd:  (app/) npx vitest run src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx --maxWorkers=2
+
+red-master-810b07fe53.log
+  tree: same, with the three hotfix product files (NoteEditorPage.jsx,
+        recoverLocalState.js, useDurableNote.js) written from origin/master
+        810b07fe53 blobs by swap_blobs_ru.py, then restored byte-exact and
+        verified against `git cat-file blob HEAD:<path>` (CRLF->LF)
+  cmd:  python swap_blobs_ru.py origin/master <log> src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx
+
+Added after the fix commit 2b075c3d9e (raw, before the report was written):
+  rails/red-final-on-b69eb71e86-blobs.log   final rails (restoreUndoKeepsWords 12 + swapLineageRotation 9) with the
+                                            three product files written from b69eb71e86: 13 failed | 8 passed (21)
+  rails/red-final-on-master-810b07fe53-blobs.log   same, master blobs: 19 failed | 2 passed (21)
+  rails/fixed/*.log                         the same rails on the fix: green
+  ../mutations/                             mutate_ru.py + one log per mutation + mut-summary.txt
+  ../suites/                                chunked named-file runs (chunks_ru.py); consumers-0 died with no totals
+                                            line (Node exit, no output) and was re-run as consumers0rerun-0/1

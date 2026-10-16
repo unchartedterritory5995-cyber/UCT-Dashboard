@@ -78,7 +78,7 @@ import TableToolbar from './TableToolbar'
 import LinkPasteMenu from './LinkPasteMenu'
 import UnlinkedMentions from './UnlinkedMentions'
 import { TextSelection } from '@tiptap/pm/state'
-import { isHistoryTransaction } from '@tiptap/pm/history'
+import { closeHistory, isHistoryTransaction } from '@tiptap/pm/history'
 import { taskIndexFromParams, findTaskItemPos } from '../../lib/noteTasks'
 import { NOTEBOOK_EVENTS, startNoteOpenTimer, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { noteIsLocked, setNoteLock } from '../../lib/lockedNote'
@@ -1347,6 +1347,7 @@ export default function NoteEditorPage({
   useEffect(() => {
     if (!note) return undefined
     viewReplaced()   // hotfix 2026-10-15: a note load is a new view — a new lineage
+    restoreSwapRef.current = null   // I-A: no Restore on this note's page yet
     setRecoveryDecidedFor(null)
     setTitle(note.title || '')
     titleRef.current = note.title || ''
@@ -1530,6 +1531,56 @@ export default function NoteEditorPage({
     try { localStorage.removeItem(DRAFT_KEY(noteId)) } catch { /* private mode */ }
   }
 
+  // ⭐⭐ I-A (2026-10-16) — WORDS A CRASH-DRAFT RESTORE PUT ON THE PAGE SURVIVE AN
+  // UNDO PAST IT.
+  //
+  // ⚰️ MEASURED (`lib/offline/restoreUndoKeepsWords.test.jsx`, red on the hotfix
+  // tip and on master). Offline, after typing in this view, a Restore's words are
+  // refused by the durable record (it keeps the older view's unsent words — both
+  // must survive), so they lived only on the page and in the crash draft; an Undo
+  // past the Restore then captured the older page over the crash draft, and the
+  // restored words were in no layer.
+  //
+  // ⭐ So a Restore remembers the page it replaced (`restoreSwapRef`), and an Undo
+  // or Redo that lands on that page or leaves it hands the page it pushed off to
+  // the durable write as `displaced`. `persist` decides whether any layer would
+  // still hold those words and, when none would, keeps them in the record (the
+  // note above `keepDisplacedWords`). An Undo of the member's own typing hands
+  // nothing: removing it is the member's edit.
+  //
+  // ⛔ And the Restore is its OWN undo step (`closeHistory`). prosemirror-history
+  // merges adjacent transactions under 500 ms apart, and a whole-document swap is
+  // adjacent to anything, so a keystroke just before Restore and the Restore were
+  // one step: one Undo took back both, the page went to a copy that carried
+  // neither the record's words nor the restored ones, and one of them had no
+  // layer left. The boundary only splits the steps; Undo still walks the same
+  // pages.
+  const restoreSwapRef = useRef(null)
+  const displacedRef = useRef(null)
+  /** Call BEFORE a crash-draft Restore replaces the page. */
+  const markRestoreSwap = (ed) => {
+    if (!ed || ed.isDestroyed) return
+    restoreSwapRef.current = { preDoc: ed.state.doc }
+    try { ed.view.dispatch(closeHistory(ed.state.tr)) } catch { /* a boundary is an aid, never the guard */ }
+  }
+  /** Called from `onUpdate` for every undo or redo, BEFORE the lineage rotates —
+   *  so the displaced capture carries the lineage of the page it came from. */
+  const noteRestoreCrossing = (tr) => {
+    const swap = restoreSwapRef.current
+    const ed = editorRef.current
+    if (!swap || !ed || ed.isDestroyed || !tr?.before || isUnreadable(ed)) return
+    if (!ed.state.doc.eq(swap.preDoc) && !tr.before.eq(swap.preDoc)) return
+    displacedRef.current = {
+      title: titleRef.current,
+      subtitle: subtitleRef.current,
+      bodyJson: draftJSONRef.current(tr.before),
+      baseUpdatedAt: lastSavedRef.current.updatedAt || null,
+      serverBase: { ...lastSavedRef.current },
+      writtenSchema: editorWrittenSchema(),
+      editLineage: editLineageNow(),
+    }
+  }
+
   const restoreDraft = async () => {
     // Re-entrancy guard: found via real browser E2E that a single click can
     // fire this handler twice in quick succession (both invocations reading
@@ -1576,6 +1627,12 @@ export default function NoteEditorPage({
     const draftSubtitle = pendingDraft.subtitle || ''
     const draftBodyJson = pendingDraft.bodyJson
     viewReplaced()   // hotfix 2026-10-15: a Restore replaces the view — a new lineage
+    // I-A: the old view's last keystroke, still in the durable writer's window,
+    // is written before anything of the restored page can follow it (the R1
+    // flush); then the Restore becomes its own undo step and remembers the page
+    // it replaced (see `markRestoreSwap`).
+    durableRef.current.flush()
+    if (draftBodyJson) markRestoreSwap(editorRef.current)
     setTitle(draftTitle)
     titleRef.current = draftTitle
     setSubtitle(draftSubtitle)
@@ -1585,6 +1642,7 @@ export default function NoteEditorPage({
     // write, which is precisely what the comment below says a restore
     // deliberately does not do.
     if (draftBodyJson && !replaceDocument(editorRef.current, draftBodyJson, EMIT_NOTHING)) {
+      restoreSwapRef.current = null         // nothing was replaced
       restoringDraftRef.current = false      // S1: unreadable here -- locked, nothing sent
       return
     }
@@ -1723,6 +1781,11 @@ export default function NoteEditorPage({
   }
 
   const scheduleAutosave = () => {
+    // I-A: what an undo or redo across a Restore pushed off the page (read and
+    // cleared on every call, so it can only ever travel with the capture it
+    // belongs to).
+    const displaced = displacedRef.current
+    displacedRef.current = null
     // ⛔ See `hydratedRef`. Before the note is in the editor there is nothing of
     // the member's to save, and everything to lose — so this refuses BEFORE it
     // touches the status, the draft, the durable copy or the save timer.
@@ -1746,7 +1809,12 @@ export default function NoteEditorPage({
     // p95 (800.7ms in Chrome 152) is as long as the whole server autosave
     // debounce. It is also NOT the network — a durable local write is not a
     // save, and nothing here tells the member otherwise.
-    if (snapshot) durableRef.current.schedule(snapshot)
+    // ⭐ I-A: a displaced page rides with THIS capture, and is written now — a
+    // keystroke inside the coalescing window must not replace it before it lands.
+    if (snapshot && displaced) {
+      durableRef.current.schedule({ ...snapshot, displaced })
+      durableRef.current.flush()
+    } else if (snapshot) durableRef.current.schedule(snapshot)
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     // Fresh user edit supersedes any in-flight retry — reset the backoff
     // counter so we don't waste a 30s wait on content the user just changed.
@@ -2727,9 +2795,15 @@ export default function NoteEditorPage({
     // capture that follows is taken on a fresh lineage and keeps the
     // containment test. Undo itself is untouched; over-rotating is safe.
     // Rail: `lib/offline/swapLineageRotation.test.jsx`.
+    // ⭐ I-A (2026-10-16): an undo or redo across a crash-draft Restore first
+    // hands the page it pushed off to the durable write (`noteRestoreCrossing`),
+    // under the lineage that page had — so it is taken BEFORE the rotation.
     onUpdate: ({ transaction }) => {
       if (lockedRef.current) return
-      if (transaction && isHistoryTransaction(transaction)) viewReplaced()
+      if (transaction && isHistoryTransaction(transaction)) {
+        noteRestoreCrossing(transaction)
+        viewReplaced()
+      }
       scheduleAutosaveRef.current()
     },
   }, [note?.id])
@@ -3292,11 +3366,19 @@ export default function NoteEditorPage({
     // saved as though it had — they are offered, and the durable copy and the
     // queue still hold them.
     viewReplaced()   // hotfix 2026-10-15: adopted words replace the view — a new lineage
+    // I-A: a Restore the member chose (not the automatic adoption, whose words
+    // ARE the record's) flushes the old view's pending keystroke first, then
+    // becomes its own undo step and remembers the page it replaced.
+    if (!auto) {
+      durableRef.current.flush()
+      markRestoreSwap(editor)
+    }
     try {
       if (!replaceDocument(editor, state.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)) {
+        if (!auto) restoreSwapRef.current = null
         offer(); return undefined
       }
-    } catch { offer(); return undefined }
+    } catch { if (!auto) restoreSwapRef.current = null; offer(); return undefined }
     // ⛔⛔ B1: these words were written by ANOTHER page load, perhaps a bundle
     // that could not read this note and held an empty stand-in. From here every
     // capture and every send of them is at THAT writer's level (absent ⇒ 0), so
