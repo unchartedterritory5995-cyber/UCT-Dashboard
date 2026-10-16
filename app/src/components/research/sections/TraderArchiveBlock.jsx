@@ -58,9 +58,9 @@ export default function TraderArchiveBlock({ sym }) {
       )}
 
       {recentCalls.length > 0 && (
-        <table className={styles.calls} data-testid="trader-archive-calls">
+        <table className={styles.calls} data-testid="trader-archive-calls" aria-label="Recent scored calls">
           <thead>
-            <tr><th>Posted</th><th>Trader</th><th>Dir</th><th>Setup</th><th>R20</th></tr>
+            <tr><th scope="col">Posted</th><th scope="col">Trader</th><th scope="col">Dir</th><th scope="col">Setup</th><th scope="col">R20</th></tr>
           </thead>
           <tbody>
             {recentCalls.map((c) => {
