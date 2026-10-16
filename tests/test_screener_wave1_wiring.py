@@ -30,7 +30,9 @@ def test_bar_consumers_write_disjoint_key_sets():
 
 def test_build_row_merges_context_and_scores(monkeypatch):
     from api.services.screener import snapshot_builder
-    bars = [{"o": 100.0, "h": 100.5, "l": 99.5, "c": 100.0, "v": 1000}] * 60
+    # 260 bars: `dist_ath_pct` needs at least a year of history (audit
+    # 2026-10-15 #2), so a 60-bar fixture would read "ath_fields did not run".
+    bars = [{"o": 100.0, "h": 100.5, "l": 99.5, "c": 100.0, "v": 1000}] * 260
     row = snapshot_builder.build_row(
         "T", bars, None, None,
         context_row={"stage2": True, "in_uct20": False, "index_sp500": True})

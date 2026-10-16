@@ -301,13 +301,90 @@ def usable_bars(bars: list[dict]) -> list[dict]:
     return [b for b in (bars or []) if all(ok(b.get(k)) for k in ("o", "h", "l", "c"))]
 
 
-def ath_fields(all_bars: list[dict]) -> dict:
+# ─────────────────────────────────────────────────────────────────────────────
+#  A window statistic needs the window
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# 🔴 THE DEFECT (data-accuracy audit 2026-10-15, #2). The 52-week, all-time and
+# ADR columns were computed over `bars[-N:] if len(bars) >= N else bars` — so a
+# ticker whose stored history was SHORT got the statistic of whatever it had,
+# published under the full window's name. TSLA was stored at −3.4% from its
+# "52-week high" off fewer than 15 bars: a fortnight's high, labelled a year's,
+# indistinguishable on screen from a real one. A short history is not rare —
+# a backfill hole, a ticker change, a symbol bars.db only started carrying.
+#
+# ⭐ THE RULE: a column is published only when its window is FULL. The window
+# lengths are not restated here — `_WINDOW_BARS` (below) already declares how
+# many trailing bars each column READS, for the seam guard; "how far back does
+# this value reach" and "how much history must exist for it" are one number.
+#
+# ⭐ THE ONE EXCEPTION, AND HOW IT IS PROVEN: a stock that LISTED inside the
+# window has no older history to hold — its whole life IS the honest window, the
+# same reading every provider gives an IPO's 52-week high. That is not inferred
+# from a short series (which is exactly what the defect looks like); it needs the
+# listing date (`ipo_date`, from the profile bulk the builder already merges into
+# the row before the bar consumers run) AND bars that reach back to it. A row
+# with no listing date gets no exception: fail closed, publish nothing.
+
+#: Grace between the provider's listing date and the first stored session — an
+#: `ipoDate` is often the PRICING day, one session before the first print.
+_LISTING_GRACE_DAYS = 7
+
+
+def _bar_date(t):
+    """A bar's ``t`` as a ``date`` (``YYYYMMDD`` int/str or ISO text), or None."""
+    import datetime as _dt
+    digits = "".join(ch for ch in str(t if t is not None else "")[:10] if ch.isdigit())
+    if len(digits) < 8:
+        return None
+    try:
+        return _dt.date(int(digits[:4]), int(digits[4:6]), int(digits[6:8]))
+    except ValueError:
+        return None
+
+
+def holds_whole_life(bars, ipo_date) -> bool:
+    """True when ``bars`` begin at the stock's listing — so a window longer than
+    the series is honestly the stock's whole life, not a hole in our history.
+
+    ``False`` — never a guess — when the listing date is absent or unparseable,
+    or the first bar's date cannot be read.
+    """
+    import datetime as _dt
+    if not bars or not ipo_date:
+        return False
+    listed = _bar_date(ipo_date)
+    first = _bar_date(bars[0].get("t"))
+    if listed is None or first is None:
+        return False
+    return first <= listed + _dt.timedelta(days=_LISTING_GRACE_DAYS)
+
+
+def _window_full(bars, column, ipo_date=None, *, listing_exempt=False) -> bool:
+    """Whether ``bars`` hold the whole window ``column`` reads (``_WINDOW_BARS``);
+    with ``listing_exempt``, a series that begins at the listing also counts."""
+    if len(bars) >= _WINDOW_BARS[column]:
+        return True
+    return bool(listing_exempt and holds_whole_life(bars, ipo_date))
+
+
+def ath_fields(all_bars: list[dict], ipo_date=None) -> dict:
     """Distance to the all-time high of the STORED history (bars.db holds
     since-inception dailies for the cap universe; a recent IPO's 'all-time'
-    is its whole life — that is the honest reading, same as any provider)."""
+    is its whole life — that is the honest reading, same as any provider).
+
+    ⛔ AT LEAST THE 52-WEEK RULE: an "all-time" high over fewer stored sessions
+    than a year is withheld unless the series provably begins at the listing
+    (see the block above ``holds_whole_life``). Requiring the WHOLE life for an
+    old name is not possible here — ``DEEP_BARS`` caps the read at ~20 years —
+    so a year of history is the floor, not the definition.
+    """
     out = {"dist_ath_pct": None, "new_ath": False}
     bars = usable_bars(all_bars)
     if not bars:
+        return out
+    if not _window_full(bars, "dist_52w_high_pct", ipo_date, listing_exempt=True):
+        out["new_ath"] = None
         return out
     hi = max(b["h"] for b in bars)
     out["dist_ath_pct"] = _pct(bars[-1]["c"], hi)
@@ -472,7 +549,9 @@ def seam_withheld_columns(bars) -> set:
     return {c for c, w in _WINDOW_BARS.items() if w > since}
 
 
-def compute_technicals(bars: list[dict]) -> dict:
+def compute_technicals(bars: list[dict], ipo_date=None) -> dict:
+    """The bar-derived columns. ``ipo_date`` (the row's listing date, or None)
+    is consulted ONLY for the 52-week exception — see ``holds_whole_life``."""
     out = {k: None for k in (
         "chg_pct_1d", "chg_pct_1w", "chg_pct_1m", "rsi14", "pct_vs_sma20",
         "pct_vs_sma50", "pct_vs_sma200", "pct_vs_ema20", "adr_pct", "atr_pct",
@@ -544,7 +623,13 @@ def compute_technicals(bars: list[dict]) -> dict:
     # admits `c == 0` (it checks finiteness, not positivity), so the path is
     # reachable and one such row exists in the daily store today. Filtering the
     # window ONCE makes the two agree by construction.
-    window = [b for b in (bars[-21:] if len(bars) >= 21 else bars) if b["c"]]
+    #
+    # ⛔ AND THE WINDOW MUST BE FULL: an "ADR%" over a fortnight is not the
+    # 21-session ADR, it is a different, noisier number under its name. No
+    # listing exception here — 21 sessions is a month, and a name a month old
+    # simply has no ADR yet.
+    window = ([b for b in bars[-21:] if b["c"]]
+              if _window_full(bars, "adr_pct") else [])
     if window:
         adr = sum((b["h"] - b["l"]) / b["c"] for b in window) / len(window)
         out["adr_pct"] = round(adr * 100, 2)
@@ -583,31 +668,46 @@ def compute_technicals(bars: list[dict]) -> dict:
     # toward 1 and blunts exactly the spike the column exists to find. Two
     # different windows, one of them each right for its own question.
     #
-    # 🔴 KNOWN, AND NOT FIXABLE HERE: THE NUMERATOR CAN BE A PARTIAL SESSION.
-    # `bars.db` does not replace the newest daily bar's volume with the official
-    # consolidated figure before the nightly build reads it. Measured 2026-08-23
-    # on 95 random fresh tickers against yfinance: the prior session matches to
-    # the SHARE on every name, while the newest session is short by a **median
-    # 10.3%**, 36% of names by more than 20%, worst −69.9% — putting **12.6% of
-    # the sample on the wrong side of `vol_ratio >= 1.0`** (JPM publishes 0.77
-    # against a true 1.12). ⛔ DO NOT "FIX" IT IN THIS MODULE. The value in
-    # question is a session's volume, `bars.db` owns it, and half a dozen other
-    # consumers (`avg_volume_30d`, `dollar_vol_30d`, `vol_updown_ratio`,
-    # `vol_nweek_low`, setup scoring, the pattern engine) read the same field —
-    # healing it here would make this module a second authority over one value
-    # and leave every one of them silently wrong. The fix belongs at the bars
-    # boundary; it is filed as a requirement in the accuracy report.
+    # 🔴 THE NUMERATOR COULD BE A PARTIAL SESSION — NOW HANDLED UPSTREAM OF THIS
+    # FUNCTION, AND STILL NOT HERE. `bars.db` can hold an intraday snapshot as its
+    # newest daily bar (`bars_sqlite._delta_daily` replaces today's bar on chart
+    # views, and `ohlcv` carries no settled flag). Measured 2026-08-23 on 95 random
+    # fresh tickers against yfinance: the prior session matched to the SHARE, while
+    # the newest session was short by a **median 10.3%**, worst −69.9%, putting
+    # **12.6% of the sample on the wrong side of `vol_ratio >= 1.0`** (JPM 0.77
+    # against a true 1.12).
+    # ⭐ WHAT HANDLES IT: the nightly build. `snapshot_builder._run_build_locked`
+    # fetches the settled previous session for the whole market in ONE grouped-daily
+    # call (`settled_session` / `_read_settled_bars`) and `settled_bar_outcome`
+    # replaces a ticker's newest bar when it is that session — in memory, before
+    # this function or any other bar consumer runs, so `avg_volume_30d`,
+    # `dollar_vol_30d`, `vol_updown_ratio`, `vol_nweek_low`, setup scoring and the
+    # pattern engine all read the same settled value. The receipt is
+    # `stats["settled_bars"]` / `screener_build_runs.settled_bars`.
+    # ⛔ STILL DO NOT "FIX" IT IN THIS MODULE: one value, one place that corrects
+    # it, every consumer downstream of it. `bars.db` itself is unchanged (another
+    # workstream owns it), so a chart can still show the partial bar.
+    # ⚠️ A failed grouped call leaves the build on the stored bars, i.e. the old
+    # behaviour, and the receipt names the error.
     # ⭐ THE ARITHMETIC NOW LIVES IN `volume_ratio` (module level, above) so
     # `bar_character` can name a bar off the SAME number this column filters on.
     # Everything documented in this block still describes that value.
     out["vol_ratio"] = volume_ratio(bars)
     # 52-week high/low distance + new-high flag (today's high vs window)
-    yr = bars[-252:] if len(bars) >= 252 else bars
-    hi = max(b["h"] for b in yr)
-    lo = min(b["l"] for b in yr)
-    out["dist_52w_high_pct"] = _pct(price, hi)
-    out["dist_52w_low_pct"] = _pct(price, lo)
-    out["new_52w_high"] = bars[-1]["h"] >= hi
+    #
+    # ⛔ ONLY OVER A FULL YEAR, or a series that provably begins at the listing
+    # (the block above ``holds_whole_life``). Otherwise all three are withheld —
+    # ``new_52w_high`` included, as ``None`` rather than ``False``: "not a new
+    # 52-week high" is a claim about a year we do not hold.
+    if _window_full(bars, "dist_52w_high_pct", ipo_date, listing_exempt=True):
+        yr = bars[-252:]
+        hi = max(b["h"] for b in yr)
+        lo = min(b["l"] for b in yr)
+        out["dist_52w_high_pct"] = _pct(price, hi)
+        out["dist_52w_low_pct"] = _pct(price, lo)
+        out["new_52w_high"] = bars[-1]["h"] >= hi
+    else:
+        out["new_52w_high"] = None
 
     # ── Wave 1: performance ──────────────────────────────────────────────
     if len(closes) >= 253:
@@ -629,9 +729,12 @@ def compute_technicals(bars: list[dict]) -> dict:
     if w5:
         out["adr_pct_1w"] = round(
             sum((b["h"] - b["l"]) / b["c"] for b in w5) / len(w5) * 100, 2)
-    w20 = bars[-20:]
-    out["dist_20d_high_pct"] = _pct(price, max(b["h"] for b in w20))
-    out["dist_20d_low_pct"] = _pct(price, min(b["l"] for b in w20))
+    # Same full-window rule as ADR: a "20-day" extreme over fewer sessions is
+    # a shorter window's extreme under the 20-day name.
+    if _window_full(bars, "dist_20d_high_pct"):
+        w20 = bars[-20:]
+        out["dist_20d_high_pct"] = _pct(price, max(b["h"] for b in w20))
+        out["dist_20d_low_pct"] = _pct(price, min(b["l"] for b in w20))
     out["pole_pct"] = _pole_pct(closes)
     out["atr_ext_sma50"] = _atr_ext_sma50(bars, closes, s50)
     # prev-day OHLC — trigger levels; collapses Live Scan's SSE-fallback

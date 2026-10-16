@@ -2554,10 +2554,12 @@
         "label": "Focus layout (list + chart)",
         "where": "Screener"
       },
-      "status": "dark",
+      "status": "armed",
       "since": "2026-10-13",
-      "where": [],
-      "note": "Screener Focus layout (spec docs/superpowers/specs/2026-10-13-screener-focus-layout-design.md). Dark: unset means NOT RELEASED. Read PER REQUEST in api/routers/auth.py::_screener_flags via _breadth_dc_scope, so a flip needs no rebuild. THREE VALUES: unset/0/false/no/off = off for everyone; 1/true/yes/on = everyone; admin = owner preview only (a member reads false). An unrecognised value takes the default (off). Flag off renders today's ScannerShell byte-for-byte."
+      "where": [
+        "web"
+      ],
+      "note": "ON FOR EVERYONE (value 1) on web since 2026-10-15T19:44:44Z, set by the owner; deploy 3cec6be5 SUCCESS, fresh boot, and the synthetic member account bench@ reads screener_focus_layout_enabled=true from /api/auth/me. Rollback: set 0 (read per request). History: ARMED at value admin on web 2026-10-15T17:33:18Z (owner preview only; members read false). Verified in the running process: /proc/1/environ on web at e0c2df616c reads SCREENER_FOCUS_LAYOUT_ENABLED=admin. Polish round shipped in PR #332. Next: owner walk on production, then =1 for everyone (rollback =0). Screener Focus layout (spec docs/superpowers/specs/2026-10-13-screener-focus-layout-design.md). Dark: unset means NOT RELEASED. Read PER REQUEST in api/routers/auth.py::_screener_flags via _breadth_dc_scope, so a flip needs no rebuild. THREE VALUES: unset/0/false/no/off = off for everyone; 1/true/yes/on = everyone; admin = owner preview only (a member reads false). An unrecognised value takes the default (off). Flag off renders today's ScannerShell byte-for-byte."
     },
     "SCREENER_LIVE_TIER_ENABLED": {
       "status": "armed",
@@ -2757,6 +2759,13 @@
         "web"
       ],
       "note": ""
+    },
+    "WISDOM_ARCHIVE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "exposure": "members",
+      "note": "MEMBER-VISIBLE when on: the TSDR trader archive (wisdom_archive_* tables in wisdom.db, filled by tools/wisdom/archive_import.py through the push-secret POST /api/internal/wisdom/archive/batch). Paid members read GET /api/wisdom/archive/{ticker/{sym},setup/{setup},search,stats,trader/{author}} (require_paid, never anonymous); admins keep /api/admin/wisdom/archive (require_admin). Consumers: Ask AI's TRADER ARCHIVE grounding block (api/routers/ai_search.py), the Compass tools trader_archive_search / trader_archive_ticker in chat AND voice (both read the flag per call), the 'What the traders said' block in the ticker research modal's Catalysts tab, and the /trader-archive page. Default OFF: unset or 0 = every archive route answers 404, Ask AI adds no block, the Compass tools are hidden and refuse, and the research block and page render nothing. Replaced WISDOM_ARCHIVE_ADMIN_ENABLED (admin-only, 2026-10-15). Rollback: set 0 on web.",
+      "owner_decision": "Owner ruling 2026-10-15: the TSDR trader archive is available to PAID MEMBERS and to every in-app tool (Ask AI, Compass chat + voice, ticker research, a member page), not admin-only. 'Public' means all paid members (require_paid), never the anonymous internet. Shipped default OFF; the owner sets it on web."
     },
     "WISDOM_BADGES_ENABLED": {
       "status": "dark",

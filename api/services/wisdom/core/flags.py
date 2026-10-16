@@ -88,6 +88,15 @@ def weekly_report_enabled() -> bool:
 
 # ── member-visible consumers (owner flips) ───────────────────────────────────
 
+def archive_enabled() -> bool:
+    """The TSDR trader archive (wisdom_archive_* tables). MEMBER-VISIBLE when on, by owner
+    ruling 2026-10-15: paid members read it at /api/wisdom/archive/* (require_paid), and Ask AI,
+    Compass chat + voice, the ticker research modal and /trader-archive consume it. Admins keep
+    /api/admin/wisdom/archive; the push-secret batch import route is gated by it too.
+    Default OFF so production stays dark until the owner sets it."""
+    return _truthy(os.environ.get("WISDOM_ARCHIVE_ENABLED", "0"))
+
+
 def brainkb_publish_enabled() -> bool:
     return _truthy(os.environ.get("WISDOM_BRAINKB_PUBLISH_ENABLED", "0"))
 
@@ -156,4 +165,5 @@ GATES = (
     ("WISDOM_DOSSIER_ENABLED", dossier_enabled, True),
     ("WISDOM_LEVEL_ALERTS_ENABLED", level_alerts_enabled, True),
     ("WISDOM_LOOKALIKE_ENABLED", lookalike_enabled, True),
+    ("WISDOM_ARCHIVE_ENABLED", archive_enabled, True),
 )

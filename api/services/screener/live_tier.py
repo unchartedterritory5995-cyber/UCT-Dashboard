@@ -51,15 +51,14 @@ So *"−2.4% vs the 50-day"* at 10:42 means *"−2.4% vs the 50-day average of t
 50 sessions through the previous close"*. That is what Finviz-class screeners
 mean by the phrase, and it is what the Seal says in those words.
 
-⚠️ KNOWN GAP AT SHIP — the ``day_open`` / ``day_high`` widening (spec §3.2) is
-``api/services/massive.py``'s, and that file is NOT this lane's. Until it
-lands, ``get_full_market_snapshot`` emits only ``last_price``/``prev_close``/
-``today_vol``/``prev_vol``, so four of the twenty-two —
-``chg_from_open_pct``, ``gap_pct``, ``new_52w_high``, ``new_ath`` — have no
-feed input and **keep their nightly value**, counted in ``live_cols`` as not
-recomputed. That is the honest degradation, not a bug: the moment the parse
-widens (three additive extractions, zero provider cost) they light up with no
-change here.
+⚰️ THE "KNOWN GAP AT SHIP" IS CLOSED. This said ``get_full_market_snapshot``
+emitted only ``last_price``/``prev_close``/``today_vol``/``prev_vol`` and that
+``chg_from_open_pct``, ``gap_pct``, ``new_52w_high`` and ``new_ath`` therefore kept
+their nightly value. The parse was widened in 6c82962044 (2026-08-25): it emits
+``day_open``/``day_high``/``day_low`` (0 or missing read as None), and those four
+columns plus the candle columns are recomputed whenever the fields are present.
+They still fall back to the nightly value before the open or for a symbol with
+no print, and ``live_columns_effective()`` says so by name.
 
 ⛔⛔ AND THE DISCLOSURE MUST NOT NAME THEM. ``LIVE_COLUMNS`` is what the tier
 *aspires* to recompute; ``live_columns_effective()`` is what it **measured
@@ -79,7 +78,8 @@ import sqlite3
 import time
 from datetime import date, timedelta
 
-from api.services.screener import candle_catalog, contention_trace_temp, snapshot_db, technicals
+from api.services.screener import (candle_catalog, contention_trace_temp, snapshot_db,
+                                   technicals, volume_curve)
 
 log = logging.getLogger(__name__)
 
@@ -139,7 +139,33 @@ LIVE_COLUMNS = (
     "close_position",           # 26
     "candle_type",              # 27 SHAPE only — see the note above
     "candle_label",             # 28 carries the "(forming)" marker
+    # ── volume vs usual BY NOW (spec change, owner-approved 2026-10-15) ────
+    # ⭐ THIS IS A SPEC CHANGE, MADE ON PURPOSE. Design + approval:
+    # `docs/superpowers/specs/2026-10-15-screener-live-relative-volume-design.md`
+    # (approach A). It enters the live set by the same rule as every column
+    # above: the screener's only volume reading was nightly `vol_ratio`, so at
+    # 10:42 a live price sat beside YESTERDAY'S volume story, and a member
+    # filtering "heavy volume" during the session read yesterday's names.
+    # ⛔ It is NOT `vol_ratio` recomputed live — the rejection recorded in the
+    # header above still stands: today-so-far over a full-day mean is a
+    # different quantity that reads ~0.8x at 10:00 for a 3x name. This column
+    # divides by the volume USUALLY done by this minute
+    # (`avg_volume_30d * curve(minute)`, `volume_curve`), and the anchor
+    # contract holds: `avg_volume_30d` is a level from the 30 sessions
+    # through `bars_asof`, the curve is built nightly from completed full
+    # sessions only, and today's session is only ever the numerator.
+    # Nightly value is NULL by design: outside the session there is no
+    # "by now", and faking one from `vol_ratio` would be a second quantity
+    # under this column's name.
+    "rvol_live",                # 29 today_vol / (avg_volume_30d * share_by_now)
 )
+
+#: ⭐ COLUMNS THAT NEED THE SESSION CLOCK AND THE NIGHTLY VOLUME CURVE, on top of
+#: a feed field. They are blank before 09:45 ET, on a night the curve could not be
+#: built, and for a symbol with no `today_vol`; so, like the feed-dependent
+#: columns, the first cycle of a process does not get to CLAIM them before it has
+#: measured itself recomputing them (`live_columns_effective`).
+CURVE_DEPENDENT_COLUMNS = ("rvol_live",)
 
 #: ⭐ THE COLUMNS THAT NEED A FEED FIELD THE SNAPSHOT PARSE MAY NOT EMIT, and
 #: the field each one needs. Everything else in ``LIVE_COLUMNS`` derives from
@@ -181,8 +207,11 @@ FEED_FIELD_DEPENDENCIES = {
 # so reusing them intraday is the contract working as designed rather than a
 # relaxation of it: the trend a bar prints INTO is by definition the trend
 # before it.
+#
+# ⭐ `avg_volume_30d` is the denominator level of `rvol_live`: the mean of the 30
+# sessions through `bars_asof` (`snapshot_builder`), i.e. completed sessions only.
 ANCHOR_COLUMNS = ("bars_asof", "atr_pct", "pt_target",
-                  "candle_trend", "avg_body", "avg_range")
+                  "candle_trend", "avg_body", "avg_range", "avg_volume_30d")
 
 #: The one SELECT the sweep runs against `screener_rows`. Derived from the two
 #: lists above so a 23rd live column cannot be forgotten here.
@@ -238,7 +267,9 @@ def live_columns_effective() -> tuple:
     """
     if _EFFECTIVE_COLUMNS is not None:
         return _EFFECTIVE_COLUMNS
-    return tuple(c for c in LIVE_COLUMNS if c not in FEED_FIELD_DEPENDENCIES)
+    return tuple(c for c in LIVE_COLUMNS
+                 if c not in FEED_FIELD_DEPENDENCIES
+                 and c not in CURVE_DEPENDENT_COLUMNS)
 
 
 def columns_not_recomputed() -> tuple:
@@ -518,7 +549,8 @@ def sanity_reason(anchor_row: dict, quote, ymd: int) -> str | None:
 # --------------------------------------------------------------------------- #
 
 def derive_row(anchor_row: dict, quote, ymd: int, live_asof: float,
-               recomputed_out: set | None = None) -> dict | None:
+               recomputed_out: set | None = None,
+               volume_share: float | None = None) -> dict | None:
     """One overlay row, or ``None`` when the sanity gate refuses the symbol.
 
     ⭐ THE WRITE RULE IS "COPY THE NIGHTLY VALUE FORWARD". An overlay row
@@ -534,6 +566,12 @@ def derive_row(anchor_row: dict, quote, ymd: int, live_asof: float,
     this row genuinely recomputed. ⭐ That is what makes the disclosure
     measured rather than declared: ``live_cols`` says HOW MANY kept 03:00, and
     only the names say WHICH — and a surface cannot subtract a count.
+
+    ``volume_share`` is the usual share of a session's volume done by now
+    (``volume_curve.live_share``, or — approach B — the ticker's OWN share from the
+    ``volume_curve.ticker_live_shares`` map), computed ONCE per sweep by the caller so this
+    stays pure. ``None`` (before 09:45 ET, or no stored curve) leaves
+    ``rvol_live`` at its nightly value, which is NULL.
     """
     if sanity_reason(anchor_row, quote, ymd) is not None:
         return None
@@ -626,6 +664,15 @@ def derive_row(anchor_row: dict, quote, ymd: int, live_asof: float,
     pt_target = _num(anchor_row.get("pt_target"))
     if pt_target is not None and pt_target > 0:
         put("pt_upside_pct", round((pt_target / p1 - 1) * 100, 2))
+
+    # 29 — volume vs usual BY NOW. The level (`avg_volume_30d`) is from completed
+    # sessions; the share is the nightly curve read at this minute; only the
+    # numerator is today's. `volume_curve.rvol` refuses any missing/non-positive
+    # input, so a blank share or a zero average stays NULL, never a guess.
+    if volume_share is not None:
+        put("rvol_live", volume_curve.rvol(quote.get("today_vol"),
+                                           anchor_row.get("avg_volume_30d"),
+                                           volume_share))
 
     # ── the FORMING bar's shape ────────────────────────────────────────────
     # ⭐ ONE CLASSIFIER, NOT A SECOND ONE. This builds the same `BarCtx` the
@@ -754,6 +801,16 @@ def _blank_receipt(**over) -> dict:
         # `test_every_cycle_returns_the_same_key_set` exists because a receipt whose key set
         # varies by path cannot be compared across cycles, and it caught exactly that.
         "snapshot_ms": 0.0,
+        # The usual share of a session's volume done by this sweep's minute, the
+        # one number every row's `rvol_live` divides by. None = blank this cycle
+        # (before 09:45 ET, or no stored curve), named so the receipt says WHY
+        # `rvol_live` is in `columns_not_recomputed`.
+        "volume_share": None,
+        # APPROACH B: how many symbols had their OWN per-ticker share this cycle
+        # (read ONCE per sweep into a dict, one query), and how many written rows
+        # actually divided by one. Every other row divided by `volume_share`.
+        "ticker_shares": 0,
+        "rows_on_ticker_curve": 0,
         "duration_ms": 0.0,
         # R72 (D-21): the three SQLite touches inside `_sweep_locked`, timed
         # separately, each split into busy-wait (retrying because someone else
@@ -865,6 +922,17 @@ def run_sweep() -> dict:
     snap = scan_volume.full_market_snapshot() or {}
     receipt["snapshot_ms"] = round((time.time() - t_snap) * 1000, 2)
 
+    # ONE share per sweep, read before the lock (the curve is not an anchor the
+    # build rewrites under us, and a per-row read would be a per-row fanout).
+    receipt["volume_share"] = _volume_share(now)
+    # ⭐ APPROACH B — and ONE per-ticker dict per sweep, from ONE query, likewise
+    # before the lock. A row looks its ticker up in it; a miss reads the market
+    # share. No market share (before 09:45 ET, no curve) ⇒ no ticker shares either:
+    # the blank is the same blank whichever curve a name would have read.
+    ticker_shares = (_ticker_shares(now) if receipt["volume_share"] is not None
+                     else {})
+    receipt["ticker_shares"] = len(ticker_shares)
+
     t_lock = time.time()
     if not snapshot_builder._BUILD_LOCK.acquire(blocking=False):
         receipt["skipped_reason"] = "build_in_flight"
@@ -877,7 +945,7 @@ def run_sweep() -> dict:
     # and `held_lock_ms` in exactly the same state, with one release site.
     t_held = time.time()
     try:
-        _sweep_locked(receipt, ymd, scan_volume, snap)
+        _sweep_locked(receipt, ymd, scan_volume, snap, ticker_shares)
     except sqlite3.OperationalError:
         # The one thing a once-per-process DDL flag can get wrong: the file it
         # was true of is gone (a wiped volume, a fresh mount, a test swapping
@@ -889,6 +957,30 @@ def run_sweep() -> dict:
         snapshot_builder._BUILD_LOCK.release()
         receipt["held_lock_ms"] = round((time.time() - t_held) * 1000, 2)
     return _finish(receipt, t0)
+
+
+def _ticker_shares(now_et) -> dict:
+    """``{ticker: share}`` from the per-ticker curves (approach B), ONE query for the
+    whole universe, or ``{}``. Never raises: unreadable per-ticker curves leave every
+    row on the market share, which is still a right answer."""
+    try:
+        return volume_curve.ticker_live_shares(now_et)
+    except Exception as e:                                  # noqa: BLE001
+        log.warning("[screener-live] per-ticker volume curves unreadable: %s: %s",
+                    type(e).__name__, e)
+        return {}
+
+
+def _volume_share(now_et) -> float | None:
+    """The usual share of the day's volume done by ``now_et``, from the stored
+    nightly curve, or ``None``. Never raises: a curve that cannot be read blanks
+    ``rvol_live`` for this cycle and costs nothing else."""
+    try:
+        return volume_curve.live_share(now_et, volume_curve.latest_curve())
+    except Exception as e:                                  # noqa: BLE001
+        log.warning("[screener-live] volume curve unreadable: %s: %s",
+                    type(e).__name__, e)
+        return None
 
 
 #: Which screener.db files this PROCESS has already run the DDL against, keyed
@@ -908,7 +1000,8 @@ def _forget_schema() -> None:
     _SCHEMA_READY.discard(snapshot_db.get_db_path())
 
 
-def _sweep_locked(receipt: dict, ymd: int, scan_volume, snap: dict) -> None:
+def _sweep_locked(receipt: dict, ymd: int, scan_volume, snap: dict,
+                  ticker_shares: dict | None = None) -> None:
     """The derivation and the write, both UNDER the build lock — the anchors
     must be read from a snapshot that is not being rewritten underneath us.
 
@@ -951,11 +1044,18 @@ def _sweep_locked(receipt: dict, ymd: int, scan_volume, snap: dict) -> None:
             receipt["skipped"][reason] += 1
             continue
         got: set = set()
-        derived = derive_row(row, quote, ymd, as_of, recomputed_out=got)
+        # The ticker's OWN usual share by now when it has a curve, else the market's.
+        # A dict lookup into the per-sweep map — never a read.
+        own = (ticker_shares or {}).get(str(row.get("ticker") or "").upper())
+        share = own if own is not None else receipt.get("volume_share")
+        derived = derive_row(row, quote, ymd, as_of, recomputed_out=got,
+                             volume_share=share)
         if derived is None:          # defensive; the gate already answered
             receipt["skipped"]["no_feed"] += 1
             continue
         receipt["cols_recomputed_total"] += derived["live_cols"]
+        if own is not None and "rvol_live" in got:
+            receipt["rows_on_ticker_curve"] += 1
         for c in got:
             per_col[c] += 1
         out_rows.append(derived)

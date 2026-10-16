@@ -3,7 +3,7 @@
 // (scan joins, logic trees, ranks, field-to-field, structure contains) is a
 // plain sentence. Never a ✓ we cannot back with the row's own value.
 import { chipLabel } from '../chipLabel'
-import { plainColumnLabel, plainStructure, lowerOperator } from './plainWords'
+import { plainColumnLabel, structureSentence, patternEngineSentence, lowerOperator } from './plainWords'
 import { sessionCloseLabel } from './dates'
 
 export const NOT_CHECKABLE_KEYS = new Set([
@@ -59,7 +59,8 @@ function fmtValue(def, v) {
 const stripColon = s => s.replace(/:\s*/, ' ').replace(/\s+/g, ' ').trim()
 
 function checkLabel(def, spec) {
-  if (def.type === 'bool') return requiresFalse(spec.value) ? `Not ${def.label}` : def.label
+  // Mid-sentence after "Not" a word drops its capital ("Not above 50-day avg"); an acronym keeps it ("Not HVC").
+  if (def.type === 'bool') return requiresFalse(spec.value) ? `Not ${/^[A-Z][a-z]/.test(def.label) ? def.label[0].toLowerCase() + def.label.slice(1) : def.label}` : def.label
   if ((spec.op === 'in' || spec.op === 'not_in') && Array.isArray(spec.values) && spec.values.length) {
     const list = spec.values.join(', ')
     return stripColon(spec.op === 'not_in' ? `${def.label}: not ${list}` : `${def.label}: ${list}`)
@@ -83,14 +84,19 @@ function satisfies(spec, v) {
 // The columns whose live value is shown instead of the snapshot's (livePrice.js decides it).
 const LIVE_FIELDS = { price: 'price', chg_pct_1d: 'chg' }
 
-// P10: a structure filter reads as what the stock has ("Has a Pocket Pivot"), from the preset
-// chipLabel names, in plain words; any other filter that cannot be checked per row reads its chip.
+// P10: a structure filter reads as what the stock has or is doing ("Has a short boxy base",
+// "In a downtrend: lower highs and lows"), from the preset names in plain words (plainWords
+// structureSentence); any other filter that cannot be checked per row reads its chip.
 function noteLabel(key, def, spec) {
   const chip = stripColon(lowerOperator(chipLabel(def, spec) || ''))
   const preset = (def.presets || []).find(o => o.op === spec.op && o.value === spec.value && o.label && o.label !== 'Any')
   if (key === 'base_structure' && preset) {
-    const name = plainStructure(preset.label)
-    return `Has ${/^[aeiou]/i.test(name) ? 'an' : 'a'} ${name}`
+    return structureSentence(preset.label)
+  }
+  // The engine's verdict, not the row's structure: the setup line beside this strip names the
+  // base read, which can call the same stock something else (or nothing).
+  if (key === 'pattern_engine_id' && spec.op === 'contains') {
+    return patternEngineSentence(preset?.label, spec.value)
   }
   return chip && chip !== def.label ? compactDigits(chip) : `Matches ${def.label}`
 }

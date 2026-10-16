@@ -342,6 +342,76 @@ def _overlay(conn) -> _Overlay:
                     predicate=predicate, join_params=join_params)
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# A ROW WHOSE OWN BARS STOPPED IS NOT SCANNED
+#
+# 🔴 THE DEFECT (data-accuracy audit 2026-10-15, #1). The nightly build keeps a
+# row whose bars stopped arriving — deliberately: `snapshot_builder`'s block on
+# "the row's price date" explains why its bar-derived family is KEPT (stale, not
+# wrong; the last close of a delisted name is the only honest number it will
+# ever have) and `_stalest` never prunes the row. That is right for the RECORD
+# and wrong for a SCAN. A screen ranks rows against each other as one market,
+# and a name acquired in June still answers "price >= 5 AND rsi14 >= 70" with
+# June's numbers, sorts beside tonight's rows, and looks exactly like them. The
+# member cannot see `bars_asof` in the table; the scan is the only place the
+# difference can be honoured.
+#
+# ⭐ SO THE SCAN EXCLUDES, AT QUERY TIME, AND NOTHING IS DELETED. The row stays
+# in `screener_rows` with its date; a later build that catches its bars up puts
+# it straight back in every scan with no other action.
+#
+# ⛔ THE THRESHOLD AND THE PREDICATE ARE THE BUILDER'S, BORROWED WHOLE.
+# `snapshot_builder.price_is_stale` (over `stale_price_sessions()`, 10 sessions,
+# env `SCREENER_STALE_PRICE_SESSIONS`) is the one answer to *"is this row's
+# price too old to stand beside current-clock numbers"* — the builder already
+# refuses to divide last night's analyst target by such a price. A scan placing
+# that price beside 3,700 current ones is the same question; a second constant
+# here would be a second authority that drifts the first time someone tunes one.
+#
+# ⚠️ "BEHIND WHAT" IS THE SNAPSHOT'S OWN NEWEST BAR, NOT THE WALL CLOCK. Measured
+# against today, a nightly build that failed for two weeks would make EVERY row
+# stale and empty every screen — turning a disclosed outage (the Seal already
+# dates the whole snapshot) into a silently empty market. Measured against the
+# newest `bars_asof` the table holds, only the rows that fell behind their own
+# neighbours are excluded, which is the defect. It also keeps the gate a pure
+# function of the DATA, so the count cache (keyed on the snapshot's fingerprint)
+# can never serve an answer computed under a different gate.
+#
+# ⚠️ A NULL `bars_asof` IS KEPT. Such a row was built with no usable bars at all:
+# it publishes no price and no bar-derived number, so it cannot be the
+# live-looking stale row this gate exists for, and every criterion that reads a
+# bar column already counts it `not_computable`. (`price_is_stale(None)` reads
+# STALE for the builder's purpose — dividing by a price — which a row with no
+# price never reaches.)
+#
+# ⛔ THE CLAUSE IS WRITTEN ONLY WHEN IT BITES. When no row is behind, the
+# statement is byte-identical to the ungated one — so the rollback rail's
+# frozen literal (`test_screener_live_read_path.py`) still pins the pre-overlay
+# statement, and an ordinary night costs one MIN/MAX read and nothing else.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def stale_gate(conn):
+    """The stale-row exclusion for THIS database, or ``None`` when no row is
+    behind (or the table cannot say).
+
+    Returns ``{"sql", "params", "cutoff", "reference", "max_sessions"}`` —
+    ``sql`` keeps a row whose own ``bars_asof`` is at or after ``cutoff``.
+
+    ⭐ THE GATE LIVES IN ``snapshot_builder.stale_row_gate`` NOW, beside the
+    predicate it walks, because it has TWO readers: this scan path and the nightly
+    saved-scan sweep (``scan_evaluator``), which must not import this SQL builder
+    (``test_the_evaluator_never_NAMES_the_overlay__BY_AST``). One implementation,
+    asked from both doors; this name is kept so every caller and rail is unchanged.
+    """
+    from . import snapshot_builder
+    return snapshot_builder.stale_row_gate(conn, table=_ROWS)
+
+
+def _ymd_text(v) -> str:
+    s = str(v)
+    return f"{s[:4]}-{s[4:6]}-{s[6:8]}" if len(s) == 8 and s.isdigit() else s
+
+
 def _scan_clauses(f, clauses, params, scan_joins):
     """The my_scans join: the nightly hits-store intersected with screener_rows,
     disclosed per hash.
@@ -912,12 +982,13 @@ def live_tier_state() -> dict:
     #
     # `LIVE_COLUMNS` is the set the tier intends to recompute;
     # `live_columns_effective()` is the set it MEASURED ITSELF RECOMPUTING on the
-    # last cycle that wrote rows. They differ today: four of the twenty-two
-    # (`chg_from_open_pct`, `gap_pct`, `new_52w_high`, `new_ath`) need feed
-    # fields `massive.get_full_market_snapshot` does not yet emit (spec §3.2
-    # unlanded), so those columns carry their NIGHTLY value forward — and
-    # naming one "live as of 10:42" while it holds the prior session's number is
-    # an honest value under a dishonest label. A member filtering `gap_pct > 3`
+    # last cycle that wrote rows. They differ whenever a feed field is missing:
+    # `chg_from_open_pct`, `gap_pct`, `new_52w_high`, `new_ath` (and the candle
+    # columns) need `day_open`/`day_high`/`day_low`, which
+    # `massive.get_full_market_snapshot` has emitted since 6c82962044 (2026-08-25)
+    # but which read None before the open or for a symbol with no print. A column
+    # that kept its NIGHTLY value must never be named "live as of 10:42" — an
+    # honest value under a dishonest label; a member filtering `gap_pct > 3`
     # during RTH would read yesterday's gappers as today's.
     #
     # ⚠️ THIS ONLY STARTED MATTERING WHEN THE OVERLAY BECAME REACHABLE. Until
@@ -1217,6 +1288,16 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
             lambda leaf: build_where([leaf], None, overlay, conn=conn))
         where = f"{where}{' AND ' if where.strip() else ' WHERE '}{group_sql}"
         where_params = [*where_params, *group_params]
+    # 🔴 A ROW WHOSE OWN BARS STOPPED IS NOT SCANNED — see `stale_gate`. ANDed
+    # into THE where, so the rows, `total` (`describe_rows` over this same
+    # where), the count route (`preview_count` plans through here) and the
+    # rank receipt all exclude the same rows. The pre-gate where is kept only
+    # so `run_scan` can say how many were excluded.
+    pre_stale_where, pre_stale_params = where, list(where_params)
+    stale = stale_gate(conn)
+    if stale:
+        where = f"{where}{' AND ' if where.strip() else ' WHERE '}{stale['sql']}"
+        where_params = [*where_params, *stale["params"]]
     # 🔴 THE MEMBER'S OWN WEIGHTED COMPOSITE (benchmark 432-435). Parsed before
     # anything else uses it so a malformed rank REFUSES rather than degrading to
     # an unranked list the member did not ask for.
@@ -1329,9 +1410,22 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
         if "rank_score" not in out_columns:
             out_columns = [*out_columns, "rank_score"]
     else:
+        # 🔴 A SORT KEY IS NOT A TOTAL ORDER (accuracy audit 2026-10-15, #4).
+        # `ORDER BY price DESC` alone leaves every tie — every NULL, every
+        # boolean, every `rsi14 = 50.0` — in whatever order SQLite's plan
+        # happens to produce, and that order is not stable across the two
+        # statements two pages issue. Page 2 then repeats names page 1 showed
+        # and skips names neither shows; the member sees a screen of N rows
+        # that cannot be paged through to all N. The ranked branch above has
+        # always added `ticker ASC`; this is the same tiebreak, rendered
+        # through `col_expr` because with the overlay joined a bare `ticker`
+        # is ambiguous between the two tables. (Sorting BY ticker needs no
+        # second key — it is unique.)
+        tiebreak = ("" if sort_key == "ticker"
+                    else f", {overlay.col_expr('ticker')} ASC")
         sql = (f"SELECT {select_sql} FROM {overlay.from_sql()}{where} "
-               f"ORDER BY {overlay.col_expr(sort_key)} {sort_dir} NULLS LAST "
-               f"LIMIT ? OFFSET ?")
+               f"ORDER BY {overlay.col_expr(sort_key)} {sort_dir} NULLS LAST"
+               f"{tiebreak} LIMIT ? OFFSET ?")
     # The join's own parameter (the in-session freshness cutoff) binds BEFORE
     # the where clause's, because the ON clause is earlier in the statement.
     describe_params = [*overlay.join_params, *where_params]
@@ -1352,6 +1446,12 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
         # filters" means, so the receipt can say how many the rank had to drop.
         "base_where": base_where,
         "base_params": base_params,
+        # The stale-row gate (None when it did not bite) and the where before
+        # it — so `run_scan` can count what the gate excluded and
+        # `coverage_for` can book it, both off THIS plan's one decision.
+        "stale": stale,
+        "pre_stale_where": pre_stale_where,
+        "pre_stale_params": pre_stale_params,
         "view": view_key,
         "view_columns": out_columns,
         "page": page,
@@ -1401,7 +1501,12 @@ def coverage_for(spec, user_id=None) -> dict:
     not_computable -- of those, rows where a column a criterion reads is NULL
                       (the WHERE drops them silently; this says so);
     answered       -- the rest: the screen could decide them, matched or not;
-    dropped        -- 0: no integrity exclusion happens on this path.
+    dropped        -- rows the scan EXCLUDED for an integrity reason: today,
+                      a row whose own bars stopped more than the stale
+                      threshold behind the snapshot's newest (`stale_gate`).
+                      Counted from the SAME gate the scan's plan carries, so
+                      the receipt and the rows cannot disagree; a dropped row
+                      is never also counted not-computable.
     Same overlay, same FROM, same column rendering as the scan itself."""
     from api.services.coverage_receipt import close
     spec = spec or {}
@@ -1415,27 +1520,49 @@ def coverage_for(spec, user_id=None) -> dict:
         base = [*plan["overlay"].join_params, *params]
         evaluated = conn.execute(f"SELECT COUNT(*) FROM {plan['from_sql']}{where}",
                                  base).fetchone()[0]
+        listed, dropped = [], 0
+        stale = plan.get("stale")
+        if stale:
+            joiner = " AND " if where.strip() else " WHERE "
+            swhere = f"{where}{joiner}NOT {stale['sql']}"
+            sparams = [*base, *stale["params"]]
+            dropped = conn.execute(f"SELECT COUNT(*) FROM {plan['from_sql']}{swhere}",
+                                   sparams).fetchone()[0]
+            detail = (f"its last daily bar is more than {stale['max_sessions']} sessions "
+                      f"behind this snapshot's newest ({_ymd_text(stale['reference'])}), "
+                      f"so scans exclude it")
+            for r in conn.execute(
+                    f"SELECT {_ROWS}.ticker, {_ROWS}.\"bars_asof\" FROM {plan['from_sql']}"
+                    f"{swhere} ORDER BY {_ROWS}.ticker LIMIT ?",
+                    [*sparams, _COVERAGE_LIST_CAP]).fetchall():
+                listed.append({"ticker": str(r[0]), "reason": "dropped",
+                               "detail": f"last bar {_ymd_text(r[1])}: {detail}"})
+            # Everything below is counted over the rows the scan still sees.
+            where = f"{where}{joiner}{stale['sql']}"
+            base = [*base, *stale["params"]]
         cols = [(k, filters.column_for(k)) for k in _criterion_keys(spec)]
         cols = [(k, c) for k, c in cols if c in known]
-        not_computable, listed = 0, []
+        not_computable = 0
         if cols:
             null_any = " OR ".join(f"{overlay.col_expr(c)} IS NULL" for _k, c in cols)
             joiner = " AND " if where.strip() else " WHERE "
             nwhere = f"{where}{joiner}({null_any})"
             not_computable = conn.execute(
                 f"SELECT COUNT(*) FROM {plan['from_sql']}{nwhere}", base).fetchone()[0]
-            if not_computable:
+            room = _COVERAGE_LIST_CAP - len(listed)   # ONE cap over both lists
+            if not_computable and room > 0:
                 sel = ", ".join(f"{overlay.col_expr(c)} IS NULL" for _k, c in cols)
                 for r in conn.execute(
                         f"SELECT {_ROWS}.ticker, {sel} FROM {plan['from_sql']}{nwhere}"
                         f" ORDER BY {_ROWS}.ticker LIMIT ?",
-                        [*base, _COVERAGE_LIST_CAP]).fetchall():
+                        [*base, room]).fetchall():
                     missing = [filters.FILTERS[k]["label"] for (k, _c), isnull
                                in zip(cols, tuple(r)[1:]) if isnull]
                     listed.append({"ticker": str(r[0]), "reason": "not-computable",
                                    "detail": "no value for " + ", ".join(missing)})
-    return close({"evaluated": int(evaluated), "answered": int(evaluated) - int(not_computable),
-                  "dropped": 0, "not_computable": int(not_computable),
+    return close({"evaluated": int(evaluated),
+                  "answered": int(evaluated) - int(dropped) - int(not_computable),
+                  "dropped": int(dropped), "not_computable": int(not_computable),
                   "dropped_symbols": listed})
 
 
@@ -1623,6 +1750,30 @@ def preview_count_batch(specs, user_id=None):
     return out
 
 
+def _stale_block(conn, plan):
+    """How many rows THIS screen's filters matched that the stale gate then
+    excluded, or ``None`` when the gate did not bite.
+
+    Counted as ``pre-gate where AND NOT gate`` over the plan's own FROM and
+    params — the same statement pieces `total` was counted from, so
+    ``total + excluded`` is what the screen matched before the gate (for a
+    ranked screen, before the rank's completeness requirement too: the two
+    exclusions are reported separately, each by its own receipt)."""
+    stale = plan.get("stale")
+    if not stale:
+        return None
+    pre = plan["pre_stale_where"]
+    joiner = " AND " if pre.strip() else " WHERE "
+    excluded = conn.execute(
+        f"SELECT COUNT(*) FROM {plan['from_sql']}{pre}{joiner}NOT {stale['sql']}",
+        [*plan["overlay"].join_params, *plan["pre_stale_params"],
+         *stale["params"]]).fetchone()[0]
+    return {"excluded": int(excluded),
+            "max_sessions": stale["max_sessions"],
+            "newest_bars_asof": _ymd_text(stale["reference"]),
+            "cutoff": _ymd_text(stale["cutoff"])}
+
+
 def run_scan(spec, user_id=None, user=None):
     spec = spec or {}
     # TEMPORARY (2026-09-05) -- natural-load contention attribution. See
@@ -1680,6 +1831,7 @@ def run_scan(spec, user_id=None, user=None):
                     matched=_count(plan["base_where"], plan["base_params"]),
                     ranked=_count(plan["where"], plan["describe_params"][
                         len(plan["overlay"].join_params):]))
+            stale_block = _stale_block(conn, plan)
     out_rows = [dict(r) for r in rows]
     # Phase 8 Package 8G-B: additive-only, admin/pilot + PEG-only overlay.
     # No-ops (returns out_rows unchanged) unless PATTERN_CANONICAL_SCANNER_
@@ -1712,6 +1864,11 @@ def run_scan(spec, user_id=None, user=None):
     # passes, which is the built-tested-green-and-unreachable failure this repo
     # has already paid for twice. One block, one address, reachable today.
     snap["live"] = live_screen_state(out_rows)
+    # ⭐ THE EXCLUSION IS SAID, NEVER SILENT — beside the date that describes
+    # the rows, because both answer "what am I looking at". Present only when
+    # the gate bit, so an ordinary response is byte-identical to before.
+    if stale_block:
+        snap["stale"] = stale_block
     # `total` IS the described row count. One `GROUP BY` already counted every
     # matching row, so re-running `COUNT(*)` would be a second authority over
     # one value -- exactly the drift that lets a label and a total disagree.

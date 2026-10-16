@@ -21,7 +21,37 @@ import time
 from typing import Optional
 
 _DB_PATH = os.environ.get("EDUCATION_DB_PATH", "/data/education.db")
-_WRITE_LOCK = threading.Lock()
+
+
+class _CountingLock:
+    """A plain (NON-reentrant) lock that counts its write sections. Every write
+    to education.db runs under `with _WRITE_LOCK:`, so `gen` changing is the
+    signal that the /videos payload cache is stale. The count is bumped BEFORE
+    release, so a reader that snapshots `gen` before reading can never store a
+    pre-write read under a post-write generation."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self.gen = 0
+
+    def __enter__(self):
+        self._lock.acquire()
+        return self
+
+    def __exit__(self, *exc):
+        self.gen += 1
+        self._lock.release()
+        return False
+
+    @contextlib.contextmanager
+    def quiet(self):
+        """Hold the lock without marking the payload stale — watch-progress
+        heartbeats, which the cached payload never contains."""
+        with self._lock:
+            yield self
+
+
+_WRITE_LOCK = _CountingLock()
 
 # Deep-search index staleness flag (see api/services/education_search.py).
 # Write paths only SET this — they never rebuild the index synchronously
@@ -364,7 +394,7 @@ def upsert_progress(user_id: str, youtube_id: str, position: int,
     pos = max(0, int(position or 0))
     dur = max(0, int(duration or 0))
     dn = 1 if done else 0
-    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+    with _WRITE_LOCK.quiet(), contextlib.closing(_connect()) as c:
         c.execute(
             """INSERT INTO edu_video_progress
                  (user_id, youtube_id, position, duration, done, updated_at)
@@ -1085,6 +1115,25 @@ _GROUPED_PAYLOAD_STRIP_KEYS = (
     "key_levels", "meeting_uuid",
 )
 
+# The strip keys that are BULK columns — never read them for the /videos payload
+# at all. meeting_uuid is tiny and the kind-inference below needs it, so it is
+# still read and stripped afterwards.
+_GROUPED_PAYLOAD_SKIP_COLUMNS = frozenset(_GROUPED_PAYLOAD_STRIP_KEYS) - {"meeting_uuid"}
+
+
+def _list_videos_for_payload() -> list[dict]:
+    """list_videos() without the bulk columns. Selecting them and stripping them
+    afterwards read every stored transcript (up to ~600k chars each, 344 videos)
+    on each /videos request; the page took ~4s to answer."""
+    with contextlib.closing(_connect()) as c:
+        cols = [r["name"] for r in c.execute("PRAGMA table_info(edu_videos)").fetchall()
+                if r["name"] not in _GROUPED_PAYLOAD_SKIP_COLUMNS]
+        rows = c.execute(
+            f"SELECT {', '.join(cols)} FROM edu_videos "
+            "ORDER BY category ASC, sort_order ASC, id ASC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
 
 # Below this a "length" is a player that reported before metadata loaded, not
 # a real video; session recordings run 20 minutes to 5 hours.
@@ -1122,13 +1171,43 @@ def grouped_videos_payload() -> dict:
     Heavyweight per-video fields (see _GROUPED_PAYLOAD_STRIP_KEYS) are dropped
     before returning — cheap/useful fields (tags, headline, audio_url, poster,
     …) are kept."""
-    vids = list_videos()
-    measured = measured_durations() if any(not (v.get("duration") or "").strip() for v in vids) else {}
+    base = _cached_grouped_base()
+    missing = [v for c in base["categories"] for v in c["videos"]
+               if not (v.get("duration") or "").strip()]
+    measured = measured_durations() if missing else {}
+    categories = []
+    for cat in base["categories"]:
+        videos = []
+        for v in cat["videos"]:
+            v = dict(v)     # the cached base is shared across requests — never mutate it
+            if not (v.get("duration") or "").strip() and measured.get(v.get("youtube_id")):
+                v["duration"] = format_duration(measured[v["youtube_id"]])
+            videos.append(v)
+        categories.append({**cat, "videos": videos})
+    return {"categories": categories, "total": base["total"]}
+
+
+# (db path, write generation) -> the grouped payload before the per-request
+# duration fill. Rebuilt on the first read after ANY write under _WRITE_LOCK
+# (watch progress excepted), so an admin edit shows on the very next load.
+_GROUPED_CACHE: dict = {}
+
+
+def _cached_grouped_base() -> dict:
+    key = (_DB_PATH, _WRITE_LOCK.gen)       # snapshot BEFORE reading
+    hit = _GROUPED_CACHE.get("entry")
+    if hit and hit[0] == key:
+        return hit[1]
+    base = _build_grouped_base()
+    _GROUPED_CACHE["entry"] = (key, base)
+    return base
+
+
+def _build_grouped_base() -> dict:
+    vids = _list_videos_for_payload()
     by_cat: dict[str, list[dict]] = {}
     for v in vids:
         v["tags"] = _parse_json_list(v.get("tags"))
-        if not (v.get("duration") or "").strip() and measured.get(v.get("youtube_id")):
-            v["duration"] = format_duration(measured[v["youtube_id"]])
         by_cat.setdefault(v["category"], []).append(v)
     meta = {m["name"]: m for m in list_category_meta()}
     for name, members in by_cat.items():
@@ -1438,7 +1517,7 @@ def session_videos_with_headlines() -> list[dict]:
     fresh session is fixed before the back catalogue."""
     with contextlib.closing(_connect()) as c:
         rows = c.execute(
-            """SELECT id, title, headline FROM edu_videos
+            """SELECT id, title, headline, created_at FROM edu_videos
                WHERE meeting_uuid IS NOT NULL AND meeting_uuid != ''
                  AND COALESCE(headline, '') != ''
                  AND COALESCE(chapters, '') NOT IN ('', '[]')

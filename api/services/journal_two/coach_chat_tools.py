@@ -854,6 +854,11 @@ def _exec_scan_active_patterns(*, user_id, account_id, args, conn=None) -> dict:
     if cat:
         sql += " AND category = ?"
         params.append(cat)
+    # ⛔ internal/admin-only detectors never reach a Compass caller.
+    from api.services.pattern_engine.detectors.registry import INTERNAL_PATTERN_IDS
+    _internal = sorted(INTERNAL_PATTERN_IDS)
+    sql += f" AND pattern_id NOT IN ({','.join('?' * len(_internal))})"
+    params.extend(_internal)
     sql += " ORDER BY detected_at DESC, confidence DESC LIMIT ?"
     params.append(cap)
     c = _pattern_conn()
@@ -886,9 +891,9 @@ def _exec_list_pattern_types(*, user_id, account_id, args, conn=None) -> dict:
     _pattern_pe_load()
     cat = (args.get("category") or "").strip().lower() or None
     try:
-        from api.services.pattern_engine.detectors.registry import list_pattern_ids
+        from api.services.pattern_engine.detectors.registry import list_public_pattern_ids
         from api.routers.patterns import _PATTERN_METADATA
-        ids = list_pattern_ids()
+        ids = list_public_pattern_ids()  # internal/admin-only ids never listed
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": str(e)}
     items = []
@@ -1937,6 +1942,60 @@ _TOOLS_UNGATED["search_my_notes"] = {
 }
 
 
+# ── TSDR trader archive (owner ruling 2026-10-15) — chat AND voice, DARK by flag ──
+#
+# ONE implementation (api/services/wisdom/archive/tools.py) serves both Compass surfaces;
+# the voice twins are registered in voice_tool_impls.py. Gated by WISDOM_ARCHIVE_ENABLED,
+# read PER CALL by the registry below (hidden while off) and again inside the tool (a
+# call that raced a flip is refused). Read-only, bounded output.
+
+def _archive_tool_enabled() -> bool:
+    from api.services.wisdom.archive import tools as _archive_tools
+    return _archive_tools.enabled()
+
+
+def _exec_trader_archive_search(*, user_id, account_id, args, conn=None) -> dict:
+    from api.services.wisdom.archive import tools as _archive_tools
+    return _archive_tools.search(str((args or {}).get("query") or ""))
+
+
+def _exec_trader_archive_ticker(*, user_id, account_id, args, conn=None) -> dict:
+    from api.services.wisdom.archive import tools as _archive_tools
+    return _archive_tools.ticker(str((args or {}).get("symbol") or ""))
+
+
+_TOOLS_UNGATED["trader_archive_search"] = {
+    "name": "trader_archive_search",
+    "description": (
+        "Search the UCT team's TSDR trader archive (dated posts, lessons and scored calls by "
+        "TSDR, Bracco, Manrav, Chartmaster, Jersace and AtTheAsk) for a topic, setup or ticker. "
+        "Returns up to 6 posts with trader, date, record id, a short excerpt and any scored call "
+        "outcome. Use for 'what did the traders say about X', 'has TSDR talked about Y setup'. "
+        "Cite trader + date; these are historical posts, never current advice."
+    ),
+    "requires_confirm": False,
+    "executor": _exec_trader_archive_search,
+    "input_schema": {"type": "object", "properties": {
+        "query": {"type": "string", "description": "Topic, setup or ticker to look for."}},
+        "required": ["query"]},
+}
+
+_TOOLS_UNGATED["trader_archive_ticker"] = {
+    "name": "trader_archive_ticker",
+    "description": (
+        "Everything the UCT trading team posted about one ticker in the TSDR trader archive: "
+        "post count, call count, scored-call summary (mean r20), the most recent posts and calls "
+        "with their outcomes. Use for 'what did the traders say about NVDA', 'did TSDR call TSLA'. "
+        "Cite trader + date; historical, never current advice."
+    ),
+    "requires_confirm": False,
+    "executor": _exec_trader_archive_ticker,
+    "input_schema": {"type": "object", "properties": {
+        "symbol": {"type": "string", "description": "Ticker, e.g. NVDA."}},
+        "required": ["symbol"]},
+}
+
+
 class _GatedToolRegistry(dict):
     """TOOLS, with some entries visible only while their gate is ON — checked
     on EVERY access, so a flip changes what the next request sees with no
@@ -2002,4 +2061,6 @@ class _GatedToolRegistry(dict):
     __hash__ = None
 
 
-TOOLS = _GatedToolRegistry(_TOOLS_UNGATED, {"search_my_notes": notes_tool_enabled})
+TOOLS = _GatedToolRegistry(_TOOLS_UNGATED, {"search_my_notes": notes_tool_enabled,
+                                             "trader_archive_search": _archive_tool_enabled,
+                                             "trader_archive_ticker": _archive_tool_enabled})

@@ -3,6 +3,7 @@
 Built nightly by ``snapshot_builder``; queried by ``query``. All numeric fields
 nullable so a ticker missing fundamentals still screens on technicals.
 """
+import json
 import os
 import sqlite3
 import threading
@@ -148,9 +149,20 @@ COLUMNS = [
     # strings `vcp`/`flat_base` on purpose (pattern_join's D6 note) and are
     # different instruments, which is why the names carry `engine`.
     "pattern_engine_vcp", "pattern_engine_flat_base",
+    # ⭐ LIVE-ONLY: volume vs usual BY NOW. Written only by the live tier's overlay
+    # (`live_tier.LIVE_COLUMNS`); the nightly build leaves it NULL, because outside
+    # the session there is no "by now". It lives in this list so the query layer's
+    # COALESCE(overlay, nightly) can serve and filter it. See LIVE_ONLY_COLUMNS and
+    # docs/superpowers/specs/2026-10-15-screener-live-relative-volume-design.md.
+    "rvol_live",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
+
+#: Columns whose NIGHTLY value is NULL by design (only the live overlay fills
+#: them). The build's `empty_columns` receipt does not name these: a column that
+#: is meant to be empty at 03:00 is not a column that "came out 0/N".
+LIVE_ONLY_COLUMNS = frozenset({"rvol_live"})
 
 _TEXT = {"ticker", "company", "sector", "industry", "exchange", "security_type", "ma_stack",
          "candle_type", "candle_label", "candle_matches", "candle_trend",
@@ -690,6 +702,79 @@ def describe_rows(conn, where: str = "", params=(),
     }
 
 
+# One row per nightly (or admin/boot) build: what it set out to rebuild and what landed.
+# The build used to report only to the log, so a run cut short by a redeploy or a crash
+# left nothing an HTTP reader could see. Created on first write (an additive side table,
+# like the live tables above) and trimmed to the newest BUILD_RUNS_KEEP rows.
+BUILD_RUNS_KEEP = 60
+_BUILD_RUNS_SQL = """
+CREATE TABLE IF NOT EXISTS screener_build_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at REAL, finished_at REAL,
+    targets INTEGER, built INTEGER, skipped INTEGER, errors INTEGER,
+    empty_columns TEXT, settled_bars TEXT
+)"""
+
+
+def _ensure_build_runs(conn) -> None:
+    """Create the receipts table, and add ``settled_bars`` to one that predates it.
+
+    ``settled_bars`` is the JSON of ``run_build``'s ``stats["settled_bars"]``: the
+    session whose settled whole-market bars replaced each row's newest stored bar,
+    how many came back, and what happened per ticker — or the error that left the
+    build on its stored bars. An ADD COLUMN, never a rebuild, so old receipts stay."""
+    conn.execute(_BUILD_RUNS_SQL)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(screener_build_runs)")}
+    if "settled_bars" not in cols:
+        conn.execute("ALTER TABLE screener_build_runs ADD COLUMN settled_bars TEXT")
+
+
+def record_build_run(stats: dict) -> None:
+    """Persist one build's receipt. Never raises: a receipt that cannot be written must
+    not cost the build it describes."""
+    try:
+        with connect() as conn:
+            _ensure_build_runs(conn)
+            settled = stats.get("settled_bars")
+            conn.execute(
+                "INSERT INTO screener_build_runs (started_at, finished_at, targets, built, "
+                "skipped, errors, empty_columns, settled_bars) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (stats.get("started_at"), stats.get("finished_at"), stats.get("targets"),
+                 stats.get("built"), stats.get("skipped"), stats.get("errors"),
+                 ",".join(stats.get("empty_columns") or []),
+                 json.dumps(settled, sort_keys=True) if settled is not None else None))
+            conn.execute(
+                "DELETE FROM screener_build_runs WHERE id NOT IN (SELECT id FROM "
+                "screener_build_runs ORDER BY id DESC LIMIT ?)", (BUILD_RUNS_KEEP,))
+            conn.commit()
+    except Exception as e:                                  # noqa: BLE001
+        import logging
+        logging.getLogger(__name__).warning("[screener] build receipt not written: %s", e)
+
+
+def last_build_run() -> dict | None:
+    """The newest build receipt, or None when no build has recorded one yet."""
+    try:
+        with connect() as conn:
+            _ensure_build_runs(conn)
+            r = conn.execute("SELECT * FROM screener_build_runs ORDER BY id DESC LIMIT 1").fetchone()
+    except Exception:                                       # noqa: BLE001
+        return None
+    if r is None:
+        return None
+    d = dict(r)
+    d["empty_columns"] = [c for c in (d.get("empty_columns") or "").split(",") if c]
+    try:
+        d["settled_bars"] = json.loads(d["settled_bars"]) if d.get("settled_bars") else None
+    except (TypeError, ValueError):
+        d["settled_bars"] = None
+    # A build that reached every row it targeted accounts for each one as built, skipped
+    # (no bars) or errored. Anything short of that was cut off partway.
+    seen = (d.get("built") or 0) + (d.get("skipped") or 0) + (d.get("errors") or 0)
+    d["complete"] = d.get("targets") is not None and seen >= d["targets"]
+    return d
+
+
 def status() -> dict:
     """Coverage + freshness of the whole snapshot.
 
@@ -705,7 +790,8 @@ def status() -> dict:
     # `latest_snapshot_date` is DERIVED from the value already computed, never
     # re-queried: a second authority over one number is how these two drift.
     return {**prov, "latest_built_at": built,
-            "latest_snapshot_date": prov["newest_snapshot_date"]}
+            "latest_snapshot_date": prov["newest_snapshot_date"],
+            "last_build": last_build_run()}
 
 
 def get_projected(tickers: list, columns: list) -> dict:

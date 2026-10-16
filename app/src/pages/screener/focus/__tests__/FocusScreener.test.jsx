@@ -48,6 +48,14 @@ test('list shows up and the first stock is charted', async () => {
   // the why strip names each row's own close: the scan asks for it
   expect(scanBodies().at(-1).columns).toContain('bars_asof')
 })
+test('the data receipt reads the live overlay of the scan: a live screen says Live and its time', async () => {
+  const asOf = Date.parse('2026-10-15T14:47:00-04:00') / 1000
+  extra = url => (url === '/api/screener/scan' ? { ok: true, json: async () => ({ rows: rowsA, total: 2, page: 1, snapshot_date: '2026-10-15',
+    snapshot: { live: { state: 'live', as_of: asOf, columns: ['price', 'chg_pct_1d'] } } }) } : null)
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  expect(await screen.findByRole('button', { name: /^Live · 2:47 PM/ })).toBeInTheDocument()
+})
 test('arrow down charts the next stock', async () => {
   mount()
   await waitFor(() => screen.getByTestId('focus-row-MU'))
@@ -439,15 +447,15 @@ test('B2: a structure screen leads each row with the structure it was screened f
   const enc = encodeSpec({ filters: { base_structure: { op: 'contains', value: ',pocket-pivot,' } }, sort: { key: 'uct_composite', dir: 'desc' } })
   window.history.replaceState(null, '', `/?${SPEC_PARAM}=${enc}`)
   mount()
-  await waitFor(() => expect(screen.getByTestId('focus-row-UDB')).toHaveTextContent('Pocket Pivot · also Ugly Double Bottom'))
-  expect(screen.getByTestId('pane-setup')).toHaveTextContent('Pocket Pivot · also Ugly Double Bottom')
+  await waitFor(() => expect(screen.getByTestId('focus-row-UDB')).toHaveTextContent('Up day on more volume than recent selling · also Double bottom with a higher second low'))
+  expect(screen.getByTestId('pane-setup')).toHaveTextContent('Up day on more volume than recent selling · also Double bottom with a higher second low')
 })
 test('B2: without a structure filter the row leads with the render head', async () => {
   extra = richMeta
   scanRows = [{ ticker: 'UDB', price: 97, chg_pct_1d: 1, base_render: 'Ugly Double Bottom (Pocket Pivot)', vol_ratio: 1.1 }]
   mount()
   await waitFor(() => screen.getByTestId('focus-row-UDB'))
-  expect(screen.getByTestId('focus-row-UDB')).toHaveTextContent('Ugly Double Bottom')
+  expect(screen.getByTestId('focus-row-UDB')).toHaveTextContent('Double bottom with a higher second low')
   expect(screen.getByTestId('focus-row-UDB')).not.toHaveTextContent('also')
 })
 

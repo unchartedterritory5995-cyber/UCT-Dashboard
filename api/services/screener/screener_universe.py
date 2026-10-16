@@ -41,12 +41,26 @@ KEEP_TYPES = frozenset({"CS"}) | ADR_TYPES              # common + ADR
 # (ETF/ETN/ETV + closed-end funds). Still excludes preferreds/units/rights/warrants
 # and buyout targets. ETF_TYPES is imported at build time from `api.ticker_types`.
 _ETF_FAMILY = frozenset({"ETF", "ETN", "ETV", "FUND"})
+#: The three `security_type` buckets a row can carry (NULL = unknown). The Type
+#: filter's options are pinned to this set by `tests/test_screener_universe.py`.
+COARSE_TYPES = frozenset({"Stock", "ADR", "ETF"})
 INSTRUMENT_KEEP = KEEP_TYPES | _ETF_FAMILY
 
 # The screener-row `security_type` bucket a member filters on (Stocks / ADRs /
 # ETFs). Closed-end funds and ETNs fold into "ETF" to match the member-facing
 # Type control; the raw reference code is not shown.
-def _coarse_type(sym: str, ref_type: dict, core_etfs: set) -> str:
+#
+# 🔴 FAIL CLOSED (data-accuracy audit 2026-10-15, #3). The last line used to be
+# `return "Stock"` for ANY name the reference did not type — commented as "a
+# curated core equity the reference enumeration missed", but it fired for every
+# untyped name, curated or not. ⛔ And "curated" was never a voucher: the cap
+# universe the comment trusted CONTAINS ETFs (SPY, QQQ, IWM, DIA, GLD, XLK, SMH,
+# ARKK are all in `api/data/cap_universe.json`), so an ETF the reference failed
+# to type and the prebuilt-ETF list did not name came out "Stock". A name the
+# reference did not type and no ETF list names is now `None` — omitted from the
+# written map, so the builder stores NULL ("we do not know"), which the Type
+# filter's Exclude keeps and its Include does not.
+def _coarse_type(sym: str, ref_type: dict, core_etfs: set) -> str | None:
     ty = ref_type.get(sym, "")
     if ty in ADR_TYPES:
         return "ADR"
@@ -54,7 +68,7 @@ def _coarse_type(sym: str, ref_type: dict, core_etfs: set) -> str:
         return "Stock"
     if ty in _ETF_FAMILY or sym in core_etfs:
         return "ETF"
-    return "Stock"          # a curated core equity the reference enumeration missed
+    return None
 
 
 def _pkg_data_path(filename: str) -> str:
@@ -144,13 +158,16 @@ def types() -> dict:
     """`{TICKER: "Stock"|"ADR"|"ETF"}` — the coarse instrument bucket the snapshot
     builder stamps on each row's `security_type` and the Type filter narrows on.
     Written alongside the universe by `build_and_save`; {} when not generated yet
-    (the builder then defaults a row to "Stock")."""
+    (the builder then stores NULL for every row — unknown, never "Stock").
+    A value outside the three buckets (a stray null, a typo) is dropped rather
+    than published as a bucket nobody can select."""
     for p in _types_paths():
         try:
             with open(p, "r", encoding="utf-8") as fh:
                 data = json.load(fh)
             if isinstance(data, dict) and data:
-                return {str(k).upper(): str(v) for k, v in data.items()}
+                return {str(k).upper(): str(v) for k, v in data.items()
+                        if v in COARSE_TYPES}
         except FileNotFoundError:
             continue
         except Exception as exc:                            # noqa: BLE001
@@ -251,7 +268,12 @@ def build_and_save(min_shares: float | None = None, sessions: int = 5,
     keep |= core_etfs
     keep -= excl
     final = sorted(keep)
-    type_map = {t: _coarse_type(t, ref_type, core_etfs) for t in final}
+    # ⛔ An unknown type is OMITTED, never written as a value: `types()` reads
+    # the file back with `str(v)`, so a JSON null would round-trip as the
+    # four-character bucket "None".
+    _typed = {t: _coarse_type(t, ref_type, core_etfs) for t in final}
+    type_map = {t: ty for t, ty in _typed.items() if ty is not None}
+    untyped = len(_typed) - len(type_map)
 
     dest = write_path or writable_path()
     tdest = writable_types_path()
@@ -274,6 +296,7 @@ def build_and_save(min_shares: float | None = None, sessions: int = 5,
         "excluded_buyouts": len({t for t in (typed | core | core_etfs) if t in excl}),
         "final": len(final),
         "by_type": by_bucket,
+        "untyped": untyped,
         "min_shares": min_shares,
         "path": dest,
     }

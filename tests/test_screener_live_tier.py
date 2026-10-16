@@ -19,9 +19,11 @@ import datetime
 
 import pytest
 
-from api.services.screener import candle_catalog, live_tier, snapshot_builder, snapshot_db
+from api.services.screener import (candle_catalog, live_tier, snapshot_builder, snapshot_db,
+                                   volume_curve)
 
 ET = datetime.timezone(datetime.timedelta(hours=-4))
+LINEAR_CURVE = [m / 390 for m in range(391)]
 YMD = 20260824                     # a Monday, the "today" every test runs on
 ANCHOR_ASOF = "20260821"           # the Friday before — a 1-session-old anchor
 
@@ -64,6 +66,8 @@ def _nightly_row(ticker="AAA", price=100.0, **over):
         "pt_upside_pct": 50.0,
         "gap_pct": 0.5,
         "chg_from_open_pct": 0.25,
+        # the `rvol_live` level: 30 completed sessions through `bars_asof`
+        "avg_volume_30d": 2_000_000.0,
     })
     row.update(over)
     return row
@@ -90,6 +94,10 @@ def live_env(monkeypatch, tmp_path):
     # previous test's measurement
     monkeypatch.setattr(live_tier, "_EFFECTIVE_COLUMNS", None)
     snapshot_db.init_db()
+    # A LINEAR volume curve (share = minutes/390), so `rvol_live` is checkable by
+    # arithmetic: at 10:42 (72 minutes in) the usual share is 72/390.
+    volume_curve.store(LINEAR_CURVE, first_session=20260727, last_session=20260821,
+                       sessions=20, tickers=300, samples=6000)
     return monkeypatch
 
 
@@ -455,7 +463,8 @@ def test_before_the_first_sweep_the_claim_under_claims_rather_than_over_claims(
     monkeypatch.setattr(live_tier, "_EFFECTIVE_COLUMNS", None)
     fallback = set(live_tier.live_columns_effective())
     assert fallback == set(live_tier.LIVE_COLUMNS) - set(
-        live_tier.FEED_FIELD_DEPENDENCIES)
+        live_tier.FEED_FIELD_DEPENDENCIES) - set(live_tier.CURVE_DEPENDENT_COLUMNS)
+    assert "rvol_live" not in fallback
     assert fallback < set(live_tier.LIVE_COLUMNS)
 
 
@@ -491,7 +500,7 @@ def test_the_feed_dependency_declaration_matches_what_derive_row_actually_does(
 
     minimal = set()
     live_tier.derive_row(row, _quote(last=110.0), YMD, 1.0,
-                         recomputed_out=minimal)
+                         recomputed_out=minimal, volume_share=0.25)
     missing_on_minimal = set(live_tier.LIVE_COLUMNS) - minimal
     assert missing_on_minimal == set(live_tier.FEED_FIELD_DEPENDENCIES)
 
@@ -504,11 +513,11 @@ def test_the_feed_dependency_declaration_matches_what_derive_row_actually_does(
         without = {k: v for k, v in widened.items() if k != field}
         got = set()
         live_tier.derive_row(row, _quote(last=130.0, **without), YMD, 1.0,
-                             recomputed_out=got)
+                             recomputed_out=got, volume_share=0.25)
         assert col not in got, f"{col} was recomputed without {field}"
         got_all = set()
         live_tier.derive_row(row, _quote(last=130.0, **widened), YMD, 1.0,
-                             recomputed_out=got_all)
+                             recomputed_out=got_all, volume_share=0.25)
         assert col in got_all, f"{col} stayed nightly WITH {field}"
 
 
@@ -520,7 +529,11 @@ def test_the_receipt_names_the_carried_forward_columns_never_only_a_count(
     _feed(monkeypatch, {"AAA": _quote(last=110.0)})
     with caplog.at_level("INFO"):
         r = live_tier.sweep_job()
-    assert r["cols_recomputed_total"] == 18
+    # 18 price-anchored columns + `rvol_live` (the fixture stores a curve and it is
+    # 10:42). Derived from the declarations, not retyped: every live column except
+    # the feed-dependent ones this feed cannot answer for.
+    assert r["cols_recomputed_total"] == 19 == (
+        len(live_tier.LIVE_COLUMNS) - len(live_tier.FEED_FIELD_DEPENDENCIES))
     assert "not_live=" in caplog.text
     for col in ("gap_pct", "new_ath"):
         assert col in caplog.text
@@ -1316,3 +1329,223 @@ def test_the_receipt_reports_what_moved_out_of_the_lock():
         assert '"snapshot_ms": 0.0,' in src, "snapshot_ms is not declared in the receipt template"
         return
     assert "snapshot_ms" in r and "held_lock_ms" in r
+
+
+# --------------------------------------------------------------------------- #
+# `rvol_live` — volume vs usual BY NOW (spec change 2026-10-15)
+# docs/superpowers/specs/2026-10-15-screener-live-relative-volume-design.md
+# --------------------------------------------------------------------------- #
+
+def _at(monkeypatch, hh, mm):
+    monkeypatch.setattr(live_tier, "_now_et",
+                        lambda: datetime.datetime(2026, 8, 24, hh, mm, tzinfo=ET))
+
+
+def test_rvol_live_is_today_over_the_usual_volume_BY_NOW(live_env, monkeypatch):
+    """1,000,000 shares by 10:42 against a 2,000,000/day stock that usually has
+    done 72/390 of its day by then: 1e6 / (2e6 * 72/390) = 2.71. The raw
+    today/average ratio (0.5) is the different quantity the header rejects."""
+    snapshot_db.upsert_rows([_nightly_row()])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0, vol=1_000_000)})
+    r = live_tier.run_sweep()
+    assert r["volume_share"] == pytest.approx(72 / 390)
+    assert _overlay("AAA")["rvol_live"] == 2.71
+    assert _served("AAA")["rvol_live"] == 2.71
+    assert r["cols_recomputed_by_column"]["rvol_live"] == 1
+    assert "rvol_live" in live_tier.live_columns_effective()
+
+
+def test_rvol_live_divides_by_the_STORED_30_session_level_not_the_feeds_prev_vol(
+        live_env, monkeypatch):
+    """The anchor contract: the denominator is `avg_volume_30d` from completed
+    sessions, never anything in today's feed (`prev_vol` is 2,000,000 in the quote;
+    the stored level here is 4,000,000, so the answer halves)."""
+    snapshot_db.upsert_rows([_nightly_row(avg_volume_30d=4_000_000.0)])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0, vol=1_000_000)})
+    live_tier.run_sweep()
+    assert _overlay("AAA")["rvol_live"] == pytest.approx(1.35, abs=0.01)
+
+
+def test_rvol_live_is_BLANK_before_0945_and_says_so(live_env, monkeypatch):
+    snapshot_db.upsert_rows([_nightly_row()])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0, vol=1_000_000)})
+    _at(monkeypatch, 9, 40)
+    r = live_tier.run_sweep()
+    assert r["rows_written"] == 1                         # the rest of the row is live
+    assert r["volume_share"] is None
+    assert _overlay("AAA")["rvol_live"] is None
+    assert "rvol_live" in r["columns_not_recomputed"]
+    assert "rvol_live" not in live_tier.live_columns_effective()
+    # control: the SAME sweep at 09:46 fills it
+    _at(monkeypatch, 9, 46)
+    r = live_tier.run_sweep()
+    assert _overlay("AAA")["rvol_live"] is not None
+    assert "rvol_live" not in r["columns_not_recomputed"]
+
+
+def test_rvol_live_is_BLANK_with_no_stored_curve(live_env, monkeypatch):
+    with snapshot_db.connect() as conn:
+        conn.execute(f"DELETE FROM {volume_curve.TABLE}")
+        conn.commit()
+    snapshot_db.upsert_rows([_nightly_row()])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0, vol=1_000_000)})
+    r = live_tier.run_sweep()
+    assert r["volume_share"] is None and _overlay("AAA")["rvol_live"] is None
+    assert "rvol_live" in r["columns_not_recomputed"]
+
+
+def test_rvol_live_is_BLANK_without_a_level_or_a_print(live_env, monkeypatch):
+    snapshot_db.upsert_rows([_nightly_row("NOAVG", avg_volume_30d=None),
+                             _nightly_row("NOVOL")])
+    _feed(monkeypatch, {"NOAVG": _quote(last=110.0, vol=1_000_000),
+                        # traded (day_open) but no volume figure in the feed
+                        "NOVOL": _quote(last=110.0, vol=0, day_open=105.0)})
+    live_tier.run_sweep()
+    assert _overlay("NOAVG")["rvol_live"] is None
+    assert _overlay("NOVOL")["rvol_live"] is None
+
+
+def test_the_nightly_value_of_rvol_live_is_NULL_and_never_a_build_gap():
+    """Outside the session there is no "by now": the nightly writes nothing, and the
+    build receipt does not report that designed NULL as a column that came out empty."""
+    assert "rvol_live" in snapshot_db.COLUMNS
+    assert "rvol_live" in snapshot_db.LIVE_ONLY_COLUMNS
+    assert "rvol_live" in live_tier.CURVE_DEPENDENT_COLUMNS
+    assert set(live_tier.CURVE_DEPENDENT_COLUMNS) <= set(live_tier.LIVE_COLUMNS)
+    assert "avg_volume_30d" in live_tier.ANCHOR_COLUMNS
+    # the copy-forward seed is the nightly row: a nightly NULL stays NULL when no
+    # share is given (the curve-dependency the declaration above names)
+    got = set()
+    out = live_tier.derive_row(_nightly_row(), _quote(last=110.0), YMD, 1.0,
+                               recomputed_out=got)
+    assert out["rvol_live"] is None and "rvol_live" not in got
+
+
+def test_the_share_is_read_ONCE_per_sweep_not_per_row(live_env, monkeypatch):
+    """No per-row fanout: one curve read per cycle, whatever the universe size."""
+    snapshot_db.upsert_rows([_nightly_row(f"T{i}") for i in range(5)])
+    _feed(monkeypatch, {f"T{i}": _quote(last=110.0) for i in range(5)})
+    reads = []
+    real = volume_curve.latest_curve
+    monkeypatch.setattr(volume_curve, "latest_curve",
+                        lambda: reads.append(1) or real())
+    r = live_tier.run_sweep()
+    assert r["rows_written"] == 5 and len(reads) == 1
+
+
+# --------------------------------------------------------------------------- #
+# APPROACH B — the ticker's OWN curve, read ONCE per sweep (2026-10-15)
+# --------------------------------------------------------------------------- #
+
+#: A front-loaded per-ticker curve: twice the linear pace, capped at 1.0. At 10:42
+#: (72 minutes in = knot 14.4) its share is 14.4/39, against the market's 72/390.
+FRONT_KNOTS = [min(1.0, k / 39) for k in range(volume_curve.BARS_PER_SESSION + 1)]
+
+
+def _with_ticker_curves(rows):
+    volume_curve.store(LINEAR_CURVE, first_session=20260727, last_session=20260821,
+                       sessions=20, tickers=300, samples=6000, ticker_curves=rows)
+
+
+def test_rvol_live_uses_the_tickers_OWN_curve_over_the_market_curve(live_env,
+                                                                     monkeypatch):
+    """AAA has its own (front-loaded) curve, BBB does not. 1e6 by 10:42 against a
+    2e6/day stock: AAA divides by 2e6 * 14.4/39 = 1.35; BBB by the market's
+    2e6 * 72/390 = 2.71."""
+    _with_ticker_curves([("AAA", 20, FRONT_KNOTS)])
+    snapshot_db.upsert_rows([_nightly_row("AAA"), _nightly_row("BBB")])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0, vol=1_000_000),
+                        "BBB": _quote(last=110.0, vol=1_000_000)})
+    r = live_tier.run_sweep()
+    assert _overlay("AAA")["rvol_live"] == 1.35
+    assert _overlay("BBB")["rvol_live"] == 2.71
+    assert r["volume_share"] == pytest.approx(72 / 390)       # the market's, named
+    assert r["ticker_shares"] == 1 and r["rows_on_ticker_curve"] == 1
+    assert r["cols_recomputed_by_column"]["rvol_live"] == 2
+    assert "rvol_live" in live_tier.live_columns_effective()
+
+
+def test_a_name_without_its_own_curve_reads_the_market_share_exactly(live_env,
+                                                                    monkeypatch):
+    """The control for the test above: with no per-ticker rows, AAA is 2.71 too."""
+    snapshot_db.upsert_rows([_nightly_row("AAA")])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0, vol=1_000_000)})
+    r = live_tier.run_sweep()
+    assert _overlay("AAA")["rvol_live"] == 2.71
+    assert r["ticker_shares"] == 0 and r["rows_on_ticker_curve"] == 0
+
+
+def test_a_tickers_own_curve_is_BLANK_before_0945_too(live_env, monkeypatch):
+    _with_ticker_curves([("AAA", 20, FRONT_KNOTS)])
+    snapshot_db.upsert_rows([_nightly_row("AAA")])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0, vol=1_000_000)})
+    _at(monkeypatch, 9, 40)
+    r = live_tier.run_sweep()
+    assert r["rows_written"] == 1 and r["ticker_shares"] == 0
+    assert _overlay("AAA")["rvol_live"] is None
+    assert "rvol_live" in r["columns_not_recomputed"]
+    _at(monkeypatch, 9, 46)                                    # control
+    r = live_tier.run_sweep()
+    assert _overlay("AAA")["rvol_live"] is not None and r["rows_on_ticker_curve"] == 1
+
+
+def test_no_market_curve_blanks_a_tickers_own_curve_too(live_env, monkeypatch):
+    """One blank, whichever curve a name would have read: an unreadable market curve
+    is not answered for half the universe."""
+    _with_ticker_curves([("AAA", 20, FRONT_KNOTS)])
+    monkeypatch.setattr(volume_curve, "latest_curve", lambda: None)
+    snapshot_db.upsert_rows([_nightly_row("AAA")])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0, vol=1_000_000)})
+    r = live_tier.run_sweep()
+    assert r["volume_share"] is None and r["ticker_shares"] == 0
+    assert _overlay("AAA")["rvol_live"] is None
+
+
+def test_the_per_ticker_shares_are_read_ONCE_per_sweep_not_per_row(live_env,
+                                                                  monkeypatch):
+    _with_ticker_curves([(f"T{i}", 20, FRONT_KNOTS) for i in range(5)])
+    snapshot_db.upsert_rows([_nightly_row(f"T{i}") for i in range(5)])
+    _feed(monkeypatch, {f"T{i}": _quote(last=110.0) for i in range(5)})
+    reads = []
+    real = volume_curve.ticker_knots
+    monkeypatch.setattr(volume_curve, "ticker_knots",
+                        lambda: reads.append(1) or real())
+    r = live_tier.run_sweep()
+    assert r["rows_written"] == 5 and r["rows_on_ticker_curve"] == 5
+    assert len(reads) == 1
+
+
+def _curve_calls(fn_node):
+    return {n.func.attr for n in ast.walk(fn_node)
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+            and getattr(n.func.value, "id", None) == "volume_curve"}
+
+
+def _named_calls(fn_node):
+    return {n.func.id for n in ast.walk(fn_node)
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+
+
+def test_no_per_row_curve_read_by_AST():
+    """⛔ The per-row path (`_sweep_locked`, `derive_row`) may reach `volume_curve` for
+    arithmetic only (`rvol`), and may never call the per-sweep readers. The readers
+    are called from `run_sweep`, once."""
+    import inspect
+    tree = ast.parse(inspect.getsource(live_tier))
+    fns = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    for name in ("_sweep_locked", "derive_row"):
+        assert _curve_calls(fns[name]) <= {"rvol"}, name
+        assert not (_named_calls(fns[name]) & {"_volume_share", "_ticker_shares"}), name
+    assert {"_volume_share", "_ticker_shares"} <= _named_calls(fns["run_sweep"])
+    assert _curve_calls(fns["_ticker_shares"]) == {"ticker_live_shares"}
+
+
+def test_the_per_row_probe_control_sees_a_planted_read():
+    planted = ast.parse(chr(10).join([
+        "def _sweep_locked(r):",
+        "    for row in r:",
+        "        volume_curve.ticker_live_shares(now)",
+        "        _ticker_shares(now)",
+    ])).body[0]
+    assert _curve_calls(planted) == {"ticker_live_shares"}
+    assert "_ticker_shares" in _named_calls(planted)

@@ -1845,6 +1845,47 @@ def start_screener_snapshot_warm():
     return t
 
 
+# A nightly that does not rebuild every row leaves members screening on older numbers, and
+# a log line on this pod is read by nobody. Refused, crashed, cut short or more than
+# NIGHTLY_ERROR_SHARE of rows errored -> one in-app/ops alert. Never raises.
+NIGHTLY_ERROR_SHARE = 0.02
+
+
+def _nightly_shortfall(stats: dict):
+    """Why a nightly build fell short, in words, or None when it reached every row."""
+    if stats.get("crashed"):
+        return f"the build crashed ({stats['crashed']})"
+    if stats.get("skipped_reason"):
+        return f"the build was refused ({stats['skipped_reason']})"
+    targets = stats.get("targets")
+    if not targets:
+        return None
+    built, skipped, errors = (stats.get(k) or 0 for k in ("built", "skipped", "errors"))
+    if built + skipped + errors < targets:
+        return f"it stopped after {built + skipped + errors:,} of {targets:,} rows"
+    if errors > targets * NIGHTLY_ERROR_SHARE:
+        return f"{errors:,} of {targets:,} rows errored"
+    return None
+
+
+def _alert_if_nightly_short(stats: dict) -> None:
+    why = _nightly_shortfall(stats)
+    if not why:
+        return
+    try:
+        from api.services import chart_health_alerts
+        day = datetime.now(_ET).strftime("%Y-%m-%d")
+        chart_health_alerts.emit(
+            f"screener_nightly_short:{day}", "warning",
+            f"The screener's nightly rebuild did not cover every stock: {why}. "
+            "Rows it missed keep yesterday's RS rank, volume vs avg and ratings.",
+            {k: stats.get(k) for k in ("targets", "built", "skipped", "errors",
+                                       "skipped_reason", "crashed")},
+        )
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] could not raise the screener nightly alert: {e}")
+
+
 def register_screener_jobs(scheduler):
     """Register the nightly full-market screener snapshot build (03:00 ET, after
     the ratings nightly at 02:30). Gated by SCREENER_SNAPSHOT_ENABLED (default on).
@@ -1870,13 +1911,26 @@ def register_screener_jobs(scheduler):
             else:
                 print(f"[scheduler] screener snapshot build: "
                       f"built={stats.get('built')} skipped={stats.get('skipped')} "
-                      f"errors={stats.get('errors')}")
+                      f"errors={stats.get('errors')} targets={stats.get('targets')}")
                 # L9: a rebuilt snapshot is a new vintage, so the screener panel's
                 # bands go cold with it. Compute them here, not on the first open.
                 from api.services.screener import distribution
                 distribution.distributions()
+                # The market-wide time-of-day volume curve behind the live
+                # `rvol_live` column ("volume vs usual by now"). Its own job never
+                # raises and keeps the previous curve on a thin night; this
+                # try is belt-and-braces so it cannot cost the alert below.
+                try:
+                    from api.services.screener import volume_curve
+                    vc = volume_curve.nightly_job()
+                    print(f"[scheduler] screener volume curve: stored={vc.get('stored')} "
+                          f"samples={vc.get('samples')} reason={vc.get('reason')}")
+                except Exception as e:  # noqa: BLE001
+                    print(f"[scheduler] screener volume curve error: {e}")
+            _alert_if_nightly_short(stats)
         except Exception as e:
             print(f"[scheduler] screener snapshot build error: {e}")
+            _alert_if_nightly_short({"crashed": f"{type(e).__name__}: {e}"})
     scheduler.add_job(_run, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                       id="screener_snapshot_nightly", max_instances=1,
                       replace_existing=True)

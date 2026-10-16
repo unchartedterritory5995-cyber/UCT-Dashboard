@@ -44,6 +44,28 @@ test('pivot line when the row has one', () => {
   render(<ChartPane row={{ ...row, base_pivot_px: 988 }} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
   expect(JSON.parse(screen.getByTestId('stockchart').dataset.lines)[0].price).toBe(988)
 })
+
+// 2026-10-14 is a Wednesday; ET is UTC-4 in October.
+const WED_10AM = Date.parse('2026-10-14T10:00:00-04:00')
+const lines = () => JSON.parse(screen.getByTestId('stockchart').dataset.lines)
+
+test('the pivot line is titled for the head structure in plain words', () => {
+  render(<ChartPane row={{ ...row, base_pivot_px: 988, bars_asof: '20261013' }} now={WED_10AM} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(lines()).toEqual([expect.objectContaining({ price: 988, title: 'Flat base pivot' })])
+})
+test('a stale row draws no pivot line, and its detail is dated, not measured', () => {
+  render(<ChartPane row={{ ...row, base_pivot_px: 988, bars_asof: '20261008' }} now={WED_10AM} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(lines()).toEqual([])
+  expect(screen.getByText('pivot 988 as of Oct 8')).toBeInTheDocument()
+  expect(screen.queryByText(/% below pivot/)).toBeNull()
+})
+test('a price far past the pivot reads "extended past pivot", never a big percentage', () => {
+  render(<ChartPane row={{ ...row, price: 147.9, base_pivot_px: 100, bars_asof: '20261013' }} now={WED_10AM} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.getByText('extended past pivot 100')).toBeInTheDocument()
+  expect(screen.queryByText(/47\.9%/)).toBeNull()
+  // the level still draws: extension is not staleness
+  expect(lines()[0].price).toBe(100)
+})
 test('buttons call back', () => {
   const onFlag = vi.fn(), onWatch = vi.fn()
   render(<ChartPane row={row} why={why} onFlag={onFlag} onWatch={onWatch} />)
@@ -79,14 +101,19 @@ test('plain words: the fact line says what the numbers are (owner decision 5)', 
   expect(screen.getByText('Volume 0.6× avg · Avg daily range 4.1%')).toBeInTheDocument()
   expect(screen.queryByText(/ADR|Vol \d/)).toBeNull()
 })
+test('during the session the fact line prefers volume vs usual BY NOW (rvol_live) over the session ratio', () => {
+  render(<ChartPane row={{ ...row, vol_ratio: 0.6, rvol_live: 2.34, adr_pct: 4.1 }} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(screen.getByText('Volume 2.3× usual by now · Avg daily range 4.1%')).toBeInTheDocument()
+  expect(screen.queryByText(/0\.6× avg/)).toBeNull()
+})
 test('B2: a structure screen leads the setup tag with the matched structure; the pivot is named for the head', () => {
   const structures = { matched: [{ value: ',pocket-pivot,', label: 'Pocket Pivot', title: 'Pocket Pivot' }], labels: ['Pocket Pivot', 'Ugly Double Bottom'] }
   render(<ChartPane row={{ ...row, base_render: 'Ugly Double Bottom (Pocket Pivot)', price: 97, base_pivot_px: 100 }} structures={structures}
     why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
   const tag = screen.getByTestId('pane-setup')
-  expect(tag).toHaveTextContent('Pocket Pivot · also Ugly Double Bottom')
+  expect(tag).toHaveTextContent('Up day on more volume than recent selling · also Double bottom with a higher second low')
   expect(tag).toHaveAttribute('title', 'Pocket Pivot')
-  expect(screen.getByText('Ugly Double Bottom: 3.0% below pivot 100')).toBeInTheDocument()
+  expect(screen.getByText('Double bottom with a higher second low: 3.0% below pivot 100')).toBeInTheDocument()
 })
 test('the setup tag always carries a tooltip', () => {
   render(<ChartPane row={row} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)

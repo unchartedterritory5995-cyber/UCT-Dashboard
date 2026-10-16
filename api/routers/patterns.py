@@ -128,7 +128,14 @@ from api.services.pattern_engine.detectors.candlestick import three_white_soldie
 from api.services.pattern_engine.detectors.candlestick import three_black_crows as _three_black_crows  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import marubozu as _marubozu  # noqa: F401
 from api.services.pattern_engine.detectors.classical import nr7 as _nr7  # noqa: F401
+# The four trader-setup detectors. Shipped admin-only, made PUBLIC by owner
+# ruling 2026-10-15: listed in _PATTERN_METADATA and served on every member path.
+from api.services.pattern_engine.detectors.uct import uct_kicker as _uct_kicker  # noqa: F401
+from api.services.pattern_engine.detectors.uct import uct_oops_reversal as _uct_oops_reversal  # noqa: F401
+from api.services.pattern_engine.detectors.uct import uct_slingshot as _uct_slingshot  # noqa: F401
+from api.services.pattern_engine.detectors.uct import uct_hve as _uct_hve  # noqa: F401
 from api.services.pattern_engine import memory
+from api.services.pattern_engine.detectors import registry as _pe_registry
 
 
 router = APIRouter(prefix="/api/patterns", tags=["patterns"])
@@ -661,6 +668,32 @@ _PATTERN_METADATA = {
         "direction": "bullish",
         "description": "Anchored VWAP from a key pivot reclaimed on volume after being below. Brian Shannon's AVWAP framework — anchor-aware level reclaim.",
     },
+    # The four trader-setup detectors (detectors/uct/uct_*.py). Shipped admin-only,
+    # made PUBLIC by owner ruling 2026-10-15.
+    "uct_kicker": {
+        "name": "UCT Kicker",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "One-session change of character: a weak prior close (DCR <= 0.35, or a red day with DCR <= 0.60), then a gap up of at least a tenth of the prior day's range that trades through the prior high. Entry at the prior high (or the open when it gapped over it); stop at the trigger session's low.",
+    },
+    "uct_oops_reversal": {
+        "name": "UCT Oops Reversal",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "Failed breakdown reversed inside one session: opens below the prior close, undercuts the prior session's low, then closes back above the prior close. Entry at the prior close (the reclaim level); stop at the session low. Long side only.",
+    },
+    "uct_slingshot": {
+        "name": "UCT Slingshot",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "Momentum resumption: the first close back above EMA(high, 4) after three closes below it, with a recent strength day (> 4% up on above-average volume within 25 sessions, or a 20% five-session run), liquidity, and close above the 50-day SMA. Entry at the trigger close; stop at the trigger session's low.",
+    },
+    "uct_hve": {
+        "name": "UCT High-Volume Edge",
+        "category": "uct",
+        "direction": "neutral",  # follows the bar: up close bullish, down close bearish
+        "description": "A session whose volume is the highest in roughly the last 10-12 months of daily data, close above $3. Its close (the high-volume close) is a level where the year's largest participants committed and is watched as support or resistance. Direction follows the bar; stop at the bar's low (up close) or high (down close).",
+    },
 }
 
 
@@ -722,6 +755,10 @@ def get_detections(
         # higher bar sees a difference.
         verdicts = [v for v in verdicts
                     if float(v.get("vision_confidence") or 0.0) >= min_conf]
+        # Defence in depth: the judge only sees FOCUSED_SETUPS today, but an
+        # internal setup id must never reach a non-admin through this branch either.
+        if (_user or {}).get("role") != "admin":
+            verdicts = _pe_registry.drop_internal(verdicts, key="setup")
         # The member-facing name of each setup, from the one metadata table: the TECH tab used
         # to title-case the raw id ("Macd Bullish Cross", "Avwap Reclaim") (quality pass
         # 2026-10-05). None when the id has no entry; the client then falls back.
@@ -739,7 +776,11 @@ def get_detections(
                 # TERM-019: when the judge last ran on this ticker's window (epoch s), or None.
                 "as_of": pv_store.last_judged_at(sym, tf)}
     pattern_ids = [t.strip() for t in types.split(",")] if types else None
-    rows = memory.get_active_detections(sym.upper(), tf, pattern_ids=pattern_ids, min_conf=min_conf)
+    # ⛔ Internal/admin-only detectors (registry.INTERNAL_PATTERN_IDS) are served
+    # to admins only. memory.get_active_detections excludes them by default.
+    is_admin = (_user or {}).get("role") == "admin"
+    rows = memory.get_active_detections(sym.upper(), tf, pattern_ids=pattern_ids,
+                                        min_conf=min_conf, include_internal=is_admin)
     return {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
 
 
@@ -790,7 +831,10 @@ def patterns_confirmed(sym: str, tf: str = "D", user=Depends(require_paid)):
     """
     from api.services.pattern_vision import store as pv_store
     pv_store.init_db()
-    return {"sym": sym.upper(), "tf": tf, "verdicts": pv_store.get_confirmed(sym, tf)}
+    verdicts = pv_store.get_confirmed(sym, tf)
+    if (user or {}).get("role") != "admin":
+        verdicts = _pe_registry.drop_internal(verdicts, key="setup")
+    return {"sym": sym.upper(), "tf": tf, "verdicts": verdicts}
 
 
 @router.post("/judge/{sym}")

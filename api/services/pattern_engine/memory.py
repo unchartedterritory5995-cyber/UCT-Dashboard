@@ -178,9 +178,15 @@ def get_active_detections(
     tf: str,
     pattern_ids: Optional[list[str]] = None,
     min_conf: float = 0.0,
+    include_internal: bool = False,
 ) -> list[dict]:
     """Return recent detections for (sym, tf) with status not in
     ('completed', 'failed', 'expired'), sorted by detected_at desc.
+
+    ⛔ Internal/admin-only detectors (`registry.INTERNAL_PATTERN_IDS`) are
+    EXCLUDED unless `include_internal=True`. Fail-closed: every member-facing
+    caller gets the safe answer without having to know the gate exists; only
+    an admin-gated caller opts in.
 
     Windowed to ACTIVE_WINDOW_SECS — an active status alone is not enough,
     because statuses freeze once a row ages past track_outcomes' 48h lookback.
@@ -200,6 +206,11 @@ def get_active_detections(
             placeholders = ",".join(["?"] * len(pattern_ids))
             sql += f" AND pattern_id IN ({placeholders})"
             params.extend(pattern_ids)
+        if not include_internal:
+            from api.services.pattern_engine.detectors.registry import INTERNAL_PATTERN_IDS
+            internal = sorted(INTERNAL_PATTERN_IDS)
+            sql += f" AND pattern_id NOT IN ({','.join(['?'] * len(internal))})"
+            params.extend(internal)
         sql += " ORDER BY detected_at DESC"
 
         rows = conn.execute(sql, params).fetchall()

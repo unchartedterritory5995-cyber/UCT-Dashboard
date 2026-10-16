@@ -15,7 +15,7 @@ Geometric definition:
   - Neckline horizontality: |slope| < 0.005 * head_price (roughly horizontal)
   - Spacing: head_idx - left_idx >= 5 bars, right_idx - head_idx >= 5 bars
   - Pattern not yet broken: recent closes have not closed above neckline projection
-  - Recent: right shoulder within the last 30 bars
+  - Recent: right shoulder within the last 12 bars (was 30; see _MAX_RIGHT_SHOULDER_AGE)
   - Volume: declining through the pattern (especially right shoulder vs left shoulder)
 
 Scoring (composite 0-100):
@@ -45,7 +45,37 @@ _MAX_PATTERN_BARS = 100
 _MAX_SHOULDER_ASYMMETRY = 0.15      # |left - right| / head < 0.15
 _MAX_NECKLINE_SLOPE_PCT = 0.005     # |slope| < 0.005 * head_price (per-bar)
 _MIN_PEAK_SPACING = 5               # head-left >= 5 bars, right-head >= 5 bars
-_MAX_RIGHT_SHOULDER_AGE = 30        # right shoulder within last 30 bars
+# ⛔⛔ 30 PUT THIS DETECTOR IN NOISE TERRITORY. Measured 2026-10-15 through
+# `tools/base_coverage.coverage` -- the harness that owns the threshold --
+# over 650 liquid tickers at each of NINE as-of dates (2024-03-15 ..
+# 2026-09-24; 5,850 ticker-days, production read: last 200 daily bars +
+# `build_context`), the shipped value fired on 40.8% of ticker-days and
+# `classify()` returned "noise", past the 35.0% NOISE_PCT at which
+# `Compression Bar (NR4)` was DELETED for carrying no information.
+#
+# ⭐ THE RECENCY WINDOW IS THE RIGHT KNOB (the `double_bottom` precedent,
+# 2026-09-01). One knob at a time, everything else shipped, pooled:
+#     _MAX_RIGHT_SHOULDER_AGE 30 -> 40.8%   20 -> 34.5%   15 -> 28.9%   12 -> 24.6%   10 -> 22.1%   5 -> 10.3%
+#     _MAX_SHOULDER_ASYMMETRY 0.15 -> 40.8% 0.10 -> 36.9% 0.05 -> 28.4% 0.03 -> 22.3%
+#     _MAX_NECKLINE_SLOPE_PCT 0.005 -> 40.8% 0.003 -> 33.5% 0.002 -> 26.6% 0.001 -> 16.4%
+#     _MIN_PEAK_SPACING        5 -> 40.8%    8 -> 37.0%   12 -> 31.2%   15 -> 26.7%
+#     _CONFIDENCE_FLOOR       50 -> 40.8%   55 -> 34.6%   60 -> 25.7%   65 -> 16.2%
+# Every geometry knob reaches the band only by redefining the pattern
+# (shoulders within 5% of the head, a near-flat neckline, or 15+ bars per
+# side); the confidence floor re-weights an uncalibrated score.
+#
+# ⭐ AND IT IS THE DEFENSIBLE ONE ON MEANING. A right shoulder 30 bars old
+# is a pattern that finished six weeks ago and has neither broken nor
+# resolved -- that is not a live inverse head-and-shoulders. 12 bars, not the 10 used by
+# the double patterns: this is a longer three-pivot structure (30-100 bar
+# window vs 20-80), 12 is already clearly inside the band, and against
+# expert-labelled inverse-H&S calls it keeps more of the catches than 10
+# (counts in the rail; no private data in the repo).
+#
+# ⚠️ MEMBER-VISIBLE: roughly 40% of this detector's output leaves
+# `pattern_detections` -- the part whose right shoulder had aged out.
+# Rail + full measurement: `tests/test_inverse_head_shoulders_is_in_noise_territory.py`.
+_MAX_RIGHT_SHOULDER_AGE = 12        # right shoulder within last 12 bars (~2.5 weeks)
 _CONFIDENCE_FLOOR = 50.0
 
 

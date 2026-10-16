@@ -132,22 +132,17 @@ def read_index_flags(targets, failures=None):
 
 
 def read_etf_flags(targets, failures=None):
-    """is_etf from the industry map (Finviz whole-market classification);
-    is_leveraged from the single-stock/leveraged ETF family table. Each
-    sub-source stands alone: one dead leg drops only its own column.
+    """is_leveraged from the single-stock/leveraged ETF family table.
     Direct table read on ssetf — lookup() has a self-heal side effect and a
-    per-symbol cache; 3,700 calls is the wrong shape."""
+    per-symbol cache; 3,700 calls is the wrong shape.
+
+    ⚰️ ``is_etf`` USED TO COME FROM HERE, off Finviz's "Exchange Traded Fund"
+    industry list — a SECOND classification beside the universe generator's
+    type map that `security_type` (the Type filter) reads, so the ETF flag and
+    "Type: ETF" could disagree about the same row. It is now DERIVED from
+    `security_type` in `snapshot_builder.build_row` (data-accuracy audit
+    2026-10-15, #3); this reader no longer emits it."""
     cols = {}
-    try:
-        from api.services import industry_map
-        etfs = {str(t).upper() for t in
-                (industry_map.tickers_in_industry("Exchange Traded Fund") or ())}
-        if etfs:
-            cols["is_etf"] = etfs
-        else:
-            _note(failures, "industry_map_etf", "empty")
-    except Exception as e:
-        _note(failures, "industry_map_etf", e)
     try:
         from api.services import single_stock_etfs
         with contextlib.closing(single_stock_etfs._connect()) as conn:

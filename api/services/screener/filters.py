@@ -19,6 +19,7 @@ free to be wrong, so it was; it is load-bearing the moment data arrives.
 """
 
 
+import re
 import threading
 
 from . import bar_character, base_catalog, candle_catalog
@@ -31,7 +32,7 @@ def _range(key, label, category, column, presets, unit=None):
 
 
 def _enum(key, label, category, column, presets, options_column=None,
-          options_list_column=None):
+          options_list_column=None, description=None):
     """``options_column`` names the snapshot column whose DISTINCT values become
     this filter's preset list at ``meta()`` time — see ``_distinct_options``.
 
@@ -40,10 +41,38 @@ def _enum(key, label, category, column, presets, options_column=None,
     whole cell. Both markers ride on the FILTER, never in ``meta()``'s body —
     the second-authority trap ``_distinct_options`` records.
     """
-    return key, {"label": label, "category": category, "type": "enum",
-                 "column": column, "presets": presets, "allow_custom": False,
-                 "unit": None, "options_column": options_column,
-                 "options_list_column": options_list_column}
+    spec = {"label": label, "category": category, "type": "enum",
+            "column": column, "presets": presets, "allow_custom": False,
+            "unit": None, "options_column": options_column,
+            "options_list_column": options_list_column}
+    if description:
+        spec["description"] = description
+    return key, spec
+
+
+#: What the `pattern_engine_id` filter screens, said to a member. It is the
+#: engine's verdict, not the base read the row's setup line names.
+PATTERN_ENGINE_DESCRIPTION = (
+    "Patterns flagged by the pattern-engine detector library (daily bars, last 7 days). "
+    "This is a separate detector from Base Structure, the base read named on each "
+    "row's setup line, so the two can disagree about the same stock: a stock the "
+    "pattern engine flags as a VCP or flat base may show a different structure, "
+    "or none, on its setup line.")
+
+#: Detector-id words that are acronyms or codes, written as traders write them.
+#: `title()` alone turned `vcp` into "Vcp" and `nr7` into "Nr7".
+_TOKEN_WORDS = {"vcp": "VCP", "nr7": "NR7", "macd": "MACD", "rsi": "RSI",
+                "avwap": "AVWAP", "td": "TD", "vsa": "VSA", "uct": "UCT",
+                "and": "and"}
+
+
+def _token_label(tok: str) -> str:
+    """`flat_base` -> "Flat Base", `vcp` -> "VCP", `pullback_to_10ema` -> "Pullback To 10 EMA"."""
+    out = []
+    for w in tok.split("_"):
+        m = re.fullmatch(r"(\d+)ema", w)
+        out.append(f"{m.group(1)} EMA" if m else _TOKEN_WORDS.get(w, w.title()))
+    return " ".join(out)
 
 
 def _open_range(key, label, category, column, unit=None, factual=()):
@@ -346,6 +375,14 @@ FILTERS = dict([
     _range("vol_ratio", "Volume Ratio", "technical", "vol_ratio",
            [{"label": "Any"}, {"label": "Over 1.5×", "op": "gte", "min": 1.5},
             {"label": "Over 2×", "op": "gte", "min": 2}], unit="×"),
+    # ⭐ LIVE-ONLY: today's volume over the volume USUALLY done by this minute
+    # (live_tier `rvol_live`). Blank before 09:45 ET and outside the session, so a
+    # screen on it returns nothing then rather than yesterday's names. `vol_ratio`
+    # above keeps its completed-session meaning (two saved screens key off it).
+    _range("rvol_live", "Rel Volume (by now)", "technical", "rvol_live",
+           [{"label": "Any"}, {"label": "Over 1.5×", "op": "gte", "min": 1.5},
+            {"label": "Over 2×", "op": "gte", "min": 2},
+            {"label": "Over 3×", "op": "gte", "min": 3}], unit="×"),
     _range("adr_pct", "ADR %", "technical", "adr_pct",
            [{"label": "Any"}, {"label": "Over 4%", "op": "gte", "min": 4},
             {"label": "Over 8%", "op": "gte", "min": 8}], unit="%"),
@@ -355,8 +392,12 @@ FILTERS = dict([
     _range("dist_52w_high_pct", "Dist from 52W High", "technical", "dist_52w_high_pct",
            [{"label": "Any"}, {"label": "Within 5%", "op": "gte", "min": -5}], unit="%"),
     _bool("new_52w_high", "New 52W High", "technical", "new_52w_high"),
+    # "Within 1%" is the tight cut (measured 2026-10-15 on production: 444 of the 2,530
+    # liquid stocks, ~18%); "Within 2%" (773, ~31%) stays because the concept vocabulary
+    # quotes it ("at the 20 ema").
     _range("pct_vs_ema20", "EMA20 Distance", "technical", "pct_vs_ema20",
            [{"label": "Any"},
+            {"label": "Within 1%", "op": "between", "min": -1, "max": 1},
             {"label": "Within 2%", "op": "between", "min": -2, "max": 2}], unit="%"),
     # ── single candle ──
     # ⛔ QUERIES `candle_matches`, NOT `candle_type`. A bar routinely satisfies
@@ -429,8 +470,10 @@ FILTERS = dict([
            [{"label": "Any"}, {"label": "2+", "op": "gte", "min": 2}]),
     _range("higher_lows_run", "Higher-Lows Run", "multi_candle", "higher_lows_run",
            [{"label": "Any"}, {"label": "3+", "op": "gte", "min": 3}]),
+    # "Shallow" was <10%, which passed 66% of liquid stocks (1,669 of 2,530 on production,
+    # 2026-10-15) and so filtered almost nothing. <5% passes 948 (~37%).
     _range("pullback_depth_pct", "Pullback Depth", "multi_candle", "pullback_depth_pct",
-           [{"label": "Any"}, {"label": "Shallow (<10%)", "op": "lte", "max": 10},
+           [{"label": "Any"}, {"label": "Shallow (<5%)", "op": "lte", "max": 5},
             {"label": "Deep (>20%)", "op": "gte", "min": 20}], unit="%"),
     _range("consecutive_up", "Consecutive Up Days", "multi_candle", "consecutive_up",
            [{"label": "Any"}, {"label": "3+", "op": "gte", "min": 3}]),
@@ -470,8 +513,15 @@ FILTERS = dict([
     # (uct-intelligence scripts/scanner_candidates.py — READY>=70/WATCH>=55,
     #  vol_acc 1.1/0.85, close CV 2.5/4.0, avg body 0.30/0.40, N-week
     #  volume-low windows 20/15/10 bars). E-8: published, not invented here.
-    _open_range("dollar_vol_30d", "Dollar Volume (30d)", "descriptive",
-                "dollar_vol_30d", unit="$"),
+    # ⭐ The three liquidity floors are PUBLISHED, not invented here: $10M and $20M are the
+    # floors the starter screens already ship (saved_screens: "$10M+ traded", "$20M+
+    # traded"), and $50M is the institutional tier above them. Raw dollars (2026-08-22
+    # ruling). Measured on production 2026-10-15 over stocks: 2,670 / 2,188 / 1,512.
+    _range("dollar_vol_30d", "Dollar Volume (30d)", "descriptive", "dollar_vol_30d",
+           [{"label": "Any"},
+            {"label": "$10M+", "op": "gte", "min": 10_000_000},
+            {"label": "$20M+", "op": "gte", "min": 20_000_000},
+            {"label": "$50M+", "op": "gte", "min": 50_000_000}], unit="$"),
     # ⭐ The newest session's dollar volume (close × volume of the row's own last bar, the
     # `bars_asof` session). The daily figure a trader means by "trades $10M a day"; the 30-day
     # average above is a different, smoother number. Same column UCT Agent screens on.
@@ -487,10 +537,14 @@ FILTERS = dict([
            [{"label": "Any"},
             {"label": "Accumulating (>1.1)", "op": "gt", "min": 1.1},
             {"label": "Distributing (<0.85)", "op": "lt", "max": 0.85}], unit="×"),
+    # ⚠️ The 2.5 / 4.0 rubric numbers above do NOT survive here as presets: measured on
+    # production 2026-10-15 over the 2,530 liquid stocks, <2.5% passed 1,531 (61%) and
+    # <4% most of the rest, so "Clustered" selected the majority. The presets are now
+    # roughly top-quartile cuts of that same population: <1.2% = 526 (~21%), <2% = 1,201.
     _range("close_cv_pct", "Close Tightness (CV)", "momentum", "close_cv_pct",
            [{"label": "Any"},
-            {"label": "Clustered (<2.5%)", "op": "lt", "max": 2.5},
-            {"label": "Tight band (<4%)", "op": "lt", "max": 4}], unit="%"),
+            {"label": "Clustered (<1.2%)", "op": "lt", "max": 1.2},
+            {"label": "Tight band (<2%)", "op": "lt", "max": 2}], unit="%"),
     _range("avg_body_pct_5", "5-Bar Body Tightness", "momentum", "avg_body_pct_5",
            [{"label": "Any"},
             {"label": "Tight flag (<0.30)", "op": "lt", "max": 0.30},
@@ -498,7 +552,9 @@ FILTERS = dict([
     _range("candle_score", "Setup Score", "momentum", "candle_score",
            [{"label": "Any"},
             {"label": "Ready-grade (70+)", "op": "gte", "min": 70},
-            {"label": "Watch-grade (55+)", "op": "gte", "min": 55}]),
+            # Watch-grade (55+) passed 934 of 2,530 liquid stocks (37%) on production
+            # 2026-10-15; 65+ passes 389 (~15%), 70+ 243.
+            {"label": "Strong (65+)", "op": "gte", "min": 65}]),
     _open_range("ema_touch_count", "EMA20 Touches (15 bars)", "momentum",
                 "ema_touch_count"),
     _bool("ema20_rising", "EMA20 Rising", "momentum", "ema20_rising"),
@@ -641,9 +697,18 @@ FILTERS = dict([
     # D1 dropped the eight near-universal ids and raised the cap, so the column
     # truncates 0% of symbols, and wrapping made `contains` an exact-token
     # test. `candle_matches` and `base_matches` are the same idiom.
-    _enum("pattern_engine_id", "Pattern Engine Detection", "pattern",
+    # ⛔ TWO DEFINITIONS, ONE NAME. The engine library and the base catalog
+    # (`base_structure` above) are separate detectors that share names: Flat
+    # Base, Double Bottom, High Tight Flag, Wyckoff Spring, and the engine's VCP
+    # beside the catalog's Volatility Contraction. Measured on production
+    # 2026-10-15: Flat Base 269 by the engine vs 257 by the catalog, 79 in both;
+    # VCP 386 vs 58, 6 in both. So the label NAMES the engine ("Pattern Engine:
+    # VCP" on a chip, never a bare "VCP") and the description says the row's
+    # own setup line can name a different structure.
+    _enum("pattern_engine_id", "Pattern Engine", "pattern",
           "pattern_engine_ids", [{"label": "Any"}],
-          options_list_column="pattern_engine_ids"),
+          options_list_column="pattern_engine_ids",
+          description=PATTERN_ENGINE_DESCRIPTION),
     _open_range("pattern_engine_conf", "Pattern Engine Confidence", "pattern",
                 "pattern_engine_conf"),
     # Reader-encoded direction (ruling D4): +1 bullish · -1 bearish · 0 neutral.
@@ -812,7 +877,7 @@ VIEWS = {
         "rs_return", "accdis"]},
     "technical": {"label": "Technical", "columns": [
         "ticker", "rsi14", "pct_vs_sma50", "pct_vs_sma200", "adr_pct",
-        "dist_52w_high_pct", "vol_ratio", "gap_pct", "pct_vs_ema20",
+        "dist_52w_high_pct", "vol_ratio", "rvol_live", "gap_pct", "pct_vs_ema20",
         "candle_type"]},
     "uct_ratings": {"label": "UCT Ratings", "columns": [
         "ticker", "uct_composite", "rs_rank", "rs_return", "accdis",
@@ -1182,7 +1247,7 @@ def _distinct_list_options(column):
         return [{"label": "Any"}]
     out = [{"label": "Any"}]
     for tok in sorted(seen):
-        out.append({"label": tok.replace("_", " ").title(),
+        out.append({"label": _token_label(tok),
                     "op": "contains", "value": f",{tok},"})
     return out
 
@@ -1253,6 +1318,11 @@ def _log_if_slow(label, total_s, parts):
         " ".join(f"{k}={v:.1f}s" for k, v in parts.items()))
 
 
+def _live_only_columns() -> frozenset:
+    from . import snapshot_db  # noqa: PLC0415 - lazy: the registry stays import-light
+    return frozenset(getattr(snapshot_db, "LIVE_ONLY_COLUMNS", ()))
+
+
 def _build_shared_filters(dist):
     """The member-independent part of `meta()`: every filter with its presets, bands and
     evidence. It depends only on the snapshot and the ledgers, never on who asks."""
@@ -1275,6 +1345,14 @@ def _build_shared_filters(dist):
             entry["control"] = f["control"]
         if f.get("options"):
             entry["options"] = list(f["options"])
+        if f.get("description"):
+            entry["description"] = f["description"]
+        # ⭐ A column that only holds a value while the live tier is recomputing it (blank
+        # before 09:45 ET and outside the session). Derived from the snapshot's own
+        # declaration, never typed here, so the Focus screen can say "live during the
+        # session" for a zero that the hour caused instead of "none today".
+        if f["column"] in _live_only_columns():
+            entry["live_only"] = True
         if f["type"] == "range":
             band = bands.get(f["column"])
             if band is not None:

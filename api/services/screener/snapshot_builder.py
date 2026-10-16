@@ -125,6 +125,14 @@ def stale_price_sessions() -> int:
     between the healthy population (2,886 of 3,714 rows at ≤1 session) and the
     coverage-hole population (812 rows at 21+), so any value in 5..20 separates
     them and none of them can misfire on a normal weekend or holiday.
+
+    ⭐ TWO CONSUMERS, ONE QUESTION. ``stale_row_gate`` (below; behind both
+    ``query.stale_gate`` and the nightly saved-scan sweep) asks this same
+    predicate whether a row may be SCANNED beside current rows (measured there
+    against the snapshot's newest ``bars_asof``, not the wall clock). Dividing a
+    current number by a stale price and ranking a stale price beside current
+    ones are the same cross-clock defect, so they share one threshold; tune it
+    here and both move.
     """
     try:
         return int(os.environ.get("SCREENER_STALE_PRICE_SESSIONS") or 10)
@@ -191,6 +199,57 @@ def price_is_stale(bars_asof, today_ymd=None) -> bool:
     """
     age = price_age_sessions(bars_asof, today_ymd)
     return age is None or age > stale_price_sessions()
+
+
+#: How far back the cutoff search walks before concluding the threshold is so
+#: wide nothing can be behind it (~10 years of calendar days).
+_STALE_SEARCH_DAYS = 3700
+
+
+def _ymd_int(d) -> int:
+    return d.year * 10000 + d.month * 100 + d.day
+
+
+def stale_row_gate(conn, table="screener_rows"):
+    """The stale-ROW exclusion for this database, or ``None`` when no row is
+    behind (or the table cannot say). The ONE implementation behind
+    ``query.stale_gate`` (interactive scans; see the block above it there for
+    the why) and ``scan_evaluator._stale_rows`` (the nightly saved-scan sweep).
+
+    Returns ``{"sql", "params", "cutoff", "reference", "max_sessions"}`` —
+    ``sql`` keeps a row whose own ``bars_asof`` is at or after ``cutoff``, the
+    oldest session ``price_is_stale`` still calls fresh when measured against
+    ``reference`` (the newest ``bars_asof`` in the table). The cutoff is FOUND
+    by walking ``price_is_stale`` back one day at a time, never by restating its
+    session arithmetic. Measured against the table's newest bar, never the wall
+    clock, so a build outage cannot empty every scan.
+    """
+    if conn is None:
+        return None
+    try:
+        mx, mn = conn.execute(
+            f'SELECT MAX(CAST("bars_asof" AS INTEGER)), MIN(CAST("bars_asof" AS INTEGER)) '
+            f'FROM {table} WHERE "bars_asof" IS NOT NULL').fetchone()
+        ref = datetime.date(int(mx) // 10000, (int(mx) // 100) % 100, int(mx) % 100)
+    except Exception:  # noqa: BLE001 — no table / no column / no parseable date
+        return None
+    reference = _ymd_int(ref)
+    day, cutoff = ref, None
+    for _ in range(_STALE_SEARCH_DAYS):
+        prev = day - datetime.timedelta(days=1)
+        if price_is_stale(_ymd_int(prev), reference):
+            cutoff = _ymd_int(day)
+            break
+        day = prev
+    if cutoff is None or mn is None or int(mn) >= cutoff:
+        return None
+    # ⛔ THE NIGHTLY ROW'S OWN DATE, never an overlaid value: the question is
+    # whether THIS ROW's bars stopped, and the live tier never serves a row
+    # whose anchor is that old anyway (its own `stale_anchor` gate).
+    return {"sql": (f'({table}."bars_asof" IS NULL OR '
+                    f'CAST({table}."bars_asof" AS INTEGER) >= ?)'),
+            "params": [cutoff], "cutoff": cutoff, "reference": reference,
+            "max_sessions": stale_price_sessions()}
 
 
 def identity_row_cap() -> int:
@@ -372,9 +431,17 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     row = {c: None for c in snapshot_db.COLUMNS}
     row["ticker"] = (ticker or "").upper()
     # The coarse instrument bucket (Stock / ADR / ETF) the Type filter narrows on,
-    # from the generator's type map. Cheap dict lookup; defaults to "Stock" so a
-    # name not yet in the map is never blank/unfilterable.
-    row["security_type"] = _security_types().get(row["ticker"], "Stock")
+    # from the generator's type map. Cheap dict lookup.
+    #
+    # 🔴 A NAME THE MAP DOES NOT KNOW IS NULL, NEVER "Stock" (data-accuracy audit
+    # 2026-10-15, #3). This defaulted to "Stock" so an unmapped name was "never
+    # blank/unfilterable" — and SPY and QQQ were stored as Stock, so "Stocks only"
+    # returned the two largest ETFs in the market and "exclude ETFs" kept them.
+    # Failing OPEN made the Type filter confidently wrong exactly where the map
+    # had a gap (an empty map — a missing types file — made EVERY row a "Stock").
+    # NULL is honest and still filterable: `not_in [ETF]` keeps it (query.py's
+    # explicit NULL clause), `in [Stock, ADR]` does not.
+    row["security_type"] = _security_types().get(row["ticker"])
     # ⚠️ ORDER IS AUTHORITY. Later sources win, so `rs_fields` is LAST and owns
     # `rs_rank`/`rs_return` outright. `enrich.ratings_fields` no longer emits
     # either (see its docstring) — this ordering is the belt to that braces, so
@@ -384,6 +451,15 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
         for k, v in src.items():
             if k in row and v is not None:
                 row[k] = v
+    # ⭐ `is_etf` IS DERIVED FROM `security_type`, never read from a second
+    # classification. It used to come from Finviz's "Exchange Traded Fund"
+    # industry list (`context_joins.read_etf_flags`) while the Type filter read
+    # the universe generator's type map — two authorities over "is this an ETF",
+    # so the "ETF" flag and the "Type: ETF" filter could disagree about the same
+    # row, and "exclude ETFs" meant whichever one a screen happened to use. One
+    # map, one answer; NULL type -> NULL flag (unknown, not "not an ETF").
+    _st = row.get("security_type")
+    row["is_etf"] = None if _st is None else (_st == "ETF")
     # ONE sanitize for all four bar consumers below. Each of them does bare
     # OHLC arithmetic, so a single null close (halt, thin tape, provider gap)
     # used to raise out of whichever ran first and lose the whole row — the
@@ -442,9 +518,11 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
 
     if bars:
         row.update(_step("bars_technicals",
-                         lambda: technicals.compute_technicals(bars)))
+                         lambda: technicals.compute_technicals(
+                             bars, ipo_date=row.get("ipo_date"))))
         row.update(_step("bars_ath_fields",
-                         lambda: technicals.ath_fields(bars_full)))
+                         lambda: technicals.ath_fields(
+                             bars_full, ipo_date=row.get("ipo_date"))))
         row.update(_step("bars_single_candle",
                          lambda: candles.single_candle(bars)))
         row.update(_step("bars_multi_candle",
@@ -951,6 +1029,138 @@ def _read_prev_closes() -> dict:
         return {}
 
 
+# ── the newest daily bar, settled ─────────────────────────────────────────────
+#
+# 🔴 THE DEFECT (accuracy audit 2026-08-23; re-measured 2026-10-15). `bars.db`'s
+# newest daily bar can be an INTRADAY SNAPSHOT: `bars_sqlite._delta_daily`
+# replaces today's bar whenever a chart is viewed, and `ohlcv` carries no
+# written-at / settled flag, so the 03:00 build cannot tell a final bar from one
+# captured at 11:40. ~10% of rows read a newest-session volume more than 10% below
+# the official figure, which put `vol_ratio` / `avg_volume_30d` / `dollar_vol_1d`
+# on the wrong side of a member's threshold (JPM 0.77 against a true 1.12), and the
+# close was occasionally off with them.
+#
+# ⭐ THE FIX IS ONE WHOLE-MARKET CALL, IN MEMORY, FOR THIS BUILD ONLY. At the top
+# of a build we fetch the settled previous session for the entire US market in ONE
+# grouped-daily request (`massive.get_grouped_daily_frame`, the repo's typed
+# grouped transport: it RAISES on a provider failure instead of answering `{}`, so
+# the receipt can tell "the provider failed" from "it had nothing"), and a
+# ticker whose newest stored bar IS that session gets that bar's o/h/l/c/v
+# replaced before any consumer reads it.
+#
+# ⛔ NOTHING IS WRITTEN TO `bars.db`. The bars store and its writers belong to
+# another workstream; this builder only stops PUBLISHING a forming bar as a
+# settled one. `fresh=True, store=False`: the frame skips the 900 s memory tier
+# (which could hold an intraday copy of the same date) and writes no cache.
+#
+# ⛔ `adjusted=true`, BECAUSE THE REST OF THE SERIES IS. A raw bar beside a
+# split-adjusted history is a fake cliff at the newest bar. And the basis can
+# still disagree: a split whose ex-date falls between the session and the build
+# moves the adjusted frame onto the NEW basis while `bars.db` still holds the old
+# one. `settled_bar_outcome`'s range check refuses that bar (keeps the stored
+# one) — a settled bar's high can only be at or above a partial bar's high, and
+# its low at or below — rather than splicing two bases into one series.
+#
+# ⚠️ A FAILED OR EMPTY FETCH BUILDS EXACTLY AS BEFORE and says so in the receipt
+# (`stats["settled_bars"]["error"]`). That is the pre-fix behaviour, never worse.
+
+#: How far a settled bar's high may sit BELOW, or its low ABOVE, the stored bar's
+#: before the two are read as different price bases. A real partial-vs-final pair
+#: can only differ in the other direction; the slack absorbs feed-level rounding.
+#: A 3:2 split moves prices 33%, a 1.03 stock dividend 3%, so 2% separates them.
+SETTLED_BASIS_TOL = 0.02
+
+
+def settled_session(now=None):
+    """The last COMPLETED NYSE regular session strictly before ``now``'s ET date.
+
+    For the 03:00 ET nightly that is the session that closed last evening (Friday's
+    on a Monday morning; the session before a holiday). ⛔ Strictly BEFORE today,
+    even after today's close: an admin refresh at 16:05 must not stamp a bar that
+    after-hours prints are still moving as settled, so it replaces nothing for
+    today (the session before has a newer bar on top of it) and builds as before.
+
+    The calendar is ``session_calendar``, the exchange authority. ``None`` when the
+    calendar does not cover the date — the caller records that and builds as
+    before rather than guessing a session.
+    """
+    from api.services import session_calendar as sc
+    now = now or datetime.datetime.now(sc.ET)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=sc.ET)
+    d = now.astimezone(sc.ET).date()
+    for _ in range(14):        # NYSE never closes for two weeks
+        d -= datetime.timedelta(days=1)
+        if not sc.covers(d):
+            return None
+        if sc.is_trading_day(d):
+            return d
+    return None
+
+
+def _read_settled_bars(session_date) -> dict:
+    """``{"rows": {PROVIDER_TICKER: {o,h,l,c,v}}}`` or ``{"error": "..."}``.
+
+    ONE whole-market call. Never raises: a provider failure costs this fix for one
+    night, never the build.
+    """
+    try:
+        from api.services import massive
+        res = massive.get_grouped_daily_frame(session_date.isoformat(), adjusted=True,
+                                              store=False, fresh=True)
+    except Exception as e:  # noqa: BLE001 — GroupedFrameError, missing key, transport
+        log.warning("[screener] settled bars for %s unavailable; building on the "
+                    "stored newest bars: %s", session_date, e)
+        return {"error": f"{type(e).__name__}: {e}"[:200]}
+    rows = (res or {}).get("rows") or {}
+    if not rows:
+        return {"error": "the provider answered with no rows for a trading session"}
+    return {"rows": rows}
+
+
+def _finite(v) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v \
+        and v not in (float("inf"), float("-inf"))
+
+
+def settled_bar_outcome(bars, settled, session_ymd) -> str:
+    """Decide — and, on ``"applied"``, perform — the newest-bar replacement.
+
+    ``bars`` is the ticker's raw bar list (``_read_daily_bars`` shape); its LAST
+    element is replaced by a NEW dict carrying the settled o/h/l/c/v (never mutated
+    in place, so a shared fixture cannot be poisoned). Outcomes:
+
+      applied      the newest bar was ``session_ymd``'s and is now the settled one
+      not_session  the newest bar is another day's (stale name, or a newer bar)
+      absent       the grouped frame has no row for this ticker — keep our own
+      incomplete   the grouped row lacks a finite o/h/l/c or a volume — keep ours
+                   (``technicals.usable_bars`` would DROP a bar with a hole, which
+                   would cost the row its newest session entirely)
+      basis        the settled range cannot contain the stored partial bar — a
+                   different price basis (see ``SETTLED_BASIS_TOL``) — keep ours
+    """
+    if not bars:
+        return "not_session"
+    last = bars[-1]
+    try:
+        if int(last.get("t")) != int(session_ymd):
+            return "not_session"
+    except (TypeError, ValueError):
+        return "not_session"
+    if not settled:
+        return "absent"
+    o, h, lo, c, v = (settled.get(k) for k in ("o", "h", "l", "c", "v"))
+    if not all(_finite(x) for x in (o, h, lo, c)) or not _finite(v) or v < 0:
+        return "incomplete"
+    sh, sl = last.get("h"), last.get("l")
+    if _finite(sh) and _finite(sl):
+        if h < sh * (1.0 - SETTLED_BASIS_TOL) or lo > sl * (1.0 + SETTLED_BASIS_TOL):
+            return "basis"
+    bars[-1] = {**last, "o": float(o), "h": float(h), "l": float(lo),
+                "c": float(c), "v": float(v)}
+    return "applied"
+
+
 # ⛔ ONE BUILD AT A TIME, PROCESS-WIDE — and the guard lives HERE, not in the
 # route, because there are two callers: the 03:00 ET nightly job and the admin
 # `POST /api/screener/refresh`. A guard in either caller alone still allows the
@@ -1002,16 +1212,36 @@ def run_build(max_tickers=None) -> dict:
     try:
         global _SECURITY_TYPES_CACHE
         _SECURITY_TYPES_CACHE = None   # reload the type map fresh for this build
-        return _run_build_locked(max_tickers)
+        started = time.time()
+        stats = _run_build_locked(max_tickers)
+        snapshot_db.record_build_run({**stats, "started_at": started,
+                                      "finished_at": time.time()})
+        return stats
     finally:
         _BUILD_LOCK.release()
+
+
+def _per_run_cap(max_tickers=None):
+    """How many rows one build rebuilds. ``None`` means EVERY target.
+
+    ⚰️ The default was 4000 from the day the universe was the ~3,700-name
+    `cap_universe`. The screener's own universe later widened to every US common
+    + ADR (11,230 rows on 2026-10-15) and the cap stayed, so each nightly rebuilt
+    the stalest third: RS rank, volume vs avg and the ratings were up to three
+    nights old and the table always held three build dates. Every row is now
+    rebuilt each night; `SCREENER_SNAPSHOT_MAX_PER_RUN` remains an emergency
+    limit, and a caller (the admin refresh, the boot warm) still passes its own.
+    """
+    if max_tickers:
+        return max_tickers
+    env = (os.environ.get("SCREENER_SNAPSHOT_MAX_PER_RUN") or "").strip()
+    return int(env) if env else None
 
 
 def _run_build_locked(max_tickers=None) -> dict:
     snapshot_db.init_db()
     universe = _load_universe()
-    cap = max_tickers or int(os.environ.get("SCREENER_SNAPSHOT_MAX_PER_RUN", "4000"))
-    targets = _stalest(universe, cap)
+    targets = _stalest(universe, _per_run_cap(max_tickers))
     built = skipped = errors = 0
     batch = []
     # ⛔ DERIVED FROM THE SCHEMA, never a hand-listed set — a 66th column is
@@ -1093,12 +1323,37 @@ def _run_build_locked(max_tickers=None) -> dict:
         targets, sources)
     optflow_map = _read_market_source(
         "opt_flow", opt_flow.read_opt_flow_fields, targets, sources)
+    # ⭐ THE SETTLED NEWEST BAR — one whole-market call, before the loop. See the
+    # "newest daily bar, settled" block above `settled_session`. The receipt says
+    # which session, how many rows came back, and what happened per ticker, or
+    # names the error; either way the build goes on.
+    s_date = settled_session()
+    if s_date is None:
+        settled_rows, settled_receipt = {}, {
+            "session": None, "error": "the exchange calendar does not cover today"}
+    else:
+        got = _read_settled_bars(s_date)
+        settled_rows = got.get("rows") or {}
+        settled_receipt = {"session": s_date.isoformat()}
+        if "error" in got:
+            settled_receipt["error"] = got["error"]
+        else:
+            settled_receipt.update({"fetched": len(settled_rows), "applied": 0,
+                                    "absent": 0, "not_session": 0,
+                                    "incomplete": 0, "basis": 0})
+    s_ymd = int(s_date.strftime("%Y%m%d")) if s_date is not None else None
+    from api.services import massive as _massive  # symbol mapping only; no I/O
     for t in targets:
         try:
             bars = _read_daily_bars(t)
             if not bars:
                 skipped += 1
                 continue
+            if settled_rows:
+                # In memory only; `bars` is this ticker's own fresh list.
+                outcome = settled_bar_outcome(
+                    bars, settled_rows.get(_massive.to_polygon_symbol(t)), s_ymd)
+                settled_receipt[outcome] += 1
             price = bars[-1].get("c")
             # 🔴 ONE NAME, ONE MEANING (accuracy audit 2026-08-23, #4).
             # `massive.get_market_cap` prefers the provider's own `market_cap`
@@ -1161,7 +1416,8 @@ def _run_build_locked(max_tickers=None) -> dict:
         snapshot_db.upsert_rows(batch)
 
     empty_columns = sorted(c for c in snapshot_db.COLUMNS
-                           if built and populated[c] == 0)
+                           if built and populated[c] == 0
+                           and c not in snapshot_db.LIVE_ONLY_COLUMNS)
     log.info("[screener] build done built=%s skipped=%s errors=%s "
              "rs_map=%s bulk_map=%s empty_columns=%s",
              built, skipped, errors, len(rs_map), len(bulk_map),
@@ -1175,6 +1431,9 @@ def _run_build_locked(max_tickers=None) -> dict:
         # candle_parts_close_to_one" is a normal night; the same identity marked
         # `systemic` is an upstream change and the loudest line in the receipt.
         log.warning("[screener] identity refusals: %s", identity_state)
+    log.info("[screener] settled newest bars: %s", settled_receipt)
     return {"built": built, "skipped": skipped, "errors": errors,
+            "targets": len(targets),
             "populated": populated, "empty_columns": empty_columns,
-            "sources": sources, "identity_refusals": identity_state}
+            "sources": sources, "identity_refusals": identity_state,
+            "settled_bars": settled_receipt}

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { sortableColumns, isNumericColumn, columnTypes } from '../sortKeys'
+import { sortableColumns, isNumericColumn, columnTypes, ALWAYS_SORTABLE } from '../sortKeys'
 import { COLUMN_DEFS } from '../../columnDefs'
 
 // ⭐ CAPTURED 2026-10-14 from the server, not typed: `filters.VIEWS` (every view's columns) and,
@@ -9,7 +9,7 @@ const VIEWS = {
   overview: ["ticker", "company", "sector", "market_cap", "price", "chg_pct_1d", "vol_ratio", "rs_rank", "base_render"],
   valuation: ["ticker", "company", "market_cap", "pe_fwd", "peg", "price", "uct_composite"],
   financial: ["ticker", "eps_growth", "rev_growth", "op_margin", "roe", "rs_return", "accdis"],
-  technical: ["ticker", "rsi14", "pct_vs_sma50", "pct_vs_sma200", "adr_pct", "dist_52w_high_pct", "vol_ratio", "gap_pct", "pct_vs_ema20", "candle_type"],
+  technical: ["ticker", "rsi14", "pct_vs_sma50", "pct_vs_sma200", "adr_pct", "dist_52w_high_pct", "vol_ratio", "rvol_live", "gap_pct", "pct_vs_ema20", "candle_type"],
   uct_ratings: ["ticker", "uct_composite", "rs_rank", "rs_return", "accdis", "eps_growth", "op_margin", "roe"],
   charts: ["ticker", "company", "chg_pct_1d", "price"],
   performance: ["ticker", "company", "chg_pct_1d", "chg_pct_1w", "chg_pct_1m", "chg_pct_3m", "chg_pct_6m", "chg_pct_1y", "chg_pct_ytd", "dist_52w_high_pct", "dist_ath_pct"],
@@ -22,7 +22,7 @@ const VIEWS = {
   context: ["ticker", "company", "theme", "in_uct20", "index_sp500", "index_ndx", "index_r2k", "is_etf", "is_leveraged", "stage2", "stage4", "hvc_52w"],
   candles: ["ticker", "company", "candle_type", "candle_trend", "bar_character", "candle_recent", "candle_recent_bars_ago", "candle_weekly", "candle_monthly", "body_pct", "upper_wick_pct", "lower_wick_pct", "close_position", "inside_bar_run", "nr7", "vol_ratio", "chg_pct_1d"],
 }
-const FILTER_TYPES = {"accdis": "enum", "adr_pct": "range", "analyst_consensus": "enum", "avg_body_pct_5": "range", "bar_character": "enum", "base_relation_count": "range", "body_pct": "range", "candle_monthly": "enum", "candle_recent": "enum", "candle_recent_bars_ago": "range", "candle_score": "range", "candle_trend": "enum", "candle_type": "enum", "candle_weekly": "enum", "chg_pct_1d": "range", "chg_pct_1m": "range", "chg_pct_1w": "range", "chg_pct_1y": "range", "chg_pct_3m": "range", "chg_pct_6m": "range", "chg_pct_ytd": "range", "close_cv_pct": "range", "close_position": "range", "days_to_earnings": "range", "dist_52w_high_pct": "range", "dist_ath_pct": "range", "downgrades_30d": "range", "dp_level_dist_pct": "range", "dp_notional_1d": "range", "dp_notional_5d": "range", "dp_prints_1d": "range", "earnings_session": "enum", "earnings_setup_grade": "enum", "eps_growth": "range", "float_pct": "range", "float_shares": "range", "gap_pct": "range", "hvc_52w": "bool", "implied_move_pct": "range", "in_uct20": "bool", "index_ndx": "bool", "index_r2k": "bool", "index_sp500": "bool", "inside_bar_run": "range", "insider_own_pct": "range", "insider_trans_pct": "range", "inst_pct": "range", "inst_trans_pct": "range", "is_etf": "bool", "is_leveraged": "bool", "last_report_move_pct": "range", "lower_wick_pct": "range", "market_cap": "range", "next_earnings_date": "range", "nr7": "bool", "op_margin": "range", "opt_bull_pct_1d": "range", "opt_net_premium_1d": "range", "opt_net_premium_5d": "range", "optionable": "bool", "pattern_engine_conf": "range", "pattern_engine_dir": "range", "pattern_engine_flat_base": "bool", "pattern_engine_vcp": "bool", "pattern_entry_dist_pct": "range", "pattern_expectancy_r": "range", "pattern_stop_dist_pct": "range", "pct_vs_ema20": "range", "pe_fwd": "range", "peg": "range", "pole_pct": "range", "price": "range", "pt_upside_pct": "range", "rev_growth": "range", "roe": "range", "rs_line_trend": "enum", "rs_rank": "range", "rs_return": "range", "rsi14": "range", "sector": "enum", "shares_outstanding": "range", "short_float_pct": "range", "short_ratio": "range", "shortable": "bool", "stage2": "bool", "stage4": "bool", "theme": "enum", "uct_composite": "range", "upgrades_30d": "range", "upper_wick_pct": "range", "vol_nweek_low": "range", "vol_ratio": "range", "vol_updown_ratio": "range"}
+const FILTER_TYPES = {"accdis": "enum", "adr_pct": "range", "analyst_consensus": "enum", "avg_body_pct_5": "range", "bar_character": "enum", "base_relation_count": "range", "body_pct": "range", "candle_monthly": "enum", "candle_recent": "enum", "candle_recent_bars_ago": "range", "candle_score": "range", "candle_trend": "enum", "candle_type": "enum", "candle_weekly": "enum", "chg_pct_1d": "range", "chg_pct_1m": "range", "chg_pct_1w": "range", "chg_pct_1y": "range", "chg_pct_3m": "range", "chg_pct_6m": "range", "chg_pct_ytd": "range", "close_cv_pct": "range", "close_position": "range", "days_to_earnings": "range", "dist_52w_high_pct": "range", "dist_ath_pct": "range", "downgrades_30d": "range", "dp_level_dist_pct": "range", "dp_notional_1d": "range", "dp_notional_5d": "range", "dp_prints_1d": "range", "earnings_session": "enum", "earnings_setup_grade": "enum", "eps_growth": "range", "float_pct": "range", "float_shares": "range", "gap_pct": "range", "hvc_52w": "bool", "implied_move_pct": "range", "in_uct20": "bool", "index_ndx": "bool", "index_r2k": "bool", "index_sp500": "bool", "inside_bar_run": "range", "insider_own_pct": "range", "insider_trans_pct": "range", "inst_pct": "range", "inst_trans_pct": "range", "is_etf": "bool", "is_leveraged": "bool", "last_report_move_pct": "range", "lower_wick_pct": "range", "market_cap": "range", "next_earnings_date": "range", "nr7": "bool", "op_margin": "range", "opt_bull_pct_1d": "range", "opt_net_premium_1d": "range", "opt_net_premium_5d": "range", "optionable": "bool", "pattern_engine_conf": "range", "pattern_engine_dir": "range", "pattern_engine_flat_base": "bool", "pattern_engine_vcp": "bool", "pattern_entry_dist_pct": "range", "pattern_expectancy_r": "range", "pattern_stop_dist_pct": "range", "pct_vs_ema20": "range", "pe_fwd": "range", "peg": "range", "pole_pct": "range", "price": "range", "pt_upside_pct": "range", "rev_growth": "range", "roe": "range", "rs_line_trend": "enum", "rs_rank": "range", "rs_return": "range", "rsi14": "range", "rvol_live": "range", "sector": "enum", "shares_outstanding": "range", "short_float_pct": "range", "short_ratio": "range", "shortable": "bool", "stage2": "bool", "stage4": "bool", "theme": "enum", "uct_composite": "range", "upgrades_30d": "range", "upper_wick_pct": "range", "vol_nweek_low": "range", "vol_ratio": "range", "vol_updown_ratio": "range"}
 const META = { filters: Object.entries(FILTER_TYPES).map(([key, type]) => ({ key, label: key, category: 'x', type, presets: [], allow_custom: type === 'range', unit: null })) }
 const ALL_VIEW_COLUMNS = [...new Set(Object.values(VIEWS).flat())]
 const DEFAULT = 'uct_composite'
@@ -67,9 +67,24 @@ test('every heat-scaled column definition is one the server does not type as tex
   }
 })
 test('order: the default, the current sort, then the view; each once; default always offered', () => {
-  const keys = sortableColumns({ meta: META, columns: ['ticker', 'price', 'rs_rank', 'sector', 'price'], sortKey: 'rs_rank', defaultKey: DEFAULT })
+  const keys = sortableColumns({ meta: META, columns: ['ticker', 'price', 'rs_rank', 'sector', 'price'], sortKey: 'rs_rank', defaultKey: DEFAULT, always: [] })
   expect(keys).toEqual([DEFAULT, 'rs_rank', 'price'])
-  expect(sortableColumns({ meta: null, columns: [], defaultKey: DEFAULT })).toEqual([DEFAULT])
+  expect(sortableColumns({ meta: null, columns: [], defaultKey: DEFAULT, always: [] })).toEqual([DEFAULT])
   // a text sort set elsewhere is not listed (the trigger still names it; Reverse still flips it)
-  expect(sortableColumns({ meta: META, columns: [], sortKey: 'base_render', defaultKey: DEFAULT })).toEqual([DEFAULT])
+  expect(sortableColumns({ meta: META, columns: [], sortKey: 'base_render', defaultKey: DEFAULT, always: [] })).toEqual([DEFAULT])
+})
+test('volume-vs-usual-by-now and pattern-entry distance are offered in EVERY view, after its own columns', () => {
+  expect(ALWAYS_SORTABLE).toEqual(['rvol_live', 'pattern_entry_dist_pct'])
+  for (const [view, cols] of Object.entries(VIEWS)) {
+    const keys = sortableColumns({ meta: META, columns: cols, defaultKey: DEFAULT })
+    expect(keys, view).toContain('rvol_live')
+    expect(keys, view).toContain('pattern_entry_dist_pct')
+    // each once, even in the views that already carry one of them
+    expect(keys.filter(k => k === 'rvol_live'), view).toHaveLength(1)
+    expect(keys.filter(k => k === 'pattern_entry_dist_pct'), view).toHaveLength(1)
+  }
+  // appended after the view's own columns, never ahead of them
+  expect(sortableColumns({ meta: META, columns: ['price'], defaultKey: DEFAULT })).toEqual([DEFAULT, 'price', 'rvol_live', 'pattern_entry_dist_pct'])
+  // still numeric-checked: with no meta to say they are numbers, neither is offered
+  expect(sortableColumns({ meta: null, columns: [], defaultKey: DEFAULT })).toEqual([DEFAULT])
 })

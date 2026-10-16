@@ -1,5 +1,8 @@
 """Universe live bars on the serving tier (2026-10-14): a covered series is fresh by
 construction and served from SQLite at once; uncovered behaves exactly as before."""
+import sqlite3
+import time
+
 import pytest
 
 from api.services import bars_fetch, bars_live_store as bls, bars_sqlite
@@ -9,6 +12,8 @@ from api.services import bars_fetch, bars_live_store as bls, bars_sqlite
 def live(monkeypatch, tmp_path):
     monkeypatch.setenv("BARS_LIVE_COVERAGE_ENABLED", "1")
     monkeypatch.setattr(bars_sqlite, "put_bars_many", lambda tf, by: sum(len(v) for v in by.values()))
+    db = sqlite3.connect(str(tmp_path / "bars.db"), check_same_thread=False)
+    monkeypatch.setattr(bars_sqlite, "_conn", lambda: db)
     bls._reset_for_tests()
     yield bls
     bls._reset_for_tests()
@@ -297,3 +302,93 @@ def test_a_read_of_an_uncovered_ticker_jumps_the_repair_queue(live):
     assert live.covered("ZZZ", "5") is False
     assert live._next_todo(["AAA", "BBB"], [0]) == "ZZZ"
     assert live._next_todo(["AAA", "BBB"], [0]) == "AAA"
+
+
+# ── coverage survives a restart of this tier (2026-10-15) ─────────────────────
+
+NB = int(time.time()) // 300 * 300 - 3000   # a recent boundary: the checkpoint's age rules use real time
+
+
+def _restart(live):
+    """What a new bars-api process sees: empty memory, the same bars.db."""
+    live._ckpt["last_mono"] = None
+    assert live.save_checkpoint(force=True) is True
+    db = bars_sqlite._conn()
+    live._reset_for_tests()
+    assert bars_sqlite._conn() is db
+    return live.load_checkpoint()
+
+
+def test_the_same_socket_after_a_restart_is_covered_at_once_with_no_repair(live):
+    _epoch(7, NB, wm_ms=(NB + 600 + 60) * 1000)
+    live._covered5.update({"AAA", "BBB"})
+    live._history5_complete.add("AAA")
+    live._gap_from["CCC"] = NB - 900                 # still awaiting its repair
+    assert _restart(live) == 3
+    assert live._covered5 == set() and live._history5_complete == {"AAA"}
+    out = _epoch(7, NB, seq=40)                       # the web pod's next push, same socket
+    assert not out.get("resync")
+    assert live._covered5 == {"AAA", "BBB"}
+    assert live.covered("AAA", "5") is True
+    assert live._gap_from == {"CCC": NB - 900}
+    assert live._ckpt["adopted"] == 2
+
+
+def test_a_new_socket_after_a_restart_repairs_only_from_where_the_old_one_stopped(live):
+    _epoch(7, NB, wm_ms=(NB + 600 + 60) * 1000)
+    live._covered5.add("AAA")
+    _restart(live)
+    out = _epoch(8, NB + 1200, seq=3)                 # a different socket, mid-epoch
+    assert out.get("resync") is True
+    assert live._gap_from == {"AAA": NB + 600}
+    _epoch(8, NB + 1200)                              # its fresh start
+    assert live._gap_from == {"AAA": NB + 600} and live._covered5 == set()
+
+
+def test_a_checkpoint_older_than_the_backfill_window_is_ignored(live, monkeypatch):
+    _epoch(7, NB, wm_ms=(NB + 60) * 1000)
+    live._covered5.add("AAA")
+    live._ckpt["last_mono"] = None
+    live.save_checkpoint(force=True)
+    live._reset_for_tests()
+    real = time.time
+    monkeypatch.setattr(bls.time, "time", lambda: real() + (live.BACKFILL_DAYS + 1) * 86400)
+    assert live.load_checkpoint() == 0
+    _epoch(7, NB, seq=5)
+    assert live._covered5 == set()
+
+
+def test_a_replaced_database_has_no_checkpoint_and_repairs_in_full(live, monkeypatch, tmp_path):
+    _epoch(7, NB, wm_ms=(NB + 60) * 1000)
+    live._covered5.add("AAA")
+    live.save_checkpoint(force=True)
+    live._reset_for_tests()
+    fresh = sqlite3.connect(str(tmp_path / "snapshot.db"), check_same_thread=False)
+    monkeypatch.setattr(bars_sqlite, "_conn", lambda: fresh)
+    assert live.load_checkpoint() == 0
+    assert _epoch(7, NB, seq=5).get("resync") is True
+
+
+def test_saves_are_throttled_but_a_finished_repair_pass_forces_one(live, monkeypatch):
+    clock = [1000.0]
+    monkeypatch.setattr(bls, "_now_mono", lambda: clock[0])
+    _epoch(7, NB)
+    assert live._ckpt["saves"] == 1
+    clock[0] += 1
+    _epoch(7, NB, seq=2)
+    assert live._ckpt["saves"] == 1
+    assert live.save_checkpoint(force=True) is True and live._ckpt["saves"] == 2
+    clock[0] += live.CKPT_EVERY_S
+    _epoch(7, NB, seq=3)
+    assert live._ckpt["saves"] == 3
+
+
+def test_a_late_boundary_minute_never_overwrites_an_adopted_boundary_row(live, monkeypatch):
+    ffb = NB + 600
+    b0 = ffb - 300
+    _epoch(7, ffb, wm_ms=(ffb + 60) * 1000)
+    live._covered5.add("AAA")
+    _restart(live)
+    written = _capture_writes(monkeypatch)
+    _epoch(7, ffb, seq=9, minutes=[["AAA", b0 + 240, 5, 8, 5, 7, 3]])
+    assert [w for w in written if w[1] == b0] == []

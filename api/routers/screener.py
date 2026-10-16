@@ -407,6 +407,28 @@ def screener_snapshot_status(user=Depends(require_paid)):
     return {**scr_db.status(), "live": scr_query.live_tier_state()}
 
 
+@router.get("/api/screener/volume-curve")
+def screener_volume_curve(ticker: str | None = None, tickers: str | None = None,
+                          user=Depends(require_paid)):
+    """The market-wide time-of-day volume curve + today's ET session window, so the
+    chart header's, the watchlist's and the headline's RVOL compute the SAME number as
+    the screener's live `rvol_live` ("volume vs usual by now"). `curve: null` (no night
+    has stored one) or `session: null` (not a trading day) both mean blank.
+
+    APPROACH B: `?ticker=NVDA` (a chart) or `?tickers=A,B,C` (a watchlist, ONE batch
+    request for the whole list) adds `ticker_knots: {SYM: [79 shares]}` for each asked
+    symbol that has its own nightly curve; a symbol absent from it reads the market
+    curve. Served from the same cached payload (no per-request DB read past the TTL).
+    Design: docs/superpowers/specs/2026-10-15-screener-live-relative-volume-design.md."""
+    from api.services.screener import volume_curve
+    want = []
+    if ticker:
+        want.append(ticker)
+    if tickers:
+        want.extend(t for t in tickers.split(",") if t.strip())
+    return volume_curve.client_payload(tickers=want)
+
+
 @router.post("/api/screener/refresh")
 def screener_refresh(max_tickers: int = 800, user=Depends(require_admin)):
     """Admin: warm the snapshot now (background, capped) instead of waiting for

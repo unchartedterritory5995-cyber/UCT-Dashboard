@@ -31,3 +31,11 @@ test('a pool change reads as the universe, not a raw key', () => {
     nextSpec: { filters: { list: { op: 'in', value: 'wl:3', label: 'Semis' } } }, nextTotal: 0, defs }))
     .toEqual({ label: 'Universe: Semis', from: 12 })
 })
+test('the emptying filter is named the way its pill names it: plain column, lowercase operator', () => {
+  const price = { price: { key: 'price', label: 'Price', type: 'range', unit: '$', presets: [{ label: 'Under $20', op: 'lte', max: 20 }] } }
+  expect(describeEmptying({ prevSpec: { filters: {} }, prevTotal: 9, nextSpec: { filters: { price: { op: 'lte', max: 20 } } }, nextTotal: 0, defs: price }))
+    .toEqual({ label: 'Price: under $20', from: 9 })
+  const adr = { adr_pct: { key: 'adr_pct', label: 'ADR %', type: 'range', unit: '%', presets: [{ label: 'Over 4%', op: 'gte', min: 4 }] } }
+  expect(describeEmptying({ prevSpec: { filters: {} }, prevTotal: 9, nextSpec: { filters: { adr_pct: { op: 'gte', min: 4 } } }, nextTotal: 0, defs: adr }))
+    .toEqual({ label: 'Avg daily range: over 4%', from: 9 })
+})

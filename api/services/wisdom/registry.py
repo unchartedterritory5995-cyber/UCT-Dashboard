@@ -23,7 +23,7 @@ from typing import Callable, Optional
 
 log = logging.getLogger(__name__)
 
-PACKAGES = ("core", "capture", "sources", "extract", "evals", "publish")
+PACKAGES = ("core", "capture", "sources", "extract", "evals", "publish", "archive")
 
 #: Import time. This is POD UPTIME, so `_staleness_window` is its ONE consumer and uses it
 #: only where no success is on record — measuring a job's staleness with it is G-33.
@@ -120,7 +120,7 @@ def routers() -> list:
         except Exception:
             log.exception("[wisdom] cannot import %s; its routes are not mounted", mod_name)
             continue
-        for attr in ("router", "internal_router"):
+        for attr in ("router", "internal_router", "member_router"):
             router = getattr(mod, attr, None)
             if router is not None:
                 out.append(router)

@@ -335,6 +335,19 @@ _SPECS = {
 }
 
 
+#: ⚠️ THE SECOND NAMED TEXTUAL DIFFERENCE (data-accuracy audit 2026-10-15, #4):
+#: a plain sort gained a deterministic `ticker ASC` tiebreak, so ties cannot make
+#: paging repeat or skip rows. It is applied to the frozen literal HERE, by name,
+#: rather than by regenerating the literal — the literal still pins everything
+#: else the pre-overlay statement said, and the tiebreak names no overlay.
+_TIEBREAK = ', "ticker" ASC'
+
+
+def _with_tiebreak(sql: str) -> str:
+    return sql.replace(" NULLS LAST LIMIT ? OFFSET ?",
+                       f" NULLS LAST{_TIEBREAK} LIMIT ? OFFSET ?")
+
+
 def _unquoted(sql: str) -> str:
     """Strip identifier quoting — the ONE deliberate textual difference.
 
@@ -355,7 +368,8 @@ def test_with_the_overlay_OFF_the_statement_is_the_PRE_OVERLAY_statement():
     join, no COALESCE, `screener_live` never named, `SELECT *` preserved."""
     for name, spec in _SPECS.items():
         plan = query.build_scan_sql(spec, query.OFF)
-        assert _unquoted(plan["sql"]) == _unquoted(_PRE_OVERLAY_SQL[name]), name
+        assert _unquoted(plan["sql"]) == _unquoted(
+            _with_tiebreak(_PRE_OVERLAY_SQL[name])), name
         assert "JOIN" not in plan["sql"], name
         assert "COALESCE" not in plan["sql"], name
         assert live_tier.LIVE_TABLE not in plan["sql"], name
@@ -370,7 +384,8 @@ def test_the_CONTROL_the_armed_statement_is_NOT_the_pre_overlay_statement(served
     assert overlay.on
     for name, spec in _SPECS.items():
         sql = query.build_scan_sql(spec, overlay)["sql"]
-        assert _unquoted(sql) != _unquoted(_PRE_OVERLAY_SQL[name]), name
+        assert _unquoted(sql) != _unquoted(
+            _with_tiebreak(_PRE_OVERLAY_SQL[name])), name
         assert f"LEFT JOIN {live_tier.LIVE_TABLE} l ON" in sql, name
         assert "COALESCE(" in sql, name
         assert "*" not in sql.split(" FROM ")[0], name   # never `SELECT *` joined
@@ -440,9 +455,13 @@ def test_the_CONTROL_the_armed_run_scan_DOES_execute_the_join(served, monkeypatc
     keeps `total` describing the rows it labels."""
     seen = _spy(monkeypatch)
     query.run_scan(_OVER_3_TODAY)
+    # `query.stale_gate`'s MIN/MAX read of `bars_asof` is excluded by name: it
+    # asks whether ANY row is behind the snapshot's newest, which is a fact
+    # about the nightly table and correctly names no overlay.
     executed = [s for c in seen for s in c.sql
                 if s.lstrip().upper().startswith("SELECT")
-                and "sqlite_master" not in s]
+                and "sqlite_master" not in s
+                and not s.startswith('SELECT MAX(CAST("bars_asof"')]
     assert len(executed) == 2
     assert all(f"LEFT JOIN {live_tier.LIVE_TABLE} l ON" in s for s in executed)
 
@@ -712,3 +731,33 @@ def test_the_evaluator_never_NAMES_the_overlay__BY_AST():
     # nothing would both read as a clean bill of health.
     assert "snapshot_db" in imported
     assert any("screener_rows" in s for s in strings)
+
+
+# ═══ `rvol_live` — volume vs usual BY NOW reaches the member AND filters ══════
+#
+# docs/superpowers/specs/2026-10-15-screener-live-relative-volume-design.md. The
+# column's nightly value is NULL by design, so the ONLY way a member can see or
+# screen on it is through the overlay — which is exactly what these pin.
+
+def test_rvol_live_is_served_and_FILTERED_from_the_overlay(served):
+    snapshot_db.upsert_live_rows([
+        _overlay_row("CROSSER", price=106.4, chg_pct_1d=6.4, rvol_live=3.2),
+        _overlay_row("FADER", price=70.7, chg_pct_1d=1.0, rvol_live=1.1),
+    ])
+    spec = {"filters": [{"key": "rvol_live", "op": "gte", "min": 2}], "page_size": 50}
+    res = query.run_scan(spec)
+    assert [r["ticker"] for r in res["rows"]] == ["CROSSER"]
+    assert res["rows"][0]["rvol_live"] == 3.2
+    assert res["total"] == 1
+
+
+def test_the_CONTROL_with_the_overlay_off_rvol_live_screens_NOTHING(served, monkeypatch):
+    """Nightly the column is NULL for every row: a "heavy volume by now" screen
+    returns nothing rather than yesterday's names."""
+    snapshot_db.upsert_live_rows([
+        _overlay_row("CROSSER", price=106.4, chg_pct_1d=6.4, rvol_live=3.2)])
+    monkeypatch.setenv("SCREENER_LIVE_TIER_ENABLED", "0")
+    spec = {"filters": [{"key": "rvol_live", "op": "gte", "min": 2}], "page_size": 50}
+    assert query.run_scan(spec)["rows"] == []
+    assert all(r.get("rvol_live") is None for r in
+               query.run_scan({"page_size": 50, "columns": ["rvol_live"]})["rows"])

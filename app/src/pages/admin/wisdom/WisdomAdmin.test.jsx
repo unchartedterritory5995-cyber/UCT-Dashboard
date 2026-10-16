@@ -178,4 +178,53 @@ describe('WisdomAdmin', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not load the review queue (503).')
     expect(screen.queryByRole('tablist', { name: 'Queue tabs' })).not.toBeInTheDocument()
   })
+
+  // ── Archive (synthetic data only — the repo is public) ──
+  const ARCH = '/api/admin/wisdom/archive'
+  const ARCH_STATS = {
+    records: 2, calls: 3,
+    records_by_author: { tsdr: 1, bracco: 1 }, records_by_type: { CALL: 1, LESSON: 1 },
+    calls_by_author: { tsdr: 2, bracco: 1 }, calls_by_setup: { synthetic_setup: 3 },
+  }
+  const CALL = (id, r20) => ({ call_id: id, record_id: 't1', author_id: 'tsdr', ticker: 'ZZTA', direction: 'long',
+    setup: 'synthetic_setup', action: 'entry', posted: '2025-01-02', entry: 10, stop: 9, outcome: { r20 } })
+
+  it('Archive: shows stats, looks up a ticker, browses a setup and searches', async () => {
+    serve({
+      ...baseQueueRoutes(),
+      [`GET ${ARCH}/stats`]: [200, ARCH_STATS],
+      [`GET ${ARCH}/ticker/ZZTA`]: [200, { ticker: 'ZZTA',
+        records: [{ record_id: 't1', stated_date: '2025-01-02', record_type: 'CALL', author_id: 'tsdr', note: 'synthetic pivot note', image_count: 0, tickers: ['ZZTA'] }],
+        calls: [CALL('t1#0', 0.1)] }],
+      [`GET ${ARCH}/setup/synthetic_setup`]: [200, { setup: 'synthetic_setup', n_calls: 3, n_scored: 2, mean_r20: 0.05,
+        best: [{ ...CALL('t1#0', 0.3), record_note: 'best synthetic note' }], worst: [{ ...CALL('t1#1', -0.2), record_note: 'worst synthetic note' }] }],
+      [`GET ${ARCH}/search?q=patience`]: [200, { q: 'patience', hits: [{ record_id: 't2', stated_date: '2025-02-01', record_type: 'LESSON', author_id: 'bracco', tickers: [], note: 'synthetic lesson about patience' }] }],
+    })
+    mount()
+    fireEvent.click(await screen.findByRole('tab', { name: /Archive/ }))
+    expect(await screen.findByText(/2 records · 3 calls/)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Ticker'), { target: { value: 'zzta' } })
+    fireEvent.click(screen.getByRole('button', { name: /Look up/ }))
+    expect(await screen.findByText('synthetic pivot note')).toBeInTheDocument()
+    expect(screen.getByText('ZZTA: 1 records · 1 calls')).toBeInTheDocument()
+    expect(screen.getByText('+10.0%')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Setup'), { target: { value: 'synthetic_setup' } })
+    expect(await screen.findByText('best synthetic note')).toBeInTheDocument()
+    expect(screen.getByText('worst synthetic note')).toBeInTheDocument()
+    expect(screen.getByText('-20.0%')).toBeInTheDocument()
+    expect(screen.getByText(/mean r20 \+5\.0%/)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'patience' } })
+    fireEvent.click(screen.getByRole('button', { name: /^\s*Search$/ }))
+    expect(await screen.findByText('synthetic lesson about patience')).toBeInTheDocument()
+  })
+
+  it('Archive: a 404 says the archive is off, not that nothing was found', async () => {
+    serve({ ...baseQueueRoutes(), [`GET ${ARCH}/stats`]: [404, { detail: 'Not Found' }] })
+    mount()
+    fireEvent.click(await screen.findByRole('tab', { name: /Archive/ }))
+    expect(await screen.findByText('The archive is off (WISDOM_ARCHIVE_ENABLED).')).toBeInTheDocument()
+  })
 })

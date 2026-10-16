@@ -102,6 +102,7 @@ const OpenFlow = lazyPage('/open-flow', () => import('./pages/OpenFlow'))
 const LiveFlowMassive = lazyPage('/live-massive', () => import('./pages/LiveFlowMassive'))
 const Traders = lazyPage('/traders', () => import('./pages/Traders'))
 const PortfolioHeat = lazyPage('/portfolio-heat', () => import('./pages/PortfolioHeat'))
+const TraderArchive = lazyPage('/trader-archive', () => import('./pages/traderArchive/TraderArchive'))
 const AlertTester = lazy(() => import('./pages/AlertTester'))
 const DarkPool = lazyPage('/dark-pool', () => import('./pages/DarkPool'))
 const PostMarket = lazyPage('/post-market', () => import('./pages/PostMarket'))
@@ -693,6 +694,11 @@ export default function App() {
                     every voice navigation target against this route table. */}
                 <Route path="/traders" element={<Traders />} />
                 <Route path="/portfolio-heat" element={<PortfolioHeat />} />
+                {/* TSDR trader archive for paid members (owner ruling 2026-10-15). Not a
+                    sidebar entry: a NavBar route needs a fresh viewport measurement
+                    (firstRun/viewportLockedRoutes.test.js). The server 404s every
+                    archive read while WISDOM_ARCHIVE_ENABLED is off. */}
+                <Route path="/trader-archive" element={<TraderArchive />} />
                 {/* S8 Step 2 capability demo — live D1 -> S8 provenance/freshness
                     wiring, reachable directly by URL; deliberately NOT in
                     NavBar/MobileNav. Signed-in only since 2026-09-25 (see the

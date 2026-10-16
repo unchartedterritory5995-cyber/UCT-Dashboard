@@ -126,8 +126,17 @@ def test_flagship_unit_rulings_hold(tmp_path, monkeypatch):
         assert len(matches) == 1, (key, matches)
         return matches[0]
 
-    pullback = _only(by_id["starter_pullback_20ema"], "vol_nweek_low")
-    assert pullback["op"] == "gte" and pullback["min"] == 10
+    # vol_nweek_low: the 20 EMA pullback stopped filtering on it 2026-10-15 (it alone
+    # cut the screen from 42 names to 5 on production), so the BAR-COUNT ruling is
+    # pinned where it still ships — the control's presets — and on any starter
+    # that ever filters it again.
+    from api.services.screener import filters as scr_filters
+    vnl = [p for p in scr_filters.FILTERS["vol_nweek_low"]["presets"] if p.get("op")]
+    assert sorted(p.get("min", p.get("value")) for p in vnl) == [10, 15, 20]
+    for spec in by_id.values():
+        for f in spec["filters"]:
+            if f["key"] == "vol_nweek_low":
+                assert f.get("min", f.get("value")) in (10, 15, 20), f
     leaders = _only(by_id["starter_momentum_leaders"], "dollar_vol_30d")
     assert leaders["op"] == "gte" and leaders["min"] == 20_000_000
     breakout = _only(by_id["starter_52w_breakout"], "dollar_vol_30d")

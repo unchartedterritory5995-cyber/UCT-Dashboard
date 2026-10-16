@@ -357,26 +357,28 @@ def pattern_presets_enabled() -> bool:
     return os.environ.get(PATTERN_PRESETS_FLAG, "0").strip() == "1"
 
 #: Member-facing one-liners for the pattern presets, keyed by detector id. Each says only what
-#: the preset filters for: the engine detected that pattern on the stock.
+#: the preset filters for: the pattern ENGINE detected that pattern on the stock. It names the
+#: engine because the base read on each row's setup line is a different detector that shares
+#: some of these names ("scanner" said neither).
 PATTERN_DESCRIPTIONS = {
-    "cup_handle": "Stocks with a cup and handle the scanner detected",
-    "ascending_triangle": "Stocks with an ascending triangle the scanner detected",
-    "symmetrical_triangle": "Stocks with a symmetrical triangle the scanner detected",
-    "descending_triangle": "Stocks with a descending triangle the scanner detected",
-    "bull_flag": "Stocks with a bull flag the scanner detected",
-    "bear_flag": "Stocks with a bear flag the scanner detected",
-    "pennant": "Stocks with a pennant the scanner detected",
-    "falling_wedge": "Stocks with a falling wedge the scanner detected",
-    "rising_wedge": "Stocks with a rising wedge the scanner detected",
-    "double_bottom": "Stocks with a double bottom the scanner detected",
-    "double_top": "Stocks with a double top the scanner detected",
-    "triple_bottom": "Stocks with a triple bottom the scanner detected",
-    "triple_top": "Stocks with a triple top the scanner detected",
-    "inverse_head_shoulders": "Stocks with an inverse head and shoulders the scanner detected",
-    "head_shoulders": "Stocks with a head and shoulders the scanner detected",
-    "rounded_base": "Stocks with a rounded base the scanner detected",
-    "rectangle": "Stocks trading in a rectangle the scanner detected",
-    "channel": "Stocks trading in a channel the scanner detected",
+    "cup_handle": "Stocks with a cup and handle the pattern engine detected",
+    "ascending_triangle": "Stocks with an ascending triangle the pattern engine detected",
+    "symmetrical_triangle": "Stocks with a symmetrical triangle the pattern engine detected",
+    "descending_triangle": "Stocks with a descending triangle the pattern engine detected",
+    "bull_flag": "Stocks with a bull flag the pattern engine detected",
+    "bear_flag": "Stocks with a bear flag the pattern engine detected",
+    "pennant": "Stocks with a pennant the pattern engine detected",
+    "falling_wedge": "Stocks with a falling wedge the pattern engine detected",
+    "rising_wedge": "Stocks with a rising wedge the pattern engine detected",
+    "double_bottom": "Stocks with a double bottom the pattern engine detected",
+    "double_top": "Stocks with a double top the pattern engine detected",
+    "triple_bottom": "Stocks with a triple bottom the pattern engine detected",
+    "triple_top": "Stocks with a triple top the pattern engine detected",
+    "inverse_head_shoulders": "Stocks with an inverse head and shoulders the pattern engine detected",
+    "head_shoulders": "Stocks with a head and shoulders the pattern engine detected",
+    "rounded_base": "Stocks with a rounded base the pattern engine detected",
+    "rectangle": "Stocks trading in a rectangle the pattern engine detected",
+    "channel": "Stocks trading in a channel the pattern engine detected",
 }
 
 
@@ -394,13 +396,19 @@ def pattern_starters():
 
 #: Every starter screen is STOCKS ONLY (owner decision 3, 2026-10-14): the
 #: momentum starters were topped by QQQ, SPY and closed-end funds. Expressed
-#: exactly as the Type filter's own Include control emits it
-#: (`TypeFilterControl.jsx`: `{op: 'in', values: [...]}` over the buckets
+#: exactly as the Type filter's own EXCLUDE control emits it
+#: (`TypeFilterControl.jsx`: `{op: 'not_in', values: [...]}` over the buckets
 #: `filters.FILTERS["security_type"]["options"]` declares). Closed-end funds and
 #: ETNs fold into the "ETF" bucket (`screener_universe._coarse_type`), so
-#: including Stock + ADR is what leaves both out. An ADR is a listed company's
-#: shares, so it stays.
-STOCKS_ONLY = {"key": "security_type", "op": "in", "values": ["Stock", "ADR"]}
+#: excluding ETF is what leaves both out. An ADR is a listed company's shares,
+#: so it stays.
+#: ⭐ EXCLUDE, NOT INCLUDE (2026-10-15): `in [Stock, ADR]` also dropped every row
+#: whose type we simply do not hold (SQL `NULL IN (...)` is not true), so a stock
+#: with an unknown type vanished from every starter. `not_in` keeps the NULL
+#: explicitly (`query.build_where`), which is the "exclude funds" the owner asked
+#: for. Measured on production 2026-10-15: 0 rows carry a NULL type today, so the
+#: two forms return the same 5,787; the change is about the day one arrives.
+STOCKS_ONLY = {"key": "security_type", "op": "not_in", "values": ["ETF"]}
 
 
 def _stocks_only(starter):
@@ -412,6 +420,33 @@ def _stocks_only(starter):
 
 def starters():
     return [_stocks_only(s) for s in _starter_defs()]
+
+
+def _live_volume_or_nightly(min_x):
+    """Heavy volume TODAY in the session, LAST SESSION'S otherwise, as one group.
+
+    🔴 THE DEFECT THIS REPLACES. Gap Movers and the 52-week breakout paired a LIVE
+    gap / new high with `vol_ratio`, which is last night's completed session, so
+    at 10:30 a stock gapping on light volume passed because yesterday was heavy,
+    and today's real volume surge never counted.
+
+    ⭐ The group reads `rvol_live` (volume vs usual BY NOW, live_tier) whenever it
+    holds a value, and falls back to `vol_ratio` only when it does not (before
+    09:45 ET, after the overlay stops serving, or for a symbol the sweep missed).
+    `{"none": [rvol_live >= 0]}` is "rvol_live is blank": `logic.to_sql` is
+    two-valued, so a row with no value fails `>= 0` and therefore passes none-of.
+    A plain `any(rvol_live, vol_ratio)` would let yesterday's volume vouch for
+    today in the session, which is the defect again.
+
+    ⚠️ Needs `SCREENER_LOGIC_ENABLED` (armed on production; checked 2026-10-15 via
+    `/api/screener/grammar` = 200). With it off the screen is REFUSED with a
+    sentence, never run without its volume clause.
+    """
+    return {"any": [
+        {"key": "rvol_live", "op": "gte", "min": min_x},
+        {"all": [{"none": [{"key": "rvol_live", "op": "gte", "min": 0}]},
+                 {"key": "vol_ratio", "op": "gte", "min": min_x}]},
+    ]}
 
 
 def _starter_defs():
@@ -433,39 +468,59 @@ def _starter_defs():
          "spec": {"filters": [], "view": "uct_ratings",
                   "rank": {"criteria": [{"key": "uct_composite"}], "top_n": 50}}},
         # ── momentum / trend setups ──
+        # Measured on production 2026-10-15 (stocks only): 103 before, 42 with the
+        # full-bull stack + within 15% of the high. A full-bull stack is price >
+        # SMA20 > SMA50 > SMA200 (identities.py), so "above the 50 day" is implied
+        # and is no longer a separate clause.
         {"id": "starter_momentum_leaders", "name": "Leaders (RS ≥ 90)",
          "group": "Momentum leaders",
-         "description": "Stocks with RS 90+, 4%+ daily range, $20M+ traded, price $5+, above 50 day",
+         "description": "RS 90+ stocks, MAs stacked, within 15% of the 52 week high, 4%+ daily range, $20M+ traded, price $5+",
          "spec": {"filters": [
              {"key": "rs_rank", "op": "gte", "min": 90},
+             {"key": "ma_stack", "op": "eq", "value": "full-bull"},
+             {"key": "dist_52w_high_pct", "op": "gte", "min": -15},
              {"key": "adr_pct", "op": "gte", "min": 4},
              {"key": "dollar_vol_30d", "op": "gte", "min": 20_000_000},
-             {"key": "price", "op": "gte", "min": 5},
-             {"key": "above_50sma", "op": "eq", "value": 1}],
+             {"key": "price", "op": "gte", "min": 5}],
           "view": "technical", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        # Measured on production 2026-10-15: the old +-2% + EMA stack + 2-week volume
+        # low returned 7 (the volume low alone cut 42 to 5). A pullback INTO the
+        # rising 20 EMA is a 3% dip to a 1% hold above it: 42 names.
         {"id": "starter_pullback_20ema", "name": "Momentum pullbacks (20EMA)",
          "group": "Momentum leaders",
-         "description": "RS 80+ stocks within 2% of the 20 day EMA, EMAs stacked, 2 week volume low",
+         "description": "RS 80+ stocks 3% below to 1% above a rising 20 day EMA, above 50 day, $20M+ traded",
          "spec": {"filters": [
              {"key": "rs_rank", "op": "gte", "min": 80},
-             {"key": "pct_vs_ema20", "op": "between", "min": -2, "max": 2},
-             {"key": "ema_stack_intact", "op": "eq", "value": 1},
-             {"key": "vol_nweek_low", "op": "gte", "min": 10}],
+             {"key": "pct_vs_ema20", "op": "between", "min": -3, "max": 1},
+             {"key": "ema20_rising", "op": "eq", "value": 1},
+             {"key": "above_50sma", "op": "eq", "value": 1},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 20_000_000}],
           "view": "technical", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        # Measured on production 2026-10-15: close CV <= 2.5 passed 61% of liquid
+        # stocks, so the old screen was not tight (126 names). CV <= 1.5 plus this
+        # week's daily range below the 30-day one (field-to-field, `lt_col`) is a base
+        # that is actually contracting: 48 names.
         {"id": "starter_tight_base", "name": "Tight bases near highs",
          "group": "Bases & chart patterns",
-         "description": "RS 70+ stocks within 8% of the 52 week high, tight closes, up volume leads",
+         "description": "RS 70+ stocks within 10% of the 52 week high, tight closes, range contracting, above 50 day, $20M+ traded",
          "spec": {"filters": [
-             {"key": "dist_52w_high_pct", "op": "gte", "min": -8},
-             {"key": "close_cv_pct", "op": "lte", "max": 2.5},
-             {"key": "vol_updown_ratio", "op": "gte", "min": 1},
+             {"key": "dist_52w_high_pct", "op": "gte", "min": -10},
+             {"key": "close_cv_pct", "op": "lte", "max": 1.5},
+             {"key": "adr_pct_1w", "op": "lt_col", "other": "adr_pct"},
+             {"key": "above_50sma", "op": "eq", "value": 1},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 20_000_000},
              {"key": "rs_rank", "op": "gte", "min": 70}],
           "view": "technical", "sort": {"key": "dist_52w_high_pct", "dir": "desc"}}},
         # ── named base structures (query the delimiter-wrapped match set) ──
+        # The structure itself already holds above the 50 and 200 day (base_catalog's
+        # definition), so the guards added here are liquidity and price. Production
+        # 2026-10-15: 27 -> 12.
         {"id": "starter_base_pocket_pivot", "name": "Pocket pivots",
          "group": "Breakouts & entries",
-         "description": "Stocks with an up day on volume above any down day of the last 10 sessions",
-         "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",pocket-pivot,"}],
+         "description": "Stocks with an up day on more volume than any down day in 10 sessions, $10M+ traded, price $5+",
+         "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",pocket-pivot,"},
+                              {"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000},
+                              {"key": "price", "op": "gte", "min": 5}],
                   "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
         {"id": "starter_power_play", "name": "Power Plays",
          "group": "Momentum leaders",
@@ -477,19 +532,36 @@ def _starter_defs():
          "description": "Stocks that broke the last swing high above a flat or rising 30 week average",
          "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",stage-2-breakout,"}],
                   "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        # Production 2026-10-15: the bare structure matched 904 names, most of them
+        # illiquid or falling; with RS 70+, above the 50 day and $10M+ it is 59.
         {"id": "starter_three_weeks_tight", "name": "Three weeks tight",
          "group": "Bases & chart patterns",
-         "description": "Stocks with three weekly closes within 1.5% of each other",
-         "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",three-weeks-tight,"}],
+         "description": "Stocks with three weekly closes within 1.5% of each other, RS 70+, above 50 day, $10M+ traded",
+         "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",three-weeks-tight,"},
+                              {"key": "rs_rank", "op": "gte", "min": 70},
+                              {"key": "above_50sma", "op": "eq", "value": 1},
+                              {"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000}],
                   "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
         # ── gaps / breakouts / events / value ──
+        # Was P/E <= 20, ROE 15%+, EPS growth 15%+: 386 names on production
+        # (2026-10-15 snapshot), so it filtered almost nothing, and `lte 20` also
+        # let a NEGATIVE forward P/E (expected losses) through as "cheap". Every
+        # threshold below is one this registry already publishes as a preset
+        # (Forward P/E "Under 20", ROE "Over 25%", EPS Growth "Over 25%",
+        # Operating Margin "Over 20%", Market Cap "Large (>$10B)"), so no new
+        # number ships. Calibrated read-only on production 2026-10-16 against the
+        # 2026-10-15 snapshot, stocks only: 386 before, 48 after (ROE 25 + EPS 25
+        # + cap $10B without the margin: 75).
         {"id": "starter_value_quality", "name": "Cheap quality compounders",
          "group": "Quality & value",
-         "description": "Stocks with forward P/E 20 or less, ROE 15%+ and EPS growth 15%+",
+         "description": ("Stocks with forward P/E under 20, ROE 25%+, EPS growth 25%+, "
+                         "operating margin 20%+ and market cap $10B+"),
          "spec": {"filters": [
-             {"key": "pe_fwd", "op": "lte", "max": 20},
-             {"key": "roe", "op": "gte", "min": 15},
-             {"key": "eps_growth", "op": "gte", "min": 15}],
+             {"key": "pe_fwd", "op": "between", "min": 0, "max": 20},
+             {"key": "roe", "op": "gte", "min": 25},
+             {"key": "eps_growth", "op": "gte", "min": 25},
+             {"key": "op_margin", "op": "gte", "min": 20},
+             {"key": "market_cap", "op": "gte", "min": 1e10}],
           "view": "valuation", "sort": {"key": "uct_composite", "dir": "desc"}}},
         # ── flagship presets (spec §7, owner-confirmed 2026-08-21) ──
         # Registry starters are the publication surface for these numbers —
@@ -504,22 +576,78 @@ def _starter_defs():
         # presence — no new operator this wave (controller ruling, recorded).
         # (momentum_leaders / pullback_20ema / tight_base moved to the top of
         #  this list, renamed; their specs are unchanged.)
+        # Both pair a LIVE gap / new high with volume; the volume is now live in the
+        # session and last session's otherwise (`_live_volume_or_nightly`). Production
+        # 2026-10-15 after the close (nightly branch): Gap Movers 1, 52-week breakout
+        # 18, the same as the old specs, as they must be when no live value exists.
         {"id": "starter_gap_movers", "name": "Gap Movers",
          "group": "Momentum leaders",
-         "description": "Stocks that gapped up 8%+ on 3x normal volume, $300M+ market cap",
+         "description": "Stocks that gapped up 8%+ on 3x volume, live during the session, $300M+ market cap",
          "spec": {"filters": [
              {"key": "gap_pct", "op": "gte", "min": 8},
-             {"key": "vol_ratio", "op": "gte", "min": 3},
              {"key": "market_cap", "op": "gte", "min": 300_000_000}],
+          "logic": _live_volume_or_nightly(3),
           "view": "momentum", "sort": {"key": "gap_pct", "dir": "desc"}}},
         {"id": "starter_52w_breakout", "name": "52-Week Breakout on Volume",
          "group": "Breakouts & entries",
-         "description": "Stocks at a new 52 week high on 1.5x volume, $10M+ traded daily",
+         "description": "Stocks at a new 52 week high on 1.5x volume, live during the session, $10M+ traded daily",
          "spec": {"filters": [
              {"key": "new_52w_high", "op": "eq", "value": 1},
-             {"key": "vol_ratio", "op": "gte", "min": 1.5},
              {"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000}],
+          "logic": _live_volume_or_nightly(1.5),
           "view": "technical", "sort": {"key": "vol_ratio", "dir": "desc"}}},
+        # ── live-volume starters (rvol_live: volume vs usual BY NOW) ──
+        # ⚠️ rvol_live is blank before 09:45 ET and outside the session, so these
+        # return NOTHING then, and the Focus screen says "live during the session"
+        # for that zero (emptyReason.js) rather than "none today". Their counts can
+        # only be measured in the session; the non-live clauses were measured on
+        # production 2026-10-15 with last session's vol_ratio standing in for
+        # rvol_live (a full-day ratio, the closest thing to "by now" at the close):
+        #   Volume surge right now        529 without volume, 13 at vol_ratio >= 2
+        #   Gapping up on volume           42 without volume,  5 at vol_ratio >= 1.5
+        #   Near the 20-day high on vol   537 without volume, 41 at vol_ratio >= 1.5
+        {"id": "starter_volume_surge_now", "name": "Volume surge right now",
+         "group": "Momentum leaders",
+         "description": "Stocks on 2x usual volume and up from the open, live during the session, above 50 day, $20M+ traded, price $5+",
+         "spec": {"filters": [
+             {"key": "rvol_live", "op": "gte", "min": 2},
+             {"key": "chg_from_open_pct", "op": "gt", "min": 0},
+             {"key": "above_50sma", "op": "eq", "value": 1},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 20_000_000},
+             {"key": "price", "op": "gte", "min": 5}],
+          "view": "technical", "sort": {"key": "rvol_live", "dir": "desc"}}},
+        {"id": "starter_gap_up_volume", "name": "Gapping up on volume",
+         "group": "Momentum leaders",
+         "description": "Stocks gapped up 3%+ on 1.5x usual volume, live during the session, $10M+ traded, price $5+",
+         "spec": {"filters": [
+             {"key": "gap_pct", "op": "gte", "min": 3},
+             {"key": "rvol_live", "op": "gte", "min": 1.5},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000},
+             {"key": "price", "op": "gte", "min": 5}],
+          "view": "technical", "sort": {"key": "gap_pct", "dir": "desc"}}},
+        {"id": "starter_near_20d_high_volume", "name": "Near the 20-day high on volume",
+         "group": "Breakouts & entries",
+         "description": "Stocks within 3% of the 20 day high on 1.5x usual volume, live during the session, above 50 day, $20M+ traded",
+         "spec": {"filters": [
+             {"key": "dist_20d_high_pct", "op": "gte", "min": -3},
+             {"key": "rvol_live", "op": "gte", "min": 1.5},
+             {"key": "above_50sma", "op": "eq", "value": 1},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 20_000_000}],
+          "view": "technical", "sort": {"key": "rvol_live", "dir": "desc"}}},
+        # Minervini's trend template, tightened to fit a working list: the textbook
+        # cut (RS 70+, within 25% of the high, $20M+) returned 113 on production
+        # 2026-10-15; RS 90+, within 15% and $50M+ returns 52.
+        {"id": "starter_trend_template", "name": "Trend template",
+         "group": "Momentum leaders",
+         "description": "Stocks: MAs stacked, 30%+ above the 52 week low, within 15% of the 52 week high, RS 90+, 3%+ daily range, $50M+ traded",
+         "spec": {"filters": [
+             {"key": "ma_stack", "op": "eq", "value": "full-bull"},
+             {"key": "dist_52w_low_pct", "op": "gte", "min": 30},
+             {"key": "dist_52w_high_pct", "op": "gte", "min": -15},
+             {"key": "rs_rank", "op": "gte", "min": 90},
+             {"key": "adr_pct", "op": "gte", "min": 3},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 50_000_000}],
+          "view": "technical", "sort": {"key": "rs_rank", "dir": "desc"}}},
         # ⛔ 2026-08-23: THIS PRESET RETURNED ZERO ROWS, ALWAYS — caught by
         # running all ten starters against prod rather than by any test.
         # Spec §7 asked for "implied move present", which shipped as

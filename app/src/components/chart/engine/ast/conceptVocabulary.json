@@ -657,7 +657,7 @@
       "note": "The firm's preset is a BAND (`between -2 and 2`), so the expansion is two comparisons rather than one."
     },
     "shallow pullback": {
-      "source": "pullback_depth_pct <= 10",
+      "source": "pullback_depth_pct <= 5",
       "ast": {
         "type": "op",
         "name": "<=",
@@ -668,16 +668,16 @@
           },
           {
             "type": "num",
-            "value": 10
+            "value": 5
           }
         ]
       },
-      "sentence": "1 when the depth of the current pullback is less than or equal to 10 and 0 otherwise",
+      "sentence": "1 when the depth of the current pullback is less than or equal to 5 and 0 otherwise",
       "grounding": [
         {
           "kind": "filter_preset",
           "key": "pullback_depth_pct",
-          "preset": "Shallow (<10%)"
+          "preset": "Shallow (<5%)"
         }
       ]
     },
@@ -821,7 +821,7 @@
       ]
     },
     "pullback to the 20ema": {
-      "source": "rs_rank >= 80 && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2 && ema_stack_intact && vol_nweek_low >= 10",
+      "source": "rs_rank >= 80 && pct_vs_ema20 >= -3 && pct_vs_ema20 <= 1 && ema20_rising && above_50sma && dollar_vol_30d >= 20000000",
       "ast": {
         "type": "op",
         "name": "&&",
@@ -840,59 +840,69 @@
                     "args": [
                       {
                         "type": "op",
-                        "name": ">=",
+                        "name": "&&",
                         "args": [
                           {
-                            "type": "series",
-                            "name": "rs_rank"
+                            "type": "op",
+                            "name": ">=",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "rs_rank"
+                              },
+                              {
+                                "type": "num",
+                                "value": 80
+                              }
+                            ]
                           },
                           {
-                            "type": "num",
-                            "value": 80
+                            "type": "op",
+                            "name": ">=",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "pct_vs_ema20"
+                              },
+                              {
+                                "type": "op",
+                                "name": "u-",
+                                "args": [
+                                  {
+                                    "type": "num",
+                                    "value": 3
+                                  }
+                                ]
+                              }
+                            ]
                           }
                         ]
                       },
                       {
                         "type": "op",
-                        "name": ">=",
+                        "name": "<=",
                         "args": [
                           {
                             "type": "series",
                             "name": "pct_vs_ema20"
                           },
                           {
-                            "type": "op",
-                            "name": "u-",
-                            "args": [
-                              {
-                                "type": "num",
-                                "value": 2
-                              }
-                            ]
+                            "type": "num",
+                            "value": 1
                           }
                         ]
                       }
                     ]
                   },
                   {
-                    "type": "op",
-                    "name": "<=",
-                    "args": [
-                      {
-                        "type": "series",
-                        "name": "pct_vs_ema20"
-                      },
-                      {
-                        "type": "num",
-                        "value": 2
-                      }
-                    ]
+                    "type": "series",
+                    "name": "ema20_rising"
                   }
                 ]
               },
               {
                 "type": "series",
-                "name": "ema_stack_intact"
+                "name": "above_50sma"
               }
             ]
           },
@@ -902,17 +912,17 @@
             "args": [
               {
                 "type": "series",
-                "name": "vol_nweek_low"
+                "name": "dollar_vol_30d"
               },
               {
                 "type": "num",
-                "value": 10
+                "value": 20000000
               }
             ]
           }
         ]
       },
-      "sentence": "((((1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise) and (1 when the percentage distance from the 20-day exponential average is greater than or equal to (the negative of 2) and 0 otherwise)) and (1 when the percentage distance from the 20-day exponential average is less than or equal to 2 and 0 otherwise)) and whether the EMA stack is intact (close above EMA10 above EMA20, both rising)) and (1 when the volume-dryness bar count (20 = 4-week low, 15 = 3-week, 10 = 2-week) is greater than or equal to 10 and 0 otherwise)",
+      "sentence": "(((((1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise) and (1 when the percentage distance from the 20-day exponential average is greater than or equal to (the negative of 3) and 0 otherwise)) and (1 when the percentage distance from the 20-day exponential average is less than or equal to 1 and 0 otherwise)) and whether the 20-bar EMA is rising) and whether the price is above its 50-day average) and (1 when the average daily dollar volume over 30 days is greater than or equal to 20000000 and 0 otherwise)",
       "grounding": [
         {
           "kind": "starter_screen",
@@ -922,12 +932,12 @@
       "attribution": {
         "setup": "Classic Flag/Pullback"
       },
-      "note": "The firm ships this screen. Every term is one of its four filters, at its thresholds."
+      "note": "The firm ships this screen. Every term is one of its filters, at its thresholds; the stocks-only clause is the starter's universe, not a column."
     }
   },
   "_refused_why": "EACH REASON NAMES THE WORD, because a member who is refused needs to know which of their words could not be ground -- not that `something` failed. These are words a member will plausibly say and this vocabulary deliberately declines to guess at.",
   "_refused": {
-    "cheap": "\"cheap\" has no defensible definition here. The firm's own screen that uses the word -- `Cheap quality compounders` -- bundles a forward-P/E ceiling with an ROE floor and an EPS-growth floor, so the word alone does not say which multiple you mean, or whether quality is part of it. Say `forward P/E under 20`, or name the screen.",
+    "cheap": "\"cheap\" has no defensible definition here. The firm's own screen that uses the word -- `Cheap quality compounders` -- bundles a forward-P/E ceiling with ROE, EPS-growth, operating-margin and market-cap floors, so the word alone does not say which multiple you mean, or whether quality is part of it. Say `forward P/E under 20`, or name the screen.",
     "expensive": "\"expensive\" is the mirror of `cheap` and has the same problem: no single multiple is the firm's answer, and picking one would be somebody's opinion presented as the house view.",
     "strong": "\"strong\" is ambiguous between three different scans -- relative strength (`rs_rank`), price momentum (`chg_pct_1w` / `chg_pct_1m`) and fundamental quality (`uct_composite`). Name which one and the vocabulary can ground it.",
     "quality": "\"quality\" is not one measure. `roe`, `op_margin`, `net_margin` and `uct_composite` are four different screens and the firm has never declared one of them to be the definition.",

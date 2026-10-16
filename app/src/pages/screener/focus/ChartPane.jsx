@@ -6,8 +6,8 @@ import { paneLookProps } from '../../../components/chart/pane/paneLook'
 import usePreferences from '../../../hooks/usePreferences'
 import { hasFinalTickerIpo } from '../../../hooks/useTickerIpo'
 import WhyStrip from './WhyStrip'
-import { setupLine } from './setupLine'
-import { plainFact } from './plainWords'
+import { setupLine, pivotLine } from './setupLine'
+import { plainFact, volumeFact } from './plainWords'
 import { livePriceOf } from './livePrice'
 import { earningsText } from './dates'
 import { useThemeInk } from '../../../lib/theme'
@@ -32,7 +32,8 @@ const pct = v => (Number.isFinite(v) ? `${v > 0 ? '+' : v < 0 ? '−' : ''}${Mat
 
 // Plain words (owner decision 5): the wording lives in plainWords.js, shared with the sort menu.
 // Earnings is its own span (P8), so it can turn amber when it is near.
-const facts = row => ['vol_ratio', 'adr_pct'].map(k => plainFact(k, row[k])).filter(Boolean).join(' · ')
+// Volume prefers the live "by now" reading (rvol_live) over the completed-session ratio.
+const facts = row => [volumeFact(row), plainFact('adr_pct', row.adr_pct)].filter(Boolean).join(' · ')
 
 const isSide = key => typeof key === 'string' && SIDE_FETCH.some(p => key.startsWith(p))
 // Scoped to this pane's chart only (an SWRConfig around it), so every other chart is untouched:
@@ -110,9 +111,13 @@ const isEditable = t => /^(input|textarea|select)$/i.test(t?.tagName || '') || !
 function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFlagged, onWatch, onNavKey, onRefocus, structures, busy = false }) {
   const [tf, setTf] = useState('D')
   const ink = useThemeInk(PIVOT_INK)
-  const pivot = row?.base_pivot_px
-  const priceLines = useMemo(() => (Number.isFinite(pivot)
-    ? [{ price: pivot, color: ink.pivot, title: 'pivot' }] : []), [pivot, ink.pivot])
+  // The head structure's pivot, titled for it ("Flat base pivot"), and hidden once the row's bars
+  // are stale (setupLine.pivotLine). Primitives into the memo, so a tick never rebuilds the lines.
+  const line = row ? pivotLine(row, structures, now ?? Date.now()) : null
+  const linePx = line?.price
+  const lineTitle = line?.title
+  const priceLines = useMemo(() => (Number.isFinite(linePx)
+    ? [{ price: linePx, color: ink.pivot, title: lineTitle }] : []), [linePx, lineTitle, ink.pivot])
   const sym = row?.ticker || null
 
   // Perf 2: the ticker has stayed put SETTLE_MS.
@@ -153,7 +158,7 @@ function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFl
   // B5/N4: the same price and change the row shows (livePrice.js).
   const live = Number.isFinite(livePx) ? { price: livePx, change_pct: liveChg } : null
   const { price, chg } = livePriceOf(row, live)
-  const s = setupLine({ ...row, price }, structures)
+  const s = setupLine({ ...row, price }, structures, { now: now ?? Date.now() })
   const factText = facts(row)
   const earn = earningsText(row.next_earnings_date, now)
   const industry = row.industry || row.sector
