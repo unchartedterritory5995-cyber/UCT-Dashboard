@@ -11,6 +11,10 @@ Visible to every member (owner ruling 2026-10-15): they shipped admin-only via
 `registry.INTERNAL_PATTERN_IDS` and were made public; they are listed in the
 member catalog (`api/routers/patterns.py::_PATTERN_METADATA`).
 
+A second set — `uct_launch_pad`, `uct_gap_support`, `uct_capitulation` and
+`uct_go_signal` — shares these helpers and ships INTERNAL (admin-only) through
+the same gate, the way the first four did.
+
 Every indicator here is causal: the value at index k depends only on bars[0..k],
 so evaluating session i on the full list equals evaluating it on bars[:i+1].
 
@@ -73,6 +77,17 @@ def series(bars) -> dict:
         "e21": ema(c, 21), "s50": sma(c, 50), "s200": sma(c, 200),
         "v50": sma(v, 50), "atr": atr(bars),
     }
+
+
+def bb_lower(c, n=20, k=2.0):
+    """Lower Bollinger band (population standard deviation), causal."""
+    out = [None] * len(c)
+    for j in range(n - 1, len(c)):
+        w = c[j - n + 1:j + 1]
+        m = sum(w) / n
+        sd = (sum((x - m) ** 2 for x in w) / n) ** 0.5
+        out[j] = m - k * sd
+    return out
 
 
 def dcr(b) -> float:

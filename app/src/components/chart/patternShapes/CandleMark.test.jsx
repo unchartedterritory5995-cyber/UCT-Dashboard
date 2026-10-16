@@ -110,6 +110,10 @@ describe('CandleMark — the four trader-setup detectors (public since 2026-10-1
     ['uct_oops_reversal', 'bullish', 'OR'],
     ['uct_slingshot', 'bullish', 'SL'],
     ['uct_hve', 'bearish', 'HVE'],
+    ['uct_launch_pad', 'bullish', 'LP'],
+    ['uct_gap_support', 'bullish', 'GS'],
+    ['uct_capitulation', 'bullish', 'CAP'],
+    ['uct_go_signal', 'bullish', 'GO'],
   ]
   it.each(cases)('%s renders a badge on the trigger candle with its own letter', (pid, direction, letter) => {
     const detection = {

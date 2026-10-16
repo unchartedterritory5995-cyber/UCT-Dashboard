@@ -1,4 +1,5 @@
-"""Shared battery for the four UCT trader-setup detectors (public since 2026-10-15).
+"""Shared battery for the UCT trader-setup detectors (first four public since 2026-10-15,
+second four internal).
 
 Each family's test module calls `make_tests(...)` so the four batteries are
 one implementation, not four copies that can drift.
@@ -19,7 +20,8 @@ def _ctx(f):
     return f.context if f.context is not None else build_context(f.bars, sym="TEST")
 
 
-def make_tests(pattern_id, detect, required_extras, rule_fixtures, directions=("bullish",)):
+def make_tests(pattern_id, detect, required_extras, rule_fixtures, directions=("bullish",),
+               public=True):
     fixtures = load_all_fixtures(pattern_id, include_internal=False)
 
     @pytest.mark.parametrize("fixture", fixtures, ids=lambda f: f.source_filename)
@@ -91,12 +93,17 @@ def make_tests(pattern_id, detect, required_extras, rule_fixtures, directions=("
             else:
                 assert lv["stop"] > lv["entry"] > lv["target_primary"] > lv["target_secondary"]
 
-    def test_is_public_and_in_member_catalog():
-        # Owner ruling 2026-10-15: the four are visible to every member and tool.
+    def test_visibility_matches_its_ruling():
+        # Owner ruling 2026-10-15: the first four are visible to every member and
+        # tool. The second set ships INTERNAL: in the gate, out of the catalog.
         from api.routers.patterns import _PATTERN_METADATA
-        assert not is_internal(pattern_id) and pattern_id not in INTERNAL_PATTERN_IDS
-        meta = _PATTERN_METADATA.get(pattern_id)
-        assert meta and meta["category"] == "uct" and meta["description"]
+        if public:
+            assert not is_internal(pattern_id) and pattern_id not in INTERNAL_PATTERN_IDS
+            meta = _PATTERN_METADATA.get(pattern_id)
+            assert meta and meta["category"] == "uct" and meta["description"]
+        else:
+            assert is_internal(pattern_id) and pattern_id in INTERNAL_PATTERN_IDS
+            assert pattern_id not in _PATTERN_METADATA
 
     def test_never_raises_on_short_or_degenerate_input():
         assert detect([], {}) == []
