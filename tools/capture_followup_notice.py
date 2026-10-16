@@ -63,7 +63,7 @@ ef._reporters_configured = lambda: True
 ef._member_ids = lambda conn: [uid]
 ef._member_sets = lambda user_id: {sym: ["watchlist"]}
 ef._paid = lambda user_id, conn: True
-ef._reaction_pct = lambda symbol, report_date: -4.2
+ef._reaction_pct = lambda symbol, report_date, *a, **k: -4.2    # the warm also passes now / budget / tally
 
 result = ef.run_followups(now=datetime(day.year, day.month, day.day, 17, 0, tzinfo=ET), pass_label="capture")
 print("RESULT " + json.dumps(result, sort_keys=True))
