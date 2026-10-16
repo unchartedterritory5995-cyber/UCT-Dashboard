@@ -51,7 +51,7 @@ let server
 function makeServer({ body, updatedAt }) {
   let rev = 0
   const s = {
-    title: 'Thesis', subtitle: '', body, updatedAt, puts: [], forks: [], down: false,
+    title: 'Thesis', subtitle: '', body, updatedAt, puts: [], forks: [], down: false, refuseCreate: 0,
     note: () => ({
       id: 'n1', title: s.title, subtitle: s.subtitle, folderId: null, ticker: null, tags: [],
       heroImageUrl: null, isFavorite: false, bodyJson: s.body, updatedAt: s.updatedAt,
@@ -85,6 +85,12 @@ vi.mock('../noteCreation', () => ({
   // only the network call underneath is stubbed, and it honours the network being down.
   createNoteViaApi: vi.fn(async (args) => {
     if (server.down) throw new Error('network down')
+    // Fix round 3: the server can refuse a create (the real helper sets `.status`).
+    if (server.refuseCreate) {
+      const e = new Error(`Could not create note (${server.refuseCreate})`)
+      e.status = server.refuseCreate; e.detail = 'title too long'
+      throw e
+    }
     server.forks.push(args)
     return { id: `fork-${server.forks.length}`, ...args }
   }),
@@ -712,47 +718,109 @@ describe('I-A · fix round 2 — the routes the round-1 review traced (C-1, C-2)
   })
 })
 
-describe('I-A · fix round 2 — a copy the server refused is reachable, never deleted (I-1)', () => {
-  const COPY_WORDS = 'words in a copy the server refused'
+describe('I-A · fix round 3 — a copy the server refused is its own offer: saved as a separate note, never restored into its source (C-3, I-4)', () => {
+  // ⛔⛔ Review I-5: the copy's words must DIFFER from the server's text. Round 2's
+  // fixture held a superset of the server body, so writing the copy over the
+  // note could not fail any assertion — that is what hid C-3.
+  const COPY_WORDS = 'words in a copy the server refused - R-copy'
+  const SERVER_NOW = 'the note as it is on the server now - S-now'
   async function refusedCopy() {
     factory.open(ACCOUNT_DB)
     await act(async () => { await settleIdb(2) })
     const { copyEntryFor } = await import('./noteCopy')
     const copy = copyEntryFor({
-      noteId: 'n1', words: { title: 'Thesis', subtitle: 'copy subtitle', bodyJson: doc(ONLINE, para(COPY_WORDS)) }, sessionId: 's-away',
+      noteId: 'n1', words: { title: 'Thesis', subtitle: 'copy subtitle', bodyJson: doc(para(COPY_WORDS)) }, sessionId: 's-away',
     })
     factory.databases.get(ACCOUNT_DB).seed('outbox', {
-      ...copy, permanent: true, copyRefused: { status: 400, error: 'refused 400' }, lastStatus: 400, lastError: 'refused 400',
+      ...copy, permanent: true, copyRefused: { status: 400, error: 'Could not create note (400)', detail: 'title too long' },
+      lastStatus: 400, lastError: 'Could not create note (400)',
     })
     return copy
   }
-
-  it('opening the source note OFFERS the refused copy; Restore puts its words in the note and only then retires the copy', async () => {
-    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+  const copyKept = (copy) => outbox().some((e) => e.mutationId === copy.mutationId)
+  async function openOnRefusedCopy() {
+    server = makeServer({ body: doc(para(SERVER_NOW)), updatedAt: T0 })
     const copy = await refusedCopy()
     await openTheNote()
     await sit(2)
-    const restore = await screen.findByRole('button', { name: 'Restore' })
-    await act(async () => { fireEvent.click(restore); await settleIdb(6) })
-    expect(await until(async () => (await viewText()).includes(COPY_WORDS)), 'the refused copy\'s words are on the page').toBe(true)
-    await sit(4)
-    expect(JSON.stringify(server.body), 'the words reached the note on the server').toContain(COPY_WORDS)
-    expectDurable(COPY_WORDS, 'after the Restore')
-    expect(outbox().some((e) => e.mutationId === copy.mutationId), 'the copy was retired once its words were in the note').toBe(false)
+    return copy
+  }
+
+  it('⛔⛔ C-3: the offer never writes the copy into its source note — "Save as a separate note" creates a new note and the source keeps its text', async () => {
+    const copy = await openOnRefusedCopy()
+    await sit(2)
+    expect(screen.queryByRole('button', { name: 'Restore' }), 'a refused copy is offered as a Restore into its source').toBeNull()
+    const save = await screen.findByRole('button', { name: 'Save as a separate note' })
+    await act(async () => { fireEvent.click(save); await settleIdb(6) })
+    await sit(3)
+    expect(JSON.stringify(server.body), 'the source note lost its server text').toContain(SERVER_NOW)
+    expect(JSON.stringify(server.body), 'the copy was written over its source note').not.toContain(COPY_WORDS)
+    expect(server.puts.some((p) => JSON.stringify(p).includes(COPY_WORDS)), 'a PUT carried the copy into the source').toBe(false)
+    expect(server.forks, 'exactly one separate note was created').toHaveLength(1)
+    expect(JSON.stringify(server.forks[0].bodyJson)).toContain(COPY_WORDS)
+    expect(server.forks[0].subtitle).toBe('copy subtitle')
+    expect(server.forks[0].title).toBe('Thesis (conflicted copy)')
+    expect(copyKept(copy), 'the copy entry was kept after its note was created').toBe(false)
+    expect(screen.queryByRole('button', { name: 'Save as a separate note' }), 'the offer stayed up after it was saved').toBeNull()
+    expect(screen.getByText(/saved as a separate note/i), 'the member is told where the words went').toBeTruthy()
   })
 
-  it('Discard on the offered copy NEVER deletes it — it is offered again next time', async () => {
-    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
-    const copy = await refusedCopy()
-    await openTheNote()
+  it('the offer says, in plain words, that the copy is kept on this device and what each button does (I-4)', async () => {
+    await openOnRefusedCopy()
+    const offer = await screen.findByTestId('refused-copy-offer')
+    expect(offer.textContent).toMatch(/kept on this device/i)
+    expect(offer.textContent).toMatch(/save as a separate note/i)
+    expect(offer.textContent).toMatch(/discard/i)
+    expect(offer.textContent, 'the reason the server gave is shown').toMatch(/title too long/i)
+  })
+
+  it('⛔ I-4: a refused copy does NOT mark its healthy source note blocked ("edit it again to sync" is false for a copy)', async () => {
+    const copy = await openOnRefusedCopy()
+    await sit(4)
+    expect(copyKept(copy), 'precondition: the refused copy is still held on this device').toBe(true)
+    expect(screen.getByPlaceholderText('Title'), 'precondition: the note is open').toBeTruthy()
+    expect(screen.queryByText(/edit it again to sync/i), 'the source note wears the blocked label').toBeNull()
+  })
+
+  it('a re-POST refused AGAIN keeps the copy on this device and keeps offering it, with its reason', async () => {
+    const copy = await openOnRefusedCopy()
+    server.refuseCreate = 422
+    const save = await screen.findByRole('button', { name: 'Save as a separate note' })
+    await act(async () => { fireEvent.click(save); await settleIdb(6) })
     await sit(2)
+    expect(copyKept(copy), 'a refused re-POST lost the copy').toBe(true)
+    expectDurable(COPY_WORDS, 'after a refused re-POST')
+    expect(server.forks).toHaveLength(0)
+    const offer = await screen.findByTestId('refused-copy-offer')
+    expect(offer.textContent).toMatch(/kept on this device/i)
+    expect(screen.getByRole('button', { name: 'Save as a separate note' }), 'the copy is no longer offered').toBeTruthy()
+    expect(JSON.stringify(server.body)).toContain(SERVER_NOW)
+  })
+
+  it('Discard asks first (in the page), and keeps the copy if the member backs out', async () => {
+    const copy = await openOnRefusedCopy()
     const discard = await screen.findByRole('button', { name: 'Discard' })
-    await act(async () => { fireEvent.click(discard); await settleIdb(6) })
+    await act(async () => { fireEvent.click(discard); await settleIdb(4) })
+    expect(copyKept(copy), 'Discard deleted the copy before it was confirmed').toBe(true)
+    const keep = await screen.findByRole('button', { name: 'Keep it' })
+    expect(screen.getByRole('button', { name: 'Delete copy' })).toBeTruthy()
+    await act(async () => { fireEvent.click(keep); await settleIdb(4) })
+    expect(copyKept(copy)).toBe(true)
+    expect(screen.getByRole('button', { name: 'Save as a separate note' })).toBeTruthy()
+  })
+
+  it('Discard, confirmed, deletes the copy and it does NOT come back on the next open', async () => {
+    const copy = await openOnRefusedCopy()
+    await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'Discard' })); await settleIdb(4) })
+    await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'Delete copy' })); await settleIdb(6) })
     await sit(2)
-    expect(outbox().some((e) => e.mutationId === copy.mutationId), 'Discard deleted a refused copy').toBe(true)
-    expectDurable(COPY_WORDS, 'after Discard')
+    expect(copyKept(copy), 'a confirmed Discard kept the copy').toBe(false)
+    expect(screen.queryByTestId('refused-copy-offer')).toBeNull()
+    expect(JSON.stringify(server.body)).toContain(SERVER_NOW)
     await reopen()
-    expect(await screen.findByRole('button', { name: 'Restore' }), 'the copy is offered again').toBeTruthy()
+    await sit(2)
+    expect(copyKept(copy), 'the discarded copy came back').toBe(false)
+    expect(screen.queryByTestId('refused-copy-offer'), 'the discarded copy is offered again').toBeNull()
   })
 })
 
