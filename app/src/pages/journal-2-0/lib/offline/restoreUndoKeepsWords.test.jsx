@@ -459,10 +459,27 @@ describe('I-A · ⛔⛔ a crash-draft Restore, and any Undo past it, never leave
     expectBothDurable('after the Redo')
     await typeAtEnd(' after-redo')
     await sit(2)
+    expectDurable('after-redo', 'the words typed after the Redo')
+    // ⭐ OFFLINE-UNDO (2026-10-16): the first Undo below takes ' after-redo' back —
+    // an ORDINARY Undo of the member's own typing, which is an edit of this view
+    // like a keystroke: the record follows the page and is never pinned to the
+    // undone words (`ordinaryUndoNoPin.test.jsx`). Fix round 1 rotated on it and
+    // kept them; this rail used to assert that. The crossing after it still keeps
+    // both, and Redo brings the typing back into a durable layer.
+    await undoOnce()
+    expect(await viewText(), 'precondition: an ordinary Undo took the typing back').not.toContain('after-redo')
+    expect(await viewText(), 'precondition: it did not cross the Restore').toContain(SENTENCE)
+    await sit(2)
+    expect(words(record()), 'the record stayed pinned to words the member undid').not.toContain('after-redo')
     expect(await undoUntilGone(SENTENCE), 'precondition: Undo crossed the Restore again').toBeGreaterThan(0)
     await sit(2)
     expectBothDurable('after the second Undo')
-    expectDurable('after-redo', 'the words typed after the Redo')
+    await redoOnce()                                              // the Restore, across it again
+    await redoOnce()                                              // and the typing
+    expect(await viewText(), 'precondition: Redo put the typing back').toContain('after-redo')
+    await sit(2)
+    expectBothDurable('after the second Redo')
+    expectDurable('after-redo', 'the words typed after the Redo, redone')
   })
 
   it('a keystroke INSIDE the 200 ms window right after the Undo cannot coalesce anything away', async () => {

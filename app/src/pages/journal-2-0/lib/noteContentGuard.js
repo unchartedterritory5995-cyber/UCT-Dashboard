@@ -193,6 +193,33 @@ export function replaceDocument(editor, json, options) {
   return Boolean(ran) && editor.state.doc !== before
 }
 
+/**
+ * ⭐ Does `tr` replace the WHOLE document — a `replaceDocument` swap, or an Undo or
+ * Redo that takes one back or puts one back?
+ *
+ * Every swap above is `setContent`, which is ONE replace step over the whole
+ * content (`0 .. doc.content.size`), and prosemirror-history undoes and redoes a
+ * step by its exact inverse — so the Undo or Redo of a swap carries a whole-document
+ * replace step too, even when the history merged the swap with typing beside it
+ * into one event. That is how the editor tells an Undo that crosses a swap (a new
+ * edit lineage: the page coming back is not this view's writing) from an ordinary
+ * Undo of the member's own typing (the same lineage: an edit like any other).
+ * ⛔ Asked of the STEP SHAPE, not of the swap's meta: an Undo is a fresh
+ * transaction and carries none of the swap's metas.
+ * ⚠️ The member's own whole-document replace (select all, then type or delete) is
+ * answered true as well — the safe direction, it only returns that Undo to the
+ * conservative containment test.
+ * Rail: `lib/offline/ordinaryUndoNoPin.test.jsx` (and every swap's own shape).
+ */
+export function replacesWholeDocument(tr) {
+  if (!tr || !Array.isArray(tr.steps)) return false
+  return tr.steps.some((step, i) => {
+    const before = tr.docs?.[i]
+    // A replace step carries a `slice`; a mark or attribute step does not.
+    return Boolean(before && step?.slice && step.from === 0 && step.to === before.content.size)
+  })
+}
+
 function subscribe(fn) {
   listeners.add(fn)
   return () => listeners.delete(fn)

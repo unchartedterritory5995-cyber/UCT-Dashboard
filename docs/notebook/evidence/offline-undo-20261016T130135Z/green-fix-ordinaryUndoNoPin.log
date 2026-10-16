@@ -1,0 +1,102 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-offline-undo/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m[2m(b) type (unsent), Undo, keep typing, leave ⇒ the server ends with the final text and no (conflicted copy)[2m > [22m[2m⭐⭐ offline: type, Undo, keep typing, come back online and leave — the durable copy and the queue hold the FINAL text
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-offline-undo/app/src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:83:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-offline-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3929:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-offline-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1987:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m[2m(d) an Undo across a whole-view swap still rotates, and the offline words survive[2m > [22m[2mversion restore: the old view’s unsent words survive typing on the restored version AND an Undo back across it
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-offline-undo/app/src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:83:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-offline-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3929:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-offline-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1987:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m[2m(d) an Undo across a whole-view swap still rotates, and the offline words survive[2m > [22m[2ma swap’s own Undo and Redo each mint a lineage; an Undo inside the swapped-in view does not
+[22m[39mAn update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx[2m > [22m[2m(e) ⛔⛔ CONTROL — a genuine second writer still forks[2m > [22m[2moffline: type, Undo, keep typing; another device rewrites the note; leaving forks ONCE, with the member’s NEWEST words
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-offline-undo/app/src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx:83:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-offline-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3929:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-offline-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1987:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+ [32m✓[39m src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx [2m([22m[2m11 tests[22m[2m)[22m[33m 18082[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ Undo back to text that has already landed: the undone text is NOT re-sent behind the member’s back [33m 3897[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ the plain one-edit case: type, it lands, Undo it, it lands, leave [33m 1136[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ online: the Undo comes before the first save, the next save lands, the member leaves [33m 1451[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ offline: type, Undo, keep typing, come back online and leave — the durable copy and the queue hold the FINAL text [33m 1395[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ (a) by Redo: a landed deletion, Undo, Redo back to the landed text, leave ⇒ no silent revert [33m 1433[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ (b) by Redo: delete (unsent), Undo, Redo, keep typing, leave ⇒ the final text, no (conflicted copy) [33m 1715[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ an ordinary Undo and Redo mint no lineage (they are the member’s edits of this view) [33m 851[2mms[22m[39m
+     [33m[2m✓[22m[39m version restore: the old view’s unsent words survive typing on the restored version AND an Undo back across it [33m 1841[2mms[22m[39m
+     [33m[2m✓[22m[39m a swap’s own Undo and Redo each mint a lineage; an Undo inside the swapped-in view does not [33m 1634[2mms[22m[39m
+     [33m[2m✓[22m[39m offline: type, Undo, keep typing; another device rewrites the note; leaving forks ONCE, with the member’s NEWEST words [33m 1479[2mms[22m[39m
+     [33m[2m✓[22m[39m online, after an Undo: another device writes while this view holds unsent words ⇒ the editor’s save forks, never clobbers [33m 1249[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m11 passed[39m[22m[90m (11)[39m
+[2m   Start at [22m 08:03:29
+[2m   Duration [22m 19.20s[2m (transform 2.35s, setup 230ms, import 183ms, tests 18.08s, environment 543ms)[22m
+

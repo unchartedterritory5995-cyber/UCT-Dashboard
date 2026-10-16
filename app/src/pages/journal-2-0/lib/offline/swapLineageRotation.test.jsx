@@ -13,9 +13,11 @@
  * the server copy the Undo restored, and dropped from the record, the queue AND
  * the crash draft.
  *
- * ⭐ THE RULING: an undo or redo transaction mints a new lineage (prosemirror-
- * history marks every one with its plugin meta — `isHistoryTransaction`). Undo
- * itself is unchanged for the member.
+ * ⭐ THE RULING: an undo or redo transaction that CROSSES a swap mints a new
+ * lineage (it replaces the whole document — `replacesWholeDocument` — or crosses a
+ * crash-draft Restore). Undo itself is unchanged for the member. ⚰️ Fix round 1
+ * minted one on EVERY undo and redo (`isHistoryTransaction`), which pinned the
+ * record on an ordinary Undo: `ordinaryUndoNoPin.test.jsx`.
  *
  * C1 — the loss, through the REAL editor, the REAL durable layer and a real
  *      Undo: adoption (offline, and online before the first PUT), the crash-draft
