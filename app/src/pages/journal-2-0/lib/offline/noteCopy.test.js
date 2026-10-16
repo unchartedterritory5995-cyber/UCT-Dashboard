@@ -107,6 +107,19 @@ describe('the sweep turns a queued copy into a sibling', () => {
     expect(await listOutbox(db)).toEqual([])
   })
 
+  it('⛔ a copy an OLDER bundle blocked (it read it as a baseline-less update) is still forked here', async () => {
+    const copy = copyEntryFor({ noteId: 'n1', words: words('blocked by an old tab'), sessionId: 's1' })
+    await putNoteWithIntent(db, { noteId: 'n1', ...words('W'), dirty: 0, baseUpdatedAt: 'T1' }, null,
+      { copies: [{ ...copy, permanent: true, lastError: 'queued without a baseline' }] })
+    await settleIdb()
+    const fork = vi.fn(async () => ({ id: 'n1', title: 'Thesis', bodyJson: doc('W'), updatedAt: 'T1' }))
+    const results = await drainOutbox(db, { send: vi.fn(), fork })
+    await settleIdb()
+    expect(fork).toHaveBeenCalledTimes(1)
+    expect(results).toEqual([expect.objectContaining({ mutationId: copy.mutationId, outcome: FORKED })])
+    expect(await listOutbox(db)).toEqual([])
+  })
+
   it('⛔ a failed fork (offline) leaves the copy exactly where it was', async () => {
     const copy = await queueCopy()
     const fork = vi.fn(async () => { throw new Error('network down') })

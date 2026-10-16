@@ -414,16 +414,15 @@ export async function drainOutbox(db, {
     // in this tab (`excludeNoteId`) or, since D3b, in any tab (the owner lock) —
     // so the same entry's status depended on which tab happened to lead, and
     // `summarize().blocked` undercounted exactly while the member was looking.
-    if (entry.permanent) {
-      results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: BLOCKED })
-      continue
-    }
     // ⭐⭐ I-A FIX ROUND 1 — A QUEUED `(conflicted copy)` (`noteCopy.js`): words a
     // member's own swap pushed out of the record. It is a NEW note, so it needs no
     // baseline, no ownership and no classification: the same `fork` that makes
     // every other copy makes it, and only then is the entry removed. ⛔ A failed
     // fork leaves it exactly where it was (offline, the server down): durable, and
     // retried by the next sweep. It never touches the source note's record.
+    // ⛔ AHEAD OF THE `permanent` CHECK: a bundle that predates copies reads one
+    // as a baseline-less update and BLOCKS it (kept, never sent). This bundle
+    // still forks it — a blocked copy is not a reason to strand words.
     if (isNoteCopy(entry)) {
       try {
         // eslint-disable-next-line no-await-in-loop
@@ -434,6 +433,10 @@ export async function drainOutbox(db, {
       } catch (fe) {
         results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: KEPT, error: fe, copy: true })
       }
+      continue
+    }
+    if (entry.permanent) {
+      results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: BLOCKED })
       continue
     }
     if (excludeNoteId && entry.noteId === excludeNoteId) {
