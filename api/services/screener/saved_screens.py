@@ -541,13 +541,25 @@ def _starter_defs():
                               {"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000}],
                   "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
         # ── gaps / breakouts / events / value ──
+        # Was P/E <= 20, ROE 15%+, EPS growth 15%+: 386 names on production
+        # (2026-10-15 snapshot), so it filtered almost nothing, and `lte 20` also
+        # let a NEGATIVE forward P/E (expected losses) through as "cheap". Every
+        # threshold below is one this registry already publishes as a preset
+        # (Forward P/E "Under 20", ROE "Over 25%", EPS Growth "Over 25%",
+        # Operating Margin "Over 20%", Market Cap "Large (>$10B)"), so no new
+        # number ships. Calibrated read-only on production 2026-10-16 against the
+        # 2026-10-15 snapshot, stocks only: 386 before, 48 after (ROE 25 + EPS 25
+        # + cap $10B without the margin: 75).
         {"id": "starter_value_quality", "name": "Cheap quality compounders",
          "group": "Quality & value",
-         "description": "Stocks with forward P/E 20 or less, ROE 15%+ and EPS growth 15%+",
+         "description": ("Stocks with forward P/E under 20, ROE 25%+, EPS growth 25%+, "
+                         "operating margin 20%+ and market cap $10B+"),
          "spec": {"filters": [
-             {"key": "pe_fwd", "op": "lte", "max": 20},
-             {"key": "roe", "op": "gte", "min": 15},
-             {"key": "eps_growth", "op": "gte", "min": 15}],
+             {"key": "pe_fwd", "op": "between", "min": 0, "max": 20},
+             {"key": "roe", "op": "gte", "min": 25},
+             {"key": "eps_growth", "op": "gte", "min": 25},
+             {"key": "op_margin", "op": "gte", "min": 20},
+             {"key": "market_cap", "op": "gte", "min": 1e10}],
           "view": "valuation", "sort": {"key": "uct_composite", "dir": "desc"}}},
         # ── flagship presets (spec §7, owner-confirmed 2026-08-21) ──
         # Registry starters are the publication surface for these numbers —
