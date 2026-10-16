@@ -1,0 +1,33 @@
+{
+ "runs": 2,
+ "nav_ms": 1500,
+ "nav": "click",
+ "viewport": "1280",
+ "age": 0,
+ "type_delay": null,
+ "menu_pause_ms": 0,
+ "latency_ms": 0,
+ "settle_s": 8,
+ "late_s": 0,
+ "control": true,
+ "base": "http://127.0.0.1:8143",
+ "started": "20261016T004106Z",
+ "measured": 2,
+ "forked_runs": [
+  0,
+  1
+ ],
+ "forked_early_by_title": [
+  0,
+  1
+ ],
+ "forked_early_by_tag": [
+  0,
+  1
+ ],
+ "late_read_runs": [],
+ "forked_late_by_title": [],
+ "forked_late_by_tag": [],
+ "errors": [],
+ "control_verdict": "DETECTOR SEES A REAL FORK in every measured run"
+}

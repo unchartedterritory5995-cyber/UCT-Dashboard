@@ -1,0 +1,17 @@
+{
+ "base": "http://127.0.0.1:8143",
+ "out": "docs\\notebook\\evidence\\t2b-forkdiag-20261015T235943Z\\cells",
+ "cell": "D",
+ "flow": "remind",
+ "no_nav": true,
+ "runs": 5,
+ "viewport": "1280",
+ "hold_s": 10,
+ "nav_path": "/journal/notebook?view=tasks",
+ "code": "branch:14298f988f",
+ "dwell_ms": 0,
+ "followup_nav": true,
+ "max_attempts": 0,
+ "started": "20261016T002619Z",
+ "tool": "tools/notebook_forkdiag.py"
+}

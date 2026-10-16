@@ -1,0 +1,6 @@
+run 0: flow_complete=True forked=False puts=[200]
+run 1: flow_complete=True forked=True puts=[200, 409]
+run 2: flow_complete=True forked=False puts=[200]
+run 3: flow_complete=True forked=False puts=[200]
+run 4: flow_complete=True forked=False puts=[200]
+{"cell": "B", "flow": "task", "no_nav": false, "valid_runs_asked": 5, "attempts": 5, "valid_runs": 5, "incomplete_flow_runs": [], "forks_in_valid_runs": 1, "forks_in_all_runs": 1, "put_statuses_valid": [[200], [200, 409], [200], [200], [200]], "followup_forks": null, "errors": []}
