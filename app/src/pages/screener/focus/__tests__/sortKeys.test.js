@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { sortableColumns, isNumericColumn, columnTypes } from '../sortKeys'
+import { sortableColumns, isNumericColumn, columnTypes, ALWAYS_SORTABLE } from '../sortKeys'
 import { COLUMN_DEFS } from '../../columnDefs'
 
 // ⭐ CAPTURED 2026-10-14 from the server, not typed: `filters.VIEWS` (every view's columns) and,
@@ -67,9 +67,24 @@ test('every heat-scaled column definition is one the server does not type as tex
   }
 })
 test('order: the default, the current sort, then the view; each once; default always offered', () => {
-  const keys = sortableColumns({ meta: META, columns: ['ticker', 'price', 'rs_rank', 'sector', 'price'], sortKey: 'rs_rank', defaultKey: DEFAULT })
+  const keys = sortableColumns({ meta: META, columns: ['ticker', 'price', 'rs_rank', 'sector', 'price'], sortKey: 'rs_rank', defaultKey: DEFAULT, always: [] })
   expect(keys).toEqual([DEFAULT, 'rs_rank', 'price'])
-  expect(sortableColumns({ meta: null, columns: [], defaultKey: DEFAULT })).toEqual([DEFAULT])
+  expect(sortableColumns({ meta: null, columns: [], defaultKey: DEFAULT, always: [] })).toEqual([DEFAULT])
   // a text sort set elsewhere is not listed (the trigger still names it; Reverse still flips it)
-  expect(sortableColumns({ meta: META, columns: [], sortKey: 'base_render', defaultKey: DEFAULT })).toEqual([DEFAULT])
+  expect(sortableColumns({ meta: META, columns: [], sortKey: 'base_render', defaultKey: DEFAULT, always: [] })).toEqual([DEFAULT])
+})
+test('volume-vs-usual-by-now and pattern-entry distance are offered in EVERY view, after its own columns', () => {
+  expect(ALWAYS_SORTABLE).toEqual(['rvol_live', 'pattern_entry_dist_pct'])
+  for (const [view, cols] of Object.entries(VIEWS)) {
+    const keys = sortableColumns({ meta: META, columns: cols, defaultKey: DEFAULT })
+    expect(keys, view).toContain('rvol_live')
+    expect(keys, view).toContain('pattern_entry_dist_pct')
+    // each once, even in the views that already carry one of them
+    expect(keys.filter(k => k === 'rvol_live'), view).toHaveLength(1)
+    expect(keys.filter(k => k === 'pattern_entry_dist_pct'), view).toHaveLength(1)
+  }
+  // appended after the view's own columns, never ahead of them
+  expect(sortableColumns({ meta: META, columns: ['price'], defaultKey: DEFAULT })).toEqual([DEFAULT, 'price', 'rvol_live', 'pattern_entry_dist_pct'])
+  // still numeric-checked: with no meta to say they are numbers, neither is offered
+  expect(sortableColumns({ meta: null, columns: [], defaultKey: DEFAULT })).toEqual([DEFAULT])
 })

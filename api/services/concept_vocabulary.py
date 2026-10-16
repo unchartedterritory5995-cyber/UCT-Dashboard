@@ -476,7 +476,16 @@ def _resolve_starter_screen(cite: Mapping[str, Any]) -> dict:
     registry = _filters_registry()
     values: Set[float] = set()
     keys: Set[str] = set()
-    for f in screen.get("spec", {}).get("filters") or ():
+    # ⭐ A starter's grouped criteria (`spec.logic`, the any-of / none-of tree) are
+    # as much the firm's published terms as its flat filters: Gap Movers and the
+    # 52-week breakout carry their volume clause there. Reading only `filters`
+    # would refuse a concept quoting a number the screen really ships.
+    spec = screen.get("spec", {})
+    leaves = list(spec.get("filters") or ())
+    if spec.get("logic"):
+        from api.services.screener import logic as _logic  # noqa: PLC0415
+        leaves += _logic.leaves(spec["logic"])
+    for f in leaves:
         entry = registry.get(f.get("key"))
         if entry is None:
             raise _CitationFailed(

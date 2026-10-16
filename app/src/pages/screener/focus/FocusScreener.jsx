@@ -649,7 +649,7 @@ function FocusList({ onMode }) {
     // The pills are built from the screen that CAME BACK empty, never the live spec: a filter
     // being edited in the drawer must not grow a pill for a screen nobody has run yet.
     body = <>{flagsOutsideList}<EmptyState filterCount={filterCount} lastChange={lastChange} onUndo={undoLast} onOpenFilters={() => openFilters()}
-      pending={pending} spec={answered.shown?.baseSpec || null} meta={meta} onRemoveFilter={k => ed.setFilter(k, null)} onRemoveLogic={() => ed.setLogic(null)} /></>
+      pending={pending} spec={answered.shown?.baseSpec || null} meta={meta} coverage={listed?.coverage || null} onRemoveFilter={k => ed.setFilter(k, null)} onRemoveLogic={() => ed.setLogic(null)} /></>
   } else {
     body = (
       <div className={styles.body}>
@@ -681,7 +681,7 @@ function FocusList({ onMode }) {
           onSaveAsNew={savedLoaded && !savedError ? saveAsScreen : null}
           onRename={current?.kind === 'saved' ? rename : null}
           onNewScreen={() => { ed.clearFilters(); ed.setLogic(null); setCurrent(null); openFilters() }}
-          myScans={myScans} onUseScan={applyScanFilter} />}
+          myScans={myScans} onUseScan={applyScanFilter} meta={meta} />}
         filterCount={filterCount} onOpenFilters={() => openFilters()}
         dataReceipt={<DataReceipt snapshotDate={listed?.snapshot_date} live={listed?.snapshot?.live} coverage={listed?.coverage} />}
         mode="list" onMode={m => { s.flush(); onMode(m) }}

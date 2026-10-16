@@ -16,7 +16,8 @@ def _all(monkeypatch):
 def test_every_starter_has_a_description(monkeypatch):
     for s in _all(monkeypatch):
         d = s.get("description") or ""
-        assert 10 <= len(d) <= 80, (s["id"], d)
+        # One line in the menu (it ellipsizes); long enough to name every condition.
+        assert 10 <= len(d) <= 120, (s["id"], d)
         assert "—" not in d and "–" not in d and " - " not in d, s["id"]
         assert d.isascii(), s["id"]
 
@@ -81,6 +82,13 @@ _PLAIN = {
     "new_52w_high": r"\b52 week high\b",
     "days_to_earnings": r"\breport",
     "optionable": r"\boptions\b",
+    "ma_stack": r"\bMAs stacked\b",
+    "ema20_rising": r"\brising 20 day EMA\b",
+    "adr_pct_1w": r"\brange contracting\b",
+    "rvol_live": r"\blive during the session\b",
+    "chg_from_open_pct": r"\bup from the open\b",
+    "dist_20d_high_pct": r"\b20 day high\b",
+    "dist_52w_low_pct": r"\b52 week low\b",
 }
 # A named structure or pattern is one condition; its words come from the value.
 _BY_VALUE = {
@@ -91,10 +99,16 @@ _BY_VALUE = {
 }
 
 
+def _criteria(spec):
+    """The flat filters and every leaf of the grouped criteria: both are conditions."""
+    from api.services.screener import logic
+    return [*spec["filters"], *(logic.leaves(spec["logic"]) if spec.get("logic") else [])]
+
+
 def test_every_description_names_every_condition(monkeypatch):
     for s in _all(monkeypatch):
         d = s["description"]
-        for f in s["spec"]["filters"]:
+        for f in _criteria(s["spec"]):
             k = f["key"]
             if k == "pattern_engine_id":
                 pid = f["value"].strip(",")
@@ -108,15 +122,27 @@ def test_every_description_names_every_condition(monkeypatch):
 def test_the_description_check_can_fail(monkeypatch):
     """Non-vacuity: the leaders starter WITHOUT its price clause in the copy fails."""
     s = next(x for x in _all(monkeypatch) if x["id"] == "starter_momentum_leaders")
-    assert not re.search(_PLAIN["price"], s["description"].replace("price $5+, ", ""), re.I)
+    assert re.search(_PLAIN["price"], s["description"], re.I)
+    assert not re.search(_PLAIN["price"], s["description"].replace("price $5+", ""), re.I)
 
 
 def test_every_starter_is_stocks_only(monkeypatch):
     """Owner decision 3: no ETFs or closed-end funds in any starter, expressed the
-    way the Type filter's Include control writes it."""
+    way the Type filter's EXCLUDE control writes it (2026-10-15: the include form
+    also dropped rows whose type is unknown)."""
     from api.services.screener import filters as F
     for s in _all(monkeypatch):
         st = [f for f in s["spec"]["filters"] if f["key"] == "security_type"]
-        assert st == [{"key": "security_type", "op": "in", "values": ["Stock", "ADR"]}], s["id"]
+        assert st == [{"key": "security_type", "op": "not_in", "values": ["ETF"]}], s["id"]
         assert set(st[0]["values"]) <= set(F.FILTERS["security_type"]["options"])
-        assert "ETF" not in st[0]["values"]
+
+
+def test_every_live_volume_starter_says_live_during_the_session(monkeypatch):
+    """A starter that reads volume-vs-usual-by-now returns nothing outside the
+    session; its one line must say so rather than promise names at 8 PM."""
+    hits = 0
+    for s in _all(monkeypatch):
+        if any(f["key"] == "rvol_live" for f in _criteria(s["spec"])):
+            hits += 1
+            assert "live during the session" in s["description"], s["id"]
+    assert hits >= 5, "the live starters went missing: this check is vacuous"
