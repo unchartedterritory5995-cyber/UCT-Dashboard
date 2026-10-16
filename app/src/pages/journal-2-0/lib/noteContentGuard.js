@@ -249,12 +249,15 @@ export function replacesWholeDocument(tr) {
  * ⭐ WHY DEGRADE INSTEAD OF REFUSING THE TRANSACTION: refusing a non-history doc
  * change would make it silently vanish — and the change that tempts it next is a
  * door's appended block (the reconcile merge, review C-1), whose vanishing a later
- * save would carry to the server. Degrading costs only over-rotation: the view
- * returns to round 1's rotate-on-every-undo, which can pin the record (a duplicate,
- * never a loss). It warns in the console when it trips, and (f) in
- * `ordinaryUndoNoPin.test.jsx` rails both the trip and the step-less control. ⚠️ A
- * feature that adds a non-history doc change on an ordinary path would bring the
- * pinning back for every view it touches — the warning is how that shows.
+ * save would carry to the server. Degrading costs only over-rotation: every Undo or
+ * Redo of the view is then treated as crossing a swap, and since C-1 fix round 1 a
+ * crossing never pins the record — it writes the page being left and spills what the
+ * page coming back cannot carry, so the cost is ONE sibling `(conflicted copy)` per
+ * such Undo or Redo (a duplicate, never a loss). It warns in the console when it
+ * trips, and (f) in `ordinaryUndoNoPin.test.jsx` rails both the trip and the
+ * step-less control. ⚠️ A feature that adds a non-history doc change on an ordinary
+ * path would bring those copies to every view it touches — the warning is how that
+ * shows.
  */
 export const historyCompleteKey = new PluginKey('uctHistoryComplete')
 export const HistoryCompleteWatch = Extension.create({

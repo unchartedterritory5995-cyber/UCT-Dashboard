@@ -1052,8 +1052,20 @@ export default function NoteEditorPage({
   // editor adopts a server copy of the same note, so it is named for that --
   // a version restore and the clean editor's re-read on return (below, beside
   // the Delete gate) both go through it, never through a second copy.
+  // ⭐ C-1 fix round 2 (review m4): AND IT GETS `restoreDraft`'s CAPTURE-AND-SPILL. A
+  // version restore can land over a DIRTY record (unsent words, offline); the next
+  // keystroke on the adopted page then lost the containment test against them and the
+  // record stayed PINNED to the old words — the member's newer words lived only on the
+  // page and in the crash draft (`undoAcrossServerSwap.test.jsx`, m4). Now the page
+  // being replaced is written first (`captureOutgoingPage`, which writes nothing when
+  // the page holds nothing unsent) and the next capture is a swap capture, so the old
+  // words go to a queued `(conflicted copy)` and the record follows the page.
+  // ⭐ Every caller: the version restore (record may be dirty), the clean re-read and
+  // the style update (both only when clean — there the spill flag finds nothing to
+  // spill: `swapCaptureSpills` answers false over a clean record).
   const adoptServerCopy = (restoredNote) => {
     if (!restoredNote) return
+    captureOutgoingPage()
     viewReplaced()   // hotfix 2026-10-15: a server copy replaces the view — a new lineage
     const t = restoredNote.title || ''
     const s = restoredNote.subtitle || ''
@@ -1072,6 +1084,7 @@ export default function NoteEditorPage({
       // holds its own read again, whatever it carried before.
       if (replaceDocument(editorRef.current, restoredNote.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)) {
         carriedRef.current = OWN_READ
+        spillNextCaptureRef.current = true   // C-1 r2 (m4): the next capture is a swap capture
       }
     } catch {
       /* editor view not mounted yet -- next note-open effect will still show it */
@@ -2998,8 +3011,10 @@ export default function NoteEditorPage({
     // unreliable for the rest of this view (`historyIsComplete`, review I-1: both
     // asked through `undoCrossesSwap`). ⚠️ An Undo or Redo of the member's own
     // select-all replace or delete is a whole-document step too, so it still reads
-    // as a crossing and pins the record (the safe direction: a duplicate, never a
-    // loss). Any other undo or redo is the member editing this view and
+    // as a crossing — and since C-1 fix round 1 a crossing no longer pins the record:
+    // `noteSwapCrossing` writes the page being left and the page coming back spills
+    // what it cannot carry, so it costs one sibling `(conflicted copy)` (the safe
+    // direction: a duplicate, never a loss). Any other undo or redo is the member editing this view and
     // supersedes like a keystroke — including a further Undo of the old view's own
     // typing past a Restore, as the I-A note above already rules ("removing it is
     // the member's edit"). ⚰️ Rotating also whenever `noteRestoreCrossing` (now `noteSwapCrossing`) fired

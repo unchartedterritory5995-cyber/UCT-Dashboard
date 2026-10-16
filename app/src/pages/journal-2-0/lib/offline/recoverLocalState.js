@@ -170,7 +170,9 @@ const carriesWords = (incoming, prev) =>
  * reconcile's merge: one the member inserted here, or one the note opened with.
  * Removing it is the member's edit, like deleting a sentence. A block the merge put
  * on the page is another device's, and the editor names those on its edit lineage
- * (`lineage.merged`, the keys the merge inserted since the view's last swap). A
+ * (`lineage.merged`, every key the merge inserted for the life of the editor's
+ * history — kept across swaps and Undo-crossing rotations, reset only on a note load
+ * or a rebuilt editor, since C-1 fix round 1). A
  * write that would drop one never supersedes silently: the record follows the page
  * and what it held becomes a queued `(conflicted copy)` (`swapCaptureSpills`, and
  * the same in the settle). ⚠️ A merged block the member deletes ON PURPOSE spills a
