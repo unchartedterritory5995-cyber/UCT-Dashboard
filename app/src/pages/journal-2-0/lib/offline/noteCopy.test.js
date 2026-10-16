@@ -23,6 +23,7 @@ import { forkConflictedCopy } from './useOutboxDrain'
 import { listBlockedNoteIds } from './blockedNotes'
 import { swapCaptureSpills, editorLineageStamp } from './recoverLocalState'
 import * as nc from './noteCopy'
+import * as refusedCopyNs from './refusedCopy'
 
 const { drainOutbox, FORKED, KEPT } = drain
 const { copyEntryFor, isNoteCopy, NOTE_COPY } = nc
@@ -326,4 +327,160 @@ describe('fix round 2 — the REAL fork path (`forkConflictedCopy` → `createNo
       } finally { restoreFetch() }
     })
   }
+})
+
+// ⭐⭐ I-A fix round 4 (review I-6, I-7): the refused copy's words as plain text, the
+// plain-text save, and the offer's own sentence by refusal class. Reached through the
+// namespace, so on an older tree each cell fails on its own.
+describe('fix round 4 — a refused copy shows its words and speaks for itself', () => {
+  const rc = refusedCopyNs
+  const RICH = {
+    type: 'doc',
+    content: [
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Plan H2' }] },
+      { type: 'paragraph' },
+      { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'first ' }, { type: 'text', text: 'point', marks: [{ type: 'bold' }] }] }] }] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'line one' }, { type: 'hardBreak' }, { type: 'text', text: 'line two' }] },
+      { type: 'image', attrs: { src: 'data:image/png;base64,AAAA' } },
+    ],
+  }
+  const jsonDepth = (x) => (x && typeof x === 'object' ? 1 + Math.max(0, ...Object.values(x).map(jsonDepth)) : 0)
+  const isFlat = (d) => d?.type === 'doc' && d.content.every((p) => (
+    p.type === 'paragraph' && Object.keys(p).every((k) => k === 'type' || k === 'content')
+    && (p.content || []).every((t) => t.type === 'text' && typeof t.text === 'string' && t.text.length > 0 && !t.marks)))
+
+  /** The server's own sentences, READ from notes.py (never restated here). */
+  function serverSentences() {
+    const src = readFileSync(resolve(globalThis.process.cwd(), '..', 'api', 'services', 'journal_two', 'notes.py'), 'utf8')
+    const joined = (block) => [...block.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]).join('')
+    const constant = (name) => {
+      const m = src.match(new RegExp(`^${name}\\s*=\\s*\\(([\\s\\S]*?)\\)\\s*$`, 'm'))
+      expect(m, `${name} not found in notes.py`).toBeTruthy()
+      return joined(m[1])
+    }
+    const size = src.match(/raise NoteValidationError\(\s*("This note is too long[\s\S]*?)\)/)
+    expect(size, 'the body size sentence was not found in notes.py').toBeTruthy()
+    for (const literal of ['"title too long"', '"subtitle too long"', '"folder not found"', '"body_json must be a TipTap doc"']) {
+      expect(src.includes(literal), `${literal} is no longer in notes.py`).toBe(true)
+    }
+    return {
+      tooDeep: constant('TOO_DEEP_BODY_DETAIL'),
+      unbuildable: constant('UNBUILDABLE_BODY_DETAIL'),
+      tooLarge: joined(size[1]),
+    }
+  }
+
+  it('each of the server’s create refusals lands in its class (sentences parsed from notes.py)', () => {
+    const s = serverSentences()
+    expect(s.tooDeep).toMatch(/nested/)
+    expect(s.unbuildable).toMatch(/editor can't open/)
+    expect(s.tooLarge).toMatch(/too long to save/)
+    const cls = (status, detail) => rc.copyRefusalClass({ status, detail })
+    expect(cls(400, s.tooLarge)).toBe(rc.COPY_TOO_LARGE)
+    expect(cls(400, s.tooDeep)).toBe(rc.COPY_CONTENT)
+    expect(cls(400, s.unbuildable)).toBe(rc.COPY_CONTENT)
+    expect(cls(400, 'body_json must be a TipTap doc')).toBe(rc.COPY_CONTENT)
+    expect(cls(422, undefined), 'a 422 with a list detail (broken JSON) is about the body').toBe(rc.COPY_CONTENT)
+    expect(cls(413, 'That is too large to send. Shorten it and try again.')).toBe(rc.COPY_TOO_LARGE)
+    expect(cls(413, undefined)).toBe(rc.COPY_TOO_LARGE)
+    for (const other of ['title too long', 'subtitle too long', 'folder not found']) {
+      expect(cls(400, other), `"${other}" is not about the body`).toBe(rc.COPY_OTHER)
+    }
+    expect(cls(409, s.tooDeep), 'only 400/413/422 can be a content refusal').toBe(rc.COPY_OTHER)
+  })
+
+  it('the offer’s sentence never carries the server’s detail, and names what each button does', () => {
+    const PHRASE = 'ZQ-SERVER-SENTENCE'
+    for (const [status, detail, want, content] of [
+      [413, PHRASE, /too large to be saved as its own note/, true],
+      [400, `${PHRASE} nested`, /content the server can’t store/, true],
+      [400, `${PHRASE} title too long`, /couldn’t be saved as a separate note.*Save as a separate note tries again/, false],
+    ]) {
+      const entry = { ...copyEntryFor({ noteId: 'n1', words: words('K') }), copyRefused: { status, detail } }
+      const reason = rc.refusedCopyReason(entry)
+      expect(reason).toMatch(want)
+      expect(reason).not.toContain(PHRASE)
+      expect(reason).toMatch(/kept on this device/)
+      expect(reason).toMatch(/Copy text puts its words on your clipboard/)
+      expect(reason).toMatch(/Discard deletes the copy from this device/)
+      if (content) {
+        expect(reason).toMatch(/Save as plain text/)
+        expect(reason, 'a content refusal says the same create "tries again"').not.toMatch(/tries again/)
+      }
+    }
+  })
+
+  it('the view carries the copy’s words as plain text, and offers plain text only after a content refusal', () => {
+    const base = { ...copyEntryFor({ noteId: 'n1', words: { title: 'Thesis', subtitle: 'sub', bodyJson: RICH } }) }
+    const content = rc.refusedCopyView({ ...base, copyRefused: { status: 413 } })
+    expect(content.bodyText).toBe('Plan H2\n\nfirst point\nline one\nline two')
+    expect([content.offerPlain, content.offerSeparate]).toEqual([true, false])
+    const other = rc.refusedCopyView({ ...base, copyRefused: { status: 400, detail: 'subtitle too long' } })
+    expect([other.offerPlain, other.offerSeparate]).toEqual([false, true])
+    const plainRefused = rc.refusedCopyView({ ...base, copyRefused: { status: 413, plain: true } })
+    expect([plainRefused.offerPlain, plainRefused.offerSeparate], 'nothing left to send after a refused plain save').toEqual([false, false])
+    expect(rc.copyClipboardText(content)).toBe('Thesis\nsub\n\nPlan H2\n\nfirst point\nline one\nline two')
+  })
+
+  it('⛔ the plain body is paragraphs of one non-empty text node each (never an empty text node), shallow, every word kept', () => {
+    const flat = rc.plainParagraphsDoc(RICH)
+    expect(isFlat(flat), JSON.stringify(flat)).toBe(true)
+    expect(flat.content.map((p) => p.content?.[0]?.text ?? '')).toEqual(['Plan H2', '', 'first point', 'line one', 'line two'])
+    let deep = { type: 'paragraph', content: [{ type: 'text', text: 'deep words' }] }
+    for (let i = 0; i < 150; i += 1) deep = { type: 'blockquote', content: [deep] }
+    const flatDeep = rc.plainParagraphsDoc({ type: 'doc', content: [deep] })
+    expect(jsonDepth(flatDeep), 'the plain body is still too deep for the server').toBeLessThan(10)
+    expect(JSON.stringify(flatDeep)).toContain('deep words')
+    expect(rc.plainParagraphsDoc({ type: 'doc', content: [] })).toEqual({ type: 'doc', content: [{ type: 'paragraph' }] })
+  })
+
+  async function heldCopy(status = 413) {
+    const copy = copyEntryFor({ noteId: 'n1', words: { title: 'Thesis', subtitle: 'sub', bodyJson: RICH }, sessionId: 's1' })
+    await putNoteWithIntent(db, { noteId: 'n1', ...words('W'), dirty: 0, baseUpdatedAt: 'T1' }, null, { copies: [copy] })
+    await settleIdb()
+    const err = new Error('refused'); err.status = status; err.phase = 'create'
+    await rc.holdRefusedCopy(db, copy, err)
+    await settleIdb()
+    return copy
+  }
+
+  it('"Save as plain text" sends the flattened body through the same fork, against the source note, and clears the copy', async () => {
+    const copy = await heldCopy()
+    const fork = vi.fn(async () => ({}))
+    const res = await rc.saveRefusedCopy(db, copy.mutationId, { fork, plain: true })
+    await settleIdb()
+    expect(res.outcome).toBe('saved')
+    expect(fork).toHaveBeenCalledTimes(1)
+    const sent = fork.mock.calls[0][0]
+    expect(sent.noteId, 'the fork was not pointed at the source note').toBe('n1')
+    expect(sent.patch.title).toBe('Thesis')
+    expect(sent.patch.subtitle).toBe('sub')
+    expect(isFlat(sent.patch.bodyJson), JSON.stringify(sent.patch.bodyJson)).toBe(true)
+    expect(await listOutbox(db)).toEqual([])
+  })
+
+  it('⛔ a refused plain-text save keeps the copy with its ORIGINAL words and marks it so', async () => {
+    const copy = await heldCopy()
+    const fork = vi.fn(async () => { const e = new Error('refused'); e.status = 413; e.phase = 'create'; e.detail = 'server words'; throw e })
+    const res = await rc.saveRefusedCopy(db, copy.mutationId, { fork, plain: true })
+    await settleIdb()
+    expect(res.outcome).toBe('refused')
+    const [kept] = await listOutbox(db)
+    expect(kept.patch.bodyJson, 'the stored copy was replaced by its flattened body').toEqual(RICH)
+    expect(kept.copyRefused.plain).toBe(true)
+    expect(kept.copyRefused.detail, 'the server’s detail is kept for diagnosis').toBe('server words')
+    expect(res.copy.offerPlain).toBe(false)
+    expect(res.copy.reason).not.toContain('server words')
+  })
+
+  it('a transient failure says whether it was the NETWORK (offline) or not', async () => {
+    const copy = await heldCopy(400)
+    const offline = await rc.saveRefusedCopy(db, copy.mutationId, { fork: async () => { throw new TypeError('Failed to fetch') } })
+    expect(offline).toEqual({ outcome: 'failed', offline: true })
+    const conflict = await rc.saveRefusedCopy(db, copy.mutationId, {
+      fork: async () => { const e = new Error('Could not create note (409)'); e.status = 409; e.phase = 'create'; throw e },
+    })
+    expect(conflict).toEqual({ outcome: 'failed', offline: false })
+    expect((await listOutbox(db)).map((e) => e.mutationId)).toEqual([copy.mutationId])
+  })
 })

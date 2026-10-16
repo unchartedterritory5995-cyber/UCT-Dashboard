@@ -52,6 +52,9 @@ function makeServer({ body, updatedAt }) {
   let rev = 0
   const s = {
     title: 'Thesis', subtitle: '', body, updatedAt, puts: [], forks: [], down: false, refuseCreate: 0,
+    // Fix round 4 (M-12): `refuseDetail` is the server's sentence for a refused create;
+    // `holdPuts` / `holdReads` hold a PUT / the source read in flight until released.
+    refuseDetail: 'title too long', holdPuts: null, holdReads: null, inflight: 0,
     note: () => ({
       id: 'n1', title: s.title, subtitle: s.subtitle, folderId: null, ticker: null, tags: [],
       heroImageUrl: null, isFavorite: false, bodyJson: s.body, updatedAt: s.updatedAt,
@@ -63,6 +66,7 @@ function makeServer({ body, updatedAt }) {
 const update = vi.fn(async (patch) => {
   server.puts.push(patch)
   if (server.down) throw new Error('network down')        // no status ⇒ retried, never forked
+  if (server.holdPuts) { server.inflight += 1; await server.holdPuts }
   if (patch.baseUpdatedAt && patch.baseUpdatedAt !== server.updatedAt) {
     const e = new Error('note changed — refresh and retry'); e.status = 409; throw e
   }
@@ -88,7 +92,7 @@ vi.mock('../noteCreation', () => ({
     // Fix round 3: the server can refuse a create (the real helper sets `.status`).
     if (server.refuseCreate) {
       const e = new Error(`Could not create note (${server.refuseCreate})`)
-      e.status = server.refuseCreate; e.detail = 'title too long'
+      e.status = server.refuseCreate; e.detail = server.refuseDetail
       throw e
     }
     server.forks.push(args)
@@ -128,7 +132,9 @@ beforeEach(() => {
   global.fetch = vi.fn((url) => {
     if (String(url) === '/api/j2/notes/n1') {
       if (server.down) return Promise.reject(new TypeError('Failed to fetch'))
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: server.note() }) })
+      const answer = () => ({ ok: true, json: () => Promise.resolve({ note: server.note() }) })
+      if (server.holdReads) { server.inflight += 1; return server.holdReads.then(answer) }
+      return Promise.resolve(answer())
     }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
   })
@@ -136,6 +142,8 @@ beforeEach(() => {
 })
 afterEach(() => {
   cleanup()
+  // Fix round 4: a test that put a clipboard on `navigator` takes it away again.
+  Object.defineProperty(globalThis.navigator, 'clipboard', { configurable: true, value: undefined })
   vi.useRealTimers()
   vi.clearAllMocks()
   localStorage.clear()
@@ -724,16 +732,16 @@ describe('I-A · fix round 3 — a copy the server refused is its own offer: sav
   // note could not fail any assertion — that is what hid C-3.
   const COPY_WORDS = 'words in a copy the server refused - R-copy'
   const SERVER_NOW = 'the note as it is on the server now - S-now'
-  async function refusedCopy() {
+  async function refusedCopy({ status = 400, detail = 'title too long', body = doc(para(COPY_WORDS)) } = {}) {
     factory.open(ACCOUNT_DB)
     await act(async () => { await settleIdb(2) })
     const { copyEntryFor } = await import('./noteCopy')
     const copy = copyEntryFor({
-      noteId: 'n1', words: { title: 'Thesis', subtitle: 'copy subtitle', bodyJson: doc(para(COPY_WORDS)) }, sessionId: 's-away',
+      noteId: 'n1', words: { title: 'Thesis', subtitle: 'copy subtitle', bodyJson: body }, sessionId: 's-away',
     })
     factory.databases.get(ACCOUNT_DB).seed('outbox', {
-      ...copy, permanent: true, copyRefused: { status: 400, error: 'Could not create note (400)', detail: 'title too long' },
-      lastStatus: 400, lastError: 'Could not create note (400)',
+      ...copy, permanent: true, copyRefused: { status, error: `Could not create note (${status})`, detail },
+      lastStatus: status, lastError: `Could not create note (${status})`,
     })
     return copy
   }
@@ -746,9 +754,9 @@ describe('I-A · fix round 3 — a copy the server refused is its own offer: sav
     expect(server.puts.some((p) => JSON.stringify(p).includes(COPY_WORDS)), `${label}: a PUT carried the copy into its source note`).toBe(false)
     expect(JSON.stringify(server.body), `${label}: the copy was written over its source note`).not.toContain(COPY_WORDS)
   }
-  async function openOnRefusedCopy() {
+  async function openOnRefusedCopy(refusal) {
     server = makeServer({ body: doc(para(SERVER_NOW)), updatedAt: T0 })
-    const copy = await refusedCopy()
+    const copy = await refusedCopy(refusal)
     await openTheNote()
     await sit(2)
     return copy
@@ -777,7 +785,9 @@ describe('I-A · fix round 3 — a copy the server refused is its own offer: sav
     expect(offer.textContent).toMatch(/kept on this device/i)
     expect(offer.textContent).toMatch(/save as a separate note/i)
     expect(offer.textContent).toMatch(/discard/i)
-    expect(offer.textContent, 'the reason the server gave is shown').toMatch(/title too long/i)
+    // ⛔ Fix round 4 (review I-7) REVERSES round 3 here: the server's sentence is kept
+    // in the stored record for diagnosis and never shown to the member.
+    expect(offer.textContent, 'the server’s refusal sentence reached the member').not.toMatch(/title too long/i)
   })
 
   it('⛔ I-4: a refused copy does NOT mark its healthy source note blocked ("edit it again to sync" is false for a copy)', async () => {
@@ -827,6 +837,252 @@ describe('I-A · fix round 3 — a copy the server refused is its own offer: sav
     await sit(2)
     expect(copyKept(copy), 'the discarded copy came back').toBe(false)
     expect(screen.queryByTestId('refused-copy-offer'), 'the discarded copy is offered again').toBeNull()
+  })
+
+  describe('fix round 4 — the offer shows the words and speaks for itself (I-6, I-7)', () => {
+    // A body with structure and a mark, so a flattened re-POST is visible as such.
+    const RICH = doc(
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Plan H2' }] },
+      { type: 'bulletList', content: [{ type: 'listItem', content: [para('first point')] }] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'bold ', marks: [{ type: 'bold' }] }, { type: 'text', text: COPY_WORDS }] },
+    )
+    // A sentence only the SERVER says: it must never be found on the page.
+    const SERVER_PHRASE = 'ZQ-SERVER-SENTENCE'
+    const useClipboard = (writeText) => {
+      Object.defineProperty(globalThis.navigator, 'clipboard', { configurable: true, value: { writeText } })
+    }
+    const offer = () => screen.findByTestId('refused-copy-offer')
+    async function press(name) {
+      const button = await screen.findByRole('button', { name })
+      await act(async () => { fireEvent.click(button); await settleIdb(6) })
+    }
+    const flatOnly = (d) => d?.type === 'doc' && Array.isArray(d.content) && d.content.every((p) => (
+      p.type === 'paragraph' && (p.content || []).every((t) => t.type === 'text' && t.text && !t.marks)))
+
+    it('⛔ I-6: the offer shows the COPY’s own words (title, subtitle, body as plain text), never the note’s', async () => {
+      await openOnRefusedCopy({ body: RICH })
+      const preview = await screen.findByTestId('refused-copy-preview')
+      for (const w of ['Thesis', 'copy subtitle', 'Plan H2', 'first point', COPY_WORDS]) expect(preview.textContent).toContain(w)
+      expect(preview.textContent, 'the preview showed the note’s server text').not.toContain(SERVER_NOW)
+      expect((await offer()).contains(preview), 'the preview is not part of the offer').toBe(true)
+    })
+
+    it('⛔ I-6: the Discard confirm shows the same words, and its own "Copy text" copies them', async () => {
+      await openOnRefusedCopy()
+      await press('Discard')
+      const confirm = await screen.findByTestId('refused-copy-confirm')
+      expect(confirm.textContent).toMatch(/can’t be undone/)
+      expect(confirm.textContent, 'the confirm asks to delete words it does not show').toContain(COPY_WORDS)
+      expect(confirm.textContent).toContain('copy subtitle')
+      const writeText = vi.fn(() => Promise.resolve())
+      useClipboard(writeText)
+      await press('Copy text')
+      expect(writeText).toHaveBeenCalledTimes(1)
+      expect(writeText.mock.calls[0][0]).toContain(COPY_WORDS)
+      expect(screen.getByRole('button', { name: 'Delete copy' }), 'copying ended the confirm').toBeTruthy()
+    })
+
+    it('"Copy text" puts the copy’s words on the clipboard, and says so', async () => {
+      await openOnRefusedCopy({ body: RICH })
+      const writeText = vi.fn(() => Promise.resolve())
+      useClipboard(writeText)
+      await press('Copy text')
+      expect(writeText).toHaveBeenCalledTimes(1)
+      const text = writeText.mock.calls[0][0]
+      for (const w of ['Thesis', 'copy subtitle', 'Plan H2', 'first point', COPY_WORDS]) expect(text).toContain(w)
+      expect(text).not.toContain(SERVER_NOW)
+      expect((await offer()).textContent).toMatch(/the words are on your clipboard/i)
+    })
+
+    for (const [label, install] of [
+      ['refuses', () => useClipboard(vi.fn(() => Promise.reject(new Error('NotAllowedError'))))],
+      ['is missing', () => {}],
+    ]) {
+      it(`a clipboard that ${label} ⇒ the preview's words are SELECTED so they can be copied by hand, and the offer says so`, async () => {
+        await openOnRefusedCopy()
+        install()
+        await press('Copy text')
+        expect(window.getSelection().toString(), 'the words were not selected').toContain(COPY_WORDS)
+        const text = (await offer()).textContent
+        expect(text).toMatch(/the words are selected/i)
+        expect(text).toMatch(/ctrl\+c/i)
+      })
+    }
+
+    it('⛔ a CONTENT refusal (413) offers "Save as plain text": its re-POST body is flattened, nothing is PUT, the copy clears', async () => {
+      const copy = await openOnRefusedCopy({ status: 413, detail: SERVER_PHRASE, body: RICH })
+      const o = await offer()
+      expect(screen.queryByRole('button', { name: 'Save as a separate note' }), 'a retry that cannot succeed is offered').toBeNull()
+      expect(o.textContent, 'the offer says a create that cannot succeed "tries again"').not.toMatch(/tries again/i)
+      expect(o.textContent).toMatch(/save as plain text/i)
+      update.mockClear()
+      const putsBefore = server.puts.length
+      await press('Save as plain text')
+      await sit(3)
+      expect(server.forks, 'exactly one separate note was created').toHaveLength(1)
+      const created = server.forks[0]
+      expect(created.title).toBe('Thesis (conflicted copy)')
+      expect(created.subtitle).toBe('copy subtitle')
+      expect(created.tags).toEqual(['sync-conflict'])
+      expect(flatOnly(created.bodyJson), `the re-POST body was not flattened: ${JSON.stringify(created.bodyJson)}`).toBe(true)
+      for (const w of ['Plan H2', 'first point', COPY_WORDS]) expect(JSON.stringify(created.bodyJson)).toContain(w)
+      expect(update, 'a PUT went to the source note').not.toHaveBeenCalled()
+      expect(server.puts).toHaveLength(putsBefore)
+      sourceNeverGotTheCopy('after Save as plain text')
+      expect(copyKept(copy), 'the copy stayed after its note was created').toBe(false)
+      expect(screen.getByText(/saved as a separate note, as plain text/i)).toBeTruthy()
+    })
+
+    it('a 400 whose reason is the BODY (the create guard) is a content refusal too: "Save as plain text" is offered', async () => {
+      await openOnRefusedCopy({
+        status: 400,
+        detail: 'This note has a piece of text the editor can\'t open (an empty or malformed text node), so it wasn\'t saved.',
+      })
+      expect(await screen.findByRole('button', { name: 'Save as plain text' })).toBeTruthy()
+      expect(screen.queryByRole('button', { name: 'Save as a separate note' })).toBeNull()
+      expect(document.body.textContent, 'the server’s sentence reached the page').not.toMatch(/it wasn.t saved/i)
+    })
+
+    it('⛔ a plain-text save refused AGAIN keeps the copy with its ORIGINAL words, still shown, still with "Copy text"', async () => {
+      const copy = await openOnRefusedCopy({ status: 413, detail: SERVER_PHRASE, body: RICH })
+      server.refuseCreate = 413
+      server.refuseDetail = `${SERVER_PHRASE} again`
+      await press('Save as plain text')
+      await sit(2)
+      const kept = outbox().find((e) => e.mutationId === copy.mutationId)
+      expect(kept, 'a refused plain-text save lost the copy').toBeTruthy()
+      expect(kept.patch.bodyJson, 'the stored copy lost its original words').toEqual(RICH)
+      expect(server.forks).toHaveLength(0)
+      expectDurable(COPY_WORDS, 'after a refused plain-text save')
+      expect((await screen.findByTestId('refused-copy-preview')).textContent).toContain(COPY_WORDS)
+      expect(screen.getByRole('button', { name: 'Copy text' })).toBeTruthy()
+      const text = (await offer()).textContent
+      expect(text).toMatch(/kept on this device/i)
+      expect(text).toMatch(/plain text was refused too/i)
+      expect(document.body.textContent, 'the server’s sentence reached the page').not.toContain(SERVER_PHRASE)
+      sourceNeverGotTheCopy('after a refused plain-text save')
+    })
+
+    for (const [refusal, ours, plain] of [
+      [{ status: 413, detail: SERVER_PHRASE }, /too large to be saved as its own note/i, true],
+      [{ status: 400, detail: `${SERVER_PHRASE}: this note is too long to save as one page` }, /too large to be saved as its own note/i, true],
+      [{ status: 400, detail: `${SERVER_PHRASE}: too many lists nested inside each other` }, /content the server can’t store/i, true],
+      [{ status: 422, detail: SERVER_PHRASE }, /content the server can’t store/i, true],
+      [{ status: 400, detail: `${SERVER_PHRASE}: subtitle too long` }, /couldn’t be saved as a separate note/i, false],
+    ]) {
+      it(`⛔ I-7: a ${refusal.status} ("${refusal.detail.slice(SERVER_PHRASE.length) || '…'}") shows the offer’s own sentence, never the server’s`, async () => {
+        await openOnRefusedCopy(refusal)
+        const text = (await offer()).textContent
+        expect(text).toMatch(ours)
+        expect(text).toMatch(/kept on this device/i)
+        expect(text).toMatch(/copy text puts its words on your clipboard/i)
+        expect(text).toMatch(/discard deletes the copy from this device/i)
+        expect(document.body.textContent, 'the server’s sentence reached the page').not.toContain(SERVER_PHRASE)
+        expect(Boolean(screen.queryByRole('button', { name: 'Save as plain text' })), 'the plain-text save is offered for this class').toBe(plain)
+        expect(Boolean(screen.queryByRole('button', { name: 'Save as a separate note' }))).toBe(!plain)
+      })
+    }
+
+    it('⛔ I-7: a re-POST refused again does not bring the server’s new sentence onto the page either', async () => {
+      await openOnRefusedCopy()
+      server.refuseCreate = 400
+      server.refuseDetail = `${SERVER_PHRASE}: subtitle too long`
+      await press('Save as a separate note')
+      await sit(2)
+      expect((await offer()).textContent).toMatch(/still couldn’t be saved/i)
+      expect(document.body.textContent).not.toContain(SERVER_PHRASE)
+    })
+
+    it('"try again when you’re online" only after a NETWORK failure', async () => {
+      const copy = await openOnRefusedCopy()
+      server.down = true
+      await press('Save as a separate note')
+      await sit(2)
+      expect(copyKept(copy)).toBe(true)
+      expect((await offer()).textContent).toMatch(/try again when you’re online/i)
+    })
+
+    it('a failure that is NOT the network (409 from the create) says "try again later", never "when you’re online"', async () => {
+      const copy = await openOnRefusedCopy()
+      server.refuseCreate = 409
+      await press('Save as a separate note')
+      await sit(2)
+      expect(copyKept(copy)).toBe(true)
+      const text = (await offer()).textContent
+      expect(text).toMatch(/try again later/i)
+      expect(text).not.toMatch(/online/i)
+    })
+
+    it('⛔ focus moves INTO the Discard confirm, and "Keep it" returns it to the offer', async () => {
+      await openOnRefusedCopy()
+      const discard = await screen.findByRole('button', { name: 'Discard' })
+      act(() => { discard.focus() })
+      await press('Discard')
+      const confirm = await screen.findByTestId('refused-copy-confirm')
+      expect(confirm.contains(document.activeElement), `focus was left on ${document.activeElement?.outerHTML?.slice(0, 80)}`).toBe(true)
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Keep it' }))
+      await press('Keep it')
+      expect(document.activeElement, 'focus did not return to the offer').toBe(screen.getByRole('button', { name: 'Discard' }))
+    })
+  })
+})
+
+describe('I-A · fix round 4 — review M-12: a cell cannot write into the NEXT cell’s server', () => {
+  // ⚠️ These cells run in order, in pairs: the first leaves a request in flight, the
+  // second creates its own server and only then lets that request land.
+  let leftPut = null
+  let leftFork = null
+
+  it('(a) a cell ends with a PUT still in flight', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    let release
+    server.holdPuts = new Promise((r) => { release = r })
+    await openTheNote()
+    await sit(2)
+    await typeAtEnd(' M12-left-in-flight')
+    expect(await until(() => server.inflight > 0, { max: 80 }), 'precondition: a PUT is in flight').toBe(true)
+    leftPut = { release, owner: server }
+  })
+
+  it('(b) that PUT, landing in the next cell, changes only the cell that sent it', async () => {
+    expect(leftPut, 'precondition: cell (a) ran first').toBeTruthy()
+    server = makeServer({ body: doc(para('M12 the next cell’s note')), updatedAt: T0 })
+    const before = JSON.stringify({ body: server.body, title: server.title, updatedAt: server.updatedAt })
+    leftPut.release()
+    await act(async () => { await settleIdb(8) })
+    await tick(50)
+    expect(server.puts, 'the leftover PUT reached the next cell’s server').toHaveLength(0)
+    expect(JSON.stringify({ body: server.body, title: server.title, updatedAt: server.updatedAt }), 'the next cell’s note changed').toBe(before)
+    expect(JSON.stringify(leftPut.owner.body), 'control: the leftover PUT did land, in the cell that sent it').toContain('M12-left-in-flight')
+  })
+
+  it('(c) a cell ends with a separate-note save still in flight (its source read is held)', async () => {
+    server = makeServer({ body: doc(para('M12 source')), updatedAt: T0 })
+    factory.open(ACCOUNT_DB)
+    await act(async () => { await settleIdb(2) })
+    const { copyEntryFor } = await import('./noteCopy')
+    const copy = copyEntryFor({ noteId: 'n1', words: { title: 'Thesis', subtitle: '', bodyJson: doc(para('M12-fork-words')) }, sessionId: 's-away' })
+    factory.databases.get(ACCOUNT_DB).seed('outbox', {
+      ...copy, permanent: true, copyRefused: { status: 400, error: 'x', detail: 'title too long' }, lastStatus: 400,
+    })
+    await openTheNote()
+    await sit(2)
+    let release
+    server.holdReads = new Promise((r) => { release = r })
+    const save = await screen.findByRole('button', { name: 'Save as a separate note' })
+    await act(async () => { fireEvent.click(save); await settleIdb(6) })
+    expect(await until(() => server.inflight > 0, { max: 40 }), 'precondition: the save is in flight').toBe(true)
+    leftFork = { release, owner: server }
+  })
+
+  it('(d) that save, finishing in the next cell, creates its note only in the cell that sent it', async () => {
+    expect(leftFork, 'precondition: cell (c) ran first').toBeTruthy()
+    server = makeServer({ body: doc(para('M12 the next cell’s note')), updatedAt: T0 })
+    leftFork.release()
+    await act(async () => { await settleIdb(8) })
+    await tick(50)
+    expect(server.forks, 'the leftover save created a note in the next cell’s server').toHaveLength(0)
+    expect(leftFork.owner.forks.map((f) => JSON.stringify(f.bodyJson)).join(), 'control: the leftover save did land, in the cell that sent it').toContain('M12-fork-words')
   })
 })
 
