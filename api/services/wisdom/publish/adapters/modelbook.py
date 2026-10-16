@@ -20,22 +20,24 @@ hands it to the Model Book owner; nothing writes that file.
 
 THE TRADER ARCHIVE AS A SECOND SOURCE (owner rulings 2026-10-15 and 2026-10-16: the archive is a
 member surface, it bypasses the R89 floor, and a call's levels publish only once it is more than
-ARCHIVE_PRICE_AGE_SESSIONS sessions old). Read only while `WISDOM_ARCHIVE_ENABLED` is on, from
+`provider.PRICE_AGE_SESSIONS` (20) sessions old). Read only while `WISDOM_ARCHIVE_ENABLED` is on, from
 `wisdom_archive_setups` / `wisdom_archive_calls`. A Setup Library name reaches an archive setup
-ONLY through the one vocabulary (D9): its `setupCatalog.js` row's vocab_id, then every
-`trader_archive` row with that vocab_id. A library name with no vocab_id links to nothing.
+ONLY through the one vocabulary (D9), by one of two keys its `setupCatalog.js` row carries:
+  - its vocab_id: every `trader_archive` row with that vocab_id;
+  - its `pattern_engine_ids` (set only where the library setup IS that detector, e.g. Slingshot
+    = uct_slingshot): the `trader_archive` row that already files that detector.
+A library name with neither links to nothing.
   - playbook drafts gain the archive's measured record (n, win rate, edge with the z verdict),
     the traders' teachings by record id, and the calls worth charting;
   - example drafts: the archive playbook's best calls AND its failures, one draft per call,
     labelled as such in `notes`; entry/stop/target only for aged calls.
-NOTE: `_archive_read` is a local reader on purpose: the shared archive provider in
-publish/common is being built on another branch; fold this into it when both land.
+Every archive read, and the 20-session price gate, is the archive provider's
+(`api/services/wisdom/archive/provider.py`); nothing here restates either.
 """
 from __future__ import annotations
 
 import pathlib
 import re
-from datetime import date, timedelta
 from typing import Optional
 
 from api.services.wisdom.core import flags
@@ -54,7 +56,6 @@ _PLAYBOOK_KEY_RE = re.compile(r"^ {2}'((?:[^'\\]|\\.)+)'\s*:\s*\{", re.M)
 _CLOSED_WHERE = ("(r.hindsight = 1 OR r.stance IN ('exited', 'stopped_out', 'hindsight') "
                  "OR r.stated_outcome IN ('profit', 'loss', 'breakeven', 'stopped'))")
 
-ARCHIVE_PRICE_AGE_SESSIONS = 20
 ARCHIVE_EXAMPLES_PER_SIDE = 3     # best calls and failures, per linked archive setup
 ARCHIVE_TEACHINGS = 8
 ARCHIVE_LIST = "trader_archive"
@@ -136,78 +137,66 @@ def build_example_drafts(conn) -> list[dict]:
 # ── the trader archive ───────────────────────────────────────────────────────
 
 def archive_links() -> dict:
-    """Setup Library name -> archive setup ids, through the one vocabulary (D9). Never a typed list."""
+    """Setup Library name -> archive setup ids, through the one vocabulary (D9). Never a typed list.
+
+    Two keys, both read from the vocabulary file: a library row's vocab_id reaches every archive row
+    with that vocab_id (lowest mismatch first); its `pattern_engine_ids` reach the archive row that
+    already files each of those detectors."""
     from api.services.wisdom.core import vocab
 
     maps = vocab.load_vocabulary().get("maps") or {}
     by_vocab: dict = {}
+    by_detector: dict = {}
     for row in (maps.get(ARCHIVE_LIST) or {}).get("rows") or []:
         if row.get("vocab_id"):
             by_vocab.setdefault(row["vocab_id"], []).append((row.get("mismatch") or 0, row["external_name"]))
+        for pid in row.get("pattern_engine_ids") or []:
+            by_detector[pid] = row["external_name"]
     library = set(catalog_names())
     out: dict = {}
     for row in (maps.get(CATALOG_LIST) or {}).get("rows") or []:
         name, vid = row.get("external_name"), row.get("vocab_id")
-        if name in library and vid and vid in by_vocab:
-            out[name] = [sid for _, sid in sorted(by_vocab[vid])]
+        if name not in library:
+            continue
+        ids = [sid for _, sid in sorted(by_vocab.get(vid) or [])] if vid else []
+        ids += [by_detector[pid] for pid in row.get("pattern_engine_ids") or [] if pid in by_detector]
+        ids = list(dict.fromkeys(ids))
+        if ids:
+            out[name] = ids
     return out
 
 
-def price_aged(posted: Optional[str], today: Optional[date] = None) -> bool:
-    """True when the call was posted more than ARCHIVE_PRICE_AGE_SESSIONS sessions before today.
-
-    An unknown or unparseable date is NOT aged: a level is withheld whenever its age is in doubt."""
-    try:
-        start = date.fromisoformat(str(posted or "")[:10])
-    except ValueError:
-        return False
-    from api.services.wisdom.core import timeutil
-
-    today = today or timeutil.now_et().date()
-    if (today - start).days > 3 * ARCHIVE_PRICE_AGE_SESSIONS:   # far past any holiday arithmetic
-        return True
-    sessions, cur = 0, start + timedelta(days=1)
-    while cur <= today:
-        if timeutil.is_trading_day(cur):
-            sessions += 1
-        cur += timedelta(days=1)
-    return sessions > ARCHIVE_PRICE_AGE_SESSIONS
-
-
 def _archive_read(conn) -> Optional[dict]:
-    """{setup_id: playbook} for every linked archive setup, or None while the archive is off or absent."""
-    from api.services.wisdom.publish.adapters import common
+    """{setup_id: playbook} for every linked archive setup, or None while the archive is off or absent.
 
-    if not flags.archive_enabled() or not common.table_exists(conn, "wisdom_archive_setups"):
+    The read is the archive provider's (`provider.setups`); this only chooses which setups."""
+    from api.services.wisdom.archive import provider
+
+    if not provider.enabled() or not provider.has_setups(conn):
         return None
     wanted = sorted({sid for ids in archive_links().values() for sid in ids})
     if not wanted:
         return {}
-    out = {}
-    for r in conn.execute(
-            "SELECT setup_id, name, stats_json, context_json, teachings_json, winners_json, failures_json "
-            f"FROM wisdom_archive_setups WHERE setup_id IN ({','.join('?' * len(wanted))})", wanted):
-        d = {"setup_id": r["setup_id"], "name": r["name"]}
-        for k, default in (("stats", {}), ("context", {}), ("teachings", []), ("winners", []), ("failures", [])):
-            d[k] = common.parse_json(r[f"{k}_json"], default)
-        out[r["setup_id"]] = d
-    return out
+    return provider.setups(conn, wanted)
 
 
-def _archive_levels(conn, call_ids: list) -> dict:
-    """call_id -> {posted, aged, entry, stop, target}; the levels are None unless the call is aged."""
-    from api.services.wisdom.publish.adapters import common
+def _archive_levels(conn, picked: list) -> dict:
+    """call_id -> {aged, entry, stop, target} for the picked (setup, playbook, side, call) entries.
 
-    if not call_ids or not common.table_exists(conn, "wisdom_archive_calls"):
+    The 20-session gate is the archive provider's, the one authority: `provider.levels` returns
+    prices only for aged calls, and `provider.is_aged` decides the `aged` flag."""
+    from api.services.wisdom.archive import provider
+
+    call_ids = sorted({e["call_id"] for _, _, _, e in picked})
+    if not call_ids:
         return {}
+    gated = provider.levels(conn, call_ids)
     out = {}
-    for r in conn.execute(
-            "SELECT call_id, posted, entry, stop, target FROM wisdom_archive_calls "
-            f"WHERE call_id IN ({','.join('?' * len(call_ids))})", list(call_ids)):
-        aged = price_aged(r["posted"])
-        out[r["call_id"]] = {"posted": r["posted"], "aged": aged,
-                             "entry": r["entry"] if aged else None, "stop": r["stop"] if aged else None,
-                             "target": r["target"] if aged else None}
+    for _, _, _, e in picked:
+        aged = provider.is_aged(e.get("posted"))
+        prices = dict(gated.get(e["call_id"]) or []) if aged else {}
+        out[e["call_id"]] = {"aged": aged, "entry": prices.get("entry"),
+                             "stop": prices.get("stop"), "target": prices.get("target")}
     return out
 
 
@@ -287,7 +276,7 @@ def build_archive_example_drafts(conn) -> list[dict]:
                 continue
             for side, rows in (("best", pb.get("winners") or []), ("failure", pb.get("failures") or [])):
                 picked += [(setup, pb, side, e) for e in rows[:ARCHIVE_EXAMPLES_PER_SIDE] if e.get("call_id")]
-    levels = _archive_levels(conn, sorted({e["call_id"] for _, _, _, e in picked}))
+    levels = _archive_levels(conn, picked)
     drafts, seen = [], set()
     for setup, pb, side, e in picked:
         posted = str(e.get("posted") or "")[:10]

@@ -1239,6 +1239,41 @@
         ],
         "note": "web, the 03:00 ET screener nightly; the job self-gates on SCREENER_SNAPSHOT_ENABLED (default on). No flag state is asserted here."
       }
+    },
+    {
+      "guard": "api/main.py::_check_nightly_finished::<computed>::warning",
+      "in_population": true,
+      "audit_rows": [],
+      "what_the_guard_decides": "Whether the screener raises an operator warning at 06:00 ET when no build has finished since today's 03:00 ET (a build killed partway by a redeploy or restart writes no receipt, so the nightly-short alert never runs for it), while a build that started at or after 03:00 ET and finished raises nothing. Added 2026-10-16 after a redeploy at 08:49 ET killed a full rebuild 40 minutes in, silently.",
+      "predicate": {
+        "file": "api/main.py",
+        "scope": "_check_nightly_finished",
+        "pinned": "if not why:",
+        "mutation": "if why:"
+      },
+      "observed_by": [
+        "tests/test_screener_nightly_rebuilds_every_row.py::test_the_registered_watchdog_alerts_when_no_build_finished_today",
+        "tests/test_screener_nightly_rebuilds_every_row.py::test_CONTROL_the_watchdog_is_quiet_after_a_build_that_started_today"
+      ],
+      "proof": {
+        "commit": "74b475ce9b",
+        "quote": "mutating `if not why:` -> `if why:` in _check_nightly_finished turns 2 tests red"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "add_job",
+            "job_id": "screener_nightly_watchdog"
+          },
+          {
+            "file": "api/main.py",
+            "call": "register_screener_jobs"
+          }
+        ],
+        "note": "web, 06:00 ET daily; registered beside the 03:00 nightly and self-gates on SCREENER_SNAPSHOT_ENABLED (default on). No flag state is asserted here."
+      }
     }
   ],
   "declared_unobserved": []

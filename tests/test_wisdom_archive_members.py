@@ -193,7 +193,8 @@ def test_the_flag_is_member_visible_default_off_and_declared_with_an_owner_decis
     assert not any(g[0] == "WISDOM_ARCHIVE_ADMIN_ENABLED" for g in flags.GATES)
     ledger = json.loads((REPO / "docs" / "feature_flags.json").read_text(encoding="utf-8"))["flags"]
     entry = ledger["WISDOM_ARCHIVE_ENABLED"]
-    assert entry["exposure"] == "members" and entry["status"] == "dark"
+    # armed on web by the owner 2026-10-16; the ledger must name the service it is on
+    assert entry["exposure"] == "members" and entry["status"] == "armed" and entry["where"] == ["web"]
     assert "2026-10-15" in entry["owner_decision"]
     assert "WISDOM_ARCHIVE_ADMIN_ENABLED" not in ledger
 
