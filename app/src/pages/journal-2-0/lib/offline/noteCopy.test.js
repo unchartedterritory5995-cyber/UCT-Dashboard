@@ -295,7 +295,7 @@ describe('fix round 2 — the REAL fork path (`forkConflictedCopy` → `createNo
 
   it('the client limit IS the server\'s MAX_TITLE_CHARS (parsed from notes.py, never restated)', () => {
     // vitest runs from `app/`; under jsdom `import.meta.url` is not a file URL.
-    const src = readFileSync(resolve(process.cwd(), '..', 'api', 'services', 'journal_two', 'notes.py'), 'utf8')
+    const src = readFileSync(resolve(globalThis.process.cwd(), '..', 'api', 'services', 'journal_two', 'notes.py'), 'utf8')
     const m = src.match(/^MAX_TITLE_CHARS\s*=\s*(\d+)\s*$/m)
     expect(m, 'MAX_TITLE_CHARS not found in notes.py').toBeTruthy()
     expect(nc.MAX_NOTE_TITLE_CHARS).toBe(Number(m[1]))

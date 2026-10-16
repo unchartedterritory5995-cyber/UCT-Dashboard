@@ -738,6 +738,14 @@ describe('I-A · fix round 3 — a copy the server refused is its own offer: sav
     return copy
   }
   const copyKept = (copy) => outbox().some((e) => e.mutationId === copy.mutationId)
+  // ⚠️ The shared `update` mock writes to whichever `server` is current, so a PUT an
+  // EARLIER cell left in flight can land here (measured: the C-2 no-base cell's draft
+  // W). The property is that the COPY's words never reach the source note, and that
+  // is asserted directly — a leaked PUT cannot carry them.
+  const sourceNeverGotTheCopy = (label) => {
+    expect(server.puts.some((p) => JSON.stringify(p).includes(COPY_WORDS)), `${label}: a PUT carried the copy into its source note`).toBe(false)
+    expect(JSON.stringify(server.body), `${label}: the copy was written over its source note`).not.toContain(COPY_WORDS)
+  }
   async function openOnRefusedCopy() {
     server = makeServer({ body: doc(para(SERVER_NOW)), updatedAt: T0 })
     const copy = await refusedCopy()
@@ -753,9 +761,7 @@ describe('I-A · fix round 3 — a copy the server refused is its own offer: sav
     const save = await screen.findByRole('button', { name: 'Save as a separate note' })
     await act(async () => { fireEvent.click(save); await settleIdb(6) })
     await sit(3)
-    expect(JSON.stringify(server.body), 'the source note lost its server text').toContain(SERVER_NOW)
-    expect(JSON.stringify(server.body), 'the copy was written over its source note').not.toContain(COPY_WORDS)
-    expect(server.puts.some((p) => JSON.stringify(p).includes(COPY_WORDS)), 'a PUT carried the copy into the source').toBe(false)
+    sourceNeverGotTheCopy('after Save as a separate note')
     expect(server.forks, 'exactly one separate note was created').toHaveLength(1)
     expect(JSON.stringify(server.forks[0].bodyJson)).toContain(COPY_WORDS)
     expect(server.forks[0].subtitle).toBe('copy subtitle')
@@ -794,7 +800,7 @@ describe('I-A · fix round 3 — a copy the server refused is its own offer: sav
     const offer = await screen.findByTestId('refused-copy-offer')
     expect(offer.textContent).toMatch(/kept on this device/i)
     expect(screen.getByRole('button', { name: 'Save as a separate note' }), 'the copy is no longer offered').toBeTruthy()
-    expect(JSON.stringify(server.body)).toContain(SERVER_NOW)
+    sourceNeverGotTheCopy('after a refused re-POST')
   })
 
   it('Discard asks first (in the page), and keeps the copy if the member backs out', async () => {
@@ -816,7 +822,7 @@ describe('I-A · fix round 3 — a copy the server refused is its own offer: sav
     await sit(2)
     expect(copyKept(copy), 'a confirmed Discard kept the copy').toBe(false)
     expect(screen.queryByTestId('refused-copy-offer')).toBeNull()
-    expect(JSON.stringify(server.body)).toContain(SERVER_NOW)
+    sourceNeverGotTheCopy('after Discard')
     await reopen()
     await sit(2)
     expect(copyKept(copy), 'the discarded copy came back').toBe(false)
