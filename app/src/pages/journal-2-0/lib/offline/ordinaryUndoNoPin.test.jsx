@@ -26,10 +26,12 @@
  * (b) type (unsent), Undo, keep typing, leave ⇒ the server ends with the final text,
  *     no `(conflicted copy)` — online, and offline then back online
  * (c) the Redo variants of both
- * (d) the swaps still keep the offline words when Undo crosses them (the version
- *     restore here; adoption and both crash-draft Restores in
- *     `swapLineageRotation.test.jsx` C1 and `restoreUndoKeepsWords.test.jsx`)
+ * (d) an Undo across a swap still mints a lineage (version restore and
+ *     the reconcile fork swap here; the words-at-stake swaps — adoption and both
+ *     crash-draft Restores — in `swapLineageRotation.test.jsx` C1 and
+ *     `restoreUndoKeepsWords.test.jsx`)
  * (e) a genuine second writer still forks — with the member's NEWEST words
+ * (f) review I-1: a doc change outside history never blinds the crossing detector
  *
  * (a)–(c) are RED on `35dc861b85` (the I-A tip, round 1's rotate-on-every-undo).
  * The REAL editor, the REAL durable layer over the fake IndexedDB, a real Undo and
@@ -318,8 +320,15 @@ describe('(c) the Redo variants', () => {
 })
 
 // ── (d) ─────────────────────────────────────────────────────────────────────
-describe('(d) an Undo across a whole-view swap still rotates, and the offline words survive', () => {
-  it('version restore: the old view’s unsent words survive typing on the restored version AND an Undo back across it', async () => {
+describe('(d) an Undo across a whole-view swap still rotates', () => {
+  // ⚠️ Review M-1 (fix round 1): this cell used to also claim "the old view's
+  // unsent words survive", and that assertion could not fail (detector forced off,
+  // mint asserts removed: still green). It cannot, by construction: a version
+  // restore puts the SERVER's copy on screen, so an Undo across it can only bring
+  // back the old view's own page — no words exist only because of the swap. The
+  // words-at-stake swaps (adoption, both crash-draft Restores) are railed in
+  // `swapLineageRotation.test.jsx` C1 and `restoreUndoKeepsWords.test.jsx`.
+  it('version restore: an ordinary Undo on the restored version mints nothing; the Undo across it mints a lineage', async () => {
     server = makeServer({ body: doc(para('ab cd')), updatedAt: T0 })
     await openTheNote()
     server.offline = true                                // the old view's words never land
@@ -340,9 +349,7 @@ describe('(d) an Undo across a whole-view swap still rotates, and the offline wo
     await undo()                                         // across the version restore
     expect(await viewText(), 'precondition: the Undo crossed the version restore').not.toContain('a restored version')
     expect(minted.length, 'an Undo across the version restore did NOT mint a lineage').toBeGreaterThan(before)
-    await tick(1500)
-    const kept = [JSON.stringify(record()?.bodyJson ?? null), ...outbox().map((e) => JSON.stringify(e.patch))]
-    expect(kept.some((b) => b.includes('ab cd ef')), 'the old view’s unsent words left the durable copy and the queue').toBe(true)
+    await tick(1500)                                     // let the cell's own autosave retries settle before teardown
   })
 
   it('a swap’s own Undo and Redo each mint a lineage; an Undo inside the swapped-in view does not', async () => {
@@ -370,6 +377,102 @@ describe('(d) an Undo across a whole-view swap still rotates, and the offline wo
     expect(await viewText()).toBe('a restored version gh')
     expect(minted.length, 'Redo of typing on the swapped-in view').toBe(n)
   })
+
+  // ⚠️ Review M-1: NO cell for the LOAD swap (`NoteEditorPage`'s note-open
+  // effect), because no Undo across it can change the page. The editor is BUILT
+  // from `bodyForEditor`, and the effect swaps only when `getJSON()` differs from
+  // that same JSON (normalisation), so the swap's two sides are the same document
+  // — measured: the Undo's step is `0..2` on a doc of 2, before and after equal.
+  // TipTap emits no `update` for a transaction that leaves `doc.eq` unchanged
+  // (`@tiptap/core` dispatchTransaction), so there is no capture to protect and
+  // no lineage question to rail.
+
+  it('the reconcile FORK swap (the editor shows the server copy after preserving both): an Undo across it mints a lineage', async () => {
+    server = makeServer({ body: doc(para('ab cd')), updatedAt: T0 })
+    await openTheNote()
+    await edit((c) => c.focus('end').insertContent(' mine'))
+    await tick(300)
+    server.body = doc(para('rewritten on another device'))
+    server.stamp()
+    await tick(2500)                                     // the save 409s ⇒ fork ⇒ the server copy on screen
+    expect(server.forks.length, 'precondition: the reconcile forked').toBe(1)
+    expect(await viewText(), 'precondition: the server copy is on the page').toBe('rewritten on another device')
+    await tick(600)
+    await edit((c) => c.focus('end').insertContent(' more'))
+    await tick(600)
+    let n = minted.length
+    await undo()                                         // ' more' — ordinary
+    expect(minted.length, 'an ordinary Undo on the server copy minted a lineage').toBe(n)
+    n = minted.length
+    await undo()                                         // across the fork swap
+    expect(await viewText(), 'precondition: the Undo crossed the fork swap').not.toContain('rewritten on another device')
+    expect(minted.length, 'an Undo across the reconcile fork swap did NOT mint a lineage').toBe(n + 1)
+  })
+})
+
+// ── (f) ─────────────────────────────────────────────────────────────────────
+describe('(f) ⛔⛔ review I-1 — a doc change OUTSIDE history must never blind the crossing detector', () => {
+  // `replacesWholeDocument` reads the step shape, and that shape is only exact
+  // while every doc change is in history: prosemirror-history maps an undone step
+  // through changes it never recorded, so a swap's inverse mapped past a block
+  // inserted with `addToHistory: false` covers the doc MINUS that block and stops
+  // reading as whole-document (measured by the review: `to = 18` on a doc of 19).
+  /** A step-carrying transaction prosemirror-history does not record. */
+  async function insertOutsideHistory(text) {
+    const ed = await editor()
+    await act(async () => {
+      const { state } = ed
+      const block = state.schema.nodes.paragraph.create(null, state.schema.text(text))
+      ed.view.dispatch(state.tr.insert(state.doc.content.size, block).setMeta('addToHistory', false))
+      await settleIdb(2)
+    })
+  }
+  async function versionRestore() {
+    server.body = doc(para('a restored version'))
+    server.updatedAt = TV
+    versionGate.note = server.note()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'rail: restore a version' })); await settleIdb(6) })
+    await tick(600)
+  }
+
+  it('⭐⭐ a swap, then an insert outside history, then an Undo across the swap ⇒ the lineage is still minted', async () => {
+    server = makeServer({ body: doc(para('ab cd')), updatedAt: T0 })
+    await openTheNote()
+    await versionRestore()
+    await insertOutsideHistory('outside history')
+    await tick(600)
+    expect(await viewText(), 'precondition: the insert is on the page').toContain('outside history')
+    const n = minted.length
+    await undo()
+    expect(await viewText(), 'precondition: the Undo crossed the version restore').not.toContain('a restored version')
+    expect(minted.length, 'an Undo across a swap, after a doc change outside history, did NOT mint a lineage').toBe(n + 1)
+  })
+
+  it('⭐ after a doc change outside history, every Undo and Redo of this view is treated as a crossing (the safe direction)', async () => {
+    server = makeServer({ body: doc(para('ab cd')), updatedAt: T0 })
+    await openTheNote()
+    await edit((c) => c.focus('end').insertContent(' ef'))
+    await tick(600)
+    await insertOutsideHistory('outside history')
+    await tick(600)
+    const n = minted.length
+    await undo()
+    expect(minted.length, 'an Undo after a doc change outside history kept the lineage').toBe(n + 1)
+    await redo()
+    expect(minted.length, 'a Redo after a doc change outside history kept the lineage').toBe(n + 2)
+  })
+
+  it('CONTROL — a transaction outside history that changes NOTHING (focus, blur, a highlighter ready flag) does not degrade it', async () => {
+    server = makeServer({ body: doc(para('ab cd')), updatedAt: T0 })
+    await openTheNote()
+    await edit((c) => c.focus('end').insertContent(' ef'))
+    await tick(600)
+    const ed = await editor()
+    await act(async () => { ed.view.dispatch(ed.state.tr.setMeta('addToHistory', false)); await settleIdb(2) })
+    const n = minted.length
+    await undo()
+    expect(minted.length, 'a step-less transaction outside history made an ordinary Undo rotate').toBe(n)
+  })
 })
 
 // ── (e) ─────────────────────────────────────────────────────────────────────
@@ -395,7 +498,11 @@ describe('(e) ⛔⛔ CONTROL — a genuine second writer still forks', () => {
     expect(serverText(), 'the other device’s words were overwritten').toContain('rewritten on another device')
   })
 
-  it('online, after an Undo: another device writes while this view holds unsent words ⇒ the editor’s save forks, never clobbers', async () => {
+  // ⚠️ Review M-3: a BOTH-WAYS control — green before and after this branch's fix
+  // (it does not depend on the lineage). It is shown able to fail by a mutant of
+  // the editor's 409 path that rebases instead of forking (evidence
+  // `offline-undo-r1-*/mut-reconcile-never-forks.log`).
+  it('online, after an Undo: another device writes while this view holds unsent words ⇒ the editor’s save forks, never clobbers (both-ways control)', async () => {
     server = makeServer({ body: doc(para('ab cd')), updatedAt: T0 })
     await openTheNote()
     await edit((c) => c.focus('end').insertContent(' ef'))

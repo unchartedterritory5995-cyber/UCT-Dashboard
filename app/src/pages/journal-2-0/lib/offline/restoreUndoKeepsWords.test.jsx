@@ -470,6 +470,7 @@ describe('I-A · ⛔⛔ a crash-draft Restore, and any Undo past it, never leave
     expect(await viewText(), 'precondition: an ordinary Undo took the typing back').not.toContain('after-redo')
     expect(await viewText(), 'precondition: it did not cross the Restore').toContain(SENTENCE)
     await sit(2)
+    expectBothDurable('after the ordinary Undo')
     expect(words(record()), 'the record stayed pinned to words the member undid').not.toContain('after-redo')
     expect(await undoUntilGone(SENTENCE), 'precondition: Undo crossed the Restore again').toBeGreaterThan(0)
     await sit(2)
