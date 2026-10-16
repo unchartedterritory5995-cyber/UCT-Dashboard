@@ -3,7 +3,7 @@
 // (scan joins, logic trees, ranks, field-to-field, structure contains) is a
 // plain sentence. Never a ✓ we cannot back with the row's own value.
 import { chipLabel } from '../chipLabel'
-import { plainColumnLabel, plainStructure, lowerOperator } from './plainWords'
+import { plainColumnLabel, structureSentence, lowerOperator } from './plainWords'
 import { sessionCloseLabel } from './dates'
 
 export const NOT_CHECKABLE_KEYS = new Set([
@@ -84,14 +84,14 @@ function satisfies(spec, v) {
 // The columns whose live value is shown instead of the snapshot's (livePrice.js decides it).
 const LIVE_FIELDS = { price: 'price', chg_pct_1d: 'chg' }
 
-// P10: a structure filter reads as what the stock has ("Has a Pocket Pivot"), from the preset
-// chipLabel names, in plain words; any other filter that cannot be checked per row reads its chip.
+// P10: a structure filter reads as what the stock has or is doing ("Has a short boxy base",
+// "In a downtrend: lower highs and lows"), from the preset names in plain words (plainWords
+// structureSentence); any other filter that cannot be checked per row reads its chip.
 function noteLabel(key, def, spec) {
   const chip = stripColon(lowerOperator(chipLabel(def, spec) || ''))
   const preset = (def.presets || []).find(o => o.op === spec.op && o.value === spec.value && o.label && o.label !== 'Any')
   if (key === 'base_structure' && preset) {
-    const name = plainStructure(preset.label)
-    return `Has ${/^[aeiou]/i.test(name) ? 'an' : 'a'} ${name}`
+    return structureSentence(preset.label)
   }
   return chip && chip !== def.label ? compactDigits(chip) : `Matches ${def.label}`
 }
