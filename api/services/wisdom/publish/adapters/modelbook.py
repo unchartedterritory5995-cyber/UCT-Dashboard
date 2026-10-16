@@ -17,11 +17,26 @@ draft gathers the owner's statements about that setup, every item cited. A setup
 source material yet still gets a draft marked `awaiting_source_material`, so the queue
 shows the whole gap. A playbook is frontend code: approving one records the decision and
 hands it to the Model Book owner; nothing writes that file.
+
+THE TRADER ARCHIVE AS A SECOND SOURCE (owner rulings 2026-10-15 and 2026-10-16: the archive is a
+member surface, it bypasses the R89 floor, and a call's levels publish only once it is more than
+ARCHIVE_PRICE_AGE_SESSIONS sessions old). Read only while `WISDOM_ARCHIVE_ENABLED` is on, from
+`wisdom_archive_setups` / `wisdom_archive_calls`. A Setup Library name reaches an archive setup
+ONLY through the one vocabulary (D9): its `setupCatalog.js` row's vocab_id, then every
+`trader_archive` row with that vocab_id. A library name with no vocab_id links to nothing.
+  - playbook drafts gain the archive's measured record (n, win rate, edge with the z verdict),
+    the traders' teachings by record id, and the calls worth charting;
+  - example drafts: the archive playbook's best calls AND its failures, one draft per call,
+    labelled as such in `notes`; entry/stop/target only for aged calls.
+NOTE: `_archive_read` is a local reader on purpose: the shared archive provider in
+publish/common is being built on another branch; fold this into it when both land.
 """
 from __future__ import annotations
 
 import pathlib
 import re
+from datetime import date, timedelta
+from typing import Optional
 
 from api.services.wisdom.core import flags
 
@@ -38,6 +53,11 @@ _CATALOG_NAME_RE = re.compile(r"^\s*name:\s*'((?:[^'\\]|\\.)+)'", re.M)
 _PLAYBOOK_KEY_RE = re.compile(r"^ {2}'((?:[^'\\]|\\.)+)'\s*:\s*\{", re.M)
 _CLOSED_WHERE = ("(r.hindsight = 1 OR r.stance IN ('exited', 'stopped_out', 'hindsight') "
                  "OR r.stated_outcome IN ('profit', 'loss', 'breakeven', 'stopped'))")
+
+ARCHIVE_PRICE_AGE_SESSIONS = 20
+ARCHIVE_EXAMPLES_PER_SIDE = 3     # best calls and failures, per linked archive setup
+ARCHIVE_TEACHINGS = 8
+ARCHIVE_LIST = "trader_archive"
 
 
 def _js_names(path: pathlib.Path, pattern: re.Pattern) -> list[str]:
@@ -113,6 +133,191 @@ def build_example_drafts(conn) -> list[dict]:
     return drafts
 
 
+# ── the trader archive ───────────────────────────────────────────────────────
+
+def archive_links() -> dict:
+    """Setup Library name -> archive setup ids, through the one vocabulary (D9). Never a typed list."""
+    from api.services.wisdom.core import vocab
+
+    maps = vocab.load_vocabulary().get("maps") or {}
+    by_vocab: dict = {}
+    for row in (maps.get(ARCHIVE_LIST) or {}).get("rows") or []:
+        if row.get("vocab_id"):
+            by_vocab.setdefault(row["vocab_id"], []).append((row.get("mismatch") or 0, row["external_name"]))
+    library = set(catalog_names())
+    out: dict = {}
+    for row in (maps.get(CATALOG_LIST) or {}).get("rows") or []:
+        name, vid = row.get("external_name"), row.get("vocab_id")
+        if name in library and vid and vid in by_vocab:
+            out[name] = [sid for _, sid in sorted(by_vocab[vid])]
+    return out
+
+
+def price_aged(posted: Optional[str], today: Optional[date] = None) -> bool:
+    """True when the call was posted more than ARCHIVE_PRICE_AGE_SESSIONS sessions before today.
+
+    An unknown or unparseable date is NOT aged: a level is withheld whenever its age is in doubt."""
+    try:
+        start = date.fromisoformat(str(posted or "")[:10])
+    except ValueError:
+        return False
+    from api.services.wisdom.core import timeutil
+
+    today = today or timeutil.now_et().date()
+    if (today - start).days > 3 * ARCHIVE_PRICE_AGE_SESSIONS:   # far past any holiday arithmetic
+        return True
+    sessions, cur = 0, start + timedelta(days=1)
+    while cur <= today:
+        if timeutil.is_trading_day(cur):
+            sessions += 1
+        cur += timedelta(days=1)
+    return sessions > ARCHIVE_PRICE_AGE_SESSIONS
+
+
+def _archive_read(conn) -> Optional[dict]:
+    """{setup_id: playbook} for every linked archive setup, or None while the archive is off or absent."""
+    from api.services.wisdom.publish.adapters import common
+
+    if not flags.archive_enabled() or not common.table_exists(conn, "wisdom_archive_setups"):
+        return None
+    wanted = sorted({sid for ids in archive_links().values() for sid in ids})
+    if not wanted:
+        return {}
+    out = {}
+    for r in conn.execute(
+            "SELECT setup_id, name, stats_json, context_json, teachings_json, winners_json, failures_json "
+            f"FROM wisdom_archive_setups WHERE setup_id IN ({','.join('?' * len(wanted))})", wanted):
+        d = {"setup_id": r["setup_id"], "name": r["name"]}
+        for k, default in (("stats", {}), ("context", {}), ("teachings", []), ("winners", []), ("failures", [])):
+            d[k] = common.parse_json(r[f"{k}_json"], default)
+        out[r["setup_id"]] = d
+    return out
+
+
+def _archive_levels(conn, call_ids: list) -> dict:
+    """call_id -> {posted, aged, entry, stop, target}; the levels are None unless the call is aged."""
+    from api.services.wisdom.publish.adapters import common
+
+    if not call_ids or not common.table_exists(conn, "wisdom_archive_calls"):
+        return {}
+    out = {}
+    for r in conn.execute(
+            "SELECT call_id, posted, entry, stop, target FROM wisdom_archive_calls "
+            f"WHERE call_id IN ({','.join('?' * len(call_ids))})", list(call_ids)):
+        aged = price_aged(r["posted"])
+        out[r["call_id"]] = {"posted": r["posted"], "aged": aged,
+                             "entry": r["entry"] if aged else None, "stop": r["stop"] if aged else None,
+                             "target": r["target"] if aged else None}
+    return out
+
+
+def _pct(v) -> str:
+    try:
+        x = float(v) * 100
+    except (TypeError, ValueError):
+        return "n/a"
+    return f"{'+' if x > 0 else ''}{x:.1f}%"
+
+
+def _verdict_line(pb: dict) -> str:
+    """One measured line: n, win rate, edge vs the same stock, edge R and its verdict, best context."""
+    from api.services.wisdom.archive import askai
+
+    st = ((pb.get("stats") or {}).get("all")) or {}
+    n, z, edge, win = int(st.get("n_scored") or 0), st.get("edgeR_z"), st.get("mean_edgeR"), st.get("win20")
+    proven = z is not None and abs(z) >= askai.EDGE_Z and n >= askai.MIN_CONTEXT_N
+    bits = [f"{pb.get('name') or pb['setup_id']}: {n} scored calls",
+            f"win 20d {round(win * 100)}%" if win is not None else None,
+            f"median vs same stock {_pct(st.get('med_edge20'))}",
+            f"edge R {edge:+.2f}" if edge is not None else None,
+            ("measured edge" if proven else "edge not proven") + (f" (z {z:.1f})" if z is not None else "")]
+    best = None
+    for group, rows in (pb.get("context") or {}).items():
+        for value, cst in (rows or {}).items():
+            if (cst or {}).get("n_scored", 0) >= askai.MIN_CONTEXT_N and cst.get("mean_edgeR") is not None:
+                if best is None or cst["mean_edgeR"] > best[2]:
+                    best = (group.replace("_", " "), value, cst["mean_edgeR"], int(cst["n_scored"]))
+    if best:
+        bits.append(f"strongest context {best[0]} = {best[1]} (edge R {best[2]:+.2f}, n {best[3]})")
+    return "; ".join(b for b in bits if b)
+
+
+def _archive_playbook_sections(setup: str, links: dict, archive: dict) -> tuple[list, list]:
+    """(sections, citations) the archive adds to one library setup's playbook draft."""
+    from api.services.wisdom.publish.adapters import common
+
+    measured, words, chart, cites = [], [], [], []
+    for sid in links.get(setup, []):
+        pb = archive.get(sid)
+        if not pb:
+            continue
+        loc = f"wisdom_archive_setups:{sid}"
+        measured.append({"text": _verdict_line(pb), "locator": loc, "date": None, "status": "measured"})
+        cites.append(loc)
+        for t in (pb.get("teachings") or [])[:ARCHIVE_TEACHINGS]:
+            if t.get("note"):
+                words.append({"text": common.clip(t["note"], 400), "locator": t["record_id"],
+                              "date": t.get("date"), "status": common.speaker(t.get("author_id"))})
+                cites.append(t["record_id"])
+        for side, rows in (("best", pb.get("winners") or []), ("failure", pb.get("failures") or [])):
+            for e in rows[:ARCHIVE_EXAMPLES_PER_SIDE]:
+                chart.append({"text": f"{side}: {e.get('ticker')} {str(e.get('posted') or '')[:10]} "
+                                      f"({common.speaker(e.get('author_id'))}) r20 {_pct(e.get('r20'))}",
+                              "locator": e["call_id"], "date": str(e.get("posted") or "")[:10] or None,
+                              "status": side})
+    sections = [{"label": "Measured record (trader archive)", "items": measured},
+                {"label": "In the traders' words (trader archive)", "items": words},
+                {"label": "Calls worth charting (trader archive)", "items": chart}]
+    return [x for x in sections if x["items"]], cites
+
+
+def build_archive_example_drafts(conn) -> list[dict]:
+    """One draft per archive best call and failure of every linked library setup."""
+    from api.services.wisdom.publish.adapters import common
+
+    archive = _archive_read(conn)
+    if not archive:
+        return []
+    links = archive_links()
+    picked = []
+    for setup in catalog_names():
+        for sid in links.get(setup, []):
+            pb = archive.get(sid)
+            if not pb:
+                continue
+            for side, rows in (("best", pb.get("winners") or []), ("failure", pb.get("failures") or [])):
+                picked += [(setup, pb, side, e) for e in rows[:ARCHIVE_EXAMPLES_PER_SIDE] if e.get("call_id")]
+    levels = _archive_levels(conn, sorted({e["call_id"] for _, _, _, e in picked}))
+    drafts, seen = [], set()
+    for setup, pb, side, e in picked:
+        posted = str(e.get("posted") or "")[:10]
+        if (setup, e["call_id"]) in seen or not e.get("ticker") or len(posted) != 10:
+            continue
+        seen.add((setup, e["call_id"]))
+        lv = levels.get(e["call_id"], {})
+        label = "Best call" if side == "best" else "FAILURE"
+        sim = e.get("sim_R")
+        outcome = f"r20 {_pct(e.get('r20'))}" + (f", trade {sim:+.1f}R" if isinstance(sim, (int, float)) else "")
+        notes = (f"{label} of the archive's {pb.get('name') or pb['setup_id']} playbook. "
+                 f"{e.get('evidence') or ''} — {common.speaker(e.get('author_id'))}, trader archive {posted} "
+                 f"({e['record_id']}). Measured after the fact: {outcome}.")
+        drafts.append({
+            "subject_ref": f"wisdom_archive_calls:{e['call_id']}:{setup}",
+            "title": common.clip(f"Model Book example — {setup} — {e['ticker']} {posted} ({label.lower()})", 200),
+            "payload": {
+                "setup_name": setup, "symbol": common.normalize_ticker(e["ticker"]), "year": int(posted[:4]),
+                "label_date": posted, "timeframe": "D", "entry_price": lv.get("entry"),
+                "stop_price": lv.get("stop"), "target_price": lv.get("target"), "grade": None,
+                "notes": common.clip(notes, 1000), "record_id": e["record_id"], "call_id": e["call_id"],
+                "archive_setup": pb["setup_id"], "archive_side": side,
+                "levels_withheld": not lv.get("aged", False), "status": "measured",
+            },
+            "citations": [e["record_id"], e["call_id"]],
+            "provisional": True,
+        })
+    return drafts
+
+
 def build_playbook_drafts(conn) -> list[dict]:
     from api.services.wisdom.publish.adapters import common
 
@@ -120,6 +325,8 @@ def build_playbook_drafts(conn) -> list[dict]:
     statements = {r["principle_key"]: r["statement"] for r in conn.execute(
         "SELECT principle_key, statement FROM wisdom_principles WHERE status IN ('provisional', 'confirmed') "
         "AND is_guest = 0 AND (canonical IS NULL OR canonical = 1)")}
+    archive = _archive_read(conn)
+    links = archive_links() if archive else {}
     drafts = []
     for setup in missing_playbooks():
         vid = vocab_for.get(setup)
@@ -141,13 +348,17 @@ def build_playbook_drafts(conn) -> list[dict]:
                 sections[section].append({"text": common.clip(words, 400), "locator": loc,
                                           "date": common.record_date(r), "status": common.status_label(r["status"])})
                 cites.append(loc)
-        total = sum(len(v) for v in sections.values())
+        extra: list = []
+        if archive:
+            extra, more = _archive_playbook_sections(setup, links, archive)
+            cites += more
+        total = sum(len(v) for v in sections.values()) + sum(len(x["items"]) for x in extra)
         drafts.append({
             "subject_ref": f"setup_playbook:{setup}",
             "title": common.clip(f"Setup playbook draft — {setup}", 200),
             "payload": {
                 "setup_name": setup, "vocab_id": vid,
-                "sections": [{"label": k, "items": v} for k, v in sections.items()],
+                "sections": [{"label": k, "items": v} for k, v in sections.items()] + extra,
                 "state": "draft" if total else "awaiting_source_material",
                 "target": "app/src/pages/modelbook/setupPlaybooks.js — code; the Model Book owner applies an approved draft",
             },
@@ -164,8 +375,11 @@ def daily(ctx) -> dict:
     flag_on = flags.modelbook_drafts_enabled()
     with store.read() as conn:
         examples = build_example_drafts(conn)
+        archive_examples = build_archive_example_drafts(conn)
         playbooks = build_playbook_drafts(conn)
-    out = {"flag_on": flag_on, "example_drafts": len(examples), "playbook_drafts": len(playbooks)}
+    out = {"flag_on": flag_on, "example_drafts": len(examples) + len(archive_examples),
+           "archive_example_drafts": len(archive_examples), "playbook_drafts": len(playbooks)}
+    examples = examples + archive_examples
     if getattr(ctx, "dry_run", False):
         return {**out, "dry_run": True}
     results: list = []
