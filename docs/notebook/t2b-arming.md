@@ -4,9 +4,9 @@ What this is: everything the owner needs to turn on `NOTEBOOK_EARNINGS_FOLLOWUP_
 merged and `web` is serving it, and to turn it off again. Merging and arming are the owner's. No agent runs a `railway`
 command.
 
-Status (2026-10-15, tree `247bc13994`): built, reviewed task by task and as a whole branch (final review and its fix
-wave re-reviewed: no Critical or Important open). Gated and walked at an earlier tip; the re-gate and walk #2 at the final
-tip are PENDING (below). Nothing here has been run on production yet.
+Status (2026-10-16, tree `1054b7b95c`): built, reviewed task by task and as a whole branch twice (a Sonnet final
+review, then an Opus final review after the weekly limit allowed it), every fix wave re-reviewed with no Critical or
+Important open. Gated, walked and measured at the final merged tree (below). Nothing here has been run on production.
 
 ## What merging does, before anything is armed
 
@@ -28,14 +28,36 @@ Dark until the switch is armed: the 16:45 / 18:00 ET job, the bell, the card, an
 
 ## Evidence
 
-- Gate, six shards, separate worktree: `docs/notebook/evidence/t2b-gate-c0ada18033/` -- at `c0ada18033`: NO_NEW_FAILURES, 3,473 test files reconcile, tree unchanged. The re-gate at the final tip (`563069bb54`) was stopped by the harness for low system memory before a verdict and is PENDING.
-- Walk, sandbox c2, `--only followup`, 1280 / 820 / 390: `docs/notebook/evidence/t2b-walk-20261015T214338/` -- at `c952812a6b`: setup, notice and write PASS at all three widths (including the prep-note link); `followup.reminder` FAILED at all three, which is how the `@` + Enter defect was found. Walk #2 at the final tip, which must show `followup.reminder` PASS, is PENDING.
-  15 steps, 3 FAIL, all `followup.reminder`. Sandbox integrity (C:\data) CLEAN at every checkpoint.
-- Bytes: first open 2,256,050 B at `5f26255d46` (`docs/notebook/evidence/t2b-bytes-20261015T221929Z.txt`) (ceiling 2,256,406 = merge-base + 2,048; budget 2,260,793). Typing: `lib/tiptap.js` changed only
-  in extension ORDER (no extension or plugin added), so no per-keystroke path was added; Part A's typing measurement stands.
+- **Final gate**, six shards, at the final merged tree `1054b7b95c` (this branch + master `b4b1df534f`, which carries the
+  mid-text fork hotfix #342): VERDICT=NEW_FAILURES new=3 vs the stored baseline, 127 no longer failing, 3,490 test files reconcile -- none of
+  the three is this branch's: one passes alone (load), two name master's screener files that this branch does not
+  change (`docs/notebook/evidence/t2b-gate-final-1054b7b95c/`). The first gate, at `c0ada18033`, was NO_NEW_FAILURES.
+- **Walk #3**, sandbox c2, `--only followup`, 1280 / 820 / 390, at `00703930aa` (this branch + master `34bf314585` +
+  the hotfix's fix round 1): `VERDICT c2: 15 steps, 0 FAIL` -- setup (one member, one notice), notice, write, and the
+  reminder (one dated task item in the stored body, a live task item counted, due today, a Tasks-view row, and no
+  conflicted copy) all PASS at every width; sandbox integrity CLEAN at all four checkpoints
+  (`docs/notebook/evidence/t2b-walk3-20261016T023826Z/`).
+- **Walk #2** (`docs/notebook/evidence/t2b-walk2-20261015T234317/`) is what found the three defects fixed since: the
+  prebuilt watchlists counted as an admin's own names (fixed here, `33646af3eb`), the walk's own dead task-item
+  selector, and the single-tab "(conflicted copy)" fork after a mid-text edit -- a defect already live on master for
+  every member, named by stack (the outbox drain), reproduced on production with the smoke account, and fixed in its
+  own hotfix PR #342 (merged and deployed 2026-10-16, smoke PASS).
+- **Bytes**: first open 2,257,813 B at the final tree vs 2,256,066 B for master + the hotfix: **+1,747 B** (rule
+  +2,048 B; budget 2,260,793 B -- both PASS) (`docs/notebook/evidence/t2b-bytes-final-20261016T023826Z.txt`).
+- **Typing**: an A/B on the same box, master `b4b1df534f` vs this tree, 4 alternating runs per side with date mentions seeded
+  (`docs/notebook/evidence/t2b-typing-final-20261016-0214/`), busy-typing ms per key: 1,000 paragraphs p50 6.11 vs
+  6.38, p95 9.04 vs 9.62; 2,000 paragraphs p50 9.38 vs 10.13, p95 14.27 vs 15.18. Every delta is inside master's own
+  run-to-run spread, so **no measurable regression** -- but all four deltas are positive, and at n=4 a real cost under
+  ~1 ms per key cannot be told from noise. The box was not quiet (another session's small test runs). One run per side
+  breached 16 ms at the 2,000-paragraph p95, master included; both medians are under the line. No budget was touched.
+- **Python rails**, 302 files at `4f939dd65d`, each failure compared with the merge-base `4649e2d03e` run on the
+  same file lists: the only failure this branch caused was the switch-rehearsal census missing the new gate (fixed,
+  `0404ac3a9b`); every other red also fails at the merge-base or passes alone in a file this branch never touches.
 - Known pre-existing reds (fail at the merge-base, not this branch's): `tests/test_notebook_flag_parse.py` (2),
-  `tests/test_notebook_earnings_prep.py::test_the_import_graph_never_reaches_alphavantage_or_the_recap_generator`, and
-  the vitest names inside the gate baseline.
+  `tests/test_notebook_earnings_prep.py::test_the_import_graph_never_reaches_alphavantage_or_the_recap_generator`,
+  `tests/test_member_interest_surfaces.py::test_each_gate_is_declared_dark_in_the_ledger`,
+  `tests/test_notebook_switch_rehearsal.py` (NOTEBOOK_TERMINAL_LINKS_ENABLED only, the Terminal workstream's), the
+  route / rate-limit / open-reads censuses (other workstreams' routes), and the vitest names inside the gate baseline.
 
 ## Arm
 
@@ -108,8 +130,11 @@ removed only by reverting the PR; no schema changed, notes already made stay ord
 
 - NVDA rows 42-44 (`docs/notebook/screen-reader-pass.md`), run only while the owner is away. Row 42 needs an unread
   follow-up bell on the smoke account to grade; without one it records NOT RUN. Rows 39-41 (Part A) wait for the same run.
-- A second whole-branch review on Opus after the weekly limit resets (Oct 19, 12pm CT); this branch's final review ran on
-  Sonnet.
+- Done: the Opus whole-branch review ran on 2026-10-15 (0 Critical, 2 Important, 6 Minor); its fix wave C and the
+  re-review's N1/N3 are in this branch.
+- The offline layer's word-safety work found on the way is separate from this branch: the mid-text fork hotfix is
+  merged and live (#342, smoke PASS 2026-10-16); the crash-draft Restore-then-Undo loss (pre-existing on master) is
+  being fixed on `hotfix/notebook-restore-undo-loss`; an ordinary offline Undo that pins the record is queued next.
 - The plan's owner decisions, decided by the controller under the owner's standing delegation ("You decide it all",
   2026-10-15): O-T2B-1, arming, is this packet; O-T2B-2, the kind, style, `reminder` block and `/remind` live on merge,
   as built; O-T2B-3, a withheld reaction strip (fewer than 4 quarters) gives a labelled dash, not a second vendor read;
