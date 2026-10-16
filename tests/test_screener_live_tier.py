@@ -567,6 +567,53 @@ def test_the_lock_control_with_the_lock_free_the_same_cycle_writes(live_env,
     assert live_tier.run_sweep()["rows_written"] == 1
 
 
+def _sweep_under_a_build():
+    assert snapshot_builder._BUILD_LOCK.acquire(blocking=False)
+    try:
+        return live_tier.run_sweep()
+    finally:
+        snapshot_builder._BUILD_LOCK.release()
+
+
+def test_a_build_in_flight_after_a_sweep_stays_live_on_the_held_anchors(live_env,
+                                                                       monkeypatch):
+    """2026-10-16: a 65-minute daytime rebuild skipped every cycle, so members had no
+    live price for an hour. With anchors already read, the cycle runs on them."""
+    snapshot_db.upsert_rows([_nightly_row()])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0)})
+    assert live_tier.run_sweep()["rows_written"] == 1
+
+    def _no_reads(*a, **k):
+        raise AssertionError("screener_rows must not be read while a build holds the lock")
+    monkeypatch.setattr(live_tier, "_read_anchor_rows", _no_reads)
+    _feed(monkeypatch, {"AAA": _quote(last=120.0)})
+    r = _sweep_under_a_build()
+    assert r["skipped_reason"] is None and r["anchors_from"] == "held_through_build"
+    assert r["rows_written"] == 1 and _overlay("AAA")["price"] == 120.0
+    assert snapshot_builder.build_in_flight() is False
+
+
+def test_the_through_build_kill_switch_restores_the_refusal(live_env, monkeypatch):
+    snapshot_db.upsert_rows([_nightly_row()])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0)})
+    assert live_tier.run_sweep()["rows_written"] == 1
+    monkeypatch.setenv("SCREENER_LIVE_THROUGH_BUILD", "0")
+    _feed(monkeypatch, {"AAA": _quote(last=120.0)})
+    r = _sweep_under_a_build()
+    assert r["skipped_reason"] == "build_in_flight" and r["rows_written"] == 0
+    assert _overlay("AAA")["price"] == 110.0
+
+
+def test_held_anchors_belong_to_their_own_database(live_env, monkeypatch, tmp_path):
+    """Anchors cached for one screener.db never serve another one."""
+    snapshot_db.upsert_rows([_nightly_row()])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0)})
+    assert live_tier.run_sweep()["rows_written"] == 1
+    monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "other.db"))
+    snapshot_db.init_db()
+    assert live_tier.held_anchors_for_build() is None
+
+
 def _own_locks(source: str) -> list:
     """Every lock this source CONSTRUCTS. A private one would pass every
     behavioural test above and still let a sweep read anchors a build is
