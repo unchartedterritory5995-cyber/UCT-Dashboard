@@ -2219,9 +2219,33 @@ def _wisdom_context(query: str, meta: dict) -> tuple[str, list]:
                               query_tickers=meta.get("query_tickers") or [])
 
 
-def _archive_context(query: str, meta: dict) -> tuple[str, list]:
+def _archive_context(query: str, meta: dict, *, playbook: bool = True) -> tuple[str, list]:
     from api.services.wisdom.archive import askai as archive_askai
-    return archive_askai.archive_block(query, query_tickers=meta.get("query_tickers") or [])
+    if playbook:
+        return archive_askai.archive_block(query, query_tickers=meta.get("query_tickers") or [])
+    return archive_askai.archive_block(query, query_tickers=meta.get("query_tickers") or [], playbook=False)
+
+
+def _archive_setup_context(query: str, meta: dict) -> tuple[str, list]:
+    """The TSDR archive's SETUP CONTEXT block (archive/ask_setup.py). Gated by
+    WISDOM_ARCHIVE_ENABLED AND WISDOM_ARCHIVE_ASK_ENABLED, read per call; either off returns
+    ("", []) before wisdom.db is opened."""
+    from api.services.wisdom.archive import ask_setup
+    return ask_setup.setup_block(query, question_type=meta.get("question_type"))
+
+
+def _restate_setup_gap(system: str, meta: dict) -> str:
+    """A setup the archive grounded is not ungrounded: restate the "confirmed technical setup" gap
+    (only the live detection is unconfirmed). No-op when the gap was not raised."""
+    if SETUP_GAP not in meta["grounding_gaps"]:
+        return system
+    old = _desk_gaps_sentence(meta["grounding_gaps"])
+    meta["grounding_gaps"] = [g for g in meta["grounding_gaps"] if g != SETUP_GAP]
+    new = _desk_gaps_sentence(meta["grounding_gaps"]) if meta["grounding_gaps"] else ""
+    meta.setdefault("grounding_notes", []).append(SETUP_RECORD_NOTE)
+    if old in system:
+        return system.replace(old, f"{new} {SETUP_RECORD_NOTE}".strip(), 1)
+    return system + "\n\n" + SETUP_RECORD_NOTE   # the desk context was clipped past the gap line
 
 
 def _grounded_system(query: str) -> tuple[str, str, dict]:
@@ -2272,8 +2296,18 @@ def _grounded_system(query: str) -> tuple[str, str, dict]:
     # "trader_archive", which forces time-sensitive. When the playbook matched a setup question,
     # the "confirmed technical setup" gap is restated: the setup is not ungrounded, only the
     # live detection is unconfirmed.
+    # The SETUP CONTEXT block (WISDOM_ARCHIVE_ASK_ENABLED AND WISDOM_ARCHIVE_ENABLED, read per call)
+    # is computed first so the TRADER ARCHIVE block can drop its one-line playbook when this block
+    # already carries the setup's record. Off (either flag) or nothing resolved -> ("", []) and
+    # everything below runs exactly as before: byte-identical prompt.
+    sblock, scites = "", []
     try:
-        ablock, acites = _archive_context(query, meta)
+        sblock, scites = _archive_setup_context(query, meta)
+    except Exception:
+        sblock, scites = "", []
+    try:
+        ablock, acites = _archive_context(query, meta) if not sblock else _archive_context(
+            query, meta, playbook=False)
         if ablock:
             system += ablock
             from api.services.wisdom.archive import askai as archive_askai
@@ -2284,15 +2318,21 @@ def _grounded_system(query: str) -> tuple[str, str, dict]:
                 meta["grounding_sources"].append(key)
             meta["archive_citations"] = acites
             salt = f"{salt or ''}|trader_archive"
-            if archive_askai.PLAYBOOK_KIND in kinds and SETUP_GAP in meta["grounding_gaps"]:
-                old = _desk_gaps_sentence(meta["grounding_gaps"])
-                meta["grounding_gaps"] = [g for g in meta["grounding_gaps"] if g != SETUP_GAP]
-                new = _desk_gaps_sentence(meta["grounding_gaps"]) if meta["grounding_gaps"] else ""
-                meta.setdefault("grounding_notes", []).append(SETUP_RECORD_NOTE)
-                if old in system:
-                    system = system.replace(old, f"{new} {SETUP_RECORD_NOTE}".strip(), 1)
-                else:   # the desk context was clipped past the gap line; say it at the end
-                    system += "\n\n" + SETUP_RECORD_NOTE
+            if archive_askai.PLAYBOOK_KIND in kinds:
+                system = _restate_setup_gap(system, meta)
+    except Exception:
+        pass
+    # The setup block carries dated example calls, so it files under the dated "trader_archive"
+    # source (never evergreen memory). Its own salt suffix keeps a cached pre-flip answer unserved.
+    try:
+        if sblock:
+            from api.services.wisdom.archive import ask_setup
+            system += sblock
+            if ask_setup.SOURCE_KEY not in meta["grounding_sources"]:
+                meta["grounding_sources"].append(ask_setup.SOURCE_KEY)
+            meta["archive_citations"] = list(meta.get("archive_citations") or []) + list(scites)
+            salt = f"{salt or ''}{ask_setup.SALT_SUFFIX}"
+            system = _restate_setup_gap(system, meta)
     except Exception:
         pass
     # Phase 2 — blend in the desk's OWN prior evergreen research (best-effort,

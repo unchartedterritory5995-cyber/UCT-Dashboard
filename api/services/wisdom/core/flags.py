@@ -97,6 +97,14 @@ def archive_enabled() -> bool:
     return _truthy(os.environ.get("WISDOM_ARCHIVE_ENABLED", "0"))
 
 
+def archive_ask_enabled() -> bool:
+    """Ask AI's SETUP CONTEXT block over the TSDR archive (archive/ask_setup.py): a setup named
+    in the member's question resolves to its archive record, teachings, level kinds, dated
+    example calls and the closest LESSON posts. MEMBER-VISIBLE when on (Ask AI is require_paid).
+    Double-gated: it does nothing unless WISDOM_ARCHIVE_ENABLED is on too. Default OFF."""
+    return _truthy(os.environ.get("WISDOM_ARCHIVE_ASK_ENABLED", "0"))
+
+
 def brainkb_publish_enabled() -> bool:
     return _truthy(os.environ.get("WISDOM_BRAINKB_PUBLISH_ENABLED", "0"))
 
@@ -166,4 +174,5 @@ GATES = (
     ("WISDOM_LEVEL_ALERTS_ENABLED", level_alerts_enabled, True),
     ("WISDOM_LOOKALIKE_ENABLED", lookalike_enabled, True),
     ("WISDOM_ARCHIVE_ENABLED", archive_enabled, True),
+    ("WISDOM_ARCHIVE_ASK_ENABLED", archive_ask_enabled, True),
 )

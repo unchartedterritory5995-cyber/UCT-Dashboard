@@ -2772,6 +2772,15 @@
       ],
       "note": ""
     },
+    "WISDOM_ARCHIVE_ASK_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-16",
+      "where": [],
+      "exposure": "members",
+      "default": "0",
+      "values": ["0", "1"],
+      "note": "DARK at merge, deliberately: built on feat/wisdom-archive-ask and the owner flips it. MEMBER-VISIBLE when on: Ask AI (require_paid) adds a TRADER ARCHIVE SETUP CONTEXT block when the member's question names a setup (resolved from the archive's own setup ids, names and aliases, the vocabulary's trader_archive map and a small slang table; api/services/wisdom/archive/ask_setup.py): the setup's definition line, up to three scrubbed team teachings, its record (n, 20d win rate, edge vs the same stock; 'measured' only at |z| >= 3 on 30+ scored calls), the regime cut when the question names one, the level KINDS the team draws for that family, two or three dated example calls (prices only on calls older than 20 sessions, through the provider's gate) and the closest LESSON posts. Double-gated: does nothing unless WISDOM_ARCHIVE_ENABLED is also on; either off returns before wisdom.db is opened and the prompt is byte-identical. Read per call in api/services/wisdom/core/flags.py. Rollback: set 0 (or unset) on web."
+    },
     "WISDOM_ARCHIVE_ENABLED": {
       "status": "armed",
       "since": "2026-10-16",
