@@ -113,7 +113,12 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //                               by now, LIVE-ONLY: NULL in every nightly row
     //                               by design, so a scalar over it would be a
     //                               hole at every hour.
-    expect(Object.keys(excluded).length).toBe(68)
+    //   excluded 68 + 9 = 77         the nine `archive_*` columns (2026-10-16) --
+    //                               DISPLAY-ONLY trader-archive context, refused
+    //                               so no formula, saved scan or alert can key
+    //                               on it (owner decision 3), and blank whenever
+    //                               the archive is off.
+    expect(Object.keys(excluded).length).toBe(77)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

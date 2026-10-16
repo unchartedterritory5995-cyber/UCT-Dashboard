@@ -605,6 +605,11 @@ FILTERS = dict([
     _enum("theme", "UCT Theme", "context", "theme",
           [{"label": "Any"}], options_column="theme"),
     _bool("in_uct20", "In UCT 20", "context", "in_uct20"),
+    # TRADER ARCHIVE (2026-10-16, display-only context): how many archived
+    # team calls name this ticker. Blank when the archive is off; 0 is a real
+    # "never called". Backs the "Names the team has called" starter.
+    _open_range("archive_calls_n", "Team Archive Calls", "context",
+                "archive_calls_n"),
     _bool("index_sp500", "S&P 500", "context", "index_sp500"),
     _bool("index_ndx", "Nasdaq 100", "context", "index_ndx"),
     _bool("index_dow", "Dow 30", "context", "index_dow"),
@@ -952,6 +957,15 @@ VIEWS = {
         "candle_monthly",
         "body_pct", "upper_wick_pct", "lower_wick_pct", "close_position",
         "inside_bar_run", "nr7", "vol_ratio", "chg_pct_1d"]},
+    # TRADER ARCHIVE (2026-10-16): DISPLAY-ONLY context from the private
+    # archive -- the team's calls on the name, and the archive playbook's
+    # control-relative edge for the setup the best detection maps to. Nothing
+    # here feeds what fires or how it scores (owner decision 3).
+    "team": {"label": "Team Archive", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "archive_calls_n",
+        "archive_traders_n", "archive_last_call_date", "archive_last_setup",
+        "archive_last_r20", "archive_setup", "archive_setup_edge_r",
+        "archive_setup_edge_20d", "archive_setup_n"]},
 }
 
 # ── The Type filter (instrument class) ──────────────────────────────────────

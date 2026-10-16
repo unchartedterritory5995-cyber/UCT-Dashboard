@@ -4,7 +4,8 @@ import re
 from api.services.screener import saved_screens
 from api.services.screener.saved_screens import PATTERN_PRESETS, starters
 
-GROUPS = {"Momentum leaders", "Breakouts & entries", "Bases & chart patterns", "Earnings", "Quality & value"}
+GROUPS = {"Momentum leaders", "Breakouts & entries", "Bases & chart patterns", "Earnings", "Quality & value",
+          "Team archive"}
 _JS = os.path.join(os.path.dirname(__file__), "..", "app", "src", "pages", "screener", "focus", "screenGroups.js")
 
 
@@ -52,9 +53,16 @@ def test_server_groups_match_the_clients_fallback_map():
     body = re.search(r"FALLBACK_GROUP = \{(.*?)\n\}", js, re.S).group(1)
     fallback = dict(re.findall(r"(\w+): '(\w+)'", body))
     assert fallback and label_to_key
+    # A flag-GATED starter (pattern presets, the team-archive starter) always
+    # carries its own `group` and is absent from a default run, so it never
+    # needed the Phase-1 fallback; it is held to the label map instead.
+    gated = ("starter_pattern_", "starter_team_")
     for s in starters():
+        if s["id"].startswith(gated):
+            assert s["group"] == "Chart Patterns" or s["group"] in label_to_key, s["id"]
+            continue
         assert label_to_key[s["group"]] == fallback[s["id"]], s["id"]
-    assert {s["id"] for s in starters()} == set(fallback)
+    assert {s["id"] for s in starters() if not s["id"].startswith(gated)} == set(fallback)
 
 
 # -- every description names every condition its screen applies (N8) ---------
@@ -62,6 +70,7 @@ def test_server_groups_match_the_clients_fallback_map():
 # this map does not know fails below, so the copy cannot silently fall behind.
 _PLAIN = {
     "security_type": r"\bstocks?\b",
+    "archive_calls_n": r"\bteam has called\b",
     "rs_rank": r"\bRS\b",
     "adr_pct": r"daily range",
     "dollar_vol_30d": r"traded",

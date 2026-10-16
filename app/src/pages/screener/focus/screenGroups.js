@@ -4,6 +4,8 @@ export const GROUPS = [
   { key: 'bases', label: 'Bases & chart patterns' },
   { key: 'earnings', label: 'Earnings' },
   { key: 'quality', label: 'Quality & value' },
+  // Shown only while the trader archive is on (the server gates the starter).
+  { key: 'team', label: 'Team archive' },
 ]
 const BY_LABEL = Object.fromEntries(GROUPS.map(g => [g.label.toLowerCase(), g.key]))
 // Phase-1 fallback until starters() carries `group` (Task 13). Ids read from starters().

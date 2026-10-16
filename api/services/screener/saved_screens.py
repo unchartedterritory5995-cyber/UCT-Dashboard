@@ -394,6 +394,26 @@ def pattern_starters():
     ]
 
 
+def archive_starters():
+    """"Names the team has called" (2026-10-16). Shown only while the trader
+    archive is on: with it off `archive_calls_n` is blank on every row, so the
+    screen would return nothing and read as "the team never called anything".
+    Display-only context; it changes nothing about what any detector fires."""
+    try:
+        from api.services.wisdom.core import flags
+        if not flags.archive_enabled():
+            return []
+    except Exception:  # noqa: BLE001 -- an unreadable gate shows nothing
+        return []
+    return [{
+        "id": "starter_team_called", "name": "Names the team has called",
+        "group": "Team archive",
+        "description": "Stocks the trading team has called in the trader archive, most-called first",
+        "spec": {"filters": [{"key": "archive_calls_n", "op": "gte", "min": 1}],
+                 "view": "team",
+                 "sort": {"key": "archive_calls_n", "dir": "desc"}}}]
+
+
 #: Every starter screen is STOCKS ONLY (owner decision 3, 2026-10-14): the
 #: momentum starters were topped by QQQ, SPY and closed-end funds. Expressed
 #: exactly as the Type filter's own EXCLUDE control emits it
@@ -675,4 +695,4 @@ def _starter_defs():
              {"key": "optionable", "op": "eq", "value": 1},
              {"key": "rs_rank", "op": "gte", "min": 70}],
           "view": "events", "sort": {"key": "days_to_earnings", "dir": "asc"}}},
-    ] + (pattern_starters() if pattern_presets_enabled() else [])
+    ] + (pattern_starters() if pattern_presets_enabled() else []) + archive_starters()

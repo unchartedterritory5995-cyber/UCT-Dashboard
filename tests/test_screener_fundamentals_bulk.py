@@ -628,6 +628,26 @@ def _source_key_sets(monkeypatch, tmp_path) -> dict:
         "as_of": _dt.datetime.now(_dt.timezone.utc).isoformat(),
         "days": [], "rows": optflow_rows, "census": {}})
 
+    # ── archive_join: the private trader archive, seeded through its own store
+    # under a scratch WISDOM_DB_PATH (synthetic rows; the repo is public), with
+    # the flag ON and a mapped best detection so the setup-edge keys are
+    # exercised too, never a subset. ──
+    import json as _json
+    from api.services.screener import archive_join
+    from api.services.wisdom.core import store as wisdom_store
+    monkeypatch.setenv("WISDOM_DB_PATH", str(tmp_path / "srckeys_wisdom.db"))
+    monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "1")
+    wisdom_store.init_db()
+    with wisdom_store.write() as _wconn:
+        _wconn.execute(
+            "INSERT INTO wisdom_archive_calls (call_id, record_id, author_id, ticker, setup, posted, "
+            "outcome_json, sha, imported_at) VALUES ('t1#0', 't1', 'tsdr', 'AAA', 'kicker', "
+            "'2025-01-02', ?, 'aaaaaaaaaaaaaaaa', '2026-10-16')", (_json.dumps({"r20": 0.1}),))
+        _wconn.execute(
+            "INSERT INTO wisdom_archive_setups (setup_id, name, stats_json, sha, imported_at) "
+            "VALUES ('flag_htf', 'flag', ?, 'bbbbbbbbbbbbbbbb', '2026-10-16')",
+            (_json.dumps({"all": {"n_scored": 40, "mean_edgeR": 0.2, "med_edge20": 0.01}}),))
+
     return {
         "fundamentals_bulk": set(fb.COLUMNS_WRITTEN),
         "rs_fields": set(b.rs_fields({"rs_rank": 90, "rs_score": 12.5})),
@@ -649,6 +669,8 @@ def _source_key_sets(monkeypatch, tmp_path) -> dict:
         "darkpool_agg": set(
             darkpool_agg.read_darkpool_fields(["AAA"], closes={"AAA": 105.0})["AAA"]),
         "opt_flow": set(opt_flow.read_opt_flow_fields(["AAA"])["AAA"]),
+        "archive_join": set(archive_join.read_archive_fields(
+            ["AAA"], best_ids={"AAA": "bull_flag"})["AAA"]),
     }
 
 
@@ -679,8 +701,9 @@ def test_no_two_screener_sources_write_the_same_column(monkeypatch, tmp_path):
     # Growing (or shrinking) the source list means bumping this number
     # DELIBERATELY, in the same commit, never by accident.
     # 14 -> 17 (2026-08-22, Task A6): pattern_join / darkpool_agg / opt_flow.
-    assert len(sets) == 17, (
-        f"_source_key_sets returned {len(sets)} sources, expected 17 — a "
+    # 17 -> 18 (2026-10-16): archive_join, the display-only trader-archive join.
+    assert len(sets) == 18, (
+        f"_source_key_sets returned {len(sets)} sources, expected 18 — a "
         f"source was added or removed from the fixture; bump this pin "
         f"deliberately")
     # The derivation proves nothing if a source emitted nothing.
@@ -735,7 +758,10 @@ def test_pattern_join_carrier_keys_are_named_and_never_columns(monkeypatch, tmp_
     exactly the two keys it exists for, in both directions.
     """
     sets = _source_key_sets(monkeypatch, tmp_path)
-    carriers = {"pattern_entry_px", "pattern_stop_px"}
+    # + `pattern_best_id` (2026-10-16): the best detection's id, read by
+    # `run_build` to key `archive_join`'s setup edge, then dropped like the two
+    # price carriers. Same allowance, same three directions.
+    carriers = {"pattern_entry_px", "pattern_stop_px", "pattern_best_id"}
 
     # Direction 1: pattern_join really does emit both (the derivation proves
     # nothing if the fixture forgot to give it a best detection with levels).

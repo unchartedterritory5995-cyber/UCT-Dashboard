@@ -420,6 +420,30 @@ export const COLUMN_DEFS = {
   opt_net_premium_5d: { label: 'Net Prem 5d', fmt: netUsd,
     heat: v => v == null ? '' : v > 0 ? 'g' : v < 0 ? 'r' : '',
     desc: 'Bullish minus bearish options premium across the 5 newest flow-ledger sessions, single stocks only — ETF/index flow is out of scope.' },
+  // ── Trader archive (2026-10-16): DISPLAY-ONLY context from the private
+  // archive. Never an input to what fires or how it scores; blank whenever
+  // the archive is off. No price level from a call ever reaches these. ──
+  archive_calls_n: { label: 'Team Calls', fmt: num(0),
+    desc: 'How many calls the trading team has posted on this name in the trader archive (entries, ideas, watchlist and flow mentions). 0 means the team never called it; blank means the archive was not available for this build.' },
+  archive_traders_n: { label: 'Team Traders', fmt: num(0),
+    desc: 'How many different traders on the team have called this name in the archive.' },
+  archive_last_call_date: { label: 'Last Team Call', fmt: v => v ? String(v).slice(0, 10) : '—',
+    desc: 'The date of the team’s newest archived call on this name.' },
+  archive_last_setup: { label: 'Last Team Setup', fmt: v => v ? String(v).replace(/_/g, ' ') : '—',
+    desc: 'The setup the team named on its newest call on this name, in the archive’s setup vocabulary.' },
+  archive_last_r20: { label: 'Last Call 20d', fmt: pct,
+    heat: v => v == null ? '' : v > 0 ? 'g' : v < 0 ? 'r' : '',
+    desc: 'How the team’s newest call on this name did 20 sessions later, measured after the fact. Blank while the call is under 20 sessions old.' },
+  archive_setup: { label: 'Team Setup', fmt: v => v ? String(v).replace(/_/g, ' ') : '—',
+    desc: 'The archive setup that this row’s best pattern-engine detection maps to. Blank when the detection has no counterpart in the team’s setup vocabulary.' },
+  archive_setup_edge_r: { label: 'Setup Edge R', fmt: v => v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}R`,
+    heat: v => v == null ? '' : v > 0 ? 'g' : v < 0 ? 'r' : '',
+    desc: 'The team’s measured edge on that setup: the average trade result in R minus the same stock on a random day, managed the same way. It is a control-relative lift, not a hit rate, and it is history, not a forecast. Read it beside Setup Calls: few calls means a weak measurement.' },
+  archive_setup_edge_20d: { label: 'Setup Edge 20d', fmt: pct,
+    heat: v => v == null ? '' : v > 0 ? 'g' : v < 0 ? 'r' : '',
+    desc: 'The median 20-session return of the team’s calls on that setup minus the same stock on a random day. Control-relative, measured after the fact.' },
+  archive_setup_n: { label: 'Setup Calls', fmt: num(0),
+    desc: 'How many scored team calls the setup edge rests on.' },
   // ── Wave 6 (T6): finviz parity — transactions pair + option/short flags ──
   // The pair is SIGNED (net selling prints negative); a null is an em dash,
   // never a zero — the nightly pull simply never answered for that ticker.
