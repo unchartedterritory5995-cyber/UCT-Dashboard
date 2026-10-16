@@ -1,0 +1,45 @@
+M1-helper-never-keeps: Test Files  2 failed (2) | Tests  13 failed | 8 passed (21)  [restored OK]  (summary line printed before a cp1252 print crash in the harness, AFTER the verified restore; full log M1-helper-never-keeps.log)
+M2-no-crossing-gate: Test Files  1 failed | 1 passed (2) | Tests  1 failed | 20 passed (21)  [restored OK]
+     × ⛔ control: an Undo of the member's OWN typing after a Restore (not across it) keeps nothing extra — the undone keystroke is not queued 1996ms
+M3-no-closeHistory: Test Files  1 failed | 1 passed (2) | Tests  3 failed | 18 passed (21)  [restored OK]
+     × Restore WITH a base (the adoption effect) pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and bo
+     × Restore WITHOUT a base pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and both survive an Undo 
+     × typing then Restore INSIDE one history group (under 500 ms apart), a keystroke, then Undo past it ⇒ W and the old words survive 2671ms
+M4-no-flush-before-restore: Test Files  1 failed | 1 passed (2) | Tests  1 failed | 20 passed (21)  [restored OK]
+     × Restore WITH a base (the adoption effect) pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and bo
+M5-no-flush-after-displaced: Test Files  1 failed | 1 passed (2) | Tests  1 failed | 20 passed (21)  [restored OK]
+     × a keystroke INSIDE the 200 ms window right after the Undo cannot coalesce the displaced words away 2868ms
+M6-always-prev-base: Test Files  1 failed | 1 passed (2) | Tests  1 failed | 20 passed (21)  [restored OK]
+     × ⛔ displaced words travel on the OLDER baseline: a Restore whose draft was typed on an earlier revision queues W on that revision 2392ms
+M7-displaced-takes-incoming-lineage: Test Files  1 failed | 1 passed (2) | Tests  2 failed | 19 passed (21)  [restored OK]
+     × a keystroke INSIDE the 200 ms window right after the Undo cannot coalesce the displaced words away 2808ms
+     × back online after the Undo: the page saves, and the displaced words stay QUEUED (a copy on leave, never settled away) 3868ms
+M10-onUpdate-never-notes-crossing: Test Files  2 failed (2) | Tests  13 failed | 8 passed (21)  [restored OK]
+     × Restore WITH a base (the adoption effect) after old-view typing, a keystroke, then Undo past it ⇒ W and the old words survive 3028ms
+     × Restore WITH a base (the adoption effect) pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and bo
+     × Restore WITHOUT a base after old-view typing, a keystroke, then Undo past the Restore ⇒ W and the old words survive 5930ms
+     × Restore WITHOUT a base after old-view typing, then Undo at once (no keystroke after Restore) ⇒ W and the old words survive 2441ms
+     × Restore WITHOUT a base pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and both survive an Undo 
+     × Undo past the Restore, then Redo, then Undo again ⇒ both survive every step (the swap is symmetric) 2569ms
+     × a keystroke INSIDE the 200 ms window right after the Undo cannot coalesce the displaced words away 2825ms
+     × back online after the Undo: the page saves, and the displaced words stay QUEUED (a copy on leave, never settled away) 3764ms
+     × crash-draft Restore WITH a base (the adoption effect): words the old view typed before Restore survive typing on the restored draft 2578ms
+     × crash-draft Restore WITHOUT a base: words the old view typed before Restore survive typing on the restored draft 2588ms
+     × the simplest variant: Restore WITHOUT a base, no typing at all, Undo at once ⇒ W survives 1922ms
+     × typing then Restore INSIDE one history group (under 500 ms apart), a keystroke, then Undo past it ⇒ W and the old words survive 2802ms
+     × ⛔ displaced words travel on the OLDER baseline: a Restore whose draft was typed on an earlier revision queues W on that revision 2466ms
+M11-adoption-restore-not-marked: Test Files  2 failed (2) | Tests  4 failed | 17 passed (21)  [restored OK]
+     × Restore WITH a base (the adoption effect) after old-view typing, a keystroke, then Undo past it ⇒ W and the old words survive 3160ms
+     × Restore WITH a base (the adoption effect) pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and bo
+     × crash-draft Restore WITH a base (the adoption effect): words the old view typed before Restore survive typing on the restored draft 2744ms
+     × ⛔ displaced words travel on the OLDER baseline: a Restore whose draft was typed on an earlier revision queues W on that revision 2592ms
+M12-no-base-restore-not-marked: Test Files  2 failed (2) | Tests  9 failed | 12 passed (21)  [restored OK]
+     × Restore WITHOUT a base after old-view typing, a keystroke, then Undo past the Restore ⇒ W and the old words survive 7759ms
+     × Restore WITHOUT a base after old-view typing, then Undo at once (no keystroke after Restore) ⇒ W and the old words survive 2694ms
+     × Restore WITHOUT a base pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and both survive an Undo 
+     × Undo past the Restore, then Redo, then Undo again ⇒ both survive every step (the swap is symmetric) 2662ms
+     × a keystroke INSIDE the 200 ms window right after the Undo cannot coalesce the displaced words away 2968ms
+     × back online after the Undo: the page saves, and the displaced words stay QUEUED (a copy on leave, never settled away) 3708ms
+     × crash-draft Restore WITHOUT a base: words the old view typed before Restore survive typing on the restored draft 2651ms
+     × the simplest variant: Restore WITHOUT a base, no typing at all, Undo at once ⇒ W survives 2052ms
+     × typing then Restore INSIDE one history group (under 500 ms apart), a keystroke, then Undo past it ⇒ W and the old words survive 2840ms

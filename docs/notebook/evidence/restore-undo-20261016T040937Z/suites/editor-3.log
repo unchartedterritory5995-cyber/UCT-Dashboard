@@ -1,0 +1,177 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.nullbaseline.test.jsx[2m > [22m[2m⚰️ the search: which server shapes can still queue a null baseline?[2m > [22m[2mCONTROL — an ordinary note queues its real baseline
+[22m[39mautosave failed (retry 1 in 1000ms) Error: offline
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.nullbaseline.test.jsx:98:48
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:12) {
+  status: [33m0[39m
+}
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.nullbaseline.test.jsx[2m > [22m[2m⚰️ the search: which server shapes can still queue a null baseline?[2m > [22m[2m⚰️ a note served with an EMPTY updatedAt — null is queued, and never sent
+[22m[39mautosave failed (retry 1 in 1000ms) Error: offline
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.nullbaseline.test.jsx:120:48
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:12) {
+  status: [33m0[39m
+}
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.nullbaseline.test.jsx[2m > [22m[2m⚰️ the search: which server shapes can still queue a null baseline?[2m > [22m[2m⚰️ a note served with NO updatedAt key at all — same story
+[22m[39mautosave failed (retry 1 in 1000ms) Error: offline
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.nullbaseline.test.jsx:141:48
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:12) {
+  status: [33m0[39m
+}
+
+[90mstdout[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.nullbaseline.test.jsx[2m > [22m[2m⚰️ the search: which server shapes can still queue a null baseline?[2m > [22m[2m⛔ the PUT succeeds but its response carries no updatedAt, and the member kept typing
+[22m[39mACK without updatedAt -> outbox: [{"mutationId":"note:n1","noteId":"n1","kind":"note-update","patch":{"title":"first words, still typing","subtitle":"","bodyJson":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Original body"}]}]}},"baseUpdatedAt":"T1","generation":1,"sessionId":"10c36c53-a943-48ea-93df-46817bac6c55","queuedAt":1792124895943,"writtenSchema":4}]
+ACK without updatedAt -> notes : [{"noteId":"n1","title":"first words, still typing","subtitle":"","bodyJson":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Original body"}]}]},"baseUpdatedAt":"T1","generation":1,"sessionId":"10c36c53-a943-48ea-93df-46817bac6c55","localSavedAt":1792124895943,"dirty":1,"serverBase":{"title":"first words","subtitle":"","bodyJson":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Original body"}]}]},"updatedAt":"T1"},"writtenSchema":4,"editorLineage":{"id":"10c36c53-a943-48ea-93df-46817bac6c55:v12","seq":11,"digest":858173347189280}}]
+
+[90mstdout[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.nullbaseline.test.jsx[2m > [22m[2m⚰️ the search: which server shapes can still queue a null baseline?[2m > [22m[2m⛔ the PUT succeeds with an EMPTY updatedAt, and the member kept typing
+[22m[39mACK with empty updatedAt -> outbox: [{"mutationId":"note:n1","noteId":"n1","kind":"note-update","patch":{"title":"first words, still typing","subtitle":"","bodyJson":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Original body"}]}]}},"baseUpdatedAt":"T1","generation":1,"sessionId":"10c36c53-a943-48ea-93df-46817bac6c55","queuedAt":1792124896835,"writtenSchema":4}]
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.phoneFormat.test.jsx [2m([22m[2m11 tests[22m[2m)[22m[33m 5947[2mms[22m[39m
+     [33m[2m✓[22m[39m one toggle, collapsed, controlling exactly four runs inside the Editor toolbar [33m 3218[2mms[22m[39m
+     [33m[2m✓[22m[39m CONTROL: closed, the toolbar is not a disclosure -- Tab is not trapped and Escape does nothing [33m 308[2mms[22m[39m
+     [33m[2m✓[22m[39m a moved control still ACTS from inside the open disclosure (H1 toggles the heading) [33m 327[2mms[22m[39m
+     [33m[2m✓[22m[39m open -> lock -> unlock: the row comes back COLLAPSED (aria-expanded false) [33m 415[2mms[22m[39m
+     [33m[2m✓[22m[39m a matchMedia change that leaves the phone tier closes an open disclosure and releases the first-run stage [33m 431[2mms[22m[39m
+[90mstdout[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.nullbaseline.test.jsx[2m > [22m[2m⚰️ §15 step 9 — REOPEN a note that already has unsynced work on disk[2m > [22m[2mreopening on top of unsynced work queues NO new baseline-less entry
+[22m[39mREOPEN -> outbox: [{"mutationId":"note:n1","noteId":"n1","kind":"note-update","patch":{"title":"typed before the reload","subtitle":"","bodyJson":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"unsynced words"}]}]}},"baseUpdatedAt":"T1","generation":7,"sessionId":"session-before-the-reload","queuedAt":1792124836551}]
+REOPEN -> notes : [{"noteId":"n1","title":"typed before the reload","subtitle":"","bodyJson":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"unsynced words"}]}]},"baseUpdatedAt":"T1","generation":7,"sessionId":"session-before-the-reload","localSavedAt":1792124836551,"dirty":1}]
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.nullbaseline.test.jsx [2m([22m[2m8 tests[22m[2m)[22m[33m 6956[2mms[22m[39m
+     [33m[2m✓[22m[39m CONTROL — an ordinary note queues its real baseline [33m 3188[2mms[22m[39m
+     [33m[2m✓[22m[39m ⚰️ a note served with an EMPTY updatedAt — null is queued, and never sent [33m 450[2mms[22m[39m
+     [33m[2m✓[22m[39m ⚰️ a note served with NO updatedAt key at all — same story [33m 370[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ the PUT succeeds but its response carries no updatedAt, and the member kept typing [33m 892[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ the PUT succeeds with an EMPTY updatedAt, and the member kept typing [33m 855[2mms[22m[39m
+     [33m[2m✓[22m[39m reopening on top of unsynced work queues NO new baseline-less entry [33m 489[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — the seeded work is actually there and actually recovered [33m 522[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.noteLinks.test.jsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1197[2mms[22m[39m
+     [33m[2m✓[22m[39m mounts successfully with a noteLink node in the initial body (no plugin-key crash) [33m 944[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.noteMenu.test.jsx[2m > [22m[2mNoteEditorPage — the note menu door (wave 6 fix round 1, I1)[2m > [22m[2mthe menu api carries sendPendingEdits: a word inside the autosave window is sent before it answers
+[22m[39mAn update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.noteMenu.test.jsx[2m > [22m[2mNoteEditorPage — the note menu door (wave 6 fix round 1, I1)[2m > [22m[2mCONTROL: with nothing typed there is nothing to send, and it answers true
+[22m[39mAn update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.noteMenu.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[33m 3581[2mms[22m[39m
+     [33m[2m✓[22m[39m renders the four organise-this-note actions behind "More note actions" (K2, D-3), wired to the REAL note [33m 1246[2mms[22m[39m
+     [33m[2m✓[22m[39m Lock PATCHes /api/j2/notes/n1/lock and the settled note reaches the onChanged callback [33m 378[2mms[22m[39m
+     [33m[2m✓[22m[39m Save as template POSTs /api/j2/note-templates and reports the template row it produced [33m 644[2mms[22m[39m
+     [33m[2m✓[22m[39m Open a note beside… reveals the search picker, and picking a note calls onOpenBeside [33m 1025[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.noteLinkRaceRealDoor.control.test.jsx [2m([22m[2m1 test[22m[2m)[22m[33m 1251[2mms[22m[39m
+     [33m[2m✓[22m[39m loses the popup the instant a space is typed, with allowSpaces forced false [33m 1249[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.noteLinkRaceRealDoor.test.jsx [2m([22m[2m1 test[22m[2m)[22m[33m 1382[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps the popup open with results and the typed query intact through a real PUT + SWR note-identity swap [33m 1380[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.phoneHeader.test.jsx [2m([22m[2m11 tests[22m[2m)[22m[33m 6625[2mms[22m[39m
+     [33m[2m✓[22m[39m none of the phone items, and the first action (where focus lands) is still History [33m 1277[2mms[22m[39m
+     [33m[2m✓[22m[39m the five actions come FIRST, then a separator, and focus lands on the first [33m 378[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ every header control marked phone-hidden has its More counterpart (none is dropped) [33m 397[2mms[22m[39m
+     [33m[2m✓[22m[39m Ask: the item presses the header's OWN toggle; closing hands focus back to the item [33m 611[2mms[22m[39m
+     [33m[2m✓[22m[39m Find: opens the same find bar as the header button and closes the panel [33m 609[2mms[22m[39m
+     [33m[2m✓[22m[39m Outline: one state with the header button; closing hands focus back to the item [33m 819[2mms[22m[39m
+     [33m[2m✓[22m[39m Writing help STAYS in the row (its walkthrough opens on it), not in More [33m 885[2mms[22m[39m
+     [33m[2m✓[22m[39m Move to folder: the same write as the header select [33m 573[2mms[22m[39m
+     [33m[2m✓[22m[39m a LOCKED note: no Writing help in the row or in More (the one condition) [33m 307[2mms[22m[39m
+     [33m[2m✓[22m[39m widening past 640 while open takes the phone items out (a rotated phone) [33m 626[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.noteLinkSuggest.test.jsx [2m([22m[2m1 test[22m[2m)[22m[33m 1835[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps the popup open with results through the search debounce AND the autosave debounce, and inserts the picked noteLink [33m 1834[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m8 passed[39m[22m[90m (8)[39m
+[2m      Tests [22m [1m[32m42 passed[39m[22m[90m (42)[39m
+[2m   Start at [22m 23:28:09
+[2m   Duration [22m 19.10s[2m (transform 5.00s, setup 1.47s, import 740ms, tests 28.77s, environment 4.63s)[22m
+
