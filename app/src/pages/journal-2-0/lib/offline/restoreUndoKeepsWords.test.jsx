@@ -50,7 +50,14 @@ vi.setConfig({ testTimeout: 60_000 })
  * Rails: the "review M-12" cells at the end of this file.
  */
 const cellScope = new AsyncLocalStorage()
-const it = (name, fn, ...rest) => vitestIt(name, (...args) => cellScope.run({ server: null }, () => fn(...args)), ...rest)
+// ⭐ Fix round 5 (review M-20): the fake clock is installed INSIDE the cell's scope. Its
+// auto-advance runs from a real interval, and an interval carries the async context it
+// was created in, so the editor's own reconcile fork that the clock starts resolves this
+// cell's server, never the module's (which by then may be the next cell's).
+const it = (name, fn, ...rest) => vitestIt(name, (...args) => cellScope.run({ server: null }, () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  return fn(...args)
+}), ...rest)
 /** The server of the cell this request belongs to (the module's, outside any cell). */
 const serverNow = () => cellScope.getStore()?.server ?? server
 
@@ -175,7 +182,7 @@ beforeEach(() => {
     }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
   })
-  vi.useFakeTimers({ shouldAdvanceTime: true })
+  // Fix round 5 (M-20): the fake clock is installed by `it`, inside the cell's scope.
 })
 afterEach(async () => {
   cleanup()
@@ -946,11 +953,14 @@ describe('I-A · fix round 3 — a copy the server refused is its own offer: sav
         expect(window.getSelection().toString(), 'the words were not selected').toContain(COPY_WORDS)
         const text = (await offer()).textContent
         expect(text).toMatch(/the words are selected/i)
-        expect(text).toMatch(/ctrl\+c/i)
+        // ⛔ Fix round 5 (wording ruling): the fallback does not assume a keyboard.
+        expect(text).toMatch(/use your device’s copy command to copy them/i)
+        expect(text, 'the fallback assumes a keyboard').not.toMatch(/ctrl|⌘|press/i)
       })
     }
 
-    it('⛔ a CONTENT refusal (413) offers "Save as plain text": its re-POST body is flattened, nothing is PUT, the copy clears', async () => {
+    // ⛔⛔ Fix round 5 (review C-4) REVERSES round 4's last line here: the copy is KEPT.
+    it('⛔ a CONTENT refusal (413) offers "Save as plain text": its re-POST body is flattened, nothing is PUT, the copy is KEPT', async () => {
       const copy = await openOnRefusedCopy({ status: 413, detail: SERVER_PHRASE, body: RICH })
       const o = await offer()
       expect(screen.queryByRole('button', { name: 'Save as a separate note' }), 'a retry that cannot succeed is offered').toBeNull()
@@ -970,7 +980,7 @@ describe('I-A · fix round 3 — a copy the server refused is its own offer: sav
       expect(update, 'a PUT went to the source note').not.toHaveBeenCalled()
       expect(server.puts).toHaveLength(putsBefore)
       sourceNeverGotTheCopy('after Save as plain text')
-      expect(copyKept(copy), 'the copy stayed after its note was created').toBe(false)
+      expect(copyKept(copy), 'a plain save deleted the copy (C-4)').toBe(true)
       expect(screen.getByText(/saved as a separate note, as plain text/i)).toBeTruthy()
     })
 
@@ -1064,6 +1074,146 @@ describe('I-A · fix round 3 — a copy the server refused is its own offer: sav
       expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Keep it' }))
       await press('Keep it')
       expect(document.activeElement, 'focus did not return to the offer').toBe(screen.getByRole('button', { name: 'Discard' }))
+    })
+  })
+
+  describe('fix round 5 — a plain save never deletes, and the preview shows every word (C-4, I-8, M-18, M-19)', () => {
+    // Every word here lives in a node ATTRIBUTE (or a link mark), never in a text node,
+    // except the paragraph text around them. The copy's words still differ from the
+    // server's, so a copy written over its source would show.
+    const ATTRS = doc(
+      { type: 'paragraph', content: [
+        { type: 'text', text: 'Entry on ' }, { type: 'dateMention', attrs: { date: '2026-10-20' } },
+        { type: 'text', text: ' at ' }, { type: 'inlineMath', attrs: { latex: 'R=2.5' } },
+      ] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'see filing', marks: [{ type: 'link', attrs: { href: 'https://sec.gov/x' } }] }] },
+      { type: 'blockMath', attrs: { latex: 'E = p q' } },
+      { type: 'linkPreview', attrs: { url: 'https://ex.com/preview', title: 'NVDA earnings preview', description: 'Guide raised' } },
+      { type: 'attachmentChip', attrs: { name: 'plan.xlsx', href: '/a/1' } },
+      { type: 'image', attrs: { src: '/img/1.png', alt: 'NVDA daily chart' } },
+      { type: 'tradeCanvas', attrs: { board: { items: [], levels: [], edges: [] }, searchText: 'Trade-plan canvas · NVDA long stop 121.50 target 140' } },
+      para(COPY_WORDS),
+    )
+    const ATTR_WORDS = [
+      '2026-10-20', 'R=2.5', 'see filing (https://sec.gov/x)', 'E = p q', 'NVDA earnings preview', 'Guide raised',
+      'https://ex.com/preview', 'plan.xlsx', 'NVDA daily chart', 'NVDA long stop 121.50 target 140', COPY_WORDS,
+    ]
+    const offer = () => screen.findByTestId('refused-copy-offer')
+    async function press(name) {
+      const button = await screen.findByRole('button', { name })
+      await act(async () => { fireEvent.click(button); await settleIdb(6) })
+    }
+    const focusIsLive = (label) => {
+      const el = document.activeElement
+      expect(el && el !== document.body && el.isConnected, `${label}: focus fell to ${el?.tagName || 'nothing'}`).toBe(true)
+    }
+
+    it('⛔ I-8: the preview, Copy text and the plain-text note carry every word held in an attribute', async () => {
+      await openOnRefusedCopy({ status: 413, detail: 'x', body: ATTRS })
+      const preview = await screen.findByTestId('refused-copy-preview')
+      for (const w of ATTR_WORDS) expect(preview.textContent, `the preview dropped "${w}"`).toContain(w)
+      const writeText = vi.fn(() => Promise.resolve())
+      Object.defineProperty(globalThis.navigator, 'clipboard', { configurable: true, value: { writeText } })
+      await press('Copy text')
+      for (const w of ATTR_WORDS) expect(writeText.mock.calls[0]?.[0], `Copy text dropped "${w}"`).toContain(w)
+      await press('Save as plain text')
+      await sit(3)
+      expect(server.forks).toHaveLength(1)
+      const created = JSON.stringify(server.forks[0].bodyJson)
+      for (const w of ATTR_WORDS) expect(created, `the plain-text note dropped "${w}"`).toContain(w)
+    })
+
+    it('⛔ I-8: a canvas-only copy shows the plan’s words, never "This copy has no text."', async () => {
+      await openOnRefusedCopy({
+        status: 413, detail: 'x',
+        body: doc({ type: 'tradeCanvas', attrs: { board: { items: [], levels: [], edges: [] }, searchText: 'Trade-plan canvas · NVDA long stop 121.50' } }),
+      })
+      const preview = await screen.findByTestId('refused-copy-preview')
+      expect(preview.textContent).toContain('NVDA long stop 121.50')
+      expect(preview.textContent).not.toMatch(/has no text/i)
+    })
+
+    it('⛔⛔ C-4: after a plain save lands the copy stays with its ORIGINAL body, is offered as plain-saved, survives a reopen, and only Discard removes it', async () => {
+      const copy = await openOnRefusedCopy({ status: 413, detail: 'x', body: ATTRS })
+      await press('Save as plain text')
+      await sit(3)
+      expect(server.forks).toHaveLength(1)
+      const kept = outbox().find((e) => e.mutationId === copy.mutationId)
+      expect(kept, 'the plain save deleted the copy').toBeTruthy()
+      expect(kept.patch.bodyJson, 'the stored copy lost its ORIGINAL body').toEqual(ATTRS)
+      const text = (await offer()).textContent
+      expect(text).toMatch(/plain-text version of this copy is now its own note/i)
+      expect(text).toMatch(/original copy, with everything plain text can’t hold, is still kept on this device until you discard it/i)
+      expect(screen.queryByRole('button', { name: 'Save as plain text' }), 'a second plain save is offered').toBeNull()
+      expect(screen.queryByRole('button', { name: 'Save as a separate note' })).toBeNull()
+      expect((await screen.findByTestId('refused-copy-preview')).textContent).toContain('NVDA daily chart')
+      await reopen()
+      await sit(3)
+      expect(server.forks, 'the plain-saved copy was posted again').toHaveLength(1)
+      expect(copyKept(copy), 'the plain-saved copy did not survive a reopen').toBe(true)
+      expect((await offer()).textContent).toMatch(/still kept on this device until you discard it/i)
+      await press('Discard')
+      expect((await screen.findByTestId('refused-copy-confirm')).textContent).toMatch(/plain text can’t hold/i)
+      await press('Delete copy')
+      await sit(2)
+      expect(copyKept(copy), 'a confirmed Discard kept the copy').toBe(false)
+      expect(screen.queryByTestId('refused-copy-offer')).toBeNull()
+      sourceNeverGotTheCopy('after a plain save and Discard')
+    })
+
+    for (const status of [400, 422]) {
+      it(`⛔ M-18: a ${status} with no detail is not a content refusal — no "Save as plain text"`, async () => {
+        await openOnRefusedCopy({ status, detail: null })
+        await offer()
+        expect(screen.queryByRole('button', { name: 'Save as plain text' }), 'a detail-less refusal took the plain path').toBeNull()
+        expect(screen.getByRole('button', { name: 'Save as a separate note' })).toBeTruthy()
+        expect((await offer()).textContent).not.toMatch(/tries again/i)
+      })
+    }
+
+    it('the `other` class never says the save "tries again" for a refusal a retry cannot fix, and says what to do instead', async () => {
+      await openOnRefusedCopy({ status: 400, detail: 'subtitle too long' })
+      const text = (await offer()).textContent
+      expect(text).not.toMatch(/tries again/i)
+      expect(text).toMatch(/paste them into a new note/i)
+    })
+
+    it('⛔ M-19: the live region exists, empty, BEFORE the message, and the SAME region then carries it; focus stays on a live element', async () => {
+      await openOnRefusedCopy()
+      const region = await screen.findByTestId('copy-saved-status')
+      expect(region.getAttribute('role')).toBe('status')
+      expect(region.textContent, 'the live region arrived already holding a message').toBe('')
+      const save = await screen.findByRole('button', { name: 'Save as a separate note' })
+      act(() => { save.focus() })
+      await press('Save as a separate note')
+      await sit(3)
+      expect(screen.getByTestId('copy-saved-status'), 'the live region was replaced, not updated').toBe(region)
+      expect(region.textContent).toMatch(/saved as a separate note: “Thesis \(conflicted copy\)”/i)
+      focusIsLive('after a successful save')
+    })
+
+    it('⛔ M-19: focus stays on a live element after a confirmed Discard, and after a plain save', async () => {
+      await openOnRefusedCopy({ status: 413, detail: 'x' })
+      const plain = await screen.findByRole('button', { name: 'Save as plain text' })
+      act(() => { plain.focus() })
+      await press('Save as plain text')
+      await sit(3)
+      focusIsLive('after a plain save')
+      expect((await offer()).contains(document.activeElement), 'focus left the offer that is still on screen').toBe(true)
+      await press('Discard')
+      await press('Delete copy')
+      await sit(2)
+      expect(screen.queryByTestId('refused-copy-offer')).toBeNull()
+      focusIsLive('after a confirmed Discard')
+    })
+
+    it('⛔ M-19: the offer keeps ONE status line when the confirm swaps in (a note on it is not re-mounted)', async () => {
+      await openOnRefusedCopy()
+      const status = (await offer()).querySelector('[role="status"]')
+      expect(status, 'the offer has no status line').toBeTruthy()
+      await press('Discard')
+      await screen.findByTestId('refused-copy-confirm')
+      expect((await offer()).querySelector('[role="status"]'), 'the confirm mounted a new status line').toBe(status)
     })
   })
 })

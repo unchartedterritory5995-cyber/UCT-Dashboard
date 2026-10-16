@@ -380,7 +380,13 @@ describe('fix round 4 — a refused copy shows its words and speaks for itself',
     expect(cls(400, s.tooDeep)).toBe(rc.COPY_CONTENT)
     expect(cls(400, s.unbuildable)).toBe(rc.COPY_CONTENT)
     expect(cls(400, 'body_json must be a TipTap doc')).toBe(rc.COPY_CONTENT)
-    expect(cls(422, undefined), 'a 422 with a list detail (broken JSON) is about the body').toBe(rc.COPY_CONTENT)
+    // ⛔ Fix round 5 (review M-18) REVERSES round 4 here: a 400/422 that names no reason
+    // (an edge's 400, FastAPI's list-shaped 422) is NOT known to be about the body, so it
+    // is never sent down the plain-text path.
+    for (const detail of [undefined, null, '', '   ', [{ loc: ['body'], msg: 'x' }]]) {
+      expect(cls(422, detail), `a 422 with detail ${JSON.stringify(detail)} names no reason`).toBe(rc.COPY_OTHER)
+      expect(cls(400, detail), `a 400 with detail ${JSON.stringify(detail)} names no reason`).toBe(rc.COPY_OTHER)
+    }
     expect(cls(413, 'That is too large to send. Shorten it and try again.')).toBe(rc.COPY_TOO_LARGE)
     expect(cls(413, undefined)).toBe(rc.COPY_TOO_LARGE)
     for (const other of ['title too long', 'subtitle too long', 'folder not found']) {
@@ -394,7 +400,9 @@ describe('fix round 4 — a refused copy shows its words and speaks for itself',
     for (const [status, detail, want, content] of [
       [413, PHRASE, /too large to be saved as its own note/, true],
       [400, `${PHRASE} nested`, /content the server can’t store/, true],
-      [400, `${PHRASE} title too long`, /couldn’t be saved as a separate note.*Save as a separate note tries again/, false],
+      // ⛔ Fix round 5 (wording ruling): the `other` class never says the save "tries
+      // again" for a refusal a retry cannot fix; it says what the member can do instead.
+      [400, `${PHRASE} title too long`, /couldn’t be saved as a separate note.*paste them into a new note/, false],
     ]) {
       const entry = { ...copyEntryFor({ noteId: 'n1', words: words('K') }), copyRefused: { status, detail } }
       const reason = rc.refusedCopyReason(entry)
@@ -403,10 +411,8 @@ describe('fix round 4 — a refused copy shows its words and speaks for itself',
       expect(reason).toMatch(/kept on this device/)
       expect(reason).toMatch(/Copy text puts its words on your clipboard/)
       expect(reason).toMatch(/Discard deletes the copy from this device/)
-      if (content) {
-        expect(reason).toMatch(/Save as plain text/)
-        expect(reason, 'a content refusal says the same create "tries again"').not.toMatch(/tries again/)
-      }
+      expect(reason, 'the offer says a create the server refused "tries again"').not.toMatch(/tries again/)
+      if (content) expect(reason).toMatch(/Save as plain text/)
     }
   })
 
@@ -444,19 +450,23 @@ describe('fix round 4 — a refused copy shows its words and speaks for itself',
     return copy
   }
 
-  it('"Save as plain text" sends the flattened body through the same fork, against the source note, and clears the copy', async () => {
+  // ⛔⛔ Fix round 5 (review C-4) REVERSES round 4 here: a plain save NEVER deletes the copy.
+  it('"Save as plain text" sends the flattened body through the same fork, against the source note, and KEEPS the copy', async () => {
     const copy = await heldCopy()
     const fork = vi.fn(async () => ({}))
     const res = await rc.saveRefusedCopy(db, copy.mutationId, { fork, plain: true })
     await settleIdb()
-    expect(res.outcome).toBe('saved')
+    expect(res.outcome).toBe('plain-saved')
     expect(fork).toHaveBeenCalledTimes(1)
     const sent = fork.mock.calls[0][0]
     expect(sent.noteId, 'the fork was not pointed at the source note').toBe('n1')
     expect(sent.patch.title).toBe('Thesis')
     expect(sent.patch.subtitle).toBe('sub')
     expect(isFlat(sent.patch.bodyJson), JSON.stringify(sent.patch.bodyJson)).toBe(true)
-    expect(await listOutbox(db)).toEqual([])
+    const [kept] = await listOutbox(db)
+    expect(kept?.mutationId, 'the plain save deleted the copy').toBe(copy.mutationId)
+    expect(kept.patch.bodyJson, 'the stored copy lost its ORIGINAL body').toEqual(RICH)
+    expect(kept.copyRefused.plainSaved, 'the copy is not marked plain-saved').toBeTruthy()
   })
 
   it('⛔ a refused plain-text save keeps the copy with its ORIGINAL words and marks it so', async () => {
@@ -482,5 +492,127 @@ describe('fix round 4 — a refused copy shows its words and speaks for itself',
     })
     expect(conflict).toEqual({ outcome: 'failed', offline: false })
     expect((await listOutbox(db)).map((e) => e.mutationId)).toEqual([copy.mutationId])
+  })
+})
+
+// ⭐⭐ I-A fix round 5 (review C-4, I-8, M-18): the walk carries every word, and a plain
+// save never deletes the copy. Reached through the namespace, as above.
+describe('fix round 5 — the plain-text walk carries every word, and a plain save keeps the copy', () => {
+  const rc = refusedCopyNs
+  const p = (c) => ({ type: 'paragraph', content: c })
+  const t = (s, marks) => ({ type: 'text', text: s, ...(marks ? { marks } : {}) })
+  // ⛔ The reviewer's probe body (`r4probe/probe.mjs`), verbatim.
+  const CANVAS = { type: 'tradeCanvas', attrs: { board: { cards: [{ text: 'Stop 121.50' }] }, searchText: 'NVDA long stop 121.50 target 140' } }
+  const PROBE = { type: 'doc', content: [
+    p([t('Entry on '), { type: 'dateMention', attrs: { date: '2026-10-20' } }, t(' at '), { type: 'inlineMath', attrs: { latex: 'R=2.5' } }]),
+    p([t('see filing', [{ type: 'link', attrs: { href: 'https://sec.gov/x' } }])]),
+    { type: 'blockMath', attrs: { latex: 'E = p q' } },
+    { type: 'linkPreview', attrs: { url: 'https://ex.com', title: 'NVDA earnings preview', description: 'Guide raised' } },
+    p([{ type: 'attachmentChip', attrs: { name: 'plan.xlsx', href: '/a/1' } }]),
+    { type: 'image', attrs: { src: '/img/1.png', alt: 'NVDA daily chart' } },
+    CANVAS,
+  ] }
+  const PROBE_WORDS = [
+    'Entry on', '2026-10-20', 'R=2.5', 'see filing', 'https://sec.gov/x', 'E = p q', 'NVDA earnings preview',
+    'Guide raised', 'https://ex.com', 'plan.xlsx', 'NVDA daily chart', 'NVDA long stop 121.50 target 140',
+  ]
+  const viewOf = (bodyJson, copyRefused = { status: 413 }) => rc.refusedCopyView({
+    ...copyEntryFor({ noteId: 'n1', words: { title: 'Thesis', subtitle: '', bodyJson } }), copyRefused,
+  })
+  const plainText = (d) => (d.content || []).map((q) => q.content?.[0]?.text ?? '').join('\n')
+
+  it('⛔ C-4 / I-8: the reviewer’s probe body yields every word in the preview, Copy text and the plain body', () => {
+    const view = viewOf(PROBE)
+    const clip = rc.copyClipboardText(view)
+    const plain = plainText(rc.plainParagraphsDoc(PROBE))
+    for (const w of PROBE_WORDS) {
+      expect(view.bodyText, `the preview dropped "${w}"`).toContain(w)
+      expect(clip, `Copy text dropped "${w}"`).toContain(w)
+      expect(plain, `the plain body dropped "${w}"`).toContain(w)
+    }
+    expect(view.bodyText, 'a link reads as "text (url)"').toContain('see filing (https://sec.gov/x)')
+  })
+
+  it('a link split by a mark (bold inside it) still reads as ONE "text (url)"', () => {
+    const href = [{ type: 'link', attrs: { href: 'https://ex.com/a' } }]
+    const body = { type: 'doc', content: [p([t('read '), t('the ', href), t('filing', [...href, { type: 'bold' }]), t(' now')])] }
+    expect(viewOf(body).bodyText).toBe('read the filing (https://ex.com/a) now')
+    const bare = { type: 'doc', content: [p([t('https://ex.com/a', href)])] }
+    expect(viewOf(bare).bodyText, 'a bare link repeats its address').toBe('https://ex.com/a')
+  })
+
+  it('⛔ I-8: a canvas-only copy shows the plan’s words, never "no text"', () => {
+    const view = viewOf({ type: 'doc', content: [CANVAS] })
+    expect(view.bodyText).toContain('NVDA long stop 121.50 target 140')
+    expect(rc.plainParagraphsDoc({ type: 'doc', content: [CANVAS] }).content[0].content[0].text).toContain('NVDA long stop')
+  })
+
+  it('a copy whose items carry no words says so (hiddenItems), and an empty copy does not', () => {
+    expect(viewOf({ type: 'doc', content: [{ type: 'image', attrs: { src: '/x.png' } }] }).hiddenItems).toBe(true)
+    expect(viewOf({ type: 'doc', content: [p([t('words')])] }).hiddenItems).toBe(false)
+    expect(viewOf({ type: 'doc', content: [{ type: 'paragraph' }] }).hiddenItems).toBe(false)
+  })
+
+  it('⛔ M-18: a 400 or 422 with no string detail is `other` — "Save as a separate note", never the plain path', () => {
+    for (const status of [400, 422]) {
+      const view = viewOf(doc('x'), { status, detail: null })
+      expect(view.kind).toBe(rc.COPY_OTHER)
+      expect([view.offerPlain, view.offerSeparate]).toEqual([false, true])
+      expect(view.reason).not.toMatch(/tries again/)
+    }
+  })
+
+  async function heldCopy(bodyJson = PROBE) {
+    const copy = copyEntryFor({ noteId: 'n1', words: { title: 'Thesis', subtitle: 'sub', bodyJson }, sessionId: 's1' })
+    await putNoteWithIntent(db, { noteId: 'n1', ...words('W'), dirty: 0, baseUpdatedAt: 'T1' }, null, { copies: [copy] })
+    await settleIdb()
+    const err = new Error('refused'); err.status = 413; err.phase = 'create'
+    await rc.holdRefusedCopy(db, copy, err)
+    await settleIdb()
+    return copy
+  }
+
+  it('⛔⛔ C-4: after a plain save lands the copy stays with its ORIGINAL body, the sweep holds it, and only Discard removes it', async () => {
+    const copy = await heldCopy()
+    const fork = vi.fn(async () => ({}))
+    const res = await rc.saveRefusedCopy(db, copy.mutationId, { fork, plain: true })
+    await settleIdb()
+    expect(res.outcome).toBe('plain-saved')
+    for (const w of PROBE_WORDS) expect(JSON.stringify(fork.mock.calls[0][0].patch.bodyJson), `the plain note dropped "${w}"`).toContain(w)
+    let [kept] = await listOutbox(db)
+    expect(kept?.patch.bodyJson, 'the plain save deleted or flattened the copy').toEqual(PROBE)
+    expect(res.copy?.offerPlain, 'a second plain save is offered (a duplicate note)').toBe(false)
+    expect(res.copy.offerSeparate).toBe(false)
+    expect(res.copy.reason).toMatch(/plain-text version/i)
+    expect(res.copy.reason).toMatch(/still kept on this device until you discard it/i)
+    // The sweep never re-posts it.
+    const sweepFork = vi.fn(async () => ({}))
+    await drainOutbox(db, { send: vi.fn(), fork: sweepFork })
+    await settleIdb()
+    expect(sweepFork, 'the sweep posted a plain-saved copy again').not.toHaveBeenCalled()
+    ;[kept] = await listOutbox(db)
+    expect(kept?.mutationId, 'the sweep removed a plain-saved copy').toBe(copy.mutationId)
+    // On the next open it is still offered, plain-saved.
+    const [again] = rc.refusedCopiesOf(await listOutbox(db), 'n1')
+    expect(again?.plainSaved).toBeTruthy()
+    expect([again.offerPlain, again.offerSeparate]).toEqual([false, false])
+    await rc.discardRefusedCopy(db, copy.mutationId)
+    await settleIdb()
+    expect(await listOutbox(db)).toEqual([])
+  })
+
+  it('a plain save that lands but whose mark cannot be WRITTEN still reports it landed (so no "try again", no duplicate)', async () => {
+    const copy = await heldCopy()
+    let armed = false
+    const flaky = Object.create(db)
+    flaky.transaction = (stores, mode) => {
+      if (armed && mode === 'readwrite') { armed = false; throw new Error('QuotaExceededError') }
+      return db.transaction(stores, mode)
+    }
+    const fork = vi.fn(async () => { armed = true; return {} })
+    const res = await rc.saveRefusedCopy(flaky, copy.mutationId, { fork, plain: true })
+    expect(res.outcome).toBe('plain-saved')
+    expect(res.copy?.plainSaved).toBeTruthy()
+    expect((await listOutbox(db)).map((e) => e.mutationId), 'the copy was lost').toEqual([copy.mutationId])
   })
 })
