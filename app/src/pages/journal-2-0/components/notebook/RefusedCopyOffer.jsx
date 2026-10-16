@@ -15,14 +15,24 @@
  *
  * Focus: when the Discard confirm swaps in, focus moves into it ("Keep it", the safe
  * answer); "Keep it" returns focus to the offer's "Discard".
+ *
+ * ⭐ Fix round 5 (review C-4, I-8, M-19):
+ *   · after a plain save lands the offer STAYS (the copy is kept) and says so; focus
+ *     moves to its sentence, since the button that was pressed is gone;
+ *   · the status line is ONE element for the offer's whole life, so a note on it is
+ *     announced when its text changes, never re-mounted with the confirm;
+ *   · the preview says when the copy holds items it cannot show as words, and says
+ *     "This copy has no text." only when it truly holds nothing.
  */
 import { useEffect, useId, useRef, useState } from 'react'
 import { copyClipboardText } from '../../lib/offline/refusedCopy'
 import styles from './NoteEditorPage.module.css'
 
 const COPIED = 'The words are on your clipboard.'
-const SELECTED = 'Your browser didn’t allow copying, so the words are selected instead. '
-  + 'Press Ctrl+C (⌘C on a Mac) to copy them.'
+// ⛔ Fix round 5 (wording ruling): no keyboard is assumed.
+const SELECTED = 'Your browser didn’t allow copying. The words are selected. '
+  + 'Use your device’s copy command to copy them.'
+const HIDDEN = 'This copy also holds pictures or other items that can’t be shown as text.'
 
 function CopyPreview({ copy, previewRef }) {
   const empty = !copy.title && !copy.subtitle && !copy.bodyText
@@ -38,7 +48,8 @@ function CopyPreview({ copy, previewRef }) {
       {copy.title ? <div className={styles.copyPreviewTitle}>{copy.title}</div> : null}
       {copy.subtitle ? <div className={styles.copyPreviewSubtitle}>{copy.subtitle}</div> : null}
       {copy.bodyText ? <div className={styles.copyPreviewBody}>{copy.bodyText}</div> : null}
-      {empty ? <div className={styles.copyPreviewSubtitle}>This copy has no text.</div> : null}
+      {copy.hiddenItems ? <div className={styles.copyPreviewSubtitle}>{HIDDEN}</div> : null}
+      {empty && !copy.hiddenItems ? <div className={styles.copyPreviewSubtitle}>This copy has no text.</div> : null}
     </div>
   )
 }
@@ -49,8 +60,10 @@ export default function RefusedCopyOffer({ copy, busy = false, note = null, onSa
   const previewRef = useRef(null)
   const keepRef = useRef(null)
   const discardRef = useRef(null)
+  const reasonRef = useRef(null)
   const focusNext = useRef(null)
   const questionId = useId()
+  const wasPlainSaved = useRef(Boolean(copy.plainSaved))
 
   useEffect(() => {
     const target = focusNext.current
@@ -58,6 +71,15 @@ export default function RefusedCopyOffer({ copy, busy = false, note = null, onSa
     focusNext.current = null
     ;(target === 'keep' ? keepRef : discardRef).current?.focus()
   }, [asking])
+
+  // ⛔ Fix round 5 (M-19): a plain save that LANDS removes the button that was pressed;
+  // focus moves to the offer's own sentence (which now says what happened), never to
+  // the page. Only on the change, so opening a note never moves focus here.
+  useEffect(() => {
+    const now = Boolean(copy.plainSaved)
+    if (now && !wasPlainSaved.current) reasonRef.current?.focus()
+    wasPlainSaved.current = now
+  }, [copy.plainSaved])
 
   const ask = () => { focusNext.current = 'keep'; setClip(null); setAsking(true) }
   const keep = () => { focusNext.current = 'discard'; setAsking(false) }
@@ -95,6 +117,11 @@ export default function RefusedCopyOffer({ copy, busy = false, note = null, onSa
       Copy text
     </button>
   )
+  // ⛔ Fix round 5 (C-4): after a plain save the copy's plain text IS saved elsewhere;
+  // what plain text cannot hold is not.
+  const question = copy.plainSaved
+    ? 'Delete this copy from this device? Its plain text is in its own note, but everything plain text can’t hold is saved nowhere else, so this can’t be undone.'
+    : 'Delete this copy from this device? Its words aren’t saved anywhere else, so this can’t be undone.'
 
   return (
     <section
@@ -105,11 +132,8 @@ export default function RefusedCopyOffer({ copy, busy = false, note = null, onSa
     >
       {asking ? (
         <div className={styles.copyConfirm} role="group" aria-labelledby={questionId} data-testid="refused-copy-confirm">
-          <span id={questionId}>
-            Delete this copy from this device? Its words aren’t saved anywhere else, so this can’t be undone.
-          </span>
+          <span id={questionId}>{question}</span>
           <CopyPreview copy={copy} previewRef={previewRef} />
-          <p className={styles.copyStatus} role="status">{status}</p>
           <div className={styles.draftBannerActions}>
             {copyButton}
             <button
@@ -127,9 +151,8 @@ export default function RefusedCopyOffer({ copy, busy = false, note = null, onSa
         </div>
       ) : (
         <>
-          <span>{copy.reason}</span>
+          <span ref={reasonRef} tabIndex={-1} data-testid="refused-copy-reason">{copy.reason}</span>
           <CopyPreview copy={copy} previewRef={previewRef} />
-          <p className={styles.copyStatus} role="status">{status}</p>
           <div className={styles.draftBannerActions}>
             {copy.offerPlain ? (
               <button
@@ -158,6 +181,9 @@ export default function RefusedCopyOffer({ copy, busy = false, note = null, onSa
           </div>
         </>
       )}
+      {/* ⛔ Fix round 5 (M-19): ONE status line for the offer's whole life (outside the
+          confirm swap), present and empty from the first render; only its text changes. */}
+      <p className={styles.copyStatus} role="status">{status}</p>
     </section>
   )
 }

@@ -1275,6 +1275,9 @@ export default function NoteEditorPage({
   const [copyBusy, setCopyBusy] = useState(null)
   const [copyNote, setCopyNote] = useState({})
   const [copySavedNotice, setCopySavedNotice] = useState(null)
+  // ⭐ Fix round 5 (review M-19): set when a save or Discard takes an offer (and the
+  // button focused in it) off the page; the effect below moves focus to the editor.
+  const copyFocusAfterRef = useRef(false)
   // ⛔ S2 (fix round 1): queued words are adopted SILENTLY only while nothing of
   // the member's own is in play — no edit since this note hydrated, and no save
   // pending or on the wire. Otherwise they are OFFERED (the banner) and both
@@ -1854,7 +1857,19 @@ export default function NoteEditorPage({
     setCopyBusy(copy.mutationId)
     try {
       const res = await durableRef.current.saveCopy(copy.mutationId, { fork: forkConflictedCopy, plain })
+      // ⛔⛔ Fix round 5 (C-4): a plain save LANDED and the copy is KEPT — still offered,
+      // now for Copy text and Discard only, with the offer saying what happened.
+      if (res?.outcome === 'plain-saved') {
+        if (res.copy) setRefusedCopies((list) => list.map((c) => (c.mutationId === copy.mutationId ? res.copy : c)))
+        setCopyNote((m) => ({
+          ...m,
+          [copy.mutationId]: `Saved as a separate note, as plain text: “${conflictedCopyTitle(copy.title)}”.`,
+        }))
+        return
+      }
       if (res?.outcome === 'saved' || res?.outcome === 'gone') {
+        // Fix round 5 (M-19): the offer is about to go, with the focused button in it.
+        copyFocusAfterRef.current = true
         setRefusedCopies((list) => list.filter((c) => c.mutationId !== copy.mutationId))
         if (res.outcome === 'saved') {
           setCopySavedNotice(plain
@@ -1890,6 +1905,7 @@ export default function NoteEditorPage({
     try {
       const ok = await durableRef.current.discardCopy(copy.mutationId)
       if (ok) {
+        copyFocusAfterRef.current = true
         setRefusedCopies((list) => list.filter((c) => c.mutationId !== copy.mutationId))
       } else {
         setCopyNote((m) => ({ ...m, [copy.mutationId]: 'The copy couldn’t be deleted. It stays on this device.' }))
@@ -2948,6 +2964,21 @@ export default function NoteEditorPage({
   // Keep the ref current so the paste/drop handlers (captured at creation) always
   // reach the live editor instance.
   editorRef.current = editor
+  // ⭐ I-A fix round 5 (review M-19): a save or Discard that took a refused-copy offer
+  // off the page took the focused button with it. Focus goes to the editor (or, when it
+  // cannot take focus, the page's landmark), never to the document body.
+  useEffect(() => {
+    if (!copyFocusAfterRef.current) return
+    copyFocusAfterRef.current = false
+    const lost = () => {
+      const active = document.activeElement
+      return !active || active === document.body || !active.isConnected
+    }
+    if (!lost()) return
+    const ed = editorRef.current
+    try { if (ed && !ed.isDestroyed) ed.view?.dom?.focus?.({ preventScroll: true }) } catch { /* the landmark below */ }
+    if (lost()) landmarkRef.current?.focus?.({ preventScroll: true })
+  }, [refusedCopies, copySavedNotice])
   // 13Q-2: the 'body' half of the openFocus contract above -- deliberately its
   // own effect, depending on `editor` itself (not just `openFocus`/`note`), so
   // it retries once the async TipTap instance actually exists rather than
@@ -5080,14 +5111,24 @@ export default function NoteEditorPage({
           onDiscard={discardRefusedCopyConfirmed}
         />
       ))}
-      {copySavedNotice && (
-        <div className={styles.draftBanner} data-export-exclude role="status">
-          <span>{copySavedNotice}</span>
-          <div className={styles.draftBannerActions}>
-            <button type="button" className={styles.draftBannerBtn} onClick={() => setCopySavedNotice(null)}>
-              OK
-            </button>
-          </div>
+      {/* ⭐ Fix round 5 (review M-19): the live region is on the page, EMPTY, from the
+          offer's first render, and only its text changes, so a screen reader announces
+          "Saved as a separate note…" when it arrives (a region inserted already holding
+          its text is often not announced). */}
+      {(refusedCopies.length > 0 || copySavedNotice) && (
+        <div className={copySavedNotice ? styles.draftBanner : undefined} data-export-exclude>
+          <span role="status" data-testid="copy-saved-status">{copySavedNotice || ''}</span>
+          {copySavedNotice ? (
+            <div className={styles.draftBannerActions}>
+              <button
+                type="button"
+                className={styles.draftBannerBtn}
+                onClick={() => { copyFocusAfterRef.current = true; setCopySavedNotice(null) }}
+              >
+                OK
+              </button>
+            </div>
+          ) : null}
         </div>
       )}
 

@@ -36,9 +36,22 @@
  *     editor ("Move part of it out a level", "it wasn't saved"). The offer picks its own
  *     sentence by refusal class; the server's detail stays in the stored record only,
  *     for diagnosis.
+ *
+ * ⭐⭐ I-A FIX ROUND 5 (review C-4, I-8, M-18).
+ *   · ⛔⛔ A PLAIN SAVE NEVER DELETES THE COPY. Plain text cannot hold everything a
+ *     body can, so after "Save as plain text" lands the stored copy is KEPT, with its
+ *     original words, and marked `copyRefused.plainSaved`. Only an explicit Discard
+ *     removes it. ("Save as a separate note" sends the FULL body, so its landing may
+ *     still clear the copy.)
+ *   · The plain-text walk (preview, Copy text, the plain body) carries the words held
+ *     in node ATTRIBUTES too: the app's own leaf text (`citationLeafText`, the table
+ *     search and Ask read) and, for what that table does not read, a per-type list.
+ *   · A 400/422 that names no reason is `other`, not `content`.
  */
 import { clearOutboxEntry, getOutboxEntry, putOutboxEntryIfPresent } from './notebookDb'
-import { isNoteCopy } from './noteCopy'
+import { conflictedCopyTitle, isNoteCopy } from './noteCopy'
+import { citationLeafText } from '../askCitation'
+import { fmtTime } from '../../../../components/video/playerUtils'
 
 /** Which request of the fork failed: the source-note read or the create. */
 export const READ_PHASE = 'read'
@@ -102,7 +115,11 @@ export function copyRefusalClass(refusal) {
   const status = refusal?.status
   if (status === 413) return COPY_TOO_LARGE
   if (status !== 400 && status !== 422) return COPY_OTHER
-  const detail = typeof refusal?.detail === 'string' ? refusal.detail : ''
+  const detail = typeof refusal?.detail === 'string' ? refusal.detail.trim() : ''
+  // ⛔ Fix round 5 (review M-18): a refusal that names NO reason (an edge's 400,
+  // FastAPI's list-shaped 422) is not known to be about the body, so it never takes
+  // the plain-text path.
+  if (!detail) return COPY_OTHER
   if (NAMES_ANOTHER_FIELD.test(detail)) return COPY_OTHER
   return SAYS_TOO_BIG.test(detail) ? COPY_TOO_LARGE : COPY_CONTENT
 }
@@ -118,40 +135,112 @@ export function isOfflineFailure(err) {
 }
 
 // ── the copy's words as plain text ────────────────────────────────────────────
-const TEXTBLOCKS = new Set(['paragraph', 'heading', 'codeBlock'])
-function leafLabel(node) {
-  const attrs = node?.attrs && typeof node.attrs === 'object' ? node.attrs : {}
-  for (const key of ['label', 'text']) {
-    if (typeof attrs[key] === 'string' && attrs[key].trim()) return attrs[key]
+// ⭐ Fix round 5 (review C-4, I-8): ONE walk feeds the preview, "Copy text" and the
+// plain body, and it carries every word, those held in node attributes included.
+const TEXTBLOCKS = new Set(['paragraph', 'heading', 'codeBlock', 'imageCaption', 'toggleSummary'])
+const INLINE_LEAVES = new Set(['hardBreak', 'dateMention', 'inlineMath', 'videoTimestamp', 'noteLink', 'askCitation'])
+// Leaves that hold no words by design: a rule, a contents list (it lists the headings,
+// which are read where they are).
+const NO_WORDS_BY_DESIGN = new Set(['horizontalRule', 'tableOfContents', 'hardBreak'])
+const str = (v) => (typeof v === 'string' ? v.trim() : '')
+const attrsOf = (node) => (node?.attrs && typeof node.attrs === 'object' && !Array.isArray(node.attrs) ? node.attrs : {})
+
+/**
+ * What a LEAF node reads as. First the app's own leaf text, `citationLeafText` (the
+ * table the search text and Ask read, pinned to the server: a date mention's date, a
+ * formula's LaTeX, "[file: name]", a widget's or trade canvas's search text). Then,
+ * for the words that table does not read, a per-type list. A type this bundle does not
+ * know falls back to the `label` / `text` it names.
+ */
+function leafText(node) {
+  const type = node?.type
+  const attrs = attrsOf(node)
+  switch (type) {
+    case 'hardBreak': return '\n'
+    // tiptap.js `plainLeafText`: the one leaf the search text reads beyond the table.
+    case 'videoTimestamp': return `[${fmtTime(attrs.seconds || 0)}]`
+    case 'image': {
+      const alt = str(attrs.alt) || str(attrs.title)
+      return alt ? `[image: ${alt}]` : ''
+    }
+    case 'linkPreview': {
+      const head = [str(attrs.title), str(attrs.description)].filter(Boolean).join(' — ')
+      const url = str(attrs.url) || str(attrs.domain)
+      return head && url ? `${head} (${url})` : head || url
+    }
+    case 'webEmbed': return str(attrs.url)
+    case 'askCitation': return str(attrs.label)
+    case 'widgetEmbed':
+      return [str(citationLeafText({ type: { name: type }, attrs })), str(attrs.caption)].filter(Boolean).join(' — ')
+    default: break
   }
+  const own = citationLeafText({ type: { name: type }, attrs })
+  if (own) return own
+  for (const key of ['label', 'text']) if (str(attrs[key])) return attrs[key]
   return ''
+}
+const linkOf = (node) => {
+  const mark = (Array.isArray(node?.marks) ? node.marks : []).find((m) => m?.type === 'link')
+  return mark ? str(mark.attrs?.href) || null : null
 }
 function inlineText(node) {
   if (!node || typeof node !== 'object') return ''
   if (node.type === 'text') return typeof node.text === 'string' ? node.text : ''
-  if (node.type === 'hardBreak') return '\n'
-  if (Array.isArray(node.content)) return node.content.map(inlineText).join('')
-  return leafLabel(node)
+  if (Array.isArray(node.content) && node.content.length) return lineText(node.content)
+  return leafText(node)
 }
-/** One string per text block, in document order. A container adds nothing. */
+/** A text block's words. A link reads "text (url)", once per run of its text. */
+function lineText(kids) {
+  let out = ''
+  let run = ''
+  let href = null
+  const flush = () => {
+    if (run) out += href && run.trim() !== href ? `${run} (${href})` : run
+    run = ''
+  }
+  for (const kid of kids) {
+    const next = kid?.type === 'text' ? linkOf(kid) : null
+    if (next !== href) { flush(); href = next }
+    run += inlineText(kid)
+  }
+  flush()
+  return out
+}
+const isInlineChild = (k) => k?.type === 'text' || INLINE_LEAVES.has(k?.type)
+/** One string per text block or leaf, in document order. A container adds nothing. */
 function bodyBlocks(bodyJson) {
   const blocks = []
   const walk = (node) => {
     if (!node || typeof node !== 'object') return
     const kids = Array.isArray(node.content) ? node.content : []
-    if (kids.some((k) => k?.type === 'text' || k?.type === 'hardBreak')) {
-      blocks.push(kids.map(inlineText).join(''))
-      return
-    }
+    if (TEXTBLOCKS.has(node.type) || kids.some(isInlineChild)) { blocks.push(lineText(kids)); return }
+    // An Ask answer keeps its question in an attribute.
+    if (node.type === 'askInsert' && str(attrsOf(node).question)) blocks.push(str(attrsOf(node).question))
     if (kids.length) { kids.forEach(walk); return }
-    if (TEXTBLOCKS.has(node.type)) { blocks.push(''); return }
-    const leaf = leafLabel(node)
+    const leaf = leafText(node)
     if (leaf) blocks.push(leaf)
   }
   for (const child of Array.isArray(bodyJson?.content) ? bodyJson.content : []) walk(child)
   while (blocks.length && !blocks[0].trim()) blocks.shift()
   while (blocks.length && !blocks[blocks.length - 1].trim()) blocks.pop()
   return blocks
+}
+
+/**
+ * Does the body hold an item the walk cannot show as words (a picture with no
+ * description, say)? The offer then says so, so nobody discards what they cannot see.
+ */
+export function copyHasHiddenItems(bodyJson) {
+  let hidden = false
+  const walk = (node) => {
+    if (hidden || !node || typeof node !== 'object') return
+    const kids = Array.isArray(node.content) ? node.content : []
+    if (kids.length) { kids.forEach(walk); return }
+    if (node.type === 'text' || TEXTBLOCKS.has(node.type) || NO_WORDS_BY_DESIGN.has(node.type)) return
+    if (!str(leafText(node))) hidden = true
+  }
+  for (const child of Array.isArray(bodyJson?.content) ? bodyJson.content : []) walk(child)
+  return hidden
 }
 
 /** The copy's body as plain text: one line per text block. */
@@ -192,11 +281,21 @@ const DISCARD_DOES = 'Discard deletes the copy from this device.'
 export function refusedCopyReason(entry) {
   const refusal = entry?.copyRefused
   const kind = copyRefusalClass(refusal)
+  // ⛔ Fix round 5 (C-4): a plain save landed, and the copy is still kept.
+  if (refusal?.plainSaved) {
+    const title = refusal.plainSaved.title || conflictedCopyTitle(entry?.patch?.title)
+    return `A plain-text version of this copy is now its own note, “${title}”. `
+      + 'The original copy, with everything plain text can’t hold, is still kept on this device until you discard it. '
+      + `${COPY_TEXT_DOES} ${DISCARD_DOES}`
+  }
   if (refusal?.plain) {
     return `A copy of this note’s words couldn’t be saved as a note, even as plain text, ${KEPT} `
       + `${COPY_TEXT_DOES} ${DISCARD_DOES}`
   }
-  const plainDoes = 'Save as plain text saves its words as a separate note without their formatting.'
+  // Fix round 5 (C-4): true now in both halves — the walk carries every word, and the
+  // copy stays until the member discards it.
+  const plainDoes = 'Save as plain text saves its words as a separate note without their formatting, '
+    + 'and keeps this copy.'
   if (kind === COPY_TOO_LARGE) {
     return `A copy of this note’s words is too large to be saved as its own note, ${KEPT} `
       + `${plainDoes} ${COPY_TEXT_DOES} ${DISCARD_DOES}`
@@ -205,15 +304,26 @@ export function refusedCopyReason(entry) {
     return `A copy of this note’s words has content the server can’t store as a note, ${KEPT} `
       + `${plainDoes} ${COPY_TEXT_DOES} ${DISCARD_DOES}`
   }
+  // ⛔ Fix round 5 (wording ruling): never "tries again" for a refusal a retry cannot
+  // fix (its title, subtitle, folder or tags); say what the member can do instead.
+  const detail = typeof refusal?.detail === 'string' ? refusal.detail : ''
+  if (NAMES_ANOTHER_FIELD.test(detail)) {
+    return 'A copy of this note’s words couldn’t be saved as a separate note because of its title, '
+      + `subtitle, folder or tags, ${KEPT} Copy text puts its words on your clipboard, so you can paste them `
+      + `into a new note. ${DISCARD_DOES}`
+  }
   return `A copy of this note’s words couldn’t be saved as a separate note, ${KEPT} `
-    + `Save as a separate note tries again. ${COPY_TEXT_DOES} ${DISCARD_DOES}`
+    + 'Save as a separate note sends it to the server once more. If that is refused too, Copy text puts '
+    + `its words on your clipboard, so you can paste them into a new note. ${DISCARD_DOES}`
 }
 
 /** What the editor needs to offer one refused copy. */
 export function refusedCopyView(entry) {
   const refusal = entry.copyRefused || null
   const kind = copyRefusalClass(refusal)
-  const plainRefused = Boolean(refusal?.plain)
+  const plainSaved = refusal?.plainSaved || null
+  // After a refused plain create, or once a plain one landed, nothing more is sent.
+  const done = Boolean(refusal?.plain) || Boolean(plainSaved)
   const bodyJson = entry.patch?.bodyJson ?? null
   return {
     mutationId: entry.mutationId,
@@ -221,12 +331,16 @@ export function refusedCopyView(entry) {
     subtitle: entry.patch?.subtitle ?? '',
     bodyJson,
     bodyText: copyBodyText(bodyJson),
+    // Fix round 5 (I-8): an item the walk cannot show as words is said to be there.
+    hiddenItems: copyHasHiddenItems(bodyJson),
     kind,
+    plainSaved,
     // ⛔ After a content refusal the plain create is the one that can succeed; after a
     // refused plain create, nothing the offer can send will, so only Copy text and
-    // Discard remain.
-    offerPlain: !plainRefused && isContentRefusal(kind),
-    offerSeparate: !plainRefused && !isContentRefusal(kind),
+    // Discard remain. ⛔ Fix round 5 (C-4): after a plain create LANDED, the same: a
+    // second one would only make a duplicate note.
+    offerPlain: !done && isContentRefusal(kind),
+    offerSeparate: !done && !isContentRefusal(kind),
     reason: refusedCopyReason(entry),
   }
 }
@@ -243,13 +357,16 @@ export function refusedCopiesOf(entries, noteId) {
  * "Save as a separate note": the create again, through the same `fork`. With
  * `plain`, "Save as plain text": the same create with the body flattened to plain
  * paragraphs (same title and subtitle rules, same fork, never a PUT to the source).
- * @returns {Promise<{outcome: 'saved'|'refused'|'failed'|'gone', copy?: object, offline?: boolean}>}
- *   saved   — the new note exists and the copy is gone from this device;
- *   refused — refused for good again: kept with its ORIGINAL words, re-marked,
- *             still offered (`copy`);
- *   failed  — a transient failure: kept exactly as it was (`offline` when the
- *             network itself failed);
- *   gone    — it was no longer on this device.
+ * @returns {Promise<{outcome: 'saved'|'plain-saved'|'refused'|'failed'|'gone', copy?: object, offline?: boolean}>}
+ *   saved       — the new note exists and the copy is gone from this device (the
+ *                 FULL body was sent);
+ *   plain-saved — ⛔ fix round 5 (C-4): the plain-text note exists and the copy is
+ *                 KEPT, original words and all, marked `plainSaved` (`copy`);
+ *   refused     — refused for good again: kept with its ORIGINAL words, re-marked,
+ *                 still offered (`copy`);
+ *   failed      — a transient failure: kept exactly as it was (`offline` when the
+ *                 network itself failed);
+ *   gone        — it was no longer on this device.
  */
 export async function saveRefusedCopy(db, mutationId, { fork, plain = false }) {
   const entry = await getOutboxEntry(db, mutationId)
@@ -265,8 +382,31 @@ export async function saveRefusedCopy(db, mutationId, { fork, plain = false }) {
     const now = await getOutboxEntry(db, mutationId)
     return { outcome: 'refused', copy: now ? refusedCopyView(now) : null }
   }
+  if (plain) return markPlainSaved(db, entry)
   await clearOutboxEntry(db, mutationId)
   return { outcome: 'saved' }
+}
+
+/**
+ * ⛔⛔ Fix round 5 (C-4): a plain save LANDED. The copy is never deleted for it: it is
+ * re-marked (its ORIGINAL words untouched, still `copyRefused`, so the sweep keeps
+ * holding it) and offered for Copy text and Discard only. Only if the copy is still
+ * there (one transaction): a Discard meanwhile is not undone.
+ * ⛔ A mark that cannot be WRITTEN still reports the save landed — saying "try again"
+ * for a note that exists makes a duplicate — and the copy is still on this device.
+ */
+async function markPlainSaved(db, entry) {
+  const marked = {
+    ...entry,
+    copyRefused: { ...(entry.copyRefused || {}), plainSaved: { title: conflictedCopyTitle(entry.patch?.title), at: Date.now() } },
+  }
+  let present = true
+  try {
+    present = await putOutboxEntryIfPresent(db, marked)
+  } catch {
+    present = true
+  }
+  return present ? { outcome: 'plain-saved', copy: refusedCopyView(marked) } : { outcome: 'saved', plain: true }
 }
 
 /** "Discard", confirmed: the copy is deleted from this device. */
