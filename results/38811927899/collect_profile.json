@@ -1,0 +1,71 @@
+{
+  "dirs_total": 9,
+  "dirs_measured": 9,
+  "dirs_unmeasured": [],
+  "sum_collected": 50029,
+  "rows": [
+    {
+      "dir": "tests",
+      "collected": 45286,
+      "seconds": 367.52,
+      "rss_mb": 900.8,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/pattern_engine",
+      "collected": 2750,
+      "seconds": 21.41,
+      "rss_mb": 347.6,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/api",
+      "collected": 342,
+      "seconds": 23.06,
+      "rss_mb": 279.4,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/theme_engine",
+      "collected": 64,
+      "seconds": 13.61,
+      "rss_mb": 125.4,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/theme_curation",
+      "collected": 57,
+      "seconds": 13.24,
+      "rss_mb": 111.1,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/econ",
+      "collected": 854,
+      "seconds": 15.58,
+      "rss_mb": 81.4,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/marketcap",
+      "collected": 407,
+      "seconds": 15.47,
+      "rss_mb": 77.2,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/discord_render",
+      "collected": 46,
+      "seconds": 11.42,
+      "rss_mb": 76.8,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/fundamentals_pit",
+      "collected": 223,
+      "seconds": 14.19,
+      "rss_mb": 76.7,
+      "result": "ok"
+    }
+  ]
+}
