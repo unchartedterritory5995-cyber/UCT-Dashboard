@@ -1,0 +1,154 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.durable.test.jsx[2m > [22m[2mthe server ack and the local intent[2m > [22m[2m⛔ a failed save leaves the work durable, queued, and HONESTLY labelled
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.durable.test.jsx:159:18
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:12)
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.durable.test.jsx[2m > [22m[2m⛔ the noun narrows when the platform will not promise retention[2m > [22m[2m⭐ says "on this device" ONLY when persisted() was actually granted
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at typeOfflineAndRead (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.durable.test.jsx:304:34)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.durable.test.jsx:313:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.durable.test.jsx[2m > [22m[2m⛔ the noun narrows when the platform will not promise retention[2m > [22m[2msays "in this browser" when it was not — and does NOT call that private mode
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at typeOfflineAndRead (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.durable.test.jsx:304:34)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.durable.test.jsx:323:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.durable.test.jsx[2m > [22m[2m⛔ the noun narrows when the platform will not promise retention[2m > [22m[2m⛔ a refused persist() never blocks offline editing or raises an error
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at typeOfflineAndRead (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.durable.test.jsx:304:34)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.durable.test.jsx:335:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.durable.test.jsx [2m([22m[2m15 tests[22m[2m)[22m[33m 11771[2mms[22m[39m
+     [33m[2m✓[22m[39m writes the synchronous draft immediately and the durable copy after the window [33m 4127[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ coalesces a burst — ONE durable write, not one per keystroke [33m 518[2mms[22m[39m
+     [33m[2m✓[22m[39m the account is part of the DATABASE NAME, so another member has another store [33m 429[2mms[22m[39m
+     [33m[2m✓[22m[39m a successful save clears the queued intent and marks the copy clean [33m 705[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ a failed save leaves the work durable, queued, and HONESTLY labelled [33m 755[2mms[22m[39m
+     [33m[2m✓[22m[39m offers a durable copy from a previous session even with no localStorage draft [33m 561[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ and stays quiet when the durable copy is CLEAN — the server is newer, not us [33m 495[2mms[22m[39m
+     [33m[2m✓[22m[39m the editor still works when IndexedDB is unavailable [33m 480[2mms[22m[39m
+     [33m[2m✓[22m[39m with the wave switched off, nothing is written to IndexedDB and the Notebook is unchanged [33m 465[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ and the same keystroke DOES reach the store when it is switched ON [33m 457[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ says "on this device" ONLY when persisted() was actually granted [33m 701[2mms[22m[39m
+     [33m[2m✓[22m[39m says "in this browser" when it was not — and does NOT call that private mode [33m 741[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ a refused persist() never blocks offline editing or raises an error [33m 691[2mms[22m[39m
+     [33m[2m✓[22m[39m leaves an existing durable copy and its outbox entry untouched while the editor works normally [33m 643[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.details.test.jsx[2m > [22m[2ma running tour opens the details (any start path)[2m > [22m[2mopens while a tour runs and stays open for this visit, without touching the preference
+[22m[39mAn update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.details.test.jsx[2m > [22m[2ma running tour opens the details (any start path)[2m > [22m[2mopens while a tour runs and stays open for this visit, without touching the preference
+[22m[39mAn update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.details.test.jsx [2m([22m[2m14 tests[22m[2m)[22m[33m 14734[2mms[22m[39m
+     [33m[2m✓[22m[39m is collapsed by default: the toggle says so and the controls are hidden, not gone [33m 4595[2mms[22m[39m
+     [33m[2m✓[22m[39m a bare note shows only a quiet "Add details", with no summary [33m 376[2mms[22m[39m
+     [33m[2m✓[22m[39m the line names only what has a value: tags, ticker, sector, how many properties, review state [33m 526[2mms[22m[39m
+     [33m[2m✓[22m[39m the toggle reveals the EXISTING controls in place: subtitle, tags, ticker, properties, evidence, review, changelog [33m 977[2mms[22m[39m
+     [33m[2m✓[22m[39m a subtitle with words is CONTENT: it stays on screen while the details are collapsed [33m 399[2mms[22m[39m
+     [33m[2m✓[22m[39m hidden, never unmounted: a half-typed property name survives a collapse [33m 1615[2mms[22m[39m
+     [33m[2m✓[22m[39m opening writes the preference; the next editor opens expanded; closing writes it back [33m 997[2mms[22m[39m
+     [33m[2m✓[22m[39m a browser that refuses storage still renders, collapsed, and the toggle still works [33m 676[2mms[22m[39m
+     [33m[2m✓[22m[39m exactly one editable Ticker field, and the read-only property mirror is gone [33m 839[2mms[22m[39m
+     [33m[2m✓[22m[39m its check still says what it refused -- and the sentence outlives a collapse [33m 1182[2mms[22m[39m
+     [33m[2m✓[22m[39m CONTROL: a real symbol is normalised and saved through the same door [33m 450[2mms[22m[39m
+     [33m[2m✓[22m[39m collapsed, the only stop between the title and the body is the toggle [33m 504[2mms[22m[39m
+     [33m[2m✓[22m[39m opens while a tour runs and stays open for this visit, without touching the preference [33m 1434[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx [2m([22m[2m16 tests[22m[2m)[22m[33m 4789[2mms[22m[39m
+     [33m[2m✓[22m[39m a paid member gets a mic in the toolbar [33m 1254[2mms[22m[39m
+     [33m[2m✓[22m[39m CONTROL: firing "Dictate" from the MAIN pane starts only the main pane's mic [33m 311[2mms[22m[39m
+     [33m[2m✓[22m[39m what the mic hears lands in ITS editor, and one Ctrl+Z removes exactly it [33m 398[2mms[22m[39m
+     [33m[2m✓[22m[39m is a toolbar button that opens a rear-camera image picker [33m 400[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.excerpts.test.jsx [2m([22m[2m7 tests[22m[2m)[22m[33m 2344[2mms[22m[39m
+     [33m[2m✓[22m[39m opening the PDF preview resolves the documentId from the note's own document list [33m 1114[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.firstRunDefer.test.jsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1941[2mms[22m[39m
+     [33m[2m✓[22m[39m 390 px: neither shows while the editor is open, nothing is marked seen, and both show on the next surface [33m 1355[2mms[22m[39m
+     [33m[2m✓[22m[39m 641 px: the card shows in the editor; the tip does not, and stays pending for the next mic [33m 324[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.draft.test.jsx [2m([22m[2m8 tests[22m[2m)[22m[33m 3241[2mms[22m[39m
+     [33m[2m✓[22m[39m a fresh note with no local draft shows no recovery banner [33m 1109[2mms[22m[39m
+     [33m[2m✓[22m[39m reopening a note with a stale local draft that differs from the server offers Restore/Discard [33m 323[2mms[22m[39m
+     [33m[2m✓[22m[39m clicking Restore applies the draft title and schedules a real save [33m 455[2mms[22m[39m
+     [33m[2m✓[22m[39m a duplicate Restore click (e.g. a double-fired handler) is a no-op — the draft data is never lost to a race [33m 506[2mms[22m[39m
+     [33m[2m✓[22m[39m clicking Discard clears the draft and leaves the server content untouched [33m 462[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.headerFits.test.js [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.exportPending.test.jsx[2m > [22m[2mthe editor sends its pending edits before a file is exported (M-9)[2m > [22m[2ma title typed inside the autosave window reaches the server BEFORE the export is fetched
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.exportPending.test.jsx[2m > [22m[2mthe editor sends its pending edits before a file is exported (M-9)[2m > [22m[2ma title typed inside the autosave window reaches the server BEFORE the export is fetched
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+Not implemented: navigation to another Document
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.exportPending.test.jsx[2m > [22m[2mthe editor sends its pending edits before a file is exported (M-9)[2m > [22m[2ma title typed inside the autosave window reaches the server BEFORE the export is fetched
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.exportPending.test.jsx [2m([22m[2m1 test[22m[2m)[22m[33m 991[2mms[22m[39m
+     [33m[2m✓[22m[39m a title typed inside the autosave window reaches the server BEFORE the export is fetched [33m 989[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m8 passed[39m[22m[90m (8)[39m
+[2m      Tests [22m [1m[32m69 passed[39m[22m[90m (69)[39m
+[2m   Start at [22m 02:02:18
+[2m   Duration [22m 25.39s[2m (transform 6.60s, setup 1.72s, import 1.79s, tests 39.82s, environment 4.98s)[22m
+

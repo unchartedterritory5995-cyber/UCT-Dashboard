@@ -1,0 +1,13 @@
+R2-M1-fork-drops-subtitle: Test Files  2 failed | 2 passed (4) | Tests  3 failed | 88 passed (91)  [restored OK]
+     × C-1: a SUBTITLE the Restore pushed into a copy reaches the created copy (the real fork) 2478ms
+     × I-1: the SOURCE is gone (trashed or deleted: 404) ⇒ the copy is still created, in no folder — it never needed the source 231ms
+     × ⛔⛔ C-1: every authored field the copy holds lands in the created note — title, a NON-EMPTY subtitle, body — then the entry clears 239ms
+R2-M2-no-base-restore-skips-outgoing: Test Files  1 failed | 3 passed (4) | Tests  2 failed | 89 passed (91)  [restored OK]
+     × C-2 (no-base path): an earlier record AND a newer crash draft, typing before the banner, Restore of the draft, reload ⇒ T, R and W durable 2203ms
+     × Restore WITHOUT a base pressed INSIDE the 200 ms window after old-view typing, and a keystroke INSIDE the window after it ⇒ the old words survive, a
+R2-M3-adoption-skips-outgoing: Test Files  1 failed | 3 passed (4) | Tests  2 failed | 89 passed (91)  [restored OK]
+     × C-2 (OFFLINE): an earlier session's dirty record, typing BEFORE the banner is decided, then Restore of it, then reload ⇒ the typed words and R durab
+     × Restore WITH a base (the adoption effect) pressed INSIDE the 200 ms window after old-view typing, and a keystroke INSIDE the window after it ⇒ the o
+R2-M4-outgoing-captures-a-clean-page: Test Files  1 failed | 3 passed (4) | Tests  2 failed | 89 passed (91)  [restored OK]
+     × ⛔⛔ a CRASH DRAFT that won, another device saved since, Restore then a keystroke: ONE fork, the other device’s words kept 5434ms
+     × ⭐ NN-1: …and a Restore is the member’s choice — it sends on the words’ own revision and a moved server forks: ONE sibling, both copies kept 4250ms

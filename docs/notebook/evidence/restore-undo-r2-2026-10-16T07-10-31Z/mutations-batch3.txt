@@ -1,0 +1,13 @@
+R2-M9-never-refused-for-good: Test Files  1 failed | 3 passed (4) | Tests  1 failed | 90 passed (91)  [restored OK]
+     × ⛔ I-1: a create the server REFUSES (400) ⇒ BLOCKED with its reason, KEPT, shown on its source note, and not re-posted every sweep 240ms
+R2-M10-always-refused-for-good: Test Files  1 failed | 3 passed (4) | Tests  5 failed | 86 passed (91)  [restored OK]
+     × a create that fails 401 is transient ⇒ KEPT, not blocked 222ms
+     × a create that fails 429 is transient ⇒ KEPT, not blocked 219ms
+     × a create that fails 503 is transient ⇒ KEPT, not blocked 236ms
+     × offline (the source GET cannot be made) ⇒ KEPT, nothing posted, retried later 236ms
+     × ⛔ a failed fork (offline) leaves the copy exactly where it was 248ms
+R2-M11-blocked-copy-not-on-source: Test Files  1 failed | 3 passed (4) | Tests  1 failed | 90 passed (91)  [restored OK]
+     × ⛔ I-1: a create the server REFUSES (400) ⇒ BLOCKED with its reason, KEPT, shown on its source note, and not re-posted every sweep 244ms
+R2-M12-refused-copy-never-offered: Test Files  1 failed | 3 passed (4) | Tests  2 failed | 89 passed (91)  [restored OK]
+     × Discard on the offered copy NEVER deletes it — it is offered again next time 6950ms
+     × opening the source note OFFERS the refused copy; Restore puts its words in the note and only then retires the copy 6873ms

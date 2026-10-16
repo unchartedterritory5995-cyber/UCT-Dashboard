@@ -1,0 +1,2 @@
+R2-M15-bodyless-draft-not-captured: Test Files  1 failed | 3 passed (4) | Tests  1 failed | 91 passed (92)  [restored OK]
+     × a Restore of a draft that carries only a TITLE writes that title to a durable layer before the tab closes 1221ms
