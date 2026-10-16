@@ -755,3 +755,21 @@ describe('I-A · fix round 2 — a copy the server refused is reachable, never d
     expect(await screen.findByRole('button', { name: 'Restore' }), 'the copy is offered again').toBeTruthy()
   })
 })
+
+describe('I-A · fix round 2 — review M-8: a body-less (legacy) crash draft', () => {
+  it('a Restore of a draft that carries only a TITLE writes that title to a durable layer before the tab closes', async () => {
+    const TITLE_WORDS = 'Renamed before the crash K-title'
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    server.down = true
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      title: TITLE_WORDS, subtitle: '', savedAt: Date.now() - 60_000, sessionId: 's-legacy',
+    }))
+    await openTheNote()
+    await sit(2)
+    await pressRestore()
+    expect(screen.getByPlaceholderText('Title').value, 'precondition: the draft’s title is on the page').toBe(TITLE_WORDS)
+    await tick(400)
+    await closeTheTab()
+    expectDurable(TITLE_WORDS, 'M-8 after the tab closed')
+  })
+})
