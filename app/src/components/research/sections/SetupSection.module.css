@@ -58,3 +58,11 @@
   .stats { grid-template-columns: repeat(2, 1fr); }
   .wrap { gap: var(--space-lg); }
 }
+
+/* Team read (TeamReadTile.jsx): a plain text link under the tiles. Not gold — the hero's
+   RICH/CHEAP chip spends this canvas's whole gold budget (§3.1). */
+.teamReadLink { font-size: var(--text-xs); color: var(--text-muted); text-decoration: underline; align-self: flex-start; }
+.teamReadLink:hover { color: var(--text-bright); }
+@media (max-width: 1024px) {
+  .teamReadLink { display: inline-flex; align-items: center; min-height: var(--tap-min); }
+}

@@ -26,6 +26,7 @@ import {
 } from '../../../lib/presentation/presentationPrimitives'
 import SectionLead from '../SectionLead'
 import { sectionFetcher } from './sectionFetch'
+import TeamReadTile from './TeamReadTile'
 import styles from './SetupSection.module.css'
 
 // `Number(null) === 0` — the single most common defect on this branch (7
@@ -329,6 +330,10 @@ export default function SetupSection({ sym, row, reportDate, expectedMove, liveP
           </div>
         ) : null}
       </div>
+
+      {/* Team read: the trader archive on this ticker. Renders nothing for a name the
+          team never called (or when the archive is off / the member is unpaid). */}
+      <TeamReadTile sym={sym} />
 
       {lo52 != null && hi52 != null && (
         <div data-testid="setup-52w">

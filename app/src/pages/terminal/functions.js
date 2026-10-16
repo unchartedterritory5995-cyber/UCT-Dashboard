@@ -125,6 +125,12 @@ export const FUNCTIONS = [
   // TWT: the curated X feed's posts on a ticker, 7 days. Honours VITE_TWITTER_UI_ENABLED in the panel.
   { code: 'TWT', label: 'Social posts (curated X feed, 7 days)', group: 'Security',
     ticker: { panel: 'Twt' } },
+  // WHO: what the UCT trading team posted and called on a ticker (the TSDR trader archive), with
+  // each call's measured outcome. The research modal's own block, embedded; `section` is the
+  // Catalysts tab, where that block lives on the full page. No shell flag: the archive's switch
+  // and paid gate are the server's, and the panel says which one answered.
+  { code: 'WHO', label: 'Trader archive (what the trading team posted and called)', group: 'Security',
+    ticker: { panel: 'TraderArchive', section: 'catalysts' } },
   // SIZE: position size + R targets, pure client math. With a ticker the entry is prefilled from the
   // live price; without one it is a plain calculator.
   { code: 'SIZE', label: 'Position size and R calculator', group: 'Security',
@@ -527,6 +533,8 @@ const FUNCTION_WORDS = {
   PEER: { keywords: ['peers', 'competitors', 'comps', 'relative value', 'valuation'] },
   ETF: { keywords: ['etf', 'leveraged etf', 'holdings'] },
   TWT: { keywords: ['twitter', 'tweets', 'social'], note: 'Says so if the X feed is switched off.' },
+  WHO: { keywords: ['trader archive', 'team calls', 'tsdr', 'what did the team say'],
+    note: 'Says so if the trader archive is switched off.' },
   SIZE: { keywords: ['position size', 'sizing', 'shares', 'risk per trade', 'r multiple'] },
   CHK: { keywords: ['check', 'checklist', 'pre-trade', 'win rate'], note: 'Says so if the setup library is not loaded.' },
   TAS: { keywords: ['time and sales', 'time & sales', 'tape', 'prints', 'trades', 'block trades'],

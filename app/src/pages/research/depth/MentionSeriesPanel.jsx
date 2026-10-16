@@ -8,6 +8,8 @@ import PanelCommand from '../../../components/terminal/PanelCommand'
 import { formatPercentAsSent } from '../../../lib/presentation/presentationPrimitives'
 import SwitchedOff, { isSwitchedOff } from '../SwitchedOff'
 import SocialPolarity from './SocialPolarity'
+import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
+import { ARCHIVE_API } from '../../../utils/traderArchive'
 
 // FT-080 — room attention per ticker, from the /buzz mention store. A research
 // panel, not a chart overlay. DARK behind MENTION_SERIES_ENABLED.
@@ -22,11 +24,29 @@ import SocialPolarity from './SocialPolarity'
 const num = (v) => (v == null ? '—' : String(v))
 const LABEL = { before_store: 'before the store', room_silent: 'room silent' }
 
+/** Window of the trader-archive overlay, in calendar days (covers the 14 rows drawn). */
+export const TEAM_DAYS = 60
+
+/** The trading team's posts on one day, from the archive's daily read. A day past the
+ *  archive's reach is UNKNOWN (null), never zero: it simply has not been imported yet. */
+export function teamPostsOn(team, date) {
+  if (!team || !Array.isArray(team.days) || !team.archive_through || !date) return null
+  if (date > team.archive_through) return null
+  const hit = team.days.find((d) => d.date === date)
+  return hit ? hit.posts : 0
+}
+
 export default function MentionSeriesPanel({ sym }) {
   const chrome = useDepthChrome()
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/mention-series/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
+  // ATTN overlay: the trading team's own posts per day (the TSDR trader archive), beside the
+  // room's. Its own read, so a missing archive (404 off, 402 unpaid, an error) leaves the room
+  // table exactly as it was: the column is drawn only when the archive answered.
+  const { data: teamRaw } = useSWR(s ? `${ARCHIVE_API}/ticker/${encodeURIComponent(s)}/daily?days=${TEAM_DAYS}` : null,
+    sectionFetcher, { revalidateOnFocus: false, shouldRetryOnError: false })
+  const team = teamRaw && !teamRaw.paywalled && Array.isArray(teamRaw.days) ? teamRaw : null
   // TERM-019: name this panel's source (and its as-of) in the terminal panel header when it is the
   // whole panel (a DPTH stack names "several" itself); a no-op outside the terminal.
   usePanelFreshness(chrome.alone && data && !data.paywalled && !data.badRequest && !error
@@ -46,6 +66,7 @@ export default function MentionSeriesPanel({ sym }) {
   } else {
     const sm = data.summary || {}
     const recent = [...(data.points || [])].reverse().slice(0, 14)
+    const teamDays = team ? recent.filter((p) => (teamPostsOn(team, p.date) || 0) > 0).length : 0
     body = (
       <div data-testid="mentions">
         <p className={styles.lede} data-testid="mentions-summary">
@@ -58,7 +79,7 @@ export default function MentionSeriesPanel({ sym }) {
         </p>
         <div className={styles.scroll}>
           <table className={styles.grid} aria-label="Room attention (#main-chat)">
-            <thead><tr><th scope="col">Day (ET)</th><th scope="col">Mentions</th><th scope="col">People</th><th scope="col">Share of room</th></tr></thead>
+            <thead><tr><th scope="col">Day (ET)</th><th scope="col">Mentions</th><th scope="col">People</th><th scope="col">Share of room</th>{team ? <th scope="col">Team posts</th> : null}</tr></thead>
             <tbody>
               {recent.map((p) => (
                 <tr key={p.date} data-testid="mentions-row">
@@ -71,11 +92,19 @@ export default function MentionSeriesPanel({ sym }) {
                   {p.state === 'ok'
                     ? <><td>{p.mentions}</td><td>{p.people}</td><td>{formatPercentAsSent(p.share_pct)}</td></>
                     : <td colSpan={3}>— ({LABEL[p.state] || p.state})</td>}
+                  {team ? <td data-testid="mentions-team">{num(teamPostsOn(team, p.date))}</td> : null}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        {team ? (
+          <p className={styles.muted} data-testid="mentions-team-note">
+            Team posts: the trading team&apos;s own posts naming {s} in the trader archive
+            {teamDays ? `, on ${teamDays} of these ${recent.length} days` : ', none on these days'}.
+            {team.archive_through ? ` The archive runs through ${team.archive_through}; a later day shows —.` : ''}
+          </p>
+        ) : null}
         {data.polarity?.state === 'available'
           ? <SocialPolarity sym={s} polarity={data.polarity} />
           : <p className={styles.muted} data-testid="mentions-polarity">Positive/negative sentiment: unavailable, because {memberText(data.polarity?.reason)}.</p>}

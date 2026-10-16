@@ -6,7 +6,8 @@ WHAT THIS FILE HAS TO BE ABLE TO SAY RED FOR
 1. the daily route answering an unpaid member (402) or anyone with the flag off (404);
 2. a day the team did not post appearing as a zero row (absent is not zero);
 3. the window leaking days outside [from, through], or counting another ticker's posts;
-4. posts and calls being counted from the wrong column (stated_date vs posted).
+4. posts and calls being counted from the wrong column (stated_date vs posted);
+5. the archive's overall reach missing, so a surface cannot tell "no post" from "not imported yet".
 """
 from __future__ import annotations
 
@@ -85,6 +86,7 @@ def test_daily_counts_only_this_ticker_and_leaves_quiet_days_absent(wisdom_db, o
     # 2025-01-06 is outside [from, through] (through is the newest POST day), so its call is not counted
     assert out["posts_total"] == 3 and out["calls_total"] == 1
     assert out["last_post"] == "2025-01-05"
+    assert out["archive_through"] == "2025-01-05"                               # the whole archive's reach
     assert all(d["posts"] or d["calls"] for d in out["days"])                   # no zero rows
 
 
@@ -100,9 +102,18 @@ def test_an_unknown_ticker_is_an_empty_answer_not_an_error(wisdom_db, on):
     _seed()
     out = _client(PAID_MEMBER).get("/api/wisdom/archive/ticker/ZZZQ/daily").json()
     assert out == {"ticker": "ZZZQ", "through": None, "days": [], "posts_total": 0, "calls_total": 0,
-                   "last_post": None}
+                   "last_post": None, "archive_through": "2025-01-05"}
 
 
 def test_the_service_refuses_a_malformed_ticker(wisdom_db):
     with store.read() as conn, pytest.raises(service.ItemError):
         service.ticker_daily(conn, "not a ticker!")
+
+def test_archive_through_is_the_whole_archive_not_this_ticker(wisdom_db, on):
+    _seed()
+    c = _client(None)
+    later = [_rec("t9206", "2025-02-01", ["ZZTB"])]                              # another ticker, later
+    assert c.post(BATCH, json={"kind": "records", "items": later}, headers=AUTH).json()["inserted"] == 1
+    out = _client(PAID_MEMBER).get(DAILY).json()
+    assert out["through"] == "2025-01-05"                                       # ZZTA's own newest post
+    assert out["archive_through"] == "2025-02-01"                               # the archive reaches further
