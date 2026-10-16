@@ -22,7 +22,10 @@ import useJ2Accounts from '../../hooks/useJ2Accounts'
 import LoadFailed from '../LoadFailed'
 import { colorHex } from '../../lib/accountColors'
 import { money } from '../../../../lib/journal-2-0'
-import DeleteAccountModal from './DeleteAccountModal'
+// Bytes headroom: the Delete Account dialog loads on its first open, through its chunk door, never
+// with the page. Same props, same confirmation, same requests (the dialog's own). ⛔ Never a static
+// import of DeleteAccountModal (rail: components/notebook/RefusedCopyOffer.lazy.test.js).
+import DeleteAccountModal from './DeleteAccountModalDoor'
 import styles from './AccountSelector.module.css'
 
 /* One account row in the dropdown. Long-press (touch) / right-click (desktop)
