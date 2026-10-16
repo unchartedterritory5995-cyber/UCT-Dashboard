@@ -1,0 +1,4 @@
+    +406  offlineFlag  3544 -> 3950
+   +2312  useDurableNote  22835 -> 25147
+   +3721  NotebookFlagGate  348913 -> 352634
+total 6439
