@@ -1,0 +1,424 @@
+{
+  "verdict": "INVALID",
+  "counts": {
+    "new": 23,
+    "fixed": 16,
+    "unchanged": 224,
+    "missing": 55,
+    "baseline": 295,
+    "current": 247,
+    "current_ran": 41480,
+    "new_flaky": 0,
+    "flaky_size": 11,
+    "flaky_new": 1,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 55
+  },
+  "arithmetic": "baseline 295 = unchanged 224 + fixed 16 + missing 55  |  current 247 = unchanged 224 + new 23 + new-but-flaky 0",
+  "invalid_because": [
+    "current: shards_success 18 of 20",
+    "current: shards_without_totals = ['tests-07']"
+  ],
+  "baseline_run_id": "38555686269",
+  "current_run_id": "38845010956",
+  "baseline_sha": "248d6c68195afcc2e86ee8f17d8123d9a3fb4f37",
+  "current_sha": "810b07fe535f8b467bb3728b4c39f61025637b48",
+  "commit_range": "248d6c68195afcc2e86ee8f17d8123d9a3fb4f37..810b07fe535f8b467bb3728b4c39f61025637b48",
+  "first_run": false,
+  "new": [
+    "pytest|tests.econ.test_serving|test_status_is_values_free[db]",
+    "pytest|tests.test_audit_sandbox_env|test_NO_variable_points_at_the_shared_data_root",
+    "pytest|tests.test_audit_sandbox_env|test_it_REDIRECTS_EVERY_pin_the_census_derives",
+    "pytest|tests.test_audit_sandbox_env|test_the_BARE_ROOT_pins_are_redirected_too",
+    "pytest|tests.test_audit_sandbox_env|test_the_quiet_flags_blank_a_webhook_rather_than_removing_it",
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows",
+    "pytest|tests.test_e2e_sandbox_guard|test_build_environment_produces_a_usable_env_for_a_real_sandbox_root",
+    "pytest|tests.test_feature_status|test_every_declaration_is_well_formed_and_plain[NOTEBOOK_SMART_CHIPS_ENABLED]",
+    "pytest|tests.test_flow_rth_guard|test_concurrent_persists_of_one_name_never_collide",
+    "pytest|tests.test_hub_nav_smoke_login_inconclusive|test_main_maps_an_incomplete_login_to_exit_2",
+    "pytest|tests.test_scan_screener_auth|test_a_FREE_member_is_refused_on_EVERY_route_with_THIS_routers_sentence",
+    "pytest|tests.test_scan_screener_auth|test_a_PAID_member_still_gets_200_on_EVERY_route",
+    "pytest|tests.test_scan_screener_auth|test_a_TRIAL_member_is_treated_as_paid",
+    "pytest|tests.test_scan_screener_auth|test_an_ADMIN_gets_200_everywhere_including_the_refresh_route",
+    "pytest|tests.test_scan_screener_auth|test_an_anonymous_caller_is_refused_on_EVERY_route_except_the_public_door",
+    "pytest|tests.test_scan_screener_auth|test_every_route_is_paid_except_the_one_admin_route_and_the_one_public_door",
+    "pytest|tests.test_scan_screener_auth|test_the_route_counts_are_what_the_router_SOURCE_declares",
+    "pytest|tests.test_shared_data_root_guard|test_no_shared_root_literal_sits_in_a_function_that_reads_no_env_var",
+    "pytest|tests.test_shared_data_root_guard|test_the_literals_no_env_var_can_move_are_named_not_forgotten",
+    "pytest|tests.test_test_discovery_coverage|test_no_production_module_is_wearing_a_test_name",
+    "pytest|tests.test_wisdom_item3_floor|test_8_the_route_list_is_unchanged_byte_for_byte",
+    "pytest|tests.test_wisdom_item3_floor|test_8b_every_route_is_admin_owner_or_internal_and_none_is_member_facing",
+    "pytest|tests.test_wisdom_type_gating_audit|test_every_door_into_the_wisdom_package_from_outside_it_is_declared"
+  ],
+  "missing": [
+    "pytest|tests.test_massive_guard_census|test_real_repo_has_zero_unexempted_violations",
+    "pytest|tests.test_member_interest_surfaces|test_each_gate_is_declared_dark_in_the_ledger",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_contract.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_flipgate.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_load_model.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_push_guard.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_render_gate.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_stall_record.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_contract.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_flipgate.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_load_model.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_push_guard.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_render_gate.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_renderer.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_stall_record.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_symbols.py]",
+    "pytest|tests.test_mutation_harness_hygiene|test_every_instrument_that_can_leave_a_mutation_imports_the_shared_guard",
+    "pytest|tests.test_mutation_harness_hygiene|test_every_mutation_harness_imports_the_shared_guard_and_calls_it_before_any_write",
+    "pytest|tests.test_no_cr_in_tracked_text_blobs|test_no_tracked_text_file_is_staged_with_cr_line_endings",
+    "pytest|tests.test_notebook_bridges_pin_the_root|test_every_notebook_tool_that_imports_api_applies_the_census_first",
+    "pytest|tests.test_notebook_earnings_prep|test_the_import_graph_never_reaches_alphavantage_or_the_recap_generator",
+    "pytest|tests.test_notebook_flag_parse|test_NO_notebook_flag_is_read_outside_the_one_parse",
+    "pytest|tests.test_notebook_flag_parse|test_every_flag_on_call_names_a_payload_flag",
+    "pytest|tests.test_notebook_proof_walk|test_CONTROL_a_normal_click_on_a_real_page_reads_MEASURED",
+    "pytest|tests.test_notebook_proof_walk|test_CONTROL_distinct_keys_are_never_deduped",
+    "pytest|tests.test_notebook_proof_walk|test_a_click_that_never_becomes_actionable_is_bounded_and_named_TIMEOUT",
+    "pytest|tests.test_notebook_proof_walk|test_a_control_whose_DOM_change_lands_700ms_after_its_own_fetch_still_reads_LIVE",
+    "pytest|tests.test_notebook_proof_walk|test_a_cross_origin_fetch_carries_no_proof_headers_and_a_same_origin_one_still_does",
+    "pytest|tests.test_notebook_proof_walk|test_a_late_delivered_background_poll_is_never_misattributed_to_a_dead_click",
+    "pytest|tests.test_notebook_proof_walk|test_a_never_resolving_evaluate_is_bounded_by_a_js_side_race_not_a_hang",
+    "pytest|tests.test_notebook_proof_walk|test_a_repeated_control_key_is_sampled_and_the_rest_are_named_REPEATED_never_dropped",
+    "pytest|tests.test_notebook_proof_walk|test_mutation_reintroducing_the_two_snapshot_marking_reds_the_SAME_reproduction",
+    "pytest|tests.test_notebook_proof_walk|test_mutation_removing_the_origin_check_reds_the_cross_origin_rail",
+    "pytest|tests.test_notebook_proof_walk|test_quiesce_keeps_waiting_while_a_request_is_in_flight_even_though_the_DOM_is_quiet",
+    "pytest|tests.test_notebook_proof_walk|test_quiesce_returns_early_when_quiet_and_still_honours_its_ceiling_when_it_never_settles",
+    "pytest|tests.test_notebook_proof_walk|test_the_planted_poller_control_reads_DEAD_DEAD_LIVE_IN_WINDOW_through_the_real_quiesce",
+    "pytest|tests.test_notebook_rollback_chain|test_a_later_commit_on_a_recorded_conflicts_lines_stops_the_chain",
+    "pytest|tests.test_notebook_rollback_chain|test_a_later_edit_to_a_file_a_whole_file_rule_keeps_stops_the_chain",
+    "pytest|tests.test_notebook_rollback_chain|test_a_non_notebook_commit_on_top_runs_and_warns",
+    "pytest|tests.test_notebook_rollback_chain|test_a_subjectless_hotfix_to_useJ2Notes_stops_the_tool",
+    "pytest|tests.test_notebook_rollback_chain|test_an_unrecorded_conflict_stops_the_chain",
+    "pytest|tests.test_notebook_rollback_chain|test_check_says_current_on_a_base_with_nothing_uncharted",
+    "pytest|tests.test_notebook_rollback_chain|test_check_says_stale_and_why_on_an_uncharted_landing",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_names_a_later_commit_that_merged_clean_on_the_landings_files",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_refuses_what_is_not_a_landing_there",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_reverts_a_pending_landing_and_keeps_the_keep_list",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_says_when_the_landing_has_not_merged_the_base",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_stops_on_a_product_conflict_and_never_uses_a_recorded_rule",
+    "pytest|tests.test_notebook_rollback_chain|test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees",
+    "pytest|tests.test_notebook_rollback_chain|test_the_landing_keep_list_applies_at_its_own_chain_step_and_at_no_other",
+    "pytest|tests.test_notebook_rollback_chain|test_the_tool_refuses_a_landing_the_subject_criterion_misses",
+    "pytest|tests.test_notebook_rollback_chain|test_the_tool_refuses_an_uncharted_landing_selected_by_subject_and_path",
+    "pytest|tests.test_notebook_rollback_chain|test_under_wave_11_the_chain_differs_from_what_R1h_rehearsed_only_where_it_must",
+    "pytest|tests.test_notebook_route_security_census|test_every_notebook_route_on_the_real_app_is_classified_and_agrees"
+  ],
+  "fixed": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped",
+    "pytest|tests.test_smoke_login_link|test_a_token_is_single_use",
+    "pytest|tests.test_smoke_login_link|test_a_token_older_than_the_ttl_is_refused",
+    "pytest|tests.test_smoke_login_link|test_a_token_typed_in_UPPERCASE_still_redeems",
+    "pytest|tests.test_smoke_login_link|test_case_insensitivity_does_not_weaken_single_use",
+    "pytest|tests.test_smoke_login_link|test_issuance_refuses_an_allow_listed_id_with_no_user_row",
+    "pytest|tests.test_smoke_login_link|test_issuance_refuses_any_other_user_id",
+    "pytest|tests.test_smoke_login_link|test_issuance_requires_admin",
+    "pytest|tests.test_smoke_login_link|test_issuance_requires_the_flag",
+    "pytest|tests.test_smoke_login_link|test_issuance_returns_a_url_carrying_a_token",
+    "pytest|tests.test_smoke_login_link|test_redemption_creates_a_session_and_returns_the_login_shape",
+    "pytest|tests.test_smoke_login_link|test_the_flag_and_the_wrong_id_are_indistinguishable",
+    "pytest|tests.test_smoke_login_link|test_the_smoke_token_is_lowercase_base32_so_a_phone_keyboard_cannot_break_it",
+    "pytest|tests.test_smoke_login_link|test_the_token_is_in_the_FRAGMENT_and_never_a_query_string",
+    "pytest|tests.test_smoke_login_link|test_the_token_is_never_written_to_the_activity_log"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/research/sections/CatalystsSection.test.jsx|CatalystsSection > shows the finding state while catalysts generate and lands on its own (polls)",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/charts/widgets/IndexesWidget.test.jsx|CONTROL \u2014 the toast rail fails when the door says nothing",
+    "vitest|src/pages/journal-2-0/components/notebook/CaptureHost.test.jsx|capture preserves the member context (\u00a75/\u00a720) > closing returns the dialog to nothing",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [
+    "pytest|tests.test_massive_guard_census|test_real_repo_has_zero_unexempted_violations",
+    "pytest|tests.test_member_interest_surfaces|test_each_gate_is_declared_dark_in_the_ledger",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_contract.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_flipgate.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_load_model.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_push_guard.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_render_gate.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_stall_record.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_contract.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_flipgate.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_load_model.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_push_guard.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_render_gate.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_renderer.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_stall_record.py]",
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_symbols.py]",
+    "pytest|tests.test_mutation_harness_hygiene|test_every_instrument_that_can_leave_a_mutation_imports_the_shared_guard",
+    "pytest|tests.test_mutation_harness_hygiene|test_every_mutation_harness_imports_the_shared_guard_and_calls_it_before_any_write",
+    "pytest|tests.test_no_cr_in_tracked_text_blobs|test_no_tracked_text_file_is_staged_with_cr_line_endings",
+    "pytest|tests.test_notebook_bridges_pin_the_root|test_every_notebook_tool_that_imports_api_applies_the_census_first",
+    "pytest|tests.test_notebook_earnings_prep|test_the_import_graph_never_reaches_alphavantage_or_the_recap_generator",
+    "pytest|tests.test_notebook_flag_parse|test_NO_notebook_flag_is_read_outside_the_one_parse",
+    "pytest|tests.test_notebook_flag_parse|test_every_flag_on_call_names_a_payload_flag",
+    "pytest|tests.test_notebook_proof_walk|test_CONTROL_a_normal_click_on_a_real_page_reads_MEASURED",
+    "pytest|tests.test_notebook_proof_walk|test_CONTROL_distinct_keys_are_never_deduped",
+    "pytest|tests.test_notebook_proof_walk|test_a_click_that_never_becomes_actionable_is_bounded_and_named_TIMEOUT",
+    "pytest|tests.test_notebook_proof_walk|test_a_control_whose_DOM_change_lands_700ms_after_its_own_fetch_still_reads_LIVE",
+    "pytest|tests.test_notebook_proof_walk|test_a_cross_origin_fetch_carries_no_proof_headers_and_a_same_origin_one_still_does",
+    "pytest|tests.test_notebook_proof_walk|test_a_late_delivered_background_poll_is_never_misattributed_to_a_dead_click",
+    "pytest|tests.test_notebook_proof_walk|test_a_never_resolving_evaluate_is_bounded_by_a_js_side_race_not_a_hang",
+    "pytest|tests.test_notebook_proof_walk|test_a_repeated_control_key_is_sampled_and_the_rest_are_named_REPEATED_never_dropped",
+    "pytest|tests.test_notebook_proof_walk|test_mutation_reintroducing_the_two_snapshot_marking_reds_the_SAME_reproduction",
+    "pytest|tests.test_notebook_proof_walk|test_mutation_removing_the_origin_check_reds_the_cross_origin_rail",
+    "pytest|tests.test_notebook_proof_walk|test_quiesce_keeps_waiting_while_a_request_is_in_flight_even_though_the_DOM_is_quiet",
+    "pytest|tests.test_notebook_proof_walk|test_quiesce_returns_early_when_quiet_and_still_honours_its_ceiling_when_it_never_settles",
+    "pytest|tests.test_notebook_proof_walk|test_the_planted_poller_control_reads_DEAD_DEAD_LIVE_IN_WINDOW_through_the_real_quiesce",
+    "pytest|tests.test_notebook_rollback_chain|test_a_later_commit_on_a_recorded_conflicts_lines_stops_the_chain",
+    "pytest|tests.test_notebook_rollback_chain|test_a_later_edit_to_a_file_a_whole_file_rule_keeps_stops_the_chain",
+    "pytest|tests.test_notebook_rollback_chain|test_a_non_notebook_commit_on_top_runs_and_warns",
+    "pytest|tests.test_notebook_rollback_chain|test_a_subjectless_hotfix_to_useJ2Notes_stops_the_tool",
+    "pytest|tests.test_notebook_rollback_chain|test_an_unrecorded_conflict_stops_the_chain",
+    "pytest|tests.test_notebook_rollback_chain|test_check_says_current_on_a_base_with_nothing_uncharted",
+    "pytest|tests.test_notebook_rollback_chain|test_check_says_stale_and_why_on_an_uncharted_landing",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_names_a_later_commit_that_merged_clean_on_the_landings_files",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_refuses_what_is_not_a_landing_there",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_reverts_a_pending_landing_and_keeps_the_keep_list",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_says_when_the_landing_has_not_merged_the_base",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_stops_on_a_product_conflict_and_never_uses_a_recorded_rule",
+    "pytest|tests.test_notebook_rollback_chain|test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees",
+    "pytest|tests.test_notebook_rollback_chain|test_the_landing_keep_list_applies_at_its_own_chain_step_and_at_no_other",
+    "pytest|tests.test_notebook_rollback_chain|test_the_tool_refuses_a_landing_the_subject_criterion_misses",
+    "pytest|tests.test_notebook_rollback_chain|test_the_tool_refuses_an_uncharted_landing_selected_by_subject_and_path",
+    "pytest|tests.test_notebook_rollback_chain|test_under_wave_11_the_chain_differs_from_what_R1h_rehearsed_only_where_it_must",
+    "pytest|tests.test_notebook_route_security_census|test_every_notebook_route_on_the_real_app_is_classified_and_agrees"
+  ],
+  "missing_buckets": {
+    "pytest|tests.test_massive_guard_census|test_real_repo_has_zero_unexempted_violations": [
+      "DE-COLLECTED",
+      "tests/test_massive_guard_census.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_member_interest_surfaces|test_each_gate_is_declared_dark_in_the_ledger": [
+      "DE-COLLECTED",
+      "tests/test_member_interest_surfaces.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation": [
+      "DE-COLLECTED",
+      "tests/test_mutation_check.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_contract.py]": [
+      "DE-COLLECTED",
+      "tests/test_mutation_harness_anchors.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_flipgate.py]": [
+      "DE-COLLECTED",
+      "tests/test_mutation_harness_anchors.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_load_model.py]": [
+      "DE-COLLECTED",
+      "tests/test_mutation_harness_anchors.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_push_guard.py]": [
+      "DE-COLLECTED",
+      "tests/test_mutation_harness_anchors.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_render_gate.py]": [
+      "DE-COLLECTED",
+      "tests/test_mutation_harness_anchors.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_mutation_harness_anchors|test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_stall_record.py]": [
+      "DE-COLLECTED",
+      "tests/test_mutation_harness_anchors.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_contract.py]": [
+      "DE-COLLECTED",
+      "tests/test_mutation_harness_anchors.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_flipgate.py]": [
+      "DE-COLLECTED",
+      "tests/test_mutation_harness_anchors.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_load_model.py]": [
+      "DE-COLLECTED",
+      "tests/test_mutation_harness_anchors.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_push_guard.py]": [
+      "DE-COLLECTED",
+      "tests/test_mutation_harness_anchors.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_render_gate.py]": [
+      "DE-COLLECTED",
+      "tests/test_mutation_harness_anchors.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_renderer.py]": [
+      "DE-COLLECTED",
+      "tests/test_mutation_harness_anchors.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_stall_record.py]": [
+      "DE-COLLECTED",
+      "tests/test_mutation_harness_anchors.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_symbols.py]": [
+      "DE-COLLECTED",
+      "tests/test_mutation_harness_anchors.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_mutation_harness_hygiene|test_every_instrument_that_can_leave_a_mutation_imports_the_shared_guard": [
+      "DE-COLLECTED",
+      "tests/test_mutation_harness_hygiene.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_mutation_harness_hygiene|test_every_mutation_harness_imports_the_shared_guard_and_calls_it_before_any_write": [
+      "DE-COLLECTED",
+      "tests/test_mutation_harness_hygiene.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_no_cr_in_tracked_text_blobs|test_no_tracked_text_file_is_staged_with_cr_line_endings": [
+      "DE-COLLECTED",
+      "tests/test_no_cr_in_tracked_text_blobs.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_bridges_pin_the_root|test_every_notebook_tool_that_imports_api_applies_the_census_first": [
+      "DE-COLLECTED",
+      "tests/test_notebook_bridges_pin_the_root.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_earnings_prep|test_the_import_graph_never_reaches_alphavantage_or_the_recap_generator": [
+      "DE-COLLECTED",
+      "tests/test_notebook_earnings_prep.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_flag_parse|test_NO_notebook_flag_is_read_outside_the_one_parse": [
+      "DE-COLLECTED",
+      "tests/test_notebook_flag_parse.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_flag_parse|test_every_flag_on_call_names_a_payload_flag": [
+      "DE-COLLECTED",
+      "tests/test_notebook_flag_parse.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_proof_walk|test_CONTROL_a_normal_click_on_a_real_page_reads_MEASURED": [
+      "DE-COLLECTED",
+      "tests/test_notebook_proof_walk.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_proof_walk|test_CONTROL_distinct_keys_are_never_deduped": [
+      "DE-COLLECTED",
+      "tests/test_notebook_proof_walk.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_proof_walk|test_a_click_that_never_becomes_actionable_is_bounded_and_named_TIMEOUT": [
+      "DE-COLLECTED",
+      "tests/test_notebook_proof_walk.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_proof_walk|test_a_control_whose_DOM_change_lands_700ms_after_its_own_fetch_still_reads_LIVE": [
+      "DE-COLLECTED",
+      "tests/test_notebook_proof_walk.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_proof_walk|test_a_cross_origin_fetch_carries_no_proof_headers_and_a_same_origin_one_still_does": [
+      "DE-COLLECTED",
+      "tests/test_notebook_proof_walk.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_proof_walk|test_a_late_delivered_background_poll_is_never_misattributed_to_a_dead_click": [
+      "DE-COLLECTED",
+      "tests/test_notebook_proof_walk.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_proof_walk|test_a_never_resolving_evaluate_is_bounded_by_a_js_side_race_not_a_hang": [
+      "DE-COLLECTED",
+      "tests/test_notebook_proof_walk.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_proof_walk|test_a_repeated_control_key_is_sampled_and_the_rest_are_named_REPEATED_never_dropped": [
+      "DE-COLLECTED",
+      "tests/test_notebook_proof_walk.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_proof_walk|test_mutation_reintroducing_the_two_snapshot_marking_reds_the_SAME_reproduction": [
+      "DE-COLLECTED",
+      "tests/test_notebook_proof_walk.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_proof_walk|test_mutation_removing_the_origin_check_reds_the_cross_origin_rail": [
+      "DE-COLLECTED",
+      "tests/test_notebook_proof_walk.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_proof_walk|test_quiesce_keeps_waiting_while_a_request_is_in_flight_even_though_the_DOM_is_quiet": [
+      "DE-COLLECTED",
+      "tests/test_notebook_proof_walk.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_proof_walk|test_quiesce_returns_early_when_quiet_and_still_honours_its_ceiling_when_it_never_settles": [
+      "DE-COLLECTED",
+      "tests/test_notebook_proof_walk.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_proof_walk|test_the_planted_poller_control_reads_DEAD_DEAD_LIVE_IN_WINDOW_through_the_real_quiesce": [
+      "DE-COLLECTED",
+      "tests/test_notebook_proof_walk.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_rollback_chain|test_a_later_commit_on_a_recorded_conflicts_lines_stops_the_chain": [
+      "DE-COLLECTED",
+      "tests/test_notebook_rollback_chain.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_rollback_chain|test_a_later_edit_to_a_file_a_whole_file_rule_keeps_stops_the_chain": [
+      "DE-COLLECTED",
+      "tests/test_notebook_rollback_chain.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_rollback_chain|test_a_non_notebook_commit_on_top_runs_and_warns": [
+      "DE-COLLECTED",
+      "tests/test_notebook_rollback_chain.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_rollback_chain|test_a_subjectless_hotfix_to_useJ2Notes_stops_the_tool": [
+      "DE-COLLECTED",
+      "tests/test_notebook_rollback_chain.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_rollback_chain|test_an_unrecorded_conflict_stops_the_chain": [
+      "DE-COLLECTED",
+      "tests/test_notebook_rollback_chain.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_rollback_chain|test_check_says_current_on_a_base_with_nothing_uncharted": [
+      "DE-COLLECTED",
+      "tests/test_notebook_rollback_chain.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_rollback_chain|test_check_says_stale_and_why_on_an_uncharted_landing": [
+      "DE-COLLECTED",
+      "tests/test_notebook_rollback_chain.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_names_a_later_commit_that_merged_clean_on_the_landings_files": [
+      "DE-COLLECTED",
+      "tests/test_notebook_rollback_chain.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_refuses_what_is_not_a_landing_there": [
+      "DE-COLLECTED",
+      "tests/test_notebook_rollback_chain.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_reverts_a_pending_landing_and_keeps_the_keep_list": [
+      "DE-COLLECTED",
+      "tests/test_notebook_rollback_chain.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_says_when_the_landing_has_not_merged_the_base": [
+      "DE-COLLECTED",
+      "tests/test_notebook_rollback_chain.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_stops_on_a_product_conflict_and_never_uses_a_recorded_rule": [
+      "DE-COLLECTED",
+      "tests/test_notebook_rollback_chain.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_rollback_chain|test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees": [
+      "DE-COLLECTED",
+      "tests/test_notebook_rollback_chain.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_rollback_chain|test_the_landing_keep_list_applies_at_its_own_chain_step_and_at_no_other": [
+      "DE-COLLECTED",
+      "tests/test_notebook_rollback_chain.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_rollback_chain|test_the_tool_refuses_a_landing_the_subject_criterion_misses": [
+      "DE-COLLECTED",
+      "tests/test_notebook_rollback_chain.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_rollback_chain|test_the_tool_refuses_an_uncharted_landing_selected_by_subject_and_path": [
+      "DE-COLLECTED",
+      "tests/test_notebook_rollback_chain.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_rollback_chain|test_under_wave_11_the_chain_differs_from_what_R1h_rehearsed_only_where_it_must": [
+      "DE-COLLECTED",
+      "tests/test_notebook_rollback_chain.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_route_security_census|test_every_notebook_route_on_the_real_app_is_classified_and_agrees": [
+      "DE-COLLECTED",
+      "tests/test_notebook_route_security_census.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ]
+  },
+  "attribution": {}
+}
