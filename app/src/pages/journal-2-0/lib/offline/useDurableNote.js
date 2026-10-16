@@ -38,6 +38,7 @@ import { offlineEnabled } from './offlineFlag'
 import {
   chooseLocalRecovery, newSessionId, sameAuthoredContent, discardsUnsentWork,
   editorStateDiscardsUnsentWork, queuedWorkToAdopt, baseOfRecovered,
+  editorLineageStamp, editorLineageSupersedes,
 } from './recoverLocalState'
 import { settleForkedNote } from './outboxDrain'
 import { lastKnownServerCopy, snapshotOfServerCopy } from './serverChange'
@@ -59,6 +60,30 @@ export const SESSION_ID = newSessionId()
 // left by a LIVE save from one left by a tab that is gone. Web Locks are
 // released by the browser on crash or kill, which no unload handler covers.
 holdSessionLock(SESSION_ID)
+
+/**
+ * ⭐ HOTFIX 2026-10-15 — THE EDIT LINEAGE: WHICH LIVE VIEW A CAPTURE CAME FROM.
+ *
+ * `newEditLineage()` names one live view of one note in this tab. The editor
+ * mints one when it mounts and MINTS A NEW ONE whenever its view is replaced by
+ * anything but the member (`NoteEditorPage`'s `viewReplaced`). `nextEditSeq()`
+ * orders captures; it is per tab and only ever grows, so two captures of one
+ * lineage are ordered exactly. Why the durable layer needs it, and what it may
+ * and may not decide: the note above `authoredDigest` in `recoverLocalState.js`.
+ * ⛔ Over-rotating is always safe — a new lineage only returns a write to the
+ * conservative containment test. Under-rotating is the hazard, so the editor
+ * rotates at every whole-view swap, not only the ones known to drop words.
+ */
+let _editLineages = 0
+let _editSeq = 0
+export function newEditLineage() {
+  _editLineages += 1
+  return `${SESSION_ID}:v${_editLineages}`
+}
+export function nextEditSeq() {
+  _editSeq += 1
+  return _editSeq
+}
 
 /** One queued update per note, by construction: a newer edit REPLACES the
  *  pending intent instead of queuing a second one. The outbox holds what we
@@ -249,8 +274,17 @@ export async function recordLandedRevision({
   } catch { return null }
 }
 
+/**
+ * @param sentFrom  ⭐ HOTFIX 2026-10-15 — { id, seq }: the edit lineage the
+ *                  editor's CONTENT save read its body from, at the moment it read
+ *                  it. Passed by `commitSave` and by nothing else: there `acked`
+ *                  is exactly the body that PUT carried, and the server took it.
+ *                  ⛔ Never derived from `acked` or `current` — a door handing
+ *                  local state as `acked` is the lie fix 4 exists to catch, and a
+ *                  lineage riding on that state would launder it.
+ */
 export async function settleLandedSave({
-  accountId, noteId, acked, current, updatedAt, connect = connectNotebookDb,
+  accountId, noteId, acked, current, updatedAt, connect = connectNotebookDb, sentFrom = null,
 } = {}) {
   // ⭐ Wave 10 (10D, R-16) — `save_success`: the server ACCEPTED this editor
   // save (every landed save of the open note settles here, content and the
@@ -311,7 +345,19 @@ export async function settleLandedSave({
     // implementation and one hole -- and the hole was invisible because this copy
     // read as coverage for both. Two copies cannot be mutation-proved as one
     // thing (`lesson_a_guard_repeated_is_a_guard_unproved`).
-    const unsentWork = discardsUnsentWork(prev, acked)
+    //
+    // ⭐⭐ HOTFIX 2026-10-15 — UNLESS THE SAVE THAT LANDED WAS A LATER CAPTURE OF
+    // THE SAME LIVE VIEW THAT WROTE `prev`. Then `prev`'s words are not unsent:
+    // the member edited them into what `acked` holds, and the server has `acked`.
+    // ⚰️ Without this, a mid-text edit whose save landed before its own durable
+    // write (or with the record still holding the pre-edit capture) left the
+    // OLDER entry queued on the OLD revision, and the drain forked it the moment
+    // the member left — a `(conflicted copy)` of a note only they had touched.
+    // ⛔ `sentFrom` is the editor's word about the body it SENT, never `acked`'s
+    // own claim, so the strict question still decides for every door, every
+    // Restore, every remount and every other lineage — see its @param above.
+    const supersededBySave = editorLineageSupersedes(prev, sentFrom)
+    const unsentWork = !supersededBySave && discardsUnsentWork(prev, acked)
     // ⛔ UNKNOWN IS NOT CAUGHT UP. A missing or unreadable `prev` answers
     // false to `unsentWork` and the old behaviour stands — that case is the
     // ordinary first save, not a remount, and treating it as unsent work would
@@ -372,6 +418,14 @@ export async function settleLandedSave({
       // the unsent work is kept, never `current`'s over an old bundle's body.
       writtenSchema: state?.writtenSchema,
     }
+    // ⭐ HOTFIX 2026-10-15: and the edit lineage, from the SAME copy as the words:
+    // `prev`'s own stamp when its words are kept; otherwise the capture `current`
+    // came from (when caught up the words are `acked`, equal to `current`'s). The
+    // digest is taken of what is written here, so it can only vouch for these words.
+    const lineageStamp = unsentWork
+      ? prev?.editorLineage
+      : editorLineageStamp(record, current?.editLineage)
+    if (lineageStamp) record.editorLineage = lineageStamp
     const intent = caughtUp ? null : {
       mutationId: outboxIdFor(noteId),
       noteId,
@@ -574,10 +628,15 @@ export function useDurableNote({
       // discard. `settleLandedSave` keeps the strict `discardsUnsentWork`
       // because what it is handed is the SERVER'S CLAIM. Same invariant, two
       // questions — see the note above `editorStateDiscardsUnsentWork`.
+      // ⭐ HOTFIX 2026-10-15: handed WITH the edit lineage of the capture, so a
+      // mid-text edit, an insert before existing text or a deletion made by the
+      // same live view supersedes the record it wrote earlier instead of being
+      // refused as a discard (the note above `authoredDigest`).
       const unsentWork = editorStateDiscardsUnsentWork(prev, {
         title: state?.title ?? '',
         subtitle: state?.subtitle ?? '',
         bodyJson: state?.bodyJson ?? null,
+        editLineage: state?.editLineage,
       })
       const source = unsentWork ? prev : state
       const record = {
@@ -604,6 +663,14 @@ export function useDurableNote({
         // laundering B1 names, one layer down. Absent ⇒ read as 0 at send.
         writtenSchema: source?.writtenSchema,
       }
+      // ⭐ HOTFIX 2026-10-15: the edit lineage travels with the WORDS, like B1's
+      // stamp: `prev`'s own when fix 6 keeps `prev`'s words, the capture's when the
+      // editor's words are written. Absent (a door's or `discardDraft`'s server
+      // copy) claims nothing.
+      const lineageStamp = unsentWork
+        ? prev?.editorLineage
+        : editorLineageStamp(record, state?.editLineage)
+      if (lineageStamp) record.editorLineage = lineageStamp
       // ⛔ `null` when clean — a clean record IS the base and a second copy of
       // one value is a second authority over it.
       record.serverBase = record.dirty
