@@ -2723,6 +2723,12 @@
       "where": [],
       "note": "#tsdr video lessons (owner idea 2026-10-15), default OFF, read per call in api/services/tsdr_lessons.py::is_enabled(). SERVICE: web (job tsdr_lessons_tick in api/main.py, every 15 min, always registered). What it arms: the bot REST-polls #tsdr (TSDR_LESSONS_SOURCE_CHANNELS) for video attachments posted by Patrick (TSDR_LESSONS_AUTHOR_IDS), backfilling to TSDR_LESSONS_SINCE (2026-01-01); for at most TSDR_LESSONS_PER_TICK (3) videos per tick it downloads the file, transcribes it (voice_notes ffmpeg split + OpenAI whisper-1), asks Claude (TSDR_LESSONS_MODEL, default claude-opus-5-5) for a title + 4-6 sentence recap, and posts an embed with a jump link to the original into #video-lessons under an EDUCATION category, which the bot CREATES on first run (needs Manage Channels; read-only for members, same audience as #tsdr) unless TSDR_LESSONS_CHANNEL_ID names one. Reply videos: the member's question is read in memory and appears only as an anonymous model paraphrase when the lesson needs it (owner ruling 2026-10-15; this is not the Wisdom programme and writes nothing to wisdom.db). Store: TSDR_LESSONS_DB_PATH (default /data/tsdr_lessons.db). MEMBER-VISIBLE: posts in Discord. REVERSAL: unset it; posted messages and the channel stay (delete by hand if wanted)."
     },
+    "TSDR_LESSONS_THREADS_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-16",
+      "where": [],
+      "note": "Regroup stage of #tsdr video lessons (owner design 2026-10-16), default OFF, read per call in api/services/tsdr_lessons.py (== '1'): lessons go to their section's thread as a recap embed plus a forward of the original message, and lessons already posted to the channel are moved into the threads (run_regroup). SERVICE: web. Declared here by the wisdom-archive session because #354 shipped the gate without a ledger entry and test_every_off_by_default_gate_is_declared went red on master."
+    },
     "TSDR_LESSONS_YOUTUBE_ENABLED": {
       "status": "pending",
       "since": "2026-10-15",
