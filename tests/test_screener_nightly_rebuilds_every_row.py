@@ -81,6 +81,17 @@ def test_receipts_are_trimmed_to_the_newest_few(tmp_path, monkeypatch):
     ({"targets": 100, "built": 90, "skipped": 0, "errors": 10}, "10 of 100 rows errored"),
     ({"skipped_reason": "a build is already in flight"}, "refused"),
     ({"crashed": "RuntimeError: boom"}, "crashed"),
+    # 2026-10-16: a COMPLETE build on OLD prices -- 1,534 of 11,091 current.
+    ({"targets": 100, "built": 100, "skipped": 0, "errors": 0,
+      "settled_bars": {"session": "2026-10-15", "current_rows": 14}},
+     "only 14 of 100 rows end on the last session"),
+    ({"targets": 100, "built": 100, "skipped": 0, "errors": 0,
+      "settled_bars": {"session": "2026-10-15", "current_rows": 96}}, None),
+    ({"targets": 100, "built": 100, "skipped": 0, "errors": 0,
+      "settled_bars": {"session": "2026-10-15", "error": "429"}}, "could not be fetched"),
+    # No count (an older receipt): silent, never a guess.
+    ({"targets": 100, "built": 100, "skipped": 0, "errors": 0,
+      "settled_bars": {"session": "2026-10-15"}}, None),
 ])
 def test_the_shortfall_is_named(stats, why):
     import api.main as main
@@ -126,6 +137,13 @@ def test_the_nightly_job_alerts_on_a_run_that_stops_short(monkeypatch):
     key, sev, msg = seen[0]
     assert key.startswith("screener_nightly_short:") and sev == "warning"
     assert "10 of 50" in msg
+
+
+def test_the_nightly_job_alerts_on_a_complete_build_on_old_prices(monkeypatch):
+    seen = _run_nightly(monkeypatch, {
+        "targets": 50, "built": 50, "skipped": 0, "errors": 0, "populated": {},
+        "settled_bars": {"session": "2026-10-15", "current_rows": 7}})
+    assert len(seen) == 1 and "only 7 of 50" in seen[0][2]
 
 
 def test_CONTROL_a_nightly_that_reaches_every_row_alerts_nobody(monkeypatch):

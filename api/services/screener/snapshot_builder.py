@@ -1164,6 +1164,117 @@ def settled_bar_outcome(bars, settled, session_ymd) -> str:
     return "applied"
 
 
+# ⭐ CATCH-UP: A ROW A FEW SESSIONS BEHIND IS BROUGHT CURRENT FROM THE SAME FRAMES.
+#
+# 🔴 MEASURED 2026-10-16 (production, the first full rebuild after the settled-bar
+# fix): of 11,091 served rows only 1,534 had the last completed session's bar;
+# 1,787 ended a session earlier and 7,738 two sessions earlier. `bars.db` is
+# freshened for the active set and lags for the long tail (another workstream's
+# store), so ~86% of the screener's technicals, patterns and volume ratios were
+# computed on a series that stopped one or two days short -- while the grouped
+# frame fetched above held the missing session for 12,649 tickers, and the
+# settled step left every row whose newest bar was not that session untouched.
+#
+# The fix appends the missing settled sessions IN MEMORY, from the same one-call
+# whole-market grouped frames (one per missing session, fetched lazily, at most
+# ``catchup_max_sessions()``). Nothing is written to `bars.db`, as above.
+#
+# ⛔ THE BASIS IS PROVED BEFORE ANYTHING IS APPENDED. The stored newest bar is first
+# checked against that same day's settled bar with ``settled_bar_outcome`` (the
+# split-basis range rule above). Only when they agree -- the stored bar is then the
+# settled one -- are later sessions appended; otherwise the row builds exactly as
+# before. Appending an adjusted bar to a series on another basis is a fake cliff.
+#
+# ⛔ A FRAME THAT FAILED REFUSES THE CATCH-UP for every row that needs it: appending
+# the 15th after skipping an unknown 14th would publish a series with a silent hole.
+# A ticker simply ABSENT from a good frame did not trade that day (a halt), and the
+# series continues without that day, as the stored history already does for halts.
+
+#: Kill switch and bound: how many sessions behind the last completed one a row may
+#: be and still be caught up. ``0`` turns the catch-up off (the pre-fix behaviour).
+CATCHUP_MAX_SESSIONS_DEFAULT = 3
+
+
+def catchup_max_sessions() -> int:
+    """Read per build. ``SCREENER_CATCHUP_MAX_SESSIONS=0`` disables the catch-up."""
+    raw = os.environ.get("SCREENER_CATCHUP_MAX_SESSIONS")
+    if raw is None or not raw.strip():
+        return CATCHUP_MAX_SESSIONS_DEFAULT
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return CATCHUP_MAX_SESSIONS_DEFAULT
+
+
+def sessions_before(session_date, n) -> list:
+    """The ``n`` NYSE sessions strictly before ``session_date``, oldest first.
+
+    Shorter when the exchange calendar stops covering the range -- a session we
+    cannot name is never guessed.
+    """
+    from api.services import session_calendar as sc
+    out, d = [], session_date
+    for _ in range(14 * max(1, n)):
+        if len(out) >= n:
+            break
+        d -= datetime.timedelta(days=1)
+        if not sc.covers(d):
+            break
+        if sc.is_trading_day(d):
+            out.append(d)
+    return list(reversed(out))
+
+
+def catchup_outcome(bars, symbol, session_days, frame_for) -> tuple:
+    """Bring ``bars`` current through ``session_days[-1]``; ``(outcome, appended)``.
+
+    ``session_days`` are YYYYMMDD ints, ascending, ending on the last completed
+    session; ``frame_for(ymd)`` returns that day's grouped rows (``{SYM: {o,h,l,c,v}}``)
+    or ``None`` when the frame could not be had. On ``"caught_up"`` the list is
+    replaced in place by a NEW list (no element is mutated). Outcomes:
+
+      caught_up    the stored newest bar matched its settled bar and the later
+                   sessions were appended
+      too_far      the newest bar is older than the catch-up window
+      absent       the stored newest day's frame has no row for this ticker
+      incomplete   a settled row lacks a finite o/h/l/c or a volume
+      basis        the stored newest bar is on another price basis
+      frame_error  a needed day's frame could not be fetched
+      no_trades    the ticker traded on none of the later sessions
+    """
+    try:
+        last_t = int(bars[-1].get("t"))
+    except (TypeError, ValueError, IndexError, AttributeError):
+        return "too_far", 0
+    if last_t not in session_days[:-1]:
+        return "too_far", 0
+    base = frame_for(last_t)
+    if base is None:
+        return "frame_error", 0
+    work = list(bars)
+    first = settled_bar_outcome(work, base.get(symbol), last_t)
+    if first != "applied":
+        return first, 0
+    appended = 0
+    for ymd in session_days[session_days.index(last_t) + 1:]:
+        rows = frame_for(ymd)
+        if rows is None:
+            return "frame_error", 0
+        r = rows.get(symbol)
+        if not r:
+            continue
+        o, h, lo, c, v = (r.get(k) for k in ("o", "h", "l", "c", "v"))
+        if not all(_finite(x) for x in (o, h, lo, c)) or not _finite(v) or v < 0:
+            return "incomplete", 0
+        work.append({"t": ymd, "o": float(o), "h": float(h), "l": float(lo),
+                     "c": float(c), "v": float(v)})
+        appended += 1
+    if not appended:
+        return "no_trades", 0
+    bars[:] = work
+    return "caught_up", appended
+
+
 # ⛔ ONE BUILD AT A TIME, PROCESS-WIDE — and the guard lives HERE, not in the
 # route, because there are two callers: the 03:00 ET nightly job and the admin
 # `POST /api/screener/refresh`. A guard in either caller alone still allows the
@@ -1354,6 +1465,28 @@ def _run_build_locked(max_tickers=None) -> dict:
                                     "absent": 0, "not_session": 0,
                                     "incomplete": 0, "basis": 0})
     s_ymd = int(s_date.strftime("%Y%m%d")) if s_date is not None else None
+    # ⭐ CATCH-UP (see `catchup_outcome`): the window is the last completed session
+    # plus the `catchup_max_sessions()` before it. Earlier frames are fetched only
+    # when a row needs them, once each; the receipt names every one.
+    catch_n = catchup_max_sessions() if settled_rows else 0
+    catch_days = []
+    if catch_n and s_date is not None:
+        catch_days = [int(d.strftime("%Y%m%d"))
+                      for d in sessions_before(s_date, catch_n)] + [s_ymd]
+    catch_frames = {s_ymd: settled_rows} if catch_days else {}
+    catch_receipt = {"max_sessions": catch_n, "caught_up": 0, "sessions_appended": 0,
+                     "too_far": 0, "absent": 0, "incomplete": 0, "basis": 0,
+                     "frame_error": 0, "no_trades": 0, "frames": {}}
+
+    def _frame_for(ymd):
+        if ymd not in catch_frames:
+            day = datetime.date(ymd // 10000, ymd // 100 % 100, ymd % 100)
+            got_day = _read_settled_bars(day)
+            catch_frames[ymd] = got_day.get("rows") if "rows" in got_day else None
+            catch_receipt["frames"][day.isoformat()] = (
+                len(catch_frames[ymd]) if catch_frames[ymd] is not None
+                else got_day.get("error", "error"))
+        return catch_frames[ymd]
     from api.services import massive as _massive  # symbol mapping only; no I/O
     for t in targets:
         try:
@@ -1366,6 +1499,21 @@ def _run_build_locked(max_tickers=None) -> dict:
                 outcome = settled_bar_outcome(
                     bars, settled_rows.get(_massive.to_polygon_symbol(t)), s_ymd)
                 settled_receipt[outcome] += 1
+                if outcome == "not_session" and catch_days:
+                    c_out, c_n = catchup_outcome(
+                        bars, _massive.to_polygon_symbol(t), catch_days, _frame_for)
+                    catch_receipt[c_out] += 1
+                    catch_receipt["sessions_appended"] += c_n
+                # ⭐ THE FRESHNESS COUNT the nightly alert reads: a row is CURRENT
+                # when, after the settled step and the catch-up, its newest bar is
+                # the last completed session. Counted here, on the series the row
+                # is about to be built from, never inferred from a receipt.
+                try:
+                    if int(bars[-1].get("t")) == s_ymd:
+                        settled_receipt["current_rows"] = \
+                            settled_receipt.get("current_rows", 0) + 1
+                except (TypeError, ValueError):
+                    pass
             price = bars[-1].get("c")
             # 🔴 ONE NAME, ONE MEANING (accuracy audit 2026-08-23, #4).
             # `massive.get_market_cap` prefers the provider's own `market_cap`
@@ -1443,6 +1591,8 @@ def _run_build_locked(max_tickers=None) -> dict:
         # candle_parts_close_to_one" is a normal night; the same identity marked
         # `systemic` is an upstream change and the loudest line in the receipt.
         log.warning("[screener] identity refusals: %s", identity_state)
+    if catch_days:
+        settled_receipt["catchup"] = catch_receipt
     log.info("[screener] settled newest bars: %s", settled_receipt)
     return {"built": built, "skipped": skipped, "errors": errors,
             "targets": len(targets),

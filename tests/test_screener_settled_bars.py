@@ -41,12 +41,15 @@ def build(tmp_path, monkeypatch):
     importlib.reload(b)
     from api.services import massive
     from api.services.screener import context_joins as cj
-    state = {"universe": ["AAA", "BBB"], "bars": {}, "frame": None, "calls": []}
+    # `frames` (day ISO -> rows or an Exception) answers a named day; any other day
+    # falls back to `frame`, which is what every single-session test uses.
+    state = {"universe": ["AAA", "BBB"], "bars": {}, "frame": None, "frames": {},
+             "calls": []}
 
     def _frame(day_iso, adjusted=False, store=True, fresh=False):
         state["calls"].append({"day": day_iso, "adjusted": adjusted,
                                "store": store, "fresh": fresh})
-        f = state["frame"]
+        f = state["frames"].get(day_iso, state["frame"])
         if isinstance(f, Exception):
             raise f
         return {"rows": dict(f or {}), "empty": not f}
@@ -79,9 +82,14 @@ def test_a_partial_newest_volume_is_replaced_by_the_settled_one(build):
     assert rows["AAA"]["vol_ratio"] == 3.0          # 3000 / 1000, not 500 / 1000
     assert rows["BBB"]["vol_ratio"] == 1.5
     assert rows["AAA"]["price"] == 10.4             # the settled close, not 10.0
-    assert stats["settled_bars"] == {
+    sb = dict(stats["settled_bars"])
+    cu = sb.pop("catchup")
+    assert sb.pop("current_rows") == 2              # both rows end on the session
+    assert sb == {
         "session": "2026-10-14", "fetched": 2, "applied": 2, "absent": 0,
         "not_session": 0, "incomplete": 0, "basis": 0}
+    # Every row was on the session: the catch-up ran, found nothing to do, fetched nothing.
+    assert cu["caught_up"] == 0 and cu["frames"] == {} and cu["max_sessions"] == 3
 
 
 def test_the_call_is_ONE_adjusted_uncached_whole_market_request(build):
@@ -122,7 +130,10 @@ def test_a_ticker_absent_from_the_grouped_frame_keeps_its_own_bar(build):
     assert stats["settled_bars"]["absent"] == 1
 
 
-def test_a_newest_bar_from_another_session_is_left_alone(build):
+def test_a_newest_bar_from_another_session_is_left_alone(build, monkeypatch):
+    """With the catch-up switched OFF the settled step replaces only a bar FROM the
+    session -- the pre-catch-up behaviour, which the kill switch must restore."""
+    monkeypatch.setenv("SCREENER_CATCHUP_MAX_SESSIONS", "0")
     old = _bars(last_v=500.0)[:-1]                  # newest bar is the day before
     build["bars"] = {"AAA": old, "BBB": _bars(last_v=500.0)}
     build["frame"] = {"AAA": _settled(v=9999.0), "BBB": _settled(v=3000.0)}
@@ -205,3 +216,143 @@ def test_settled_bar_outcome_never_mutates_the_bar_it_was_handed():
     assert b.settled_bar_outcome(bars, _settled(v=3000.0), SESSION_YMD) == "applied"
     assert original["v"] == 500.0 and bars[-1]["v"] == 3000.0
     assert bars[-1]["t"] == SESSION_YMD
+
+
+# ── catch-up: a row a few sessions behind is brought current (2026-10-16) ─────
+# Production, the first full rebuild after the settled-bar fix: 1,534 of 11,091
+# rows had the last session's bar; 1,787 ended one session earlier and 7,738 two.
+# SESSION is Wed 2026-10-14, so the window is Fri 10/9, Mon 10/12, Tue 10/13, Wed.
+
+def _bars_ending(last_day, last_v=1000.0, n=60):
+    """``n`` weekday bars ending on ``last_day`` (prior volume 1,000, price 10)."""
+    out, d = [], last_day
+    while len(out) < n:
+        if d.weekday() < 5:
+            out.append({"t": int(d.strftime("%Y%m%d")), "o": 10.0, "h": 10.5,
+                        "l": 9.5, "c": 10.0, "v": 1000.0})
+        d -= datetime.timedelta(days=1)
+    out.reverse()
+    out[-1]["v"] = last_v
+    return out
+
+
+MON, TUE = datetime.date(2026, 10, 12), datetime.date(2026, 10, 13)
+
+
+def test_a_row_two_sessions_behind_is_caught_up_from_the_grouped_frames(build):
+    build["bars"] = {"AAA": _bars_ending(MON), "BBB": _bars_ending(SESSION)}
+    build["frames"] = {
+        "2026-10-12": {"AAA": _settled(c=10.0, h=10.5, l=9.5, v=1000.0)},
+        "2026-10-13": {"AAA": _settled(c=10.2, v=1000.0)},
+        "2026-10-14": {"AAA": _settled(c=10.6, v=4000.0), "BBB": _settled(v=1000.0)},
+    }
+    stats, rows = build["run"]()
+    assert rows["AAA"]["bars_asof"] == str(SESSION_YMD)
+    assert rows["AAA"]["price"] == 10.6
+    assert rows["AAA"]["vol_ratio"] == 4.0          # 4000 over a 1,000 average
+    cu = stats["settled_bars"]["catchup"]
+    assert cu["caught_up"] == 1 and cu["sessions_appended"] == 2
+    assert set(cu["frames"]) == {"2026-10-12", "2026-10-13"}
+    # One whole-market call per missing day, never per row.
+    days = sorted(c["day"] for c in build["calls"])
+    assert days == ["2026-10-12", "2026-10-13", "2026-10-14"]
+
+
+def test_one_frame_per_missing_day_however_many_rows_need_it(build):
+    build["universe"] = ["AAA", "BBB", "CCC", "DDD"]
+    build["bars"] = {t: _bars_ending(TUE) for t in build["universe"]}
+    build["frame"] = {t: _settled(c=10.0, h=10.5, l=9.5, v=2000.0)
+                      for t in build["universe"]}
+    stats, rows = build["run"]()
+    assert all(rows[t]["bars_asof"] == str(SESSION_YMD) for t in build["universe"])
+    assert sorted(c["day"] for c in build["calls"]) == ["2026-10-13", "2026-10-14"]
+    assert stats["settled_bars"]["catchup"]["caught_up"] == 4
+
+
+def test_a_stored_bar_on_another_basis_refuses_the_catch_up(build):
+    """A split between the stored day and today: the adjusted frame is on the new
+    basis, the stored series on the old. Nothing may be appended to it."""
+    build["bars"] = {"AAA": _bars_ending(TUE), "BBB": _bars_ending(SESSION)}
+    build["frames"] = {"2026-10-13": {"AAA": _settled(o=5.0, h=5.2, l=4.9, c=5.1)},
+                       "2026-10-14": {"AAA": _settled(c=5.3, v=9000.0)}}
+    stats, rows = build["run"]()
+    assert rows["AAA"]["bars_asof"] == str(int(TUE.strftime("%Y%m%d")))
+    assert rows["AAA"]["price"] == 10.0
+    assert stats["settled_bars"]["catchup"]["basis"] == 1
+
+
+def test_a_failed_earlier_frame_refuses_rather_than_leaving_a_hole(build):
+    build["bars"] = {"AAA": _bars_ending(MON), "BBB": _bars_ending(SESSION)}
+    build["frames"] = {"2026-10-12": {"AAA": _settled(c=10.0, h=10.5, l=9.5)},
+                       "2026-10-13": RuntimeError("429 from the provider"),
+                       "2026-10-14": {"AAA": _settled(c=10.6, v=4000.0)}}
+    stats, rows = build["run"]()
+    assert rows["AAA"]["bars_asof"] == str(int(MON.strftime("%Y%m%d")))
+    cu = stats["settled_bars"]["catchup"]
+    assert cu["frame_error"] == 1 and cu["caught_up"] == 0
+    assert "429" in cu["frames"]["2026-10-13"]
+
+
+def test_a_halt_day_is_skipped_and_the_series_continues(build):
+    build["bars"] = {"AAA": _bars_ending(MON), "BBB": _bars_ending(SESSION)}
+    build["frames"] = {"2026-10-12": {"AAA": _settled(c=10.0, h=10.5, l=9.5)},
+                       "2026-10-13": {"BBB": _settled()},            # AAA halted
+                       "2026-10-14": {"AAA": _settled(c=10.6, v=3000.0)}}
+    stats, rows = build["run"]()
+    assert rows["AAA"]["bars_asof"] == str(SESSION_YMD)
+    assert stats["settled_bars"]["catchup"]["sessions_appended"] == 1
+
+
+def test_a_row_older_than_the_window_is_left_alone_and_costs_no_fetch(build):
+    build["bars"] = {"AAA": _bars_ending(datetime.date(2026, 10, 1)),
+                     "BBB": _bars_ending(SESSION)}
+    build["frame"] = {"AAA": _settled(), "BBB": _settled()}
+    stats, rows = build["run"]()
+    assert rows["AAA"]["bars_asof"] == "20261001"
+    assert stats["settled_bars"]["catchup"]["too_far"] == 1
+    assert [c["day"] for c in build["calls"]] == ["2026-10-14"]
+
+
+def test_the_kill_switch_restores_the_pre_catch_up_build(build, monkeypatch):
+    monkeypatch.setenv("SCREENER_CATCHUP_MAX_SESSIONS", "0")
+    build["bars"] = {"AAA": _bars_ending(TUE), "BBB": _bars_ending(SESSION)}
+    build["frame"] = {"AAA": _settled(c=10.0, h=10.5, l=9.5), "BBB": _settled()}
+    stats, rows = build["run"]()
+    assert rows["AAA"]["bars_asof"] == str(int(TUE.strftime("%Y%m%d")))
+    assert "catchup" not in stats["settled_bars"]
+    assert [c["day"] for c in build["calls"]] == ["2026-10-14"]
+
+
+def test_the_catch_up_receipt_persists(build):
+    build["bars"] = {"AAA": _bars_ending(TUE), "BBB": _bars_ending(SESSION)}
+    build["frame"] = {"AAA": _settled(c=10.0, h=10.5, l=9.5), "BBB": _settled()}
+    build["run"]()
+    last = build["db"].last_build_run()
+    assert last["settled_bars"]["catchup"]["caught_up"] == 1
+
+
+def test_catchup_outcome_never_mutates_the_bars_it_refuses():
+    from api.services.screener import snapshot_builder as b
+    bars = _bars_ending(TUE)
+    before = [dict(x) for x in bars]
+    days = [20261009, 20261012, 20261013, 20261014]
+    frames = {20261013: {"AAA": _settled(o=5.0, h=5.2, l=4.9, c=5.1)},
+              20261014: {"AAA": _settled()}}
+    out = b.catchup_outcome(bars, "AAA", days, frames.get)
+    assert out == ("basis", 0)
+    assert bars == before
+
+
+def test_sessions_before_uses_the_exchange_calendar():
+    from api.services.screener import snapshot_builder as b
+    got = b.sessions_before(datetime.date(2026, 11, 27), 2)   # Fri after Thanksgiving
+    assert got == [datetime.date(2026, 11, 24), datetime.date(2026, 11, 25)]
+
+
+def test_current_rows_counts_the_series_after_the_catch_up(build):
+    """The nightly alert reads this count: a row caught up is current, a row the
+    catch-up refused is not."""
+    build["bars"] = {"AAA": _bars_ending(TUE), "BBB": _bars_ending(datetime.date(2026, 10, 1))}
+    build["frame"] = {"AAA": _settled(c=10.0, h=10.5, l=9.5), "BBB": _settled()}
+    stats, _ = build["run"]()
+    assert stats["settled_bars"]["current_rows"] == 1
