@@ -60,4 +60,21 @@ MIGRATIONS: list[tuple[str, str]] = [
      " note,"
      " quote,"
      " tokenize = 'porter unicode61')"),
+    # Setup playbooks: one row per setup of the team's taxonomy, built from the whole ledger
+    # (definition, measured stats, context cuts, teaching record ids, best/worst calls). No image
+    # paths and no long quotes: teachings point at wisdom_archive_records by record id.
+    ("archive_007_setups",
+     "CREATE TABLE IF NOT EXISTS wisdom_archive_setups ("
+     " setup_id TEXT PRIMARY KEY,"                        # 'kicker'
+     " name TEXT NOT NULL,"
+     " family TEXT,"
+     " aliases_json TEXT NOT NULL DEFAULT '[]',"
+     " used_by_json TEXT NOT NULL DEFAULT '[]',"
+     " stats_json TEXT NOT NULL DEFAULT '{}',"           # {"all": {...}, "trades": {...}}
+     " context_json TEXT NOT NULL DEFAULT '{}',"
+     " teachings_json TEXT NOT NULL DEFAULT '[]',"
+     " winners_json TEXT NOT NULL DEFAULT '[]',"
+     " failures_json TEXT NOT NULL DEFAULT '[]',"
+     " sha TEXT NOT NULL,"
+     " imported_at TEXT NOT NULL)"),
 ]

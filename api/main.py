@@ -1027,6 +1027,18 @@ def _buzz_poll() -> None:
         log.warning("[buzz] digest catch-up error: %s", e)
 
 
+def _tsdr_lessons_tick() -> None:
+    """One #tsdr video-lessons pass (scan → recap/post → YouTube). Never raises."""
+    log = logging.getLogger(__name__)
+    try:
+        from api.services import tsdr_lessons
+        out = tsdr_lessons.tick()
+        if out.get("ran"):
+            log.info("[tsdr-lessons] tick: %s", out)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[tsdr-lessons] tick error: %s", e)
+
+
 def _buzz_digest(slot: str | None = None) -> None:
     """One scheduled buzz post. `slot` is the job's own "HH:MM" label, passed so
     the per-slot dedup keys off what was SCHEDULED rather than off the clock at
@@ -7154,6 +7166,20 @@ async def lifespan(app: FastAPI):
                 print("[startup] buzz digest: NO slots configured -- nothing will post")
         except Exception as e:
             print(f"[scheduler] buzz digest registration error: {e}")
+        try:
+            # #tsdr video lessons. Always registered; tick() gates on
+            # TSDR_LESSONS_ENABLED per call, so a flag flip is the only lever.
+            # A tick can download + transcribe several videos, hence
+            # max_instances=1 plus the module's own non-blocking tick lock.
+            _scheduler.add_job(
+                _tsdr_lessons_tick,
+                trigger=CronTrigger(minute="4,19,34,49", timezone=_ET),
+                id="tsdr_lessons_tick", replace_existing=True,
+                misfire_grace_time=300, max_instances=1, coalesce=True,
+            )
+            print("[startup] tsdr video lessons scheduled (every 15 min)")
+        except Exception as e:
+            print(f"[scheduler] tsdr lessons registration error: {e}")
         if os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0":
             try:
                 # 15-min refresh under theme_index's 30-min cache TTL; the

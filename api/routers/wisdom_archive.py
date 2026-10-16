@@ -7,6 +7,9 @@ the archive is for PAID MEMBERS and every in-app tool, never the anonymous inter
   GET /search?q=         FTS5-ranked records
   GET /stats             counts by author / type / setup
   GET /trader/{author}   one trader's records and calls, newest first, with a scored summary
+  GET /playbooks         one row per setup playbook (most-called first)
+  GET /playbook/{setup}  a setup's playbook: definition, measured stats, context cuts,
+                         teaching record ids, best and worst calls
 
 ADMIN (`/api/admin/wisdom/archive`, every route Depends(require_admin) — the admin guard
 middleware does not cover /api/admin/wisdom, so the dependency IS the gate):
@@ -16,7 +19,7 @@ middleware does not cover /api/admin/wisdom, so the dependency IS the gate):
   GET /stats             counts by author / type / setup
 
 MACHINE (`/api/internal/wisdom/archive`, Depends(require_push_secret)):
-  POST /batch            {kind: "records"|"calls", items: [...]} idempotent upsert
+  POST /batch            {kind: "records"|"calls"|"setups", items: [...]} idempotent upsert
 
 Every half is ALSO gated by WISDOM_ARCHIVE_ENABLED (default off -> 404), checked after the
 credential so an unauthenticated or unpaid caller learns nothing about the flag.
@@ -62,8 +65,8 @@ class BatchIn(BaseModel):
 @internal_router.post("/batch")
 def archive_batch(body: BatchIn, _worker: None = Depends(require_push_secret)) -> dict:
     _require_enabled()
-    if body.kind not in ("records", "calls"):
-        raise HTTPException(status_code=422, detail="kind must be 'records' or 'calls'")
+    if body.kind not in service.KINDS:
+        raise HTTPException(status_code=422, detail="kind must be 'records', 'calls' or 'setups'")
     try:
         with store.write() as conn:
             return service.upsert_batch(conn, body.kind, body.items)
@@ -120,7 +123,7 @@ def _trader_name(author_id) -> str:
 def _named(payload: dict) -> dict:
     """Adds a display `trader` beside every author_id the member payload carries, so the
     client never restates the author roster (docs/wisdom/authors.json is the one authority)."""
-    for key in ("records", "calls", "hits", "best", "worst"):
+    for key in ("records", "calls", "hits", "best", "worst", "teachings", "winners", "failures"):
         for row in payload.get(key) or []:
             if isinstance(row, dict) and "author_id" in row:
                 row["trader"] = _trader_name(row["author_id"])
@@ -166,3 +169,19 @@ def member_trader(author: str, limit: int = Query(100, ge=1, le=500),
                   _user: dict = Depends(require_paid)) -> dict:
     _require_enabled()
     return _named(_read(service.by_author, author, limit=limit))
+
+
+@member_router.get("/playbooks")
+def member_playbooks(_user: dict = Depends(require_paid)) -> dict:
+    _require_enabled()
+    return _read(service.playbooks)
+
+
+@member_router.get("/playbook/{setup}")
+def member_playbook(setup: str, _user: dict = Depends(require_paid)) -> dict:
+    _require_enabled()
+    out = _read(service.playbook, setup)
+    if out is None:
+        raise HTTPException(status_code=404, detail="No playbook for that setup")
+    out["used_by"] = [{"author": a, "trader": _trader_name(a)} for a in out.get("used_by") or []]
+    return _named(out)

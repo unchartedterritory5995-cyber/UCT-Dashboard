@@ -2711,6 +2711,18 @@
       ],
       "note": ""
     },
+    "TSDR_LESSONS_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-15",
+      "where": [],
+      "note": "#tsdr video lessons (owner idea 2026-10-15), default OFF, read per call in api/services/tsdr_lessons.py::is_enabled(). SERVICE: web (job tsdr_lessons_tick in api/main.py, every 15 min, always registered). What it arms: the bot REST-polls #tsdr (TSDR_LESSONS_SOURCE_CHANNELS) for video attachments posted by Patrick (TSDR_LESSONS_AUTHOR_IDS), backfilling to TSDR_LESSONS_SINCE (2026-01-01); for at most TSDR_LESSONS_PER_TICK (3) videos per tick it downloads the file, transcribes it (voice_notes ffmpeg split + OpenAI whisper-1), asks Claude (TSDR_LESSONS_MODEL, default claude-opus-5-5) for a title + 4-6 sentence recap, and posts an embed with a jump link to the original into #video-lessons under an EDUCATION category, which the bot CREATES on first run (needs Manage Channels; read-only for members, same audience as #tsdr) unless TSDR_LESSONS_CHANNEL_ID names one. Reply videos: the member's question is read in memory and appears only as an anonymous model paraphrase when the lesson needs it (owner ruling 2026-10-15; this is not the Wisdom programme and writes nothing to wisdom.db). Store: TSDR_LESSONS_DB_PATH (default /data/tsdr_lessons.db). MEMBER-VISIBLE: posts in Discord. REVERSAL: unset it; posted messages and the channel stay (delete by hand if wanted)."
+    },
+    "TSDR_LESSONS_YOUTUBE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-15",
+      "where": [],
+      "note": "Second stage of #tsdr video lessons, default OFF, read per tick in api/services/tsdr_lessons.py::youtube_enabled(); does nothing unless TSDR_LESSONS_ENABLED is also 1. For lessons already posted to Discord, uploads the clip to the channel's YouTube as UNLISTED (owner decision 2026-10-15) at most TSDR_LESSONS_YT_PER_DAY (4) per ET day - the Data API upload quota is shared with desk_daily_session - then creates an edu_videos row in the TSDR Lessons category (TSDR_LESSONS_LIBRARY_CATEGORY) with the recap as description/summary and the transcript stored. MEMBER-VISIBLE: a new shelf in Desk > Videos. REVERSAL: unset it; uploaded videos and library rows stay."
+    },
     "TWITTERAPI_IO_ENABLED": {
       "status": "armed",
       "where": [

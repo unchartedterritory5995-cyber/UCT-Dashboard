@@ -13,6 +13,10 @@ Layout read under --src:
   records/retired.json      {record_id: reason}  -- these records are skipped
   images/by_record.json     {record_id: [image, ...]}  -- optional, only the COUNT is sent
   scored/calls.jsonl        one call per line (call_id, record, author, ticker, ...)
+  structured/setup_library/<setup>.json   one setup playbook per file (index.json is skipped);
+                            traders are display names there and are mapped back to author slugs.
+                            Image paths and long quotes are NOT sent; teachings and examples
+                            citing a record that is not sent are dropped.
 
 The push secret is read from the PUSH_SECRET environment variable and is never printed.
 Records whose author is not one of the team authors in docs/wisdom/authors.json are never
@@ -112,9 +116,65 @@ def build_calls(src: pathlib.Path, counts: dict, sent_records: set) -> list:
     return out
 
 
+_TEACHING_KEYS = ("record_id", "author_id", "date", "note")
+_EXAMPLE_KEYS = ("call_id", "record_id", "ticker", "author_id", "posted", "direction", "action", "evidence",
+                 "r20", "sim_R", "regime")
+
+
+def _slug(name, authors) -> str | None:
+    s = str(name or "").strip().lower()
+    return s if s in authors else None
+
+
+def build_setups(src: pathlib.Path, counts: dict, sent_records: set) -> list:
+    """One playbook per setup from the local setup library. Traders come in as display names
+    (TSDR, AtTheAsk, ...) and leave as author slugs; anything citing a record that is not being
+    sent is dropped and counted, never sent dangling."""
+    lib = src / "structured" / "setup_library"
+    authors = service.team_authors()
+    out = []
+    if not lib.is_dir():
+        return out
+    for f in sorted(lib.glob("*.json")):
+        if f.name == "index.json":
+            continue
+        counts["setups_read"] += 1
+        raw = json.loads(f.read_text(encoding="utf-8"))
+
+        def rows(items, keys, kind):
+            kept = []
+            for r in items or []:
+                rid = r.get("record_id") or r.get("record")
+                author = _slug(r.get("trader") or r.get("author_id"), authors)
+                if rid not in sent_records or author is None:
+                    counts[f"setup_{kind}_dropped"] += 1
+                    continue
+                full = {**r, "record_id": rid, "author_id": author}
+                kept.append({k: full.get(k) for k in keys})
+            return kept
+
+        item = {
+            "setup_id": raw.get("id"), "name": raw.get("name"), "family": raw.get("family"),
+            "aliases": raw.get("aliases") or [],
+            "used_by": [a for a in (_slug(u, authors) for u in raw.get("used_by") or []) if a],
+            "stats": raw.get("stats") or {}, "stats_trades": raw.get("stats_trades") or {},
+            "context": raw.get("context") or {},
+            "teachings": rows(raw.get("teachings"), _TEACHING_KEYS, "teachings"),
+            "winners": rows(raw.get("winners"), _EXAMPLE_KEYS, "examples"),
+            "failures": rows(raw.get("failures"), _EXAMPLE_KEYS, "examples"),
+        }
+        item["sha"] = _sha(item)
+        out.append(item)
+    return out
+
+
+_VALIDATORS = {"records": service.validate_record, "calls": service.validate_call,
+               "setups": service.validate_setup}
+
+
 def validate_locally(kind: str, items: list, counts: dict) -> list:
     """Same validators as the server, so a dry run predicts what --send would reject."""
-    fn = service.validate_record if kind == "records" else service.validate_call
+    fn = _VALIDATORS[kind]
     good = []
     for item in items:
         try:
@@ -154,7 +214,7 @@ def main(argv=None) -> int:
     ap.add_argument("--src", required=True, help="local TSDR-Ledger-Backup directory")
     ap.add_argument("--url", default="https://uctintelligence.com", help="dashboard base URL")
     ap.add_argument("--send", action="store_true", help="actually POST (default: dry run)")
-    ap.add_argument("--only", choices=("records", "calls"), help="import one kind only")
+    ap.add_argument("--only", choices=service.KINDS, help="import one kind only")
     ap.add_argument("--batch", type=int, default=BATCH)
     args = ap.parse_args(argv)
 
@@ -164,11 +224,14 @@ def main(argv=None) -> int:
         return 2
     counts = {k: 0 for k in ("records_read", "records_retired", "records_unknown_author", "records_bad_type",
                              "records_invalid", "calls_read", "calls_unknown_author", "calls_orphan_record",
-                             "calls_invalid")}
+                             "calls_invalid", "setups_read", "setups_invalid", "setup_teachings_dropped",
+                             "setup_examples_dropped")}
     records = validate_locally("records", build_records(src, counts), counts)
     calls = validate_locally("calls", build_calls(src, counts, {r["record_id"] for r in records}), counts)
+    setups = validate_locally("setups", build_setups(src, counts, {r["record_id"] for r in records}), counts)
     counts["records_to_send"] = len(records)
     counts["calls_to_send"] = len(calls)
+    counts["setups_to_send"] = len(setups)
 
     totals: dict = {}
     if args.send:
@@ -177,7 +240,7 @@ def main(argv=None) -> int:
             print("PUSH_SECRET is not set in the environment", file=sys.stderr)
             return 2
         batch = max(1, min(args.batch, 2000))
-        for kind, items in (("records", records), ("calls", calls)):
+        for kind, items in (("records", records), ("calls", calls), ("setups", setups)):
             if args.only and args.only != kind:
                 continue
             for i in range(0, len(items), batch):

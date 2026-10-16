@@ -296,6 +296,10 @@ DOORS: dict[str, Door] = {
         "operator", "Desk insights pass (scheduler + PUSH_SECRET)", "flag-gated"),
     "api/services/desk_session_recap.py": Door(
         "operator", "Desk recap (scheduler + PUSH_SECRET)", "flag-gated"),
+    "api/services/tsdr_lessons.py": Door(
+        "operator", "#tsdr video lessons (scheduler, TSDR_LESSONS_ENABLED)",
+        "one recap call per owner video; TSDR_LESSONS_PER_TICK (3) per 15-min tick, "
+        "3 attempts per video"),
     "api/services/discord_close_note.py": Door(
         "operator", "index-close Discord post (scheduler + PUSH_SECRET)", "once per session"),
     # ── Evals / offline ──────────────────────────────────────────────────────

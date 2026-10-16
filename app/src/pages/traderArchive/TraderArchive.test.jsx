@@ -87,6 +87,35 @@ describe('TraderArchive page', () => {
     expect(screen.getByRole('tab', { name: 'Ticker' })).toHaveAttribute('aria-selected', 'true')
   })
 
+  it('opens a setup playbook: verdict, context cuts with enough calls, teachings and calls', async () => {
+    const st = (n, edge, z) => ({ n, n_scored: n, win20: 0.55, med_r20: 0.01, med_edge20: 0.02, mean_edgeR: edge, edgeR_z: z })
+    serve({
+      [`${API}/stats`]: ok(STATS),
+      [`${API}/playbooks`]: ok({ setups: [{ setup_id: 'synthetic_setup', name: 'Synthetic setup', n: 140 }] }),
+      [`${API}/playbook/synthetic_setup`]: ok({
+        setup_id: 'synthetic_setup', name: 'Synthetic setup', aliases: ['SYN'],
+        used_by: [{ author: 'tsdr', trader: 'TSDR' }],
+        stats: { all: st(140, 0.25, 1.4), trades: st(60, 0.3, 1.1) },
+        context: { market: { downtrend: st(40, 0.9), uptrend: st(90, -0.1) }, trader: { TSDR: st(12, 1.5) } },
+        teachings: [{ record_id: 't2', author_id: 'bracco', trader: 'Bracco', date: '2025-03-04', note: 'synthetic teaching note' }],
+        winners: [{ call_id: 't1#0', record_id: 't1', ticker: 'ZZTA', author_id: 'tsdr', trader: 'TSDR', posted: '2025-01-02',
+          direction: 'long', evidence: 'synthetic winner evidence', r20: 0.1, sim_R: 3, regime: 'uptrend' }],
+        failures: [],
+      }),
+    })
+    mount()
+    await screen.findByTestId('ta-stats')
+    fireEvent.click(screen.getByRole('tab', { name: 'Playbooks' }))
+    fireEvent.change(await screen.findByLabelText('Playbook'), { target: { value: 'synthetic_setup' } })
+    expect(await screen.findByTestId('ta-playbook-verdict')).toHaveTextContent('140 scored calls · not proven (z 1.4)')
+    expect(screen.getByText('market: downtrend')).toBeInTheDocument()
+    expect(screen.queryByText('trader: TSDR')).toBeNull()                         // n 12 < 30
+    expect(screen.getByText('synthetic teaching note')).toBeInTheDocument()
+    expect(screen.getByText('t2')).toBeInTheDocument()
+    expect(screen.getByText('synthetic winner evidence')).toBeInTheDocument()
+    expect(screen.getByText('None recorded.')).toBeInTheDocument()
+  })
+
   it('a 404 says the archive is not available, not that nothing was found', async () => {
     serve({ [`${API}/stats`]: fail(404) })
     mount()

@@ -41,6 +41,7 @@ def test_chat_registry_hides_both_tools_while_off_and_shows_them_while_on(monkey
     monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "1")
     assert cct.TOOLS["trader_archive_search"]["executor"] is cct._exec_trader_archive_search
     assert cct.TOOLS["trader_archive_ticker"]["executor"] is cct._exec_trader_archive_ticker
+    assert cct.TOOLS["trader_archive_setup"]["executor"] is cct._exec_trader_archive_setup
     assert "find_patterns_on_ticker" in cct.TOOLS                             # control: ungated tools unaffected
 
 
@@ -75,4 +76,24 @@ def test_the_tools_refuse_while_off_and_answer_bounded_while_on(wisdom_db, on, m
     assert hits["ok"] and [h["record_id"] for h in hits["results"]] == ["t9102"]
     monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "0")
     off = cct._exec_trader_archive_search(user_id="u", account_id=None, args={"query": "patience"})
+    assert off == {"ok": False, "error": archive_tools.OFF_MESSAGE, "narration": archive_tools.OFF_MESSAGE}
+
+
+def test_the_setup_tool_answers_a_bounded_playbook_and_refuses_while_off(wisdom_db, on, monkeypatch):
+    _seed()
+    from api.services.journal_two import coach_chat_tools as cct
+
+    out = cct._exec_trader_archive_setup(user_id="u", account_id=None, args={"setup": "synthetic setup"})
+    assert out["ok"] and out["setup_id"] == "synthetic_setup" and out["stats"]["n_scored"] == 140
+    assert out["best_context"][0]["value"] == "downtrend"                         # n >= 30, best edge first
+    assert all(c["n_scored"] >= 30 for c in out["best_context"] + out["worst_context"])
+    assert len(out["teachings"]) <= archive_tools.MAX_TEACHINGS and out["teachings"][0]["trader"]
+    assert len(out["winners"]) <= archive_tools.MAX_EXAMPLES
+    assert out["narration"].startswith("[PLAYBOOK")
+    by_id = cct._exec_trader_archive_setup(user_id="u", account_id=None, args={"setup": "synthetic_setup"})
+    assert by_id["setup_id"] == "synthetic_setup"
+    none = cct._exec_trader_archive_setup(user_id="u", account_id=None, args={"setup": "zzz nothing"})
+    assert not none["ok"] and "Synthetic setup" in none["error"]                  # names what exists
+    monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "0")
+    off = cct._exec_trader_archive_setup(user_id="u", account_id=None, args={"setup": "synthetic setup"})
     assert off == {"ok": False, "error": archive_tools.OFF_MESSAGE, "narration": archive_tools.OFF_MESSAGE}

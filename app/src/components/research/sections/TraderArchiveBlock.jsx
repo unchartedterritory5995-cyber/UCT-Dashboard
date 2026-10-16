@@ -10,22 +10,22 @@
 // error and an empty archive render nothing too.
 import useSWR from 'swr'
 
-import jsonFetcher from '../../../utils/jsonFetcher'
+import { sectionFetcher } from './sectionFetch'
 import { ARCHIVE_API, clip, dayOf, fmtR, rTone, traderOf } from '../../../utils/traderArchive'
 import styles from './TraderArchiveBlock.module.css'
 
 const MAX_POSTS = 4
 const MAX_CALLS = 5
 
-// A failure is a state this block hides, not one it reports: resolve to null so SWR does
-// not retry a 404 on every focus.
-const quietFetcher = (url) => jsonFetcher(url).catch(() => null)
+// A failure is a state this block hides, not one it reports. The fetcher THROWS (TERM-033:
+// never swallow a failure into a value) and the render below treats an error like "nothing to
+// show"; shouldRetryOnError:false keeps SWR from re-asking a 404 on every focus.
 
 export default function TraderArchiveBlock({ sym }) {
   const s = (sym || '').toUpperCase().trim()
-  const { data } = useSWR(s ? `${ARCHIVE_API}/ticker/${encodeURIComponent(s)}?limit=500` : null, quietFetcher,
+  const { data, error } = useSWR(s ? `${ARCHIVE_API}/ticker/${encodeURIComponent(s)}?limit=500` : null, sectionFetcher,
     { revalidateOnFocus: false, shouldRetryOnError: false })
-  if (!s || !data) return null
+  if (!s || error || !data) return null
   const records = Array.isArray(data.records) ? data.records : []
   const calls = Array.isArray(data.calls) ? data.calls : []
   if (records.length === 0 && calls.length === 0) return null
@@ -58,9 +58,9 @@ export default function TraderArchiveBlock({ sym }) {
       )}
 
       {recentCalls.length > 0 && (
-        <table className={styles.calls} data-testid="trader-archive-calls">
+        <table className={styles.calls} data-testid="trader-archive-calls" aria-label="Recent scored calls">
           <thead>
-            <tr><th>Posted</th><th>Trader</th><th>Dir</th><th>Setup</th><th>R20</th></tr>
+            <tr><th scope="col">Posted</th><th scope="col">Trader</th><th scope="col">Dir</th><th scope="col">Setup</th><th scope="col">R20</th></tr>
           </thead>
           <tbody>
             {recentCalls.map((c) => {
