@@ -1492,6 +1492,16 @@ def _run_build_locked(max_tickers=None) -> dict:
                         bars, _massive.to_polygon_symbol(t), catch_days, _frame_for)
                     catch_receipt[c_out] += 1
                     catch_receipt["sessions_appended"] += c_n
+                # ⭐ THE FRESHNESS COUNT the nightly alert reads: a row is CURRENT
+                # when, after the settled step and the catch-up, its newest bar is
+                # the last completed session. Counted here, on the series the row
+                # is about to be built from, never inferred from a receipt.
+                try:
+                    if int(bars[-1].get("t")) == s_ymd:
+                        settled_receipt["current_rows"] = \
+                            settled_receipt.get("current_rows", 0) + 1
+                except (TypeError, ValueError):
+                    pass
             price = bars[-1].get("c")
             # 🔴 ONE NAME, ONE MEANING (accuracy audit 2026-08-23, #4).
             # `massive.get_market_cap` prefers the provider's own `market_cap`

@@ -84,6 +84,7 @@ def test_a_partial_newest_volume_is_replaced_by_the_settled_one(build):
     assert rows["AAA"]["price"] == 10.4             # the settled close, not 10.0
     sb = dict(stats["settled_bars"])
     cu = sb.pop("catchup")
+    assert sb.pop("current_rows") == 2              # both rows end on the session
     assert sb == {
         "session": "2026-10-14", "fetched": 2, "applied": 2, "absent": 0,
         "not_session": 0, "incomplete": 0, "basis": 0}
@@ -346,3 +347,12 @@ def test_sessions_before_uses_the_exchange_calendar():
     from api.services.screener import snapshot_builder as b
     got = b.sessions_before(datetime.date(2026, 11, 27), 2)   # Fri after Thanksgiving
     assert got == [datetime.date(2026, 11, 24), datetime.date(2026, 11, 25)]
+
+
+def test_current_rows_counts_the_series_after_the_catch_up(build):
+    """The nightly alert reads this count: a row caught up is current, a row the
+    catch-up refused is not."""
+    build["bars"] = {"AAA": _bars_ending(TUE), "BBB": _bars_ending(datetime.date(2026, 10, 1))}
+    build["frame"] = {"AAA": _settled(c=10.0, h=10.5, l=9.5), "BBB": _settled()}
+    stats, _ = build["run"]()
+    assert stats["settled_bars"]["current_rows"] == 1

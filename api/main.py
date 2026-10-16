@@ -1877,7 +1877,25 @@ def _nightly_shortfall(stats: dict):
         return f"it stopped after {built + skipped + errors:,} of {targets:,} rows"
     if errors > targets * NIGHTLY_ERROR_SHARE:
         return f"{errors:,} of {targets:,} rows errored"
+    # ⭐ A COMPLETE build can still be built on OLD prices. Measured 2026-10-16:
+    # every row built, and only 1,534 of 11,091 ended on the last completed
+    # session. `current_rows` is counted in the build loop after the settled step
+    # and the catch-up; it is absent when the settled frame itself failed (that
+    # error is in the receipt), and then this check stays silent rather than guess.
+    sb = stats.get("settled_bars") or {}
+    current = sb.get("current_rows")
+    if sb.get("error"):
+        return f"the settled bars for {sb.get('session')} could not be fetched ({sb['error']})"
+    if current is not None and built and current < built * NIGHTLY_CURRENT_SHARE:
+        return (f"only {current:,} of {built:,} rows end on the last session "
+                f"({sb.get('session')}); the rest were built on older prices")
     return None
+
+
+#: The share of built rows that must end on the last completed session. Halts,
+#: delistings inside the stale window and names the grouped frame does not carry
+#: legitimately fall short; measured below 1% on 2026-10-16 once caught up.
+NIGHTLY_CURRENT_SHARE = 0.95
 
 
 def _alert_if_nightly_short(stats: dict) -> None:
@@ -1889,10 +1907,11 @@ def _alert_if_nightly_short(stats: dict) -> None:
         day = datetime.now(_ET).strftime("%Y-%m-%d")
         chart_health_alerts.emit(
             f"screener_nightly_short:{day}", "warning",
-            f"The screener's nightly rebuild did not cover every stock: {why}. "
-            "Rows it missed keep yesterday's RS rank, volume vs avg and ratings.",
-            {k: stats.get(k) for k in ("targets", "built", "skipped", "errors",
-                                       "skipped_reason", "crashed")},
+            f"The screener's nightly rebuild fell short: {why}. Until the next "
+            "full build, the rows concerned show older prices, ratings and volume.",
+            {**{k: stats.get(k) for k in ("targets", "built", "skipped", "errors",
+                                          "skipped_reason", "crashed")},
+             "settled_bars": stats.get("settled_bars")},
         )
     except Exception as e:  # noqa: BLE001
         print(f"[scheduler] could not raise the screener nightly alert: {e}")
