@@ -34,7 +34,7 @@ AUTH = {"Authorization": f"Bearer {SECRET}"}
 MEMBER_GETS = ("/api/wisdom/archive/ticker/ZZTA", "/api/wisdom/archive/setup/synthetic_setup",
                "/api/wisdom/archive/search?q=breakout", "/api/wisdom/archive/stats",
                "/api/wisdom/archive/trader/tsdr", "/api/wisdom/archive/playbooks",
-               "/api/wisdom/archive/playbook/synthetic_setup")
+               "/api/wisdom/archive/playbook/synthetic_setup", "/api/wisdom/archive/ticker/ZZTA/daily")
 
 
 @pytest.fixture
@@ -173,7 +173,7 @@ def test_every_member_route_is_require_paid_and_the_registry_mounts_it():
     assert paths == {"/api/wisdom/archive/ticker/{sym}", "/api/wisdom/archive/setup/{setup}",
                      "/api/wisdom/archive/search", "/api/wisdom/archive/stats",
                      "/api/wisdom/archive/trader/{author}", "/api/wisdom/archive/playbooks",
-                     "/api/wisdom/archive/playbook/{setup}"}
+                     "/api/wisdom/archive/playbook/{setup}", "/api/wisdom/archive/ticker/{sym}/daily"}
     for r in wisdom_archive.member_router.routes:
         deps = _dep_names(r)
         assert "require_paid" in deps, r.path

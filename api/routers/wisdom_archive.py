@@ -10,6 +10,7 @@ the archive is for PAID MEMBERS and every in-app tool, never the anonymous inter
   GET /playbooks         one row per setup playbook (most-called first)
   GET /playbook/{setup}  a setup's playbook: definition, measured stats, context cuts,
                          teaching record ids, best and worst calls
+  GET /ticker/{sym}/daily team posts and calls per day on one ticker (Terminal ATTN)
 
 ADMIN (`/api/admin/wisdom/archive`, every route Depends(require_admin) — the admin guard
 middleware does not cover /api/admin/wisdom, so the dependency IS the gate):
@@ -185,3 +186,12 @@ def member_playbook(setup: str, _user: dict = Depends(require_paid)) -> dict:
         raise HTTPException(status_code=404, detail="No playbook for that setup")
     out["used_by"] = [{"author": a, "trader": _trader_name(a)} for a in out.get("used_by") or []]
     return _named(out)
+
+
+@member_router.get("/ticker/{sym}/daily")
+def member_ticker_daily(sym: str, days: int = Query(365, ge=1, le=service.MAX_DAILY_DAYS),
+                        _user: dict = Depends(require_paid)) -> dict:
+    """Team posts and calls per day on one ticker (the Terminal ATTN overlay)."""
+    _require_enabled()
+    return _read(service.ticker_daily, sym, days=days)
+
