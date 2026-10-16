@@ -562,6 +562,17 @@ describe('fix round 5 — the plain-text walk carries every word, and a plain sa
     }
   })
 
+  it('wording: a refusal of the title, subtitle, folder or tags names that cause and never invites the same save again', () => {
+    for (const detail of ['title too long', 'subtitle too long', 'folder not found']) {
+      const reason = viewOf(doc('x'), { status: 400, detail }).reason
+      expect(reason, `"${detail}": the cause is not named`).toMatch(/because of its title, subtitle, folder or tags/)
+      expect(reason, `"${detail}": a retry that cannot succeed is invited`).not.toMatch(/again|once more/i)
+      expect(reason).toMatch(/paste them into a new note/)
+    }
+    // The detail-less `other` may invite one more send: a retry can fix what named no reason.
+    expect(viewOf(doc('x'), { status: 400, detail: null }).reason).toMatch(/Save as a separate note sends it to the server once more/)
+  })
+
   async function heldCopy(bodyJson = PROBE) {
     const copy = copyEntryFor({ noteId: 'n1', words: { title: 'Thesis', subtitle: 'sub', bodyJson }, sessionId: 's1' })
     await putNoteWithIntent(db, { noteId: 'n1', ...words('W'), dirty: 0, baseUpdatedAt: 'T1' }, null, { copies: [copy] })
