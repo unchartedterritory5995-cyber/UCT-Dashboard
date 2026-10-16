@@ -122,6 +122,54 @@ def test_overwrites_copy_audience_and_remove_posting():
     assert int(out["bot"]["allow"]) & tl._SEND_MESSAGES
 
 
+def test_overwrites_never_copy_bits_beyond_view():
+    attach, mention_all = 1 << 15, 1 << 17
+    src = [{"id": "role-vip", "type": 0, "allow": str(tl._VIEW_CHANNEL | attach),
+            "deny": str(mention_all)}]
+    vip = {o["id"]: o for o in tl._read_only_overwrites(src, "bot", GUILD)}["role-vip"]
+    assert int(vip["allow"]) == tl._VIEW_CHANNEL
+    assert int(vip["deny"]) == tl._POSTING_BITS
+
+
+def test_channel_creation_steps_down_when_discord_refuses(monkeypatch):
+    attempts = []
+
+    def create(p, b):
+        if b["type"] == 4:
+            return {"id": "cat9"}
+        attempts.append(b["permission_overwrites"])
+        if len(attempts) < 3:
+            raise tl.DiscordError(403, '{"message": "Missing Permissions", "code": 50013}')
+        return {"id": "ch9"}
+
+    fake = FakeDiscord({
+        ("GET", f"/guilds/{GUILD}/channels"): [{"id": "cat9", "type": 4, "name": "EDUCATION"}],
+        ("POST", f"/guilds/{GUILD}/channels"): create,
+        ("GET", "/users/@me"): {"id": "bot"},
+        ("GET", f"/channels/{TSDR}"): {"permission_overwrites": []},
+    })
+    monkeypatch.setattr(tl, "_discord", fake)
+    assert tl.ensure_lesson_channel() == "ch9"
+    assert len(attempts) == 3
+    everyone = next(o for o in attempts[-1] if o["id"] == GUILD)
+    assert int(everyone["deny"]) == tl._SEND_MESSAGES
+
+
+def test_channel_creation_gives_up_after_the_last_step(monkeypatch):
+    def create(p, b):
+        raise tl.DiscordError(403, "Missing Permissions")
+
+    monkeypatch.setattr(tl, "_discord", FakeDiscord({
+        ("GET", f"/guilds/{GUILD}/channels"): [{"id": "cat9", "type": 4, "name": "EDUCATION"}],
+        ("POST", f"/guilds/{GUILD}/channels"): create,
+        ("GET", "/users/@me"): {"id": "bot"},
+        ("GET", f"/channels/{TSDR}"): {"permission_overwrites": []},
+    }))
+    with pytest.raises(tl.DiscordError):
+        tl.ensure_lesson_channel()
+    assert tl.get_state("lesson_channel_id") is None
+
+
 def test_creates_category_and_channel_once(monkeypatch):
     fake = FakeDiscord({
         ("GET", f"/guilds/{GUILD}/channels"): [{"id": "1", "type": 0, "name": "video-lessons"}],
