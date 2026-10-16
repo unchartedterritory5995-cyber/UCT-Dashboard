@@ -104,3 +104,38 @@ describe('PatternArchiveStats', () => {
     expect(PLACEHOLDER).toBe('Pattern stats available after Phase 7 launch — outcome tracker pending.')
   })
 })
+
+describe('PatternArchiveStats reference lines (auto chart)', () => {
+  const LINES = [
+    { role: 'trigger', kind: 'prior_day_high', price: 75, label: 'Prior-day high · team trigger line' },
+    { role: 'trigger', kind: 'range_high_10', price: 90, label: '10-day high · team trigger line' },
+    { role: 'stop', kind: 'prior_day_low', price: 73, label: 'Prior-day low · team stop line' },
+    { role: 'stop', kind: 'ema_20', price: 64.5, label: '20 EMA · team stop line' },
+  ]
+
+  it('hands the server lines up as labelled chart price lines', async () => {
+    serve(ok({ ...BODY, lines: LINES }))
+    const onLines = vi.fn()
+    mount({ patternId: 'flat_base', sym: 'ZZTA', onLines })
+    await screen.findByTestId('archive-stats')
+    const drawn = onLines.mock.calls.map((c) => c[0]).filter(Boolean).at(-1)
+    expect(drawn.map((l) => [l.price, l.title])).toEqual([
+      [75, 'Prior-day high · team trigger line'],
+      [90, '10-day high · team trigger line'],
+      [73, 'Prior-day low · team stop line'],
+      [64.5, '20 EMA · team stop line'],
+    ])
+    expect(drawn.every((l) => !/trader/i.test(l.title))).toBe(true)
+  })
+
+  it('hands up nothing when the field is absent, and clears on close', async () => {
+    serve(ok(BODY))
+    const onLines = vi.fn()
+    const view = mount({ patternId: 'uct_kicker', sym: 'ZZTA', onLines })
+    await screen.findByTestId('archive-stats')
+    expect(onLines.mock.calls.every((c) => c[0] === null)).toBe(true)
+    expect(onLines).toHaveBeenCalled()                                     // control: the hook did run
+    view.unmount()
+    expect(onLines.mock.calls.at(-1)[0]).toBeNull()
+  })
+})

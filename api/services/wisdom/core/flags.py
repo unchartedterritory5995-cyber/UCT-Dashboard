@@ -105,6 +105,13 @@ def archive_ask_enabled() -> bool:
     return _truthy(os.environ.get("WISDOM_ARCHIVE_ASK_ENABLED", "0"))
 
 
+def archive_lines_enabled() -> bool:
+    """Auto chart: the team's reference lines (trigger / entry / stop) drawn on archive-setup
+    charts (api/services/wisdom/archive/levels.py). MEMBER-VISIBLE when on, paid only, and
+    double-gated with WISDOM_ARCHIVE_ENABLED. Display only. Default OFF."""
+    return _truthy(os.environ.get("WISDOM_ARCHIVE_LINES_ENABLED", "0"))
+
+
 def brainkb_publish_enabled() -> bool:
     return _truthy(os.environ.get("WISDOM_BRAINKB_PUBLISH_ENABLED", "0"))
 
@@ -175,4 +182,5 @@ GATES = (
     ("WISDOM_LOOKALIKE_ENABLED", lookalike_enabled, True),
     ("WISDOM_ARCHIVE_ENABLED", archive_enabled, True),
     ("WISDOM_ARCHIVE_ASK_ENABLED", archive_ask_enabled, True),
+    ("WISDOM_ARCHIVE_LINES_ENABLED", archive_lines_enabled, True),
 )

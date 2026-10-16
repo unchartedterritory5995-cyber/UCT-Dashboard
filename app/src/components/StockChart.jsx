@@ -3483,9 +3483,14 @@ export default function StockChart({
     },
     [markers, j2.markers, chartEventMarkers, newsMarkers, deskMarkers, flowMarkers],
   )
+  // The team's reference lines for the archive setup a clicked pattern detection belongs to
+  // (PatternArchiveStats -> GET /api/wisdom/archive/pattern/{id}?ticker=, `lines`, flag-gated
+  // server-side). Display only; a symbol change or closing the panel clears them.
+  const [archiveRefLines, setArchiveRefLines] = useState(null)
+  useEffect(() => { setArchiveRefLines(null) }, [sym])
   const mergedPriceLines = useMemo(
-    () => [...(priceLines || []), ...(j2.priceLines || []), ...dpLines, ...gexLines],
-    [priceLines, j2.priceLines, dpLines, gexLines],
+    () => [...(priceLines || []), ...(j2.priceLines || []), ...dpLines, ...gexLines, ...(archiveRefLines || [])],
+    [priceLines, j2.priceLines, dpLines, gexLines, archiveRefLines],
   )
 
   // Prop overrides — memoized to prevent unstable references
@@ -20694,6 +20699,7 @@ export default function StockChart({
       <PatternSidePanel
         detection={activeDetection}
         onClose={() => setActiveDetection(null)}
+        onArchiveLines={setArchiveRefLines}
       />
     </div>
   )

@@ -58,6 +58,39 @@ describe('PlaybookCharts', () => {
     expect(screen.getAllByTestId('pb-chart')).toHaveLength(CHARTS_PER_SIDE * 2)
   })
 
+  it('draws the server reference lines on each call chart, with the team labels', async () => {
+    const lines = {
+      't1#0': [
+        { role: 'entry', kind: 'ema_10', price: 41.2, label: '10 EMA · team entry line' },
+        { role: 'entry', kind: 'prior_day_low', price: 39.5, label: 'Prior-day low · team entry line' },
+        { role: 'stop', kind: 'prior_day_low', price: 39.5, label: 'Prior-day low · team stop line' },
+        { role: 'stop', kind: 'ema_20', price: 38.1, label: '20 EMA · team stop line' },
+      ],
+      't2#0': [{ role: 'trigger', kind: 'stated_entry', price: 12.5, label: 'Stated entry in this call (2025-02-03)' }],
+    }
+    render(<PlaybookCharts winners={[call('t1#0', 'ZZAA', '2025-01-02', 0.2)]}
+      failures={[call('t2#0', 'ZZBB', '2025-02-03', -0.1)]} lines={lines} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Show the charts (2)' }))
+    await screen.findAllByTestId('stock-chart')
+    const byTicker = Object.fromEntries(seen.map((p) => [p.sym, p]))
+    expect(byTicker.ZZAA.priceLines.map((l) => [l.price, l.title])).toEqual([
+      [41.2, '10 EMA · team entry line'],
+      [39.5, 'Prior-day low · team entry line / Prior-day low · team stop line'],   // one line, both roles
+      [38.1, '20 EMA · team stop line'],
+    ])
+    expect(byTicker.ZZBB.priceLines).toEqual([expect.objectContaining({ price: 12.5,
+      title: 'Stated entry in this call (2025-02-03)' })])
+    expect(screen.getAllByTestId('pb-ref-note')[0].textContent).toContain('where the team usually places')
+  })
+
+  it('draws no lines when the field is absent or a call has none', async () => {
+    render(<PlaybookCharts winners={[call('t1#0', 'ZZAA', '2025-01-02', 0.2)]} failures={[]} lines={{ 'tX#0': [] }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Show the charts (1)' }))
+    await screen.findAllByTestId('stock-chart')
+    expect(seen[0].priceLines).toBeUndefined()
+    expect(screen.queryByTestId('pb-ref-note')).toBeNull()
+  })
+
   it('never frames past today, and refuses a date it cannot read', () => {
     expect(chartFrame('2026-10-10', '2026-10-16')).toEqual({ day: '2026-10-10', start: '2026-06-12', end: '2026-10-16' })
     expect(chartFrame('2025-01-02', '2026-10-16').end).toBe('2025-02-16')
