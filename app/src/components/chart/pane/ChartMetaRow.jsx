@@ -5,7 +5,8 @@
 
 // `abbrev` (set by ChartPane's width fit) swaps each label for its terse form
 // (MARKET CAP → MC) once the row would collide with the timeframe bar. The full
-// label is kept in `title` so a hover still reads it. Values are never abbreviated.
+// label is kept in `title` so a hover still reads it (or the field's own `title` when it
+// has one, e.g. RVOL's "Volume vs usual by this time of day"). Values are never abbreviated.
 import { safeCssColour } from '../engine/objectColour'
 
 // ⛔ a colour reaches CSS only through `safeCssColour` — a shared layout may carry anything.
@@ -17,7 +18,7 @@ export default function ChartMetaRow({ items = [], abbrev = false, tight = false
         const label = abbrev ? (it.short || it.label) : it.label
         return (
           <span key={it.key} className={styles.chartMetaItem}>
-            <span className={styles.chartMetaLabel} title={it.label}>{label}</span>
+            <span className={styles.chartMetaLabel} title={it.title || it.label}>{label}</span>
             <span className={styles.chartMetaVal} style={safeCssColour(it.color) ? { color: safeCssColour(it.color) } : undefined}>
               {it.value != null && it.value !== '' ? it.value : '—'}
             </span>

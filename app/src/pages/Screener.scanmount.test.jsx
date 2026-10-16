@@ -159,6 +159,9 @@ function receipt({ answered, dropped, not_computable: nc, ...rest }) {
 }
 
 const AS_OF = 20260807
+// ScannerShell is a lazy chunk (PR #332), so the 'Screener ▾' door appears only once that
+// chunk loads; under a loaded box that can exceed Testing Library's 1 s default.
+const SHELL_CHUNK_MS = 10000
 const H = { defs: null, results: null, calls: [] }
 
 /** The SHIPPED route's payload — `api/routers/scan_results.py` answers
@@ -228,7 +231,7 @@ function renderScreenerPage() {
  *  on a private attribute would stay green through a menu that renders
  *  invisible. */
 async function openScreensMenu(user) {
-  await user.click(await screen.findByRole('button', { name: 'Screener ▾' }))
+  await user.click(await screen.findByRole('button', { name: 'Screener ▾' }, { timeout: SHELL_CHUNK_MS }))
 }
 
 /** Do the only things a member can do to reach the scan surface: open the
@@ -453,7 +456,7 @@ describe('the scan surface is a real destination, not a rail-satisfying stub', (
     renderScreenerPage()
     expect(screen.getByRole('heading', { name: /^screener$/i })).toBeInTheDocument()
     // The control a member clicks — findable by its label, like every other one.
-    expect(await screen.findByRole('button', { name: 'Screener ▾' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Screener ▾' }, { timeout: SHELL_CHUNK_MS })).toBeInTheDocument()
   })
 
   it('and the page never asks for /api/candidates at all', async () => {

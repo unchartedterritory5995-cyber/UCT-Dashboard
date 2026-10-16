@@ -668,20 +668,27 @@ def compute_technicals(bars: list[dict], ipo_date=None) -> dict:
     # toward 1 and blunts exactly the spike the column exists to find. Two
     # different windows, one of them each right for its own question.
     #
-    # 🔴 KNOWN, AND NOT FIXABLE HERE: THE NUMERATOR CAN BE A PARTIAL SESSION.
-    # `bars.db` does not replace the newest daily bar's volume with the official
-    # consolidated figure before the nightly build reads it. Measured 2026-08-23
-    # on 95 random fresh tickers against yfinance: the prior session matches to
-    # the SHARE on every name, while the newest session is short by a **median
-    # 10.3%**, 36% of names by more than 20%, worst −69.9% — putting **12.6% of
-    # the sample on the wrong side of `vol_ratio >= 1.0`** (JPM publishes 0.77
-    # against a true 1.12). ⛔ DO NOT "FIX" IT IN THIS MODULE. The value in
-    # question is a session's volume, `bars.db` owns it, and half a dozen other
-    # consumers (`avg_volume_30d`, `dollar_vol_30d`, `vol_updown_ratio`,
-    # `vol_nweek_low`, setup scoring, the pattern engine) read the same field —
-    # healing it here would make this module a second authority over one value
-    # and leave every one of them silently wrong. The fix belongs at the bars
-    # boundary; it is filed as a requirement in the accuracy report.
+    # 🔴 THE NUMERATOR COULD BE A PARTIAL SESSION — NOW HANDLED UPSTREAM OF THIS
+    # FUNCTION, AND STILL NOT HERE. `bars.db` can hold an intraday snapshot as its
+    # newest daily bar (`bars_sqlite._delta_daily` replaces today's bar on chart
+    # views, and `ohlcv` carries no settled flag). Measured 2026-08-23 on 95 random
+    # fresh tickers against yfinance: the prior session matched to the SHARE, while
+    # the newest session was short by a **median 10.3%**, worst −69.9%, putting
+    # **12.6% of the sample on the wrong side of `vol_ratio >= 1.0`** (JPM 0.77
+    # against a true 1.12).
+    # ⭐ WHAT HANDLES IT: the nightly build. `snapshot_builder._run_build_locked`
+    # fetches the settled previous session for the whole market in ONE grouped-daily
+    # call (`settled_session` / `_read_settled_bars`) and `settled_bar_outcome`
+    # replaces a ticker's newest bar when it is that session — in memory, before
+    # this function or any other bar consumer runs, so `avg_volume_30d`,
+    # `dollar_vol_30d`, `vol_updown_ratio`, `vol_nweek_low`, setup scoring and the
+    # pattern engine all read the same settled value. The receipt is
+    # `stats["settled_bars"]` / `screener_build_runs.settled_bars`.
+    # ⛔ STILL DO NOT "FIX" IT IN THIS MODULE: one value, one place that corrects
+    # it, every consumer downstream of it. `bars.db` itself is unchanged (another
+    # workstream owns it), so a chart can still show the partial bar.
+    # ⚠️ A failed grouped call leaves the build on the stored bars, i.e. the old
+    # behaviour, and the receipt names the error.
     # ⭐ THE ARITHMETIC NOW LIVES IN `volume_ratio` (module level, above) so
     # `bar_character` can name a bar off the SAME number this column filters on.
     # Everything documented in this block still describes that value.
