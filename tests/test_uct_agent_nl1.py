@@ -141,9 +141,11 @@ def test_a_correction_needs_a_plan_and_the_last_change(flag_on):
 
 def test_legacy_guards_still_run_first(flag_on):
     # an unknown target → a question, never a guess (and no correction rides along)
+    # (NL-1 sends a rejected plan back ONCE — both answers here are rejected, so the usual guard decides)
     bad = {"action": "chart.setTimeframe", "target": "c9", "args": {"timeframe": "W"}}
+    twice = _resp(nl1_env("apply", [bad], correction={"replaces": "last_change"}))
     out = turn.run_turn(message="weekly", context={**CTX, **MEM}, history=[], capabilities=CATALOG,
-                        caller=caller_of(_resp(nl1_env("apply", [bad], correction={"replaces": "last_change"}))), interpreter="nl1")
+                        caller=caller_of(twice, twice), interpreter="nl1")
     assert out["envelope"]["disposition"] == "clarify" and out["envelope"]["ops"] == [] and out["envelope"]["correction"] is None
     # a plan's reply claiming it is done is blanked (UCT's receipt is the only record)
     out = turn.run_turn(message="15m", context=CTX, history=[], capabilities=CATALOG,
@@ -153,9 +155,126 @@ def test_legacy_guards_still_run_first(flag_on):
     ghost = {"action": "broker.buy", "target": "c1", "args": {}}
     with pytest.raises(turn.TurnError):
         turn.run_turn(message="buy 100 NVDA", context=CTX, history=[], capabilities=CATALOG,
-                      caller=caller_of(_resp(nl1_env("apply", [ghost]))), interpreter="nl1")
+                      caller=caller_of(_resp(nl1_env("apply", [ghost])), _resp(nl1_env("apply", [ghost]))), interpreter="nl1")
 
 
 def test_the_glossary_is_data_and_every_entry_names_its_source():
     g = json.load(open(os.path.join(HERE, "..", "api", "services", "uct_agent", "nl1_glossary.json"), encoding="utf-8"))
     assert g["terms"] and all(t.get("words") and t.get("means") and t.get("source") for t in g["terms"])
+
+
+# ── the NL-1 contract limit: 120 with the flag, 60 without (owner decision 4) ─────────────────────────
+def _caps(n):
+    return [{**CATALOG[0], "name": f"chart.fake{i}"} for i in range(n)]
+
+
+def test_nl1_limit_boundary_120_accepted_121_refused(flag_on):
+    ok = caller_of(_resp(nl1_env("answer", reply="ok")))
+    turn.run_turn(message="x", context=CTX, history=[], capabilities=_caps(turn.MAX_CAPABILITIES_NL1), caller=ok, interpreter="nl1")
+    assert len(ok.calls) == 1
+    with pytest.raises(turn.TurnError, match="too many actions"):
+        turn.run_turn(message="x", context=CTX, history=[], capabilities=_caps(turn.MAX_CAPABILITIES_NL1 + 1),
+                      caller=caller_of(_resp(nl1_env("answer", reply="ok"))), interpreter="nl1")
+
+
+@pytest.mark.parametrize("interpreter", [None, "nl1"])
+def test_legacy_limit_boundary_60_accepted_61_refused_whatever_the_request_says(flag_off, interpreter):
+    legacy = {"disposition": "answer", "reply": "ok", "question": None, "ops": [], "unsupported_category": None, "research": None, "title": None}
+    ok = caller_of(_resp(legacy))
+    turn.run_turn(message="x", context=CTX, history=[], capabilities=_caps(turn.MAX_CAPABILITIES), caller=ok, interpreter=interpreter)
+    assert len(ok.calls) == 1
+    with pytest.raises(turn.TurnError, match="too many actions"):
+        turn.run_turn(message="x", context=CTX, history=[], capabilities=_caps(turn.MAX_CAPABILITIES + 1),
+                      caller=caller_of(_resp(legacy)), interpreter=interpreter)
+
+
+def test_flag_on_a_legacy_request_keeps_the_60_limit(flag_on):
+    with pytest.raises(turn.TurnError, match="too many actions"):
+        turn.run_turn(message="x", context=CTX, history=[], capabilities=_caps(turn.MAX_CAPABILITIES + 1),
+                      caller=caller_of(_resp(nl1_env("answer", reply="ok"))))
+
+
+# ── authorization: the NL-1 fields change nothing about who may call ─────────────────────────────────
+from tests.test_uct_agent import ADMIN, MEMBER, FREE, make_client  # noqa: E402,F401
+from api.routers import uct_agent as rx  # noqa: E402
+
+
+def test_nl1_and_repair_fields_never_open_the_route_to_non_admins(make_client, monkeypatch, flag_on):
+    monkeypatch.setattr(rx, "is_paid_user", lambda u: u.get("plan") != "free")
+    monkeypatch.setattr(turn, "_default_caller", caller_of(_resp(nl1_env("answer", reply="hi"))))
+    body = {"message": "hi", "interpreter": "nl1", "capabilities": CATALOG}
+    assert make_client(FREE).post("/api/agent/turn", json=body).status_code == 402
+    assert make_client(MEMBER).post("/api/agent/turn", json=body).status_code == 403
+    assert make_client(MEMBER).post("/api/agent/turn", json={**body, "reroute": True, "repair": {"errors": ["x"]}}).status_code == 403
+
+
+def test_a_repair_must_continue_a_request(make_client, monkeypatch, flag_on):
+    monkeypatch.setattr(rx, "is_paid_user", lambda u: True)
+    monkeypatch.setattr(turn, "_default_caller", caller_of(_resp(nl1_env("answer", reply="hi"))))
+    r = make_client(ADMIN).post("/api/agent/turn", json={"message": "hi", "interpreter": "nl1", "repair": {"errors": ["x"]}})
+    assert r.status_code == 400
+
+
+# ── the ONE repair (owner decision 6) ─────────────────────────────────────────────────────────────────
+BAD_TARGET = {"action": "chart.setTimeframe", "target": "c9", "args": {"timeframe": "W"}}
+GOOD = {"action": "chart.setTimeframe", "target": "c2", "args": {"timeframe": "W"}}
+
+
+def test_server_repairs_a_rejected_plan_once_and_the_result_passes_every_check(flag_on):
+    c = caller_of(_resp(nl1_env("apply", [BAD_TARGET])), _resp(nl1_env("apply", [GOOD])))
+    out = turn.run_turn(message="the amd one weekly", context=CTX, history=[], capabilities=CATALOG, caller=c, interpreter="nl1")
+    assert len(c.calls) == 2 and out["usage"]["repaired"] == "server"
+    assert "validation_error" in c.calls[1]["messages"][-1]["content"] and "'c9'" in c.calls[1]["messages"][-1]["content"]
+    assert out["envelope"]["ops"] == [GOOD]
+
+
+def test_server_never_repairs_twice(flag_on):
+    c = caller_of(_resp(nl1_env("apply", [BAD_TARGET])), _resp(nl1_env("apply", [BAD_TARGET])), _resp(nl1_env("apply", [GOOD])))
+    out = turn.run_turn(message="weekly", context=CTX, history=[], capabilities=CATALOG, caller=c, interpreter="nl1")
+    assert len(c.calls) == 2                                   # one repair, then the usual guard asks
+    assert out["envelope"]["disposition"] == "clarify" and out["envelope"]["ops"] == []
+
+
+def test_server_repairs_an_unknown_action_instead_of_failing_the_turn(flag_on):
+    ghost = {"action": "broker.buy", "target": "c1", "args": {}}
+    c = caller_of(_resp(nl1_env("apply", [ghost])), _resp(nl1_env("unsupported", reply="UCT can't place orders.")))
+    out = turn.run_turn(message="buy 100 nvda", context=CTX, history=[], capabilities=CATALOG, caller=c, interpreter="nl1")
+    assert out["envelope"]["disposition"] == "unsupported" and out["envelope"]["ops"] == []
+
+
+def test_no_repair_without_a_call_left_or_with_the_flag_off(flag_on, monkeypatch):
+    class NoCallsLeft:
+        def calls_left(self):
+            return 0
+
+        def call(self, category, fn, **kw):
+            return fn(**kw)
+    c = caller_of(_resp(nl1_env("apply", [BAD_TARGET])))
+    monkeypatch.setattr(turn, "_paid", lambda meter, category, fn, **kw: fn(**kw))
+    out = turn.run_turn(message="weekly", context=CTX, history=[], capabilities=CATALOG, caller=c, interpreter="nl1", meter=NoCallsLeft())
+    assert len(c.calls) == 1 and out["envelope"]["disposition"] == "clarify"
+    monkeypatch.delenv(turn.NL1_ENV)
+    legacy_bad = {"disposition": "apply", "reply": "", "question": None, "ops": [BAD_TARGET], "unsupported_category": None, "research": None, "title": None}
+    c2 = caller_of(_resp(legacy_bad), _resp(legacy_bad))
+    turn.run_turn(message="weekly", context=CTX, history=[], capabilities=CATALOG[:8], caller=c2, interpreter="nl1")
+    assert len(c2.calls) == 1                                  # legacy: never repaired
+
+
+def test_a_browser_repair_is_shown_sanitized_and_is_never_repaired_again(flag_on):
+    repair = {"errors": ["Weekly isn't available <script>x</script> here", "", 7] + [f"e{i}" for i in range(9)],
+              "plan": [GOOD, {"action": "not.real", "target": "c1", "args": {}}]}
+    c = caller_of(_resp(nl1_env("apply", [BAD_TARGET])), _resp(nl1_env("apply", [GOOD])))
+    out = turn.run_turn(message="weekly", context=CTX, history=[], capabilities=CATALOG, caller=c, interpreter="nl1", repair=repair)
+    content = c.calls[0]["messages"][-1]["content"]
+    assert "<script>" not in content and "validation_error" in content and "not.real" not in content
+    v = turn.validate_repair(repair, {cap["name"] for cap in CATALOG})
+    assert len(v["errors"]) == turn.MAX_REPAIR_ERRORS and v["previous_plan"] == [GOOD]
+    assert len(c.calls) == 1 and out["usage"]["repaired"] == "browser"   # its bad plan → the usual question, no 2nd call
+    assert out["envelope"]["disposition"] == "clarify"
+
+
+def test_flag_off_a_repair_field_is_ignored(flag_off):
+    legacy = {"disposition": "answer", "reply": "ok", "question": None, "ops": [], "unsupported_category": None, "research": None, "title": None}
+    c = caller_of(_resp(legacy))
+    turn.run_turn(message="x", context=CTX, history=[], capabilities=CATALOG[:8], caller=c, repair={"errors": ["x"]})
+    assert "validation_error" not in c.calls[0]["messages"][-1]["content"]

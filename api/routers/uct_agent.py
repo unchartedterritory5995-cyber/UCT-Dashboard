@@ -145,6 +145,9 @@ class TurnIn(BaseModel):
     # NL-1 (model-first interpretation): "nl1" asks for it; turn.run_turn honours it ONLY when the
     # server's UCT_AGENT_NL1 flag is on. Admin-only like every other field here (require_admin_dark).
     interpreter: Optional[str] = None
+    # NL-1's ONE repair: UCT's planner refused the previous plan for this same message. Only as a reroute
+    # (it continues the request, inside its 2-call ceiling — never a new, separately budgeted request).
+    repair: Optional[dict] = None
     pending: Optional[dict] = None
     recentOutcome: Optional[str] = None
     voice: bool = False
@@ -230,6 +233,8 @@ def _turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None) 
     paid call of this turn counts against (budget.py: at most 2 calls, and the $ caps per call)."""
     from api.services.uct_agent import limits
     uid = user["id"]
+    if body.repair is not None and not body.reroute:
+        raise HTTPException(status_code=400, detail="A repair continues a request; it can't start one.")
     try:
         slot = limits.admit(uid, new_request=not body.reroute)
     except limits.Refused as e:
@@ -301,7 +306,7 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
                              manifest_version=body.manifestVersion, routing=body.routing,
                              conversation_title=nameable, on_event=on_event,
                              meter=budget.Meter(user_id=uid, request_id=request_id), reroute=body.reroute,
-                             interpreter=body.interpreter)
+                             interpreter=body.interpreter, repair=body.repair)
     except budget.BudgetRefused as e:
         # refused BEFORE a paid call: nothing was sent, nothing changed; the day's count is given back
         _give_back(uid)

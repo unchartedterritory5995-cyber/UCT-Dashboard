@@ -37,7 +37,7 @@ import { registerBuiltins } from './builtins'
 import { routeManifest, routingEnabled, routingNames } from './routing'
 import { createMemory, tickersOfAnswer } from './memory'
 import { resolveReference, subjectTarget } from './references'
-import { nl1Enabled, exactLane, buildNl1Request, correctionPlan } from './nl1/interpreter'
+import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightRefusals, repairedDisposition, withoutWordingApprovals } from './nl1/interpreter'
 import { takeIndicatorTouch } from './capabilities/indicatorEdits'
 import { correctTypos, lexiconFor } from './nl/lexicon'
 import { agentTurn, agentTurnStream, serverStreams, loadAgentConfig, agentRecord, agentConversation } from './agentClient'
@@ -1180,7 +1180,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // (need_groups); we ask ONCE more with those groups. Nothing has executed in between.
       // M2 indicator writes are offered only when some chart on this board can manage indicators.
       const manageIndicators = (() => { try { return host?.charts?.list().some(c => host.charts.canManageIndicators?.(c.ref) === true) } catch { return false } })()
-      let res, refMap, live
+      let res, refMap, live, nl1Body = null
       if (nl1) {
         // NL-1: the whole catalog, every context section (none gated on the member's words), the session
         // memory with the last change, and the question this message may answer
@@ -1201,6 +1201,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         mark('context:built')
         live = streamLine()
         const b = { ...req.body, conversationId: conversationRef.current, voice }
+        nl1Body = b
         mark('turn:sent')
         res = await (serverStreams() ? agentTurnStream(b, live.onEvent) : agentTurn(b))
         mark('turn:received', res.ok ? stagesOf(res.data) : res.status || 'error')
@@ -1271,7 +1272,24 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       } // ── end of the legacy routed request ──
       if (!res.ok) { live.settle(null); push({ role: 'error', text: res.error }); return }
       if (res.data.conversationId !== conversationRef.current) setConversationId(res.data.conversationId)
-      const env = res.data.envelope
+      let env = res.data.envelope
+      // ⭐ NL-1 REPAIR (owner decision 6): if UCT's planner would refuse the model's plan, the plan goes back
+      // to the model ONCE with the planner's reasons — as a reroute of this same request, so the server's
+      // 2-call ceiling bounds it (and a plan the server already repaired is never repaired again). The new
+      // plan then passes every check below exactly like a first answer, and never asks for less approval.
+      if (nl1 && nl1Body && ['apply', 'propose'].includes(env.disposition) && res.data.usage?.repaired == null) {
+        const refused = preflightRefusals(host, translateRefs(env.ops || [], refMap))
+        if (refused.length) {
+          mark('repair')
+          const first = env.disposition
+          const r2 = await agentTurn({ ...nl1Body, conversationId: res.data.conversationId, reroute: true, repair: { errors: refused, plan: env.ops } })
+          mark('repair:received', r2.ok ? stagesOf(r2.data) : r2.status || 'error')
+          if (r2.ok) {
+            res = r2
+            env = { ...r2.data.envelope, disposition: repairedDisposition(first, r2.data.envelope.disposition) }
+          }
+        }
+      }
       const sources = res.data.usage?.citations || []
       const talk = env.disposition === 'answer' || env.disposition === 'unsupported'
       // the final reply replaces whatever streamed (or the streamed line goes, for anything else)
@@ -1333,7 +1351,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         return
       }
       // S6 F4: a new chart for a named ticker is born on it (not linked), even if the plan dropped the ticker
-      const ops = screenNewChart(screened.ops, text).ops
+      const screenedOps = screenNewChart(screened.ops, text).ops
+      // NL-1: no wording-dependent approval shortcut — every indicator save shows its approval card
+      const ops = nl1 ? withoutWordingApprovals(screenedOps) : screenedOps
       lastActionsRef.current = ops.map(o => o.action)
       // ⭐ NL-1 CORRECTION ("no, I meant 15"): the Agent's previous change is reversed FIRST, through the
       // existing Undo — which refuses when the change is protected, on another board, or was modified since

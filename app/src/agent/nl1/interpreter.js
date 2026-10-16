@@ -14,7 +14,8 @@
 // This module builds the NL-1 request. The SAME function is used by the panel (useAgent) and by the
 // eval capture (eval/capture.js), so what is measured is what would be sent.
 
-import { buildContext, manifestFor, MANIFEST_VERSION } from '../capabilities'
+import { buildContext, manifestFor, getCapability, isRef, MANIFEST_VERSION } from '../capabilities'
+import { planOps, collectTargets } from '../executor'
 
 export const NL1_KEY = 'uct.agent.nl1'
 export const INTERPRETER = 'nl1'
@@ -90,6 +91,41 @@ export function memoryForModel(memory, epoch, back) {
   }
   return Object.keys(out).length ? out : null
 }
+
+/**
+ * The ONE repair (owner decision 6, 2026-10-16): would UCT's planner refuse this plan? Returns the refusal
+ * sentences (UCT's own words, at most 5, 200 chars each) — empty when the plan plans, or when it cannot be
+ * judged ahead of execution (a plan that consumes another op's result, or creates what it then targets:
+ * those resolve only at apply). A non-empty list is sent back to the model once; whatever it returns goes
+ * through every check again (registry, planner, policy, approval, stale state, execution).
+ */
+export function preflightRefusals(host, ops) {
+  try {
+    if (!Array.isArray(ops) || !ops.length) return []
+    if (ops.some(o => Object.values(o?.args || {}).some(isRef) || getCapability(o?.action)?.creates)) return []
+    const kinds = [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
+    const plan = planOps(collectTargets(host, kinds), ops)
+    if (plan.ok) return []
+    return [...new Set((plan.refusals || []).map(r => String(r.reason || '').replace(/[\u0000-\u001f<>`]+/g, ' ').trim().slice(0, 200)).filter(Boolean))].slice(0, 5)
+  } catch { return [] }
+}
+
+/** A repaired plan never asks for LESS approval than the plan it replaces: a proposal stays a proposal. */
+export function repairedDisposition(first, second) {
+  return first === 'propose' && second === 'apply' ? 'propose' : second
+}
+
+/**
+ * NL-1 has no wording-dependent approval shortcut (owner decision 5): the `explicit` mark that lets an
+ * indicator save skip its card when the member's own words named it is removed, so every save shows the
+ * existing approval card. (The legacy path keeps it unchanged.)
+ */
+export const withoutWordingApprovals = (ops) => (ops || []).map(o => {
+  if (!o || !('explicit' in o)) return o
+  const { explicit, ...rest } = o
+  void explicit
+  return rest
+})
 
 /**
  * A CORRECTION ("no, I meant 15 minutes") may reverse the Agent's previous change only when ALL hold:

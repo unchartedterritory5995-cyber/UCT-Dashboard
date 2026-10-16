@@ -74,40 +74,44 @@ These are defined in `app/src/agent/eval/acceptance.js` and judged on the **seal
 
 NL-1 must also beat the legacy baseline's sealed interpretation accuracy on the same model.
 
-## 5. Paid runs: estimate and proposed hard caps (NOT authorized yet)
+## 5. Paid runs: estimate and caps (NOT authorized yet; total ceiling $45 approved as a maximum)
 
-The estimates below are free dry runs of all 842 turns, from the captured bodies.
-- **Tokens:** chars ÷ 4 to ÷ 3.
-- **Output:** 350 tokens per request typical; the full 2,048 in the worst case.
-- **Caching:** assumes one cache write per distinct system prompt and reads after.
-- **Prices:** from `tools/agent_eval_prices.json`, which is **unverified**. They come from the skill's model table (cached 2026-10-06). The runner refuses to run until they are checked live.
+**Prices.** These are the published ones, verified 2026-10-16 against platform.claude.com (`tools/agent_eval_prices.json`), in USD per million tokens:
 
-| Model | Mode | Input tokens | Cached | Uncached | Worst case |
-|---|---|---|---|---|---|
-| Haiku 4.5 | legacy (baseline) | 6.7–9.0 M (system ~9.2k/request, 62 distinct prompts) | $4.13 | $10.47 | $19.86 |
-| Haiku 4.5 | NL-1 | 15.0–20.0 M (system ~20.8k/request, **1 distinct prompt**) | $5.78 | $21.51 | $33.67 |
-| Haiku 5.5 | legacy | same as legacy above | $0.41 | $1.05 | $1.99 |
-| Haiku 5.5 | NL-1 | same as NL-1 above | $0.58 | $2.15 | $3.37 |
-| Sonnet 5.5 | NL-1, sealed only (405) | 7.2–9.6 M | $5.60 | $20.71 | $32.41 |
+| Model | Input | 5-minute cache write | Cache read | Output |
+|---|---|---|---|---|
+| Haiku 4.5 | $1 | $1.25 | $0.10 | $5 |
+| Haiku 5.5 (prompts ≤ 100K) | $0.10 | $0.125 | $0.01 | $0.50 |
+| Sonnet 5.5 | $2 | $2.50 | **$0.10** (0.05×; the earlier draft said $0.20) | $10 |
 
-What this means:
-- NL-1's system prompt is about 2.3× the routed one, but it is **byte-identical on every request**, so it caches. Legacy routing produces 62 different prompts. Haiku 4.5 caches only from 4,096 tokens, which NL-1's prompt clears.
-- Per request, cached: Haiku 4.5 NL-1 ≈ **$0.007**, which is today's band. Haiku 5.5 NL-1 ≈ **$0.0007**. Sonnet 5.5 NL-1 ≈ **$0.014**.
-- Haiku 5.5 and Sonnet 5.5 think by default (adaptive). Thinking tokens are **not** in the estimate. A 10-request smoke run measures them before any full run.
+Reasoning tokens are billed as output and count toward `max_tokens`. Whether each model is available on the account is checked live at the start of each run.
 
-**Proposed plan.** Separate eval key `UCT_AGENT_EVAL_API_KEY`. Never the production key, budget or ledgers.
+**Estimates** for all 842 turns. Free dry runs; tokens are chars ÷ 4 to ÷ 3; output is 350 tokens typical.
 
-| Step | Run | Hard cap (`--max-usd`) |
-|---|---|---|
-| 0 | Verify prices and model availability on the eval account (free models lookup); mark the price file verified | $0 |
-| 1 | Smoke: 10 dev requests × 3 models (thinking and real token counts) | $1 |
-| 2 | Baseline: legacy, Haiku 4.5, all sets | $12 |
-| 3 | NL-1, Haiku 4.5, all sets | $15 |
-| 4 | NL-1, Haiku 5.5 (effort low, and medium if low misses gates), all sets | $5 |
-| 5 | NL-1, Sonnet 5.5, sealed only (quality ceiling) | $12 |
-| | **Total ceiling** | **$45** (expected ≈ $12–18 with caching) |
+| Model | Mode | Cached | Uncached | Worst case* |
+|---|---|---|---|---|
+| Haiku 4.5 | legacy (baseline) | $4.11 | $10.47 | $39.73 |
+| Haiku 4.5 | NL-1 | $5.79 | $21.62 | $67.61 |
+| Haiku 5.5 | legacy | $0.41 | $1.05 | $3.97 |
+| Haiku 5.5 | NL-1 | $0.58 | $2.16 | $6.76 |
+| Sonnet 5.5 | NL-1, sealed only (405) | $4.76 | $20.81 | $65.08 |
 
-The runner enforces each cap **before every call**. Each call is costed at its worst case (whole prompt as a cache write, plus full `max_tokens`), at the higher of the price file and the server's conservative estimator.
+\* Worst case: 2 calls per request (the one repair), each a full cache write plus 2,048 output tokens.
+
+NL-1's system prompt (~21k tokens) is byte-identical on every request, so it caches. Legacy routing produces 62 different prompts. Every per-run hard cap is below these worst cases: the runner stops before a call that could pass its cap, so the cap, not the worst case, bounds the spend.
+
+**Order:**
+1. The 10-request trial ([NL1-TRIAL.md](NL1-TRIAL.md)): caps $0.10, $0.85 and $1.65, **$2.60 total**.
+2. Then the full eval:
+
+| Run | Hard cap |
+|---|---|
+| Baseline: legacy, Haiku 4.5 | $12 |
+| NL-1, Haiku 4.5 | $15 |
+| NL-1, Haiku 5.5 | $5 |
+| NL-1, Sonnet 5.5, sealed only | $10 |
+
+The total stays within the approved **$45** ceiling, including the trial. Expected spend with caching is ≈ $15.
 
 ## 6. How to run (after approval)
 ```

@@ -58,3 +58,18 @@ Unchanged: the registry, the planner, the policy (`decideMode`), the product wri
 - Verify prices and model availability, then mark `tools/agent_eval_prices.json` verified.
 - Provide a separate eval key (`UCT_AGENT_EVAL_API_KEY`).
 - Approve the caps in NL1-EVAL.md §5: total ceiling $45, expected ≈ $12–18.
+
+---
+
+## Iteration 2: the owner's decisions after the first report (2026-10-16)
+
+| # | Decision | Done |
+|---|---|---|
+| 4 | NL-1-only 120-action limit, legacy 60 kept, boundary and authorization tests | Limit behind `UCT_AGENT_NL1`. Tests: 120 accepted / 121 refused (flag on); 60 accepted / 61 refused with the flag off, whether or not the request asks for NL-1; a legacy request keeps 60 even with the flag on; non-admins get 402/403 whatever the NL-1 or repair fields say; a repair that does not continue a request gets 400 |
+| 5 | Under NL-1 an indicator save always shows its approval card | `withoutWordingApprovals` removes the wording-based `explicit` mark on the NL-1 path only, so the policy sees the save as irreversible and proposes it. The legacy path is unchanged |
+| 6 | One bounded repair | **Server:** a plan it would reject (unknown action, arguments off-schema, a target the browser never offered) goes back to the model once, inside the same request, only if a call is left. **Browser:** a plan UCT's planner refuses goes back once, as a reroute of the same request (`repair: {errors, plan}`), so the server's 2-call ceiling bounds it, and a plan the server already repaired is never repaired again. The repaired plan passes every check again and **never asks for less approval** (`repairedDisposition`: propose stays propose). Errors are sanitized on both sides: at most 5, 200 characters each, no markup; only known actions in the previous plan |
+| 3 | Verify models and prices | Published prices verified (platform.claude.com, 2026-10-16). **Correction:** Sonnet 5.5's cache read is $0.10 (0.05×), not $0.20. Reasoning is billed as output inside `max_tokens`. Account availability is checked live at the start of each run (it needs the API, so it is not done yet) |
+| 7 | 10-request trial plan | [NL1-TRIAL.md](NL1-TRIAL.md): 10 dev requests (never sealed); T1 Haiku 5.5 / T2 Haiku 4.5 / T3 Sonnet 5.5; caps $0.10 / $0.85 / $1.65 = **$2.60**; expected ≈ $0.27; 30 s timeout; 2,048 output cap (reasoning included); 5 automatic abort conditions; cache and thinking measured per call |
+| 8 | Sealed sets | Unchanged and still locked (hash test passes). The trial uses dev cases only, and the runner refuses a key selection that names a sealed case |
+
+Also fixed: the estimator priced a whole run's tokens as one prompt, which wrongly applied Haiku 5.5's over-100K tier. It now prices per request.

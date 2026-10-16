@@ -179,3 +179,70 @@ describe('NL-1 flag ON: the model reads every ordinary request', () => {
     expect(turns).toHaveLength(1)
   })
 })
+
+describe('NL-1 repair: one bounded attempt, never an approval bypass (owner decision 6)', () => {
+  it('a plan UCT\'s planner refuses goes back ONCE (a reroute of the same request, with the reasons); the repaired plan runs', async () => {
+    nl1On()
+    const b = oneChart()
+    const { say } = mount(b)
+    script = (body, n) => (n === 1 ? setTf(body, 'L', '7') : setTf(body, 'L', '15'))
+    await say('make it the 15 min')
+    await waitFor(() => expect(tf(b, 'L')).toBe('15'))
+    expect(turns).toHaveLength(2)
+    expect(turns[1]).toMatchObject({ reroute: true, interpreter: 'nl1', message: 'make it the 15 min' })
+    expect(turns[1].repair.errors.length).toBeGreaterThan(0)
+    expect(turns[1].repair.plan[0]).toMatchObject({ action: 'chart.setTimeframe', args: { timeframe: '7' } })
+  })
+
+  it('a repair never asks for less approval: a proposal stays a proposal', async () => {
+    nl1On()
+    const b = oneChart()
+    const { say } = mount(b)
+    script = (body, n) => (n === 1 ? answer({ disposition: 'propose', ops: [{ action: 'chart.setTimeframe', target: refOf(body, 'L'), args: { timeframe: '7' } }] }) : setTf(body, 'L', '15'))
+    await say('set this up for scalping')
+    await waitFor(() => expect(turns).toHaveLength(2))
+    await new Promise(r => setTimeout(r, 200))
+    expect(tf(b, 'L')).toBe('D')                                // proposed, not applied
+    await say('do it')
+    await waitFor(() => expect(tf(b, 'L')).toBe('15'))
+    expect(turns).toHaveLength(2)
+  })
+
+  it('no second repair: a repaired plan that is still refused is refused, and nothing changes', async () => {
+    nl1On()
+    const b = oneChart()
+    const { say, transcript } = mount(b)
+    script = (body) => setTf(body, 'L', '7')
+    await say('make it 7')
+    await waitFor(() => expect(transcript()).toMatch(/didn't change anything/i))
+    expect(turns).toHaveLength(2)
+    expect(tf(b, 'L')).toBe('D')
+  })
+
+  it('a plan the server already repaired is not repaired again by the browser', async () => {
+    nl1On()
+    const b = oneChart()
+    const { say } = mount(b)
+    script = (body) => ({ ...setTf(body, 'L', '7'), usage: { repaired: 'server' } })
+    await say('make it 7')
+    await new Promise(r => setTimeout(r, 300))
+    expect(turns).toHaveLength(1)
+    expect(tf(b, 'L')).toBe('D')
+  })
+})
+
+describe('NL-1 has no wording-dependent approval shortcut (owner decision 5)', () => {
+  it('the explicit mark is removed, so an indicator save is irreversible to the policy and always shows its card', async () => {
+    const { withoutWordingApprovals, repairedDisposition } = await import('./nl1/interpreter')
+    const { getCapability } = await import('./capabilities')
+    const ops = [{ action: 'indicator.saveDraft', target: 'd1', args: { addTo: [], name: null }, explicit: true }, { action: 'chart.setTimeframe', target: 'L', args: { timeframe: 'W' } }]
+    const out = withoutWordingApprovals(ops)
+    expect(out.every(o => !('explicit' in o))).toBe(true)
+    expect(out[1]).toBe(ops[1])                                 // untouched ops are the same objects
+    const cap = getCapability('indicator.saveDraft')
+    expect(cap.reversible === false || cap.risk === 'confirm').toBe(true)
+    expect(repairedDisposition('propose', 'apply')).toBe('propose')
+    expect(repairedDisposition('apply', 'propose')).toBe('propose')
+    expect(repairedDisposition('apply', 'apply')).toBe('apply')
+  })
+})
