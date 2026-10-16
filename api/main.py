@@ -2005,6 +2005,16 @@ def register_screener_jobs(scheduler):
                           f"samples={vc.get('samples')} reason={vc.get('reason')}")
                 except Exception as e:  # noqa: BLE001
                     print(f"[scheduler] screener volume curve error: {e}")
+                # "New today" (dark): record each screen's tickers, but only after a
+                # COMPLETE build -- a short build's membership would mark real names
+                # as dropped tomorrow.
+                try:
+                    from api.services.screener import membership
+                    if membership.job_enabled() and _nightly_shortfall(stats) is None:
+                        mr = membership.record_all()
+                        print(f"[scheduler] screener membership: {mr}")
+                except Exception as e:  # noqa: BLE001
+                    print(f"[scheduler] screener membership error: {e}")
             _alert_if_nightly_short(stats)
         except Exception as e:
             print(f"[scheduler] screener snapshot build error: {e}")
@@ -10049,6 +10059,8 @@ from api.routers import alert_outbound as alert_outbound_router  # noqa: E402  (
 app.include_router(alert_outbound_router.router)
 from api.routers import screen_promote as screen_promote_router  # noqa: E402  (FT-027, dark)
 app.include_router(screen_promote_router.router)
+from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
+app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)
 app.include_router(screener_nl_router.router)
 from api.routers import uct_agent as uct_agent_router  # noqa: E402  (UCT Agent, admin-dark)

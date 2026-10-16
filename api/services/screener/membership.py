@@ -171,3 +171,13 @@ def diff(spec: dict) -> dict:
             "prev_session": prev["session_date"],
             "entered": sorted(current - before), "exited": sorted(before - current),
             "new_since_label": _label(prev["session_date"], prev["snapshot_date"])}
+
+
+FLAG = "SCREENER_NEW_TODAY_ENABLED"
+
+
+def job_enabled() -> bool:
+    """The nightly record runs whenever ANYONE can see the markers (owner preview included).
+    The default is read from `auth.SCREENER_FLAGS`, the one declaration of this flag."""
+    from api.routers import auth
+    return auth._breadth_dc_scope(FLAG, auth.SCREENER_FLAGS[FLAG]) != auth._SCOPE_OFF
