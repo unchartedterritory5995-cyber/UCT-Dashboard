@@ -278,6 +278,7 @@ describe('every registry function resolves to a real surface', () => {
       '/journal-2-0/report',                                    // a journal detail page
       '/journal-2-0/playbook',                                  // a journal detail page (13B, reached from Insights > Playbook)
       '/post-market', '/setup-library',                         // PMKT / SETL removed from the terminal 2026-10-08 (owner decision); pages kept
+      '/trader-archive',                                        // TSDR archive, dark behind WISDOM_ARCHIVE_ENABLED: no AuthContext flag to gate a registry entry; reached from Research > Catalysts
     ])
     const doors = new Set(variants.flatMap((x) => [x.v.door, x.v.surface, x.v.full])
       .filter(Boolean).map((d) => doorRoute(d, appRoutes())))

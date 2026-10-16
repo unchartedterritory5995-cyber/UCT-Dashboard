@@ -75,7 +75,7 @@ export default function FilterControl({ filter, value, onChange, presentation = 
       <div className={styles.presetGroup}>
         <span className={styles.presetHead}>
           <span className={styles.filterLabel}>{filter.label}</span>
-          <ColumnDesc colKey={filter.key} name={filter.label} tapTarget />
+          <ColumnDesc colKey={filter.key} name={filter.label} desc={filter.description} tapTarget />
         </span>
         <div className={styles.presetRow} role="group" aria-label={filter.label}>
           {(filter.presets || []).map((p, i) => (
@@ -101,8 +101,9 @@ export default function FilterControl({ filter, value, onChange, presentation = 
     <div className={styles.filterRow}>
       {/* The honesty text belongs HERE as much as on the results header: the
           misreading that matters happens when a member picks a threshold, not
-          when they read a cell back. `meta()` ships no description of its own,
-          so the join is filter.key → COLUMN_DEFS[key] — the registry keys the
+          when they read a cell back. A filter whose `meta()` entry carries a
+          `description` shows THAT; otherwise the join is filter.key →
+          COLUMN_DEFS[key] — the registry keys the
           snapshot column of the same name for every filter but one (`pattern`,
           whose column is `patterns` and which carries no `desc`). `ColumnDesc`
           renders nothing when the column has none, so most rows are unchanged. */}
@@ -114,7 +115,7 @@ export default function FilterControl({ filter, value, onChange, presentation = 
           the row with it) instead of overflowing anything. */}
       <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <label className={styles.filterLabel} htmlFor={`fc_${filter.key}`}>{filter.label}</label>
-        <ColumnDesc colKey={filter.key} name={filter.label} tapTarget />
+        <ColumnDesc colKey={filter.key} name={filter.label} desc={filter.description} tapTarget />
       </span>
       <Select id={`fc_${filter.key}`} aria-label={filter.label}
         className={`${styles.filterSelect} ${value ? styles.filterSelectActive : ''}`}
