@@ -252,6 +252,56 @@ def test_a_bad_archive_link_is_named(vocabulary):
     assert any(p.startswith("flag_htf (launchpad) and bull_flag (flag)") for p in problems)
 
 
+def library_detector_problems(vocabulary: dict, detectors) -> list[str]:
+    """Every way a setupCatalog.js row's detector link (its route to the trader archive) can be wrong."""
+    known = set(detectors)
+    filed = {pid for r in vocabulary["maps"]["trader_archive"]["rows"] for pid in r["pattern_engine_ids"]}
+    problems = []
+    for row in vocabulary["maps"]["setupCatalog.js"]["rows"]:
+        ids = row.get("pattern_engine_ids")
+        if ids is None:
+            continue
+        if not isinstance(ids, list) or not ids:
+            problems.append(f"{row['external_name']}: pattern_engine_ids must be a non-empty list")
+            continue
+        for pid in ids:
+            if pid not in known:
+                problems.append(f"{row['external_name']}: unknown detector {pid}")
+            elif pid not in filed:
+                problems.append(f"{row['external_name']}: detector {pid} is filed under no archive setup")
+    return problems
+
+
+#: setupCatalog.js rows that reach the archive through a detector (owner delegation 2026-10-16).
+LIBRARY_DETECTOR_LINKS = {"Episodic Pivot": ["episodic_pivot"], "Slingshot": ["uct_slingshot"],
+                          "Parabolic Short": ["parabolic_short"]}
+
+
+def test_the_library_detector_links_are_real_and_exactly_the_pinned_three(vocabulary):
+    detectors = DERIVABLE["pattern_engine"][0](REPO)
+    assert not library_detector_problems(vocabulary, detectors)
+    linked = {r["external_name"]: r["pattern_engine_ids"] for r in vocabulary["maps"]["setupCatalog.js"]["rows"]
+              if "pattern_engine_ids" in r}
+    assert linked == LIBRARY_DETECTOR_LINKS
+    # a detector link never stands in for a vocabulary id the row could have had
+    for name in linked:
+        row = next(r for r in vocabulary["maps"]["setupCatalog.js"]["rows"] if r["external_name"] == name)
+        assert row["vocab_id"] is None, row
+
+
+def test_a_bad_library_detector_link_is_named(vocabulary):
+    detectors = DERIVABLE["pattern_engine"][0](REPO)
+    planted = json.loads(json.dumps(vocabulary))
+    rows = planted["maps"]["setupCatalog.js"]["rows"]
+    next(r for r in rows if r["external_name"] == "Slingshot")["pattern_engine_ids"].append("no_such_detector")
+    next(r for r in rows if r["external_name"] == "Cup & Handle")["pattern_engine_ids"] = ["head_shoulders"]
+    next(r for r in rows if r["external_name"] == "2B Reversal")["pattern_engine_ids"] = []
+    problems = library_detector_problems(planted, detectors)
+    assert "Slingshot: unknown detector no_such_detector" in problems
+    assert "Cup & Handle: detector head_shoulders is filed under no archive setup" in problems
+    assert "2B Reversal: pattern_engine_ids must be a non-empty list" in problems
+
+
 def test_the_engine_strings_still_have_rows_when_the_engine_db_is_reachable(vocabulary):
     engine_db = os.environ.get("WISDOM_ENGINE_DB", "")
     if not engine_db or not pathlib.Path(engine_db).is_file():

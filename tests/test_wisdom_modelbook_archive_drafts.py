@@ -100,8 +100,9 @@ def test_library_setups_reach_archive_setups_only_through_the_vocabulary(monkeyp
     links = modelbook.archive_links()
     assert links[LIBRARY_SETUP] == [ARCHIVE_SETUP]
     assert len(links) >= 10 and set(links) <= set(modelbook.catalog_names())          # non-vacuity
-    # a library name with no vocab id links to nothing, even when an archive setup shares its idea
-    assert "Slingshot" in modelbook.catalog_names() and "Slingshot" not in links
+    # a library name with neither a vocab id nor a detector links to nothing, even when an archive
+    # setup shares its idea (Cup & Handle's detectors are filed under the breakout_other catch-all)
+    assert "Cup & Handle" in modelbook.catalog_names() and "Cup & Handle" not in links
     # control: move the vocabulary and the link moves with it — it is derived, not typed
     real = vocab.load_vocabulary()
     moved = {**real, "maps": {**real["maps"], "setupCatalog.js": {
@@ -109,6 +110,31 @@ def test_library_setups_reach_archive_setups_only_through_the_vocabulary(monkeyp
         "rows": [r for r in real["maps"]["setupCatalog.js"]["rows"] if r["external_name"] != LIBRARY_SETUP]}}}
     monkeypatch.setattr(vocab, "load_vocabulary", lambda: moved)
     assert LIBRARY_SETUP not in modelbook.archive_links()
+
+
+#: Library setups with no vocabulary entry that reach the archive through the detector they ARE.
+#: Pinned by owner delegation 2026-10-16; every other no-vocab library setup stays unlinked.
+DETECTOR_LINKS = {"Episodic Pivot": ["ep"], "Slingshot": ["slingshot"], "Parabolic Short": ["parabolic_short"]}
+UNLINKED = ("Parabolic Long", "ORB (Opening Range Break)", "2B Reversal", "Cup & Handle", "EMA Crossback",
+            "Failed H&S / Rounded Top")
+
+
+def test_the_no_vocab_library_setups_link_through_their_detector_and_only_those(monkeypatch):
+    links = modelbook.archive_links()
+    for name, ids in DETECTOR_LINKS.items():
+        assert links.get(name) == ids, (name, links.get(name))
+    for name in UNLINKED:
+        assert name in modelbook.catalog_names() and name not in links, name
+    # the vocab-id route is untouched: Power Earnings Gap still reaches its earnings_gap_up rows
+    assert links["Power Earnings Gap"] == ["ep", "peg_flag"]
+    # control: strip the detector key from the vocabulary and the three links go with it
+    real = vocab.load_vocabulary()
+    stripped = {**real, "maps": {**real["maps"], "setupCatalog.js": {
+        **real["maps"]["setupCatalog.js"],
+        "rows": [{k: v for k, v in r.items() if k != "pattern_engine_ids"}
+                 for r in real["maps"]["setupCatalog.js"]["rows"]]}}}
+    monkeypatch.setattr(vocab, "load_vocabulary", lambda: stripped)
+    assert not set(DETECTOR_LINKS) & set(modelbook.archive_links())
 
 
 # ── 3. the price-age gate ────────────────────────────────────────────────────
@@ -125,13 +151,35 @@ def _sessions_after(start: date, n: int) -> date:
 
 
 def test_levels_age_in_only_after_twenty_sessions():
+    from api.services.wisdom.archive import provider
+
+    # ONE authority for the gate: the Model Book keeps no copy of it
+    assert not hasattr(modelbook, "price_aged") and not hasattr(modelbook, "ARCHIVE_PRICE_AGE_SESSIONS")
+    assert provider.PRICE_AGE_SESSIONS == 20
     start = date(2026, 9, 1)
-    assert modelbook.price_aged("2026-09-01", today=_sessions_after(start, 21)) is True
-    assert modelbook.price_aged("2026-09-01", today=_sessions_after(start, 20)) is False   # the boundary
-    assert modelbook.price_aged("2026-09-01T15:30:00", today=_sessions_after(start, 3)) is False
-    assert modelbook.price_aged("2024-01-02", today=start) is True
+    assert provider.is_aged("2026-09-01", _sessions_after(start, 21)) is True
+    assert provider.is_aged("2026-09-01", _sessions_after(start, 20)) is False   # the boundary
+    assert provider.is_aged("2026-09-01T15:30:00", _sessions_after(start, 3)) is False
+    assert provider.is_aged("2024-01-02", start) is True
     for unknown in (None, "", "not a date", "2026-13-01"):
-        assert modelbook.price_aged(unknown, today=start) is False                     # doubt withholds
+        assert provider.is_aged(unknown, start) is False                     # doubt withholds
+
+
+@pytest.mark.parametrize("sessions, shown", [(20, False), (21, True)])
+def test_a_model_book_example_shows_a_price_only_past_twenty_sessions(seeded, monkeypatch, sessions, shown):
+    """End to end through the Model Book: the best call (posted 2025-01-02) at exactly 20 sessions
+    old must carry no entry/stop/target; one session later it carries all three."""
+    from api.services.wisdom.archive import provider
+
+    monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "1")
+    _seed_archive()
+    monkeypatch.setattr(provider, "_today", lambda: _sessions_after(date(2025, 1, 2), sessions))
+    with store.read() as conn:
+        best = next(d["payload"] for d in modelbook.build_archive_example_drafts(conn)
+                    if d["payload"]["setup_name"] == LIBRARY_SETUP and d["payload"]["call_id"] == "t9201#0")
+    levels = (best["entry_price"], best["stop_price"], best["target_price"])
+    assert levels == ((10.0, 9.0, 14.0) if shown else (None, None, None))
+    assert best["levels_withheld"] is (not shown)
 
 
 # ── 2. the archive flag ──────────────────────────────────────────────────────
