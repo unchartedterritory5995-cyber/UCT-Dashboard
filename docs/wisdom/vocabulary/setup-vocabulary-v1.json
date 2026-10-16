@@ -2449,6 +2449,30 @@
      "vocab_id": null,
      "mismatch": 0,
      "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "uct_launch_pad",
+     "vocab_id": "launchpad",
+     "mismatch": 0,
+     "note": "the traders' launch pad: converged 8/21/50 (or 9/20/50/200) averages with price just above them and a curling 50-day"
+    },
+    {
+     "external_name": "uct_gap_support",
+     "vocab_id": "open_bull_gap",
+     "mismatch": 1,
+     "note": "the detector is the SETUP of testing an unfilled volume gap; the vocabulary entry is the gap LEVEL itself (alias 'gap support'). Same family, different object"
+    },
+    {
+     "external_name": "uct_capitulation",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (rubber-band capitulation long was not named in the Session 0 samples)"
+    },
+    {
+     "external_name": "uct_go_signal",
+     "vocab_id": "go_signal",
+     "mismatch": 1,
+     "note": "the detector reads the DAILY footprint (weak open, support sweep, strong close); the vocabulary's Go Signal is an intraday entry the daily bar cannot see"
     }
    ]
   },
