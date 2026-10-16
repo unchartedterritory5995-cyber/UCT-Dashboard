@@ -91,6 +91,7 @@ import { noteHasUnsentWork } from '../../lib/offline/noteHasUnsentWork'
 import { openNotebookDb } from '../../lib/offline/notebookDb'
 import { forkConflictedCopy } from '../../lib/offline/useOutboxDrain'
 import { conflictedCopyTitle } from '../../lib/offline/noteCopy'
+import RefusedCopyOffer from './RefusedCopyOffer'
 import { holdsUnsentWork } from '../../lib/noteBatch'
 import { textColorClass } from '../../lib/textColor'
 import NoteHistoryPanel from './NoteHistoryPanel'
@@ -1266,10 +1267,11 @@ export default function NoteEditorPage({
   // ⭐ I-A fix round 3 (C-3, I-4): copies of this note's words the server refused
   // to create, handed back by `recover()` BESIDE its decision. Each is its own
   // offer: "Save as a separate note" or "Discard" (confirmed in the page). ⛔ Never
-  // restored into this note. `copyAsk` is the copy whose Discard is being
-  // confirmed; `copyNote` is the latest outcome message, keyed by copy.
+  // restored into this note. `copyNote` is the latest outcome message, keyed by
+  // copy. ⭐ Fix round 4 (I-6): the offer itself (`RefusedCopyOffer`) shows the
+  // copy's words, carries "Copy text" and "Save as plain text", and owns its
+  // Discard confirm.
   const [refusedCopies, setRefusedCopies] = useState([])
-  const [copyAsk, setCopyAsk] = useState(null)
   const [copyBusy, setCopyBusy] = useState(null)
   const [copyNote, setCopyNote] = useState({})
   const [copySavedNotice, setCopySavedNotice] = useState(null)
@@ -1360,7 +1362,7 @@ export default function NoteEditorPage({
     if (!note) return undefined
     viewReplaced()   // hotfix 2026-10-15: a note load is a new view — a new lineage
     restoreSwapRef.current = null   // I-A: no Restore on this note's page yet
-    setRefusedCopies([]); setCopyAsk(null); setCopyBusy(null); setCopyNote({}); setCopySavedNotice(null)
+    setRefusedCopies([]); setCopyBusy(null); setCopyNote({}); setCopySavedNotice(null)
     setRecoveryDecidedFor(null)
     setTitle(note.title || '')
     titleRef.current = note.title || ''
@@ -1843,42 +1845,56 @@ export default function NoteEditorPage({
   /** ⭐ I-A fix round 3 (C-3): "Save as a separate note" — the create again, as a
    *  NEW note, through the sweep's own `forkConflictedCopy`. This note is never
    *  written. Refused again ⇒ kept, still offered, with the new reason. */
-  const saveRefusedCopyAsNote = async (copy) => {
+  /*  ⭐ Fix round 4 (I-6): with `plain`, "Save as plain text" — the same create, the
+   *  body flattened to plain paragraphs (offered after a CONTENT refusal, which the
+   *  create as it is can never get past). The stored copy keeps its original words
+   *  until a create lands. */
+  const saveRefusedCopyAsNote = async (copy, { plain = false } = {}) => {
     if (copyBusy) return
     setCopyBusy(copy.mutationId)
-    setCopyAsk(null)
     try {
-      const res = await durableRef.current.saveCopy(copy.mutationId, { fork: forkConflictedCopy })
+      const res = await durableRef.current.saveCopy(copy.mutationId, { fork: forkConflictedCopy, plain })
       if (res?.outcome === 'saved' || res?.outcome === 'gone') {
         setRefusedCopies((list) => list.filter((c) => c.mutationId !== copy.mutationId))
         if (res.outcome === 'saved') {
-          setCopySavedNotice(`Saved as a separate note: “${conflictedCopyTitle(copy.title)}”.`)
+          setCopySavedNotice(plain
+            ? `Saved as a separate note, as plain text: “${conflictedCopyTitle(copy.title)}”.`
+            : `Saved as a separate note: “${conflictedCopyTitle(copy.title)}”.`)
         }
         return
       }
       if (res?.outcome === 'refused') {
         if (res.copy) setRefusedCopies((list) => list.map((c) => (c.mutationId === copy.mutationId ? res.copy : c)))
-        setCopyNote((m) => ({ ...m, [copy.mutationId]: 'It still couldn’t be saved as a separate note. The copy stays on this device.' }))
+        setCopyNote((m) => ({
+          ...m,
+          [copy.mutationId]: plain ? 'Saving it as plain text was refused too.' : 'It still couldn’t be saved as a separate note.',
+        }))
         return
       }
-      setCopyNote((m) => ({ ...m, [copy.mutationId]: 'It couldn’t be saved right now. The copy stays on this device; try again when you’re online.' }))
+      // ⛔ Review wording flag: "when you're online" only when the network itself failed.
+      setCopyNote((m) => ({
+        ...m,
+        [copy.mutationId]: res?.offline
+          ? 'It couldn’t be saved right now. The copy stays on this device; try again when you’re online.'
+          : 'It couldn’t be saved right now. The copy stays on this device; try again later.',
+      }))
     } finally {
       setCopyBusy(null)
     }
   }
   /** "Discard" on a refused copy deletes it from this device — only after the
-   *  member confirms in the page (never `window.confirm`). */
+   *  member confirms in the page (never `window.confirm`). Resolves whether it did. */
   const discardRefusedCopyConfirmed = async (copy) => {
-    if (copyBusy) return
+    if (copyBusy) return false
     setCopyBusy(copy.mutationId)
     try {
       const ok = await durableRef.current.discardCopy(copy.mutationId)
       if (ok) {
         setRefusedCopies((list) => list.filter((c) => c.mutationId !== copy.mutationId))
-        setCopyAsk(null)
       } else {
         setCopyNote((m) => ({ ...m, [copy.mutationId]: 'The copy couldn’t be deleted. It stays on this device.' }))
       }
+      return ok
     } finally {
       setCopyBusy(null)
     }
@@ -5049,54 +5065,20 @@ export default function NoteEditorPage({
 
       {/* ⭐ I-A fix round 3 (C-3, I-4): a copy of this note's words the server
           refused to create. Its OWN offer, never a Restore into this note: save it
-          as a separate note, or discard it (confirmed here, in the page). */}
+          as a separate note, or discard it (confirmed here, in the page).
+          ⭐ Fix round 4 (I-6, I-7): the offer shows the copy's words with "Copy
+          text", offers "Save as plain text" after a content refusal, and speaks in
+          its own sentence, never the server's. */}
       {refusedCopies.map((copy) => (
-        <div
+        <RefusedCopyOffer
           key={copy.mutationId}
-          className={styles.draftBanner}
-          data-export-exclude
-          data-testid="refused-copy-offer"
-          role="status"
-        >
-          {copyAsk === copy.mutationId ? (
-            <>
-              <span>Delete this copy from this device? Its words aren’t saved anywhere else, so this can’t be undone.</span>
-              <div className={styles.draftBannerActions}>
-                <button
-                  type="button"
-                  className={`${styles.draftBannerBtn} ${styles.draftBannerBtnPrimary}`}
-                  onClick={() => discardRefusedCopyConfirmed(copy)}
-                  disabled={copyBusy === copy.mutationId}
-                >
-                  Delete copy
-                </button>
-                <button type="button" className={styles.draftBannerBtn} onClick={() => setCopyAsk(null)}>
-                  Keep it
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <span>
-                {copyNote[copy.mutationId] ? `${copyNote[copy.mutationId]} ` : ''}
-                {copy.reason}
-              </span>
-              <div className={styles.draftBannerActions}>
-                <button
-                  type="button"
-                  className={`${styles.draftBannerBtn} ${styles.draftBannerBtnPrimary}`}
-                  onClick={() => saveRefusedCopyAsNote(copy)}
-                  disabled={copyBusy === copy.mutationId}
-                >
-                  Save as a separate note
-                </button>
-                <button type="button" className={styles.draftBannerBtn} onClick={() => setCopyAsk(copy.mutationId)}>
-                  Discard
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+          copy={copy}
+          busy={copyBusy === copy.mutationId}
+          note={copyNote[copy.mutationId] || null}
+          onSave={(c) => saveRefusedCopyAsNote(c)}
+          onSavePlain={(c) => saveRefusedCopyAsNote(c, { plain: true })}
+          onDiscard={discardRefusedCopyConfirmed}
+        />
       ))}
       {copySavedNotice && (
         <div className={styles.draftBanner} data-export-exclude role="status">

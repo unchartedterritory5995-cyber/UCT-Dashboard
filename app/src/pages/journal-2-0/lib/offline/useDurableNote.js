@@ -837,14 +837,15 @@ export function useDurableNote({
     }
   }, [supported, accountId, noteId, connect])
 
-  /** "Save as a separate note" for a refused copy (`refusedCopy.js`). */
-  const saveCopy = useCallback(async (mutationId, { fork }) => {
-    if (!supported) return { outcome: 'failed' }
+  /** "Save as a separate note" (or, with `plain`, "Save as plain text") for a
+   *  refused copy (`refusedCopy.js`). */
+  const saveCopy = useCallback(async (mutationId, { fork, plain = false }) => {
+    if (!supported) return { outcome: 'failed', offline: false }
     try {
       const db = await connect(accountId)
-      return await saveRefusedCopy(db, mutationId, { fork })
+      return await saveRefusedCopy(db, mutationId, { fork, plain })
     } catch {
-      return { outcome: 'failed' }
+      return { outcome: 'failed', offline: false }
     }
   }, [supported, accountId, connect])
 
