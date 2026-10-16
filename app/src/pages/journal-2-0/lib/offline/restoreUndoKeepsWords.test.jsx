@@ -559,6 +559,23 @@ describe('I-A · fix round 1 — the routes the review traced (C1, C2, I1, I2, M
     expectDurable('Z-replacement', 'the replacement')
   })
 
+  it('a keystroke INSIDE the 200 ms window right after a with-base Restore (nothing else in flight) cannot coalesce the Restore\'s capture away', async () => {
+    await typeThenRestore({ base: T0 })                           // the old view's write landed long ago
+    await typeAtEnd('!')                                          // no tick
+    await sit(3)
+    expectBothDurable('with-base Restore, then an immediate keystroke')
+  })
+
+  it('M1: a keystroke under 500 ms BEFORE the Restore is its own undo step too (one Undo takes back only the Restore)', async () => {
+    const { gapMs } = await typeThenRestore({ beforeRestoreMs: 200 })
+    expect(gapMs, 'precondition: under newGroupDelay (500 ms)').toBeLessThan(500)
+    await tick(400)
+    await undoOnce()
+    const text = await viewText()
+    expect(text, 'precondition: the Undo took back the Restore').not.toContain(SENTENCE)
+    expect(text, 'one Undo also took back the keystroke typed just before Restore').toContain(OLD)
+  })
+
   it('M1: a keystroke under 500 ms after the Restore is its OWN undo step (one Undo takes back only it)', async () => {
     await typeThenRestore()
     await typeAtEnd('#after')                                     // straight after the Restore
