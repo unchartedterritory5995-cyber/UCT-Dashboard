@@ -61,7 +61,7 @@ VIDEO_EXTENSIONS = (".mp4", ".mov", ".webm", ".m4v", ".mkv")
 KEEP_TYPES = frozenset({0, 19})              # DEFAULT, REPLY
 MAX_ATTEMPTS = 3
 MAX_PAGES_PER_TICK = 5
-MAX_DOWNLOAD_BYTES = 600 * 1024 * 1024       # Discord's own ceiling is 500 MB
+MAX_DOWNLOAD_BYTES = 2 * 1024 * 1024 * 1024  # long recordings run past 600 MB; streamed to disk
 MAX_VIDEO_SECONDS = 2 * 60 * 60
 MIN_WORDS = 20
 TICK_BUDGET_S = 10 * 60
@@ -507,7 +507,7 @@ def download(url: str, dest: Path) -> int:
         with open(dest, "wb") as fh:
             for chunk in r.iter_bytes(1024 * 1024):
                 written += len(chunk)
-                if written > MAX_DOWNLOAD_BYTES:
+                if written > _int_env("TSDR_LESSONS_MAX_DOWNLOAD_MB", MAX_DOWNLOAD_BYTES >> 20) << 20:
                     raise ValueError("video is larger than the download cap")
                 fh.write(chunk)
     return written
