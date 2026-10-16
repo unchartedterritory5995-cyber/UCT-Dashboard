@@ -401,7 +401,12 @@ describe('N1: the screenshot tag door survives a failed chunk fetch', () => {
     expect(loaders.screenshotTag).toHaveBeenCalledTimes(1)
     expect(chunkRetry.importUrl).toHaveBeenCalledTimes(1)
     expect(new URL(chunkRetry.importUrl.mock.calls[0][0]).pathname).toBe('/assets/screenshotTag-Abc12345.js')
-    expect(updateMock).toHaveBeenCalledTimes(1)
+    // The ticker goes out ONCE. The retry window is long enough for the body autosave of the new alt text to
+    // land inside it too (measured: [{bodyJson, baseUpdatedAt}, {writtenSchema}] then [{ticker}]), so count the
+    // ticker writes, and allow nothing else but body saves.
+    const tickerWrites = updateMock.mock.calls.filter(([patch]) => patch && 'ticker' in patch)
+    expect(tickerWrites).toEqual([[{ ticker: 'NVDA' }]])
+    expect(updateMock.mock.calls.every(([patch]) => 'ticker' in patch || 'bodyJson' in patch)).toBe(true)
     expect(imageAttrs(editor)[0].alt).toBe('NVDA daily chart')
   })
 
