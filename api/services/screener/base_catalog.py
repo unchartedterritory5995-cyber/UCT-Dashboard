@@ -1328,12 +1328,26 @@ def flat_base_qualifies(st: Optional[dict], bars: Optional[list] = None) -> bool
         return False
     if st["drift"] > FLAT_MAX_DRIFT:
         return False
-    if (st["prior_advance"] or 0.0) < FLAT_PRIOR_ADVANCE:
+    return rests_in_an_advance(st["prior_advance"], bars)
+
+
+def rests_in_an_advance(prior_advance: Optional[float],
+                        bars: Optional[list] = None) -> bool:
+    """Is a pause RESTING an advance, rather than a stock that never moved?
+
+    ⛔⛔ ONE DEFINITION, TWO CONSUMERS: `flat_base_qualifies` and
+    `three_weeks_tight_qualifies` both ask THIS function, so the two cannot
+    drift into two different meanings of "there was an advance first".
+    `prior_advance` is `_prior_advance(...)` over the pause's own window.
+
+    Reproduced live: a synthetic $0.35/share series with ~$750/day dollar
+    volume fired flat_base at confidence 67.6 with "institutional
+    sponsorship" narrative -- no price/liquidity gate existed anywhere in
+    base_catalog.py. `bars` is optional for the same reason it is optional on
+    `flat_base_qualifies`; when omitted the liquidity floor is skipped.
+    """
+    if (prior_advance or 0.0) < FLAT_PRIOR_ADVANCE:
         return False
-    # Reproduced live: a synthetic $0.35/share series with ~$750/day dollar
-    # volume fired flat_base at confidence 67.6 with "institutional
-    # sponsorship" narrative -- no price/liquidity gate existed anywhere in
-    # base_catalog.py.
     if bars is not None and not liquidity_floor(bars).passes:
         return False
     return True
@@ -1939,6 +1953,15 @@ DBL_PIVOT_PAD = 0.10
 #: recency bound a walk simply reports wherever it ended.
 DBL_MAX_AGE_BARS = 40
 
+#: SOURCED: "up to 5% above the ideal buy point" is IBD's general buy zone --
+#: ONE number for every base that has a pivot, so it lives here once and the
+#: ascending base reads it too (`ASC_BUY_ZONE`). A structure whose price has run
+#: past it has RESOLVED: naming it as the head describes the past and, worse,
+#: hands the chart a pivot the stock left behind. Measured: ABCL was shown as a
+#: double bottom "47.9% above pivot" -- the W had worked weeks earlier.
+IBD_BUY_ZONE = 0.05
+_IBD_BUY_ZONE_SOURCE = "ibd_ascending_base"   # the corpus file that quotes it
+
 
 def double_bottom_state(ctx) -> Optional[dict]:
     """The current W, or None. Reads CONFIRMED swings only.
@@ -1995,10 +2018,17 @@ def double_bottom_state(ctx) -> Optional[dict]:
     if (adv or 0.0) < DBL_PRIOR_UPTREND:
         return None
 
+    # Resolved, not forming: price has run past the buy zone above the pivot.
+    # Same test, same number, as the ascending base's.
+    pivot = middle_peak["price"] + DBL_PIVOT_PAD
+    last_close = bars[-1].get("c") or 0.0
+    if last_close > pivot * (1.0 + IBD_BUY_ZONE):
+        return None
+
     return {"low1": p1, "low2": p2, "undercut": (p1 - p2) / p1,
             "middle_peak": middle_peak["price"], "depth": depth,
             "bars": length, "prior_uptrend": adv,
-            "pivot": middle_peak["price"] + DBL_PIVOT_PAD}
+            "pivot": pivot}
 
 
 def _detect_double_bottom(ctx) -> bool:
@@ -2109,6 +2139,14 @@ DOUBLE_BOTTOM = Structure(
             condition="Maximum age of the second low, so the W is a setup and not history",
             value=DBL_MAX_AGE_BARS,
             origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition=("Buy zone above the pivot -- IBD's general 5%, the same "
+                       "number the ascending base applies. A close past it means "
+                       "the W has resolved and is no longer named"),
+            value=IBD_BUY_ZONE,
+            quote="up to 5% above the ideal buy point",
+            source_id=_IBD_BUY_ZONE_SOURCE, confidence="high",
         ),
     ),
     coverage_pct=6.9,
@@ -3100,7 +3138,7 @@ ASC_PIVOT_PAD = 0.10
 #: SOURCED: "up to 5% above the ideal buy point" is IBD's general buy zone, so
 #: a staircase whose price has run further than that has resolved and the label
 #: would describe the past.
-ASC_BUY_ZONE = 0.05
+ASC_BUY_ZONE = IBD_BUY_ZONE
 
 
 def ascending_base_state(ctx) -> Optional[dict]:
@@ -4813,6 +4851,13 @@ TWT_PIVOT_PAD = 0.10
 #: `_collect_relations` from calling it on a stub series. origin: uct.
 TWT_MIN_BARS = 15
 
+#: OURS. The add-on must sit in an uptrend: the last close at or above its
+#: 50-day simple average. IBD publishes no trend test for this pattern (see the
+#: refusal row below); the 50-day is the line the house reads trend off
+#: everywhere else, and the measurement that motivated the gate was 45% of the
+#: shape's matches sitting BELOW it. See `three_weeks_tight_qualifies`.
+TWT_TREND_MA_BARS = 50
+
 
 def three_weeks_tight_state(bars) -> Optional[dict]:
     """The three most recent weekly closes and BOTH published readings of them.
@@ -4892,13 +4937,37 @@ def three_weeks_tight_state(bars) -> Optional[dict]:
     }
 
 
-def _detect_three_weeks_tight(ctx) -> bool:
-    """Three weekly closes each within 1.5% of the one before it.
+def three_weeks_tight_qualifies(st: Optional[dict], bars: Optional[list]) -> bool:
+    """Does a three-weeks-tight SHAPE clear every gate the structure applies?
 
-    ⛔ ONE READING GATES. `span` is measured and carried; it does not decide.
+    ⛔ ONE READING GATES THE SHAPE. `span` is measured and carried; it does
+    not decide.
+
+    ⛔⛔ AND THE SHAPE ALONE IS NOT THE PATTERN. IBD's three weeks tight is an
+    ADD-ON point -- "The time to add shares" -- inside an advance the buyer is
+    already in. Measured on the 2026-10 sandbox snapshot, the shape alone
+    named about a fifth of the universe, 45% of those names were BELOW their
+    50-day average and some carried Stage 4 Breakdown: three quiet weeks in a
+    falling stock were being labelled a bullish add-on. Two gates, both ours:
+      1. `rests_in_an_advance` -- the SAME function the flat base asks (prior
+         advance >= FLAT_PRIOR_ADVANCE, plus the liquidity floor), so the two
+         "rests an advance" structures cannot mean two different things;
+      2. the last close at or above its 50-day simple average
+         (`TWT_TREND_MA_BARS`). A series too short to carry that average is
+         refused: an uptrend that cannot be shown is not assumed.
     """
-    st = three_weeks_tight_state(ctx.bars)
-    return st is not None and st["pairwise"] <= TWT_MAX_PAIRWISE
+    if st is None or st["pairwise"] > TWT_MAX_PAIRWISE:
+        return False
+    if not rests_in_an_advance(st["prior_advance"], bars):
+        return False
+    ma = _sma(bars, TWT_TREND_MA_BARS)
+    last = (bars[-1].get("c") or 0) if bars else 0
+    return ma is not None and last >= ma
+
+
+def _detect_three_weeks_tight(ctx) -> bool:
+    """Three weekly closes each within 1.5% of the one before it, in an uptrend."""
+    return three_weeks_tight_qualifies(three_weeks_tight_state(ctx.bars), ctx.bars)
 
 
 THREE_WEEKS_TIGHT = Structure(
@@ -5053,19 +5122,28 @@ THREE_WEEKS_TIGHT = Structure(
             missing=("The house frames this as adding to a position already "
                      "held ('The time to add shares'), which implies a prior "
                      "advance, but publishes no minimum gain, no lookback and "
-                     "no distance from a prior buy point. `prior_advance` is "
-                     "therefore MEASURED and carried on every match and gates "
-                     "nothing -- a number of ours in that slot would be our "
-                     "rule wearing IBD's name. The FLAT BASE does carry such a "
-                     "gate, and the difference is the measurement, not the "
-                     "taste: its sourced rules alone matched 41.1% of the "
-                     "universe, past the band at which a label stops being "
-                     "information. This one matches 13.9%, so an owned gate "
-                     "would have nothing to rescue. Over the same 1,871 names "
-                     "the 260 matches run p25=4.1% / p50=9.6% / p75=23.5% "
-                     "prior advance; a 10% floor would leave 6.7% of the "
-                     "universe and a 30% floor 2.6% -- the numbers to reach "
-                     "for IF a later measurement says this label is too broad."),
+                     "no distance from a prior buy point. So the gates below "
+                     "are recorded as OURS, never in IBD's name. They were "
+                     "added once a later measurement said the shape alone was "
+                     "too broad AND wrong-signed: about a fifth of the "
+                     "universe, 45% of it below the 50-day, some of it in a "
+                     "Stage 4 breakdown -- a falling stock going quiet is not "
+                     "an add-on point."),
+        ),
+        Criterion(
+            condition=("Prior advance -- the SAME `rests_in_an_advance` gate the "
+                       "flat base applies (prior advance at least "
+                       "FLAT_PRIOR_ADVANCE over FLAT_ADVANCE_LOOKBACK bars, plus "
+                       "the liquidity floor), so the two structures that rest "
+                       "an advance cannot mean two different things by it"),
+            value=FLAT_PRIOR_ADVANCE,
+            origin="uct", confidence="med",
+        ),
+        Criterion(
+            condition=("Uptrend -- the last close at or above its 50-day simple "
+                       "average; a series too short to carry one is refused"),
+            value=TWT_TREND_MA_BARS,
+            origin="uct", confidence="med",
         ),
         Criterion(
             condition=("The three weeks are the LAST three, so the label means "
@@ -5076,13 +5154,18 @@ THREE_WEEKS_TIGHT = Structure(
             origin="uct", confidence="high",
         ),
     ),
-    #: 260 of 1,871 (13.90%) -- `ok`, measured 2026-08-31 through
-    #: `bases.classify` + `base_matches`. ⭐ THE OTHER READING WAS MEASURED
-    #: BESIDE IT: the span sentence at its looser published end matches
-    #: 309 (16.52%), and only 245 names satisfy both -- so which sentence an
-    #: implementation picks decides a QUARTER of the population, not a rounding
-    #: error. Full sweep table beside `TWT_MAX_PAIRWISE`.
-    coverage_pct=13.9,
+    #: ⚠️ DERIVED UPPER BOUND, NOT RE-MEASURED (2026-10-15). The SHAPE alone
+    #: was 260 of 1,871 (13.90%), measured 2026-08-31 through `bases.classify`
+    #: + `base_matches`; the span sentence at its looser published end matched
+    #: 309 (16.52%) and only 245 names satisfied both (full sweep table beside
+    #: `TWT_MAX_PAIRWISE`). The uptrend gates then cut it: that sweep recorded
+    #: a 10% prior-advance floor leaving 6.7% and a 30% floor 2.6%, so the
+    #: shipped 20% (FLAT_PRIOR_ADVANCE) lands near 4.5% by interpolation, and
+    #: the 50-day gate can only lower it further. The 139-ticker sandbox
+    #: (2026-10-14) had 23 shape matches, 16 of them below the 50-day and none
+    #: of the rest with a 20% advance -- too small a sample to restate as a
+    #: rate. Re-measure on the full universe before quoting this as a number.
+    coverage_pct=4.5,
     detect=_detect_three_weeks_tight,
     pivot=_three_weeks_tight_pivot,
 )

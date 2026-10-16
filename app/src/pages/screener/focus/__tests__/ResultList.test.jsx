@@ -19,14 +19,14 @@ test('renders a listbox with the selected option', () => {
 test('zero-volume row says no trades and shows a dash for change', () => {
   render(<ResultList {...base} />)
   const r = screen.getByTestId('focus-row-APLS')
-  expect(r).toHaveTextContent('No trades today')
+  expect(r).toHaveTextContent('No trades in the last session')
   expect(r).toHaveTextContent('—')
   expect(r).not.toHaveTextContent('+0.0%')
 })
 test('null price shows a dash, never NaN', () => {
   render(<ResultList {...base} />)
   const r = screen.getByTestId('focus-row-DAWN')
-  expect(r).toHaveTextContent('Not enough history for a base')
+  expect(r).toHaveTextContent('No structure read')
   expect(r.textContent).not.toMatch(/NaN/)
 })
 test('live price overrides the snapshot price', () => {
@@ -161,7 +161,7 @@ test('B2: a structure screen leads each row with the matched structure, with a t
   const structures = { matched: [{ value: ',pocket-pivot,', label: 'Pocket Pivot', title: 'Pocket Pivot' }], labels: ['Pocket Pivot', 'Ugly Double Bottom'] }
   const r = [{ ticker: 'UDB', price: 97, chg_pct_1d: 1, base_render: 'Ugly Double Bottom (Pocket Pivot)', vol_ratio: 1.2, base_pivot_px: 100 }]
   render(<ResultList {...base} rows={r} structures={structures} />)
-  const setup = screen.getByText('Pocket Pivot · also Ugly Double Bottom')
+  const setup = screen.getByText('Up day on more volume than recent selling · also Double bottom with a higher second low')
   expect(setup).toHaveAttribute('title', 'Pocket Pivot')
   // the head's pivot does not ride beside the lead in the row
   expect(screen.getByTestId('focus-row-UDB')).not.toHaveTextContent('pivot')

@@ -447,15 +447,15 @@ test('B2: a structure screen leads each row with the structure it was screened f
   const enc = encodeSpec({ filters: { base_structure: { op: 'contains', value: ',pocket-pivot,' } }, sort: { key: 'uct_composite', dir: 'desc' } })
   window.history.replaceState(null, '', `/?${SPEC_PARAM}=${enc}`)
   mount()
-  await waitFor(() => expect(screen.getByTestId('focus-row-UDB')).toHaveTextContent('Pocket Pivot · also Ugly Double Bottom'))
-  expect(screen.getByTestId('pane-setup')).toHaveTextContent('Pocket Pivot · also Ugly Double Bottom')
+  await waitFor(() => expect(screen.getByTestId('focus-row-UDB')).toHaveTextContent('Up day on more volume than recent selling · also Double bottom with a higher second low'))
+  expect(screen.getByTestId('pane-setup')).toHaveTextContent('Up day on more volume than recent selling · also Double bottom with a higher second low')
 })
 test('B2: without a structure filter the row leads with the render head', async () => {
   extra = richMeta
   scanRows = [{ ticker: 'UDB', price: 97, chg_pct_1d: 1, base_render: 'Ugly Double Bottom (Pocket Pivot)', vol_ratio: 1.1 }]
   mount()
   await waitFor(() => screen.getByTestId('focus-row-UDB'))
-  expect(screen.getByTestId('focus-row-UDB')).toHaveTextContent('Ugly Double Bottom')
+  expect(screen.getByTestId('focus-row-UDB')).toHaveTextContent('Double bottom with a higher second low')
   expect(screen.getByTestId('focus-row-UDB')).not.toHaveTextContent('also')
 })
 

@@ -48,7 +48,7 @@ import HelpMenu from './HelpMenu'
 import Menu, { MenuItem, MenuHeading } from './Menu'
 import DataReceipt, { coverageHasDrop } from './DataReceipt'
 import ResultList from './ResultList'
-import { activeStructures, structureLabels } from './setupLine'
+import { activeStructures, structureLabels, structureDescs } from './setupLine'
 import { plainColumnLabel } from './plainWords'
 import { sortableColumns } from './sortKeys'
 import { capToTopN, poolOf, withPool } from './counts'
@@ -599,7 +599,7 @@ function FocusList({ onMode }) {
   const sortKey = s.sort?.key
   // Structures the rows on screen were screened for: read from the ANSWERED filters, so a
   // structure being edited in the drawer does not relabel rows that answer the previous screen.
-  const structures = useMemo(() => ({ matched: activeStructures(shown.filters, meta?.filters), labels: structureLabels(meta?.filters) }),
+  const structures = useMemo(() => ({ matched: activeStructures(shown.filters, meta?.filters), labels: structureLabels(meta?.filters), descs: structureDescs(meta?.filters) }),
     [shown.filters, meta])
   const colLabel = k => plainColumnLabel(k) || (meta?.filters || []).find(f => f.key === k || f.column === k)?.label || COLUMN_DEFS[k]?.label || k
   const sortArrow = s.sort?.dir === 'asc' ? '↑' : '↓'
