@@ -15,9 +15,15 @@ vi.mock('./barsStreamManager', () => ({
   subscribe: vi.fn(() => 'unsub-bars'),
   getStatus: vi.fn(() => ({ connected: true, healthy: true, delivering: false })),
 }))
+vi.mock('./timeSalesStreamManager', () => ({
+  subscribe: vi.fn(() => 'unsub-tas'),
+  getSnapshot: vi.fn(() => ({ status: 'live' })),
+  retry: vi.fn(() => 'retried'),
+}))
 
 import * as priceStreamManager from './priceStreamManager'
 import * as barsStreamManager from './barsStreamManager'
+import * as timeSalesStreamManager from './timeSalesStreamManager'
 import {
   declareNeed, deliveryOf, DELIVERY, NEED_KINDS, PanelContractError,
 } from './panelContract'
@@ -50,6 +56,20 @@ describe('declareNeed — a panel gets a handle, never a URL', () => {
     expect(priceStreamManager.subscribe).toHaveBeenCalledWith(['NVDA'], listener)
     expect(h.read()).toEqual({ prices: { NVDA: 1 } })
   })
+
+  it('the time-and-sales handle forwards to the TAS pool, and only it carries retry', () => {
+    const h = declareNeed({ kind: 'time-and-sales', delivery: DELIVERY.EVERY_MESSAGE_MATTERS })
+    expect(Object.keys(h).sort()).toEqual(['delivery', 'kind', 'read', 'retry', 'subscribe'])
+    expect(Object.isFrozen(h)).toBe(true)
+    const onState = () => {}
+    expect(h.subscribe('NVDA', onState)).toBe('unsub-tas')
+    expect(timeSalesStreamManager.subscribe).toHaveBeenCalledWith('NVDA', onState)
+    expect(h.read('NVDA')).toEqual({ status: 'live' })
+    expect(h.retry('NVDA')).toBe('retried')
+    expect(timeSalesStreamManager.retry).toHaveBeenCalledWith('NVDA')
+    // A need that declares no retry gets none: the verb is not a general escape hatch.
+    expect('retry' in declareNeed({ kind: 'prices', delivery: DELIVERY.LAST_VALUE_WINS })).toBe(false)
+  })
 })
 
 describe('delivery — REQUIRED, no default, and checked against the stream', () => {
@@ -77,6 +97,7 @@ describe('delivery — REQUIRED, no default, and checked against the stream', ()
       ['prices', 'last-value-wins'],
       ['bars', 'last-value-wins'],
       ['chain', 'every-message-matters'],
+      ['time-and-sales', 'every-message-matters'],
       ['tape', 'every-message-matters'],
     ])
   })
@@ -95,7 +116,7 @@ describe('what a panel may NOT hand the contract', () => {
 
   it('an unknown kind is refused, naming the ones that exist', () => {
     expect(() => declareNeed({ kind: 'quotes', delivery: DELIVERY.LAST_VALUE_WINS }))
-      .toThrow(/unknown need kind "quotes"; declare one of prices, bars, chain, tape/)
+      .toThrow(/unknown need kind "quotes"; declare one of prices, bars, chain, time-and-sales, tape/)
   })
 
   it('a non-object spec is refused', () => {
