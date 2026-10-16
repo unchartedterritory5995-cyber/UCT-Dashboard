@@ -163,7 +163,9 @@ def _model() -> str:
 
 
 def _db_path() -> str:
-    return _env("TSDR_LESSONS_DB_PATH", "/data/tsdr_lessons.db")
+    # A direct env read (not `_env`), so the test suite's AST census of /data
+    # paths sees this one and pins it away from the live volume.
+    return os.environ.get("TSDR_LESSONS_DB_PATH", "/data/tsdr_lessons.db")
 
 
 def _token() -> str:
