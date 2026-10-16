@@ -1,0 +1,23 @@
+R3-M6-create-error-untagged: Test Files  1 failed | 2 passed (3) | Tests  3 failed | 80 passed (83)  [restored OK]
+     × ⛔ I-3: a create the server REFUSES (400) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4) 226ms
+     × ⛔ I-3: a create the server REFUSES (413) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4) 216ms
+     × ⛔ I-3: a create the server REFUSES (422) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4) 204ms
+R3-M7-copy-blocks-its-source: Test Files  2 failed | 1 passed (3) | Tests  4 failed | 79 passed (83)  [restored OK]
+     × ⛔ I-3: a create the server REFUSES (400) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4) 241ms
+     × ⛔ I-3: a create the server REFUSES (413) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4) 217ms
+     × ⛔ I-3: a create the server REFUSES (422) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4) 221ms
+     × ⛔ I-4: a refused copy does NOT mark its healthy source note blocked ("edit it again to sync" is false for a copy) 1266ms
+R3-M8-refusal-put-unconditional: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 82 passed (83)  [restored OK]
+     × ⛔ I-4: a copy deleted while its create was in flight is NOT brought back by the refusal 223ms
+R3-M9-held-copy-reposted: Test Files  2 failed | 1 passed (3) | Tests  7 failed | 76 passed (83)  [restored OK]
+     × Discard asks first (in the page), and keeps the copy if the member backs out 757ms
+     × a re-POST refused AGAIN keeps the copy on this device and keeps offering it, with its reason 1185ms
+     × ⛔ I-3: a create the server REFUSES (400) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4) 369ms
+     × ⛔ I-3: a create the server REFUSES (413) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4) 340ms
+     × ⛔ I-3: a create the server REFUSES (422) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4) 362ms
+     × ⛔ I-4: a refused copy does NOT mark its healthy source note blocked ("edit it again to sync" is false for a copy) 1250ms
+     × ⛔⛔ C-3: the offer never writes the copy into its source note — "Save as a separate note" creates a new note and the source keeps its text 1865ms
+R3-M10-held-reported-blocked: Test Files  1 failed | 2 passed (3) | Tests  3 failed | 80 passed (83)  [restored OK]
+     × ⛔ I-3: a create the server REFUSES (400) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4) 353ms
+     × ⛔ I-3: a create the server REFUSES (413) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4) 340ms
+     × ⛔ I-3: a create the server REFUSES (422) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4) 330ms

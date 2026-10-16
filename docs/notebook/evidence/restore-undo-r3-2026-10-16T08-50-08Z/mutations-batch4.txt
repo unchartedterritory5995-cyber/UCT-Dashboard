@@ -1,0 +1,14 @@
+R3-M15-copies-never-offered: Test Files  1 failed | 2 passed (3) | Tests  5 failed | 78 passed (83)  [restored OK]
+     × Discard asks first (in the page), and keeps the copy if the member backs out 6863ms
+     × Discard, confirmed, deletes the copy and it does NOT come back on the next open 6813ms
+     × a re-POST refused AGAIN keeps the copy on this device and keeps offering it, with its reason 6776ms
+     × the offer says, in plain words, that the copy is kept on this device and what each button does (I-4) 6838ms
+     × ⛔⛔ C-3: the offer never writes the copy into its source note — "Save as a separate note" creates a new note and the source keeps its text 7248ms
+R3-M16-reason-not-rendered: Test Files  1 failed | 2 passed (3) | Tests  2 failed | 81 passed (83)  [restored OK]
+     × a re-POST refused AGAIN keeps the copy on this device and keeps offering it, with its reason 1167ms
+     × the offer says, in plain words, that the copy is kept on this device and what each button does (I-4) 518ms
+R3-M17-M2-skip-removed: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 82 passed (83)  [restored OK]
+     × ⛔ M-2: a member's own swap COPY forked by the sweep is NOT a sync conflict — no conflict_forked 4320ms
+R3-M18-save-writes-into-source: Test Files  1 failed | 2 passed (3) | Tests  2 failed | 81 passed (83)  [restored OK]
+     × a re-POST refused AGAIN keeps the copy on this device and keeps offering it, with its reason 1246ms
+     × ⛔⛔ C-3: the offer never writes the copy into its source note — "Save as a separate note" creates a new note and the source keeps its text 1729ms

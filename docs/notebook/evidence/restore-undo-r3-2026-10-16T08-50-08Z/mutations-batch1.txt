@@ -1,0 +1,18 @@
+R3-M1-suffix-not-fitted: Test Files  1 failed | 2 passed (3) | Tests  2 failed | 81 passed (83)  [restored OK]
+     × the suffix fit counts CHARACTERS the way the server does, and never splits one 2ms
+     × ⛔ C-3 cause: a LONG title gets the whole " (conflicted copy)" suffix and still fits the 300-character limit 240ms
+R3-M2-cut-by-utf16-unit: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 82 passed (83)  [restored OK]
+     × the suffix fit counts CHARACTERS the way the server does, and never splits one 5ms
+R3-M3-sweep-fork-raw-title: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 82 passed (83)  [restored OK]
+     × ⛔ C-3 cause: a LONG title gets the whole " (conflicted copy)" suffix and still fits the 300-character limit 242ms
+R3-M4-any-4xx-refused: Test Files  1 failed | 2 passed (3) | Tests  6 failed | 77 passed (83)  [restored OK]
+     × I-3: a create that fails 403 is transient ⇒ KEPT, not refused, and posted again next sweep 227ms
+     × I-3: a create that fails 404 is transient ⇒ KEPT, not refused, and posted again next sweep 197ms
+     × I-3: a create that fails 405 is transient ⇒ KEPT, not refused, and posted again next sweep 253ms
+     × I-3: a create that fails 409 is transient ⇒ KEPT, not refused, and posted again next sweep 237ms
+     × a create that fails 401 is transient ⇒ KEPT, not blocked 255ms
+     × a create that fails 429 is transient ⇒ KEPT, not blocked 235ms
+R3-M5-phase-ignored: Test Files  1 failed | 2 passed (3) | Tests  3 failed | 80 passed (83)  [restored OK]
+     × I-3: the SOURCE read fails 400 ⇒ transient: KEPT, nothing posted, never refused (no create was attempted) 243ms
+     × I-3: the SOURCE read fails 413 ⇒ transient: KEPT, nothing posted, never refused (no create was attempted) 254ms
+     × I-3: the SOURCE read fails 422 ⇒ transient: KEPT, nothing posted, never refused (no create was attempted) 237ms

@@ -1,0 +1,1004 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.screenshotChip.test.jsx[2m > [22m[2maccepting[2m > [22m[2mthe ticker write is refused: the alt STAYS, and the toast says what did and did not happen
+[22m[39mautosave failed (retry 1 in 1000ms) Error: boom
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.screenshotChip.test.jsx:309:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:12)
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.slowload.test.jsx [2m([22m[2m8 tests[22m[2m)[22m[33m 8094[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ writes NO localStorage draft while `note` is still null [33m 2248[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ never queues a write with a null baseline — a PUT with no compare-and-set [33m 877[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ the member’s prose survives the slow load — no empty document replaces it [33m 899[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ writes NOTHING anywhere for a note the member never touched [33m 872[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ …and queues nothing even when the save cannot land [33m 867[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — the same harness DOES see a real keystroke [33m 1064[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — a note with a BODY still loads, and still saves [33m 1054[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.screenshotChip.test.jsx [2m([22m[2m27 tests[22m[2m)[22m[33m 10573[2mms[22m[39m
+     [33m[2m✓[22m[39m smart chips OFF: pasting an image never calls readScreenshot (and the image still lands) [33m 2440[2mms[22m[39m
+     [33m[2m✓[22m[39m a single ticker found: the chip says what it will do, and NOTHING has been done yet [33m 550[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ I3: deleting the image ENDS the offer, so typing afterwards runs no whole-document scan [33m 454[2mms[22m[39m
+     [33m[2m✓[22m[39m a note with NO ticker: the alt is set and the ticker is set ONCE through the metadata door [33m 486[2mms[22m[39m
+     [33m[2m✓[22m[39m a note that already HAS a ticker: the chip says "Tag image", the ticker is untouched, update is not called [33m 358[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ I2: a ticker TYPED into the field but not saved yet is the note's ticker -- labelled only, never overwritten [33m 587[2mms[22m[39m
+     [33m[2m✓[22m[39m the ticker set by a tag goes through the ticker door's own validator (normalized, never a second route) [33m 443[2mms[22m[39m
+     [33m[2m✓[22m[39m no timeframe: the alt and the toast name the symbol alone [33m 348[2mms[22m[39m
+     [33m[2m✓[22m[39m the ticker write is refused: the alt STAYS, and the toast says what did and did not happen [33m 423[2mms[22m[39m
+     [33m[2m✓[22m[39m a locked note takes no tag: a sentence, no alt, no ticker [33m 380[2mms[22m[39m
+     [33m[2m✓[22m[39m note changed: the read is aborted and NO offer renders in the other note [33m 355[2mms[22m[39m
+     [33m[2m✓[22m[39m the first fetch fails and the in-place retry succeeds: the image is tagged and the ticker set, once [33m 741[2mms[22m[39m
+     [33m[2m✓[22m[39m both attempts fail: the member is told to reload, and nothing is written (no alt, no ticker) [33m 722[2mms[22m[39m
+     [33m[2m✓[22m[39m has no change handler until an offer shows, and gets one while it does [33m 428[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.phoneInsert.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[33m 2140[2mms[22m[39m
+     [33m[2m✓[22m[39m the phone "+" lists image, file, camera scan and chart/block, and each opens its door [33m 898[2mms[22m[39m
+     [33m[2m✓[22m[39m each file door clicks ITS OWN input (image -> a gallery input, file -> the attach input, camera -> a capture input) [33m 492[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.priceStamps.test.jsx[2m > [22m[2mprice stamps in the editor page[2m > [22m[2mEnter at the end of a line naming the note's ticker sends the stamp's one write
+[22m[39mAn update to Portals inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.rails.test.jsx[2m > [22m[2mNoteEditorPage watch rails[2m > [22m[2mwraps a Desk-session video note with chapters/recap/takeaways rails + transcript
+[22m[39mAn update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.rails.test.jsx[2m > [22m[2mNoteEditorPage watch rails[2m > [22m[2mwraps a Desk-session video note with chapters/recap/takeaways rails + transcript
+[22m[39mAn update to NoteLinkedTradeChips inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to PropertiesSection inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to PropertiesSection inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ThesisSection inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ThesisSection inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ThesisSection inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ThesisSection inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteBacklinksSection inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteBacklinksSection inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to UnlinkedMentions inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.priceStamps.test.jsx[2m > [22m[2mprice stamps in the editor page[2m > [22m[2ma note with no ticker: storage reads null, and Enter on a bare word sends nothing
+[22m[39mAn update to Portals inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.priceStamps.test.jsx[2m > [22m[2mprice stamps in the editor page[2m > [22m[2mCONTROL for the case above: the same line with a $cashtag does send
+[22m[39mAn update to Portals inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.priceStamps.test.jsx [2m([22m[2m4 tests[22m[2m)[22m[33m 2114[2mms[22m[39m
+     [33m[2m✓[22m[39m editor storage carries the note's ticker, read live [33m 735[2mms[22m[39m
+     [33m[2m✓[22m[39m Enter at the end of a line naming the note's ticker sends the stamp's one write [33m 444[2mms[22m[39m
+     [33m[2m✓[22m[39m a note with no ticker: storage reads null, and Enter on a bare word sends nothing [33m 508[2mms[22m[39m
+     [33m[2m✓[22m[39m CONTROL for the case above: the same line with a $cashtag does send [33m 427[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.rails.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[33m 1618[2mms[22m[39m
+     [33m[2m✓[22m[39m wraps a Desk-session video note with chapters/recap/takeaways rails + transcript [33m 740[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.saveerror.test.jsx[2m > [22m[2mNoteEditorPage — save-error sanitization (P1-1 fix)[2m > [22m[2ma non-retryable 4xx with no real detail (bare status "404") never shows the bare code
+[22m[39mautosave failed (non-retryable) Error: 404
+    at httpError (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.saveerror.test.jsx:30:13)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.saveerror.test.jsx:57:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21) {
+  status: [33m404[39m
+}
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.saveerror.test.jsx[2m > [22m[2mNoteEditorPage — save-error sanitization (P1-1 fix)[2m > [22m[2ma real backend-authored detail (not a bare status code) is preserved verbatim
+[22m[39mautosave failed (non-retryable) Error: Title is required
+    at httpError (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.saveerror.test.jsx:30:13)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.saveerror.test.jsx:67:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21) {
+  status: [33m400[39m
+}
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.saveerror.test.jsx[2m > [22m[2mNoteEditorPage — save-error sanitization (P1-1 fix)[2m > [22m[2ma retryable 5xx with no detail never shows the bare code, and the sentence is VISIBLE text, not just a tooltip
+[22m[39mautosave failed (retry 1 in 1000ms) Error: 500
+    at httpError (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.saveerror.test.jsx:30:13)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.saveerror.test.jsx:82:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21) {
+  status: [33m500[39m
+}
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.saveerror.test.jsx[2m > [22m[2mNoteEditorPage — save-error sanitization (P1-1 fix)[2m > [22m[2ma network error (no status at all) never shows "undefined" or a raw status, in the VISIBLE text
+[22m[39mautosave failed (retry 1 in 1000ms) Error: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.saveerror.test.jsx:99:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:12)
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.saveerror.test.jsx[2m > [22m[2mNoteEditorPage — save-error sanitization (P1-1 fix)[2m > [22m[2ma code fault (a TypeError that is not a network word) is never called the network, nor shown verbatim, in the VISIBLE text
+[22m[39mautosave failed (retry 1 in 1000ms) TypeError: Cannot read properties of undefined (reading 'bodyJson')
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.saveerror.test.jsx:118:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:12)
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.saveerror.test.jsx[2m > [22m[2mNoteEditorPage — save-error sanitization (P1-1 fix)[2m > [22m[2mCONTROL — Safari's network TypeError ("Load failed") still reads as the network, in the VISIBLE text
+[22m[39mautosave failed (retry 1 in 1000ms) TypeError: Load failed
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.saveerror.test.jsx:128:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:12)
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.saveerror.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[33m 1292[2mms[22m[39m
+     [33m[2m✓[22m[39m a non-retryable 4xx with no real detail (bare status "404") never shows the bare code [33m 741[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.resurface.test.jsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1348[2mms[22m[39m
+     [33m[2m✓[22m[39m flag ON: opens the version that named the level, read-only, and closing drops the parameter [33m 1119[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.phoneToolbarCss.test.js [2m([22m[2m7 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m8 passed[39m[22m[90m (8)[39m
+[2m      Tests [22m [1m[32m67 passed[39m[22m[90m (67)[39m
+[2m   Start at [22m 03:42:59
+[2m   Duration [22m 17.09s[2m (transform 3.83s, setup 1.27s, import 526ms, tests 27.18s, environment 3.62s)[22m
+
