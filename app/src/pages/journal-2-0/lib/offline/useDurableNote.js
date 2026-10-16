@@ -41,7 +41,7 @@ import {
   editorLineageStamp, editorLineageSupersedes, swapCaptureSpills,
 } from './recoverLocalState'
 import { copyEntryFor } from './noteCopy'
-import { discardRefusedCopy, refusedCopiesOf, saveRefusedCopy } from './refusedCopy'
+import { refusedCopiesOf } from './refusedCopy'
 import { settleForkedNote } from './outboxDrain'
 import { lastKnownServerCopy, snapshotOfServerCopy } from './serverChange'
 import { usableBaseline, isUsableBaseline, isSupersededBaseline } from './baseline'
@@ -837,31 +837,25 @@ export function useDurableNote({
     }
   }, [supported, accountId, noteId, connect])
 
-  /** "Save as a separate note" (or, with `plain`, "Save as plain text") for a
-   *  refused copy (`refusedCopy.js`). */
-  const saveCopy = useCallback(async (mutationId, { fork, plain = false }) => {
-    if (!supported) return { outcome: 'failed', offline: false }
+  /**
+   * ⭐ I-A bytes: the refused-copy offer's ONE door into this account's store. The offer's
+   * choices ("Save as a separate note", "Save as plain text", "Discard",
+   * `refusedCopyDisplay.js`) ride in the offer's own chunk, so this hook carries none of
+   * them: it runs `run(db)` and answers `fallback` when there is no store or it cannot be
+   * reached. ⛔ `fallback` is what each choice already answered then — "failed, kept as it
+   * was" for a save, "not deleted" for a Discard — so no failure here can lose a copy.
+   */
+  const withCopyStore = useCallback(async (run, fallback) => {
+    if (!supported) return fallback
     try {
       const db = await connect(accountId)
-      return await saveRefusedCopy(db, mutationId, { fork, plain })
+      return await run(db)
     } catch {
-      return { outcome: 'failed', offline: false }
-    }
-  }, [supported, accountId, connect])
-
-  /** "Discard", confirmed in the page, for a refused copy. */
-  const discardCopy = useCallback(async (mutationId) => {
-    if (!supported) return false
-    try {
-      const db = await connect(accountId)
-      await discardRefusedCopy(db, mutationId)
-      return true
-    } catch {
-      return false
+      return fallback
     }
   }, [supported, accountId, connect])
 
   return {
-    supported, status, unsynced, error, persisted, schedule, markSynced, flush, recover, saveCopy, discardCopy,
+    supported, status, unsynced, error, persisted, schedule, markSynced, flush, recover, withCopyStore,
   }
 }
