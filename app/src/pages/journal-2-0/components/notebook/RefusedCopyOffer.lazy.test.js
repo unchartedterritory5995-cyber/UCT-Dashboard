@@ -28,6 +28,8 @@ const DISPLAY = /(^|\/)refusedCopyDisplay(\.js)?$/
 const DECISION = /(^|\/)offline\/refusedCopy(\.js)?$|^\.\/refusedCopy(\.js)?$/
 const SHEET = /(^|\/)ShortcutCheatSheet(\.jsx)?$/
 const SHEET_DOOR = /(^|\/)ShortcutCheatSheetDoor(\.jsx)?$/
+const DELETE = /(^|\/)DeleteAccountModal(\.jsx)?$/
+const DELETE_DOOR = /(^|\/)DeleteAccountModalDoor(\.jsx)?$/
 
 function walk(dir, out = []) {
   for (const name of fs.readdirSync(dir)) {
@@ -120,5 +122,33 @@ describe('the keyboard-shortcut cheat sheet stays out of the first-open closure'
     expect(importsOf("// import S from './components/ShortcutCheatSheet'\nexport const a = 1\n", SHEET).statics).toEqual([])
     expect(importsOf("const L = () => import('./ShortcutCheatSheet')\n", SHEET))
       .toEqual({ statics: [], dynamics: ['./ShortcutCheatSheet'] })
+  })
+})
+
+// Controller ruling (2026-10-16, bytes headroom), same rail: the Delete Account dialog appears only
+// after a delete probe answered 409, so no file imports it statically; its one dynamic import is
+// components/accounts/DeleteAccountModalDoor.jsx, which AccountSelector (in JournalLayout's header
+// on every Journal route) and the Accounts tab render in its place.
+describe('the delete account dialog stays out of the first-open closure', () => {
+  it('NON-VACUITY: the door holds its one dynamic import, and both callers render the door', () => {
+    expect(scan(DELETE).filter((f) => f.dynamics.length).map((f) => [f.file, f.dynamics]))
+      .toEqual([['components/accounts/DeleteAccountModalDoor.jsx', ['./DeleteAccountModal']]])
+    // The walk sees the callers' own static imports, so the cell below cannot pass for want of one.
+    expect(scan(DELETE_DOOR).filter((f) => f.statics.length).map((f) => f.file).sort())
+      .toEqual(['components/accounts/AccountSelector.jsx', 'tabs/AccountsTab.jsx'])
+  })
+
+  it('no file imports the dialog statically -- AccountSelector above all', () => {
+    const offenders = scan(DELETE).filter((f) => f.statics.length).map((f) => f.file)
+    expect(offenders).toEqual([])
+  })
+
+  it('CONTROLS: the dialog’s static import is seen, its door is not mistaken for it, a comment is ignored', () => {
+    expect(importsOf("import DeleteAccountModal from './DeleteAccountModal'\n", DELETE).statics).toHaveLength(1)
+    expect(importsOf("import D from '../components/accounts/DeleteAccountModal.jsx'\n", DELETE).statics).toHaveLength(1)
+    expect(importsOf("import D from './DeleteAccountModalDoor'\n", DELETE).statics).toEqual([])
+    expect(importsOf("// import D from './DeleteAccountModal'\nexport const a = 1\n", DELETE).statics).toEqual([])
+    expect(importsOf("const L = () => import('./DeleteAccountModal')\n", DELETE))
+      .toEqual({ statics: [], dynamics: ['./DeleteAccountModal'] })
   })
 })

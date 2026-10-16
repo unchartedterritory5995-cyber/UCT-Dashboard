@@ -8,7 +8,10 @@ import useJ2Accounts from '../hooks/useJ2Accounts'
 import useJ2AccountComparison from '../hooks/useJ2AccountComparison'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import ComparisonGrid from '../components/accounts/ComparisonGrid'
-import DeleteAccountModal from '../components/accounts/DeleteAccountModal'
+// Bytes headroom: the Delete Account dialog loads on its first open, through its chunk door, never
+// with the page. Same props, same confirmation, same requests (the dialog's own). ⛔ Never a static
+// import of DeleteAccountModal (rail: components/notebook/RefusedCopyOffer.lazy.test.js).
+import DeleteAccountModal from '../components/accounts/DeleteAccountModalDoor'
 import GoalProgress from '../components/accounts/GoalProgress'
 import Milestones from '../components/accounts/Milestones'
 import BrokerConnectionsCard from '../components/BrokerConnectionsCard'

@@ -310,7 +310,7 @@ function PlaybookView({ initial = '' }) {
           <ExampleTable rows={data.winners || []} />
           <h3 className={styles.h3}>Failures</h3>
           <ExampleTable rows={data.failures || []} />
-          <PlaybookCharts winners={data.winners || []} failures={data.failures || []} />
+          <PlaybookCharts winners={data.winners || []} failures={data.failures || []} lines={data.lines || null} />
         </div>
       )}
     </div>
