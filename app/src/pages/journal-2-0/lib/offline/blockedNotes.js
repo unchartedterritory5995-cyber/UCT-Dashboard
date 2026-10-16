@@ -29,10 +29,12 @@ export async function listBlockedNoteIds(db) {
   const entries = await listOutbox(db)
   const ids = new Set()
   for (const e of entries) {
-    // I-A fix round 2 (I-1): a blocked copy shows on the note it came from — the
-    // one a member can open, where it is offered for Restore.
-    if (isBlockedEntry(e) && isNoteCopy(e) && e.copyOf) ids.add(e.copyOf)
-    else if (isBlockedEntry(e) && e.noteId) ids.add(e.noteId)
+    // ⛔ I-A fix round 3 (review I-4): a queued `(conflicted copy)` is never a
+    // blocked NOTE — not its source (whose own writes sync normally, and whose
+    // "edit it again to sync" remedy cannot clear a copy) and not its own key. A
+    // refused copy is its own offer on its source note (`refusedCopy.js`).
+    if (isNoteCopy(e)) continue
+    if (isBlockedEntry(e) && e.noteId) ids.add(e.noteId)
   }
   return [...ids]
 }

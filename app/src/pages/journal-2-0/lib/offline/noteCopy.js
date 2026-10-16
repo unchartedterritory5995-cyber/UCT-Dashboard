@@ -26,6 +26,27 @@ export const NOTE_COPY = 'note-copy'
 
 export const isNoteCopy = (entry) => entry?.kind === NOTE_COPY
 
+/** The server's `MAX_TITLE_CHARS` (`api/services/journal_two/notes.py`). ⛔ A
+ *  mirror, so `noteCopy.test.js` PARSES the server constant and fails if the two
+ *  ever differ — never restate it anywhere else. */
+export const MAX_NOTE_TITLE_CHARS = 300
+export const CONFLICTED_COPY_SUFFIX = ' (conflicted copy)'
+
+/**
+ * ⭐⭐ I-A fix round 3 (review C-3's cause): the title of a `(conflicted copy)`.
+ * The server refuses a title over `MAX_NOTE_TITLE_CHARS` (after trimming,
+ * counted in characters), and appending the suffix to a long title made every
+ * such copy refused for good. The BASE title is shortened, never the suffix, and
+ * it is cut by character (`[...s]`, as Python's `len` counts), never inside one.
+ */
+export function conflictedCopyTitle(title) {
+  const base = String(title ?? '').trim() || 'Untitled note'
+  const room = MAX_NOTE_TITLE_CHARS - [...CONFLICTED_COPY_SUFFIX].length
+  const chars = [...base]
+  const kept = chars.length > room ? chars.slice(0, room).join('').trimEnd() : base
+  return `${kept}${CONFLICTED_COPY_SUFFIX}`
+}
+
 /**
  * @param noteId    the note the words were pushed out of
  * @param words     { title, subtitle, bodyJson } — the record's words

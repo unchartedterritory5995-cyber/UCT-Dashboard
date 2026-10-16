@@ -154,23 +154,49 @@ const done = (tx) => new Promise((resolve, reject) => {
  * in the outbox the instant the record stops holding them, never between. Their
  * `noteId` is not this note's, so the null-intent delete below cannot reach them.
  */
-export async function putNoteWithIntent(db, noteRecord, outboxEntry, { copies = [], retire = [] } = {}) {
+export async function putNoteWithIntent(db, noteRecord, outboxEntry, { copies = [] } = {}) {
   const tx = db.transaction([STORE_NOTES, STORE_OUTBOX], 'readwrite')
   const outbox = tx.objectStore(STORE_OUTBOX)
   stageNoteWithIntent(tx.objectStore(STORE_NOTES), outbox, noteRecord, outboxEntry)
   for (const copy of copies) outbox.put(copy)
-  // ⭐ I-A fix round 2 (I-1): a refused copy whose words THIS record now holds —
-  // removed in the same transaction that writes them, never before.
-  for (const mutationId of retire) outbox.delete(mutationId)
   await done(tx)
   return noteRecord
 }
 
-/** Rewrite one outbox entry in place (a copy the server refused: kept, marked). */
+/** Write one outbox entry as given. */
 export async function putOutboxEntry(db, entry) {
   const tx = db.transaction(STORE_OUTBOX, 'readwrite')
   tx.objectStore(STORE_OUTBOX).put(entry)
   await done(tx)
+}
+
+/**
+ * ⭐ I-A fix round 3 (review I-4): rewrite an outbox entry ONLY if it is still
+ * there — the read and the write in ONE transaction. A refusal that comes back
+ * after the member discarded the copy must not bring it back.
+ * @returns {Promise<boolean>} whether the entry was written
+ */
+export async function putOutboxEntryIfPresent(db, entry) {
+  const tx = db.transaction(STORE_OUTBOX, 'readwrite')
+  const committed = done(tx)
+  const store = tx.objectStore(STORE_OUTBOX)
+  let wrote = false
+  const req = store.get(entry.mutationId)
+  req.onsuccess = () => {
+    if (req.result) { store.put(entry); wrote = true }
+  }
+  await committed
+  return wrote
+}
+
+/** One outbox entry by its key, or null. */
+export function getOutboxEntry(db, mutationId) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_OUTBOX, 'readonly')
+    const req = tx.objectStore(STORE_OUTBOX).get(mutationId)
+    req.onsuccess = () => resolve(req.result || null)
+    req.onerror = () => reject(req.error)
+  })
 }
 
 /**

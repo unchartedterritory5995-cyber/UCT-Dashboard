@@ -17,12 +17,12 @@
  */
 import {
   clearOutboxEntry, getMeta, getNote, listOutbox, putNoteWithIntent, putNoteWithIntentIf,
-  putOutboxEntry,
 } from './notebookDb'
 import { usableBaseline, isUsableBaseline, landedBaseline, isSupersededBaseline } from './baseline'
 import { isMarkerLive, markerKeyFor, landedKeyFor, IN_FLIGHT_TTL_MS } from './inFlight'
 import { baseMayStandFor, sameAuthoredContent } from './recoverLocalState'
 import { isNoteCopy } from './noteCopy'
+import { copyRefusedForGood, holdRefusedCopy } from './refusedCopy'
 import {
   APPEND_ONLY, BODY_REWRITE, METADATA_ONLY, appendedServerNodes, classifyServerChange,
   lastKnownServerCopy, missingServerNodes, serverAppendedKeysIn, snapshotOfServerCopy,
@@ -34,6 +34,10 @@ export const KEPT = 'kept'          // transient — still queued, will be retri
 export const BLOCKED = 'blocked'    // permanent — still stored, no longer retried
 export const SKIPPED = 'skipped'    // the open editor owns this note right now
 export const SUPERSEDED = 'superseded'  // a save this browser landed is newer; nothing left to send
+/** I-A fix round 3: a `(conflicted copy)` the server refused to create. Kept on
+ *  this device and offered on its source note (`refusedCopy.js`); the sweep never
+ *  re-sends it. ⛔ Not BLOCKED: it is not the note's own write (review I-4). */
+export const HELD = 'held'
 
 /** Why a BLOCKED result carries a `report`. ⛔ The ONLY reason that does — the
  *  other two blocks (already-`permanent`, a non-transient server rejection) are
@@ -42,10 +46,6 @@ export const SUPERSEDED = 'superseded'  // a save this browser landed is newer; 
 export const NO_BASELINE = 'no-baseline'
 
 const isTransient = (e) => !e?.status || e.status >= 500
-/** I-A fix round 2: a copy's create refused for good — a 4xx that is not a
- *  session (401), a timeout (408) or a rate limit (429). Anything else is retried. */
-const copyRefusedForGood = (e) => Number.isFinite(e?.status) && e.status >= 400 && e.status < 500
-  && ![401, 408, 429].includes(e.status)
 
 /**
  * The note caught up with the server — or did not, because it moved on while
@@ -429,12 +429,13 @@ export async function drainOutbox(db, {
     // as a baseline-less update and BLOCKS it (kept, never sent). This bundle
     // still forks it — a blocked copy is not a reason to strand words.
     if (isNoteCopy(entry)) {
-      // ⭐ FIX ROUND 2 (review I-1): a copy THIS bundle saw refused is blocked —
-      // kept, never re-posted every sweep, shown on its source note
-      // (`listBlockedNoteIds`) and offered there for Restore (`recover`). A copy
-      // an OLDER bundle blocked (no `copyRefused`) is still tried, as before.
+      // ⭐ FIX ROUND 3 (reviews I-1, I-3, I-4): a copy THIS bundle saw refused is
+      // HELD — kept on this device, never re-posted by the sweep, and offered on its
+      // source note as "Save as a separate note" or "Discard" (`refusedCopy.js`).
+      // It does not block the note. A copy an OLDER bundle blocked (no
+      // `copyRefused`) is still tried, as before.
       if (entry.copyRefused) {
-        results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: BLOCKED, copy: true })
+        results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: HELD, copy: true })
         continue
       }
       try {
@@ -445,17 +446,11 @@ export async function drainOutbox(db, {
         results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: FORKED, copy: true })
       } catch (fe) {
         if (copyRefusedForGood(fe)) {
-          // ⛔ Kept, never deleted: marked with its reason, words intact.
+          // ⛔ Kept, never deleted: marked with its reason, words intact — and only
+          // if the member has not discarded it meanwhile (`holdRefusedCopy`).
           // eslint-disable-next-line no-await-in-loop
-          await putOutboxEntry(db, {
-            ...entry,
-            permanent: true,
-            copyRefused: { status: fe.status, error: String(fe?.message || fe) },
-            lastError: String(fe?.message || fe),
-            lastStatus: fe.status,
-            attempts: (entry.attempts || 0) + 1,
-          })
-          results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: BLOCKED, error: fe, copy: true })
+          await holdRefusedCopy(db, entry, fe)
+          results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: HELD, error: fe, copy: true })
         } else {
           results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: KEPT, error: fe, copy: true })
         }
@@ -936,6 +931,7 @@ export function summarize(results) {
     forked: count(FORKED),
     kept: count(KEPT),
     blocked: count(BLOCKED),
+    held: count(HELD),
     skipped: count(SKIPPED),
   }
 }

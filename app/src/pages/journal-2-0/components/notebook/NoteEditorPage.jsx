@@ -89,6 +89,8 @@ import { mergeTagDelta, sameTagList } from '../../lib/tagDelta'
 import UnsentTrashDialog from './UnsentTrashDialog'
 import { noteHasUnsentWork } from '../../lib/offline/noteHasUnsentWork'
 import { openNotebookDb } from '../../lib/offline/notebookDb'
+import { forkConflictedCopy } from '../../lib/offline/useOutboxDrain'
+import { conflictedCopyTitle } from '../../lib/offline/noteCopy'
 import { holdsUnsentWork } from '../../lib/noteBatch'
 import { textColorClass } from '../../lib/textColor'
 import NoteHistoryPanel from './NoteHistoryPanel'
@@ -1261,6 +1263,16 @@ export default function NoteEditorPage({
   // `recover()` as `adopt`. Held here until the editor can take them (see the
   // effect after the hydration gate).
   const [pendingAdoption, setPendingAdoption] = useState(null)
+  // ⭐ I-A fix round 3 (C-3, I-4): copies of this note's words the server refused
+  // to create, handed back by `recover()` BESIDE its decision. Each is its own
+  // offer: "Save as a separate note" or "Discard" (confirmed in the page). ⛔ Never
+  // restored into this note. `copyAsk` is the copy whose Discard is being
+  // confirmed; `copyNote` is the latest outcome message, keyed by copy.
+  const [refusedCopies, setRefusedCopies] = useState([])
+  const [copyAsk, setCopyAsk] = useState(null)
+  const [copyBusy, setCopyBusy] = useState(null)
+  const [copyNote, setCopyNote] = useState({})
+  const [copySavedNotice, setCopySavedNotice] = useState(null)
   // ⛔ S2 (fix round 1): queued words are adopted SILENTLY only while nothing of
   // the member's own is in play — no edit since this note hydrated, and no save
   // pending or on the wire. Otherwise they are OFFERED (the banner) and both
@@ -1348,6 +1360,7 @@ export default function NoteEditorPage({
     if (!note) return undefined
     viewReplaced()   // hotfix 2026-10-15: a note load is a new view — a new lineage
     restoreSwapRef.current = null   // I-A: no Restore on this note's page yet
+    setRefusedCopies([]); setCopyAsk(null); setCopyBusy(null); setCopyNote({}); setCopySavedNotice(null)
     setRecoveryDecidedFor(null)
     setTitle(note.title || '')
     titleRef.current = note.title || ''
@@ -1390,6 +1403,8 @@ export default function NoteEditorPage({
         decision = null
       }
       if (cancelled) return
+      // I-A fix round 3: offered on their own, whatever the decision below is.
+      setRefusedCopies(decision?.refusedCopies || [])
       // ⭐⭐ D3 / F5P-1 — QUEUED WORDS ARE SENT BY THIS NOTE'S OWNER, NOT OFFERED.
       // The sweep will not send them while this editor owns the note
       // (`excludeNoteId`), so a banner here meant nobody sent them for as long
@@ -1586,9 +1601,9 @@ export default function NoteEditorPage({
   /** THE one swap-capture write: the durable record takes `snap` and anything it
    *  displaces becomes a queued copy (`swapCaptureSpills`). Flushed, so nothing
    *  scheduled later can coalesce it away. */
-  const scheduleSwapCapture = (snap, extra = {}) => {
+  const scheduleSwapCapture = (snap) => {
     if (!snap) return
-    durableRef.current.schedule({ ...snap, ...extra, spill: true })
+    durableRef.current.schedule({ ...snap, spill: true })
     durableRef.current.flush()
   }
   /** ⭐ FIX ROUND 2 (review C-2): the page a Restore is about to replace, written
@@ -1607,14 +1622,12 @@ export default function NoteEditorPage({
     scheduleSwapCapture(captureLocalState())
   }
   /** The page now on screen, captured at once as a swap capture: the crash draft
-   *  (convenience) and the durable record. `extra.retiresCopy` names a refused
-   *  copy whose words this page now holds (I-1): persist retires it in the same
-   *  transaction that writes them into the record. */
-  const captureSwapNow = (extra = {}) => {
+   *  (convenience) and the durable record. */
+  const captureSwapNow = () => {
     const snap = captureLocalState()
     if (!snap) return
     saveDraftLocally(snap)
-    scheduleSwapCapture(snap, extra)
+    scheduleSwapCapture(snap)
   }
   /** Called from `onUpdate` for every undo or redo, BEFORE the lineage rotates.
    *  Across the Restore boundary it writes the page being left (from
@@ -1711,10 +1724,9 @@ export default function NoteEditorPage({
     // PUT is even sent — the record takes it and the old view's unsent words go to
     // a queued copy. A keystroke after the Restore is its own undo step.
     // Review M-8: captured even for a body-less legacy draft (its title and
-    // subtitle are on screen too). I-1: a refused copy offered as the draft is
-    // retired in the same transaction that writes its words into the record.
+    // subtitle are on screen too).
     if (draftBodyJson) closeUndoStep(editorRef.current)
-    captureSwapNow(recovery?.retiresCopy ? { retiresCopy: recovery.retiresCopy } : {})
+    captureSwapNow()
     const carriedAtSend = carriedRef.current
     setPendingDraft(null)
     setRecovery(null)
@@ -1828,6 +1840,50 @@ export default function NoteEditorPage({
     const waiting = saveSettledWaitersRef.current.splice(0)
     waiting.forEach((wake) => { try { wake() } catch { /* a waiter is not the save */ } })
   }
+  /** ⭐ I-A fix round 3 (C-3): "Save as a separate note" — the create again, as a
+   *  NEW note, through the sweep's own `forkConflictedCopy`. This note is never
+   *  written. Refused again ⇒ kept, still offered, with the new reason. */
+  const saveRefusedCopyAsNote = async (copy) => {
+    if (copyBusy) return
+    setCopyBusy(copy.mutationId)
+    setCopyAsk(null)
+    try {
+      const res = await durableRef.current.saveCopy(copy.mutationId, { fork: forkConflictedCopy })
+      if (res?.outcome === 'saved' || res?.outcome === 'gone') {
+        setRefusedCopies((list) => list.filter((c) => c.mutationId !== copy.mutationId))
+        if (res.outcome === 'saved') {
+          setCopySavedNotice(`Saved as a separate note: “${conflictedCopyTitle(copy.title)}”.`)
+        }
+        return
+      }
+      if (res?.outcome === 'refused') {
+        if (res.copy) setRefusedCopies((list) => list.map((c) => (c.mutationId === copy.mutationId ? res.copy : c)))
+        setCopyNote((m) => ({ ...m, [copy.mutationId]: 'It still couldn’t be saved as a separate note. The copy stays on this device.' }))
+        return
+      }
+      setCopyNote((m) => ({ ...m, [copy.mutationId]: 'It couldn’t be saved right now. The copy stays on this device; try again when you’re online.' }))
+    } finally {
+      setCopyBusy(null)
+    }
+  }
+  /** "Discard" on a refused copy deletes it from this device — only after the
+   *  member confirms in the page (never `window.confirm`). */
+  const discardRefusedCopyConfirmed = async (copy) => {
+    if (copyBusy) return
+    setCopyBusy(copy.mutationId)
+    try {
+      const ok = await durableRef.current.discardCopy(copy.mutationId)
+      if (ok) {
+        setRefusedCopies((list) => list.filter((c) => c.mutationId !== copy.mutationId))
+        setCopyAsk(null)
+      } else {
+        setCopyNote((m) => ({ ...m, [copy.mutationId]: 'The copy couldn’t be deleted. It stays on this device.' }))
+      }
+    } finally {
+      setCopyBusy(null)
+    }
+  }
+
   const discardDraft = () => {
     clearDraftLocally()
     // ⛔ And the durable copy has to hear about it too. Clearing only the
@@ -3634,7 +3690,7 @@ export default function NoteEditorPage({
     // adding the param for an unrelated reason, fixed because it sat exactly
     // on this session's "never lose member data" conflict-handling path.
     await createNoteViaApi({
-      title: `${localTitle} (conflicted copy)`.trim(),
+      title: conflictedCopyTitle(localTitle),
       subtitle: localSubtitle || undefined,
       bodyJson: localBody,
       tags: ['sync-conflict'],
@@ -4986,6 +5042,68 @@ export default function NoteEditorPage({
             </button>
             <button type="button" className={styles.draftBannerBtn} onClick={discardDraft}>
               Discard
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ⭐ I-A fix round 3 (C-3, I-4): a copy of this note's words the server
+          refused to create. Its OWN offer, never a Restore into this note: save it
+          as a separate note, or discard it (confirmed here, in the page). */}
+      {refusedCopies.map((copy) => (
+        <div
+          key={copy.mutationId}
+          className={styles.draftBanner}
+          data-export-exclude
+          data-testid="refused-copy-offer"
+          role="status"
+        >
+          {copyAsk === copy.mutationId ? (
+            <>
+              <span>Delete this copy from this device? Its words aren’t saved anywhere else, so this can’t be undone.</span>
+              <div className={styles.draftBannerActions}>
+                <button
+                  type="button"
+                  className={`${styles.draftBannerBtn} ${styles.draftBannerBtnPrimary}`}
+                  onClick={() => discardRefusedCopyConfirmed(copy)}
+                  disabled={copyBusy === copy.mutationId}
+                >
+                  Delete copy
+                </button>
+                <button type="button" className={styles.draftBannerBtn} onClick={() => setCopyAsk(null)}>
+                  Keep it
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <span>
+                {copyNote[copy.mutationId] ? `${copyNote[copy.mutationId]} ` : ''}
+                {copy.reason}
+              </span>
+              <div className={styles.draftBannerActions}>
+                <button
+                  type="button"
+                  className={`${styles.draftBannerBtn} ${styles.draftBannerBtnPrimary}`}
+                  onClick={() => saveRefusedCopyAsNote(copy)}
+                  disabled={copyBusy === copy.mutationId}
+                >
+                  Save as a separate note
+                </button>
+                <button type="button" className={styles.draftBannerBtn} onClick={() => setCopyAsk(copy.mutationId)}>
+                  Discard
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+      {copySavedNotice && (
+        <div className={styles.draftBanner} data-export-exclude role="status">
+          <span>{copySavedNotice}</span>
+          <div className={styles.draftBannerActions}>
+            <button type="button" className={styles.draftBannerBtn} onClick={() => setCopySavedNotice(null)}>
+              OK
             </button>
           </div>
         </div>

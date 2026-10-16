@@ -40,7 +40,8 @@ import {
   editorStateDiscardsUnsentWork, queuedWorkToAdopt, baseOfRecovered,
   editorLineageStamp, editorLineageSupersedes, swapCaptureSpills,
 } from './recoverLocalState'
-import { copyEntryFor, isNoteCopy } from './noteCopy'
+import { copyEntryFor } from './noteCopy'
+import { discardRefusedCopy, refusedCopiesOf, saveRefusedCopy } from './refusedCopy'
 import { settleForkedNote } from './outboxDrain'
 import { lastKnownServerCopy, snapshotOfServerCopy } from './serverChange'
 import { usableBaseline, isUsableBaseline, isSupersededBaseline } from './baseline'
@@ -716,13 +717,9 @@ export function useDurableNote({
       const copies = spill
         ? [copyEntryFor({ noteId, words: prev, writtenSchema: prev.writtenSchema, sessionId: SESSION_ID })]
         : []
-      // ⭐ I-A fix round 2 (I-1): a refused copy the member restored is retired in
-      // the SAME transaction that writes its words into the record — and only when
-      // the record really takes this capture's words.
-      const retire = (state?.retiresCopy && source === state) ? [state.retiresCopy] : []
       // ⛔⛔ ONE TRANSACTION. The working copy, what we still owe the server, and
       // any copy a swap pushed out move together or not at all.
-      await putNoteWithIntent(db, record, intent, { copies, retire })
+      await putNoteWithIntent(db, record, intent, { copies })
       committedDirtyRef.current = Boolean(record.dirty)
     }
 
@@ -792,7 +789,7 @@ export function useDurableNote({
   const recover = useCallback(async ({ server, lsDraft = null } = {}) => {
     let idbRecord = null
     let queued = null
-    let refusedCopy = null
+    let refusedCopies = []
     if (supported) {
       try {
         const db = await connect(accountId)
@@ -803,16 +800,14 @@ export function useDurableNote({
         // ⭐ D3 / F5P-1: the queued entry is the evidence that these words were
         // already committed to the server — see `queuedWorkToAdopt`.
         if (idbRecord) queued = entries.find((e) => e?.noteId === noteId) || null
-        // ⭐ I-A fix round 2 (I-1): a copy of THIS note's words the server refused
-        // to create. It is never deleted and never re-posted, so this is how the
-        // member reaches it: offered on the note it came from.
-        refusedCopy = entries
-          .filter((e) => isNoteCopy(e) && e.copyOf === noteId && e.copyRefused)
-          .sort((a, b) => (b.queuedAt || 0) - (a.queuedAt || 0))[0] || null
+        // ⭐ I-A fix round 3 (C-3, I-4): copies of THIS note's words the server
+        // refused to create. The sweep never re-sends them, so this is how the
+        // member reaches them: their own offer on the note they came from.
+        refusedCopies = refusedCopiesOf(entries, noteId)
       } catch {
         idbRecord = null   // no durable copy is a fact, not an error to raise
         queued = null
-        refusedCopy = null
+        refusedCopies = []
       }
     }
     // ⛔ D3b — WITH THE WAVE SWITCHED OFF, A DRAFT IS READ EXACTLY AS BEFORE D3b.
@@ -830,36 +825,42 @@ export function useDurableNote({
     // reconcile instead of being overwritten (see `baseOfRecovered`). ⭐ D3b: for
     // a crash draft that won too, and — when only the REVISION is provable — a
     // base whose body is unknown, so any move of the server forks.
-    // ⭐ I-A fix round 2 (I-1): only when nothing else is offered — one banner at a
-    // time, and a crash draft or queued work always comes first. Restored through
-    // the no-base path (`base: null`): a direct save, then the reconcile, never a
-    // silent overwrite. Discard leaves the copy exactly where it is.
-    if (!decision.unsynced && refusedCopy) {
-      return {
-        ...decision,
-        source: 'refused-copy',
-        state: {
-          title: refusedCopy.patch?.title ?? '',
-          subtitle: refusedCopy.patch?.subtitle ?? '',
-          bodyJson: refusedCopy.patch?.bodyJson ?? null,
-        },
-        writtenSchema: refusedCopy.writtenSchema,
-        unsynced: true,
-        ambiguous: false,
-        reason: 'a copy of this note the server refused to create — kept on this device',
-        adopt: null,
-        base: null,
-        retiresCopy: refusedCopy.mutationId,
-      }
-    }
+    // ⛔⛔ I-A fix round 3 (review C-3): a refused copy is NEVER this decision. It is
+    // not restored into this note; it travels BESIDE the decision as its own offer.
     return {
       ...decision,
       adopt: queuedWorkToAdopt({ decision, record: idbRecord, entry: queued }),
       base: baseOfRecovered({
         decision, record: idbRecord, entry: queued, draft: supported ? lsDraft : null, server,
       }),
+      refusedCopies,
     }
   }, [supported, accountId, noteId, connect])
 
-  return { supported, status, unsynced, error, persisted, schedule, markSynced, flush, recover }
+  /** "Save as a separate note" for a refused copy (`refusedCopy.js`). */
+  const saveCopy = useCallback(async (mutationId, { fork }) => {
+    if (!supported) return { outcome: 'failed' }
+    try {
+      const db = await connect(accountId)
+      return await saveRefusedCopy(db, mutationId, { fork })
+    } catch {
+      return { outcome: 'failed' }
+    }
+  }, [supported, accountId, connect])
+
+  /** "Discard", confirmed in the page, for a refused copy. */
+  const discardCopy = useCallback(async (mutationId) => {
+    if (!supported) return false
+    try {
+      const db = await connect(accountId)
+      await discardRefusedCopy(db, mutationId)
+      return true
+    } catch {
+      return false
+    }
+  }, [supported, accountId, connect])
+
+  return {
+    supported, status, unsynced, error, persisted, schedule, markSynced, flush, recover, saveCopy, discardCopy,
+  }
 }
