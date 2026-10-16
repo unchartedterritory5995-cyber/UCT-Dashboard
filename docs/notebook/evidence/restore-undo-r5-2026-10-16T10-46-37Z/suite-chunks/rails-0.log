@@ -1,0 +1,18 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+ [32m✓[39m src/styles/tokens.reachable.test.js [2m([22m[2m5 tests[22m[2m)[22m[33m 597[2mms[22m[39m
+     [33m[2m✓[22m[39m every var(--x) used WITHOUT a fallback is defined somewhere [33m 367[2mms[22m[39m
+ [32m✓[39m src/__tests__/sourcesAreText.test.js [2m([22m[2m2 tests[22m[2m)[22m[32m 286[2mms[22m[39m
+ [32m✓[39m src/components/screener/reachable.test.js [2m([22m[2m17 tests[22m[2m)[22m[33m 23441[2mms[22m[39m
+     [33m[2m✓[22m[39m PLANTED CUT: remove the mount's import and ScanResults goes unreachable [33m 6677[2mms[22m[39m
+     [33m[2m✓[22m[39m THE DYNAMIC EDGE IS LOAD-BEARING: static-only imports never reach the page [33m 3530[2mms[22m[39m
+     [33m[2m✓[22m[39m THE WORKER EDGE IS LOAD-BEARING: `new Worker(new URL(…))` is followed [33m 6600[2mms[22m[39m
+     [33m[2m✓[22m[39m THE SWEEP REPORTS A TRACKED ORPHAN, and exempts an UNTRACKED one [33m 3296[2mms[22m[39m
+     [33m[2m✓[22m[39m THE ALLOW-LIST GUARDS BITE: a wired entry and a vanished one are each caught [33m 3326[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m24 passed[39m[22m[90m (24)[39m
+[2m   Start at [22m 06:08:01
+[2m   Duration [22m 27.79s[2m (transform 230ms, setup 505ms, import 3.80s, tests 24.32s, environment 1.20s)[22m
+

@@ -1,0 +1,1 @@
+[rails-0] exit=0 files=3 :: Test Files  3 passed (3) | Tests  24 passed (24)

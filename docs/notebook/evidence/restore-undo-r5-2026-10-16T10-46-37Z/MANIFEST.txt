@@ -1,0 +1,30 @@
+Raw output for I-A fix round 5 (the final round), committed before the report section was written (R-RAW).
+
+Round-4 tip: 5bfe485085. Commits: fe1234a691 (rails, red first), 102464051b (fix), d1811ba018 (one rail
+added after mutant R5-M9 survived). All runs --maxWorkers=2 from app/, about 16.8 GB available.
+Every mutation was restored byte-exact (sha256 of the captured bytes) AND checked, CR-stripped, against
+`git cat-file blob HEAD:<path>`. Never git checkout / git stash. app/node_modules 377 entries before and after.
+
+red-first/red-on-5bfe485085.log   the rails at fe1234a691 with the product files of 5bfe485085 untouched:
+                                  Test Files 2 failed (2), Tests 22 failed | 91 passed (113). The 22 are every
+                                  new round-5 cell (16) plus the 6 round-4 assertions the rulings reverse.
+run1-fix.log                      the fix in the tree before two wording edits to refusedCopy.js: 113/113.
+run2-fix-final.log                the final fix tree (what 102464051b commits): 113 passed (113).
+run3-m9-rail.log                  with the rail added in d1811ba018: 114 passed (114).
+suite-offline.txt, suite-editor.txt, suite-rails.txt, suite-chunks/
+                                  chunks_ru5.py on 102464051b: lib/offline 49 files 912/912; NoteEditorPage.*
+                                  68 files, 1 failed | 506 passed (507): NoteEditorPage.screenshotChip.test.jsx
+                                  "the first fetch fails and the in-place retry succeeds" - the known red the
+                                  brief names (red on master's editor too), not this round; repo rails
+                                  (sourcesAreText, reachable, tokens.reachable) 3 files 24/24.
+                                  (A first suite run was STOPPED and its partial logs deleted: refusedCopy.js was
+                                  edited while it ran, so its tree was mixed.)
+mutate_ru5.py, mutations-run.txt, mutations/
+                                  19 mutants. 15 killed; R5-M9 SURVIVED (no rail told the field-named `other`
+                                  sentence from the generic one); R5-M17..M19 SKIPPED (git re-checked-out
+                                  NoteEditorPage.jsx as CRLF after the commit, so the LF snippets matched 0 times).
+mutations-rerun.txt, mutations-rerun/
+                                  after d1811ba018 and the harness matching CRLF: R5-M9, M17, M18, M19 all KILLED.
+                                  Final: 19 of 19 killed.
+lint-new.json, lint-head-*.json   ESLint per rule on the 5 touched files vs 5bfe485085 (stdin): identical counts;
+                                  refusedCopy.js, RefusedCopyOffer.jsx, noteCopy.test.js clean.
