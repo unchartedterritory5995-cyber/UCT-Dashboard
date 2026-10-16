@@ -1,0 +1,8 @@
+   -9326  ShortcutCheatSheet  9326 -> None
+     -67  JournalLayout  18375 -> 18308
+      -3  index  838510 -> 838507
+    +242  offlineFlag  3544 -> 3786
+   +2312  useDurableNote  22835 -> 25147
+   +3195  NotebookFlagGate  348913 -> 352108
+   +6214  ShortcutCheatSheetDoor  None -> 6214
+total 2567
