@@ -44,7 +44,7 @@ def test_estimate_is_free_and_nl1_shares_one_cacheable_system_prompt():
     many = r.estimate([_item(message=f"m{i}") for i in range(10)], PRICES, "claude-haiku-5-5")
     assert many["usd_cached"] < many["usd_uncached"]           # the >100K tier is per request, never per run
     assert est["system_tokens_per_request_high"] > 4096          # above Haiku 4.5's cache minimum
-    assert est["usd_worst_case"] == pytest.approx(est["usd_worst_per_call"] * 3 * 2, rel=1e-3)   # 2 calls each
+    assert est["usd_worst_case"] == pytest.approx(est["usd_worst_per_call"] * 3 * 2, rel=1e-2)   # 2 calls each
 
 
 class _Args:

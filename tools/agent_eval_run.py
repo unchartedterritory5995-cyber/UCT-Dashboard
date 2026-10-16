@@ -65,7 +65,7 @@ def prompt_parts(item: dict) -> dict:
     route = None if nl1 else turn.validate_routing(body.get("routing"))
     unselected = route["unselected"] if route else None
     compact = True if nl1 else turn.compact_ops(caps)
-    system = turn.system_prompt(caps, unselected, compact, nl1=nl1)
+    system = turn.system_prompt(caps, unselected, compact, nl1=nl1) + (turn.reference_block(body.get("reference")) or "" if nl1 else "")
     schema = json.dumps(turn.envelope_schema(caps, unselected, compact, nl1=nl1))
     rest = (len(turn._block("workspace_context", body["context"])) + len(body["message"])
             + sum(len(str(h.get("text") or "")) + 20 for h in item.get("history") or []) + 400)
@@ -175,11 +175,13 @@ def main(argv=None) -> int:
     ap.add_argument("--keys", default=None, help="'trial' (tools/agent_eval_trial.json) or comma-separated dev keys")
     ap.add_argument("--effort", choices=["low", "medium", "high"], default=None, help="output_config.effort (not Haiku 4.5)")
     ap.add_argument("--timeout-s", type=float, default=DEFAULT_TIMEOUT_S)
+    ap.add_argument("--catalog", choices=["full", "lean"], default="full", help="NL-1 catalog variant (lean: no usage hints)")
     ap.add_argument("--run", action="store_true")
     ap.add_argument("--max-usd", type=float, default=None)
     ap.add_argument("--out", default=None)
     a = ap.parse_args(argv)
     prices = load_prices()
+    os.environ[turn.NL1_CATALOG_ENV] = a.catalog          # this process only (estimate and run use the same variant)
     if a.model not in prices["models"]:
         print(f"refused: no price for {a.model} in tools/agent_eval_prices.json")
         return 2
@@ -188,7 +190,7 @@ def main(argv=None) -> int:
     by_set: dict[str, int] = {}
     for i in items:
         by_set[i["set"]] = by_set.get(i["set"], 0) + 1
-    print(f"model {a.model}  mode {a.mode}  requests {est['requests']}  " + "  ".join(f"{k}:{v}" for k, v in sorted(by_set.items())))
+    print(f"model {a.model}  mode {a.mode}  catalog {a.catalog}  requests {est['requests']}  " + "  ".join(f"{k}:{v}" for k, v in sorted(by_set.items())))
     print(f"input tokens ~{est['input_tokens_low']:,}-{est['input_tokens_high']:,}  (prompt ~{est['prompt_tokens_per_request_high']:,}/request, "
           f"system ~{est['system_tokens_per_request_high']:,}, {est['distinct_system_prompts']} distinct)")
     print(f"cost  cached ~${est['usd_cached']}   uncached ~${est['usd_uncached']}   worst per call ${est['usd_worst_per_call']}   "
@@ -270,7 +272,8 @@ def _run(a, items: list[dict], prices: dict) -> int:  # pragma: no cover - paid 
         try:
             r = turn.run_turn(message=b["message"], context=b["context"], history=it.get("history") or [],
                               capabilities=b["capabilities"], routing=b.get("routing"), pending=b.get("pending"),
-                              manifest_version=b.get("manifestVersion"), caller=caller, interpreter=b.get("interpreter"))
+                              manifest_version=b.get("manifestVersion"), caller=caller, interpreter=b.get("interpreter"),
+                              reference=b.get("reference"))
             env, err, usage = r["envelope"], None, r["usage"]
         except Stop as e:
             stopped = str(e)

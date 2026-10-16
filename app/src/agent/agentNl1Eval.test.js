@@ -167,7 +167,8 @@ describe('NL-1 request capture', () => {
     const [nl1] = captureCase(spec, c, 'nl1')
     const [legacy] = captureCase(spec, c, 'legacy')
     expect(nl1.body.capabilities.length).toBeGreaterThan(legacy.body.capabilities.length)
-    expect(nl1.body.context.indicatorCatalog).toBeTruthy()          // legacy: only after add/put/apply/…
+    expect(nl1.body.reference.indicatorCatalog).toBeTruthy()        // always; legacy: only after add/put/apply/…
+    expect(nl1.body.context.indicatorCatalog).toBeUndefined()        // a stable catalog travels apart (cached server-side)
     expect(legacy.body.context.indicatorCatalog).toBeUndefined()
   })
 

@@ -148,6 +148,9 @@ class TurnIn(BaseModel):
     # NL-1's ONE repair: UCT's planner refused the previous plan for this same message. Only as a reroute
     # (it continues the request, inside its 2-call ceiling — never a new, separately budgeted request).
     repair: Optional[dict] = None
+    # NL-1: stable catalogs (indicator catalog, Screener fields) sent apart from the context so the server
+    # can cache them; turn.reference_block accepts only its known keys, as DATA, under a size limit.
+    reference: Optional[dict] = None
     pending: Optional[dict] = None
     recentOutcome: Optional[str] = None
     voice: bool = False
@@ -306,7 +309,7 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
                              manifest_version=body.manifestVersion, routing=body.routing,
                              conversation_title=nameable, on_event=on_event,
                              meter=budget.Meter(user_id=uid, request_id=request_id), reroute=body.reroute,
-                             interpreter=body.interpreter, repair=body.repair)
+                             interpreter=body.interpreter, repair=body.repair, reference=body.reference)
     except budget.BudgetRefused as e:
         # refused BEFORE a paid call: nothing was sent, nothing changed; the day's count is given back
         _give_back(uid)

@@ -73,3 +73,23 @@ Unchanged: the registry, the planner, the policy (`decideMode`), the product wri
 | 8 | Sealed sets | Unchanged and still locked (hash test passes). The trial uses dev cases only, and the runner refuses a key selection that names a sealed case |
 
 Also fixed: the estimator priced a whole run's tokens as one prompt, which wrongly applied Haiku 5.5's over-100K tier. It now prices per request.
+
+---
+
+## Iteration 3: free local development while the eval key is pending (2026-10-16)
+
+The T1 trial **did not run**: no separate eval key is configured, so no API call was made. Real-model evaluation stays a release requirement. Routes audit: [NL1-ROUTES.md](NL1-ROUTES.md).
+
+| Area | Change (NL-1 only; flags off by default) |
+|---|---|
+| **Payload** | Stable catalogs (the indicator catalog, and the Screener field catalog in production) leave the per-request context and travel as `reference`. The server puts them in a **second cached system block** (known keys only, escaped, ≤ 24 KB). Per-request uncached context: **9.2K → 3.6K chars** (legacy: 4.2K). The prompt is still ~24K tokens, but ~95% of it is cacheable prefix |
+| **Lean catalog variant** | `UCT_AGENT_NL1_CATALOG=lean` (eval knob, default full): every one of the 91 actions with its args and summary, no usage hints. ~17K tokens per request (−30%). The real eval decides whether hints are worth their tokens (`--catalog lean`) |
+| **Research routing** | Under NL-1 no keyword decides research. Removed for NL-1: news-word forcing (`_needs_current_facts`), the breadth-question regexes, the question-word gate for research beside a change, and the news/explain words for local-lookup notices. The model's `research` field decides; a new `wants_explanation` field drives the explain notice. Kept: research only on answers or mixed requests, never a change based on what was found, never for local lookups, within the call and budget limits. Legacy is unchanged (tested) |
+| **Create Indicator door** | New isolated test (3 cases) found and fixed: an exact "cancel" at the door's question went to the model; it now sets the question aside with no call |
+| **End-to-end panel tests** | +5 (18 in total): an injection inside a list name stays data, and the destructive plan the model "obeys" is only proposed; "yes" with nothing waiting approves nothing; a multi-step plan is one change with one Undo; a click on the model's choice lands on that chart with the question and refs; a confirm-risk "apply" waits for approval |
+| **Server injection test** | Member-controlled text in `pending_question` and the last change's arguments cannot close UCT's data tags |
+
+Not done (by design or pending):
+- the real-model trial, which needs the key;
+- deleting the legacy phrase layers, which happens only after NL-1 passes its gates;
+- an NL-1-specific shorter rules header. Deduplicating the legacy header would save only ~2% and touches shared prompt text, so it was not worth the risk.

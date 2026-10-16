@@ -70,10 +70,32 @@ export function buildNl1Request({ host, text, capCtx = {}, manageIndicators = fa
     }
   }
   const pending = pendingProposal ? { ops: pendingProposal.ops.map(o => ({ ...o, target: back[o.target] || o.target })) } : null
+  const reference = splitReference(ctx)
   return {
-    body: { message: text, context: ctx, capabilities: manifest, manifestVersion: MANIFEST_VERSION, routing: null, pending, interpreter: INTERPRETER },
+    body: { message: text, context: ctx, capabilities: manifest, manifestVersion: MANIFEST_VERSION, routing: null, pending, interpreter: INTERPRETER,
+      ...(reference ? { reference } : {}) },
     refMap,
   }
+}
+
+/**
+ * STABLE catalogs leave the per-request context and travel as `reference` (the server caches them in their
+ * own system block): the indicator catalog (what indicator.add can add) and the Screener's field catalog.
+ * They carry no refs — every target the model may use stays in the context. Mutates `ctx`; returns the
+ * reference object, or null when there is nothing to move.
+ */
+export function splitReference(ctx) {
+  const ref = {}
+  if (Array.isArray(ctx.indicatorCatalog) && ctx.indicatorCatalog.length) {
+    ref.indicatorCatalog = ctx.indicatorCatalog
+    delete ctx.indicatorCatalog
+  }
+  const scr = Array.isArray(ctx.screener) ? ctx.screener[0] : null
+  if (scr && typeof scr.fields === 'string' && scr.fields.length > 200) {
+    ref.screenerFields = scr.fields
+    ctx.screener = [{ ...scr, fields: 'see reference_data.screenerFields' }, ...ctx.screener.slice(1)]
+  }
+  return Object.keys(ref).length ? ref : null
 }
 
 /** Gate C memory as the model reads it, plus (NL-1) the last change's targets and arguments. */
