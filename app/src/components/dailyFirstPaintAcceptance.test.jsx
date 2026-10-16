@@ -467,21 +467,41 @@ describe('DAILY first-paint acceptance', () => {
     report(await runCase('LIVE-SEED idb-1', 'cache'))
   }, 30000)
 
-  it('AFTER THE BELL — a fresh today-dated cache is DEFERRED to the sealed close (by design)', async () => {
+  it('AFTER THE BELL — a today-dated cache WRITTEN MID-SESSION is DEFERRED to the sealed close (by design)', async () => {
     // ⭐ THE OTHER HALF OF THE WINDOW, as its own input. Same ET day at 18:12 ET: the
     // frontier is unchanged (today is the latest closed session), the cache is the D0
-    // fixture, and the product must NOT paint it first — the network's sealed close
-    // is the first frame, with no right-edge insertion, no drift and no OHLC
-    // correction afterwards. This is `isDailyTodayCloseProvisionalForPaint` at the
-    // level the member sees it; `marketSession.dailypaint.test.js` pins the predicate.
+    // fixture written at 14:26 ET, and the product must NOT paint it first — the
+    // network's sealed close is the first frame, with no right-edge insertion, no
+    // drift and no OHLC correction afterwards. This is
+    // `isDailyTodayCloseProvisionalForPaint` at the level the member sees it;
+    // `marketSession.dailypaint.test.js` pins the predicate.
+    // ⚰️ (2026-10-16) This used `savedAt: Date.now()` — a set written at 18:12, after
+    // the close — and asserted it was refused too. That was the defect: a set fetched
+    // after the bell already holds the sealed close, and refusing it is what made every
+    // warmed Focus neighbour wait on the network. The mid-session write is the case the
+    // guard protects, so that is what this row now pins; the sealed one is the next row.
     // ⛔ Asserted, not merely reported: the D-rows above are printed only, and this
     // row is deterministic (a refused cache paints nothing, so the network can never
     // lose the race here).
+    const writtenMidSession = Date.now()          // clock is pinned inside RTH (14:26 ET) here
     clock.retarget(PINNED_AFTER_BELL_ISO)
     try {
       expect(MS.expectedDailyTailForPaintET()).toBe(FRONTIER)   // same frontier — the fixtures still apply
-      world.idbEntry = { bars: FULL, lastT: FRONTIER, savedAt: Date.now() }
-      const r = report(await runCase('AFTER-BELL idb@today', 'network'))
+      world.idbEntry = { bars: FULL, lastT: FRONTIER, savedAt: writtenMidSession }
+      const r = report(await runCase('AFTER-BELL idb@today written 14:26', 'network'))
+      expect(r.verdict, `${r.name}: ${JSON.stringify(r.flags || r.why)}`).toBe('PASS')
+    } finally {
+      clock.retarget(PINNED_RTH_ISO)
+    }
+  }, 30000)
+
+  it('AFTER THE BELL — a today-dated cache WRITTEN AFTER THE CLOSE paints first (it holds the sealed close)', async () => {
+    // The fixture's today bar IS the network's (same OHLC), as it would be for a set
+    // fetched after the close: the cache paints first and nothing is corrected after.
+    clock.retarget(PINNED_AFTER_BELL_ISO)
+    try {
+      world.idbEntry = { bars: FULL, lastT: FRONTIER, savedAt: Date.now() }   // 18:12 ET
+      const r = report(await runCase('AFTER-BELL idb@today written 18:12', 'cache'))
       expect(r.verdict, `${r.name}: ${JSON.stringify(r.flags || r.why)}`).toBe('PASS')
     } finally {
       clock.retarget(PINNED_RTH_ISO)
@@ -562,6 +582,6 @@ describe('DAILY first-paint acceptance', () => {
           `ops ${r.postOps}`,
         ].join(' | ')
     )).join('\n'))
-    expect(RESULTS.length).toBe(17)
+    expect(RESULTS.length).toBe(18)   // +1 (2026-10-16): the after-bell row split into mid-session vs sealed
   })
 })

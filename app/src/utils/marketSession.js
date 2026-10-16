@@ -190,13 +190,34 @@ export function isDailyTailStaleForPaint(isoTail) {
  * developing bar's close SHOULD evolve with the live feed, so a same-session cache
  * is legitimately live.
  */
-export function isDailyTodayCloseProvisionalForPaint(isoTail) {
+//
+// ⭐ (2026-10-16) `savedAtMs` — WHEN THE SET WAS WRITTEN — decides it. The guard is
+// about a set written DURING the session; it used to refuse every today-dated set
+// from the bell to midnight, including one fetched at 17:00 that already holds the
+// sealed close. So every warmed neighbour on the Focus screener was refused after the
+// close and each ArrowDown waited 530-850 ms on the network for data it already had.
+// A set written on today's ET date at/after close + DAILY_CLOSE_SETTLE_MS holds the
+// sealed close and is NOT provisional. Unknown age (no stamp) stays provisional — the
+// safe answer. ⛔ The stamp must be the SOURCE write time: a mem entry promoted from
+// IDB carries the IDB entry's `savedAt`, never the promotion time (barsMemCache.memPut).
+export const DAILY_CLOSE_SETTLE_MS = 5 * 60_000
+export function isDailyTodayCloseProvisionalForPaint(isoTail, savedAtMs = null, nowMs = Date.now()) {
   if (typeof isoTail !== 'string' || !isoTail) return false
-  const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  const nowET = new Date(new Date(nowMs).toLocaleString('en-US', { timeZone: 'America/New_York' }))
   const dow = nowET.getDay()
   const mins = nowET.getHours() * 60 + nowET.getMinutes()
-  if (!(dow >= 1 && dow <= 5 && mins >= _effectiveCloseMinutesET(nowET))) return false   // only at/after today's close
-  return isoTail.slice(0, 10) === _isoOfET(nowET)
+  const closeMin = _effectiveCloseMinutesET(nowET)
+  if (!(dow >= 1 && dow <= 5 && mins >= closeMin)) return false   // only at/after today's close
+  const todayISO = _isoOfET(nowET)
+  if (isoTail.slice(0, 10) !== todayISO) return false
+  if (Number.isFinite(savedAtMs) && savedAtMs > 0) {
+    // Written after the close (+ settle, the same 16:05 the tape-settled jobs use)?
+    // Compared in ET wall time on the same calendar day, so DST cannot move it.
+    const savedET = new Date(new Date(savedAtMs - DAILY_CLOSE_SETTLE_MS).toLocaleString('en-US', { timeZone: 'America/New_York' }))
+    const savedMins = savedET.getHours() * 60 + savedET.getMinutes()
+    if (_isoOfET(savedET) === todayISO && savedMins >= closeMin) return false
+  }
+  return true
 }
 
 /**

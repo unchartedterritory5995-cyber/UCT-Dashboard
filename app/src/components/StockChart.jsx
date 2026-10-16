@@ -7130,7 +7130,8 @@ export default function StockChart({
       const g = dailyMissingSessionsForPaint(tailISO, DAILY_PAINT_MAX_GAP + 1).length
       return g > Math.max(1, DAILY_PAINT_MAX_GAP) ? 'too-far-behind' : 'ok'
     }
-    if (isDailyTodayCloseProvisionalForPaint(tailISO)) return 'provisional-close'
+    // savedAtMs: a set written after the close holds the sealed close (marketSession).
+    if (isDailyTodayCloseProvisionalForPaint(tailISO, savedAtMs)) return 'provisional-close'
     const gap = dailyMissingSessionsForPaint(tailISO, DAILY_PAINT_MAX_GAP + 1).length
     // Missing MORE than the current session: the older missing sessions exist only on
     // the server, so painting this guarantees a right-edge insertion afterwards. No
