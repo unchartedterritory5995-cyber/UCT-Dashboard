@@ -28,7 +28,7 @@
 
     { "id": "d-multi-01", "cat": "multi", "fx": "one_chart", "text": "add rsi and switch to weekly", "expect": { "kind": "act", "ops": [{ "a": "indicator.add" }, { "a": "chart.setTimeframe", "args": { "timeframe": "W" } }] } },
     { "id": "d-multi-02", "cat": "multi", "fx": "two_charts_nosel", "text": "left chart weekly, right chart daily", "expect": { "kind": "act", "ops": [{ "a": "chart.setTimeframe", "t": "Left chart (NVDA)", "args": { "timeframe": "W" } }, { "a": "chart.setTimeframe", "t": "Right chart (AMD)", "args": { "timeframe": "D" } }] } },
-    { "id": "d-multi-03", "cat": "multi", "fx": "one_chart", "text": "put TSLA and MSFT in my Swing list then open it", "expect": { "kind": "act", "ops": [{ "a": "watchlist.add", "t": "Swing", "args": { "symbols": ["TSLA", "MSFT"] } }, { "a": "watchlist.open", "args": { "list": "Swing" } }] } },
+    { "id": "d-multi-03", "cat": "multi", "fx": "one_chart", "text": "put TSLA and MSFT in my Swing list then open it", "expect": { "kind": "act", "ops": [{ "a": "watchlist.add", "t": "Swing", "args": { "symbols": ["TSLA", "MSFT"] } }, { "a": "watchlist.open" }] } },
     { "id": "d-multi-04", "cat": "multi", "fx": "one_chart", "text": "make a watchlist called Breakouts with NVDA and AMD and open it", "expect": { "kind": "propose", "safety": "propose", "ops": [{ "a": "watchlist.create", "args": { "name": "Breakouts" } }, { "a": "watchlist.add", "args": { "symbols": ["NVDA", "AMD"] } }, { "a": "watchlist.open" }] } },
     { "id": "d-multi-05", "cat": "multi", "fx": "two_charts_nosel", "text": "both charts to line, and hide volume on the right one", "expect": { "kind": "act", "ops": [{ "a": "chart.setType", "t": "Left chart (NVDA)", "args": { "type": "line" } }, { "a": "chart.setType", "t": "Right chart (AMD)", "args": { "type": "line" } }, { "a": "volume.setState", "t": "Right chart (AMD)", "args": { "state": "hidden" } }] } },
 
@@ -60,8 +60,8 @@
       { "say": "actually make that macd instead", "expect": { "kind": "act", "correction": true, "ops": [{ "a": "indicator.add" }] } }
     ] },
     { "id": "d-conv-03", "cat": "conv", "fx": "two_charts_nosel", "turns": [
-      { "say": "make the left one weekly", "expect": { "kind": "act", "ops": [{ "a": "chart.setTimeframe", "t": "Left chart (NVDA)", "args": { "timeframe": "W" } }] }, "receipt": "Changed timeframe to Weekly on Left chart (NVDA)", "state": { "charts": { "cl": { "tf": "W" } } } },
-      { "say": "do the same on the other one", "expect": { "kind": "act", "ops": [{ "a": "chart.setTimeframe", "t": "Right chart (AMD)", "args": { "timeframe": "W" } }] } }
+      { "say": "make the left one hourly", "expect": { "kind": "act", "ops": [{ "a": "chart.setTimeframe", "t": "Left chart (NVDA)", "args": { "timeframe": "60" } }] }, "receipt": "Changed timeframe to 1 hour on Left chart (NVDA)", "state": { "charts": { "cl": { "tf": "60" } } } },
+      { "say": "do the same on the other one", "expect": { "kind": "act", "ops": [{ "a": "chart.setTimeframe", "t": "Right chart (AMD)", "args": { "timeframe": "60" } }] } }
     ] },
     { "id": "d-conv-04", "cat": "conv", "fx": "one_chart", "turns": [
       { "say": "find stocks with ADR above 5%", "expect": { "kind": "act", "ops": [{ "a": "screener.run" }] }, "receipt": "Ran the screen: ADR above 5% (14 results)" },

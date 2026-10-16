@@ -129,7 +129,7 @@ def refusal(args, prices: dict) -> str | None:
 
 
 def select(items: list[dict], mode: str, sets: str | None, keys: str | None) -> list[dict]:
-    out = [i for i in items if i.get("mode") == mode]
+    out = [i for i in items if i.get("mode") == mode and not i.get("exact")]   # exact Undo/Cancel never reach the model
     if sets:
         keep = set(sets.split(","))
         out = [i for i in out if i.get("set") in keep]

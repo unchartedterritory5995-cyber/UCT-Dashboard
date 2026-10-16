@@ -369,3 +369,40 @@ def test_member_text_in_nl1_context_fields_cannot_break_out_of_its_data_block(fl
     turn.run_turn(message="hi", context=ctx, history=[], capabilities=CATALOG, caller=c, interpreter="nl1")
     content = c.calls[0]["messages"][-1]["content"]
     assert content.count("</workspace_context>") == 1 and content.count("<member_request>") == 1   # only UCT's own tags
+
+
+def test_proxy_smoke_prompt_fixes_are_in_the_nl1_prompt_only(flag_on):
+    caps = turn.validate_manifest(CATALOG, turn.MAX_CAPABILITIES_NL1)
+    nl1 = turn.system_prompt(caps, None, True, nl1=True)
+    assert "chart.addCustomTimeframe with that unit and count" in nl1          # "4h" is a custom interval, not "unsupported"
+    # no blanket "refs only in target" rule: watchlist.open / widget.showList take a REF in `list` (their own hints)
+    assert "ARGUMENTS vs TARGETS" not in nl1
+    legacy = turn.system_prompt(turn.validate_manifest(CATALOG[:40]), None, None)
+    assert "addCustomTimeframe with that unit" not in legacy
+
+
+def test_nl1_a_number_for_a_string_enum_value_is_read_as_that_value_and_nothing_else(flag_on, flag_off_after=None):
+    # proxy smoke finding: {"timeframe": 15} for the enum "15" made the whole turn unreadable
+    num = {"action": "chart.setTimeframe", "target": "c1", "args": {"timeframe": 15}}
+    c = caller_of(_resp(nl1_env("apply", [num])))
+    out = turn.run_turn(message="flip it to the 15m", context=CTX, history=[], capabilities=CATALOG, caller=c, interpreter="nl1")
+    assert out["envelope"]["ops"] == [TF15] and len(c.calls) == 1
+    # a number that is NOT an allowed value is not guessed: it is still a problem (the one repair asks again)
+    seven = {"action": "chart.setTimeframe", "target": "c1", "args": {"timeframe": 7}}
+    c = caller_of(_resp(nl1_env("apply", [seven])), _resp(nl1_env("apply", [TF15])))
+    out = turn.run_turn(message="7 min", context=CTX, history=[], capabilities=CATALOG, caller=c, interpreter="nl1")
+    assert len(c.calls) == 2 and out["envelope"]["ops"] == [TF15]
+    assert turn.coerce_enum_numbers({"properties": {"n": {"type": "integer"}}}, {"n": 5}) == {"n": 5}      # integers stay integers
+    assert turn.coerce_enum_numbers({"properties": {"t": {"type": "string", "enum": ["5"]}}}, {"t": True}) == {"t": True}
+
+
+def test_legacy_never_coerces(flag_off):
+    legacy = {"disposition": "apply", "reply": "", "question": None, "unsupported_category": None, "research": None, "title": None,
+              "ops": [{"action": "chart.setTimeframe", "target": "c1", "args_json": json.dumps({"timeframe": 15})}]}
+    with pytest.raises(turn.TurnError):
+        turn.run_turn(message="15m", context=CTX, history=[], capabilities=CATALOG[:40], caller=caller_of(_resp(legacy)), interpreter="nl1")
+
+
+def test_nl1_rules_name_protected_layouts(flag_on):
+    caps = turn.validate_manifest(CATALOG, turn.MAX_CAPABILITIES_NL1)
+    assert "`protected: true` cannot be renamed, deleted or overwritten" in turn.system_prompt(caps, None, True, nl1=True)

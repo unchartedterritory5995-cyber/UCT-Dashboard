@@ -10,7 +10,12 @@
 //                                                                           injection attempt in a name)
 import { makeBoard } from '../__fixtures__/board'
 import { buildChartSource } from '../host'
-import { mergeChartSettings } from '../../components/chart/chartDefaults'
+import { mergeChartSettings, CHART_DEFAULTS } from '../../components/chart/chartDefaults'
+
+// The fixture boards' charts carry NO indicators — what the corpus, the dev sets and the blind writer's notes all
+// assume. Product defaults draw EMA 9/20 and SMA 50/200; they are removed here (tombstones, as a member's removal is)
+// so "add a 50 SMA" is asked on a chart that does not already show one (proxy smoke finding, 2026-10-16).
+const BARE = { overlays: CHART_DEFAULTS.overlays.map(() => ({ removed: true })) }
 
 export function hostFor(spec, fxName, { state = null, libExtra = null } = {}) {
   const base = spec.fixtures[fxName]
@@ -31,10 +36,14 @@ export function hostFor(spec, fxName, { state = null, libExtra = null } = {}) {
   const syms = Object.fromEntries(charts.map(c => [c.id, c.symbol]))
   const b = makeBoard(widgets, syms, { layouts: { entries: lib.layouts, boards: {}, active: lib.activeLayout }, watchlists: lib.watchlists })
   const apis = new Map(charts.map(c => [`m-${c.id}`, { agent: {
-    read: () => ({ chartId: c.id, tabId: null, groupKey: c.id, symbol: c.symbol, tf: c.tf, cs: mergeChartSettings(null), stored: null }),
+    read: () => ({ chartId: c.id, tabId: null, groupKey: c.id, symbol: c.symbol, tf: c.tf, cs: mergeChartSettings(BARE), stored: BARE }),
     view: () => null, drawSym: () => c.symbol,
   } }]))
   b.host.charts = buildChartSource({ chartApiById: { current: apis }, getWidgets: () => b.state.widgets, selectedChart: () => selected })
+  // a member's real charts manage indicators (and an admin may create them): without this the indicator
+  // actions are not AVAILABLE, and the model would be asked with 81 of the 91 actions (proxy smoke, 2026-10-16)
+  b.host.charts.canManageIndicators = () => true
+  b.host.charts.canCreateIndicator = () => true
   const snap = b.host.layouts.snapshot
   b.host.layouts = { ...b.host.layouts, snapshot: () => ({ ...snap(), recent: lib.recentLayouts }) }
   return { host: b.host, board: b, selected, lib }

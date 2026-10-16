@@ -15,7 +15,7 @@
 // execution path. Every real outcome (receipt, refusal, undo) is recorded to the
 // conversation, so the model's next turn remembers what UCT DID.
 
-import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout } from './protectedLayouts'
+import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected } from './protectedLayouts'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../context/AuthContext'
 import { useCreateIndicatorAccess } from '../components/chart/builder/studio/createIndicatorFlag'
@@ -1202,7 +1202,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         const asked = pendingQuestionRef.current || (p?.kind === 'target' ? lastQuestionRef.current : null) || authoringAsked
         if (p?.kind === 'target') pendingRef.current = null
         pendingQuestionRef.current = null
-        const req = buildNl1Request({ host, text, capCtx, manageIndicators, memory: memoryRef.current, epoch: epochOf(host),
+        const req = buildNl1Request({ host, text, capCtx, manageIndicators, memory: memoryRef.current, epoch: epochOf(host), isProtectedLayout: (e) => isProtected(e),
           pendingQuestion: asked ? { text: asked.text, choices: (asked.choices || []).map(c => ({ label: c.label, ref: c.ref || null })) } : null,
           pendingProposal: p?.kind === 'proposal' ? p : null })
         refMap = req.refMap

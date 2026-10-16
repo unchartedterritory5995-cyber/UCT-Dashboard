@@ -54,13 +54,23 @@ const MAX_ARGS_CHARS = 300
  * Returns { body, refMap }.
  */
 export function buildNl1Request({ host, text, capCtx = {}, manageIndicators = false, memory = null, epoch = null,
-  pendingQuestion = null, pendingProposal = null }) {
+  pendingQuestion = null, pendingProposal = null, isProtectedLayout = null }) {
   const manifest = manifestFor({ ...capCtx, manageIndicators })
   // context: every provider, never gated on the member's words (`nl1: true`; a provider that would
   // send its detail only for certain words sends it — compacted by the budget — instead)
   const { context, refMap } = buildContext(host, { ...capCtx, message: text, nl1: true })
   const back = Object.fromEntries(Object.entries(refMap).map(([k, v]) => [v.ref, k]))
   const ctx = { ...context }
+  // PROTECTED layouts (no rename / delete / overwrite) are marked for the model, so it explains instead of
+  // planning what the protection refuses (proxy smoke, 2026-10-16). The check is the guard's own, passed in by
+  // the caller: only useAgent imports protectedLayouts (release audit); enforcement at execution is unchanged.
+  if (typeof isProtectedLayout === 'function' && Array.isArray(ctx.layouts) && Array.isArray(ctx.layouts[0]?.layouts)) {
+    ctx.layouts = [{ ...ctx.layouts[0], layouts: ctx.layouts[0].layouts.map(e => {
+      let p = false
+      try { p = isProtectedLayout(e) === true } catch { p = false }
+      return p ? { ...e, protected: true } : e
+    }) }, ...ctx.layouts.slice(1)]
+  }
   const mem = memoryForModel(memory, epoch, back)
   if (mem) ctx.conversation_memory = mem
   if (pendingQuestion?.text) {

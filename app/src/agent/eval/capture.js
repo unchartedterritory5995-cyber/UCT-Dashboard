@@ -12,7 +12,7 @@ import { buildContext, manifestFor, getCapability, getTargetKind, MANIFEST_VERSI
 import { routeManifest, routingNames } from '../routing'
 import { correctTypos, lexiconFor } from '../nl/lexicon'
 import { createMemory } from '../memory'
-import { buildNl1Request } from '../nl1/interpreter'
+import { buildNl1Request, exactLane } from '../nl1/interpreter'
 import { hostFor, nameToId } from './fixtureHost'
 import { turnsOf } from './sets'
 
@@ -26,14 +26,18 @@ function refOfHint(host, hint, action, selectedRef) {
   return hit ? hit.ref : (list.length === 1 ? list[0].ref : null)
 }
 
+// the capability context of an admin's Charts panel, as useAgent builds it (createIndicator: the admin + flag rule)
+export const CAP_CTX = { surface: 'charts', createIndicator: true }
+const managesIndicators = (host) => { try { return host.charts.list().some(c => host.charts.canManageIndicators?.(c.ref) === true) } catch { return false } }
+
 function legacyRequest({ host, text, memory }) {
-  const full = manifestFor({ surface: 'charts', manageIndicators: false })
+  const full = manifestFor({ ...CAP_CTX, manageIndicators: managesIndicators(host) })
   const routed = routeManifest(full, text, {
     enabled: true, pendingActions: [], recentActions: (memory.lastChange()?.ops || []).map(o => o.action),
     limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold,
     names: routingNames(host), correct: (t) => (correctTypos(t, lexiconFor(host)) || []).map(v => v.text),
   })
-  const { context, refMap } = buildContext(host, { surface: 'charts', message: text })
+  const { context, refMap } = buildContext(host, { ...CAP_CTX, message: text })
   const back = Object.fromEntries(Object.entries(refMap).map(([k, v]) => [v.ref, k]))
   const m = memory.forModel()
   const mem = m ? (m.subject_chart ? { ...m, subject_chart: back[m.subject_chart] || null } : m) : null
@@ -48,7 +52,7 @@ function legacyRequest({ host, text, memory }) {
  * Every turn of one case → { key, caseId, turn, mode, body, history, refMap }.
  * `spec` = corpus.json's { fixtures, library }; `mode` = 'nl1' | 'legacy'.
  */
-export function captureCase(spec, c, mode) {
+export function captureCase(spec, c, mode, { isProtectedLayout = null } = {}) {
   const out = []
   const memory = createMemory()
   for (const t of turnsOf(c)) {
@@ -66,13 +70,16 @@ export function captureCase(spec, c, mode) {
         }),
       } : null
       if (t.pending) history = [...history, { role: 'member', text: t.pending.request }]
-      req = buildNl1Request({ host, text: t.say, capCtx: { surface: 'charts' }, memory, pendingQuestion: pq })
+      req = buildNl1Request({ host, text: t.say, capCtx: CAP_CTX, manageIndicators: managesIndicators(host), memory, pendingQuestion: pq, isProtectedLayout })
     } else {
       // today: a local question is stored in the browser; the model sees only that one was asked
       if (t.pending) history = [...history, { role: 'member', text: t.pending.request }, { role: 'outcome', text: 'Asked which target.', data: { kind: 'clarify-target' } }]
       req = legacyRequest({ host, text: t.say, memory })
     }
-    out.push({ key: t.key, caseId: c.id, turn: t.index, mode, body: req.body, history, refMap: req.refMap })
+    // EXACT Undo / Cancel with something to act on never reach the model (useAgent): marked, never sent or scored as model turns
+    const x = exactLane(t.say)
+    const exact = x && (x.kind === 'undo' || t.pending) ? x.kind : null
+    out.push({ key: t.key, caseId: c.id, turn: t.index, mode, body: req.body, history, refMap: req.refMap, ...(exact ? { exact } : {}) })
     // teacher forcing: this turn's EXPECTED change is what the next turn remembers
     const ops = (t.expect?.ops || []).map(o => ({ action: o.a, args: o.args || {}, target: refOfHint(host, o.t, o.a, selectedRef) }))
     if (ops.length && ['act', 'propose'].includes(t.expect.kind)) memory.noteChange({ ops })

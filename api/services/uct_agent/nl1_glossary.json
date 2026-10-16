@@ -2,12 +2,45 @@
   "version": 1,
   "about": "NL-1: UCT's own meanings for words members use, as DATA the interpreter reads (not code, not regex). General trading slang is NOT listed: the model knows it and the eval measures it. Add a line here only for a meaning that is specific to UCT. Each entry needs an owner decision or an existing product rule as its source.",
   "terms": [
-    { "words": "strongest / weakest stocks", "means": "highest / lowest RS Rank across UCT's whole Screener universe (say so); within a watchlist only when one is named", "source": "turn.py system prompt (existing rule)" },
-    { "words": "best / top stocks, no measure named", "means": "UCT Composite, the Screener's own default ranking (say so)", "source": "turn.py system prompt (existing rule)" },
-    { "words": "a moving average given only by its length (\"the 20\", \"a 50\", \"add the 9 and 21\")", "means": "EMA for 8, 9, 10, 20 and 21; SMA for 50 and longer; for any other length ask EMA or SMA. Words the member says (\"20 sma\") always win", "source": "owner's provisional MA defaults (Gate C, 2026-10-13)" },
-    { "words": "my watchlist / my list", "means": "the watchlist shown on the member's board", "source": "turn.py system prompt (existing rule)" },
-    { "words": "daily figures, today's numbers", "means": "the latest completed session", "source": "turn.py system prompt (existing rule)" },
-    { "words": "this chart / it / here, for a chart", "means": "the chart marked selected; with none selected, conversation_memory.subject_chart; otherwise ask which", "source": "Context & Awareness 1B + Gate C memory" },
-    { "words": "a trading concept a starter or saved screen already defines (breakouts, leaders, pullbacks, tight bases, gap movers)", "means": "run that screen and name it; never invent criteria for it", "source": "turn.py system prompt (existing rule)" }
+    {
+      "words": "strongest / weakest stocks",
+      "means": "highest / lowest RS Rank across UCT's whole Screener universe (say so); within a watchlist only when one is named",
+      "source": "turn.py system prompt (existing rule)"
+    },
+    {
+      "words": "best / top stocks, no measure named",
+      "means": "UCT Composite, the Screener's own default ranking (say so)",
+      "source": "turn.py system prompt (existing rule)"
+    },
+    {
+      "words": "a moving average given only by its length (\"the 20\", \"a 50\", \"add the 9 and 21\")",
+      "means": "EMA for 8, 9, 10, 20 and 21; SMA for 50 and longer; for any other length ask EMA or SMA. Words the member says (\"20 sma\") always win",
+      "source": "owner's provisional MA defaults (Gate C, 2026-10-13)"
+    },
+    {
+      "words": "my watchlist / my list",
+      "means": "the watchlist shown on the member's board",
+      "source": "turn.py system prompt (existing rule)"
+    },
+    {
+      "words": "daily figures, today's numbers",
+      "means": "the latest completed session",
+      "source": "turn.py system prompt (existing rule)"
+    },
+    {
+      "words": "this chart / it / here, for a chart",
+      "means": "the chart marked selected; with none selected, conversation_memory.subject_chart; otherwise ask which",
+      "source": "Context & Awareness 1B + Gate C memory"
+    },
+    {
+      "words": "a trading concept a starter or saved screen already defines (breakouts, leaders, pullbacks, tight bases, gap movers)",
+      "means": "run that screen and name it; never invent criteria for it",
+      "source": "turn.py system prompt (existing rule)"
+    },
+    {
+      "words": "a timeframe that is not one of chart.setTimeframe's codes (\"4h\", \"2 hour\", \"3 min\", \"2-day\")",
+      "means": "chart.addCustomTimeframe with that unit and count and switch true — UCT charts support custom intervals; never say the timeframe does not exist",
+      "source": "chart.addCustomTimeframe capability (proxy smoke finding, 2026-10-16)"
+    }
   ]
 }

@@ -68,13 +68,20 @@ export function scoreTurn({ expect: e, env, refMap = {}, host, selectedLabel = n
   }
 
   // ── interpretation ──
-  const plans = [e.ops, ...(e.alt || [])].filter(Array.isArray)
+  // An expected change the board ALREADY has ("gimme the daily" on a daily chart) is a no-op: saying so, or
+  // leaving that op out of a plan, is as right as planning it (the planner would change nothing)
+  const noop = (w) => expectedIsNoop(host, w, selectedLabel, canon)
+  const basePlans = [e.ops, ...(e.alt || [])].filter(Array.isArray)
+  const plans = [...basePlans, ...basePlans.map(p => p.filter(w => !noop(w))).filter((p, i) => p.length && p.length !== basePlans[i].length)]
+  const alreadyDone = (e.kind === 'act' || e.kind === 'propose') && basePlans.length > 0 && basePlans[0].length > 0 && basePlans[0].every(noop)
   let interp
   const fits = dispositionFits(e.kind, disp, env)
   if (MUTATING.has(disp) && (e.kind === 'act' || e.kind === 'propose')) {
     interp = plans.length === 0 || plans.some(planFits) ? 'correct' : 'wrong-plan'
   } else if (fits) {
     interp = 'correct'
+  } else if (alreadyDone && !MUTATING.has(disp) && disp !== 'clarify') {
+    interp = 'correct'                                   // "it's already weekly": right, nothing to change
   } else if (disp === 'clarify' && (e.kind === 'act' || e.kind === 'propose')) {
     interp = e.clarifyOk ? 'correct' : 'unnecessary-clarify'
   } else if (e.kind === 'clarify' && MUTATING.has(disp)) {
@@ -128,6 +135,21 @@ export function scoreTurn({ expect: e, env, refMap = {}, host, selectedLabel = n
     correction: corrected,
     unsafe,                                   // MUST be empty for every case (hard gate)
   }
+}
+
+/** Would this expected op change nothing on the board as it is? (target from its label / 'selected' / the only one) */
+function expectedIsNoop(host, w, selectedLabel, canon) {
+  try {
+    const cap = getCapability(w?.a)
+    if (!cap || cap.query) return false
+    const list = getTargetKind(cap.target)?.list(host) || []
+    const want = w.t === 'selected' ? selectedLabel : w.t
+    const hit = want ? list.find(s => String(s.label).toLowerCase() === String(want).toLowerCase()) : (list.length === 1 ? list[0] : null)
+    if (!hit) return false
+    const args = Object.fromEntries(Object.entries(w.args || {}).map(([k, v]) => [k, canon(v)]))
+    const plan = planOps(collectTargets(host, [cap.target]), [{ action: w.a, target: hit.ref, args }])
+    return plan.ok === true && plan.changed === false
+  } catch { return false }
 }
 
 function refMapKind(refMap, op) {

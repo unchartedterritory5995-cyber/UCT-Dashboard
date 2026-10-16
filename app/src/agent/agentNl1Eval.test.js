@@ -21,6 +21,7 @@ import { scoreTurn, aggregate } from './eval/score'
 import { captureCase } from './eval/capture'
 import { exactLane } from './nl1/interpreter'
 import lock from './eval/sealed.lock.json'
+import { isProtected } from './protectedLayouts'
 import { GATES, checkGates } from './eval/acceptance'
 
 registerBuiltins()
@@ -217,5 +218,54 @@ describe('NL-1 acceptance gates (fixed before any paid evaluation)', () => {
     expect(checkGates(ok, null, { spentUsd: 1.2, requests: 400, convInterpretation: 88 }).every(g => g.pass)).toBe(true)
     const bad = checkGates({ ...ok, unsafe: 1 }, null, { spentUsd: 1.2, requests: 400, convInterpretation: 88 })
     expect(bad.find(g => g.hard).pass).toBe(false)
+  })
+})
+
+describe('NL-1 proxy-smoke regressions (2026-10-16)', () => {
+  it('the capture asks with ALL 91 actions on a member\'s board (charts that manage indicators; an admin may create them)', () => {
+    const golden = JSON.parse(fs.readFileSync(path.resolve(HERE, 'contract/manifest.golden.json'), 'utf8')).capabilities
+    const [nl1] = captureCase(spec, { id: 'x', fx: 'one_chart', text: 'add rsi', expect: { kind: 'act' } }, 'nl1')
+    expect(nl1.body.capabilities.map(c => c.name).sort()).toEqual(golden.map(c => c.name).sort())
+    expect(nl1.body.capabilities.some(c => c.name === 'indicator.add')).toBe(true)
+  })
+
+  it('an exact Undo / Cancel that the panel handles itself is marked, never sent to the model as a turn', () => {
+    const c = { id: 'x', fx: 'two_charts_nosel', text: 'never mind', pending: { question: 'Which chart?', choices: ['Left chart (NVDA)', 'Right chart (AMD)'], request: 'switch to weekly' }, expect: { kind: 'dismiss' } }
+    expect(captureCase(spec, c, 'nl1')[0].exact).toBe('dismiss')
+    expect(captureCase(spec, { ...c, pending: undefined, text: 'never mind the rsi, add macd', expect: { kind: 'act' } }, 'nl1')[0].exact).toBeUndefined()
+  })
+
+  it('a change the board already has is a no-op: "it\'s already weekly" — or leaving that op out — is correct', () => {
+    const two = hostFor(spec, 'two_charts_nosel')                         // the right chart (AMD) is already weekly
+    const refMap = Object.fromEntries(two.host.charts.list().map((s, i) => [`c${i + 1}`, { kind: 'chart', ref: s.ref }]))
+    const e = { kind: 'act', ops: [{ a: 'chart.setTimeframe', t: 'Right chart (AMD)', args: { timeframe: 'W' } }] }
+    const already = scoreTurn({ expect: e, env: { disposition: 'answer', reply: 'It is already weekly.', ops: [] }, refMap, host: two.host, names: nameToId(two.lib) })
+    expect(already.interp).toBe('correct')
+    const both = { kind: 'propose', ops: [{ a: 'chart.setTimeframe', t: 'Left chart (NVDA)', args: { timeframe: 'W' } }, { a: 'chart.setTimeframe', t: 'Right chart (AMD)', args: { timeframe: 'W' } }] }
+    const onlyLeft = scoreTurn({ expect: both, env: { disposition: 'apply', ops: [{ action: 'chart.setTimeframe', target: 'c1', args: { timeframe: 'W' } }] }, refMap, host: two.host, names: nameToId(two.lib) })
+    expect(onlyLeft.interp).toBe('correct')
+    // but a REAL change still has to be made: answering "already" when it isn't is wrong
+    const notYet = scoreTurn({ expect: { kind: 'act', ops: [{ a: 'chart.setTimeframe', t: 'Left chart (NVDA)', args: { timeframe: 'W' } }] }, env: { disposition: 'answer', reply: 'Already weekly.', ops: [] }, refMap, host: two.host, names: nameToId(two.lib) })
+    expect(notYet.interp).toBe('wrong-disposition')
+  })
+})
+
+describe('NL-1 proxy-smoke round 2 regressions (2026-10-16)', () => {
+  it('fixture charts carry no indicators, as every set documents (the product\'s default MAs are removed)', () => {
+    const [it_] = captureCase(spec, { id: 'x', fx: 'one_chart', text: 'add the 50 sma', expect: { kind: 'act' } }, 'nl1')
+    const names = (it_.body.context.indicators || []).flatMap(c => (c.indicators || []).map(i => i.name))
+    expect(names.some(n => /EMA|SMA/.test(n))).toBe(false)
+  })
+})
+
+describe('NL-1 proxy-smoke round 3 regressions (2026-10-16)', () => {
+  it('under NL-1 the layouts context says which layouts are protected; the legacy request is unchanged', () => {
+    const c = { id: 'x', fx: 'one_chart', text: 'rename Main Trading to Old', expect: { kind: 'refuse' } }
+    const lay = (it_) => it_.body.context.layouts[0].layouts
+    const [n] = captureCase(spec, c, 'nl1', { isProtectedLayout: (e) => isProtected(e) })
+    const [l] = captureCase(spec, c, 'legacy', { isProtectedLayout: (e) => isProtected(e) })
+    expect(lay(n).find(e => e.name === 'Main Trading').protected).toBe(true)
+    expect(lay(n).find(e => e.name === 'Swing Board').protected).toBeUndefined()
+    expect(lay(l).some(e => 'protected' in e)).toBe(false)
   })
 })
