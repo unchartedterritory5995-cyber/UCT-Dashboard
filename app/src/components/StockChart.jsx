@@ -11324,6 +11324,11 @@ export default function StockChart({
       candleSeriesRef.current = null
       try { markersControllerRef.current?.detach?.() } catch {}
       markersControllerRef.current = null
+      // The consumer's price lines (a pivot, an entry/stop) died with the old series. Their array
+      // identity does not move on a type change, so without this the identity guard below skips
+      // the rebuild and the new series comes up with no lines.
+      priceLineRefs.current = []
+      lastPriceLinesRef.current = undefined
       focusProviderInstalledRef.current = false  // new series needs the focus autoscale provider re-attached
       swingAttachedRef.current = false           // swing-label primitive must re-attach to the new series
       earnBadgeAttachedRef.current = false       // earnings-badge primitive must re-attach to the new series
