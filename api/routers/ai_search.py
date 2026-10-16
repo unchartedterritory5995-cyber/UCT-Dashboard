@@ -1495,6 +1495,23 @@ _LEVELS_RE = re.compile(
 # adjudication authorization forbids. The real fix (a confirmed-only 9th
 # evidence domain in ticker_explain.py, Ask AI's SEPARATE and already-gated
 # grounding pipeline) is fully specified and waits on that same trial.
+#: The gap a setup question declares when no confirmed live detection backs it.
+SETUP_GAP = "confirmed technical setup"
+#: What replaces that gap when the trader archive attached the setup's measured record: the
+#: live detection is still unconfirmed, but the setup is not ungrounded any more.
+SETUP_RECORD_NOTE = ("SETUP RECORD: there is no confirmed live detection of this setup on the ticker; "
+                     "the historical record follows in the TRADER ARCHIVE PLAYBOOK line. Present it as "
+                     "the team's measured record across past calls, never as a reading of today's chart.")
+
+
+def _desk_gaps_sentence(gaps: list) -> str:
+    """The DESK GAPS instruction for a list of gaps (the one place its wording lives)."""
+    return ("DESK GAPS (the member asked for these and the desk has no current "
+            "data for them: " + ", ".join(gaps) + ") — say so "
+            "plainly, do not estimate them, and never pass a web figure off as "
+            "desk data.")
+
+
 _SETUP_RE = re.compile(
     r"\b(setups?|chart pattern|technical pattern|vcp|cup and handle"
     r"|flag pattern|breakout pattern|forming (?:a |an )?(?:base|flag|pattern))\b", re.I)
@@ -2107,7 +2124,7 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
     # name what's actually missing -- CONFIRMED data -- not to imply UCT has
     # no pattern engine at all.
     if _SETUP_RE.search(query or "") and syms:
-        meta["grounding_gaps"].append("confirmed technical setup")
+        meta["grounding_gaps"].append(SETUP_GAP)
     # Historical session — query-resolved like COT below, because the trigger is
     # a DATE in the question, which the per-ticker machinery has no notion of.
     # Answers the most-asked shape in the capture log ("what moved X on DATE?
@@ -2131,11 +2148,7 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
         except Exception:
             pass
     if meta["grounding_gaps"]:
-        parts.append(
-            "DESK GAPS (the member asked for these and the desk has no current "
-            "data for them: " + ", ".join(meta["grounding_gaps"]) + ") — say so "
-            "plainly, do not estimate them, and never pass a web figure off as "
-            "desk data.")
+        parts.append(_desk_gaps_sentence(meta["grounding_gaps"]))
     if not parts:
         return "", "", meta
     ctx = "\n".join(parts)[:_CTX_BUDGET]
@@ -2254,14 +2267,32 @@ def _grounded_system(query: str) -> tuple[str, str, dict]:
     # Gated by WISDOM_ARCHIVE_ENABLED alone, read per call; off returns ("", []) before any
     # store is opened, so the prompt is byte-identical. The salt suffix keeps an answer
     # cached before a flip from being served after it.
+    # A playbook-only block (a setup's measured record, no dated post) is filed under its own
+    # source key so ai_search_log can let the answer be evergreen; dated posts keep
+    # "trader_archive", which forces time-sensitive. When the playbook matched a setup question,
+    # the "confirmed technical setup" gap is restated: the setup is not ungrounded, only the
+    # live detection is unconfirmed.
     try:
         ablock, acites = _archive_context(query, meta)
         if ablock:
             system += ablock
-            if "trader_archive" not in meta["grounding_sources"]:
-                meta["grounding_sources"].append("trader_archive")
+            from api.services.wisdom.archive import askai as archive_askai
+            kinds = {c.get("kind") for c in acites}
+            key = (archive_askai.PLAYBOOK_KIND if kinds == {archive_askai.PLAYBOOK_KIND}
+                   else archive_askai.SOURCE_KEY)
+            if key not in meta["grounding_sources"]:
+                meta["grounding_sources"].append(key)
             meta["archive_citations"] = acites
             salt = f"{salt or ''}|trader_archive"
+            if archive_askai.PLAYBOOK_KIND in kinds and SETUP_GAP in meta["grounding_gaps"]:
+                old = _desk_gaps_sentence(meta["grounding_gaps"])
+                meta["grounding_gaps"] = [g for g in meta["grounding_gaps"] if g != SETUP_GAP]
+                new = _desk_gaps_sentence(meta["grounding_gaps"]) if meta["grounding_gaps"] else ""
+                meta.setdefault("grounding_notes", []).append(SETUP_RECORD_NOTE)
+                if old in system:
+                    system = system.replace(old, f"{new} {SETUP_RECORD_NOTE}".strip(), 1)
+                else:   # the desk context was clipped past the gap line; say it at the end
+                    system += "\n\n" + SETUP_RECORD_NOTE
     except Exception:
         pass
     # Phase 2 — blend in the desk's OWN prior evergreen research (best-effort,
