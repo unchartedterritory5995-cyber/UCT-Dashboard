@@ -1,0 +1,12 @@
+{
+  "about": "NL-1 eval only: per-million-token USD prices for the candidate models. The runner refuses --run until `verified` is true. Verify against Anthropic's live pricing page and the account's model list first (owner decision 3, 2026-10-16), then set verified, verified_on and source.",
+  "verified": false,
+  "verified_on": null,
+  "source": "claude-api skill model table cached 2026-10-06 (NOT a live check)",
+  "cache_write_multiplier": 1.25,
+  "models": {
+    "claude-haiku-4-5": { "input": 1.0, "output": 5.0, "cache_read": 0.10, "note": "today's production model; cache minimum 4,096 tokens" },
+    "claude-haiku-5-5": { "input": 0.10, "output": 0.50, "cache_read": 0.01, "note": "prompts up to 100K tokens (0.50 / 2.50 beyond); cache minimum 512 tokens; adaptive thinking on by default (effort medium)" },
+    "claude-sonnet-5-5": { "input": 2.0, "output": 10.0, "cache_read": 0.20, "note": "cache minimum 512 tokens; adaptive thinking, effort default high" }
+  }
+}

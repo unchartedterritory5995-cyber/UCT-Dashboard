@@ -1,0 +1,12 @@
+{
+  "heldout-v2.json": {
+    "sha256": "ba71c874503cd0ccf546701432edf618ce7a565a72eaa025b49cd717f50b4146",
+    "sealed": "2026-10-16",
+    "note": "held-out v2 (2026-10-13), blind; sealed for NL-1"
+  },
+  "sealed-v3.json": {
+    "sha256": "aec07b9dbf0bc020944087f11552e12dfc5be50175f25724963a7fcc21072433",
+    "sealed": "2026-10-16",
+    "note": "NL-1 blind set: written by a separate agent from the capability catalog, fixtures and labels only; never read by the implementer"
+  }
+}
