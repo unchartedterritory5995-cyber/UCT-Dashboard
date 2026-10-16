@@ -166,22 +166,125 @@ const authoredText = (o) => {
  * into one. `lesson_a_guard_repeated_is_a_guard_unproved` warns against two
  * copies of ONE question; this is two DIFFERENT questions that share an invariant.
  *
- * ⚠️ A DELETION STILL READS AS A DISCARD, DELIBERATELY. A member who deletes text
- * offline produces content that no longer carries `prev`'s words, and this answers
- * true, keeping the longer copy. That is the pre-existing behaviour and the
- * correct failure direction for a system whose charter is never to lose words.
- * Narrowing it needs its own evidence.
+ * ⚠️ A DELETION STILL READS AS A DISCARD — UNLESS THE SAME LIVE VIEW MADE IT. A
+ * member who deletes text produces content that no longer carries `prev`'s words,
+ * and the containment test answers true, keeping the longer copy. That stays the
+ * answer for every copy whose provenance is not proved. ⭐ The evidence the line
+ * below this one used to ask for now exists (hotfix 2026-10-15, cell E 5/5 on
+ * master): when `prev` is an earlier capture of the SAME live view
+ * (`editorLineageSupersedes`, stamp + digest), the deletion — or a mid-text
+ * insert, or an insert before existing text — is the member's own edit and the
+ * newer content supersedes. See the note above `authoredDigest` for what keeps
+ * today's answer.
  *
  * @param prev      the durable record as the store holds it, or null
- * @param incoming  content from the EDITOR about to be written over it
+ * @param incoming  content from the EDITOR about to be written over it, with the
+ *                  `editLineage` ({ id, seq }) of the capture it came from, if any
  * @returns true when `incoming` no longer carries what `prev` was holding
  */
 export function editorStateDiscardsUnsentWork(prev, incoming) {
   if (!prev || !prev.dirty) return false
   if (sameAuthoredContent(incoming, prev)) return false
+  // ⭐ PROVENANCE FIRST: the same live view, later, with `prev`'s words exactly as
+  // that view captured them ⇒ the member edited them; nothing is discarded.
+  if (editorLineageSupersedes(prev, incoming?.editLineage)) return false
   // ⛔ CARRIES, not EQUALS. This one word is the whole difference between the
   // member typing more and something handing us a copy that never saw the words.
   return !authoredText(incoming).includes(authoredText(prev))
+}
+
+/**
+ * ⭐⭐ HOTFIX 2026-10-15 — THE EDITOR'S OWN NEWER STATE IS NOT "A COPY THAT NEVER
+ * SAW THE WORDS". WHERE THE WORDS CAME FROM DECIDES IT, NOT WHETHER ONE STRING
+ * HOLDS THE OTHER.
+ *
+ * ⚰️ MEASURED (`docs/notebook/evidence/t2b-forkdiag-20261015T235943Z/`, cell E and
+ * E-master, 5/5 on both trees; reproduced by `midTextEditNoFork.test.jsx`). One
+ * tab, no other writer: the member types, pauses past the durable writer's
+ * ~200 ms window, changes a character in the MIDDLE of the line, the autosave
+ * lands, the member leaves. `editorStateDiscardsUnsentWork` answered "discard"
+ * (the new text does not CONTAIN the old one — no edit but an append does), so
+ * `persist` kept the older record and its queued entry; the strict settle then
+ * left that entry queued after the newer save landed; and the drain sent it on
+ * the old revision: 409, BODY_REWRITE, a `(conflicted copy)` holding the OLDER
+ * text. Nothing was lost — and every such edit made a spurious copy. Offline, the
+ * same answer left the member's newest words in the crash draft only, never in
+ * the durable copy or the queue.
+ *
+ * ⭐ THE QUESTION THE CONTAINMENT TEST WAS STANDING IN FOR: did this content come
+ * from the SAME LIVE VIEW that wrote `prev`, later? If so, whatever `prev` holds
+ * that the new content lacks, the MEMBER removed — that is editing, not a loss.
+ * The editor answers it with an EDIT LINEAGE (`newEditLineage` /
+ * `nextEditSeq`, `useDurableNote.js`): an id that names one live view of one note
+ * in one tab, ROTATED whenever that view is replaced by anything but the member
+ * (a load, a reconcile's swap to the server copy, an adoption, a Restore, a
+ * version restore, a rebuilt editor), and a sequence number taken at every
+ * capture. Within one lineage the view only moves by the member's own
+ * transactions (and by merges that only ADD blocks), so a later capture is the
+ * member's evolution of an earlier one.
+ *
+ * ⛔⛔ AND THE CLAIM IS BOUND TO THE WORDS IT WAS MADE ABOUT. The record carries
+ * the lineage it was captured from AND a digest of the authored content at that
+ * moment. A writer that changes a record's words while spreading its other
+ * fields (the drain's `mergeAppends` does exactly that — it adds the server's
+ * appended blocks, a view never saw them) leaves a stamp whose digest no longer
+ * matches, and the stamp then vouches for nothing: today's conservative answer.
+ *
+ * ⛔ WHAT KEEPS TODAY'S ANSWER, deliberately, because a genuine second writer must
+ * still fork: no lineage (a door's ack, `discardDraft`'s server copy, any caller
+ * that is not the editor's own capture), a DIFFERENT lineage (another tab, another
+ * pane, a remount from the server copy, a view swap), a stamp from a LATER capture
+ * than this one (an older snapshot landing after a newer one), or a digest that
+ * no longer matches. Every one of those falls through to the containment test.
+ */
+
+/** A 53-bit digest (cyrb53) of the authored content — enough to tell that a
+ *  record's words moved under its stamp; never used to compare two notes. */
+export function authoredDigest(o) {
+  const s = `${o?.title ?? ''}\u0000${o?.subtitle ?? ''}\u0000${JSON.stringify(o?.bodyJson ?? null)}`
+  let h1 = 0xdeadbeef
+  let h2 = 0x41c6ce57
+  for (let i = 0; i < s.length; i += 1) {
+    const ch = s.charCodeAt(i)
+    h1 = Math.imul(h1 ^ ch, 2654435761)
+    h2 = Math.imul(h2 ^ ch, 1597334677)
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909)
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909)
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0)
+}
+
+const usableLineage = (l) => Boolean(
+  l && typeof l.id === 'string' && l.id && Number.isFinite(l.seq),
+)
+
+/**
+ * The stamp a record written from `lineage` carries: which live view captured
+ * these words, when, and a digest of the words themselves. Undefined when the
+ * content did not come from an editor capture (nothing is claimed).
+ *
+ * @param record   the record about to be written — the digest is of ITS words
+ * @param lineage  { id, seq } from the editor's capture, or absent
+ */
+export function editorLineageStamp(record, lineage) {
+  if (!usableLineage(lineage)) return undefined
+  return { id: lineage.id, seq: lineage.seq, digest: authoredDigest(record) }
+}
+
+/**
+ * ⭐ Is `prev` an EARLIER capture of the same live view `lineage` names, with its
+ * words exactly as that capture left them? Then the view's newer content is the
+ * member's evolution of it and supersedes it, whatever it no longer contains.
+ * ONE authority, asked by both editor-provenance decisions: `persist` (through
+ * `editorStateDiscardsUnsentWork`) and `settleLandedSave` (with the lineage the
+ * editor's content save SENT, never with anything an ack claims).
+ */
+export function editorLineageSupersedes(prev, lineage) {
+  const stamp = prev?.editorLineage
+  if (!usableLineage(stamp) || !usableLineage(lineage)) return false
+  if (stamp.id !== lineage.id) return false
+  if (stamp.seq > lineage.seq) return false
+  return stamp.digest === authoredDigest(prev)
 }
 
 /**

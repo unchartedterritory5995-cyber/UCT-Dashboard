@@ -1,0 +1,18 @@
+{
+ "base": "http://127.0.0.1:8144",
+ "out": "docs\\notebook\\evidence\\midtext-fork-20261016T020721Z\\cells",
+ "cell": "E-mid-edit-fix",
+ "flow": "mid",
+ "no_nav": false,
+ "runs": 5,
+ "viewport": "1280",
+ "hold_s": 10,
+ "nav_path": "/journal/notebook?view=tasks",
+ "code": "tip:5895abfa27",
+ "nav_how": "goto",
+ "dwell_ms": 0,
+ "followup_nav": false,
+ "max_attempts": 0,
+ "started": "20261016T021046Z",
+ "tool": "tools/notebook_forkdiag.py"
+}
