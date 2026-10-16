@@ -89,3 +89,64 @@ def test_an_empty_table_is_not_cached_as_stale(live_db):
     assert live_tier._read_anchor_rows() == []
     snapshot_db.upsert_rows([_row("AAA")])
     assert [r["ticker"] for r in live_tier._read_anchor_rows()] == ["AAA"]
+
+
+# -- the disk tier: a restart loads the last full read instead of re-reading -------
+
+def _restart():
+    """What a new process sees: no memory cache, the files on the volume intact."""
+    live_tier._ANCHOR_CACHE.clear()
+    live_tier._LAST_ANCHOR_SOURCE.clear()
+
+
+def test_a_restart_loads_the_anchors_from_disk_not_screener_rows(live_db, monkeypatch):
+    snapshot_db.upsert_rows([_row("AAA"), _row("BBB")])
+    calls = _count_full_reads(monkeypatch)
+    first = live_tier._read_anchor_rows()
+    _restart()
+    second = live_tier._read_anchor_rows()
+    assert len(calls) == 1, "the restart re-read every row"
+    assert live_tier._LAST_ANCHOR_SOURCE == ["disk"]
+    assert second == first
+
+
+def test_a_rebuild_makes_the_disk_copy_stale(live_db, monkeypatch):
+    snapshot_db.upsert_rows([_row("AAA")])
+    live_tier._read_anchor_rows()
+    snapshot_db.upsert_rows([_row("AAA", built_at="2026-10-14T03:00:00", atr=2.0)])
+    _restart()
+    calls = _count_full_reads(monkeypatch)
+    got = live_tier._read_anchor_rows()
+    assert len(calls) == 1 and live_tier._LAST_ANCHOR_SOURCE == ["read"]
+    assert got[0]["atr_pct"] == 2.0
+
+
+def test_CONTROL_the_disk_kill_switch_reads_every_row(live_db, monkeypatch):
+    monkeypatch.setenv("SCREENER_LIVE_ANCHOR_DISK", "0")
+    snapshot_db.upsert_rows([_row("AAA")])
+    live_tier._read_anchor_rows()
+    _restart()
+    calls = _count_full_reads(monkeypatch)
+    live_tier._read_anchor_rows()
+    assert len(calls) == 1 and live_tier._LAST_ANCHOR_SOURCE == ["read"]
+
+
+def test_a_process_started_mid_build_holds_the_disk_anchors(live_db):
+    """A deploy during a daytime build: memory is empty, the lock is the builder's;
+    the held anchors come from disk without touching screener_rows."""
+    snapshot_db.upsert_rows([_row("AAA")])
+    live_tier._read_anchor_rows()
+    _restart()
+    held = live_tier.held_anchors_for_build()
+    assert held is not None and [r["ticker"] for r in held] == ["AAA"]
+
+
+def test_an_unreadable_disk_copy_falls_back_to_the_full_read(live_db, monkeypatch):
+    snapshot_db.upsert_rows([_row("AAA")])
+    live_tier._read_anchor_rows()
+    with open(live_tier._anchor_disk_path(), "wb") as f:
+        f.write(b"not a pickle")
+    _restart()
+    calls = _count_full_reads(monkeypatch)
+    assert [r["ticker"] for r in live_tier._read_anchor_rows()] == ["AAA"]
+    assert len(calls) == 1
