@@ -81,21 +81,18 @@ vi.mock('../../hooks/useJ2Notes', () => ({
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u42', role: 'member' } }) }))
 vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
 vi.mock('../noteCreation', () => ({
-  createNoteViaApi: vi.fn(async (args) => { server.forks.push(args); return { id: 'fork-1', ...args } }),
+  // ⭐ FIX ROUND 2 (review I-2): the sweep forks through the REAL `forkConflictedCopy`;
+  // only the network call underneath is stubbed, and it honours the network being down.
+  createNoteViaApi: vi.fn(async (args) => {
+    if (server.down) throw new Error('network down')
+    server.forks.push(args)
+    return { id: `fork-${server.forks.length}`, ...args }
+  }),
 }))
 
 const ACCOUNT_DB = dbNameFor('u42')
 let factory
 const sweepSend = vi.fn(async () => { throw new Error('the sweep must never send the note the editor owns') })
-// ⭐ A queued `(conflicted copy)` (kind 'note-copy') is a NEW note, nobody's to own: online the
-// sweep creates it, exactly as `forkConflictedCopy` would. Anything else is the open note's.
-const sweepFork = vi.fn(async (entry) => {
-  if (entry?.kind === 'note-copy' && !server.down) {
-    server.forks.push({ title: `${entry.patch?.title || ''} (conflicted copy)`, bodyJson: entry.patch?.bodyJson, copy: true })
-    return server.note()
-  }
-  throw new Error('the sweep must never fork the note the editor owns')
-})
 
 function installLocks() {
   const held = new Set()
@@ -117,13 +114,14 @@ function installLocks() {
 beforeEach(() => {
   localStorage.clear()
   localStorage.setItem(OFFLINE_FLAG_KEY, '1')
-  update.mockClear(); sweepSend.mockClear(); sweepFork.mockClear()
+  update.mockClear(); sweepSend.mockClear()
   __resetNotebookConnections()
   factory = createFakeIndexedDbFactory()
   globalThis.indexedDB = factory
   installLocks()
   global.fetch = vi.fn((url) => {
     if (String(url) === '/api/j2/notes/n1') {
+      if (server.down) return Promise.reject(new TypeError('Failed to fetch'))
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: server.note() }) })
     }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
@@ -147,7 +145,8 @@ function crashDraftFromEarlierSession({ base = null, title = 'Thesis' } = {}) {
   }))
 }
 function Tab({ Editor }) {
-  useOutboxDrain({ accountId: 'u42', excludeNoteId: 'n1', send: sweepSend, fork: sweepFork })
+  // The REAL `forkConflictedCopy` (the default `fork`): review I-2 — a stub here hid C-1.
+  useOutboxDrain({ accountId: 'u42', excludeNoteId: 'n1', send: sweepSend })
   return <Editor noteId="n1" onBack={() => {}} />
 }
 async function openTheNote() {
@@ -203,6 +202,58 @@ async function typeTitle(value) {
     fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value } })
     await settleIdb(2)
   })
+}
+async function typeSubtitle(value) {
+  await act(async () => {
+    fireEvent.change(screen.getByPlaceholderText('Subtitle (optional)'), { target: { value } })
+    await settleIdb(2)
+  })
+}
+/** An EARLIER session left a dirty record R (and, with `entry`, its queued entry). */
+const R_WORDS = 'earlier-session record R words'
+async function earlierSessionRecord({ entry = true } = {}) {
+  factory.open(ACCOUNT_DB)
+  await act(async () => { await settleIdb(2) })
+  const store = factory.databases.get(ACCOUNT_DB)
+  const body = doc(ONLINE, para(R_WORDS))
+  store.seed('notes', {
+    noteId: 'n1', title: 'Thesis', subtitle: '', bodyJson: body, dirty: 1, generation: 5,
+    sessionId: 's-away', localSavedAt: 1000, baseUpdatedAt: T0,
+    serverBase: { title: 'Thesis', subtitle: '', bodyJson: doc(ONLINE), updatedAt: T0 },
+  })
+  if (entry) {
+    store.seed('outbox', {
+      mutationId: 'note:n1', noteId: 'n1', kind: 'note-update',
+      patch: { title: 'Thesis', subtitle: '', bodyJson: body },
+      baseUpdatedAt: T0, generation: 5, sessionId: 's-away', queuedAt: 1000,
+    })
+  }
+}
+/** Hold the outbox read `recover()` makes, so the member can type before the
+ *  banner is decided (S2). Returns the release. */
+function holdRecovery() {
+  const store = factory.databases.get(ACCOUNT_DB)
+  let release
+  const gate = new Promise((r) => { release = r })
+  const orig = store.transaction.bind(store)
+  store.transaction = (names, mode = 'readonly') => {
+    const tx = orig(names, mode)
+    if (names !== 'outbox' || mode !== 'readonly') return tx
+    const inner = tx.objectStore
+    tx.objectStore = (n) => {
+      const st = inner(n)
+      return {
+        ...st,
+        getAll: () => {
+          const req = { result: [] }
+          gate.then(() => { const r = st.getAll(); r.onsuccess = () => { req.result = r.result; req.onsuccess?.() } })
+          return req
+        },
+      }
+    }
+    return tx
+  }
+  return () => { store.transaction = orig; release() }
 }
 /** The touch Undo / Redo buttons' own commands (`NoteEditorPage`'s controls). */
 async function undoOnce() {
@@ -380,7 +431,7 @@ describe('I-A · ⛔⛔ a crash-draft Restore, and any Undo past it, never leave
     // sweep can reach the server — the queue empties of them, nothing is dropped.
     await act(async () => { window.dispatchEvent(new Event('online')); await settleIdb(6) })
     await sit(2)
-    expect(server.forks.some((f) => f.copy && JSON.stringify(f).includes(SENTENCE)), `W never became a sibling ${JSON.stringify(where(SENTENCE))}`).toBe(true)
+    expect(server.forks.some((f) => f.tags?.includes('sync-conflict') && JSON.stringify(f).includes(SENTENCE)), `W never became a sibling ${JSON.stringify(where(SENTENCE))}`).toBe(true)
     expect(outbox().filter((e) => e.kind === 'note-copy'), 'a forked copy stayed queued').toEqual([])
     expectBothDurable('after the sweep forked the copies')
   })
@@ -583,5 +634,124 @@ describe('I-A · fix round 1 — the routes the review traced (C1, C2, I1, I2, M
     const text = await viewText()
     expect(text, 'one Undo also took back the Restore').toContain(SENTENCE)
     expect(text).not.toContain('#after')
+  })
+})
+
+describe('I-A · fix round 2 — the routes the round-1 review traced (C-1, C-2)', () => {
+  it('C-1: a SUBTITLE the Restore pushed into a copy reaches the created copy (the real fork)', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    server.down = true
+    crashDraftFromEarlierSession()
+    await openTheNote()
+    await sit(2)
+    await typeSubtitle('NVDA: wait for 140 reclaim')
+    await sit(2)
+    expect(record()?.subtitle, 'precondition: the subtitle is in the record').toContain('140 reclaim')
+    await pressRestore()
+    expect(await until(async () => (await viewText()).includes(SENTENCE))).toBe(true)
+    await sit(2)
+    expectDurable('140 reclaim', 'C-1 offline, the subtitle after the Restore')
+    server.down = false
+    await act(async () => { window.dispatchEvent(new Event('online')); await settleIdb(6) })
+    await sit(3)
+    expect(outbox().filter((e) => e.kind === 'note-copy'), 'precondition: the sweep forked the copy').toEqual([])
+    expectDurable('140 reclaim', 'C-1 after the sweep forked the copy')
+    expect(server.forks.some((f) => String(f.subtitle).includes('140 reclaim')), `the created copy has no subtitle ${JSON.stringify(server.forks)}`).toBe(true)
+  })
+
+  for (const online of [false, true]) {
+    const net = online ? 'ONLINE' : 'OFFLINE'
+    it(`C-2 (${net}): an earlier session's dirty record, typing BEFORE the banner is decided, then Restore of it, then reload ⇒ the typed words and R durable`, async () => {
+      server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+      server.down = !online
+      await earlierSessionRecord({ entry: true })
+      const release = holdRecovery()
+      await openTheNote()
+      await sit(2)
+      await typeAtEnd(' T-typed-before-the-banner')
+      await sit(2)
+      release()
+      const restore = await screen.findByRole('button', { name: 'Restore' })
+      expect(await viewText(), 'precondition: S2 offered the queued words instead of adopting them').toContain('T-typed-before-the-banner')
+      await act(async () => { fireEvent.click(restore); await settleIdb(6) })
+      expect(await until(async () => (await viewText()).includes(R_WORDS)), 'precondition: R is on the page').toBe(true)
+      await sit(3)
+      expectDurable('T-typed-before-the-banner', `C-2 ${net}: the words typed before the banner`)
+      expectDurable(R_WORDS, `C-2 ${net}: R`)
+      await reopen()
+      await sit(2)
+      expectDurable('T-typed-before-the-banner', `C-2 ${net}: after reload, the typed words`)
+      expectDurable(R_WORDS, `C-2 ${net}: after reload, R`)
+    })
+  }
+
+  it('C-2 (no-base path): an earlier record AND a newer crash draft, typing before the banner, Restore of the draft, reload ⇒ T, R and W durable', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    server.down = true
+    await earlierSessionRecord({ entry: false })
+    crashDraftFromEarlierSession()                                 // newer than R, no base: the no-base path
+    const release = holdRecovery()
+    await openTheNote()
+    await sit(2)
+    await typeAtEnd(' T-typed-before-the-banner')
+    await sit(2)
+    release()
+    const restore = await screen.findByRole('button', { name: 'Restore' })
+    update.mockClear()
+    await act(async () => { fireEvent.click(restore); await settleIdb(6) })
+    expect(await until(async () => (await viewText()).includes(SENTENCE)), 'precondition: the draft is on the page').toBe(true)
+    expect(update, 'precondition: the direct (no-base) Restore path').toHaveBeenCalled()
+    await sit(3)
+    expectDurable('T-typed-before-the-banner', 'C-2 no-base: the typed words')
+    expectDurable(R_WORDS, 'C-2 no-base: R')
+    expectDurable(SENTENCE, 'C-2 no-base: W')
+    await reopen()
+    expectDurable('T-typed-before-the-banner', 'C-2 no-base after reload: the typed words')
+    expectDurable(R_WORDS, 'C-2 no-base after reload: R')
+    expectDurable(SENTENCE, 'C-2 no-base after reload: W')
+  })
+})
+
+describe('I-A · fix round 2 — a copy the server refused is reachable, never deleted (I-1)', () => {
+  const COPY_WORDS = 'words in a copy the server refused'
+  async function refusedCopy() {
+    factory.open(ACCOUNT_DB)
+    await act(async () => { await settleIdb(2) })
+    const { copyEntryFor } = await import('./noteCopy')
+    const copy = copyEntryFor({
+      noteId: 'n1', words: { title: 'Thesis', subtitle: 'copy subtitle', bodyJson: doc(ONLINE, para(COPY_WORDS)) }, sessionId: 's-away',
+    })
+    factory.databases.get(ACCOUNT_DB).seed('outbox', {
+      ...copy, permanent: true, copyRefused: { status: 400, error: 'refused 400' }, lastStatus: 400, lastError: 'refused 400',
+    })
+    return copy
+  }
+
+  it('opening the source note OFFERS the refused copy; Restore puts its words in the note and only then retires the copy', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    const copy = await refusedCopy()
+    await openTheNote()
+    await sit(2)
+    const restore = await screen.findByRole('button', { name: 'Restore' })
+    await act(async () => { fireEvent.click(restore); await settleIdb(6) })
+    expect(await until(async () => (await viewText()).includes(COPY_WORDS)), 'the refused copy\'s words are on the page').toBe(true)
+    await sit(4)
+    expect(JSON.stringify(server.body), 'the words reached the note on the server').toContain(COPY_WORDS)
+    expectDurable(COPY_WORDS, 'after the Restore')
+    expect(outbox().some((e) => e.mutationId === copy.mutationId), 'the copy was retired once its words were in the note').toBe(false)
+  })
+
+  it('Discard on the offered copy NEVER deletes it — it is offered again next time', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    const copy = await refusedCopy()
+    await openTheNote()
+    await sit(2)
+    const discard = await screen.findByRole('button', { name: 'Discard' })
+    await act(async () => { fireEvent.click(discard); await settleIdb(6) })
+    await sit(2)
+    expect(outbox().some((e) => e.mutationId === copy.mutationId), 'Discard deleted a refused copy').toBe(true)
+    expectDurable(COPY_WORDS, 'after Discard')
+    await reopen()
+    expect(await screen.findByRole('button', { name: 'Restore' }), 'the copy is offered again').toBeTruthy()
   })
 })

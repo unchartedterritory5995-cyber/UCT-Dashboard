@@ -14,7 +14,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createFakeDb, settleIdb, installKeyRange } from './__fixtures__/fakeIndexedDb'
 import { listOutbox, putNoteWithIntent } from './notebookDb'
-import { drainOutbox, FORKED, KEPT } from './outboxDrain'
+import { drainOutbox, FORKED, KEPT, BLOCKED } from './outboxDrain'
+import { forkConflictedCopy } from './useOutboxDrain'
+import { listBlockedNoteIds } from './blockedNotes'
 import { swapCaptureSpills, editorLineageStamp } from './recoverLocalState'
 import { copyEntryFor, isNoteCopy, NOTE_COPY } from './noteCopy'
 
@@ -128,4 +130,108 @@ describe('the sweep turns a queued copy into a sibling', () => {
     expect(results).toEqual([expect.objectContaining({ mutationId: copy.mutationId, outcome: KEPT })])
     expect((await listOutbox(db)).map((e) => e.mutationId)).toEqual([copy.mutationId])
   })
+})
+
+describe('fix round 2 — the REAL fork path (`forkConflictedCopy` → `createNoteViaApi` → fetch)', () => {
+  const realFetch = globalThis.fetch
+  let posts
+  function fakeServer({ source = 200, create = 200 } = {}) {
+    posts = []
+    globalThis.fetch = vi.fn(async (url, opts = {}) => {
+      const u = String(url)
+      if (u === '/api/j2/notes/n1' && (!opts.method || opts.method === 'GET')) {
+        if (source === 'down') throw new TypeError('Failed to fetch')
+        return { ok: source === 200, status: source, json: async () => ({ note: { id: 'n1', title: 'Thesis', folderId: 'f9', bodyJson: doc('S'), updatedAt: 'T1' } }) }
+      }
+      if (u === '/api/j2/notes' && opts.method === 'POST') {
+        posts.push(JSON.parse(opts.body))
+        if (create !== 200) return { ok: false, status: create, json: async () => ({ detail: `refused ${create}` }) }
+        return { ok: true, status: 200, json: async () => ({ note: { id: `c${posts.length}` } }) }
+      }
+      throw new Error(`unexpected fetch ${u}`)
+    })
+  }
+  const restoreFetch = () => { globalThis.fetch = realFetch }
+  async function queueCopy(w = { title: 'Thesis', subtitle: 'NVDA: wait for 140 reclaim', bodyJson: doc('pushed-out K') }) {
+    const copy = copyEntryFor({ noteId: 'n1', words: w, writtenSchema: 2, sessionId: 's1' })
+    await putNoteWithIntent(db, { noteId: 'n1', ...words('W'), dirty: 0, baseUpdatedAt: 'T1' }, null, { copies: [copy] })
+    await settleIdb()
+    return copy
+  }
+
+  it('⛔⛔ C-1: every authored field the copy holds lands in the created note — title, a NON-EMPTY subtitle, body — then the entry clears', async () => {
+    fakeServer()
+    try {
+      await queueCopy()
+      const results = await drainOutbox(db, { send: vi.fn(), fork: forkConflictedCopy })
+      await settleIdb()
+      expect(results.map((r) => r.outcome)).toEqual([FORKED])
+      expect(posts).toHaveLength(1)
+      expect(posts[0].title).toBe('Thesis (conflicted copy)')
+      expect(posts[0].subtitle, 'the subtitle was dropped by the fork').toBe('NVDA: wait for 140 reclaim')
+      expect(JSON.stringify(posts[0].bodyJson)).toContain('pushed-out K')
+      expect(posts[0].tags).toEqual(['sync-conflict'])
+      expect(posts[0].folderId).toBe('f9')
+      expect(await listOutbox(db)).toEqual([])
+    } finally { restoreFetch() }
+  })
+
+  it('I-1: the SOURCE is gone (trashed or deleted: 404) ⇒ the copy is still created, in no folder — it never needed the source', async () => {
+    fakeServer({ source: 404 })
+    try {
+      await queueCopy()
+      const results = await drainOutbox(db, { send: vi.fn(), fork: forkConflictedCopy })
+      await settleIdb()
+      expect(results.map((r) => r.outcome)).toEqual([FORKED])
+      expect(posts).toHaveLength(1)
+      expect(posts[0].folderId).toBeUndefined()
+      expect(posts[0].subtitle).toBe('NVDA: wait for 140 reclaim')
+      expect(await listOutbox(db)).toEqual([])
+    } finally { restoreFetch() }
+  })
+
+  it('offline (the source GET cannot be made) ⇒ KEPT, nothing posted, retried later', async () => {
+    fakeServer({ source: 'down' })
+    try {
+      const copy = await queueCopy()
+      const results = await drainOutbox(db, { send: vi.fn(), fork: forkConflictedCopy })
+      await settleIdb()
+      expect(results).toEqual([expect.objectContaining({ mutationId: copy.mutationId, outcome: KEPT })])
+      expect(posts).toHaveLength(0)
+      expect((await listOutbox(db)).map((e) => e.mutationId)).toEqual([copy.mutationId])
+    } finally { restoreFetch() }
+  })
+
+  it('⛔ I-1: a create the server REFUSES (400) ⇒ BLOCKED with its reason, KEPT, shown on its source note, and not re-posted every sweep', async () => {
+    fakeServer({ create: 400 })
+    try {
+      const copy = await queueCopy()
+      const first = await drainOutbox(db, { send: vi.fn(), fork: forkConflictedCopy })
+      await settleIdb()
+      expect(first).toEqual([expect.objectContaining({ mutationId: copy.mutationId, outcome: BLOCKED })])
+      const kept = await listOutbox(db)
+      expect(kept).toHaveLength(1)
+      expect(kept[0].permanent).toBe(true)
+      expect(kept[0].copyRefused?.status).toBe(400)
+      expect(JSON.stringify(kept[0].patch), 'the words are kept').toContain('pushed-out K')
+      expect(await listBlockedNoteIds(db), 'surfaced on the SOURCE note, the one a member can open').toEqual(['n1'])
+      const second = await drainOutbox(db, { send: vi.fn(), fork: forkConflictedCopy })
+      await settleIdb()
+      expect(second.map((r) => r.outcome)).toEqual([BLOCKED])
+      expect(posts, 'a refused copy was posted again').toHaveLength(1)
+    } finally { restoreFetch() }
+  })
+
+  for (const status of [401, 429, 503]) {
+    it(`a create that fails ${status} is transient ⇒ KEPT, not blocked`, async () => {
+      fakeServer({ create: status })
+      try {
+        const copy = await queueCopy()
+        const results = await drainOutbox(db, { send: vi.fn(), fork: forkConflictedCopy })
+        await settleIdb()
+        expect(results).toEqual([expect.objectContaining({ mutationId: copy.mutationId, outcome: KEPT })])
+        expect((await listOutbox(db))[0].permanent).toBeFalsy()
+      } finally { restoreFetch() }
+    })
+  }
 })
