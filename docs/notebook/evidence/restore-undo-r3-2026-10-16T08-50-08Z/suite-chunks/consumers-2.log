@@ -1,0 +1,122 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/lib/noteContentGuard.reason.test.jsx[2m > [22m[2m⛔⛔ the lock remembers its reason, and the notice SAYS it[2m > [22m[2ma malformed stored body: locked, and the notice shows the MALFORMED sentence
+[22m[39m[tiptap warn]: Invalid content. Passed value: {
+  type: [32m'doc'[39m,
+  content: [
+    { type: [32m'paragraph'[39m, content: [36m[Array][39m },
+    { type: [32m'paragraph'[39m, content: [36m[Array][39m }
+  ]
+} Error: RangeError: Empty text nodes are not allowed
+    at new TextNode (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1543:19)
+    at Schema.text (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2474:16)
+    at Node.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1527:27)
+    at Schema.nodeFromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2448:42)
+    at Array.map (<anonymous>)
+    at Fragment.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:314:41)
+    at Node.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1529:32)
+    at Schema.nodeFromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2448:42)
+    at Array.map (<anonymous>)
+    at Fragment.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:314:41)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/noteContentGuard.reason.test.jsx[2m > [22m[2m⛔⛔ the lock remembers its reason, and the notice SAYS it[2m > [22m[2ma body from a newer bundle: locked, and the notice keeps the NEWER sentence
+[22m[39m[tiptap warn]: Invalid content. Passed value: {
+  type: [32m'doc'[39m,
+  content: [
+    { type: [32m'paragraph'[39m, content: [36m[Array][39m },
+    { type: [32m'waveElevenDiagram'[39m }
+  ]
+} Error: RangeError: Unknown node type: waveElevenDiagram
+    at Schema.nodeType (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2490:19)
+    at Node.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1530:27)
+    at Schema.nodeFromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2448:42)
+    at Array.map (<anonymous>)
+    at Fragment.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:314:41)
+    at Node.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1529:32)
+    at Schema.nodeFromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2448:42)
+    at createNodeFromContent (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@tiptap/core[24m/dist/index.js:664:27)
+    at createDocument (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@tiptap/core[24m/dist/index.js:1173:10)
+    at Editor.createDoc (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@tiptap/core[24m/dist/index.js:5100:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/noteContentGuard.reason.test.jsx[2m > [22m[2m⛔⛔ the lock remembers its reason, and the notice SAYS it[2m > [22m[2ma notice rendered WITHOUT its editor (NoteEditorPage today) uses the unanimous live reason
+[22m[39m[tiptap warn]: Invalid content. Passed value: {
+  type: [32m'doc'[39m,
+  content: [
+    { type: [32m'paragraph'[39m, content: [36m[Array][39m },
+    { type: [32m'paragraph'[39m, content: [36m[Array][39m }
+  ]
+} Error: RangeError: Empty text nodes are not allowed
+    at new TextNode (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1543:19)
+    at Schema.text (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2474:16)
+    at Node.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1527:27)
+    at Schema.nodeFromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2448:42)
+    at Array.map (<anonymous>)
+    at Fragment.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:314:41)
+    at Node.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1529:32)
+    at Schema.nodeFromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2448:42)
+    at Array.map (<anonymous>)
+    at Fragment.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:314:41)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/noteContentGuard.reason.test.jsx[2m > [22m[2m⛔⛔ the lock remembers its reason, and the notice SAYS it[2m > [22m[2m…and falls back to the NEWER sentence when live locked editors disagree
+[22m[39m[tiptap warn]: Invalid content. Passed value: {
+  type: [32m'doc'[39m,
+  content: [
+    { type: [32m'paragraph'[39m, content: [36m[Array][39m },
+    { type: [32m'paragraph'[39m, content: [36m[Array][39m }
+  ]
+} Error: RangeError: Empty text nodes are not allowed
+    at new TextNode (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1543:19)
+    at Schema.text (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2474:16)
+    at Node.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1527:27)
+    at Schema.nodeFromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2448:42)
+    at Array.map (<anonymous>)
+    at Fragment.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:314:41)
+    at Node.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1529:32)
+    at Schema.nodeFromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2448:42)
+    at Array.map (<anonymous>)
+    at Fragment.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:314:41)
+[tiptap warn]: Invalid content. Passed value: { type: [32m'doc'[39m, content: [ { type: [32m'paragraph'[39m, content: [36m[Array][39m } ] } Error: RangeError: There is no mark type waveElevenUnderwave in this schema
+    at Mark.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:505:19)
+    at Schema.markFromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2449:42)
+    at Array.map (<anonymous>)
+    at Node.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1522:32)
+    at Schema.nodeFromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2448:42)
+    at Array.map (<anonymous>)
+    at Fragment.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:314:41)
+    at Node.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1529:32)
+    at Schema.nodeFromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2448:42)
+    at Array.map (<anonymous>)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/noteContentGuard.reason.test.jsx[2m > [22m[2ma real surface wired with its editor[2m > [22m[2mthe version-history preview of a malformed version shows the MALFORMED sentence
+[22m[39m[tiptap warn]: Invalid content. Passed value: {
+  type: [32m'doc'[39m,
+  content: [
+    { type: [32m'paragraph'[39m, content: [36m[Array][39m },
+    { type: [32m'paragraph'[39m, content: [36m[Array][39m }
+  ]
+} Error: RangeError: Empty text nodes are not allowed
+    at new TextNode (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1543:19)
+    at Schema.text (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2474:16)
+    at Node.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1527:27)
+    at Schema.nodeFromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2448:42)
+    at Array.map (<anonymous>)
+    at Fragment.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:314:41)
+    at Node.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1529:32)
+    at Schema.nodeFromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2448:42)
+    at Array.map (<anonymous>)
+    at Fragment.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:314:41)
+
+ [32m✓[39m src/pages/journal-2-0/lib/noteContentGuard.reason.test.jsx [2m([22m[2m9 tests[22m[2m)[22m[32m 199[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/noteBatch.jsonRoundtrip.test.js [2m([22m[2m3 tests[22m[2m)[22m[33m 528[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/noteBatch.test.js [2m([22m[2m59 tests[22m[2m)[22m[32m 154[2mms[22m[39m
+Not implemented: navigation to another Document
+ [32m✓[39m src/pages/journal-2-0/lib/lockedNote.test.js [2m([22m[2m7 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/noteArchive.test.js [2m([22m[2m6 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/journalStylesFlag.test.js [2m([22m[2m4 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m6 passed[39m[22m[90m (6)[39m
+[2m      Tests [22m [1m[32m88 passed[39m[22m[90m (88)[39m
+[2m   Start at [22m 03:45:30
+[2m   Duration [22m 4.33s[2m (transform 1.20s, setup 1.25s, import 1.95s, tests 902ms, environment 3.24s)[22m
+

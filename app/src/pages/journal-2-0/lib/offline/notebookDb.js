@@ -148,12 +148,45 @@ const done = (tx) => new Promise((resolve, reject) => {
  *
  * `outboxEntry === null` removes any queued entry for that note (a note that
  * caught up with the server has nothing left to say).
+ *
+ * ⭐ I-A fix round 1: `copies` are queued `(conflicted copy)` entries (`noteCopy.js`)
+ * written in the SAME transaction — the words a swap pushed out of the record are
+ * in the outbox the instant the record stops holding them, never between. Their
+ * `noteId` is not this note's, so the null-intent delete below cannot reach them.
  */
-export async function putNoteWithIntent(db, noteRecord, outboxEntry) {
+export async function putNoteWithIntent(db, noteRecord, outboxEntry, { copies = [] } = {}) {
   const tx = db.transaction([STORE_NOTES, STORE_OUTBOX], 'readwrite')
-  stageNoteWithIntent(tx.objectStore(STORE_NOTES), tx.objectStore(STORE_OUTBOX), noteRecord, outboxEntry)
+  const outbox = tx.objectStore(STORE_OUTBOX)
+  stageNoteWithIntent(tx.objectStore(STORE_NOTES), outbox, noteRecord, outboxEntry)
+  for (const copy of copies) outbox.put(copy)
   await done(tx)
   return noteRecord
+}
+
+/** Write one outbox entry as given. */
+export async function putOutboxEntry(db, entry) {
+  const tx = db.transaction(STORE_OUTBOX, 'readwrite')
+  tx.objectStore(STORE_OUTBOX).put(entry)
+  await done(tx)
+}
+
+/**
+ * ⭐ I-A fix round 3 (review I-4): rewrite an outbox entry ONLY if it is still
+ * there — the read and the write in ONE transaction. A refusal that comes back
+ * after the member discarded the copy must not bring it back.
+ * @returns {Promise<boolean>} whether the entry was written
+ */
+export async function putOutboxEntryIfPresent(db, entry) {
+  const tx = db.transaction(STORE_OUTBOX, 'readwrite')
+  const committed = done(tx)
+  const store = tx.objectStore(STORE_OUTBOX)
+  let wrote = false
+  const req = store.get(entry.mutationId)
+  req.onsuccess = () => {
+    if (req.result) { store.put(entry); wrote = true }
+  }
+  await committed
+  return wrote
 }
 
 /**

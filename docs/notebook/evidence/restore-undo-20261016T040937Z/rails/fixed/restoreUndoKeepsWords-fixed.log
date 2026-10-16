@@ -1,0 +1,432 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITHOUT a base after old-view typing, a keystroke, then Undo past the Restore ⇒ W and the old words survive
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITHOUT a base after old-view typing, a keystroke, then Undo past the Restore ⇒ W and the old words survive
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITHOUT a base after old-view typing, a keystroke, then Undo past the Restore ⇒ W and the old words survive
+[22m[39mautosave failed (retry 2 in 2000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3843:62
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITH a base (the adoption effect) after old-view typing, a keystroke, then Undo past it ⇒ W and the old words survive
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITH a base (the adoption effect) after old-view typing, a keystroke, then Undo past it ⇒ W and the old words survive
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITH a base (the adoption effect) after old-view typing, a keystroke, then Undo past it ⇒ W and the old words survive
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITH a base (the adoption effect) after old-view typing, a keystroke, then Undo past it ⇒ W and the old words survive
+[22m[39mautosave failed (retry 2 in 2000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3843:62
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITHOUT a base after old-view typing, then Undo at once (no keystroke after Restore) ⇒ W and the old words survive
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITHOUT a base after old-view typing, then Undo at once (no keystroke after Restore) ⇒ W and the old words survive
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITHOUT a base after old-view typing, then Undo at once (no keystroke after Restore) ⇒ W and the old words survive
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITHOUT a base after old-view typing, then Undo at once (no keystroke after Restore) ⇒ W and the old words survive
+[22m[39mautosave failed (retry 2 in 2000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3843:62
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mthe simplest variant: Restore WITHOUT a base, no typing at all, Undo at once ⇒ W survives
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mtyping then Restore INSIDE one history group (under 500 ms apart), a keystroke, then Undo past it ⇒ W and the old words survive
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mtyping then Restore INSIDE one history group (under 500 ms apart), a keystroke, then Undo past it ⇒ W and the old words survive
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mtyping then Restore INSIDE one history group (under 500 ms apart), a keystroke, then Undo past it ⇒ W and the old words survive
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mtyping then Restore INSIDE one history group (under 500 ms apart), a keystroke, then Undo past it ⇒ W and the old words survive
+[22m[39mautosave failed (retry 2 in 2000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3843:62
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mUndo past the Restore, then Redo, then Undo again ⇒ both survive every step (the swap is symmetric)
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mUndo past the Restore, then Redo, then Undo again ⇒ both survive every step (the swap is symmetric)
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mUndo past the Restore, then Redo, then Undo again ⇒ both survive every step (the swap is symmetric)
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mUndo past the Restore, then Redo, then Undo again ⇒ both survive every step (the swap is symmetric)
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mUndo past the Restore, then Redo, then Undo again ⇒ both survive every step (the swap is symmetric)
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2ma keystroke INSIDE the 200 ms window right after the Undo cannot coalesce the displaced words away
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2ma keystroke INSIDE the 200 ms window right after the Undo cannot coalesce the displaced words away
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2ma keystroke INSIDE the 200 ms window right after the Undo cannot coalesce the displaced words away
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mback online after the Undo: the page saves, and the displaced words stay QUEUED (a copy on leave, never settled away)
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mback online after the Undo: the page saves, and the displaced words stay QUEUED (a copy on leave, never settled away)
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mback online after the Undo: the page saves, and the displaced words stay QUEUED (a copy on leave, never settled away)
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2m⛔ displaced words travel on the OLDER baseline: a Restore whose draft was typed on an earlier revision queues W on that revision
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2m⛔ displaced words travel on the OLDER baseline: a Restore whose draft was typed on an earlier revision queues W on that revision
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2m⛔ displaced words travel on the OLDER baseline: a Restore whose draft was typed on an earlier revision queues W on that revision
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2m⛔ control: an Undo of the member's OWN typing after a Restore (not across it) keeps nothing extra — the undone keystroke is not queued
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2m⛔ control: an Undo of the member's OWN typing after a Restore (not across it) keeps nothing extra — the undone keystroke is not queued
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITHOUT a base pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and both survive an Undo past it
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITHOUT a base pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and both survive an Undo past it
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITHOUT a base pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and both survive an Undo past it
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITHOUT a base pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and both survive an Undo past it
+[22m[39mautosave failed (retry 2 in 2000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3843:62
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITH a base (the adoption effect) pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and both survive an Undo past it
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITH a base (the adoption effect) pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and both survive an Undo past it
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITH a base (the adoption effect) pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and both survive an Undo past it
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1827:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22m[2mI-A · ⛔⛔ Undo past a crash-draft Restore never drops the restored words (offline)[2m > [22m[2mRestore WITH a base (the adoption effect) pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and both survive an Undo past it
+[22m[39mautosave failed (retry 2 in 2000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:62:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3736:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3843:62
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+ [32m✓[39m src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx [2m([22m[2m12 tests[22m[2m)[22m[33m 38243[2mms[22m[39m
+     [33m[2m✓[22m[39m Restore WITHOUT a base after old-view typing, a keystroke, then Undo past the Restore ⇒ W and the old words survive [33m 6979[2mms[22m[39m
+     [33m[2m✓[22m[39m Restore WITH a base (the adoption effect) after old-view typing, a keystroke, then Undo past it ⇒ W and the old words survive [33m 3127[2mms[22m[39m
+     [33m[2m✓[22m[39m Restore WITHOUT a base after old-view typing, then Undo at once (no keystroke after Restore) ⇒ W and the old words survive [33m 2462[2mms[22m[39m
+     [33m[2m✓[22m[39m the simplest variant: Restore WITHOUT a base, no typing at all, Undo at once ⇒ W survives [33m 2043[2mms[22m[39m
+     [33m[2m✓[22m[39m typing then Restore INSIDE one history group (under 500 ms apart), a keystroke, then Undo past it ⇒ W and the old words survive [33m 2756[2mms[22m[39m
+     [33m[2m✓[22m[39m Undo past the Restore, then Redo, then Undo again ⇒ both survive every step (the swap is symmetric) [33m 3566[2mms[22m[39m
+     [33m[2m✓[22m[39m a keystroke INSIDE the 200 ms window right after the Undo cannot coalesce the displaced words away [33m 3007[2mms[22m[39m
+     [33m[2m✓[22m[39m back online after the Undo: the page saves, and the displaced words stay QUEUED (a copy on leave, never settled away) [33m 3984[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ displaced words travel on the OLDER baseline: a Restore whose draft was typed on an earlier revision queues W on that revision [33m 2585[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ control: an Undo of the member's OWN typing after a Restore (not across it) keeps nothing extra — the undone keystroke is not queued [33m 2074[2mms[22m[39m
+     [33m[2m✓[22m[39m Restore WITHOUT a base pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and both survive an Undo past it [33m 2808[2mms[22m[39m
+     [33m[2m✓[22m[39m Restore WITH a base (the adoption effect) pressed INSIDE the 200 ms durable window after old-view typing ⇒ the old words survive the Restore, and both survive an Undo past it [33m 2849[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m12 passed[39m[22m[90m (12)[39m
+[2m   Start at [22m 23:19:29
+[2m   Duration [22m 39.61s[2m (transform 3.51s, setup 318ms, import 219ms, tests 38.24s, environment 665ms)[22m
+

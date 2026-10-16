@@ -1,0 +1,713 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+ [31m❯[39m src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx [2m([22m[2m55 tests[22m[2m | [22m[31m2 failed[39m[2m | [22m[33m53 skipped[39m[2m)[22m[33m 15858[2mms[22m[39m
+     [2m[90m↓[39m[22m Restore WITHOUT a base after old-view typing ⇒ W durable AT the Restore (C2); a keystroke, then Undo past it ⇒ both durable
+     [2m[90m↓[39m[22m Restore WITH a base (the adoption effect) after old-view typing ⇒ W durable before any Undo (I1); a keystroke, then Undo past it ⇒ both durable
+     [2m[90m↓[39m[22m Restore WITHOUT a base after old-view typing, then Undo at once ⇒ both durable
+     [2m[90m↓[39m[22m the simplest variant: Restore WITHOUT a base, no typing at all, Undo at once ⇒ W durable
+     [2m[90m↓[39m[22m typing then Restore INSIDE one history group (under 500 ms apart), a keystroke, then Undo past it ⇒ both durable
+     [2m[90m↓[39m[22m Undo past the Restore, Redo, type, then Undo across the Restore again ⇒ both durable at every step
+     [2m[90m↓[39m[22m a keystroke INSIDE the 200 ms window right after the Undo cannot coalesce anything away
+     [2m[90m↓[39m[22m back online after the Undo: the page saves, and nothing is settled away
+     [2m[90m↓[39m[22m ⛔ the restored words travel on the OLDER baseline: a draft typed on an earlier revision is queued on that revision
+     [2m[90m↓[39m[22m ⛔ control: an Undo of the member's OWN typing after a Restore (not across it) queues nothing extra
+     [2m[90m↓[39m[22m Restore WITHOUT a base pressed INSIDE the 200 ms window after old-view typing, and a keystroke INSIDE the window after it ⇒ the old words survive, and both survive an Undo past it
+     [2m[90m↓[39m[22m Restore WITH a base (the adoption effect) pressed INSIDE the 200 ms window after old-view typing, and a keystroke INSIDE the window after it ⇒ the old words survive, and both survive an Undo past it
+     [2m[90m↓[39m[22m C1a: an Undo in the OLD view before Restore, then Undo past the Restore ⇒ W and the kept old words durable
+     [2m[90m↓[39m[22m C1b: the crash draft carries a DIFFERENT title (a renamed note) ⇒ an Undo past the Restore keeps W and its title durable
+     [2m[90m↓[39m[22m C1b: the old-view edit was a TITLE edit ⇒ Restore, Undo past it ⇒ W and the old title durable
+     [2m[90m↓[39m[22m C1b: a title edit AFTER the Restore and before the Undo ⇒ both durable
+     [2m[90m↓[39m[22m C2: no-base Restore offline after old-view typing, then the tab closes with no keystroke ⇒ W durable, and still durable after reopening
+     [2m[90m↓[39m[22m I1: Undo past the Restore, close, reopen, type before choosing, close ⇒ W and the old words durable throughout
+     [2m[90m↓[39m[22m I2: a FURTHER Undo past the pre-Restore page (multi-hop) never drops W
+     [2m[90m↓[39m[22m the member replaced the restored words, undid back to them (the record stays pinned), then undid past the Restore ⇒ W durable
+     [2m[90m↓[39m[22m a keystroke INSIDE the 200 ms window right after a with-base Restore (nothing else in flight) cannot coalesce the Restore's capture away
+     [2m[90m↓[39m[22m M1: a keystroke under 500 ms BEFORE the Restore is its own undo step too (one Undo takes back only the Restore)
+     [2m[90m↓[39m[22m M1: a keystroke under 500 ms after the Restore is its OWN undo step (one Undo takes back only it)
+     [2m[90m↓[39m[22m C-1: a SUBTITLE the Restore pushed into a copy reaches the created copy (the real fork)
+     [2m[90m↓[39m[22m C-2 (OFFLINE): an earlier session's dirty record, typing BEFORE the banner is decided, then Restore of it, then reload ⇒ the typed words and R durable
+     [2m[90m↓[39m[22m C-2 (ONLINE): an earlier session's dirty record, typing BEFORE the banner is decided, then Restore of it, then reload ⇒ the typed words and R durable
+     [2m[90m↓[39m[22m C-2 (no-base path): an earlier record AND a newer crash draft, typing before the banner, Restore of the draft, reload ⇒ T, R and W durable
+     [2m[90m↓[39m[22m ⛔⛔ C-3: the offer never writes the copy into its source note — "Save as a separate note" creates a new note and the source keeps its text
+     [2m[90m↓[39m[22m the offer says, in plain words, that the copy is kept on this device and what each button does (I-4)
+     [2m[90m↓[39m[22m ⛔ I-4: a refused copy does NOT mark its healthy source note blocked ("edit it again to sync" is false for a copy)
+     [2m[90m↓[39m[22m a re-POST refused AGAIN keeps the copy on this device and keeps offering it, with its reason
+     [2m[90m↓[39m[22m Discard asks first (in the page), and keeps the copy if the member backs out
+     [2m[90m↓[39m[22m Discard, confirmed, deletes the copy and it does NOT come back on the next open
+       [2m[90m↓[39m[22m ⛔ I-6: the offer shows the COPY’s own words (title, subtitle, body as plain text), never the note’s
+       [2m[90m↓[39m[22m ⛔ I-6: the Discard confirm shows the same words, and its own "Copy text" copies them
+       [2m[90m↓[39m[22m "Copy text" puts the copy’s words on the clipboard, and says so
+       [2m[90m↓[39m[22m a clipboard that refuses ⇒ the preview's words are SELECTED so they can be copied by hand, and the offer says so
+       [2m[90m↓[39m[22m a clipboard that is missing ⇒ the preview's words are SELECTED so they can be copied by hand, and the offer says so
+[31m       [31m×[31m ⛔ a CONTENT refusal (413) offers "Save as plain text": its re-POST body is flattened, nothing is PUT, the copy clears[39m[33m 8713[2mms[22m[39m
+[31m       [31m×[31m a 400 whose reason is the BODY (the create guard) is a content refusal too: "Save as plain text" is offered[39m[33m 7143[2mms[22m[39m
+       [2m[90m↓[39m[22m ⛔ a plain-text save refused AGAIN keeps the copy with its ORIGINAL words, still shown, still with "Copy text"
+       [2m[90m↓[39m[22m ⛔ I-7: a 413 ("…") shows the offer’s own sentence, never the server’s
+       [2m[90m↓[39m[22m ⛔ I-7: a 400 (": this note is too long to save as one page") shows the offer’s own sentence, never the server’s
+       [2m[90m↓[39m[22m ⛔ I-7: a 400 (": too many lists nested inside each other") shows the offer’s own sentence, never the server’s
+       [2m[90m↓[39m[22m ⛔ I-7: a 422 ("…") shows the offer’s own sentence, never the server’s
+       [2m[90m↓[39m[22m ⛔ I-7: a 400 (": subtitle too long") shows the offer’s own sentence, never the server’s
+       [2m[90m↓[39m[22m ⛔ I-7: a re-POST refused again does not bring the server’s new sentence onto the page either
+       [2m[90m↓[39m[22m "try again when you’re online" only after a NETWORK failure
+       [2m[90m↓[39m[22m a failure that is NOT the network (409 from the create) says "try again later", never "when you’re online"
+       [2m[90m↓[39m[22m ⛔ focus moves INTO the Discard confirm, and "Keep it" returns it to the offer
+     [2m[90m↓[39m[22m (a) a cell ends with a PUT still in flight
+     [2m[90m↓[39m[22m (b) that PUT, landing in the next cell, changes only the cell that sent it
+     [2m[90m↓[39m[22m (c) a cell ends with a separate-note save still in flight (its source read is held)
+     [2m[90m↓[39m[22m (d) that save, finishing in the next cell, creates its note only in the cell that sent it
+     [2m[90m↓[39m[22m a Restore of a draft that carries only a TITLE writes that title to a durable layer before the tab closes
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22mI-A · fix round 3 — a copy the server refused is its own offer: saved as a separate note, never restored into its source (C-3, I-4)[2m > [22mfix round 4 — the offer shows the words and speaks for itself (I-6, I-7)[2m > [22m⛔ a CONTENT refusal (413) offers "Save as plain text": its re-POST body is flattened, nothing is PUT, the copy clears
+[31m[1mTestingLibraryElementError[22m[39m: Unable to find role="button" and name "Save as plain text"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"_page_6e64f5"[39m
+      [33mstyle[39m=[32m"--uct-chrome-h: 0px;"[39m
+    [36m>[39m
+      [36m<h2[39m
+        [33mclass[39m=[32m"sr-only"[39m
+        [33mdata-note-landmark[39m=[32m"true"[39m
+        [33mtabindex[39m=[32m"-1"[39m
+      [36m>[39m
+        [0mThesis[0m
+      [36m</h2>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_chrome_6e64f5"[39m
+      [36m>[39m
+        [36m<a[39m
+          [33mclass[39m=[32m"_skipLink_6e64f5"[39m
+          [33mhref[39m=[32m"#notebook-editor-toolbar"[39m
+        [36m>[39m
+          [0mSkip to editor toolbar[0m
+        [36m</a>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"sr-only"[39m
+          [33mtabindex[39m=[32m"-1"[39m
+        [36m>[39m
+          [0mEditor toolbar[0m
+        [36m</h2>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"_header_6e64f5"[39m
+          [33mdata-note-header[39m=[32m""[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"_backBtn_6e64f5"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0m← Notebook[0m
+          [36m</button>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"_headerControls_6e64f5"[39m
+            [33mdata-tour[39m=[32m"ask-row"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Add to Favorites"[39m
+              [33maria-pressed[39m=[32m"false"[39m
+              [33mclass[39m=[32m"_chromeBtn_6e64f5"[39m
+              [33mtitle[39m=[32m"Add to Favorites"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mfocusable[39m=[32m"false"[39m
+                [33mheight[39m=[32m"15"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"1.7"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"15"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</button>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"_askSlot_6e64f5"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"_wrap_22453a"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33maria-expanded[39m=[32m"false"[39m
+                  [33maria-label[39m=[32m"Ask this note"[39m
+                  [33mclass[39m=[32m"_askToggle_22453a"[39m
+                  [33mdata-ask-toggle[39m=[32m"true"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mfocusable[39m=[32m"false"[39m
+                    [33mheight[39m=[32m"13"[39m
+                    [33mstroke[39m=[32m"url(#uig2)"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"1.85"[39m
+                    [33mstyle[39m=[32m"color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -2px; margin-right: 4px;"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"13"[39m
+                  [36m>[39m
+                    [36m<defs>[39m
+                      [36m<lineargradient[39m
+                        [33mid[39m=[32m"uig2"[39m
+                        [33mx1[39m=[32m"0"[39m
+                        [33mx2[39m=[32m"1"[39m
+                        [33my1[39m=[32m"0"[39m
+                        [33my2[39m=[32m"1"[39m
+                      [36m>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"0%"[39m
+                          [33mstop-color[39m=[32m"#a8823a"[39m
+                        [36m/>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"40%"[39m
+                          [33mstop-color[39m=[32m"#d4b25a"[39m
+                        [36m/>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"50%"[39m
+                          [33mstop-color[39m=[32m"#e8d18c"[39m
+                        [36m/>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"60%"[39m
+                          [33mstop-color[39m=[32m"#cba954"[39m
+                        [36m/>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"100%"[39m
+                          [33mstop-color[39m=[32m"#8f6f2c"[39m
+                        [36m/>[39m
+                      [36m</lineargradient>[39m
+                    [36m</defs>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 3l1.9 5.6L19 10l-5.1 1.5L12 17l-1.9-5.5L5 10l5.1-1.4z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                  [0mAsk this note[0m
+                [36m</button>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Find in note"[39m
+              [33mclass[39m=[32m"_chromeBtn_6e64f5 _phoneInMore_6e64f5"[39m
+              [33mtitle[39m=[32m"Find in this note"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mfocusable[39m=[32m"false"[39m
+                [33mheight[39m=[32m"13"[39m
+                [33mstroke[39m=[32m"url(#uig3)"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"1.85"[39m
+                [33mstyle[39m=[32m"color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -2px; margin-right: 4px;"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"13"[39m
+              [36m>[39m
+                [36m<defs>[39m
+                  [36m<lineargradient[39m
+                    [33mid[39m=[32m"uig3"[39m...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"_page_6e64f5"[39m
+      [33mstyle[39m=[32m"--uct-chrome-h: 0px;"[39m
+    [36m>[39m
+      [36m<h2[39m
+        [33mclass[39m=[32m"sr-only"[39m
+        [33mdata-note-landmark[39m=[32m"true"[39m
+        [33mtabindex[39m=[32m"-1"[39m
+      [36m>[39m
+        [0mThesis[0m
+      [36m</h2>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_chrome_6e64f5"[39m
+      [36m>[39m
+        [36m<a[39m
+          [33mclass[39m=[32m"_skipLink_6e64f5"[39m
+          [33mhref[39m=[32m"#notebook-editor-toolbar"[39m
+        [36m>[39m
+          [0mSkip to editor toolbar[0m
+        [36m</a>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"sr-only"[39m
+          [33mtabindex[39m=[32m"-1"[39m
+        [36m>[39m
+          [0mEditor toolbar[0m
+        [36m</h2>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"_header_6e64f5"[39m
+          [33mdata-note-header[39m=[32m""[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"_backBtn_6e64f5"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0m← Notebook[0m
+          [36m</button>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"_headerControls_6e64f5"[39m
+            [33mdata-tour[39m=[32m"ask-row"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Add to Favorites"[39m
+              [33maria-pressed[39m=[32m"false"[39m
+              [33mclass[39m=[32m"_chromeBtn_6e64f5"[39m
+              [33mtitle[39m=[32m"Add to Favorites"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mfocusable[39m=[32m"false"[39m
+                [33mheight[39m=[32m"15"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"1.7"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"15"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</button>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"_askSlot_6e64f5"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"_wrap_22453a"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33maria-expanded[39m=[32m"false"[39m
+                  [33maria-label[39m=[32m"Ask this note"[39m
+                  [33mclass[39m=[32m"_askToggle_22453a"[39m
+                  [33mdata-ask-toggle[39m=[32m"true"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mfocusable[39m=[32m"false"[39m
+                    [33mheight[39m=[32m"13"[39m
+                    [33mstroke[39m=[32m"url(#uig2)"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"1.85"[39m
+                    [33mstyle[39m=[32m"color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -2px; margin-right: 4px;"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"13"[39m
+                  [36m>[39m
+                    [36m<defs>[39m
+                      [36m<lineargradient[39m
+                        [33mid[39m=[32m"uig2"[39m
+                        [33mx1[39m=[32m"0"[39m
+                        [33mx2[39m=[32m"1"[39m
+                        [33my1[39m=[32m"0"[39m
+                        [33my2[39m=[32m"1"[39m
+                      [36m>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"0%"[39m
+                          [33mstop-color[39m=[32m"#a8823a"[39m
+                        [36m/>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"40%"[39m
+                          [33mstop-color[39m=[32m"#d4b25a"[39m
+                        [36m/>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"50%"[39m
+                          [33mstop-color[39m=[32m"#e8d18c"[39m
+                        [36m/>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"60%"[39m
+                          [33mstop-color[39m=[32m"#cba954"[39m
+                        [36m/>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"100%"[39m
+                          [33mstop-color[39m=[32m"#8f6f2c"[39m
+                        [36m/>[39m
+                      [36m</lineargradient>[39m
+                    [36m</defs>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 3l1.9 5.6L19 10l-5.1 1.5L12 17l-1.9-5.5L5 10l5.1-1.4z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                  [0mAsk this note[0m
+                [36m</button>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Find in note"[39m
+              [33mclass[39m=[32m"_chromeBtn_6e64f5 _phoneInMore_6e64f5"[39m
+              [33mtitle[39m=[32m"Find in this note"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mfocusable[39m=[32m"false"[39m
+                [33mheight[39m=[32m"13"[39m
+                [33mstroke[39m=[32m"url(#uig3)"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"1.85"[39m
+                [33mstyle[39m=[32m"color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -2px; margin-right: 4px;"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"13"[39m
+              [36m>[39m
+                [36m<defs>[39m
+                  [36m<lineargradient[39m
+                    [33mid[39m=[32m"uig3"[39m...
+[90m [2m❯[22m waitForWrapper ../../_nb-shared-install/node_modules/@testing-library/dom/dist/wait-for.js:[2m163:27[22m[39m
+[90m [2m❯[22m ../../_nb-shared-install/node_modules/@testing-library/dom/dist/query-helpers.js:[2m86:33[22m[39m
+[36m [2m❯[22m press src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:[2m897:35[22m[39m
+    [90m895| [39m    [35mconst[39m offer [33m=[39m () [33m=>[39m screen[33m.[39m[34mfindByTestId[39m([32m'refused-copy-offer'[39m)
+    [90m896| [39m    [35masync[39m [35mfunction[39m [34mpress[39m(name) {
+    [90m897| [39m      [35mconst[39m button [33m=[39m [35mawait[39m screen[33m.[39m[34mfindByRole[39m([32m'button'[39m[33m,[39m { name })
+    [90m   | [39m                                  [31m^[39m
+    [90m898| [39m      await act(async () => { fireEvent.click(button); await settleIdb…
+    [90m899| [39m    }
+[90m [2m❯[22m src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:[2m961:13[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22mI-A · fix round 3 — a copy the server refused is its own offer: saved as a separate note, never restored into its source (C-3, I-4)[2m > [22mfix round 4 — the offer shows the words and speaks for itself (I-6, I-7)[2m > [22ma 400 whose reason is the BODY (the create guard) is a content refusal too: "Save as plain text" is offered
+[31m[1mTestingLibraryElementError[22m[39m: Unable to find role="button" and name "Save as plain text"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"_page_6e64f5"[39m
+      [33mstyle[39m=[32m"--uct-chrome-h: 0px;"[39m
+    [36m>[39m
+      [36m<h2[39m
+        [33mclass[39m=[32m"sr-only"[39m
+        [33mdata-note-landmark[39m=[32m"true"[39m
+        [33mtabindex[39m=[32m"-1"[39m
+      [36m>[39m
+        [0mThesis[0m
+      [36m</h2>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_chrome_6e64f5"[39m
+      [36m>[39m
+        [36m<a[39m
+          [33mclass[39m=[32m"_skipLink_6e64f5"[39m
+          [33mhref[39m=[32m"#notebook-editor-toolbar"[39m
+        [36m>[39m
+          [0mSkip to editor toolbar[0m
+        [36m</a>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"sr-only"[39m
+          [33mtabindex[39m=[32m"-1"[39m
+        [36m>[39m
+          [0mEditor toolbar[0m
+        [36m</h2>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"_header_6e64f5"[39m
+          [33mdata-note-header[39m=[32m""[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"_backBtn_6e64f5"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0m← Notebook[0m
+          [36m</button>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"_headerControls_6e64f5"[39m
+            [33mdata-tour[39m=[32m"ask-row"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Add to Favorites"[39m
+              [33maria-pressed[39m=[32m"false"[39m
+              [33mclass[39m=[32m"_chromeBtn_6e64f5"[39m
+              [33mtitle[39m=[32m"Add to Favorites"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mfocusable[39m=[32m"false"[39m
+                [33mheight[39m=[32m"15"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"1.7"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"15"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</button>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"_askSlot_6e64f5"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"_wrap_22453a"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33maria-expanded[39m=[32m"false"[39m
+                  [33maria-label[39m=[32m"Ask this note"[39m
+                  [33mclass[39m=[32m"_askToggle_22453a"[39m
+                  [33mdata-ask-toggle[39m=[32m"true"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mfocusable[39m=[32m"false"[39m
+                    [33mheight[39m=[32m"13"[39m
+                    [33mstroke[39m=[32m"url(#uig16)"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"1.85"[39m
+                    [33mstyle[39m=[32m"color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -2px; margin-right: 4px;"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"13"[39m
+                  [36m>[39m
+                    [36m<defs>[39m
+                      [36m<lineargradient[39m
+                        [33mid[39m=[32m"uig16"[39m
+                        [33mx1[39m=[32m"0"[39m
+                        [33mx2[39m=[32m"1"[39m
+                        [33my1[39m=[32m"0"[39m
+                        [33my2[39m=[32m"1"[39m
+                      [36m>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"0%"[39m
+                          [33mstop-color[39m=[32m"#a8823a"[39m
+                        [36m/>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"40%"[39m
+                          [33mstop-color[39m=[32m"#d4b25a"[39m
+                        [36m/>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"50%"[39m
+                          [33mstop-color[39m=[32m"#e8d18c"[39m
+                        [36m/>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"60%"[39m
+                          [33mstop-color[39m=[32m"#cba954"[39m
+                        [36m/>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"100%"[39m
+                          [33mstop-color[39m=[32m"#8f6f2c"[39m
+                        [36m/>[39m
+                      [36m</lineargradient>[39m
+                    [36m</defs>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 3l1.9 5.6L19 10l-5.1 1.5L12 17l-1.9-5.5L5 10l5.1-1.4z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                  [0mAsk this note[0m
+                [36m</button>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Find in note"[39m
+              [33mclass[39m=[32m"_chromeBtn_6e64f5 _phoneInMore_6e64f5"[39m
+              [33mtitle[39m=[32m"Find in this note"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mfocusable[39m=[32m"false"[39m
+                [33mheight[39m=[32m"13"[39m
+                [33mstroke[39m=[32m"url(#uig17)"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"1.85"[39m
+                [33mstyle[39m=[32m"color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -2px; margin-right: 4px;"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"13"[39m
+              [36m>[39m
+                [36m<defs>[39m
+                  [36m<lineargradient[39m
+                    [33mid[39m=[32m"uig17"...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"_page_6e64f5"[39m
+      [33mstyle[39m=[32m"--uct-chrome-h: 0px;"[39m
+    [36m>[39m
+      [36m<h2[39m
+        [33mclass[39m=[32m"sr-only"[39m
+        [33mdata-note-landmark[39m=[32m"true"[39m
+        [33mtabindex[39m=[32m"-1"[39m
+      [36m>[39m
+        [0mThesis[0m
+      [36m</h2>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_chrome_6e64f5"[39m
+      [36m>[39m
+        [36m<a[39m
+          [33mclass[39m=[32m"_skipLink_6e64f5"[39m
+          [33mhref[39m=[32m"#notebook-editor-toolbar"[39m
+        [36m>[39m
+          [0mSkip to editor toolbar[0m
+        [36m</a>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"sr-only"[39m
+          [33mtabindex[39m=[32m"-1"[39m
+        [36m>[39m
+          [0mEditor toolbar[0m
+        [36m</h2>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"_header_6e64f5"[39m
+          [33mdata-note-header[39m=[32m""[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"_backBtn_6e64f5"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0m← Notebook[0m
+          [36m</button>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"_headerControls_6e64f5"[39m
+            [33mdata-tour[39m=[32m"ask-row"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Add to Favorites"[39m
+              [33maria-pressed[39m=[32m"false"[39m
+              [33mclass[39m=[32m"_chromeBtn_6e64f5"[39m
+              [33mtitle[39m=[32m"Add to Favorites"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mfocusable[39m=[32m"false"[39m
+                [33mheight[39m=[32m"15"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"1.7"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"15"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</button>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"_askSlot_6e64f5"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"_wrap_22453a"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33maria-expanded[39m=[32m"false"[39m
+                  [33maria-label[39m=[32m"Ask this note"[39m
+                  [33mclass[39m=[32m"_askToggle_22453a"[39m
+                  [33mdata-ask-toggle[39m=[32m"true"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mfocusable[39m=[32m"false"[39m
+                    [33mheight[39m=[32m"13"[39m
+                    [33mstroke[39m=[32m"url(#uig16)"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"1.85"[39m
+                    [33mstyle[39m=[32m"color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -2px; margin-right: 4px;"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"13"[39m
+                  [36m>[39m
+                    [36m<defs>[39m
+                      [36m<lineargradient[39m
+                        [33mid[39m=[32m"uig16"[39m
+                        [33mx1[39m=[32m"0"[39m
+                        [33mx2[39m=[32m"1"[39m
+                        [33my1[39m=[32m"0"[39m
+                        [33my2[39m=[32m"1"[39m
+                      [36m>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"0%"[39m
+                          [33mstop-color[39m=[32m"#a8823a"[39m
+                        [36m/>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"40%"[39m
+                          [33mstop-color[39m=[32m"#d4b25a"[39m
+                        [36m/>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"50%"[39m
+                          [33mstop-color[39m=[32m"#e8d18c"[39m
+                        [36m/>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"60%"[39m
+                          [33mstop-color[39m=[32m"#cba954"[39m
+                        [36m/>[39m
+                        [36m<stop[39m
+                          [33moffset[39m=[32m"100%"[39m
+                          [33mstop-color[39m=[32m"#8f6f2c"[39m
+                        [36m/>[39m
+                      [36m</lineargradient>[39m
+                    [36m</defs>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 3l1.9 5.6L19 10l-5.1 1.5L12 17l-1.9-5.5L5 10l5.1-1.4z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                  [0mAsk this note[0m
+                [36m</button>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Find in note"[39m
+              [33mclass[39m=[32m"_chromeBtn_6e64f5 _phoneInMore_6e64f5"[39m
+              [33mtitle[39m=[32m"Find in this note"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mfocusable[39m=[32m"false"[39m
+                [33mheight[39m=[32m"13"[39m
+                [33mstroke[39m=[32m"url(#uig17)"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"1.85"[39m
+                [33mstyle[39m=[32m"color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -2px; margin-right: 4px;"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"13"[39m
+              [36m>[39m
+                [36m<defs>[39m
+                  [36m<lineargradient[39m
+                    [33mid[39m=[32m"uig17"...
+[90m [2m❯[22m waitForWrapper ../../_nb-shared-install/node_modules/@testing-library/dom/dist/wait-for.js:[2m163:27[22m[39m
+[90m [2m❯[22m ../../_nb-shared-install/node_modules/@testing-library/dom/dist/query-helpers.js:[2m86:33[22m[39m
+[36m [2m❯[22m src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:[2m982:27[22m[39m
+    [90m980| [39m        detail: 'This note has a piece of text the editor can\'t open …
+    [90m981| [39m      })
+    [90m982| [39m      expect(await screen.findByRole('button', { name: 'Save as plain …
+    [90m   | [39m                          [31m^[39m
+    [90m983| [39m      expect(screen.queryByRole('button', { name: 'Save as a separate …
+    [90m984| [39m      expect(document.body.textContent, 'the server’s sentence reached…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[33m53 skipped[39m[90m (55)[39m
+[2m   Start at [22m 05:07:06
+[2m   Duration [22m 16.70s[2m (transform 1.59s, setup 185ms, import 161ms, tests 15.86s, environment 391ms)[22m
+

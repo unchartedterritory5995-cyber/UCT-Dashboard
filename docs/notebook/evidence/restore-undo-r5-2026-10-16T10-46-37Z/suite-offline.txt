@@ -1,0 +1,5 @@
+[offline-0] exit=0 files=10 :: Test Files  10 passed (10) | Tests  192 passed (192)
+[offline-1] exit=0 files=10 :: Test Files  10 passed (10) | Tests  209 passed (209)
+[offline-2] exit=0 files=10 :: Test Files  10 passed (10) | Tests  268 passed (268)
+[offline-3] exit=0 files=10 :: Test Files  10 passed (10) | Tests  162 passed (162)
+[offline-4] exit=0 files=9 :: Test Files  9 passed (9) | Tests  81 passed (81)

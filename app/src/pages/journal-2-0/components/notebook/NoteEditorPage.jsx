@@ -78,7 +78,7 @@ import TableToolbar from './TableToolbar'
 import LinkPasteMenu from './LinkPasteMenu'
 import UnlinkedMentions from './UnlinkedMentions'
 import { TextSelection } from '@tiptap/pm/state'
-import { isHistoryTransaction } from '@tiptap/pm/history'
+import { closeHistory, isHistoryTransaction } from '@tiptap/pm/history'
 import { taskIndexFromParams, findTaskItemPos } from '../../lib/noteTasks'
 import { NOTEBOOK_EVENTS, startNoteOpenTimer, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { noteIsLocked, setNoteLock } from '../../lib/lockedNote'
@@ -89,6 +89,8 @@ import { mergeTagDelta, sameTagList } from '../../lib/tagDelta'
 import UnsentTrashDialog from './UnsentTrashDialog'
 import { noteHasUnsentWork } from '../../lib/offline/noteHasUnsentWork'
 import { openNotebookDb } from '../../lib/offline/notebookDb'
+import { forkConflictedCopy } from '../../lib/offline/useOutboxDrain'
+import { conflictedCopyTitle } from '../../lib/offline/noteCopy'
 import { holdsUnsentWork } from '../../lib/noteBatch'
 import { textColorClass } from '../../lib/textColor'
 import NoteHistoryPanel from './NoteHistoryPanel'
@@ -205,6 +207,63 @@ export const chipDoorLoaders = {
 const loadChipDoor = (name, piece) => importWithOneRetry(() => chipDoorLoaders[name](), RETRY_WAIT_MS, (m) => !!m?.[piece])
 // The repo's own reload wording ("Reload the page to try again."), then what did not happen.
 const reloadSentence = (what, nothing) => `Couldn't ${what}. Reload the page to try again. Nothing ${nothing}.`
+
+// ⭐⭐ I-A BYTES: the refused-copy offer (`RefusedCopyOffer.jsx`: the offer, its Save / Discard
+// choices and the copy's plain-text walk, `lib/offline/refusedCopyDisplay.js`) is shown only
+// after the server refused a copy FOR GOOD, which is rare, so it is its own chunk and stays out
+// of the Notebook's first-open bytes (docs/notebook/perf-budgets.json). Loaded when a note HAS
+// an offer, through importWithOneRetry like the chip doors above (never a bare `await import`).
+// ⛔⛔ The copy itself is HELD by the static decision half (`lib/offline/refusedCopy.js`) in the
+// outbox whatever happens here: loading late changes WHEN the offer appears, never whether the
+// copy is kept. A chunk that cannot load is said in a fixed sentence, with Try again, and
+// nothing is discarded. A property so a rail can fail the fetch (jsdom cannot fetch a chunk).
+// ⛔ Never a static import of the offer (rail: RefusedCopyOffer.lazy.test.js).
+export const refusedCopyDoorLoaders = {
+  offer: () => import('./RefusedCopyOffer'),
+}
+const loadRefusedCopyDoor = () => importWithOneRetry(
+  () => refusedCopyDoorLoaders.offer(), RETRY_WAIT_MS, (m) => typeof m?.RefusedCopyOffers === 'function',
+)
+export const REFUSED_COPY_UNAVAILABLE = 'A copy of this note’s words is kept on this device, but its options '
+  + 'couldn’t load. Try again, or reload the page. Nothing was deleted.'
+/**
+ * The offer area for this note's refused copies (`entries`, the stored records). While the
+ * offer's chunk loads it renders an empty status line; once loaded, the offers; if it cannot
+ * load, `REFUSED_COPY_UNAVAILABLE` in that same status line (so it is announced) and a Try
+ * again button. A successful Try again moves focus to the offer's own sentence.
+ */
+function RefusedCopyDoor(props) {
+  const [Offers, setOffers] = useState(null)
+  const [failed, setFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  const retriedRef = useRef(false)
+  // A second Try again while one is loading only restarts it: the cleanup drops the first.
+  useEffect(() => {
+    let live = true
+    loadRefusedCopyDoor().then((m) => { if (live) setOffers(() => m.RefusedCopyOffers) }, () => { if (live) setFailed(true) })
+    return () => { live = false }
+  }, [attempt])
+  if (Offers) return <Offers {...props} focusFirst={retriedRef.current} />
+  const tryAgain = () => {
+    retriedRef.current = true
+    setAttempt((a) => a + 1)
+  }
+  return (
+    <section
+      className={failed ? styles.draftBanner : undefined}
+      data-export-exclude
+      data-testid="refused-copy-door"
+      aria-label={failed ? 'A copy of this note’s words' : undefined}
+    >
+      <p className={styles.copyStatus} role="status">{failed ? REFUSED_COPY_UNAVAILABLE : ''}</p>
+      {failed ? (
+        <div className={styles.draftBannerActions}>
+          <button type="button" className={styles.draftBannerBtn} onClick={tryAgain}>Try again</button>
+        </div>
+      ) : null}
+    </section>
+  )
+}
 function LinkCanvasOffer({ canvasId, onAdd, onDismiss }) {
   const target = useNoteLinkTarget(canvasId)
   const name = target.title || 'the trade plan'
@@ -1261,6 +1320,19 @@ export default function NoteEditorPage({
   // `recover()` as `adopt`. Held here until the editor can take them (see the
   // effect after the hydration gate).
   const [pendingAdoption, setPendingAdoption] = useState(null)
+  // ⭐ I-A fix round 3 (C-3, I-4): copies of this note's words the server refused
+  // to create, handed back by `recover()` BESIDE its decision. Each is its own
+  // offer: "Save as a separate note" or "Discard" (confirmed in the page). ⛔ Never
+  // restored into this note. ⭐ Fix round 4 (I-6): the offer itself
+  // (`RefusedCopyOffer`) shows the copy's words, carries "Copy text" and "Save as
+  // plain text", and owns its Discard confirm. ⭐ I-A bytes: these are the STORED
+  // records (`refusedCopiesOf`); the offer's chunk builds its view of each, and owns
+  // the busy state and per-copy notes that used to sit here (`RefusedCopyOffers`).
+  const [refusedCopies, setRefusedCopies] = useState([])
+  const [copySavedNotice, setCopySavedNotice] = useState(null)
+  // ⭐ Fix round 5 (review M-19): set when a save or Discard takes an offer (and the
+  // button focused in it) off the page; the effect below moves focus to the editor.
+  const copyFocusAfterRef = useRef(false)
   // ⛔ S2 (fix round 1): queued words are adopted SILENTLY only while nothing of
   // the member's own is in play — no edit since this note hydrated, and no save
   // pending or on the wire. Otherwise they are OFFERED (the banner) and both
@@ -1347,6 +1419,8 @@ export default function NoteEditorPage({
   useEffect(() => {
     if (!note) return undefined
     viewReplaced()   // hotfix 2026-10-15: a note load is a new view — a new lineage
+    restoreSwapRef.current = null   // I-A: no Restore on this note's page yet
+    setRefusedCopies([]); setCopySavedNotice(null)
     setRecoveryDecidedFor(null)
     setTitle(note.title || '')
     titleRef.current = note.title || ''
@@ -1389,6 +1463,8 @@ export default function NoteEditorPage({
         decision = null
       }
       if (cancelled) return
+      // I-A fix round 3: offered on their own, whatever the decision below is.
+      setRefusedCopies(decision?.refusedCopies || [])
       // ⭐⭐ D3 / F5P-1 — QUEUED WORDS ARE SENT BY THIS NOTE'S OWNER, NOT OFFERED.
       // The sweep will not send them while this editor owns the note
       // (`excludeNoteId`), so a banner here meant nobody sent them for as long
@@ -1530,6 +1606,110 @@ export default function NoteEditorPage({
     try { localStorage.removeItem(DRAFT_KEY(noteId)) } catch { /* private mode */ }
   }
 
+  // ⭐⭐ I-A (2026-10-16) — A CRASH-DRAFT RESTORE, AND ANY UNDO OR REDO ACROSS IT,
+  // NEVER LEAVES A WORD OUTSIDE THE DURABLE LAYERS.
+  //
+  // ⚰️ MEASURED (`lib/offline/restoreUndoKeepsWords.test.jsx`, red on the hotfix
+  // tip and on master). Offline, after typing in this view, a Restore's words were
+  // refused by the durable record (it kept the older view's unsent words), so they
+  // lived only on the page and in the crash draft; an Undo past the Restore then
+  // captured the older page over the crash draft and the restored words were in no
+  // layer. A no-base Restore captured nothing at all, so a reload before the next
+  // keystroke lost them too (review C2).
+  //
+  // ⚰️ FIX ROUND 0 swapped what the record and the crash draft held, and the
+  // independent review showed it was not enough (C1a: an Undo in the old view
+  // first; C1b: a different title; I1: the record's own queued words moved to the
+  // crash draft, which is not durable). The crash draft is convenience: it follows
+  // the page, so it is never a word's only home.
+  //
+  // ⭐ FIX ROUND 1: AT A SWAP THE MEMBER MAKES, THE RECORD FOLLOWS THE PAGE, AND
+  // WHATEVER IT CANNOT CARRY BECOMES A QUEUED `(conflicted copy)`.
+  //   · A Restore captures the restored page AT ONCE (`captureSwapNow`) — the
+  //     record takes it, and the old view's unsent words go to a copy entry in the
+  //     same IndexedDB transaction (`swapCaptureSpills`, `noteCopy.js`).
+  //   · An Undo or Redo that lands on or leaves the page the Restore replaced
+  //     (`restoreSwapRef`) first writes the page it is leaving, under that page's
+  //     lineage, then the page it brings back, both as swap captures. Every
+  //     outgoing page is therefore in the record before it is pushed out, and in a
+  //     copy after.
+  //   · Each swap capture is FLUSHED, so a keystroke inside the 200 ms window can
+  //     never coalesce it away — the keystroke's own capture then follows it, under
+  //     the same lineage, and supersedes it.
+  // An Undo of the member's own typing (not across a Restore) is an ordinary
+  // capture and spills nothing: removing it is the member's edit.
+  //
+  // ⛔ And the Restore is its OWN undo step: `closeHistory` before AND after the
+  // swap. prosemirror-history merges adjacent transactions under 500 ms apart, and
+  // a whole-document swap is adjacent to anything, so a keystroke just before or
+  // just after Restore was the same step as the Restore. The boundaries only split
+  // the steps; Undo walks the same pages.
+  const restoreSwapRef = useRef(null)
+  const spillNextCaptureRef = useRef(false)
+  const closeUndoStep = (ed) => {
+    try { ed.view.dispatch(closeHistory(ed.state.tr)) } catch { /* a boundary is an aid, never the guard */ }
+  }
+  /** Call BEFORE a crash-draft Restore replaces the page. */
+  const markRestoreSwap = (ed) => {
+    if (!ed || ed.isDestroyed) return
+    restoreSwapRef.current = { preDoc: ed.state.doc }
+    closeUndoStep(ed)
+  }
+  /** The page now on screen, captured at once as a swap capture: the crash draft
+   *  (convenience) and the durable record (flushed — the record follows the page
+   *  and spills what it cannot carry). */
+  /** THE one swap-capture write: the durable record takes `snap` and anything it
+   *  displaces becomes a queued copy (`swapCaptureSpills`). Flushed, so nothing
+   *  scheduled later can coalesce it away. */
+  const scheduleSwapCapture = (snap) => {
+    if (!snap) return
+    durableRef.current.schedule({ ...snap, spill: true })
+    durableRef.current.flush()
+  }
+  /** ⭐ FIX ROUND 2 (review C-2): the page a Restore is about to replace, written
+   *  as a swap capture under ITS lineage — call BEFORE `viewReplaced()`. When the
+   *  record holds other unsent words (an earlier session's, refused against every
+   *  keystroke since), they go to a copy and the record takes this page; the
+   *  Restore's own capture then compares the restored page with THIS page, so
+   *  words typed while the banner was up are never compared away.
+   *  ⛔ ONLY a page holding work the server lacks (`unsentInEditor`, the Delete
+   *  gate's own answer). A page equal to the server's copy has nothing to keep,
+   *  and capturing it anyway wrote the SERVER's words into the record as if
+   *  unsent — the Restore's capture then spilled them into a junk copy on every
+   *  Restore. An unknown base (no body) is captured: a spare copy, never a loss. */
+  const captureOutgoingPage = () => {
+    if (!baseHasNoBody(lastSavedRef.current) && unsentInEditor().length === 0) return
+    scheduleSwapCapture(captureLocalState())
+  }
+  /** The page now on screen, captured at once as a swap capture: the crash draft
+   *  (convenience) and the durable record. */
+  const captureSwapNow = () => {
+    const snap = captureLocalState()
+    if (!snap) return
+    saveDraftLocally(snap)
+    scheduleSwapCapture(snap)
+  }
+  /** Called from `onUpdate` for every undo or redo, BEFORE the lineage rotates.
+   *  Across the Restore boundary it writes the page being left (from
+   *  `tr.before`, under ITS lineage) and marks the next capture — the page being
+   *  brought back — as a swap capture too. */
+  const noteRestoreCrossing = (tr) => {
+    const swap = restoreSwapRef.current
+    const ed = editorRef.current
+    if (!swap || !ed || ed.isDestroyed || !tr?.before || isUnreadable(ed)) return
+    if (!ed.state.doc.eq(swap.preDoc) && !tr.before.eq(swap.preDoc)) return
+    scheduleSwapCapture({
+      title: titleRef.current,
+      subtitle: subtitleRef.current,
+      bodyJson: draftJSONRef.current(tr.before),
+      baseUpdatedAt: lastSavedRef.current.updatedAt || null,
+      serverBase: { ...lastSavedRef.current },
+      writtenSchema: editorWrittenSchema(),
+      editLineage: editLineageNow(),
+    })
+    spillNextCaptureRef.current = true
+  }
+
   const restoreDraft = async () => {
     // Re-entrancy guard: found via real browser E2E that a single click can
     // fire this handler twice in quick succession (both invocations reading
@@ -1575,7 +1755,14 @@ export default function NoteEditorPage({
     const draftTitle = pendingDraft.title || ''
     const draftSubtitle = pendingDraft.subtitle || ''
     const draftBodyJson = pendingDraft.bodyJson
+    // I-A fix round 2 (C-2): the page being replaced is written FIRST, as a swap
+    // capture under its own lineage (before the rotation below) — never a plain
+    // flush, which `persist` refuses whenever the record holds other unsent words.
+    captureOutgoingPage()
     viewReplaced()   // hotfix 2026-10-15: a Restore replaces the view — a new lineage
+    // I-A: the Restore becomes its own undo step and remembers the page it
+    // replaced (see `markRestoreSwap`).
+    if (draftBodyJson) markRestoreSwap(editorRef.current)
     setTitle(draftTitle)
     titleRef.current = draftTitle
     setSubtitle(draftSubtitle)
@@ -1585,6 +1772,7 @@ export default function NoteEditorPage({
     // write, which is precisely what the comment below says a restore
     // deliberately does not do.
     if (draftBodyJson && !replaceDocument(editorRef.current, draftBodyJson, EMIT_NOTHING)) {
+      restoreSwapRef.current = null         // nothing was replaced
       restoringDraftRef.current = false      // S1: unreadable here -- locked, nothing sent
       return
     }
@@ -1592,6 +1780,13 @@ export default function NoteEditorPage({
     // are sent — now, and by every keystroke after — at that writer's level
     // (absent ⇒ 0), until a save of them lands or the view returns to the server's.
     if (draftBodyJson) carryRecovered(recovery?.writtenSchema)
+    // ⭐ I-A fix round 1 (review C2): the restored page is durable NOW, before the
+    // PUT is even sent — the record takes it and the old view's unsent words go to
+    // a queued copy. A keystroke after the Restore is its own undo step.
+    // Review M-8: captured even for a body-less legacy draft (its title and
+    // subtitle are on screen too).
+    if (draftBodyJson) closeUndoStep(editorRef.current)
+    captureSwapNow()
     const carriedAtSend = carriedRef.current
     setPendingDraft(null)
     setRecovery(null)
@@ -1705,6 +1900,13 @@ export default function NoteEditorPage({
     const waiting = saveSettledWaitersRef.current.splice(0)
     waiting.forEach((wake) => { try { wake() } catch { /* a waiter is not the save */ } })
   }
+  // ⭐ I-A bytes: the refused-copy offer's choices ("Save as a separate note", "Save as plain
+  // text", "Discard") ride in the offer's own chunk (`RefusedCopyOffers`); the editor hands it
+  // the durable store's one door, the sweep's own fork, and these three callbacks. Stable
+  // identities: the durable layer is read through its ref at the moment of the call.
+  const withCopyStore = useCallback((run, fallback) => durableRef.current.withCopyStore(run, fallback), [])
+  const copyOfferGone = useCallback(() => { copyFocusAfterRef.current = true }, [])
+
   const discardDraft = () => {
     clearDraftLocally()
     // ⛔ And the durable copy has to hear about it too. Clearing only the
@@ -1723,6 +1925,11 @@ export default function NoteEditorPage({
   }
 
   const scheduleAutosave = () => {
+    // I-A: this capture is the page an undo or redo across a Restore brought
+    // back, or a Restore's own (read and cleared on every call, so it only ever
+    // travels with the capture it belongs to).
+    const spill = spillNextCaptureRef.current
+    spillNextCaptureRef.current = false
     // ⛔ See `hydratedRef`. Before the note is in the editor there is nothing of
     // the member's to save, and everything to lose — so this refuses BEFORE it
     // touches the status, the draft, the durable copy or the save timer.
@@ -1746,7 +1953,13 @@ export default function NoteEditorPage({
     // p95 (800.7ms in Chrome 152) is as long as the whole server autosave
     // debounce. It is also NOT the network — a durable local write is not a
     // save, and nothing here tells the member otherwise.
-    if (snapshot) durableRef.current.schedule(snapshot)
+    // ⭐ I-A: a swap capture is written now — a keystroke inside the coalescing
+    // window must not replace it before it lands (that keystroke's own capture
+    // then supersedes it, under the same lineage).
+    if (snapshot && spill) {
+      durableRef.current.schedule({ ...snapshot, spill: true })
+      durableRef.current.flush()
+    } else if (snapshot) durableRef.current.schedule(snapshot)
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     // Fresh user edit supersedes any in-flight retry — reset the backoff
     // counter so we don't waste a 30s wait on content the user just changed.
@@ -2727,15 +2940,36 @@ export default function NoteEditorPage({
     // capture that follows is taken on a fresh lineage and keeps the
     // containment test. Undo itself is untouched; over-rotating is safe.
     // Rail: `lib/offline/swapLineageRotation.test.jsx`.
+    // ⭐ I-A (2026-10-16): an undo or redo across a crash-draft Restore first
+    // writes the page it is leaving (`noteRestoreCrossing`), under the lineage
+    // that page had — so it is taken BEFORE the rotation.
     onUpdate: ({ transaction }) => {
       if (lockedRef.current) return
-      if (transaction && isHistoryTransaction(transaction)) viewReplaced()
+      if (transaction && isHistoryTransaction(transaction)) {
+        noteRestoreCrossing(transaction)
+        viewReplaced()
+      }
       scheduleAutosaveRef.current()
     },
   }, [note?.id])
   // Keep the ref current so the paste/drop handlers (captured at creation) always
   // reach the live editor instance.
   editorRef.current = editor
+  // ⭐ I-A fix round 5 (review M-19): a save or Discard that took a refused-copy offer
+  // off the page took the focused button with it. Focus goes to the editor (or, when it
+  // cannot take focus, the page's landmark), never to the document body.
+  useEffect(() => {
+    if (!copyFocusAfterRef.current) return
+    copyFocusAfterRef.current = false
+    const lost = () => {
+      const active = document.activeElement
+      return !active || active === document.body || !active.isConnected
+    }
+    if (!lost()) return
+    const ed = editorRef.current
+    try { if (ed && !ed.isDestroyed) ed.view?.dom?.focus?.({ preventScroll: true }) } catch { /* the landmark below */ }
+    if (lost()) landmarkRef.current?.focus?.({ preventScroll: true })
+  }, [refusedCopies, copySavedNotice])
   // 13Q-2: the 'body' half of the openFocus contract above -- deliberately its
   // own effect, depending on `editor` itself (not just `openFocus`/`note`), so
   // it retries once the async TipTap instance actually exists rather than
@@ -3291,12 +3525,26 @@ export default function NoteEditorPage({
     // from the editor, not from `state`. If the view cannot take them, nothing is
     // saved as though it had — they are offered, and the durable copy and the
     // queue still hold them.
+    // I-A fix round 2 (C-2): a Restore the member chose (not the automatic
+    // adoption, whose words ARE the record's) first writes the page it replaces
+    // as a swap capture, under its own lineage, BEFORE the rotation below.
+    if (!auto) captureOutgoingPage()
     viewReplaced()   // hotfix 2026-10-15: adopted words replace the view — a new lineage
+    // I-A: and becomes its own undo step and remembers the page it replaced.
+    if (!auto) markRestoreSwap(editor)
     try {
       if (!replaceDocument(editor, state.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)) {
+        if (!auto) restoreSwapRef.current = null
         offer(); return undefined
       }
-    } catch { offer(); return undefined }
+    } catch { if (!auto) restoreSwapRef.current = null; offer(); return undefined }
+    // ⭐ I-A fix round 1: a Restore's capture is a swap capture (the record follows
+    // the restored page; the old view's unsent words go to a queued copy), and a
+    // keystroke after it is its own undo step.
+    if (!auto) {
+      closeUndoStep(editor)
+      spillNextCaptureRef.current = true
+    }
     // ⛔⛔ B1: these words were written by ANOTHER page load, perhaps a bundle
     // that could not read this note and held an empty stand-in. From here every
     // capture and every send of them is at THAT writer's level (absent ⇒ 0), so
@@ -3480,7 +3728,7 @@ export default function NoteEditorPage({
     // adding the param for an unrelated reason, fixed because it sat exactly
     // on this session's "never lose member data" conflict-handling path.
     await createNoteViaApi({
-      title: `${localTitle} (conflicted copy)`.trim(),
+      title: conflictedCopyTitle(localTitle),
       subtitle: localSubtitle || undefined,
       bodyJson: localBody,
       tags: ['sync-conflict'],
@@ -4834,6 +5082,44 @@ export default function NoteEditorPage({
               Discard
             </button>
           </div>
+        </div>
+      )}
+
+      {/* ⭐ I-A fix round 3 (C-3, I-4): a copy of this note's words the server
+          refused to create. Its OWN offer, never a Restore into this note: save it
+          as a separate note, or discard it (confirmed here, in the page).
+          ⭐ Fix round 4 (I-6, I-7): the offer shows the copy's words with "Copy
+          text", offers "Save as plain text" after a content refusal, and speaks in
+          its own sentence, never the server's. */}
+      {refusedCopies.length > 0 ? (
+        <RefusedCopyDoor
+          key={noteId}
+          entries={refusedCopies}
+          withCopyStore={withCopyStore}
+          fork={forkConflictedCopy}
+          onEntries={setRefusedCopies}
+          onSaved={setCopySavedNotice}
+          onGone={copyOfferGone}
+        />
+      ) : null}
+      {/* ⭐ Fix round 5 (review M-19): the live region is on the page, EMPTY, from the
+          offer's first render, and only its text changes, so a screen reader announces
+          "Saved as a separate note…" when it arrives (a region inserted already holding
+          its text is often not announced). */}
+      {(refusedCopies.length > 0 || copySavedNotice) && (
+        <div className={copySavedNotice ? styles.draftBanner : undefined} data-export-exclude>
+          <span role="status" data-testid="copy-saved-status">{copySavedNotice || ''}</span>
+          {copySavedNotice ? (
+            <div className={styles.draftBannerActions}>
+              <button
+                type="button"
+                className={styles.draftBannerBtn}
+                onClick={() => { copyFocusAfterRef.current = true; setCopySavedNotice(null) }}
+              >
+                OK
+              </button>
+            </div>
+          ) : null}
         </div>
       )}
 

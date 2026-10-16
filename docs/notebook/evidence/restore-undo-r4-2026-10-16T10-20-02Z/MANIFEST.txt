@@ -1,0 +1,34 @@
+Raw output for I-A fix round 4, committed before the report section was written (R-RAW).
+
+Round-3 tip: 9878e3bbd7. Commits: aed69c0e2c (rails, red first), 182cda7c6d (fix),
+cc21137288 (M-12 harness binding). All runs --maxWorkers=2 from app/, about 16.9 GB available.
+Every blob swap and mutation was restored byte-exact (sha256 of the captured bytes) AND checked,
+CR-stripped, against `git cat-file blob HEAD:<path>`. Never git checkout / git stash.
+
+red-first/red-on-9878e3bbd7.log   the final rails (noteCopy.test.js + restoreUndoKeepsWords.test.jsx at
+                                  aed69c0e2c) with the 4 product files written from 9878e3bbd7
+                                  (red_on_head_r4.py): Test Files 2 failed (2), Tests 26 failed | 71 passed (97).
+                                  The new RUK cell green there is the control "try again when you're online
+                                  only after a NETWORK failure" (the old text always said it). The 2 M-12 cells
+                                  are red there because of the harness, not the product.
+run1-newproduct-oldharness.log    fix in the tree, old harness: 4 failed | 93 passed (97): the 2 clipboard-
+                                  selection cells (jsdom collapses a selection on a later focus(); the offer now
+                                  focuses first, then selects) and M-12 (b), (d).
+run2-clip.log                     the 2 selection cells after that reorder: 2 passed | 53 skipped (55).
+run3-fix-rails.log                fix committed (182cda7c6d), old harness, 7 rail files: 2 failed | 195 passed
+                                  (197): only M-12 (b) and (d).
+run4-harness-fixed.log            harness bound (cc21137288): Test Files 7 passed (7), Tests 197 passed (197).
+mutate_ru4.py, mutations-run.txt  19 mutants, 18 red. R4-M18 survived: it read the module server at CALL
+mutations/                        time, which is still cell (a)'s, so it was an equivalent mutant, not the leak.
+mutations-run-m20.txt             R4-M20 is the leak's real shape (the PUT writes the module server AFTER it is
+                                  released): red (1 failed | 3 passed | 51 skipped).
+suite-chunks-summary.txt          chunks_ru4.py on cc21137288: lib/offline 49 files 896/896; repo rails
+suite-chunks/                     (reachable, tokens.reachable, sourcesAreText) 3 files 24/24; NoteEditorPage.*
+                                  68 files, 1 failed | 506 passed (507): NoteEditorPage.screenshotChip.test.jsx
+                                  "the first fetch fails and the in-place retry succeeds" (updateMock called 2
+                                  times, expected 1). It fails 3 of 3 alone (screenshotChip-alone-1..3.log) and
+                                  ALSO with the product files written from 9878e3bbd7
+                                  (screenshotChip-on-9878e3bbd7.log): not caused by this round. Round 3 recorded
+                                  it green. Cause not measured.
+lint-*.json, lintsum.py           ESLint per rule on the touched files vs 9878e3bbd7 (stdin): identical counts;
+                                  refusedCopy.js, RefusedCopyOffer.jsx, noteCopy.test.js clean.

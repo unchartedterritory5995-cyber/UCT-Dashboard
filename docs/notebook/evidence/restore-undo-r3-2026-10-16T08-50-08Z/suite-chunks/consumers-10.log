@@ -1,0 +1,371 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/ResearchHome.oneAsk.test.jsx[2m > [22m[2mResearch Home has one Ask section[2m > [22m[2mis the same single section in the full home, and in the quiet home after a failed read
+[22m[39mAn update to GettingStartedChecklist inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/ResearchHome.oneAsk.test.jsx[2m > [22m[2mResearch Home has one Ask section[2m > [22m[2msits ABOVE the quiet-state text and the Favorites section, right under the boxes at the top
+[22m[39mAn update to GettingStartedChecklist inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/ResearchHome.oneAsk.test.jsx[2m > [22m[2mResearch Home has one Ask section[2m > [22m[2mwith the change-it flag off the section is just the question box (no disclosure, nothing empty)
+[22m[39mAn update to GettingStartedChecklist inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/ResearchHome.notices.test.jsx[2m > [22m[2mResearch Home carries the Notices box[2m > [22m[2mfirst run (no notes at all): no Notices box -- the welcome is one short screen
+[22m[39mAn update to GettingStartedChecklist inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/ResearchHome.oneAsk.test.jsx[2m > [22m[2mResearch Home has one Ask section[2m > [22m[2mfirst run (no notes at all) has no Ask section -- there is nothing to ask about
+[22m[39mAn update to GettingStartedChecklist inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/ResearchHome.oneAsk.test.jsx [2m([22m[2m5 tests[22m[2m)[22m[33m 484[2mms[22m[39m
+     [33m[2m✓[22m[39m holds the question box and the change-it disclosure, and the old label is gone [33m 356[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/ResearchHome.notices.test.jsx[2m > [22m[2mResearch Home carries the Notices box[2m > [22m[2ma member with nothing to be told sees no box and no empty shell
+[22m[39mAn update to NoticesBox inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoticesBox inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to GettingStartedChecklist inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/ResearchHome.notices.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[33m 593[2mms[22m[39m
+     [33m[2m✓[22m[39m quiet home: the box is there, after the search door and before the Ask door [33m 411[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/ResearchHome.reviewLanding.test.jsx [2m([22m[2m3 tests[22m[2m)[22m[32m 210[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/ResearchHome.reviewAccount.finAi.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[33m 311[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/ResearchHome.quietAsk.test.jsx[2m > [22m[2mResearch Home offers Ask in every state that has notes[2m > [22m[2mquiet state (notes exist, nothing qualifies for a section): the Ask door is there, scoped to the whole Notebook
+[22m[39mAn update to GettingStartedChecklist inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/ResearchHome.quietAsk.test.jsx[2m > [22m[2mResearch Home offers Ask in every state that has notes[2m > [22m[2mquiet state after a failed read: Ask is still offered (it does not depend on the home read)
+[22m[39mAn update to GettingStartedChecklist inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/ResearchHome.quietAsk.test.jsx[2m > [22m[2mResearch Home offers Ask in every state that has notes[2m > [22m[2mfull home (a section has content): the door is there once, not twice
+[22m[39mAn update to GettingStartedChecklist inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/ResearchHome.quietAsk.test.jsx[2m > [22m[2mResearch Home offers Ask in every state that has notes[2m > [22m[2mfirst run (no notes at all): no Ask door -- there is nothing to ask about
+[22m[39mAn update to GettingStartedChecklist inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/ResearchHome.quietAsk.test.jsx[2m > [22m[2mResearch Home offers Ask in every state that has notes[2m > [22m[2mloading: no Ask door while the skeleton shows
+[22m[39mAn update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/ResearchHome.quietAsk.test.jsx[2m > [22m[2mResearch Home offers Ask in every state that has notes[2m > [22m[2mquiet -> full keeps the same Ask instance mounted (what the member typed survives the flip)
+[22m[39mAn update to GettingStartedChecklist inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ResearchHome inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/ResearchHome.quietAsk.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[32m 160[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/ResearchHome.preload.test.jsx [2m([22m[2m3 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m6 passed[39m[22m[90m (6)[39m
+[2m      Tests [22m [1m[32m29 passed[39m[22m[90m (29)[39m
+[2m   Start at [22m 03:47:09
+[2m   Duration [22m 4.99s[2m (transform 1.85s, setup 1.03s, import 3.16s, tests 1.80s, environment 2.60s)[22m
+

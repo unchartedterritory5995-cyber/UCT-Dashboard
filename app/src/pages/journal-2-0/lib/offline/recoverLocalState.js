@@ -194,6 +194,58 @@ export function editorStateDiscardsUnsentWork(prev, incoming) {
 }
 
 /**
+ * ⭐⭐ I-A (2026-10-16) — A SWAP THE MEMBER MAKES NEVER LEAVES A WORD OUTSIDE THE
+ * DURABLE LAYERS.
+ *
+ * ⚰️ MEASURED (`restoreUndoKeepsWords.test.jsx`, RED on the hotfix tip AND on
+ * master; raw logs in `docs/notebook/evidence/restore-undo-20261016T040937Z/`).
+ * Offline: the member types in the open note (the record now holds those words,
+ * dirty), presses Restore on a crash draft, and undoes past the Restore. When the
+ * restored words were captured, `editorStateDiscardsUnsentWork` kept the OLDER
+ * record (another lineage, and the draft does not contain the old view's words) —
+ * correctly, both copies must survive — so the restored words lived ONLY on the
+ * page and in the crash draft. The crash draft mirrors the page, so the Undo's own
+ * capture overwrote the only copy: not the server, not the record, not the queue,
+ * not the draft, not a fork.
+ *
+ * ⚰️ FIX ROUND 0 SWAPPED WHAT THE RECORD AND THE CRASH DRAFT HELD, AND THE
+ * INDEPENDENT REVIEW (`restore-undo-review.md`) SHOWED WHY THAT IS NOT ENOUGH.
+ * It kept the restored words in the record only when the page after the Undo
+ * carried the record's words, so an earlier Undo in the old view (C1a) or a
+ * different title (C1b) still dropped them; and when it did swap, the record's
+ * OWN queued words went to the crash draft (I1), which the next keystroke on a
+ * reopened page rewrites. The crash draft follows the page: it is convenience,
+ * never a word's only home. And a no-base Restore captured nothing at all, so a
+ * reload before the next keystroke lost the restored words (C2).
+ *
+ * ⭐ FIX ROUND 1: THE RECORD FOLLOWS THE PAGE, AND WHAT IT CANNOT CARRY BECOMES A
+ * `(conflicted copy)`. A capture taken at a WHOLE-PAGE SWAP the member made — a
+ * crash-draft Restore, and an Undo or Redo that crosses one — asks this. When the
+ * record holds unsent words the new page does not carry (another lineage, not
+ * contained), those words are queued as a copy entry (`noteCopy.js`) in the same
+ * transaction, and the record takes the page. The copy entry is durable (the
+ * outbox), and the sweep turns it into a sibling note when it can reach the
+ * server. Duplicates are the accepted price: a spurious copy is recoverable, a
+ * word in no durable layer is not. There is no "three bodies, two slots" wall,
+ * because copies are not slots.
+ *
+ * ⛔ WHAT KEEPS TODAY'S ANSWER: an ordinary keystroke never spills (the editor
+ * asks only at a swap it made); a record the page carries is simply superseded;
+ * a clean record owes nothing. So a second writer that this page lacks is never
+ * silently replaced by an ordinary capture — only by a member's own swap, and
+ * then preserved as a copy.
+ *
+ * @param prev            the durable record as the store holds it, or null
+ * @param incoming        the capture about to be written
+ * @param spillRequested  true only for a capture the editor took at a swap
+ * @returns true when `prev`'s words must be queued as a copy before the write
+ */
+export function swapCaptureSpills(prev, incoming, spillRequested) {
+  if (!spillRequested) return false
+  return editorStateDiscardsUnsentWork(prev, incoming)
+}
+
+/**
  * ⭐⭐ HOTFIX 2026-10-15 — THE EDITOR'S OWN NEWER STATE IS NOT "A COPY THAT NEVER
  * SAW THE WORDS". WHERE THE WORDS CAME FROM DECIDES IT, NOT WHETHER ONE STRING
  * HOLDS THE OTHER.

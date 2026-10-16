@@ -1,0 +1,92 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/f5p1OwnerSendsQueued.test.jsx[2m > [22m[2mF5P-1 — queued words leave while the member sits on the note[2m > [22m[2man append door added a widget while away: merged — sentence AND widget survive, no fork
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/midTextEditNoFork.test.jsx[2m > [22m[2m4 · end to end — the real editor, a pause, a mid-text edit, the save lands, the member leaves[2m > [22m[2m⛔⛔ CONTROL — a GENUINE SECOND WRITER still forks, and the fork carries the member's NEWEST words
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/midTextEditNoFork.test.jsx:334:29
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3783:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1867:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+ [32m✓[39m src/pages/journal-2-0/lib/offline/midTextEditNoFork.test.jsx [2m([22m[2m40 tests[22m[2m)[22m[33m 8722[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ insert in the middle: no (conflicted copy), and the server holds the newest words [33m 1777[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ insert before existing text: no (conflicted copy), and the server holds the newest words [33m 1077[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ delete a character: no (conflicted copy), and the server holds the newest words [33m 1001[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ append: no (conflicted copy), and the server holds the newest words [33m 1057[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ the member leaves while the save is ON THE WIRE and the edit’s durable write never landed: the landed save still retires the older entry [33m 1442[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ CONTROL — a GENUINE SECOND WRITER still forks, and the fork carries the member's NEWEST words [33m 995[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/noteOwnerLock.test.js [2m([22m[2m23 tests[22m[2m)[22m[33m 1411[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ NO WEB LOCKS: byte-identical to before — the answer is unknown, `excludeNoteId` alone decides, and the note is sent [33m 301[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/drainRefusesPoisonedBase.test.js [2m([22m[2m6 tests[22m[2m)[22m[33m 726[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/noteCopy.test.js [2m([22m[2m10 tests[22m[2m)[22m[33m 608[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/inFlightGuards.test.jsx [2m([22m[2m21 tests[22m[2m)[22m[33m 415[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/f5Freeze.test.js [2m([22m[2m8 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/durableWriter.test.js [2m([22m[2m15 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/notebookDb.test.js [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/fix6KeepsTyping.test.js [2m([22m[2m8 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/f5p1OwnerSendsQueued.test.jsx[2m > [22m[2mD3 — Restore never overwrites a server that moved, and never drops its appends[2m > [22m[2m⛔⛔ Restore after an append door, then a keystroke: the words AND the widget survive, no fork
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/f5p1OwnerSendsQueued.test.jsx[2m > [22m[2mfix round 1 — adoption and the owner’s fork never lose what the member is doing[2m > [22m[2m⛔⛔ S2-B: a save ON THE WIRE when recovery resolves is never raced — nothing is saved over it
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/f5p1OwnerSendsQueued.test.jsx[2m > [22m[2mfix round 1 — adoption and the owner’s fork never lose what the member is doing[2m > [22m[2m⛔⛔ S2-B (Restore): a Restore clicked while the member’s own save is on the wire WAITS for it — nothing is saved over it
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/f5p1OwnerSendsQueued.test.jsx[2m > [22m[2mfix round 2 — the editor’s own S1 gate, and a base the queued entry disagrees with[2m > [22m[2m⛔⛔ N4: a poisoned record is OFFERED, never adopted — nobody types, and the widget stays on the server
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/f5p1OwnerSendsQueued.test.jsx[2m > [22m[2mfix round 2 — the editor’s own S1 gate, and a base the queued entry disagrees with[2m > [22m[2m⛔⛔ N4: Restore of a poisoned record never adopts on its base — the Restore itself does not drop the widget
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+ [32m✓[39m src/pages/journal-2-0/lib/offline/f5p1OwnerSendsQueued.test.jsx [2m([22m[2m35 tests[22m[2m)[22m[33m 119013[2mms[22m[39m
+     [33m[2m✓[22m[39m nothing moved on the server: the owner sends them, no banner, queue settled [33m 4443[2mms[22m[39m
+     [33m[2m✓[22m[39m a metadata door moved it while away: 409, rebase, sent — no fork [33m 2434[2mms[22m[39m
+     [33m[2m✓[22m[39m an append door added a widget while away: merged — sentence AND widget survive, no fork [33m 2498[2mms[22m[39m
+     [33m[2m✓[22m[39m a second writer rewrote it while away: exactly ONE fork, never clobbered, queue settled [33m 2442[2mms[22m[39m
+     [33m[2m✓[22m[39m a BLOCKED entry is not auto-sent — the member is asked, as before [33m 2350[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ Restore after a second writer, then a keystroke: ONE fork, the other device’s words kept [33m 5386[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ Restore after an append door, then a keystroke: the words AND the widget survive, no fork [33m 5391[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ S2-A: words typed BEFORE recovery resolves are not overwritten — the queued words are offered, both survive [33m 2517[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ S2-B: a save ON THE WIRE when recovery resolves is never raced — nothing is saved over it [33m 3120[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ S2-A′: an edit since hydration is enough — even with its save LANDED, the queued words are offered, not adopted [33m 3310[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ S2-B (Restore): a Restore clicked while the member’s own save is on the wire WAITS for it — nothing is saved over it [33m 5523[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ N6: when the view cannot take the queued words they are OFFERED — never passed off as adopted while still queued [33m 996[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ S1: words typed while the sibling is being created are never settled away [33m 3262[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ S1′: a keystroke during the owner’s settle is on top of the server copy — its snapshot and draft survive, even offline [33m 4080[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ R2: a keystroke still inside the durable window when the sibling lands is NOT settled away — the editor’s gate alone [33m 3539[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ R1: typing ACROSS the view swap — words typed during the create request survive the next keystroke on the new view [33m 3819[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ N4: a poisoned record is OFFERED, never adopted — nobody types, and the widget stays on the server [33m 2586[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ N4: Restore of a poisoned record never adopts on its base — the Restore itself does not drop the widget [33m 4258[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ adopted and sent on the older copy: a metadata move rebases, the words arrive, no banner, no fork [33m 2403[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ Restore on the older copy after a second writer, then a keystroke: ONE fork, the other device’s words kept [33m 5402[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ the draft the editor writes RECORDS the revision its words were typed on (the editor half) [33m 579[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ a CRASH DRAFT that won, another device saved since, Restore then a keystroke: ONE fork, the other device’s words kept [33m 5273[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ a record whose base is NEWER than its entry (the legitimate drain-rebase shape), a second writer, Restore then a keystroke: ONE fork, kept [33m 5370[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ the open editor HOLDS its note’s owner lock, and another tab’s leading sweep leaves the note to it [33m 2860[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ a keystroke queued behind an IN-FLIGHT durable write survives the fork fallback’s flush and the view swap [33m 3994[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ (a) another tab’s sweep lands the SAME queued words while this editor opens: its own send 409s — no fork, the queue settles [33m 2464[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ (a) and a keystroke typed after the landing still goes out, on the server’s revision — nothing is swallowed by “caught up” [33m 3687[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ (a) CONTROL — a server that holds DIFFERENT words still forks: “landed” is byte-identical content, nothing looser [33m 2449[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ (b) the title CLEARED offline, the tab crashed, Restore with the server unmoved: the cleared title and subtitle LAND [33m 4230[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ (b) the NEXT session: a durable copy whose base has no body (as an offline Restore leaves it) is OFFERED, and its Restore still sends the cleared title [33m 4207[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ (b) CONTROL — against a KNOWN base an unchanged title is still not re-sent [33m 2449[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ NN-1: the NEXT session, a base with no body, a door moved the note while away — nothing sent by ourselves, nothing forked; the words are OFFERED [33m 2540[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ NN-1: …and a Restore is the member’s choice — it sends on the words’ own revision and a moved server forks: ONE sibling, both copies kept [33m 4252[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ NN-2: a METADATA-only difference is LANDED — the sweep landed the same words and a door moved folder and tags: no fork, nothing re-sent, the server’s folder and tags left alone [33m 2450[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ NN-2: a TITLE-only difference is NOT landed — the same body landed but another device renamed the note: ONE fork, the rename kept [33m 2449[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m10 passed[39m[22m[90m (10)[39m
+[2m      Tests [22m [1m[32m170 passed[39m[22m[90m (170)[39m
+[2m   Start at [22m 00:28:15
+[2m   Duration [22m 120.05s[2m (transform 2.85s, setup 1.41s, import 537ms, tests 130.92s, environment 4.24s)[22m
+

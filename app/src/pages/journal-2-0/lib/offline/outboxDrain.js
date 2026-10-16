@@ -21,6 +21,8 @@ import {
 import { usableBaseline, isUsableBaseline, landedBaseline, isSupersededBaseline } from './baseline'
 import { isMarkerLive, markerKeyFor, landedKeyFor, IN_FLIGHT_TTL_MS } from './inFlight'
 import { baseMayStandFor, sameAuthoredContent } from './recoverLocalState'
+import { isNoteCopy } from './noteCopy'
+import { copyRefusedForGood, holdRefusedCopy } from './refusedCopy'
 import {
   APPEND_ONLY, BODY_REWRITE, METADATA_ONLY, appendedServerNodes, classifyServerChange,
   lastKnownServerCopy, missingServerNodes, serverAppendedKeysIn, snapshotOfServerCopy,
@@ -32,6 +34,10 @@ export const KEPT = 'kept'          // transient — still queued, will be retri
 export const BLOCKED = 'blocked'    // permanent — still stored, no longer retried
 export const SKIPPED = 'skipped'    // the open editor owns this note right now
 export const SUPERSEDED = 'superseded'  // a save this browser landed is newer; nothing left to send
+/** I-A fix round 3: a `(conflicted copy)` the server refused to create. Kept on
+ *  this device and offered on its source note (`refusedCopy.js`); the sweep never
+ *  re-sends it. ⛔ Not BLOCKED: it is not the note's own write (review I-4). */
+export const HELD = 'held'
 
 /** Why a BLOCKED result carries a `report`. ⛔ The ONLY reason that does — the
  *  other two blocks (already-`permanent`, a non-transient server rejection) are
@@ -413,6 +419,44 @@ export async function drainOutbox(db, {
     // in this tab (`excludeNoteId`) or, since D3b, in any tab (the owner lock) —
     // so the same entry's status depended on which tab happened to lead, and
     // `summarize().blocked` undercounted exactly while the member was looking.
+    // ⭐⭐ I-A FIX ROUND 1 — A QUEUED `(conflicted copy)` (`noteCopy.js`): words a
+    // member's own swap pushed out of the record. It is a NEW note, so it needs no
+    // baseline, no ownership and no classification: the same `fork` that makes
+    // every other copy makes it, and only then is the entry removed. ⛔ A failed
+    // fork leaves it exactly where it was (offline, the server down): durable, and
+    // retried by the next sweep. It never touches the source note's record.
+    // ⛔ AHEAD OF THE `permanent` CHECK: a bundle that predates copies reads one
+    // as a baseline-less update and BLOCKS it (kept, never sent). This bundle
+    // still forks it — a blocked copy is not a reason to strand words.
+    if (isNoteCopy(entry)) {
+      // ⭐ FIX ROUND 3 (reviews I-1, I-3, I-4): a copy THIS bundle saw refused is
+      // HELD — kept on this device, never re-posted by the sweep, and offered on its
+      // source note as "Save as a separate note" or "Discard" (`refusedCopy.js`).
+      // It does not block the note. A copy an OLDER bundle blocked (no
+      // `copyRefused`) is still tried, as before.
+      if (entry.copyRefused) {
+        results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: HELD, copy: true })
+        continue
+      }
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await fork({ ...entry, noteId: entry.copyOf })
+        // eslint-disable-next-line no-await-in-loop
+        await clearOutboxEntry(db, entry.mutationId)
+        results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: FORKED, copy: true })
+      } catch (fe) {
+        if (copyRefusedForGood(fe)) {
+          // ⛔ Kept, never deleted: marked with its reason, words intact — and only
+          // if the member has not discarded it meanwhile (`holdRefusedCopy`).
+          // eslint-disable-next-line no-await-in-loop
+          await holdRefusedCopy(db, entry, fe)
+          results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: HELD, error: fe, copy: true })
+        } else {
+          results.push({ mutationId: entry.mutationId, noteId: entry.copyOf, outcome: KEPT, error: fe, copy: true })
+        }
+      }
+      continue
+    }
     if (entry.permanent) {
       results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: BLOCKED })
       continue
@@ -887,6 +931,7 @@ export function summarize(results) {
     forked: count(FORKED),
     kept: count(KEPT),
     blocked: count(BLOCKED),
+    held: count(HELD),
     skipped: count(SKIPPED),
   }
 }

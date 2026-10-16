@@ -1,0 +1,28 @@
+Raw output for I-A fix round 2, committed before the report section was written (R-RAW).
+
+Round-1 tip: 4f70baeb5e. Rails: 1586fdbbdd (red first). Fix: a8fab87503. M-8 cell: 4acd1065cd.
+All runs --maxWorkers=2, 12-14 GB available. Every blob swap / mutation restored byte-exact and checked
+against `git cat-file blob HEAD:<path>` (CRLF->LF).
+
+green-on-final-tree.log              restoreUndoKeepsWords + noteCopy + swapLineageRotation + f5p1OwnerSendsQueued
+                                     on the final tree: 4 files, 92 passed (92)
+red-on-4f70baeb5e.log                same four files with the 7 product files written from 4f70baeb5e (swap_blobs_ru.py):
+                                     8 failed | 83 passed (91) - C-1 (editor + unit), C-2 OFFLINE, C-2 no-base, I-1 offer,
+                                     I-1 Discard, I-1 404, I-1 400. C-2 ONLINE is GREEN there (the autosave lands T on the
+                                     server); kept as a guard. f5p1OwnerSendsQueued green on both sides.
+red-on-4f70baeb5e-m8-cell.log        restoreUndoKeepsWords alone, with the M-8 cell, on 4f70baeb5e blobs: 6 failed | 24 passed (30)
+red-on-master-b4b1df534f.log         restoreUndoKeepsWords + noteCopy on origin/master blobs: 44 failed | 3 passed (47)
+                                     (part of that is master lacking round-1 exports; the word-loss cells reproduce there too)
+mutations/                           mutate_ru2.py, one log per mutation (16). batch1-4 txt = summaries.
+                                     14/16 killed on the first pass. R2-M15 (body-less draft not captured) survived -> the
+                                     M-8 cell was added; mutations-after-m8-cell/ + batch5 txt: red.
+                                     R2-M14 (retire ungated: drop `source === state`) survives: EQUIVALENT. For a capture with
+                                     spill:true, swapCaptureSpills == editorStateDiscardsUnsentWork == unsentWork, so
+                                     keepsPrev is always false and source is always state; retiresCopy only travels on
+                                     captureSwapNow (spill:true). The guard is defensive.
+mutations-attempt0-harness-syntaxerror.txt  first launch died on a harness syntax error before mutating anything (tree clean).
+suite-chunks/                        chunked named-file runs on a8fab87503's tree, before the M-8 cell existed
+                                     (chunks_ru.py): lib/offline 49 files 845/845;
+                                     NoteEditorPage.* 68 files 505/507 (2 x screenshotChip in editor-4, load-sensitive: 19.7 s
+                                     for that file in the run; it passed alone twice (r2-shot-*.log) and the same 8-file chunk
+                                     passed 67/67 on the same tree (r2-editor4-again.log)); 74 consumer files 861/861.

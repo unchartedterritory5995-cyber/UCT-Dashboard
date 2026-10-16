@@ -1,0 +1,19 @@
+R5-M1 KILLED :: Tests  6 failed | 107 passed (113) :: C-4 reverted: a landed plain save clears the copy again :: restore sha+HEAD ok
+R5-M2 KILLED :: Tests  3 failed | 110 passed (113) :: the kept copy stores the FLATTENED body :: restore sha+HEAD ok
+R5-M3 KILLED :: Tests  2 failed | 111 passed (113) :: a plain-saved copy offers a second plain save (a duplicate note) :: restore sha+HEAD ok
+R5-M4 KILLED :: Tests  4 failed | 109 passed (113) :: the walk drops an image's description :: restore sha+HEAD ok
+R5-M5 KILLED :: Tests  3 failed | 110 passed (113) :: the walk drops a link preview :: restore sha+HEAD ok
+R5-M6 KILLED :: Tests  4 failed | 109 passed (113) :: the walk drops a link's address :: restore sha+HEAD ok
+R5-M7 KILLED :: Tests  5 failed | 108 passed (113) :: the walk ignores the app's own leaf text (date, maths, file, canvas) :: restore sha+HEAD ok
+R5-M8 KILLED :: Tests  4 failed | 109 passed (113) :: M-18 reverted: a detail-less 400/422 is content :: restore sha+HEAD ok
+R5-M9 SURVIVED :: Tests  113 passed (113) :: the other class's field sentence is dropped (falls to the generic one) :: restore sha+HEAD ok
+R5-M10 KILLED :: Tests  3 failed | 110 passed (113) :: the generic other sentence says 'tries again' :: restore sha+HEAD ok
+R5-M11 KILLED :: Tests  1 failed | 112 passed (113) :: items with no words are not reported :: restore sha+HEAD ok
+R5-M12 KILLED :: Tests  1 failed | 112 passed (113) :: a plain save whose mark cannot be written reports 'failed' (a retry duplicates) :: restore sha+HEAD ok
+R5-M13 KILLED :: Tests  2 failed | 111 passed (113) :: the Copy-text fallback assumes a keyboard again :: restore sha+HEAD ok
+R5-M14 KILLED :: Tests  1 failed | 112 passed (113) :: the status line re-mounts with the confirm swap :: restore sha+HEAD ok
+R5-M15 KILLED :: Tests  1 failed | 112 passed (113) :: focus is left on the removed plain-save button :: restore sha+HEAD ok
+R5-M16 KILLED :: Tests  1 failed | 112 passed (113) :: the Discard confirm of a plain-saved copy says its words are saved nowhere :: restore sha+HEAD ok
+R5-M17 SKIPPED: snippet occurs 0 times (M-19 reverted: the live region arrives already holding its text)
+R5-M18 SKIPPED: snippet occurs 0 times (focus falls to the body after a save or Discard)
+R5-M19 SKIPPED: snippet occurs 0 times (the editor does not handle a landed plain save (reads as a transient failure))

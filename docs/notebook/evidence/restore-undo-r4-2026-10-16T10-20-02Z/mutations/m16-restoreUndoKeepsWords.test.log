@@ -1,0 +1,1530 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+ [31m❯[39m src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx [2m([22m[2m55 tests[22m[2m | [22m[31m1 failed[39m[2m | [22m[33m54 skipped[39m[2m)[22m[33m 3062[2mms[22m[39m
+     [2m[90m↓[39m[22m Restore WITHOUT a base after old-view typing ⇒ W durable AT the Restore (C2); a keystroke, then Undo past it ⇒ both durable
+     [2m[90m↓[39m[22m Restore WITH a base (the adoption effect) after old-view typing ⇒ W durable before any Undo (I1); a keystroke, then Undo past it ⇒ both durable
+     [2m[90m↓[39m[22m Restore WITHOUT a base after old-view typing, then Undo at once ⇒ both durable
+     [2m[90m↓[39m[22m the simplest variant: Restore WITHOUT a base, no typing at all, Undo at once ⇒ W durable
+     [2m[90m↓[39m[22m typing then Restore INSIDE one history group (under 500 ms apart), a keystroke, then Undo past it ⇒ both durable
+     [2m[90m↓[39m[22m Undo past the Restore, Redo, type, then Undo across the Restore again ⇒ both durable at every step
+     [2m[90m↓[39m[22m a keystroke INSIDE the 200 ms window right after the Undo cannot coalesce anything away
+     [2m[90m↓[39m[22m back online after the Undo: the page saves, and nothing is settled away
+     [2m[90m↓[39m[22m ⛔ the restored words travel on the OLDER baseline: a draft typed on an earlier revision is queued on that revision
+     [2m[90m↓[39m[22m ⛔ control: an Undo of the member's OWN typing after a Restore (not across it) queues nothing extra
+     [2m[90m↓[39m[22m Restore WITHOUT a base pressed INSIDE the 200 ms window after old-view typing, and a keystroke INSIDE the window after it ⇒ the old words survive, and both survive an Undo past it
+     [2m[90m↓[39m[22m Restore WITH a base (the adoption effect) pressed INSIDE the 200 ms window after old-view typing, and a keystroke INSIDE the window after it ⇒ the old words survive, and both survive an Undo past it
+     [2m[90m↓[39m[22m C1a: an Undo in the OLD view before Restore, then Undo past the Restore ⇒ W and the kept old words durable
+     [2m[90m↓[39m[22m C1b: the crash draft carries a DIFFERENT title (a renamed note) ⇒ an Undo past the Restore keeps W and its title durable
+     [2m[90m↓[39m[22m C1b: the old-view edit was a TITLE edit ⇒ Restore, Undo past it ⇒ W and the old title durable
+     [2m[90m↓[39m[22m C1b: a title edit AFTER the Restore and before the Undo ⇒ both durable
+     [2m[90m↓[39m[22m C2: no-base Restore offline after old-view typing, then the tab closes with no keystroke ⇒ W durable, and still durable after reopening
+     [2m[90m↓[39m[22m I1: Undo past the Restore, close, reopen, type before choosing, close ⇒ W and the old words durable throughout
+     [2m[90m↓[39m[22m I2: a FURTHER Undo past the pre-Restore page (multi-hop) never drops W
+     [2m[90m↓[39m[22m the member replaced the restored words, undid back to them (the record stays pinned), then undid past the Restore ⇒ W durable
+     [2m[90m↓[39m[22m a keystroke INSIDE the 200 ms window right after a with-base Restore (nothing else in flight) cannot coalesce the Restore's capture away
+     [2m[90m↓[39m[22m M1: a keystroke under 500 ms BEFORE the Restore is its own undo step too (one Undo takes back only the Restore)
+     [2m[90m↓[39m[22m M1: a keystroke under 500 ms after the Restore is its OWN undo step (one Undo takes back only it)
+     [2m[90m↓[39m[22m C-1: a SUBTITLE the Restore pushed into a copy reaches the created copy (the real fork)
+     [2m[90m↓[39m[22m C-2 (OFFLINE): an earlier session's dirty record, typing BEFORE the banner is decided, then Restore of it, then reload ⇒ the typed words and R durable
+     [2m[90m↓[39m[22m C-2 (ONLINE): an earlier session's dirty record, typing BEFORE the banner is decided, then Restore of it, then reload ⇒ the typed words and R durable
+     [2m[90m↓[39m[22m C-2 (no-base path): an earlier record AND a newer crash draft, typing before the banner, Restore of the draft, reload ⇒ T, R and W durable
+     [2m[90m↓[39m[22m ⛔⛔ C-3: the offer never writes the copy into its source note — "Save as a separate note" creates a new note and the source keeps its text
+     [2m[90m↓[39m[22m the offer says, in plain words, that the copy is kept on this device and what each button does (I-4)
+     [2m[90m↓[39m[22m ⛔ I-4: a refused copy does NOT mark its healthy source note blocked ("edit it again to sync" is false for a copy)
+     [2m[90m↓[39m[22m a re-POST refused AGAIN keeps the copy on this device and keeps offering it, with its reason
+     [2m[90m↓[39m[22m Discard asks first (in the page), and keeps the copy if the member backs out
+     [2m[90m↓[39m[22m Discard, confirmed, deletes the copy and it does NOT come back on the next open
+       [2m[90m↓[39m[22m ⛔ I-6: the offer shows the COPY’s own words (title, subtitle, body as plain text), never the note’s
+       [2m[90m↓[39m[22m ⛔ I-6: the Discard confirm shows the same words, and its own "Copy text" copies them
+       [2m[90m↓[39m[22m "Copy text" puts the copy’s words on the clipboard, and says so
+       [2m[90m↓[39m[22m a clipboard that refuses ⇒ the preview's words are SELECTED so they can be copied by hand, and the offer says so
+       [2m[90m↓[39m[22m a clipboard that is missing ⇒ the preview's words are SELECTED so they can be copied by hand, and the offer says so
+       [2m[90m↓[39m[22m ⛔ a CONTENT refusal (413) offers "Save as plain text": its re-POST body is flattened, nothing is PUT, the copy clears
+       [2m[90m↓[39m[22m a 400 whose reason is the BODY (the create guard) is a content refusal too: "Save as plain text" is offered
+       [2m[90m↓[39m[22m ⛔ a plain-text save refused AGAIN keeps the copy with its ORIGINAL words, still shown, still with "Copy text"
+       [2m[90m↓[39m[22m ⛔ I-7: a 413 ("…") shows the offer’s own sentence, never the server’s
+       [2m[90m↓[39m[22m ⛔ I-7: a 400 (": this note is too long to save as one page") shows the offer’s own sentence, never the server’s
+       [2m[90m↓[39m[22m ⛔ I-7: a 400 (": too many lists nested inside each other") shows the offer’s own sentence, never the server’s
+       [2m[90m↓[39m[22m ⛔ I-7: a 422 ("…") shows the offer’s own sentence, never the server’s
+       [2m[90m↓[39m[22m ⛔ I-7: a 400 (": subtitle too long") shows the offer’s own sentence, never the server’s
+       [2m[90m↓[39m[22m ⛔ I-7: a re-POST refused again does not bring the server’s new sentence onto the page either
+       [2m[90m↓[39m[22m "try again when you’re online" only after a NETWORK failure
+       [2m[90m↓[39m[22m a failure that is NOT the network (409 from the create) says "try again later", never "when you’re online"
+[31m       [31m×[31m ⛔ focus moves INTO the Discard confirm, and "Keep it" returns it to the offer[39m[33m 3060[2mms[22m[39m
+     [2m[90m↓[39m[22m (a) a cell ends with a PUT still in flight
+     [2m[90m↓[39m[22m (b) that PUT, landing in the next cell, changes only the cell that sent it
+     [2m[90m↓[39m[22m (c) a cell ends with a separate-note save still in flight (its source read is held)
+     [2m[90m↓[39m[22m (d) that save, finishing in the next cell, creates its note only in the cell that sent it
+     [2m[90m↓[39m[22m a Restore of a draft that carries only a TITLE writes that title to a durable layer before the tab closes
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx[2m > [22mI-A · fix round 3 — a copy the server refused is its own offer: saved as a separate note, never restored into its source (C-3, I-4)[2m > [22mfix round 4 — the offer shows the words and speaks for itself (I-6, I-7)[2m > [22m⛔ focus moves INTO the Discard confirm, and "Keep it" returns it to the offer
+[31m[1mAssertionError[22m: focus did not return to the offer: expected <body><div>…(1)</div>
+…(1)</body> to be <button type="button" …(1)></button> // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[31m+ <body>[39m
+[31m+   <div>[39m
+[31m+     <div[39m
+[31m+       class="_page_6e64f5"[39m
+[31m+       style="--uct-chrome-h: 0px;"[39m
+[31m+     >[39m
+[31m+       <h2[39m
+[31m+         class="sr-only"[39m
+[31m+         data-note-landmark="true"[39m
+[31m+         tabindex="-1"[39m
+[31m+       >[39m
+[31m+         Thesis[39m
+[31m+       </h2>[39m
+[31m+       <div[39m
+[31m+         class="_chrome_6e64f5"[39m
+[31m+       >[39m
+[31m+         <a[39m
+[31m+           class="_skipLink_6e64f5"[39m
+[31m+           href="#notebook-editor-toolbar"[39m
+[31m+         >[39m
+[31m+           Skip to editor toolbar[39m
+[31m+         </a>[39m
+[31m+         <h2[39m
+[31m+           class="sr-only"[39m
+[31m+           tabindex="-1"[39m
+[31m+         >[39m
+[31m+           Editor toolbar[39m
+[31m+         </h2>[39m
+[31m+         <header[39m
+[31m+           class="_header_6e64f5"[39m
+[31m+           data-note-header=""[39m
+[31m+         >[39m
+[2m            <button[22m
+[31m+             class="_backBtn_6e64f5"[39m
+[31m+             type="button"[39m
+[31m+           >[39m
+[31m+             ← Notebook[39m
+[31m+           </button>[39m
+[31m+           <div[39m
+[31m+             class="_headerControls_6e64f5"[39m
+[31m+             data-tour="ask-row"[39m
+[31m+           >[39m
+[31m+             <button[39m
+[31m+               aria-label="Add to Favorites"[39m
+[31m+               aria-pressed="false"[39m
+[31m+               class="_chromeBtn_6e64f5"[39m
+[31m+               title="Add to Favorites"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               <svg[39m
+[31m+                 aria-hidden="true"[39m
+[31m+                 fill="none"[39m
+[31m+                 focusable="false"[39m
+[31m+                 height="15"[39m
+[31m+                 stroke="currentColor"[39m
+[31m+                 stroke-linecap="round"[39m
+[31m+                 stroke-linejoin="round"[39m
+[31m+                 stroke-width="1.7"[39m
+[31m+                 viewBox="0 0 24 24"[39m
+[31m+                 width="15"[39m
+[31m+               >[39m
+[31m+                 <path[39m
+[31m+                   d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z"[39m
+[31m+                 />[39m
+[31m+               </svg>[39m
+[31m+             </button>[39m
+[31m+             <div[39m
+[31m+               class="_askSlot_6e64f5"[39m
+[31m+             >[39m
+[31m+               <div[39m
+[31m+                 class="_wrap_22453a"[39m
+[31m+               >[39m
+[31m+                 <button[39m
+[31m+                   aria-expanded="false"[39m
+[31m+                   aria-label="Ask this note"[39m
+[31m+                   class="_askToggle_22453a"[39m
+[31m+                   data-ask-toggle="true"[39m
+[31m+                   type="button"[39m
+[31m+                 >[39m
+[31m+                   <svg[39m
+[31m+                     aria-hidden="true"[39m
+[31m+                     fill="none"[39m
+[31m+                     focusable="false"[39m
+[31m+                     height="13"[39m
+[31m+                     stroke="url(#uig2)"[39m
+[31m+                     stroke-linecap="round"[39m
+[31m+                     stroke-linejoin="round"[39m
+[31m+                     stroke-width="1.85"[39m
+[31m+                     style="color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -2px; margin-right: 4px;"[39m
+[31m+                     viewBox="0 0 24 24"[39m
+[31m+                     width="13"[39m
+[31m+                   >[39m
+[31m+                     <defs>[39m
+[31m+                       <lineargradient[39m
+[31m+                         id="uig2"[39m
+[31m+                         x1="0"[39m
+[31m+                         x2="1"[39m
+[31m+                         y1="0"[39m
+[31m+                         y2="1"[39m
+[31m+                       >[39m
+[31m+                         <stop[39m
+[31m+                           offset="0%"[39m
+[31m+                           stop-color="#a8823a"[39m
+[31m+                         />[39m
+[31m+                         <stop[39m
+[31m+                           offset="40%"[39m
+[31m+                           stop-color="#d4b25a"[39m
+[31m+                         />[39m
+[31m+                         <stop[39m
+[31m+                           offset="50%"[39m
+[31m+                           stop-color="#e8d18c"[39m
+[31m+                         />[39m
+[31m+                         <stop[39m
+[31m+                           offset="60%"[39m
+[31m+                           stop-color="#cba954"[39m
+[31m+                         />[39m
+[31m+                         <stop[39m
+[31m+                           offset="100%"[39m
+[31m+                           stop-color="#8f6f2c"[39m
+[31m+                         />[39m
+[31m+                       </lineargradient>[39m
+[31m+                     </defs>[39m
+[31m+                     <path[39m
+[31m+                       d="M12 3l1.9 5.6L19 10l-5.1 1.5L12 17l-1.9-5.5L5 10l5.1-1.4z"[39m
+[31m+                     />[39m
+[31m+                   </svg>[39m
+[31m+                   Ask this note[39m
+[31m+                 </button>[39m
+[31m+               </div>[39m
+[31m+             </div>[39m
+[31m+             <button[39m
+[31m+               aria-label="Find in note"[39m
+[31m+               class="_chromeBtn_6e64f5 _phoneInMore_6e64f5"[39m
+[31m+               title="Find in this note"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               <svg[39m
+[31m+                 aria-hidden="true"[39m
+[31m+                 fill="none"[39m
+[31m+                 focusable="false"[39m
+[31m+                 height="13"[39m
+[31m+                 stroke="url(#uig3)"[39m
+[31m+                 stroke-linecap="round"[39m
+[31m+                 stroke-linejoin="round"[39m
+[31m+                 stroke-width="1.85"[39m
+[31m+                 style="color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -2px; margin-right: 4px;"[39m
+[31m+                 viewBox="0 0 24 24"[39m
+[31m+                 width="13"[39m
+[31m+               >[39m
+[31m+                 <defs>[39m
+[31m+                   <lineargradient[39m
+[31m+                     id="uig3"[39m
+[31m+                     x1="0"[39m
+[31m+                     x2="1"[39m
+[31m+                     y1="0"[39m
+[31m+                     y2="1"[39m
+[31m+                   >[39m
+[31m+                     <stop[39m
+[31m+                       offset="0%"[39m
+[31m+                       stop-color="#a8823a"[39m
+[31m+                     />[39m
+[31m+                     <stop[39m
+[31m+                       offset="40%"[39m
+[31m+                       stop-color="#d4b25a"[39m
+[31m+                     />[39m
+[31m+                     <stop[39m
+[31m+                       offset="50%"[39m
+[31m+                       stop-color="#e8d18c"[39m
+[31m+                     />[39m
+[31m+                     <stop[39m
+[31m+                       offset="60%"[39m
+[31m+                       stop-color="#cba954"[39m
+[31m+                     />[39m
+[31m+                     <stop[39m
+[31m+                       offset="100%"[39m
+[31m+                       stop-color="#8f6f2c"[39m
+[31m+                     />[39m
+[31m+                   </lineargradient>[39m
+[31m+                 </defs>[39m
+[31m+                 <circle[39m
+[31m+                   cx="11"[39m
+[31m+                   cy="11"[39m
+[31m+                   r="6.5"[39m
+[31m+                 />[39m
+[31m+                 <path[39m
+[31m+                   d="M15.8 15.8l4.7 4.7"[39m
+[31m+                 />[39m
+[31m+               </svg>[39m
+[31m+               Find[39m
+[31m+             </button>[39m
+[31m+             <select[39m
+[31m+               aria-label="Folder"[39m
+[31m+               class="_headerSelect_6e64f5 _phoneInMore_6e64f5"[39m
+[31m+             >[39m
+[31m+               <option[39m
+[31m+                 value=""[39m
+[31m+               >[39m
+[31m+                 Unfiled[39m
+[31m+               </option>[39m
+[31m+             </select>[39m
+[31m+             <button[39m
+[31m+               aria-expanded="false"[39m
+[31m+               aria-label="Outline"[39m
+[31m+               class="_chromeBtn_6e64f5 _phoneInMore_6e64f5 "[39m
+[31m+               title="Outline — every heading in this note"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               <svg[39m
+[31m+                 aria-hidden="true"[39m
+[31m+                 fill="none"[39m
+[31m+                 focusable="false"[39m
+[31m+                 height="13"[39m
+[31m+                 stroke="currentColor"[39m
+[31m+                 stroke-linecap="round"[39m
+[31m+                 stroke-linejoin="round"[39m
+[31m+                 stroke-width="1.7"[39m
+[31m+                 style="vertical-align: -2px; margin-right: 4px;"[39m
+[31m+                 viewBox="0 0 24 24"[39m
+[31m+                 width="13"[39m
+[31m+               >[39m
+[31m+                 <rect[39m
+[31m+                   height="4.5"[39m
+[31m+                   rx="1.2"[39m
+[31m+                   width="17"[39m
+[31m+                   x="3.5"[39m
+[31m+                   y="4"[39m
+[31m+                 />[39m
+[31m+                 <rect[39m
+[31m+                   height="4.5"[39m
+[31m+                   rx="1.2"[39m
+[31m+                   width="17"[39m
+[31m+                   x="3.5"[39m
+[31m+                   y="9.75"[39m
+[31m+                 />[39m
+[31m+                 <rect[39m
+[31m+                   height="4.5"[39m
+[31m+                   rx="1.2"[39m
+[31m+                   width="17"[39m
+[31m+                   x="3.5"[39m
+[31m+                   y="15.5"[39m
+[31m+                 />[39m
+[31m+               </svg>[39m
+[31m+               Outline[39m
+[31m+             </button>[39m
+[31m+             <span[39m
+[31m+               class="_tourWrap_6e64f5"[39m
+[31m+               data-tour="note-export"[39m
+[31m+             >[39m
+[31m+               <span[39m
+[31m+                 class="_anchor_897224"[39m
+[31m+               >[39m
+[31m+                 <button[39m
+[31m+                   aria-controls="_r_5_"[39m
+[31m+                   aria-expanded="false"[39m
+[31m+                   aria-label="More note actions"[39m
+[31m+                   class="_chromeBtn_6e64f5 _trigger_897224"[39m
+[31m+                   data-more-trigger=""[39m
+[31m+                   title="More note actions"[39m
+[31m+                   type="button"[39m
+[31m+                 >[39m
+[31m+                   <svg[39m
+[31m+                     aria-hidden="true"[39m
+[31m+                     fill="none"[39m
+[31m+                     focusable="false"[39m
+[31m+                     height="15"[39m
+[31m+                     stroke="currentColor"[39m
+[31m+                     stroke-linecap="round"[39m
+[31m+                     stroke-linejoin="round"[39m
+[31m+                     stroke-width="1.7"[39m
+[31m+                     viewBox="0 0 24 24"[39m
+[31m+                     width="15"[39m
+[31m+                   >[39m
+[31m+                     <circle[39m
+[31m+                       cx="5.2"[39m
+[31m+                       cy="12"[39m
+[31m+                       fill="currentColor"[39m
+[31m+                       r="1.7"[39m
+[31m+                       stroke="none"[39m
+[31m+                     />[39m
+[31m+                     <circle[39m
+[31m+                       cx="12"[39m
+[31m+                       cy="12"[39m
+[31m+                       fill="currentColor"[39m
+[31m+                       r="1.7"[39m
+[31m+                       stroke="none"[39m
+[31m+                     />[39m
+[31m+                     <circle[39m
+[31m+                       cx="18.8"[39m
+[31m+                       cy="12"[39m
+[31m+                       fill="currentColor"[39m
+[31m+                       r="1.7"[39m
+[31m+                       stroke="none"[39m
+[31m+                     />[39m
+[31m+                   </svg>[39m
+[31m+                 </button>[39m
+[31m+                 <div[39m
+[31m+                   aria-label="More note actions"[39m
+[31m+                   class="_panel_897224"[39m
+[31m+                   data-contained-disclosure=""[39m
+[31m+                   data-export-exclude="true"[39m
+[31m+                   hidden=""[39m
+[31m+                   id="_r_5_"[39m
+[31m+                   role="group"[39m
+[31m+                 >[39m
+[31m+                   <button[39m
+[31m+                     aria-label="Version history"[39m
+[31m+                     class="_chromeBtn_6e64f5"[39m
+[31m+                     title="See earlier versions of this note and restore one"[39m
+[31m+                     type="button"[39m
+[31m+                   >[39m
+[31m+                     <svg[39m
+[31m+                       aria-hidden="true"[39m
+[31m+                       fill="none"[39m
+[31m+                       focusable="false"[39m
+[31m+                       height="13"[39m
+[31m+                       stroke="url(#uig6)"[39m
+[31m+                       stroke-linecap="round"[39m
+[31m+                       stroke-linejoin="round"[39m
+[31m+                       stroke-width="1.85"[39m
+[31m+                       style="color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -2px; margin-right: 4px;"[39m
+[31m+                       viewBox="0 0 24 24"[39m
+[31m+                       width="13"[39m
+[31m+                     >[39m
+[31m+                       <defs>[39m
+[31m+                         <lineargradient[39m
+[31m+                           id="uig6"[39m
+[31m+                           x1="0"[39m
+[31m+                           x2="1"[39m
+[31m+                           y1="0"[39m
+[31m+                           y2="1"[39m
+[31m+                         >[39m
+[31m+                           <stop[39m
+[31m+                             offset="0%"[39m
+[31m+                             stop-color="#a8823a"[39m
+[31m+                           />[39m
+[31m+                           <stop[39m
+[31m+                             offset="40%"[39m
+[31m+                             stop-color="#d4b25a"[39m
+[31m+                           />[39m
+[31m+                           <stop[39m
+[31m+                             offset="50%"[39m
+[31m+                             stop-color="#e8d18c"[39m
+[31m+                           />[39m
+[31m+                           <stop[39m
+[31m+                             offset="60%"[39m
+[31m+                             stop-color="#cba954"[39m
+[31m+                           />[39m
+[31m+                           <stop[39m
+[31m+                             offset="100%"[39m
+[31m+                             stop-color="#8f6f2c"[39m
+[31m+                           />[39m
+[31m+                         </lineargradient>[39m
+[31m+                       </defs>[39m
+[31m+                       <circle[39m
+[31m+                         cx="12"[39m
+[31m+                         cy="12"[39m
+[31m+                         r="8.5"[39m
+[31m+                       />[39m
+[31m+                       <path[39m
+[31m+                         d="M12 7.2V12l3.2 2"[39m
+[31m+                       />[39m
+[31m+                     </svg>[39m
+[31m+                     History[39m
+[31m+                   </button>[39m
+[31m+                   <button[39m
+[31m+                     aria-label="Duplicate note"[39m
+[31m+                     class="_chromeBtn_6e64f5"[39m
+[31m+                     title="Create a copy of this note"[39m
+[31m+                     type="button"[39m
+[31m+                   >[39m
+[31m+                     <svg[39m
+[31m+                       aria-hidden="true"[39m
+[31m+                       fill="none"[39m
+[31m+                       focusable="false"[39m
+[31m+                       height="13"[39m
+[31m+                       stroke="url(#uig7)"[39m
+[31m+                       stroke-linecap="round"[39m
+[31m+                       stroke-linejoin="round"[39m
+[31m+                       stroke-width="1.85"[39m
+[31m+                       style="color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -2px; margin-right: 4px;"[39m
+[31m+                       viewBox="0 0 24 24"[39m
+[31m+                       width="13"[39m
+[31m+                     >[39m
+[31m+                       <defs>[39m
+[31m+                         <lineargradient[39m
+[31m+                           id="uig7"[39m
+[31m+                           x1="0"[39m
+[31m+                           x2="1"[39m
+[31m+                           y1="0"[39m
+[31m+                           y2="1"[39m
+[31m+                         >[39m
+[31m+                           <stop[39m
+[31m+                             offset="0%"[39m
+[31m+                             stop-color="#a8823a"[39m
+[31m+                           />[39m
+[31m+                           <stop[39m
+[31m+                             offset="40%"[39m
+[31m+                             stop-color="#d4b25a"[39m
+[31m+                           />[39m
+[31m+                           <stop[39m
+[31m+                             offset="50%"[39m
+[31m+                             stop-color="#e8d18c"[39m
+[31m+                           />[39m
+[31m+                           <stop[39m
+[31m+                             offset="60%"[39m
+[31m+                             stop-color="#cba954"[39m
+[31m+                           />[39m
+[31m+                           <stop[39m
+[31m+                             offset="100%"[39m
+[31m+                             stop-color="#8f6f2c"[39m
+[31m+                           />[39m
+[31m+                         </lineargradient>[39m
+[31m+                       </defs>[39m
+[31m+                       <rect[39m
+[31m+                         height="11"[39m
+[31m+                         rx="2"[39m
+[31m+                         width="11"[39m
+[31m+                         x="8"[39m
+[31m+                         y="8"[39m
+[31m+                       />[39m
+[31m+                       <path[39m
+[31m+                         d="M5 15.5V5a1 1 0 0 1 1-1h9.5"[39m
+[31m+                       />[39m
+[31m+                     </svg>[39m
+[31m+                     Duplicate[39m
+[31m+                   </button>[39m
+[31m+                   <div[39m
+[31m+                     class="_sep_897224"[39m
+[31m+                     role="separator"[39m
+[31m+                   />[39m
+[31m+                   <button[39m
+[31m+                     class="_chromeBtn_6e64f5"[39m
+[31m+                     title="Download this note as a PNG image"[39m
+[31m+                     type="button"[39m
+[31m+                   >[39m
+[31m+                     PNG[39m
+[31m+                   </button>[39m
+[31m+                   <button[39m
+[31m+                     class="_chromeBtn_6e64f5"[39m
+[31m+                     title="Print — or Save as PDF from the print dialog"[39m
+[31m+                     type="button"[39m
+[31m+                   >[39m
+[31m+                     Print[39m
+[31m+                   </button>[39m
+[31m+                   <span[39m
+[31m+                     class="_menuWrap_fb44f2"[39m
+[31m+                   >[39m
+[31m+                     <button[39m
+[31m+                       aria-expanded="false"[39m
+[31m+                       aria-haspopup="menu"[39m
+[31m+                       class="_chromeBtn_6e64f5 _trigger_fb44f2"[39m
+[31m+                       title="Download this note as Markdown, a web page, JSON or Word"[39m
+[31m+                       type="button"[39m
+[31m+                     >[39m
+[31m+                       Export[39m
+[31m+                       <svg[39m
+[31m+                         aria-hidden="true"[39m
+[31m+                         fill="none"[39m
+[31m+                         focusable="false"[39m
+[31m+                         height="12"[39m
+[31m+                         stroke="currentColor"[39m
+[31m+                         stroke-linecap="round"[39m
+[31m+                         stroke-linejoin="round"[39m
+[31m+                         stroke-width="1.7"[39m
+[31m+                         viewBox="0 0 24 24"[39m
+[31m+                         width="12"[39m
+[31m+                       >[39m
+[31m+                         <path[39m
+[31m+                           d="M6 9.5l6 6 6-6"[39m
+[31m+                         />[39m
+[31m+                       </svg>[39m
+[31m+                     </button>[39m
+[31m+                   </span>[39m
+[31m+                   <div[39m
+[31m+                     class="_meta_897224"[39m
+[31m+                   >[39m
+[31m+                     <span[39m
+[31m+                       class="_stats_da9a72"[39m
+[31m+                       data-testid="note-stats"[39m
+[31m+                       title="10 words · 1 min read"[39m
+[31m+                     >[39m
+[31m+                       10 words · 1 min read[39m
+[31m+                     </span>[39m
+[31m+                   </div>[39m
+[31m+                   <div[39m
+[31m+                     class="_sep_897224"[39m
+[31m+                     role="separator"[39m
+[31m+                   />[39m
+[31m+                   <button[39m
+[31m+                     class="_chromeBtn_6e64f5 _danger_897224"[39m
+[31m+                     type="button"[39m
+[31m+                   >[39m
+[31m+                     Delete[39m
+[31m+                   </button>[39m
+[31m+                 </div>[39m
+[31m+               </span>[39m
+[31m+             </span>[39m
+[31m+           </div>[39m
+[31m+         </header>[39m
+[31m+         <section[39m
+[31m+           aria-label="A copy of this note’s words"[39m
+[31m+           class="_draftBanner_6e64f5 _copyOffer_6e64f5"[39m
+[31m+           data-export-exclude="true"[39m
+[31m+           data-testid="refused-copy-offer"[39m
+[31m+         >[39m
+[31m+           <span>[39m
+[31m+             A copy of this note’s words couldn’t be saved as a separate note, so it’s kept on this device. Save as a separate note tries again. Copy text puts its words on your clipboard. Discard deletes the copy from this device.[39m
+[31m+           </span>[39m
+[31m+           <div[39m
+[31m+             aria-label="Words in this copy"[39m
+[31m+             class="_copyPreview_6e64f5"[39m
+[31m+             data-testid="refused-copy-preview"[39m
+[31m+             role="region"[39m
+[31m+             tabindex="0"[39m
+[31m+           >[39m
+[31m+             <div[39m
+[31m+               class="_copyPreviewTitle_6e64f5"[39m
+[31m+             >[39m
+[31m+               Thesis[39m
+[31m+             </div>[39m
+[31m+             <div[39m
+[31m+               class="_copyPreviewSubtitle_6e64f5"[39m
+[31m+             >[39m
+[31m+               copy subtitle[39m
+[31m+             </div>[39m
+[31m+             <div[39m
+[31m+               class="_copyPreviewBody_6e64f5"[39m
+[31m+             >[39m
+[31m+               words in a copy the server refused - R-copy[39m
+[31m+             </div>[39m
+[31m+           </div>[39m
+[31m+           <p[39m
+[31m+             class="_copyStatus_6e64f5"[39m
+[31m+             role="status"[39m
+[31m+           />[39m
+[31m+           <div[39m
+[31m+             class="_draftBannerActions_6e64f5"[39m
+[31m+           >[39m
+[31m+             <button[39m
+[31m+               class="_draftBannerBtn_6e64f5 _draftBannerBtnPrimary_6e64f5"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               Save as a separate note[39m
+[31m+             </button>[39m
+[31m+             <button[39m
+[2m                class="_draftBannerBtn_6e64f5"[22m
+[2m                type="button"[22m
+[2m              >[22m
+[31m+               Copy text[39m
+[31m+             </button>[39m
+[31m+             <button[39m
+[31m+               class="_draftBannerBtn_6e64f5"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[2m                Discard[22m
+[31m+             </button>[39m
+[31m+           </div>[39m
+[31m+         </section>[39m
+[31m+         <div[39m
+[31m+           aria-label="Editor toolbar"[39m
+[31m+           class="_toolbarRow_6e64f5"[39m
+[31m+           data-export-exclude="true"[39m
+[31m+           data-tour="note-toolbar"[39m
+[31m+           role="toolbar"[39m
+[31m+         >[39m
+[31m+           <span[39m
+[31m+             aria-hidden="true"[39m
+[31m+             class="_historySentinel_6e64f5"[39m
+[31m+           />[39m
+[31m+           <span[39m
+[31m+             class="_historyGroup_6e64f5"[39m
+[31m+           >[39m
+[31m+             <button[39m
+[31m+               aria-label="Undo"[39m
+[31m+               class="_toolBtn_6e64f5 _historyBtn_6e64f5"[39m
+[31m+               disabled=""[39m
+[31m+               title="Undo the last change"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               Undo[39m
+[31m+             </button>[39m
+[31m+             <button[39m
+[31m+               aria-label="Redo"[39m
+[31m+               class="_toolBtn_6e64f5 _historyBtn_6e64f5"[39m
+[31m+               disabled=""[39m
+[31m+               title="Redo the change you undid"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               Redo[39m
+[31m+             </button>[39m
+[31m+           </span>[39m
+[31m+           <button[39m
+[31m+             aria-controls="_r_4_-a _r_4_-b _r_4_-c _r_4_-d"[39m
+[31m+             aria-expanded="false"[39m
+[31m+             class="_toolBtn_6e64f5 _formatToggle_6e64f5"[39m
+[31m+             data-format-toggle=""[39m
+[31m+             data-roving-item="tb-0"[39m
+[31m+             data-tour="note-format"[39m
+[31m+             title="More formatting: font, size, colour, headings, numbered list, quote, code, links, images, files, rule and widgets"[39m
+[31m+             type="button"[39m
+[31m+           >[39m
+[31m+             <span[39m
+[31m+               aria-hidden="true"[39m
+[31m+               class="_formatGlyph_6e64f5"[39m
+[31m+             >[39m
+[31m+               Aa[39m
+[31m+             </span>[39m
+[31m+             <span[39m
+[31m+               class="_phoneIconLabel_6e64f5"[39m
+[31m+             >[39m
+[31m+               Format[39m
+[31m+             </span>[39m
+[31m+           </button>[39m
+[31m+           <button[39m
+[31m+             aria-expanded="false"[39m
+[31m+             aria-haspopup="menu"[39m
+[31m+             aria-label="Insert"[39m
+[31m+             class="_toolBtn_6e64f5 _insertPhone_6e64f5"[39m
+[31m+             data-roving-item="tb-1"[39m
+[31m+             tabindex="-1"[39m
+[31m+             title="Insert an image, a file, a camera scan or a chart"[39m
+[31m+             type="button"[39m
+[31m+           >[39m
+[31m+             <svg[39m
+[31m+               aria-hidden="true"[39m
+[31m+               fill="none"[39m
+[31m+               focusable="false"[39m
+[31m+               height="16"[39m
+[31m+               stroke="currentColor"[39m
+[31m+               stroke-linecap="round"[39m
+[31m+               stroke-linejoin="round"[39m
+[31m+               stroke-width="1.7"[39m
+[31m+               viewBox="0 0 24 24"[39m
+[31m+               width="16"[39m
+[31m+             >[39m
+[31m+               <path[39m
+[31m+                 d="M12 5v14M5 12h14"[39m
+[31m+               />[39m
+[31m+             </svg>[39m
+[31m+           </button>[39m
+[31m+           <span[39m
+[31m+             class="_formatRun_6e64f5"[39m
+[31m+             data-format-run=""[39m
+[31m+             id="_r_4_-a"[39m
+[31m+           >[39m
+[31m+             <select[39m
+[31m+               aria-label="Font family"[39m
+[31m+               class="_fontSelect_6e64f5"[39m
+[31m+               data-roving-item="tb-2"[39m
+[31m+               tabindex="-1"[39m
+[31m+               title="Font"[39m
+[31m+             >[39m
+[31m+               <option[39m
+[31m+                 value=""[39m
+[31m+               >[39m
+[31m+                 Default[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: \"Instrument Sans\", Arial, sans-serif;"[39m
+[31m+                 value="Instrument Sans, Arial, sans-serif"[39m
+[31m+               >[39m
+[31m+                 Sans Serif[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: Georgia, \"Times New Roman\", serif;"[39m
+[31m+                 value="Georgia, \"Times New Roman\", serif"[39m
+[31m+               >[39m
+[31m+                 Serif[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: Consolas, \"Courier New\", monospace;"[39m
+[31m+                 value="Consolas, \"Courier New\", monospace"[39m
+[31m+               >[39m
+[31m+                 Monospace[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: Arial, Helvetica, sans-serif;"[39m
+[31m+                 value="Arial, Helvetica, sans-serif"[39m
+[31m+               >[39m
+[31m+                 Arial[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: Helvetica, Arial, sans-serif;"[39m
+[31m+                 value="Helvetica, Arial, sans-serif"[39m
+[31m+               >[39m
+[31m+                 Helvetica[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: Verdana, Geneva, sans-serif;"[39m
+[31m+                 value="Verdana, Geneva, sans-serif"[39m
+[31m+               >[39m
+[31m+                 Verdana[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: Tahoma, Geneva, sans-serif;"[39m
+[31m+                 value="Tahoma, Geneva, sans-serif"[39m
+[31m+               >[39m
+[31m+                 Tahoma[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: \"Trebuchet MS\", Helvetica, sans-serif;"[39m
+[31m+                 value="\"Trebuchet MS\", Helvetica, sans-serif"[39m
+[31m+               >[39m
+[31m+                 Trebuchet MS[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: Calibri, Candara, sans-serif;"[39m
+[31m+                 value="Calibri, Candara, sans-serif"[39m
+[31m+               >[39m
+[31m+                 Calibri[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: \"Century Gothic\", sans-serif;"[39m
+[31m+                 value="\"Century Gothic\", sans-serif"[39m
+[31m+               >[39m
+[31m+                 Century Gothic[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: Georgia, serif;"[39m
+[31m+                 value="Georgia, serif"[39m
+[31m+               >[39m
+[31m+                 Georgia[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: \"Times New Roman\", Times, serif;"[39m
+[31m+                 value="\"Times New Roman\", Times, serif"[39m
+[31m+               >[39m
+[31m+                 Times New Roman[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: Garamond, serif;"[39m
+[31m+                 value="Garamond, serif"[39m
+[31m+               >[39m
+[31m+                 Garamond[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: \"Palatino Linotype\", \"Book Antiqua\", Palatino, serif;"[39m
+[31m+                 value="\"Palatino Linotype\", \"Book Antiqua\", Palatino, serif"[39m
+[31m+               >[39m
+[31m+                 Palatino[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: Cambria, Georgia, serif;"[39m
+[31m+                 value="Cambria, Georgia, serif"[39m
+[31m+               >[39m
+[31m+                 Cambria[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: Baskerville, \"Baskerville Old Face\", serif;"[39m
+[31m+                 value="Baskerville, \"Baskerville Old Face\", serif"[39m
+[31m+               >[39m
+[31m+                 Baskerville[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: \"Courier New\", Courier, monospace;"[39m
+[31m+                 value="\"Courier New\", Courier, monospace"[39m
+[31m+               >[39m
+[31m+                 Courier New[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: Consolas, monospace;"[39m
+[31m+                 value="Consolas, monospace"[39m
+[31m+               >[39m
+[31m+                 Consolas[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: \"Lucida Sans Unicode\", \"Lucida Grande\", sans-serif;"[39m
+[31m+                 value="\"Lucida Sans Unicode\", \"Lucida Grande\", sans-serif"[39m
+[31m+               >[39m
+[31m+                 Lucida Sans[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: \"Comic Sans MS\", \"Comic Sans\", cursive;"[39m
+[31m+                 value="\"Comic Sans MS\", \"Comic Sans\", cursive"[39m
+[31m+               >[39m
+[31m+                 Comic Sans MS[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: Impact, Haettenschweiler, sans-serif;"[39m
+[31m+                 value="Impact, Haettenschweiler, sans-serif"[39m
+[31m+               >[39m
+[31m+                 Impact[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 style="font-family: \"Brush Script MT\", cursive;"[39m
+[31m+                 value="\"Brush Script MT\", cursive"[39m
+[31m+               >[39m
+[31m+                 Brush Script MT[39m
+[31m+               </option>[39m
+[31m+             </select>[39m
+[31m+             <select[39m
+[31m+               aria-label="Text size"[39m
+[31m+               class="_fontSizeSelect_6e64f5"[39m
+[31m+               data-roving-item="tb-3"[39m
+[31m+               tabindex="-1"[39m
+[31m+               title="Text size"[39m
+[31m+             >[39m
+[31m+               <option[39m
+[31m+                 value=""[39m
+[31m+               >[39m
+[31m+                 Size[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 value="12px"[39m
+[31m+               >[39m
+[31m+                 12[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 value="13px"[39m
+[31m+               >[39m
+[31m+                 13[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 value="14px"[39m
+[31m+               >[39m
+[31m+                 14[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 value="15px"[39m
+[31m+               >[39m
+[31m+                 15[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 value="16px"[39m
+[31m+               >[39m
+[31m+                 16[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 value="17px"[39m
+[31m+               >[39m
+[31m+                 17[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 value="18px"[39m
+[31m+               >[39m
+[31m+                 18[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 value="20px"[39m
+[31m+               >[39m
+[31m+                 20[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 value="22px"[39m
+[31m+               >[39m
+[31m+                 22[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 value="24px"[39m
+[31m+               >[39m
+[31m+                 24[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 value="28px"[39m
+[31m+               >[39m
+[31m+                 28[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 value="32px"[39m
+[31m+               >[39m
+[31m+                 32[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 value="36px"[39m
+[31m+               >[39m
+[31m+                 36[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 value="40px"[39m
+[31m+               >[39m
+[31m+                 40[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 value="48px"[39m
+[31m+               >[39m
+[31m+                 48[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 value="60px"[39m
+[31m+               >[39m
+[31m+                 60[39m
+[31m+               </option>[39m
+[31m+               <option[39m
+[31m+                 value="72px"[39m
+[31m+               >[39m
+[31m+                 72[39m
+[31m+               </option>[39m
+[31m+             </select>[39m
+[31m+           </span>[39m
+[31m+           <button[39m
+[31m+             class="_toolBtn_6e64f5  "[39m
+[31m+             data-roving-item="tb-4"[39m
+[31m+             tabindex="-1"[39m
+[31m+             type="button"[39m
+[31m+           >[39m
+[31m+             B[39m
+[31m+           </button>[39m
+[31m+           <button[39m
+[31m+             class="_toolBtn_6e64f5  "[39m
+[31m+             data-roving-item="tb-5"[39m
+[31m+             tabindex="-1"[39m
+[31m+             type="button"[39m
+[31m+           >[39m
+[31m+             I[39m
+[31m+           </button>[39m
+[31m+           <span[39m
+[31m+             class="_formatRun_6e64f5"[39m
+[31m+             data-format-run=""[39m
+[31m+             id="_r_4_-b"[39m
+[31m+           >[39m
+[31m+             <span[39m
+[31m+               class="_colorAnchor_6e64f5"[39m
+[31m+             >[39m
+[31m+               <button[39m
+[31m+                 aria-expanded="false"[39m
+[31m+                 aria-label="Text color and highlight"[39m
+[31m+                 class="_toolBtn_6e64f5 "[39m
+[31m+                 data-roving-item="tb-6"[39m
+[31m+                 tabindex="-1"[39m
+[31m+                 title="Text color and highlight — Ctrl+Shift+H highlights"[39m
+[31m+                 type="button"[39m
+[31m+               >[39m
+[31m+                 <span[39m
+[31m+                   class="_colorGlyph_6e64f5 "[39m
+[31m+                 >[39m
+[31m+                   A[39m
+[31m+                 </span>[39m
+[31m+               </button>[39m
+[31m+             </span>[39m
+[31m+             <button[39m
+[31m+               class="_toolBtn_6e64f5  "[39m
+[31m+               data-roving-item="tb-7"[39m
+[31m+               tabindex="-1"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               H1[39m
+[31m+             </button>[39m
+[31m+             <button[39m
+[31m+               class="_toolBtn_6e64f5  "[39m
+[31m+               data-roving-item="tb-8"[39m
+[31m+               tabindex="-1"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               H2[39m
+[31m+             </button>[39m
+[31m+           </span>[39m
+[31m+           <span[39m
+[31m+             class="_formatRun_6e64f5"[39m
+[31m+             data-format-run=""[39m
+[31m+             id="_r_4_-c"[39m
+[31m+           >[39m
+[31m+             <button[39m
+[31m+               class="_toolBtn_6e64f5  "[39m
+[31m+               data-roving-item="tb-9"[39m
+[31m+               tabindex="-1"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               • List[39m
+[31m+             </button>[39m
+[31m+             <button[39m
+[31m+               class="_toolBtn_6e64f5  "[39m
+[31m+               data-roving-item="tb-10"[39m
+[31m+               tabindex="-1"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               1. List[39m
+[31m+             </button>[39m
+[31m+             <button[39m
+[31m+               class="_toolBtn_6e64f5  "[39m
+[31m+               data-roving-item="tb-11"[39m
+[31m+               tabindex="-1"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               ❝[39m
+[31m+             </button>[39m
+[31m+             <button[39m
+[31m+               class="_toolBtn_6e64f5  "[39m
+[31m+               data-roving-item="tb-12"[39m
+[31m+               tabindex="-1"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               &lt;/&gt;[39m
+[31m+             </button>[39m
+[31m+             <button[39m
+[31m+               aria-label="Insert link"[39m
+[31m+               class="_toolBtn_6e64f5  "[39m
+[31m+               data-roving-item="tb-13"[39m
+[31m+               tabindex="-1"[39m
+[31m+               title="Insert link"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               <svg[39m
+[31m+                 aria-hidden="true"[39m
+[31m+                 fill="none"[39m
+[31m+                 focusable="false"[39m
+[31m+                 height="14"[39m
+[31m+                 stroke="url(#uig10)"[39m
+[31m+                 stroke-linecap="round"[39m
+[31m+                 stroke-linejoin="round"[39m
+[31m+                 stroke-width="1.85"[39m
+[31m+                 style="color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32));"[39m
+[31m+                 viewBox="0 0 24 24"[39m
+[31m+                 width="14"[39m
+[31m+               >[39m
+[31m+                 <defs>[39m
+[31m+                   <lineargradient[39m
+[31m+                     id="uig10"[39m
+[31m+                     x1="0"[39m
+[31m+                     x2="1"[39m
+[31m+                     y1="0"[39m
+[31m+                     y2="1"[39m
+[31m+                   >[39m
+[31m+                     <stop[39m
+[31m+                       offset="0%"[39m
+[31m+                       stop-color="#a8823a"[39m
+[31m+                     />[39m
+[31m+                     <stop[39m
+[31m+                       offset="40%"[39m
+[31m+                       stop-color="#d4b25a"[39m
+[31m+                     />[39m
+[31m+                     <stop[39m
+[31m+                       offset="50%"[39m
+[31m+                       stop-color="#e8d18c"[39m
+[31m+                     />[39m
+[31m+                     <stop[39m
+[31m+                       offset="60%"[39m
+[31m+                       stop-color="#cba954"[39m
+[31m+                     />[39m
+[31m+                     <stop[39m
+[31m+                       offset="100%"[39m
+[31m+                       stop-color="#8f6f2c"[39m
+[31m+                     />[39m
+[31m+                   </lineargradient>[39m
+[31m+                 </defs>[39m
+[31m+                 <path[39m
+[31m+                   d="M9.5 14.5l5-5"[39m
+[31m+                 />[39m
+[31m+                 <path[39m
+[31m+                   d="M11.5 6.5l1-1a3.8 3.8 0 0 1 5.4 5.4l-1 1"[39m
+[31m+                 />[39m
+[31m+                 <path[39m
+[31m+                   d="M12.5 17.5l-1 1a3.8 3.8 0 0 1-5.4-5.4l1-1"[39m
+[31m+                 />[39m
+[31m+               </svg>[39m
+[31m+             </button>[39m
+[31m+             <button[39m
+[31m+               aria-label="Insert image"[39m
+[31m+               class="_toolBtn_6e64f5  "[39m
+[31m+               data-roving-item="tb-14"[39m
+[31m+               tabindex="-1"[39m
+[31m+               title="Insert image"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               <svg[39m
+[31m+                 aria-hidden="true"[39m
+[31m+                 fill="none"[39m
+[31m+                 focusable="false"[39m
+[31m+                 height="14"[39m
+[31m+                 stroke="url(#uig11)"[39m
+[31m+                 stroke-linecap="round"[39m
+[31m+                 stroke-linejoin="round"[39m
+[31m+                 stroke-width="1.85"[39m
+[31m+                 style="color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32));"[39m
+[31m+                 viewBox="0 0 24 24"[39m
+[31m+                 width="14"[39m
+[31m+               >[39m
+[31m+                 <defs>[39m
+[31m+                   <lineargradient[39m
+[31m+                     id="uig11"[39m
+[31m+                     x1="0"[39m
+[31m+                     x2="1"[39m
+[31m+                     y1="0"[39m
+[31m+                     y2="1"[39m
+[31m+                   >[39m
+[31m+                     <stop[39m
+[31m+                       offset="0%"[39m
+[31m+                       stop-color="#a8823a"[39m
+[31m+                     />[39m
+[31m+                     <stop[39m
+[31m+                       offset="40%"[39m
+[31m+                       stop-color="#d4b25a"[39m
+[31m+                     />[39m
+[31m+                     <stop[39m
+[31m+                       offset="50%"[39m
+[31m+                       stop-color="#e8d18c"[39m
+[31m+                     />[39m
+[31m+                     <stop[39m
+[31m+                       offset="60%"[39m
+[31m+                       stop-color="#cba954"[39m
+[31m+                     />[39m
+[31m+                     <stop[39m
+[31m+                       offset="100%"[39m
+[31m+                       stop-color="#8f6f2c"[39m
+[31m+                     />[39m
+[31m+                   </lineargradient>[39m
+[31m+                 </defs>[39m
+[31m+                 <path[39m
+[31m+                   d="M6.5 3.5h6.5l4.5 4.5v12H6.5z"[39m
+[31m+                 />[39m
+[31m+                 <path[39m
+[31m+                   d="M13 3.5V8h4.5M9 12.5h6M9 15.5h6"[39m
+[31m+                 />[39m
+[31m+               </svg>[39m
+[31m+             </button>[39m
+[31m+             <button[39m
+[31m+               aria-label="Scan a document with the camera"[39m
+[31m+               class="_toolBtn_6e64f5 _scanBtn_6e64f5"[39m
+[31m+               data-roving-item="tb-15"[39m
+[31m+               data-tour="note-scan"[39m
+[31m+               tabindex="-1"[39m
+[31m+               title="Scan a document with the camera"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               <svg[39m
+[31m+                 aria-hidden="true"[39m
+[31m+                 fill="none"[39m
+[31m+                 focusable="false"[39m
+[31m+                 height="14"[39m
+[31m+                 stroke="currentColor"[39m
+[31m+                 stroke-linecap="round"[39m
+[31m+                 stroke-linejoin="round"[39m
+[31m+                 stroke-width="1.7"[39m
+[31m+                 style="vertical-align: -2px; margin-right: 4px;"[39m
+[31m+                 viewBox="0 0 24 24"[39m
+[31m+                 width="14"[39m
+[31m+               >[39m
+[31m+                 <path[39m
+[31m+                   d="M3 8.6a1.6 1.6 0 0 1 1.6-1.6h2.2l1.3-2h7.8l1.3 2h2.2A1.6 1.6 0 0 1 21 8.6v9.8a1.6 1.6 0 0 1-1.6 1.6H4.6A1.6 1.6 0 0 1 3 18.4z"[39m
+[31m+                 />[39m
+[31m+                 <circle[39m
+[31m+                   cx="12"[39m
+[31m+                   cy="13"[39m
+[31m+                   r="3.6"[39m
+[31m+                 />[39m
+[31m+               </svg>[39m
+[31m+               Scan[39m
+[31m+             </button>[39m
+[31m+             <button[39m
+[31m+               aria-label="Attach a file"[39m
+[31m+               class="_toolBtn_6e64f5  "[39m
+[31m+               data-roving-item="tb-16"[39m
+[31m+               tabindex="-1"[39m
+[31m+               title="Attach a file"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               <svg[39m
+[31m+                 aria-hidden="true"[39m
+[31m+                 fill="none"[39m
+[31m+                 focusable="false"[39m
+[31m+                 height="14"[39m
+[31m+                 stroke="url(#uig13)"[39m
+[31m+                 stroke-linecap="round"[39m
+[31m+                 stroke-linejoin="round"[39m
+[31m+                 stroke-width="1.85"[39m
+[31m+                 style="color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32));"[39m
+[31m+                 viewBox="0 0 24 24"[39m
+[31m+                 width="14"[39m
+[31m+               >[39m
+[31m+                 <defs>[39m
+[31m+                   <lineargradient[39m
+[31m+                     id="uig13"[39m
+[31m+                     x1="0"[39m
+[31m+                     x2="1"[39m
+[31m+                     y1="0"[39m
+[31m+                     y2="1"[39m
+[31m+                   >[39m
+[31m+                     <stop[39m
+[31m+                       offset="0%"[39m
+[31m+                       stop-color="#a8823a"[39m
+[31m+                     />[39m
+[31m+                     <stop[39m
+[31m+                       offset="40%"[39m
+[31m+                       stop-color="#d4b25a"[39m
+[31m+                     />[39m
+[31m+                     <stop[39m
+[31m+                       offset="50%"[39m
+[31m+                       stop-color="#e8d18c"[39m
+[31m+                     />[39m
+[31m+                     <stop[39m
+[31m+                       offset="60%"[39m
+[31m+                       stop-color="#cba954"[39m
+[31m+                     />[39m
+[31m+                     <stop[39m
+[31m+                       offset="100%"[39m
+[31m+                       stop-color="#8f6f2c"[39m
+[31m+                     />[39m
+[31m+                   </lineargradient>[39m
+[31m+                 </defs>[39m
+[31m+                 <path[39m
+[31m+                   d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"[39m
+[31m+                 />[39m
+[31m+               </svg>[39m
+[31m+             </button>[39m
+[31m+           </span>[39m
+[31m+           <span[39m
+[31m+             class="_formatRun_6e64f5"[39m
+[31m+             data-format-run=""[39m
+[31m+             id="_r_4_-d"[39m
+[31m+           >[39m
+[31m+             <button[39m
+[31m+               aria-label="Horizontal rule"[39m
+[31m+               class="_toolBtn_6e64f5  "[39m
+[31m+               data-roving-item="tb-17"[39m
+[31m+               tabindex="-1"[39m
+[31m+               title="Horizontal rule"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               ―[39m
+[31m+             </button>[39m
+[31m+             <button[39m
+[31m+               aria-label="Insert widget"[39m
+[31m+               class="_toolBtn_6e64f5 "[39m
+[31m+               data-roving-item="tb-18"[39m
+[31m+               tabindex="-1"[39m
+[31m+               title="Insert a chart or preset — pick ticker and timeframe by clicking"[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               ⊞ Insert[39m
+[31m+             </button>[39m
+[31m+           </span>[39m
+[31m+         </div>[39m
+[31m+       </div>[39m
+[31m+       <div[39m
+[31m+         class="_watchWrap_6e64f5  "[39m
+[31m+       >[39m
+[31m+         <div[39m
+[31m+           class="_column_6e64f5"[39m
+[31m+           data-print-root="true"[39m
+[31m+         >[39m
+[31m+           <input[39m
+[31m+             aria-label="Note title"[39m
+[31m+             class="_titleInput_6e64f5"[39m
+[31m+             data-note-title="true"[39m
+[31m+             placeholder="Title"[39m
+[31m+             value="Thesis"[39m
+[31m+           />[39m
+[31m+           <input[39m
+[31m+             aria-label="Subtitle"[39m
+[31m+             class="_subtitleInput_6e64f5"[39m
+[31m+             hidden=""[39m
+[31m+             id="_r_2_"[39m
+[31m+             placeholder="Subtitle (optional)"[39m
+[31m+             value=""[39m
+[31m+           />[39m
+[31m+           <div[39m
+[31m+             class="_line_b8ff9a"[39m
+[31m+             data-export-exclude="true"[39m
+[31m+             data-note-details-line=""[39m
+[31m+           >[39m
+[31m+             <button[39m
+[31m+               aria-controls="_r_2_ _r_1_"[39m
+[31m+               aria-expanded="false"[39m
+[31m+               class="_toggle_b8ff9a _toggleQuiet_b8ff9a"[39m
+[31m+               data-note-details-toggle=""[39m
+[31m+               type="button"[39m
+[31m+             >[39m
+[31m+               <svg[39m
+[31m+                 aria-hidden="true"[39m
+[31m+                 class="_chevron_b8ff9a "[39m
+[31m+                 height="12"[39m
+[31m+                 viewBox="0 0 12 12"[39m
+[31m+                 width="12"[39m
+[31m+               >[39m
+[31m+                 <path[39m
+[31m+                   d="M3 4.5 6 7.5 9 4.5"[39m
+[31m+                   fill="none"[39m
+[31m+                   stroke="currentColor"[39m
+[31m+                   stroke-linecap="round"[39m
+[31m+                   stroke-linejoin="round"[39m
+[31m+                   stroke-width="1.6"[39m
+[31m+                 />[39m
+[31m+               </svg>[39m
+[31m+               Add details[39m
+[31m+             </button>[39m
+[31m+           </div>[39m
+[31m+           <div[39m
+[31m+             class="_detailsRegion_6e64f5"[39m
+[31m+             data-note-details=""[39m
+[31m+             hidden=""[39m
+[31m+             id="_r_1_"[39m
+[31m+           >[39m
+[31m+             <div[39m
+[31m+               class="_tagsRow_6e64f5"[39m
+[31m+               data-export-exclude="true"[39m
+[31m+             >[39m
+[31m+               <div[39m
+[31m+                 aria-label="Tags"[39m
+[31m+                 class="_field_81b87b"[39m
+[31m+                 role="group"[39m
+[31m+               >[39m
+[31m+                 <form[39m
+[31m+                   class="_add_81b87b"[39m
+[31m+                 >[39m
+[31m+                   <div[39m
+[31m+                     class="_wrap_6d2af0 "[39m
+[31m+                   >[39m
+[31m+                     <input[39m
+[31m+                       aria-autocomplete="list"[39m
+[31m+                       aria-controls="_r_7_"[39m
+[31m+                       aria-expanded="false"[39m
+[31m+                       aria-label="Add a tag to this note"[39m
+[31m+                       autocomplete="off"[39m
+[31m+                       class="_input_6d2af0"[39m
+[31m+                       placeholder="Add a tag"[39m
+[31m+                       role="combobox"[39m
+[31m+                       spellcheck="false"[39m
+[31m+                       type="text"[39m
+[31m+                       value=""[39m
+[31m+                     />[39m
+[31m+                   </div>[39m
+[31m+                 </form>[39m
+[31m+               </div>[39m
+[31m+             </div>[39m
+[31m+             <div[39m
+[31m+               class="_tickerRow_6e64f5"[39m
+[31m+               data-export-exclude="true"[39m
+[31m+             >[39m
+[31m+               <label[39m
+[31m+                 class="_tickerLabel_6e64f5"[39m
+[31m+                 for="_r_1_-ticker"[39m
+[31m+               >[39m
+[31m+                 Ticker[39m
+[31m+               </label>[39m
+[31m+               <input[39m
+[31m+                 autocomplete="off"[39m
+[31m+                 class="_tickerInput_6e64f5"[39m
+[31m+                 id="_r_1_-ticker"[39m
+[31m+                 placeholder="e.g. NVDA"[39m
+[31m+                 spellcheck="false"[39m
+[31m+                 value=""[39m
+[31m+               />[39m
+[31m+             </div>[39m
+[31m+             <div[39m
+[31m+               class="_emptyWrap_80cb7a"[39m
+[31m+             >[39m
+[31m+               <button[39m
+[31m+                 aria-expanded="false"[39m
+[31m+                 class="_addLink_80cb7a"[39m
+[31m+                 data-tour="properties-add-empty"[39m
+[31m+                 type="button"[39m
+[31m+               >[39m
+[31m+                 <svg[39m
+[31m+                   aria-hidden="true"[39m
+[31m+                   fill="none"[39m
+[31m+                   focusable="false"[39m
+[31m+                   height="11"[39m
+[31m+                   stroke="url(#uig14)"[39m
+[31m+                   stroke-linecap="round"[39m
+[31m+                   stroke-linejoin="round"[39m
+[31m+                   stroke-width="1.85"[39m
+[31m+                   style="color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -1px; margin-right: 4px;"[39m
+[31m+                   viewBox="0 0 24 24"[39m
+[31m+                   width="11"[39m
+[31m+                 >[39m
+[31m+                   <defs>[39m
+[31m+                     <lineargradient[39m
+[31m+                       id="uig14"[39m
+[31m+                       x1="0"[39m
+[31m+                       x2="1"[39m
+[31m+                       y1="0"[39m
+[31m+                       y2="1"[39m
+[31m+                     >[39m
+[31m+                       <stop[39m
+[31m+                         offset="0%"[39m
+[31m+                         stop-color="#a8823a"[39m
+[31m+                       />[39m
+[31m+                       <stop[39m
+[31m+                         offset="40%"[39m
+[31m+                         stop-color="#d4b25a"[39m
+[31m+                       />[39m
+[31m+                       <stop[39m
+[31m+                         offset="50%"[39m
+[31m+                         stop-color="#e8d18c"[39m
+[31m+                       />[39m
+[31m+                       <stop[39m
+[31m+                         offset="60%"[39m
+[31m+                         stop-color="#cba954"[39m
+[31m+                       />[39m
+[31m+                       <stop[39m
+[31m+                         offset="100%"[39m
+[31m+                         stop-color="#8f6f2c"[39m
+[31m+                       />[39m
+[31m+                     </lineargradient>[39m
+[31m+                   </defs>[39m
+[31m+                   <path[39m
+[31m+                     d="M12 5v14M5 12h14"[39m
+[31m+                   />[39m
+[31m+                 </svg>[39m
+[31m+                 Add property[39m
+[31m+               </button>[39m
+[31m+             </div>[39m
+[31m+           </div>[39m
+[31m+           <div[39m
+[31m+             data-tour="note-body"[39m
+[31m+           >[39m
+[31m+             <div>[39m
+[31m+               <div[39m
+[31m+                 aria-label="Note body"[39m
+[31m+                 class="tiptap ProseMirror _proseEditor_6e64f5"[39m
+[31m+                 contenteditable="true"[39m
+[31m+                 tabindex="0"[39m
+[31m+                 translate="no"[39m
+[31m+               >[39m
+[31m+                 <p>[39m
+[31m+                   the note as it is on the server now - S-now[39m
+[31m+                 </p>[39m
+[31m+               </div>[39m
+[31m+             </div>[39m
+[31m+           </div>[39m
+[31m+           <input[39m
+[31m+             accept="image/png,image/jpeg,image/gif,image/webp"[39m
+[31m+             aria-label="Upload image"[39m
+[31m+             style="display: none;"[39m
+[31m+             type="file"[39m
+[31m+           />[39m
+[31m+           <input[39m
+[31m+             accept="image/*"[39m
+[31m+             aria-label="Scan a document with the camera — photo"[39m
+[31m+             capture="environment"[39m
+[31m+             style="display: none;"[39m
+[31m+             type="file"[39m
+[31m+           />[39m
+[31m+           <input[39m
+[31m+             accept=".pdf,.txt,.csv,.md,.zip,.mp3,.m4a,.docx,.xlsx"[39m
+[31m+             aria-label="Upload file attachment"[39m
+[31m+             style="display: none;"[39m
+[31m+             type="file"[39m
+[31m+           />[39m
+[31m+         </div>[39m
+[31m+       </div>[39m
+[31m+     </div>[39m
+[31m+   </div>[39m
+[31m+   <button[39m
+[31m+     aria-expanded="false"[39m
+[31m+     aria-label="Move this block"[39m
+[31m+     class="uctBlockHandle"[39m
+[31m+     draggable="true"[39m
+[31m+     hidden=""[39m
+[31m+     title="Drag to move — or Alt+Shift+↑ / ↓"[39m
+[31m+     type="button"[39m
+[31m+   >[39m
+[31m+     <span />[39m
+[2m    </button>[22m
+[31m+ </body>[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx:[2m1066:75[22m[39m
+    [90m1064| [39m      expect(document.activeElement).toBe(screen.getByRole('button', {…
+    [90m1065| [39m      [35mawait[39m [34mpress[39m([32m'Keep it'[39m)
+    [90m1066| [39m      expect(document.activeElement, 'focus did not return to the offe…
+    [90m   | [39m                                                                          [31m^[39m
+    [90m1067| [39m    })
+    [90m1068| [39m  })
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[33m54 skipped[39m[90m (55)[39m
+[2m   Start at [22m 05:08:15
+[2m   Duration [22m 3.89s[2m (transform 1.59s, setup 187ms, import 150ms, tests 3.06s, environment 389ms)[22m
+

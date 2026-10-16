@@ -1,0 +1,65 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.screenshotChip.test.jsx[2m > [22m[2maccepting[2m > [22m[2mthe ticker write is refused: the alt STAYS, and the toast says what did and did not happen
+[22m[39mautosave failed (retry 1 in 1000ms) Error: boom
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.screenshotChip.test.jsx:309:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:12)
+
+ [31m❯[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.screenshotChip.test.jsx [2m([22m[2m27 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 8851[2mms[22m[39m
+     [32m✓[39m the chip loads through lazyChunk, never a static import or a bare React.lazy[32m 3[2mms[22m[39m
+     [32m✓[39m the poll and its network code load only on a paste with the switch on (a dynamic import, never static)[32m 1[2mms[22m[39m
+     [32m✓[39m ⛔ I5: nothing of the chip is eager -- the grammar, the label code and the accept decision load lazily[32m 2[2mms[22m[39m
+     [32m✓[39m the read starts only behind BOTH switches[32m 0[2mms[22m[39m
+     [32m✓[39m the ticker write goes through the member's own door, onTickerChange (f5Freeze counts exactly three metadata doors)[32m 0[2mms[22m[39m
+     [33m[2m✓[22m[39m smart chips OFF: pasting an image never calls readScreenshot (and the image still lands) [33m 1964[2mms[22m[39m
+     [32m✓[39m documents OFF (the OCR pipeline is not running): no poll either[32m 142[2mms[22m[39m
+     [32m✓[39m CONTROL — both on: the same paste DOES start the read, for this note and this image[32m 166[2mms[22m[39m
+     [33m[2m✓[22m[39m a single ticker found: the chip says what it will do, and NOTHING has been done yet [33m 491[2mms[22m[39m
+     [32m✓[39m nothing found: no chip at all[32m 161[2mms[22m[39m
+     [33m[2m✓[22m[39m Dismiss takes the chip away and writes nothing [33m 328[2mms[22m[39m
+     [32m✓[39m deleting the image removes the chip[32m 254[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ I3: deleting the image ENDS the offer, so typing afterwards runs no whole-document scan [33m 432[2mms[22m[39m
+     [33m[2m✓[22m[39m a note with NO ticker: the alt is set and the ticker is set ONCE through the metadata door [33m 403[2mms[22m[39m
+     [32m✓[39m a note that already HAS a ticker: the chip says "Tag image", the ticker is untouched, update is not called[32m 274[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ I2: a ticker TYPED into the field but not saved yet is the note's ticker -- labelled only, never overwritten [33m 491[2mms[22m[39m
+     [33m[2m✓[22m[39m the ticker set by a tag goes through the ticker door's own validator (normalized, never a second route) [33m 365[2mms[22m[39m
+     [32m✓[39m a symbol the ticker door refuses is not written: the alt stays and the toast says the ticker was not set[32m 259[2mms[22m[39m
+     [32m✓[39m no timeframe: the alt and the toast name the symbol alone[32m 254[2mms[22m[39m
+     [33m[2m✓[22m[39m the ticker write is refused: the alt STAYS, and the toast says what did and did not happen [33m 368[2mms[22m[39m
+     [33m[2m✓[22m[39m a locked note takes no tag: a sentence, no alt, no ticker [33m 328[2mms[22m[39m
+     [32m✓[39m note changed: the read is aborted and NO offer renders in the other note[32m 290[2mms[22m[39m
+     [32m✓[39m a newer paste aborts the older read (one offer at a time, the newest)[32m 137[2mms[22m[39m
+     [32m✓[39m leaving the page aborts the read[32m 114[2mms[22m[39m
+[31m     [31m×[31m the first fetch fails and the in-place retry succeeds: the image is tagged and the ticker set, once[39m[33m 659[2mms[22m[39m
+     [33m[2m✓[22m[39m both attempts fail: the member is told to reload, and nothing is written (no alt, no ticker) [33m 636[2mms[22m[39m
+     [33m[2m✓[22m[39m has no change handler until an offer shows, and gets one while it does [33m 327[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/components/notebook/NoteEditorPage.screenshotChip.test.jsx[2m > [22mN1: the screenshot tag door survives a failed chunk fetch[2m > [22mthe first fetch fails and the in-place retry succeeds: the image is tagged and the ticker set, once
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called 1 times, but got 2 times[39m
+[36m [2m❯[22m src/pages/journal-2-0/components/notebook/NoteEditorPage.screenshotChip.test.jsx:[2m404:24[22m[39m
+    [90m402| [39m    [34mexpect[39m(chunkRetry[33m.[39mimportUrl)[33m.[39m[34mtoHaveBeenCalledTimes[39m([34m1[39m)
+    [90m403| [39m    expect(new URL(chunkRetry.importUrl.mock.calls[0][0]).pathname).to…
+    [90m404| [39m    [34mexpect[39m(updateMock)[33m.[39m[34mtoHaveBeenCalledTimes[39m([34m1[39m)
+    [90m   | [39m                       [31m^[39m
+    [90m405| [39m    [34mexpect[39m([34mimageAttrs[39m(editor)[[34m0[39m][33m.[39malt)[33m.[39m[34mtoBe[39m([32m'NVDA daily chart'[39m)
+    [90m406| [39m  })
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m26 passed[39m[22m[90m (27)[39m
+[2m   Start at [22m 05:18:57
+[2m   Duration [22m 9.60s[2m (transform 1.67s, setup 201ms, import 47ms, tests 8.85s, environment 400ms)[22m
+

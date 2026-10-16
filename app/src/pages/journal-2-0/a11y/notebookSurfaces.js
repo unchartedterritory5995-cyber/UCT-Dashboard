@@ -56,6 +56,10 @@ export const SURFACES = Object.freeze({
   // ── the editor's popups, each opened through its own door ──────────────────
   'components/notebook/SlashMenu.jsx': { coveredBy: 'editor-slash' },
   'components/notebook/NoteFindBar.jsx': { coveredBy: 'editor-find' },
+  // I-A (Restore-then-Undo word loss): the offer for a copy the server refused to create.
+  // It renders only after a refused create, so it has recipes of its own (the offer and its
+  // Discard confirm) in a11y/refusedCopyOffer.a11y.test.jsx.
+  'components/notebook/RefusedCopyOffer.jsx': { recipe: 'refused-copy-offer' },
   'components/notebook/NoteOutline.jsx': { coveredBy: 'editor-outline' },
   'components/notebook/TextColorMenu.jsx': { coveredBy: 'editor-color' },
   'components/notebook/TableToolbar.jsx': { coveredBy: 'editor-table' },

@@ -1,0 +1,6 @@
+R2-M13-restore-forgets-retire: Test Files  1 failed | 3 passed (4) | Tests  1 failed | 90 passed (91)  [restored OK]
+     × opening the source note OFFERS the refused copy; Restore puts its words in the note and only then retires the copy 1568ms
+R2-M14-retire-ungated: Test Files  4 passed (4) | Tests  91 passed (91)  [restored OK]
+R2-M15-bodyless-draft-not-captured: Test Files  4 passed (4) | Tests  91 passed (91)  [restored OK]
+R2-M16-crossing-plain-schedule: Test Files  1 failed | 3 passed (4) | Tests  1 failed | 90 passed (91)  [restored OK]
+     × the member replaced the restored words, undid back to them (the record stays pinned), then undid past the Restore ⇒ W durable 4367ms

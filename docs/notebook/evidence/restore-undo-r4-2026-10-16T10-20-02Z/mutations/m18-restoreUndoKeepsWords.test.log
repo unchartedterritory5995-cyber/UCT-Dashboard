@@ -1,0 +1,14 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+ [32m✓[39m src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx [2m([22m[2m55 tests[22m[2m | [22m[33m51 skipped[39m[2m)[22m[33m 5731[2mms[22m[39m
+     [33m[2m✓[22m[39m (a) a cell ends with a PUT still in flight [33m 3282[2mms[22m[39m
+     [33m[2m✓[22m[39m (b) that PUT, landing in the next cell, changes only the cell that sent it [33m 702[2mms[22m[39m
+     [33m[2m✓[22m[39m (c) a cell ends with a separate-note save still in flight (its source read is held) [33m 1045[2mms[22m[39m
+     [33m[2m✓[22m[39m (d) that save, finishing in the next cell, creates its note only in the cell that sent it [33m 700[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m4 passed[39m[22m[2m | [22m[33m51 skipped[39m[90m (55)[39m
+[2m   Start at [22m 05:08:25
+[2m   Duration [22m 6.56s[2m (transform 1.58s, setup 188ms, import 156ms, tests 5.73s, environment 389ms)[22m
+

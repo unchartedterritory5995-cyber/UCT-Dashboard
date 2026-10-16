@@ -1,0 +1,27 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteMenuActions.saveAsStyle.test.jsx [2m([22m[2m15 tests[22m[2m)[22m[33m 2749[2mms[22m[39m
+     [33m[2m✓[22m[39m sends the editor's words first, names it, and creates the style from the note [33m 743[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteMenuActions.styleDoorFocus.test.jsx [2m([22m[2m1 test[22m[2m)[22m[33m 571[2mms[22m[39m
+     [33m[2m✓[22m[39m N-M7: the button keeps its place, label and focus, then focus goes into the form [33m 570[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/journalStyles.a11y.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[33m 6958[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "styles-manager": axe finds 0 violations [33m 1048[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "styles-manager-editor": axe finds 0 violations [33m 1972[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "styles-manager-offer": axe finds 0 violations [33m 801[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "styles-manager-kind-confirm": axe finds 0 violations [33m 919[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "styles-manager-discard": axe finds 0 violations [33m 2114[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteMenuActions.styleDemand.test.jsx [2m([22m[2m1 test[22m[2m)[22m[33m 555[2mms[22m[39m
+     [33m[2m✓[22m[39m the button is there, nothing is fetched until it is pressed [33m 553[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/HeroImagePicker.settle.test.jsx[2m > [22m[2m⛔⛔ HeroImagePicker LANDS ITS REVISION — both doors, real component[2m > [22m[2m⭐ CONTROL — a FAILED upload lands nothing: there is no revision to land
+[22m[39m[notebook] hero upload failed Error: boom
+    at upload (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/HeroImagePicker.jsx:33:15)
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/HeroImagePicker.settle.test.jsx [2m([22m[2m7 tests[22m[2m)[22m[32m 169[2mms[22m[39m
+ [32m✓[39m src/hub/writePathsTransitive.test.js [2m([22m[2m10 tests[22m[2m)[22m[32m 105[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m6 passed[39m[22m[90m (6)[39m
+[2m      Tests [22m [1m[32m40 passed[39m[22m[90m (40)[39m
+[2m   Start at [22m 23:37:39
+[2m   Duration [22m 10.84s[2m (transform 2.20s, setup 1.57s, import 2.82s, tests 11.11s, environment 4.75s)[22m
+

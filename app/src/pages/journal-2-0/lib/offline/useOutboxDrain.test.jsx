@@ -10,7 +10,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { createFakeDb, settleIdb, installKeyRange } from './__fixtures__/fakeIndexedDb'
-import { putNoteWithIntent, listOutbox, getNote } from './notebookDb'
+import { putNoteWithIntent, listOutbox, getNote, putOutboxEntry } from './notebookDb'
+import { copyEntryFor } from './noteCopy'
 import { useOutboxDrain } from './useOutboxDrain'
 import { LEADER, FOLLOWER, READ_ONLY_FOR_SYNC } from './outboxLeader'
 import { OFFLINE_FLAG_KEY } from './offlineFlag'
@@ -291,6 +292,26 @@ describe('⛔ a fork made by the sweep fires conflict_forked, door outbox', () =
     // save that landed — and still no conflict_forked.
     await waitFor(() => expect(trackNotebookEvent).toHaveBeenCalledTimes(1))
     expect(trackNotebookEvent.mock.calls).toEqual([['save_success', { door: 'outbox', queued: true }]])
+  })
+
+  // I-A review M-2 (railed in fix round 3, I-5): a queued `(conflicted copy)` is
+  // words the member's OWN swap pushed out — not a conflict with another writer —
+  // so forking it must not count in the sync-conflict SLO.
+  it('⛔ M-2: a member\'s own swap COPY forked by the sweep is NOT a sync conflict — no conflict_forked', async () => {
+    installLocks()
+    await putOutboxEntry(db, copyEntryFor({
+      noteId: 'n1', words: { title: 'Thesis', subtitle: '', bodyJson: doc('pushed out by a swap') }, sessionId: 's1',
+    }))
+    await settleIdb()
+    const send = vi.fn(async () => ({ updatedAt: 'T2' }))
+    const fork = vi.fn(async () => ({ id: 'n1', title: 'Thesis', subtitle: '', bodyJson: doc('S'), updatedAt: 'T1' }))
+    const { result } = mount({ send, fork })
+    await waitFor(() => expect(result.current.role).toBe(LEADER))
+    await act(async () => { await settleIdb(6) })
+    await waitFor(() => expect(fork).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(trackNotebookEvent).toHaveBeenCalledTimes(1))
+    expect(trackNotebookEvent.mock.calls, 'the copy fork was reported as a sync conflict').toEqual([['save_success', { door: 'outbox', queued: true }]])
   })
 
   it('a BLOCKED outcome (send permanently fails, no fork) reports nothing', async () => {

@@ -131,6 +131,11 @@
   border-color: var(--ut-gold);
   color: var(--ut-gold);
 }
+/* I-A: the refused-copy offer's own classes live in RefusedCopyOffer.module.css (its own chunk);
+   this one is shared with the editor's door (NoteEditorPage.jsx, RefusedCopyDoor). */
+.copyStatus {
+  margin: 0;
+}
 /* Wave 6 item 8: a locked note says so, once, with the way out beside it. */
 .lockBanner {
   display: flex;

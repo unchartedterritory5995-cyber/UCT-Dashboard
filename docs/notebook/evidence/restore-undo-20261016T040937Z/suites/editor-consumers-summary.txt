@@ -1,0 +1,19 @@
+11620
+[editor-0] exit=0 files=8 :: Test Files  8 passed (8) | Tests  72 passed (72)
+[editor-1] exit=0 files=8 :: Test Files  8 passed (8) | Tests  69 passed (69)
+[editor-2] exit=0 files=8 :: Test Files  8 passed (8) | Tests  46 passed (46)
+[editor-3] exit=0 files=8 :: Test Files  8 passed (8) | Tests  42 passed (42)
+[editor-4] exit=0 files=8 :: Test Files  8 passed (8) | Tests  67 passed (67)
+[editor-5] exit=0 files=8 :: Test Files  8 passed (8) | Tests  52 passed (52)
+[editor-6] exit=0 files=8 :: Test Files  8 passed (8) | Tests  59 passed (59)
+[editor-7] exit=0 files=8 :: Test Files  8 passed (8) | Tests  43 passed (43)
+[editor-8] exit=0 files=4 :: Test Files  4 passed (4) | Tests  57 passed (57)
+EXIT: 0
+[consumers-0] exit=1 files=12 :: NO TOTALS LINE
+[consumers-1] exit=0 files=12 :: Test Files  12 passed (12) | Tests  175 passed (175)
+[consumers-2] exit=0 files=12 :: Test Files  12 passed (12) | Tests  158 passed (158)
+[consumers-3] exit=0 files=12 :: Test Files  12 passed (12) | Tests  152 passed (152)
+[consumers-4] exit=0 files=4 :: Test Files  4 passed (4) | Tests  19 passed (19)
+EXIT: 99
+
+[exited with code 0]

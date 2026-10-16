@@ -1,0 +1,34 @@
+16892
+[offline-0] exit=0 files=10 :: Test Files  10 passed (10) | Tests  192 passed (192)
+[offline-1] exit=0 files=10 :: Test Files  10 passed (10) | Tests  195 passed (195)
+[offline-2] exit=0 files=10 :: Test Files  10 passed (10) | Tests  268 passed (268)
+[offline-3] exit=0 files=10 :: Test Files  10 passed (10) | Tests  132 passed (132)
+[offline-4] exit=0 files=9 :: Test Files  9 passed (9) | Tests  81 passed (81)
+EXIT: 0
+[editor-0] exit=0 files=8 :: Test Files  8 passed (8) | Tests  72 passed (72)
+[editor-1] exit=0 files=8 :: Test Files  8 passed (8) | Tests  69 passed (69)
+[editor-2] exit=0 files=8 :: Test Files  8 passed (8) | Tests  46 passed (46)
+[editor-3] exit=0 files=8 :: Test Files  8 passed (8) | Tests  42 passed (42)
+[editor-4] exit=0 files=8 :: Test Files  8 passed (8) | Tests  67 passed (67)
+[editor-5] exit=0 files=8 :: Test Files  8 passed (8) | Tests  52 passed (52)
+[editor-6] exit=0 files=8 :: Test Files  8 passed (8) | Tests  59 passed (59)
+[editor-7] exit=0 files=8 :: Test Files  8 passed (8) | Tests  43 passed (43)
+[editor-8] exit=0 files=4 :: Test Files  4 passed (4) | Tests  57 passed (57)
+EXIT: 0
+[consumers-0] exit=0 files=6 :: Test Files  6 passed (6) | Tests  40 passed (40)
+[consumers-1] exit=0 files=6 :: Test Files  6 passed (6) | Tests  121 passed (121)
+[consumers-2] exit=0 files=6 :: Test Files  6 passed (6) | Tests  88 passed (88)
+[consumers-3] exit=0 files=6 :: Test Files  6 passed (6) | Tests  87 passed (87)
+[consumers-4] exit=0 files=6 :: Test Files  6 passed (6) | Tests  82 passed (82)
+[consumers-5] exit=0 files=6 :: Test Files  6 passed (6) | Tests  76 passed (76)
+[consumers-6] exit=0 files=6 :: Test Files  6 passed (6) | Tests  59 passed (59)
+[consumers-7] exit=0 files=6 :: Test Files  6 passed (6) | Tests  93 passed (93)
+[consumers-8] exit=0 files=6 :: Test Files  6 passed (6) | Tests  24 passed (24)
+[consumers-9] exit=0 files=6 :: Test Files  6 passed (6) | Tests  47 passed (47)
+[consumers-10] exit=0 files=6 :: Test Files  6 passed (6) | Tests  29 passed (29)
+[consumers-11] exit=0 files=6 :: Test Files  6 passed (6) | Tests  81 passed (81)
+[consumers-12] exit=0 files=6 :: Test Files  5 passed (5) | Tests  83 passed (83)
+[consumers-13] exit=0 files=2 :: Test Files  1 passed (1) | Tests  17 passed (17)
+EXIT: 0
+
+[exited with code 0]

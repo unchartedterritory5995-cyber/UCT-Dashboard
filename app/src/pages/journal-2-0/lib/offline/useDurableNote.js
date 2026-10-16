@@ -38,11 +38,13 @@ import { offlineEnabled } from './offlineFlag'
 import {
   chooseLocalRecovery, newSessionId, sameAuthoredContent, discardsUnsentWork,
   editorStateDiscardsUnsentWork, queuedWorkToAdopt, baseOfRecovered,
-  editorLineageStamp, editorLineageSupersedes,
+  editorLineageStamp, editorLineageSupersedes, swapCaptureSpills,
 } from './recoverLocalState'
+import { copyEntryFor } from './noteCopy'
+import { refusedCopiesOf } from './refusedCopy'
 import { settleForkedNote } from './outboxDrain'
 import { lastKnownServerCopy, snapshotOfServerCopy } from './serverChange'
-import { usableBaseline, isUsableBaseline } from './baseline'
+import { usableBaseline, isUsableBaseline, isSupersededBaseline } from './baseline'
 import { holdNoteOwnerLock } from './noteOwnerLock'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../notebookTelemetry'
 
@@ -632,13 +634,31 @@ export function useDurableNote({
       // mid-text edit, an insert before existing text or a deletion made by the
       // same live view supersedes the record it wrote earlier instead of being
       // refused as a discard (the note above `authoredDigest`).
-      const unsentWork = editorStateDiscardsUnsentWork(prev, {
+      const incoming = {
         title: state?.title ?? '',
         subtitle: state?.subtitle ?? '',
         bodyJson: state?.bodyJson ?? null,
         editLineage: state?.editLineage,
-      })
-      const source = unsentWork ? prev : state
+      }
+      const unsentWork = editorStateDiscardsUnsentWork(prev, incoming)
+      // ⭐⭐ I-A FIX ROUND 1: a capture taken at a swap the member made (a
+      // crash-draft Restore, an Undo or Redo across one) never leaves the record
+      // pinned on words the page no longer carries. Those words go to a queued
+      // `(conflicted copy)` in this same transaction and the record follows the
+      // page — see the note above `swapCaptureSpills`.
+      const spill = swapCaptureSpills(prev, incoming, state?.spill)
+      const keepsPrev = unsentWork && !spill
+      const source = keepsPrev ? prev : state
+      // ⛔ After a spill the record's words travel on the OLDER of the two
+      // baselines (the record's own, and the one the page was captured on): an
+      // older base can only 409 more often, never land over a door's append it
+      // never saw.
+      const keepPrevBase = spill && isUsableBaseline(prev.baseUpdatedAt)
+        && (!isUsableBaseline(state?.baseUpdatedAt)
+          || usableBaseline(prev.baseUpdatedAt) === usableBaseline(state.baseUpdatedAt)
+          || isSupersededBaseline(prev.baseUpdatedAt, state.baseUpdatedAt))
+      let baseFrom = keepsPrev ? prev?.baseUpdatedAt : state?.baseUpdatedAt
+      if (spill && keepPrevBase) baseFrom = prev.baseUpdatedAt
       const record = {
         noteId,
         title: source?.title ?? '',
@@ -647,9 +667,7 @@ export function useDurableNote({
         // ⛔ The baseline does NOT move while work is unsent. Moving it is
         // precisely what lets `landedBaseline` hand the drain a "newer landed
         // save" whose contents nobody checked.
-        baseUpdatedAt: usableBaseline(
-          unsentWork ? prev?.baseUpdatedAt : state?.baseUpdatedAt,
-        ),
+        baseUpdatedAt: usableBaseline(baseFrom),
         generation,
         sessionId: SESSION_ID,
         localSavedAt: Date.now(),
@@ -667,15 +685,20 @@ export function useDurableNote({
       // stamp: `prev`'s own when fix 6 keeps `prev`'s words, the capture's when the
       // editor's words are written. Absent (a door's or `discardDraft`'s server
       // copy) claims nothing.
-      const lineageStamp = unsentWork
+      const lineageStamp = keepsPrev
         ? prev?.editorLineage
         : editorLineageStamp(record, state?.editLineage)
       if (lineageStamp) record.editorLineage = lineageStamp
       // ⛔ `null` when clean — a clean record IS the base and a second copy of
-      // one value is a second authority over it.
-      record.serverBase = record.dirty
-        ? (lastKnownServerCopy(prev) || snapshotOfServerCopy(state?.serverBase))
-        : null
+      // one value is a second authority over it. After a spill the copy matches
+      // the baseline chosen above.
+      let serverBase = null
+      if (record.dirty) {
+        serverBase = spill && !keepPrevBase
+          ? (snapshotOfServerCopy(state?.serverBase) || lastKnownServerCopy(prev))
+          : (lastKnownServerCopy(prev) || snapshotOfServerCopy(state?.serverBase))
+      }
+      record.serverBase = serverBase
       const intent = record.dirty
         ? {
           mutationId: outboxIdFor(noteId),
@@ -690,9 +713,13 @@ export function useDurableNote({
           writtenSchema: record.writtenSchema,
         }
         : null
-      // ⛔⛔ ONE TRANSACTION. The working copy and what we still owe the server
-      // move together or not at all.
-      await putNoteWithIntent(db, record, intent)
+      // I-A fix round 1: the record's spilled words, as a queued copy.
+      const copies = spill
+        ? [copyEntryFor({ noteId, words: prev, writtenSchema: prev.writtenSchema, sessionId: SESSION_ID })]
+        : []
+      // ⛔⛔ ONE TRANSACTION. The working copy, what we still owe the server, and
+      // any copy a swap pushed out move together or not at all.
+      await putNoteWithIntent(db, record, intent, { copies })
       committedDirtyRef.current = Boolean(record.dirty)
     }
 
@@ -762,18 +789,25 @@ export function useDurableNote({
   const recover = useCallback(async ({ server, lsDraft = null } = {}) => {
     let idbRecord = null
     let queued = null
+    let refusedCopies = []
     if (supported) {
       try {
         const db = await connect(accountId)
         const rec = await getNote(db, noteId)
         // ⛔ See the header: a clean record is not a candidate.
         idbRecord = rec && rec.dirty ? rec : null
+        const entries = await listOutbox(db)
         // ⭐ D3 / F5P-1: the queued entry is the evidence that these words were
         // already committed to the server — see `queuedWorkToAdopt`.
-        if (idbRecord) queued = (await listOutbox(db)).find((e) => e?.noteId === noteId) || null
+        if (idbRecord) queued = entries.find((e) => e?.noteId === noteId) || null
+        // ⭐ I-A fix round 3 (C-3, I-4): copies of THIS note's words the server
+        // refused to create. The sweep never re-sends them, so this is how the
+        // member reaches them: their own offer on the note they came from.
+        refusedCopies = refusedCopiesOf(entries, noteId)
       } catch {
         idbRecord = null   // no durable copy is a fact, not an error to raise
         queued = null
+        refusedCopies = []
       }
     }
     // ⛔ D3b — WITH THE WAVE SWITCHED OFF, A DRAFT IS READ EXACTLY AS BEFORE D3b.
@@ -791,14 +825,37 @@ export function useDurableNote({
     // reconcile instead of being overwritten (see `baseOfRecovered`). ⭐ D3b: for
     // a crash draft that won too, and — when only the REVISION is provable — a
     // base whose body is unknown, so any move of the server forks.
+    // ⛔⛔ I-A fix round 3 (review C-3): a refused copy is NEVER this decision. It is
+    // not restored into this note; it travels BESIDE the decision as its own offer.
     return {
       ...decision,
       adopt: queuedWorkToAdopt({ decision, record: idbRecord, entry: queued }),
       base: baseOfRecovered({
         decision, record: idbRecord, entry: queued, draft: supported ? lsDraft : null, server,
       }),
+      refusedCopies,
     }
   }, [supported, accountId, noteId, connect])
 
-  return { supported, status, unsynced, error, persisted, schedule, markSynced, flush, recover }
+  /**
+   * ⭐ I-A bytes: the refused-copy offer's ONE door into this account's store. The offer's
+   * choices ("Save as a separate note", "Save as plain text", "Discard",
+   * `refusedCopyDisplay.js`) ride in the offer's own chunk, so this hook carries none of
+   * them: it runs `run(db)` and answers `fallback` when there is no store or it cannot be
+   * reached. ⛔ `fallback` is what each choice already answered then — "failed, kept as it
+   * was" for a save, "not deleted" for a Discard — so no failure here can lose a copy.
+   */
+  const withCopyStore = useCallback(async (run, fallback) => {
+    if (!supported) return fallback
+    try {
+      const db = await connect(accountId)
+      return await run(db)
+    } catch {
+      return fallback
+    }
+  }, [supported, accountId, connect])
+
+  return {
+    supported, status, unsynced, error, persisted, schedule, markSynced, flush, recover, withCopyStore,
+  }
 }

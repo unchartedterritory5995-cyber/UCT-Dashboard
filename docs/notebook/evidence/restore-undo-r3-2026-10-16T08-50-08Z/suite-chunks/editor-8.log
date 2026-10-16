@@ -1,0 +1,347 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.waveB.test.jsx[2m > [22m[2mNoteEditorPage — Wave B Favorites toggle[2m > [22m[2mclicking again unfavorites (POST then DELETE semantics via the isFavorite arg)
+[22m[39mAn update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.waveB.test.jsx[2m > [22m[2mNoteEditorPage — Duplicate note (UX #12)[2m > [22m[2mthe button is disabled while the duplicate is in flight, so a double-click cannot fire it twice
+[22m[39mAn update to MemoryRouter inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.waveB.test.jsx [2m([22m[2m16 tests[22m[2m)[22m[33m 6780[2mms[22m[39m
+     [33m[2m✓[22m[39m renders the star as outline when the note is not favorited [33m 2540[2mms[22m[39m
+     [33m[2m✓[22m[39m clicking the star optimistically fills it and calls setNoteFavorite(id, true) [33m 376[2mms[22m[39m
+     [33m[2m✓[22m[39m a failed favorite write reverts the star back to its prior state [33m 447[2mms[22m[39m
+     [33m[2m✓[22m[39m clicking again unfavorites (POST then DELETE semantics via the isFavorite arg) [33m 431[2mms[22m[39m
+     [33m[2m✓[22m[39m cancel closes the modal without deleting [33m 424[2mms[22m[39m
+     [33m[2m✓[22m[39m confirming deletes the note and navigates back [33m 322[2mms[22m[39m
+     [33m[2m✓[22m[39m clones title/subtitle/body/tags/ticker/folder via the shared createNoteViaApi path [33m 314[2mms[22m[39m
+     [33m[2m✓[22m[39m navigates to the newly-created note via the app's one note-routing idiom (?note=) [33m 336[2mms[22m[39m
+     [33m[2m✓[22m[39m a failed duplicate leaves the member on the SAME note (no navigation, no console crash) [33m 328[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — table toolbar door (wave 6 item 1)[2m > [22m[2mthe toolbar appears while the caret is in a table and edits THIS note
+[22m[39mRender methods should be a pure function of props and state; triggering nested component updates from render is not allowed. If necessary, trigger nested updates in componentDidUpdate.
+
+Check the render method of NoteEditorPage.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — table toolbar door (wave 6 item 1)[2m > [22m[2mthe toolbar appears while the caret is in a table and edits THIS note
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — table toolbar door (wave 6 item 1)[2m > [22m[2mthe toolbar appears while the caret is in a table and edits THIS note
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — callout picker door (wave 6 item 2)[2m > [22m[2mthe callout's own control restyles it in the page's editor
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — callout picker door (wave 6 item 2)[2m > [22m[2mthe callout's own control restyles it in the page's editor
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — callout picker door (wave 6 item 2)[2m > [22m[2mthe callout's own control restyles it in the page's editor
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — moving a block door (wave 6 item 4)[2m > [22m[2mAlt+Shift+Down moves the caret's block in the page's editor; the grip exists for it
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — moving a block door (wave 6 item 4)[2m > [22m[2mAlt+Shift+Down moves the caret's block in the page's editor; the grip exists for it
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — pasted link door (wave 6 item 6)[2m > [22m[2ma lone YouTube link pasted in the page offers Link · Preview card · Embed, and Embed places the player
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — pasted link door (wave 6 item 6)[2m > [22m[2ma lone YouTube link pasted in the page offers Link · Preview card · Embed, and Embed places the player
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — lane F wiring (wave 6 item 7)[2m > [22m[2mUnlinked mentions sits under "Linked from" in the page
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — lane F wiring (wave 6 item 7)[2m > [22m[2mUnlinked mentions sits under "Linked from" in the page
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — a locked note (wave 6 item 8)[2m > [22m[2mopens read-only with the banner, read-only title and no editing controls; Outline stays
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — a locked note (wave 6 item 8)[2m > [22m[2mopens read-only with the banner, read-only title and no editing controls; Outline stays
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — a locked note (wave 6 item 8)[2m > [22m[2mUnlock PATCHes {locked:false}, and the note is editable at once
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — a locked note (wave 6 item 8)[2m > [22m[2mUnlock PATCHes {locked:false}, and the note is editable at once
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — a locked note (wave 6 item 8)[2m > [22m[2man Unlock the server refuses says so and the note STAYS locked
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — a locked note (wave 6 item 8)[2m > [22m[2man Unlock the server refuses says so and the note STAYS locked
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — a locked note (wave 6 item 8)[2m > [22m[2mCONTROL: a note with no lock (or locked:false) is editable, with no banner
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — a locked note (wave 6 item 8)[2m > [22m[2mCONTROL: a note with no lock (or locked:false) is editable, with no banner
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — a locked note (wave 6 item 8)[2m > [22m[2mafter an Unlock the server confirmed, a LATER lock applies again (the local unlock does not outlive it)
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — a locked note (wave 6 item 8)[2m > [22m[2mafter an Unlock the server confirmed, a LATER lock applies again (the local unlock does not outlive it)
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — a locked note (wave 6 item 8)[2m > [22m[2ma lock that arrives while the note is open (a refresh) turns editing off
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx[2m > [22m[2mNoteEditorPage — a locked note (wave 6 item 8)[2m > [22m[2ma lock that arrives while the note is open (a refresh) turns editing off
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx [2m([22m[2m17 tests[22m[2m)[22m[33m 3712[2mms[22m[39m
+     [33m[2m✓[22m[39m the toolbar appears while the caret is in a table and edits THIS note [33m 888[2mms[22m[39m
+     [33m[2m✓[22m[39m a selected image offers its bar in the page; a caption added there is text the word count reads [33m 682[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.writingHelp.test.jsx [2m([22m[2m10 tests[22m[2m)[22m[33m 3401[2mms[22m[39m
+     [33m[2m✓[22m[39m flag OFF (never latched): no toolbar entry, no slash item [33m 776[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔⛔ the draft streams into the PREVIEW and the note is untouched until Accept [33m 643[2mms[22m[39m
+     [33m[2m✓[22m[39m telemetry — Accept in the panel sends writing_help_used once; the preview and Discard send none [33m 616[2mms[22m[39m
+     [33m[2m✓[22m[39m Discard removes NOTHING, because nothing was ever added [32m 300[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.writtenSchema.test.jsx[2m > [22m[2m⛔ if keeping a copy FAILS, the refusal is reported — never retried — and the words stay on this device[2m > [22m[2mthe create is down: exactly one refused send, the note untouched, the words still in the durable copy and the queue
+[22m[39mcould not keep the refused words as a copy Error: Could not create note (500)
+    at createNoteViaApi (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/noteCreation.js:50:17)
+    at reconcileConflict (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3692:5)
+    at keepRefusedWords (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1828:7)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3873:15) {
+  status: [33m500[39m,
+  detail: [32m'down'[39m
+}
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.writtenSchema.test.jsx[2m > [22m[2m⛔ if keeping a copy FAILS, the refusal is reported — never retried — and the words stay on this device[2m > [22m[2mthe create is down: exactly one refused send, the note untouched, the words still in the durable copy and the queue
+[22m[39mautosave failed (non-retryable) Error: This note has content from a newer version of the app. Reload to edit it.
+    at update (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/hooks/useJ2Notes.js:236:21)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3864:17) {
+  status: [33m409[39m
+}
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.writtenSchema.test.jsx [2m([22m[2m14 tests[22m[2m)[22m[33m 41593[2mms[22m[39m
+     [33m[2m✓[22m[39m reloaded into the new bundle, nobody types: declared 0 → refused → kept as a copy; the server note is byte-identical [33m 3738[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ and after that, the member’s next keystroke saves on the SERVER’s note at this bundle’s level — the formula survives [33m 3732[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ a copy that SAYS it was written at level 0 is treated exactly the same [33m 2491[2mms[22m[39m
+     [33m[2m✓[22m[39m words queued by a level-1 bundle on the same note are adopted, sent at level 1, and land — no copy [33m 2475[2mms[22m[39m
+     [33m[2m✓[22m[39m while the adopted words’ save is still on the wire, the NEW durable copy, queue entry and draft all say 0 — even after another keystroke [33m 2926[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ an ordinary edit of a note this bundle READ is stamped with this bundle’s level, everywhere [33m 1301[2mms[22m[39m
+     [33m[2m✓[22m[39m a crash draft alone (an old tab’s, unstamped): Restore declares 0 → refused → kept as a copy; the note is untouched [33m 4393[2mms[22m[39m
+     [33m[2m✓[22m[39m the banner’s Restore of a BLOCKED queued copy (the base-known path) is refused and kept the same way [33m 3109[2mms[22m[39m
+     [33m[2m✓[22m[39m a blocked copy stamped at this bundle’s level, Restored: sent at that level, lands, no copy [33m 3076[2mms[22m[39m
+     [33m[2m✓[22m[39m adoption: an old tab’s copy of a LEVEL-0 note lands at 0; then a formula and more typing all land — no copy [33m 3395[2mms[22m[39m
+     [33m[2m✓[22m[39m Restore: an old tab’s crash draft of a LEVEL-0 note lands at 0; then a formula and more typing all land — no copy [33m 5157[2mms[22m[39m
+     [33m[2m✓[22m[39m a VERSION RESTORE puts the server’s copy on screen — what is typed on it is this bundle’s own [33m 3347[2mms[22m[39m
+     [33m[2m✓[22m[39m the create is down: exactly one refused send, the note untouched, the words still in the durable copy and the queue [33m 2450[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[32m57 passed[39m[22m[90m (57)[39m
+[2m   Start at [22m 03:44:08
+[2m   Duration [22m 43.48s[2m (transform 3.71s, setup 708ms, import 1.11s, tests 55.49s, environment 1.85s)[22m
+

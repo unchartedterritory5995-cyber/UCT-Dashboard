@@ -1,0 +1,274 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/tabs/NotebookTab.savedViewRestore.test.jsx[2m > [22m[2mR5-2 — a saved view reopens in the mode it was saved in, through the real sidebar row[2m > [22m[2mthe Tasks mode is never offered as a saveable view (saveable: false)
+[22m[39mAn update to FolderSidebar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to FolderSidebar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to FolderSidebar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to FolderSidebar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to FolderSidebar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/tabs/NotebookTab.savedViewRestore.test.jsx [2m([22m[2m9 tests[22m[2m)[22m[33m 2598[2mms[22m[39m
+     [33m[2m✓[22m[39m save a TIMELINE view, reload, reopen it from the sidebar: the timeline is pressed and drawn [33m 721[2mms[22m[39m
+     [33m[2m✓[22m[39m a saved board view reopens as itself [33m 353[2mms[22m[39m
+     [33m[2m✓[22m[39m a saved calendar view reopens as itself [33m 365[2mms[22m[39m
+     [33m[2m✓[22m[39m a saved graph view reopens as itself [33m 363[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/tabs/NotebookTab.publishFolder.test.jsx[2m > [22m[2mselecting it opens the confirmation, never a publish (ruling D-9D1)[2m > [22m[2mit opens from an open note
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/tabs/NotebookTab.publishFolder.test.jsx[2m > [22m[2mselecting it opens the confirmation, never a publish (ruling D-9D1)[2m > [22m[2mit opens from an open note
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/tabs/NotebookTab.publishFolder.test.jsx[2m > [22m[2mselecting it opens the confirmation, never a publish (ruling D-9D1)[2m > [22m[2mit opens from an open note
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/tabs/NotebookTab.publishFolder.test.jsx [2m([22m[2m10 tests[22m[2m)[22m[33m 4352[2mms[22m[39m
+     [33m[2m✓[22m[39m nobody, while no flag has latched (a tab that has not heard from the server reads as off) [33m 455[2mms[22m[39m
+     [33m[2m✓[22m[39m nobody, while the publish gate is latched OFF — even with every other wave-8 flag on [33m 346[2mms[22m[39m
+     [33m[2m✓[22m[39m confirm, publish once, see the address — and focus goes back to the folder's row on close [33m 887[2mms[22m[39m
+     [33m[2m✓[22m[39m keyboard only: Shift+F10 on the folder, Publish in its menu, Escape closes it and returns focus to the folder [33m 352[2mms[22m[39m
+     [33m[2m✓[22m[39m it opens from the home page [33m 347[2mms[22m[39m
+     [33m[2m✓[22m[39m it opens from the notes list [33m 362[2mms[22m[39m
+     [33m[2m✓[22m[39m it opens from an open note [33m 637[2mms[22m[39m
+     [33m[2m✓[22m[39m a folder with a live page shows its address instead of a second publish [33m 390[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/tabs/NotebookTab.split.test.jsx[2m > [22m[2mtwo notes, side by side[2m > [22m[2m?side= opens a second editor beside the first, each in its own pane
+[22m[39mAn update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/tabs/NotebookTab.stylesDoor.test.jsx [2m([22m[2m7 tests[22m[2m)[22m[33m 2760[2mms[22m[39m
+     [33m[2m✓[22m[39m shows a Styles button beside Import while the switch is on, and it opens the manager [33m 788[2mms[22m[39m
+     [33m[2m✓[22m[39m has no Styles button when the server never said [33m 310[2mms[22m[39m
+     [33m[2m✓[22m[39m ?styles=1 opens the manager when the switch is on [33m 363[2mms[22m[39m
+     [33m[2m✓[22m[39m the Settings card's own link opens the manager on Research Home [33m 365[2mms[22m[39m
+     [33m[2m✓[22m[39m ?styles=1 on Research Home opens nothing, and asks for nothing, when the switch is off [33m 326[2mms[22m[39m
+     [33m[2m✓[22m[39m ?styles=1 opens nothing, and asks for nothing, when the switch is off [33m 315[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/tabs/NotebookTab.split.test.jsx[2m > [22m[2mdesktop only (≥1025px)[2m > [22m[2mat ≤1024px a side note in the URL is not opened, and nothing offers to open one
+[22m[39mAn update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/tabs/NotebookTab.split.test.jsx [2m([22m[2m16 tests[22m[2m)[22m[33m 1760[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/tabs/NotebookTab.tagRename.test.jsx [2m([22m[2m12 tests[22m[2m)[22m[33m 1558[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/tabs/NotebookTab.positionTracker.test.jsx[2m > [22m[2m12B-2 -- flag ON[2m > [22m[2mthe server's gate is off although the tab latched on: the formula refusals are absorbed and the note is still made
+[22m[39m[notebook] template property "R-multiple" was not set up (create_failed)
+
+[90mstderr[2m | src/pages/journal-2-0/tabs/NotebookTab.positionTracker.test.jsx[2m > [22m[2m12B-2 -- flag ON[2m > [22m[2mthe server's gate is off although the tab latched on: the formula refusals are absorbed and the note is still made
+[22m[39m[notebook] template property "Risk per share" was not set up (create_failed)
+
+[90mstderr[2m | src/pages/journal-2-0/tabs/NotebookTab.positionTracker.test.jsx[2m > [22m[2m12B-2 -- flag ON[2m > [22m[2mthe server's gate is off although the tab latched on: the formula refusals are absorbed and the note is still made
+[22m[39m[notebook] template property "Position size %" was not set up (create_failed)
+
+[90mstderr[2m | src/pages/journal-2-0/tabs/NotebookTab.positionTracker.test.jsx[2m > [22m[2m12B-2 -- flag ON[2m > [22m[2mthe definitions cannot be read at all: the note is still made, with nothing revealed
+[22m[39m[notebook] template properties were not set up; the note is still made Error: Could not read your properties (500)
+    at fetchDefs (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/templatePropertyDefs.js:51:22)
+    at ensureTemplatePropertyDefs (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/templatePropertyDefs.js:94:21)
+    at createFromTemplate (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/tabs/NotebookTab.jsx:1772:30)
+
+ [32m✓[39m src/pages/journal-2-0/tabs/NotebookTab.positionTracker.test.jsx [2m([22m[2m5 tests[22m[2m)[22m[32m 125[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m6 passed[39m[22m[90m (6)[39m
+[2m      Tests [22m [1m[32m59 passed[39m[22m[90m (59)[39m
+[2m   Start at [22m 03:46:22
+[2m   Duration [22m 12.74s[2m (transform 3.83s, setup 1.32s, import 6.12s, tests 13.15s, environment 3.67s)[22m
+

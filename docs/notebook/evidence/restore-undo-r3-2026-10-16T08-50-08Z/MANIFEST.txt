@@ -1,0 +1,36 @@
+Raw output for I-A fix round 3, committed before the report section was written (R-RAW).
+
+Round-2 tip: 5e4a106d8f. Rails: 7b3c3bd13b (red first), d6ef593f57 (leak-proof source assertion),
+48da481396 (title cut must be by character). Fix: ebf4da9bc4.
+All runs --maxWorkers=2, 12-17 GB available. Every blob swap / mutation restored byte-exact and
+checked against `git cat-file blob HEAD:<path>` (CRLF->LF).
+
+red-first/r3-red-final-on-5e4a106d8f.log  the new rails on HEAD=5e4a106d8f (only test files changed):
+                                     noteCopy + useOutboxDrain + restoreUndoKeepsWords: 23 failed | 60 passed (83).
+                                     Green there, as expected: the source-read-500 control (500 was always transient)
+                                     and the M-2 cell (its skip landed in round 2; R3-M17 below proves it can fail).
+red-first/r3-red-i4cell.log          the I-4 editor cell alone on 5e4a106d8f: fails on "the source note wears the
+                                     blocked label" (the reason, not a missing element).
+red-first/r3-red-parity.log          the MAX_TITLE_CHARS parity cell: parses 300 from notes.py, client undefined.
+red-on-5e4a106d8f.log                the FINAL test files with the 8 product files written from 5e4a106d8f
+                                     (swap_blobs_ru.py; refusedCopy.js did not exist and nothing there imports it):
+                                     23 failed | 60 passed (83).
+r3-fix1.log                          first run on the fix: 1 failed (the C-3 cell, in file order only: a PUT the
+                                     C-2 no-base cell left in flight wrote draft W into the shared server mock).
+r3-fix2.log                          after d6ef593f57 (the cells assert the COPY's words never reach the source):
+                                     5 files, 127 passed (127).
+green-on-final-tree.log              final tree 48da481396: noteCopy, useOutboxDrain, restoreUndoKeepsWords,
+                                     swapLineageRotation, f5p1OwnerSendsQueued, blockedNoteSurface: 6 files, 139 passed (139).
+mutations/ + mutations-batch1..4.txt mutate_ru3.py, 18 mutants, ALL red:
+                                     suffix not fitted; cut by UTF-16 unit; sweep fork raw title; any 4xx refused;
+                                     phase ignored; create error untagged; copy blocks its source; refusal put
+                                     unconditional; held copy re-posted; held reported blocked; Save keeps the copy;
+                                     refused again deletes the copy; Discard without confirm; Discard deletes
+                                     nothing; copies never offered; reason not rendered; M-2 skip removed; Save also
+                                     writes into the source note.
+suite-chunks/                        chunked named-file runs on ebf4da9bc4 + 7b3c3bd13b..d6ef593f57's tests
+                                     (chunks_ru.py, summary.txt): lib/offline 49 files 868/868; NoteEditorPage.* 68
+                                     files 507/507; consumers 78 files 927/927 (80 named, 2 globs matched no file:
+                                     useOptimisticNoteProperty and aiActions have no tests); blockedconsumers-* the 7
+                                     other readers of blocked ids + noteCopy, 8 files 172/172.
+r3_edit.py                           the exact-match, line-ending-preserving editor every product edit went through.

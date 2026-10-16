@@ -1,0 +1,138 @@
+R1-M1-never-spill: Test Files  3 failed (3) | Tests  22 failed | 18 passed (40)  [restored OK]
+     × C1a: an Undo in the OLD view before Restore, then Undo past the Restore ⇒ W and the kept old words durable 3426ms
+     × C1b: a title edit AFTER the Restore and before the Undo ⇒ both durable 2848ms
+     × C1b: the crash draft carries a DIFFERENT title (a renamed note) ⇒ an Undo past the Restore keeps W and its title durable 2818ms
+     × C1b: the old-view edit was a TITLE edit ⇒ Restore, Undo past it ⇒ W and the old title durable 2798ms
+     × C2: no-base Restore offline after old-view typing, then the tab closes with no keystroke ⇒ W durable, and still durable after reopening 1684ms
+     × I1: Undo past the Restore, close, reopen, type before choosing, close ⇒ W and the old words durable throughout 3047ms
+     × I2: a FURTHER Undo past the pre-Restore page (multi-hop) never drops W 3050ms
+     × Restore WITH a base (the adoption effect) after old-view typing ⇒ W durable before any Undo (I1); a keystroke, then Undo past it ⇒ both durable 1534
+     × Restore WITH a base (the adoption effect) pressed INSIDE the 200 ms window after old-view typing, and a keystroke INSIDE the window after it ⇒ the o
+     × Restore WITHOUT a base after old-view typing ⇒ W durable AT the Restore (C2); a keystroke, then Undo past it ⇒ both durable 3554ms
+     × Restore WITHOUT a base after old-view typing, then Undo at once ⇒ both durable 2387ms
+     × Restore WITHOUT a base pressed INSIDE the 200 ms window after old-view typing, and a keystroke INSIDE the window after it ⇒ the old words survive, a
+     × Undo past the Restore, Redo, type, then Undo across the Restore again ⇒ both durable at every step 2488ms
+     × a keystroke INSIDE the 200 ms window right after the Undo cannot coalesce anything away 2828ms
+     × back online after the Undo: the page saves, and nothing is settled away 3659ms
+     × crash-draft Restore WITH a base (the adoption effect): words the old view typed before Restore survive typing on the restored draft 2639ms
+     × crash-draft Restore WITHOUT a base: words the old view typed before Restore survive typing on the restored draft 2675ms
+     × spills on a TITLE the page does not carry (review C1b) 1ms
+     × spills: a swap capture over a dirty record of ANOTHER lineage whose words the page does not carry 5ms
+     × the member replaced the restored words, undid back to them (the record stays pinned), then undid past the Restore ⇒ W durable 2140ms
+     × typing then Restore INSIDE one history group (under 500 ms apart), a keystroke, then Undo past it ⇒ both durable 2606ms
+     × ⛔ the restored words travel on the OLDER baseline: a draft typed on an earlier revision is queued on that revision 1617ms
+R1-M2-spill-ignores-containment: Test Files  1 failed | 2 passed (3) | Tests  2 failed | 38 passed (40)  [restored OK]
+     × refuses: the page carries the record's words (they move with it) 6ms
+     × refuses: the same live view, later (the record is superseded, not pushed out) 2ms
+R1-M3-spill-without-request: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 39 passed (40)  [restored OK]
+     × refuses: an ordinary capture (no swap) — today's answer keeps the record 7ms
+R1-M4-no-base-restore-not-captured: Test Files  1 failed | 2 passed (3) | Tests  4 failed | 36 passed (40)  [restored OK]
+     × C2: no-base Restore offline after old-view typing, then the tab closes with no keystroke ⇒ W durable, and still durable after reopening 1731ms
+     × Restore WITHOUT a base after old-view typing ⇒ W durable AT the Restore (C2); a keystroke, then Undo past it ⇒ both durable 3741ms
+     × Restore WITHOUT a base pressed INSIDE the 200 ms window after old-view typing, and a keystroke INSIDE the window after it ⇒ the old words survive, a
+     × the member replaced the restored words, undid back to them (the record stays pinned), then undid past the Restore ⇒ W durable 2130ms
+R1-M5-adoption-capture-not-swap: Test Files  1 failed | 2 passed (3) | Tests  3 failed | 37 passed (40)  [restored OK]
+     × Restore WITH a base (the adoption effect) after old-view typing ⇒ W durable before any Undo (I1); a keystroke, then Undo past it ⇒ both durable 1489
+     × Restore WITH a base (the adoption effect) pressed INSIDE the 200 ms window after old-view typing, and a keystroke INSIDE the window after it ⇒ the o
+     × ⛔ the restored words travel on the OLDER baseline: a draft typed on an earlier revision is queued on that revision 1635ms
+R1-M6-crossing-skips-outgoing-page: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 39 passed (40)  [restored OK]
+     × the member replaced the restored words, undid back to them (the record stays pinned), then undid past the Restore ⇒ W durable 3289ms
+R1-M7-crossing-incoming-not-swap: Test Files  1 failed | 2 passed (3) | Tests  2 failed | 38 passed (40)  [restored OK]
+     × Undo past the Restore, Redo, type, then Undo across the Restore again ⇒ both durable at every step 4192ms
+     × a keystroke INSIDE the 200 ms window right after the Undo cannot coalesce anything away 2719ms
+R1-M8-swap-capture-not-flushed: Test Files  3 passed (3) | Tests  40 passed (40)  [restored OK]
+R1-M9-no-close-after-no-base-restore: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 39 passed (40)  [restored OK]
+     × M1: a keystroke under 500 ms after the Restore is its OWN undo step (one Undo takes back only it) 1571ms
+R1-M10-no-close-before-restore: Test Files  3 passed (3) | Tests  40 passed (40)  [restored OK]
+R1-M11-no-flush-before-no-base-restore: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 39 passed (40)  [restored OK]
+     × Restore WITHOUT a base pressed INSIDE the 200 ms window after old-view typing, and a keystroke INSIDE the window after it ⇒ the old words survive, a
+R1-M12-no-flush-before-with-base-restore: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 39 passed (40)  [restored OK]
+     × Restore WITH a base (the adoption effect) pressed INSIDE the 200 ms window after old-view typing, and a keystroke INSIDE the window after it ⇒ the o
+R1-M13-always-prev-base: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 39 passed (40)  [restored OK]
+     × ⛔ the restored words travel on the OLDER baseline: a draft typed on an earlier revision is queued on that revision 1607ms
+R1-M14-copies-not-written-by-persist: Test Files  2 failed | 1 passed (3) | Tests  23 failed | 17 passed (40)  [restored OK]
+     × C1a: an Undo in the OLD view before Restore, then Undo past the Restore ⇒ W and the kept old words durable 3571ms
+     × C1b: a title edit AFTER the Restore and before the Undo ⇒ both durable 2841ms
+     × C1b: the crash draft carries a DIFFERENT title (a renamed note) ⇒ an Undo past the Restore keeps W and its title durable 2854ms
+     × C1b: the old-view edit was a TITLE edit ⇒ Restore, Undo past it ⇒ W and the old title durable 2852ms
+     × C2: no-base Restore offline after old-view typing, then the tab closes with no keystroke ⇒ W durable, and still durable after reopening 1705ms
+     × I1: Undo past the Restore, close, reopen, type before choosing, close ⇒ W and the old words durable throughout 3215ms
+     × I2: a FURTHER Undo past the pre-Restore page (multi-hop) never drops W 3105ms
+     × Restore WITH a base (the adoption effect) after old-view typing ⇒ W durable before any Undo (I1); a keystroke, then Undo past it ⇒ both durable 1546
+     × Restore WITH a base (the adoption effect) pressed INSIDE the 200 ms window after old-view typing, and a keystroke INSIDE the window after it ⇒ the o
+     × Restore WITHOUT a base after old-view typing ⇒ W durable AT the Restore (C2); a keystroke, then Undo past it ⇒ both durable 3845ms
+     × Restore WITHOUT a base after old-view typing, then Undo at once ⇒ both durable 2534ms
+     × Restore WITHOUT a base pressed INSIDE the 200 ms window after old-view typing, and a keystroke INSIDE the window after it ⇒ the old words survive, a
+     × Undo past the Restore, Redo, type, then Undo across the Restore again ⇒ both durable at every step 2568ms
+     × a keystroke INSIDE the 200 ms window right after the Undo cannot coalesce anything away 2911ms
+     × back online after the Undo: the page saves, and nothing is settled away 3797ms
+     × crash-draft Restore WITH a base (the adoption effect), OFFLINE: Undo past it ⇒ the draft words are still in a layer 2415ms
+     × crash-draft Restore WITH a base (the adoption effect): words the old view typed before Restore survive typing on the restored draft 1803ms
+     × crash-draft Restore WITHOUT a base, OFFLINE: Restore, type, Undo past the Restore ⇒ the draft words are still in a layer 2446ms
+     × crash-draft Restore WITHOUT a base: words the old view typed before Restore survive typing on the restored draft 1850ms
+     × the member replaced the restored words, undid back to them (the record stays pinned), then undid past the Restore ⇒ W durable 3378ms
+     × the simplest variant: Restore WITHOUT a base, no typing at all, Undo at once ⇒ W durable 1939ms
+     × typing then Restore INSIDE one history group (under 500 ms apart), a keystroke, then Undo past it ⇒ both durable 2699ms
+     × ⛔ the restored words travel on the OLDER baseline: a draft typed on an earlier revision is queued on that revision 2312ms
+R1-M15-adapter-drops-copies: Test Files  3 failed (3) | Tests  26 failed | 14 passed (40)  [restored OK]
+     × C1a: an Undo in the OLD view before Restore, then Undo past the Restore ⇒ W and the kept old words durable 3475ms
+     × C1b: a title edit AFTER the Restore and before the Undo ⇒ both durable 2877ms
+     × C1b: the crash draft carries a DIFFERENT title (a renamed note) ⇒ an Undo past the Restore keeps W and its title durable 2847ms
+     × C1b: the old-view edit was a TITLE edit ⇒ Restore, Undo past it ⇒ W and the old title durable 2857ms
+     × C2: no-base Restore offline after old-view typing, then the tab closes with no keystroke ⇒ W durable, and still durable after reopening 1777ms
+     × I1: Undo past the Restore, close, reopen, type before choosing, close ⇒ W and the old words durable throughout 3235ms
+     × I2: a FURTHER Undo past the pre-Restore page (multi-hop) never drops W 3166ms
+     × Restore WITH a base (the adoption effect) after old-view typing ⇒ W durable before any Undo (I1); a keystroke, then Undo past it ⇒ both durable 1437
+     × Restore WITH a base (the adoption effect) pressed INSIDE the 200 ms window after old-view typing, and a keystroke INSIDE the window after it ⇒ the o
+     × Restore WITHOUT a base after old-view typing ⇒ W durable AT the Restore (C2); a keystroke, then Undo past it ⇒ both durable 3824ms
+     × Restore WITHOUT a base after old-view typing, then Undo at once ⇒ both durable 2396ms
+     × Restore WITHOUT a base pressed INSIDE the 200 ms window after old-view typing, and a keystroke INSIDE the window after it ⇒ the old words survive, a
+     × Undo past the Restore, Redo, type, then Undo across the Restore again ⇒ both durable at every step 2634ms
+     × a keystroke INSIDE the 200 ms window right after the Undo cannot coalesce anything away 2803ms
+     × back online after the Undo: the page saves, and nothing is settled away 3808ms
+     × crash-draft Restore WITH a base (the adoption effect), OFFLINE: Undo past it ⇒ the draft words are still in a layer 2389ms
+     × crash-draft Restore WITH a base (the adoption effect): words the old view typed before Restore survive typing on the restored draft 1839ms
+     × crash-draft Restore WITHOUT a base, OFFLINE: Restore, type, Undo past the Restore ⇒ the draft words are still in a layer 2436ms
+     × crash-draft Restore WITHOUT a base: words the old view typed before Restore survive typing on the restored draft 1869ms
+     × forks it with the SAME fork, against its source note, then clears it — even while the editor owns the source 235ms
+     × the member replaced the restored words, undid back to them (the record stays pinned), then undid past the Restore ⇒ W durable 3511ms
+     × the simplest variant: Restore WITHOUT a base, no typing at all, Undo at once ⇒ W durable 1889ms
+     × typing then Restore INSIDE one history group (under 500 ms apart), a keystroke, then Undo past it ⇒ both durable 2669ms
+     × ⛔ a CLEAN settle of the note (null intent) cannot delete it 86ms
+     × ⛔ a failed fork (offline) leaves the copy exactly where it was 238ms
+     × ⛔ the restored words travel on the OLDER baseline: a draft typed on an earlier revision is queued on that revision 2378ms
+R1-M16-drain-clears-without-forking: Test Files  2 failed | 1 passed (3) | Tests  5 failed | 35 passed (40)  [restored OK]
+     × C2: no-base Restore offline after old-view typing, then the tab closes with no keystroke ⇒ W durable, and still durable after reopening 2445ms
+     × I1: Undo past the Restore, close, reopen, type before choosing, close ⇒ W and the old words durable throughout 3237ms
+     × back online after the Undo: the page saves, and nothing is settled away 4375ms
+     × forks it with the SAME fork, against its source note, then clears it — even while the editor owns the source 241ms
+     × ⛔ a failed fork (offline) leaves the copy exactly where it was 207ms
+R1-M17-drain-treats-copy-as-update: Test Files  2 failed | 1 passed (3) | Tests  3 failed | 37 passed (40)  [restored OK]
+     × back online after the Undo: the page saves, and nothing is settled away 4396ms
+     × forks it with the SAME fork, against its source note, then clears it — even while the editor owns the source 256ms
+     × ⛔ a failed fork (offline) leaves the copy exactly where it was 237ms
+R1-M18-no-crossing-gate: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 39 passed (40)  [restored OK]
+     × ⛔ control: an Undo of the member's OWN typing after a Restore (not across it) queues nothing extra 1975ms
+R1-M19-onUpdate-never-notes-crossing: Test Files  1 failed | 2 passed (3) | Tests  4 failed | 36 passed (40)  [restored OK]
+     × Undo past the Restore, Redo, type, then Undo across the Restore again ⇒ both durable at every step 4284ms
+     × a keystroke INSIDE the 200 ms window right after the Undo cannot coalesce anything away 2752ms
+     × back online after the Undo: the page saves, and nothing is settled away 4373ms
+     × the member replaced the restored words, undid back to them (the record stays pinned), then undid past the Restore ⇒ W durable 3413ms
+R1-M8-swap-capture-not-flushed: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 41 passed (42)  [restored OK]
+     × a keystroke INSIDE the 200 ms window right after a with-base Restore (nothing else in flight) cannot coalesce the Restore's capture away 1964ms
+R1-M10-no-close-before-restore: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 41 passed (42)  [restored OK]
+     × M1: a keystroke under 500 ms BEFORE the Restore is its own undo step too (one Undo takes back only the Restore) 1409ms
+R1-M20-blocked-copy-not-forked: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 42 passed (43)  [restored OK]
+     × ⛔ a copy an OLDER bundle blocked (it read it as a baseline-less update) is still forked here 225ms
+R1-M17-drain-treats-copy-as-update: Test Files  2 failed | 1 passed (3) | Tests  4 failed | 39 passed (43)  [restored OK]
+     × back online after the Undo: the page saves, and nothing is settled away 4348ms
+     × forks it with the SAME fork, against its source note, then clears it — even while the editor owns the source 223ms
+     × ⛔ a copy an OLDER bundle blocked (it read it as a baseline-less update) is still forked here 219ms
+     × ⛔ a failed fork (offline) leaves the copy exactly where it was 224ms
+R1-M16-drain-clears-without-forking: Test Files  2 failed | 1 passed (3) | Tests  6 failed | 37 passed (43)  [restored OK]
+     × C2: no-base Restore offline after old-view typing, then the tab closes with no keystroke ⇒ W durable, and still durable after reopening 2552ms
+     × I1: Undo past the Restore, close, reopen, type before choosing, close ⇒ W and the old words durable throughout 3366ms
+     × back online after the Undo: the page saves, and nothing is settled away 4558ms
+     × forks it with the SAME fork, against its source note, then clears it — even while the editor owns the source 242ms
+     × ⛔ a copy an OLDER bundle blocked (it read it as a baseline-less update) is still forked here 218ms
+     × ⛔ a failed fork (offline) leaves the copy exactly where it was 225ms

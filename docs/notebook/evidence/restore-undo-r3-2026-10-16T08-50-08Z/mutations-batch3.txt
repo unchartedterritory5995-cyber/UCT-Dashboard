@@ -1,0 +1,9 @@
+R3-M11-save-keeps-copy: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 82 passed (83)  [restored OK]
+     × ⛔⛔ C-3: the offer never writes the copy into its source note — "Save as a separate note" creates a new note and the source keeps its text 1727ms
+R3-M12-refused-again-deletes-copy: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 82 passed (83)  [restored OK]
+     × a re-POST refused AGAIN keeps the copy on this device and keeps offering it, with its reason 1165ms
+R3-M13-discard-without-confirm: Test Files  1 failed | 2 passed (3) | Tests  2 failed | 81 passed (83)  [restored OK]
+     × Discard asks first (in the page), and keeps the copy if the member backs out 728ms
+     × Discard, confirmed, deletes the copy and it does NOT come back on the next open 7084ms
+R3-M14-discard-deletes-nothing: Test Files  1 failed | 2 passed (3) | Tests  1 failed | 82 passed (83)  [restored OK]
+     × Discard, confirmed, deletes the copy and it does NOT come back on the next open 1358ms

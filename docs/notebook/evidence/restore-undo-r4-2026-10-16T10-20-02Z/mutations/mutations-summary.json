@@ -1,0 +1,370 @@
+[
+  {
+    "mutant": "R4-M1 the offer shows the server's sentence",
+    "file": "app/src/pages/journal-2-0/lib/offline/refusedCopy.js",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/noteCopy.test.js",
+        "filter": "fix round 4",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "2 failed | 5 passed | 35 skipped (42)",
+        "log": "m01-noteCopy.test.log"
+      },
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "I-7",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "8 failed | 9 passed | 38 skipped (55)",
+        "log": "m01-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M2 a body 400 is not a content refusal",
+    "file": "app/src/pages/journal-2-0/lib/offline/refusedCopy.js",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/noteCopy.test.js",
+        "filter": "fix round 4",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "2 failed | 5 passed | 35 skipped (42)",
+        "log": "m02-noteCopy.test.log"
+      },
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "reason is the BODY|I-7",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "3 failed | 14 passed | 38 skipped (55)",
+        "log": "m02-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M3 a 413 is not a content refusal",
+    "file": "app/src/pages/journal-2-0/lib/offline/refusedCopy.js",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/noteCopy.test.js",
+        "filter": "fix round 4",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "3 failed | 4 passed | 35 skipped (42)",
+        "log": "m03-noteCopy.test.log"
+      },
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "CONTENT refusal",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "1 failed | 54 skipped (55)",
+        "log": "m03-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M4 the plain save sends the rich body",
+    "file": "app/src/pages/journal-2-0/lib/offline/refusedCopy.js",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/noteCopy.test.js",
+        "filter": "fix round 4",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "1 failed | 6 passed | 35 skipped (42)",
+        "log": "m04-noteCopy.test.log"
+      },
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "CONTENT refusal",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "1 failed | 54 skipped (55)",
+        "log": "m04-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M5 a refused plain save stores the flattened body",
+    "file": "app/src/pages/journal-2-0/lib/offline/refusedCopy.js",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/noteCopy.test.js",
+        "filter": "fix round 4",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "1 failed | 6 passed | 35 skipped (42)",
+        "log": "m05-noteCopy.test.log"
+      },
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "refused AGAIN keeps the copy with its ORIGINAL",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "1 failed | 54 skipped (55)",
+        "log": "m05-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M6 plain text is never offered",
+    "file": "app/src/pages/journal-2-0/lib/offline/refusedCopy.js",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "CONTENT refusal|reason is the BODY",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "2 failed | 53 skipped (55)",
+        "log": "m06-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M7 the separate-note retry stays after a content refusal",
+    "file": "app/src/pages/journal-2-0/lib/offline/refusedCopy.js",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "CONTENT refusal|reason is the BODY",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "2 failed | 53 skipped (55)",
+        "log": "m07-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M8 every failure reads as offline",
+    "file": "app/src/pages/journal-2-0/lib/offline/refusedCopy.js",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/noteCopy.test.js",
+        "filter": "fix round 4",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "1 failed | 6 passed | 35 skipped (42)",
+        "log": "m08-noteCopy.test.log"
+      },
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "NOT the network",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "1 failed | 54 skipped (55)",
+        "log": "m08-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M9 no failure reads as offline",
+    "file": "app/src/pages/journal-2-0/lib/offline/refusedCopy.js",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/noteCopy.test.js",
+        "filter": "fix round 4",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "1 failed | 6 passed | 35 skipped (42)",
+        "log": "m09-noteCopy.test.log"
+      },
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "only after a NETWORK failure",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "1 failed | 54 skipped (55)",
+        "log": "m09-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M10 an empty line becomes an empty text node",
+    "file": "app/src/pages/journal-2-0/lib/offline/refusedCopy.js",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/noteCopy.test.js",
+        "filter": "fix round 4",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "2 failed | 5 passed | 35 skipped (42)",
+        "log": "m10-noteCopy.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M11 Copy text leaves out the subtitle",
+    "file": "app/src/pages/journal-2-0/lib/offline/refusedCopy.js",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/noteCopy.test.js",
+        "filter": "fix round 4",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "1 failed | 6 passed | 35 skipped (42)",
+        "log": "m11-noteCopy.test.log"
+      },
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "puts the copy",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "1 failed | 54 skipped (55)",
+        "log": "m11-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M12 a refused clipboard selects nothing",
+    "file": "app/src/pages/journal-2-0/components/notebook/RefusedCopyOffer.jsx",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "clipboard that",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "2 failed | 53 skipped (55)",
+        "log": "m12-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M13 Copy text never calls the clipboard",
+    "file": "app/src/pages/journal-2-0/components/notebook/RefusedCopyOffer.jsx",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "puts the copy|Discard confirm shows",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "2 failed | 53 skipped (55)",
+        "log": "m13-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M14 the Discard confirm shows no words",
+    "file": "app/src/pages/journal-2-0/components/notebook/RefusedCopyOffer.jsx",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "Discard confirm shows",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "1 failed | 54 skipped (55)",
+        "log": "m14-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M15 focus is never moved",
+    "file": "app/src/pages/journal-2-0/components/notebook/RefusedCopyOffer.jsx",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "focus moves INTO",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "1 failed | 54 skipped (55)",
+        "log": "m15-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M16 Keep it leaves focus in the confirm",
+    "file": "app/src/pages/journal-2-0/components/notebook/RefusedCopyOffer.jsx",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "focus moves INTO",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "1 failed | 54 skipped (55)",
+        "log": "m16-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M17 the editor's plain button sends a rich save",
+    "file": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "CONTENT refusal",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "1 failed | 54 skipped (55)",
+        "log": "m17-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M18 harness: the PUT reads the module server when it lands",
+    "file": "app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "M-12",
+        "exit": 0,
+        "files": "1 passed (1)",
+        "tests": "4 passed | 51 skipped (55)",
+        "log": "m18-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": false,
+    "any_run_without_totals": false
+  },
+  {
+    "mutant": "R4-M19 harness: the fork's requests read the module server",
+    "file": "app/src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+    "runs": [
+      {
+        "test": "src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx",
+        "filter": "M-12",
+        "exit": 1,
+        "files": "1 failed (1)",
+        "tests": "1 failed | 3 passed | 51 skipped (55)",
+        "log": "m19-restoreUndoKeepsWords.test.log"
+      }
+    ],
+    "killed": true,
+    "any_run_without_totals": false
+  }
+]

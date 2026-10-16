@@ -1,0 +1,23 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+ [32m✓[39m src/pages/journal-2-0/tabs/NotebookTab.tradeCanvas.test.jsx [2m([22m[2m5 tests[22m[2m)[22m[33m 2660[2mms[22m[39m
+     [33m[2m✓[22m[39m absent while no flag has latched [33m 1130[2mms[22m[39m
+     [33m[2m✓[22m[39m absent while the gate is latched OFF (every other flag on) [33m 418[2mms[22m[39m
+     [33m[2m✓[22m[39m gate on: one press makes a canvas note (a tradeCanvas body, tagged) and opens it [33m 947[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/tabs/NotebookTab.voiceNotes.test.jsx [2m([22m[2m5 tests[22m[2m)[22m[33m 3847[2mms[22m[39m
+     [33m[2m✓[22m[39m nobody while no flag has latched [33m 1107[2mms[22m[39m
+     [33m[2m✓[22m[39m nobody while the gate is latched OFF (every other flag on) [33m 698[2mms[22m[39m
+     [33m[2m✓[22m[39m not a free member, gate on [33m 436[2mms[22m[39m
+     [33m[2m✓[22m[39m a paid member with the gate on: Voice note, Upload recording, From a Desk session [33m 537[2mms[22m[39m
+     [33m[2m✓[22m[39m Upload recording opens the voice-note dialog on its upload step [33m 1068[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/tabs/NotebookTab.viewSwitcherFits.test.js [2m([22m[2m3 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/tabs/NotebookTab.viewSelect.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[33m 870[2mms[22m[39m
+     [33m[2m✓[22m[39m changing it switches the view the buttons show as pressed [33m 345[2mms[22m[39m
+     [33m[2m✓[22m[39m a button press moves the select too (one state, two doors) [33m 328[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[32m19 passed[39m[22m[90m (19)[39m
+[2m   Start at [22m 00:37:55
+[2m   Duration [22m 9.47s[2m (transform 4.88s, setup 872ms, import 7.42s, tests 7.39s, environment 2.17s)[22m
+

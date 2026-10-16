@@ -1,0 +1,225 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+(node:45400) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.citations.test.jsx[2m > [22m[2mNoteEditorPage ("This note") — citations[2m > [22m[2ma source this page cannot route (a fact) says so instead of doing nothing
+[22m[39mAn update to AskPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.citations.test.jsx[2m > [22m[2mNoteEditorPage ("This note") — citations[2m > [22m[2man EXACT passage the live note no longer holds says it changed -- never a silent click
+[22m[39mAn update to AskPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.citations.test.jsx[2m > [22m[2mNoteEditorPage ("This note") — citations[2m > [22m[2ma NOTE-LEVEL source (a thesis state) says it is the note as a whole
+[22m[39mAn update to AskPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.citations.test.jsx[2m > [22m[2mNoteEditorPage ("This note") — a DOCUMENT citation opens by its kind[2m > [22m[2ma captured web page whose saved excerpt is gone says so -- the note is already open
+[22m[39mAn update to AskPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.citations.test.jsx[2m > [22m[2mNoteEditorPage — every door that opens nothing says why[2m > [22m[2man OLD packet citing a captured page with NO passage says it in the panel
+[22m[39mAn update to AskPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.citations.test.jsx [2m([22m[2m30 tests[22m[2m)[22m[33m 9669[2mms[22m[39m
+     [33m[2m✓[22m[39m an EXCERPT opens its PDF at the cited page, emphasising the passage [33m 2333[2mms[22m[39m
+     [33m[2m✓[22m[39m CONTROL: a document-page citation navigates, and says nothing [33m 321[2mms[22m[39m
+     [33m[2m✓[22m[39m a captured WEB page in this very note opens as a captured passage, NEVER in the PDF viewer [33m 332[2mms[22m[39m
+     [33m[2m✓[22m[39m a captured web page whose saved excerpt is gone says so -- the note is already open [33m 303[2mms[22m[39m
+     [33m[2m✓[22m[39m opens the captured-passage sheet, never the PDF viewer [33m 333[2mms[22m[39m
+     [33m[2m✓[22m[39m an OLD Ask packet (no kind) citing a captured page goes to the door -- never the PDF viewer [33m 346[2mms[22m[39m
+     [33m[2m✓[22m[39m an excerpt card's citation for a captured page opens the captured passage [33m 398[2mms[22m[39m
+     [33m[2m✓[22m[39m an excerpt card for ANOTHER note's captured passage, whose read FAILS, says try again [33m 309[2mms[22m[39m
+     [33m[2m✓[22m[39m the LAST tap wins through the door: a slow captured-page read never opens over the second tap [33m 394[2mms[22m[39m
+     [33m[2m✓[22m[39m PROBE-A: an OLD packet (no kind) whose late row is a captured page opens the captured passage -- never the PDF viewer [33m 323[2mms[22m[39m
+     [33m[2m✓[22m[39m CONTROL: the same page, with the kind the new server sends, opens the captured passage [33m 325[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.askInsert.test.jsx[2m > [22m[2mNoteEditorPage — G-064 Ask insert[2m > [22m[2man answer picked for this note elsewhere lands at the end of it
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.askInsert.test.jsx[2m > [22m[2mNoteEditorPage — G-064 Ask insert[2m > [22m[2man answer picked for this note elsewhere lands at the end of it
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.askInsert.test.jsx[2m > [22m[2mNoteEditorPage — G-064 Ask insert[2m > [22m[2man A->B switch never spends the answer against the stale editor -- B ends up holding it, and no failure toast fires
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.askInsert.test.jsx[2m > [22m[2mNoteEditorPage — G-064 Ask insert[2m > [22m[2man A->B switch never spends the answer against the stale editor -- B ends up holding it, and no failure toast fires
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.askInsert.test.jsx[2m > [22m[2mNoteEditorPage — G-064 Ask insert[2m > [22m[2ma pending insert holds behind a slow Restore PUT, then lands once it resolves, on the restored baseline
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.askInsert.test.jsx [2m([22m[2m9 tests[22m[2m)[22m[33m 6506[2mms[22m[39m
+     [33m[2m✓[22m[39m an answer picked for this note elsewhere lands at the end of it [33m 1407[2mms[22m[39m
+     [33m[2m✓[22m[39m "Insert into this note" appends the answer from the note's own Ask panel [33m 1129[2mms[22m[39m
+     [33m[2m✓[22m[39m a pending insert holds behind a slow Restore PUT, then lands once it resolves, on the restored baseline [33m 1050[2mms[22m[39m
+     [33m[2m✓[22m[39m "Insert into this note" is not offered while a recovered draft is pending, and is once it is settled [33m 376[2mms[22m[39m
+     [33m[2m✓[22m[39m "Insert into this note" stays offered while an autosave is in flight, and clicking it appends the answer [33m 1935[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.conflict.test.jsx [2m([22m[2m11 tests[22m[2m)[22m[33m 1806[2mms[22m[39m
+     [33m[2m✓[22m[39m does NOT re-send the local body after the server prose moved on [33m 613[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.cleanReread.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[33m 20113[2mms[22m[39m
+     [33m[2m✓[22m[39m visibilitychange: the append is adopted, the next word lands on it -- no conflicted copy [33m 4689[2mms[22m[39m
+     [33m[2m✓[22m[39m window focus (a window switched back to) does the same [33m 3299[2mms[22m[39m
+     [33m[2m✓[22m[39m words typed and not yet sent when the member comes back: nothing is adopted, the save forks, the append survives [33m 4046[2mms[22m[39m
+     [33m[2m✓[22m[39m a word typed WHILE the re-read is on the wire stays on screen and in the local layers; nothing is adopted over it [33m 3847[2mms[22m[39m
+     [33m[2m✓[22m[39m an entry still QUEUED for the note in the offline layer: the editor does not adopt [33m 2116[2mms[22m[39m
+     [33m[2m✓[22m[39m an UNREADABLE unsent-work store is not clean: no extra GET, nothing adopted [33m 2116[2mms[22m[39m
+Not implemented: navigation to another Document
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.attachments.test.jsx [2m([22m[2m7 tests[22m[2m)[22m[33m 1360[2mms[22m[39m
+     [33m[2m✓[22m[39m renders a discoverable, accessibly-labeled "Attach a file" toolbar button [33m 717[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.autofillLock.test.jsx[2m > [22m[2mSuggest values -- never on a locked or unreadable note (review M-4)[2m > [22m[2man UNREADABLE note does not
+[22m[39m[tiptap warn]: Invalid content. Passed value: {
+  type: [32m'doc'[39m,
+  content: [
+    { type: [32m'paragraph'[39m, content: [36m[Array][39m },
+    { type: [32m'waveSixDiagram'[39m, attrs: [36m[Object][39m }
+  ]
+} Error: RangeError: Unknown node type: waveSixDiagram
+    at Schema.nodeType (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2490:19)
+    at Node.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1530:27)
+    at Schema.nodeFromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2448:42)
+    at Array.map (<anonymous>)
+    at Fragment.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:314:41)
+    at Node.fromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:1529:32)
+    at Schema.nodeFromJSON (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mprosemirror-model[24m/dist/index.js:2448:42)
+    at createNodeFromContent (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@tiptap/core[24m/dist/index.js:664:27)
+    at createDocument (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@tiptap/core[24m/dist/index.js:1173:10)
+    at Editor.createDoc (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@tiptap/core[24m/dist/index.js:5100:13)
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.autofillLock.test.jsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1122[2mms[22m[39m
+     [33m[2m✓[22m[39m control: an ordinary note with an empty property offers it [33m 839[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.alertChip.test.js [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.blockquoteAfterList.test.jsx[2m > [22m[2mG-131 (second finding): "❝" after "1. List" -- desktop, reproduces the walk exactly[2m > [22m[2mthe walk's own sequence: caret in a paragraph, click "1. List", then click "❝" -- a real, pre-existing schema refusal, not a regression
+[22m[39mAn update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.blockquoteAfterList.test.jsx[2m > [22m[2mG-131 (second finding): "❝" after "1. List" -- desktop, reproduces the walk exactly[2m > [22m[2mcontrol: on a plain paragraph (no list) the SAME button is live, pressed state updates, and the doc really does gain a <blockquote>
+[22m[39mAn update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.blockquoteAfterList.test.jsx [2m([22m[2m2 tests[22m[2m)[22m[33m 1095[2mms[22m[39m
+     [33m[2m✓[22m[39m the walk's own sequence: caret in a paragraph, click "1. List", then click "❝" -- a real, pre-existing schema refusal, not a regression [33m 962[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m8 passed[39m[22m[90m (8)[39m
+[2m      Tests [22m [1m[32m72 passed[39m[22m[90m (72)[39m
+[2m   Start at [22m 06:05:11
+[2m   Duration [22m 23.79s[2m (transform 2.85s, setup 1.07s, import 563ms, tests 41.68s, environment 3.21s)[22m
+

@@ -1,0 +1,14 @@
+Raw output for I-A fix round 1, committed before the report section was written (R-RAW).
+
+Base strategy: hotfix/notebook-restore-undo-loss was fast-forwarded to
+origin/hotfix/notebook-midtext-fork 74f95d1324 (no rewrite), then 3771c88c82
+reverts that revert; the round-1 commits follow.
+
+rails/red-first-run-on-3771c88c82.log   the round-1 rail (20 cells) on the round-0 tip before any round-1 code: 16 failed | 4 passed (20)
+rails/red-final-on-3771c88c82-blobs.log final rails (21 cells + swapLineageRotation 9) with NEP/RLS/UDN/notebookDb/outboxDrain
+                                        written from 3771c88c82 (swap_blobs_ru.py; restored byte-exact, checked vs HEAD blob): 18 failed | 12 passed (30)
+rails/red-final-on-master-blobs.log     same with origin/master blobs: 28 failed | 2 passed (30)
+rails/fixed-*.log                       the fix: four key files 80/80; restoreUndoKeepsWords 23/23 (after the two M8/M10 cells); noteCopy 10/10
+mutations/                              mutate_ru1.py, one log per mutation, mut-summary.txt (M8 and M10 survived the
+                                        first pass; re-run after a7a3538112 added their cells: both red)
+suites/                                 chunked named-file runs (chunks_ru.py from round 0) + summary.txt

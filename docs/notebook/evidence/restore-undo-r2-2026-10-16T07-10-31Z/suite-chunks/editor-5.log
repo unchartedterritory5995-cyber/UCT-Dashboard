@@ -1,0 +1,445 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.styleUpdate.test.jsx[2m > [22m[2mstyleUpdate.waitsForSave[2m > [22m[2mApply waits for the editor to send pending words, reads the base AFTER, then lands and adopts
+[22m[39mAn update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.styleUpdate.test.jsx[2m > [22m[2mstyleUpdate.waitsForSave[2m > [22m[2mif words are still unsent after the wait, nothing is applied and it says so
+[22m[39mAn update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.styleUpdate.test.jsx[2m > [22m[2mstyleUpdate.waitsForSave[2m > [22m[2mif words are still unsent after the wait, nothing is applied and it says so
+[22m[39mautosave failed (retry 1 in 1000ms) Error: offline
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.styleUpdate.test.jsx:197:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:20
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.styleUpdate.test.jsx[2m > [22m[2mstyleUpdate.waitsForSave[2m > [22m[2mif words are still unsent after the wait, nothing is applied and it says so
+[22m[39mautosave failed (retry 2 in 2000ms) Error: offline
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.styleUpdate.test.jsx:197:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:20
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.tags.test.jsx [2m([22m[2m9 tests[22m[2m)[22m[33m 10084[2mms[22m[39m
+     [33m[2m✓[22m[39m the old comma field is gone; the note's tags are chips [33m 5391[2mms[22m[39m
+     [33m[2m✓[22m[39m an ADD sends the DELTA to the tag door — never a whole list, and nothing else [33m 540[2mms[22m[39m
+     [33m[2m✓[22m[39m a REMOVE sends only that tag as the delta [33m 520[2mms[22m[39m
+     [33m[2m✓[22m[39m a revision is recorded ONLY when the hook hands back a note (changed: true) [33m 686[2mms[22m[39m
+     [33m[2m✓[22m[39m a refused delta says so and changes nothing on the page [33m 586[2mms[22m[39m
+     [33m[2m✓[22m[39m a change that changes nothing sends nothing (adding a tag the server already has) [33m 576[2mms[22m[39m
+     [33m[2m✓[22m[39m …but the chips are brought up to date with the server list it just read [33m 521[2mms[22m[39m
+     [33m[2m✓[22m[39m when the server's list cannot be read, NOTHING is written (an unchecked list is never sent) [33m 557[2mms[22m[39m
+     [33m[2m✓[22m[39m suggestions come from the member's own tags [33m 704[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.toolButtonKeyboard.test.jsx[2m > [22m[2mToolButton — a keyboard member can use the editor toolbar (G-160)[2m > [22m[2mEnter and Space on Bold run it
+[22m[39mAn update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.toolButtonKeyboard.test.jsx[2m > [22m[2mToolButton — a keyboard member can use the editor toolbar (G-160)[2m > [22m[2ma pointer press still runs the action exactly ONCE, and keeps the selection
+[22m[39mAn update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.styleUpdate.test.jsx[2m > [22m[2mstyleUpdate.checkAgain[2m > [22m[2mif the editor holds unsent words the re-read refuses: it says so and does not re-plan
+[22m[39mAn update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.styleUpdate.test.jsx[2m > [22m[2mstyleUpdate.checkAgain[2m > [22m[2mif the editor holds unsent words the re-read refuses: it says so and does not re-plan
+[22m[39mautosave failed (retry 1 in 1000ms) Error: offline
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.styleUpdate.test.jsx:299:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:20
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.toolButtonKeyboard.test.jsx[2m > [22m[2mToolButton — a keyboard member can use the editor toolbar (G-160)[2m > [22m[2ma press that never became a click (dragged off) does not swallow the next keyboard activation
+[22m[39mAn update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.toolButtonKeyboard.test.jsx [2m([22m[2m4 tests[22m[2m)[22m[33m 3149[2mms[22m[39m
+     [33m[2m✓[22m[39m Enter and Space on Bold run it [33m 1485[2mms[22m[39m
+     [33m[2m✓[22m[39m Enter on "Attach a file" and "Insert image" opens the file picker; Enter on "Insert link" asks for the URL [33m 458[2mms[22m[39m
+     [33m[2m✓[22m[39m a pointer press still runs the action exactly ONCE, and keeps the selection [33m 694[2mms[22m[39m
+     [33m[2m✓[22m[39m a press that never became a click (dragged off) does not swallow the next keyboard activation [33m 509[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx[2m > [22m[2msave_failed[2m > [22m[2ma save that gives up (a 4xx) is reported once, as http, not retrying
+[22m[39mautosave failed (non-retryable) Error: 404
+    at httpError (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:33:71)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:74:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21) {
+  status: [33m404[39m
+}
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx[2m > [22m[2msave_failed[2m > [22m[2ma retry streak (network) is reported ONCE when it begins, never per backoff attempt
+[22m[39mautosave failed (retry 1 in 1000ms) Error: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:82:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:12)
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx[2m > [22m[2msave_failed[2m > [22m[2ma retry streak (network) is reported ONCE when it begins, never per backoff attempt
+[22m[39mautosave failed (retry 2 in 2000ms) Error: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:82:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:12)
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx[2m > [22m[2msave_failed[2m > [22m[2ma retry streak (network) is reported ONCE when it begins, never per backoff attempt
+[22m[39mautosave failed (retry 3 in 4000ms) Error: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:82:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:12)
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx[2m > [22m[2msave_failed[2m > [22m[2ma retry streak (network) is reported ONCE when it begins, never per backoff attempt
+[22m[39mautosave failed (retry 4 in 8000ms) Error: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:82:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:12)
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx[2m > [22m[2msave_failed[2m > [22m[2ma retry streak (network) is reported ONCE when it begins, never per backoff attempt
+[22m[39mautosave failed (retry 5 in 15000ms) Error: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:82:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:12)
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx[2m > [22m[2msave_success[2m > [22m[2ma save that fails reports no save_success (the SLO would read a failure as a success)
+[22m[39mautosave failed (non-retryable) Error: 404
+    at httpError (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:33:71)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:129:34
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21) {
+  status: [33m404[39m
+}
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[33m 2189[2mms[22m[39m
+     [33m[2m✓[22m[39m a save that gives up (a 4xx) is reported once, as http, not retrying [33m 1205[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.styleUpdate.test.jsx [2m([22m[2m25 tests[22m[2m)[22m[33m 15676[2mms[22m[39m
+     [33m[2m✓[22m[39m offers the update with both versions [33m 2970[2mms[22m[39m
+     [33m[2m✓[22m[39m the sheet names only the version it moves to [33m 533[2mms[22m[39m
+     [33m[2m✓[22m[39m control: a known version still names both [33m 481[2mms[22m[39m
+     [33m[2m✓[22m[39m Apply waits for the editor to send pending words, reads the base AFTER, then lands and adopts [33m 623[2mms[22m[39m
+     [33m[2m✓[22m[39m if words are still unsent after the wait, nothing is applied and it says so [33m 1575[2mms[22m[39m
+     [33m[2m✓[22m[39m a 409 writes nothing, says so, and Check again re-asks for the plan [33m 633[2mms[22m[39m
+     [33m[2m✓[22m[39m a 409 shows the server's own sentence [33m 538[2mms[22m[39m
+     [33m[2m✓[22m[39m a 409 with no body falls back to the stale sentence, which is the server's recorded one [33m 522[2mms[22m[39m
+     [33m[2m✓[22m[39m a 5xx with no sentence never shows a bare status code [33m 494[2mms[22m[39m
+     [33m[2m✓[22m[39m a locked note (423) gets a plain locked sentence [33m 515[2mms[22m[39m
+     [33m[2m✓[22m[39m 409, then Check again re-reads the note so the base is the server's, then Apply succeeds with it [33m 719[2mms[22m[39m
+     [33m[2m✓[22m[39m if the editor holds unsent words the re-read refuses: it says so and does not re-plan [33m 614[2mms[22m[39m
+     [33m[2m✓[22m[39m M7: says so politely, and M2: refreshes History and the note list like a restore does [33m 600[2mms[22m[39m
+     [33m[2m✓[22m[39m N-M1: words typed while the write was on the wire are kept; it says the update landed, is not offered again, and re-reads once the words are saved [33m 1630[2mms[22m[39m
+     [33m[2m✓[22m[39m opens the chooser of the editor it was pressed in only [33m 404[2mms[22m[39m
+     [33m[2m✓[22m[39m lists what is added and what is left out, in words, and promises nothing is removed [33m 516[2mms[22m[39m
+     [33m[2m✓[22m[39m an up-to-date plan says so and offers Close only [33m 550[2mms[22m[39m
+     [33m[2m✓[22m[39m opens a chooser of the member's styles by kind; picking one previews the switch and applies it [33m 431[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.styleDemand.test.jsx [2m([22m[2m1 test[22m[2m)[22m[33m 1816[2mms[22m[39m
+     [33m[2m✓[22m[39m opens without fetching the style surfaces; /style fetches them and opens the chooser [33m 1814[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.toolbarIdentity.test.jsx [2m([22m[2m2 tests[22m[2m)[22m[33m 1839[2mms[22m[39m
+     [33m[2m✓[22m[39m a button keeps its DOM node across a re-render the page really made [33m 1485[2mms[22m[39m
+     [33m[2m✓[22m[39m typing keeps every toolbar button node [33m 352[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.styleChunks.test.js [2m([22m[2m4 tests[22m[2m)[22m[32m 91[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.styleUpdate.gateOff.test.jsx [2m([22m[2m1 test[22m[2m)[22m[33m 1530[2mms[22m[39m
+     [33m[2m✓[22m[39m a styled note renders; no banner, sheet or chooser is offered or even loaded; /style is not available [33m 1529[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m8 passed[39m[22m[90m (8)[39m
+[2m      Tests [22m [1m[32m52 passed[39m[22m[90m (52)[39m
+[2m   Start at [22m 02:04:04
+[2m   Duration [22m 24.80s[2m (transform 7.01s, setup 1.90s, import 3.13s, tests 36.37s, environment 5.45s)[22m
+

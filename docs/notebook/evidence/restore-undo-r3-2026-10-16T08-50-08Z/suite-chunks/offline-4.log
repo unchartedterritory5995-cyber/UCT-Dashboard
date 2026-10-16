@@ -1,0 +1,153 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+ [32m✓[39m src/pages/journal-2-0/lib/offline/useOutboxDrain.test.jsx [2m([22m[2m14 tests[22m[2m)[22m[33m 2548[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ the note another tab has open is not sent; once it closes, the next sweep sends it [33m 308[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ M-2: a member's own swap COPY forked by the sweep is NOT a sync conflict — no conflict_forked [33m 330[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx[2m > [22m[2mC1 · ⛔⛔ an Undo that crosses a whole-view swap never drops the words the swap put on screen[2m > [22m[2madoption, ONLINE, the Undo before the first PUT: the words are still in a layer
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+ [32m✓[39m src/pages/journal-2-0/lib/offline/useDurableNote.test.jsx [2m([22m[2m12 tests[22m[2m)[22m[33m 1066[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx[2m > [22m[2mC1 · ⛔⛔ an Undo that crosses a whole-view swap never drops the words the swap put on screen[2m > [22m[2mcrash-draft Restore WITHOUT a base, OFFLINE: Restore, type, Undo past the Restore ⇒ the draft words are still in a layer
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+ [32m✓[39m src/pages/journal-2-0/lib/offline/writtenSchemaCapture.test.js [2m([22m[2m13 tests[22m[2m)[22m[33m 943[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/supersedeProvesContent.test.js [2m([22m[2m3 tests[22m[2m)[22m[33m 481[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx[2m > [22m[2mC1 · ⛔⛔ an Undo that crosses a whole-view swap never drops the words the swap put on screen[2m > [22m[2mcrash-draft Restore WITH a base (the adoption effect), OFFLINE: Undo past it ⇒ the draft words are still in a layer
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+ [32m✓[39m src/pages/journal-2-0/lib/offline/slowPutOrdering.test.jsx [2m([22m[2m5 tests[22m[2m)[22m[33m 315[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/settleLandedSaveCallers.test.js [2m([22m[2m2 tests[22m[2m)[22m[32m 227[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/settleNoteWrite.test.jsx [2m([22m[2m10 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx[2m > [22m[2mC1 · ⛔⛔ an Undo that crosses a whole-view swap never drops the words the swap put on screen[2m > [22m[2m⭐ Undo still does what the member asked: the page goes back, and Redo brings the words back
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+ [32m✓[39m src/pages/journal-2-0/lib/offline/writtenSchemaDrain.test.js [2m([22m[2m13 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx[2m > [22m[2mC1 · ⛔⛔ an Undo that crosses a whole-view swap never drops the words the swap put on screen[2m > [22m[2m⭐ Undo still does what the member asked: the page goes back, and Redo brings the words back
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx:70:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3864:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:4001:21
+    at Object.react_stack_bottom_frame (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\[4mreact-dom[24m\cjs\react-dom-client.development.js:26001:13)
+    at runWithFiberInDEV (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\[4mreact-dom[24m\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListUnmount (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\[4mreact-dom[24m\cjs\react-dom-client.development.js:13316:17)
+    at commitHookPassiveUnmountEffects (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\[4mreact-dom[24m\cjs\react-dom-client.development.js:13347:11)
+    at commitPassiveUnmountEffectsInsideOfDeletedTree_begin (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\[4mreact-dom[24m\cjs\react-dom-client.development.js:16264:13)
+    at recursivelyTraversePassiveUnmountEffects (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\[4mreact-dom[24m\cjs\react-dom-client.development.js:16085:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx[2m > [22m[2mI1 · each swap mints a lineage, and keystrokes on the NEW view never supersede what the OLD view wrote[2m > [22m[2mversion restore (`adoptServerCopy`): the old view’s unsent words survive typing on the restored version
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx[2m > [22m[2mI1 · each swap mints a lineage, and keystrokes on the NEW view never supersede what the OLD view wrote[2m > [22m[2mversion restore (`adoptServerCopy`): the old view’s unsent words survive typing on the restored version
+[22m[39mautosave failed (retry 2 in 2000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx:70:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3864:23)
+    at Timeout._onTimeout (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3971:62)
+[90m    at listOnTimeout (node:internal/timers:605:17)[39m
+[90m    at processTimers (node:internal/timers:541:7)[39m
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx[2m > [22m[2mI1 · each swap mints a lineage, and keystrokes on the NEW view never supersede what the OLD view wrote[2m > [22m[2mversion restore (`adoptServerCopy`): the old view’s unsent words survive typing on the restored version
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx:70:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3864:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1949:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx[2m > [22m[2mI1 · each swap mints a lineage, and keystrokes on the NEW view never supersede what the OLD view wrote[2m > [22m[2mcrash-draft Restore WITHOUT a base: words the old view typed before Restore survive typing on the restored draft
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx[2m > [22m[2mI1 · each swap mints a lineage, and keystrokes on the NEW view never supersede what the OLD view wrote[2m > [22m[2mcrash-draft Restore WITHOUT a base: words the old view typed before Restore survive typing on the restored draft
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx:70:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3864:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1949:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx[2m > [22m[2mI1 · each swap mints a lineage, and keystrokes on the NEW view never supersede what the OLD view wrote[2m > [22m[2mcrash-draft Restore WITHOUT a base: words the old view typed before Restore survive typing on the restored draft
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx:70:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3864:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1949:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx[2m > [22m[2mI1 · each swap mints a lineage, and keystrokes on the NEW view never supersede what the OLD view wrote[2m > [22m[2mcrash-draft Restore WITH a base (the adoption effect): words the old view typed before Restore survive typing on the restored draft
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx[2m > [22m[2mI1 · each swap mints a lineage, and keystrokes on the NEW view never supersede what the OLD view wrote[2m > [22m[2mcrash-draft Restore WITH a base (the adoption effect): words the old view typed before Restore survive typing on the restored draft
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx:70:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3864:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1949:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx[2m > [22m[2mI1 · each swap mints a lineage, and keystrokes on the NEW view never supersede what the OLD view wrote[2m > [22m[2mcrash-draft Restore WITH a base (the adoption effect): words the old view typed before Restore survive typing on the restored draft
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx:70:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3864:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1949:59
+    at callTimer (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2111:25)
+    at doTickInner (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2714:30)
+    at doTick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2795:21)
+    at Object.tick (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:2803:21)
+    at FakeTimers.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3529:44)
+    at Object.advanceTimersByTime (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4mvitest[24m/dist/chunks/vi.2VT5v0um.js:3760:13)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx[2m > [22m[2mI1 · each swap mints a lineage, and keystrokes on the NEW view never supersede what the OLD view wrote[2m > [22m[2mqueued-work adoption: the adoption mints a lineage, and the adopted words are captured under it
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx[2m > [22m[2mI1 · each swap mints a lineage, and keystrokes on the NEW view never supersede what the OLD view wrote[2m > [22m[2mqueued-work adoption: the adoption mints a lineage, and the adopted words are captured under it
+[22m[39mautosave failed (retry 1 in 1000ms) Error: network down
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx:70:26
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3864:23)
+    at C:/Users/Patrick/uct-worktrees/notebook-restore-undo/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:4001:21
+    at Object.react_stack_bottom_frame (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\[4mreact-dom[24m\cjs\react-dom-client.development.js:26001:13)
+    at runWithFiberInDEV (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\[4mreact-dom[24m\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListUnmount (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\[4mreact-dom[24m\cjs\react-dom-client.development.js:13316:17)
+    at commitHookPassiveUnmountEffects (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\[4mreact-dom[24m\cjs\react-dom-client.development.js:13347:11)
+    at commitPassiveUnmountEffectsInsideOfDeletedTree_begin (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\[4mreact-dom[24m\cjs\react-dom-client.development.js:16264:13)
+    at recursivelyTraversePassiveUnmountEffects (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\[4mreact-dom[24m\cjs\react-dom-client.development.js:16085:13)
+
+ [32m✓[39m src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx [2m([22m[2m9 tests[22m[2m)[22m[33m 18979[2mms[22m[39m
+     [33m[2m✓[22m[39m adoption, OFFLINE: adopt queued words, the durable write lands, type, Undo past the adoption ⇒ the words are still in a layer [33m 3761[2mms[22m[39m
+     [33m[2m✓[22m[39m adoption, ONLINE, the Undo before the first PUT: the words are still in a layer [33m 1636[2mms[22m[39m
+     [33m[2m✓[22m[39m crash-draft Restore WITHOUT a base, OFFLINE: Restore, type, Undo past the Restore ⇒ the draft words are still in a layer [33m 2317[2mms[22m[39m
+     [33m[2m✓[22m[39m crash-draft Restore WITH a base (the adoption effect), OFFLINE: Undo past it ⇒ the draft words are still in a layer [33m 2376[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ Undo still does what the member asked: the page goes back, and Redo brings the words back [33m 1156[2mms[22m[39m
+     [33m[2m✓[22m[39m version restore (`adoptServerCopy`): the old view’s unsent words survive typing on the restored version [33m 1721[2mms[22m[39m
+     [33m[2m✓[22m[39m crash-draft Restore WITHOUT a base: words the old view typed before Restore survive typing on the restored draft [33m 2614[2mms[22m[39m
+     [33m[2m✓[22m[39m crash-draft Restore WITH a base (the adoption effect): words the old view typed before Restore survive typing on the restored draft [33m 2634[2mms[22m[39m
+     [33m[2m✓[22m[39m queued-work adoption: the adoption mints a lineage, and the adopted words are captured under it [33m 762[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m9 passed[39m[22m[90m (9)[39m
+[2m      Tests [22m [1m[32m81 passed[39m[22m[90m (81)[39m
+[2m   Start at [22m 03:41:19
+[2m   Duration [22m 19.95s[2m (transform 2.32s, setup 1.32s, import 845ms, tests 24.62s, environment 3.94s)[22m
+

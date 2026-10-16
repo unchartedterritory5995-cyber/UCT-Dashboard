@@ -1,0 +1,61 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-restore-undo/app[39m
+
+ [32m✓[39m src/pages/journal-2-0/lib/offline/noteCopy.test.js [2m([22m[2m35 tests[22m[2m)[22m[33m 7006[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ I-3: a create the server REFUSES (400) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4) [33m 378[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ I-3: a create the server REFUSES (413) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4) [33m 363[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ I-3: a create the server REFUSES (422) ⇒ HELD with its reason, kept, never re-posted, and the source note is NOT blocked (I-4) [33m 379[2mms[22m[39m
+     [33m[2m✓[22m[39m I-3: a create that fails 403 is transient ⇒ KEPT, not refused, and posted again next sweep [33m 363[2mms[22m[39m
+     [33m[2m✓[22m[39m I-3: a create that fails 404 is transient ⇒ KEPT, not refused, and posted again next sweep [33m 334[2mms[22m[39m
+     [33m[2m✓[22m[39m I-3: a create that fails 405 is transient ⇒ KEPT, not refused, and posted again next sweep [33m 347[2mms[22m[39m
+     [33m[2m✓[22m[39m I-3: a create that fails 409 is transient ⇒ KEPT, not refused, and posted again next sweep [33m 353[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NotesTableView.relation.test.jsx [2m([22m[2m2 tests[22m[2m)[22m[32m 197[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/kindOfNoteOffer.test.jsx [2m([22m[2m11 tests[22m[2m)[22m[32m 138[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/styles/StylesManager.test.jsx [2m([22m[2m75 tests[22m[2m)[22m[33m 25503[2mms[22m[39m
+     [33m[2m✓[22m[39m Delete then Undo restores the style: the row is gone, then it is back, and focus follows [33m 362[2mms[22m[39m
+     [33m[2m✓[22m[39m reorders blocks with Move up/Move down and keeps an unknown block [33m 822[2mms[22m[39m
+       [33m[2m✓[22m[39m a row that reaches the TOP hands focus to its Move down button (its Move up just went disabled) [33m 533[2mms[22m[39m
+       [33m[2m✓[22m[39m a row that reaches the BOTTOM hands focus to its Move up button [33m 660[2mms[22m[39m
+       [33m[2m✓[22m[39m moving the first row down: focus is not lost when React relocates the row [33m 519[2mms[22m[39m
+       [33m[2m✓[22m[39m a middle row keeps focus on the very button that was pressed [33m 551[2mms[22m[39m
+     [33m[2m✓[22m[39m shows the live preview with the member’s own ticker, after the debounce [33m 587[2mms[22m[39m
+     [33m[2m✓[22m[39m says how to see the chart block when the member has no ticker yet [33m 610[2mms[22m[39m
+     [33m[2m✓[22m[39m makes a new style: the draft is saved with the chosen kind [33m 356[2mms[22m[39m
+     [33m[2m✓[22m[39m an empty name is refused in words, and nothing is sent [33m 319[2mms[22m[39m
+     [33m[2m✓[22m[39m property defaults: a select per user-set select property, Leave empty first, never Kind of note [33m 381[2mms[22m[39m
+     [33m[2m✓[22m[39m a captured default of 0 or false survives a save [33m 307[2mms[22m[39m
+     [33m[2m✓[22m[39m renaming a style with a rich outline sends NO outline [33m 328[2mms[22m[39m
+     [33m[2m✓[22m[39m switching a block off on a rich outline sends NO outline [33m 335[2mms[22m[39m
+     [33m[2m✓[22m[39m the live preview still composes the style’s real outline [33m 592[2mms[22m[39m
+     [33m[2m✓[22m[39m choosing "No outline" on a rich outline is a deliberate change and clears it [33m 347[2mms[22m[39m
+     [33m[2m✓[22m[39m a plain outline is editable as text, and renaming it alone still sends no outline [33m 350[2mms[22m[39m
+     [33m[2m✓[22m[39m editing a plain outline sends it as a doc [33m 351[2mms[22m[39m
+     [33m[2m✓[22m[39m the outline picker: a textarea outline is saved as a doc; a built-in outline can be copied in [33m 427[2mms[22m[39m
+     [33m[2m✓[22m[39m "One of my templates" with none chosen blocks Save with a sentence [33m 418[2mms[22m[39m
+     [33m[2m✓[22m[39m a linked template that was deleted says so, and saving something else still works [33m 380[2mms[22m[39m
+     [33m[2m✓[22m[39m after Save, focus returns to the button that opened the editor and the sentence is announced [33m 459[2mms[22m[39m
+     [33m[2m✓[22m[39m after Cancel, focus returns to the opener too [33m 424[2mms[22m[39m
+     [33m[2m✓[22m[39m closing with unsaved changes asks in the page first; Keep editing keeps them [33m 773[2mms[22m[39m
+     [33m[2m✓[22m[39m closing an editor with nothing changed just closes [33m 307[2mms[22m[39m
+     [33m[2m✓[22m[39m a refusal the server worded is shown word for word [33m 330[2mms[22m[39m
+     [33m[2m✓[22m[39m the live preview says offline / server trouble in the same words [33m 600[2mms[22m[39m
+     [33m[2m✓[22m[39m deleting a kind asks first, in the page, and says what goes with it; Keep changes nothing [33m 481[2mms[22m[39m
+     [33m[2m✓[22m[39m the offer is not asked again after it was applied, even though the server still counts the skipped notes [33m 312[2mms[22m[39m
+     [33m[2m✓[22m[39m apply, leave (unmount), arrive again through Settings: the offer is not asked again [33m 357[2mms[22m[39m
+     [33m[2m✓[22m[39m storage that throws still hides it for the rest of the session (in this module) [33m 363[2mms[22m[39m
+     [33m[2m✓[22m[39m Cancel clears a discard prompt that was waiting [33m 506[2mms[22m[39m
+     [33m[2m✓[22m[39m Save clears it too [33m 525[2mms[22m[39m
+     [33m[2m✓[22m[39m opening another style over a dirty editor asks first; nothing is created until the answer [33m 834[2mms[22m[39m
+     [33m[2m✓[22m[39m New style over a dirty editor asks too; Discard goes where the member asked [33m 533[2mms[22m[39m
+     [33m[2m✓[22m[39m with nothing changed, opening another style just opens it [33m 355[2mms[22m[39m
+     [33m[2m✓[22m[39m opening the confirm focuses its first button; Keep returns focus to that kind’s Delete [33m 366[2mms[22m[39m
+     [33m[2m✓[22m[39m after a delete, focus goes to the next kind row (its first button) [33m 675[2mms[22m[39m
+     [33m[2m✓[22m[39m Edit A over a dirty A: Discard shows the stored values, nothing is dirty, Close asks nothing [33m 736[2mms[22m[39m
+     [33m[2m✓[22m[39m New style over a dirty New style: Discard gives a blank form again [33m 446[2mms[22m[39m
+     [33m[2m✓[22m[39m clears a discard prompt that was waiting on it [33m 561[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[32m123 passed[39m[22m[90m (123)[39m
+[2m   Start at [22m 03:48:42
+[2m   Duration [22m 42.79s[2m (transform 25.04s, setup 710ms, import 25.36s, tests 32.84s, environment 1.87s)[22m
+
