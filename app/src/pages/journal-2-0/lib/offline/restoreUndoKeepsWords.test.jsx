@@ -25,15 +25,34 @@
  */
 import { render, screen, act, waitFor, fireEvent, cleanup } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { AsyncLocalStorage } from 'node:async_hooks'
+import { describe, it as vitestIt, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createFakeIndexedDbFactory, settleIdb } from './__fixtures__/fakeIndexedDb'
 import { __resetNotebookConnections } from './useDurableNote'
-import { useOutboxDrain } from './useOutboxDrain'
+import { useOutboxDrain, forkConflictedCopy } from './useOutboxDrain'
 import { OFFLINE_FLAG_KEY } from './offlineFlag'
 import { dbNameFor } from './notebookDb'
 
 // The real editor, a real Undo and several durable windows per rail.
 vi.setConfig({ testTimeout: 60_000 })
+
+/*
+ * ⭐⭐ FIX ROUND 4 (review M-12): EVERY REQUEST IS BOUND TO THE CELL THAT MADE IT.
+ * The mocks used to read the module's `server` when they WROTE, so a PUT (or a
+ * fork) one cell left in flight landed in whichever server the NEXT cell had made.
+ *   · `update` is bound per mount: `useJ2Note` hands each editor the PUT of the
+ *     server it was opened on (`updateFor`), and that PUT writes only there.
+ *   · the fork's two requests (`fetch` of the source, `createNoteViaApi`) resolve
+ *     their server through `cellScope`, the async context each cell runs in, so a
+ *     request issued from a promise chain a cell started still writes to that
+ *     cell's server after the next cell began. The sweep's own fork is the REAL
+ *     `forkConflictedCopy`, run inside the scope of the server its tab opened on.
+ * Rails: the "review M-12" cells at the end of this file.
+ */
+const cellScope = new AsyncLocalStorage()
+const it = (name, fn, ...rest) => vitestIt(name, (...args) => cellScope.run({ server: null }, () => fn(...args)), ...rest)
+/** The server of the cell this request belongs to (the module's, outside any cell). */
+const serverNow = () => cellScope.getStore()?.server ?? server
 
 Range.prototype.getClientRects = () => []
 Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -61,24 +80,40 @@ function makeServer({ body, updatedAt }) {
     }),
     stamp: () => { rev += 1; s.updatedAt = `2026-10-16T20:10:${String(10 + rev).padStart(2, '0')}.000000+00:00` },
   }
+  const box = cellScope.getStore()
+  if (box) box.server = s
   return s
 }
-const update = vi.fn(async (patch) => {
-  server.puts.push(patch)
-  if (server.down) throw new Error('network down')        // no status ⇒ retried, never forked
-  if (server.holdPuts) { server.inflight += 1; await server.holdPuts }
-  if (patch.baseUpdatedAt && patch.baseUpdatedAt !== server.updatedAt) {
+/** The compare-and-set PUT, into ONE server, whichever cell is running when it lands. */
+async function putInto(s, patch) {
+  s.puts.push(patch)
+  if (s.down) throw new Error('network down')        // no status ⇒ retried, never forked
+  if (s.holdPuts) { s.inflight += 1; await s.holdPuts; s.inflight -= 1 }
+  if (patch.baseUpdatedAt && patch.baseUpdatedAt !== s.updatedAt) {
     const e = new Error('note changed — refresh and retry'); e.status = 409; throw e
   }
-  if (patch.bodyJson) server.body = patch.bodyJson
-  if ('title' in patch) server.title = patch.title
-  if ('subtitle' in patch) server.subtitle = patch.subtitle ?? ''
-  server.stamp()
-  return server.note()
-})
+  if (patch.bodyJson) s.body = patch.bodyJson
+  if ('title' in patch) s.title = patch.title
+  if ('subtitle' in patch) s.subtitle = patch.subtitle ?? ''
+  s.stamp()
+  return s.note()
+}
+/** Records every PUT an editor makes (assertions only); the write is `updateFor`'s. */
+const update = vi.fn()
+const boundUpdates = new WeakMap()
+function updateFor(s) {
+  if (!boundUpdates.has(s)) boundUpdates.set(s, async (patch, ...rest) => { update(patch, ...rest); return putInto(s, patch) })
+  return boundUpdates.get(s)
+}
+const boundForks = new WeakMap()
+function forkFor(s) {
+  if (!boundForks.has(s)) boundForks.set(s, (entry) => cellScope.run({ server: s }, () => forkConflictedCopy(entry)))
+  return boundForks.get(s)
+}
 let mountedNote = null
+let mountedUpdate = null
 vi.mock('../../hooks/useJ2Notes', () => ({
-  useJ2Note: () => ({ note: mountedNote, isLoading: false, error: null, update, refresh: vi.fn() }),
+  useJ2Note: () => ({ note: mountedNote, isLoading: false, error: null, update: mountedUpdate, refresh: vi.fn() }),
   recordNoteOpened: vi.fn(),
   setNoteFavorite: vi.fn(),
 }))
@@ -88,15 +123,16 @@ vi.mock('../noteCreation', () => ({
   // ⭐ FIX ROUND 2 (review I-2): the sweep forks through the REAL `forkConflictedCopy`;
   // only the network call underneath is stubbed, and it honours the network being down.
   createNoteViaApi: vi.fn(async (args) => {
-    if (server.down) throw new Error('network down')
+    const s = serverNow()                                 // M-12: the cell that made the request
+    if (s.down) throw new Error('network down')
     // Fix round 3: the server can refuse a create (the real helper sets `.status`).
-    if (server.refuseCreate) {
-      const e = new Error(`Could not create note (${server.refuseCreate})`)
-      e.status = server.refuseCreate; e.detail = server.refuseDetail
+    if (s.refuseCreate) {
+      const e = new Error(`Could not create note (${s.refuseCreate})`)
+      e.status = s.refuseCreate; e.detail = s.refuseDetail
       throw e
     }
-    server.forks.push(args)
-    return { id: `fork-${server.forks.length}`, ...args }
+    s.forks.push(args)
+    return { id: `fork-${s.forks.length}`, ...args }
   }),
 }))
 
@@ -131,17 +167,20 @@ beforeEach(() => {
   installLocks()
   global.fetch = vi.fn((url) => {
     if (String(url) === '/api/j2/notes/n1') {
-      if (server.down) return Promise.reject(new TypeError('Failed to fetch'))
-      const answer = () => ({ ok: true, json: () => Promise.resolve({ note: server.note() }) })
-      if (server.holdReads) { server.inflight += 1; return server.holdReads.then(answer) }
+      const s = serverNow()                               // M-12: the cell that made the request
+      if (s.down) return Promise.reject(new TypeError('Failed to fetch'))
+      const answer = () => ({ ok: true, json: () => Promise.resolve({ note: s.note() }) })
+      if (s.holdReads) { s.inflight += 1; return s.holdReads.then(answer) }
       return Promise.resolve(answer())
     }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
   })
   vi.useFakeTimers({ shouldAdvanceTime: true })
 })
-afterEach(() => {
+afterEach(async () => {
   cleanup()
+  // M-12: let the outgoing tab's own work settle before the next cell swaps the store.
+  await act(async () => { await settleIdb(8) })
   // Fix round 4: a test that put a clipboard on `navigator` takes it away again.
   Object.defineProperty(globalThis.navigator, 'clipboard', { configurable: true, value: undefined })
   vi.useRealTimers()
@@ -159,12 +198,14 @@ function crashDraftFromEarlierSession({ base = null, title = 'Thesis' } = {}) {
   }))
 }
 function Tab({ Editor }) {
-  // The REAL `forkConflictedCopy` (the default `fork`): review I-2 — a stub here hid C-1.
-  useOutboxDrain({ accountId: 'u42', excludeNoteId: 'n1', send: sweepSend })
+  // The REAL `forkConflictedCopy`: review I-2 — a stub here hid C-1. Fix round 4
+  // (M-12): run inside the scope of the server this tab was opened on.
+  useOutboxDrain({ accountId: 'u42', excludeNoteId: 'n1', send: sweepSend, fork: forkFor(server) })
   return <Editor noteId="n1" onBack={() => {}} />
 }
 async function openTheNote() {
   mountedNote = server.note()
+  mountedUpdate = updateFor(server)
   const mod = await import('../../components/notebook/NoteEditorPage')
   render(<MemoryRouter><Tab Editor={mod.default} /></MemoryRouter>)
   await screen.findByPlaceholderText('Title')
