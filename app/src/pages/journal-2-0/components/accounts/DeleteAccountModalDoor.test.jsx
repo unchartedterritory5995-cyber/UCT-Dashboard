@@ -68,6 +68,24 @@ describe('DeleteAccountModalDoor -- the dialog loads on its first open', () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
+  it('a purge confirmed for one account never carries over to another account', async () => {
+    const conflict = { tradeCount: 3, openPositionCount: 1 }
+    const onClose = vi.fn()
+    const { rerender } = render(
+      <DeleteAccountModalDoor account={MAIN} allAccounts={[MAIN, SWING]} conflict={conflict} onClose={onClose} />,
+    )
+    fireEvent.click(await screen.findByRole('radio', { name: /Delete the account and all its trades/ }))
+    fireEvent.click(screen.getByRole('checkbox'))
+    expect(screen.getByRole('button', { name: 'Delete Everything' })).toBeEnabled()
+
+    rerender(<DeleteAccountModalDoor account={SWING} allAccounts={[MAIN, SWING]} conflict={conflict} onClose={onClose} />)
+    expect(await screen.findByRole('heading', { name: 'Delete "Swing"?' })).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox'), 'the purge box came over to the other account').toBeNull()
+    expect(screen.getByRole('radio', { name: /Move trades, then delete/ })).toBeChecked()
+    expect(screen.queryByRole('button', { name: 'Delete Everything' })).toBeNull()
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
   it('a chunk that cannot load says so in the status line (never a silent no-op); nothing is deleted; Try again opens the dialog', async () => {
     // Safari's wording (no chunk URL): a real chunk-load error, asked for again in place once.
     const failing = vi.fn(() => Promise.reject(new TypeError('Importing a module script failed.')))

@@ -44,7 +44,10 @@ export default function DeleteAccountModalDoor(props) {
     return () => { live = false }
   }, [attempt])
 
-  if (Modal) return <Modal {...props} />
+  // ⛔ Keyed on the account: the dialog's mode and its purge checkbox belong to ONE account. Without
+  // the key, opening a delete for another account while this one is mounted carried a ticked purge
+  // box over to it, one click from wiping that account's trades (pre-existing; review 2026-10-16).
+  if (Modal) return <Modal key={props.account?.id} {...props} />
   return (
     <div className={failed ? styles.unavailable : styles.quiet} data-testid="delete-account-door">
       <p className={styles.status} role="status">{failed ? DELETE_ACCOUNT_UNAVAILABLE : ''}</p>
