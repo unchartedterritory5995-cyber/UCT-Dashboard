@@ -23,7 +23,13 @@ import { forkConflictedCopy } from './useOutboxDrain'
 import { listBlockedNoteIds } from './blockedNotes'
 import { swapCaptureSpills, editorLineageStamp } from './recoverLocalState'
 import * as nc from './noteCopy'
-import * as refusedCopyNs from './refusedCopy'
+import * as refusedCopyDecisionNs from './refusedCopy'
+// ⭐ I-A bytes: the refused copy's DISPLAY half (the walk, the class and sentence, the view,
+// Save and Discard) moved to its own lazily loaded module; the cells below reach both halves
+// through one namespace, so not one assertion changed with the split.
+import * as refusedCopyDisplayNs from './refusedCopyDisplay'
+
+const refusedCopyNs = { ...refusedCopyDecisionNs, ...refusedCopyDisplayNs }
 
 const { drainOutbox, FORKED, KEPT } = drain
 const { copyEntryFor, isNoteCopy, NOTE_COPY } = nc
@@ -604,7 +610,9 @@ describe('fix round 5 — the plain-text walk carries every word, and a plain sa
     ;[kept] = await listOutbox(db)
     expect(kept?.mutationId, 'the sweep removed a plain-saved copy').toBe(copy.mutationId)
     // On the next open it is still offered, plain-saved.
-    const [again] = rc.refusedCopiesOf(await listOutbox(db), 'n1')
+    // I-A bytes: the static decision half answers the STORED record, every word in it.
+    expect(rc.refusedCopiesOf(await listOutbox(db), 'n1')[0]?.patch.bodyJson).toEqual(PROBE)
+    const [again] = rc.refusedCopiesOf(await listOutbox(db), 'n1').map(rc.refusedCopyView)
     expect(again?.plainSaved).toBeTruthy()
     expect([again.offerPlain, again.offerSeparate]).toEqual([false, false])
     await rc.discardRefusedCopy(db, copy.mutationId)

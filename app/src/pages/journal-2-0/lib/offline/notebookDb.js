@@ -189,16 +189,6 @@ export async function putOutboxEntryIfPresent(db, entry) {
   return wrote
 }
 
-/** One outbox entry by its key, or null. */
-export function getOutboxEntry(db, mutationId) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_OUTBOX, 'readonly')
-    const req = tx.objectStore(STORE_OUTBOX).get(mutationId)
-    req.onsuccess = () => resolve(req.result || null)
-    req.onerror = () => reject(req.error)
-  })
-}
-
 /**
  * The writes `putNoteWithIntent` makes, staged into a transaction the caller
  * already holds. ⭐ ONE copy, so the null-intent guard below lives in one place

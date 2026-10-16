@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
@@ -99,6 +99,7 @@ import CompassSurface from './surfaces/CompassSurface'
 import CommunitySurface from './surfaces/CommunitySurface'
 import AccountsSurface from './surfaces/AccountsSurface'
 import { latchNotebookFlags } from './lib/offline/notebookFlags'
+import { SHORTCUTS_UNAVAILABLE, shortcutSheetLoaders } from './components/ShortcutCheatSheetDoor'
 
 // ⛔ Wave 10 (10C, F-8): NotebookSurface now mounts Wave K's gate, which renders
 // nothing until the capability flags latch (or its 3 s deadline passes). The REAL
@@ -548,10 +549,11 @@ describe('JournalLayout — keyboard shortcuts door (A2R-04)', () => {
     expect(await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeInTheDocument()
   })
 
-  it('a plain click still opens it too (regression)', () => {
+  it('a plain click still opens it too (regression)', async () => {
     renderAt('/journal')
     fireEvent.click(screen.getByRole('button', { name: 'Show keyboard shortcuts' }))
-    expect(screen.getByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeInTheDocument()
+    // I-A bytes: the sheet's chunk loads on its first open, so the dialog is awaited.
+    expect(await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeInTheDocument()
   })
 
   it('the "?" shortcut opens the dialog from a settled, non-input focus', async () => {
@@ -593,10 +595,76 @@ describe('JournalLayout — keyboard shortcuts door (A2R-04)', () => {
     const opener = screen.getByRole('button', { name: 'Show keyboard shortcuts' })
     opener.focus()
     fireEvent.keyDown(opener, { key: 'Enter' })
-    await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })
+    const dialog = await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })
+    // I-A bytes: the sheet now arrives from its own chunk, so the dialog can be in the DOM a
+    // moment before its open effect (Close focused, the Escape listener attached) has run.
+    // Wait for that effect, as a member's keypress always would; the assertions are unchanged.
+    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Close' })))
     fireEvent.keyDown(window, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     await waitFor(() => expect(document.activeElement).toBe(opener))
+  })
+})
+
+// ── The cheat sheet loads on its first open (I-A bytes, controller ruling 2026-10-16) ──
+// components/ShortcutCheatSheetDoor.jsx loads ShortcutCheatSheet through importWithOneRetry the
+// first time `open` is true. While it loads nothing else on the page changes; a chunk that cannot
+// load says so in the door's one status line (mounted empty on the first open, before any
+// sentence can arrive; absent at rest), with Try again.
+describe('JournalLayout — the keyboard shortcuts sheet loads on its first open (I-A bytes)', () => {
+  const realSheet = shortcutSheetLoaders.sheet
+  afterEach(() => { shortcutSheetLoaders.sheet = realSheet })
+
+  it('"?" opens the sheet once its chunk resolves; while it loads, focus stays put and the other shortcuts still work', async () => {
+    let release
+    const gate = new Promise((resolve) => { release = resolve })
+    const loader = vi.fn(() => gate.then(() => realSheet()))
+    shortcutSheetLoaders.sheet = loader
+    renderAt('/journal')
+    expect(screen.queryByTestId('shortcut-sheet-door'), 'a resting page carries the door’s live region').toBeNull()
+    expect(loader, 'the sheet was fetched before anybody opened it').not.toHaveBeenCalled()
+
+    const opener = screen.getByRole('button', { name: 'Show keyboard shortcuts' })
+    opener.focus()
+    fireEvent.keyDown(opener, { key: '?', code: 'Slash', shiftKey: true })
+    const status = within(screen.getByTestId('shortcut-sheet-door')).getByRole('status')
+    expect(status.textContent, 'the status line is not mounted empty on the first open').toBe('')
+    await waitFor(() => expect(loader).toHaveBeenCalledTimes(1))
+    expect(screen.queryByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeNull()
+    expect(document.activeElement, 'loading the sheet moved focus').toBe(opener)
+    // Another shortcut works while the sheet's chunk is still on its way.
+    pressChord('KeyA')
+    await waitFor(() => expect(loc()).toBe('/journal/calendar'))
+    expect(status.textContent).toBe('')
+
+    // The chord navigated, so the route's own focus handling (routeFocus) now owns focus; the
+    // return-to-opener half is the "Escape closes it and focus returns to the button" cell above,
+    // which goes through this same lazy load without a navigation in between.
+    release()
+    const dialog = await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })
+    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Close' })))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('a chunk that cannot load says so in the status line (never a silent no-op), and Try again opens the sheet', async () => {
+    // Safari's wording (no chunk URL): a real chunk-load error, asked for again in place once.
+    const failing = vi.fn(() => Promise.reject(new TypeError('Importing a module script failed.')))
+    shortcutSheetLoaders.sheet = failing
+    renderAt('/journal')
+    document.body.focus()
+    fireEvent.keyDown(document.body, { key: '?', code: 'Slash', shiftKey: true })
+    const status = within(screen.getByTestId('shortcut-sheet-door')).getByRole('status')
+    expect(status.textContent, 'the status line held its sentence when it was inserted').toBe('')
+    await waitFor(() => expect(status.textContent).toBe(SHORTCUTS_UNAVAILABLE), { timeout: 3000 })
+    expect(failing.mock.calls.length, 'the chunk was not asked for again in place').toBeGreaterThanOrEqual(2)
+    expect(within(screen.getByTestId('shortcut-sheet-door')).getByRole('status'), 'the live region was replaced, not filled').toBe(status)
+    expect(screen.queryByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeNull()
+
+    shortcutSheetLoaders.sheet = realSheet
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeInTheDocument()
+    expect(status.textContent).toBe('')
   })
 })
 

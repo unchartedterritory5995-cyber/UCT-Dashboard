@@ -1,0 +1,11 @@
+   -4399  askInsert  96982 -> 92583
+     +34  NotebookSurface  1815 -> 1849
+     +35  AskPanel.module  23117 -> 23152
+     +39  CapturedSourceSheet  27764 -> 27803
+     +91  tiptap  282140 -> 282231
+    +120  index  838510 -> 838630
+    +406  offlineFlag  3544 -> 3950
+   +4387  askCitation  None -> 4387
+   +7452  NotebookFlagGate  348913 -> 356365
+   +8061  useDurableNote  22835 -> 30896
+total 16226

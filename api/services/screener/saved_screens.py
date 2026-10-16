@@ -638,9 +638,11 @@ def _starter_defs():
           "view": "technical", "sort": {"key": "rvol_live", "dir": "desc"}}},
         {"id": "starter_gap_up_volume", "name": "Gapping up on volume",
          "group": "Momentum leaders",
-         "description": "Stocks gapped up 3%+ on 1.5x usual volume, live during the session, $10M+ traded, price $5+",
+         # Recalibrated 2026-10-16 from 3% after two in-session readings on production:
+         # 6 at 09:52 and 6 at 10:09 ET (target 10-60); at 2% it was 14 at 09:52.
+         "description": "Stocks gapped up 2%+ on 1.5x usual volume, live during the session, $10M+ traded, price $5+",
          "spec": {"filters": [
-             {"key": "gap_pct", "op": "gte", "min": 3},
+             {"key": "gap_pct", "op": "gte", "min": 2},
              {"key": "rvol_live", "op": "gte", "min": 1.5},
              {"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000},
              {"key": "price", "op": "gte", "min": 5}],

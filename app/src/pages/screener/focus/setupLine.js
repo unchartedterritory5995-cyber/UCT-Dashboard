@@ -13,7 +13,10 @@ import { plainStructure, sentenceCase } from './plainWords'
 import { isoDay, shortDay, sessionsMissed } from './dates'
 import { etYmd } from '../../../lib/marketClock/etTime'
 
-const fmtPx = p => (Math.abs(p) >= 10 ? Math.round(p).toString() : p.toFixed(2))
+// Cents always (a whole-dollar pivot drops its ".00"). ⛔ Rounding to the dollar printed
+// "1.3% above pivot 11" for a $10.54 pivot under a $10.68 price (ERIC, production
+// 2026-10-16): any rounding can put the shown pivot on the wrong side of the price.
+const fmtPx = p => p.toFixed(2).replace(/\.00$/, '')
 
 // IBD's general buy zone: up to 5% above the pivot. Past it a breakout has RESOLVED, and a big
 // "47.9% above pivot" reads as if the setup were still forming. The server applies the same 5%

@@ -91,7 +91,6 @@ import { noteHasUnsentWork } from '../../lib/offline/noteHasUnsentWork'
 import { openNotebookDb } from '../../lib/offline/notebookDb'
 import { forkConflictedCopy } from '../../lib/offline/useOutboxDrain'
 import { conflictedCopyTitle } from '../../lib/offline/noteCopy'
-import RefusedCopyOffer from './RefusedCopyOffer'
 import { holdsUnsentWork } from '../../lib/noteBatch'
 import { textColorClass } from '../../lib/textColor'
 import NoteHistoryPanel from './NoteHistoryPanel'
@@ -208,6 +207,63 @@ export const chipDoorLoaders = {
 const loadChipDoor = (name, piece) => importWithOneRetry(() => chipDoorLoaders[name](), RETRY_WAIT_MS, (m) => !!m?.[piece])
 // The repo's own reload wording ("Reload the page to try again."), then what did not happen.
 const reloadSentence = (what, nothing) => `Couldn't ${what}. Reload the page to try again. Nothing ${nothing}.`
+
+// ⭐⭐ I-A BYTES: the refused-copy offer (`RefusedCopyOffer.jsx`: the offer, its Save / Discard
+// choices and the copy's plain-text walk, `lib/offline/refusedCopyDisplay.js`) is shown only
+// after the server refused a copy FOR GOOD, which is rare, so it is its own chunk and stays out
+// of the Notebook's first-open bytes (docs/notebook/perf-budgets.json). Loaded when a note HAS
+// an offer, through importWithOneRetry like the chip doors above (never a bare `await import`).
+// ⛔⛔ The copy itself is HELD by the static decision half (`lib/offline/refusedCopy.js`) in the
+// outbox whatever happens here: loading late changes WHEN the offer appears, never whether the
+// copy is kept. A chunk that cannot load is said in a fixed sentence, with Try again, and
+// nothing is discarded. A property so a rail can fail the fetch (jsdom cannot fetch a chunk).
+// ⛔ Never a static import of the offer (rail: RefusedCopyOffer.lazy.test.js).
+export const refusedCopyDoorLoaders = {
+  offer: () => import('./RefusedCopyOffer'),
+}
+const loadRefusedCopyDoor = () => importWithOneRetry(
+  () => refusedCopyDoorLoaders.offer(), RETRY_WAIT_MS, (m) => typeof m?.RefusedCopyOffers === 'function',
+)
+export const REFUSED_COPY_UNAVAILABLE = 'A copy of this note’s words is kept on this device, but its options '
+  + 'couldn’t load. Try again, or reload the page. Nothing was deleted.'
+/**
+ * The offer area for this note's refused copies (`entries`, the stored records). While the
+ * offer's chunk loads it renders an empty status line; once loaded, the offers; if it cannot
+ * load, `REFUSED_COPY_UNAVAILABLE` in that same status line (so it is announced) and a Try
+ * again button. A successful Try again moves focus to the offer's own sentence.
+ */
+function RefusedCopyDoor(props) {
+  const [Offers, setOffers] = useState(null)
+  const [failed, setFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  const retriedRef = useRef(false)
+  // A second Try again while one is loading only restarts it: the cleanup drops the first.
+  useEffect(() => {
+    let live = true
+    loadRefusedCopyDoor().then((m) => { if (live) setOffers(() => m.RefusedCopyOffers) }, () => { if (live) setFailed(true) })
+    return () => { live = false }
+  }, [attempt])
+  if (Offers) return <Offers {...props} focusFirst={retriedRef.current} />
+  const tryAgain = () => {
+    retriedRef.current = true
+    setAttempt((a) => a + 1)
+  }
+  return (
+    <section
+      className={failed ? styles.draftBanner : undefined}
+      data-export-exclude
+      data-testid="refused-copy-door"
+      aria-label={failed ? 'A copy of this note’s words' : undefined}
+    >
+      <p className={styles.copyStatus} role="status">{failed ? REFUSED_COPY_UNAVAILABLE : ''}</p>
+      {failed ? (
+        <div className={styles.draftBannerActions}>
+          <button type="button" className={styles.draftBannerBtn} onClick={tryAgain}>Try again</button>
+        </div>
+      ) : null}
+    </section>
+  )
+}
 function LinkCanvasOffer({ canvasId, onAdd, onDismiss }) {
   const target = useNoteLinkTarget(canvasId)
   const name = target.title || 'the trade plan'
@@ -1271,13 +1327,12 @@ export default function NoteEditorPage({
   // ⭐ I-A fix round 3 (C-3, I-4): copies of this note's words the server refused
   // to create, handed back by `recover()` BESIDE its decision. Each is its own
   // offer: "Save as a separate note" or "Discard" (confirmed in the page). ⛔ Never
-  // restored into this note. `copyNote` is the latest outcome message, keyed by
-  // copy. ⭐ Fix round 4 (I-6): the offer itself (`RefusedCopyOffer`) shows the
-  // copy's words, carries "Copy text" and "Save as plain text", and owns its
-  // Discard confirm.
+  // restored into this note. ⭐ Fix round 4 (I-6): the offer itself
+  // (`RefusedCopyOffer`) shows the copy's words, carries "Copy text" and "Save as
+  // plain text", and owns its Discard confirm. ⭐ I-A bytes: these are the STORED
+  // records (`refusedCopiesOf`); the offer's chunk builds its view of each, and owns
+  // the busy state and per-copy notes that used to sit here (`RefusedCopyOffers`).
   const [refusedCopies, setRefusedCopies] = useState([])
-  const [copyBusy, setCopyBusy] = useState(null)
-  const [copyNote, setCopyNote] = useState({})
   const [copySavedNotice, setCopySavedNotice] = useState(null)
   // ⭐ Fix round 5 (review M-19): set when a save or Discard takes an offer (and the
   // button focused in it) off the page; the effect below moves focus to the editor.
@@ -1369,7 +1424,7 @@ export default function NoteEditorPage({
     if (!note) return undefined
     viewReplaced()   // hotfix 2026-10-15: a note load is a new view — a new lineage
     restoreSwapRef.current = null   // I-A: no Restore on this note's page yet
-    setRefusedCopies([]); setCopyBusy(null); setCopyNote({}); setCopySavedNotice(null)
+    setRefusedCopies([]); setCopySavedNotice(null)
     setRecoveryDecidedFor(null)
     setTitle(note.title || '')
     titleRef.current = note.title || ''
@@ -1849,76 +1904,12 @@ export default function NoteEditorPage({
     const waiting = saveSettledWaitersRef.current.splice(0)
     waiting.forEach((wake) => { try { wake() } catch { /* a waiter is not the save */ } })
   }
-  /** ⭐ I-A fix round 3 (C-3): "Save as a separate note" — the create again, as a
-   *  NEW note, through the sweep's own `forkConflictedCopy`. This note is never
-   *  written. Refused again ⇒ kept, still offered, with the new reason. */
-  /*  ⭐ Fix round 4 (I-6): with `plain`, "Save as plain text" — the same create, the
-   *  body flattened to plain paragraphs (offered after a CONTENT refusal, which the
-   *  create as it is can never get past). The stored copy keeps its original words
-   *  until a create lands. */
-  const saveRefusedCopyAsNote = async (copy, { plain = false } = {}) => {
-    if (copyBusy) return
-    setCopyBusy(copy.mutationId)
-    try {
-      const res = await durableRef.current.saveCopy(copy.mutationId, { fork: forkConflictedCopy, plain })
-      // ⛔⛔ Fix round 5 (C-4): a plain save LANDED and the copy is KEPT — still offered,
-      // now for Copy text and Discard only, with the offer saying what happened.
-      if (res?.outcome === 'plain-saved') {
-        if (res.copy) setRefusedCopies((list) => list.map((c) => (c.mutationId === copy.mutationId ? res.copy : c)))
-        setCopyNote((m) => ({
-          ...m,
-          [copy.mutationId]: `Saved as a separate note, as plain text: “${conflictedCopyTitle(copy.title)}”.`,
-        }))
-        return
-      }
-      if (res?.outcome === 'saved' || res?.outcome === 'gone') {
-        // Fix round 5 (M-19): the offer is about to go, with the focused button in it.
-        copyFocusAfterRef.current = true
-        setRefusedCopies((list) => list.filter((c) => c.mutationId !== copy.mutationId))
-        if (res.outcome === 'saved') {
-          setCopySavedNotice(plain
-            ? `Saved as a separate note, as plain text: “${conflictedCopyTitle(copy.title)}”.`
-            : `Saved as a separate note: “${conflictedCopyTitle(copy.title)}”.`)
-        }
-        return
-      }
-      if (res?.outcome === 'refused') {
-        if (res.copy) setRefusedCopies((list) => list.map((c) => (c.mutationId === copy.mutationId ? res.copy : c)))
-        setCopyNote((m) => ({
-          ...m,
-          [copy.mutationId]: plain ? 'Saving it as plain text was refused too.' : 'It still couldn’t be saved as a separate note.',
-        }))
-        return
-      }
-      // ⛔ Review wording flag: "when you're online" only when the network itself failed.
-      setCopyNote((m) => ({
-        ...m,
-        [copy.mutationId]: res?.offline
-          ? 'It couldn’t be saved right now. The copy stays on this device; try again when you’re online.'
-          : 'It couldn’t be saved right now. The copy stays on this device; try again later.',
-      }))
-    } finally {
-      setCopyBusy(null)
-    }
-  }
-  /** "Discard" on a refused copy deletes it from this device — only after the
-   *  member confirms in the page (never `window.confirm`). Resolves whether it did. */
-  const discardRefusedCopyConfirmed = async (copy) => {
-    if (copyBusy) return false
-    setCopyBusy(copy.mutationId)
-    try {
-      const ok = await durableRef.current.discardCopy(copy.mutationId)
-      if (ok) {
-        copyFocusAfterRef.current = true
-        setRefusedCopies((list) => list.filter((c) => c.mutationId !== copy.mutationId))
-      } else {
-        setCopyNote((m) => ({ ...m, [copy.mutationId]: 'The copy couldn’t be deleted. It stays on this device.' }))
-      }
-      return ok
-    } finally {
-      setCopyBusy(null)
-    }
-  }
+  // ⭐ I-A bytes: the refused-copy offer's choices ("Save as a separate note", "Save as plain
+  // text", "Discard") ride in the offer's own chunk (`RefusedCopyOffers`); the editor hands it
+  // the durable store's one door, the sweep's own fork, and these three callbacks. Stable
+  // identities: the durable layer is read through its ref at the moment of the call.
+  const withCopyStore = useCallback((run, fallback) => durableRef.current.withCopyStore(run, fallback), [])
+  const copyOfferGone = useCallback(() => { copyFocusAfterRef.current = true }, [])
 
   const discardDraft = () => {
     clearDraftLocally()
@@ -5128,17 +5119,17 @@ export default function NoteEditorPage({
           ⭐ Fix round 4 (I-6, I-7): the offer shows the copy's words with "Copy
           text", offers "Save as plain text" after a content refusal, and speaks in
           its own sentence, never the server's. */}
-      {refusedCopies.map((copy) => (
-        <RefusedCopyOffer
-          key={copy.mutationId}
-          copy={copy}
-          busy={copyBusy === copy.mutationId}
-          note={copyNote[copy.mutationId] || null}
-          onSave={(c) => saveRefusedCopyAsNote(c)}
-          onSavePlain={(c) => saveRefusedCopyAsNote(c, { plain: true })}
-          onDiscard={discardRefusedCopyConfirmed}
+      {refusedCopies.length > 0 ? (
+        <RefusedCopyDoor
+          key={noteId}
+          entries={refusedCopies}
+          withCopyStore={withCopyStore}
+          fork={forkConflictedCopy}
+          onEntries={setRefusedCopies}
+          onSaved={setCopySavedNotice}
+          onGone={copyOfferGone}
         />
-      ))}
+      ) : null}
       {/* ⭐ Fix round 5 (review M-19): the live region is on the page, EMPTY, from the
           offer's first render, and only its text changes, so a screen reader announces
           "Saved as a separate note…" when it arrives (a region inserted already holding

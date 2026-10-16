@@ -1206,7 +1206,10 @@
      "external_name": "Episodic Pivot",
      "vocab_id": null,
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples); the library setup IS the episodic_pivot detector, which the trader archive files under ep",
+     "pattern_engine_ids": [
+      "episodic_pivot"
+     ]
     },
     {
      "external_name": "Power Earnings Gap",
@@ -1254,7 +1257,10 @@
      "external_name": "Slingshot",
      "vocab_id": null,
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples); the library setup IS the uct_slingshot detector (first close back over the 4-EMA of the highs), which the trader archive files under slingshot",
+     "pattern_engine_ids": [
+      "uct_slingshot"
+     ]
     },
     {
      "external_name": "Oops Reversal",
@@ -1284,7 +1290,10 @@
      "external_name": "Parabolic Short",
      "vocab_id": null,
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples); the library setup IS the parabolic_short detector, which the trader archive files under parabolic_short",
+     "pattern_engine_ids": [
+      "parabolic_short"
+     ]
     },
     {
      "external_name": "ORB (Opening Range Break)",

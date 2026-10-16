@@ -131,38 +131,8 @@
   border-color: var(--ut-gold);
   color: var(--ut-gold);
 }
-/* I-A fix round 4 (review I-6): a copy the server refused shows its own words,
-   read-only and selectable, in a bounded scrolling box (RefusedCopyOffer.jsx). */
-.copyOffer {
-  flex-direction: column;
-  align-items: stretch;
-}
-.copyConfirm {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.copyPreview {
-  max-height: 12rem;
-  overflow: auto;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm, 6px);
-  background: var(--bg-surface);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  user-select: text;
-  line-height: 1.5;
-}
-.copyPreviewTitle {
-  font-weight: 600;
-}
-.copyPreviewSubtitle {
-  color: var(--text-muted);
-}
-.copyPreviewBody {
-  margin-top: 6px;
-}
+/* I-A: the refused-copy offer's own classes live in RefusedCopyOffer.module.css (its own chunk);
+   this one is shared with the editor's door (NoteEditorPage.jsx, RefusedCopyDoor). */
 .copyStatus {
   margin: 0;
 }
