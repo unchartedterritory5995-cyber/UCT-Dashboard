@@ -81,8 +81,48 @@ def ctx_of(bars):
     return bases._context(bars, bars)
 
 
-def fires(bars) -> bool:
-    return bc._detect_three_weeks_tight(ctx_of(bars))
+#: Weeks of uptrend placed in front of a pattern by `fires`. Thirteen weeks is
+#: 65 sessions: past FLAT_ADVANCE_LOOKBACK (60) for the prior advance and past
+#: TWT_TREND_MA_BARS (50) for the trend average.
+LEAD_WEEKS = 13
+
+
+def _lead(first_close: float, start: dt.date, rising: bool = True,
+          weeks: int = LEAD_WEEKS) -> list:
+    """`weeks` whole ISO weeks ending the Friday before `start`.
+
+    Rising: a steady climb from 70% of `first_close` to 98% of it -- a 40%
+    advance, comfortably over FLAT_PRIOR_ADVANCE, ending under the pattern so
+    the last close sits above its 50-day average. Falling: the mirror, from
+    150% down to 102%, so the same pattern ends a decline below its 50-day.
+    """
+    lo, hi = (0.70, 0.98) if rising else (1.50, 1.02)
+    closes = [first_close * (lo + (hi - lo) * i / (weeks - 1)) for i in range(weeks)]
+    return series(closes, start=start - dt.timedelta(days=7 * weeks))
+
+
+def _first_monday(bars) -> dt.date:
+    v = int(bars[0]["t"])
+    d = dt.date(v // 10000, (v // 100) % 100, v % 100)
+    return d - dt.timedelta(days=d.weekday())
+
+
+def fires(bars, rising: bool = True) -> bool:
+    """The detector over `bars` with an UPTREND in front of them.
+
+    ⛔ The structure now also requires a prior advance and a close above the
+    50-day (`three_weeks_tight_qualifies`), so a bare three-week fixture can
+    never fire. Every SHAPE case below is about the closes; the lead supplies
+    the uptrend so those cases still test the shape and only the shape. The
+    trend gates are pinned separately, with their own controls, further down.
+    """
+    if not bars:
+        return bc._detect_three_weeks_tight(ctx_of(bars))
+    # Led up to the pattern's LOWEST close, so a fixture whose midweek prices
+    # swing above it still ends above its own 50-day.
+    floor = min(b["c"] for b in bars)
+    full = _lead(floor, _first_monday(bars), rising=rising) + bars
+    return bc._detect_three_weeks_tight(ctx_of(full))
 
 
 # ── THE CONTROLS — everything below them is vacuous without these ──────────
@@ -396,3 +436,93 @@ def test_the_ledger_carries_an_honest_refused_row():
         assert any(str(round(e["lift"], 4)) in r for r in e["reasons"]), (
             "a measured refusal must quote the number it refused, or the next "
             "reader cannot tell a real measurement from a placeholder")
+
+
+# ── the uptrend gates — an add-on point, not three quiet weeks anywhere ────
+#
+# The audit that motivated these: the shape alone matched about a fifth of the
+# universe, 45% of those names were BELOW their 50-day, some carried Stage 4
+# Breakdown. Each case below holds the three tight weekly closes IDENTICAL and
+# moves only what is in front of them, so a red here is the gate and never
+# the shape.
+
+def _tight_after(lead_rising: bool) -> list:
+    pattern = series(TIGHT)
+    return _lead(TIGHT[0], MONDAY, rising=lead_rising) + pattern
+
+
+def test_the_same_tight_closes_FIRE_in_an_uptrend():
+    """The control for every refusal below: same closes, uptrend in front."""
+    bars = _tight_after(lead_rising=True)
+    st = bc.three_weeks_tight_state(bars)
+    assert st["closes"] == TIGHT, "the lead leaked into the three weeks read"
+    assert st["prior_advance"] >= bc.FLAT_PRIOR_ADVANCE
+    assert bars[-1]["c"] >= bc._sma(bars, bc.TWT_TREND_MA_BARS)
+    assert bc._detect_three_weeks_tight(ctx_of(bars))
+
+
+def test_the_same_tight_closes_after_a_DECLINE_do_not_fire():
+    """Three quiet weeks at the bottom of a fall: below the 50-day, no advance.
+    The SHAPE still reads tight -- only the trend gates refuse it."""
+    bars = _tight_after(lead_rising=False)
+    st = bc.three_weeks_tight_state(bars)
+    assert st["closes"] == TIGHT and st["pairwise"] <= bc.TWT_MAX_PAIRWISE
+    assert bars[-1]["c"] < bc._sma(bars, bc.TWT_TREND_MA_BARS)
+    assert not bc._detect_three_weeks_tight(ctx_of(bars))
+
+
+def test_BELOW_the_50_day_refuses_even_WITH_a_prior_advance():
+    """Isolates the 50-day gate: a 67% run to 125, a slide back to the
+    pattern, then three tight weeks. The prior advance passes; the trend gate
+    alone must refuse."""
+    run_then_slide = [75.0, 85.0, 95.0, 105.0, 115.0, 125.0,
+                      125.0, 120.0, 112.0, 106.0, 102.0, 100.5]
+    lead = series(run_then_slide,
+                  start=MONDAY - dt.timedelta(days=7 * len(run_then_slide)))
+    bars = lead + series(TIGHT)
+    st = bc.three_weeks_tight_state(bars)
+    assert st["pairwise"] <= bc.TWT_MAX_PAIRWISE
+    assert bc.rests_in_an_advance(st["prior_advance"], bars), (
+        "the fixture must isolate the 50-day gate, not the advance gate")
+    assert bars[-1]["c"] < bc._sma(bars, bc.TWT_TREND_MA_BARS)
+    assert not bc._detect_three_weeks_tight(ctx_of(bars))
+
+
+def test_no_PRIOR_ADVANCE_refuses_even_ABOVE_the_50_day():
+    """Isolates the advance gate: flat for months, three tight weeks sitting
+    exactly on the average. Above the 50-day, nothing advanced."""
+    flat = series([TIGHT[0]] * LEAD_WEEKS,
+                  start=MONDAY - dt.timedelta(days=7 * LEAD_WEEKS))
+    bars = flat + series(TIGHT)
+    st = bc.three_weeks_tight_state(bars)
+    assert st["pairwise"] <= bc.TWT_MAX_PAIRWISE
+    assert bars[-1]["c"] >= bc._sma(bars, bc.TWT_TREND_MA_BARS), (
+        "the fixture must isolate the advance gate, not the 50-day")
+    assert (st["prior_advance"] or 0) < bc.FLAT_PRIOR_ADVANCE
+    assert not bc._detect_three_weeks_tight(ctx_of(bars))
+
+
+def test_too_short_to_carry_a_50_day_is_REFUSED_not_assumed():
+    assert not bc._detect_three_weeks_tight(ctx_of(series(TIGHT)))
+
+
+def test_the_advance_gate_is_the_FLAT_BASES_own_function():
+    """⛔ ONE definition of "rests an advance". If TWT grew its own copy, the
+    two would drift; this pins that both ask `rests_in_an_advance`."""
+    flat_names = bc.flat_base_qualifies.__code__.co_names
+    twt_names = bc.three_weeks_tight_qualifies.__code__.co_names
+    assert "rests_in_an_advance" in flat_names
+    assert "rests_in_an_advance" in twt_names
+    # and neither restates the threshold the shared function owns
+    assert "FLAT_PRIOR_ADVANCE" not in flat_names
+    assert "FLAT_PRIOR_ADVANCE" not in twt_names
+    # non-vacuity: co_names does see a module global the body really reads
+    assert "TWT_MAX_PAIRWISE" in twt_names
+
+
+def test_the_shipped_path_refuses_it_in_a_downtrend():
+    """`bases.classify` is what a member screens on; the gate must reach it."""
+    up = bases.classify(_tight_after(lead_rising=True))
+    down = bases.classify(_tight_after(lead_rising=False))
+    assert KEY in (up["base_matches"] or ""), up["base_matches"]
+    assert KEY not in (down["base_matches"] or ""), down["base_matches"]
