@@ -1037,6 +1037,14 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         if (x?.kind === 'undo') return await doUndo(null, { member: text, voice })
         if (x?.kind === 'confirm' && pendingRef.current?.kind === 'proposal') return await approve(null, { member: text, voice })
         if (x?.kind === 'dismiss' && (pendingRef.current || pendingQuestionRef.current)) { pendingQuestionRef.current = null; return dismiss({ member: text }) }
+        if (x?.kind === 'dismiss' && peekAuthoringIntent()) {
+          // the Create Indicator door's question is set aside — nothing is built, no model call
+          clearAuthoringIntent()
+          const t = 'OK — nothing was built.'
+          push({ role: 'agent', text: t })
+          record({ member: text, outcome: t, outcomeData: { kind: 'authoring-cancelled' }, telemetry: { path: 'local', voice } })
+          return
+        }
       }
       if (!nl1) { // ── the legacy instant path: unchanged (not re-indented, so its diff stays empty) ──
       // A choice clicked under the MODEL's own question answers that question:
