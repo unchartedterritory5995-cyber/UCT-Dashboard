@@ -61,7 +61,8 @@ import time
 
 from . import (snapshot_db, candles, bar_character, bases, technicals, enrich, setup_score,
               context_joins, finviz_universe, earnings_dates, earnings_context,
-              analyst_pass, insider_capture, pattern_join, darkpool_agg, opt_flow)
+              analyst_pass, insider_capture, pattern_join, darkpool_agg, opt_flow,
+              archive_join)
 
 log = logging.getLogger(__name__)
 
@@ -409,9 +410,11 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     construction (each reader owns its own columns). Merged AFTER
     ``ratings_row`` and BEFORE ``context_row``.
 
-    🔑 ``pattern_join`` rides TWO non-column CARRIER keys into ``market_row``
+    🔑 ``pattern_join`` rides THREE non-column CARRIER keys into ``market_row``
     on purpose — ``pattern_entry_px``/``pattern_stop_px``, the best active
-    detection's raw entry/stop (K5: either, or both, may be absent). They are
+    detection's raw entry/stop (K5: either, or both, may be absent), and
+    ``pattern_best_id`` (2026-10-16), which ``run_build`` hands to
+    ``archive_join`` to key the display-only setup edge. They are
     deliberately absent from ``snapshot_db.COLUMNS``, so the generic merge
     loop below drops them from ``row`` by construction (``if k in row``) —
     they never persist under their own name. The pattern-distance derivation
@@ -1315,6 +1318,15 @@ def _run_build_locked(max_tickers=None) -> dict:
             log.info("[pattern-shadow] %s", shadow_result)
         except Exception as shadow_err:
             log.warning("[pattern-shadow] comparison failed: %s", shadow_err)
+    # Display-only archive context (owner decision 2026-10-16): the team's calls
+    # per ticker, and the archive playbook edge for the setup the best detection
+    # maps to. Rides pattern_join's `pattern_best_id` carrier.
+    best_ids = {t: r.get("pattern_best_id") for t, r in pattern_map.items()}
+    archive_map = _read_market_source(
+        "archive_join",
+        lambda tt, failures=None: archive_join.read_archive_fields(
+            tt, best_ids=best_ids, failures=failures),
+        targets, sources)
     prev_closes = _read_prev_closes()
     dp_map = _read_market_source(
         "darkpool_agg",
@@ -1394,7 +1406,7 @@ def _run_build_locked(max_tickers=None) -> dict:
                           **lastmove_map.get(T, {}), **implied_map.get(T, {}),
                           **analyst_map.get(T, {}), **insider_map.get(T, {}),
                           **pattern_map.get(T, {}), **dp_map.get(T, {}),
-                          **optflow_map.get(T, {})}
+                          **optflow_map.get(T, {}), **archive_map.get(T, {})}
             row = build_row(t, bars,
                             _read_ratings(t, failures=sources),
                             _read_fundamentals(t, mc_price, failures=sources),
