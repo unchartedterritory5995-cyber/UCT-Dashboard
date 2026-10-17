@@ -24,10 +24,17 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   Run tests as `.venv/Scripts/python.exe -m pytest tests/<named files> -q -p no:cacheprovider`.
 - Commits so far: c8edff5363 spec+plan+RESUME · 22980148dc five Phase 0 files · b568f4d580 RESUME ·
   ad2f95cbf9 wire_archive market_call (blocker B2) · ab7a0efbbe UNITS-foundations (129 units) ·
-  1a6b3da6cb scans image-copy job (blocker B1) + UNITS-method (96 units) + skill_map.json.
+  1a6b3da6cb scans image-copy job (blocker B1) + UNITS-method (96 units) + skill_map.json ·
+  aab8042648 RESUME · 47476c0328 Phase 1 backend skeleton (+3,401 lines, 125 tests).
 - Phase 0: ALL 8 FILES DRAFTED. Awaiting the owner's one-session review (see "Owner review packet").
-- Phase 1 backend: skeleton in progress by an engineering lane (api/services/study_*.py,
-  api/routers/study.py, tests/test_study_*.py); it commits with pathspecs on api/tests only.
+- Phase 1 backend: SKELETON LANDED 47476c0328 (study_store/scoring/select + router + 6 test files,
+  125 tests). Integrator re-ran all six in this session (125 passed) plus the four rails
+  test_feature_flag_ledger / test_hub_preview_flag / test_no_shadowed_definitions /
+  test_shared_data_root_guard (532 passed). Follow-ups from the lane's deviations: streak
+  currently counts on the first scored attempt of the day (spec: finishing the 10-item set);
+  mastery constants are provisional in study_store; import resolves bars synchronously (fine,
+  index seek only) with misses stored as unresolved drafts; /items/{id}/image and /intro/{unit}
+  wait on R2 assets; review_lane assignment left to generators.
 - Content bank: 0 items. Unit plan: Foundations 116 units (~2,970 q) + Vocabulary 13 units
   (~2,920 q) + Method 96 units (~5,605 q). Both curricula authored in parallel.
 
@@ -63,22 +70,23 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
 - [x] `docs/study/VOICE_CONSENT.md` (template 22980148dc; unsigned) — consent template for the voice clone (owner signs before any sample).
 
 ## Build checklist (Phase 1, per spec §7 + §13.2)
-- [ ] `api/services/study_store.py` (schema §6.1/§7.1 + §13 corrections: literal STUDY_DB_PATH read,
+- [x] `api/services/study_store.py` (47476c0328) (schema §6.1/§7.1 + §13 corrections: literal STUDY_DB_PATH read,
       one BEGIN IMMEDIATE per attempt, study_terms, trust_state per item type)
-- [ ] `api/services/study_scoring.py`, `study_select.py` (3 due slots + random mix), `study_mastery.py`,
+- [~] `api/services/study_scoring.py`, `study_select.py` DONE; `study_mastery.py` (inline for now),
+      `study_templates.py`, `study_import.py` (import lives in the router; banned-phrase + grounding checks NOT yet) (3 due slots + random mix), `study_mastery.py`,
       `study_templates.py`, `study_import.py` (get_bars_before only; misses reported; number-grounding
       + banned-phrase checks)
-- [ ] `api/routers/study.py` (local `require_paid`, `STUDY_ENABLED` default ON read per request,
+- [~] `api/routers/study.py` (47476c0328; image proxy + intro redirect pending R2 assets) (local `require_paid`, `STUDY_ENABLED` default ON read per request,
       bars-by-item, image proxy, attempts, step, today (bars inline), practise, leaderboard, review,
       import, corrections export)
-- [ ] `api/main.py` lifespan init + jobs (reminders claim-row, weekly close w/ catch-up,
+- [~] `api/main.py` lifespan init DONE; jobs NOT yet (reminders claim-row, weekly close w/ catch-up,
       gen_detections after 02:00 ET; NO 06:30 fan-out)
 - [~] Outside-Study prerequisites (their own small merges): wire_archive persists `exposure_tier` (DONE ad2f95cbf9);
       StockChart `studyMode` / `armedTool` / `toolsAllowlist`; hub hidden under a fullscreen Sheet;
       `/api/ticker-meta` short-circuits non-universe symbols; one-time Scans image copy to R2 (SCRIPT DONE 1a6b3da6cb: `scripts/study/copy_scans_images.py`, not yet run on the pod).
 - [ ] Frontend: StudyPanel + trail sub-view inside CoursesSection, fullscreen DrillPlayer (one chart
       per session), drills, reveal panel, end card, Practise sheet, StudyReview admin mode.
-- [ ] Tests: `tests/test_study_store.py`, `test_study_scoring.py`, `test_study_no_sym_leak.py`,
+- [x] Tests (6 files, 125 passing): `tests/test_study_store.py`, `test_study_scoring.py`, `test_study_no_sym_leak.py`,
       `test_study_import.py`, `test_study_flags.py`; frontend `StudyPanel.test.jsx`, `DrillPlayer.test.jsx`.
 
 ## Resume procedure
