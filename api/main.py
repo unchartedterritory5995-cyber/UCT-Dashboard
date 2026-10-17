@@ -2415,10 +2415,11 @@ def register_screener_jobs(scheduler):
         id="screener_live_tier", max_instances=1, replace_existing=True,
         coalesce=True)
 
-    # ⭐ PRE-MARKET MODE (spec 2026-10-16 §2) — a SEPARATE writer into its own table,
-    # `screener_premarket`; it never touches `screener_live` or `screener_rows`. Cheap
-    # when idle: `run_sweep` checks the flag, then the session, before any read, so it
-    # does nothing outside 04:00-09:30 ET. Dark behind SCREENER_PREMARKET_ENABLED.
+    # ⭐ EXTENDED HOURS (spec 2026-10-16 §2, widened 2026-10-17) — a SEPARATE writer into
+    # its own table, `screener_premarket`; it never touches `screener_live` or
+    # `screener_rows`. Cheap when idle: `run_sweep` checks the flag, then the calendar
+    # window, before any read, so it does nothing outside pre-market (04:00-09:30 ET) and
+    # after hours (close-20:00 ET). Dark behind SCREENER_PREMARKET_ENABLED.
     from api.services.screener import premarket
 
     def _run_premarket():

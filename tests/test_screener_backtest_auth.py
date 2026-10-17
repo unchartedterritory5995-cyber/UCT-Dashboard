@@ -409,8 +409,10 @@ def test_exactly_TWO_router_modules_declare_an_api_screener_path():
     #   screener_backtest.py -> this file
     #   screen_promote.py, screener_nl.py -> tests/test_screener_side_routers_auth.py
     #     (added 2026-10-05 when this census found them ungoverned)
+    #   screener_new_today.py -> tests/test_screener_side_routers_auth.py (2026-10-17)
     assert set(declarers) == {"screener.py", "screener_backtest.py",
-                              "screen_promote.py", "screener_nl.py"}, (
+                              "screen_promote.py", "screener_nl.py",
+                              "screener_new_today.py"}, (
         "a NEW module declares an /api/screener/ route. That is a new paid "
         "surface, and no paywall rail is looking at it: add it to one before "
         f"adding it here: {sorted(declarers)}")

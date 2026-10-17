@@ -411,9 +411,57 @@ def min_serve_asof(now=None) -> float | None:
     the D−1 values underneath them, and the session-date predicate already
     stops them being served once tonight's build lands.
     """
-    if _session() != "regular":
+    if _session() != "regular" or _calendar_session() == "post":
         return None
     return (time.time() if now is None else now) - max_age_s()
+
+
+#: How long after the calendar close the CLOSING pass runs (one pass a minute).
+CLOSING_WINDOW_S = 30 * 60
+
+
+def _calendar_session(now=None) -> str | None:
+    """`session_calendar.session_at` -- 'pre' | 'rth' | 'post' | 'closed' -- or None.
+
+    The clock above (`_session`) knows weekdays and 09:30-16:00; the CALENDAR also knows
+    13:00 early closes and holidays. It is consulted only to answer "has today's session
+    ended", which the clock gets wrong on a half day (it says regular until 16:00 while
+    every print after 13:00 is after hours)."""
+    try:
+        from api.services import session_calendar
+        return session_calendar.session_at(now or _now_et())
+    except Exception:  # noqa: BLE001 -- unknown means "trust the clock", never a pass
+        return None
+
+
+def closing_pass_due(now=None) -> bool:
+    """True from the calendar close to `CLOSING_WINDOW_S` after it, on a trading day.
+
+    ⭐ THE OFFICIAL CLOSE (2026-10-17). The regular sweep stops at the close, so until the
+    03:00 build the screener showed the last in-session tick (about 15:59), not the
+    closing auction's print -- the price the watchlist shows after 16:00 (`day.c`). In
+    this window each cycle re-derives every live column from `day_close` instead of
+    `last_price`. `last_price` is never used after the close: it is an after-hours print,
+    which the screener carries only in its extended-hours columns (`premarket.py`)."""
+    now = now or _now_et()
+    if _calendar_session(now) != "post":
+        return False
+    try:
+        from api.services import session_calendar
+        close = session_calendar.close_time(now.date())
+    except Exception:  # noqa: BLE001
+        return False
+    return close is not None and 0 <= (now - close).total_seconds() < CLOSING_WINDOW_S
+
+
+def closing_quotes(snap: dict) -> dict:
+    """The snapshot with `last_price` replaced by the regular-session close. A symbol with
+    no `day_close` is left out, so its row keeps the last in-session value."""
+    out = {}
+    for k, q in (snap or {}).items():
+        if isinstance(q, dict) and isinstance(q.get("day_close"), (int, float))                 and not isinstance(q.get("day_close"), bool) and q["day_close"] > 0:
+            out[k] = {**q, "last_price": q["day_close"]}
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -775,6 +823,7 @@ def _blank_receipt(**over) -> dict:
         "swept_at": time.time(),
         "as_of": None,
         "session": None,
+        "pass": None,          # "closing" in the window after the close
         "session_ymd": None,
         "enabled": enabled(),
         "skipped_reason": None,
@@ -884,7 +933,11 @@ def run_sweep() -> dict:
     now = _now_et()
     ymd = session_ymd(now)
     receipt = _blank_receipt(session=session, session_ymd=ymd)
-    if session != "regular":
+    closing = closing_pass_due(now)
+    if closing:
+        receipt["pass"] = "closing"
+    elif session != "regular" or _calendar_session(now) == "post":
+        # (the second half: a 13:00 close, where the clock still says regular)
         receipt["skipped_reason"] = "not_regular_session"
         return _finish(receipt, t0)
 
@@ -925,6 +978,8 @@ def run_sweep() -> dict:
     # anyway. This is a lock-contention defect with a one-line fix, shipped on its own merits.
     t_snap = time.time()
     snap = scan_volume.full_market_snapshot() or {}
+    if closing:
+        snap = closing_quotes(snap)
     receipt["snapshot_ms"] = round((time.time() - t_snap) * 1000, 2)
 
     # ONE share per sweep, read before the lock (the curve is not an anchor the
