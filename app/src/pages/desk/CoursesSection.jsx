@@ -34,8 +34,11 @@ import CurriculumLessons from './CurriculumLessons'
 import UIcon from '../../components/ui/UIcon'
 import StudyPanel from '../study/StudyPanel'
 import SkillTrail from '../study/SkillTrail'
-import { useStudyMap } from '../study/useStudy'
-import { skillsById, curriculumIdForCourse, curriculumSummary, locateUnit } from '../study/studyMap'
+import DrillPlayer from '../study/DrillPlayer'
+import PractiseSheet from '../study/PractiseSheet'
+import { useStudyMap, useStudyProfile, useStudyToday } from '../study/useStudy'
+import { SESSIONS_URL, studyFetch } from '../study/useStudySession'
+import { skillsById, curriculumIdForCourse, curriculumSummary, locateUnit, weekDots } from '../study/studyMap'
 import {
   computeCourseStats,
   resolvePathRows,
@@ -171,6 +174,51 @@ export default function CoursesSection() {
   const studyParam = searchParams.get('study')
   const curriculumParam = searchParams.get('curriculum')
   const unitParam = searchParams.get('unit')
+  const sessionParam = searchParams.get('session')
+
+  // The drill (a fullscreen Sheet) mounts off `?study=today[&session=]`; the
+  // practise sheet off `?study=practise`. A set handed over by the practise
+  // sheet or a trail unit is kept in state so the drill opens on it without a
+  // second fetch; Today's Study loads itself when nothing was handed over.
+  const [handedSet, setHandedSet] = useState(null)
+  const { data: studyProfile, mutate: mutateProfile } = useStudyProfile(studyOn)
+  const { data: studyToday, mutate: mutateToday } = useStudyToday(studyOn)
+  const drillOpen = studyOn && studyParam === 'today'
+  const practiseOpen = studyOn && studyParam === 'practise'
+  const profileRow = studyProfile?.profile || studyProfile || null
+  const dots = useMemo(
+    () => weekDots(studyToday?.day_et, profileRow?.last_done_day, profileRow?.streak),
+    [studyToday?.day_et, profileRow?.last_done_day, profileRow?.streak],
+  )
+  const openSet = useCallback(
+    (payload) => {
+      setHandedSet(payload || null)
+      setStudy({ study: 'today', session: payload?.session_id ?? null })
+    },
+    [setStudy],
+  )
+  const finishDrill = useCallback(() => {
+    setHandedSet(null)
+    mutateToday?.()
+    mutateProfile?.()
+    closeStudy()
+  }, [closeStudy, mutateToday, mutateProfile])
+  // A trail unit starts a skill set on the unit's first skill (the backend
+  // narrows by skill_id); test-out is the same set at the top rung.
+  const startUnit = useCallback(
+    async (unitId, _rung, kind = 'skill') => {
+      const hit = locateUnit(curricula, unitId)
+      const skillId = hit?.unit?.skills?.[0] || null
+      try {
+        const payload = await studyFetch(SESSIONS_URL, { method: 'POST', body: { kind, skill_id: skillId } })
+        openSet(payload)
+      } catch {
+        /* the trail stays open; the member can retry */
+      }
+    },
+    [curricula, openSet],
+  )
+  const testOutUnit = useCallback((unitId) => startUnit(unitId, 9, 'checkpoint'), [startUnit])
   // The trail sub-view: `map` names its curriculum; `unit` is resolved
   // through the map (the trail shows its skeleton until the map is in).
   const trail = useMemo(() => {
@@ -276,15 +324,38 @@ export default function CoursesSection() {
 
       {(isLoading || pathPending) && (pathParam ? <PathViewSkeleton /> : <DeskSectionSkeleton cards={4} />)}
 
+      {drillOpen && (
+        <DrillPlayer
+          key={sessionParam || 'today'}
+          open
+          initial={handedSet}
+          sessionId={sessionParam}
+          profile={profileRow}
+          weekDots={dots}
+          onClose={finishDrill}
+          onFinished={finishDrill}
+          onKeepPractising={practise}
+        />
+      )}
+      {practiseOpen && (
+        <PractiseSheet
+          open
+          onClose={closeStudy}
+          misses={Number(studyToday?.misses ?? profileRow?.misses ?? 0)}
+          stale={Number(studyToday?.stale_skills ?? profileRow?.stale_skills ?? 0)}
+          staleSkillId={studyToday?.stale_skill_id || null}
+          trailSkillId={studyToday?.next_skill_id || null}
+          onStart={openSet}
+        />
+      )}
+
       {showTrail && (
-        // ⚠️ SEAM FOR THE INTEGRATOR: onStartUnit / onTestOut / onReplayIntro
-        // create a session (POST /api/study/sessions {kind, skill_id}) and
-        // open the drill. They are left unwired here on purpose — the drill
-        // is another lane's file.
         <SkillTrail
           key={`${trail.curriculumId}:${trail.unitId || ''}`}
           curriculumId={trail.curriculumId}
           initialUnitId={trail.unitId}
+          onStartUnit={startUnit}
+          onTestOut={testOutUnit}
           onBack={closeStudy}
           recordedLessons={trailCourse ? trailCourse.videos.length : 0}
           onOpenLessons={trailCourse ? () => openPath(trailCourse.slug) : undefined}

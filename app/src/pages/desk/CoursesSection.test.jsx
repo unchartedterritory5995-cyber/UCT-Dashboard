@@ -62,6 +62,21 @@ vi.mock('./CurriculumLessons', () => ({
   default: () => <div data-testid="curriculum-lessons" />,
 }))
 
+// The drill and the practise sheet are mounted off the URL (integration seam);
+// they are mocked here because the real drill carries the 20k-line chart.
+vi.mock('../study/DrillPlayer', () => ({
+  default: ({ sessionId, initial }) => (
+    <div data-testid="drill-player">drill:{sessionId || 'today'}:{initial ? 'handed' : 'fresh'}</div>
+  ),
+}))
+vi.mock('../study/PractiseSheet', () => ({
+  default: ({ onStart }) => (
+    <button type="button" data-testid="practise-sheet" onClick={() => onStart({ session_id: 'sess-p' })}>
+      practise-sheet
+    </button>
+  ),
+}))
+
 import CoursesSection from './CoursesSection'
 import { play } from '../../components/video/videoStore'
 
@@ -311,6 +326,20 @@ test('the panel\'s buttons write ?study=today&session=<id> and ?study=practise; 
   renderSection()
   fireEvent.click(screen.getByRole('button', { name: 'Practise' }))
   expect(screen.getAllByTestId('loc').some((el) => el.textContent.includes('study=practise'))).toBe(true)
+})
+
+test('integration: ?study=today mounts the drill on that session and ?study=practise mounts the sheet, whose set opens the drill', () => {
+  mockStudy = { '/api/study/map': studyMapFixture(), '/api/study/today': studyTodayFixture() }
+  renderSection(['/desk?section=courses&study=today&session=sess-1'])
+  expect(screen.getByTestId('drill-player').textContent).toBe('drill:sess-1:fresh')
+  expect(screen.queryByTestId('practise-sheet')).toBeNull()
+
+  renderSection(['/desk?section=courses&study=practise'])
+  expect(screen.getByTestId('practise-sheet')).toBeTruthy()
+  fireEvent.click(screen.getByTestId('practise-sheet'))
+  // the handed-over set opens the drill on its own session id, without a fetch
+  expect(screen.getAllByTestId('drill-player').some((el) => el.textContent === 'drill:sess-p:handed')).toBe(true)
+  expect(screen.getAllByTestId('loc').some((el) => el.textContent.includes('session=sess-p'))).toBe(true)
 })
 
 test('D2/T14: the flat CurriculumLessons list is retired from the page while Study is on', () => {
