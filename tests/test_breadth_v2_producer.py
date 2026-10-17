@@ -165,3 +165,27 @@ def test_publication_bytes_are_deterministic(tmp_path):
     a = prod.build_publication(D, res, _vintage(tmp_path), v)[1]["pub_id"]
     b = prod.build_publication(D, res, _vintage(tmp_path), v)[1]["pub_id"]
     assert a == b
+
+
+def test_an_owner_review_reopens_a_stopped_session_once(env, tmp_path, monkeypatch):
+    """(owner, 2026-10-16) the review is what clears a STOP: a REVIEW_REQUIRED session is
+    re-tried when the reviewed file changes, and stays parked while it does not."""
+    import hashlib
+    rev = tmp_path / "reviewed.json"
+    rev.write_text('{"reviewed": []}')
+    monkeypatch.setattr(prod, "REVIEWED_FILE", str(rev))
+    sha = hashlib.sha256(rev.read_bytes()).hexdigest()
+    assert prod._reviewed_sha() == sha
+    big = {"reviewed_sha": sha, "gate": "STOP",
+           "rejected": {f"2026-01-{i:02d}": {"reasons": ["x" * 200]} for i in range(1, 29)}}
+    reason = json.dumps(big)[:4000]                     # what tick() stores
+    assert len(json.dumps(big)) > 4000                  # non-vacuity: it IS truncated
+    prod._set("2026-10-12", prod.REVIEW_REQUIRED, reason=reason)
+    prod._set("2026-10-13", prod.REVIEW_REQUIRED, reason='{"gate": "STOP"}')   # parked before the sha existed
+    prod._set("2026-10-14", prod.FAILED, reason="validation")
+    t = prod.pending_targets("2026-10-16")
+    assert "2026-10-12" not in t                        # parked under the CURRENT review
+    assert "2026-10-13" in t                            # legacy park: re-tried once
+    assert "2026-10-14" not in t and "2026-10-15" in t  # FAILED stays out; untouched days stay in
+    rev.write_text('{"reviewed": [], "reviewed_mutations": {"2026-10-12": {}}}')
+    assert "2026-10-12" in prod.pending_targets("2026-10-16")   # the review changed: re-tried
