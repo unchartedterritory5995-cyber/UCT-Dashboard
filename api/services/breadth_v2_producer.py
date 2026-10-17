@@ -260,7 +260,9 @@ def build_vintage(last: str, export: dict) -> dict:
     rc = _run_tool([os.path.join(TOOLS, "pit_ledger_refresh.py"), exp_path, prev_ledger,
                     os.path.join(TOOLS, "pit_reviewed_rejections.json"), ledger, report], {}, log, 900)
     if rc == 2:
-        raise ReviewRequired(json.load(open(report)))
+        # `reviewed_sha` FIRST: the session row stores this truncated to 4000 chars,
+        # and `pending_targets` must still be able to read it back.
+        raise ReviewRequired({"reviewed_sha": _reviewed_sha(), **json.load(open(report))})
     if rc != 0:
         raise RuntimeError("pit_ledger_refresh rc=%s" % rc)
     env = {"BV2_GROUPED_BASE": os.path.join(vd, "grouped_"), "BV2_INPUTS_BASE": os.path.join(vd, "inputs_"),
@@ -551,8 +553,36 @@ def pending_targets(today_et: str) -> list:
     with _canon() as c:
         done = {r[0] for r in c.execute("SELECT date FROM v2_session")}
     with _state() as s:
-        st = dict(s.execute("SELECT date, state FROM session"))
-    return [d for d in days if d not in done and st.get(d) not in (REVIEW_REQUIRED, FAILED)]
+        rows = s.execute("SELECT date, state, reason FROM session").fetchall()
+    st = {d: x for d, x, _ in rows}
+    # ⭐ (owner, 2026-10-16) THE REVIEW IS WHAT CLEARS A STOP. A REVIEW_REQUIRED session
+    # is re-tried once per change to the owner's reviewed file, and parks again (with
+    # the new sha) if the gate still stops — so it can never loop. Before this, the
+    # only way out was a hand edit of state.db on the runner, and 10-12..10-15 sat
+    # withheld after the review that excused them had already been written.
+    cur = _reviewed_sha()
+    reopened = {d for d, x, why in rows
+                if x == REVIEW_REQUIRED and cur and _review_sha_of(why) != cur}
+    return [d for d in days if d not in done
+            and (st.get(d) not in (REVIEW_REQUIRED, FAILED) or d in reopened)]
+
+
+REVIEWED_FILE = os.path.join(TOOLS, "pit_reviewed_rejections.json")
+
+
+def _reviewed_sha() -> Optional[str]:
+    try:
+        return _sha_file(REVIEWED_FILE)
+    except OSError:
+        return None
+
+
+def _review_sha_of(reason: Optional[str]) -> Optional[str]:
+    """The reviewed-file sha a REVIEW_REQUIRED row was parked under (None for a row
+    parked before this was recorded, which therefore re-tries once)."""
+    import re
+    m = re.search(r'"reviewed_sha": "([0-9a-f]{64})"', reason or "")
+    return m.group(1) if m else None
 
 
 def tick(now: Optional[dt.datetime] = None) -> dict:
