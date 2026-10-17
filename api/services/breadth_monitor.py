@@ -125,16 +125,56 @@ def _write_numeric(c, date_str: str, metrics: dict, source: str = "collector") -
 
 # ── Write ─────────────────────────────────────────────────────────────────────
 
+def pit_membership(m: dict) -> list:
+    """The session's POINT-IN-TIME membership items — what the V2 producer's PIT gate
+    reads (`pit_export`). `pit_universe_list` when the row carries one (server mode
+    keeps the list that landed first there, because it replaces `universe_list` with
+    its own priced drill list), else `universe_list`."""
+    m = m or {}
+    return m.get("pit_universe_list") or m.get("universe_list") or []
+
+
+def _pit_tickers(m: dict) -> list:
+    return sorted({x.get("t") for x in pit_membership(m) if isinstance(x, dict) and x.get("t")})
+
+
 def store_snapshot(date_str: str, metrics: dict, source: str = "collector") -> bool:
     """`source` labels the numeric projection's row. Every existing writer (the
     push route, the self-heal) passes nothing and stays `collector`; TERM-042's
-    server-computed EOD row passes `server` (only when BREADTH_EOD_SOURCE=server)."""
+    server-computed EOD row passes `server` (only when BREADTH_EOD_SOURCE=server).
+
+    ⛔ `created_at` is the time the session's MEMBERSHIP was recorded, and the V2
+    producer's PIT gate compares it (with the membership) against the row it
+    accepted. A rewrite that leaves the membership unchanged keeps the original
+    `created_at`; one that changes it gets a fresh stamp, so a late rerun still
+    reads as late. (2026-10-12: server mode re-stamped every accepted row hours
+    later and the producer stopped on a "mutated source row" for four sessions.)"""
     try:
         with _conn() as c:
-            c.execute(
-                "INSERT OR REPLACE INTO breadth_snapshots (date, metrics) VALUES (?, ?)",
-                (date_str, json.dumps(metrics)),
-            )
+            prev = c.execute(
+                "SELECT metrics, created_at FROM breadth_snapshots WHERE date = ?",
+                (date_str,),
+            ).fetchone()
+            keep_created = None
+            if prev is not None:
+                try:
+                    old = json.loads(prev["metrics"])
+                except (TypeError, ValueError):
+                    old = {}
+                tk = _pit_tickers(metrics)
+                if tk and tk == _pit_tickers(old):
+                    keep_created = prev["created_at"]
+            if keep_created:
+                c.execute(
+                    "INSERT OR REPLACE INTO breadth_snapshots (date, metrics, created_at) "
+                    "VALUES (?, ?, ?)",
+                    (date_str, json.dumps(metrics), keep_created),
+                )
+            else:
+                c.execute(
+                    "INSERT OR REPLACE INTO breadth_snapshots (date, metrics) VALUES (?, ?)",
+                    (date_str, json.dumps(metrics)),
+                )
             _write_numeric(c, date_str, metrics, source=source)
             c.commit()
         from api.services.cache import cache
@@ -1489,7 +1529,7 @@ def pit_export(since: str = "2026-01-01") -> dict:
                 "SELECT date, created_at, metrics FROM breadth_snapshots WHERE date >= ? ORDER BY date",
                 (since,)).fetchall():
             m = json.loads(mj) if mj else {}
-            ul = m.get("universe_list") or []
+            ul = pit_membership(m)
             tk = sorted({x.get("t") for x in ul if isinstance(x, dict) and x.get("t")})
             out[d] = {"created_at": created, "n": len(tk),
                       "sha256": hashlib.sha256("\n".join(tk).encode()).hexdigest(), "tickers": tk,

@@ -1134,10 +1134,16 @@ def universe(snapshot_date: Optional[str] = None) -> tuple[list[str], Optional[s
         # shrink the population by every unpriced name, one session at a time. The
         # universe DEFINITION stays the collector's, so its rows are the source.
         # No row carries this marker unless BREADTH_EOD_SOURCE=server wrote it.
-        if row.get("_source") == "server":
-            continue
+        # A server row that KEPT the collector's own list (`pit_universe_list`,
+        # `_pit_universe_from == "collector"`) carries that definition, and is used.
         d = row.get("date")
-        tickers = _tk(bm.get_drill_list(d, "universe_list"))
+        if row.get("_source") == "server":
+            raw = bm.raw_row(d) or {}
+            if raw.get("_pit_universe_from") != "collector":
+                continue
+            tickers = _tk(raw.get("pit_universe_list"))
+        else:
+            tickers = _tk(bm.get_drill_list(d, "universe_list"))
         if len(tickers) > 100:
             return tickers, d
     return [], newest_date
