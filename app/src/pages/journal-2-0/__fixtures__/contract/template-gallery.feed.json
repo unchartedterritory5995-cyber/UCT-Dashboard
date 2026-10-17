@@ -1,0 +1,40 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery/feed",
+    "note": "What the authors this member follows have listed.",
+    "path": "/api/j2/template-gallery/feed",
+    "status": 200
+  },
+  "body": {
+    "templates": [
+      {
+        "author": "Sam Styler",
+        "authorHandle": "PG0pAaSjoUwn",
+        "category": "journal",
+        "description": "How I get ready for Monday.",
+        "featured": false,
+        "firm": false,
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "6fe563fa41b14de497fce4a0f0b4fea3",
+        "itemType": "style",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "text",
+            "text": "What moved this week, and why?"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Weekend prep",
+        "tradingStyle": "swing",
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 1,
+        "version": 1
+      }
+    ]
+  }
+}

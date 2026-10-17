@@ -202,6 +202,26 @@ def _no_network(p: _Patches) -> None:
     p.setattr(yfinance, "download", no_yahoo)
 
 
+class _SeededSecrets:
+    """`secrets` for the ONE module whose random token reaches a fixture: the community library's opaque
+    author handle (template_gallery.author_handle, `secrets.token_urlsafe(9)`). Same length and alphabet,
+    drawn from a counter, so `--check` is repeatable. Every other `secrets` reader keeps the real module:
+    a session token is never written into a fixture, and a seeded one would be a weaker test of nothing."""
+
+    def __init__(self) -> None:
+        import secrets as _real
+        self._real, self._n = _real, 0
+
+    def token_urlsafe(self, nbytes: int | None = None) -> str:
+        import base64
+        self._n += 1
+        raw = hashlib.sha256(f"notebook-contract-handle-{self._n}".encode()).digest()[: nbytes or 32]
+        return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._real, name)
+
+
 def _freeze(p: _Patches) -> None:
     """Freeze "now" and make ids repeatable for every `api.*` module already imported, and for
     any module that reads `datetime.datetime` / `uuid.uuid4` / `time.time` late."""
@@ -211,6 +231,9 @@ def _freeze(p: _Patches) -> None:
     p.setattr(_dt, "date", _FrozenDate)
     p.setattr(_uuid, "uuid4", uuid4)
     p.setattr(_time, "time", lambda: frozen_epoch)
+    gallery_mod = sys.modules.get("api.services.journal_two.template_gallery")
+    if gallery_mod is not None:      # in _PREIMPORT, so present; the handle is its only `secrets` read
+        p.setattr(gallery_mod, "secrets", _SeededSecrets())
     for name, mod in list(sys.modules.items()):
         if mod is None or not (name == "api" or name.startswith("api.")):
             continue
@@ -1427,6 +1450,94 @@ def template_gallery(w: World) -> None:
     w.as_user(MEMBER)
 
 
+def _style_library(w: World) -> None:
+    """P3a Task 8: the community style library's routes, with the library switch on (it is in FLAGS). Run by
+    the `style_library` builder, registered LAST so no earlier builder's ids or times move. Members of its
+    own: an author shares a style, an admin approves it, a viewer adopts it, marks it Helpful, opens the
+    author's page and follows them; then the author's next version is approved and the viewer previews and
+    applies it. Every admin approval is a CHECKED setup call, for the reason the fourth template's is."""
+    from api.services.journal_two import journal_styles as js
+    base = "/api/j2/template-gallery"
+    author = w.member("styler", "Sam Styler")
+    viewer = w.member("library-viewer", "Lee Library")
+
+    def approve(gid: str) -> None:
+        q = w.client.get(f"{base}/admin/queue")
+        assert q.status_code == 200, f"setup: the review queue answered {q.status_code}"
+        seen = next(r["updatedAt"] for r in q.json()["pending"] if r["id"] == gid)
+        res = w.client.patch(f"{base}/admin/items/{gid}", json={"action": "approve", "reviewedUpdatedAt": seen})
+        assert res.status_code == 200, f"setup: approving {gid} answered {res.status_code}"
+
+    c = w.conn()
+    try:
+        style = js.create_style(author, {"name": "Weekend Prep", "kindId": "weekend_prep", "blocks": [],
+                                         "outlineBodyJson": doc(para("What moved this week, and why?"))}, c)
+    finally:
+        c.close()
+    w.as_user(author)
+    share = {"styleId": style["id"], "title": "Weekend prep", "description": "How I get ready for Monday.",
+             "category": "journal", "tradingStyle": "swing"}
+    shared = w.record("template-gallery.styles.publish", "POST", f"{base}/styles", case="success", expect=200,
+                      json_body=share, note="A journal style shared: pending until an admin reviews it.")
+    sid, handle = shared["template"]["id"], shared["template"]["authorHandle"]
+    w.record("template-gallery.styles.publish.unknown-style", "POST", f"{base}/styles", case="error", expect=404,
+             json_body={**share, "styleId": "nope"})
+    w.record("template-gallery.styles.publish.bad-trading-style", "POST", f"{base}/styles", case="error",
+             expect=400, json_body={**share, "tradingStyle": "yolo"})
+    w.as_user(ADMIN)
+    approve(sid)
+    w.as_user(viewer)
+    w.record("template-gallery.updates.none", "GET", f"{base}/updates", case="empty", expect=200,
+             note="Nothing adopted yet, so nothing to update.")
+    adopted = w.record("template-gallery.adopt", "POST", f"{base}/{sid}/adopt", case="success", expect=200,
+                       json_body={"notify": True}, note="The member's own copy, with update notices on.")
+    copy_id = adopted["style"]["id"]
+    w.record("template-gallery.adopt.bad-notify", "POST", f"{base}/{sid}/adopt", case="error", expect=400,
+             json_body={"notify": "yes"})
+    w.record("template-gallery.adopt.not-found", "POST", f"{base}/nope/adopt", case="error", expect=404,
+             json_body={})
+    w.record("template-gallery.helpful", "POST", f"{base}/{sid}/helpful", case="success", expect=200)
+    w.record("template-gallery.unhelpful", "DELETE", f"{base}/{sid}/helpful", case="success", expect=200)
+    w.record("template-gallery.helpful.not-found", "POST", f"{base}/nope/helpful", case="error", expect=404)
+    w.record("template-gallery.authors.page", "GET", f"{base}/authors/{handle}", case="success", expect=200,
+             note="An author is the opaque handle: no user id and no email reach the page.")
+    w.record("template-gallery.authors.not-found", "GET", f"{base}/authors/nope", case="error", expect=404)
+    w.record("template-gallery.authors.follow", "POST", f"{base}/authors/{handle}/follow", case="success",
+             expect=200)
+    w.record("template-gallery.feed", "GET", f"{base}/feed", case="success", expect=200,
+             note="What the authors this member follows have listed.")
+    w.record("template-gallery.authors.unfollow", "DELETE", f"{base}/authors/{handle}/follow", case="success",
+             expect=200)
+    w.as_user(author)
+    w.record("template-gallery.helpful.own", "POST", f"{base}/{sid}/helpful", case="error", expect=404,
+             note="An author cannot mark their own item helpful.")
+    w.record("template-gallery.authors.follow.own", "POST", f"{base}/authors/{handle}/follow", case="error",
+             expect=404, note="Nobody follows themselves.")
+    # The author's next version, shared and approved: the listed version goes up and the viewer's copy is behind.
+    c = w.conn()
+    try:
+        js.update_style(author, style["id"], {"blocks": [{"block": "myRules", "enabled": True, "settings": {}}]}, c)
+    finally:
+        c.close()
+    resubmitted = w.client.post(f"{base}/styles", json=share)
+    assert resubmitted.status_code == 200, f"setup: resubmitting the style answered {resubmitted.status_code}"
+    w.as_user(ADMIN)
+    approve(sid)
+    w.as_user(viewer)
+    w.record("template-gallery.updates", "GET", f"{base}/updates", case="success", expect=200,
+             note="One adopted copy behind its listed version.")
+    w.record("template-gallery.updates.plan", "GET", f"{base}/updates/{copy_id}", case="success", expect=200)
+    w.record("template-gallery.updates.plan.not-found", "GET", f"{base}/updates/nope", case="error", expect=404)
+    w.record("template-gallery.updates.apply.bad-take-outline", "POST", f"{base}/updates/{copy_id}", case="error",
+             expect=400, json_body={"takeOutline": "yes", "baseUpdatedAt": adopted["style"]["updatedAt"]})
+    w.record("template-gallery.updates.apply.stale", "POST", f"{base}/updates/{copy_id}", case="error",
+             expect=409, json_body={"baseUpdatedAt": "2000-01-01T00:00:00+00:00"},
+             note="The copy changed since the preview: nothing is written.")
+    w.record("template-gallery.updates.apply", "POST", f"{base}/updates/{copy_id}", case="success", expect=200,
+             json_body={"takeOutline": False, "baseUpdatedAt": adopted["style"]["updatedAt"]},
+             note="The new block is added; the member's own outline is kept.")
+
+
 @builder
 def remaining_routes(w: World) -> None:
     """The routes outside the ten converted surfaces: find similar, transcripts, the fingerprint,
@@ -2061,6 +2172,13 @@ def trader_prep_review(w: World) -> None:
     w.p.setenv("NOTEBOOK_PLAN_GRADING_ENABLED", "1")
     w.record("trader-blocks.review.not-found", "GET", f"{review}/review-other", case="error", expect=404,
              note="Another member's trade: the same 404 as one that does not exist.")
+    w.as_user(MEMBER)
+
+
+@builder
+def style_library(w: World) -> None:
+    """P3a Task 8: the community library's routes. LAST, so adding it moved no earlier builder's ids."""
+    _style_library(w)
     w.as_user(MEMBER)
 
 

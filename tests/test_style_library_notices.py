@@ -82,8 +82,8 @@ def test_hide_and_reject_do_not_ring_and_unhide_does(conn, lib_on):
 def test_every_watcher_gets_a_durable_notice_and_the_ring_never_waits_on_its_own_lock(conn, lib_on, monkeypatch):
     """Review C1. The REAL add_alert, whose durable copy is written through a SECOND connection to the same
     database. An open write transaction across the loop would make each later insert wait out its busy timeout
-    and fail silently, while the watch was marked delivered. Five watchers, so ids minted in one millisecond
-    would collide too."""
+    and fail silently, while the watch was marked delivered. (It cannot force two ids into one millisecond;
+    that shared alerts.py property is recorded as an open item, not tested here.)"""
     from api.services import alert_durability
     monkeypatch.setattr(alert_durability, "_DB_PATH", conn.execute("PRAGMA database_list").fetchone()[2])
     alert_durability.init_schema()

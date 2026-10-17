@@ -31,7 +31,19 @@
       },
       "status": 401
     },
+    "DELETE /api/j2/template-gallery/authors/{handle}/follow": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "DELETE /api/j2/template-gallery/{gallery_id}": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "DELETE /api/j2/template-gallery/{gallery_id}/helpful": {
       "body": {
         "detail": "Not authenticated"
       },
@@ -241,6 +253,30 @@
       },
       "status": 401
     },
+    "GET /api/j2/template-gallery/authors/{handle}": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "GET /api/j2/template-gallery/feed": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "GET /api/j2/template-gallery/updates": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "GET /api/j2/template-gallery/updates/{style_id}": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "GET /api/j2/template-gallery/{gallery_id}": {
       "body": {
         "detail": "Not authenticated"
@@ -398,6 +434,36 @@
       "status": 401
     },
     "POST /api/j2/template-gallery": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/template-gallery/authors/{handle}/follow": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/template-gallery/styles": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/template-gallery/updates/{style_id}": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/template-gallery/{gallery_id}/adopt": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "POST /api/j2/template-gallery/{gallery_id}/helpful": {
       "body": {
         "detail": "Not authenticated"
       },

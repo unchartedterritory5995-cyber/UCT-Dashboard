@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/template-gallery/updates",
+    "note": "Nothing adopted yet, so nothing to update.",
+    "path": "/api/j2/template-gallery/updates",
+    "status": 200
+  },
+  "body": {
+    "updates": []
+  }
+}

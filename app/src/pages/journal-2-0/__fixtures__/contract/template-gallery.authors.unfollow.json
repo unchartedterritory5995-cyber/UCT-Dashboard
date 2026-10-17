@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "DELETE /api/j2/template-gallery/authors/PG0pAaSjoUwn/follow",
+    "path": "/api/j2/template-gallery/authors/PG0pAaSjoUwn/follow",
+    "status": 200
+  },
+  "body": {
+    "following": false
+  }
+}

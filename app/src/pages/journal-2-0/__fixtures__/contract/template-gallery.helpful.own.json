@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/6fe563fa41b14de497fce4a0f0b4fea3/helpful",
+    "note": "An author cannot mark their own item helpful.",
+    "path": "/api/j2/template-gallery/6fe563fa41b14de497fce4a0f0b4fea3/helpful",
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/updates/98f53c81c4c54b21acb18ce0a16a65f8",
+    "note": "The copy changed since the preview: nothing is written.",
+    "path": "/api/j2/template-gallery/updates/98f53c81c4c54b21acb18ce0a16a65f8",
+    "requestBody": {
+      "baseUpdatedAt": "2000-01-01T00:00:00+00:00"
+    },
+    "status": 409
+  },
+  "body": {
+    "detail": "This style changed since you opened the update. Nothing was changed. Look again."
+  }
+}

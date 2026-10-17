@@ -1,0 +1,18 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/styles",
+    "path": "/api/j2/template-gallery/styles",
+    "requestBody": {
+      "category": "journal",
+      "description": "How I get ready for Monday.",
+      "styleId": "2b5762ecae204ec7b93ed572f524f624",
+      "title": "Weekend prep",
+      "tradingStyle": "yolo"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "Pick a trading style, or leave it blank."
+  }
+}

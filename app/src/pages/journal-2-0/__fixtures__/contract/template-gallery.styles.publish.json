@@ -1,0 +1,53 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/styles",
+    "note": "A journal style shared: pending until an admin reviews it.",
+    "path": "/api/j2/template-gallery/styles",
+    "requestBody": {
+      "category": "journal",
+      "description": "How I get ready for Monday.",
+      "styleId": "2b5762ecae204ec7b93ed572f524f624",
+      "title": "Weekend prep",
+      "tradingStyle": "swing"
+    },
+    "status": 200
+  },
+  "body": {
+    "droppedProperties": 0,
+    "template": {
+      "author": "Sam Styler",
+      "authorHandle": "PG0pAaSjoUwn",
+      "category": "journal",
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "description": "How I get ready for Monday.",
+      "featured": false,
+      "firm": false,
+      "hasRevision": false,
+      "helpedByMe": false,
+      "helpfulCount": 0,
+      "hidden": false,
+      "id": "6fe563fa41b14de497fce4a0f0b4fea3",
+      "itemType": "style",
+      "listedAt": null,
+      "mine": true,
+      "preview": [
+        {
+          "kind": "text",
+          "text": "What moved this week, and why?"
+        }
+      ],
+      "propertyCount": 0,
+      "reviewNote": "",
+      "revisionTitle": null,
+      "sourceStyleId": "2b5762ecae204ec7b93ed572f524f624",
+      "status": "pending",
+      "title": "Weekend prep",
+      "tradingStyle": "swing",
+      "trendingCount": 0,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "usedBy": 0,
+      "version": 1
+    }
+  }
+}

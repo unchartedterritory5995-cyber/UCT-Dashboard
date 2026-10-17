@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/updates/98f53c81c4c54b21acb18ce0a16a65f8",
+    "path": "/api/j2/template-gallery/updates/98f53c81c4c54b21acb18ce0a16a65f8",
+    "requestBody": {
+      "baseUpdatedAt": "2026-10-05T14:30:00+00:00",
+      "takeOutline": "yes"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "takeOutline must be true or false"
+  }
+}

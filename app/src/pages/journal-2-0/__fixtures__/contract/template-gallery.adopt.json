@@ -1,0 +1,47 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/6fe563fa41b14de497fce4a0f0b4fea3/adopt",
+    "note": "The member's own copy, with update notices on.",
+    "path": "/api/j2/template-gallery/6fe563fa41b14de497fce4a0f0b4fea3/adopt",
+    "requestBody": {
+      "notify": true
+    },
+    "status": 200
+  },
+  "body": {
+    "credit": "Based on Sam Styler's Weekend prep",
+    "notify": true,
+    "style": {
+      "blocks": [],
+      "builtin": false,
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "deletedAt": null,
+      "hasOutline": true,
+      "id": "98f53c81c4c54b21acb18ce0a16a65f8",
+      "isDefault": false,
+      "kindId": "weekend_prep",
+      "name": "Weekend prep",
+      "outlineBodyJson": {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "What moved this week, and why?",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          }
+        ],
+        "type": "doc"
+      },
+      "outlineTemplateId": null,
+      "properties": {},
+      "sourceGalleryId": "6fe563fa41b14de497fce4a0f0b4fea3",
+      "sourceVersion": 1,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "version": 1
+    }
+  }
+}

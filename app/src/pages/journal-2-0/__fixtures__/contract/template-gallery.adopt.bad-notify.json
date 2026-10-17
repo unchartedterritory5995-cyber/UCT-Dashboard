@@ -1,0 +1,14 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/6fe563fa41b14de497fce4a0f0b4fea3/adopt",
+    "path": "/api/j2/template-gallery/6fe563fa41b14de497fce4a0f0b4fea3/adopt",
+    "requestBody": {
+      "notify": "yes"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "notify must be true or false"
+  }
+}

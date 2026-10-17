@@ -1,0 +1,52 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/updates/98f53c81c4c54b21acb18ce0a16a65f8",
+    "note": "The new block is added; the member's own outline is kept.",
+    "path": "/api/j2/template-gallery/updates/98f53c81c4c54b21acb18ce0a16a65f8",
+    "requestBody": {
+      "baseUpdatedAt": "2026-10-05T14:30:00+00:00",
+      "takeOutline": false
+    },
+    "status": 200
+  },
+  "body": {
+    "style": {
+      "blocks": [
+        {
+          "block": "myRules",
+          "enabled": true,
+          "settings": {}
+        }
+      ],
+      "builtin": false,
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "deletedAt": null,
+      "hasOutline": true,
+      "id": "98f53c81c4c54b21acb18ce0a16a65f8",
+      "isDefault": false,
+      "kindId": "weekend_prep",
+      "name": "Weekend prep",
+      "outlineBodyJson": {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "What moved this week, and why?",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          }
+        ],
+        "type": "doc"
+      },
+      "outlineTemplateId": null,
+      "properties": {},
+      "sourceGalleryId": "6fe563fa41b14de497fce4a0f0b4fea3",
+      "sourceVersion": 2,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "version": 2
+    }
+  }
+}
