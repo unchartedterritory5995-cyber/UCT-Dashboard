@@ -48,6 +48,8 @@ import HelpMenu from './HelpMenu'
 import Menu, { MenuItem, MenuHeading } from './Menu'
 import DataReceipt, { coverageHasDrop } from './DataReceipt'
 import ResultList from './ResultList'
+import NewTodayLine from './NewTodayLine'
+import useNewToday from './useNewToday'
 import { activeStructures, structureLabels, structureDescs } from './setupLine'
 import { plainColumnLabel } from './plainWords'
 import { sortableColumns } from './sortKeys'
@@ -56,6 +58,8 @@ import useLazyCounts from './useLazyCounts'
 import { pickLanding, sameScreen, readLandingSeed, writeLandingSeed } from './landing'
 import { livePriceOf } from './livePrice'
 import ChartPane from './ChartPane'
+import PhoneChartSheet from './PhoneChartSheet'
+import { MQ } from '../../../styles/breakpoints'
 import { ListSkeleton, EmptyState, ErrorState } from './FocusStates'
 import useFocusSelection from './useFocusSelection'
 import useWatchlistTarget from './useWatchlistTarget'
@@ -89,6 +93,12 @@ const LANDING_WAIT_MS = 3000
 const readLS = (k, d) => { try { return localStorage.getItem(k) ?? d } catch { return d } }
 const writeLS = (k, v) => { try { localStorage.setItem(k, v) } catch { /* private mode */ } }
 const fmtN = v => Number(v || 0).toLocaleString('en-US')
+// Phones (spec 2026-10-16 s3): "sheet or in place" is decided at TAP time, never from a hook
+// seeded at mount (useMediaQuery is stale at first paint in a fixed mobile context).
+const isPhoneNow = () => typeof window !== 'undefined' && window.matchMedia?.(MQ.phone)?.matches === true
+// The history entry the chart sheet pushes, so the browser or hardware Back closes the sheet
+// instead of leaving the Screener.
+const SHEET_MARK = 'uctFocusChartSheet'
 // Table mode is today's page, loaded only when a member switches to it (List never ships it).
 const ScannerShell = lazy(() => import('../shell/ScannerShell'))
 
@@ -261,6 +271,42 @@ function FocusList({ onMode }) {
   const displayRows = useMemo(() => (liveSortOn && liveSortEligible ? sortRowsLive(rows, s.sort, prices) : rows),
     [liveSortOn, liveSortEligible, rows, s.sort, prices])
 
+  // ── New today (spec 2026-10-16 s1) ───────────────────────────────────────
+  // Asked with the screen's criteria only (the filter LIST, logic, rank), so a re-sort asks
+  // nothing. Off (the payload flag) asks nothing and draws nothing.
+  const [current, setCurrent] = useState(() => (arrivedBare.current ? null : readNamed()[normalSpec(s.baseSpec)] || null))
+  const specKey = normalSpec(s.baseSpec)
+  const isEdited = !!current && normalSpec(current.spec) !== specKey
+  const ntOn = useContext(AuthContext)?.screenerNewTodayEnabled === true
+  // ⭐ ASKED BY THE SCREEN'S IDENTITY, NOT BY ITS RECONSTRUCTED FILTERS. The nightly record is
+  // keyed on the starter's or saved screen's OWN spec; the editor's filter list can differ from
+  // it in order and in the member's carried pool (applySpec keeps Global/UCT/Watchlist). So an
+  // unedited named screen asks with `current.spec`. A member's pool carried onto a screen that
+  // does not name one is a different population from the All Market record, so it asks
+  // nothing rather than marking names against the wrong set; an edited screen was never
+  // recorded and asks with its own criteria (the server answers `unsaved`).
+  const ntIdentity = !isEdited && current?.spec ? current.spec : null
+  const carriedPool = !!ntIdentity && !(ntIdentity.filters || []).some(f => POOL_KEYS.includes(f?.key))
+    && (s.baseSpec.filters || []).some(f => POOL_KEYS.includes(f?.key))
+  const ntFilters = ntIdentity ? ntIdentity.filters : s.baseSpec.filters
+  const ntLogic = ntIdentity ? (ntIdentity.logic || null) : s.logic
+  const ntRank = ntIdentity ? (ntIdentity.rank || null) : s.rank
+  const ntCriteria = useMemo(() => ({ filters: ntFilters, logic: ntLogic, rank: ntRank }), [ntFilters, ntLogic, ntRank])
+  const nt = useNewToday(ntCriteria, ntOn && !carriedPool)
+  const newSet = useMemo(() => (nt?.state === 'ok' ? new Set(nt.entered || []) : null), [nt])
+  const [newOnly, setNewOnly] = useState(false)
+  // A different screen starts with every row shown. Keyed on the criteria (what the answer is
+  // about), so a re-sort of the same screen keeps New only on.
+  const ntKey = JSON.stringify(ntCriteria)
+  useEffect(() => { setNewOnly(false) }, [ntKey])
+  const newOnlyOn = newOnly && !!newSet
+  // ⛔ ONE list: the rows shown, the selection, the hub cursor and the count all read
+  // `listRows`, so the arrow keys step through exactly what is on screen.
+  const listRows = useMemo(() => (newOnlyOn ? displayRows.filter(r => newSet.has(r.ticker)) : displayRows), [newOnlyOn, displayRows, newSet])
+  // New only filters the LOADED rows; paging is held while it is on, or the list's load-more
+  // would page through the whole screen looking for rows the filter hides.
+  const listHasMore = hasMore && !newOnlyOn
+
   // ── toast ────────────────────────────────────────────────────────────────
   const [toast, setToast] = useState(null) // {msg, changeList}
   const toastTimer = useRef(null)
@@ -298,7 +344,77 @@ function FocusList({ onMode }) {
   const paneFlag = useCallback(row => { if (pendingRef.current) return; onFlag(row); focusList() }, [onFlag, focusList])
   const paneWatch = useCallback(row => { if (pendingRef.current) return; onWatch(row); focusList() }, [onWatch, focusList])
 
-  const sel = useFocusSelection({ rows: displayRows, resetKey: rowsKey, hasMore, onLoadMore: s.loadMore, onOpen, onFlag, onWatch })
+  const sel = useFocusSelection({ rows: listRows, resetKey: rowsKey, hasMore: listHasMore, onLoadMore: s.loadMore, onOpen, onFlag, onWatch })
+
+  // -- phones (spec 2026-10-16 s3): the chart as a full-screen sheet over the list ----------
+  // The CSS hides the side pane at the phone width; a tap there opens the selected stock's chart
+  // in PhoneChartSheet. The sheet steps the SAME selection, so the list and the sheet agree.
+  const [phoneSheet, setPhoneSheet] = useState(false)
+  // pushed: our history entry is (or may still be) on the stack. swallow: pops we caused.
+  const sheetHistory = useRef({ pushed: false, swallow: 0 })
+  const openPhoneSheet = useCallback(() => {
+    setPhoneSheet(true)
+    const h = sheetHistory.current
+    if (h.pushed) return
+    try {
+      window.history.pushState({ ...(window.history.state || {}), [SHEET_MARK]: true }, '', window.location.href)
+      h.pushed = true
+    } catch { /* no history: Back keeps its old meaning */ }
+  }, [])
+  const closePhoneSheet = useCallback(() => {
+    setPhoneSheet(false)
+    const h = sheetHistory.current
+    // Take our entry back off only while it is still the current one. A spec write while the
+    // sheet was open replaces its state; the entry then stays, and the next Back is swallowed.
+    if (h.pushed && window.history.state?.[SHEET_MARK]) {
+      h.pushed = false
+      h.swallow += 1
+      window.history.back()
+    }
+  }, [])
+  useEffect(() => {
+    // Capture phase, so this runs before the router's and useScreenSpec's own popstate
+    // listeners: a Back that only closes the sheet must not re-read the screen (that resets paging).
+    const onPop = e => {
+      const h = sheetHistory.current
+      if (h.swallow > 0) { h.swallow -= 1; e.stopImmediatePropagation(); return }
+      if (!h.pushed) return
+      h.pushed = false
+      e.stopImmediatePropagation()
+      setPhoneSheet(false)
+    }
+    window.addEventListener('popstate', onPop, true)
+    return () => window.removeEventListener('popstate', onPop, true)
+  }, [])
+  const selectRow0 = sel.select
+  const onRowSelect = useCallback(i => {
+    selectRow0(i)
+    if (isPhoneNow()) openPhoneSheet()
+  }, [selectRow0, openPhoneSheet])
+  // A phone rotated past the phone width (or a window widened) with the sheet open: the sheet
+  // closes and the side pane, now shown, carries the same stock.
+  useEffect(() => {
+    if (!phoneSheet) return undefined
+    const mq = window.matchMedia?.(MQ.phone)
+    if (!mq) return undefined
+    // A `change` only: whether a tap opens the sheet at all is decided once, at the tap.
+    const onChange = () => { if (!mq.matches) closePhoneSheet() }
+    if (mq.addEventListener) mq.addEventListener('change', onChange); else mq.addListener?.(onChange)
+    return () => { if (mq.removeEventListener) mq.removeEventListener('change', onChange); else mq.removeListener?.(onChange) }
+  }, [phoneSheet, closePhoneSheet])
+  // Next past the last loaded row asks for the next page ONCE, then steps onto its first row.
+  const advanceAt = useRef(null)
+  const stepPrev = () => { if (sel.index > 0) sel.select(sel.index - 1) }
+  const stepNext = () => {
+    if (sel.index < listRows.length - 1) { sel.select(sel.index + 1); return }
+    if (listHasMore && advanceAt.current !== listRows.length) { advanceAt.current = listRows.length; s.loadMore() }
+  }
+  useEffect(() => {
+    const at = advanceAt.current
+    if (at == null) return
+    if (!phoneSheet) { advanceAt.current = null; return }
+    if (listRows.length > at) { advanceAt.current = null; selectRow0(at) } else if (!listHasMore) advanceAt.current = null
+  }, [listRows.length, listHasMore, phoneSheet, selectRow0])
 
   // ── the joystick hub (phones/tablets), registered over the rows AS SHOWN, like ScannerShell.
   // Its screens door opens the screen menu. Where the hub cannot exist (useHubEligible, the gate
@@ -306,7 +422,7 @@ function FocusList({ onMode }) {
   const screenMenuApi = useRef(null)
   const openScreens = useCallback(() => { screenMenuApi.current?.open() }, [])
   const hubOn = useHubEligible()
-  const { resultsRef: hubResultsRef, hubMount, cursor: hubCursor } = useScreenerHubSection({ displayRows, filters: shown.filters, prices, hasMore, loadMore: s.loadMore, onOpenScans: openScreens, busy: pending })
+  const { resultsRef: hubResultsRef, hubMount, cursor: hubCursor } = useScreenerHubSection({ displayRows: listRows, filters: shown.filters, prices, hasMore: listHasMore, loadMore: s.loadMore, onOpenScans: openScreens, busy: pending })
   const hubIndex = hubCursor.index
   const hubScrubTo = hubCursor.scrubTo
   const selectRow = sel.select
@@ -318,14 +434,14 @@ function FocusList({ onMode }) {
   useEffect(() => {
     const prev = sync.current
     sync.current = { sel: sel.index, hub: hubIndex, key: rowsKey }
-    if (!hubOn || !displayRows.length || sel.index === hubIndex) return
+    if (!hubOn || !listRows.length || sel.index === hubIndex) return
     if (prev.key !== rowsKey || prev.sel !== sel.index) {
-      const n = displayRows.length
+      const n = listRows.length
       hubScrubTo?.(n > 1 ? sel.index / (n - 1) : 0)
     } else if (prev.hub !== hubIndex && hubIndex >= 0) {
       selectRow(hubIndex)
     }
-  }, [hubOn, sel.index, hubIndex, rowsKey, displayRows.length, hubScrubTo, selectRow])
+  }, [hubOn, sel.index, hubIndex, rowsKey, listRows.length, hubScrubTo, selectRow])
   const radar = useRadar(displayRows)
 
   // ── drawer and sheets ────────────────────────────────────────────────────
@@ -358,9 +474,6 @@ function FocusList({ onMode }) {
   // {id, name, kind, spec}. Rehydrated from this tab's named screens when the spec this
   // mount opened on still matches one (List→Table→List remounts this component). A bare
   // arrival carries no spec to match, so it lands on the first pinned screen as before.
-  const [current, setCurrent] = useState(() => (arrivedBare.current ? null : readNamed()[normalSpec(s.baseSpec)] || null))
-  const specKey = normalSpec(s.baseSpec)
-  const isEdited = !!current && normalSpec(current.spec) !== specKey
   useEffect(() => { if (current) rememberNamed(current) }, [current])
   // Spec changes made here (drawer, sort, undo, picking a screen) keep the name, shown as
   // edited. Any other change came from outside: back/forward, the `S:<id>` door, a shared
@@ -637,6 +750,20 @@ function FocusList({ onMode }) {
 
   // With no list to hold them (error, empty), the flagged actions get their own row: there is no
   // list below it to push down. Empty (and hidden) until something is flagged.
+  // Back to list: the list takes focus again, on the row the sheet left selected. (The Sheet's own
+  // close puts focus back where it was at open first; this runs after it.)
+  const sheetWasOpen = useRef(false)
+  useEffect(() => {
+    if (sheetWasOpen.current && !phoneSheet) focusList()
+    sheetWasOpen.current = phoneSheet
+  }, [phoneSheet, focusList])
+  // With no list on screen (a scan error, an empty screen) there is nothing to step: close.
+  const listShowing = !error && !!result && total !== 0
+  useEffect(() => { if (phoneSheet && !listShowing) closePhoneSheet() }, [phoneSheet, listShowing, closePhoneSheet])
+  const paneProps = { row: selected, livePx: selPx, liveChg: selChg, why, onOpenFilters: openFiltersFromStrip, onFlag: paneFlag,
+    isFlagged: selected ? isFlagged(selected.ticker) : false, onWatch: paneWatch, onNavKey: paneNavKey, onRefocus: focusList,
+    structures, busy: pending }
+
   const flagsOutsideList = <div className={styles.stateFlags} data-testid="focus-state-flags"><FlaggedActions /></div>
   let body
   if (error) {
@@ -653,14 +780,15 @@ function FocusList({ onMode }) {
   } else {
     body = (
       <div className={styles.body}>
-        <ResultList ref={hubResultsRef} itemProps={hubOn ? hubCursor.itemProps : undefined} rows={displayRows} index={sel.index} onSelect={sel.select} onKeyDown={onListKeyDown}
-          livePrices={prices} radar={radar} sortLabel={sortLabel} sortMenu={sortMenu} total={shownTotal} hasMore={hasMore}
+        <ResultList ref={hubResultsRef} itemProps={hubOn ? hubCursor.itemProps : undefined} rows={listRows} index={sel.index} onSelect={onRowSelect} onKeyDown={onListKeyDown}
+          livePrices={prices} radar={radar} sortLabel={sortLabel} sortMenu={sortMenu} total={newOnlyOn ? listRows.length : shownTotal} hasMore={listHasMore}
           onLoadMore={s.loadMore} isLoading={isLoading} showCompany={showCompany} pending={pending} structures={structures}
-          headExtra={<FlaggedActions />} />
-        {/* S5: primitives and stable callbacks only, so a tick for another ticker skips the pane. */}
-        <ChartPane row={selected} livePx={selPx} liveChg={selChg} why={why}
-          onOpenFilters={openFiltersFromStrip} onFlag={paneFlag} isFlagged={selected ? isFlagged(selected.ticker) : false} onWatch={paneWatch}
-          onNavKey={paneNavKey} onRefocus={focusList} structures={structures} busy={pending} />
+          newSet={newSet}
+          headExtra={<><NewTodayLine nt={nt} newOnly={newOnlyOn} onToggleNewOnly={() => setNewOnly(v => !v)} /><FlaggedActions /></>} />
+        {/* S5: primitives and stable callbacks only, so a tick for another ticker skips the pane.
+            ONE chart on a phone: while the sheet shows the chart, the side pane (hidden there by
+            CSS) is not mounted, so no second StockChart fetches bars behind it. */}
+        {!phoneSheet && <ChartPane {...paneProps} />}
       </div>
     )
   }
@@ -683,7 +811,7 @@ function FocusList({ onMode }) {
           onNewScreen={() => { ed.clearFilters(); ed.setLogic(null); setCurrent(null); openFilters() }}
           myScans={myScans} onUseScan={applyScanFilter} meta={meta} />}
         filterCount={filterCount} onOpenFilters={() => openFilters()}
-        dataReceipt={<DataReceipt snapshotDate={listed?.snapshot_date} live={listed?.snapshot?.live} coverage={listed?.coverage} />}
+        dataReceipt={<DataReceipt snapshotDate={listed?.snapshot_date} live={listed?.snapshot?.live} premarket={listed?.snapshot?.premarket} coverage={listed?.coverage} />}
         mode="list" onMode={m => { s.flush(); onMode(m) }}
         saveMenu={(
           <span ref={saveSlotRef} id="focus-save" className={styles.saveSlot}>
@@ -708,6 +836,10 @@ function FocusList({ onMode }) {
       )}
       {drops.length > 0 && <p className={styles.dropNote} role="status">{drops.join(' ')}</p>}
       {body}
+      <PhoneChartSheet open={phoneSheet && listShowing} onClose={closePhoneSheet} row={selected}
+        onPrev={stepPrev} onNext={stepNext} canPrev={sel.index > 0} canNext={sel.index < listRows.length - 1 || listHasMore}>
+        <ChartPane {...paneProps} />
+      </PhoneChartSheet>
       <FiltersDrawer open={filtersOpen} onClose={() => setFiltersOpen(false)} meta={meta} filters={s.filters} logic={s.logic}
         onSetFilter={ed.setFilter} onClear={() => { ed.clearFilters(); ed.setLogic(null) }} onSetLogic={ed.setLogic}
         count={capToTopN(count, s.baseSpec)} countLoading={countLoading} countError={countError} lists={lists} />

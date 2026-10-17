@@ -130,21 +130,31 @@ function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFl
   const settled = !!sym && settledSym === sym
 
   // B4: loading / ready / unavailable, per stock + timeframe (+ retry). Candles drawn means
-  // ready; none within CHART_TIMEOUT_MS means unavailable. Reset during render on a new key.
+  // ready; none within CHART_TIMEOUT_MS means unavailable.
+  //
+  // ⭐ DERIVED, NEVER RESET (2026-10-16). The state records only WHICH key has drawn and
+  // WHICH key timed out; 'loading' is simply "neither is the current key". This replaced
+  // a render-phase `setChart({key, 'loading'})` reset plus an updater that checked the
+  // PREVIOUS state's key. On production every other ArrowDown kept "Loading chart…" up
+  // until the ticker's network answer re-reported (~600-900 ms), although the chart had
+  // painted and reported at ~15 ms: the first-paint report was lost. A React render-phase
+  // update changes the rendered state but not the hook's base state while an earlier,
+  // lower-lane update is still queued (react-dom `rerenderReducer`); the previous ticker's
+  // late no-op re-report is exactly such an update (its eager bail-out leaves it queued),
+  // and the first-paint updater was then applied to the previous ticker's state, failed
+  // its key check and was dropped. A plain value write cannot be dropped that way: the
+  // last write is the key that drew, whatever state it is applied to.
   const [retry, setRetry] = useState(0)
   const chartKey = `${sym}|${tf}|${retry}`
-  const [chart, setChart] = useState({ key: chartKey, state: 'loading' })
-  let chartState = chart.state
-  if (chart.key !== chartKey) {
-    chartState = 'loading'
-    setChart({ key: chartKey, state: 'loading' })
-  }
+  const [drawnKey, setDrawnKey] = useState(null)
+  const [timedOutKey, setTimedOutKey] = useState(null)
+  const chartState = drawnKey === chartKey ? 'ready' : (timedOutKey === chartKey ? 'error' : 'loading')
   const onDrawnBarCount = useCallback(n => {
-    if (n > 0) setChart(c => (c.key === chartKey && c.state !== 'ready' ? { key: chartKey, state: 'ready' } : c))
+    if (n > 0) setDrawnKey(chartKey)
   }, [chartKey])
   useEffect(() => {
     if (!sym || chartState !== 'loading') return undefined
-    const t = setTimeout(() => setChart(c => (c.key === chartKey && c.state === 'loading' ? { key: chartKey, state: 'error' } : c)), CHART_TIMEOUT_MS)
+    const t = setTimeout(() => setTimedOutKey(chartKey), CHART_TIMEOUT_MS)
     return () => clearTimeout(t)
   }, [sym, chartKey, chartState])
 

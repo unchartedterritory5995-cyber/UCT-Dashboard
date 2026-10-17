@@ -12,6 +12,9 @@ argv: EXPORT_JSON FROZEN_LEDGER_JSON REVIEWED_REJECTIONS_JSON OUT_LEDGER OUT_REP
     blanked every UCT breadth reading for a session the market traded.
  5. a rejection no longer STOPS the producer (that withheld the session too — another blank day);
     it is recorded in the report (`carried`). A MUTATED accepted source row still STOPS.
+ 6. (owner, 2026-10-16) a mutation the owner REVIEWED is accepted: `reviewed_mutations` in the
+    reviewed file maps a session to the EXACT export identity (sha256 + created_at) it now has.
+    Any other value still STOPS, so a review excuses one rewrite, never the session forever.
 Exit 2 on STOP; nothing written except the report."""
 import hashlib, json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -34,14 +37,20 @@ def carry(exp: dict, accepted: list, rejected: list) -> dict:
 
 
 def main(argv):
-    exp = json.load(open(argv[1])); frz = json.load(open(argv[2])); reviewed = set(json.load(open(argv[3]))["reviewed"])
+    exp = json.load(open(argv[1])); frz = json.load(open(argv[2])); rev = json.load(open(argv[3]))
+    reviewed = set(rev["reviewed"]); reviewed_mut = rev.get("reviewed_mutations") or {}
     R = {"export": os.path.basename(argv[1]), "export_sha256": hashlib.sha256(open(argv[1], "rb").read()).hexdigest(),
          "frozen_ledger_sha256": hashlib.sha256(open(argv[2], "rb").read()).hexdigest(),
          "source_rows_exported": len(exp), "previously_accepted": len(frz["dates"])}
     mut = [d for d, e in frz["dates"].items()
            if not e.get("carried_from")
            and (d not in exp or any(exp[d][k] != e[k] for k in ("tickers", "sha256", "n", "created_at")))]
+    excused = [d for d in mut if d in exp and isinstance(reviewed_mut.get(d), dict)
+               and reviewed_mut[d].get("sha256") == exp[d]["sha256"]
+               and reviewed_mut[d].get("created_at") == exp[d]["created_at"]]
+    mut = [d for d in mut if d not in excused]
     R["source_row_mutations"] = mut
+    R["reviewed_mutations_accepted"] = excused
     R["backfill_exclusion_unchanged"] = sorted(d for d in exp if d < frz["live_from"]) == sorted(frz["excluded_backfilled_dates"])
     C = pp.classify(exp, frz["live_from"])
     newest = max(C)

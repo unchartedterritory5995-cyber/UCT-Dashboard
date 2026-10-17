@@ -163,6 +163,12 @@ COLUMNS = [
     # COALESCE(overlay, nightly) can serve and filter it. See LIVE_ONLY_COLUMNS and
     # docs/superpowers/specs/2026-10-15-screener-live-relative-volume-design.md.
     "rvol_live",
+    # ⭐ PRE-MARKET-ONLY (2026-10-16): the last pre-market trade and its change vs the
+    # prior close. Served ONLY through query.py's `pm` join on `screener_premarket`
+    # (04:00-09:30 ET, today, under 180 s old, flag-gated per user); the nightly build
+    # leaves both NULL. Listed here so filters, sort and column requests can name them.
+    # Spec docs/superpowers/specs/2026-10-16-screener-focus-next-design.md section 2.
+    "premarket_price", "premarket_chg_pct",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -170,7 +176,7 @@ COLUMNS = [
 #: Columns whose NIGHTLY value is NULL by design (only the live overlay fills
 #: them). The build's `empty_columns` receipt does not name these: a column that
 #: is meant to be empty at 03:00 is not a column that "came out 0/N".
-LIVE_ONLY_COLUMNS = frozenset({"rvol_live"})
+LIVE_ONLY_COLUMNS = frozenset({"rvol_live", "premarket_price", "premarket_chg_pct"})
 
 _TEXT = {"ticker", "company", "sector", "industry", "exchange", "security_type", "ma_stack",
          "candle_type", "candle_label", "candle_matches", "candle_trend",

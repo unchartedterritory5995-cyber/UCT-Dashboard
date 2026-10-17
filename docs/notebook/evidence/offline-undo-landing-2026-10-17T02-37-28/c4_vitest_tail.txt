@@ -1,0 +1,8 @@
+ [32m✓[39m src/pages/screener/focus/__tests__/ChartPane.readyOnFirstPaint.test.jsx [2m([22m[2m1 test[22m[2m)[22m[33m 3433[2mms[22m[39m
+   [33m[2m✓[22m[39m every step of a keyboard walk is ready on its first paint, including after a late re-report [33m 3432[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m123 passed[39m[22m[90m (123)[39m
+[2m      Tests [22m [1m[32m1476 passed[39m[22m[90m (1476)[39m
+[2m   Start at [22m 21:29:28
+[2m   Duration [22m 360.23s[2m (transform 7.67s, setup 14.32s, import 9.72s, tests 630.01s, environment 49.96s)[22m
+

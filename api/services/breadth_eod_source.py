@@ -199,25 +199,33 @@ def list_key(metric: str) -> str:
 # ── the computation ──────────────────────────────────────────────────────────
 
 def _collector_universe_before(date_iso: str) -> tuple:
-    """(tickers, from_date) — the newest COLLECTOR-sourced `universe_list`
-    strictly before `date_iso`. A server row's list is skipped: it is the priced
-    subset, and reading it back would shrink the population session by session."""
+    """(tickers, from_date) — the newest COLLECTOR-sourced membership strictly
+    before `date_iso`. A server row's `universe_list` is skipped: it is the priced
+    subset, and reading it back would shrink the population session by session.
+    A server row that kept the collector's own list (`pit_universe_list`, marked
+    `_pit_universe_from == "collector"`) IS that collector list, and is used.
+    ⚰️ Before that list was kept, every row after the server switch was skipped,
+    so the population froze on the last pre-switch session (10-09) and would have
+    run out entirely after 15 sessions."""
     from api.services import breadth_monitor as bm
     try:
         with closing(bm._conn()) as c:
             cur = c.execute(
-                "SELECT s.date, s.metrics FROM breadth_snapshots s "
+                "SELECT s.date, s.metrics, COALESCE(n.source, 'collector') FROM breadth_snapshots s "
                 "LEFT JOIN breadth_snapshot_numeric n ON n.date = s.date "
-                "WHERE s.date < ? AND COALESCE(n.source, 'collector') != 'server' "
-                "ORDER BY s.date DESC LIMIT 15", (date_iso,))
-            for d, blob in cur:
+                "WHERE s.date < ? ORDER BY s.date DESC LIMIT 15", (date_iso,))
+            for d, blob, src in cur:
                 try:
                     m = json.loads(blob)
                 except (TypeError, ValueError):
                     continue
-                if m.get("_source") == "server":
-                    continue
-                tickers = sorted({str(i.get("t")).upper() for i in (m.get("universe_list") or [])
+                if src == "server" or m.get("_source") == "server":
+                    if m.get("_pit_universe_from") != "collector":
+                        continue
+                    items = m.get("pit_universe_list") or []
+                else:
+                    items = m.get("universe_list") or []
+                tickers = sorted({str(i.get("t")).upper() for i in items
                                   if isinstance(i, dict) and i.get("t")})
                 if len(tickers) > 100:
                     return tickers, d
@@ -602,6 +610,14 @@ def build_server_row(result: dict, existing: Optional[dict]) -> dict:
     owned = owned_keys(metrics)
     row = dict(existing or {})
     row.pop("_healed", None)
+    # ⛔ The session's MEMBERSHIP is write-once. `universe_list` below becomes the
+    # server's priced drill list, but the V2 producer's PIT gate reads membership
+    # (`bm.pit_membership`) and stops if a row it accepted changes. So the list that
+    # landed first — the collector's on-time push — is kept in `pit_universe_list`.
+    # (2026-10-12: this rewrite mutated an accepted row and blanked four sessions.)
+    if existing and not existing.get("pit_universe_list") and existing.get("universe_list"):
+        row["pit_universe_list"] = existing["universe_list"]
+        row["_pit_universe_from"] = "collector"
     gap_filled = []
     for k in owned:
         if k in COLLECTOR_CARRIED and (existing or {}).get(k) is not None:
@@ -625,6 +641,11 @@ def build_server_row(result: dict, existing: Optional[dict]) -> dict:
                 row["market_phase"] = phase
         except Exception:                         # noqa: BLE001
             pass
+    if not row.get("pit_universe_list") and row.get("universe_list"):
+        # No collector row yet (the PC never pushed): the server's own list is the
+        # session's membership from now on, and a late push will not replace it.
+        row["pit_universe_list"] = row["universe_list"]
+        row["_pit_universe_from"] = "server"
     row["date"] = result["date"]
     row["_source"] = "server"
     row["_source_detail"] = {
@@ -717,6 +738,11 @@ def on_push(date_str: str, metrics: dict) -> tuple:
         lk = list_key(k)
         if lk in existing:
             merged[lk] = existing[lk]
+    # Membership is write-once (see build_server_row): a late push never replaces it.
+    from api.services import breadth_monitor as _bm
+    if _bm.pit_membership(existing):
+        merged["pit_universe_list"] = _bm.pit_membership(existing)
+        merged["_pit_universe_from"] = existing.get("_pit_universe_from") or "server"
     merged["_source"] = "server"
     merged["_source_detail"] = existing.get("_source_detail")
     return merged, "server"

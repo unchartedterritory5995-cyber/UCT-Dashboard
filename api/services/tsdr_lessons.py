@@ -379,6 +379,22 @@ def record_message(msg: dict, channel_id: str) -> int:
     return added
 
 
+def _backfill_done(done_key: str) -> bool:
+    """The backfill is done for the CURRENT TSDR_LESSONS_SINCE only. The marker
+    holds the floor date it reached, so moving the date earlier reopens the
+    backfill from where it stopped, with no hand edit of the state table.
+    The legacy marker "1" was written when the floor was always 2026-01-01."""
+    value = get_state(done_key)
+    floor = since_date().date().isoformat()
+    if value == "1":
+        return floor >= "2026-01-01"
+    return value is not None and value <= floor
+
+
+def _mark_backfill_done(done_key: str) -> None:
+    set_state(done_key, since_date().date().isoformat())
+
+
 def scan_channel(channel_id: str, *, max_pages: int = MAX_PAGES_PER_TICK) -> dict:
     """Forward pages first (new posts), the rest of the budget on the backfill
     down to TSDR_LESSONS_SINCE. A cursor moves only after its page is recorded."""
@@ -396,7 +412,7 @@ def scan_channel(channel_id: str, *, max_pages: int = MAX_PAGES_PER_TICK) -> dic
         if ids:
             set_state(back_key, str(min(ids)))
         else:
-            set_state(done_key, "1")
+            _mark_backfill_done(done_key)
     else:
         while out["pages"] < max_pages:
             page = _discord("GET", f"/channels/{channel_id}/messages",
@@ -411,10 +427,10 @@ def scan_channel(channel_id: str, *, max_pages: int = MAX_PAGES_PER_TICK) -> dic
             if len(page) < 100:
                 break
     floor = snowflake_for(since_date())
-    while out["pages"] < max_pages and get_state(done_key) != "1":
+    while out["pages"] < max_pages and not _backfill_done(done_key):
         before = get_state(back_key)
         if before is None or int(before) <= floor:
-            set_state(done_key, "1")
+            _mark_backfill_done(done_key)
             break
         page = _discord("GET", f"/channels/{channel_id}/messages",
                         params={"limit": 100, "before": before}) or []
@@ -422,12 +438,12 @@ def scan_channel(channel_id: str, *, max_pages: int = MAX_PAGES_PER_TICK) -> dic
         for m in page:
             out["added"] += record_message(m, channel_id)
         if not page:
-            set_state(done_key, "1")
+            _mark_backfill_done(done_key)
             break
         oldest = min(int(m["id"]) for m in page)
         set_state(back_key, str(oldest))
         if oldest <= floor or len(page) < 100:
-            set_state(done_key, "1")
+            _mark_backfill_done(done_key)
     return out
 
 
@@ -634,6 +650,7 @@ def post_to_section(lesson: dict, link: str) -> dict:
                          forward_body(lesson)) or {}
         forward_id = str(fwd.get("id") or "")
     except DiscordError as e:
+        # run_video_refill retries it on a later tick.
         log.warning("[tsdr-lessons] could not forward the video for %s: %s",
                     lesson.get("attachment_id"), e)
     return {"section": key, "thread": thread, "post_id": str(post.get("id") or ""),
@@ -972,6 +989,56 @@ def run_regroup(*, deadline: float, limit: int = 60) -> dict:
     return out
 
 
+def run_video_refill(*, deadline: float, limit: int = 3) -> dict:
+    """Lessons in a thread whose video forward failed: post the lesson again
+    (recap, then the video) and delete the old recap, but ONLY once the forward
+    has gone through, so a thread never gains a second recap without its video.
+    The lesson moves to the end of its thread. Stops at the first forward cap."""
+    out = {"refilled": 0, "waiting": 0, "errors": 0}
+    with contextlib.closing(_connect()) as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT * FROM tsdr_lessons WHERE status = 'posted' AND section IN "
+            f"({','.join('?' * len(_SECTION_KEYS))}) AND (forward_post_id IS NULL "
+            "OR forward_post_id = '') ORDER BY posted_at LIMIT ?",
+            (*_SECTION_KEYS, int(limit))).fetchall()]
+    for row in rows:
+        if time.time() > deadline:
+            break
+        aid, thread, old_post = row["attachment_id"], row["post_channel_id"], row["discord_post_id"]
+        try:
+            if old_post and not lesson_post_exists(thread, old_post):
+                _update(aid, section=REMOVED)      # Patrick deleted it: leave it gone
+                continue
+            link = jump_link(guild_id(), row["channel_id"], row["message_id"])
+            placed = post_to_section(row, link)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[tsdr-lessons] video refill for %s failed: %s", aid, e)
+            out["errors"] += 1
+            continue
+        if not placed["forward_id"]:
+            # The forward was refused again: take the new recap back down and
+            # keep the old one, so nothing changes in the thread.
+            try:
+                _in_thread("DELETE", placed["thread"],
+                           f"/channels/{placed['thread']}/messages/{placed['post_id']}", None)
+            except DiscordError as e:
+                log.warning("[tsdr-lessons] could not remove the retry recap %s: %s",
+                            placed["post_id"], e)
+            out["waiting"] += 1
+            break                                   # the cap holds for minutes
+        _update(aid, discord_post_id=placed["post_id"], post_channel_id=placed["thread"],
+                forward_post_id=placed["forward_id"], section=placed["section"])
+        if old_post:
+            try:
+                _in_thread("DELETE", thread, f"/channels/{thread}/messages/{old_post}", None)
+            except DiscordError as e:
+                log.warning("[tsdr-lessons] refilled %s but could not delete the old recap: %s",
+                            aid, e)
+        out["refilled"] += 1
+        _sleep(1.0)
+    return out
+
+
 # ── YouTube + Desk Videos ────────────────────────────────────────────────────
 
 def _yt_quota_left(now: Optional[datetime] = None) -> int:
@@ -1119,6 +1186,11 @@ def tick() -> dict:
             except Exception as e:  # noqa: BLE001
                 log.warning("[tsdr-lessons] regroup stage failed: %s", e)
                 out["regroup"] = {"error": str(e)[:200]}
+            try:
+                out["refill"] = run_video_refill(deadline=deadline)
+            except Exception as e:  # noqa: BLE001
+                log.warning("[tsdr-lessons] video refill stage failed: %s", e)
+                out["refill"] = {"error": str(e)[:200]}
         if youtube_enabled():
             try:
                 out["youtube"] = run_youtube(deadline=deadline)
