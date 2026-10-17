@@ -57,6 +57,19 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   presented in chat 2026-10-17; verdicts not yet recorded.** Corrections go to
   `docs/study/corrections/<segment>.jsonl` (to create on the first verdict).
   Unit plan: Foundations 116 units (~2,970 q) + Vocabulary 13 units (~2,920 q) + Method 96 units (~5,605 q).
+- **Source rulings (owner, 2026-10-17, after item 1 was rejected: "i have never heard of THE LOOP"):**
+  (1) The Presenter's Brief (docs/curriculum/uct_method_presenter_brief.json, AI-written 2026-07-27) is
+  fine as a source but is TEACHING, not quiz material: "it is essentially exactly how everything is
+  supposed to be analyzed" but "we dont exactly emphasize that". Its framing terms become unscored
+  walk-through items (type `walkthrough`, to build); real desk terms stay quiz items.
+  (2) voice_kb/trading_principles.json: "fine, good to have, might need some adjusting" -> keep, review one by one.
+  (3) setupPlaybooks.js: "yes that is good" + "sweep reliable websites to gain full complete detailed
+  definitions to make the answer perfect and detailed" -> research lane: cited external definitions
+  (docs/study/research/), used to deepen reveals/lessons, every one still owner-reviewed.
+  (4) candle catalog + bottoms catalog: keep ("well researched and reliable"), "make sure nothing is
+  missed and all the stuff is properly defined explained and emphasized" -> coverage check in the same lane.
+  LESSON: check a source's authorship (`git log --format=%an` + its header) before calling it "the firm's";
+  a document a model wrote is not the desk's vocabulary.
 - Review flow (owner decision 2026-10-17): in chat, question form, ONE item at a time (he asked for one by one, not groups); after 20-30 clean
   items of a type the StudyReview card offers auto-approve + 10% sample for that type.
 - Owner answers 2026-10-17: Scans image copy = yes (run on the pod after the early merge); early merge =
