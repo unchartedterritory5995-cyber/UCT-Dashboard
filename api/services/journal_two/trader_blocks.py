@@ -18,10 +18,11 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable
 
 #: The trader blocks (`block: true` in the client registry, bound in BLOCK_COMPONENTS): part a's three,
-#: then part b's six. The market context is NOT one: it is the existing `marketcontext` capture widget
-#: (Task 3, IR-S6).
+#: then part b's six, then Tier 3's mood and focus check-in. The market context is NOT one: it is the
+#: existing `marketcontext` capture widget (Task 3, IR-S6).
 BLOCK_IDS = ("preEntryChecklist", "priceStamps", "positionSizing",
-             "myRules", "prepWire", "prepEarnings", "prepMovers", "prepLevels", "tradeReview")
+             "myRules", "prepWire", "prepEarnings", "prepMovers", "prepLevels", "tradeReview",
+             "moodCheckIn")
 
 #: The regime ids regime.classify_regime answers (journal_two/regime.py), in severity order.
 REGIME_IDS = ("green", "amber", "orange", "red")
@@ -159,6 +160,10 @@ BUILDERS.update({
     "myRules": build_my_rules,
     "tradeReview": _empty("tradeReview", {"tradeId": ""}),
 })
+
+# P2 Tier 3 Task 3: a style builds the check-in UNPICKED. The member picks; `day` is the first pick's ET
+# date, set by the client's one rule (lib/blocks/checkinWords.js, R-T3-2), never guessed here.
+BUILDERS["moodCheckIn"] = _empty("moodCheckIn", {"mood": "", "focus": "", "day": ""})
 
 
 # ── The market context stamp (spec §P2 item 3) on the EXISTING marketcontext widget (IR-S6) ─────

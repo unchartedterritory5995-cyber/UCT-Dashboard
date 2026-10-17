@@ -12,6 +12,7 @@ import useJ2PropertyDefs from '../../../hooks/useJ2PropertyDefs'
 import { useMemberTemplates } from '../../../lib/memberTemplates'
 import { TEMPLATES } from '../../../lib/notebookTemplates'
 import { BLOCK_KINDS, blockLabel, optionWord, tfWord } from '../../../lib/journalBlocks'
+import { isTier3Block, tier3Enabled } from '../../../lib/tier3Flag'
 import { NOTE_KIND_PROPERTY } from '../../../lib/noteKinds'
 import { createJournalStyle, MAX_STYLE_NAME_CHARS, previewJournalStyle, updateJournalStyle } from '../../../lib/journalStyles'
 import { DocBody } from '../TemplatePreview'
@@ -150,7 +151,9 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
     setBlocks((bs) => [...bs, { block: id, enabled: true, settings }])
     setMoved(`${kind.label} added.`)
   }
-  const addable = BLOCK_KINDS.filter((k) => !blocks.some((b) => b.block === k.id))
+  // P2 Tier 3 (R-T3-1): a Tier 3 block is offered only while its switch is on. A style that already
+  // holds one keeps it (the list above); only ADDING is gated, by the ONE predicate, never a copied id.
+  const addable = BLOCK_KINDS.filter((k) => !blocks.some((b) => b.block === k.id) && (!isTier3Block(k.id) || tier3Enabled()))
 
   const copyBuiltIn = (key) => {
     const t = TEMPLATES.find((x) => x.key === key)

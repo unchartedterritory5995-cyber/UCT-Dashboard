@@ -55,10 +55,12 @@ const IDS = [
   'preEntryChecklist', 'priceStamps', 'positionSizing',
   // Notebook P2b (part b): six more blocks, same binding.
   'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview',
+  // P2 Tier 3 Task 3: the mood and focus check-in, same binding.
+  'moodCheckIn',
 ]
 const G040_KINDS = ['screener', 'cot', 'modelbook']
 const BLOCK_IDS = ['preEntryChecklist', 'priceStamps', 'positionSizing',
-  'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview']
+  'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview', 'moodCheckIn']
 // The ids a /charts board can hold — everything except the capture-only kinds.
 const CAPTURE_ONLY = [...G040_KINDS, ...BLOCK_IDS]
 const BOARD_IDS = IDS.filter(id => !CAPTURE_ONLY.includes(id))
@@ -81,6 +83,7 @@ describe('widget registry — metadata pins', () => {
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
+      moodCheckIn: 'Mood and focus check-in',
     })
   })
 
@@ -97,6 +100,7 @@ describe('widget registry — metadata pins', () => {
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
+      moodCheckIn: 'Mood and focus check-in',
     })
   })
 
@@ -113,6 +117,7 @@ describe('widget registry — metadata pins', () => {
       preEntryChecklist: 'Pre-entry checklist', priceStamps: 'Price stamps', positionSizing: 'Position sizing',
       myRules: 'My rules', prepWire: 'Morning wire and exposure', prepEarnings: 'Earnings for my names',
       prepMovers: 'My movers', prepLevels: 'Key levels from my plans', tradeReview: 'Post-trade review',
+      moodCheckIn: 'Mood and focus check-in',
     })
   })
 
@@ -151,6 +156,7 @@ describe('widget registry — metadata pins', () => {
       prepMovers: { w: 6, h: 4, minW: 3, minH: 2 },
       prepLevels: { w: 6, h: 4, minW: 3, minH: 2 },
       tradeReview: { w: 6, h: 4, minW: 3, minH: 2 },
+      moodCheckIn: { w: 6, h: 4, minW: 3, minH: 2 },
     })
   })
 

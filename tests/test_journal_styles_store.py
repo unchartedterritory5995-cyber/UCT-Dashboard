@@ -48,6 +48,24 @@ def test_the_client_block_catalog_equals_the_server_catalog():
     assert shape(client) == shape(js.BLOCK_KINDS)
 
 
+def test_the_mood_checkin_row_and_its_builder():
+    """P2 Tier 3 Task 3: the check-in is a catalog block with no style setting (R-T3-V1) and the search
+    line the client inserts; its builder makes the empty triple. (The Node rail above pins the row's
+    agreement with journalBlocks.js on its own.)"""
+    from datetime import datetime, timezone
+    from api.services.journal_two import journal_styles as js
+    row = js._BLOCK_BY_ID["moodCheckIn"]
+    assert row == {"id": "moodCheckIn", "search": "[mood and focus check-in]", "settings": ()}
+    ids = [k["id"] for k in js.BLOCK_KINDS]
+    assert ids.index("moodCheckIn") == ids.index("tradeReview") + 1          # catalog order: after the review
+    node, reason = js.BLOCK_BUILDERS["moodCheckIn"]({"block": "moodCheckIn", "settings": {}},
+                                                   {"ticker": None, "memo": {}, "mode": "create",
+                                                    "now": datetime(2026, 10, 17, 14, 0, tzinfo=timezone.utc)})
+    assert reason is None
+    assert node["attrs"]["searchText"] == "[mood and focus check-in]"
+    assert node["attrs"]["params"] == {"mood": "", "focus": "", "day": ""}
+
+
 def test_the_client_name_cap_is_the_servers():
     """Review M-5: lib/journalStyles.js holds the ONE client copy of the style-name cap (every name field and
     the Save-as-style seed read it). It imports browser modules, so Node cannot evaluate it raw: the

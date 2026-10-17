@@ -69,6 +69,8 @@ BLOCK_KINDS: tuple[dict, ...] = (
     {"id": "prepMovers", "search": "[my movers]", "settings": ()},
     {"id": "prepLevels", "search": "[key levels from my plans]", "settings": ()},
     {"id": "tradeReview", "search": "[post-trade review]", "settings": ()},
+    # P2 Tier 3 Task 3: the mood and focus check-in. No settings (R-T3-V1); its builder makes it unpicked.
+    {"id": "moodCheckIn", "search": "[mood and focus check-in]", "settings": ()},
     # The market context stamp is the EXISTING marketcontext capture widget (IR-S6). No `search`.
     {"id": "marketcontext", "settings": (
         {"key": "fields", "options": ("all", "regime", "indexes"), "default": "all"},)},

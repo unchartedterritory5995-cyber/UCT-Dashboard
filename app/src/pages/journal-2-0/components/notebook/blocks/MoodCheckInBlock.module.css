@@ -1,0 +1,10 @@
+/* The mood and focus check-in (P2 Tier 3, Task 3). Heights come from Blocks.module.css (`.tap`), which
+   raises them to var(--tap-min) at every touch width; the width floor below holds at every width, so a
+   one-word level ("Low") is never a sliver of a target. */
+.rows { display: grid; gap: 8px; }
+.row { display: grid; gap: 4px; margin: 0; padding: 0; border: 0; }
+.rowLabel { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.choice { min-width: var(--tap-min); padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; font-size: 13px; }
+.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); font-weight: 600; }
+.words { margin: 0; font-size: 13px; }

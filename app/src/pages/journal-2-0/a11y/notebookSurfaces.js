@@ -210,6 +210,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/blocks/PrepLevelsBlock.jsx': { recipe: 'trader-block-prep' },
   'components/notebook/blocks/PrepCapture.jsx': { coveredBy: 'trader-block-prep' },
   'components/notebook/blocks/TradeReviewBlock.jsx': { recipe: 'trader-block-review' },
+  // P2 Tier 3 Task 3: the mood and focus check-in (rail a11y/traderBlockCheckin.a11y.test.jsx).
+  'components/notebook/blocks/MoodCheckInBlock.jsx': { recipe: 'trader-block-checkin' },
 
   // ── documents ──────────────────────────────────────────────────────────────
   'components/notebook/DocumentPreviewSheet.jsx': { recipe: 'document-preview-pdf' },

@@ -6,7 +6,7 @@
 // for: GET /property-defs, GET /note-templates, an empty mapping offer ({ offer: null }), the 5xx / network
 // failures (transport, not a server answer) and RICH_OUTLINE (a TipTap doc the style editor must refuse to flatten).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, within, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, within, fireEvent, waitFor, act, cleanup } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
 import { AuthContext } from '../../../../../context/AuthContext'
@@ -382,6 +382,24 @@ describe('the Styles manager', () => {
     expect(sent).toMatchObject({ name: 'Swing plan', kindId: 'thesis', outlineTemplateId: null, outlineBodyJson: null })
     expect(sent.blocks).toEqual([{ block: 'chart', enabled: true, settings: { tf: 'D' } }])
     await screen.findByText('Saved Swing plan.')
+  })
+
+  it('P2 Tier 3 (R-T3-1): the mood check-in is offered in Add a block only while Tier 3 is on', async () => {
+    const offered = () => [...screen.getByLabelText('Add a block').options].map((o) => o.textContent)
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: /New style/ }))
+    await screen.findByLabelText('Name')
+    expect(offered()).toContain('Post-trade review')                          // control: the list is the catalog
+    expect(offered()).not.toContain('Mood and focus check-in')
+    cleanup()
+    __resetNotebookFlags()                                                    // a tab latches once
+    latchNotebookFlags({ notebook_journal_styles_enabled: true, journal_tier3_enabled: true })
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: /New style/ }))
+    await screen.findByLabelText('Name')
+    expect(offered()).toContain('Mood and focus check-in')
+    fireEvent.change(screen.getByLabelText('Add a block'), { target: { value: 'moodCheckIn' } })
+    expect(offered()).not.toContain('Mood and focus check-in')               // added: no longer addable
   })
 
   it('an empty name is refused in words, and nothing is sent', async () => {

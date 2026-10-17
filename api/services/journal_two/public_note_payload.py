@@ -211,6 +211,8 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     ("widgetEmbed", "prepMovers"): "private",
     ("widgetEmbed", "prepLevels"): "private",
     ("widgetEmbed", "tradeReview"): "private",
+    # P2 Tier 3: the member's own mood and focus. A stranger sees the neutral line, never a level.
+    ("widgetEmbed", "moodCheckIn"): "private",
     # financialFact -- by the fact's recorded source.
     ("financialFact", "fmp"): "fmp",
     ("financialFact", "finnhub"): "finnhub",

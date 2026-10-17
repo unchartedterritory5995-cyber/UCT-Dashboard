@@ -27,6 +27,7 @@ import { VOICE_NOTE_EVENT } from '../../lib/voiceNote'
 import { CANVAS_EVENT } from '../../lib/tradeCanvas'
 import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCapture'
 import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
+import { tier3Enabled } from '../../lib/tier3Flag'
 import styles from './SlashMenu.module.css'
 
 // Notebook P2a: a trader block (and the market context stamp) in the Trading group, dark behind the
@@ -310,6 +311,9 @@ export const ITEMS = [
   traderItem('prepMovers', { description: 'How the names on your list are moving' }),
   traderItem('prepLevels', { description: 'The levels in your trade plans' }),
   traderItem('tradeReview', { description: 'Review a closed trade against your plan' }),
+  // P2 Tier 3 (R-T3-1): CREATING a check-in needs both switches; one already in a note renders anyway.
+  traderItem('moodCheckIn', { description: 'How you feel and how focused you are today',
+    available: () => tier3Enabled() && journalStylesEnabled() }),
   traderItem('marketcontext', {
     // R-P2-8: a member's own stamp, captured NOW; it never sets builtin:regime_at_write. ⛔ R-RC-4:
     // the typed command leaves the note BEFORE the read is awaited (the /price rule). A failed read

@@ -627,6 +627,7 @@ def test_with_blocks_seeds_the_nine_block_kinds_and_the_stamp():
     by = {n["attrs"]["widgetId"]: n["attrs"] for n in nodes}
     assert all(by[p]["params"] == {} for p in tb.PREP_BLOCK.values()), by
     assert by["tradeReview"]["params"] == {"tradeId": ""}
+    assert by["moodCheckIn"]["params"] == {"mood": "", "focus": "", "day": ""}     # P2 T3 Task 3: unpicked
     assert by["marketcontext"]["params"] == {"uncaptured": True, "fields": "all"}
 
 
