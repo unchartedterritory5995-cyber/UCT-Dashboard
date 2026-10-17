@@ -233,10 +233,11 @@ RECAP = {"is_lesson": True, "title": "Wait for the reclaim of the 21 EMA",
          "tags": ["entries", "setups"]}
 
 
-def _pipeline(monkeypatch, message, *, transcript="word " * 50, recap=None, seen=None):
+def _pipeline(monkeypatch, message, *, transcript="word " * 50, recap=None, seen=None,
+              channel=TSDR):
     monkeypatch.setenv("TSDR_LESSONS_CHANNEL_ID", "lessons")
     fake = FakeDiscord({
-        ("GET", f"/channels/{TSDR}/messages/{message['id']}"): message,
+        ("GET", f"/channels/{channel}/messages/{message['id']}"): message,
         ("POST", "/channels/lessons/messages"): {"id": "post1"},
     })
     monkeypatch.setattr(tl, "_discord", fake)
@@ -271,6 +272,50 @@ def test_posts_embed_with_jump_link(monkeypatch):
     row = tl.get_lesson("a1")
     assert row["status"] == "posted" and row["discord_post_id"] == "post1"
     assert json.loads(row["tags"]) == ["entries", "setups"]
+
+
+def test_a_bracco_video_is_credited_to_bracco(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_AUTHOR_IDS", f"{PATRICK},{tl.BRACCO_USER_ID}")
+    m = msg(sf(2026, 10, 15), author=tl.BRACCO_USER_ID, attachments=[video("b1")])
+    tl.record_message(m, tl.BRACCO_CHANNEL_ID)
+    seen = {}
+    fake = _pipeline(monkeypatch, m, seen=seen, channel=tl.BRACCO_CHANNEL_ID)
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    assert seen["speaker"] == "Bracco"
+    embed = fake.posts("/channels/lessons/messages")[0]["embeds"][0]
+    assert embed["footer"]["text"].startswith("From #bracco")
+    row = {**tl.get_lesson("b1"), **RECAP}
+    assert tl.youtube_title(row).endswith("| Bracco 10/15/26")
+    assert "(#bracco)" in tl.youtube_description(row)
+    patrick = {**row, "author_id": PATRICK, "channel_id": TSDR}
+    assert tl.youtube_title(patrick).endswith("| TSDR 10/15/26")
+    assert tl.speaker_name(patrick) == "Patrick"
+
+
+def test_the_recap_prompt_names_the_speaker(monkeypatch):
+    class Msg:
+        stop_reason = "refusal"
+        content = []
+
+    sent = {}
+
+    class Client:
+        def with_options(self, **kw):
+            return self
+
+        class messages:  # noqa: N801
+            @staticmethod
+            def create(**kw):
+                sent.update(kw)
+                return Msg()
+
+    import api.services.engine as engine
+    monkeypatch.setattr(engine, "_get_anthropic_client", lambda: Client())
+    with pytest.raises(ValueError):
+        tl.generate_recap(transcript="t", caption="", speaker="Bracco",
+                          posted=datetime(2026, 10, 15, tzinfo=timezone.utc))
+    assert sent["messages"][0]["content"].startswith("SPEAKER: Bracco\n")
+    assert "Patrick" not in sent["system"]
 
 
 def test_clip_that_is_not_a_lesson_is_skipped(monkeypatch):

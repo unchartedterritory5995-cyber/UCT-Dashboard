@@ -63,6 +63,12 @@ _DISCORD_EPOCH_MS = 1420070400000
 
 TSDR_CHANNEL_ID = "882459873823043655"        # docs/wisdom/discord-sources.json
 PATRICK_USER_ID = "339816805805588480"        # docs/wisdom/authors.json (author tsdr)
+BRACCO_CHANNEL_ID = "882460017352130630"      # docs/wisdom/discord-sources.json
+BRACCO_USER_ID = "427798118935953410"         # docs/wisdom/authors.json (author bracco)
+# Who is speaking (for the recap) and the label on their YouTube titles. An
+# author not listed here reads as Patrick, the original and default source.
+AUTHOR_NAMES = {PATRICK_USER_ID: ("Patrick", "TSDR"), BRACCO_USER_ID: ("Bracco", "Bracco")}
+CHANNEL_NAMES = {TSDR_CHANNEL_ID: "tsdr", BRACCO_CHANNEL_ID: "bracco"}
 DEFAULT_GUILD_ID = "882293203485720596"
 
 VIDEO_EXTENSIONS = (".mp4", ".mov", ".webm", ".m4v", ".mkv")
@@ -131,6 +137,18 @@ def source_channels() -> list[str]:
 
 def author_ids() -> set[str]:
     return set(_csv_env("TSDR_LESSONS_AUTHOR_IDS", PATRICK_USER_ID))
+
+
+def speaker_name(lesson: dict) -> str:
+    return AUTHOR_NAMES.get(str(lesson.get("author_id") or ""), AUTHOR_NAMES[PATRICK_USER_ID])[0]
+
+
+def speaker_label(lesson: dict) -> str:
+    return AUTHOR_NAMES.get(str(lesson.get("author_id") or ""), AUTHOR_NAMES[PATRICK_USER_ID])[1]
+
+
+def source_name(lesson: dict) -> str:
+    return CHANNEL_NAMES.get(str(lesson.get("channel_id") or ""), "tsdr")
 
 
 def since_date() -> datetime:
@@ -728,15 +746,16 @@ TAGS = ("setups", "entries", "exits", "risk", "market", "psychology", "process",
 _TICKER = re.compile(r"^[A-Z]{1,5}(?:\.[A-Z])?$")
 
 _SYS = (
-    "You write the lesson log for a stock-trading community's Discord. The head trader "
-    "records short videos during and after the trading day, and each one becomes a "
+    "You write the lesson log for a stock-trading community's Discord. The community's "
+    "traders record short videos during and after the trading day, and each one becomes a "
     "post in an education channel so members can find the lesson later.\n"
-    "You get the video's transcript, the caption he posted with it, its date, and, when "
+    "You get who is speaking, the video's transcript, the caption they posted with it, "
+    "its date, and, when "
     "the video answered a member's question, that question.\n"
     "Return ONLY a JSON object with these keys:\n"
     '  "title": 4-10 words naming the lesson (not the date, no emoji, no quotes).\n'
     '  "recap": 4 to 6 complete sentences, one paragraph, in third person '
-    '("Patrick explains..." is fine). Say what the lesson is, the reasoning, and the '
+    '("<SPEAKER> explains..." is fine, using the SPEAKER name given). Say what the lesson is, the reasoning, and the '
     "takeaway a member should apply. Name tickers, setups and levels exactly as said.\n"
     '  "question_needed": true only if the recap would not make sense without knowing '
     "what was asked.\n"
@@ -769,13 +788,14 @@ def _parse_json_object(text: str) -> dict:
 
 
 def generate_recap(*, transcript: str, caption: str, posted: datetime,
-                   question: str = "") -> dict:
+                   question: str = "", speaker: str = "Patrick") -> dict:
     """{is_lesson, title, recap, question, takeaway, tickers, tags} from Claude.
     Raises on an unusable reply."""
     from api.services.engine import _get_anthropic_client
 
     et = posted.astimezone(_ET)
-    user = f"DATE: {et:%A, %B} {et.day}, {et.year}\n"
+    user = f"SPEAKER: {speaker}\n"
+    user += f"DATE: {et:%A, %B} {et.day}, {et.year}\n"
     user += f"CAPTION: {caption.strip() or '(none)'}\n"
     if question.strip():
         user += f"MEMBER QUESTION THIS VIDEO ANSWERS: {question.strip()[:1500]}\n"
@@ -857,7 +877,7 @@ def build_embed(lesson: dict, link: str) -> dict:
         minutes = f" · {s // 60}:{s % 60:02d}"
     return {"title": lesson["title"][:256], "url": link, "description": body,
             "color": _EMBED_COLOR, "timestamp": posted.isoformat(),
-            "footer": {"text": f"From #tsdr{minutes}"}}
+            "footer": {"text": f"From #{source_name(lesson)}{minutes}"}}
 
 
 def _lesson_body(lesson: dict, link: str) -> dict:
@@ -914,7 +934,8 @@ def process_lesson(row: dict, lesson_channel: str) -> str:
         return "skipped"
     posted = datetime.fromtimestamp(int(row["posted_at"]), tz=timezone.utc)
     recap = generate_recap(transcript=transcript, caption=caption, posted=posted,
-                           question=_question_for(msg) if row.get("is_reply") else "")
+                           question=_question_for(msg) if row.get("is_reply") else "",
+                           speaker=speaker_name(row))
     if not recap.pop("is_lesson", True):
         _update(aid, status="skipped", duration_s=seconds, transcript=transcript,
                 last_error="not a lesson")
@@ -1080,7 +1101,7 @@ def _yt_spend(now: Optional[datetime] = None) -> None:
 
 def youtube_title(lesson: dict) -> str:
     posted = datetime.fromtimestamp(int(lesson["posted_at"]), tz=timezone.utc).astimezone(_ET)
-    suffix = f" | TSDR {posted.month}/{posted.day}/{posted.year % 100:02d}"
+    suffix = f" | {speaker_label(lesson)} {posted.month}/{posted.day}/{posted.year % 100:02d}"
     return lesson["title"][:100 - len(suffix)].rstrip() + suffix
 
 
@@ -1092,7 +1113,7 @@ def youtube_description(lesson: dict) -> str:
     text += lesson["recap"]
     if lesson.get("takeaway"):
         text += f"\n\nKey takeaway: {lesson['takeaway']}"
-    text += (f"\n\nOriginally shared in the Uncharted Territory Discord (#tsdr) on "
+    text += (f"\n\nOriginally shared in the Uncharted Territory Discord (#{source_name(lesson)}) on "
              f"{posted:%B} {posted.day}, {posted.year}.")
     return text.replace("<", "").replace(">", "")[:4900]
 
