@@ -57,7 +57,7 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   presented in chat 2026-10-17; verdicts not yet recorded.** Corrections go to
   `docs/study/corrections/<segment>.jsonl` (to create on the first verdict).
   Unit plan: Foundations 116 units (~2,970 q) + Vocabulary 13 units (~2,920 q) + Method 96 units (~5,605 q).
-- Review flow (owner decision 2026-10-17): in chat, question form, 10 items at a time; after 20-30 clean
+- Review flow (owner decision 2026-10-17): in chat, question form, ONE item at a time (he asked for one by one, not groups); after 20-30 clean
   items of a type the StudyReview card offers auto-approve + 10% sample for that type.
 - Owner answers 2026-10-17: Scans image copy = yes (run on the pod after the early merge); early merge =
   "whatever is optimal for hands-off" (done as the branch above); voice-clone source = the whole library,

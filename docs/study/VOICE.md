@@ -106,6 +106,15 @@ firm's market-health score, the 0-150 number on the dashboard".
 - Real tickers and real dates in every reveal.
 - Losses described plainly: "Stopped out for 2.6%. That's the cost of being there for the ones that work."
 
+## 7b. Owner rulings on the words (2026-10-17, bank review batch 1)
+
+- "tape", "regime", "dial" and the rest of §2's house words are **not banned**. The owner: they
+  are avoided in prose written by AI because there they read as computer-generated rather than
+  authentic. A verbatim quote from the owner's own writing keeps them. Study's own templated copy
+  avoids them until the F1 unit has taught them (§5).
+- Glossary items keep both directions: "what does X mean" (four whole definitions as the choices,
+  listed vertically) and "which term is this" (the definition shown, four terms as the choices).
+
 ## 8. Open for the owner
 
 - Confirm the house-word list for F1's first unit (§5).
