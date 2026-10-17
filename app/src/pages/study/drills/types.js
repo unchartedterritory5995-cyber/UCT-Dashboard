@@ -42,7 +42,7 @@ export function itemHasChart(item) {
 /** The prompt text for an item, whatever the authoring field was called. */
 export function questionOf(item) {
   const p = item?.prompt_json || {}
-  return p.question || p.prompt || p.text || ''
+  return p.q || p.question || p.prompt || p.text || ''
 }
 
 /** Choice list from a prompt, as plain strings. */

@@ -19,6 +19,10 @@ const mcq = { id: 'r1', type: 'recall', prompt_json: { question: 'What is a pivo
 const tf = { id: 'r2', type: 'recall', prompt_json: { question: 'A stop goes above the entry.', kind: 'tf' } }
 const fill = { id: 'r3', type: 'recall', prompt_json: { question: 'Fill the blank', kind: 'fill', sentence: 'Risk no more than ___ of the account on one trade.', bank: ['2%', '5%', '10%', '0.5%', '1%'] } }
 const num = { id: 'r4', type: 'recall', prompt_json: { question: 'Dollars at risk on $50,000 at 1%?', kind: 'fill_numeric', prefix: '$', label: 'Dollars' } }
+// the bank's shape: `q`, a `quote` to name, no `kind`
+const quoted = { id: 'r5', type: 'recall', prompt_json: { q: 'Which term does the desk use for this?', quote: 'A pullback that bottoms above the last pullback\'s bottom.', choices: ['Higher low', 'Inside day', 'Pivot', 'Undercut'] } }
+// the bank's short free-text items (O'Neil's numbers): format fill, no bank, no sentence
+const freeText = { id: 'r6', type: 'recall', prompt_json: { q: "O'Neil's rule 1: cut losses at what percent below your buy point?", format: 'fill' } }
 
 describe('RecallDrill', () => {
   it('renders multiple choice as a radiogroup with keys, and marks the pick gold with a check glyph', () => {
@@ -76,6 +80,30 @@ describe('RecallDrill', () => {
     fireEvent.change(input, { target: { value: '5a00' } })
     expect(input).toHaveValue('500')
     expect(screen.getByTestId('answer')).toHaveTextContent('{"choice":500}')
+    expect(screen.getByTestId('answerable')).toHaveTextContent('true')
+  })
+
+  it('reads the bank\'s `q` key and shows the quoted thing to name above the choices', () => {
+    render(<Host item={quoted} />)
+    expect(kindOf(quoted)).toBe('mcq')
+    expect(screen.getByRole('radiogroup', { name: 'Which term does the desk use for this?' })).toBeInTheDocument()
+    const quote = screen.getByTestId('prompt-quote')
+    expect(quote.tagName).toBe('BLOCKQUOTE')
+    expect(quote).toHaveTextContent("A pullback that bottoms above the last pullback's bottom.")
+    expect(screen.getAllByRole('radio')).toHaveLength(4)
+  })
+
+  it('a format:fill item with no word bank is a plain text input sent as typed (never True/False)', () => {
+    render(<Host item={freeText} />)
+    expect(kindOf(freeText)).toBe('fill_text')
+    expect(choicesOf(freeText)).toEqual([])
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+    const input = screen.getByRole('textbox', { name: 'Your answer' })
+    expect(input).toHaveAttribute('inputmode', 'text')
+    expect(screen.getByTestId('answerable')).toHaveTextContent('false')
+    fireEvent.change(input, { target: { value: ' 7-8% ' } })
+    expect(input).toHaveValue(' 7-8% ')
+    expect(screen.getByTestId('answer')).toHaveTextContent('{"choice":"7-8%"}')
     expect(screen.getByTestId('answerable')).toHaveTextContent('true')
   })
 

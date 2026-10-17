@@ -91,6 +91,18 @@
 }
 .bankChip:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
 
+/* The quoted thing to name (a definition, a principle, a candle description):
+   member copy from the bank, shown above the choices. */
+.quote {
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-left: 3px solid var(--ut-gold);
+  color: var(--text-bright);
+  font-size: var(--text-lg);
+  line-height: var(--lh-normal);
+  white-space: pre-wrap;
+}
+
 .fillSentence {
   margin: 0 0 var(--space-md);
   color: var(--text);
