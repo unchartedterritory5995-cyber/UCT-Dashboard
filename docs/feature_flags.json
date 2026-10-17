@@ -2579,12 +2579,24 @@
         "label": "New today markers",
         "where": "Screener"
       },
+      "status": "armed",
+      "since": "2026-10-16",
+      "where": [
+        "web"
+      ],
+      "note": "ARMED at value admin on web 2026-10-17T02:06:59Z (owner preview only; members read false). Verified after the redeploy (SUCCESS 02:09:15Z): /api/auth/me reads screener_new_today_enabled=true for the admin smoke@ and false for the member bench@. Markers appear once two nightly builds are recorded. Rollback: set 0 (read per request). Screener New today: a New pill on Focus list rows that were not in the screen at the previous nightly build, an 'N new / M dropped' head line and a New only filter (spec docs/superpowers/specs/2026-10-16-screener-focus-next-design.md section 1). Dark: unset means NOT RELEASED. Read PER REQUEST in api/routers/auth.py::_screener_flags via _breadth_dc_scope, so a flip needs no rebuild. THREE VALUES: unset/0/false/no/off = off for everyone; 1/true/yes/on = everyone; admin = owner preview only (a member reads false). An unrecognised value takes the default (off). Off = no job (the membership record in screen_membership is not written after the 03:00 build), POST /api/screener/membership-diff answers 404, and no UI. admin or 1 = the nightly record runs; the first markers appear after TWO recorded complete builds."
+    },
+    "SCREENER_PREMARKET_ENABLED": {
+      "member_facing": {
+        "label": "Pre-market columns and Morning prep screens",
+        "where": "Screener"
+      },
       "status": "dark",
       "since": "2026-10-16",
       "where": [
         "web"
       ],
-      "note": "Screener New today: a New pill on Focus list rows that were not in the screen at the previous nightly build, an 'N new / M dropped' head line and a New only filter (spec docs/superpowers/specs/2026-10-16-screener-focus-next-design.md section 1). Dark: unset means NOT RELEASED. Read PER REQUEST in api/routers/auth.py::_screener_flags via _breadth_dc_scope, so a flip needs no rebuild. THREE VALUES: unset/0/false/no/off = off for everyone; 1/true/yes/on = everyone; admin = owner preview only (a member reads false). An unrecognised value takes the default (off). Off = no job (the membership record in screen_membership is not written after the 03:00 build), POST /api/screener/membership-diff answers 404, and no UI. admin or 1 = the nightly record runs; the first markers appear after TWO recorded complete builds."
+      "note": "Screener pre-market mode (spec docs/superpowers/specs/2026-10-16-screener-focus-next-design.md section 2; plan docs/superpowers/plans/2026-10-16-screener-premarket.md). Dark: unset means NOT RELEASED. Read PER CALL via api/routers/auth.py::_breadth_dc_scope. THREE VALUES: unset/0 = off (no sweep, NULL pre-market columns, Morning prep starters hidden); 1 = everyone; admin = the sweep runs, and only admins are served the columns and starters (a member reads NULL). The sweep (api/services/screener/premarket.py, job screener_premarket_sweep, every 60 s, 04:00-09:30 ET only) reads the shared 30 s scan_volume.full_market_snapshot cache (no new provider call) and writes only its own table screener_premarket; it never touches screener_live or screener_rows. A row is written only for a symbol whose last trade is at or after 04:00 ET today. Served only in pre-market, for today's session, under 180 s old. Rollback: unset or 0 (read per call, no rebuild)."
     },
     "SCREENER_FOCUS_PHONE_ENABLED": {
       "member_facing": {

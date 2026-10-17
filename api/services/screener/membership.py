@@ -23,7 +23,7 @@ KEEP_DATES = 5
 TOO_WIDE = 2000
 #: Columns that are blank in every nightly build by design: a nightly comparison of a
 #: screen reading one would mark every row New.
-LIVE_ONLY_COLUMNS = frozenset({"rvol_live"})
+LIVE_ONLY_COLUMNS = frozenset({"rvol_live", "premarket_price", "premarket_chg_pct"})
 #: Seconds a screen's CURRENT tickers are reused between diff requests.
 CURRENT_TTL_S = 60
 

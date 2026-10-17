@@ -71,6 +71,11 @@ def env(tmp_path, monkeypatch):
     # The extras reach Cboe, yfinance and CNN (network) — off here; railed in the
     # extras cases below and in tests/test_breadth_eod_extras.py.
     monkeypatch.setattr(eod, "extras_for", lambda d, t, c=None: {})
+    # `_load_frame` asks the published bars pack first; on a box that holds a real
+    # pack it answers for real tickers and NaN for these synthetic ones, so every
+    # server-row case read "bars.db cannot support this session". Off here: these
+    # cases rail the bars.db path the fixture builds.
+    monkeypatch.setattr(bl, "_frame_from_pack", lambda tickers, dates: None)
     from api.services import breadth_eod_extras as _bee
     monkeypatch.setattr(_bee, "market_phase_for", lambda d: None)
     monkeypatch.setattr(bm, "_db_path", lambda: str(tmp_path / "bm.db"))
@@ -756,3 +761,75 @@ def test_the_server_row_fills_market_phase_only_when_missing(env, monkeypatch):
     res = eod.compute(env.last)
     row = eod.build_server_row(res, {"market_phase": "Pullback"})
     assert row["market_phase"] == "Pullback"                           # the collector's kept
+
+
+# ── the session's membership is write-once (2026-10-16) ─────────────────────
+# 2026-10-12: server mode rewrote a collector row the V2 producer had already
+# accepted, replacing its membership and re-stamping created_at. The producer's
+# PIT gate correctly stopped on a "mutated source row", and every later session
+# was withheld from members. These rails pin the identity the gate compares.
+
+def _backdate(date_iso, stamp="2026-01-01 20:21:13"):
+    with sqlite3.connect(bm._db_path()) as c:
+        c.execute("UPDATE breadth_snapshots SET created_at=? WHERE date=?", (stamp, date_iso))
+    return stamp
+
+
+def test_a_server_rewrite_keeps_the_sessions_membership_and_created_at(env, monkeypatch):
+    monkeypatch.setenv("BREADTH_EOD_SOURCE", "server")
+    monkeypatch.setenv("BREADTH_EOD_SERVER_FROM", env.last)
+    env.rebuild(full=False)                                    # server prices 142 of 150
+    monkeypatch.setattr(bl, "MIN_LIVE_COVERAGE", 0.9)
+    bm.store_snapshot(env.last, {"universe_count": N_TICKERS,
+                                 "universe_list": [{"t": t} for t in env.tickers]})
+    stamp = _backdate(env.last)
+    before = bm.pit_export()[env.last]
+    assert eod.write_server_row(env.last)["status"] == "written"
+    after = bm.pit_export()[env.last]
+    assert after["sha256"] == before["sha256"] and after["n"] == N_TICKERS
+    assert after["created_at"] == stamp                         # not re-stamped
+    row = bm.raw_row(env.last)
+    assert row["_source"] == "server" and row["_pit_universe_from"] == "collector"
+    assert len(row["universe_list"]) == row["universe_count"] == 142   # the drill is intact
+
+
+def test_a_changed_membership_still_gets_a_fresh_created_at(env):
+    """Control: keeping created_at is ONLY for an unchanged membership, so a late
+    rerun with a different list still reads as late to the PIT gate."""
+    bm.store_snapshot(env.last, {"universe_list": [{"t": t} for t in env.tickers]})
+    stamp = _backdate(env.last)
+    bm.store_snapshot(env.last, {"universe_list": [{"t": t} for t in env.tickers[:120]]})
+    assert bm.pit_export()[env.last]["created_at"] != stamp
+    bm.store_snapshot(env.last, {"universe_list": [{"t": t} for t in env.tickers[:120]], "vix": 1})
+    stamp2 = _backdate(env.last, "2026-01-02 20:00:00")
+    bm.store_snapshot(env.last, {"universe_list": [{"t": t} for t in env.tickers[:120]], "vix": 2})
+    assert bm.pit_export()[env.last]["created_at"] == stamp2   # same list: kept
+
+
+def test_a_late_collector_push_never_replaces_the_membership(env, monkeypatch):
+    monkeypatch.setenv("BREADTH_EOD_SOURCE", "server")
+    monkeypatch.setenv("BREADTH_EOD_SERVER_FROM", env.last)
+    assert eod.write_server_row(env.last)["status"] == "written"   # no collector row yet
+    before = bm.pit_export()[env.last]
+    push = _collector_row_from(eod.compute(env.last),
+                               universe_list=[{"t": "LATE"}] + [{"t": t} for t in env.tickers])
+    merged, source = eod.on_push(env.last, push)
+    assert source == "server"
+    bm.store_snapshot(env.last, merged, source=source)
+    after = bm.pit_export()[env.last]
+    assert after["sha256"] == before["sha256"] and after["created_at"] == before["created_at"]
+
+
+def test_the_universe_moves_on_after_the_server_switch(env, monkeypatch):
+    """⚰️ 10-12..10-16: every row was a server row, the collector-list lookup skipped
+    them all, and the population froze on the last pre-switch session."""
+    monkeypatch.setenv("BREADTH_EOD_SOURCE", "server")
+    monkeypatch.setenv("BREADTH_EOD_SERVER_FROM", env.last)
+    todays = [{"t": t} for t in env.tickers[:140]]
+    bm.store_snapshot(env.last, {"universe_count": 140, "universe_list": todays})
+    assert eod.write_server_row(env.last)["status"] == "written"
+    nxt = (date.fromisoformat(env.last) + timedelta(days=3)).isoformat()
+    tickers, frm = eod._collector_universe_before(nxt)
+    assert frm == env.last and tickers == sorted(env.tickers[:140])
+    tickers, frm = bl.universe()
+    assert frm == env.last and len(tickers) == 140

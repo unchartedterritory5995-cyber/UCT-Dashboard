@@ -39,7 +39,7 @@ def _isolated(tmp_path, monkeypatch):
 def paid(monkeypatch):
     calls = []
 
-    def fake_preview(spec, user_id=None, conn=None, overlay=None):
+    def fake_preview(spec, user_id=None, conn=None, overlay=None, user=None):
         calls.append((spec, user_id))
         for f in spec.get("filters") or []:
             if f.get("key") == "boom":
@@ -97,7 +97,7 @@ def test_rejects_empty(paid):
 
 def test_a_free_member_is_refused_before_any_count_runs(monkeypatch):
     calls = []
-    monkeypatch.setattr(scr_query, "preview_count", lambda spec, user_id=None, conn=None, overlay=None: calls.append(spec) or {"count": 1})
+    monkeypatch.setattr(scr_query, "preview_count", lambda spec, user_id=None, conn=None, overlay=None, user=None: calls.append(spec) or {"count": 1})
     r = _client(FREE).post(URL, json={"specs": [{"filters": []}]})
     assert r.status_code == 402
     assert calls == []
@@ -164,7 +164,7 @@ def test_the_batch_opens_one_connection_and_decides_the_overlay_once(snap, monke
     opened, decided = [], []
     real_connect, real_overlay = db.connect, scr_query._overlay
     monkeypatch.setattr(db, "connect", lambda *a, **k: opened.append(1) or real_connect(*a, **k))
-    monkeypatch.setattr(scr_query, "_overlay", lambda c: decided.append(1) or real_overlay(c))
+    monkeypatch.setattr(scr_query, "_overlay", lambda c, user=None: decided.append(1) or real_overlay(c, user))
     scr_query.preview_count_batch(_SPECS, user_id="u1")
     assert opened == [1] and decided == [1]
 
@@ -174,8 +174,8 @@ def test_a_repeat_is_served_from_the_cache(snap, monkeypatch):
     calls = []
     real = scr_query.preview_count
     monkeypatch.setattr(scr_query, "preview_count",
-                        lambda spec, user_id=None, conn=None, overlay=None:
-                        calls.append(spec) or real(spec, user_id=user_id, conn=conn, overlay=overlay))
+                        lambda spec, user_id=None, conn=None, overlay=None, user=None:
+                        calls.append(spec) or real(spec, user_id=user_id, conn=conn, overlay=overlay, user=user))
     again = scr_query.preview_count_batch(_SPECS, user_id="u1")
     assert calls == [] and again == first
     # another member does not read the first member's answers
@@ -268,8 +268,8 @@ def test_with_the_overlay_on_in_RTH_a_repeat_batch_hits_the_cache(rth, monkeypat
     calls = []
     real = scr_query.preview_count
     monkeypatch.setattr(scr_query, "preview_count",
-                        lambda spec, user_id=None, conn=None, overlay=None:
-                        calls.append(spec) or real(spec, user_id=user_id, conn=conn, overlay=overlay))
+                        lambda spec, user_id=None, conn=None, overlay=None, user=None:
+                        calls.append(spec) or real(spec, user_id=user_id, conn=conn, overlay=overlay, user=user))
     again = scr_query.preview_count_batch(_OVER_20, user_id="u1")
     assert calls == [] and again == first
 

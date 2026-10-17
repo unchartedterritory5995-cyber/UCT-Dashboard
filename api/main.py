@@ -2415,6 +2415,24 @@ def register_screener_jobs(scheduler):
         id="screener_live_tier", max_instances=1, replace_existing=True,
         coalesce=True)
 
+    # ⭐ PRE-MARKET MODE (spec 2026-10-16 §2) — a SEPARATE writer into its own table,
+    # `screener_premarket`; it never touches `screener_live` or `screener_rows`. Cheap
+    # when idle: `run_sweep` checks the flag, then the session, before any read, so it
+    # does nothing outside 04:00-09:30 ET. Dark behind SCREENER_PREMARKET_ENABLED.
+    from api.services.screener import premarket
+
+    def _run_premarket():
+        try:
+            premarket.sweep_job()
+        except Exception as e:
+            print(f"[scheduler] screener premarket sweep error: {e}")
+
+    scheduler.add_job(
+        _run_premarket,
+        trigger=IntervalTrigger(seconds=60),
+        id="screener_premarket_sweep", max_instances=1, replace_existing=True,
+        coalesce=True)
+
     start_screener_snapshot_warm()
     return True
 

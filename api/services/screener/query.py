@@ -14,6 +14,7 @@ import datetime as _dt
 from zoneinfo import ZoneInfo
 
 from . import contention_trace_temp, filters, pattern_join, ranking, scan_store, snapshot_db
+from . import premarket as _pm_mod
 
 _ET = ZoneInfo("America/New_York")
 _SORTABLE = set(snapshot_db.COLUMNS)
@@ -91,6 +92,22 @@ def _universe_clauses(f, clauses, params, overlay):
 _ROWS = "screener_rows"
 _LIVE = "l"
 
+# ⭐ THE PRE-MARKET JOIN (spec 2026-10-16 §2) — a SECOND left join, `pm`, that never
+# touches the live overlay. Its columns are renamed inside a subquery so it adds NO
+# name that `screener_rows` also has (`ticker`, `premarket_price`, `premarket_chg_pct`):
+# every bare identifier the statement already emits stays unambiguous whether or not
+# the live overlay is on. `_PM_COLUMNS` is the writer's declaration, never retyped.
+_PM = "pm"
+_PM_COLUMNS = frozenset(_pm_mod.COLUMNS)
+
+
+def _pm_from_sql() -> str:
+    cols = ", ".join(f'"{c}" AS "pm_{c}"' for c in _pm_mod.COLUMNS)
+    return (f' LEFT JOIN (SELECT ticker AS pm_ticker, session_ymd AS pm_session_ymd, '
+            f'premarket_asof AS pm_asof, {cols} FROM {_pm_mod.TABLE}) {_PM} '
+            f'ON {_PM}.pm_ticker = {_ROWS}.ticker AND {_PM}.pm_session_ymd = ? '
+            f'AND {_PM}.pm_asof >= ?')
+
 
 class _Overlay:
     """Whether the live overlay participates in THIS statement — and the ONLY
@@ -101,18 +118,36 @@ class _Overlay:
     value comes from. `OFF` is the flag-off / tier-absent / tier-unreadable
     case and renders the pre-overlay SQL exactly.
     """
-    __slots__ = ("on", "columns", "table", "predicate", "join_params", "reason")
+    __slots__ = ("on", "columns", "table", "predicate", "live_params", "reason",
+                 "pm_on", "pm_columns", "pm_params")
 
     def __init__(self, on=False, columns=frozenset(), table=None,
-                 predicate=None, join_params=(), reason=None):
+                 predicate=None, join_params=(), reason=None,
+                 pm_on=False, pm_params=()):
         self.on = bool(on)
         self.columns = frozenset(columns)
         self.table = table
         self.predicate = predicate
-        self.join_params = list(join_params)
+        #: The LIVE join's own parameters (its freshness cutoff, or none). Named
+        #: apart from `join_params` because `_snapshot_stamp` reads the live cutoff
+        #: from it, and in pre-market the live join carries none while `pm` does.
+        self.live_params = list(join_params)
+        #: The pre-market join: served or not, and its two params (today's
+        #: session date, the age cutoff). `pm_columns` always names the two
+        #: columns, so when `pm_on` is False they render as NULL, never nightly.
+        self.pm_on = bool(pm_on)
+        self.pm_columns = _PM_COLUMNS
+        self.pm_params = list(pm_params)
         #: Why the overlay is not participating — reported, never silent, so an
         #: operator can tell "switched off" from "the tier could not answer".
         self.reason = reason
+
+    @property
+    def join_params(self) -> list:
+        """Every join parameter in FROM-CLAUSE ORDER: the live join's first (it is
+        written first), then `pm`'s. Every call site splices this ahead of the
+        WHERE params, so the order here is the order the statement binds."""
+        return [*self.live_params, *self.pm_params]
 
     # ── the one expression builder ───────────────────────────────────────────
     def col_expr(self, col: str) -> str:
@@ -122,7 +157,12 @@ class _Overlay:
         for a column the tier owns, the nightly column for everything else, and
         the bare quoted identifier when the overlay is off (which is what the
         statement said before any of this existed).
+
+        The two pre-market columns come FIRST and from `pm` alone, whatever the
+        live overlay is doing: served from the join when `pm_on`, NULL otherwise.
         """
+        if col in self.pm_columns:
+            return f'{_PM}."pm_{col}"' if self.pm_on else 'NULL'
         if not self.on:
             return f'"{col}"'
         if col in self.columns:
@@ -135,7 +175,11 @@ class _Overlay:
         overlay off there is no expression to name, and the item is byte-for-byte
         what the pre-overlay SELECT list emitted."""
         expr = self.col_expr(col)
-        return f'{expr} AS "{col}"' if self.on else expr
+        # Aliased whenever the expression is not the bare identifier (always with
+        # the live overlay on; a pre-market column otherwise), so the response key
+        # is the column's own name. A plain column with the overlay off is
+        # byte-for-byte the pre-overlay item.
+        return f'{expr} AS "{col}"' if (self.on or expr != f'"{col}"') else expr
 
     def from_sql(self) -> str:
         """The FROM clause — handed to `describe_rows` too, never rebuilt there.
@@ -147,10 +191,12 @@ class _Overlay:
         re-derived them would disagree with the writer on precisely the days
         that matter (a dead sweeper, an overnight roll, a mixed snapshot).
         """
-        if not self.on:
-            return _ROWS
-        return (f'{_ROWS} LEFT JOIN {self.table} {_LIVE} '
+        base = (_ROWS if not self.on else
+                f'{_ROWS} LEFT JOIN {self.table} {_LIVE} '
                 f'ON {_LIVE}.ticker = {_ROWS}.ticker AND {self.predicate}')
+        # The pre-market join comes AFTER the live one, so its params follow the
+        # live params in `join_params`.
+        return base + _pm_from_sql() if self.pm_on else base
 
     def extra_select(self) -> list:
         """The per-row provenance the disclosure reads: `live_row` (the 0/1 the
@@ -297,7 +343,34 @@ def _readiness_refusal(label: str) -> ValueError:
     return ValueError(f"{label} isn't ready on this screen yet — remove it and try again")
 
 
-def _overlay(conn) -> _Overlay:
+def _overlay(conn, user=None) -> _Overlay:
+    """The live decision (`_live_overlay`, unchanged) plus the pre-market one.
+
+    ⭐ `pm` is served only when ALL hold: the flag reaches THIS user
+    (`premarket.served_to`), the session is pre-market (`live_tier._session()`,
+    the one clock), and the table exists. Its join then binds today's session
+    date and `now - MAX_AGE_S`, so yesterday's rows and a dead sweeper's rows
+    serve NULL. Anything unanswerable ⇒ `pm_on=False`, which serves NULL.
+    ⛔ The live decision is never touched by any of this.
+    """
+    ov = _live_overlay(conn)
+    if ov is OFF:                        # never mutate the shared singleton
+        ov = _Overlay(reason=OFF.reason)
+    try:
+        mod = _live_tier_module()
+        if (mod is not None and _pm_mod.served_to(user)
+                and mod._session() == "pre_market"
+                and _table_exists(conn, _pm_mod.TABLE)):
+            import time as _time  # noqa: PLC0415
+            ov.pm_params = [int(mod.session_ymd(mod._now_et())),
+                            _time.time() - _pm_mod.MAX_AGE_S]
+            ov.pm_on = True
+    except Exception:  # noqa: BLE001 — pre-market must not take the screen down
+        ov.pm_on, ov.pm_params = False, []
+    return ov
+
+
+def _live_overlay(conn) -> _Overlay:
     """Decide ONCE, for this statement, whether the overlay is served.
 
     ⛔ EVERY GATE IS THE TIER'S OWN, READ OFF THE TIER: `enabled()` (per call,
@@ -1375,7 +1448,10 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
                     extra.append(d)
         if extra:
             select_cols = [*out_columns, *extra]
-    elif overlay.on:
+    elif overlay.on or overlay.pm_on:
+        # (The pre-market join adds no name `screener_rows` has, but `SELECT *`
+        # would still return the nightly NULL under the column's name and the
+        # served value under `pm_*`; the explicit list serves it under its own.)
         # ⚠️ `SELECT *` CANNOT SURVIVE THE JOIN. With a second table in the FROM
         # it returns BOTH tables' columns, and `sqlite3.Row` keeps only the last
         # of two same-named ones — so `price` would silently become the overlay's
@@ -1493,7 +1569,7 @@ def _criterion_keys(spec) -> list[str]:
     return out
 
 
-def coverage_for(spec, user_id=None) -> dict:
+def coverage_for(spec, user_id=None, user=None) -> dict:
     """TERM-047: the screen's own four-count receipt, over its UNIVERSE.
 
     evaluated      -- rows in the screen's universe (its list / universe /
@@ -1511,7 +1587,7 @@ def coverage_for(spec, user_id=None) -> dict:
     from api.services.coverage_receipt import close
     spec = spec or {}
     with snapshot_db.connect() as conn:
-        overlay = _overlay(conn)
+        overlay = _overlay(conn, user)
         plan = build_scan_sql(spec, overlay, user_id=user_id, conn=conn)
         known = _known_columns(conn)
         scope = [f for f in (spec.get("filters") or []) if f.get("key") in _SCOPE_KEYS]
@@ -1566,7 +1642,7 @@ def coverage_for(spec, user_id=None) -> dict:
                   "dropped_symbols": listed})
 
 
-def preview_count(spec, user_id=None, conn=None, overlay=None):
+def preview_count(spec, user_id=None, conn=None, overlay=None, user=None):
     """How many rows this spec WOULD return, without returning them.
 
     ``conn`` / ``overlay`` let a caller counting many specs (the count batch,
@@ -1596,12 +1672,12 @@ def preview_count(spec, user_id=None, conn=None, overlay=None):
     spec = spec or {}
     if conn is None:
         with snapshot_db.connect() as own:
-            return _preview_count_on(own, spec, user_id, overlay)
-    return _preview_count_on(conn, spec, user_id, overlay)
+            return _preview_count_on(own, spec, user_id, overlay, user)
+    return _preview_count_on(conn, spec, user_id, overlay, user)
 
 
-def _preview_count_on(conn, spec, user_id, overlay):
-    plan = build_scan_sql(spec, overlay if overlay is not None else _overlay(conn),
+def _preview_count_on(conn, spec, user_id, overlay, user=None):
+    plan = build_scan_sql(spec, overlay if overlay is not None else _overlay(conn, user),
                           user_id=user_id, conn=conn)
     # FT-028: THE COUNT CARRIES ITS OWN AS-OF. `describe_rows` is the same
     # call `run_scan` makes over the same where/params/FROM, and its `rows`
@@ -1681,11 +1757,20 @@ def _snapshot_stamp(conn, overlay):
         if overlay.on:
             lv = conn.execute(
                 f'SELECT COUNT(*), MAX(live_asof) FROM "{overlay.table}"').fetchone()
-            cutoff = overlay.join_params[0] if overlay.join_params else None
+            # ⛔ THE LIVE CUTOFF, never `join_params[0]`: in pre-market the live
+            # join carries no param and `join_params[0]` would be pm's session date.
+            cutoff = overlay.live_params[0] if overlay.live_params else None
             bucket = None if cutoff is None else int(cutoff // COUNT_CACHE_TTL_S)
             parts.append(("overlay-on", tuple(lv), bucket))
         else:
             parts.append("overlay-off")
+        if overlay.pm_on:
+            pmv = conn.execute(
+                f'SELECT COUNT(*), MAX(premarket_asof) FROM "{_pm_mod.TABLE}"').fetchone()
+            ymd, age_cut = overlay.pm_params
+            parts.append(("pm-on", tuple(pmv), ymd, int(age_cut // COUNT_CACHE_TTL_S)))
+        else:
+            parts.append("pm-off")
         return repr(parts)
     except Exception:  # noqa: BLE001 -- an unreadable stamp only disables the cache
         return None
@@ -1715,7 +1800,7 @@ class CountBatchUnavailable(RuntimeError):
     logged once by `preview_count_batch`; the route must not log it per slot."""
 
 
-def preview_count_batch(specs, user_id=None):
+def preview_count_batch(specs, user_id=None, user=None):
     """``preview_count`` for each spec, in order, over ONE connection and ONE
     overlay decision. Each slot is the count dict or the exception that spec
     raised, so one bad spec never fails its neighbours."""
@@ -1729,7 +1814,7 @@ def preview_count_batch(specs, user_id=None):
         return [CountBatchUnavailable() for _ in specs]
     out = []
     try:
-        overlay = _overlay(conn)
+        overlay = _overlay(conn, user)
         stamp = _snapshot_stamp(conn, overlay)
         cache = _count_cache()
         for spec in specs:
@@ -1739,7 +1824,8 @@ def preview_count_batch(specs, user_id=None):
                 if hit is not None:
                     out.append(copy.deepcopy(hit))
                     continue
-                res = preview_count(spec, user_id=user_id, conn=conn, overlay=overlay)
+                res = preview_count(spec, user_id=user_id, conn=conn, overlay=overlay,
+                                    user=user)
                 if key:
                     cache.set(key, copy.deepcopy(res), COUNT_CACHE_TTL_S)
                 out.append(res)
@@ -1788,7 +1874,8 @@ def run_scan(spec, user_id=None, user=None):
             # through the SELECT, the WHERE, the ORDER BY and the description, so
             # they cannot disagree about which values are being served.
             with contention_trace_temp.stage("build_dynamic_plan"):
-                plan = build_scan_sql(spec, _overlay(conn), user_id=user_id, conn=conn)
+                plan = build_scan_sql(spec, _overlay(conn, user), user_id=user_id,
+                                      conn=conn)
             with contention_trace_temp.stage("sql_execute_fetch"):
                 rows = conn.execute(plan["sql"], plan["params"]).fetchall()
             # 🔴 THE DATE MUST DESCRIBE THE ROWS BEING SERVED, so the SAME `where`,
@@ -1832,6 +1919,17 @@ def run_scan(spec, user_id=None, user=None):
                     ranked=_count(plan["where"], plan["describe_params"][
                         len(plan["overlay"].join_params):]))
             stale_block = _stale_block(conn, plan)
+            # ⭐ WHEN THE PRE-MARKET VALUES ARE FROM — only when `pm` is serving, so an
+            # ordinary response is byte-identical to before. Same session date and age
+            # cutoff the join bound, so the clock describes exactly the values served.
+            premarket_block = None
+            if plan["overlay"].pm_on:
+                ymd, age_cut = plan["overlay"].pm_params
+                pm_asof = conn.execute(
+                    f"SELECT MAX(premarket_asof) FROM {_pm_mod.TABLE} "
+                    "WHERE session_ymd = ? AND premarket_asof >= ?",
+                    (ymd, age_cut)).fetchone()[0]
+                premarket_block = {"state": "premarket", "as_of": pm_asof}
     out_rows = [dict(r) for r in rows]
     # Phase 8 Package 8G-B: additive-only, admin/pilot + PEG-only overlay.
     # No-ops (returns out_rows unchanged) unless PATTERN_CANONICAL_SCANNER_
@@ -1869,6 +1967,8 @@ def run_scan(spec, user_id=None, user=None):
     # the gate bit, so an ordinary response is byte-identical to before.
     if stale_block:
         snap["stale"] = stale_block
+    if premarket_block:
+        snap["premarket"] = premarket_block
     # `total` IS the described row count. One `GROUP BY` already counted every
     # matching row, so re-running `COUNT(*)` would be a second authority over
     # one value -- exactly the drift that lets a label and a total disagree.
