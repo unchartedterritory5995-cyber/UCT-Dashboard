@@ -3626,7 +3626,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             return n
 
         def save_editor(p_, title):
-            p_.get_by_role("button", name="Save", exact=True).click()
+            # In the sheet, never the page: the trade page has a Save of its own (the original stop's).
+            p_.get_by_role("dialog", name=title).get_by_role("button", name="Save", exact=True).click()
             closed = True
             try:
                 p_.get_by_role("dialog", name=title).wait_for(state="hidden", timeout=20000)
@@ -3745,7 +3746,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                     p_.get_by_role("button", name=ST.get("phase_label"), exact=True).click()
                     p_.wait_for_timeout(300)
                     back_rows = editor_rows(dlg)
-                    p_.get_by_role("button", name="Cancel", exact=True).click()
+                    dlg.get_by_role("button", name="Cancel", exact=True).click()
                     closed = True
                     try:
                         dlg.wait_for(state="hidden", timeout=15000)
@@ -3807,7 +3808,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                         title = "Customize trade page"
                         open_trade(p_, ST["trade_id"])
                         dlg, rows_ok = open_editor(p_, title)
-                        p_.get_by_role("button", name="Reset to default", exact=True).click()
+                        dlg.get_by_role("button", name="Reset to default", exact=True).click()
                         closed, toast = save_editor(p_, title)
                         p_.reload(wait_until="domcontentloaded")
                         h._dismiss_intro(p_)
@@ -3822,7 +3823,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                     open_today(p_)
                     title = "Customize Today"
                     dlg, rows_ok = open_editor(p_, title)
-                    p_.get_by_role("button", name="Reset to default", exact=True).click()
+                    dlg.get_by_role("button", name="Reset to default", exact=True).click()
                     closed, toast = save_editor(p_, title)
                     p_.reload(wait_until="domcontentloaded")
                     h._dismiss_intro(p_)
