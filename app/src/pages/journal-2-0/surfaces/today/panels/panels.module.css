@@ -1,0 +1,80 @@
+/* The five Today panels (P4a Task 4). The frame is TileCard's; these are the lines inside it.
+   Touch tier is <=1024px (phone AND tablet), so the one control here gets its 44px floor there. */
+
+.muted {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ── market regime ─────────────────────────────────────────────────────────── */
+
+.regimeWord {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-heading);
+}
+
+.regimeDot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--text-muted);
+}
+.regimeWord[data-regime='green'] .regimeDot { background: var(--gain); }
+.regimeWord[data-regime='amber'] .regimeDot { background: var(--warn); }
+.regimeWord[data-regime='orange'] .regimeDot { background: color-mix(in srgb, var(--warn) 55%, var(--loss)); }
+.regimeWord[data-regime='red'] .regimeDot { background: var(--loss); }
+
+.regimeLine {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ── today's note ──────────────────────────────────────────────────────────── */
+
+.noteButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 120ms, color 120ms;
+}
+.noteButton:hover {
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
+}
+.noteButton:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+
+.noteError {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--loss);
+}
+
+@media (max-width: 1024px) {
+  .noteButton {
+    min-height: var(--tap-min);
+  }
+}
