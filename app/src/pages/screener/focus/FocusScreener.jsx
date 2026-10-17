@@ -58,6 +58,8 @@ import useLazyCounts from './useLazyCounts'
 import { pickLanding, sameScreen, readLandingSeed, writeLandingSeed } from './landing'
 import { livePriceOf } from './livePrice'
 import ChartPane from './ChartPane'
+import PhoneChartSheet from './PhoneChartSheet'
+import { MQ } from '../../../styles/breakpoints'
 import { ListSkeleton, EmptyState, ErrorState } from './FocusStates'
 import useFocusSelection from './useFocusSelection'
 import useWatchlistTarget from './useWatchlistTarget'
@@ -91,6 +93,12 @@ const LANDING_WAIT_MS = 3000
 const readLS = (k, d) => { try { return localStorage.getItem(k) ?? d } catch { return d } }
 const writeLS = (k, v) => { try { localStorage.setItem(k, v) } catch { /* private mode */ } }
 const fmtN = v => Number(v || 0).toLocaleString('en-US')
+// Phones (spec 2026-10-16 s3): "sheet or in place" is decided at TAP time, never from a hook
+// seeded at mount (useMediaQuery is stale at first paint in a fixed mobile context).
+const isPhoneNow = () => typeof window !== 'undefined' && window.matchMedia?.(MQ.phone)?.matches === true
+// The history entry the chart sheet pushes, so the browser or hardware Back closes the sheet
+// instead of leaving the Screener.
+const SHEET_MARK = 'uctFocusChartSheet'
 // Table mode is today's page, loaded only when a member switches to it (List never ships it).
 const ScannerShell = lazy(() => import('../shell/ScannerShell'))
 
@@ -337,6 +345,76 @@ function FocusList({ onMode }) {
   const paneWatch = useCallback(row => { if (pendingRef.current) return; onWatch(row); focusList() }, [onWatch, focusList])
 
   const sel = useFocusSelection({ rows: listRows, resetKey: rowsKey, hasMore: listHasMore, onLoadMore: s.loadMore, onOpen, onFlag, onWatch })
+
+  // -- phones (spec 2026-10-16 s3): the chart as a full-screen sheet over the list ----------
+  // The CSS hides the side pane at the phone width; a tap there opens the selected stock's chart
+  // in PhoneChartSheet. The sheet steps the SAME selection, so the list and the sheet agree.
+  const [phoneSheet, setPhoneSheet] = useState(false)
+  // pushed: our history entry is (or may still be) on the stack. swallow: pops we caused.
+  const sheetHistory = useRef({ pushed: false, swallow: 0 })
+  const openPhoneSheet = useCallback(() => {
+    setPhoneSheet(true)
+    const h = sheetHistory.current
+    if (h.pushed) return
+    try {
+      window.history.pushState({ ...(window.history.state || {}), [SHEET_MARK]: true }, '', window.location.href)
+      h.pushed = true
+    } catch { /* no history: Back keeps its old meaning */ }
+  }, [])
+  const closePhoneSheet = useCallback(() => {
+    setPhoneSheet(false)
+    const h = sheetHistory.current
+    // Take our entry back off only while it is still the current one. A spec write while the
+    // sheet was open replaces its state; the entry then stays, and the next Back is swallowed.
+    if (h.pushed && window.history.state?.[SHEET_MARK]) {
+      h.pushed = false
+      h.swallow += 1
+      window.history.back()
+    }
+  }, [])
+  useEffect(() => {
+    // Capture phase, so this runs before the router's and useScreenSpec's own popstate
+    // listeners: a Back that only closes the sheet must not re-read the screen (that resets paging).
+    const onPop = e => {
+      const h = sheetHistory.current
+      if (h.swallow > 0) { h.swallow -= 1; e.stopImmediatePropagation(); return }
+      if (!h.pushed) return
+      h.pushed = false
+      e.stopImmediatePropagation()
+      setPhoneSheet(false)
+    }
+    window.addEventListener('popstate', onPop, true)
+    return () => window.removeEventListener('popstate', onPop, true)
+  }, [])
+  const selectRow0 = sel.select
+  const onRowSelect = useCallback(i => {
+    selectRow0(i)
+    if (isPhoneNow()) openPhoneSheet()
+  }, [selectRow0, openPhoneSheet])
+  // A phone rotated past the phone width (or a window widened) with the sheet open: the sheet
+  // closes and the side pane, now shown, carries the same stock.
+  useEffect(() => {
+    if (!phoneSheet) return undefined
+    const mq = window.matchMedia?.(MQ.phone)
+    if (!mq) return undefined
+    // A `change` only: whether a tap opens the sheet at all is decided once, at the tap.
+    const onChange = () => { if (!mq.matches) closePhoneSheet() }
+    if (mq.addEventListener) mq.addEventListener('change', onChange); else mq.addListener?.(onChange)
+    return () => { if (mq.removeEventListener) mq.removeEventListener('change', onChange); else mq.removeListener?.(onChange) }
+  }, [phoneSheet, closePhoneSheet])
+  // Next past the last loaded row asks for the next page ONCE, then steps onto its first row.
+  const advanceAt = useRef(null)
+  const stepPrev = () => { if (sel.index > 0) sel.select(sel.index - 1) }
+  const stepNext = () => {
+    if (sel.index < listRows.length - 1) { sel.select(sel.index + 1); return }
+    if (listHasMore && advanceAt.current !== listRows.length) { advanceAt.current = listRows.length; s.loadMore() }
+  }
+  useEffect(() => {
+    const at = advanceAt.current
+    if (at == null) return
+    if (!phoneSheet) { advanceAt.current = null; return }
+    if (listRows.length > at) { advanceAt.current = null; selectRow0(at) } else if (!listHasMore) advanceAt.current = null
+  }, [listRows.length, listHasMore, phoneSheet, selectRow0])
 
   // ── the joystick hub (phones/tablets), registered over the rows AS SHOWN, like ScannerShell.
   // Its screens door opens the screen menu. Where the hub cannot exist (useHubEligible, the gate
@@ -672,6 +750,20 @@ function FocusList({ onMode }) {
 
   // With no list to hold them (error, empty), the flagged actions get their own row: there is no
   // list below it to push down. Empty (and hidden) until something is flagged.
+  // Back to list: the list takes focus again, on the row the sheet left selected. (The Sheet's own
+  // close puts focus back where it was at open first; this runs after it.)
+  const sheetWasOpen = useRef(false)
+  useEffect(() => {
+    if (sheetWasOpen.current && !phoneSheet) focusList()
+    sheetWasOpen.current = phoneSheet
+  }, [phoneSheet, focusList])
+  // With no list on screen (a scan error, an empty screen) there is nothing to step: close.
+  const listShowing = !error && !!result && total !== 0
+  useEffect(() => { if (phoneSheet && !listShowing) closePhoneSheet() }, [phoneSheet, listShowing, closePhoneSheet])
+  const paneProps = { row: selected, livePx: selPx, liveChg: selChg, why, onOpenFilters: openFiltersFromStrip, onFlag: paneFlag,
+    isFlagged: selected ? isFlagged(selected.ticker) : false, onWatch: paneWatch, onNavKey: paneNavKey, onRefocus: focusList,
+    structures, busy: pending }
+
   const flagsOutsideList = <div className={styles.stateFlags} data-testid="focus-state-flags"><FlaggedActions /></div>
   let body
   if (error) {
@@ -688,15 +780,15 @@ function FocusList({ onMode }) {
   } else {
     body = (
       <div className={styles.body}>
-        <ResultList ref={hubResultsRef} itemProps={hubOn ? hubCursor.itemProps : undefined} rows={listRows} index={sel.index} onSelect={sel.select} onKeyDown={onListKeyDown}
+        <ResultList ref={hubResultsRef} itemProps={hubOn ? hubCursor.itemProps : undefined} rows={listRows} index={sel.index} onSelect={onRowSelect} onKeyDown={onListKeyDown}
           livePrices={prices} radar={radar} sortLabel={sortLabel} sortMenu={sortMenu} total={newOnlyOn ? listRows.length : shownTotal} hasMore={listHasMore}
           onLoadMore={s.loadMore} isLoading={isLoading} showCompany={showCompany} pending={pending} structures={structures}
           newSet={newSet}
           headExtra={<><NewTodayLine nt={nt} newOnly={newOnlyOn} onToggleNewOnly={() => setNewOnly(v => !v)} /><FlaggedActions /></>} />
-        {/* S5: primitives and stable callbacks only, so a tick for another ticker skips the pane. */}
-        <ChartPane row={selected} livePx={selPx} liveChg={selChg} why={why}
-          onOpenFilters={openFiltersFromStrip} onFlag={paneFlag} isFlagged={selected ? isFlagged(selected.ticker) : false} onWatch={paneWatch}
-          onNavKey={paneNavKey} onRefocus={focusList} structures={structures} busy={pending} />
+        {/* S5: primitives and stable callbacks only, so a tick for another ticker skips the pane.
+            ONE chart on a phone: while the sheet shows the chart, the side pane (hidden there by
+            CSS) is not mounted, so no second StockChart fetches bars behind it. */}
+        {!phoneSheet && <ChartPane {...paneProps} />}
       </div>
     )
   }
@@ -744,6 +836,10 @@ function FocusList({ onMode }) {
       )}
       {drops.length > 0 && <p className={styles.dropNote} role="status">{drops.join(' ')}</p>}
       {body}
+      <PhoneChartSheet open={phoneSheet && listShowing} onClose={closePhoneSheet} row={selected}
+        onPrev={stepPrev} onNext={stepNext} canPrev={sel.index > 0} canNext={sel.index < listRows.length - 1 || listHasMore}>
+        <ChartPane {...paneProps} />
+      </PhoneChartSheet>
       <FiltersDrawer open={filtersOpen} onClose={() => setFiltersOpen(false)} meta={meta} filters={s.filters} logic={s.logic}
         onSetFilter={ed.setFilter} onClear={() => { ed.clearFilters(); ed.setLogic(null) }} onSetLogic={ed.setLogic}
         count={capToTopN(count, s.baseSpec)} countLoading={countLoading} countError={countError} lists={lists} />
