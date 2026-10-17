@@ -121,3 +121,35 @@ describe('PatternOverlay — learned auto-drawer', () => {
     expect(container.querySelector('svg')).toBeNull()
   })
 })
+
+// AUTO_STRUCTURES_MEMBERS_ENABLED: a paid member's overlay draws the TRUSTED tier only, whatever
+// else reached it (the server already filtered; this is the second layer, never the authority).
+describe('PatternOverlay — member scope (trustedOnly)', () => {
+  const rows = () => [
+    det('t1', 'donchian_breakout', { display_tier: 'trusted' }),
+    det('t2', 'rectangle', { display_tier: 'trusted' }),
+    det('x', 'bull_flag'),
+    det('h', 'double_bottom', { display_tier: 'hidden' }),
+    det('l', 'support_resistance', { display_layer: 'levels' }),
+    det('n', 'no_tier', { display_tier: undefined }),
+  ]
+
+  it('renders only trusted shapes: no experimental, hidden, levels or learned layer', () => {
+    const { container } = renderOverlay({
+      detections: rows(), drawn, trustedOnly: true, showExperimental: true, showLevels: true, lastPrice: 48,
+    })
+    const ids = [...container.querySelectorAll('[data-detection]')].map((g) => g.getAttribute('data-detection'))
+    expect(ids.sort()).toEqual(['donchian_breakout', 'rectangle'])
+    expect(container.querySelector('[data-layer="learned"]')).toBeNull()
+  })
+
+  it('control: without trustedOnly the same input draws more', () => {
+    const { container } = renderOverlay({ detections: rows(), drawn: null, showLevels: true, lastPrice: 48 })
+    const ids = [...container.querySelectorAll('[data-detection]')].map((g) => g.getAttribute('data-detection'))
+    expect(ids.length).toBeGreaterThan(2)
+  })
+
+  it('selectDrawable with trustedOnly keeps trusted rows only', () => {
+    expect(selectDrawable(rows(), { tf: 'D', trustedOnly: true, showLevels: true }).map((d) => d.id)).toEqual(['t1', 't2'])
+  })
+})
