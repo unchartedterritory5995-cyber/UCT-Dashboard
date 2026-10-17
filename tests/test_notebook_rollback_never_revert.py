@@ -23,7 +23,8 @@ that keeps it.
    app/src/pages/journal-2-0/lib/notebookSchema.rail.test.js.
 
 2. `account_purge.py`. The landing adds thirteen tables to the account-deletion list (twelve
-   from the waves, and `j2_trade_plan_misses` from the finish program's data lane). A revert
+   from the waves, and `j2_trade_plan_misses` from the finish program's data lane), and P3a adds
+   three more (the community library's watches, Helpful votes and author handles). A revert
    leaves the tables and the rows in the database; a reverted list would leave those rows
    behind when the member deletes their account.
 
@@ -228,14 +229,20 @@ LANDING_TABLES = (
     # Finish program, lane DATA (aef6b44744): the "unplanned" memo for plan grading. Safe to
     # drop, and a member's rows must still leave with their account.
     "j2_trade_plan_misses",
+    # P3a (Tasks 5 and 6, ruling P3a-T5-R1): the community library's per-member rows. `j2_gallery_follows`
+    # is not here: it has no `user_id` (two member ids), so its purge is pinned in
+    # tests/test_journal_two_account_purge.py instead.
+    "j2_gallery_watches", "j2_gallery_helpful", "j2_gallery_authors",
 )
 
 
-GALLERY_CHILD_TABLES = ("j2_template_gallery_reports", "j2_template_gallery_uses")
+GALLERY_CHILD_TABLES = ("j2_template_gallery_reports", "j2_template_gallery_uses", "j2_gallery_watches")
+#: The one landing table keyed to a gallery row by a column OTHER than `gallery_id`.
+ITEM_CHILD_TABLES = ("j2_gallery_helpful",)
 
 
 def _db_with_the_landing_tables() -> sqlite3.Connection:
-    """The database a rollback leaves behind: the thirteen tables exist and hold rows, whatever
+    """The database a rollback leaves behind: the landings' tables exist and hold rows, whatever
     the code that created them looks like now. Minimal DDL on purpose -- the purge keys on
     `user_id`, and this file must not import the landing's modules. The one other column it
     reads is `gallery_id` on the two gallery child tables: the security lane's M-7 also removes
@@ -244,7 +251,8 @@ def _db_with_the_landing_tables() -> sqlite3.Connection:
     and every count below is still the direct `user_id` pass."""
     conn = sqlite3.connect(":memory:")
     for table in LANDING_TABLES:
-        extra = ", gallery_id TEXT" if table in GALLERY_CHILD_TABLES else ""
+        extra = (", gallery_id TEXT" if table in GALLERY_CHILD_TABLES
+                 else ", item_id TEXT" if table in ITEM_CHILD_TABLES else "")
         conn.execute(f'CREATE TABLE "{table}" (id INTEGER PRIMARY KEY, user_id TEXT NOT NULL, v TEXT{extra})')
         conn.executemany(f'INSERT INTO "{table}" (user_id, v) VALUES (?, ?)',
                          [("member-leaving", "theirs"), ("member-staying", "not theirs")])
@@ -257,13 +265,13 @@ def _rows(conn, user_id: str) -> dict[str, int]:
             for t in LANDING_TABLES}
 
 
-def test_the_deletion_list_names_all_thirteen_tables_the_landing_added():
-    assert len(set(LANDING_TABLES)) == 13
+def test_the_deletion_list_names_every_table_the_landings_added():
+    assert len(set(LANDING_TABLES)) == 16
     missing = [t for t in LANDING_TABLES if t not in ap._DIRECT_USER_TABLES]
     assert not missing, f"account deletion no longer clears: {missing}"
 
 
-def test_a_deleted_members_rows_leave_all_thirteen_tables_and_nobody_elses_do():
+def test_a_deleted_members_rows_leave_every_landing_table_and_nobody_elses_do():
     conn = _db_with_the_landing_tables()
     assert set(_rows(conn, "member-leaving").values()) == {1}                # non-vacuity
     report = ap.purge_user_rows("member-leaving", conn)

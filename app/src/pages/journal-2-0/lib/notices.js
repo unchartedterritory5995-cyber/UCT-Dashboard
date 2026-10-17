@@ -5,15 +5,21 @@
 // _provenance), not assumed:
 //   * GET /api/alerts answers a BARE LIST (AlertBell.jsx reads Array.isArray(alerts)), so there
 //     is no `{alerts: [...]}` branch here.
-//   * The three notebook alert rows (a task reminder, a new-fill capture and, from Tier 2 part B, an
-//     earnings follow-up) carry the same string in `type` and in `data.source` (alerts.add_alert is
-//     handed the source as its alert_type), so this matches `type` only.
+//   * The notebook alert rows (a task reminder, a new-fill capture, from Tier 2 part B an earnings
+//     follow-up, and from P3a the community library's update and withdraw rows) carry the same string
+//     in `type` and in `data.source` (alerts.add_alert is handed the source as its alert_type), so this
+//     matches `type` only.
 //   * GET /api/voice/insights answers {insights: [...]}, every kind and dismissed ones included;
 //     a resurfacing row gains `link` (note_levels.links_for_insights) only while its flag is on.
 const REMINDER = 'notebook_task_reminder'
 const FILL = 'notebook_entry_context_new_fill'
 const FOLLOWUP = 'notebook_earnings_followup'
 const FOLLOWUP_LINK = '/journal/notebook?followup='
+// P3a: the community library's two rows (a style you adopted has a new version; its author took it down).
+// Both strings are template_gallery.py's LIBRARY_NOTICE_SOURCE / LIBRARY_UPDATE_PATH, which notices.test.js
+// reads from that file. The withdraw row carries no link, so it has none here.
+const LIBRARY = 'notebook_style_library'
+const LIBRARY_LINK = '/journal/notebook?styles=1&libraryUpdate='
 const RESURFACE = new Set(['note_level_touch', 'note_big_move', 'note_date_due'])
 const NOTE_LINK = '/journal/notebook?note='
 
@@ -34,6 +40,11 @@ export function toNotices(alertsBody, insightsBody) {
       const url = a.data?.research_url
       out.push({ key: `a:${a.id}`, id: a.id, kind: 'followup', title: a.title || 'Write an earnings follow-up',
         line: a.message || '', href: typeof url === 'string' && url.startsWith(FOLLOWUP_LINK) ? url : null, source: 'alert' })
+    } else if (a.type === LIBRARY) {
+      // The door only follows a link into the member's own copy of the style.
+      const url = a.data?.research_url
+      out.push({ key: `a:${a.id}`, id: a.id, kind: 'library', title: a.title || 'A community style changed',
+        line: a.message || '', href: typeof url === 'string' && url.startsWith(LIBRARY_LINK) ? url : null, source: 'alert' })
     }
   }
   for (const i of list(insightsBody?.insights)) {

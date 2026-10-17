@@ -104,3 +104,13 @@ def listed_style(conn, **style_overrides):
     gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=item["updatedAt"], conn=conn)
     out = gallery.get_item("author", item["id"], conn=conn)
     return out
+
+
+def bump_and_approve(conn, item, **style_patch):
+    """The author edits their style and shares it again; an admin approves the held revision, so the
+    listed version goes up by one. `item` is a `listed_style` summary (it carries `sourceStyleId`)."""
+    js.update_style("author", item["sourceStyleId"], style_patch, conn)
+    gallery.publish_style("author", item["sourceStyleId"], title=item["title"], description="",
+                          category="journal", trading_style=None, conn=conn)
+    rev = next(r for r in gallery.admin_queue(conn=conn)["pending"] if r["id"] == item["id"])
+    gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=rev["updatedAt"], conn=conn)

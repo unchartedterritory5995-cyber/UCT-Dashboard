@@ -8,7 +8,7 @@ import pytest
 
 from api.services.journal_two import journal_styles as js
 from api.services.journal_two import template_gallery as gallery
-from tests._style_library_helpers import _row, _style, api, conn, lib_on, listed_style  # noqa: F401  (fixtures + helpers)
+from tests._style_library_helpers import _row, _style, api, bump_and_approve, conn, lib_on, listed_style  # noqa: F401  (fixtures + helpers)
 
 URL = "/api/j2/template-gallery"
 
@@ -78,12 +78,7 @@ def test_a_pending_or_rejected_style_cannot_be_adopted(conn, lib_on):
     assert gallery.adopt_style("member", item["id"], notify=False, conn=conn) is None        # rejected
 
 
-def _bump(conn, item, **style_patch):
-    js.update_style("author", item["sourceStyleId"], style_patch, conn)
-    gallery.publish_style("author", item["sourceStyleId"], title=item["title"], description="",
-                          category="journal", trading_style=None, conn=conn)
-    rev = next(r for r in gallery.admin_queue(conn=conn)["pending"] if r["id"] == item["id"])
-    gallery.admin_act("admin", item["id"], "approve", reviewed_updated_at=rev["updatedAt"], conn=conn)
+_bump = bump_and_approve        # moved to the shared helpers in P3a Task 7; the notices tests use it too
 
 
 def _hold(conn, item, **style_patch):

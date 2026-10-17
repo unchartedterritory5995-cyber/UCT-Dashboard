@@ -84,6 +84,19 @@ REPORT_REASONS = ("spam", "personal_info", "offensive", "broken", "other")
 ADMIN_ACTIONS = ("approve", "reject", "hide", "unhide", "feature", "unfeature")
 REPORT_ACTIONS = ("hide", "dismiss")
 
+#: P3a Task 7: the bell rows the library writes. One string is both the alert `type` and `data.source`,
+#: and the client's Notices box matches it (app/src/pages/journal-2-0/lib/notices.js LIBRARY, pinned there
+#: by notices.test.js reading this file). An update notice links into the member's own copy;
+#: `StylesManager` opens the update sheet from that link. A withdraw notice has no link: there is nothing
+#: left to open.
+LIBRARY_NOTICE_SOURCE = "notebook_style_library"
+LIBRARY_UPDATE_PATH = "/journal/notebook?styles=1&libraryUpdate="
+UPDATE_NOTICE = "{title} has a new version from its author. Open it to see what changed."
+WITHDRAW_NOTICE = "{title} was taken down by its author. Your copy is yours and has not changed."
+#: A review action that can leave a watcher behind the listed version gets a retry pass afterwards. Hide
+#: does not ring (a hidden item is not news), and neither does reject (the listing did not change).
+_RING_ACTIONS = ("approve", "unhide", "feature", "unfeature")
+
 MAX_TITLE_CHARS = 80
 MAX_DESCRIPTION_CHARS = 280
 MAX_NOTE_CHARS = 500
@@ -900,13 +913,66 @@ def publish_style(user_id: str, style_id: Any, *, title: Any, description: Any, 
             conn.close()
 
 
+def _ring(user_id: str, title: str, message: str, data: dict) -> bool:
+    """One private bell row (a user_id never reaches Discord). False when it was not delivered: a notice
+    never fails the approval or the unpublish that caused it, and the caller only records a delivery that
+    happened."""
+    from api.services import alerts
+    try:
+        alerts.add_alert(LIBRARY_NOTICE_SOURCE, title, message, severity="info",
+                         data={"source": LIBRARY_NOTICE_SOURCE, **data}, user_id=user_id)
+        return True
+    except Exception as e:  # noqa: BLE001 -- a notice never fails an approval or an unpublish
+        print(f"[template-gallery] notice to {user_id} not delivered: {type(e).__name__}: {e}")
+        return False
+
+
+def _ring_update_watchers(conn: sqlite3.Connection, gallery_id: str) -> int:
+    """Tell each watcher still behind a listed style's current version that a new one is out, once.
+
+    ⛔ `notified_version < version` is the whole once-only rule: a delivered notice advances the watch to
+    the version it announced, a failed one leaves it behind so the next review action retries it. Only a
+    watch whose copy still exists is rung (the link opens that copy), and never the author's own."""
+    item = conn.execute(
+        "SELECT title, version, user_id FROM j2_template_gallery WHERE id = ? AND item_type = 'style'"
+        " AND status = 'approved' AND hidden = 0", (gallery_id,)).fetchone()
+    if item is None:
+        return 0
+    version = int(item["version"] or 1)
+    behind = conn.execute(
+        "SELECT w.user_id, w.style_id FROM j2_gallery_watches w JOIN j2_journal_styles s"
+        " ON s.id = w.style_id AND s.user_id = w.user_id AND s.deleted_at IS NULL"
+        " WHERE w.gallery_id = ? AND w.notified_version < ? AND w.user_id != ?",
+        (gallery_id, version, item["user_id"])).fetchall()
+    rung = 0
+    for w in behind:
+        if _ring(w["user_id"], item["title"], UPDATE_NOTICE.format(title=item["title"]),
+                 {"research_url": f"{LIBRARY_UPDATE_PATH}{w['style_id']}", "styleId": w["style_id"],
+                  "galleryId": gallery_id, "version": version}):
+            conn.execute("UPDATE j2_gallery_watches SET notified_version = ? WHERE gallery_id = ? AND user_id = ?",
+                         (version, gallery_id, w["user_id"]))
+            rung += 1
+    conn.commit()
+    return rung
+
+
 def unpublish(user_id: str, gallery_id: str, conn: sqlite3.Connection | None = None) -> bool:
     """The author takes their copy down. Always possible, in every state. Deletes the
     gallery copy and the reports, use counts, watches and helpful votes about it -- the author's own request
-    about their own content; copies others already made are theirs and stay."""
+    about their own content; copies others already made are theirs and stay.
+
+    P3a Task 7: each member watching a STYLE is told once that it was taken down, after the delete has
+    committed, so a failed notice can never keep a listing up. The watches are read before the delete."""
     owned = conn is None
     conn = conn or get_connection()
     try:
+        item = conn.execute(
+            "SELECT item_type, title FROM j2_template_gallery WHERE id = ? AND user_id = ? AND kind = 'member'",
+            (gallery_id, user_id)).fetchone()
+        watchers = [] if item is None or item["item_type"] != "style" else [
+            r["user_id"] for r in conn.execute(
+                "SELECT user_id FROM j2_gallery_watches WHERE gallery_id = ? AND user_id != ?",
+                (gallery_id, user_id)).fetchall()]
         cur = conn.execute(
             "DELETE FROM j2_template_gallery WHERE id = ? AND user_id = ? AND kind = 'member'",
             (gallery_id, user_id),
@@ -917,6 +983,9 @@ def unpublish(user_id: str, gallery_id: str, conn: sqlite3.Connection | None = N
             conn.execute("DELETE FROM j2_gallery_watches WHERE gallery_id = ?", (gallery_id,))
             conn.execute("DELETE FROM j2_gallery_helpful WHERE item_id = ?", (gallery_id,))
         conn.commit()
+        if cur.rowcount:
+            for watcher in watchers:
+                _ring(watcher, item["title"], WITHDRAW_NOTICE.format(title=item["title"]), {"galleryId": gallery_id})
         return bool(cur.rowcount)
     finally:
         if owned:
@@ -1546,6 +1615,10 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
             conn.execute("UPDATE j2_template_gallery SET featured = ? WHERE id = ?",
                          (1 if action == "feature" else 0, gallery_id))
         conn.commit()
+        # P3a Task 7: AFTER the review has committed, so a notice can never undo it. An approved revision
+        # bumps the version, so its watchers are behind; any later review action retries a failed delivery.
+        if action in _RING_ACTIONS and row["item_type"] == "style":
+            _ring_update_watchers(conn, gallery_id)
         return _summary(_row(conn, gallery_id, admin_id), viewer_id=admin_id, is_admin=True)
     finally:
         if owned:
