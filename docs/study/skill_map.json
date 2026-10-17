@@ -1,0 +1,2555 @@
+{
+  "version": "2026-10-17.1",
+  "notes": "Phase 0 draft. Foundations tracks carry ids and titles only; the Foundations author fills their units. Method tracks are complete. lesson_key = 'uct-method:' + slug(title) as education_curriculum.py derives it. door_only links name the nearest lesson for a unit with no course lesson of its own.",
+  "curricula": [
+    {
+      "id": "foundations",
+      "title": "UCT Foundations",
+      "tracks": [
+        {
+          "id": "F1",
+          "title": "Market basics",
+          "units": []
+        },
+        {
+          "id": "F2",
+          "title": "Chart reading",
+          "units": []
+        },
+        {
+          "id": "F2b",
+          "title": "Levels, lines and drawings",
+          "units": []
+        },
+        {
+          "id": "F3",
+          "title": "Candlesticks",
+          "units": []
+        },
+        {
+          "id": "F4",
+          "title": "Patterns and bases",
+          "units": []
+        },
+        {
+          "id": "F5",
+          "title": "Fundamentals and earnings",
+          "units": []
+        },
+        {
+          "id": "F6",
+          "title": "Options, beginner to advanced",
+          "units": []
+        },
+        {
+          "id": "F7",
+          "title": "Market history and macro",
+          "units": []
+        },
+        {
+          "id": "F8",
+          "title": "Psychology and discipline",
+          "units": []
+        },
+        {
+          "id": "F9",
+          "title": "Account and risk basics",
+          "units": []
+        },
+        {
+          "id": "F10",
+          "title": "Orders and execution",
+          "units": []
+        },
+        {
+          "id": "F10b",
+          "title": "Shorting mechanics",
+          "units": []
+        },
+        {
+          "id": "F11",
+          "title": "Styles",
+          "units": []
+        },
+        {
+          "id": "F12",
+          "title": "Process",
+          "units": []
+        },
+        {
+          "id": "V",
+          "title": "Vocabulary",
+          "units": []
+        }
+      ]
+    },
+    {
+      "id": "method",
+      "title": "The UCT Method",
+      "tracks": [
+        {
+          "id": "REG",
+          "title": "Regime",
+          "units": [
+            {
+              "id": "REG.01",
+              "title": "The loop: six stations, one trade",
+              "skills": [
+                "regime.loop"
+              ],
+              "lessons": [
+                "uct-method:the-loop-one-real-trade-through-regime-scan-setup-size-manage-review"
+              ],
+              "modules": [
+                "M1"
+              ],
+              "supply": "good",
+              "est_questions": 35
+            },
+            {
+              "id": "REG.02",
+              "title": "Read the dial",
+              "skills": [
+                "regime.dial"
+              ],
+              "lessons": [
+                "uct-method:early-win-read-today-s-uct-exposure-rating-and-write-your-exposure-plan",
+                "uct-method:inside-the-uct-regime-dial-what-feeds-the-0-150-exposure-rating-and-what-flips-it"
+              ],
+              "modules": [
+                "M1",
+                "M3"
+              ],
+              "supply": "medium",
+              "est_questions": 50
+            },
+            {
+              "id": "REG.03",
+              "title": "The four stages of a stock",
+              "skills": [
+                "regime.stages"
+              ],
+              "lessons": [
+                "uct-method:the-four-stages-of-any-stock-one-life-cycle-on-one-chart"
+              ],
+              "modules": [
+                "M3"
+              ],
+              "supply": "good",
+              "est_questions": 55
+            },
+            {
+              "id": "REG.04",
+              "title": "The Stage-2 gate",
+              "skills": [
+                "regime.stage2_gate"
+              ],
+              "lessons": [
+                "uct-method:the-stage-2-gate-eight-yes-no-questions-fail-one-skip-the-stock"
+              ],
+              "modules": [
+                "M3"
+              ],
+              "supply": "good",
+              "est_questions": 60
+            },
+            {
+              "id": "REG.05",
+              "title": "Staging the index",
+              "skills": [
+                "regime.index_stage"
+              ],
+              "lessons": [
+                "uct-method:same-lens-bigger-chart-staging-the-indexes"
+              ],
+              "modules": [
+                "M3"
+              ],
+              "supply": "good",
+              "est_questions": 40
+            },
+            {
+              "id": "REG.06",
+              "title": "Distribution days and follow-through days",
+              "skills": [
+                "regime.dd_ftd"
+              ],
+              "lessons": [
+                "uct-method:distribution-days-and-follow-through-days-the-counts-that-call-tops-and-bottoms"
+              ],
+              "modules": [
+                "M3"
+              ],
+              "supply": "good",
+              "est_questions": 70
+            },
+            {
+              "id": "REG.07",
+              "title": "The permission bands",
+              "skills": [
+                "regime.bands"
+              ],
+              "lessons": [
+                "uct-method:the-permission-system-what-green-yellow-and-orange-each-let-you-do-plus-12-regime-turns",
+                "uct-method:early-win-read-today-s-uct-exposure-rating-and-write-your-exposure-plan"
+              ],
+              "modules": [
+                "M1",
+                "M3"
+              ],
+              "supply": "good",
+              "est_questions": 45
+            },
+            {
+              "id": "REG.08",
+              "title": "Call the regime: 12 turns and the signposts",
+              "skills": [
+                "regime.call"
+              ],
+              "lessons": [
+                "uct-method:the-permission-system-what-green-yellow-and-orange-each-let-you-do-plus-12-regime-turns",
+                "uct-method:distribution-days-and-follow-through-days-the-counts-that-call-tops-and-bottoms"
+              ],
+              "modules": [
+                "M3"
+              ],
+              "supply": "medium",
+              "est_questions": 80
+            },
+            {
+              "id": "REG.09",
+              "title": "Cash is a position",
+              "skills": [
+                "regime.cash"
+              ],
+              "lessons": [
+                "uct-method:cash-is-a-position-the-off-season-playbook"
+              ],
+              "modules": [
+                "M3"
+              ],
+              "supply": "good",
+              "est_questions": 35
+            },
+            {
+              "id": "REG.10",
+              "title": "Progressive exposure: the ladder after a turn",
+              "skills": [
+                "regime.ladder"
+              ],
+              "lessons": [
+                "uct-method:progressive-exposure-and-the-drawdown-protocol-pilot-half-full-overweight-de-risk-at-5-and-10"
+              ],
+              "modules": [
+                "M13"
+              ],
+              "supply": "good",
+              "est_questions": 40
+            }
+          ]
+        },
+        {
+          "id": "SCN",
+          "title": "Scan",
+          "units": [
+            {
+              "id": "SCN.01",
+              "title": "Percent above the 50-day and 200-day",
+              "skills": [
+                "scan.breadth_pct"
+              ],
+              "lessons": [
+                "uct-method:the-market-s-x-ray-percent-of-stocks-above-the-50-day-and-200-day"
+              ],
+              "modules": [
+                "M4"
+              ],
+              "supply": "good",
+              "est_questions": 45
+            },
+            {
+              "id": "SCN.02",
+              "title": "Net new highs and the 4% days",
+              "skills": [
+                "scan.new_highs"
+              ],
+              "lessons": [
+                "uct-method:the-leading-edge-net-new-highs-lows-and-the-4-up-down-day-count"
+              ],
+              "modules": [
+                "M4"
+              ],
+              "supply": "good",
+              "est_questions": 45
+            },
+            {
+              "id": "SCN.03",
+              "title": "Relative strength: the line and the rank",
+              "skills": [
+                "scan.rs"
+              ],
+              "lessons": [
+                "uct-method:the-rs-line-divide-by-spy-spot-leadership-before-price-confirms"
+              ],
+              "modules": [
+                "M4"
+              ],
+              "supply": "good",
+              "est_questions": 60
+            },
+            {
+              "id": "SCN.04",
+              "title": "Volume as the witness: confirmation",
+              "skills": [
+                "scan.volume_confirm"
+              ],
+              "lessons": [
+                "uct-method:volume-as-the-witness-confirmation-as-its-own-verdict",
+                "uct-method:one-bar-one-auction-candles-close-position-and-the-volume-witness"
+              ],
+              "modules": [
+                "M2",
+                "M4"
+              ],
+              "supply": "good",
+              "est_questions": 60
+            },
+            {
+              "id": "SCN.05",
+              "title": "Accumulation signatures",
+              "skills": [
+                "scan.volume_accum"
+              ],
+              "lessons": [
+                "uct-method:volume-as-the-witness-confirmation-as-its-own-verdict"
+              ],
+              "modules": [
+                "M4"
+              ],
+              "supply": "medium",
+              "est_questions": 50
+            },
+            {
+              "id": "SCN.06",
+              "title": "Climax volume and the sell signals",
+              "skills": [
+                "scan.volume_climax"
+              ],
+              "lessons": [
+                "uct-method:volume-as-the-witness-confirmation-as-its-own-verdict",
+                "uct-method:parabolic-long-riding-the-vertical-bar-by-bar"
+              ],
+              "modules": [
+                "M4",
+                "M10"
+              ],
+              "supply": "medium",
+              "est_questions": 50
+            },
+            {
+              "id": "SCN.07",
+              "title": "Group before stock",
+              "skills": [
+                "scan.groups"
+              ],
+              "lessons": [
+                "uct-method:group-before-stock-rank-the-themes-then-build-the-five-number-morning-scorecard"
+              ],
+              "modules": [
+                "M4"
+              ],
+              "supply": "medium",
+              "est_questions": 45
+            },
+            {
+              "id": "SCN.08",
+              "title": "The five-number scorecard",
+              "skills": [
+                "scan.scorecard"
+              ],
+              "lessons": [
+                "uct-method:group-before-stock-rank-the-themes-then-build-the-five-number-morning-scorecard",
+                "uct-method:the-30-minute-premarket-routine"
+              ],
+              "modules": [
+                "M4",
+                "M6"
+              ],
+              "supply": "medium",
+              "est_questions": 40
+            },
+            {
+              "id": "SCN.09",
+              "title": "Run the funnel",
+              "skills": [
+                "scan.funnel"
+              ],
+              "lessons": [
+                "uct-method:the-nightly-scan-3-700-tickers-to-10-names-in-20-minutes"
+              ],
+              "modules": [
+                "M6"
+              ],
+              "supply": "good",
+              "est_questions": 55
+            },
+            {
+              "id": "SCN.10",
+              "title": "A-list, B-list and the weekend scan",
+              "skills": [
+                "scan.watchlists"
+              ],
+              "lessons": [
+                "uct-method:watchlist-architecture-a-list-b-list-and-the-weekend-deep-scan"
+              ],
+              "modules": [
+                "M6"
+              ],
+              "supply": "medium",
+              "est_questions": 45
+            },
+            {
+              "id": "SCN.11",
+              "title": "From alert to fill",
+              "skills": [
+                "scan.orders"
+              ],
+              "lessons": [
+                "uct-method:from-alert-to-fill-order-types-buy-stops-and-slippage"
+              ],
+              "modules": [
+                "M6"
+              ],
+              "supply": "good",
+              "est_questions": 40
+            },
+            {
+              "id": "SCN.12",
+              "title": "The 30-minute premarket routine",
+              "skills": [
+                "scan.premarket"
+              ],
+              "lessons": [
+                "uct-method:the-30-minute-premarket-routine"
+              ],
+              "modules": [
+                "M6"
+              ],
+              "supply": "good",
+              "est_questions": 30
+            }
+          ]
+        },
+        {
+          "id": "SET",
+          "title": "Setup",
+          "units": [
+            {
+              "id": "SET.01",
+              "title": "One bar, one auction",
+              "skills": [
+                "setup.chart.bar"
+              ],
+              "lessons": [
+                "uct-method:one-bar-one-auction-candles-close-position-and-the-volume-witness"
+              ],
+              "modules": [
+                "M2"
+              ],
+              "supply": "good",
+              "est_questions": 60
+            },
+            {
+              "id": "SET.02",
+              "title": "The moving-average stack",
+              "skills": [
+                "setup.chart.ma_stack"
+              ],
+              "lessons": [
+                "uct-method:the-moving-average-stack-9-ema-20-ema-50-sma-200-sma-what-each-line-is-for"
+              ],
+              "modules": [
+                "M2"
+              ],
+              "supply": "good",
+              "est_questions": 50
+            },
+            {
+              "id": "SET.03",
+              "title": "Three lines that matter",
+              "skills": [
+                "setup.chart.lines"
+              ],
+              "lessons": [
+                "uct-method:three-lines-that-matter-trend-support-resistance-and-none-that-don-t"
+              ],
+              "modules": [
+                "M2"
+              ],
+              "supply": "good",
+              "est_questions": 55
+            },
+            {
+              "id": "SET.04",
+              "title": "The weekly decides, the daily times",
+              "skills": [
+                "setup.chart.mtf"
+              ],
+              "lessons": [
+                "uct-method:the-weekly-decides-the-daily-times-multi-timeframe-alignment"
+              ],
+              "modules": [
+                "M2"
+              ],
+              "supply": "good",
+              "est_questions": 45
+            },
+            {
+              "id": "SET.05",
+              "title": "The winners gallery: look, no label",
+              "skills": [
+                "setup.gallery"
+              ],
+              "lessons": [
+                "uct-method:the-winners-gallery-25-monster-charts-no-rules-yet"
+              ],
+              "modules": [
+                "M2"
+              ],
+              "supply": "medium",
+              "est_questions": 60
+            },
+            {
+              "id": "SET.06",
+              "title": "The five-field card and the four entry triggers",
+              "skills": [
+                "setup.card",
+                "setup.triggers"
+              ],
+              "lessons": [
+                "uct-method:how-to-learn-a-setup-the-five-field-card-setup-functions-and-the-four-entry-triggers"
+              ],
+              "modules": [
+                "M7"
+              ],
+              "supply": "good",
+              "est_questions": 70
+            },
+            {
+              "id": "SET.07",
+              "title": "Flat Base Breakout",
+              "skills": [
+                "setup.family1.flat_base"
+              ],
+              "lessons": [
+                "uct-method:flagship-flat-base-breakout-contractions-dry-up-pivot-and-the-tick-exact-buy"
+              ],
+              "modules": [
+                "M7"
+              ],
+              "supply": "medium",
+              "est_questions": 100,
+              "setup": "Flat Base Breakout"
+            },
+            {
+              "id": "SET.08",
+              "title": "Bull Flag",
+              "skills": [
+                "setup.family1.bull_flag"
+              ],
+              "lessons": [
+                "uct-method:bull-flag-the-flagpole-the-quiet-drift-and-the-trendline-break"
+              ],
+              "modules": [
+                "M7"
+              ],
+              "supply": "medium",
+              "est_questions": 80,
+              "setup": "Bull Flag"
+            },
+            {
+              "id": "SET.09",
+              "title": "Cup & Handle",
+              "skills": [
+                "setup.family1.cup_handle"
+              ],
+              "lessons": [
+                "uct-method:cup-handle-the-multi-week-base-and-the-handle-s-low-volume-shakeout"
+              ],
+              "modules": [
+                "M7"
+              ],
+              "supply": "none",
+              "est_questions": 40,
+              "setup": "Cup & Handle"
+            },
+            {
+              "id": "SET.10",
+              "title": "IPO Base",
+              "skills": [
+                "setup.family1.ipo_base"
+              ],
+              "lessons": [
+                "uct-method:ipo-base-a-new-issue-s-first-consolidation-short-shallow-explosive"
+              ],
+              "modules": [
+                "M7"
+              ],
+              "supply": "none",
+              "est_questions": 40,
+              "setup": "IPO Base"
+            },
+            {
+              "id": "SET.11",
+              "title": "Launchpad",
+              "skills": [
+                "setup.family1.launchpad"
+              ],
+              "lessons": [
+                "uct-method:launchpad-consolidating-on-top-of-the-stacked-averages-then-launching"
+              ],
+              "modules": [
+                "M7"
+              ],
+              "supply": "medium",
+              "est_questions": 80,
+              "setup": "Launchpad"
+            },
+            {
+              "id": "SET.12",
+              "title": "VCP",
+              "skills": [
+                "setup.family1.vcp"
+              ],
+              "lessons": [],
+              "modules": [],
+              "supply": "good",
+              "est_questions": 120,
+              "lesson_door": "uct-method:flagship-flat-base-breakout-contractions-dry-up-pivot-and-the-tick-exact-buy",
+              "setup": "VCP"
+            },
+            {
+              "id": "SET.13",
+              "title": "High Tight Flag",
+              "skills": [
+                "setup.family1.high_tight_flag"
+              ],
+              "lessons": [],
+              "modules": [],
+              "supply": "good",
+              "est_questions": 100,
+              "lesson_door": "uct-method:bull-flag-the-flagpole-the-quiet-drift-and-the-trendline-break",
+              "setup": "High Tight Flag"
+            },
+            {
+              "id": "SET.14",
+              "title": "20 EMA Pullback",
+              "skills": [
+                "setup.family2.ema20_pullback"
+              ],
+              "lessons": [
+                "uct-method:flagship-20-ema-pullback-qualify-the-touch-buy-the-9-ema-remount"
+              ],
+              "modules": [
+                "M8"
+              ],
+              "supply": "medium",
+              "est_questions": 100,
+              "setup": "20 EMA Pullback"
+            },
+            {
+              "id": "SET.15",
+              "title": "EMA Crossback",
+              "skills": [
+                "setup.family2.ema_crossback"
+              ],
+              "lessons": [
+                "uct-method:ema-crossback-the-re-entry-after-the-extension"
+              ],
+              "modules": [
+                "M8"
+              ],
+              "supply": "thin",
+              "est_questions": 50,
+              "setup": "EMA Crossback"
+            },
+            {
+              "id": "SET.16",
+              "title": "Wedge Pop",
+              "skills": [
+                "setup.family2.wedge_pop"
+              ],
+              "lessons": [
+                "uct-method:wedge-pop-wedge-drop-one-coil-two-resolutions"
+              ],
+              "modules": [
+                "M8"
+              ],
+              "supply": "thin",
+              "est_questions": 50,
+              "setup": "Wedge Pop"
+            },
+            {
+              "id": "SET.17",
+              "title": "Wedge Drop",
+              "skills": [
+                "setup.family2.wedge_drop"
+              ],
+              "lessons": [
+                "uct-method:wedge-pop-wedge-drop-one-coil-two-resolutions"
+              ],
+              "modules": [
+                "M8"
+              ],
+              "supply": "thin",
+              "est_questions": 40,
+              "setup": "Wedge Drop"
+            },
+            {
+              "id": "SET.18",
+              "title": "Episodic Pivot",
+              "skills": [
+                "setup.family3.episodic_pivot"
+              ],
+              "lessons": [
+                "uct-method:flagship-episodic-pivot-day-one-of-a-new-trend"
+              ],
+              "modules": [
+                "M9"
+              ],
+              "supply": "good",
+              "est_questions": 120,
+              "setup": "Episodic Pivot"
+            },
+            {
+              "id": "SET.19",
+              "title": "Power Earnings Gap",
+              "skills": [
+                "setup.family3.power_earnings_gap"
+              ],
+              "lessons": [
+                "uct-method:power-earnings-gap-institutions-repricing-in-real-time"
+              ],
+              "modules": [
+                "M9"
+              ],
+              "supply": "good",
+              "est_questions": 100,
+              "setup": "Power Earnings Gap"
+            },
+            {
+              "id": "SET.20",
+              "title": "News/Earnings Gapper",
+              "skills": [
+                "setup.family3.news_gapper"
+              ],
+              "lessons": [
+                "uct-method:news-earnings-gapper-trade-the-first-pullback-and-reclaim-not-the-open"
+              ],
+              "modules": [
+                "M9"
+              ],
+              "supply": "none",
+              "est_questions": 40,
+              "setup": "News/Earnings Gapper"
+            },
+            {
+              "id": "SET.21",
+              "title": "High Volume Edge",
+              "skills": [
+                "setup.family3.hve"
+              ],
+              "lessons": [
+                "uct-method:the-level-the-tape-remembers-high-volume-edge-gap-support"
+              ],
+              "modules": [
+                "M9"
+              ],
+              "supply": "medium",
+              "est_questions": 70,
+              "setup": "High Volume Edge"
+            },
+            {
+              "id": "SET.22",
+              "title": "Gap Support",
+              "skills": [
+                "setup.family3.gap_support"
+              ],
+              "lessons": [
+                "uct-method:the-level-the-tape-remembers-high-volume-edge-gap-support"
+              ],
+              "modules": [
+                "M9"
+              ],
+              "supply": "medium",
+              "est_questions": 70,
+              "setup": "Gap Support"
+            },
+            {
+              "id": "SET.23",
+              "title": "Kicker Candle",
+              "skills": [
+                "setup.family3.kicker"
+              ],
+              "lessons": [
+                "uct-method:kicker-candle-the-trap-that-closes-above-yesterday-s-high"
+              ],
+              "modules": [
+                "M9"
+              ],
+              "supply": "medium",
+              "est_questions": 70,
+              "setup": "Kicker Candle"
+            },
+            {
+              "id": "SET.24",
+              "title": "2B Reversal",
+              "skills": [
+                "setup.family4.two_b"
+              ],
+              "lessons": [
+                "uct-method:2b-reversal-and-oops-its-gap-open-variant"
+              ],
+              "modules": [
+                "M10"
+              ],
+              "supply": "none",
+              "est_questions": 40,
+              "setup": "2B Reversal"
+            },
+            {
+              "id": "SET.25",
+              "title": "Oops Reversal",
+              "skills": [
+                "setup.family4.oops"
+              ],
+              "lessons": [
+                "uct-method:2b-reversal-and-oops-its-gap-open-variant"
+              ],
+              "modules": [
+                "M10"
+              ],
+              "supply": "medium",
+              "est_questions": 70,
+              "setup": "Oops Reversal"
+            },
+            {
+              "id": "SET.26",
+              "title": "U&R (Undercut & Rally)",
+              "skills": [
+                "setup.family4.u_and_r"
+              ],
+              "lessons": [
+                "uct-method:flagship-u-r-undercut-rally-the-shakeout-you-buy"
+              ],
+              "modules": [
+                "M10"
+              ],
+              "supply": "good",
+              "est_questions": 110,
+              "setup": "U&R (Undercut & Rally)"
+            },
+            {
+              "id": "SET.27",
+              "title": "Slingshot",
+              "skills": [
+                "setup.family4.slingshot"
+              ],
+              "lessons": [
+                "uct-method:slingshot-recapture-the-4-ema-of-the-highs-buy-momentum-resuming-not-the-low"
+              ],
+              "modules": [
+                "M10"
+              ],
+              "supply": "medium",
+              "est_questions": 70,
+              "setup": "Slingshot"
+            },
+            {
+              "id": "SET.28",
+              "title": "Remount",
+              "skills": [
+                "setup.family4.remount"
+              ],
+              "lessons": [
+                "uct-method:remount-shake-out-below-the-line-retake-it-with-authority"
+              ],
+              "modules": [
+                "M10"
+              ],
+              "supply": "medium",
+              "est_questions": 80,
+              "setup": "Remount"
+            },
+            {
+              "id": "SET.29",
+              "title": "Failed H&S / Rounded Top",
+              "skills": [
+                "setup.family4.failed_hs"
+              ],
+              "lessons": [
+                "uct-method:failed-h-s-rounded-top-when-the-breakdown-everyone-sees-never-comes"
+              ],
+              "modules": [
+                "M10"
+              ],
+              "supply": "thin",
+              "est_questions": 50,
+              "setup": "Failed H&S / Rounded Top"
+            },
+            {
+              "id": "SET.30",
+              "title": "Parabolic Long",
+              "skills": [
+                "setup.family4.parabolic_long"
+              ],
+              "lessons": [
+                "uct-method:parabolic-long-riding-the-vertical-bar-by-bar"
+              ],
+              "modules": [
+                "M10"
+              ],
+              "supply": "none",
+              "est_questions": 40,
+              "setup": "Parabolic Long"
+            },
+            {
+              "id": "SET.31",
+              "title": "Parabolic Short",
+              "skills": [
+                "setup.family4.parabolic_short"
+              ],
+              "lessons": [
+                "uct-method:parabolic-short-shorting-the-crack-of-a-3-5-day-blow-off"
+              ],
+              "modules": [
+                "M10"
+              ],
+              "supply": "medium",
+              "est_questions": 70,
+              "setup": "Parabolic Short"
+            },
+            {
+              "id": "SET.32",
+              "title": "ORB (Opening Range Break)",
+              "skills": [
+                "setup.intraday.orb"
+              ],
+              "lessons": [
+                "uct-method:reading-the-open-orb-and-the-30-minute-pivot-two-range-break-timers"
+              ],
+              "modules": [
+                "M11"
+              ],
+              "supply": "thin",
+              "est_questions": 40,
+              "setup": "ORB (Opening Range Break)"
+            },
+            {
+              "id": "SET.33",
+              "title": "30-Minute Pivot",
+              "skills": [
+                "setup.intraday.thirty_min_pivot"
+              ],
+              "lessons": [
+                "uct-method:reading-the-open-orb-and-the-30-minute-pivot-two-range-break-timers"
+              ],
+              "modules": [
+                "M11"
+              ],
+              "supply": "none",
+              "est_questions": 30,
+              "setup": "30-Minute Pivot"
+            },
+            {
+              "id": "SET.34",
+              "title": "Go Signal",
+              "skills": [
+                "setup.intraday.go_signal"
+              ],
+              "lessons": [
+                "uct-method:go-signal-the-catalyst-gap-that-digests-into-the-9-ema-then-engulfs"
+              ],
+              "modules": [
+                "M11"
+              ],
+              "supply": "medium",
+              "est_questions": 60,
+              "setup": "Go Signal"
+            },
+            {
+              "id": "SET.35",
+              "title": "Base failure modes",
+              "skills": [
+                "setup.family1.failure_modes"
+              ],
+              "lessons": [
+                "uct-method:base-failure-modes-20-replay-reps"
+              ],
+              "modules": [
+                "M7"
+              ],
+              "supply": "good",
+              "est_questions": 60
+            },
+            {
+              "id": "SET.36",
+              "title": "Catalyst taxonomy",
+              "skills": [
+                "setup.family3.catalysts"
+              ],
+              "lessons": [
+                "uct-method:catalyst-taxonomy-the-earnings-season-game-plan-15-gap-reps"
+              ],
+              "modules": [
+                "M9"
+              ],
+              "supply": "medium",
+              "est_questions": 50
+            },
+            {
+              "id": "SET.37",
+              "title": "Four-family placement",
+              "skills": [
+                "setup.placement"
+              ],
+              "lessons": [
+                "uct-method:four-family-placement-drill-20-mixed-charts"
+              ],
+              "modules": [
+                "M10"
+              ],
+              "supply": "good",
+              "est_questions": 80
+            },
+            {
+              "id": "SET.38",
+              "title": "Grade the setup",
+              "skills": [
+                "setup.grade"
+              ],
+              "lessons": [
+                "uct-method:grading-the-setup-a-a-b-c-the-grade-that-keys-the-table"
+              ],
+              "modules": [
+                "M13"
+              ],
+              "supply": "good",
+              "est_questions": 90
+            },
+            {
+              "id": "SET.39",
+              "title": "Mark the levels",
+              "skills": [
+                "setup.levels"
+              ],
+              "lessons": [
+                "uct-method:flagship-flat-base-breakout-contractions-dry-up-pivot-and-the-tick-exact-buy",
+                "uct-method:where-the-stop-actually-goes-structure-percent-atr-invalidation-not-comfort"
+              ],
+              "modules": [
+                "M5",
+                "M7"
+              ],
+              "supply": "good",
+              "est_questions": 90
+            }
+          ]
+        },
+        {
+          "id": "SIZ",
+          "title": "Size",
+          "units": [
+            {
+              "id": "SIZ.01",
+              "title": "R and expectancy: casino math",
+              "skills": [
+                "size.r_expectancy"
+              ],
+              "lessons": [
+                "uct-method:casino-math-why-a-45-win-rate-at-2r-prints-money",
+                "uct-method:only-take-trades-that-pay-the-2r-minimum-expectancy-and-the-one-commandment"
+              ],
+              "modules": [
+                "M1",
+                "M5"
+              ],
+              "supply": "good",
+              "est_questions": 60
+            },
+            {
+              "id": "SIZ.02",
+              "title": "The 2% ceiling and the arithmetic of ruin",
+              "skills": [
+                "size.ceiling"
+              ],
+              "lessons": [
+                "uct-method:the-2-ceiling-and-the-arithmetic-of-ruin"
+              ],
+              "modules": [
+                "M5"
+              ],
+              "supply": "good",
+              "est_questions": 50
+            },
+            {
+              "id": "SIZ.03",
+              "title": "The formula: size from the stop",
+              "skills": [
+                "size.formula"
+              ],
+              "lessons": [
+                "uct-method:the-formula-account-risk-position-size-stop-distance-worked-five-times"
+              ],
+              "modules": [
+                "M5"
+              ],
+              "supply": "good",
+              "est_questions": 80
+            },
+            {
+              "id": "SIZ.04",
+              "title": "The sizing gate",
+              "skills": [
+                "size.gate"
+              ],
+              "lessons": [
+                "uct-method:checkpoint-the-sizing-gate-ten-problems-100-to-pass"
+              ],
+              "modules": [
+                "M5"
+              ],
+              "supply": "good",
+              "est_questions": 30
+            },
+            {
+              "id": "SIZ.05",
+              "title": "Where the stop goes",
+              "skills": [
+                "size.stop"
+              ],
+              "lessons": [
+                "uct-method:where-the-stop-actually-goes-structure-percent-atr-invalidation-not-comfort"
+              ],
+              "modules": [
+                "M5"
+              ],
+              "supply": "good",
+              "est_questions": 70
+            },
+            {
+              "id": "SIZ.06",
+              "title": "Only take trades that pay",
+              "skills": [
+                "size.two_r"
+              ],
+              "lessons": [
+                "uct-method:only-take-trades-that-pay-the-2r-minimum-expectancy-and-the-one-commandment"
+              ],
+              "modules": [
+                "M5"
+              ],
+              "supply": "good",
+              "est_questions": 45
+            },
+            {
+              "id": "SIZ.07",
+              "title": "Small accounts: PDT and settlement",
+              "skills": [
+                "size.small_account"
+              ],
+              "lessons": [
+                "uct-method:running-this-system-under-25k-pdt-cash-accounts-and-settlement"
+              ],
+              "modules": [
+                "M5"
+              ],
+              "supply": "good",
+              "est_questions": 30
+            },
+            {
+              "id": "SIZ.08",
+              "title": "The cap table: band times grade",
+              "skills": [
+                "size.cap_table"
+              ],
+              "lessons": [
+                "uct-method:the-table-verbatim-green-a-20-25-yellow-a-15-orange-a-8-b-in-orange-skip"
+              ],
+              "modules": [
+                "M13"
+              ],
+              "supply": "good",
+              "est_questions": 50
+            },
+            {
+              "id": "SIZ.09",
+              "title": "Portfolio heat",
+              "skills": [
+                "size.heat"
+              ],
+              "lessons": [
+                "uct-method:portfolio-heat-all-open-risk-as-one-number-capped-at-10"
+              ],
+              "modules": [
+                "M13"
+              ],
+              "supply": "good",
+              "est_questions": 50
+            },
+            {
+              "id": "SIZ.10",
+              "title": "Correlation: one trade wearing five tickers",
+              "skills": [
+                "size.correlation"
+              ],
+              "lessons": [
+                "uct-method:portfolio-heat-all-open-risk-as-one-number-capped-at-10"
+              ],
+              "modules": [
+                "M13"
+              ],
+              "supply": "good",
+              "est_questions": 35
+            },
+            {
+              "id": "SIZ.11",
+              "title": "The drawdown protocol",
+              "skills": [
+                "size.drawdown"
+              ],
+              "lessons": [
+                "uct-method:progressive-exposure-and-the-drawdown-protocol-pilot-half-full-overweight-de-risk-at-5-and-10"
+              ],
+              "modules": [
+                "M13"
+              ],
+              "supply": "good",
+              "est_questions": 40
+            }
+          ]
+        },
+        {
+          "id": "MAN",
+          "title": "Manage",
+          "units": [
+            {
+              "id": "MAN.01",
+              "title": "Selling because you were wrong",
+              "skills": [
+                "manage.sell_wrong"
+              ],
+              "lessons": [
+                "uct-method:selling-because-you-were-wrong-the-stop-is-an-appointment-not-a-debate"
+              ],
+              "modules": [
+                "M12"
+              ],
+              "supply": "good",
+              "est_questions": 60
+            },
+            {
+              "id": "MAN.02",
+              "title": "Selling because you were right",
+              "skills": [
+                "manage.sell_right"
+              ],
+              "lessons": [
+                "uct-method:selling-because-you-were-right-partials-into-strength-trailing-into-weakness"
+              ],
+              "modules": [
+                "M12"
+              ],
+              "supply": "good",
+              "est_questions": 55
+            },
+            {
+              "id": "MAN.03",
+              "title": "Breakeven, trails and time stops",
+              "skills": [
+                "manage.rules"
+              ],
+              "lessons": [
+                "uct-method:the-rules-between-entry-and-exit-breakeven-rule-trails-by-timeframe-time-stops"
+              ],
+              "modules": [
+                "M12"
+              ],
+              "supply": "good",
+              "est_questions": 60
+            },
+            {
+              "id": "MAN.04",
+              "title": "Management math",
+              "skills": [
+                "manage.math"
+              ],
+              "lessons": [
+                "uct-method:the-rules-between-entry-and-exit-breakeven-rule-trails-by-timeframe-time-stops"
+              ],
+              "modules": [
+                "M12"
+              ],
+              "supply": "good",
+              "est_questions": 60
+            },
+            {
+              "id": "MAN.05",
+              "title": "The earnings decision",
+              "skills": [
+                "manage.earnings"
+              ],
+              "lessons": [
+                "uct-method:the-earnings-decision-hold-through-trim-or-step-aside"
+              ],
+              "modules": [
+                "M12"
+              ],
+              "supply": "medium",
+              "est_questions": 50
+            },
+            {
+              "id": "MAN.06",
+              "title": "What happens next: two trades, candle by candle",
+              "skills": [
+                "manage.replay"
+              ],
+              "lessons": [
+                "uct-method:two-complete-trades-candle-by-candle-plus-the-post-exit-protocol"
+              ],
+              "modules": [
+                "M12"
+              ],
+              "supply": "good",
+              "est_questions": 60
+            },
+            {
+              "id": "MAN.07",
+              "title": "Adding to winners",
+              "skills": [
+                "manage.add"
+              ],
+              "lessons": [
+                "uct-method:adding-to-winners-20-family-reps"
+              ],
+              "modules": [
+                "M8"
+              ],
+              "supply": "good",
+              "est_questions": 45
+            }
+          ]
+        },
+        {
+          "id": "REV",
+          "title": "Review",
+          "units": [
+            {
+              "id": "REV.01",
+              "title": "The five leaks",
+              "skills": [
+                "review.leaks"
+              ],
+              "lessons": [
+                "uct-method:where-breakeven-traders-bleed-the-five-leaks-and-your-placement-diagnostic"
+              ],
+              "modules": [
+                "M1"
+              ],
+              "supply": "good",
+              "est_questions": 40
+            },
+            {
+              "id": "REV.02",
+              "title": "Field weeks and the pilot rule",
+              "skills": [
+                "review.field_week"
+              ],
+              "lessons": [
+                "uct-method:field-weeks-how-you-ll-trade-this-course-pilot-size-paper-and-the-family-assignments"
+              ],
+              "modules": [
+                "M7"
+              ],
+              "supply": "good",
+              "est_questions": 25
+            },
+            {
+              "id": "REV.03",
+              "title": "Map your pattern: fear, tilt, discipline",
+              "skills": [
+                "review.pattern_map"
+              ],
+              "lessons": [
+                "uct-method:map-your-pattern-first-the-trader-s-self-diagnostic"
+              ],
+              "modules": [
+                "M14"
+              ],
+              "supply": "medium",
+              "est_questions": 35
+            },
+            {
+              "id": "REV.04",
+              "title": "FOMO and the fear family",
+              "skills": [
+                "review.fomo"
+              ],
+              "lessons": [
+                "uct-method:fomo-and-the-fear-family-signs-subtypes-corrections"
+              ],
+              "modules": [
+                "M14"
+              ],
+              "supply": "medium",
+              "est_questions": 40
+            },
+            {
+              "id": "REV.05",
+              "title": "Tilt and revenge: the circuit breaker",
+              "skills": [
+                "review.tilt"
+              ],
+              "lessons": [
+                "uct-method:tilt-and-revenge-the-circuit-breaker-and-the-mental-hand-history"
+              ],
+              "modules": [
+                "M14"
+              ],
+              "supply": "good",
+              "est_questions": 35
+            },
+            {
+              "id": "REV.06",
+              "title": "The fixed-field journal and the three grades",
+              "skills": [
+                "review.journal"
+              ],
+              "lessons": [
+                "uct-method:the-fixed-field-journal-seven-fields-three-grades-no-free-form",
+                "uct-method:two-complete-trades-candle-by-candle-plus-the-post-exit-protocol"
+              ],
+              "modules": [
+                "M12",
+                "M14"
+              ],
+              "supply": "good",
+              "est_questions": 50
+            },
+            {
+              "id": "REV.07",
+              "title": "Mistake taxonomy and the trade autopsy",
+              "skills": [
+                "review.autopsy"
+              ],
+              "lessons": [
+                "uct-method:the-review-cadence-daily-tag-weekly-stats-monthly-audit-narrated-on-a-real-month"
+              ],
+              "modules": [
+                "M14"
+              ],
+              "supply": "medium",
+              "est_questions": 70
+            },
+            {
+              "id": "REV.08",
+              "title": "The weekly and monthly review",
+              "skills": [
+                "review.cadence"
+              ],
+              "lessons": [
+                "uct-method:the-review-cadence-daily-tag-weekly-stats-monthly-audit-narrated-on-a-real-month"
+              ],
+              "modules": [
+                "M14"
+              ],
+              "supply": "good",
+              "est_questions": 45
+            },
+            {
+              "id": "REV.09",
+              "title": "Choose your two",
+              "skills": [
+                "review.specialise"
+              ],
+              "lessons": [
+                "uct-method:choose-your-two-match-the-families-to-your-drill-data-and-sign-the-specialization-contract"
+              ],
+              "modules": [
+                "M16"
+              ],
+              "supply": "good",
+              "est_questions": 30
+            },
+            {
+              "id": "REV.10",
+              "title": "Build the plan",
+              "skills": [
+                "review.plan"
+              ],
+              "lessons": [
+                "uct-method:write-your-playbook-the-five-field-entries-for-your-two-setups",
+                "uct-method:the-trade-plan-defense-one-full-plan-through-all-six-stations-stress-tested"
+              ],
+              "modules": [
+                "M16"
+              ],
+              "supply": "good",
+              "est_questions": 60
+            },
+            {
+              "id": "REV.11",
+              "title": "Defend the plan",
+              "skills": [
+                "review.defend"
+              ],
+              "lessons": [
+                "uct-method:the-trade-plan-defense-one-full-plan-through-all-six-stations-stress-tested"
+              ],
+              "modules": [
+                "M16"
+              ],
+              "supply": "good",
+              "est_questions": 40
+            }
+          ]
+        },
+        {
+          "id": "CAL",
+          "title": "Calls",
+          "units": [
+            {
+              "id": "CAL.01",
+              "title": "Take the call: Sunday Scans",
+              "skills": [
+                "calls.scans"
+              ],
+              "lessons": [],
+              "modules": [],
+              "supply": "medium",
+              "est_questions": 150,
+              "lesson_door": "uct-method:watchlist-architecture-a-list-b-list-and-the-weekend-deep-scan"
+            },
+            {
+              "id": "CAL.02",
+              "title": "Sunday Scans: the stop, the grade, the family",
+              "skills": [
+                "calls.scans_grade"
+              ],
+              "lessons": [],
+              "modules": [],
+              "supply": "medium",
+              "est_questions": 100,
+              "lesson_door": "uct-method:grading-the-setup-a-a-b-c-the-grade-that-keys-the-table"
+            },
+            {
+              "id": "CAL.03",
+              "title": "Take the call: the team archive",
+              "skills": [
+                "calls.archive"
+              ],
+              "lessons": [],
+              "modules": [],
+              "supply": "good",
+              "est_questions": 120,
+              "lesson_door": "uct-method:the-review-cadence-daily-tag-weekly-stats-monthly-audit-narrated-on-a-real-month"
+            }
+          ]
+        },
+        {
+          "id": "OVL",
+          "title": "Overlay",
+          "units": [
+            {
+              "id": "OVL.01",
+              "title": "Reading the flow tape and the veto",
+              "skills": [
+                "overlay.flow"
+              ],
+              "lessons": [
+                "uct-method:reading-the-flow-tape-and-the-veto-hierarchy-confirmation-never-signal"
+              ],
+              "modules": [
+                "M15"
+              ],
+              "supply": "medium",
+              "est_questions": 45
+            },
+            {
+              "id": "OVL.02",
+              "title": "A swing with calls, same 2% math",
+              "skills": [
+                "overlay.calls"
+              ],
+              "lessons": [
+                "uct-method:expressing-a-swing-with-calls-strike-expiry-delta-same-2-math"
+              ],
+              "modules": [
+                "M15"
+              ],
+              "supply": "good",
+              "est_questions": 40
+            },
+            {
+              "id": "OVL.03",
+              "title": "Gamma context and flow plus EP",
+              "skills": [
+                "overlay.gamma"
+              ],
+              "lessons": [
+                "uct-method:dealer-positioning-and-gamma-pins-slingshots-and-the-flow-ep-combination"
+              ],
+              "modules": [
+                "M15"
+              ],
+              "supply": "medium",
+              "est_questions": 35
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "setups": [
+    {
+      "canonical": "Flat Base Breakout",
+      "family": "Bases & Breakouts",
+      "unit_id": "SET.07",
+      "skill_id": "setup.family1.flat_base",
+      "lesson_key": "uct-method:flagship-flat-base-breakout-contractions-dry-up-pivot-and-the-tick-exact-buy",
+      "supply": "medium",
+      "aliases": {
+        "setupGroups": "Flat Base Breakout",
+        "templates": "Flat Base",
+        "rubric": "flat_base",
+        "detector": "flat_base",
+        "detector_status": "public",
+        "detector_internal": null,
+        "archive": "flat_top_breakout"
+      }
+    },
+    {
+      "canonical": "Bull Flag",
+      "family": "Bases & Breakouts",
+      "unit_id": "SET.08",
+      "skill_id": "setup.family1.bull_flag",
+      "lesson_key": "uct-method:bull-flag-the-flagpole-the-quiet-drift-and-the-trendline-break",
+      "supply": "medium",
+      "aliases": {
+        "setupGroups": "Classic Flag/Pullback",
+        "templates": null,
+        "rubric": "bull_flag",
+        "detector": "bull_flag",
+        "detector_status": "public",
+        "detector_internal": null,
+        "archive": null
+      }
+    },
+    {
+      "canonical": "Cup & Handle",
+      "family": "Bases & Breakouts",
+      "unit_id": "SET.09",
+      "skill_id": "setup.family1.cup_handle",
+      "lesson_key": "uct-method:cup-handle-the-multi-week-base-and-the-handle-s-low-volume-shakeout",
+      "supply": "none",
+      "aliases": {
+        "setupGroups": null,
+        "templates": "Cup with Handle",
+        "rubric": "cup_handle_uct",
+        "detector": "cup_handle_uct",
+        "detector_status": "public",
+        "detector_internal": null,
+        "archive": null
+      }
+    },
+    {
+      "canonical": "IPO Base",
+      "family": "Bases & Breakouts",
+      "unit_id": "SET.10",
+      "skill_id": "setup.family1.ipo_base",
+      "lesson_key": "uct-method:ipo-base-a-new-issue-s-first-consolidation-short-shallow-explosive",
+      "supply": "none",
+      "aliases": {
+        "setupGroups": "IPO Base",
+        "templates": null,
+        "rubric": null,
+        "detector": null,
+        "detector_status": null,
+        "detector_internal": null,
+        "archive": null
+      }
+    },
+    {
+      "canonical": "Launchpad",
+      "family": "Bases & Breakouts",
+      "unit_id": "SET.11",
+      "skill_id": "setup.family1.launchpad",
+      "lesson_key": "uct-method:launchpad-consolidating-on-top-of-the-stacked-averages-then-launching",
+      "supply": "medium",
+      "aliases": {
+        "setupGroups": "Launchpad",
+        "templates": null,
+        "rubric": null,
+        "detector": "uct_launch_pad",
+        "detector_status": "internal",
+        "detector_internal": null,
+        "archive": "launch_pad"
+      }
+    },
+    {
+      "canonical": "VCP",
+      "family": "Bases & Breakouts",
+      "unit_id": "SET.12",
+      "skill_id": "setup.family1.vcp",
+      "lesson_key": null,
+      "supply": "good",
+      "aliases": {
+        "setupGroups": "VCP",
+        "templates": "VCP",
+        "rubric": "vcp",
+        "detector": "vcp",
+        "detector_status": "public",
+        "detector_internal": null,
+        "archive": "vcp"
+      }
+    },
+    {
+      "canonical": "High Tight Flag",
+      "family": "Bases & Breakouts",
+      "unit_id": "SET.13",
+      "skill_id": "setup.family1.high_tight_flag",
+      "lesson_key": null,
+      "supply": "good",
+      "aliases": {
+        "setupGroups": "High Tight Flag (Powerplay)",
+        "templates": "Tight Flag; HTF",
+        "rubric": "high_tight_flag",
+        "detector": "high_tight_flag",
+        "detector_status": "public",
+        "detector_internal": null,
+        "archive": "flag_htf"
+      }
+    },
+    {
+      "canonical": "20 EMA Pullback",
+      "family": "Momentum & Trend",
+      "unit_id": "SET.14",
+      "skill_id": "setup.family2.ema20_pullback",
+      "lesson_key": "uct-method:flagship-20-ema-pullback-qualify-the-touch-buy-the-9-ema-remount",
+      "supply": "medium",
+      "aliases": {
+        "setupGroups": null,
+        "templates": "20EMA Hold",
+        "rubric": "pullback_to_21ema",
+        "detector": "pullback_to_21ema",
+        "detector_status": "public",
+        "detector_internal": "uct_pullback_ma_v5",
+        "archive": "pullback_ma"
+      }
+    },
+    {
+      "canonical": "EMA Crossback",
+      "family": "Momentum & Trend",
+      "unit_id": "SET.15",
+      "skill_id": "setup.family2.ema_crossback",
+      "lesson_key": "uct-method:ema-crossback-the-re-entry-after-the-extension",
+      "supply": "thin",
+      "aliases": {
+        "setupGroups": null,
+        "templates": "EMA Crossback",
+        "rubric": null,
+        "detector": null,
+        "detector_status": null,
+        "detector_internal": null,
+        "archive": null
+      }
+    },
+    {
+      "canonical": "Wedge Pop",
+      "family": "Momentum & Trend",
+      "unit_id": "SET.16",
+      "skill_id": "setup.family2.wedge_pop",
+      "lesson_key": "uct-method:wedge-pop-wedge-drop-one-coil-two-resolutions",
+      "supply": "thin",
+      "aliases": {
+        "setupGroups": "Wedge Pop",
+        "templates": "Wedge Pop",
+        "rubric": null,
+        "detector": null,
+        "detector_status": null,
+        "detector_internal": null,
+        "archive": "wedge_pop"
+      }
+    },
+    {
+      "canonical": "Wedge Drop",
+      "family": "Momentum & Trend",
+      "unit_id": "SET.17",
+      "skill_id": "setup.family2.wedge_drop",
+      "lesson_key": "uct-method:wedge-pop-wedge-drop-one-coil-two-resolutions",
+      "supply": "thin",
+      "aliases": {
+        "setupGroups": "Wedge Drop",
+        "templates": null,
+        "rubric": null,
+        "detector": null,
+        "detector_status": null,
+        "detector_internal": null,
+        "archive": null
+      }
+    },
+    {
+      "canonical": "Episodic Pivot",
+      "family": "Gaps & Catalysts",
+      "unit_id": "SET.18",
+      "skill_id": "setup.family3.episodic_pivot",
+      "lesson_key": "uct-method:flagship-episodic-pivot-day-one-of-a-new-trend",
+      "supply": "good",
+      "aliases": {
+        "setupGroups": "Episodic Pivot",
+        "templates": "EP; Gap-and-Go",
+        "rubric": "episodic_pivot",
+        "detector": "episodic_pivot",
+        "detector_status": "public",
+        "detector_internal": "uct_episodic_pivot_v2",
+        "archive": "ep"
+      }
+    },
+    {
+      "canonical": "Power Earnings Gap",
+      "family": "Gaps & Catalysts",
+      "unit_id": "SET.19",
+      "skill_id": "setup.family3.power_earnings_gap",
+      "lesson_key": "uct-method:power-earnings-gap-institutions-repricing-in-real-time",
+      "supply": "good",
+      "aliases": {
+        "setupGroups": "Power Earnings Gap",
+        "templates": "PEG",
+        "rubric": "power_earnings_gap",
+        "detector": "power_earnings_gap",
+        "detector_status": "public",
+        "detector_internal": null,
+        "archive": "peg_flag"
+      }
+    },
+    {
+      "canonical": "News/Earnings Gapper",
+      "family": "Gaps & Catalysts",
+      "unit_id": "SET.20",
+      "skill_id": "setup.family3.news_gapper",
+      "lesson_key": "uct-method:news-earnings-gapper-trade-the-first-pullback-and-reclaim-not-the-open",
+      "supply": "none",
+      "aliases": {
+        "setupGroups": "News Gappers",
+        "templates": "Gap-and-Go; BGU",
+        "rubric": null,
+        "detector": null,
+        "detector_status": null,
+        "detector_internal": null,
+        "archive": null
+      }
+    },
+    {
+      "canonical": "High Volume Edge",
+      "family": "Gaps & Catalysts",
+      "unit_id": "SET.21",
+      "skill_id": "setup.family3.hve",
+      "lesson_key": "uct-method:the-level-the-tape-remembers-high-volume-edge-gap-support",
+      "supply": "medium",
+      "aliases": {
+        "setupGroups": "HVC",
+        "templates": "HVC",
+        "rubric": null,
+        "detector": "uct_hve",
+        "detector_status": "public",
+        "detector_internal": null,
+        "archive": null
+      }
+    },
+    {
+      "canonical": "Gap Support",
+      "family": "Gaps & Catalysts",
+      "unit_id": "SET.22",
+      "skill_id": "setup.family3.gap_support",
+      "lesson_key": "uct-method:the-level-the-tape-remembers-high-volume-edge-gap-support",
+      "supply": "medium",
+      "aliases": {
+        "setupGroups": null,
+        "templates": "Open Bull Gap Support",
+        "rubric": null,
+        "detector": "uct_gap_support",
+        "detector_status": "internal",
+        "detector_internal": null,
+        "archive": "gap_support"
+      }
+    },
+    {
+      "canonical": "Kicker Candle",
+      "family": "Gaps & Catalysts",
+      "unit_id": "SET.23",
+      "skill_id": "setup.family3.kicker",
+      "lesson_key": "uct-method:kicker-candle-the-trap-that-closes-above-yesterday-s-high",
+      "supply": "medium",
+      "aliases": {
+        "setupGroups": "Kicker Candle",
+        "templates": "Kicker Candle",
+        "rubric": null,
+        "detector": "uct_kicker",
+        "detector_status": "public",
+        "detector_internal": null,
+        "archive": "kicker"
+      }
+    },
+    {
+      "canonical": "2B Reversal",
+      "family": "Reversals & Reclaims",
+      "unit_id": "SET.24",
+      "skill_id": "setup.family4.two_b",
+      "lesson_key": "uct-method:2b-reversal-and-oops-its-gap-open-variant",
+      "supply": "none",
+      "aliases": {
+        "setupGroups": "2B Reversal",
+        "templates": null,
+        "rubric": null,
+        "detector": null,
+        "detector_status": null,
+        "detector_internal": null,
+        "archive": null
+      }
+    },
+    {
+      "canonical": "Oops Reversal",
+      "family": "Reversals & Reclaims",
+      "unit_id": "SET.25",
+      "skill_id": "setup.family4.oops",
+      "lesson_key": "uct-method:2b-reversal-and-oops-its-gap-open-variant",
+      "supply": "medium",
+      "aliases": {
+        "setupGroups": "Oops Reversal",
+        "templates": "Oops Reversal",
+        "rubric": null,
+        "detector": "uct_oops_reversal",
+        "detector_status": "public",
+        "detector_internal": null,
+        "archive": "oops"
+      }
+    },
+    {
+      "canonical": "U&R (Undercut & Rally)",
+      "family": "Reversals & Reclaims",
+      "unit_id": "SET.26",
+      "skill_id": "setup.family4.u_and_r",
+      "lesson_key": "uct-method:flagship-u-r-undercut-rally-the-shakeout-you-buy",
+      "supply": "good",
+      "aliases": {
+        "setupGroups": "Classic U&R",
+        "templates": "U&R",
+        "rubric": "u_and_r",
+        "detector": "u_and_r",
+        "detector_status": "public",
+        "detector_internal": "uct_undercut_reclaim",
+        "archive": "undercut_reclaim"
+      }
+    },
+    {
+      "canonical": "Slingshot",
+      "family": "Reversals & Reclaims",
+      "unit_id": "SET.27",
+      "skill_id": "setup.family4.slingshot",
+      "lesson_key": "uct-method:slingshot-recapture-the-4-ema-of-the-highs-buy-momentum-resuming-not-the-low",
+      "supply": "medium",
+      "aliases": {
+        "setupGroups": "Slingshot",
+        "templates": null,
+        "rubric": null,
+        "detector": "uct_slingshot",
+        "detector_status": "public",
+        "detector_internal": null,
+        "archive": "slingshot"
+      }
+    },
+    {
+      "canonical": "Remount",
+      "family": "Reversals & Reclaims",
+      "unit_id": "SET.28",
+      "skill_id": "setup.family4.remount",
+      "lesson_key": "uct-method:remount-shake-out-below-the-line-retake-it-with-authority",
+      "supply": "medium",
+      "aliases": {
+        "setupGroups": "Remount",
+        "templates": "Remount",
+        "rubric": "remount",
+        "detector": "remount",
+        "detector_status": "public",
+        "detector_internal": null,
+        "archive": "ma_reclaim"
+      }
+    },
+    {
+      "canonical": "Failed H&S / Rounded Top",
+      "family": "Reversals & Reclaims",
+      "unit_id": "SET.29",
+      "skill_id": "setup.family4.failed_hs",
+      "lesson_key": "uct-method:failed-h-s-rounded-top-when-the-breakdown-everyone-sees-never-comes",
+      "supply": "thin",
+      "aliases": {
+        "setupGroups": "Failed H&S/Rounded Top",
+        "templates": null,
+        "rubric": null,
+        "detector": "head_shoulders",
+        "detector_status": "public",
+        "detector_internal": null,
+        "archive": null
+      }
+    },
+    {
+      "canonical": "Parabolic Long",
+      "family": "Reversals & Reclaims",
+      "unit_id": "SET.30",
+      "skill_id": "setup.family4.parabolic_long",
+      "lesson_key": "uct-method:parabolic-long-riding-the-vertical-bar-by-bar",
+      "supply": "none",
+      "aliases": {
+        "setupGroups": "Parabolic Long",
+        "templates": "Late-Stage Climax (exit side)",
+        "rubric": null,
+        "detector": null,
+        "detector_status": null,
+        "detector_internal": null,
+        "archive": null
+      }
+    },
+    {
+      "canonical": "Parabolic Short",
+      "family": "Reversals & Reclaims",
+      "unit_id": "SET.31",
+      "skill_id": "setup.family4.parabolic_short",
+      "lesson_key": "uct-method:parabolic-short-shorting-the-crack-of-a-3-5-day-blow-off",
+      "supply": "medium",
+      "aliases": {
+        "setupGroups": "Parabolic Short",
+        "templates": "Parabolic Short",
+        "rubric": null,
+        "detector": "parabolic_short",
+        "detector_status": "public",
+        "detector_internal": null,
+        "archive": null
+      }
+    },
+    {
+      "canonical": "ORB (Opening Range Break)",
+      "family": "Intraday",
+      "unit_id": "SET.32",
+      "skill_id": "setup.intraday.orb",
+      "lesson_key": "uct-method:reading-the-open-orb-and-the-30-minute-pivot-two-range-break-timers",
+      "supply": "thin",
+      "aliases": {
+        "setupGroups": "Opening Range Breakout",
+        "templates": null,
+        "rubric": null,
+        "detector": "opening_range_breakout",
+        "detector_status": "public",
+        "detector_internal": null,
+        "archive": null
+      }
+    },
+    {
+      "canonical": "30-Minute Pivot",
+      "family": "Intraday",
+      "unit_id": "SET.33",
+      "skill_id": "setup.intraday.thirty_min_pivot",
+      "lesson_key": "uct-method:reading-the-open-orb-and-the-30-minute-pivot-two-range-break-timers",
+      "supply": "none",
+      "aliases": {
+        "setupGroups": "30min Pivot",
+        "templates": null,
+        "rubric": null,
+        "detector": null,
+        "detector_status": null,
+        "detector_internal": null,
+        "archive": null
+      }
+    },
+    {
+      "canonical": "Go Signal",
+      "family": "Intraday",
+      "unit_id": "SET.34",
+      "skill_id": "setup.intraday.go_signal",
+      "lesson_key": "uct-method:go-signal-the-catalyst-gap-that-digests-into-the-9-ema-then-engulfs",
+      "supply": "medium",
+      "aliases": {
+        "setupGroups": "Go Signal",
+        "templates": "Go Signal",
+        "rubric": null,
+        "detector": "uct_go_signal",
+        "detector_status": "internal",
+        "detector_internal": null,
+        "archive": "go_signal"
+      }
+    }
+  ],
+  "lesson_links": [
+    {
+      "lesson_key": "uct-method:the-loop-one-real-trade-through-regime-scan-setup-size-manage-review",
+      "unit_id": "REG.01"
+    },
+    {
+      "lesson_key": "uct-method:casino-math-why-a-45-win-rate-at-2r-prints-money",
+      "unit_id": "SIZ.01"
+    },
+    {
+      "lesson_key": "uct-method:early-win-read-today-s-uct-exposure-rating-and-write-your-exposure-plan",
+      "unit_id": "REG.02"
+    },
+    {
+      "lesson_key": "uct-method:early-win-read-today-s-uct-exposure-rating-and-write-your-exposure-plan",
+      "unit_id": "REG.07"
+    },
+    {
+      "lesson_key": "uct-method:where-breakeven-traders-bleed-the-five-leaks-and-your-placement-diagnostic",
+      "unit_id": "REV.01"
+    },
+    {
+      "lesson_key": "uct-method:one-bar-one-auction-candles-close-position-and-the-volume-witness",
+      "unit_id": "SCN.04"
+    },
+    {
+      "lesson_key": "uct-method:one-bar-one-auction-candles-close-position-and-the-volume-witness",
+      "unit_id": "SET.01"
+    },
+    {
+      "lesson_key": "uct-method:the-moving-average-stack-9-ema-20-ema-50-sma-200-sma-what-each-line-is-for",
+      "unit_id": "SET.02"
+    },
+    {
+      "lesson_key": "uct-method:three-lines-that-matter-trend-support-resistance-and-none-that-don-t",
+      "unit_id": "SET.03"
+    },
+    {
+      "lesson_key": "uct-method:the-weekly-decides-the-daily-times-multi-timeframe-alignment",
+      "unit_id": "SET.04"
+    },
+    {
+      "lesson_key": "uct-method:the-winners-gallery-25-monster-charts-no-rules-yet",
+      "unit_id": "SET.05"
+    },
+    {
+      "lesson_key": "uct-method:the-four-stages-of-any-stock-one-life-cycle-on-one-chart",
+      "unit_id": "REG.03"
+    },
+    {
+      "lesson_key": "uct-method:the-stage-2-gate-eight-yes-no-questions-fail-one-skip-the-stock",
+      "unit_id": "REG.04"
+    },
+    {
+      "lesson_key": "uct-method:same-lens-bigger-chart-staging-the-indexes",
+      "unit_id": "REG.05"
+    },
+    {
+      "lesson_key": "uct-method:distribution-days-and-follow-through-days-the-counts-that-call-tops-and-bottoms",
+      "unit_id": "REG.06"
+    },
+    {
+      "lesson_key": "uct-method:distribution-days-and-follow-through-days-the-counts-that-call-tops-and-bottoms",
+      "unit_id": "REG.08"
+    },
+    {
+      "lesson_key": "uct-method:inside-the-uct-regime-dial-what-feeds-the-0-150-exposure-rating-and-what-flips-it",
+      "unit_id": "REG.02"
+    },
+    {
+      "lesson_key": "uct-method:the-permission-system-what-green-yellow-and-orange-each-let-you-do-plus-12-regime-turns",
+      "unit_id": "REG.07"
+    },
+    {
+      "lesson_key": "uct-method:the-permission-system-what-green-yellow-and-orange-each-let-you-do-plus-12-regime-turns",
+      "unit_id": "REG.08"
+    },
+    {
+      "lesson_key": "uct-method:cash-is-a-position-the-off-season-playbook",
+      "unit_id": "REG.09"
+    },
+    {
+      "lesson_key": "uct-method:the-market-s-x-ray-percent-of-stocks-above-the-50-day-and-200-day",
+      "unit_id": "SCN.01"
+    },
+    {
+      "lesson_key": "uct-method:the-leading-edge-net-new-highs-lows-and-the-4-up-down-day-count",
+      "unit_id": "SCN.02"
+    },
+    {
+      "lesson_key": "uct-method:the-rs-line-divide-by-spy-spot-leadership-before-price-confirms",
+      "unit_id": "SCN.03"
+    },
+    {
+      "lesson_key": "uct-method:volume-as-the-witness-confirmation-as-its-own-verdict",
+      "unit_id": "SCN.04"
+    },
+    {
+      "lesson_key": "uct-method:volume-as-the-witness-confirmation-as-its-own-verdict",
+      "unit_id": "SCN.05"
+    },
+    {
+      "lesson_key": "uct-method:volume-as-the-witness-confirmation-as-its-own-verdict",
+      "unit_id": "SCN.06"
+    },
+    {
+      "lesson_key": "uct-method:group-before-stock-rank-the-themes-then-build-the-five-number-morning-scorecard",
+      "unit_id": "SCN.07"
+    },
+    {
+      "lesson_key": "uct-method:group-before-stock-rank-the-themes-then-build-the-five-number-morning-scorecard",
+      "unit_id": "SCN.08"
+    },
+    {
+      "lesson_key": "uct-method:the-2-ceiling-and-the-arithmetic-of-ruin",
+      "unit_id": "SIZ.02"
+    },
+    {
+      "lesson_key": "uct-method:the-formula-account-risk-position-size-stop-distance-worked-five-times",
+      "unit_id": "SIZ.03"
+    },
+    {
+      "lesson_key": "uct-method:checkpoint-the-sizing-gate-ten-problems-100-to-pass",
+      "unit_id": "SIZ.04"
+    },
+    {
+      "lesson_key": "uct-method:where-the-stop-actually-goes-structure-percent-atr-invalidation-not-comfort",
+      "unit_id": "SET.39"
+    },
+    {
+      "lesson_key": "uct-method:where-the-stop-actually-goes-structure-percent-atr-invalidation-not-comfort",
+      "unit_id": "SIZ.05"
+    },
+    {
+      "lesson_key": "uct-method:only-take-trades-that-pay-the-2r-minimum-expectancy-and-the-one-commandment",
+      "unit_id": "SIZ.01"
+    },
+    {
+      "lesson_key": "uct-method:only-take-trades-that-pay-the-2r-minimum-expectancy-and-the-one-commandment",
+      "unit_id": "SIZ.06"
+    },
+    {
+      "lesson_key": "uct-method:running-this-system-under-25k-pdt-cash-accounts-and-settlement",
+      "unit_id": "SIZ.07"
+    },
+    {
+      "lesson_key": "uct-method:the-nightly-scan-3-700-tickers-to-10-names-in-20-minutes",
+      "unit_id": "SCN.09"
+    },
+    {
+      "lesson_key": "uct-method:watchlist-architecture-a-list-b-list-and-the-weekend-deep-scan",
+      "unit_id": "SCN.10"
+    },
+    {
+      "lesson_key": "uct-method:from-alert-to-fill-order-types-buy-stops-and-slippage",
+      "unit_id": "SCN.11"
+    },
+    {
+      "lesson_key": "uct-method:the-30-minute-premarket-routine",
+      "unit_id": "SCN.08"
+    },
+    {
+      "lesson_key": "uct-method:the-30-minute-premarket-routine",
+      "unit_id": "SCN.12"
+    },
+    {
+      "lesson_key": "uct-method:how-to-learn-a-setup-the-five-field-card-setup-functions-and-the-four-entry-triggers",
+      "unit_id": "SET.06"
+    },
+    {
+      "lesson_key": "uct-method:field-weeks-how-you-ll-trade-this-course-pilot-size-paper-and-the-family-assignments",
+      "unit_id": "REV.02"
+    },
+    {
+      "lesson_key": "uct-method:flagship-flat-base-breakout-contractions-dry-up-pivot-and-the-tick-exact-buy",
+      "unit_id": "SET.07"
+    },
+    {
+      "lesson_key": "uct-method:flagship-flat-base-breakout-contractions-dry-up-pivot-and-the-tick-exact-buy",
+      "unit_id": "SET.39"
+    },
+    {
+      "lesson_key": "uct-method:bull-flag-the-flagpole-the-quiet-drift-and-the-trendline-break",
+      "unit_id": "SET.08"
+    },
+    {
+      "lesson_key": "uct-method:cup-handle-the-multi-week-base-and-the-handle-s-low-volume-shakeout",
+      "unit_id": "SET.09"
+    },
+    {
+      "lesson_key": "uct-method:ipo-base-a-new-issue-s-first-consolidation-short-shallow-explosive",
+      "unit_id": "SET.10"
+    },
+    {
+      "lesson_key": "uct-method:launchpad-consolidating-on-top-of-the-stacked-averages-then-launching",
+      "unit_id": "SET.11"
+    },
+    {
+      "lesson_key": "uct-method:base-failure-modes-20-replay-reps",
+      "unit_id": "SET.35"
+    },
+    {
+      "lesson_key": "uct-method:flagship-20-ema-pullback-qualify-the-touch-buy-the-9-ema-remount",
+      "unit_id": "SET.14"
+    },
+    {
+      "lesson_key": "uct-method:ema-crossback-the-re-entry-after-the-extension",
+      "unit_id": "SET.15"
+    },
+    {
+      "lesson_key": "uct-method:wedge-pop-wedge-drop-one-coil-two-resolutions",
+      "unit_id": "SET.16"
+    },
+    {
+      "lesson_key": "uct-method:wedge-pop-wedge-drop-one-coil-two-resolutions",
+      "unit_id": "SET.17"
+    },
+    {
+      "lesson_key": "uct-method:adding-to-winners-20-family-reps",
+      "unit_id": "MAN.07"
+    },
+    {
+      "lesson_key": "uct-method:flagship-episodic-pivot-day-one-of-a-new-trend",
+      "unit_id": "SET.18"
+    },
+    {
+      "lesson_key": "uct-method:power-earnings-gap-institutions-repricing-in-real-time",
+      "unit_id": "SET.19"
+    },
+    {
+      "lesson_key": "uct-method:news-earnings-gapper-trade-the-first-pullback-and-reclaim-not-the-open",
+      "unit_id": "SET.20"
+    },
+    {
+      "lesson_key": "uct-method:the-level-the-tape-remembers-high-volume-edge-gap-support",
+      "unit_id": "SET.21"
+    },
+    {
+      "lesson_key": "uct-method:the-level-the-tape-remembers-high-volume-edge-gap-support",
+      "unit_id": "SET.22"
+    },
+    {
+      "lesson_key": "uct-method:kicker-candle-the-trap-that-closes-above-yesterday-s-high",
+      "unit_id": "SET.23"
+    },
+    {
+      "lesson_key": "uct-method:catalyst-taxonomy-the-earnings-season-game-plan-15-gap-reps",
+      "unit_id": "SET.36"
+    },
+    {
+      "lesson_key": "uct-method:flagship-u-r-undercut-rally-the-shakeout-you-buy",
+      "unit_id": "SET.26"
+    },
+    {
+      "lesson_key": "uct-method:2b-reversal-and-oops-its-gap-open-variant",
+      "unit_id": "SET.24"
+    },
+    {
+      "lesson_key": "uct-method:2b-reversal-and-oops-its-gap-open-variant",
+      "unit_id": "SET.25"
+    },
+    {
+      "lesson_key": "uct-method:remount-shake-out-below-the-line-retake-it-with-authority",
+      "unit_id": "SET.28"
+    },
+    {
+      "lesson_key": "uct-method:slingshot-recapture-the-4-ema-of-the-highs-buy-momentum-resuming-not-the-low",
+      "unit_id": "SET.27"
+    },
+    {
+      "lesson_key": "uct-method:failed-h-s-rounded-top-when-the-breakdown-everyone-sees-never-comes",
+      "unit_id": "SET.29"
+    },
+    {
+      "lesson_key": "uct-method:parabolic-long-riding-the-vertical-bar-by-bar",
+      "unit_id": "SCN.06"
+    },
+    {
+      "lesson_key": "uct-method:parabolic-long-riding-the-vertical-bar-by-bar",
+      "unit_id": "SET.30"
+    },
+    {
+      "lesson_key": "uct-method:parabolic-short-shorting-the-crack-of-a-3-5-day-blow-off",
+      "unit_id": "SET.31"
+    },
+    {
+      "lesson_key": "uct-method:four-family-placement-drill-20-mixed-charts",
+      "unit_id": "SET.37"
+    },
+    {
+      "lesson_key": "uct-method:reading-the-open-orb-and-the-30-minute-pivot-two-range-break-timers",
+      "unit_id": "SET.32"
+    },
+    {
+      "lesson_key": "uct-method:reading-the-open-orb-and-the-30-minute-pivot-two-range-break-timers",
+      "unit_id": "SET.33"
+    },
+    {
+      "lesson_key": "uct-method:go-signal-the-catalyst-gap-that-digests-into-the-9-ema-then-engulfs",
+      "unit_id": "SET.34"
+    },
+    {
+      "lesson_key": "uct-method:selling-because-you-were-wrong-the-stop-is-an-appointment-not-a-debate",
+      "unit_id": "MAN.01"
+    },
+    {
+      "lesson_key": "uct-method:selling-because-you-were-right-partials-into-strength-trailing-into-weakness",
+      "unit_id": "MAN.02"
+    },
+    {
+      "lesson_key": "uct-method:the-rules-between-entry-and-exit-breakeven-rule-trails-by-timeframe-time-stops",
+      "unit_id": "MAN.03"
+    },
+    {
+      "lesson_key": "uct-method:the-rules-between-entry-and-exit-breakeven-rule-trails-by-timeframe-time-stops",
+      "unit_id": "MAN.04"
+    },
+    {
+      "lesson_key": "uct-method:the-earnings-decision-hold-through-trim-or-step-aside",
+      "unit_id": "MAN.05"
+    },
+    {
+      "lesson_key": "uct-method:two-complete-trades-candle-by-candle-plus-the-post-exit-protocol",
+      "unit_id": "MAN.06"
+    },
+    {
+      "lesson_key": "uct-method:two-complete-trades-candle-by-candle-plus-the-post-exit-protocol",
+      "unit_id": "REV.06"
+    },
+    {
+      "lesson_key": "uct-method:grading-the-setup-a-a-b-c-the-grade-that-keys-the-table",
+      "unit_id": "SET.38"
+    },
+    {
+      "lesson_key": "uct-method:the-table-verbatim-green-a-20-25-yellow-a-15-orange-a-8-b-in-orange-skip",
+      "unit_id": "SIZ.08"
+    },
+    {
+      "lesson_key": "uct-method:portfolio-heat-all-open-risk-as-one-number-capped-at-10",
+      "unit_id": "SIZ.09"
+    },
+    {
+      "lesson_key": "uct-method:portfolio-heat-all-open-risk-as-one-number-capped-at-10",
+      "unit_id": "SIZ.10"
+    },
+    {
+      "lesson_key": "uct-method:progressive-exposure-and-the-drawdown-protocol-pilot-half-full-overweight-de-risk-at-5-and-10",
+      "unit_id": "REG.10"
+    },
+    {
+      "lesson_key": "uct-method:progressive-exposure-and-the-drawdown-protocol-pilot-half-full-overweight-de-risk-at-5-and-10",
+      "unit_id": "SIZ.11"
+    },
+    {
+      "lesson_key": "uct-method:map-your-pattern-first-the-trader-s-self-diagnostic",
+      "unit_id": "REV.03"
+    },
+    {
+      "lesson_key": "uct-method:fomo-and-the-fear-family-signs-subtypes-corrections",
+      "unit_id": "REV.04"
+    },
+    {
+      "lesson_key": "uct-method:tilt-and-revenge-the-circuit-breaker-and-the-mental-hand-history",
+      "unit_id": "REV.05"
+    },
+    {
+      "lesson_key": "uct-method:the-fixed-field-journal-seven-fields-three-grades-no-free-form",
+      "unit_id": "REV.06"
+    },
+    {
+      "lesson_key": "uct-method:the-review-cadence-daily-tag-weekly-stats-monthly-audit-narrated-on-a-real-month",
+      "unit_id": "REV.07"
+    },
+    {
+      "lesson_key": "uct-method:the-review-cadence-daily-tag-weekly-stats-monthly-audit-narrated-on-a-real-month",
+      "unit_id": "REV.08"
+    },
+    {
+      "lesson_key": "uct-method:reading-the-flow-tape-and-the-veto-hierarchy-confirmation-never-signal",
+      "unit_id": "OVL.01"
+    },
+    {
+      "lesson_key": "uct-method:expressing-a-swing-with-calls-strike-expiry-delta-same-2-math",
+      "unit_id": "OVL.02"
+    },
+    {
+      "lesson_key": "uct-method:dealer-positioning-and-gamma-pins-slingshots-and-the-flow-ep-combination",
+      "unit_id": "OVL.03"
+    },
+    {
+      "lesson_key": "uct-method:choose-your-two-match-the-families-to-your-drill-data-and-sign-the-specialization-contract",
+      "unit_id": "REV.09"
+    },
+    {
+      "lesson_key": "uct-method:write-your-playbook-the-five-field-entries-for-your-two-setups",
+      "unit_id": "REV.10"
+    },
+    {
+      "lesson_key": "uct-method:the-trade-plan-defense-one-full-plan-through-all-six-stations-stress-tested",
+      "unit_id": "REV.10"
+    },
+    {
+      "lesson_key": "uct-method:the-trade-plan-defense-one-full-plan-through-all-six-stations-stress-tested",
+      "unit_id": "REV.11"
+    },
+    {
+      "lesson_key": "uct-method:flagship-flat-base-breakout-contractions-dry-up-pivot-and-the-tick-exact-buy",
+      "unit_id": "SET.12",
+      "door_only": true
+    },
+    {
+      "lesson_key": "uct-method:bull-flag-the-flagpole-the-quiet-drift-and-the-trendline-break",
+      "unit_id": "SET.13",
+      "door_only": true
+    },
+    {
+      "lesson_key": "uct-method:watchlist-architecture-a-list-b-list-and-the-weekend-deep-scan",
+      "unit_id": "CAL.01",
+      "door_only": true
+    },
+    {
+      "lesson_key": "uct-method:grading-the-setup-a-a-b-c-the-grade-that-keys-the-table",
+      "unit_id": "CAL.02",
+      "door_only": true
+    },
+    {
+      "lesson_key": "uct-method:the-review-cadence-daily-tag-weekly-stats-monthly-audit-narrated-on-a-real-month",
+      "unit_id": "CAL.03",
+      "door_only": true
+    }
+  ],
+  "uncovered_lessons": [],
+  "partial_lessons": [
+    {
+      "lesson_key": "uct-method:the-winners-gallery-25-monster-charts-no-rules-yet",
+      "unit_id": "SET.05",
+      "note": "The unit drills the look; the 25-chart gallery itself is a Model Book data job."
+    },
+    {
+      "lesson_key": "uct-method:running-this-system-under-25k-pdt-cash-accounts-and-settlement",
+      "unit_id": "SIZ.07",
+      "note": "PDT and settlement are taught in F9; the Method unit drills only how the doctrine consumes day trades."
+    },
+    {
+      "lesson_key": "uct-method:from-alert-to-fill-order-types-buy-stops-and-slippage",
+      "unit_id": "SCN.11",
+      "note": "Order types are taught in F10; the Method unit drills only the buy-stop workflow and slippage in R."
+    },
+    {
+      "lesson_key": "uct-method:map-your-pattern-first-the-trader-s-self-diagnostic",
+      "unit_id": "REV.03",
+      "note": "The self-diagnostic is personal; the unit drills the three families, not the member's own map."
+    },
+    {
+      "lesson_key": "uct-method:write-your-playbook-the-five-field-entries-for-your-two-setups",
+      "unit_id": "REV.10",
+      "note": "The playbook is authored in the Notebook; Study rehearses the plan, it does not store the playbook."
+    },
+    {
+      "lesson_key": "uct-method:the-trade-plan-defense-one-full-plan-through-all-six-stations-stress-tested",
+      "unit_id": "REV.11",
+      "note": "The defense is graded by the owner outside Study; the unit rehearses the rubric."
+    }
+  ]
+}
