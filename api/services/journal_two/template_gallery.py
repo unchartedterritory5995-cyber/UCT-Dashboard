@@ -391,6 +391,16 @@ def preview_lines(body: Any, limit: int = PREVIEW_LINES) -> list[dict]:
     return lines
 
 
+def _revision_title(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    try:
+        title = json.loads(raw).get("title")
+    except (TypeError, ValueError, AttributeError):
+        return None
+    return title if isinstance(title, str) else None
+
+
 def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict[str, Any]:
     mine = bool(viewer_id) and row["user_id"] == viewer_id
     keys = row.keys()
@@ -439,6 +449,9 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
         out["reviewNote"] = row["review_note"] or ""
         out["createdAt"] = row["created_at"]
         out["hasRevision"] = bool(row["pending_at"]) if "pending_at" in keys else False
+        # The held revision's title, for the reviewer. `pending_json` is NOT in the list's columns
+        # (`_SELECT_LIST`); only the full row (`_SELECT`: the queue's pending rows, one template) has it.
+        out["revisionTitle"] = _revision_title(row["pending_json"]) if "pending_json" in keys else None
     if is_admin:
         out["openReports"] = int(row["open_reports"] or 0) if "open_reports" in row.keys() else 0
     return out
@@ -539,8 +552,14 @@ def _row(conn: sqlite3.Connection, gallery_id: str) -> sqlite3.Row | None:
     return conn.execute(f"{_SELECT} WHERE g.id = ?", (gallery_id,)).fetchone()
 
 
+def _library_hides(row: sqlite3.Row) -> bool:
+    """R-T3-w1 (R-P3-10: every style route 404s while the library is off). A style row reads exactly
+    like one that does not exist: for the author and an admin as much as for a browsing member."""
+    return row["item_type"] == "style" and not library_enabled()
+
+
 def _can_see(row: sqlite3.Row | None, viewer_id: str, is_admin: bool) -> bool:
-    if row is None:
+    if row is None or _library_hides(row):
         return False
     if is_admin or (viewer_id and row["user_id"] == viewer_id):
         return True
@@ -625,6 +644,132 @@ def publish(user_id: str, template_id: Any, *, title: Any, description: Any, cat
             )
         conn.commit()
         return _summary(_row(conn, gid), viewer_id=user_id, is_admin=False)
+    finally:
+        if owned:
+            conn.close()
+
+
+CUSTOM_KIND_SENTENCE = "Only styles for a built-in kind of note can be shared yet."
+
+
+def style_payload(user_id: str, style_id: Any, conn: sqlite3.Connection) -> dict | None:
+    """The portable copy of one of the member's own styles, or None when it is not theirs.
+
+    ⛔ A built-in kind only (R-P3-9). The outline is inlined (from the style, else its
+    template) and reduced in gallery mode. Blocks travel verbatim: their settings are enum
+    values the server's own catalogue validated on save. Only BUILT-IN user-set property
+    defaults travel; the member's own are counted in `droppedProperties` and left out.
+
+    ⛔ R-T1a, two traps in the style layer this must not inherit. (1) `BUILTIN_USER_SET_IDS`
+    includes `builtin:note_kind`, which `_clean_properties` REFUSES on save (a style's kind is its
+    `kindId`), so it is left out of the defaults, and not counted as a drop. (2) `_clean_blocks`
+    keeps an UNKNOWN block id verbatim (a newer version's block), so only ids in `KNOWN_BLOCKS`
+    travel: the gallery never publishes a block this server cannot place."""
+    from api.services.journal_two import journal_styles as js
+    from api.services.journal_two import note_kinds as nk
+    from api.services.journal_two import note_properties as np
+
+    if not isinstance(style_id, str) or style_id.startswith(js.BUILTIN_PREFIX):
+        return None
+    style = js.get_style(user_id, style_id, conn, full=True)
+    if style is None:
+        return None
+    if style["kindId"] not in nk.BUILTIN_KIND_IDS:
+        raise GalleryError(CUSTOM_KIND_SENTENCE)
+    outline = style.get("outlineBodyJson")
+    if not outline and style.get("outlineTemplateId"):
+        row = conn.execute("SELECT body_json FROM j2_note_templates WHERE id = ? AND user_id = ?",
+                           (style["outlineTemplateId"], user_id)).fetchone()
+        try:
+            outline = json.loads(row["body_json"]) if row else None
+        except (TypeError, ValueError):
+            outline = None
+    props, dropped = {}, 0
+    for pid, value in (style.get("properties") or {}).items():
+        if pid == nk.NOTE_KIND_PROPERTY:
+            continue
+        if np.is_builtin_property_id(pid) and pid in np.BUILTIN_USER_SET_IDS:
+            props[pid] = value
+        else:
+            dropped += 1
+    return {
+        "kindId": style["kindId"],
+        "outlineBodyJson": sanitize_body(outline, user_id) if outline else None,
+        "blocks": [b for b in (style.get("blocks") or [])
+                   if isinstance(b, dict) and b.get("block") in js.KNOWN_BLOCKS],
+        "properties": props,
+        "droppedProperties": dropped,
+    }
+
+
+def _clean_trading_style(raw: Any) -> str | None:
+    if raw in (None, ""):
+        return None
+    if raw not in TRADING_STYLES:
+        raise GalleryError("Pick a trading style, or leave it blank.")
+    return raw
+
+
+def publish_style(user_id: str, style_id: Any, *, title: Any, description: Any, category: Any,
+                  trading_style: Any, conn: sqlite3.Connection | None = None) -> dict | None:
+    """Submit (or resubmit) one of the member's own styles. None when the library is off
+    or the style is not theirs.
+
+    First publish: a PENDING style item. Again while pending or rejected: replaces it in
+    place, back to pending (today's outline rule). Again while APPROVED: the new version is
+    HELD in `pending_json` and the approved one stays listed (R-P3-3)."""
+    if not library_enabled():
+        return None
+    clean_title = _clean_text(title, field="title", limit=MAX_TITLE_CHARS, required=True)
+    clean_desc = _clean_text(description, field="description", limit=MAX_DESCRIPTION_CHARS, required=False)
+    clean_cat = _clean_category(category)
+    clean_ts = _clean_trading_style(trading_style)
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        payload = style_payload(user_id, style_id, conn)
+        if payload is None:
+            return None
+        dropped = payload.pop("droppedProperties")
+        payload_json = json.dumps(payload)
+        if len(payload_json.encode("utf-8")) > MAX_BODY_BYTES:
+            raise GalleryError("That style is too long for the gallery. Trim its outline and try again.")
+        body = payload["outlineBodyJson"] or {"type": "doc", "content": []}
+        preview_json = json.dumps(preview_lines(body))
+        now = _now()
+        existing = conn.execute(
+            "SELECT id, status FROM j2_template_gallery WHERE user_id = ? AND source_style_id = ?",
+            (user_id, style_id)).fetchone()
+        if existing and existing["status"] == "approved":
+            revision = {"title": clean_title, "description": clean_desc, "category": clean_cat,
+                        "tradingStyle": clean_ts, "payload": payload, "preview": json.loads(preview_json)}
+            conn.execute(
+                "UPDATE j2_template_gallery SET pending_json = ?, pending_at = ?, review_note = NULL,"
+                " updated_at = ? WHERE id = ?",
+                (json.dumps(revision), now, now, existing["id"]))
+            gid = existing["id"]
+        elif existing:
+            conn.execute(
+                "UPDATE j2_template_gallery SET title = ?, description = ?, category = ?, trading_style = ?,"
+                " body_json = ?, payload_json = ?, status = 'pending', review_note = NULL, reviewed_by = NULL,"
+                " reviewed_at = NULL, featured = 0, listed_at = NULL, updated_at = ?, preview_json = ?,"
+                " pending_json = NULL, pending_at = NULL WHERE id = ?",
+                (clean_title, clean_desc, clean_cat, clean_ts, json.dumps(body), payload_json, now,
+                 preview_json, existing["id"]))
+            gid = existing["id"]
+        else:
+            gid = uuid.uuid4().hex
+            conn.execute(
+                "INSERT INTO j2_template_gallery (id, user_id, source_style_id, kind, title, description,"
+                " category, body_json, status, created_at, updated_at, preview_json, item_type,"
+                " payload_json, version, trading_style)"
+                " VALUES (?, ?, ?, 'member', ?, ?, ?, ?, 'pending', ?, ?, ?, 'style', ?, 1, ?)",
+                (gid, user_id, style_id, clean_title, clean_desc, clean_cat, json.dumps(body), now, now,
+                 preview_json, payload_json, clean_ts))
+        conn.commit()
+        out = _summary(_row(conn, gid), viewer_id=user_id, is_admin=False)
+        out["droppedProperties"] = dropped
+        return out
     finally:
         if owned:
             conn.close()
@@ -733,7 +878,7 @@ def report(user_id: str, gallery_id: str, *, reason: Any, note: Any = "",
     conn = conn or get_connection()
     try:
         row = _row(conn, gallery_id)
-        if row is None or row["status"] != "approved" or row["hidden"]:
+        if row is None or row["status"] != "approved" or row["hidden"] or _library_hides(row):
             return None
         if row["user_id"] == user_id:
             raise GalleryError("You can't report your own template. Unpublish it instead.")
@@ -760,11 +905,19 @@ def admin_queue(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
     owned = conn is None
     conn = conn or get_connection()
     try:
-        def rows(where: str, order: str) -> list[dict]:
-            return [_summary(r, viewer_id=None, is_admin=True)
-                    for r in conn.execute(f"{_SELECT_LIST} WHERE {where} ORDER BY {order} LIMIT {LIST_LIMIT}")]
+        # R-T3-R2: with the library off the queue is today's -- outline rows only. A style row (and its
+        # held revision) is reviewable only while the library is on.
+        outlines_only = "" if library_enabled() else " AND g.item_type = 'outline'"
 
-        pending = rows("g.status = 'pending'", "g.updated_at ASC")
+        def rows(where: str, order: str, select: str = _SELECT_LIST) -> list[dict]:
+            return [_summary(r, viewer_id=None, is_admin=True)
+                    for r in conn.execute(
+                        f"{select} WHERE ({where}){outlines_only} ORDER BY {order} LIMIT {LIST_LIMIT}")]
+
+        # The pending rows are what a reviewer READS, so they take the full row (`_SELECT`, the one shared
+        # SELECT -- it carries the trending subquery too, which a reviewer's row ignores): the held
+        # revision's title lives in `pending_json`, which the list's columns never include.
+        pending = rows("g.status = 'pending' OR g.pending_at IS NOT NULL", "g.updated_at ASC", _SELECT)
         hidden = rows("g.hidden = 1", "g.hidden_at DESC")
         reported = rows("EXISTS (SELECT 1 FROM j2_template_gallery_reports r"
                         " WHERE r.gallery_id = g.id AND r.status = 'open')", "open_reports DESC")
@@ -816,17 +969,45 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
         if action == "approve":
             if not isinstance(reviewed_updated_at, str) or not reviewed_updated_at:
                 raise GalleryConflict(APPROVE_STALE_SENTENCE)
-            cur = conn.execute(
-                "UPDATE j2_template_gallery SET status = 'approved', review_note = NULL, reviewed_by = ?,"
-                " reviewed_at = ?, listed_at = COALESCE(listed_at, ?), updated_at = ?"
-                " WHERE id = ? AND updated_at = ?",
-                (admin_id, now, now, now, gallery_id, reviewed_updated_at))
+            if row["pending_json"]:
+                # An approved style's HELD revision (R-P3-3): swap it in, in the same conditional
+                # statement as a first approval, and bump the version members see.
+                try:
+                    rev = json.loads(row["pending_json"])
+                    new_body = rev["payload"].get("outlineBodyJson") or {"type": "doc", "content": []}
+                    args = (rev["title"], rev["description"], rev["category"], rev.get("tradingStyle"),
+                            json.dumps(rev["payload"]), json.dumps(new_body),
+                            json.dumps(rev.get("preview") or preview_lines(new_body)),
+                            admin_id, now, now, gallery_id, reviewed_updated_at)
+                except (TypeError, ValueError, KeyError, AttributeError):
+                    raise GalleryConflict("That revision could not be read, so nothing was listed. "
+                                          "Ask the author to submit it again.")
+                cur = conn.execute(
+                    "UPDATE j2_template_gallery SET title = ?, description = ?, category = ?, trading_style = ?,"
+                    " payload_json = ?, body_json = ?, preview_json = ?, version = version + 1,"
+                    " pending_json = NULL, pending_at = NULL, review_note = NULL, reviewed_by = ?,"
+                    " reviewed_at = ?, updated_at = ? WHERE id = ? AND updated_at = ?", args)
+            else:
+                cur = conn.execute(
+                    "UPDATE j2_template_gallery SET status = 'approved', review_note = NULL, reviewed_by = ?,"
+                    " reviewed_at = ?, listed_at = COALESCE(listed_at, ?), updated_at = ?"
+                    " WHERE id = ? AND updated_at = ?",
+                    (admin_id, now, now, now, gallery_id, reviewed_updated_at))
             if cur.rowcount != 1:
                 conn.rollback()
                 raise GalleryConflict(APPROVE_STALE_SENTENCE)
         elif action == "reject":
             if not clean_note:
                 raise GalleryError("Say why, so the author can fix it.")
+            if row["pending_json"]:
+                # A held revision is declined; the APPROVED listing stays exactly as it was (status,
+                # listed_at, featured). The author reads the note; the revision is cleared.
+                conn.execute(
+                    "UPDATE j2_template_gallery SET pending_json = NULL, pending_at = NULL, review_note = ?,"
+                    " reviewed_by = ?, reviewed_at = ?, updated_at = ? WHERE id = ?",
+                    (clean_note, admin_id, now, now, gallery_id))
+                conn.commit()
+                return _summary(_row(conn, gallery_id), viewer_id=admin_id, is_admin=True)
             conn.execute(
                 "UPDATE j2_template_gallery SET status = 'rejected', review_note = ?, reviewed_by = ?,"
                 " reviewed_at = ?, featured = 0, listed_at = NULL, updated_at = ? WHERE id = ?",

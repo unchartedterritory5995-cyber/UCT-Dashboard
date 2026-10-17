@@ -6,6 +6,7 @@ The service is `api/services/journal_two/template_gallery.py`; the client is
   member  GET    /api/j2/template-gallery                     paid     browse (?q ?category ?sort ?section)
   member  GET    /api/j2/template-gallery/{gallery_id}        paid     one template in full (preview)
   member  POST   /api/j2/template-gallery                     paid     publish / resubmit one of Your templates
+  member  POST   /api/j2/template-gallery/styles              paid     publish / resubmit one of Your journal styles (P3a; 404 while the library is off)
   member  DELETE /api/j2/template-gallery/{gallery_id}        session  unpublish (always possible)
   member  POST   /api/j2/template-gallery/{gallery_id}/use    paid     copy into Your templates
   member  POST   /api/j2/template-gallery/{gallery_id}/report paid     report a listed template
@@ -152,6 +153,29 @@ def list_gallery_endpoint(q: str = "", category: str = "", sort: str = "newest",
 @router.get("/admin/queue")
 def admin_queue_endpoint(_admin: dict = Depends(require_admin)) -> dict[str, Any]:
     return gallery.admin_queue()
+
+
+@router.post("/styles")
+def publish_style_endpoint(body: dict[str, Any] = Depends(paid_body), user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{styleId, title, description?, category, tradingStyle?}` -> a PENDING style item, or a
+    held revision of an approved one. 404 while the library is off (R-P3-10). Declared BEFORE
+    `/{gallery_id}` so the literal path wins (the GET below would otherwise take `styles`)."""
+    if not gallery.library_enabled():
+        raise public.not_found()
+    public.enforce_rate(PUBLISH_RATE, SCOPE_PUBLISH, f"member:{user['id']}", PUBLISH_RATE_SENTENCE, public=False)
+    day = _daily_take(DAILY_PUBLISH_SCOPE, user, "NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP", 10, PUBLISH_RATE_SENTENCE)
+    try:
+        item = gallery.publish_style(user["id"], body.get("styleId"), title=body.get("title"),
+                                     description=body.get("description"), category=body.get("category"),
+                                     trading_style=body.get("tradingStyle"))
+    except gallery.GalleryError as e:
+        _give_back(day, DAILY_PUBLISH_SCOPE, user)
+        raise _bad(e)
+    if item is None:
+        _give_back(day, DAILY_PUBLISH_SCOPE, user)
+        raise public.not_found()
+    dropped = item.pop("droppedProperties", 0)
+    return {"template": item, "droppedProperties": dropped}
 
 
 @router.get("/{gallery_id}")

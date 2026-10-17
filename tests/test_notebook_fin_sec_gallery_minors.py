@@ -46,18 +46,28 @@ def test_M6_the_list_reads_no_body_and_parses_none(svc, monkeypatch):
     conn.set_trace_callback(statements.append)
     try:
         listed = svc.list_gallery(B, conn=conn)
+        list_statements = list(statements)
         queue = svc.admin_queue(conn=conn)
     finally:
         conn.set_trace_callback(None)
         conn.close()
+    queue_statements = statements[len(list_statements):]
 
     member_rows = [x for x in listed if not x["firm"]]
     assert len(member_rows) == 4 and len(queue["pending"]) == 0
     assert parsed == [], f"the list still parsed template bodies: {parsed[:5]}"
-    selects = [s for s in statements if "j2_template_gallery g" in s]
+    selects = [s for s in list_statements if "j2_template_gallery g" in s]
     assert selects, "the trace saw no gallery read"
     assert not any("body_json" in s or "g.*" in s for s in selects), (
         "the list query still reads the body column: " + selects[0][:200])
+    # The reviewer's queue (P3a Task 4): its PENDING rows are what a reviewer reads, so they take the full
+    # row (a held revision's title lives in `pending_json`); the hidden and reported reads stay body-free.
+    queue_selects = [s for s in queue_statements if "j2_template_gallery g" in s]
+    pending_reads = [s for s in queue_selects if "pending_at IS NOT NULL" in s]
+    assert len(queue_selects) == 3 and len(pending_reads) == 1, "the queue reads pending, reported and hidden"
+    assert "g.*" in pending_reads[0]
+    assert not any("body_json" in s or "g.*" in s for s in queue_selects if s not in pending_reads), (
+        "a queue read other than the pending rows still reads the body column")
     for row in member_rows:
         assert [line["kind"] for line in row["preview"]] == ["heading", "text", "text"]
         assert row["preview"][1]["text"] == "first line"
