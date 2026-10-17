@@ -481,8 +481,12 @@ def list_gallery(
     hidden), so an author always knows where their template stands."""
     if section not in SECTIONS:
         raise GalleryError("Unknown gallery section.")
-    if sort not in SORTS:
-        raise GalleryError("Sort by newest, most adopted or trending.")
+    # With the library off the gallery must look exactly like today's: "trending" is a P3a sort,
+    # so it answers what any unknown sort answered before it existed (same 400, same sentence).
+    library_on = library_enabled()
+    if sort not in SORTS or (sort == "trending" and not library_on):
+        raise GalleryError("Sort by newest, most adopted or trending." if library_on
+                           else "Sort by newest or most used.")
     if category not in (None, "", *CATEGORIES):
         raise GalleryError("Unknown category.")
     if item_type not in (None, "", *ITEM_TYPES):
