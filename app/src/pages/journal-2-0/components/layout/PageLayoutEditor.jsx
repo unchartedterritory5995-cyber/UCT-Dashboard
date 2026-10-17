@@ -3,8 +3,16 @@
 // functions); this file is the screen over it.
 //
 // ⛔ The editor edits a DRAFT. Nothing is written until Save, and Save replaces only the list(s) the member
-//    changed, applied to the FRESHEST stored layout (the updater setPrefMerged hands us), so another tab's
-//    save of a list the member did not touch is never undone, and ids this build does not know ride along.
+//    changed, applied to the layout THIS TAB's preference cache holds at that moment (the updater
+//    setPrefMerged hands us). That keeps ids this build does not know, and a list another writer in this tab
+//    changed meanwhile. It is NOT the server's latest: the cache is read once per tab (5-minute dedupe, no
+//    re-read on focus), so a list saved in another tab or on the phone since this tab read is written back
+//    over by this tab's copy of it.
+// ⛔ If the preference read failed (`readFailed`: a refused read is served as `{}`), the cache holds no layout
+//    at all, and a merge onto it would write the defaults over every list the member did not touch. So the
+//    editor says the layout could not be loaded and Save is disabled. Nothing is written.
+// ⛔ One Save at a time: a second press while one is in flight sends nothing (`savingRef`, which a press reads
+//    before the re-render that disables the button).
 // ⛔ A save is judged by what the hook ANSWERS, never by "it did not throw": `setPrefMerged` resolves
 //    `{ ok: false }` on a refused write (a 400, a stale revision) and resolves with nothing when its own POST
 //    threw. Only `{ ok: true }` is a save. A failure keeps the sheet open, says so, and re-reads the server's
@@ -23,6 +31,7 @@ import {
 import styles from './PageLayoutEditor.module.css'
 
 export const SAVE_FAILED = "Couldn't save your layout. Nothing was changed."
+export const LOAD_FAILED = "Your layout couldn't be loaded, so it can't be saved right now. Reload the page to try again."
 const TITLES = { today: 'Customize Today', trade: 'Customize trade page' }
 const PAGE_WORDS = { today: 'Today', trade: 'The trade page' }
 
@@ -46,7 +55,7 @@ function withLists(layout, page, edits) {
   return next
 }
 
-function Editor({ page, initialPhase, onClose, onSaved, saved, setPrefMerged }) {
+function Editor({ page, initialPhase, onClose, onSaved, saved, setPrefMerged, readFailed }) {
   const [baseline] = useState(() => normalizeLayout(saved))
   const [draft, setDraft] = useState(baseline)
   const [phase, setPhase] = useState(PHASES.includes(initialPhase) ? initialPhase : 'market')
@@ -97,6 +106,7 @@ function Editor({ page, initialPhase, onClose, onSaved, saved, setPrefMerged }) 
   }
 
   const save = async () => {
+    if (savingRef.current || readFailed) return
     const edits = changedLists(page, draft, baseline)
     if (!edits.length) { onClose(); return }
     setSaving(true); savingRef.current = true; setError('')
@@ -126,12 +136,13 @@ function Editor({ page, initialPhase, onClose, onSaved, saved, setPrefMerged }) 
 
   const footer = (
     <div className={styles.footer}>
+      {readFailed && <p role="alert" className={styles.error}>{LOAD_FAILED}</p>}
       {error && <p role="alert" className={styles.error}>{error}</p>}
       <div className={styles.actions}>
         <button type="button" className={styles.btn} onClick={reset} disabled={saving}>Reset to default</button>
         <span className={styles.spacer} />
         <button type="button" className={styles.btn} onClick={dismiss} disabled={saving}>Cancel</button>
-        <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={save} disabled={saving}>
+        <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={save} disabled={saving || readFailed}>
           {saving ? 'Saving…' : 'Save'}
         </button>
       </div>
@@ -184,7 +195,7 @@ function Editor({ page, initialPhase, onClose, onSaved, saved, setPrefMerged }) 
  *   its OWN toast host, which outlives this sheet.
  */
 export default function PageLayoutEditor({ page, initialPhase, onClose, onSaved }) {
-  const { prefs, setPrefMerged, loading } = usePreferences()
+  const { prefs, setPrefMerged, loading, readFailed } = usePreferences()
   if (loading) {
     return (
       <Sheet open onClose={onClose} title={TITLES[page]} dismissOnBackdrop={false} maxWidth={520} labelledByTitle>
@@ -200,6 +211,7 @@ export default function PageLayoutEditor({ page, initialPhase, onClose, onSaved 
       onSaved={onSaved}
       saved={prefs?.[LAYOUT_PREF]}
       setPrefMerged={setPrefMerged}
+      readFailed={readFailed === true}
     />
   )
 }

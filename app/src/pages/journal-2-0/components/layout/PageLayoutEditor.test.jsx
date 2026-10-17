@@ -10,7 +10,7 @@
  * failure answers are pinned in PageLayoutEditor.realSave.test.jsx.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, within, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, within, fireEvent, waitFor, act } from '@testing-library/react'
 
 const { prefsRef, mergedRef, posts, refreshSpy } = vi.hoisted(() => ({
   prefsRef: { current: {} },
@@ -260,7 +260,9 @@ describe('Save', () => {
     expect(JSON.stringify(value.today.overnight)).toBe(JSON.stringify(SAVED.today.overnight))
   })
 
-  it('applies the edit to the FRESHEST stored layout, not the one the editor opened on', async () => {
+  // The value the updater is handed is this tab's preference cache at Save (another writer in this tab, or a
+  // re-read), not necessarily the server's latest: see the editor's header comment.
+  it('applies the edit to the layout the cache holds at Save, not the one the editor opened on', async () => {
     const { onClose } = open()
     fireEvent.click(screen.getByRole('button', { name: 'Move My rules up' }))
     // Another tab saved a different postclose list while the sheet was open.
@@ -427,6 +429,25 @@ describe('Escape, and a save in flight', () => {
 
     // The save still finishes the normal way: one close, one "saved".
     settle({ ok: true })
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(onSaved).toHaveBeenCalledTimes(1)
+    expect(posts).toHaveLength(1)
+  })
+
+  // P4a m7. Two presses inside ONE act reach the handler before the re-render that disables the button, which
+  // is what a fast double press does in a browser; only the ref can stop the second.
+  it('a second Save press while the first is in flight sends nothing', async () => {
+    let calls = 0
+    const held = holdTheWrite()
+    const hold = mergedRef.impl
+    mergedRef.impl = (k, u) => { calls += 1; return hold(k, u) }
+    const { onClose, onSaved } = open()
+    fireEvent.click(screen.getByRole('button', { name: 'Move My rules up' }))
+    const save = screen.getByRole('button', { name: 'Save' })
+    act(() => { save.click(); save.click() })
+    expect(calls).toBe(1)
+
+    held({ ok: true })
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
     expect(onSaved).toHaveBeenCalledTimes(1)
     expect(posts).toHaveLength(1)

@@ -100,6 +100,39 @@ describe('PageLayoutEditor over the real preferences hook', () => {
     expect(screen.getByRole('dialog')).toBeTruthy()
   })
 
+  // P4a m1: a refused preference read is served as `{}`, so the cache holds no layout. A save merged onto that
+  // would write the defaults over every list the member did not touch. The editor says so and writes nothing.
+  it.each([
+    ['answers 502', async () => ({ ok: false, status: 502, headers: { get: () => null }, json: async () => ({}) })],
+    ['throws', async () => { throw new Error('network down') }],
+  ])('when the preference read %s, the editor says the layout could not be loaded and Save writes nothing', async (_, answer) => {
+    const ok = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, opts) => {
+      if (url === PREFS_URL && (!opts || !opts.method || opts.method === 'GET')) return answer()
+      return ok(url, opts)
+    })
+    const { onClose, onSaved } = open()
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toBe("Your layout couldn't be loaded, so it can't be saved right now. Reload the page to try again.")
+    const save = screen.getByRole('button', { name: 'Save' })
+    expect(save).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Show Notices' }))
+    fireEvent.click(save)
+    await new Promise((r) => setTimeout(r, 20))
+    expect(posts).toHaveLength(0)
+    expect(globalThis.fetch.mock.calls.filter(([, o]) => o?.method === 'POST')).toHaveLength(0)
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('CONTROL: when the read answers, the load line is absent and Save is enabled', async () => {
+    open()
+    await screen.findByRole('checkbox', { name: 'Show Notices' })
+    expect(screen.queryByText(/couldn't be loaded/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Save' })).not.toBeDisabled()
+  })
+
   it('a POST that throws is a failure too', async () => {
     const ok = globalThis.fetch
     globalThis.fetch = vi.fn(async (url, opts) => {
