@@ -80,7 +80,19 @@ vi.mock('../../lib/reviewDrafts', () => ({
   thisMonthIso: () => '2026-10',
 }))
 
-import InsightsHub from './InsightsHub'
+// P2 Tier 3 Task 6: the winners checklist is a lazy leaf. Mocked so the hub's gate and its lazy
+// mount are tested here; the panel's own behaviour is ChecklistFromWinners.test.jsx.
+let winnersThrows = false
+vi.mock('./ChecklistFromWinners', () => ({
+  default: ({ accountId }) => {
+    if (winnersThrows) throw new Error('chunk exploded')
+    return <div>Winners mounted for {String(accountId)}</div>
+  },
+}))
+
+import InsightsHub, { SECTION_FAILED_TEXT } from './InsightsHub'
+import { TIER3_FLAG } from '../../lib/tier3Flag'
+import { __resetNotebookFlags, latchNotebookFlags } from '../../lib/offline/notebookFlags'
 
 // Surfaces the live querystring so we can assert ?ins= persistence + coexistence.
 function LocationProbe() {
@@ -115,6 +127,8 @@ beforeEach(() => {
   psychologyFlagOn = true
   verdictScoreFlagOn = true
   reviewDraftsFlagOn = false
+  winnersThrows = false
+  __resetNotebookFlags()
 })
 
 describe('InsightsHub — sub-nav shell', () => {
@@ -271,5 +285,36 @@ describe('InsightsHub — Reviews section (wave 13 lane 13F)', () => {
     draftWeeklyReview.mockRejectedValueOnce(new Error('boom'))
     fireEvent.click(screen.getByRole('button', { name: /this week.s review/i }))
     expect(await screen.findByText(/Could not draft the weekly review/)).toBeInTheDocument()
+  })
+})
+
+describe('InsightsHub — Checklist from my winners (P2 Tier 3 Task 6)', () => {
+  const WINNERS = 'Checklist from my winners'
+
+  it('the tab is absent while the Tier 3 switch is off (default)', () => {
+    renderHub({ route: '/journal?ins=winners' })
+    expect(screen.queryByRole('button', { name: WINNERS })).not.toBeInTheDocument()
+    // An ?ins=winners deep link with the switch off falls back to the default section.
+    expect(screen.getByText('Playbook mounted')).toBeInTheDocument()
+    expect(screen.queryByText(/Winners mounted/)).not.toBeInTheDocument()
+  })
+
+  it('with the switch on, the tab appears and mounts the lazy panel with the account', async () => {
+    latchNotebookFlags({ [TIER3_FLAG]: true })
+    renderHub()
+    fireEvent.click(screen.getByRole('button', { name: WINNERS }))
+    expect(await screen.findByText('Winners mounted for acc1')).toBeInTheDocument()
+    expect(screen.queryByText('Playbook mounted')).not.toBeInTheDocument()
+    expect(screen.getByTestId('loc').textContent).toContain('ins=winners')
+  })
+
+  it('a panel that cannot render says so in words, and the sub-nav still stands', async () => {
+    latchNotebookFlags({ [TIER3_FLAG]: true })
+    winnersThrows = true
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    renderHub({ route: '/journal?ins=winners' })
+    expect(await screen.findByText(SECTION_FAILED_TEXT)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Playbook' })).toBeInTheDocument()
+    spy.mockRestore()
   })
 })

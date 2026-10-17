@@ -4552,6 +4552,31 @@ def get_analytics_route(
     )
 
 
+def _require_tier3() -> None:
+    """P2 Tier 3: the switch answers first, ahead of the session and the plan, with the one 404 a
+    dark route gives (the smart-chips / journal-styles shape). Read per request."""
+    from api.services.journal_two import checklist_suggestions
+    if not checklist_suggestions.enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+
+
+@router.get("/insights/checklist-suggestions", dependencies=[Depends(_require_tier3)])
+def get_checklist_suggestions_route(
+    account_id: str | None = None,
+    user: dict = Depends(require_paid),
+) -> dict[str, Any]:
+    """Checklist from my winners (P2 Tier 3, Task 6): before-entry items suggested from the emotion
+    tags on the member's best trades, each with those trades as evidence. Read-only; accepting one
+    is the member's own write through the rules doors. `account_id` absent means All Accounts."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import checklist_suggestions
+    conn = get_connection()
+    try:
+        return checklist_suggestions.suggest(conn, user["id"], account_id or None)
+    finally:
+        conn.close()
+
+
 @router.get("/strategies/{strategy_id}/excursion")
 def get_strategy_excursion_route(
     strategy_id: str,
