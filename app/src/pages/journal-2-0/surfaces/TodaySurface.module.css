@@ -422,4 +422,9 @@
     flex-direction: column;
     align-items: stretch;
   }
+  /* The post-close lead's button is full width here; without a wrap it shares the header's row and
+     runs off a 390px screen. */
+  .postHead {
+    flex-wrap: wrap;
+  }
 }
