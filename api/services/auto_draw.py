@@ -413,20 +413,186 @@ def propose(bars, k=5, lookback=120, kinds=('horizontal', 'trendline'), asof=Non
 
 #: How many learned trendlines the chart draws (lab recommendation: top 2-3).
 DRAWN_TRENDLINES = 3
-#: How many horizontals the chart draws, nearest price first (lab recommendation: 3-5).
-DRAWN_HORIZONTALS = 5
+#: How many horizontals the chart draws, nearest price first (round 2 of the team-set blind check,
+#: REPORT_TEAM_SET.md 2026-10-17: five read as clutter -- the four nearest).
+DRAWN_HORIZONTALS = 4
 #: The learned horizontals offered as fill (they replace the swing_pivots layer: its learned top 3).
 DRAWN_LEARNED_FILL = 3
+#: Round 3 (REPORT_TEAM_SET_R2.md): the prior-day high / low is DELIBERATE, not silently dropped.
+#: The chart's last bar IS the prior day as of the next session (the session the chart is read
+#: for), so its high / low are that candle's own range and are not drawn -- they are listed in
+#: `omitted` with this reason. When the last bar is a session still FORMING (drawn_set's
+#: `last_bar_forming`, decided by the caller from the clock), the prior day is the bar before it
+#: and its high / low are drawn like any other level.
+PRIOR_DAY_IS_LAST_BAR = 'prior_day_is_last_bar'
+#: Round 3: older swing-high RESISTANCE -- a confirmed pivot high (at least this many lower highs
+#: on EACH side) inside the lookback, above the last close, that no later close has broken.
+SWING_HIGH_STRENGTH = 3
+#: ... searched over this many bars (the learned drawer's own lookback).
+SWING_HIGH_LOOKBACK = 120
+#: Two horizontals within this many ATR of each other are one level (the first kept wins).
+H_DUP_ATR = 0.5
+#: How many ranked trendline candidates the drawn-set filter walks to find DRAWN_TRENDLINES keepers.
+DRAWN_TL_POOL = 12
+#: Two same-side trendlines are near-duplicates when their slopes differ by at most this many
+#: ATR per bar AND their values at the last bar by at most TL_DUP_OFFSET_ATR ATR.
+TL_DUP_SLOPE_ATR = 0.05
+TL_DUP_OFFSET_ATR = 1.0
+#: A trendline that has this many closes on its wrong side (beyond 0.1 ATR) strictly inside its
+#: anchor span cuts through price and is not drawn.
+TL_MAX_CUT_CLOSES = 2
+#: Round 3: a close beyond a line by more than this many ATR AFTER its last anchor breaks it; a
+#: line broken before the last bar is stale and not drawn (a break ON the last bar is news, kept).
+TL_BREAK_ATR = 0.1
 
 
-def drawn_set(bars):
+def swing_high_resistance(a, i, lookback=None, strength=None):
+    """Round 3 (REPORT_TEAM_SET_R2.md: "older swing-high resistance is missing"): confirmed pivot
+    highs in the last `lookback` bars (min(left, right) strength >= `strength`, counting only bars
+    up to i) priced ABOVE the last close and not broken since by any close. Oldest first, as
+    {price, j}."""
+    lookback = SWING_HIGH_LOOKBACK if lookback is None else lookback
+    strength = SWING_HIGH_STRENGTH if strength is None else strength
+    lo = max(1, i - lookback + 1)
+    S = strengths(a, i, lo)
+    close = float(a[i, 4])
+    out = []
+    for q, j in enumerate(range(lo, i + 1)):
+        hl, hr = int(S[q][0]), int(S[q][1])
+        if min(hl, hr) < strength:
+            continue
+        p = float(a[j, 2])
+        if p <= close:
+            continue
+        if j < i and float(np.max(a[j + 1:i + 1, 4])) > p:
+            continue                       # a later close already broke it
+        out.append({'price': p, 'j': j})
+    return out
+
+
+def _cap_nearest(chosen, close, k):
+    """The k nearest the close, nearest first -- with at least one ABOVE the close whenever any
+    candidate is (round 3: resistance overhead must not be crowded out by levels below)."""
+    chosen = sorted(chosen, key=lambda h: abs(h['price'] - close))
+    out = chosen[:k]
+    if k and out and not any(h['price'] > close for h in out):
+        above = [h for h in chosen[k:] if h['price'] > close]
+        if above:
+            out = out[:k - 1] + [above[0]]
+            out.sort(key=lambda h: abs(h['price'] - close))
+    return out
+
+
+def _horizontals(a, i, at, bars, last_bar_forming=False):
+    """(drawn horizontals, omitted) -- see drawn_set. Drawn: nearest the last close first, at most
+    DRAWN_HORIZONTALS, at least one above the close when any candidate is."""
+    close = float(a[i, 4])
+    w10 = a[max(0, i - 9):i + 1]
+    j_hi10 = max(0, i - 9) + int(np.argmax(w10[:, 2]))
+    j_lo10 = max(0, i - 9) + int(np.argmin(w10[:, 3]))
+    ten = [
+        {'source': 'ten_day_high', 'label': '10D H', 'price': float(a[j_hi10, 2]), 't_from': int(a[j_hi10, 0]),
+         'score': None},
+        {'source': 'ten_day_low', 'label': '10D L', 'price': float(a[j_lo10, 3]), 't_from': int(a[j_lo10, 0]),
+         'score': None},
+    ]
+    chosen = []
+
+    def _add(h):
+        if all(abs(h['price'] - g['price']) > H_DUP_ATR * at for g in chosen):
+            chosen.append(h)
+
+    for h in ten:
+        _add(h)
+    learned = propose(bars, k=DRAWN_LEARNED_FILL, kinds=('horizontal',))
+    for r in learned:
+        _add({'source': 'learned', 'label': 'learned', 'price': float(r['coords']['price']),
+              't_from': int(r['coords']['t_from']), 'score': r['score'], 'why': r['why']})
+    for sh in swing_high_resistance(a, i):     # round 3: older swing-high resistance
+        _add({'source': 'swing_high', 'label': 'swing H', 'price': sh['price'],
+              't_from': int(a[sh['j'], 0]), 'score': None})
+    omitted = []
+    pd = i - 1 if last_bar_forming else i
+    for src, label, col in (('prior_day_high', 'PDH', 2), ('prior_day_low', 'PDL', 3)):
+        if not last_bar_forming:
+            # the last bar IS the prior day: its own candle already shows this level
+            omitted.append({'source': src, 'reason': PRIOR_DAY_IS_LAST_BAR})
+        elif pd >= 0:
+            _add({'source': src, 'label': label, 'price': float(a[pd, col]), 't_from': int(a[pd, 0]),
+                  'score': None})
+    chosen = _cap_nearest(chosen, close, DRAWN_HORIZONTALS)
+    for h in chosen:
+        h['price'] = round(h['price'], 4)
+    return chosen, omitted
+
+
+def _broken_before_last(a, i, at, ja, jb, p1, slope, is_high):
+    """True when a close AFTER the line's last anchor `jb` and BEFORE the last bar `i` sits beyond
+    the line by more than TL_BREAK_ATR ATR (above a resistance line through highs, below a support
+    line through lows). The last bar itself never counts: a break on it is the news, not stale."""
+    for j in range(jb + 1, i):
+        line = p1 + slope * (j - ja)
+        cl = float(a[j, 4])
+        if (cl > line + TL_BREAK_ATR * at) if is_high else (cl < line - TL_BREAK_ATR * at):
+            return True
+    return False
+
+
+def _trendlines(a, i, at, bars):
+    """The drawn trendlines: the learned ranking, walked best-first, keeping a line only when it
+    (round 2, REPORT_TEAM_SET.md) does not cut through TL_MAX_CUT_CLOSES+ closes inside its span,
+    (round 3) has not been broken by a close after its last anchor before the last bar (stale),
+    shares no anchor with a kept line (no fan from one pivot), and is not a near-duplicate
+    (slope and last-bar value within TL_DUP_*_ATR) of a kept same-side line."""
+    idx = {int(a[j, 0]): j for j in range(i + 1)}
+    kept, anchors = [], set()
+    for r in propose(bars, k=DRAWN_TL_POOL, kinds=('trendline',)):
+        c = r['coords']
+        ja, jb = idx.get(int(c['t1'])), idx.get(int(c['t2']))
+        if ja is None or jb is None or jb <= ja:
+            continue
+        is_high = int(r['is_high'])
+        slope = (float(c['p2']) - float(c['p1'])) / (jb - ja)
+        cut = 0
+        for j in range(ja + 1, jb):
+            line = float(c['p1']) + slope * (j - ja)
+            cl = float(a[j, 4])
+            if (cl > line + 0.1 * at) if is_high else (cl < line - 0.1 * at):
+                cut += 1
+        if cut >= TL_MAX_CUT_CLOSES:
+            continue
+        if _broken_before_last(a, i, at, ja, jb, float(c['p1']), slope, is_high):
+            continue                       # round 3: stale -- price already closed through it
+        keys = {(is_high, int(c['t1'])), (is_high, int(c['t2']))}
+        if keys & anchors:
+            continue
+        if any(k['is_high'] == is_high and abs(k['slope'] - slope) <= TL_DUP_SLOPE_ATR * at
+               and abs(k['p_now'] - float(c['p_now'])) <= TL_DUP_OFFSET_ATR * at for k in kept):
+            continue
+        kept.append({'is_high': is_high, 'slope': slope, 'p_now': float(c['p_now']), 'r': r})
+        anchors |= keys
+        if len(kept) >= DRAWN_TRENDLINES:
+            break
+    return [k['r'] for k in kept]
+
+
+def drawn_set(bars, last_bar_forming=False):
     """The chart's default learned drawing for `bars` (oldest first, as of the last bar):
 
-      trendlines   learned top DRAWN_TRENDLINES
-      horizontals  prior-day high/low and 10-day high/low ALWAYS (the lab's best always-on lines), then
-                   the learned top DRAWN_LEARNED_FILL as fill, near-duplicates within 0.5 ATR dropped,
-                   capped at DRAWN_HORIZONTALS and ordered nearest the last close first.
+      trendlines   the learned ranking filtered by `_trendlines` (no line cutting through closes,
+                   none already broken before the last bar, one line per anchor, no
+                   near-duplicates), at most DRAWN_TRENDLINES
+      horizontals  10-day high/low, the learned top DRAWN_LEARNED_FILL as fill, unbroken
+                   swing-high resistance above the close (`swing_high_resistance`), and the prior
+                   day's high/low ONLY when `last_bar_forming` (then the prior day is the bar
+                   before the last); near-duplicates within H_DUP_ATR dropped, the
+                   DRAWN_HORIZONTALS nearest the last close kept (at least one above it when any
+                   candidate is), nearest first.
+      omitted      level types deliberately not drawn, each with its reason -- the prior-day
+                   pair is listed here (PRIOR_DAY_IS_LAST_BAR) when the last bar IS the prior day,
+                   so the drop is stated, never silent.
 
+    Rounds 2-3 of the team-set blind check (REPORT_TEAM_SET.md / _R2.md, 2026-10-17), display-only.
     None when there are too few bars. Never raises past bad input shapes it can reject."""
     a = as_arrays(bars)
     i = len(a) - 1
@@ -437,39 +603,16 @@ def drawn_set(bars):
         return None
     close = float(a[i, 4])
     t_last = int(a[i, 0])
-    w10 = a[max(0, i - 9):i + 1]
-    j_hi10 = max(0, i - 9) + int(np.argmax(w10[:, 2]))
-    j_lo10 = max(0, i - 9) + int(np.argmin(w10[:, 3]))
-    base = [
-        {'source': 'prior_day_high', 'label': 'PDH', 'price': float(a[i, 2]), 't_from': t_last, 'score': None},
-        {'source': 'prior_day_low', 'label': 'PDL', 'price': float(a[i, 3]), 't_from': t_last, 'score': None},
-        {'source': 'ten_day_high', 'label': '10D H', 'price': float(a[j_hi10, 2]), 't_from': int(a[j_hi10, 0]),
-         'score': None},
-        {'source': 'ten_day_low', 'label': '10D L', 'price': float(a[j_lo10, 3]), 't_from': int(a[j_lo10, 0]),
-         'score': None},
-    ]
-    chosen = []
-    for h in base:      # the prior day's extreme can BE the 10-day extreme: keep the first (more specific)
-        if all(abs(h['price'] - g['price']) > 0.5 * at for g in chosen):
-            chosen.append(h)
-    learned = propose(bars, k=DRAWN_LEARNED_FILL, kinds=('horizontal',))
-    for r in learned:
-        if len(chosen) >= DRAWN_HORIZONTALS:
-            break
-        p = float(r['coords']['price'])
-        if all(abs(p - g['price']) > 0.5 * at for g in chosen):
-            chosen.append({'source': 'learned', 'label': 'learned', 'price': p, 't_from': int(r['coords']['t_from']),
-                           'score': r['score'], 'why': r['why']})
-    chosen.sort(key=lambda h: abs(h['price'] - close))
-    for h in chosen:
-        h['price'] = round(h['price'], 4)
-    trend = propose(bars, k=DRAWN_TRENDLINES, kinds=('trendline',))
+    trend = _trendlines(a, i, at, bars)
+    horizontals, omitted = _horizontals(a, i, at, bars, last_bar_forming=bool(last_bar_forming))
     return {
         'model': 'auto_draw logistic ' + MODEL_DATE,
         'asof_t': t_last,
         'last_close': round(close, 4),
         'atr': round(at, 4),
-        'horizontals': chosen[:DRAWN_HORIZONTALS],
+        'last_bar_forming': bool(last_bar_forming),
+        'horizontals': horizontals,
+        'omitted': omitted,
         'trendlines': [{**r['coords'], 'score': r['score'], 'why': r['why'], 'is_high': r['is_high']}
                        for r in trend],
     }
