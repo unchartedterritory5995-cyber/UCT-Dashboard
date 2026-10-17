@@ -80,6 +80,10 @@ def record(spec: dict, *, snapshot_date: str, session_date: str | None) -> str:
     filter answers per member, so it is never recorded."""
     if has_list_filter(spec):
         return "skipped_list"
+    # A live screen's diff answers `live_screen` and never reads a record, so
+    # recording one is work nothing uses (owner-side ruling, 2026-10-16).
+    if reads_live_only(spec):
+        return "skipped_live"
     tickers, total = _tickers_now(spec, TOO_WIDE + 1)
     state = "too_wide" if total > TOO_WIDE else "ok"
     h = spec_hash(spec)
@@ -110,7 +114,7 @@ def record_all() -> dict:
     """Record every starter and every member's saved screen once, deduplicated by hash."""
     from . import saved_screens
     snapshot_date, session_date = _build_identity()
-    out = {"recorded": 0, "too_wide": 0, "skipped_list": 0, "errors": 0,
+    out = {"recorded": 0, "too_wide": 0, "skipped_list": 0, "skipped_live": 0, "errors": 0,
            "snapshot_date": snapshot_date, "session_date": session_date}
     if not snapshot_date:
         out["errors"] = 1

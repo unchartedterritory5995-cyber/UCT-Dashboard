@@ -71,6 +71,14 @@ def test_a_screen_wider_than_the_cap_stores_no_list(snap, monkeypatch):
         assert c.execute("SELECT COUNT(*) FROM screen_membership WHERE tickers IS NOT NULL").fetchone()[0] == 0
 
 
+def test_a_live_screen_is_not_recorded(snap):
+    live = {"filters": [{"key": "rvol_live", "op": "gte", "min": 2}]}
+    assert M.record(live, snapshot_date="2026-10-16", session_date="2026-10-15") == "skipped_live"
+    with db.connect() as c:
+        M._ensure(c)
+        assert c.execute("SELECT COUNT(*) FROM screen_membership").fetchone()[0] == 0
+
+
 def test_a_watchlist_filter_is_never_recorded(snap):
     spec = {"filters": [{"key": "list", "op": "in", "values": ["wl:1"]}]}
     assert M.has_list_filter(spec) is True
