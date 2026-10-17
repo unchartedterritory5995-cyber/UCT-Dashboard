@@ -131,7 +131,8 @@ def test_flat_base_detector_pivot_needs_the_base_too():
                                   {"t": ymd_t(n), "price": 100.5}, {"t": ymd_t(n), "price": 89.5}]}}
     display.draw_geometry([d], _bars(closes))
     ex = d["geometry"]["extras"]
-    assert ex["stale"] is True and ex["stale_reason"] in {"no_base", "far_from_price", "left_band"}
+    # (round 5: the last close under the box's floor reads first as "below_box")
+    assert ex["stale"] is True and ex["stale_reason"] in {"no_base", "far_from_price", "left_band", "below_box"}
     assert "draw_pivot" not in ex
     assert d["levels"]["entry"] == 100.6       # display-only
 

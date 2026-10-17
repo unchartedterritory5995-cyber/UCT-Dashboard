@@ -239,6 +239,42 @@ FLAG_MIN_BARS = 4
 TAG_SLOPE_BARS = 10
 TAG_MIN_RISE_ATR = 0.4
 TAG_NEAR_ATR = 0.25
+# -- Round 5 (lab REPORT_TEAM_SET_R4.md + _R4_CONFIRM.md, 2026-10-17). Every threshold marked
+# "calibrated" was read off the rounds 1-4 JUDGED cases, which the round-5 blind sample excludes.
+#: cup: the rim's left lip is at most this many bars before the last bar -- the chart's 200-bar
+#: default zoom; an older lip leaves the rim floating above every visible bar.
+RIM_MAX_AGE_BARS = 200
+#: cup: a gap down of at least this many ATR(14) (the ATR before the gap) between the lip and the
+#: cup's low makes the lip a pre-gap-down high over a crater, not a rim (calibrated).
+CRATER_GAP_ATR = 2.5
+#: cup: the right side's highest high since the cup's low must come within the larger of this
+#: fraction of the rim and RIM_REACH_ATR ATR(14) of it (calibrated).
+RIM_REACH_FRAC = 0.02
+RIM_REACH_ATR = 1.0
+#: bc:flat-base: the first bar whose high touches the line (within TOP_TOUCH_ATR) is at least
+#: FRESH_HIGH_BARS bars before the last bar -- else the line is a fresh high with no base under it.
+TOP_TOUCH_ATR = 0.3
+FRESH_HIGH_BARS = 10
+#: bc:flat-base: at least this fraction of the line's span closes in the band (calibrated) ...
+BASE_MIN_FRAC = 0.40
+#: ... and no close more than this many ATR(14) under the line (rounded / deep V; calibrated).
+BASE_MAX_CLOSE_DEPTH_ATR = 4.4
+#: flat_base: the box's highest high within this many bars of its end, while its closes still
+#: rise faster than FLAT_MAX_SLOPE_ATR, is a still-rising advance.
+FLAT_FRESH_HIGH_BARS = 3
+#: bull_flag: the flag's lanes start at most this many bars after the pole's true top ...
+FLAG_ADJACENT_BARS = 2
+#: ... the flag retraces at most this fraction of the pole ...
+FLAG_MAX_RETRACE = 0.5
+#: ... and its midline falls no faster than this multiple of the pole's rise rate (calibrated).
+FLAG_MAX_FALL_RATIO = 0.65
+#: MA pullback: at least this many closes under the MA in the TAG_SLOPE_BARS bars before the tag,
+#: while the MA rose less than TAG_FLAT_RISE_ATR ATR(14) over TAG_SLOPE_BARS bars, is price already
+#: below a flattening MA (calibrated) ...
+TAG_BELOW_CLOSES = 3
+TAG_FLAT_RISE_ATR = 0.7
+#: ... and a tag bar whose LOW sits more than this many ATR(14) above the MA never tagged it.
+TAG_ABOVE_ATR = 0.18
 
 
 def _index(bars) -> dict:
@@ -607,6 +643,11 @@ def flat_base_box(bars: list, base_start_t, base_end_t, base_bars=None, base_low
              floor is never under the detector's own `base_low` (when given), and a run reaching
              LEFT of the detector's base starts on a close in the base's upper half (over the
              midpoint of the line and `base_low`): the advance INTO the base is not the base.
+             Round 5 (REPORT_TEAM_SET_R4.md): leading closes under the band that the next close
+             rises from are trimmed off the left edge (the width floor yields to this).
+      below_box     (round 5) the last close is under the box's floor: the base already failed;
+      still_rising  (round 5) the box's closes rise faster than FLAT_MAX_SLOPE_ATR ATR per bar and
+                    its highest high is in its last FLAT_FRESH_HIGH_BARS bars: an advance, not a base.
 
     box = {start_t, end_t, top (= the line), floor (lowest low of the base bars), price, break}."""
     pos = _index(bars)
@@ -658,11 +699,28 @@ def flat_base_box(bars: list, base_start_t, base_end_t, base_bars=None, base_low
     r0 = max(0, min(r0, run_end - width + 1))
     r0 = max(r0, end - MAX_BOX_BARS + 1)
     r0 = min(r0, run_end)
+    # round 5: the left edge never takes in the run-up -- a leading close under the band that the
+    # next close rises from is the advance INTO the base (the width floor above yields to this)
+    band_lo = pivot_band(line, at)[0]
+    while r0 < run_end - 1 and float(bars[r0]["c"]) < band_lo \
+            and float(bars[r0 + 1]["c"]) > float(bars[r0]["c"]):
+        r0 += 1
+    floor = float(min(float(b["l"]) for b in bars[r0:run_end + 1]))
+    if float(bars[last]["c"]) < floor:
+        return None, "below_box"          # round 5: already back under the box
+    if run_end - r0 >= 2:
+        cl = [float(bars[j]["c"]) for j in range(r0, run_end + 1)]
+        xs = list(range(len(cl)))
+        mx, my = sum(xs) / len(xs), sum(cl) / len(cl)
+        slope = sum((x - mx) * (y - my) for x, y in zip(xs, cl)) / sum((x - mx) ** 2 for x in xs)
+        top_j = max(range(r0, run_end + 1), key=lambda j: (float(bars[j]["h"]), j))
+        if slope > FLAT_MAX_SLOPE_ATR * at and run_end - top_j < FLAT_FRESH_HIGH_BARS:
+            return None, "still_rising"   # round 5: an advance still making highs, not a base
     return {
         "start_t": bars[r0]["t"],
         "end_t": bars[end]["t"],
         "top": line,
-        "floor": float(min(float(b["l"]) for b in bars[r0:run_end + 1])),
+        "floor": floor,
         "price": line,
         "break": "breakout" if breakout else None,
     }, None
@@ -761,6 +819,67 @@ def cup_shape_verdict(bars: list, cup_start_t, cup_end_t, rim):
     for j in range(low_j + 1, len(bars) - 1):
         if float(bars[j]["c"]) > lip:
             return False, "rim_broken"
+    return cup_reach_verdict(bars, pos, low_j, rim)
+
+
+def cup_reach_verdict(bars: list, pos: dict, low_j: int, rim: dict):
+    """Round 5 (REPORT_TEAM_SET_R4.md: rims the right side never reached, a rim floating above every
+    bar, a rim on a pre-gap-down high over a gap-down crater). (draw, reason) for the rim line, the
+    cup's low at bar `low_j`:
+      rim_too_old   the rim's left lip (rim.start_t) is more than RIM_MAX_AGE_BARS bars before the
+                    last bar -- older than the chart's default zoom, so the line floats over every bar;
+      gap_crater    a gap down (a bar's high under the prior bar's low) of at least CRATER_GAP_ATR
+                    ATR(14) -- the ATR before the gap -- between the lip and the cup's low;
+      short_of_rim  the highest high from the bar after the cup's low to the last bar sits further
+                    under the rim than max(RIM_REACH_FRAC x rim, RIM_REACH_ATR x ATR(14)).
+    (True, None) when the lip or ATR is unknown."""
+    lip_j = pos.get(rim.get("start_t"))
+    last = len(bars) - 1
+    if lip_j is None or low_j is None or lip_j > low_j:
+        return True, None
+    if last - lip_j > RIM_MAX_AGE_BARS:
+        return False, "rim_too_old"
+    for j in range(max(1, lip_j + 1), low_j + 1):
+        gap = float(bars[j - 1]["l"]) - float(bars[j]["h"])
+        aj = atr14(bars[:j])
+        if aj and gap >= CRATER_GAP_ATR * aj:
+            return False, "gap_crater"
+    at = atr14(bars)
+    if low_j < last and at:
+        p = float(rim["price"])
+        reach = max(float(b["h"]) for b in bars[low_j + 1:last + 1])
+        if p - reach > max(RIM_REACH_FRAC * p, RIM_REACH_ATR * at):
+            return False, "short_of_rim"
+    return True, None
+
+
+def flat_top_verdict(bars: list, start_t, end_t, price):
+    """Round 5 (REPORT_TEAM_SET_R4.md: a bc:flat-base line on the fresh high of a grinding uptrend
+    over empty space, rounded / deep-V bases). (draw, reason) for a pivot line at `price` over
+    [start_t, end_t]:
+      fresh_high  the first bar of the span whose high reaches within TOP_TOUCH_ATR ATR of the line
+                  is within FRESH_HIGH_BARS bars of the last bar -- no base was ever under it;
+      thin_base   fewer than BASE_MIN_FRAC of the span's closes sit in the band (`pivot_band`);
+      deep_base   the span's lowest close sits more than BASE_MAX_CLOSE_DEPTH_ATR ATR under the line.
+    (True, None) when the span or ATR is unknown."""
+    pos = _index(bars)
+    s, e = pos.get(start_t), pos.get(end_t)
+    at = atr14(bars)
+    if s is None or e is None or price is None or not at:
+        return True, None
+    if s > e:
+        s, e = e, s
+    price = float(price)
+    last = len(bars) - 1
+    first = next((j for j in range(s, e + 1) if float(bars[j]["h"]) >= price - TOP_TOUCH_ATR * at), None)
+    if first is not None and last - first < FRESH_HIGH_BARS:
+        return False, "fresh_high"
+    lo, hi = pivot_band(price, at)
+    n_in = sum(1 for j in range(s, e + 1) if lo <= float(bars[j]["c"]) <= hi)
+    if n_in < BASE_MIN_FRAC * (e - s + 1):
+        return False, "thin_base"
+    if price - min(float(bars[j]["c"]) for j in range(s, e + 1)) > BASE_MAX_CLOSE_DEPTH_ATR * at:
+        return False, "deep_base"
     return True, None
 
 
@@ -773,6 +892,13 @@ def flag_shape_verdict(bars: list, pos: dict, d: dict):
       short_flag   the flag (the bars after the detector's pole-top pivot) has fewer than
                    FLAG_MIN_BARS bars;
       rising_flag  the flag channel's midline rises (slope > 0) over the drawn lanes.
+    Round 5 (REPORT_TEAM_SET_R4.md: pole and flag on separate legs, steep deep drops, flags that
+    retraced much of the pole):
+      detached_flag  the lanes' first bar is more than FLAG_ADJACENT_BARS after the pole's top;
+      steep_flag     the lanes' midline falls faster per bar than FLAG_MAX_FALL_RATIO x the pole's
+                     rise per bar;
+      deep_flag      the lowest low after the pole's top is more than FLAG_MAX_RETRACE of the pole
+                     under the pole's top.
     (True, None) when the pole or flag bars are unknown."""
     pts = d.get("pivot_ts") or []
     b0 = pos.get(pts[0]) if len(pts) > 1 else None
@@ -800,6 +926,19 @@ def flag_shape_verdict(bars: list, pos: dict, d: dict):
                 - (_line_at(*up, left, spaces[0]) + _line_at(*dn, left, spaces[1])))
         if rise > 0:
             return False, "rising_flag"
+        # round 5: pole and flag are ONE move -- the lanes start right after the pole's top
+        if left - top > FLAG_ADJACENT_BARS:
+            return False, "detached_flag"
+        # round 5: a steep flag -- its midline falls faster than FLAG_MAX_FALL_RATIO x the pole rose
+        pole_rate = height / max(1, top - b0)
+        if right > left and pole_rate > 0 and \
+                -(rise / 2.0) / (right - left) > FLAG_MAX_FALL_RATIO * pole_rate:
+            return False, "steep_flag"
+    # round 5: a deep flag -- it gave back more than FLAG_MAX_RETRACE of the pole
+    if top < last and height > 0:
+        flag_low = min(float(b["l"]) for b in bars[top + 1:last + 1])
+        if float(bars[top]["h"]) - flag_low > FLAG_MAX_RETRACE * height:
+            return False, "deep_flag"
     return True, None
 
 
@@ -811,6 +950,10 @@ def ma_tag_verdict(bars: list, pos: dict, extras: dict):
                   TAG_MIN_RISE_ATR ATR(14) (the ATR at the tag bar) over TAG_SLOPE_BARS bars, at
                   the tag bar or at the last bar -- flat or rolling over;
       tag_off_ma  the tag bar's range never came within TAG_NEAR_ATR ATR(14) of the MA.
+    Round 5 (REPORT_TEAM_SET_R4.md: closes already under a flattening MA, a tag bar well above it):
+      tag_above_ma   the tag bar's LOW sits more than TAG_ABOVE_ATR ATR above the MA;
+      below_flat_ma  at least TAG_BELOW_CLOSES of the TAG_SLOPE_BARS closes before the tag sat under
+                     the MA while it rose less than TAG_FLAT_RISE_ATR ATR over TAG_SLOPE_BARS bars.
     (True, None) when the MA, the tag bar or ATR is unknown."""
     spec = TAGGED_MA.get(str((extras or {}).get("tagged_ma") or ""))
     tj = pos.get((extras or {}).get("tag_t"))
@@ -832,7 +975,27 @@ def ma_tag_verdict(bars: list, pos: dict, extras: dict):
         dist = 0.0 if lo_ <= m <= hi_ else min(abs(lo_ - m), abs(hi_ - m))
         if dist > TAG_NEAR_ATR * at:
             return False, "tag_off_ma"
+        # round 5: the tag bar's LOW well above the MA never tagged it (a premature triangle)
+        if lo_ - m > TAG_ABOVE_ATR * at:
+            return False, "tag_above_ma"
+    # round 5: closes already under a flattening MA before the tag -- chop / breakdown, not a pullback
+    if at and tj - TAG_SLOPE_BARS >= 0 and ma[tj] is not None and ma[tj - TAG_SLOPE_BARS] is not None:
+        under = sum(1 for j in range(tj - TAG_SLOPE_BARS, tj)
+                    if ma[j] is not None and float(bars[j]["c"]) < ma[j])
+        if under >= TAG_BELOW_CLOSES and ma[tj] - ma[tj - TAG_SLOPE_BARS] < TAG_FLAT_RISE_ATR * at:
+            return False, "below_flat_ma"
     return True, None
+
+
+def stop_segment(bars: list, pos: dict, extras: dict):
+    """Round 5 (REPORT_TEAM_SET_R4.md: the stop was drawn from the far left -- the 10-session high
+    the pullback came off -- not from the tag bar): {start_t, end_t, price} = the tag bar's low from
+    the TAG bar to the last bar, or None when the tag bar is unknown. Display only: levels.stop is
+    the same price and is untouched."""
+    tj = pos.get((extras or {}).get("tag_t"))
+    if tj is None or not bars:
+        return None
+    return {"start_t": int(bars[tj]["t"]), "end_t": int(bars[-1]["t"]), "price": float(bars[tj]["l"])}
 
 
 def flag_pause_verdict(bars: list, pos: dict, d: dict):
@@ -1018,6 +1181,9 @@ def draw_geometry(detections: list, bars: list) -> list:
                 ema = tagged_ma_segment(bars, pos, ex0, d)
                 if ema:
                     ex0["draw_ema"] = ema
+                stop = stop_segment(bars, pos, ex0)
+                if stop:        # round 5: the stop from the tag bar, at its low
+                    ex0["draw_stop"] = stop
             elif pid in PULLBACK_EMA:
                 period = PULLBACK_EMA[pid]
                 pts = d.get("pivot_ts") or []
@@ -1056,6 +1222,8 @@ def draw_geometry(detections: list, bars: list) -> list:
                 pause, why = flag_pause_verdict(bars, pos, d)
                 if pause:       # round 4: a fast pole, a real flag, a midline that does not rise
                     pause, why = flag_shape_verdict(bars, pos, d)
+                if pause and reason == "diverging":    # round 5: a fanning flag is not drawn at all
+                    pause, why = False, "diverging"
                 if not pause:   # round 2: a second leg past the pole, not a pause
                     extras["stale"] = True
                     extras["stale_reason"] = why

@@ -38,7 +38,8 @@
 //   display-only extras: `draw_pivot` (a base's breakout / pivot line, solid, extended right),
 //   `draw_box: false` (line only, no box), `draw_handle` (a cup's capped handle), `stale` (a base
 //   that broke down: not drawn), and for the MA pullback `draw_ema.kind` / `draw_ema.tag` (the
-//   tagged EMA/SMA curve and the tag-bar marker; its flat `tagged_ma` secondary is then skipped).
+//   tagged EMA/SMA curve and the tag-bar marker; its flat `tagged_ma` secondary is then skipped)
+//   and `draw_stop` (round 5: the stop secondary re-anchored to start at the tag bar).
 import { useEffect, useRef, useState, useCallback } from 'react'
 import TrendlinePair from './patternShapes/TrendlinePair'
 import Neckline from './patternShapes/Neckline'
@@ -260,9 +261,22 @@ export default function PatternOverlay({
         const Renderer = hasEma ? EmaSegment : ((lanesOff || boxOff) ? null : SHAPE_RENDERERS[shape])
         const pivot = ex.draw_pivot && Number.isFinite(Number(ex.draw_pivot.price)) ? ex.draw_pivot : null
         const handle = ex.draw_handle && Number.isFinite(Number(ex.draw_handle.top)) ? ex.draw_handle : null
-        // The curve replaces the flat MA level; the stop level stays.
+        // The curve replaces the flat MA level; the stop level stays. Round 5: `draw_stop` moves
+        // the stop to start at the TAG bar (the detector's own stop secondary runs from the
+        // 10-session high, far left) — same price, same label, display only.
+        const drawStop = ex.draw_stop && Number.isFinite(Number(ex.draw_stop.price)) ? ex.draw_stop : null
         const secondary = (Array.isArray(d?.geometry?.secondary) ? d.geometry.secondary : [])
           .filter((sec) => !(hasEma && sec?.role === 'tagged_ma'))
+          .map((sec) => (drawStop && sec?.role === 'stop'
+            ? {
+                ...sec,
+                draw_stop: true,
+                anchors: [
+                  { t: drawStop.start_t, price: Number(drawStop.price) },
+                  { t: drawStop.end_t, price: Number(drawStop.price) },
+                ],
+              }
+            : sec))
         const entry = d?.draw_entry ? Number(d?.levels?.entry) : NaN
         const anchors = d?.geometry?.anchors || []
         return (
@@ -333,7 +347,9 @@ export default function PatternOverlay({
               if (sec.shape === 'rectangle') {
                 return <Rectangle key={sub.id} detection={sub} tToX={tToX} priceToY={priceToY} onClick={onDetectionClick} />
               }
-              return <LevelSegment key={sub.id} detection={sub} tToX={tToX} priceToY={priceToY} onClick={onDetectionClick} />
+              // a re-anchored stop usually starts ON the last bar: extend it right like the pivot
+              return <LevelSegment key={sub.id} detection={sub} tToX={tToX} priceToY={priceToY} onClick={onDetectionClick}
+                extendRight={sec.draw_stop ? 40 : 0} />
             })}
             {Number.isFinite(entry) && anchors.length > 0 && (
               <LevelSegment

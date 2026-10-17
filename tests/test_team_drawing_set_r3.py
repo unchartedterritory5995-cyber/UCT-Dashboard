@@ -64,11 +64,12 @@ def test_pole_top_index_ties_keep_the_earliest_bar():
 def test_the_pause_verdict_reads_the_same_true_pole_high():
     # flag bars reach 16.5: above the lower pivot (16) but under the true pole high (17) -> a pause
     lows = [15.5, 15.2, 15.0, 14.8, 14.6, 14.4, 14.2]
-    d = _flag(70, ((5, 16.5), (11, 15.2)), ((5, 15.5), (11, 14.2)))
+    # (round 5: the lanes start 2 bars after the true top, bar 2 -- adjacent legs)
+    d = _flag(70, ((4, 16.5), (11, 15.2)), ((4, 15.5), (11, 14.2)))
     display.draw_geometry([d], _pole_bars(lows))
     assert not d["geometry"]["extras"].get("stale"), d["geometry"]["extras"]
     # control: without the higher spike the same flag runs past the pole high
-    d2 = _flag(70, ((5, 16.5), (11, 15.2)), ((5, 15.5), (11, 14.2)))
+    d2 = _flag(70, ((4, 16.5), (11, 15.2)), ((4, 15.5), (11, 14.2)))
     display.draw_geometry([d2], _pole_bars(lows, spike=13.0))
     assert d2["geometry"]["extras"]["stale_reason"] == "past_pole_high"
 

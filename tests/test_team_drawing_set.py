@@ -91,15 +91,19 @@ BOX = {"structure_key": "flat-base", "start_t": ymd_t(0), "end_t": ymd_t(14),
 
 
 def test_bc_flat_base_draws_the_pivot_line_only():
-    bars = _bars([80, 84, 88, 91, 94, 99, 98, 100, 97, 99, 98, 99, 100, 98, 99])
-    d = auto_structures.box_to_detection("ZZZ", BOX, bars)
+    # round 5: the base runs on 6 more bars (its line was first touched 7 bars before the end: a
+    # fresh high) and its floor is the base's own (89.5), so the line starts on the base, not on
+    # the run-up close 91 (a close 9.5 under the line is a deep base)
+    box = {**BOX, "end_t": ymd_t(20), "floor": 89.5}
+    bars = _bars([80, 84, 88, 91, 94, 99, 98, 100, 97, 99, 98, 99, 100, 98, 99, 98, 99, 100, 98, 99, 100])
+    d = auto_structures.box_to_detection("ZZZ", box, bars)
     ex = d["geometry"]["extras"]
     assert ex["draw_box"] is False
     # round 4: the line sits on the base's top cluster of highs (100.5), not base_catalog's pivot
-    assert ex["draw_pivot"] == {"start_t": ymd_t(3), "end_t": ymd_t(14), "price": 100.5}
-    assert d["geometry"]["anchors"] == [{"t": ymd_t(0), "price": 100.5}, {"t": ymd_t(14), "price": 79.5}]
+    assert ex["draw_pivot"] == {"start_t": ymd_t(5), "end_t": ymd_t(20), "price": 100.5}
+    assert d["geometry"]["anchors"] == [{"t": ymd_t(0), "price": 100.5}, {"t": ymd_t(20), "price": 89.5}]
     # no pivot from base_catalog: the box top is the line
-    nop = auto_structures.box_to_detection("ZZZ", {**BOX, "pivot": None}, bars)
+    nop = auto_structures.box_to_detection("ZZZ", {**box, "pivot": None}, bars)
     assert nop["geometry"]["extras"]["draw_pivot"]["price"] == 100.5
     # no bars: nothing stamped (rows stored before the fix draw as before)
     assert "draw_pivot" not in auto_structures.box_to_detection("ZZZ", BOX)["geometry"]["extras"]

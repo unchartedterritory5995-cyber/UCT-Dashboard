@@ -149,7 +149,9 @@ def test_flat_base_box_reports_the_line_and_the_break():
 
 
 def test_the_flat_base_takes_the_bc_flat_base_shape_rules():
-    stairs = RUNUP + [97.0 + 0.4 * k for k in range(30)]   # a staircase, ~0.27 ATR per bar
+    # a staircase, ~0.27 ATR per bar (round 5: its last 3 bars pause, so its high is not in its last
+    # 3 bars and the round-5 still_rising rule does not answer first)
+    stairs = RUNUP + [97.0 + 0.4 * k for k in range(27)] + [106.8, 106.6, 106.7]
     d, bars = _flat_det(stairs, 10)
     display.draw_geometry([d], bars)
     ex = d["geometry"]["extras"]

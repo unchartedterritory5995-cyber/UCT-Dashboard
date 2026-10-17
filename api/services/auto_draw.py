@@ -431,7 +431,9 @@ SWING_HIGH_STRENGTH = 3
 #: ... searched over this many bars (the learned drawer's own lookback).
 SWING_HIGH_LOOKBACK = 120
 #: Two horizontals within this many ATR of each other are one level (the first kept wins).
-H_DUP_ATR = 0.5
+#: Round 5 (REPORT_TEAM_SET_R4.md + _R4_CONFIRM.md: near-identical lines bunched together): 0.6,
+#: was 0.5 (calibrated on the judged sets).
+H_DUP_ATR = 0.6
 #: How many ranked trendline candidates the drawn-set filter walks to find DRAWN_TRENDLINES keepers
 #: (round 4: 20, was 12 -- the round-4 filters reject more of the ranking).
 DRAWN_TL_POOL = 20
@@ -459,6 +461,14 @@ TL_CRASH_BARS = 5
 #: TOUCH_ATR of it, from the first anchor to the last bar, a run of adjacent touching bars counting
 #: once, the anchors included) -- no two-point line through a far anchor and the current bar.
 TL_MIN_TOUCHES = 3
+#: Round 5 (REPORT_TEAM_SET_R4.md + _R4_CONFIRM.md: long lines through two far-apart anchors, the
+#: current bar supplying the third touch): a line whose span (first anchor to the last bar) is at
+#: least TL_LONG_SPAN bars needs TL_LONG_MIN_TOUCHES touches (calibrated).
+TL_LONG_SPAN = 90
+TL_LONG_MIN_TOUCHES = 4
+#: Round 5 (the same reports: a redundant second support / resistance line): at most this many
+#: drawn lines on each side (support through lows, resistance through highs), the best-ranked kept.
+TL_PER_SIDE = 1
 #: Round 4 (REPORT_TEAM_SET_R3.md: the major swing levels and the peak high were often missing,
 #: micro levels from the last bars crowded them out): a MAJOR swing is a pivot with at least this
 #: many lower highs (higher lows) on EACH side ...
@@ -652,10 +662,12 @@ def _trendlines(a, i, at, bars):
     line crosses no crash (`_crosses_crash`), and has at least TL_MIN_TOUCHES separate touches
     (`_touches`),
     shares no anchor with a kept line (no fan from one pivot), and is not a near-duplicate
-    (slope and last-bar value within TL_DUP_*_ATR) of a kept same-side line."""
+    (slope and last-bar value within TL_DUP_*_ATR) of a kept same-side line. Round 5
+    (REPORT_TEAM_SET_R4.md + _R4_CONFIRM.md): at most TL_PER_SIDE lines per side, and a line
+    spanning TL_LONG_SPAN+ bars needs TL_LONG_MIN_TOUCHES touches."""
     idx = {int(a[j, 0]): j for j in range(i + 1)}
     close = float(a[i, 4])
-    kept, anchors = [], set()
+    kept, anchors, sides = [], set(), set()
     for r in propose(bars, k=DRAWN_TL_POOL, kinds=('trendline',)):
         c = r['coords']
         ja, jb = idx.get(int(c['t1'])), idx.get(int(c['t2']))
@@ -677,8 +689,11 @@ def _trendlines(a, i, at, bars):
             continue                       # round 4: price gapped away from it
         if not is_high and _crosses_crash(a, i, ja):
             continue                       # round 4: a long support line across a crash
-        if _touches(a, i, at, ja, float(c['p1']), slope, is_high) < TL_MIN_TOUCHES:
-            continue                       # round 4: a two-point line, not a trendline
+        if is_high in sides:
+            continue                       # round 5: one line per side, the best-ranked
+        need = TL_LONG_MIN_TOUCHES if i - ja >= TL_LONG_SPAN else TL_MIN_TOUCHES
+        if _touches(a, i, at, ja, float(c['p1']), slope, is_high) < need:
+            continue                       # round 4: a two-point line; round 5: a long one needs 4
         keys = {(is_high, int(c['t1'])), (is_high, int(c['t2']))}
         if keys & anchors:
             continue
@@ -687,6 +702,8 @@ def _trendlines(a, i, at, bars):
             continue
         kept.append({'is_high': is_high, 'slope': slope, 'p_now': float(c['p_now']), 'r': r})
         anchors |= keys
+        if sum(1 for k in kept if k['is_high'] == is_high) >= TL_PER_SIDE:
+            sides.add(is_high)
         if len(kept) >= DRAWN_TRENDLINES:
             break
     return [k['r'] for k in kept]

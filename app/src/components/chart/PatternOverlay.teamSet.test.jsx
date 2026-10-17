@@ -163,6 +163,24 @@ describe('PatternOverlay — team set: the MA pullback', () => {
     expect(levels).toEqual(['Tag-bar low 47.20'])
   })
 
+  it('round 5: draw_stop re-anchors the stop to start at the TAG bar, extended right, same label', () => {
+    const d = pullback('ema', 21)
+    d.geometry.extras.draw_stop = { start_t: 20261015, end_t: 20261016, price: 47.2 }
+    const { container } = renderOverlay([d])
+    const segs = [...container.querySelectorAll('[data-shape="level-segment"]')]
+    expect(segs.map((g) => g.textContent)).toEqual(['Tag-bar low 47.20'])
+    const line = segs[0].querySelector('line')
+    const tagX = BAR_TIMES.indexOf('2026-10-15') * 10
+    const lastX = BAR_TIMES.indexOf('2026-10-16') * 10
+    expect(Number(line.getAttribute('x1'))).toBe(tagX)
+    expect(Number(line.getAttribute('x2'))).toBe(lastX + 40)
+    // control: without draw_stop the stop runs from the 10-session high (far left)
+    const { container: c2 } = renderOverlay([pullback('ema', 21)])
+    const x1 = Number(c2.querySelector('[data-shape="level-segment"] line').getAttribute('x1'))
+    expect(x1).toBe(BAR_TIMES.indexOf('2026-10-02') * 10)
+    expect(x1).toBeLessThan(tagX)
+  })
+
   it('a 50 SMA tag is labelled as an SMA', () => {
     const { container } = renderOverlay([pullback('sma', 50)])
     expect(container.textContent).toContain('50 SMA')

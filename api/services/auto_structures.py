@@ -189,6 +189,8 @@ def _team_pivot(extras, pid, bars, start_t, end_t, top, floor, pivot) -> None:
                 ok, why = _display.flat_shape_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
             if ok:   # round 4: not a wide choppy range, not a recovery from a deep decline
                 ok, why = _display.flat_range_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
+            if ok:   # round 5: a base under the line -- no fresh high, no thin or rounded base
+                ok, why = _display.flat_top_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
             if not ok:
                 extras["stale"] = True
                 extras["stale_reason"] = why
@@ -201,7 +203,9 @@ def _team_pivot(extras, pid, bars, start_t, end_t, top, floor, pivot) -> None:
             if rim is None:     # span unknown: the old line (box top / pivot) as before
                 end = ext["end_t"] if ext and ext.get("break") == "breakout" else end_t
                 rim = {"start_t": int(start_t), "end_t": int(end), "price": price}
-            # round 4: no gap-island cup, no rim already broken by a close before the last bar
+            # round 4: no gap-island cup, no rim already broken by a close before the last bar;
+            # round 5 (display.cup_reach_verdict): no rim too old for the chart, none on a
+            # pre-gap-down high, none the right side never came back to
             ok, why = _display.cup_shape_verdict(bars, cup.get("start_t"), cup.get("end_t"), rim)
             if not ok:
                 extras["stale"] = True
