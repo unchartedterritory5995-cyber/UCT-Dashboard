@@ -29,7 +29,16 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   efb8812ad9/9395cbb976 lane F1 (StockChart studyMode, hub hides under fullscreen Sheet, StudyPanel,
   SkillTrail, ProgressRing, Courses integration, Settings card; 50 tests) · 75bc05e44c/ab298a0754 lane F2
   (DrillPlayer, 7 drills, RevealCard, EndCard, PractiseSheet, useStudySession, outbox; 42 tests) ·
-  e565b0620e integrator wiring of the drill + practise sheet into CoursesSection (reachable rail green).
+  e565b0620e integrator wiring of the drill + practise sheet into CoursesSection (reachable rail green) ·
+  lane G (importer, templates, jobs, generators): 777d3adfd9 templated lessons · 024e58e7e3 scheduler jobs
+  (reminders claim-row, weekly close + boot catch-up, nightly detection drafts) · 755ac7bbf3 near-dup diff ·
+  c534a8dd25 generators + first bank (661 drafts) · lane F3: 5cacb84001/7e077a3e64 StudyReview admin card
+  (PatternReview `?mode=study`, 20 tests) · 5a14ade449 every item has a lesson, no em-dash in member copy ·
+  052aae57e4 drills read the bank's shape (`q`, `quote` block, free-text `format: fill`).
+- Early-merge branch `fix/wire-archive-market-call` in worktree `C:\Users\pgosz\uct-worktrees\wire-call`
+  (from origin/master d0c406824d): 8f5a530f72 (cherry-pick of ad2f95cbf9) + 0dbadeef29 (scans copy script +
+  test). 38 tests pass there. NOT pushed (AI push blocked). Owner: push it, open the PR, after merge run
+  the scans copy on the pod (commands in "Owner commands" below).
 - Phase 0: ALL 8 FILES DRAFTED. Awaiting the owner's one-session review (see "Owner review packet").
 - Phase 1 backend: SKELETON LANDED 47476c0328 (study_store/scoring/select + router + 6 test files,
   125 tests). Integrator re-ran all six in this session (125 passed) plus the four rails
@@ -39,8 +48,20 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   mastery constants are provisional in study_store; import resolves bars synchronously (fine,
   index seek only) with misses stored as unresolved drafts; /items/{id}/image and /intro/{unit}
   wait on R2 assets; review_lane assignment left to generators.
-- Content bank: 0 items. Unit plan: Foundations 116 units (~2,970 q) + Vocabulary 13 units
-  (~2,920 q) + Method 96 units (~5,605 q). Both curricula authored in parallel.
+- Content bank: **661 draft items** in `docs/study/bank/*.json` (recall.glossary 80 · principles 36 ·
+  bible 32 · concepts 22 · playbooks 29 · size.house_rule 68 · spot.fixtures 132 · family.fixtures 42 ·
+  regime.bottoms 48 · regime.wire 0 (archive lives on the web pod; run `gen_regime` there) ·
+  candles.catalog 172). Every item has a lesson (371 source, 290 template); no em-dash in member copy.
+  Regenerate: `.venv/Scripts/python.exe -m scripts.study.run_all`; rail `tests/test_study_generators.py`
+  asserts the committed bank == a fresh run. **Owner review: batch 1 = recall.glossary items 1-10,
+  presented in chat 2026-10-17; verdicts not yet recorded.** Corrections go to
+  `docs/study/corrections/<segment>.jsonl` (to create on the first verdict).
+  Unit plan: Foundations 116 units (~2,970 q) + Vocabulary 13 units (~2,920 q) + Method 96 units (~5,605 q).
+- Review flow (owner decision 2026-10-17): in chat, question form, 10 items at a time; after 20-30 clean
+  items of a type the StudyReview card offers auto-approve + 10% sample for that type.
+- Owner answers 2026-10-17: Scans image copy = yes (run on the pod after the early merge); early merge =
+  "whatever is optimal for hands-off" (done as the branch above); voice-clone source = the whole library,
+  compare and contrast a lot (research not started).
 
 ## Owner review packet (Phase 0 — read in this order, one session)
 1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
@@ -76,29 +97,50 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
 ## Build checklist (Phase 1, per spec §7 + §13.2)
 - [x] `api/services/study_store.py` (47476c0328) (schema §6.1/§7.1 + §13 corrections: literal STUDY_DB_PATH read,
       one BEGIN IMMEDIATE per attempt, study_terms, trust_state per item type)
-- [~] `api/services/study_scoring.py`, `study_select.py` DONE; `study_mastery.py` (inline for now),
-      `study_templates.py`, `study_import.py` (import lives in the router; banned-phrase + grounding checks NOT yet) (3 due slots + random mix), `study_mastery.py`,
-      `study_templates.py`, `study_import.py` (get_bars_before only; misses reported; number-grounding
-      + banned-phrase checks)
+- [x] `api/services/study_scoring.py`, `study_select.py` (3 due slots + random mix), `study_templates.py`
+      (777d3adfd9), `study_import.py` (lane G: get_bars_before only, misses stored as unresolved drafts,
+      grounding + VOICE §6 + near-dup + review lanes; VOICE.md §9 records exactly what it enforces).
+      `study_mastery.py` is still inline in study_store (constants provisional).
 - [~] `api/routers/study.py` (47476c0328; image proxy + intro redirect pending R2 assets) (local `require_paid`, `STUDY_ENABLED` default ON read per request,
       bars-by-item, image proxy, attempts, step, today (bars inline), practise, leaderboard, review,
       import, corrections export)
-- [~] `api/main.py` lifespan init DONE; jobs NOT yet (reminders claim-row, weekly close w/ catch-up,
-      gen_detections after 02:00 ET; NO 06:30 fan-out)
+- [x] `api/main.py` lifespan init + jobs (024e58e7e3): study_reminders */15 claim-row, study_weekly_close
+      Sun 23:59 ET + boot catch-up, study_gen_detections Mon-Fri 02:30 ET; NO 06:30 fan-out (daily set is lazy).
 - [~] Outside-Study prerequisites (their own small merges): wire_archive persists `exposure_tier` (DONE ad2f95cbf9);
       StockChart `studyMode` / `armedTool` / `toolsAllowlist`; hub hidden under a fullscreen Sheet;
       `/api/ticker-meta` short-circuits non-universe symbols; one-time Scans image copy to R2 (SCRIPT DONE 1a6b3da6cb: `scripts/study/copy_scans_images.py`, not yet run on the pod).
 - [~] Frontend: StudyPanel + trail + DrillPlayer + 7 Phase-1 drills + reveal + end card + Practise
-      sheet + Settings card LANDED and wired (e565b0620e). Still open: StudyReview admin mode
-      (owner's review screen, §13.6 card), intro cover card (D15), Grade/Levels/Next/Family/Listen
-      drills (Phase 2), size-answer key shape (`dollars` = risk $ vs position $) to confirm with the
-      bank, lesson-link param (`?section=courses&lesson=<lesson_key>`) to be honoured by the page,
-      daily `xp_today` from the backend for the XP bar, a real `misses` session kind.
+      sheet + Settings card LANDED and wired (e565b0620e). StudyReview admin card LANDED (lane F3,
+      `app/src/pages/admin/StudyReview.jsx`, mounted as PatternReview's third tab `?mode=study`; the
+      chart draws live bars for the revealed ticker, cutoff as a marker, forward strip as a caption;
+      a multi-field Fix posts one `{action:'fix', field, after}` per field — not atomic on the wire).
+      Still open: intro cover card (D15), Grade/Levels/Next/Family/Listen drills (Phase 2),
+      size-answer key shape (`dollars` = risk $ vs position $) to confirm with the bank, lesson-link
+      param (`?section=courses&lesson=<lesson_key>`), daily `xp_today` for the XP bar, a real
+      `misses` session kind, an admin bars endpoint so the review chart can show the member's exact
+      frozen bars.
+- [x] Generators (lane G, `scripts/study/`): `_common.py` (make_item, dedash, quote_lesson,
+      fallback_lesson, validate), gen_recall / gen_size / gen_fixtures / gen_regime / gen_candles,
+      `run_all`. Not yet: VCP gold-standard, curriculum (course JSON), modelbook, scans (needs the R2
+      copy), wire regime items (run on the pod), Foundations F1-F12 + Vocabulary authoring sessions.
 - [x] Tests (6 files, 125 passing): `tests/test_study_store.py`, `test_study_scoring.py`, `test_study_no_sym_leak.py`,
       `test_study_import.py`, `test_study_flags.py`; frontend `StudyPanel.test.jsx`, `DrillPlayer.test.jsx`.
+
+## Owner commands (the AI session cannot push)
+```
+cd C:\Users\pgosz\uct-worktrees\study && git push -u origin feat/study
+cd C:\Users\pgosz\uct-worktrees\wire-call && git push -u origin fix/wire-archive-market-call
+gh pr create --base master --head fix/wire-archive-market-call --title "wire_archive: record the market call (tier word + score); Scans image copy job" --fill
+# after that PR merges and web is SUCCESS:
+railway ssh --service web -- /opt/venv/bin/python scripts/study/copy_scans_images.py --dry-run
+railway ssh --service web -- /opt/venv/bin/python scripts/study/copy_scans_images.py --limit 50
+railway ssh --service web -- /opt/venv/bin/python scripts/study/copy_scans_images.py
+```
 
 ## Resume procedure
 1. `cd C:\Users\pgosz\uct-worktrees\study && git status && git log --oneline -5`
 2. Read this file's State block, then the spec §13 and §11/§13.9.
 3. Continue the first unchecked item above. Commit at every checkpoint with a message starting `study:`.
+   If the owner review is mid-batch, re-present the batch from the State block (segment + item range)
+   and record verdicts to `docs/study/corrections/` before anything else.
 4. Re-measure every count cited in the spec before relying on it (they drift).
