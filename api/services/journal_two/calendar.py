@@ -1184,13 +1184,32 @@ def _validate_narrative(payload: dict[str, Any], key: str) -> str:
     return v
 
 
+def _stored_list(raw: Any) -> list:
+    """A stored attachments/rules column, read the way get_day_notes reads it. A value that is not a
+    JSON list reads as empty, so a save that leaves the key out can never fail on an old bad row."""
+    try:
+        v = json.loads(raw or "[]")
+    except (TypeError, ValueError):
+        return []
+    return v if isinstance(v, list) else []
+
+
 def upsert_day_notes(
     user_id: str,
     date: str,
     payload: dict[str, Any],
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
-    """Create or replace the day-notes row for (user, date)."""
+    """Create or update the day-notes row for (user, date).
+
+    A key the payload leaves out KEEPS its stored value; only a key that is
+    present (an empty string or empty list included) changes it. Until
+    2026-10-17 a missing key was written as "" or [], and the day page's save
+    hook sent only notes, attachments and rules, so every save from that page
+    blanked prep, mid-day and recap. Tabs still holding that bundle keep
+    sending three keys until they reload, which is why the guard lives here
+    and not only in the client.
+    """
     notes = _validate_narrative(payload, "notes")
     prep_notes = _validate_narrative(payload, "prepNotes")
     mid_day_notes = _validate_narrative(payload, "midDayNotes")
@@ -1203,10 +1222,24 @@ def upsert_day_notes(
     try:
         now = _now_iso()
         existing = conn.execute(
-            "SELECT id, created_at FROM j2_day_notes "
+            "SELECT id, created_at, notes, prep_notes, mid_day_notes, recap_notes,"
+            " attachments, rules FROM j2_day_notes "
             "WHERE user_id = ? AND date = ?",
             (user_id, date),
         ).fetchone()
+        if existing is not None:
+            if "notes" not in payload:
+                notes = existing["notes"] or ""
+            if "prepNotes" not in payload:
+                prep_notes = existing["prep_notes"] or ""
+            if "midDayNotes" not in payload:
+                mid_day_notes = existing["mid_day_notes"] or ""
+            if "recapNotes" not in payload:
+                recap_notes = existing["recap_notes"] or ""
+            if "attachments" not in payload:
+                attachments = _stored_list(existing["attachments"])
+            if "rules" not in payload:
+                rules = _stored_list(existing["rules"])
         if existing is None:
             new_id = str(uuid.uuid4())
             conn.execute(
