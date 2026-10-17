@@ -79,6 +79,18 @@ display-only:
               PIVOT_BASE_BAND_ATR ATR below the line) and the line within
               PIVOT_NEAR_ATR ATR of the last close; otherwise the base is
               `stale` (no_base / far_from_price) and not drawn.
+
+TEAM SET ROUND 3 (lab REPORT_TEAM_SET_R2.md, 2026-10-17 blind check), still
+display-only:
+  bull_flag   draw_pole's top is the pole's TRUE swing high (`pole_top_index`:
+              the highest high from the pole start to the flag start), not a
+              lower or later pivot; the pause verdict reads the same bar.
+  flat_base   the box (draw_anchors) and its pivot line span the CONTIGUOUS
+              run of closes in the pivot band ending nearest the last bar
+              (`band_run_extent`).
+  bc:flat-base / bc:cup-with-handle -- see auto_structures._team_pivot:
+              `flat_shape_verdict` (stair_step / deep_v) and `handle_verdict`
+              (short / long / after_breakout; the rim stays).
 """
 from __future__ import annotations
 
@@ -178,6 +190,16 @@ PIVOT_BASE_MIN_BARS = 5
 PIVOT_BASE_BAND_ATR = 2.0
 #: ... and the line must sit within this many ATR(14) of the last close.
 PIVOT_NEAR_ATR = 3.0
+#: Round 3: a flat base's closes must not trend -- the least-squares slope of the closes over the
+#: base, in ATR(14) per bar, stays within this (a stair-step climb is not a flat base) ...
+FLAT_MAX_SLOPE_ATR = 0.06
+#: ... and the base's lowest low sits at most this many ATR(14) below the band
+#: (PIVOT_BASE_BAND_ATR under the line): deeper is a V, not a base.
+FLAT_MAX_DIP_ATR = 3.0
+#: Round 3: a cup's handle box is drawn only with at least this many bars ...
+HANDLE_MIN_BARS = 3
+#: ... and at most this fraction of the cup's own length.
+HANDLE_MAX_CUP_FRAC = 1.0 / 3.0
 
 
 def _index(bars) -> dict:
@@ -427,11 +449,135 @@ def pivot_base_verdict(bars: list, start_t, end_t, price):
     price = float(price)
     if abs(float(bars[-1]["c"]) - price) > PIVOT_NEAR_ATR * at:
         return False, "far_from_price"
-    lo, hi = price - PIVOT_BASE_BAND_ATR * at, price + 0.1 * at
+    lo, hi = pivot_band(price, at)
     n_in = sum(1 for j in range(s, e + 1) if lo <= float(bars[j]["c"]) <= hi)
     if n_in < PIVOT_BASE_MIN_BARS:
         return False, "no_base"
     return True, None
+
+
+def pivot_band(price, at):
+    """(lo, hi): the flat-base band under a pivot line at `price` -- PIVOT_BASE_BAND_ATR ATR deep,
+    a close up to 0.1 ATR over the line counting as in it. The one definition of "in the band"."""
+    price = float(price)
+    return price - PIVOT_BASE_BAND_ATR * at, price + 0.1 * at
+
+
+def flat_shape_verdict(bars: list, start_t, end_t, price):
+    """(draw, reason) for a flat base's SHAPE over [start_t, end_t] under a line at `price`.
+
+    Round 3 (REPORT_TEAM_SET_R2.md: the bc:flat-base line still landed on a stair-step or a deep V):
+      stair_step  the closes IN THE BAND (`pivot_band`) trend: the least-squares slope of those
+                  closes against their bar index exceeds FLAT_MAX_SLOPE_ATR ATR per bar in size;
+      deep_v      from the first in-band close to the span's end, the lowest low sits more than
+                  FLAT_MAX_DIP_ATR ATR below the band, i.e. a V-shaped drop and recovery, not a base.
+    Both are read from the first in-band close on, so the advance INTO a base (bars below the band
+    before it starts) is neither a stair-step nor a V. (True, None) otherwise, and when the span or
+    ATR is unknown or no close is in the band (pivot_base_verdict owns that case)."""
+    pos = _index(bars)
+    s, e = pos.get(start_t), pos.get(end_t)
+    at = atr14(bars)
+    if s is None or e is None or price is None or not at:
+        return True, None
+    if s > e:
+        s, e = e, s
+    band_lo, band_hi = pivot_band(price, at)
+    inside = [j for j in range(s, e + 1) if band_lo <= float(bars[j]["c"]) <= band_hi]
+    if not inside:
+        return True, None
+    xs = [float(j) for j in inside]
+    ys = [float(bars[j]["c"]) for j in inside]
+    if len(xs) >= 2:
+        mx, my = sum(xs) / len(xs), sum(ys) / len(ys)
+        den = sum((x - mx) ** 2 for x in xs)
+        slope = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / den if den else 0.0
+        if abs(slope) > FLAT_MAX_SLOPE_ATR * at:
+            return False, "stair_step"
+    if band_lo - min(float(bars[j]["l"]) for j in range(inside[0], e + 1)) > FLAT_MAX_DIP_ATR * at:
+        return False, "deep_v"
+    return True, None
+
+
+def band_run_extent(bars: list, ext, start_t, end_t, price):
+    """Round 3 (REPORT_TEAM_SET_R2.md: flat_base boxes over the wrong span -- a range after a deep
+    decline, the recovery after a blow-off): the drawn box is the CONTIGUOUS run of closes inside
+    the band (`pivot_band`) that ends nearest the last bar, within the capped consolidation `ext`
+    (consolidation_extent) or [start_t, end_t] when uncapped. When the run reaches the
+    consolidation's last bar the box still ends AT the break bar (v3). At most MAX_BOX_BARS wide.
+    Returns {start_t, end_t, top, floor, break}, or None when the span or ATR is unknown or no close
+    of it is in the band."""
+    pos = _index(bars)
+    at = atr14(bars)
+    s_t, e_t = (ext["start_t"], ext["end_t"]) if ext else (start_t, end_t)
+    s, e = pos.get(s_t), pos.get(e_t)
+    if s is None or e is None or price is None or not at:
+        return None
+    if s > e:
+        s, e = e, s
+    brk = ext.get("break") if ext else None
+    cons_end = e - 1 if brk and e > s else e
+    lo, hi = pivot_band(price, at)
+
+    def inside(j):
+        return lo <= float(bars[j]["c"]) <= hi
+
+    r = cons_end
+    while r >= s and not inside(r):
+        r -= 1
+    if r < s:
+        return None
+    r0 = r
+    while r0 - 1 >= s and inside(r0 - 1):
+        r0 -= 1
+    end = e if r == cons_end else r
+    r0 = max(r0, end - MAX_BOX_BARS + 1)
+    run = bars[r0:r + 1]
+    return {
+        "start_t": bars[r0]["t"],
+        "end_t": bars[end]["t"],
+        "top": float(max(b["h"] for b in run)),
+        "floor": float(min(b["l"] for b in run)),
+        "break": brk if r == cons_end else None,
+    }
+
+
+def handle_verdict(bars: list, handle, cup_start_t, cup_end_t, rim):
+    """(draw, reason) for a cup's drawn HANDLE box (the handle_extent dict) beside its rim line.
+
+    Round 3 (REPORT_TEAM_SET_R2.md: the handle box was drawn after the breakout, too long, or as a
+    single bar):
+      short            fewer than HANDLE_MIN_BARS bars;
+      long             more than HANDLE_MAX_CUP_FRAC of the cup's own length;
+      after_breakout   the rim line broke out (a close above it at its end bar) and the handle box
+                       does not end BEFORE that breakout bar.
+    The rim is unaffected: a dropped handle only means no handle box. (False, "unknown") when a
+    span is unknown."""
+    pos = _index(bars)
+    hs, he = pos.get((handle or {}).get("start_t")), pos.get((handle or {}).get("end_t"))
+    cs, ce = pos.get(cup_start_t), pos.get(cup_end_t)
+    if None in (hs, he, cs, ce) or he < hs or ce < cs:
+        return False, "unknown"
+    n = he - hs + 1
+    if n < HANDLE_MIN_BARS:
+        return False, "short"
+    if n > HANDLE_MAX_CUP_FRAC * (ce - cs + 1):
+        return False, "long"
+    rj = pos.get((rim or {}).get("end_t"))
+    if rj is not None and float(bars[rj]["c"]) > float(rim["price"]) and he >= rj:
+        return False, "after_breakout"
+    return True, None
+
+
+def pole_top_index(bars: list, b0: int, b1: int) -> int:
+    """Round 3 (REPORT_TEAM_SET_R2.md: the pole's top sat on a lower or later high, so it missed the
+    real peak): the pole's TRUE top, the highest high from the pole's first bar `b0` to the bar
+    before the flag starts (`b1`, the detector's pole-top pivot; its flag begins at b1 + 1). Ties
+    keep the earliest bar. Display-only: the detector's pivot_ts / levels are untouched."""
+    top = b0
+    for j in range(b0, b1 + 1):
+        if float(bars[j]["h"]) > float(bars[top]["h"]):
+            top = j
+    return top
 
 
 def flag_pause_verdict(bars: list, pos: dict, d: dict):
@@ -449,7 +595,8 @@ def flag_pause_verdict(bars: list, pos: dict, d: dict):
         return True, None
     last = pos.get(pts[-1]) if len(pts) > 2 else None
     last = len(bars) - 1 if last is None else last
-    pole_hi = float(bars[b1]["h"])
+    # the pole high is the pole's TRUE top (round 3, pole_top_index), the same bar draw_pole uses
+    pole_hi = float(bars[pole_top_index(bars, b0, b1) if b0 <= b1 else b1]["h"])
     pole_h = pole_hi - float(bars[b0]["l"])
     ceiling = pole_hi * (1.0 + FLAG_POLE_TOL)
     flag = bars[b1 + 1:last + 1]
@@ -577,14 +724,19 @@ def draw_geometry(detections: list, bars: list) -> list:
                 ext = consolidation_extent(bars, anchors[1]["t"], anchors[3]["t"],
                                            anchors[1]["price"], anchors[3]["price"])
                 extras = geom.setdefault("extras", {})
-                extras["draw_anchors"] = (
-                    extent_anchors(ext) if ext else [dict(anchors[1]), dict(anchors[3])])
                 # Team set: the flat-top pivot line (the level it fires above).
                 if ext and ext.get("break") == "breakdown":
+                    extras["draw_anchors"] = extent_anchors(ext)
                     extras["stale"] = True
                     extras["stale_reason"] = "broke_down"
                 else:
-                    pv = pivot_line(ext, anchors[1]["t"], anchors[3]["t"], anchors[1]["price"])
+                    # round 3: the box spans the contiguous in-band run nearest the last bar
+                    run = band_run_extent(bars, ext, anchors[1]["t"], anchors[3]["t"],
+                                          anchors[1]["price"])
+                    box = run or ext
+                    extras["draw_anchors"] = (
+                        extent_anchors(box) if box else [dict(anchors[1]), dict(anchors[3])])
+                    pv = pivot_line(box, anchors[1]["t"], anchors[3]["t"], anchors[1]["price"])
                     ok, why = pivot_base_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
                     if ok:
                         extras["draw_pivot"] = pv
@@ -624,8 +776,9 @@ def draw_geometry(detections: list, bars: list) -> list:
                 b0 = pos.get(pts[0]) if len(pts) > 1 else None
                 b1 = pos.get(pts[1]) if len(pts) > 1 else None
                 if b0 is not None and b1 is not None:
+                    top = pole_top_index(bars, b0, b1) if b0 <= b1 else b1   # round 3: true swing high
                     extras["draw_pole"] = [{"t": bars[b0]["t"], "price": float(bars[b0]["l"])},
-                                           {"t": bars[b1]["t"], "price": float(bars[b1]["h"])}]
+                                           {"t": bars[top]["t"], "price": float(bars[top]["h"])}]
                 ok, reason = lane_verdict(bars, geom)
                 extras["draw_lanes"] = ok
                 if reason:

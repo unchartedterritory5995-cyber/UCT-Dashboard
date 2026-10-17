@@ -175,6 +175,8 @@ def _team_pivot(extras, pid, bars, start_t, end_t, top, floor, pivot) -> None:
             pv = _display.pivot_line(ext, start_t, end_t, price)
             # round 2: a real base under the line, and the line near price
             ok, why = _display.pivot_base_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
+            if ok:   # round 3: and a FLAT base -- no stair-step, no deep V
+                ok, why = _display.flat_shape_verdict(bars, pv["start_t"], pv["end_t"], pv["price"])
             if not ok:
                 extras["stale"] = True
                 extras["stale_reason"] = why
@@ -191,7 +193,14 @@ def _team_pivot(extras, pid, bars, start_t, end_t, top, floor, pivot) -> None:
             subs = extras.get("draw_sub_boxes")
             # only while the handle survived handle_extent (else the last sub-box is the cup's)
             if isinstance(subs, list) and len(subs) >= 2 and len(subs) == len(extras["sub_boxes"]):
-                extras["draw_handle"] = dict(subs[-1])
+                # round 3: a real handle only -- >= HANDLE_MIN_BARS bars, at most a fraction of
+                # the cup, ending before the rim's breakout bar; otherwise no box (the rim stays)
+                ok, why = _display.handle_verdict(bars, subs[-1], cup.get("start_t"),
+                                                  cup.get("end_t"), rim)
+                if ok:
+                    extras["draw_handle"] = dict(subs[-1])
+                else:
+                    extras["handle_reason"] = why
         extras["draw_box"] = False
     except Exception:  # noqa: BLE001 -- a drawing stamp never drops the box
         pass
@@ -233,6 +242,20 @@ def structures_for(sym: str) -> list:
     return out
 
 
+def last_bar_forming(last_t, now=None) -> bool:
+    """True when the daily series' last bar is a session still in progress (later than the most
+    recent COMPLETE session, barspack's one authority on that), so the prior day is the bar before
+    it. False when the last bar is complete -- it IS the prior day as of the next session -- and
+    False when the session clock is unknown (the conservative answer: the drawer then omits the
+    prior-day pair and says so, rather than drawing a forming bar's moving range as a level)."""
+    try:
+        from api.services import barspack
+        done = barspack._last_complete_session_ymd(now)
+        return done is not None and int(last_t) > int(done)
+    except Exception:  # noqa: BLE001 -- a clock question never breaks the drawing
+        return False
+
+
 def drawn_for(sym: str):
     """The learned drawer's default drawing for the latest daily bars of `sym`
     (api/services/auto_draw.drawn_set), plus the display rules that ride with it:
@@ -248,7 +271,8 @@ def drawn_for(sym: str):
     try:
         from api.services import auto_draw
         rows = [(b["t"], b["o"], b["h"], b["l"], b["c"], b["v"]) for b in _daily_bars(sym)]
-        drawn = auto_draw.drawn_set(auto_draw.clean_bars(rows))
+        forming = bool(rows) and last_bar_forming(rows[-1][0])
+        drawn = auto_draw.drawn_set(auto_draw.clean_bars(rows), last_bar_forming=forming)
         if drawn is not None:
             suppress = {pid: "hidden_by_default" for pid in sorted(DISPLAY_LEARNED_HIDES)}
             suppress.update({pid: "replaced_by_learned" for pid in sorted(DISPLAY_LEARNED_REPLACES)})

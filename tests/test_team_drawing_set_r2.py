@@ -173,12 +173,11 @@ def test_learned_levels_drop_prior_day_at_the_last_bar_cap_four_no_duplicates():
         bars = _synthetic(seed)
         d = auto_draw.drawn_set(bars)
         hs = d["horizontals"]
-        a = _arr(bars)
-        edges = (a[-1, 2], a[-1, 3])
         assert 1 <= len(hs) <= 4 == auto_draw.DRAWN_HORIZONTALS
-        for h in hs:
-            if h["source"].startswith("prior_day"):
-                assert min(abs(h["price"] - e) for e in edges) > auto_draw.PRIOR_DAY_EDGE_ATR * d["atr"]
+        # round 3 made this deliberate: with a complete last bar the prior day IS that bar, so its
+        # high / low are never drawn at its own range edges -- they are listed as omitted instead
+        assert not any(h["source"].startswith("prior_day") for h in hs)
+        assert {o["source"] for o in d["omitted"]} == {"prior_day_high", "prior_day_low"}
         ps = [h["price"] for h in hs]
         assert all(abs(x - y) > auto_draw.H_DUP_ATR * d["atr"] - 1e-6
                    for i, x in enumerate(ps) for y in ps[i + 1:]), (seed, ps)

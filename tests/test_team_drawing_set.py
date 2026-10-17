@@ -133,7 +133,9 @@ def test_bc_cup_with_handle_draws_the_rim_line_to_the_breakout_and_the_capped_ha
     ex = auto_structures.box_to_detection("ZZZ", cup, bars)["geometry"]["extras"]
     assert ex["draw_box"] is False
     assert ex["draw_pivot"] == {"start_t": ymd_t(2), "end_t": ymd_t(14), "price": 100.5}
-    assert ex["draw_handle"]["start_t"] == ymd_t(10)
+    # round 3 (test_team_drawing_set_r3.py): this 5-bar handle is half its 10-bar cup and runs
+    # into the rim's breakout bar, so no handle box is drawn -- the rim line above stays
+    assert "draw_handle" not in ex and ex["handle_reason"] == "long"
     # handle broke out on its first bar: no handle to draw, and the cup's own sub-box is NOT it
     gone = auto_structures.box_to_detection("ZZZ", {**cup, "sub_boxes": [
         cup["sub_boxes"][0], {**cup["sub_boxes"][1], "start_t": ymd_t(14)}]},
