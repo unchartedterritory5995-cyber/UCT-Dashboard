@@ -136,6 +136,34 @@ test('3. a swipe up on the header strip steps next; the same gesture on the char
   expect(sheetPane()).toHaveAttribute('aria-label', 'ECO chart')
 })
 
+test('3b. pressing a strip button never captures the pointer (a captured click goes to the strip, not the button)', async () => {
+  // Production 2026-10-17, 390 px: a touch tap on Next stepped but a mouse click did nothing,
+  // because the strip captured the pointer on press and Chromium retargets the captured click.
+  // jsdom does not retarget, so the guard is asserted directly: a press, and a press with
+  // movement inside the drag slop, must not capture; a real drag must.
+  const spy = vi.fn()
+  const orig = HTMLElement.prototype.setPointerCapture
+  HTMLElement.prototype.setPointerCapture = spy
+  try {
+    mount(); await ready()
+    fireEvent.click(screen.getByTestId('focus-row-ECO'))
+    const strip = within(sheet()).getByTestId('phone-sheet-strip')
+    const next = within(sheet()).getByRole('button', { name: 'Next stock' })
+    fireEvent.pointerDown(next, { pointerId: 7, clientX: 300, clientY: 40 })
+    fireEvent.pointerMove(next, { pointerId: 7, clientX: 301, clientY: 44 })
+    fireEvent.pointerUp(next, { pointerId: 7, clientX: 301, clientY: 44 })
+    expect(spy).not.toHaveBeenCalled()
+    fireEvent.click(next)
+    expect(sheetPane()).toHaveAttribute('aria-label', 'NVDA chart')
+    fireEvent.pointerDown(strip, { pointerId: 8, clientX: 200, clientY: 200 })
+    fireEvent.pointerMove(strip, { pointerId: 8, clientX: 200, clientY: 170 })
+    expect(spy).toHaveBeenCalledWith(8)
+    fireEvent.pointerCancel(strip, { pointerId: 8 })
+  } finally {
+    HTMLElement.prototype.setPointerCapture = orig
+  }
+})
+
 test('4. Back to list closes the sheet; row 3 is still selected and the list has focus', async () => {
   mount(); await ready()
   fireEvent.click(screen.getByTestId('focus-row-ECO'))
