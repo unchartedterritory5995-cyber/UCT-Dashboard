@@ -379,6 +379,22 @@ def record_message(msg: dict, channel_id: str) -> int:
     return added
 
 
+def _backfill_done(done_key: str) -> bool:
+    """The backfill is done for the CURRENT TSDR_LESSONS_SINCE only. The marker
+    holds the floor date it reached, so moving the date earlier reopens the
+    backfill from where it stopped, with no hand edit of the state table.
+    The legacy marker "1" was written when the floor was always 2026-01-01."""
+    value = get_state(done_key)
+    floor = since_date().date().isoformat()
+    if value == "1":
+        return floor >= "2026-01-01"
+    return value is not None and value <= floor
+
+
+def _mark_backfill_done(done_key: str) -> None:
+    set_state(done_key, since_date().date().isoformat())
+
+
 def scan_channel(channel_id: str, *, max_pages: int = MAX_PAGES_PER_TICK) -> dict:
     """Forward pages first (new posts), the rest of the budget on the backfill
     down to TSDR_LESSONS_SINCE. A cursor moves only after its page is recorded."""
@@ -396,7 +412,7 @@ def scan_channel(channel_id: str, *, max_pages: int = MAX_PAGES_PER_TICK) -> dic
         if ids:
             set_state(back_key, str(min(ids)))
         else:
-            set_state(done_key, "1")
+            _mark_backfill_done(done_key)
     else:
         while out["pages"] < max_pages:
             page = _discord("GET", f"/channels/{channel_id}/messages",
@@ -411,10 +427,10 @@ def scan_channel(channel_id: str, *, max_pages: int = MAX_PAGES_PER_TICK) -> dic
             if len(page) < 100:
                 break
     floor = snowflake_for(since_date())
-    while out["pages"] < max_pages and get_state(done_key) != "1":
+    while out["pages"] < max_pages and not _backfill_done(done_key):
         before = get_state(back_key)
         if before is None or int(before) <= floor:
-            set_state(done_key, "1")
+            _mark_backfill_done(done_key)
             break
         page = _discord("GET", f"/channels/{channel_id}/messages",
                         params={"limit": 100, "before": before}) or []
@@ -422,12 +438,12 @@ def scan_channel(channel_id: str, *, max_pages: int = MAX_PAGES_PER_TICK) -> dic
         for m in page:
             out["added"] += record_message(m, channel_id)
         if not page:
-            set_state(done_key, "1")
+            _mark_backfill_done(done_key)
             break
         oldest = min(int(m["id"]) for m in page)
         set_state(back_key, str(oldest))
         if oldest <= floor or len(page) < 100:
-            set_state(done_key, "1")
+            _mark_backfill_done(done_key)
     return out
 
 

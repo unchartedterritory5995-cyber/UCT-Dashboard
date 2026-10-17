@@ -100,12 +100,34 @@ def test_scan_initialises_then_backfills_to_since(monkeypatch):
     monkeypatch.setattr(tl, "_discord", fake)
     first = tl.scan_channel(TSDR)
     assert first["added"] == 5
-    assert tl.get_state(f"backfill_done:{TSDR}") == "1"
+    assert tl.get_state(f"backfill_done:{TSDR}") == "2026-01-01"
     assert tl.get_lesson("x") is None          # 2025 never recorded
     # the next tick only asks for what came after the newest id
     tl.scan_channel(TSDR)
     last = fake.calls[-1]
     assert last[2]["after"] == str(max(int(m["id"]) for m in newest))
+    assert not [c for c in fake.calls[-1:] if "before" in c[2]]
+
+    # moving the start date earlier reopens the backfill where it stopped
+    monkeypatch.setenv("TSDR_LESSONS_SINCE", "2020-01-01")
+    again = tl.scan_channel(TSDR)
+    assert again["added"] == 1 and tl.get_lesson("x") is not None
+    befores = [c[2]["before"] for c in fake.calls if "before" in c[2]]
+    assert befores[-1] == str(min(int(m["id"]) for m in older))   # resumed, not restarted
+    assert tl.get_state(f"backfill_done:{TSDR}") == "2020-01-01"
+
+
+def test_the_legacy_done_marker_reopens_only_for_an_earlier_date(monkeypatch):
+    tl.set_state(f"backfill_done:{TSDR}", "1")
+    tl.set_state(f"backfill:{TSDR}", sf(2026, 1, 2))
+    tl.set_state(f"cursor:{TSDR}", sf(2026, 9, 1))
+    fake = FakeDiscord({("GET", f"/channels/{TSDR}/messages"): lambda p, b: []})
+    monkeypatch.setattr(tl, "_discord", fake)
+    tl.scan_channel(TSDR)
+    assert not [c for c in fake.calls if "before" in c[2]]   # 2026 floor: still done
+    monkeypatch.setenv("TSDR_LESSONS_SINCE", "2018-06-01")
+    tl.scan_channel(TSDR)
+    assert [c for c in fake.calls if "before" in c[2]]       # earlier floor: reopened
 
 
 # ── the lesson channel ───────────────────────────────────────────────────────
