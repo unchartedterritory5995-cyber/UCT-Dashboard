@@ -19,13 +19,13 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
 ## State (update this block at every checkpoint)
 - Branch `feat/study`, worktree `C:\Users\pgosz\uct-worktrees\study` (owner file present), based on
   master `f2e816e042` (2026-10-17). Nothing merged to master. Nothing deployed.
-- Phase 0 (all files at once): IN PROGRESS — see "Phase 0 checklist".
+- Phase 0 (all files at once): 5 of 8 files drafted (22980148dc); UNITS-foundations.md, UNITS-method.md, skill_map.json being drafted by agents (not yet committed). Branch NOT yet pushed to origin (push blocked for the AI; owner runs `git push -u origin feat/study`).
 - Phase 1 backend: IN PROGRESS (skeleton) — see "Build checklist".
 - Content bank: 0 items. Targets: 5,000+ Method · 2,500+ Foundations · 2,000+ vocabulary terms /
   4,000+ vocabulary questions. Both curricula authored in parallel, interleaved.
 
 ## Phase 0 checklist (owner signs off each file in one session)
-- [ ] `docs/study/VOICE.md` — derived from the owner's own prose (toolkit cards, morning-wire
+- [x] `docs/study/VOICE.md` (draft 22980148dc, awaiting owner sign-off) — derived from the owner's own prose (toolkit cards, morning-wire
       `data/voice/voice_exemplars.json` + `voice_profile.json`, methodology bible, playbooks; Desk
       transcripts and Substack issues once read from the server).
 - [ ] `docs/study/UNITS-foundations.md` — every unit for F1–F12, F2b, V with what it teaches, rungs,
@@ -34,10 +34,10 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
       Overlay, with the per-setup supply table (28 setups) and the loss source per setup.
 - [ ] `docs/study/skill_map.json` — curricula → tracks → units → skills, ids, lesson_key links,
       28-setup aliases to the other vocabularies.
-- [ ] `docs/study/sizing_rule.md` — §4.11 as the single sizing authority; toolkit card regenerated from it.
-- [ ] `docs/study/pass_bars.md` — proposed checkpoint bars for owner decision.
-- [ ] `docs/study/video_toolchain.md` — intro-video pipeline proposal with per-video cost.
-- [ ] `docs/study/VOICE_CONSENT.md` — consent template for the voice clone (owner signs before any sample).
+- [x] `docs/study/sizing_rule.md` (draft 22980148dc, owner to confirm §4 ladder) — §4.11 as the single sizing authority; toolkit card regenerated from it.
+- [x] `docs/study/pass_bars.md` (proposal 22980148dc) — proposed checkpoint bars for owner decision.
+- [x] `docs/study/video_toolchain.md` (proposal 22980148dc) — intro-video pipeline proposal with per-video cost.
+- [x] `docs/study/VOICE_CONSENT.md` (template 22980148dc; unsigned) — consent template for the voice clone (owner signs before any sample).
 
 ## Build checklist (Phase 1, per spec §7 + §13.2)
 - [ ] `api/services/study_store.py` (schema §6.1/§7.1 + §13 corrections: literal STUDY_DB_PATH read,
