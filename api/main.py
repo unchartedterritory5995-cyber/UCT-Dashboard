@@ -7498,6 +7498,33 @@ async def lifespan(app: FastAPI):
                 id="desk_session_audit", max_instances=1, replace_existing=True)
             print("[startup] Desk Daily Sessions auto-publish ENABLED (v2 cloud-record)")
 
+        # -- Study (drills): reminders, weekly close, nightly detection drafts --
+        # Spec 2026-10-17 study design §7.1 "Jobs on web", T8/T9. Registered
+        # unconditionally; every job reads STUDY_ENABLED PER CALL (it is a kill
+        # switch on a shipped product, read at run time, never captured here).
+        # ⛔ NO 06:30 fan-out job (T9): Today's Study is created lazily on
+        # GET /today. The weekly close has an explicit catch-up on boot because
+        # APScheduler's in-memory store loses a Sunday 23:59 slot outright.
+        # The detections pass runs AFTER 02:00 ET (T8: after the 01:00 universe
+        # scan and the 00:40 prune) and reads patterns.db by indexed columns only.
+        try:
+            from api.services import study_jobs as _study_jobs
+            _scheduler.add_job(_study_jobs.job_reminders,
+                trigger=CronTrigger(minute="*/15", timezone=_ET),
+                id="study_reminders", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_study_jobs.job_weekly_close,
+                trigger=CronTrigger(day_of_week="sun", hour=23, minute=59, timezone=_ET),
+                id="study_weekly_close", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_study_jobs.job_gen_detections,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=2, minute=30, timezone=_ET),
+                id="study_gen_detections", max_instances=1, replace_existing=True)
+            threading.Thread(target=_study_jobs.job_weekly_close_catchup, daemon=True,
+                             name="study-weekly-close-catchup").start()
+            print("[scheduler] study jobs registered (reminders */15, weekly close Sun 23:59 ET, "
+                  "detections 02:30 ET weekdays; weekly-close catch-up on boot)")
+        except Exception as e:
+            print(f"[scheduler] study job registration error: {e}")
+
         # -- Morning Catalyst Engine (spec 2026-05-25) ---------------------
         # Schedule v5 2026-07-02 (user-defined hunt anchors): the expensive
         # Hunter fires when traders actually check the board.
