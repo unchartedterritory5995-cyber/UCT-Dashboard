@@ -31,7 +31,8 @@
  *     crash-draft Restores — in `swapLineageRotation.test.jsx` C1 and
  *     `restoreUndoKeepsWords.test.jsx`)
  * (e) a genuine second writer still forks — with the member's NEWEST words
- * (f) review I-1: a doc change outside history never blinds the crossing detector
+ * (f) review I-1: a doc change outside history never blinds the crossing detector —
+ *     including one APPENDED to a transaction outside history (MINOR-1, red on `928ba69bd6`)
  *
  * (a)–(c) are RED on `35dc861b85` (the I-A tip, round 1's rotate-on-every-undo).
  * The REAL editor, the REAL durable layer over the fake IndexedDB, a real Undo and
@@ -359,9 +360,15 @@ describe('(d) an Undo across a whole-view swap still rotates', () => {
     server.updatedAt = TV
     versionGate.note = server.note()
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'rail: restore a version' })); await settleIdb(6) })
-    await tick(600)
+    // ⚠️ FLAKE FIX (2026-10-16, minted 5 vs 4 once): ' gh' must be its OWN history
+    // step, or the first Undo takes the swap with it. prosemirror-history groups a
+    // transaction with the previous one when it lands within `newGroupDelay` (500 ms)
+    // of it — so wait until the swap is ON THE PAGE (it lands after async work, not
+    // at the click), then advance the clock well past the delay before typing.
+    await waitFor(async () => expect(await viewText()).toBe('a restored version'))
+    await tick(1500)
     await edit((c) => c.focus('end').insertContent(' gh'))
-    await tick(600)
+    await tick(1500)
     let n = minted.length
     await undo()
     expect(minted.length, 'Undo of typing on the swapped-in view').toBe(n)
@@ -460,6 +467,37 @@ describe('(f) ⛔⛔ review I-1 — a doc change OUTSIDE history must never blin
     expect(minted.length, 'an Undo after a doc change outside history kept the lineage').toBe(n + 1)
     await redo()
     expect(minted.length, 'a Redo after a doc change outside history kept the lineage').toBe(n + 2)
+  })
+
+  it('⭐⭐ MINOR-1: a doc change APPENDED to a transaction outside history is outside history too ⇒ the Undo across the swap still mints', async () => {
+    // prosemirror-history skips a transaction whose own `addToHistory` is false AND
+    // one APPENDED to a top-level transaction that carries it (dist, `applyTransaction`).
+    // The shape: a swap that skips TrailingNode's paragraph, then a focus-shaped
+    // transaction outside history — TrailingNode appends the paragraph to IT, so the
+    // paragraph is a doc change history never recorded, and the swap's undone step is
+    // mapped past it (not whole-document any more).
+    server = makeServer({ body: doc(para('ab cd')), updatedAt: T0 })
+    await openTheNote()
+    const ed = await editor()
+    await act(async () => {
+      ed.chain()
+        .command(({ tr }) => { tr.setMeta('uctWholeDocumentSwap', true).setMeta('skipTrailingNode', true); return true })
+        .setContent(doc(para('a swapped page'), { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'ends on a heading' }] }), { errorOnInvalidContent: false })
+        .run()
+      await settleIdb(2)
+    })
+    expect(ed.state.doc.lastChild.type.name, 'precondition: the swap skipped the trailing paragraph').toBe('heading')
+    await tick(600)
+    await act(async () => {
+      ed.view.dispatch(ed.state.tr.setMeta('focus', true).setMeta('addToHistory', false))
+      await settleIdb(2)
+    })
+    expect(ed.state.doc.lastChild.type.name, 'precondition: TrailingNode appended its paragraph to the focus transaction').toBe('paragraph')
+    await tick(600)
+    const n = minted.length
+    await undo()
+    expect(await viewText(), 'precondition: the Undo crossed the swap').not.toContain('a swapped page')
+    expect(minted.length, 'an Undo across a swap, after a doc change APPENDED outside history, did NOT mint a lineage').toBe(n + 1)
   })
 
   it('CONTROL — a transaction outside history that changes NOTHING (focus, blur, a highlighter ready flag) does not degrade it', async () => {

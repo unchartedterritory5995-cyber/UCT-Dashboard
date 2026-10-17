@@ -1,0 +1,118 @@
+MUTATION R2-M1-m4-reverted on app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx (HEAD f213466e6a64629b0413ee0a99c1bc92f4125247)
+  - '    if (!restoredNote) return\n    captureOutgoingPage()\n'
+  + '    if (!restoredNote) return\n'
+  - '        spillNextCaptureRef.current = true   // C-1 r2 (m4): the next capture is a swap capture\n'
+  + ''
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app[39m
+
+(node:42088) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx[2m > [22m[2mMI-1: a rotation between the merge and its Undo never PINS the record[2m > [22m[2m⭐⭐ offline: merge W, then a doc change outside history, then Undo the merge, keep typing ⇒ the new words are durable and W is kept
+[22m[39mautosave failed (retry 1 in 1000ms) TypeError: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx:89:48
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at update (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/hooks/useJ2Notes.js:228:25)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3998:17)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx[2m > [22m[2mMI-1: a rotation between the merge and its Undo never PINS the record[2m > [22m[2m⭐⭐ offline: merge W, then a doc change outside history, then Undo the merge, keep typing ⇒ the new words are durable and W is kept
+[22m[39mautosave failed (retry 2 in 2000ms) TypeError: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx:89:48
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at update (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/hooks/useJ2Notes.js:228:25)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3998:17)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx[2m > [22m[2mMI-1: a rotation between the merge and its Undo never PINS the record[2m > [22m[2m⭐⭐ offline: merge W, then a doc change outside history, then Undo the merge, keep typing ⇒ the new words are durable and W is kept
+[22m[39mautosave failed (retry 3 in 4000ms) TypeError: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx:89:48
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at update (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/hooks/useJ2Notes.js:228:25)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3998:17)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx[2m > [22m[2mMI-1: a rotation between the merge and its Undo never PINS the record[2m > [22m[2m⭐⭐ offline: merge W, then a doc change outside history, then Undo the merge, keep typing ⇒ the new words are durable and W is kept
+[22m[39mautosave failed (retry 4 in 8000ms) TypeError: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx:89:48
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at update (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/hooks/useJ2Notes.js:228:25)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3998:17)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx[2m > [22m[2mMI-1: a rotation between the merge and its Undo never PINS the record[2m > [22m[2m⭐⭐ offline: merge W, then a doc change outside history, then Undo the merge, keep typing ⇒ the new words are durable and W is kept
+[22m[39m[notebook] a document change outside history: from here every Undo/Redo of this view is treated as crossing a swap (noteContentGuard.js, review I-1)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx[2m > [22m[2mMI-1: a rotation between the merge and its Undo never PINS the record[2m > [22m[2m⭐⭐ offline: merge W, then a doc change outside history, then Undo the merge, keep typing ⇒ the new words are durable and W is kept
+[22m[39mautosave failed (retry 1 in 1000ms) TypeError: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx:89:48
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at update (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/hooks/useJ2Notes.js:228:25)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3998:17)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx[2m > [22m[2mMI-1: a rotation between the merge and its Undo never PINS the record[2m > [22m[2m⭐⭐ offline: merge W, then a doc change outside history, then Undo the merge, keep typing ⇒ the new words are durable and W is kept
+[22m[39mautosave failed (retry 1 in 1000ms) TypeError: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx:89:48
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at update (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/hooks/useJ2Notes.js:228:25)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3998:17)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx[2m > [22m[2mMI-1: a rotation between the merge and its Undo never PINS the record[2m > [22m[2m⭐⭐ offline: merge W, then a doc change outside history, then Undo the merge, keep typing ⇒ the new words are durable and W is kept
+[22m[39mautosave failed (retry 1 in 1000ms) TypeError: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx:89:48
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at update (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/hooks/useJ2Notes.js:228:25)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3998:17)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx[2m > [22m[2mMI-1: a rotation between the merge and its Undo never PINS the record[2m > [22m[2m⭐⭐ offline: merge W, then a doc change outside history, then Undo the merge, keep typing ⇒ the new words are durable and W is kept
+[22m[39mautosave failed (retry 2 in 2000ms) TypeError: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx:89:48
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at update (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/hooks/useJ2Notes.js:228:25)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3998:17)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx[2m > [22m[2mm4: a version restore over a DIRTY record never pins it[2m > [22m[2m⭐⭐ offline: unsent words, version restore, type, close and reopen ⇒ the old words are durable AND the newer words are in the record
+[22m[39mautosave failed (retry 1 in 1000ms) TypeError: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx:89:48
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at update (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/hooks/useJ2Notes.js:228:25)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3998:17)
+
+[90mstderr[2m | src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx[2m > [22m[2mm4: a version restore over a DIRTY record never pins it[2m > [22m[2m⭐⭐ offline: unsent words, version restore, type, close and reopen ⇒ the old words are durable AND the newer words are in the record
+[22m[39mautosave failed (retry 1 in 1000ms) TypeError: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx:89:48
+    at Mock (file:///C:/Users/Patrick/uct-worktrees/_nb-shared-install/node_modules/[4m@vitest/spy[24m/dist/index.js:285:34)
+    at update (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/hooks/useJ2Notes.js:228:25)
+    at Object.commitSave [as current] (C:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:3998:17)
+
+ [31m❯[39m src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx [2m([22m[2m6 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 32565[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ what the other device added ends on the server or in a (conflicted copy), never in no layer [33m 6199[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ what the other device added ends on the server or in a (conflicted copy), never in no layer [33m 3907[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ merge W (online), version restore, Undo across the restore, Undo the merge ⇒ W is kept [33m 6297[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ offline: merge W, then a doc change outside history, then Undo the merge, keep typing ⇒ the new words are durable and W is kept [33m 6937[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ the settle does not retire the record holding W without a copy [33m 4533[2mms[22m[39m
+[31m     [31m×[31m ⭐⭐ offline: unsent words, version restore, type, close and reopen ⇒ the old words are durable AND the newer words are in the record[39m[33m 4690[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx[2m > [22mm4: a version restore over a DIRTY record never pins it[2m > [22m⭐⭐ offline: unsent words, version restore, type, close and reopen ⇒ the old words are durable AND the newer words are in the record
+[31m[1mAssertionError[22m: the record is PINNED: the newer words are in no durable layer: {"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"ab cd OLD-UNSENT-WORDS"}]}]}: expected '{"type":"doc","content":[{"type":"par…' to contain 'NEWER-WORDS'[39m
+
+Expected: [32m"NEWER-WORDS"[39m
+Received: [31m"{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"ab cd OLD-UNSENT-WORDS"}]}]}"[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/offline/undoAcrossServerSwap.test.jsx:[2m322:152[22m[39m
+    [90m320| [39m    const durable = JSON.stringify(record() ?? null) + JSON.stringify(…
+    [90m321| [39m    expect(durable, `the pre-restore unsent words are in no durable la…
+    [90m322| [39m    expect(JSON.stringify(record()?.bodyJson), `the record is PINNED: …
+    [90m   | [39m                                                                                                                                                       [31m^[39m
+    [90m323| [39m  })
+    [90m324| [39m})
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m5 passed[39m[22m[90m (6)[39m
+[2m   Start at [22m 13:26:34
+[2m   Duration [22m 33.58s[2m (transform 2.27s, setup 245ms, import 173ms, tests 32.56s, environment 472ms)[22m
+
+
+VITEST EXIT: 1

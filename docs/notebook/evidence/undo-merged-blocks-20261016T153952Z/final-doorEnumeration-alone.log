@@ -1,0 +1,28 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-undo-merged-blocks/app[39m
+
+ [32m✓[39m src/pages/journal-2-0/lib/offline/doorEnumeration.test.js [2m([22m[2m41 tests[22m[2m)[22m[33m 73296[2mms[22m[39m
+     [33m[2m✓[22m[39m ② every OTHER server-side writer of j2_notes is a known second writer [33m 10302[2mms[22m[39m
+     [33m[2m✓[22m[39m ⑤ SERVER-side doors OUTSIDE journal_two.py are a LEDGER, each with its settle story [33m 10948[2mms[22m[39m
+     [33m[2m✓[22m[39m ③ CLIENT: every write to a door route lands its revision, or is a NAMED exception [33m 2656[2mms[22m[39m
+     [33m[2m✓[22m[39m ④ a write whose URL is a VARIABLE is resolved and checked like any other [33m 2880[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — the variable-URL scan really does see delete_folder as a door [33m 2549[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — the route derivation really does find the door routes [33m 631[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — rail ② reads routers OUTSIDE journal_two.py, through module-qualified service delegation [33m 1538[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ every SITE_EXCEPTIONS entry still names a current, unsettled client write site [33m 1735[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — a stale exception (no such site, or a site that now settles) is reported [33m 1703[2mms[22m[39m
+     [33m[2m✓[22m[39m every request in a note-touching file has a readable method, and every door write lands its revision [33m 2264[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — both of journalStyles.js's note-moving calls resolve to their routes and are seen as settled [33m 6655[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ the GENERAL check (not only the control above) goes RED when journalStyles.js loses a settle [33m 1976[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — an in-memory copy of journalStyles.js with a settle deleted makes the rail go RED, and says where [33m 8280[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ the favourite toggle, blind to every rail until now, resolves to both routes and is not a door [33m 5919[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ CONTROL — a DIRECT fetch to a derived style door with no settle is RED, and settled it is clean [33m 2806[2mms[22m[39m
+     [33m[2m✓[22m[39m the real tree has NO helper exceptions: every injected or forwarded fetch resolves or is fixed [33m 4325[2mms[22m[39m
+     [33m[2m✓[22m[39m the door universe is DERIVED and non-empty (non-vacuity) [33m 2186[2mms[22m[39m
+     [33m[2m✓[22m[39m every door is classified, nothing stale, and NO door is a loss [33m 3917[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m41 passed[39m[22m[90m (41)[39m
+[2m   Start at [22m 11:18:18
+[2m   Duration [22m 75.35s[2m (transform 361ms, setup 609ms, import 104ms, tests 73.30s, environment 1.08s)[22m
+

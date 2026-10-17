@@ -38,7 +38,7 @@ import { offlineEnabled } from './offlineFlag'
 import {
   chooseLocalRecovery, newSessionId, sameAuthoredContent, discardsUnsentWork,
   editorStateDiscardsUnsentWork, queuedWorkToAdopt, baseOfRecovered,
-  editorLineageStamp, editorLineageSupersedes, swapCaptureSpills,
+  editorLineageStamp, editorLineageSupersedes, swapCaptureSpills, dropsMergedBlocks,
 } from './recoverLocalState'
 import { copyEntryFor } from './noteCopy'
 import { refusedCopiesOf } from './refusedCopy'
@@ -277,7 +277,7 @@ export async function recordLandedRevision({
 }
 
 /**
- * @param sentFrom  ⭐ HOTFIX 2026-10-15 — { id, seq }: the edit lineage the
+ * @param sentFrom  ⭐ HOTFIX 2026-10-15 — { id, seq, merged }: the edit lineage the
  *                  editor's CONTENT save read its body from, at the moment it read
  *                  it. Passed by `commitSave` and by nothing else: there `acked`
  *                  is exactly the body that PUT carried, and the server took it.
@@ -442,7 +442,26 @@ export async function settleLandedSave({
       queuedAt: Date.now(),
       writtenSchema: record.writtenSchema,
     }
-    await putNoteWithIntent(db, record, intent)
+    // ⭐⭐ C-1 (2026-10-16): the record is about to replace `prev`'s words with words
+    // that drop a block the 409 reconcile merged into the editor — so `prev`'s words
+    // go to a queued `(conflicted copy)` in THIS transaction, as `persist` does for
+    // the capture (`dropsMergedBlocks`). ⚰️ A save that landed before the Undo's own
+    // durable write otherwise retired the record holding the block, and the block
+    // was in no layer.
+    // ⛔ C-1 fix round 1 (review IM-1): asked of what the record WRITES (`record`,
+    // whose words are `state`), never of `acked`. When the save has not caught up the
+    // record takes `current` — the Undo's page — while `acked` still held the block,
+    // so asking of `acked` found nothing dropped and the queued entry later deleted
+    // the block under compare-and-set. The merged set is the union of the lineage the
+    // save SENT and the one `current` was captured on. When the record keeps `prev`
+    // (unsent work), nothing is dropped and no copy is made.
+    const mergedNow = {
+      merged: [...new Set([...(sentFrom?.merged || []), ...(current?.editLineage?.merged || [])])],
+    }
+    const copies = dropsMergedBlocks(prev, record, mergedNow)
+      ? [copyEntryFor({ noteId, words: prev, writtenSchema: prev.writtenSchema, sessionId: SESSION_ID })]
+      : []
+    await putNoteWithIntent(db, record, intent, { copies })
     // ⛔ The save this marker was raised for has landed, so the marker comes
     // down. A separate write, in a separate store — and the ordering is safe in
     // the only direction that matters: the record is settled FIRST, so a drain

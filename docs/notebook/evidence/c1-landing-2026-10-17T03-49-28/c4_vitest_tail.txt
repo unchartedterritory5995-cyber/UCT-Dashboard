@@ -1,0 +1,8 @@
+     [33m[2m✓[22m[39m (d) that save, finishing in the next cell, creates its note only in the cell that sent it [33m 689[2mms[22m[39m
+     [33m[2m✓[22m[39m a Restore of a draft that carries only a TITLE writes that title to a durable layer before the tab closes [33m 1411[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m127 passed[39m[22m[90m (127)[39m
+[2m      Tests [22m [1m[32m1537 passed[39m[22m[90m (1537)[39m
+[2m   Start at [22m 22:45:22
+[2m   Duration [22m 142.78s[2m (transform 26.74s, setup 29.59s, import 23.22s, tests 828.14s, environment 91.82s)[22m
+
