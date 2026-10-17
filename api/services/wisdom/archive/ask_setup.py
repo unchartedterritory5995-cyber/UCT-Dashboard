@@ -29,7 +29,9 @@ WHAT THE BLOCK SAYS, bounded by MAX_BLOCK_CHARS (the archive block's own cap), e
   [<trader> · <date> · <record>]  up to MAX_TEACHINGS teachings, scrubbed of prices/dates/levels
   [CALL · <trader> · <date> · <record>]  2-3 dated example calls; a price appears ONLY for a
                                   call older than provider.PRICE_AGE_SESSIONS, through
-                                  provider.levels, the one place the price gate lives
+                                  provider.levels, the one place the price gate lives; with
+                                  WISDOM_CALL_MOMENTS_ENABLED also 'watch m:ss <url>', the second
+                                  of the Desk session where that ticker was discussed (call_moments)
   [LESSON · <trader> · <date> · <record>]  the closest LESSON posts (FTS), scrubbed, capped
 Notes are run through publish.adapters.common.scrub_levels_and_dates; a record's verbatim
 `quote` column is never read here.
@@ -399,8 +401,11 @@ def pick_examples(conn, pb: dict, author_id: Optional[str] = None) -> list:
 def example_lines(conn, pb: dict, author_id: Optional[str] = None, *, today: Optional[date] = None) -> list:
     from api.services.wisdom.archive import provider
 
+    from api.services.wisdom.archive import call_moments
+
     examples = pick_examples(conn, pb, author_id)
     gated = provider.levels(conn, [e["call_id"] for e in examples], today=today)
+    watch = call_moments.lookup(conn, [e["call_id"] for e in examples]) if call_moments.enabled() else {}
     out = []
     for e in examples:
         who = _speaker(e.get("author_id"))
@@ -412,9 +417,14 @@ def example_lines(conn, pb: dict, author_id: Optional[str] = None, *, today: Opt
         lv = gated.get(e["call_id"])
         if lv:
             text += " (stated levels: " + ", ".join(f"{k} {p:.2f}" for k, p in lv) + ")"
-        out.append((text, {"record_id": e.get("record_id"), "call_id": e["call_id"], "trader": who, "date": day,
-                           "ticker": e.get("ticker"), "setup": pb.get("setup_id"),
-                           "outcome": {"r20": e.get("r20")}, "kind": f"{KIND}_example", "flag_env": FLAG_ENV}))
+        cite = {"record_id": e.get("record_id"), "call_id": e["call_id"], "trader": who, "date": day,
+                "ticker": e.get("ticker"), "setup": pb.get("setup_id"),
+                "outcome": {"r20": e.get("r20")}, "kind": f"{KIND}_example", "flag_env": FLAG_ENV}
+        links = watch.get(e["call_id"]) or []
+        if links:
+            text += call_moments.watch_text(links)
+            cite["watch"] = links
+        out.append((text, cite))
     return out
 
 
@@ -461,7 +471,12 @@ def _assemble(items: list) -> tuple[str, list]:
     """Items in priority order; each whole line fits the budget or is dropped (never cut mid-cite)."""
     from api.services.wisdom.archive import askai
 
-    parts, cites, used = [], [], len(HEADER)
+    from api.services.wisdom.archive import call_moments
+
+    header = HEADER
+    if any(cite and cite.get("watch") for line, cite in items if line):
+        header = HEADER.rstrip(": ") + "." + call_moments.WATCH_NOTE + ": "
+    parts, cites, used = [], [], len(header)
     for line, cite in items:
         if not line or used + len(line) + 3 > askai.MAX_BLOCK_CHARS:
             continue
@@ -471,7 +486,7 @@ def _assemble(items: list) -> tuple[str, list]:
             cites.append(cite)
     if not parts:
         return "", []
-    return HEADER + " | ".join(parts), cites
+    return header + " | ".join(parts), cites
 
 
 def setup_block(query: Optional[str], *, question_type: Optional[str] = None,

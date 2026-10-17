@@ -24,6 +24,9 @@ the archive is for PAID MEMBERS and every in-app tool, never the anonymous inter
   GET /ticker/{sym}/daily team posts and calls per day on one ticker (Terminal ATTN)
   GET /image/{image_id}  one stored chart image (private storage, never a public URL)
 Record-bearing payloads carry ``images: [image_id, ...]`` on rows whose post has stored charts.
+With WISDOM_CALL_MOMENTS_ENABLED, call rows (calls/best/worst/winners/failures) also carry
+``watch: [{url, at, t, youtube_id, session_date, confidence, ...}]`` when the team discussed that
+ticker in a Desk session (archive/call_moments.py) - member content, so member routes only.
 
 ADMIN (`/api/admin/wisdom/archive`, every route Depends(require_admin) — the admin guard
 middleware does not cover /api/admin/wisdom, so the dependency IS the gate):
@@ -37,6 +40,8 @@ MACHINE (`/api/internal/wisdom/archive`, Depends(require_push_secret)):
   POST /batch            {kind: "records"|"calls"|"setups", items: [...]} idempotent upsert
   POST /image            {record_id, ordinal, data_b64} one chart image, idempotent by sha256
   POST /images/missing   {image_ids: [...]} -> the ones not yet stored (resumable import)
+  POST /call-moments/refresh  rebuild the call -> Desk session moment links (WISDOM_CALL_MOMENTS_ENABLED)
+  A "calls" batch also refreshes that batch's links when WISDOM_CALL_MOMENTS_ENABLED is on.
 
 Every half is ALSO gated by WISDOM_ARCHIVE_ENABLED (default off -> 404), checked after the
 credential so an unauthenticated or unpaid caller learns nothing about the flag.
@@ -56,7 +61,7 @@ from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user, require_admin
 from api.routers.wisdom_sources import require_push_secret
-from api.services.wisdom.archive import images, levels, rhymes, service, setup_map, team_record
+from api.services.wisdom.archive import call_moments, images, levels, rhymes, service, setup_map, team_record
 from api.services.wisdom.core import flags, store
 
 log = logging.getLogger(__name__)
@@ -91,9 +96,35 @@ def archive_batch(body: BatchIn, _worker: None = Depends(require_push_secret)) -
         raise HTTPException(status_code=422, detail="kind must be 'records', 'calls' or 'setups'")
     try:
         with store.write() as conn:
-            return service.upsert_batch(conn, body.kind, body.items)
+            out = service.upsert_batch(conn, body.kind, body.items)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
+    except sqlite3.Error as exc:
+        raise HTTPException(status_code=503, detail=f"wisdom.db unavailable: {exc}")
+    if body.kind == "calls" and call_moments.enabled():
+        out["call_moments"] = _refresh_batch_moments(body.items)
+    return out
+
+
+def _refresh_batch_moments(items: list) -> dict:
+    """The batch's call -> session moment links, rewritten after the upsert committed. Never fails
+    the batch: the import is the record, the links are derived and the refresh route rebuilds them."""
+    ids = [i.get("call_id") for i in items if isinstance(i, dict) and isinstance(i.get("call_id"), str)]
+    try:
+        return call_moments.refresh_calls(ids) or {}
+    except Exception as exc:  # noqa: BLE001
+        log.exception("[wisdom] call moments refresh after a calls batch failed")
+        return {"error": str(exc)[:200]}
+
+
+@internal_router.post("/call-moments/refresh")
+def archive_call_moments_refresh(_worker: None = Depends(require_push_secret)) -> dict:
+    """Rebuild every call -> Desk session moment link (run once after arming the gate)."""
+    _require_enabled()
+    if not call_moments.enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+    try:
+        return call_moments.refresh_all() or {}
     except sqlite3.Error as exc:
         raise HTTPException(status_code=503, detail=f"wisdom.db unavailable: {exc}")
 
@@ -199,6 +230,7 @@ def _named(payload: dict) -> dict:
                 row["trader"] = _trader_name(row["author_id"])
     if "author" in payload:
         payload["trader"] = _trader_name(payload["author"])
+    call_moments.attach(payload)               # Desk session "watch at m:ss" links (gated, paid routes)
     return images.attach(payload)              # chart ids beside each post that has them
 
 
