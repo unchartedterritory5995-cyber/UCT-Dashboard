@@ -164,6 +164,31 @@ def test_call_validation(app, wisdom_db, on, bad, why):
     assert body["rejected"] == 1 and body["inserted"] == 0 and why in body["errors"][0]["error"]
 
 
+@pytest.mark.parametrize("rid", ["z1", "z02710002", "z123456789"])
+def test_a_spoken_record_and_its_call_are_accepted(app, wisdom_db, on, rid):
+    """A spoken Live Trading Session segment ("z" ids) is a record with text, like a post."""
+    c = _client(app, None)
+    rec = c.post(BATCH, json={"kind": "records", "items": [_record(rid, quote="synthetic spoken words")]},
+                 headers=AUTH).json()
+    call = c.post(BATCH, json={"kind": "calls", "items": [_call(f"{rid}#0")]}, headers=AUTH).json()
+    assert (rec["inserted"], rec["rejected"], call["inserted"], call["rejected"]) == (1, 0, 1, 0)
+
+
+@pytest.mark.parametrize("rid", ["z", "z1234567890", "zt12", "Z12"])
+def test_a_malformed_spoken_record_id_is_still_refused(app, wisdom_db, on, rid):
+    c = _client(app, None)
+    res = c.post(BATCH, json={"kind": "records", "items": [_record("t1"), _record(rid)]}, headers=AUTH).json()
+    assert res["inserted"] == 1 and res["rejected"] == 1 and "record_id" in res["errors"][0]["error"]
+
+
+def test_a_spoken_call_must_cite_its_own_record():
+    with pytest.raises(service.ItemError, match="record_id"):
+        service.validate_call(_call("z02710002#0", record_id="z02710003"))
+    with pytest.raises(service.ItemError, match="record_id"):
+        service.validate_call(_call("z02710002#0", record_id="t02710002"))
+    assert service.validate_call(_call("z02710002#0"))["record_id"] == "z02710002"      # control
+
+
 def test_every_team_author_from_authors_json_is_accepted():
     authors = service.team_authors()
     assert len(authors) == 6 and "tsdr" in authors                           # the six, by slug

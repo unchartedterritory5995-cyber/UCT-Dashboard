@@ -35,6 +35,13 @@ def test_a_returned_record_id_passes_and_no_archive_tool_means_no_check():
     assert _fails("No archive here.", fired=[{"name": "get_quote", "result": "X 1.00"}]) == []
 
 
+def test_a_spoken_record_id_is_a_citation_like_a_written_one():
+    spoken = [{"name": "trader_archive_search", "args": {}, "result": {"results": [{"record_id": "z02710002"}]}}]
+    assert _fails("TSDR said it live (TSDR, 2025-01-02, z02710002).", fired=spoken) == []
+    assert _fails("TSDR said it live (z02719999).", fired=spoken) == ["archive_fabricated_record"]
+    assert _fails("TSDR said it live, no id.", fired=spoken) == ["archive_uncited"]
+
+
 def test_the_flags_are_notes_until_a_question_arms_them():
     out = checks.run_mechanical_checks({"answer": "nothing cited", "fired_tools": FIRED,
                                         "question": {"question": "x", "forbidden": []}})
