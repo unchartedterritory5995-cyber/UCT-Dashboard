@@ -2500,6 +2500,18 @@
      "vocab_id": null,
      "mismatch": 0,
      "note": "no vocabulary entry in v1 for a pullback to the 21 EMA / 50 SMA / 200 SMA as one setup; recall-v2 lab rule, internal detector"
+    },
+    {
+     "external_name": "uct_inside_day",
+     "vocab_id": "inside_day",
+     "mismatch": 0,
+     "note": "team-setup lab rule (inside day in a stacked uptrend), internal detector"
+    },
+    {
+     "external_name": "uct_flat_top_breakout",
+     "vocab_id": "range_breakout",
+     "mismatch": 1,
+     "note": "flat-top breakouts are the flat-base case of a range breakout; team-setup lab rule, internal detector"
     }
    ]
   },

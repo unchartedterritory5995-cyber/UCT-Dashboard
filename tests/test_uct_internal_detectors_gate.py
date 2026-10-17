@@ -46,7 +46,11 @@ _RECALL_V2 = ("uct_undercut_reclaim", "uct_episodic_pivot_v2")
 #: pullback_to_* detectors, same gate (fixtures in tests/pattern_engine/
 #: detectors/test_uct_pullback_ma_v5.py).
 _PULLBACK_V5 = ("uct_pullback_ma_v5",)
-_INTERNAL = (*_UCT2, *_RECALL_V2, *_PULLBACK_V5)
+#: Team setup recognition rules: NEW ids beside inside_bar_breakout / nr7 /
+#: flat_base, same gate (fixtures in tests/pattern_engine/detectors/
+#: test_uct_team_setups.py).
+_TEAM_SETUPS = ("uct_inside_day", "uct_flat_top_breakout")
+_INTERNAL = (*_UCT2, *_RECALL_V2, *_PULLBACK_V5, *_TEAM_SETUPS)
 _CONTROL = "bull_flag"
 _PROBE = "zz_internal_gate_probe"
 _SYM = "GATEX"
