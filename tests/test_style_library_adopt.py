@@ -534,16 +534,18 @@ def test_post_updates_style_id_applies_and_a_stale_base_is_409(api, conn, lib_on
     mine = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
     _bump(conn, item, blocks=[_blk("myRules")])
     _as(api, "member")
-    stale = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": False, "baseUpdatedAt": "1999-01-01"})
+    stale = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": False, "baseUpdatedAt": "1999-01-01", "toVersion": 2})
     assert stale.status_code == 409 and stale.json()["detail"] == gallery.UPDATE_STALE_SENTENCE
-    missing = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": False})
+    missing = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": False, "toVersion": 2})
     assert missing.status_code == 409
-    ok = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": False, "baseUpdatedAt": mine["updatedAt"]})
+    ok = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": False, "baseUpdatedAt": mine["updatedAt"],
+                                                        "toVersion": 2})
     assert ok.status_code == 200, ok.text
     style = ok.json()["style"]
     assert [b["block"] for b in style["blocks"]] == ["myRules"] and style["sourceVersion"] == 2
     # nothing newer now: 404
-    again = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": False, "baseUpdatedAt": style["updatedAt"]})
+    again = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": False, "baseUpdatedAt": style["updatedAt"],
+                                                           "toVersion": 2})
     assert again.status_code == 404
 
 
@@ -552,7 +554,7 @@ def test_post_updates_style_id_refuses_a_bad_take_outline(api, conn, lib_on):
     mine = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
     _bump(conn, item, blocks=[_blk("myRules")])
     _as(api, "member")
-    r = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": "yes", "baseUpdatedAt": mine["updatedAt"]})
+    r = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": "yes", "baseUpdatedAt": mine["updatedAt"], "toVersion": 2})
     assert r.status_code == 400
     assert js.get_style("member", mine["id"], conn)["sourceVersion"] == 1
 
@@ -645,7 +647,8 @@ def test_malformed_payload_shapes_never_500_on_adopt_plan_or_apply(api, conn, li
             plan = r.json()["plan"]
             assert plan["addBlocks"] == [] and plan["addProperties"] == [] and plan["outlineChanged"] is False
         cur = js.get_style("member", mine["id"], conn)
-        post = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": True, "baseUpdatedAt": cur["updatedAt"]})
+        post = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": True, "baseUpdatedAt": cur["updatedAt"],
+                                                                  "toVersion": n})
         assert post.status_code in (200, 404), (shape, post.status_code)
         # adopting such a row works too (an empty style), rather than a 500
         adopt = api.post(f"{URL}/{item['id']}/adopt", json={})
@@ -765,11 +768,13 @@ def test_a_stranger_cannot_apply_another_members_update(api, conn, lib_on):
     assert gallery.apply_update("stranger", mine["id"], take_outline=True,
                                 base_updated_at=mine["updatedAt"], conn=conn) is None
     _as(api, "stranger")
-    r = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": True, "baseUpdatedAt": mine["updatedAt"]})
+    r = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": True, "baseUpdatedAt": mine["updatedAt"],
+                                                       "toVersion": 2})
     assert r.status_code == 404
     after = conn.execute("SELECT blocks_json, source_version, source_block_ids, updated_at FROM j2_journal_styles"
                          " WHERE id = ?", (mine["id"],)).fetchone()
     assert tuple(after) == tuple(before)                                                  # nothing written
     _as(api, "member")                                                                    # control: the owner can
-    ok = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": False, "baseUpdatedAt": mine["updatedAt"]})
+    ok = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": False, "baseUpdatedAt": mine["updatedAt"],
+                                                        "toVersion": 2})
     assert ok.status_code == 200

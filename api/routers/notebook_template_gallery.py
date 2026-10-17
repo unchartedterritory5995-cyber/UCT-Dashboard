@@ -237,20 +237,25 @@ def plan_update_endpoint(style_id: str, user: dict = Depends(require_paid)) -> d
     return {"plan": plan}
 
 
+TO_VERSION_SENTENCE = "Say which version you previewed: toVersion must be a whole number."
+
+
 @router.post("/updates/{style_id}", dependencies=[Depends(_require_library)])
 def apply_update_endpoint(style_id: str, body: dict[str, Any] = Depends(paid_body),
                           user: dict = Depends(require_paid)) -> dict[str, Any]:
-    """`{takeOutline?: bool, baseUpdatedAt, toVersion?: int}` -> `{style}`. 409 when the copy changed since the
+    """`{takeOutline?: bool, baseUpdatedAt, toVersion: int}` -> `{style}`. 409 when the copy changed since the
     preview (`baseUpdatedAt` is the `updatedAt` the member previewed against) or a newer version is listed than
-    the `toVersion` they previewed; 404 when there is nothing to apply."""
+    the `toVersion` they previewed; 404 when there is nothing to apply. `toVersion` is REQUIRED (ruling
+    P3a-T10-R4): the library never shipped, so no client predates it, and an optional field would let any caller
+    that omits it apply a version it never previewed (M-8)."""
     take_outline = body.get("takeOutline", False)
     if take_outline is None:
         take_outline = False
     if not isinstance(take_outline, bool):
         raise HTTPException(status_code=400, detail="takeOutline must be true or false")
     to_version = body.get("toVersion")
-    if to_version is not None and (isinstance(to_version, bool) or not isinstance(to_version, int)):
-        raise HTTPException(status_code=400, detail="toVersion must be a whole number")
+    if isinstance(to_version, bool) or not isinstance(to_version, int):
+        raise HTTPException(status_code=400, detail=TO_VERSION_SENTENCE)
     try:
         style = gallery.apply_update(user["id"], style_id, take_outline=take_outline,
                                      base_updated_at=body.get("baseUpdatedAt"), to_version=to_version)

@@ -185,3 +185,24 @@ def test_sharing_a_listed_style_again_answers_has_revision_and_a_first_share_doe
     again = gallery.publish_style("author", s["id"], title="T2", description="", category="journal",
                                   trading_style=None, conn=conn)
     assert again["hasRevision"] is True and again["status"] == "approved"
+
+
+# ── P3a-T10-R4: toVersion is required on apply ──────────────────────────────────────────
+
+
+def test_post_apply_without_to_version_is_400_and_writes_nothing(api, conn, lib_on):
+    from api.routers import notebook_template_gallery as r
+    item = listed_style(conn)
+    mine = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    bump_and_approve(conn, item, blocks=[_blk("myRules")])
+    _as(api, "member")
+    for body in ({"takeOutline": False, "baseUpdatedAt": mine["updatedAt"]},
+                 {"takeOutline": False, "baseUpdatedAt": mine["updatedAt"], "toVersion": None}):
+        res = api.post(f"{URL}/updates/{mine['id']}", json=body)
+        assert res.status_code == 400 and res.json()["detail"] == r.TO_VERSION_SENTENCE, body
+    after = js.get_style("member", mine["id"], conn)
+    assert after["sourceVersion"] == 1 and after["blocks"] == mine["blocks"]
+    # control: the same body with the previewed version applies
+    ok = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": False, "baseUpdatedAt": mine["updatedAt"],
+                                                        "toVersion": 2})
+    assert ok.status_code == 200

@@ -1537,9 +1537,9 @@ def _style_library(w: World) -> None:
     w.record("template-gallery.updates.plan", "GET", f"{base}/updates/{copy_id}", case="success", expect=200)
     w.record("template-gallery.updates.plan.not-found", "GET", f"{base}/updates/nope", case="error", expect=404)
     w.record("template-gallery.updates.apply.bad-take-outline", "POST", f"{base}/updates/{copy_id}", case="error",
-             expect=400, json_body={"takeOutline": "yes", "baseUpdatedAt": adopted["style"]["updatedAt"]})
+             expect=400, json_body={"takeOutline": "yes", "baseUpdatedAt": adopted["style"]["updatedAt"], "toVersion": 2})
     w.record("template-gallery.updates.apply.stale", "POST", f"{base}/updates/{copy_id}", case="error",
-             expect=409, json_body={"baseUpdatedAt": "2000-01-01T00:00:00+00:00"},
+             expect=409, json_body={"baseUpdatedAt": "2000-01-01T00:00:00+00:00", "toVersion": 2},
              note="The copy changed since the preview: nothing is written.")
     w.record("template-gallery.updates.apply.version-moved", "POST", f"{base}/updates/{copy_id}", case="error",
              expect=409, json_body={"takeOutline": False, "baseUpdatedAt": adopted["style"]["updatedAt"],
