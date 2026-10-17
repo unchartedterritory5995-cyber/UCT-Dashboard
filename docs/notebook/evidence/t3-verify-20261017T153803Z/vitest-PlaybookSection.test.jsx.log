@@ -1,0 +1,10 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/components/insights/PlaybookSection.test.jsx (15 tests) 125ms
+
+ Test Files  1 passed (1)
+      Tests  15 passed (15)
+   Start at  10:45:35
+   Duration  1.06s (transform 185ms, setup 209ms, import 142ms, tests 125ms, environment 460ms)
+

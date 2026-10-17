@@ -1,0 +1,10 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/components/notebook/blocks/TradeReviewBlock.test.jsx (28 tests) 667ms
+
+ Test Files  1 passed (1)
+      Tests  28 passed (28)
+   Start at  10:44:22
+   Duration  2.19s (transform 598ms, setup 228ms, import 747ms, tests 667ms, environment 440ms)
+

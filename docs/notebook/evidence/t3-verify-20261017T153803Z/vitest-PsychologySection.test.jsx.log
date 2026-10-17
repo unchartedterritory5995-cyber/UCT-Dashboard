@@ -1,0 +1,10 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/components/insights/PsychologySection.test.jsx (14 tests) 308ms
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  10:45:37
+   Duration  1.38s (transform 276ms, setup 221ms, import 266ms, tests 308ms, environment 467ms)
+

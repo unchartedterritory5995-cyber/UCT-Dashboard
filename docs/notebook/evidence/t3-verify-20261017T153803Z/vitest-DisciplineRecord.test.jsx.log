@@ -1,0 +1,10 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/components/insights/DisciplineRecord.test.jsx (10 tests) 413ms
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  10:45:02
+   Duration  1.98s (transform 598ms, setup 222ms, import 775ms, tests 413ms, environment 448ms)
+

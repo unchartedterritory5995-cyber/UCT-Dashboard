@@ -1,0 +1,13 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/components/insights/MyPlaybook.test.jsx (13 tests) 1949ms
+     ✓ every displayed number is found in the authority’s payload  505ms
+     ✓ every number opens the trades it was computed from, exactly n of them  539ms
+     ✓ saves a snapshot through the one door and offers to open it  375ms
+
+ Test Files  1 passed (1)
+      Tests  13 passed (13)
+   Start at  10:45:19
+   Duration  3.58s (transform 642ms, setup 211ms, import 874ms, tests 1.95s, environment 430ms)
+

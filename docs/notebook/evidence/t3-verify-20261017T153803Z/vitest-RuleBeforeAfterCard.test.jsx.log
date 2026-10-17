@@ -1,0 +1,11 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/components/insights/RuleBeforeAfterCard.test.jsx (7 tests) 813ms
+     ✓ switch off: no card, and no before / after read  407ms
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  10:45:45
+   Duration  1.95s (transform 281ms, setup 211ms, import 272ms, tests 813ms, environment 460ms)
+

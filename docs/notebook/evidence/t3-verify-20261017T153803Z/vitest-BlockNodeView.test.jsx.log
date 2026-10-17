@@ -1,0 +1,40 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+stderr | src/pages/journal-2-0/components/notebook/blocks/BlockNodeView.test.jsx > BlockNodeView > a body that throws shows the error state and never blanks the note
+Error: boom
+    at default (C:/Users/Patrick/uct-worktrees/notebook-t3/app/src/pages/journal-2-0/components/notebook/blocks/BlockNodeView.test.jsx:6:69)
+    at Object.react_stack_bottom_frame (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:25904:20)
+    at renderWithHooks (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:7662:22)
+    at updateFunctionComponent (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:10166:19)
+    at beginWork (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:11727:35)
+    at runWithFiberInDEV (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at performUnitOfWork (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:17641:22)
+    at workLoopSync (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:17469:41)
+    at renderRootSync (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:17450:11)
+    at performWorkOnRoot (C:\Users\Patrick\uct-worktrees\_nb-shared-install\node_modules\react-dom\cjs\react-dom-client.development.js:16583:35) {
+  [stack]: [Getter/Setter],
+  [message]: 'boom'
+}
+
+The above error occurred in the <default> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, BlockBoundary.
+
+
+ ✓ src/pages/journal-2-0/components/notebook/blocks/BlockNodeView.test.jsx (10 tests) 6266ms
+     ✓ chunk fail, then the retry fails with a chunk error again: Reload is offered, and it reloads the page  1051ms
+     ✓ chunk fail, then the retry succeeds: the body renders and no Reload appears  766ms
+     ✓ N-5: offline (navigator.onLine === false) a repeated chunk failure keeps "Try again", never Reload  965ms
+     ✓ N-5: a body that LOADED resets the escalation: a much later chunk error starts at "Try again" again  797ms
+     ✓ a render (non-chunk) error keeps "Try again" only, even after a retry fails again  695ms
+     ✓ renders the block body with its params, labelled by the block name  336ms
+     ✓ a body that throws shows the error state and never blanks the note  329ms
+     ✓ I-1: after a failed chunk, "Try again" loads the body for real (a failed lazy is not reused)  650ms
+     ✓ keyboard path (S23): Tab reaches the block's first control, the Remove button, and leaves it again  673ms
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  10:43:36
+   Duration  7.21s (transform 187ms, setup 215ms, import 141ms, tests 6.27s, environment 469ms)
+

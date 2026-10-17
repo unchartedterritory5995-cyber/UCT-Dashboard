@@ -1,0 +1,10 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/components/notebook/blocks/MyRulesBlock.test.jsx (17 tests) 569ms
+
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  10:43:59
+   Duration  1.53s (transform 180ms, setup 237ms, import 129ms, tests 569ms, environment 481ms)
+

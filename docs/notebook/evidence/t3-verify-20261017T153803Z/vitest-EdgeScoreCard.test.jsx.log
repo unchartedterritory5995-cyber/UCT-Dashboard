@@ -1,0 +1,10 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/components/insights/EdgeScoreCard.test.jsx (11 tests) 311ms
+
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Start at  10:45:05
+   Duration  1.27s (transform 167ms, setup 198ms, import 109ms, tests 311ms, environment 411ms)
+

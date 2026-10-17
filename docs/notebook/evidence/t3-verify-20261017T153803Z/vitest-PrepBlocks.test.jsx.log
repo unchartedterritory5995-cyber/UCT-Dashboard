@@ -1,0 +1,10 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/components/notebook/blocks/PrepBlocks.test.jsx (30 tests) 433ms
+
+ Test Files  1 passed (1)
+      Tests  30 passed (30)
+   Start at  10:44:08
+   Duration  1.93s (transform 609ms, setup 223ms, import 735ms, tests 433ms, environment 429ms)
+

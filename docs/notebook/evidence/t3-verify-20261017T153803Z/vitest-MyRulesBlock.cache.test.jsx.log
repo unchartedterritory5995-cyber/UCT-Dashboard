@@ -1,0 +1,10 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/components/notebook/blocks/MyRulesBlock.cache.test.jsx (2 tests) 231ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  10:43:46
+   Duration  1.09s (transform 163ms, setup 210ms, import 116ms, tests 231ms, environment 425ms)
+

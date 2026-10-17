@@ -1,0 +1,13 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/a11y/traderBlocks.a11y.test.jsx (3 tests) 1923ms
+   ✓ surface "trader-block-platform": axe finds 0 violations  633ms
+   ✓ surface "trader-block-platform:error": axe finds 0 violations  367ms
+   ✓ surface "trader-block-platform:reload": axe finds 0 violations  922ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  10:43:31
+   Duration  3.87s (transform 1.12s, setup 229ms, import 969ms, tests 1.92s, environment 488ms)
+

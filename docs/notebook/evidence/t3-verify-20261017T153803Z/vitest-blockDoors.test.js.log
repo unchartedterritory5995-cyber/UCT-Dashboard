@@ -1,0 +1,10 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-t3/app
+
+ ✓ src/pages/journal-2-0/lib/blocks/blockDoors.test.js (21 tests) 129ms
+
+ Test Files  1 passed (1)
+      Tests  21 passed (21)
+   Start at  10:43:28
+   Duration  920ms (transform 99ms, setup 214ms, import 28ms, tests 129ms, environment 437ms)
+
