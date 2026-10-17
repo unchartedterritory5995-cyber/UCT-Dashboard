@@ -2872,6 +2872,17 @@
         "1"
       ]
     },
+    "WISDOM_CALL_MOMENTS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "exposure": "members",
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ],
+      "note": "DARK at merge (2026-10-17, branch feat/call-moments): the owner flips it on web. MEMBER-VISIBLE when on, paid only: links each TSDR-archive call to the second of a Desk Live Trading Session where the team discussed that ticker (same session day; a call posted after the 16:00 ET close, or on a day with no session, links to the next session within 4 days and never to a moment before the post). api/services/wisdom/archive/call_moments.py is the one authority: a pure matcher over edu_videos.ticker_moments x wisdom_archive_calls (no external call), stored in wisdom.db wisdom_archive_call_moments (archive_010), refreshed after an insights pass that produced ticker moments and after each archive calls batch, or on demand via POST /api/internal/wisdom/archive/call-moments/refresh (push secret). Surfaces: 'watch at m:ss' + https://www.youtube.com/watch?v=ID&t=SECONDS on Ask AI's TRADER ARCHIVE and SETUP CONTEXT call lines and their citations, and a `watch` list on call rows of GET /api/wisdom/archive/* (all require_paid). Nothing is written to education.db. Double-gated with WISDOM_ARCHIVE_ENABLED; off (either) = no table read or write and every prompt and payload byte-identical. After arming, run the refresh route once to build the table. Rollback: set 0 or unset on web."
+    },
     "WISDOM_CAPTURE_ENABLED": {
       "status": "dark",
       "where": [],

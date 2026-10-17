@@ -120,6 +120,15 @@ def team_history_enabled() -> bool:
     return _truthy(os.environ.get("WISDOM_TICKER_HISTORY_ENABLED", "0"))
 
 
+def call_moments_enabled() -> bool:
+    """Archive call -> Desk session moment links (api/services/wisdom/archive/call_moments.py):
+    a "watch at m:ss" deep link to the second of a Live Trading Session where the team discussed
+    the call's ticker, in Ask AI's archive blocks and on the member archive routes' call rows.
+    MEMBER-VISIBLE when on, paid only (every reader is require_paid). Double-gated with
+    WISDOM_ARCHIVE_ENABLED; off writes no link and opens no table. Default OFF."""
+    return _truthy(os.environ.get("WISDOM_CALL_MOMENTS_ENABLED", "0"))
+
+
 def brainkb_publish_enabled() -> bool:
     return _truthy(os.environ.get("WISDOM_BRAINKB_PUBLISH_ENABLED", "0"))
 
@@ -192,4 +201,5 @@ GATES = (
     ("WISDOM_ARCHIVE_ASK_ENABLED", archive_ask_enabled, True),
     ("WISDOM_ARCHIVE_LINES_ENABLED", archive_lines_enabled, True),
     ("WISDOM_TICKER_HISTORY_ENABLED", team_history_enabled, True),
+    ("WISDOM_CALL_MOMENTS_ENABLED", call_moments_enabled, True),
 )

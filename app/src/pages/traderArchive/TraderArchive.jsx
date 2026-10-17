@@ -20,6 +20,7 @@ import { ARCHIVE_API, MIN_CONTEXT_N, clip, dayOf, edgeVerdict, fmtR, rTone, trad
 import PlaybookCharts from './PlaybookCharts'
 import ArchiveThumbs from './ArchiveThumbs'
 import TodayRhymes from './TodayRhymes'
+import WatchLink from './WatchLink'
 import styles from './TraderArchive.module.css'
 
 const VIEWS = [
@@ -85,7 +86,7 @@ function CallTable({ calls, empty, withNote = false }) {
           {calls.map((c) => (
             <tr key={c.call_id}>
               <td>{dayOf(c.posted)}</td>
-              <td>{c.ticker}</td>
+              <td>{c.ticker}<WatchLink call={c} className={styles.watch} /></td>
               <td>{traderOf(c)}</td>
               <td>{c.direction || '—'}</td>
               <td>{c.setup || '—'}</td>
@@ -327,7 +328,7 @@ function ExampleTable({ rows }) {
           {rows.map((e) => (
             <tr key={e.call_id}>
               <td>{dayOf(e.posted)}</td>
-              <td>{e.ticker}</td>
+              <td>{e.ticker}<WatchLink call={e} className={styles.watch} /></td>
               <td>{traderOf(e)}</td>
               <td>{e.direction || '—'}</td>
               <td>{fmtEdge(e.sim_R)}</td>

@@ -139,3 +139,26 @@ describe('PatternArchiveStats reference lines (auto chart)', () => {
     expect(onLines.mock.calls.at(-1)[0]).toBeNull()
   })
 })
+
+describe('PatternArchiveStats: Desk session links (WISDOM_CALL_MOMENTS_ENABLED, server-gated)', () => {
+  const URL = 'https://www.youtube.com/watch?v=VIDZZTA0001&t=4500'
+
+  it('a call row the server tagged with a session moment links to the exact second', async () => {
+    const best = [{ ...CALL('t1#1', 'ZZW0', 0.3), watch: [{ url: URL, at: '1:15:00', session_date: '2026-06-01' }] },
+      CALL('t1#2', 'ZZW1', 0.2)]
+    serve(ok({ ...BODY, best }))
+    mount({ patternId: 'uct_kicker', sym: 'ZZTA' })
+    await screen.findByTestId('archive-stats')
+    const links = screen.getAllByTestId('archive-watch')
+    expect(links).toHaveLength(1)
+    expect(links[0].getAttribute('href')).toBe(URL)
+    expect(links[0].textContent).toBe('Watch at 1:15:00')
+  })
+
+  it('no watch field (the gate off) renders no link at all', async () => {
+    serve(ok(BODY))
+    mount({ patternId: 'uct_kicker', sym: 'ZZTA' })
+    await screen.findByTestId('archive-stats')
+    expect(screen.queryByTestId('archive-watch')).toBeNull()
+  })
+})
