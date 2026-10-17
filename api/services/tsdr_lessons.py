@@ -253,7 +253,9 @@ CREATE TABLE IF NOT EXISTS tsdr_lessons_state (
 # Columns added after the table first shipped; CREATE TABLE IF NOT EXISTS never
 # adds a column to a table that already exists.
 _ADDED_COLUMNS = (("post_channel_id", "TEXT"), ("forward_post_id", "TEXT"),
-                  ("section", "TEXT"))
+                  ("section", "TEXT"),
+                  # 1 = a transcript arrived for a posted link lesson: rewrite it
+                  ("redo", "INTEGER NOT NULL DEFAULT 0"))
 
 
 def _connect() -> sqlite3.Connection:
@@ -1010,7 +1012,10 @@ def process_lesson(row: dict, lesson_channel: str) -> str:
         if not msg or vid not in youtube_ids_in(msg.get("content") or ""):
             _update(aid, status="skipped", last_error="message or video was deleted")
             return "skipped"
-        transcript, seconds = youtube_transcript(vid), None
+        # a transcript sent in from outside (store_link_transcript) wins:
+        # YouTube refuses captions to this server more often than not
+        transcript = (row.get("transcript") or "").strip() or youtube_transcript(vid)
+        seconds = None
         yt_title = youtube_video_title(vid)
     else:
         att = next((a for a in (msg or {}).get("attachments") or []
@@ -1315,6 +1320,66 @@ _REOPEN_REASONS = ("not a lesson", "no spoken lesson to recap")
 _REOPEN_DONE_KEY = "reopened_skipped_clips"
 
 
+def links_needing_transcript(limit: int = 500) -> list[dict]:
+    """Posted link lessons whose recap had no transcript to work from."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            f"SELECT attachment_id, title FROM tsdr_lessons WHERE attachment_id LIKE "
+            f"'{LINK_PREFIX}%' AND status = 'posted' AND redo = 0 "
+            f"AND (transcript IS NULL OR transcript = '') ORDER BY posted_at LIMIT ?",
+            (int(limit),)).fetchall()
+    return [{"video_id": r["attachment_id"][len(LINK_PREFIX):], "title": r["title"]}
+            for r in rows]
+
+
+def store_link_transcript(video_id: str, transcript: str) -> str:
+    """Keep a transcript for a link lesson and mark it to be rewritten.
+    "queued" | "too short" (nothing to recap; the clip stays) | "unknown"."""
+    text = re.sub(r"\s+", " ", transcript or "").strip()[:400_000]
+    aid = LINK_PREFIX + str(video_id)
+    row = get_lesson(aid)
+    if not row:
+        return "unknown"
+    if len(text.split()) < MIN_WORDS:
+        return "too short"
+    redo = 1 if row["status"] == "posted" else 0     # an unposted one just uses it
+    _update(aid, transcript=text, redo=redo)
+    return "queued"
+
+
+def run_link_redo(*, deadline: float, limit: int = 20) -> dict:
+    """Take down the plain clip posts of link lessons that now have a
+    transcript and put them back in the queue, so run_lessons writes the full
+    recap into the right thread. A post already gone is fine."""
+    out = {"requeued": 0, "errors": 0}
+    with contextlib.closing(_connect()) as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT * FROM tsdr_lessons WHERE redo = 1 AND status = 'posted' LIMIT ?",
+            (int(limit),)).fetchall()]
+    for row in rows:
+        if time.time() > deadline:
+            break
+        where = row.get("post_channel_id") or ""
+        try:
+            for mid in (row.get("discord_post_id"), row.get("forward_post_id")):
+                if where and mid:
+                    try:
+                        _in_thread("DELETE", where, f"/channels/{where}/messages/{mid}", None)
+                    except DiscordError as e:
+                        if e.status != 404:
+                            raise
+        except Exception as e:  # noqa: BLE001 — try again next tick
+            log.warning("[tsdr-lessons] could not take down %s for its rewrite: %s",
+                        row["attachment_id"], e)
+            out["errors"] += 1
+            continue
+        _update(row["attachment_id"], status="new", attempts=0, redo=0, last_error=None,
+                discord_post_id=None, forward_post_id=None, post_channel_id=None,
+                section=None)
+        out["requeued"] += 1
+    return out
+
+
 _LINK_RESCAN_KEY = "rescanned_for_youtube_links"
 
 
@@ -1374,6 +1439,12 @@ def tick() -> dict:
             except Exception as e:  # noqa: BLE001
                 log.warning("[tsdr-lessons] scan of %s failed: %s", ch, e)
                 out[f"scan:{ch}"] = {"error": str(e)[:200]}
+        try:
+            redo = run_link_redo(deadline=deadline)
+            if redo["requeued"] or redo["errors"]:
+                out["link_redo"] = redo
+        except Exception as e:  # noqa: BLE001
+            log.warning("[tsdr-lessons] link rewrite stage failed: %s", e)
         try:
             reopened = reopen_skipped_clips()
             if reopened:
