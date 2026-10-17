@@ -69,7 +69,13 @@ FLAG = "NOTEBOOK_TEMPLATE_GALLERY_ENABLED"
 #: (app/src/pages/journal-2-0/lib/templateGallery.js); tests/test_notebook_template_gallery.py
 #: PARSES the client file and holds the two equal.
 CATEGORIES = ("trade_plan", "journal", "research", "review")
-SORTS = ("newest", "most_used")
+LIBRARY_FLAG = "NOTEBOOK_STYLE_LIBRARY_ENABLED"
+#: ⛔ ONE FACT IN TWO FILES with ITEM_TYPES / TRADING_STYLES / LIBRARY_SORTS in
+#: app/src/pages/journal-2-0/lib/styleLibrary.js; tests/test_style_library.py PARSES that file.
+ITEM_TYPES = ("outline", "style")
+TRADING_STYLES = ("swing", "day", "prop", "options", "earnings", "long_term")
+SORTS = ("newest", "most_used", "trending")
+TRENDING_DAYS = 7
 SECTIONS = ("all", "picks", "mine")
 #: ⛔ Same rule: pinned against the client's REPORT_REASONS by the same rail.
 REPORT_REASONS = ("spam", "personal_info", "offensive", "broken", "other")
@@ -109,6 +115,11 @@ class GalleryConflict(GalleryError):
 def enabled() -> bool:
     """The gate, read PER CALL through the one Notebook flag parse (default OFF)."""
     return flag_on(FLAG, False)
+
+
+def library_enabled() -> bool:
+    """P3a's gate, read PER CALL through the one Notebook flag parse (default OFF)."""
+    return flag_on(LIBRARY_FLAG, False)
 
 
 def _now() -> str:
@@ -190,8 +201,21 @@ def ensure_gallery_schema(conn: sqlite3.Connection) -> None:
     # published or seeded so the list never parses a body. Added here for a database whose
     # table predates it (SQLite has no ADD COLUMN IF NOT EXISTS, so the columns are read).
     columns = {r[1] for r in conn.execute("PRAGMA table_info(j2_template_gallery)")}
-    if "preview_json" not in columns:
-        conn.execute("ALTER TABLE j2_template_gallery ADD COLUMN preview_json TEXT")
+    for name, ddl in (
+        ("preview_json", "TEXT"),
+        ("item_type", "TEXT NOT NULL DEFAULT 'outline'"),
+        ("payload_json", "TEXT"),
+        ("version", "INTEGER NOT NULL DEFAULT 1"),
+        ("trading_style", "TEXT"),
+        ("source_style_id", "TEXT"),
+        ("pending_json", "TEXT"),
+        ("pending_at", "TEXT"),
+    ):
+        if name not in columns:
+            conn.execute(f"ALTER TABLE j2_template_gallery ADD COLUMN {name} {ddl}")
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_template_gallery_style_source"
+                 " ON j2_template_gallery(user_id, source_style_id)"
+                 " WHERE user_id IS NOT NULL AND source_style_id IS NOT NULL")
     conn.commit()
     try:
         seed_firm_templates(conn)
@@ -397,6 +421,11 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
         "firm": row["kind"] == "firm",
         "featured": bool(row["featured"]),
         "usedBy": int(row["used_by"] or 0) if "used_by" in row.keys() else 0,
+        "itemType": row["item_type"] if "item_type" in keys else "outline",
+        "version": int(row["version"] or 1) if "version" in keys else 1,
+        "tradingStyle": row["trading_style"] if "trading_style" in keys else None,
+        "trendingCount": int(row["trending_count"] or 0) if "trending_count" in keys else 0,
+        "helpfulCount": 0,
         "listedAt": row["listed_at"],
         "updatedAt": row["updated_at"],
         "mine": mine,
@@ -409,6 +438,7 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
         out["hidden"] = bool(row["hidden"])
         out["reviewNote"] = row["review_note"] or ""
         out["createdAt"] = row["created_at"]
+        out["hasRevision"] = bool(row["pending_at"]) if "pending_at" in keys else False
     if is_admin:
         out["openReports"] = int(row["open_reports"] or 0) if "open_reports" in row.keys() else 0
     return out
@@ -417,6 +447,8 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
 _SELECT = (
     "SELECT g.*, u.display_name AS author_display,"
     " (SELECT COUNT(*) FROM j2_template_gallery_uses x WHERE x.gallery_id = g.id) AS used_by,"
+    " (SELECT COUNT(*) FROM j2_template_gallery_uses x WHERE x.gallery_id = g.id"
+    f"    AND x.used_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', '-{TRENDING_DAYS} days')) AS trending_count,"
     " (SELECT COUNT(*) FROM j2_template_gallery_reports r"
     "    WHERE r.gallery_id = g.id AND r.status = 'open') AS open_reports"
     " FROM j2_template_gallery g LEFT JOIN users u ON u.id = g.user_id"
@@ -426,8 +458,9 @@ _SELECT_LIST = _SELECT.replace(
     "SELECT g.*,",
     "SELECT g.id, g.user_id, g.kind, g.title, g.description, g.category, g.property_defs_json,"
     " g.status, g.review_note, g.hidden, g.featured, g.listed_at, g.created_at, g.updated_at,"
-    " g.preview_json,")
-assert "g.*" not in _SELECT_LIST and "body_json" not in _SELECT_LIST
+    " g.preview_json, g.item_type, g.version, g.trading_style, g.pending_at,")
+assert ("g.*" not in _SELECT_LIST and "body_json" not in _SELECT_LIST
+        and "payload_json" not in _SELECT_LIST and "pending_json" not in _SELECT_LIST)
 _VISIBLE = "g.status = 'approved' AND g.hidden = 0"
 
 
@@ -437,7 +470,8 @@ def _like(q: str) -> str:
 
 def list_gallery(
     viewer_id: str, *, q: Any = "", category: Any = None, sort: Any = "newest",
-    section: Any = "all", is_admin: bool = False, conn: sqlite3.Connection | None = None,
+    section: Any = "all", item_type: Any = None, trading_style: Any = None,
+    is_admin: bool = False, conn: sqlite3.Connection | None = None,
 ) -> list[dict[str, Any]]:
     """The gallery as one member sees it.
 
@@ -448,9 +482,13 @@ def list_gallery(
     if section not in SECTIONS:
         raise GalleryError("Unknown gallery section.")
     if sort not in SORTS:
-        raise GalleryError("Sort by newest or most used.")
+        raise GalleryError("Sort by newest, most adopted or trending.")
     if category not in (None, "", *CATEGORIES):
         raise GalleryError("Unknown category.")
+    if item_type not in (None, "", *ITEM_TYPES):
+        raise GalleryError("Unknown item type.")
+    if trading_style not in (None, "", *TRADING_STYLES):
+        raise GalleryError("Unknown trading style.")
     query = q.strip()[:MAX_QUERY_CHARS] if isinstance(q, str) else ""
     where: list[str] = []
     args: list[Any] = []
@@ -464,11 +502,25 @@ def list_gallery(
     if category:
         where.append("g.category = ?")
         args.append(category)
+    if not library_enabled():
+        if item_type == "style" or trading_style:
+            raise GalleryError("Unknown item type.")
+        where.append("g.item_type = 'outline'")
+    elif item_type:
+        where.append("g.item_type = ?")
+        args.append(item_type)
+    if trading_style:
+        where.append("g.trading_style = ?")
+        args.append(trading_style)
     if query:
         where.append("(g.title LIKE ? ESCAPE '\\' OR g.description LIKE ? ESCAPE '\\')")
         args.extend([_like(query), _like(query)])
-    order = ("used_by DESC, COALESCE(g.listed_at, g.created_at) DESC" if sort == "most_used"
-             else "COALESCE(g.listed_at, g.created_at) DESC")
+    if sort == "most_used":
+        order = "used_by DESC, COALESCE(g.listed_at, g.created_at) DESC"
+    elif sort == "trending":
+        order = "trending_count DESC, used_by DESC, COALESCE(g.listed_at, g.created_at) DESC"
+    else:
+        order = "COALESCE(g.listed_at, g.created_at) DESC"
     sql = f"{_SELECT_LIST} WHERE {' AND '.join(where)} ORDER BY {order}, g.rowid DESC LIMIT {LIST_LIMIT}"
     owned = conn is None
     conn = conn or get_connection()

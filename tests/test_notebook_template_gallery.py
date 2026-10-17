@@ -664,6 +664,13 @@ def test_the_client_categories_and_report_reasons_are_the_servers(svc):
     assert _client_tuple("REPORT_REASONS") == svc.REPORT_REASONS
 
 
+def test_the_eager_client_sorts_are_the_outline_only_prefix_of_the_servers(svc):
+    # P3a: the server gained `trending` (styles only). The EAGER templateGallery.js keeps
+    # newest/most_used for the outline-only view and must not grow `trending` (the lazy
+    # styleLibrary.js owns the three-key list; tests/test_style_library.py pins that one).
+    assert _client_tuple("GALLERY_SORTS") == svc.SORTS[:2]
+
+
 # ── account deletion ────────────────────────────────────────────────────────────────────
 
 def test_an_authors_account_deletion_takes_their_listings_and_leaves_the_firm_picks(svc):
