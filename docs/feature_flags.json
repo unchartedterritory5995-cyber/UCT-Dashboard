@@ -2586,6 +2586,18 @@
       ],
       "note": "Screener New today: a New pill on Focus list rows that were not in the screen at the previous nightly build, an 'N new / M dropped' head line and a New only filter (spec docs/superpowers/specs/2026-10-16-screener-focus-next-design.md section 1). Dark: unset means NOT RELEASED. Read PER REQUEST in api/routers/auth.py::_screener_flags via _breadth_dc_scope, so a flip needs no rebuild. THREE VALUES: unset/0/false/no/off = off for everyone; 1/true/yes/on = everyone; admin = owner preview only (a member reads false). An unrecognised value takes the default (off). Off = no job (the membership record in screen_membership is not written after the 03:00 build), POST /api/screener/membership-diff answers 404, and no UI. admin or 1 = the nightly record runs; the first markers appear after TWO recorded complete builds."
     },
+    "SCREENER_FOCUS_PHONE_ENABLED": {
+      "member_facing": {
+        "label": "Focus layout on phones",
+        "where": "Screener"
+      },
+      "status": "dark",
+      "since": "2026-10-16",
+      "where": [
+        "web"
+      ],
+      "note": "Screener Focus on phones (spec docs/superpowers/specs/2026-10-16-screener-focus-next-design.md section 3): at 640 px and below the Focus layout renders as one column, list first; a tap opens the chart full screen, swipe or the up/down header buttons step stocks, Back to list returns to the same row, and the screen picker opens as a bottom sheet. Needs SCREENER_FOCUS_LAYOUT_ENABLED too. Dark: unset means NOT RELEASED. Read PER REQUEST in api/routers/auth.py::_screener_flags via _breadth_dc_scope, so a flip needs no rebuild. THREE VALUES: unset/0/false/no/off = off for everyone; 1/true/yes/on = everyone; admin = owner preview only (a member reads false). An unrecognised value takes the default (off). Off = a phone renders today's ResultCards page unchanged; tablet and desktop are unaffected either way."
+    },
     "SCREEN_BACKTEST_ENABLED": {
       "status": "armed",
       "where": [
