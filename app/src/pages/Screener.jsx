@@ -96,9 +96,12 @@ export default function Screener({ embedded = false }) {
   const [mode, setMode] = useState(() => (searchParams.get('tab') === 'options' ? 'options' : 'stocks'))
   const showOptions = optionsOn && mode === 'options'
   // Owner-only Focus layout (SCREENER_FOCUS_LAYOUT_ENABLED). Never in an embedded widget or a terminal panel.
-  // Phones (<=640) keep the current ResultCards page: the Focus layout is tablet and up.
+  // Phones (<=640) are admitted only behind SCREENER_FOCUS_PHONE_ENABLED (spec 2026-10-16 s3);
+  // with that flag off (or at `admin` for a member, who reads false) a phone keeps the ResultCards page.
   const isPhone = useIsPhone()
-  const focusOn = useContext(AuthContext)?.screenerFocusLayoutEnabled === true && !embedded && !inPanel && !isPhone
+  const auth = useContext(AuthContext)
+  const focusOn = auth?.screenerFocusLayoutEnabled === true && !embedded && !inPanel
+    && (!isPhone || auth?.screenerFocusPhoneEnabled === true)
 
   const containerCls = `${styles.containerFull} ${embedded ? styles.pageEmbedded : ''}`.trim()
   const showHeading = !embedded && !inPanel && !focusOn
