@@ -1585,6 +1585,34 @@ def _criterion_keys(spec) -> list[str]:
     return out
 
 
+def _blank_decided_keys(spec) -> set[str]:
+    """Keys whose BLANK the screen's own logic tree decides, so a blank one is
+    not "no value". `logic.to_sql` is two-valued: a blank fails its leaf, so a
+    leaf under an odd number of `none`/`not` PASSES on a blank. A tree that tests
+    a key there has said what a blank means (the live-or-nightly volume group's
+    `none: [rvol_live >= 0]` is "rvol_live is blank"; `none: [sector in X]`
+    keeps an unknown sector). A key the FLAT filters also read is never excused:
+    a flat clause drops a blank row whatever the tree says."""
+    from . import logic as _logic
+    out: set[str] = set()
+
+    def walk(node, negated):
+        k = _logic._kind(node)
+        if k == "leaf":
+            if negated and node.get("key"):
+                out.add(node["key"])
+            return
+        if k == "not":
+            walk(node["not"], not negated)
+            return
+        for c in node[k]:
+            walk(c, (not negated) if k == "none" else negated)
+    if spec.get("logic"):
+        walk(spec["logic"], False)
+    flat = {f.get("key") for f in (spec.get("filters") or [])}
+    return out - flat
+
+
 def coverage_for(spec, user_id=None, user=None) -> dict:
     """TERM-047: the screen's own four-count receipt, over its UNIVERSE.
 
@@ -1633,7 +1661,8 @@ def coverage_for(spec, user_id=None, user=None) -> dict:
             where = f"{where}{joiner}{stale['sql']}"
             base = [*base, *stale["params"]]
         cols = [(k, filters.column_for(k)) for k in _criterion_keys(spec)]
-        cols = [(k, c) for k, c in cols if c in known]
+        decided = _blank_decided_keys(spec)
+        cols = [(k, c) for k, c in cols if c in known and k not in decided]
         not_computable = 0
         if cols:
             null_any = " OR ".join(f"{overlay.col_expr(c)} IS NULL" for _k, c in cols)

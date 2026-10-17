@@ -554,6 +554,17 @@ def _ticker_history_enabled() -> bool:
         return False
 
 
+def _wisdom_ticker_history_enabled() -> bool:
+    """The chart's "Team history" panel switch -- the SAME reader the route's dark gate uses
+    (archive/team_history.enabled: WISDOM_TICKER_HISTORY_ENABLED and WISDOM_ARCHIVE_ENABLED).
+    Never raises."""
+    try:
+        from api.services.wisdom.archive import team_history
+        return bool(team_history.enabled())
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return False
+
+
 def _decision_record_enabled() -> bool:
     """TERM-088: the Research "Decision Record" tab's switch -- the SAME reader
     the route's dark gate uses, so the two cannot disagree. Never raises: a
@@ -843,6 +854,8 @@ def _access_payload(user: dict, plan: str) -> dict:
         "decision_record_enabled": _decision_record_enabled(),
         # TERM-049: the Research "History" tab. Same one-authority rule as above.
         "ticker_history_enabled": _ticker_history_enabled(),
+        # The chart's Team history panel (TSDR archive). Same one-authority rule.
+        "wisdom_ticker_history_enabled": _wisdom_ticker_history_enabled(),
         "address_space_enabled": _address_space_enabled(),
         "options_chain_enabled": _options_chain_enabled(),
         "options_vol_surface_enabled": _options_vol_surface_enabled(),

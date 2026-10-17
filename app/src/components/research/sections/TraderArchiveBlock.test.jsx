@@ -45,6 +45,33 @@ describe('TraderArchiveBlock', () => {
     expect(String(globalThis.fetch.mock.calls[0][0])).toContain('/api/wisdom/archive/ticker/ZZTA')
   })
 
+  it('renders "Prices shown after 20 sessions" for a call the archive has not aged yet', async () => {
+    mockFetch(() => ok({
+      ...ARCHIVE, age_sessions: 20,
+      calls: [
+        { ...ARCHIVE.calls[0], prices_status: 'shown' },
+        { ...ARCHIVE.calls[1], call_id: 't3#0', posted: '2026-10-13T14:00:00', prices_status: 'pending_age',
+          entry: null, stop: null, target: null, outcome: { r5: null, r20: null } },
+      ],
+    }))
+    fresh(<TraderArchiveBlock sym="ZZTP" />)
+    const cell = await screen.findByTestId('trader-archive-pending')
+    expect(cell.textContent).toBe('Prices shown after 20 sessions')
+    expect(cell.closest('tr').textContent).toContain('2026-10-13')
+    expect(screen.getAllByText('Prices shown after 20 sessions')).toHaveLength(1)   // the aged row is not pending
+    expect(screen.getByText('+10.0%')).toBeInTheDocument()                          // and keeps its r20
+  })
+
+  it('never shows an r20 on a pending row, even if one arrives', async () => {
+    mockFetch(() => ok({
+      ...ARCHIVE,
+      calls: [{ ...ARCHIVE.calls[0], prices_status: 'pending_age', outcome: { r20: 0.37 } }],
+    }))
+    fresh(<TraderArchiveBlock sym="ZZTQ" />)
+    expect((await screen.findByTestId('trader-archive-pending')).textContent).toBe('Prices shown after 20 sessions')
+    expect(screen.queryByText('+37.0%')).toBeNull()
+  })
+
   it.each([[404], [402], [500]])('renders nothing when the archive answers %s', async (status) => {
     mockFetch(() => fail(status))
     const { container } = fresh(<TraderArchiveBlock sym="ZZTB" />)

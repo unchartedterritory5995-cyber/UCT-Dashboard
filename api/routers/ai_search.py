@@ -2318,6 +2318,8 @@ def _grounded_system(query: str) -> tuple[str, str, dict]:
                 meta["grounding_sources"].append(key)
             meta["archive_citations"] = acites
             salt = f"{salt or ''}|trader_archive"
+            if any(c.get("watch") for c in acites):     # Desk session links (WISDOM_CALL_MOMENTS_ENABLED)
+                salt = f"{salt}|call_moments"
             if archive_askai.PLAYBOOK_KIND in kinds:
                 system = _restate_setup_gap(system, meta)
     except Exception:
@@ -2332,6 +2334,8 @@ def _grounded_system(query: str) -> tuple[str, str, dict]:
                 meta["grounding_sources"].append(ask_setup.SOURCE_KEY)
             meta["archive_citations"] = list(meta.get("archive_citations") or []) + list(scites)
             salt = f"{salt or ''}{ask_setup.SALT_SUFFIX}"
+            if any(c.get("watch") for c in scites):     # Desk session links (WISDOM_CALL_MOMENTS_ENABLED)
+                salt = f"{salt}|call_moments"
             system = _restate_setup_gap(system, meta)
     except Exception:
         pass

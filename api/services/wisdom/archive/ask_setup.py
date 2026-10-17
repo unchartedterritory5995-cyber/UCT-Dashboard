@@ -33,7 +33,9 @@ WHAT THE BLOCK SAYS, bounded by MAX_BLOCK_CHARS (the archive block's own cap), e
   [<trader> · <date> · <record>]  up to MAX_TEACHINGS teachings, scrubbed of prices/dates/levels
   [CALL · <trader> · <date> · <record>]  2-3 dated example calls; a price appears ONLY for a
                                   call older than provider.PRICE_AGE_SESSIONS, through
-                                  provider.levels, the one place the price gate lives
+                                  provider.levels, the one place the price gate lives; with
+                                  WISDOM_CALL_MOMENTS_ENABLED also 'watch m:ss <url>', the second
+                                  of the Desk session where that ticker was discussed (call_moments)
   [LESSON · <trader> · <date> · <record>]  the closest LESSON posts (FTS), scrubbed, capped
 Notes are run through publish.adapters.common.scrub_levels_and_dates; a record's verbatim
 `quote` column is never read here.
@@ -334,9 +336,35 @@ def _team_display() -> dict:
     return out
 
 
+def edge_call(st: dict, edge_z: float, min_n: int) -> Optional[tuple]:
+    """The ledger's rule for one trader's cut, the same one the brain's trader playbooks apply
+    (TSDR-Ledger lab/trader_playbooks/build.py `verdict`, in SCORECARD's order): at n >= min_n, a
+    |z| >= edge_z on edge20 (20-session return vs the same stock on a random day) decides first, else
+    the same test on edgeR. Returns ('edge' | 'negative', 'edge20' | 'edgeR', z) or None.
+
+    n is the brain's n: the count of edge20 values (`n_edge20`), which gates both steps. An import made
+    before the setup library carried `n_edge20`/`edge20_z` has only `n_scored` and `edgeR_z`, so the
+    gate reads n_scored, the edge20 step finds nothing and the edgeR step decides, exactly as this
+    line did before."""
+    n = _rule_n(st)
+    if n < min_n:
+        return None
+    for basis, key in (("edge20", "edge20_z"), ("edgeR", "edgeR_z")):
+        z = _num(st.get(key))
+        if z is not None and abs(z) >= edge_z:
+            return ("edge" if z > 0 else "negative"), basis, z
+    return None
+
+
+def _rule_n(st: dict) -> int:
+    n20 = _num(st.get("n_edge20"))
+    return int(n20) if n20 is not None else int(st.get("n_scored") or 0)
+
+
 def trader_cuts(pb: dict) -> dict:
     """{'edge': [(author_id, stats)], 'negative': [...], 'not_enough_data': [author_id]} from the
-    playbook's per-trader cut. Keys that are not one of the team's authors are dropped."""
+    playbook's per-trader cut, judged by `edge_call`. Keys that are not one of the team's authors
+    are dropped."""
     from api.services.wisdom.archive import team_record
 
     edge_z, min_n = team_record._thresholds()
@@ -348,9 +376,9 @@ def trader_cuts(pb: dict) -> dict:
         st = cuts.get(key) or {}
         if not aid or not int(st.get("n_scored") or 0):
             continue
-        z, n = _num(st.get("edgeR_z")), int(st.get("n_scored") or 0)
-        if z is not None and abs(z) >= edge_z and n >= min_n:
-            out["edge" if z > 0 else "negative"].append((aid, st))
+        call = edge_call(st, edge_z, min_n)
+        if call:
+            out[call[0]].append((aid, st))
         else:
             out["not_enough_data"].append(aid)
     return out
@@ -358,18 +386,20 @@ def trader_cuts(pb: dict) -> dict:
 
 def traders_line(pb: dict) -> str:
     """Who has an edge on this setup, or "" when the playbook carries no per-trader cut."""
+    from api.services.wisdom.archive import team_record
+
     cuts = trader_cuts(pb)
     if not any(cuts.values()):
         return ""
+    edge_z, min_n = team_record._thresholds()
 
     def item(aid, st):
-        bits = [f"n {int(st.get('n_scored') or 0)}"]
+        bits = [f"n {_rule_n(st)}"]
         edge = _num(st.get("mean_edgeR"))
         if edge is not None:
             bits.append(f"edge R {edge:+.2f}")
-        z = _num(st.get("edgeR_z"))
-        if z is not None:
-            bits.append(f"z {z:.1f}")
+        _, basis, z = edge_call(st, edge_z, min_n)
+        bits.append(f"z {z:.1f} on {'edge20' if basis == 'edge20' else 'edge R'}")
         return f"{_speaker(aid)} ({', '.join(bits)})"
 
     parts = [f"measured edge: {'; '.join(item(a, s) for a, s in cuts['edge']) or 'none'}",
@@ -463,8 +493,11 @@ def pick_examples(conn, pb: dict, author_id: Optional[str] = None) -> list:
 def example_lines(conn, pb: dict, author_id: Optional[str] = None, *, today: Optional[date] = None) -> list:
     from api.services.wisdom.archive import provider
 
+    from api.services.wisdom.archive import call_moments
+
     examples = pick_examples(conn, pb, author_id)
     gated = provider.levels(conn, [e["call_id"] for e in examples], today=today)
+    watch = call_moments.lookup(conn, [e["call_id"] for e in examples]) if call_moments.enabled() else {}
     out = []
     for e in examples:
         who = _speaker(e.get("author_id"))
@@ -476,9 +509,14 @@ def example_lines(conn, pb: dict, author_id: Optional[str] = None, *, today: Opt
         lv = gated.get(e["call_id"])
         if lv:
             text += " (stated levels: " + ", ".join(f"{k} {p:.2f}" for k, p in lv) + ")"
-        out.append((text, {"record_id": e.get("record_id"), "call_id": e["call_id"], "trader": who, "date": day,
-                           "ticker": e.get("ticker"), "setup": pb.get("setup_id"),
-                           "outcome": {"r20": e.get("r20")}, "kind": f"{KIND}_example", "flag_env": FLAG_ENV}))
+        cite = {"record_id": e.get("record_id"), "call_id": e["call_id"], "trader": who, "date": day,
+                "ticker": e.get("ticker"), "setup": pb.get("setup_id"),
+                "outcome": {"r20": e.get("r20")}, "kind": f"{KIND}_example", "flag_env": FLAG_ENV}
+        links = watch.get(e["call_id"]) or []
+        if links:
+            text += call_moments.watch_text(links)
+            cite["watch"] = links
+        out.append((text, cite))
     return out
 
 
@@ -525,7 +563,12 @@ def _assemble(items: list) -> tuple[str, list]:
     """Items in priority order; each whole line fits the budget or is dropped (never cut mid-cite)."""
     from api.services.wisdom.archive import askai
 
-    parts, cites, used = [], [], len(HEADER)
+    from api.services.wisdom.archive import call_moments
+
+    header = HEADER
+    if any(cite and cite.get("watch") for line, cite in items if line):
+        header = HEADER.rstrip(": ") + "." + call_moments.WATCH_NOTE + ": "
+    parts, cites, used = [], [], len(header)
     for line, cite in items:
         if not line or used + len(line) + 3 > askai.MAX_BLOCK_CHARS:
             continue
@@ -535,7 +578,7 @@ def _assemble(items: list) -> tuple[str, list]:
             cites.append(cite)
     if not parts:
         return "", []
-    return HEADER + " | ".join(parts), cites
+    return header + " | ".join(parts), cites
 
 
 def setup_block(query: Optional[str], *, question_type: Optional[str] = None,

@@ -2624,7 +2624,7 @@
       "where": [
         "web"
       ],
-      "note": "ARMED at value admin on web 2026-10-17T03:04:16Z (owner preview only; members read false); redeploy SUCCESS 03:06:20Z, /api/auth/me reads true for the admin smoke@ and false for the member bench@. Production walk 2026-10-17 ~03:47Z after fix #364 (sheet buttons with a mouse click): 390x844 list full width, no overflow, tap opens the chart sheet, Next steps, Back returns on the same row, screen picker as a bottom sheet, 0 page errors; 820x1180 unchanged. Rollback: set 0 (read per request). Screener Focus on phones (spec docs/superpowers/specs/2026-10-16-screener-focus-next-design.md section 3): at 640 px and below the Focus layout renders as one column, list first; a tap opens the chart full screen, swipe or the up/down header buttons step stocks, Back to list returns to the same row, and the screen picker opens as a bottom sheet. Needs SCREENER_FOCUS_LAYOUT_ENABLED too. Dark: unset means NOT RELEASED. Read PER REQUEST in api/routers/auth.py::_screener_flags via _breadth_dc_scope, so a flip needs no rebuild. THREE VALUES: unset/0/false/no/off = off for everyone; 1/true/yes/on = everyone; admin = owner preview only (a member reads false). An unrecognised value takes the default (off). Off = a phone renders today's ResultCards page unchanged; tablet and desktop are unaffected either way."
+      "note": "ON FOR EVERYONE (value 1) on web since 2026-10-17 ~14:41Z, set by the owner; redeploy 1e043b443d SUCCESS 14:41:58Z, and the synthetic member account bench@ reads screener_focus_phone_enabled=true from /api/auth/me. Member walk after the flip (bench@, 390x844 and 820x1180): tap opens the chart sheet, Next steps, Back returns on the same row, screen picker as a bottom sheet, no horizontal overflow, 0 page errors; tablet unchanged. Rollback: set admin (owner only) or 0. History: ARMED at value admin on web 2026-10-17T03:04:16Z (owner preview only; members read false); redeploy SUCCESS 03:06:20Z, /api/auth/me reads true for the admin smoke@ and false for the member bench@. Production walk 2026-10-17 ~03:47Z after fix #364 (sheet buttons with a mouse click): 390x844 list full width, no overflow, tap opens the chart sheet, Next steps, Back returns on the same row, screen picker as a bottom sheet, 0 page errors; 820x1180 unchanged. Rollback: set 0 (read per request). Screener Focus on phones (spec docs/superpowers/specs/2026-10-16-screener-focus-next-design.md section 3): at 640 px and below the Focus layout renders as one column, list first; a tap opens the chart full screen, swipe or the up/down header buttons step stocks, Back to list returns to the same row, and the screen picker opens as a bottom sheet. Needs SCREENER_FOCUS_LAYOUT_ENABLED too. Dark: unset means NOT RELEASED. Read PER REQUEST in api/routers/auth.py::_screener_flags via _breadth_dc_scope, so a flip needs no rebuild. THREE VALUES: unset/0/false/no/off = off for everyone; 1/true/yes/on = everyone; admin = owner preview only (a member reads false). An unrecognised value takes the default (off). Off = a phone renders today's ResultCards page unchanged; tablet and desktop are unaffected either way."
     },
     "SCREEN_BACKTEST_ENABLED": {
       "status": "armed",
@@ -2882,6 +2882,17 @@
         "1"
       ]
     },
+    "WISDOM_CALL_MOMENTS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "exposure": "members",
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ],
+      "note": "TURNED OFF 2026-10-17T14:59:11Z by owner direction: the archive should inform the brain, not show members what the team said. Code stays, set to 0 on web. ARMED on web 2026-10-17T14:47:46Z (one --set for both wisdom archive flags); web SUCCESS 14:47:47Z, fresh boot. Refresh route run once: 309 sessions, 1,970 links, 1,585 calls linked. DARK at merge (2026-10-17, branch feat/call-moments): the owner flips it on web. MEMBER-VISIBLE when on, paid only: links each TSDR-archive call to the second of a Desk Live Trading Session where the team discussed that ticker (same session day; a call posted after the 16:00 ET close, or on a day with no session, links to the next session within 4 days and never to a moment before the post). api/services/wisdom/archive/call_moments.py is the one authority: a pure matcher over edu_videos.ticker_moments x wisdom_archive_calls (no external call), stored in wisdom.db wisdom_archive_call_moments (archive_010), refreshed after an insights pass that produced ticker moments and after each archive calls batch, or on demand via POST /api/internal/wisdom/archive/call-moments/refresh (push secret). Surfaces: 'watch at m:ss' + https://www.youtube.com/watch?v=ID&t=SECONDS on Ask AI's TRADER ARCHIVE and SETUP CONTEXT call lines and their citations, and a `watch` list on call rows of GET /api/wisdom/archive/* (all require_paid). Nothing is written to education.db. Double-gated with WISDOM_ARCHIVE_ENABLED; off (either) = no table read or write and every prompt and payload byte-identical. After arming, run the refresh route once to build the table. Rollback: set 0 or unset on web."
+    },
     "WISDOM_CAPTURE_ENABLED": {
       "status": "dark",
       "where": [],
@@ -2999,6 +3010,18 @@
         "web"
       ],
       "note": "Wisdom transcript and Sunday Scans source ingest into wisdom.db (stream S-C). Published posts only, read-only on education.db and desk.db. Internal. Ledger corrected 2026-09-24: this entry said dark while the variable was SET ON web (value 1), read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv`. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
+    },
+    "WISDOM_TICKER_HISTORY_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-17",
+      "where": [],
+      "exposure": "members",
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ],
+      "note": "TURNED OFF 2026-10-17T14:59:11Z by owner direction: the archive should inform the brain, not show members what the team said. Code stays, set to 0 on web. ARMED on web 2026-10-17T14:47:46Z (one --set for both wisdom archive flags); web SUCCESS 14:47:47Z, fresh boot. DARK at build (feat/ticker-history), deliberately: the owner flips it on web. MEMBER-VISIBLE when on (paid only, double-gated with WISDOM_ARCHIVE_ENABLED): the chart Company Panel and the Research History tab gain a Team history panel listing every archived team mention and call on the ticker (trader display name, setup, action), newest first. The 5- and 20-session outcome is shown ONLY for calls posted more than 20 trading sessions ago (provider.is_aged, the archive's own price-age gate); a younger call reads 'outcome pending'. No price level is ever returned. A session-video moment is a nullable field filled only through team_history.set_moment_resolver. Route: GET /api/wisdom/archive/ticker/{sym}/team-history (require_paid; 404 while either flag is off). Read per call in api/services/wisdom/core/flags.py; rides the auth payload as wisdom_ticker_history_enabled. Rollback: set 0 or unset on web."
     },
     "WISDOM_VISION_ENABLED": {
       "status": "dark",

@@ -23,3 +23,13 @@ export function optionText(filterKey, label) {
   if (!REGION_KEYS.has(filterKey) || label === 'Any' || label === 'Custom…') return label
   return regionName(label)
 }
+
+// The order a member scans a list in is the order of what they READ: sorted by code, the
+// country list opened on "United Arab Emirates" (AE). 'Any' stays first and 'Custom…' last.
+export function orderOptions(filterKey, labels) {
+  if (!REGION_KEYS.has(filterKey)) return labels
+  const fixed = l => l === 'Any' || l === 'Custom…'
+  const named = labels.filter(l => !fixed(l))
+    .sort((a, b) => optionText(filterKey, a).localeCompare(optionText(filterKey, b)))
+  return [...labels.filter(l => l === 'Any'), ...named, ...labels.filter(l => l === 'Custom…')]
+}

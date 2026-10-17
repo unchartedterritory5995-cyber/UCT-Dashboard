@@ -233,10 +233,11 @@ RECAP = {"is_lesson": True, "title": "Wait for the reclaim of the 21 EMA",
          "tags": ["entries", "setups"]}
 
 
-def _pipeline(monkeypatch, message, *, transcript="word " * 50, recap=None, seen=None):
+def _pipeline(monkeypatch, message, *, transcript="word " * 50, recap=None, seen=None,
+              channel=TSDR):
     monkeypatch.setenv("TSDR_LESSONS_CHANNEL_ID", "lessons")
     fake = FakeDiscord({
-        ("GET", f"/channels/{TSDR}/messages/{message['id']}"): message,
+        ("GET", f"/channels/{channel}/messages/{message['id']}"): message,
         ("POST", "/channels/lessons/messages"): {"id": "post1"},
     })
     monkeypatch.setattr(tl, "_discord", fake)
@@ -273,13 +274,62 @@ def test_posts_embed_with_jump_link(monkeypatch):
     assert json.loads(row["tags"]) == ["entries", "setups"]
 
 
-def test_clip_that_is_not_a_lesson_is_skipped(monkeypatch):
-    m = msg(sf(2026, 10, 15), attachments=[video("nl")])
+def test_a_bracco_video_is_credited_to_bracco(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_AUTHOR_IDS", f"{PATRICK},{tl.BRACCO_USER_ID}")
+    m = msg(sf(2026, 10, 15), author=tl.BRACCO_USER_ID, attachments=[video("b1")])
+    tl.record_message(m, tl.BRACCO_CHANNEL_ID)
+    seen = {}
+    fake = _pipeline(monkeypatch, m, seen=seen, channel=tl.BRACCO_CHANNEL_ID)
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    assert seen["speaker"] == "Bracco"
+    embed = fake.posts("/channels/lessons/messages")[0]["embeds"][0]
+    assert embed["footer"]["text"].startswith("From #bracco")
+    row = {**tl.get_lesson("b1"), **RECAP}
+    assert tl.youtube_title(row).endswith("| Bracco 10/15/26")
+    assert "(#bracco)" in tl.youtube_description(row)
+    patrick = {**row, "author_id": PATRICK, "channel_id": TSDR}
+    assert tl.youtube_title(patrick).endswith("| TSDR 10/15/26")
+    assert tl.speaker_name(patrick) == "Patrick"
+
+
+def test_the_recap_prompt_names_the_speaker(monkeypatch):
+    class Msg:
+        stop_reason = "refusal"
+        content = []
+
+    sent = {}
+
+    class Client:
+        def with_options(self, **kw):
+            return self
+
+        class messages:  # noqa: N801
+            @staticmethod
+            def create(**kw):
+                sent.update(kw)
+                return Msg()
+
+    import api.services.engine as engine
+    monkeypatch.setattr(engine, "_get_anthropic_client", lambda: Client())
+    with pytest.raises(ValueError):
+        tl.generate_recap(transcript="t", caption="", speaker="Bracco",
+                          posted=datetime(2026, 10, 15, tzinfo=timezone.utc))
+    assert sent["messages"][0]["content"].startswith("SPEAKER: Bracco\n")
+    assert "Patrick" not in sent["system"]
+
+
+def test_a_clip_that_is_not_a_lesson_is_still_posted_as_a_clip(monkeypatch):
+    m = msg(sf(2026, 10, 15), attachments=[video("nl")], content="look at NVDA here")
     tl.record_message(m, TSDR)
-    fake = _pipeline(monkeypatch, m, recap={"is_lesson": False})
-    assert tl.run_lessons(limit=3, deadline=9e12)["skipped"] == 1
-    assert fake.posts("/channels/lessons/messages") == []
-    assert tl.get_lesson("nl")["last_error"] == "not a lesson"
+    fake = _pipeline(monkeypatch, m, recap={"is_lesson": False, "title": "NVDA tape check",
+                                            "recap": "A quick look at the NVDA tape.",
+                                            "tags": ["market"]})
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    embed = fake.posts("/channels/lessons/messages")[0]["embeds"][0]
+    assert embed["title"] == "NVDA tape check"
+    row = tl.get_lesson("nl")
+    assert json.loads(row["tags"])[0] == tl.CLIP_TAG
+    assert tl.section_for(row) == "clips"
 
 
 def test_reply_question_passed_in_memory_and_only_paraphrase_stored(monkeypatch):
@@ -295,12 +345,28 @@ def test_reply_question_passed_in_memory_and_only_paraphrase_stored(monkeypatch)
     assert "how do you size" not in repr(tl.get_lesson("a2"))
 
 
-def test_silent_clip_is_skipped(monkeypatch):
+def test_a_silent_clip_is_posted_without_asking_the_model(monkeypatch):
     m = msg(sf(2026, 10, 15), attachments=[video("a3")])
     tl.record_message(m, TSDR)
-    fake = _pipeline(monkeypatch, m, transcript="")
-    assert tl.run_lessons(limit=3, deadline=9e12)["skipped"] == 1
-    assert fake.posts("/channels/lessons/messages") == []
+    seen = {}
+    fake = _pipeline(monkeypatch, m, transcript="", seen=seen)
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    assert seen == {}                                   # no recap call for no words
+    embed = fake.posts("/channels/lessons/messages")[0]["embeds"][0]
+    assert "no spoken commentary" in embed["description"]
+    assert tl.section_for(tl.get_lesson("a3")) == "clips"
+
+
+def test_clips_skipped_before_are_reopened_once(monkeypatch):
+    for aid, why in (("s1", "not a lesson"), ("s2", "no spoken lesson to recap"),
+                     ("s3", "message or video was deleted")):
+        tl.record_message(msg(sf(2026, 10, 15), attachments=[video(aid)]), TSDR)
+        tl._update(aid, status="skipped", last_error=why, attempts=3)
+    assert tl.reopen_skipped_clips() == 2
+    assert tl.get_lesson("s1")["status"] == "new" and tl.get_lesson("s1")["attempts"] == 0
+    assert tl.get_lesson("s3")["status"] == "skipped"
+    tl._update("s1", status="skipped", last_error="not a lesson")
+    assert tl.reopen_skipped_clips() == 0               # only ever once
 
 
 def test_deleted_message_is_skipped(monkeypatch):
@@ -481,7 +547,8 @@ def test_section_follows_the_first_known_tag():
     assert tl.section_for({"tags": ["psychology"]}) == "mindset"
     assert tl.section_for({"tags": None}) == tl._DEFAULT_SECTION
     # every tag the model may choose lands in a real section
-    assert set(tl._TAG_SECTION) == set(tl.TAGS)
+    assert set(tl._TAG_SECTION) == set(tl.TAGS) | {tl.CLIP_TAG}
+    assert tl.section_for({"tags": [tl.CLIP_TAG, "market"]}) == "clips"
     assert set(tl._TAG_SECTION.values()) <= set(tl._SECTION_KEYS)
 
 
@@ -524,7 +591,7 @@ def _thread_routes(lock_ok=True):
         return {}
 
     routes = {("POST", "/channels/lessons/messages"): header}
-    for i in range(1, 9):
+    for i in range(1, 2 * len(tl.SECTIONS) + 1):
         routes[("POST", f"/channels/lessons/messages/h{i}/threads")] = thread_from(i)
     for _, name, _ in tl.SECTIONS:
         routes[("PATCH", f"/channels/t-{name}")] = lock
@@ -542,7 +609,7 @@ def test_the_four_section_threads_are_made_once_in_order(monkeypatch):
     assert [n for kind, n in made if kind == "thread"] == names
     assert threads == {k: f"t-{n}" for k, n, _ in tl.SECTIONS}
     locks = [c for c in fake.calls if c[0] == "PATCH"]
-    assert len(locks) == 4 and all(c[3] == {"locked": True} for c in locks)
+    assert len(locks) == len(tl.SECTIONS) and all(c[3] == {"locked": True} for c in locks)
     n = len(fake.calls)
     assert tl.ensure_section_threads() == threads and len(fake.calls) == n   # remembered
 
@@ -551,7 +618,7 @@ def test_a_bot_that_cannot_lock_still_gets_its_threads(monkeypatch):
     monkeypatch.setenv("TSDR_LESSONS_CHANNEL_ID", "lessons")
     routes, _ = _thread_routes(lock_ok=False)
     monkeypatch.setattr(tl, "_discord", FakeDiscord(routes))
-    assert len(tl.ensure_section_threads()) == 4
+    assert len(tl.ensure_section_threads()) == len(tl.SECTIONS)
 
 
 def _seed_threads():
@@ -843,3 +910,95 @@ def test_refill_leaves_a_deleted_lesson_deleted(monkeypatch):
     tl.run_video_refill(deadline=9e12)
     assert tl.get_lesson("nv4")["section"] == tl.REMOVED
     assert not [c for c in fake.calls if c[0] == "POST"]
+
+
+# ── YouTube links ────────────────────────────────────────────────────────────
+
+YT = "oZxqCRSpX6s"
+
+
+def test_youtube_ids_are_found_in_every_link_shape():
+    text = (f"Must watch https://youtu.be/{YT}?is=abc and again "
+            f"https://www.youtube.com/watch?v={YT}&t=3 plus "
+            "https://youtube.com/live/S2kDC6I2FE4?feature=share "
+            "https://m.youtube.com/shorts/AbCdEfGhIjK not https://youtu.be/short")
+    assert tl.youtube_ids_in(text) == [YT, "S2kDC6I2FE4", "AbCdEfGhIjK"]
+    assert tl.youtube_ids_in("no links here") == []
+
+
+def test_a_youtube_link_is_recorded_once_and_only_for_an_author():
+    m1 = msg(sf(2026, 7, 9), content=f"Must watch https://youtu.be/{YT}",
+             attachments=[video("f1")])
+    m2 = msg(sf(2026, 7, 10), content=f"again https://youtu.be/{YT}")
+    member = msg(sf(2026, 7, 11), author="999", content="https://youtu.be/AbCdEfGhIjK")
+    assert tl.record_message(m1, TSDR) == 2            # the file and the link
+    assert tl.record_message(m2, TSDR) == 0            # the same video, already kept
+    assert tl.record_message(member, TSDR) == 0
+    row = tl.get_lesson(tl.LINK_PREFIX + YT)
+    assert row["message_id"] == m1["id"] and tl.link_video_id(row) == YT
+    assert tl.link_video_id(tl.get_lesson("f1")) == ""
+
+
+def test_a_youtube_link_lesson_is_recapped_from_its_captions_and_shows_the_link(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    m = msg(sf(2026, 7, 9), content=f"Must watch https://youtu.be/{YT}")
+    tl.record_message(m, TSDR)
+    seen = {}
+    fake = _pipeline(monkeypatch, m, seen=seen)
+    monkeypatch.setattr(tl, "download", lambda *a: pytest.fail("a link is never downloaded"))
+    monkeypatch.setattr(tl, "youtube_transcript", lambda vid: "word " * 60)
+    monkeypatch.setattr(tl, "youtube_video_title", lambda vid: "Chat w/ PBA")
+    _seed_threads()
+    sent = []
+    fake.routes[("POST", "/channels/t-setups/messages")] = \
+        lambda p, b: sent.append(b) or {"id": f"m{len(sent)}"}
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    assert seen["transcript"].startswith("word")
+    assert "Chat w/ PBA" in seen["caption"]
+    recap, video_post = sent
+    assert video_post == {"content": f"https://youtu.be/{YT}"}
+
+
+def test_a_link_without_captions_is_still_posted_under_its_title(monkeypatch):
+    m = msg(sf(2026, 7, 9), content=f"https://youtu.be/{YT}")
+    tl.record_message(m, TSDR)
+    seen = {}
+    fake = _pipeline(monkeypatch, m, seen=seen)
+    monkeypatch.setattr(tl, "youtube_transcript", lambda vid: "")
+    monkeypatch.setattr(tl, "youtube_video_title", lambda vid: "Chat w/ PBA")
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    assert seen == {}                                   # too few words for a recap call
+    embed = fake.posts("/channels/lessons/messages")[0]["embeds"][0]
+    assert embed["title"] == "Chat w/ PBA"
+
+
+def test_a_deleted_link_message_is_skipped(monkeypatch):
+    m = msg(sf(2026, 7, 9), content=f"https://youtu.be/{YT}")
+    tl.record_message(m, TSDR)
+    gone = dict(m, content="edited away")
+    _pipeline(monkeypatch, gone)
+    assert tl.run_lessons(limit=3, deadline=9e12)["skipped"] == 1
+
+
+def test_linked_videos_are_never_uploaded_to_youtube_again(monkeypatch):
+    tl.record_message(msg(sf(2026, 7, 9), content=f"https://youtu.be/{YT}"), TSDR)
+    tl._update(tl.LINK_PREFIX + YT, status="posted", title="T", recap="A. B.",
+               section="setups", post_channel_id="t-setups", discord_post_id="p",
+               forward_post_id="f")
+    order = []
+    monkeypatch.setattr(tl, "upload_lesson", lambda row: order.append(row) or "uploaded")
+    tl.run_youtube(deadline=9e12)
+    assert order == []
+
+
+def test_the_link_rescan_reopens_each_scanned_channel_once():
+    tl.set_state(f"cursor:{TSDR}", "5000")
+    tl.set_state(f"backfill:{TSDR}", "10")
+    tl._mark_backfill_done(f"backfill_done:{TSDR}")
+    assert tl._backfill_done(f"backfill_done:{TSDR}")
+    assert tl.rescan_for_links() is True
+    assert not tl._backfill_done(f"backfill_done:{TSDR}")
+    assert tl.get_state(f"backfill:{TSDR}") == "5001"
+    tl._mark_backfill_done(f"backfill_done:{TSDR}")
+    assert tl.rescan_for_links() is False               # only ever once
+    assert tl._backfill_done(f"backfill_done:{TSDR}")

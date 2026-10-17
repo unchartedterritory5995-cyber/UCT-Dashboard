@@ -201,7 +201,7 @@ SETUP_FIELDS = {"setup_id", "name", "family", "aliases", "used_by", "stats", "st
                 "teachings", "winners", "failures", "sha"}
 #: The measured numbers a playbook's stats may carry; anything else is refused.
 STAT_FIELDS = ("n", "n_scored", "win20", "med_r20", "mean_r20", "med_edge20", "mean_simR", "mean_edgeR",
-               "edgeR_z", "thin")
+               "edgeR_z", "edge20_z", "n_edge20", "thin")
 CONTEXT_GROUPS = ("trader", "kind", "market", "entry", "extension_from_50", "direction")
 TEACHING_FIELDS = {"record_id", "author_id", "date", "note"}
 EXAMPLE_FIELDS = {"call_id", "record_id", "ticker", "author_id", "posted", "direction", "action", "evidence",
@@ -498,6 +498,56 @@ def _call_summary(conn, where: str, params: tuple) -> dict:
 def ticker_summary(conn, sym: str) -> dict:
     t = normalize_ticker(sym)
     return {"ticker": t, **_call_summary(conn, "ticker = ?", (t,))}
+
+
+#: `prices_status` on a member call: its stated prices and outcome are shown, or withheld until the
+#: call is older than `provider.PRICE_AGE_SESSIONS` sessions (decided by `provider.is_aged`).
+PRICES_SHOWN = "shown"
+PRICES_PENDING_AGE = "pending_age"
+#: Fields withheld from a call that is not yet aged. The outcome is replaced whole (r5/r20 kept as
+#: explicit nulls), so no other measured field (r1, r60, sim_R, mfe20...) rides along.
+_AGE_GATED_FIELDS = ("entry", "stop", "target", "reported")
+
+
+def age_gate_calls(calls: list, *, today=None) -> list:
+    """The member shape of archive calls: a call that is not `provider.is_aged` loses its stated
+    prices and its outcome (`prices_status: "pending_age"`); an aged call is unchanged
+    (`prices_status: "shown"`). The same gate team_history / ask_setup / provider.levels apply."""
+    from api.services.wisdom.archive import provider
+
+    today = today or provider._today()
+    out = []
+    for c in calls:
+        c = dict(c)
+        if provider.is_aged(c.get("posted"), today):
+            c["prices_status"] = PRICES_SHOWN
+        else:
+            for k in _AGE_GATED_FIELDS:
+                if k in c:
+                    c[k] = None
+            c["outcome"] = {"r5": None, "r20": None}
+            c["prices_status"] = PRICES_PENDING_AGE
+        out.append(c)
+    return out
+
+
+def member_ticker_summary(conn, sym: str, *, today=None) -> dict:
+    """`ticker_summary` for a member: every call counts in n_calls, but only AGED calls' r20 are
+    scored or averaged, so a young call's outcome cannot leak through the mean. Aged-ness is
+    decided per row by `provider.is_aged` (the same gate as `age_gate_calls`), never by a SQL
+    date cutoff that could disagree with it on a non-session day."""
+    from api.services.wisdom.archive import provider
+
+    t = normalize_ticker(sym)
+    today = today or provider._today()
+    n_calls, scored = 0, []
+    for posted, r20 in conn.execute(
+            "SELECT posted, json_extract(outcome_json, '$.r20') FROM wisdom_archive_calls WHERE ticker = ?", (t,)):
+        n_calls += 1
+        if r20 is not None and provider.is_aged(posted, today):
+            scored.append(float(r20))
+    return {"ticker": t, "n_calls": n_calls, "n_scored": len(scored),
+            "mean_r20": (sum(scored) / len(scored)) if scored else None}
 
 
 def last_call(conn, sym: str) -> Optional[dict]:

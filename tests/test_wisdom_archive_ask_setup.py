@@ -11,7 +11,10 @@ WHAT THIS FILE HAS TO BE ABLE TO SAY RED FOR
 3. a price on a call 20 sessions old or newer, or no price on an older one;
 4. the prompt changing, or wisdom.db being opened, while either gate is off;
 5. an item without a citation, the budget exceeded, a record's verbatim quote leaking, or a
-   teaching carrying a price or a date.
+   teaching carrying a price or a date;
+6. the traders line judging an edge by a different rule from the brain's trader playbooks
+   (edge20 z first, then edgeR z; n >= 30; |z| >= 3), or an old import without edge20_z changing
+   its answer.
 """
 from __future__ import annotations
 
@@ -359,8 +362,9 @@ def test_the_traders_line_names_who_has_an_edge_under_the_same_rule(wisdom_db, o
     text, cites = ask_setup.setup_block("how does the team trade launch pads?", today=TODAY)
     line = next(i for i in text[len(ask_setup.HEADER):].split(" | ") if i.startswith("[TRADERS"))
     assert line.startswith("[TRADERS · setup launch_pad] who has an edge on this setup: ")
-    assert "measured edge: TSDR (n 60, edge R +0.40, z 3.4)" in line
-    assert "measured negative: Bracco (n 45, edge R -0.50, z -3.2)" in line
+    # this fixture carries no edge20_z (an import from before the field): edgeR decides, as it always did
+    assert "measured edge: TSDR (n 60, edge R +0.40, z 3.4 on edge R)" in line
+    assert "measured negative: Bracco (n 45, edge R -0.50, z -3.2 on edge R)" in line
     nend = line.split("not enough data: ")[1]
     assert "Manrav" in nend and "At.The.Ask" in nend                 # z 4.5 on 12 calls is NOT measured
     assert "Manrav" not in line.split("not enough data")[0]
@@ -376,3 +380,64 @@ def test_no_per_trader_cut_means_no_traders_line(wisdom_db, on):
     text, cites = ask_setup.setup_block("how does the team trade an oops reversal?", today=TODAY)
     assert "[RECORD · setup oops]" in text                            # control: the block is there
     assert "[TRADERS" not in text and not [c for c in cites if c["kind"].endswith("_traders")]
+
+
+# ── the brain's rule: edge20 z first, then edgeR z; n >= 30; |z| >= 3 ────────
+
+def _cut(n, *, z20=None, zR=None, n20=None):
+    out = _stats(n, zR)
+    if zR is None:
+        del out["edgeR_z"]
+    if z20 is not None:
+        out["edge20_z"] = z20
+        out["n_edge20"] = n if n20 is None else n20
+    return out
+
+
+@pytest.mark.parametrize("cut, want", [
+    (_cut(60, z20=3.5, zR=1.0), ("edge", "edge20", 3.5)),          # edge20 alone is enough
+    (_cut(60, z20=-3.1, zR=3.6), ("negative", "edge20", -3.1)),    # edge20 decides FIRST, over a strong edgeR
+    (_cut(60, z20=1.2, zR=3.3), ("edge", "edgeR", 3.3)),           # edge20 below the bar: edgeR decides
+    (_cut(60, z20=2.9, zR=-3.0), ("negative", "edgeR", -3.0)),
+    (_cut(60, z20=2.99, zR=2.99), None),                           # neither clears |z| >= 3
+    (_cut(29, z20=6.0, zR=6.0), None),                             # n 29 is below the floor whatever the z
+    (_cut(30, z20=3.0), ("edge", "edge20", 3.0)),                  # both bars are inclusive
+    (_cut(60, zR=3.4), ("edge", "edgeR", 3.4)),                    # old import: no edge20_z, edgeR decides
+    (_cut(60, zR=-3.4), ("negative", "edgeR", -3.4)),
+    (_cut(60, zR=2.0), None),
+    # n is the brain's: the count of edge20 values gates BOTH steps, not n_scored
+    (_cut(40, z20=3.4, n20=29), None),                             # 40 scored but 29 with an edge20: not measured
+    (_cut(40, z20=1.0, zR=3.5, n20=29), None),                     # ...and the edgeR step is gated by it too
+    (_cut(35, z20=3.4, n20=30), ("edge", "edge20", 3.4)),           # 30 edge20 values is enough
+])
+def test_edge_call_is_the_brains_rule_in_the_scorecards_order(cut, want):
+    assert askai.EDGE_Z == 3.0 and askai.MIN_CONTEXT_N == 30            # the brain's EDGE_Z and MIN_N
+    assert ask_setup.edge_call(cut, askai.EDGE_Z, askai.MIN_CONTEXT_N) == want
+
+
+def test_edge20_z_survives_the_import_and_decides_the_traders_line(wisdom_db, on):
+    trader = {"TSDR": _cut(60, z20=3.6, zR=1.1),        # edge only on edge20 (the old line said not proven)
+              "Jersace": _cut(45, z20=3.9, n20=28),     # 45 scored, only 28 with an edge20: not measured
+              "Bracco": _cut(45, z20=-3.3, zR=3.5),     # edge20 negative beats an edgeR edge
+              "Manrav": _cut(50, z20=0.4, zR=3.2),      # edge20 quiet, edgeR decides
+              "Chartmaster": _cut(40, zR=3.1)}          # an old import's cut, edgeR only
+    setup = _setup("launch_pad", "Launch Pad", family="breakout base",
+                   stats={**_stats(140, 3.4), "edge20_z": 4.1}, context={"trader": trader})
+    with store.write() as conn:
+        out = service.upsert_batch(conn, "setups", [setup])
+        assert out["rejected"] == 0, out                  # edge20_z is a known stat field, not refused
+    text, cites = ask_setup.setup_block("how does the team trade launch pads?", today=TODAY)
+    line = next(i for i in text[len(ask_setup.HEADER):].split(" | ") if i.startswith("[TRADERS"))
+    assert "TSDR (n 60, edge R +0.30, z 3.6 on edge20)" in line
+    assert "Bracco (n 45, edge R +0.30, z -3.3 on edge20)" in line.split("measured negative: ")[1]
+    assert "Manrav (n 50, edge R +0.30, z 3.2 on edge R)" in line
+    assert "Chartmaster (n 40, edge R +0.30, z 3.1 on edge R)" in line
+    cite = next(c for c in cites if c["kind"] == "trader_archive_setup_traders")
+    assert cite["traders"] == {"edge": ["chartmaster", "manrav", "tsdr"], "negative": ["bracco"],
+                               "not_enough_data": ["jersace"]}
+
+
+def test_an_unknown_stat_field_is_still_refused(wisdom_db):
+    bad = _setup("launch_pad", "Launch Pad", stats={**_stats(140, 3.4), "edge5_z": 4.0})
+    with store.write() as conn:
+        assert service.upsert_batch(conn, "setups", [bad])["rejected"] == 1

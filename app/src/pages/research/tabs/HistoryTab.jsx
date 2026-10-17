@@ -5,6 +5,7 @@ import HighlightThesis, { isFailedSynthesis, FAILED_SYNTHESIS_NOTE } from '../..
 import { withDeadline } from '../../../utils/withDeadline'
 import { usePanelFreshness, panelAsOf } from '../../../components/terminal/terminalPanel'
 import SwitchedOff from '../SwitchedOff'
+import TeamHistoryPanel from '../../../components/research/sections/TeamHistoryPanel'
 
 // TERM-049 (FB-A13-01) -- one ticker, one timeline. Reads
 // GET /api/research/history/{sym} (api/services/ticker_history.py), DARK behind
@@ -177,6 +178,9 @@ export default function HistoryTab({ sym }) {
           ))}
         </ul>
       )}
+      {/* The TSDR archive's calls on this ticker, all of them (not windowed to `since`). Its own
+          dark gate (WISDOM_TICKER_HISTORY_ENABLED); renders nothing while that is off. */}
+      <TeamHistoryPanel sym={s} />
     </section>
   )
 }
