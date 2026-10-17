@@ -111,7 +111,7 @@ import { refreshEvidenceCandidates } from '../../hooks/useEvidenceCandidates'
 import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import {
-  noteContentGuardOptions, replaceDocument, isUnreadable, useUnreadableNote,
+  noteContentGuardOptions, replaceDocument, undoCrossesSwap, HistoryCompleteWatch, isUnreadable, useUnreadableNote,
 } from '../../lib/noteContentGuard'
 import {
   OWN_READ, bodyWrittenSchema, isSchemaRefusal, writtenSchemaOf,
@@ -910,9 +910,13 @@ export default function NoteEditorPage({
   // `f5p1OwnerSendsQueued.test.jsx`). Rotating more often than needed is safe;
   // missing a swap is the hazard, so every whole-view swap rotates, before it
   // moves anything (the title included).
-  // ⛔⛔ AND EVERY UNDO OR REDO ROTATES TOO (fix round 1, C1): a swap is an
-  // undoable step, so Undo is a SECOND way the view can be replaced by a document
-  // the member did not write in it (`onUpdate`, beside `useEditor` below).
+  // ⛔⛔ AND AN UNDO OR REDO THAT CROSSES A SWAP ROTATES TOO (fix round 1, C1): a
+  // swap is an undoable step, so Undo is a SECOND way the view can be replaced by a
+  // document the member did not write in it (`onUpdate`, beside `useEditor` below).
+  // ⭐ ONLY one that crosses (2026-10-16, offline-undo): an ordinary Undo or Redo
+  // of the member's own typing is an edit of this view, like a keystroke. Rotating
+  // on it pinned the record to the pre-undo words for the rest of the view, so
+  // leaving re-sent the undone text silently or made a `(conflicted copy)`.
   const editLineageRef = useRef(null)
   if (!editLineageRef.current) editLineageRef.current = newEditLineage()
   const viewReplaced = () => { editLineageRef.current = newEditLineage() }
@@ -2821,7 +2825,10 @@ export default function NoteEditorPage({
   )
 
   const editor = useEditor({
-    extensions: buildExtensions(),
+    // ⭐ Review I-1: `HistoryCompleteWatch` is what keeps the Undo crossing
+    // detector honest (`undoCrossesSwap`, noteContentGuard.js) — ONLY this editor
+    // carries an edit lineage, so only this editor needs it.
+    extensions: [...buildExtensions(), HistoryCompleteWatch],
     // ⛔ S1/H14: content the schema cannot read LOCKS the editor instead of
     // opening it empty (noteContentGuard.js) -- the empty stand-in is what the
     // next save used to write over the note.
@@ -2930,24 +2937,45 @@ export default function NoteEditorPage({
     // scheduled (words typed before a lock arrived) still goes out; queued
     // offline words adopted on open go through `scheduleAutosaveRef` directly
     // and still send (the server never refuses a body write for a lock).
-    // ⛔⛔ HOTFIX FIX ROUND 1 (C1): AN UNDO OR REDO IS A NEW LINEAGE. A whole-view
-    // swap is an ordinary undoable step, so Undo can put back the document from
-    // BEFORE a swap -- words this view never authored -- inside the swap's own
-    // lineage, where they would supersede the adopted or Restored words the swap
-    // put on screen and drop them from every layer. prosemirror-history marks
-    // every undo/redo transaction with its plugin meta (the keyboard, the touch
-    // buttons and the `historyUndo` input event all dispatch through it), so the
-    // capture that follows is taken on a fresh lineage and keeps the
+    // ⛔⛔ HOTFIX FIX ROUND 1 (C1): AN UNDO OR REDO ACROSS A SWAP IS A NEW
+    // LINEAGE. A whole-view swap is an ordinary undoable step, so Undo can put back
+    // the document from BEFORE a swap -- words this view never authored -- inside
+    // the swap's own lineage, where they would supersede the adopted or Restored
+    // words the swap put on screen and drop them from every layer. So the capture
+    // that follows such an undo or redo is taken on a fresh lineage and keeps the
     // containment test. Undo itself is untouched; over-rotating is safe.
     // Rail: `lib/offline/swapLineageRotation.test.jsx`.
+    // ⭐⭐ OFFLINE-UNDO (2026-10-16): ONLY ACROSS A SWAP. Round 1 rotated on EVERY
+    // undo and redo (`isHistoryTransaction` marks them all — the keyboard, the
+    // touch buttons, the `historyUndo` input event), and an ordinary Undo of the
+    // member's own typing then pinned the record to the pre-undo words for the
+    // rest of the view: its capture lost the containment test against the record
+    // the same view wrote a moment earlier, and so did every later capture and
+    // every later landed save. Leaving re-sent the undone text SILENTLY (the Undo
+    // reversed on the server) or made a `(conflicted copy)`. Now an undo or redo
+    // rotates only when it crosses one: when it replaces the whole document (every
+    // `replaceDocument` swap is one whole-document replace step, and so are its
+    // Undo and its Redo — `replacesWholeDocument`; a crash-draft Restore is one of
+    // those swaps), or when a doc change OUTSIDE history has made that shape
+    // unreliable for the rest of this view (`historyIsComplete`, review I-1: both
+    // asked through `undoCrossesSwap`). ⚠️ An Undo or Redo of the member's own
+    // select-all replace or delete is a whole-document step too, so it still reads
+    // as a crossing and pins the record (the safe direction: a duplicate, never a
+    // loss). Any other undo or redo is the member editing this view and
+    // supersedes like a keystroke — including a further Undo of the old view's own
+    // typing past a Restore, as the I-A note above already rules ("removing it is
+    // the member's edit"). ⚰️ Rotating also whenever `noteRestoreCrossing` fired
+    // was tried and dropped: no rail could tell it apart (mutant M3, evidence
+    // `offline-undo-20261016T130135Z/`), and its only effect was that pinning.
+    // Rail: `lib/offline/ordinaryUndoNoPin.test.jsx`.
     // ⭐ I-A (2026-10-16): an undo or redo across a crash-draft Restore first
     // writes the page it is leaving (`noteRestoreCrossing`), under the lineage
     // that page had — so it is taken BEFORE the rotation.
-    onUpdate: ({ transaction }) => {
+    onUpdate: ({ editor: ed, transaction }) => {
       if (lockedRef.current) return
       if (transaction && isHistoryTransaction(transaction)) {
         noteRestoreCrossing(transaction)
-        viewReplaced()
+        if (undoCrossesSwap(transaction, ed.state)) viewReplaced()
       }
       scheduleAutosaveRef.current()
     },
