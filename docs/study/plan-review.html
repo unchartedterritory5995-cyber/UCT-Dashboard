@@ -1,0 +1,430 @@
+<title>Study Build Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column, numbered review sections (R1–R16) with a sticky section rail on wide screens. Dark-first, UCT gold on charcoal. */
+:root{
+  --bg:#0e0f0d; --surface:#1a1c17; --elevated:#22251e; --border:#2e3127;
+  --fg:#a8a290; --fg-bright:#e0dac8; --muted:#7c776a;
+  --gold:#c9a84c; --gold-soft:rgba(201,168,76,.14); --green:#3cb868; --red:#e74c3c; --info:#5b9bd5;
+  --font-body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f6f3ec; --surface:#fffdf8; --elevated:#efeae0; --border:#d9d2c2;
+    --fg:#4a463c; --fg-bright:#1d1b16; --muted:#857f70;
+    --gold:#9a7a23; --gold-soft:rgba(154,122,35,.12); --green:#1f8a46; --red:#c0392b; --info:#2d6fb0;
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f6f3ec; --surface:#fffdf8; --elevated:#efeae0; --border:#d9d2c2;
+  --fg:#4a463c; --fg-bright:#1d1b16; --muted:#857f70;
+  --gold:#9a7a23; --gold-soft:rgba(154,122,35,.12); --green:#1f8a46; --red:#c0392b; --info:#2d6fb0;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:16px;line-height:1.55;margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
+.wrap{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:220px minmax(0,1fr);gap:40px}
+@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.rail{position:sticky;top:env(safe-area-inset-top,0px);align-self:start;padding-block:28px;font-size:13px}
+@media (max-width:900px){.rail{position:static;padding-block:16px 0}}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+@media (max-width:900px){.rail ol{flex-direction:row;flex-wrap:wrap;gap:6px 10px}}
+.rail a{color:var(--muted);text-decoration:none;display:flex;gap:8px;align-items:baseline}
+.rail a:hover,.rail a:focus-visible{color:var(--gold);outline:none}
+.rail .n{font-family:var(--font-mono);font-size:11px;color:var(--gold);min-width:26px}
+main{min-width:0;padding-block:28px}
+header.top{border-bottom:1px solid var(--border);padding-bottom:22px;margin-bottom:8px}
+.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:600}
+h1{font-size:clamp(28px,4vw,40px);line-height:1.1;color:var(--fg-bright);margin:8px 0 10px;font-weight:600;text-wrap:balance}
+.lede{font-size:17px;max-width:62ch;color:var(--fg);margin:0 0 14px}
+.meta{font-family:var(--font-mono);font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 18px}
+section{padding-block:30px;border-bottom:1px solid var(--border);scroll-margin-top:20px}
+section:last-of-type{border-bottom:0}
+h2{display:flex;gap:12px;align-items:baseline;font-size:22px;color:var(--fg-bright);margin:0 0 12px;font-weight:600;text-wrap:balance}
+h2 .n{font-family:var(--font-mono);font-size:13px;color:var(--gold);letter-spacing:.06em}
+h3{font-size:15px;color:var(--fg-bright);margin:20px 0 8px;font-weight:600;letter-spacing:.01em}
+p{max-width:68ch;margin:0 0 12px}
+ul,ol{max-width:70ch;padding-left:20px;margin:0 0 12px}
+li{margin-bottom:6px}
+li::marker{color:var(--gold)}
+strong{color:var(--fg-bright);font-weight:600}
+.ask{background:var(--gold-soft);border-left:3px solid var(--gold);padding:10px 14px;margin:14px 0 0;max-width:68ch;font-size:14px;border-radius:0 6px 6px 0}
+.ask b{color:var(--gold);font-weight:600}
+.tablewrap{overflow-x:auto;margin:10px 0 14px;border:1px solid var(--border);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+th,td{text-align:left;padding:9px 12px;vertical-align:top;border-bottom:1px solid var(--border)}
+th{background:var(--elevated);color:var(--fg-bright);font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+tr:last-child td{border-bottom:0}
+td.k{font-family:var(--font-mono);font-size:12px;color:var(--gold);white-space:nowrap}
+.pill{display:inline-block;font-family:var(--font-mono);font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--border);color:var(--fg);background:var(--surface);white-space:nowrap}
+.pill.ok{color:var(--green);border-color:var(--green)}
+.pill.open{color:var(--gold);border-color:var(--gold)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:10px 0 14px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;min-width:0}
+.card h4{margin:0 0 6px;font-size:14px;color:var(--fg-bright);font-weight:600}
+.card p{font-size:14px;margin:0}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.stations{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0 14px}
+.station{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px}
+.station .t{color:var(--gold);font-weight:600;font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.station ul{padding-left:16px;margin:0;font-size:13px}
+.station li{margin-bottom:3px}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0 14px;font-size:14px}
+.flow .step{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 12px}
+.flow .arrow{color:var(--gold)}
+.small{font-size:13px;color:var(--muted)}
+code{font-family:var(--font-mono);font-size:13px;color:var(--fg-bright);background:var(--elevated);padding:1px 5px;border-radius:4px}
+@media (prefers-reduced-motion: no-preference){a{transition:color .15s ease}}
+</style>
+
+<div class="wrap">
+<nav class="rail" aria-label="Review sections">
+  <ol>
+    <li><a href="#r1"><span class="n">R1</span>The vision</a></li>
+    <li><a href="#r2"><span class="n">R2</span>Where it lives</a></li>
+    <li><a href="#r3"><span class="n">R3</span>Foundations tracks</a></li>
+    <li><a href="#r4"><span class="n">R4</span>The Method map</a></li>
+    <li><a href="#r5"><span class="n">R5</span>Drill types</a></li>
+    <li><a href="#r6"><span class="n">R6</span>How a unit works</a></li>
+    <li><a href="#r7"><span class="n">R7</span>Voice</a></li>
+    <li><a href="#r8"><span class="n">R8</span>Intro videos</a></li>
+    <li><a href="#r9"><span class="n">R9</span>Daily loop &amp; rewards</a></li>
+    <li><a href="#r10"><span class="n">R10</span>Sizing rule</a></li>
+    <li><a href="#r11"><span class="n">R11</span>Content pipeline</a></li>
+    <li><a href="#r12"><span class="n">R12</span>Data we build from</a></li>
+    <li><a href="#r13"><span class="n">R13</span>Under the hood</a></li>
+    <li><a href="#r14"><span class="n">R14</span>Phases</a></li>
+    <li><a href="#r15"><span class="n">R15</span>Open items</a></li>
+    <li><a href="#r16"><span class="n">R16</span>Decision log</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="top">
+  <div class="eyebrow">The Desk · Courses · Study</div>
+  <h1>Study, the full plan for review</h1>
+  <p class="lede">Every piece of the Study product in one place, in plain language, numbered so we can walk it section by section and confirm or change each one. This page mirrors the design document in the repo and the decisions you made on 17 October 2026.</p>
+  <div class="meta"><span>Draft for owner review</span><span>Spec: docs/superpowers/specs/2026-10-17-desk-practice-interactive-education-design.md</span><span>Nothing built yet</span></div>
+</header>
+
+<section id="r1">
+  <h2><span class="n">R1</span>The vision</h2>
+  <p><strong>Study is a Duolingo for stocks, built on our own charts, data and method.</strong> A member opens Courses, sees today's ten questions, and learns by doing: naming a pattern on a real chart with the ticker hidden, placing a stop, calling the market on a real past date, sizing a trade, taking or passing a real Sunday Scans call, reading a real earnings quarter. Every answer comes back with the right answer, where it came from, what happened next, and one line of lesson in our voice.</p>
+  <p>Two curricula share one map. <strong>Foundations</strong> takes someone with a brokerage account and a little experience all the way through the general education a trader needs: market basics, chart reading, candlesticks, patterns, fundamentals, options to the advanced level, market history and macro, psychology, risk, orders, styles and process. <strong>The UCT Method</strong> drills the firm's own six-station system on the firm's own records.</p>
+  <p>It is built for people with short attention spans without thinning the content: short questions, quick sessions, streaks and XP, but every item carries real teaching and every chart is real.</p>
+  <h3>What it is not</h3>
+  <ul>
+    <li>Not a trading game. Nothing is scored on money.</li>
+    <li>Not a chatbot. No AI runs inside the product at launch; every word is written in advance and reviewed by you. AI may be added later only where it is clearly good and needed.</li>
+    <li>Not a replacement for the course videos. Study links to the lessons and the lessons link back.</li>
+  </ul>
+  <div class="ask"><b>Confirmed 17 Oct.</b> Your note: the objective is elite-trader education across simple and complex technical, fundamental, structural and process skills; AI allowed where it earns its place.</div>
+</section>
+
+<section id="r2">
+  <h2><span class="n">R2</span>Where it lives and what a member sees first</h2>
+  <ul>
+    <li><strong>Inside the Courses tab</strong> of The Desk, under the name <strong>Study</strong>. No new tab.</li>
+    <li>Top of the Courses page: a Study panel with <strong>Today's Study</strong> (ten questions), the member's streak, XP, and leaderboard rank.</li>
+    <li>Below the course cards: the <strong>map</strong>, drawn as a winding trail of units per track, Foundations first, the Method after. Nothing is locked. The map marks a recommended next unit.</li>
+    <li>Every lesson in a course gets a <strong>"Study this"</strong> button; every question's reveal names its lesson and chapter.</li>
+    <li>Live for all paid members from day one. One switch hides it without a deploy if a batch of content is wrong.</li>
+  </ul>
+  <div class="ask"><b>Confirmed 17 Oct.</b> Your note: keep it simple and best for our kind of trader. Rule added: one primary button, at most three taps to a question, no settings needed to begin.</div>
+</section>
+
+<section id="r3">
+  <h2><span class="n">R3</span>Foundations: the twelve tracks</h2>
+  <p>Audience: has a brokerage account, has traded a little. Unit 1 still starts from first principles. Everyone is invited through all of it; anyone can <strong>test out</strong> of a unit in one pass, and an optional 15-question placement test suggests where to start.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>#</th><th>Track</th><th>What it covers</th><th>Built from</th></tr></thead>
+    <tbody>
+      <tr><td class="k">F1</td><td>Market basics</td><td>Shares, exchanges, bid and ask, volume, regular vs extended hours, indexes, ETFs, float, market cap</td><td>Reference texts; our ticker universe and index data</td></tr>
+      <tr><td class="k">F2</td><td>Chart reading (the backbone)</td><td>Price and volume, timeframes, the moving-average stack, trend, gaps, relative strength, multiple timeframes</td><td>Our 22 concept formulas, our stored bars, the market-bottom studies</td></tr>
+      <tr><td class="k">F2b</td><td>Levels, lines and drawings</td><td>Supply and demand, support and resistance, trendlines and channels, pivots, how to draw them and when a level is real</td><td>The chart's own drawing tools, our support/resistance and pivot detectors, stored bars</td></tr>
+      <tr><td class="k">F3</td><td>Candlesticks</td><td>Every single-candle shape and candle pair, what each says about buyers and sellers, where they matter</td><td>Our candle catalog (22 shapes, 44 pairs) and 17 candle detectors on real bars</td></tr>
+      <tr><td class="k">F4</td><td>Patterns and bases</td><td>Bases, flags, cups, wedges, triangles, tops and bottoms, with sourced rules</td><td>Our base catalog (29 structures, 252 sourced criteria) and 36 classical detectors</td></tr>
+      <tr><td class="k">F5</td><td>Fundamentals and earnings</td><td>EPS, revenue, margins, guidance, estimates, P/E, growth screens, reading a report, reacting to a print</td><td>Real quarters from our earnings tables, frozen into each question</td></tr>
+      <tr><td class="k">F6</td><td>Options, beginner to advanced</td><td>Calls and puts, premium, intrinsic vs time value, the Greeks, IV and expected move, every strategy the Journal models, then flow and dealer positioning</td><td>Our options math, GEX engine and Options Flow pages</td></tr>
+      <tr><td class="k">F7</td><td>Market history and macro</td><td>1929, 1973-74, 1987, 2000, 2008, 2020, 2022; the Fed, rates, CPI, the yield curve</td><td>Our S&amp;P and Nasdaq bars back to 1974, breadth back to 2008, AAII since 1987, 151 economic series</td></tr>
+      <tr><td class="k">F8</td><td>Psychology and discipline</td><td>Biases, FOMO, revenge, tilt, routines, the mental hand history</td><td>Our psychology bible, the Journal's mistake taxonomy, 674 cited quotes</td></tr>
+      <tr><td class="k">F9</td><td>Account and risk basics</td><td>Risk per trade, drawdown math, heat, margin, PDT, settlement, cash management</td><td>The sizing rule (R10), our portfolio heat tool, the risk bible</td></tr>
+      <tr><td class="k">F10</td><td>Orders and execution</td><td>Market, limit, stop, stop-limit, trailing, bracket; slippage, partial fills, extended hours</td><td>Reference texts</td></tr>
+      <tr><td class="k">F11</td><td>Styles</td><td>Day, swing, position: holding periods, time cost, which setups fit which style, how our method maps to each</td><td>The curriculum dossier and methodology bible</td></tr>
+      <tr><td class="k">F12</td><td>Process</td><td>The written plan, routines, journaling, the review cadence. No taxes.</td><td>Dossier Module 12, the Journal</td></tr>
+      <tr><td class="k">V</td><td>Vocabulary (cross-cutting)</td><td>Every term from every track: definition in our voice, a real sentence from your own transcripts or writing, aliases, a chart example where it applies. Units by category, a two-minute Vocab sprint, first in line for the daily due slots. Target 2,000+ terms and 4,000+ questions.</td><td>Glossary, candle and base catalogs, 28 setups and 89 pattern names, Greeks and 18 option strategies, mistake and emotion tags, breadth metrics, 151 economic series, order types, the wisdom vocabulary with aliases, 112 theme names, house words</td></tr>
+    </tbody>
+  </table></div>
+  <p class="small">Technical analysis is the backbone: F2, F2b, F3, F4 are the largest tracks and the ones the Method leans on. Every setup unit includes real losing examples traded correctly, the common tricks and traps, and what a stop-out looks like.</p>
+  <div class="ask"><b>Confirmed 17 Oct.</b> Your notes: weight it toward technical, recognition, memory, setups and process with tons of great examples; add supply and demand, support and resistance, trendlines and drawings (now F2b); the full unit list per track comes to you for review before any question is written.</div>
+</section>
+
+<section id="r4">
+  <h2><span class="n">R4</span>The Method map</h2>
+  <p>The firm's six stations, each holding the skills the course dossier assigns to it. Drilled on our own charts, our own calls, our own records. The setup catalog is <strong>28 setups</strong> (your 26 plus VCP and High Tight Flag). Market-condition drills use the tier the firm actually called that day, never a numeric cutoff.</p>
+  <div class="stations">
+    <div class="station"><div class="t">Regime</div><ul><li>Read the firm's market-health score</li><li>Stage the index</li><li>Distribution &amp; follow-through days</li><li>Call the market on past dates</li><li>Exposure ladder</li></ul></div>
+    <div class="station"><div class="t">Scan</div><ul><li>Breadth internals</li><li>Relative strength</li><li>Group before stock</li><li>Volume as witness</li><li>Daily scorecard</li></ul></div>
+    <div class="station"><div class="t">Setup</div><ul><li>Family I bases &amp; breakouts</li><li>Family II pullbacks</li><li>Family III episodic pivots</li><li>Family IV exhaustion &amp; shorts</li><li>Family placement</li><li>Grade the setup</li><li>Mark the levels</li></ul></div>
+    <div class="station"><div class="t">Size</div><ul><li>R and the 2% ceiling</li><li>Size from the stop</li><li>Quality-scaled risk</li><li>Portfolio heat</li><li>Correlation risk</li></ul></div>
+    <div class="station"><div class="t">Manage</div><ul><li>Selling because wrong</li><li>Selling because right</li><li>Partials &amp; trailing</li><li>Time stops</li><li>What happens next (replay)</li></ul></div>
+    <div class="station"><div class="t">Review</div><ul><li>Mistake taxonomy</li><li>Trade autopsy</li><li>Three-axis grading</li><li>The weekly review</li><li>Build the plan</li></ul></div>
+    <div class="station"><div class="t">Calls</div><ul><li>Take the call: Sunday Scans</li><li>Take the call: team archive</li></ul></div>
+    <div class="station"><div class="t">Overlay (later)</div><ul><li>Flow as confirmation</li><li>Dealer positioning</li></ul></div>
+  </div>
+  <div class="ask"><b>Confirmed 17 Oct.</b> Your note: you will review and train every piece for accuracy.</div>
+</section>
+
+<section id="r5">
+  <h2><span class="n">R5</span>The fifteen drill types</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Drill</th><th>The member…</th><th>Scored by</th><th>Phase</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Recall</strong></td><td>Answers multiple choice, true/false, or fill-in on a term, rule or formula</td><td>Exact</td><td class="num">1</td></tr>
+      <tr><td><strong>Tap the chart</strong></td><td>Points at the wick, the pivot, the gap, the 50-day on a drawn or real chart</td><td>Hit region</td><td class="num">1</td></tr>
+      <tr><td><strong>Scenario story</strong></td><td>Reads a short situation in the mentor's voice and makes the call</td><td>Exact vs the taught rule</td><td class="num">1</td></tr>
+      <tr><td><strong>Spot the pattern</strong></td><td>Names the setup on a real chart with the ticker hidden, or says "none"</td><td>Exact vs label</td><td class="num">1</td></tr>
+      <tr><td><strong>Size it</strong></td><td>Turns account, risk, entry and stop into shares and dollars at risk, and the reverse</td><td>Numeric</td><td class="num">1</td></tr>
+      <tr><td><strong>Call the regime</strong></td><td>Reads the breadth picture or index chart for a real past date and names the tier the firm called</td><td>Exact</td><td class="num">1</td></tr>
+      <tr><td><strong>Take the call (Scans)</strong></td><td>Sees a Sunday Scans chart from a past issue: take it, pass, or watch</td><td>What price did 5, 20, 60 days later</td><td class="num">1</td></tr>
+      <tr><td><strong>Grade the setup</strong></td><td>Ticks each must-have and disqualifier on the rubric, then grades A+ to F</td><td>Per check, then grade</td><td class="num">2</td></tr>
+      <tr><td><strong>Mark the levels</strong></td><td>Taps entry, stop and target on the chart</td><td>Distance to the key</td><td class="num">2</td></tr>
+      <tr><td><strong>What happens next</strong></td><td>Predicts from a chart cut at a date, then steps forward bar by bar</td><td>Direction vs the recorded outcome</td><td class="num">2</td></tr>
+      <tr><td><strong>Family placement</strong></td><td>Names the family first on 20 mixed charts</td><td>Exact</td><td class="num">2</td></tr>
+      <tr><td><strong>Take the call (archive)</strong></td><td>Takes or passes an archived team call with its chart</td><td>The call's recorded outcome</td><td class="num">2</td></tr>
+      <tr><td><strong>Listen and answer</strong></td><td>Watches a 60-90 second clip from a Desk or #tsdr video, then answers a question quoting it</td><td>Exact</td><td class="num">2</td></tr>
+      <tr><td><strong>Trade autopsy</strong></td><td>Names the mistake and the rule broken on a real trade (firm examples, or their own journal, opt-in)</td><td>Tag match</td><td class="num">3</td></tr>
+      <tr><td><strong>Build the plan</strong></td><td>Builds a plan from controls (tier, setup, entry, stop, size, target, exit rule) and writes a "why" that is saved to their Notebook</td><td>Rules; the "why" is unscored</td><td class="num">3</td></tr>
+    </tbody>
+  </table></div>
+  <div class="ask"><b>Confirmed 17 Oct.</b> Your note: show tricks and failed examples so members learn that stop-outs happen and that deliberate risk management and timing are the reason. Now an authoring rule: no setup unit ships without at least one approved loss.</div>
+</section>
+
+<section id="r6">
+  <h2><span class="n">R6</span>How a unit works</h2>
+  <div class="flow">
+    <span class="step">Intro (30-60 s video + one line)</span><span class="arrow">→</span>
+    <span class="step">Questions, one at a time</span><span class="arrow">→</span>
+    <span class="step">Answer + where it came from + one-line lesson</span><span class="arrow">→</span>
+    <span class="step">End card: accuracy, XP, what to review next</span>
+  </div>
+  <ul>
+    <li><strong>Questions only.</strong> No reading pages. The teaching happens in the intro and in every reveal.</li>
+    <li><strong>Three levels, three rungs each</strong> (Learn 1-3, Practise 1-3, Prove 1-3). Rung 1 recognises the idea; rung 9 applies it on a real chart or real numbers. Gold at rung 9.</li>
+    <li><strong>Test out</strong> on any unit: one pass at the top rung skips it.</li>
+    <li>Formats: multiple choice, true/false, fill in the blank, tap the chart, scenario stories. Idealized drawings for teaching, real charts for testing.</li>
+    <li>Charts in drills are the real interactive chart, locked down: ticker hidden, live data off, zoom and crosshair on.</li>
+    <li>The reveal always shows the real ticker and dates.</li>
+  </ul>
+  <div class="ask"><b>Confirmed 17 Oct.</b> Your note: "what are they about" — the named unit list for every track is the first Phase 0 file you review.</div>
+</section>
+
+<section id="r7">
+  <h2><span class="n">R7</span>Voice</h2>
+  <p>Your instruction: it must sound like us, a person, a friend and a mentor teaching, not AI slop. The rules every authoring session follows:</p>
+  <ul>
+    <li>Write as a trader talking to a friend across the desk. Short sentences. "The market", "the stock", "your stop".</li>
+    <li>No internal shorthand ("regime", "the dial", "tape", "exposure rating") in a question until that idea has been taught in a unit, and then in plain words alongside it: "the firm's market-health score, the 0-150 number on the dashboard".</li>
+    <li>Reveals speak in first person as the mentor: "Here is what I'd do." No cartoon character, no mascot.</li>
+    <li>No hype, no "great job!", no emoji. A right answer gets a short, real line on why it is right.</li>
+    <li>Every number in a reveal must be in the question's own facts. The import step rejects anything else.</li>
+  </ul>
+  <div class="ask"><b>Confirmed 17 Oct.</b> Your note: not too AI, but structured and easy to understand. Rule added: one idea per question, the same sentence shapes through a unit, the question before the chart, choices short enough to scan on a phone.</div>
+</section>
+
+<section id="r8">
+  <h2><span class="n">R8</span>Intro videos</h2>
+  <ul>
+    <li>One per unit, about 100-120 in total, 30-60 seconds each, produced offline here, reviewed by you, then uploaded to the site as a stored file. Nothing is generated on the server.</li>
+    <li><strong>Voice:</strong> a cloned version of your voice from the Desk recordings. Your written consent is recorded before any sample is used; you read every script before it is rendered.</li>
+    <li><strong>Visuals:</strong> brand motion graphics (gold on dark, the compass mark, charts rendered from real bars by our own renderer), with a stylized animated host of you where it adds something. Any chart on screen is real.</li>
+    <li><strong>Process:</strong> I propose the toolchain and its cost per video; you approve it before the first render; the first three videos are approved before the rest are made.</li>
+  </ul>
+  <div class="ask"><b>Confirmed 17 Oct.</b> Your note: this will take work to refine; you review everything in great detail.</div>
+</section>
+
+<section id="r9">
+  <h2><span class="n">R9</span>The daily loop and rewards</h2>
+  <div class="grid2">
+    <div class="card"><h4>Today's Study</h4><p>Ten questions, about five minutes, mostly from the member's current track with two or three from elsewhere. Finishing it keeps the streak. Unlimited extra practice after.</p></div>
+    <div class="card"><h4>Streaks</h4><p>Every calendar day counts. One free miss per week so a single busy day does not wipe a long run.</p></div>
+    <div class="card"><h4>XP and levels</h4><p>XP per correct answer, scaled by difficulty, with bonuses for refreshing a stale skill and for streak days. Daily goal selectable: 20, 50 or 100.</p></div>
+    <div class="card"><h4>Mastery and freshness</h4><p>Each skill shows Learning, Practised, Mastered, or Gold. A badge is never taken away. A skill shows Fresh or Needs a refresh, and refreshers pay bonus XP.</p></div>
+    <div class="card"><h4>Badges</h4><p>Few and tiered: one per module checkpoint (14), setup rep milestones (20 and 40 reps on one setup), streak milestones (7, 30, 100 days), and Gold on a skill. One line of copy and a gold icon each.</p></div>
+    <div class="card"><h4>Leaderboard</h4><p>Weekly XP with accuracy shown beside it, on by default with an opt-out, resets Sunday night. No discussion threads.</p></div>
+    <div class="card"><h4>Feel</h4><p>Subtle sound and haptics on right and wrong (on by default on phones, off on desktop, one toggle). Combo counter at 5 and 10 in a row. End-of-session card. Animated trail map. Cool, not over the top.</p></div>
+    <div class="card"><h4>Reminders</h4><p>Push notification plus the in-app bell, opt-in, at a time the member picks, once a day.</p></div>
+  </div>
+  <div class="ask"><b>Confirmed 17 Oct.</b> Your note: simple and easy to navigate.</div>
+</section>
+
+<section id="r10">
+  <h2><span class="n">R10</span>The house sizing rule</h2>
+  <p>From our workshop. Sizing is taught as a rule derived from the stop, not as a fixed grid.</p>
+  <ul>
+    <li><strong>Risk per trade: 0.25% to 2% of the account</strong>, chosen by setup quality, your recent performance, market conditions and your edge. 2% is the hard ceiling. <strong>Flat-risk sizing</strong> (the same percent on every trade) is taught as a valid alternative, not a mistake.</li>
+    <li><strong>Stop first.</strong> The low of the day, or the prior day's low, is the default. The structure (pivot area, pullback low) and ATR are the supporting methods. If the honest stop does not fit the risk budget, <strong>skip; never tighten the stop</strong>.</li>
+    <li><strong>Size from the stop.</strong> Position % = risk % ÷ stop distance %. A 1% stop at half size is 0.5% risk. A 10% stop at 10% size is 1% risk.</li>
+    <li><strong>Portfolio layer.</strong> Total open risk under 10% of the account; 5 to 10 positions for a momentum swing book; progressive exposure: pilot, half, full, add only after the last step paid.</li>
+    <li>The app's existing ceiling table becomes a cap the Method mentions once, not the lesson. The printed sizing-gate card is regenerated from this rule.</li>
+  </ul>
+  <div class="ask"><b>Confirmed 17 Oct.</b></div>
+</section>
+
+<section id="r11">
+  <h2><span class="n">R11</span>How content gets made and reviewed</h2>
+  <div class="flow">
+    <span class="step">Generate drafts from our data</span><span class="arrow">→</span>
+    <span class="step">Write questions and lessons in our voice</span><span class="arrow">→</span>
+    <span class="step">Check for near-duplicates</span><span class="arrow">→</span>
+    <span class="step">You review every item, one by one</span><span class="arrow">→</span>
+    <span class="step">Fixes logged as training data</span><span class="arrow">→</span>
+    <span class="step">Commit and import</span>
+  </div>
+  <ul>
+    <li><strong>No AI in the product.</strong> Everything is written in scheduled sessions here on the subscription, reviewed, imported. No API spend at runtime.</li>
+    <li><strong>No model ever writes a market fact.</strong> Charts, labels, levels and outcomes come from stored bars, the pattern engine, your labels, or the firm's records. History numbers are computed from our own data. Fundamentals use real quarters frozen into the question.</li>
+    <li><strong>Nightly chart items</strong> from the pattern engine get a rule-filled lesson ("the engine called this a VCP: contractions 24%, 11%, 5%, pivot $41.20; target hit in 14 bars") and wait in your review queue. Nothing goes live unreviewed.</li>
+    <li><strong>Never repetitive.</strong> No two questions test the same fact the same way; each unit is diffed against the whole bank before review.</li>
+    <li><strong>Targets:</strong> 5,000+ Method items and 2,500+ Foundations items before launch, both built in parallel, interleaved weekly. Then a weekly batch forever.</li>
+    <li><strong>Your corrections are training data.</strong> Every fix and reject is stored with its reason, exported for the next authoring session, and available to Compass later.</li>
+  </ul>
+  <div class="ask"><b>Confirmed 17 Oct.</b> Your note: all real content and great examples.</div>
+  <h3>Staying current without new authoring</h3>
+  <ul>
+    <li>Nightly: pattern-engine detections with resolved outcomes become draft chart questions.</li>
+    <li>Weekly: each new Sunday Scans issue becomes draft take-the-call questions, scored once the forward window closes.</li>
+    <li>As published: new Desk and #tsdr videos become draft listen-and-answer questions per chapter.</li>
+    <li>Daily: the morning wire's tier call becomes a call-the-regime draft, eligible after 60 days.</li>
+    <li>Daily: catalysts with a matching detection become what-happens-next drafts, every one reviewed by you.</li>
+  </ul>
+  <p class="small">All of these land in your review queue. Nothing goes live unreviewed.</p>
+</section>
+
+<section id="r12">
+  <h2><span class="n">R12</span>What we already hold to build from</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Asset</th><th>Size</th><th>Feeds</th></tr></thead>
+    <tbody>
+      <tr><td>Desk videos with transcripts, chapters and ticker moments</td><td class="num">320 videos, 20.3M characters</td><td>Listen and answer</td></tr>
+      <tr><td>Lesson scripts with dated, data-verified chart examples</td><td class="num">395 chapters, 181 examples</td><td>Spot, levels, what happens next</td></tr>
+      <tr><td>Pattern engine detections with outcomes</td><td class="num">1.54M rows, 120-day window, refreshed nightly</td><td>Spot, levels, next, family</td></tr>
+      <tr><td>Real-bar labelled setup cases</td><td class="num">163 (48 yes, 84 no, 31 edge)</td><td>Spot, grade, family</td></tr>
+      <tr><td>VCP gold standard with four reviewers per chart</td><td class="num">82 charts</td><td>Spot, grade</td></tr>
+      <tr><td>Setup rubrics (must-haves and disqualifiers)</td><td class="num">14 setups</td><td>Grade the setup</td></tr>
+      <tr><td>Sunday Scans chart images</td><td class="num">64 issues, 2,953 images</td><td>Take the call</td></tr>
+      <tr><td>Team call archive with outcomes</td><td class="num">calls with entry, stop, target, 5/20/60-day result</td><td>Take the call, autopsy</td></tr>
+      <tr><td>Model Book setups and examples</td><td class="num">graded, with levels and result windows</td><td>Spot, grade, levels, next</td></tr>
+      <tr><td>Index bars and breadth history</td><td class="num">S&amp;P/Nasdaq to 1974; breadth to 2008; AAII to 1987</td><td>History, call the regime</td></tr>
+      <tr><td>Daily wire archive with the firm's tier call</td><td class="num">every trading day</td><td>Call the regime</td></tr>
+      <tr><td>Glossary, principles, rules, concept formulas, playbooks</td><td class="num">40 + 36 + 23 + 22 + 9</td><td>Recall</td></tr>
+      <tr><td>Candle catalog and base catalog with sourced criteria</td><td class="num">22 shapes, 44 pairs; 29 structures, 252 criteria</td><td>Foundations F3, F4</td></tr>
+      <tr><td>Trade-log vault and psychology bible</td><td class="num">named trades with R and lesson</td><td>Autopsy, F8</td></tr>
+      <tr><td>Earnings tables, options math, GEX, economic series</td><td class="num">real quarters; 18 strategies; 151 series</td><td>F5, F6, F7</td></tr>
+    </tbody>
+  </table></div>
+  <div class="ask"><b>Confirmed 17 Oct.</b> Your note: plus the open internet and anything accessible for concepts and robust answers. Rule: concepts may cite any reputable reference; charts and numbers come only from our own data.</div>
+</section>
+
+<section id="r13">
+  <h2><span class="n">R13</span>Under the hood (brief)</h2>
+  <ul>
+    <li>A new database on the server volume for questions, bar snapshots, attempts, skills, streaks, badges, weekly XP and your corrections. Same pattern as every other store in the app.</li>
+    <li>Each chart question stores the exact bars it was built from, so an answer never changes under a member and the ticker is never sent to the browser before the answer is scored.</li>
+    <li>A small set of endpoints under <code>/api/study</code>, paid-gated like The Desk, plus an admin review screen modelled on the existing Gold Review page and an import endpoint for the bank.</li>
+    <li>Four scheduled jobs on the web service: build Today's Study (6:30 ET), send reminders, mint nightly chart drafts (11:30 PM ET), close the weekly leaderboard.</li>
+    <li>Front end: a Study panel and trail map inside Courses, one drill player, one component per drill type, the real chart locked down, phone-first layout.</li>
+    <li>Ships live with one kill switch. Nothing touches the options-flow worker.</li>
+  </ul>
+  <div class="ask"><b>Confirmed 17 Oct.</b> Your note: run a thorough final sweep before finalising. See R15.</div>
+</section>
+
+<section id="r14">
+  <h2><span class="n">R14</span>Phases</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Phase</th><th>Product</th><th>Content (sessions with you)</th></tr></thead>
+    <tbody>
+      <tr><td class="k">0 · Settle</td><td>Voice guide, skill map, sizing rule, pass bars, video toolchain proposal, voice consent</td><td>You sign off each file</td></tr>
+      <tr><td class="k">1 · Study, live</td><td>Store, endpoints, Study panel and trail map, seven drill types, unit intros, 3×3 levels and test-out, placement test, XP, streaks, badges, leaderboard, sound and haptics, Today's Study, reminders, review screen, import</td><td>Foundations F1-F4, F9, F10. Method: recall, fixtures and gold standard, regime, sizing, Sunday Scans. First three intro videos. Target 1,200 Foundations + 2,000 Method approved</td></tr>
+      <tr><td class="k">2 · Chart Arcade</td><td>Grade, levels, replay, family, archive calls, listen drills; nightly draft generator; catalysts items</td><td>Foundations F5-F8, F11, F12 and all intro videos. Method: curriculum examples, Model Book, archive, video chapters, nightly detections. Target 2,500 + 5,000</td></tr>
+      <tr><td class="k">3 · Review station</td><td>Trade autopsy, build the plan, checkpoints and module badges, refresh suggestions</td><td>Vault and archive failures; capstone plan sets</td></tr>
+      <tr><td class="k">4 · Growth system</td><td>Corrections export, weekly batch playbook, item versioning, bank health dashboard</td><td>Weekly cadence established; bank growing on its own</td></tr>
+    </tbody>
+  </table></div>
+  <div class="ask"><b>Confirmed 17 Oct.</b> Your note: plus whatever keeps the bank up to date while relying on our library (now listed under R11).</div>
+</section>
+
+<section id="r15">
+  <h2><span class="n">R15</span>Open items that need you</h2>
+  <ul>
+    <li><span class="pill open">open</span> <strong>Pass bars.</strong> The dossier says 80% per checkpoint and 100% on the sizing gate. You want to review those numbers.</li>
+    <li><span class="pill open">open</span> <strong>Video toolchain and cost.</strong> I propose it; you approve before the first render.</li>
+    <li><span class="pill open">open</span> <strong>Voice-clone consent.</strong> A short written note from you before any sample is used.</li>
+    <li><span class="pill open">open</span> <strong>Per-segment "obscure explanation" needs.</strong> Decided as each segment is reviewed.</li>
+  </ul>
+  <p>Your call: do it all, no hold back. Phase 0 delivers every file in one review session: the voice guide, the full unit list per track, the sizing rule, proposed pass bars, the video toolchain proposal with cost, and the consent note.</p>
+  <h3>Final sweep: what three independent reviews found</h3>
+  <p>Three reviews ran against the code, the dossier and the firm's own rules, and against the best learning apps. They found three blockers, corrected several claims in this plan, and sharpened the product. The full record is section 13 of the design document. The short version:</p>
+  <h4 style="margin:14px 0 6px;color:var(--fg-bright);font-size:14px">Three blockers, each with a fix</h4>
+  <ul>
+    <li><strong>Sunday Scans images are not stored anywhere we can serve them.</strong> They are links to Substack's servers, and the ticker attached to each image was guessed from nearby text. Fix: a one-time job copies every image into our own storage, and you confirm the ticker for each one in review.</li>
+    <li><strong>The firm's daily market call is not in the wire archive.</strong> The archive keeps only the morning brief's HTML; the call word lives in a file that is overwritten every morning, and the full history sits only on your PC. The call also uses five words (Aggressive to Defensive) while the course uses four colours, and the 0-150 scale changed in March 2026. Fix: start saving the call word every morning from now on, bring the history over from your PC as reviewed facts, teach one mapping from the five words to the four bands, and for years before the engine existed ask "which warning signs had fired" instead of "what was the call".</li>
+    <li><strong>Importing thousands of chart questions could trigger live data fetches on the web server.</strong> Fix: the importer only reads bars we already hold, reports what is missing, and runs in the background; authoring sessions fetch bars through the production API so the server and the review see the same bars.</li>
+  </ul>
+  <h4 style="margin:14px 0 6px;color:var(--fg-bright);font-size:14px">Corrections to this plan</h4>
+  <ul>
+    <li>The course has <strong>16 modules</strong>, not 14; the map and badges now follow the shipped course. Two shipped modules were missing from the map: the Scan Engine (the nightly funnel, A and B watchlists, alert to fill) and the Intraday toolkit (ORB, 30-minute pivot, Go Signal).</li>
+    <li>The 163 labelled chart cases are detector tests on <strong>eight mega-cap tickers</strong> (AAPL alone is 66); they are seed, not the bank. Real supply comes from nightly detections, the team call archive and the Model Book.</li>
+    <li><strong>Six of the 26 setups have no labelled data at all</strong> (IPO Base, News Gapper, 2B Reversal, Failed Head and Shoulders, 30-Minute Pivot, Parabolic Long) and three more are near zero. Those ship only after you label examples yourself in the review screen. VCP and High Tight Flag, the two best-supplied setups, are not in the 26.</li>
+    <li>Candlestick direction is not a fact: on our own tape, measured from the next open, the hammer and shooting star flip sign. Candles are taught as names and what the session's auction said; any "what does it predict" question keys on the measured number.</li>
+    <li>Prices in questions must be percentages and bar positions, not dollars, because stored bars are split-adjusted and Scans images print the price of the day.</li>
+    <li>Sunday Scans "take the call" needs fair scoring: every pick was one the firm liked, so answers are scored against that issue's own base rate, the window opens at the next Monday open, "take" is defined by a trigger and a stop, and "watch" is right when neither printed.</li>
+    <li>Moving-average numbers differ by whose system (ours is 9/20/50/200); every number in a question is tagged by whose system it is.</li>
+    <li>Volume becomes three skills; relative-strength drills get a two-line chart (stock and stock over SPY); gaps, sector rotation, earnings-season maths, shorting mechanics and position-management maths each get a unit; the Method gets a psychology skill.</li>
+    <li>The daily set is created when a member opens it, not by a 6:30 job; the chart is mounted once per session; bars travel with the set; the drill opens fullscreen; right and wrong are a gold check and a muted cross, never green and red.</li>
+  </ul>
+  <h4 style="margin:14px 0 6px;color:var(--fg-bright);font-size:14px">The number nobody had written down</h4>
+  <p>Reviewing 7,500 items one by one is about <strong>175 hours of pure review</strong>, and <strong>250 to 350 hours</strong> once fixes are counted: six to nine weeks full time, or six to nine months at ten hours a week. Phase 1 alone is 90 to 130 hours. The launch target is a schedule, not a count. The review screen is specified so you never re-derive an answer: chart revealed, key highlighted, the source quote or detector numbers, what happened next, two automatic checks already run, and three keys: approve, fix, reject with a one-tap reason.</p>
+  <h4 style="margin:14px 0 6px;color:var(--fg-bright);font-size:14px">Eight calls the sweep raised, and your answers</h4>
+  <ol>
+    <li><strong>Walk-throughs: yes.</strong> Every unit opens with two or three unscored shown-answer items.</li>
+    <li><strong>Due slots: yes.</strong> Three of the ten daily questions are items coming back from 3, 10 and 30 days ago or from a skill that needs a refresh.</li>
+    <li><strong>Review: graduated trust.</strong> You review every item of a type until you have seen 20 to 30 clean examples; the review screen then asks whether to switch that type to auto-approve with a sample. A new source or template resets the count.</li>
+    <li><strong>Intraday setups stay</strong>, with an Intraday skill and a hand-labelling queue. You may add a few more setups later.</li>
+    <li><strong>VCP and High Tight Flag become their own setups: the catalog is 28.</strong></li>
+    <li><strong>Options: full depth in Foundations</strong>, including directional trades, the Greeks, strike and expiry selection, and everything someone wanting to know options would need; flow and dealer positioning sit at the end of the track.</li>
+    <li><strong>Scans: the fair-scoring rule</strong> is adopted.</li>
+    <li><strong>Voice: your own prose is the source.</strong> The voice guide is derived from the 320 Desk transcripts, the toolkit cards, the Substack issues, the morning-wire voice exemplars and the playbooks, quoting real sentences; house words are allowed once taught in the first unit.</li>
+  </ol>
+</section>
+
+<section id="r16">
+  <h2><span class="n">R16</span>Decision log, 17 October 2026</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Topic</th><th>Decision</th></tr></thead>
+    <tbody>
+      <tr><td>Placement, name</td><td>Inside Courses; "Study"; live from day one; two-way links with lessons</td></tr>
+      <tr><td>Setup count, regime bands</td><td>26 setups; tier words, never cutoffs</td></tr>
+      <tr><td>Famous charts, nightly items</td><td>Keep famous charts everywhere; nightly detector items reviewed per batch</td></tr>
+      <tr><td>Sources added</td><td>Own-journal autopsies opt-in; Desk and #tsdr video drills; Sunday Scans and archive calls early; catalysts with every item reviewed</td></tr>
+      <tr><td>Learning engine</td><td>No locks; random mix weighted to weak skills; badges never removed, Fresh/Needs-a-refresh instead; pass bars under review</td></tr>
+      <tr><td>Daily loop</td><td>10 questions a day plus unlimited practice; calendar-day streaks with one free miss a week; push and bell reminders opt-in; four badge kinds kept simple</td></tr>
+      <tr><td>AI</td><td>None at runtime; explanations pre-written after every question; content produced in sessions on a schedule; rule-scored plan builder instead of an AI grader</td></tr>
+      <tr><td>Charts, reveal</td><td>Real interactive chart locked down; always reveal ticker and dates</td></tr>
+      <tr><td>Review, social</td><td>You review everything one by one, full bank first; weekly XP leaderboard with accuracy; no discussion threads</td></tr>
+      <tr><td>Foundations</td><td>All twelve tracks; audience has an account and some experience; questions-only units with an AI-produced intro video; formats MCQ/TF/fill-in/tap-the-chart/scenario; drawings to teach, real charts to test; options to advanced; history from our data; real earnings snapshots; 3×3 levels; optional placement; mentor voice, no mascot; sound, combos, end card, trail map</td></tr>
+      <tr><td>Videos</td><td>Cloned voice with consent; motion graphics plus animated host; built locally, reviewed, uploaded</td></tr>
+      <tr><td>Sizing</td><td>0.25-2% risk by quality, performance, market and edge; flat-risk also valid; LOD or prior LOD stop first, structure and ATR supporting; size from the stop; heat under 10%, 5-10 positions, progressive exposure</td></tr>
+      <tr><td>Build order</td><td>Both curricula in parallel, interleaved weekly</td></tr>
+      <tr><td>Vocabulary, 17 Oct</td><td>A cross-cutting Vocabulary track with thousands of terms and questions, plus match-the-pairs allowed for vocabulary only</td></tr>
+      <tr><td>Page review, 17 Oct</td><td>All sixteen sections confirmed with notes: AI allowed where good and needed; technical and recognition first; levels and lines track added; failed examples required; unit list to review; structured human voice; open sources for concepts; staying-current feeds; Phase 0 all at once; final sweep before go</td></tr>
+    </tbody>
+  </table></div>
+</section>
+</main>
+</div>
