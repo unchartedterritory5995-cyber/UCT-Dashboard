@@ -26,6 +26,11 @@
 //   then only the LEVELS_NEAREST levels nearest `lastPrice`; `intraday_only` rows never draw on
 //   D/W/M. `geometry.secondary` (uct_* setups) and a trusted detector's `levels.entry`
 //   (`draw_entry`) draw as bounded LevelSegments beside the primary shape.
+//
+// ⭐ THE LEARNED AUTO-DRAWER (`drawn`, admin + AUTO_STRUCTURES_ENABLED, D/W/M): its trendlines and
+//   levels draw through LearnedDrawn, styled apart and tagged "learned". While it is present its
+//   `suppress` map (server-owned: registry DISPLAY_LEARNED_HIDES / _REPLACES) leaves those
+//   detectors undrawn — volume_profile_nodes hidden by default, swing_pivots replaced by learned.
 import { useEffect, useRef, useState, useCallback } from 'react'
 import TrendlinePair from './patternShapes/TrendlinePair'
 import Neckline from './patternShapes/Neckline'
@@ -35,6 +40,9 @@ import CandleMark from './patternShapes/CandleMark'
 import HorizontalLine from './patternShapes/HorizontalLine'
 import BaseBox from './patternShapes/BaseBox'
 import LevelSegment from './patternShapes/LevelSegment'
+import LearnedDrawn from './patternShapes/LearnedDrawn'
+import EmaSegment from './patternShapes/EmaSegment'
+import PoleSegment from './patternShapes/PoleSegment'
 import { anchorToBarTime, isDateTf } from './patternTime'
 
 const SHAPE_RENDERERS = {
@@ -57,15 +65,42 @@ function levelPrice(d) {
 }
 
 /**
+ * The geometry the chart DRAWS for one detection (pure — exported for tests).
+ *
+ * The blind tier round v2 (lab/geometry_eval REPORT_TIERS_V2.md, 2026-10-17) found drawing
+ * defects that the server now corrects as DISPLAY-ONLY extras
+ * (api/services/pattern_engine/display.py): `extras.draw_anchors` replaces `anchors` when
+ * present — double_bottom / double_top / head_shoulders snapped to each leg's true extreme,
+ * flat_base / bc:flat-base / bc:square-box capped to the consolidation. For a base_box the
+ * drawn top/floor follow the capped extent. Rows stored before the fix carry no extras and
+ * draw exactly as before.
+ */
+export function drawGeometry(d) {
+  const g = d?.geometry
+  const da = g?.extras?.draw_anchors
+  if (!g || !Array.isArray(da) || !da.length) return d
+  let extras = g.extras
+  if (g.shape === 'base_box' && da.length >= 2) {
+    extras = {
+      ...extras,
+      top: Math.max(da[0].price, da[1].price),
+      floor: Math.min(da[0].price, da[1].price),
+    }
+  }
+  return { ...d, geometry: { ...g, anchors: da, extras } }
+}
+
+/**
  * Which detections draw, given the server's per-row policy and the viewer's toggles.
  * Pure — exported for tests.
  */
-export function selectDrawable(detections, { tf, showExperimental = true, showLevels = false, lastPrice = null } = {}) {
+export function selectDrawable(detections, { tf, showExperimental = true, showLevels = false, lastPrice = null, suppress = null } = {}) {
   const dateTf = tf == null ? false : isDateTf(tf)
   const structures = []
   const levels = []
   for (const d of detections || []) {
     if (!d) continue
+    if (suppress && Object.prototype.hasOwnProperty.call(suppress, d.pattern_id)) continue
     if (d.display_tier === 'hidden') continue
     if (d.display_tier === 'experimental' && !showExperimental) continue
     if (dateTf && d.intraday_only) continue
@@ -95,6 +130,7 @@ export function selectDrawable(detections, { tf, showExperimental = true, showLe
  *   showExperimental:  draw experimental-tier detectors (admins); default true
  *   showLevels:        draw the levels layer (nearest LEVELS_NEAREST to lastPrice); default false
  *   lastPrice:         the latest close, for choosing the nearest levels
+ *   drawn:             the learned auto-drawer block (`drawn` on the response) or null
  */
 export default function PatternOverlay({
   chart,
@@ -108,6 +144,7 @@ export default function PatternOverlay({
   showExperimental = true,
   showLevels = false,
   lastPrice = null,
+  drawn = null,
 }) {
   const svgRef = useRef(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -142,10 +179,13 @@ export default function PatternOverlay({
     }
   }, [chart, containerRef, forceRedraw])
 
-  if (!enabled || !chart || !series || !detections?.length) return null
+  const hasDrawn = !!drawn && ((drawn.trendlines?.length || 0) + (drawn.horizontals?.length || 0)) > 0
+  if (!enabled || !chart || !series || (!detections?.length && !hasDrawn)) return null
 
-  const drawable = selectDrawable(detections, { tf, showExperimental, showLevels, lastPrice })
-  if (!drawable.length) return null
+  const drawable = selectDrawable(detections, {
+    tf, showExperimental, showLevels, lastPrice, suppress: hasDrawn ? drawn.suppress : null,
+  })
+  if (!drawable.length && !hasDrawn) return null
 
   // Coordinate helpers — lightweight-charts caches internally so re-creating these per render is cheap.
   const tToX = (t) => {
@@ -192,9 +232,16 @@ export default function PatternOverlay({
           </feMerge>
         </filter>
       </defs>
-      {drawable.map((d) => {
+      {hasDrawn && <LearnedDrawn drawn={drawn} tToX={tToX} priceToY={priceToY} />}
+      {drawable.map((row) => {
+        const d = drawGeometry(row)
         const shape = d?.geometry?.shape
-        const Renderer = SHAPE_RENDERERS[shape]
+        const ex = d?.geometry?.extras || {}
+        // A pullback names an EMA: draw that EMA over the pullback window, not a flat line.
+        const hasEma = Array.isArray(ex.draw_ema?.points) && ex.draw_ema.points.length >= 2
+        // A flag whose lanes cross, diverge or overlap a better flag draws pole + entry only.
+        const lanesOff = ex.draw_lanes === false
+        const Renderer = hasEma ? EmaSegment : (lanesOff ? null : SHAPE_RENDERERS[shape])
         const secondary = Array.isArray(d?.geometry?.secondary) ? d.geometry.secondary : []
         const entry = d?.draw_entry ? Number(d?.levels?.entry) : NaN
         const anchors = d?.geometry?.anchors || []
@@ -208,6 +255,9 @@ export default function PatternOverlay({
                 barHalfWidthPx={barHalfWidthPx}
                 onClick={onDetectionClick}
               />
+            )}
+            {Array.isArray(ex.draw_pole) && (
+              <PoleSegment detection={d} tToX={tToX} priceToY={priceToY} onClick={onDetectionClick} />
             )}
             {secondary.map((sec, i) => {
               if (!sec || !Array.isArray(sec.anchors) || !sec.anchors.length) return null

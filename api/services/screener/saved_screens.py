@@ -55,6 +55,21 @@ def list_for(user_id):
     return [_row(r) for r in rows]
 
 
+def all_specs():
+    """Every member's saved screen spec, for the nightly membership record. Specs only:
+    the record is keyed by the screen's criteria, never by who saved it."""
+    init()
+    with auth_db.get_connection() as c:
+        rows = c.execute("SELECT spec_json FROM screener_saved_screens").fetchall()
+    out = []
+    for r in rows:
+        try:
+            out.append(json.loads(r["spec_json"]))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
 def get(screen_id, user_id):
     with auth_db.get_connection() as c:
         r = c.execute("SELECT * FROM screener_saved_screens WHERE id=? AND user_id=?",

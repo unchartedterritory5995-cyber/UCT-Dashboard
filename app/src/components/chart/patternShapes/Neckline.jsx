@@ -6,6 +6,11 @@
 //   3 anchors → double top/bottom: [peak1, trough, peak2]
 //                → polyline through 3 + horizontal neckline at the trough level
 //
+//   2 anchors → a divergence line (rsi_bullish/bearish_divergence: the two price
+//                extremes). Rendered as ONE segment between them — until 2026-10-17 this
+//                returned null below 3 anchors, so neither divergence ever drew
+//                (lab/geometry_eval REPORT_TIERS_V2.md: "no verdicts").
+//
 // Triple top/bottom can come in as 5 anchors with the middle being the third pivot — we treat
 // any 5-anchor case as full polyline + neckline-through-points-2-and-4, which renders correctly
 // for triple variants too.
@@ -18,9 +23,36 @@ import {
   formatLabel,
 } from './style'
 
+function DivergenceLine({ detection, tToX, priceToY, onClick }) {
+  const [a, b] = detection.geometry.anchors
+  const pts = [a, b].map((p) => ({ x: tToX(p.t), y: priceToY(p.price) }))
+  if (pts.some((p) => p.x == null || p.y == null)) return null
+  const color = getColor(detection)
+  const opacity = getOpacity(detection)
+  return (
+    <g
+      data-shape="divergence-line"
+      onClick={() => onClick?.(detection)}
+      style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+    >
+      <line data-role="divergence" x1={pts[0].x} y1={pts[0].y} x2={pts[1].x} y2={pts[1].y}
+        stroke={color} strokeWidth={getStrokeWidth(detection)}
+        strokeDasharray={getStrokeDasharray(detection)} opacity={opacity}
+        filter={getGlowFilter(detection)} />
+      {pts.map((p, i) => (
+        <circle key={i} cx={p.x} cy={p.y} r={3} fill={color} opacity={opacity} />
+      ))}
+      <text x={pts[1].x + 8} y={pts[1].y + 4} fontSize="11" fill={color} opacity={opacity}>
+        {formatLabel(detection)}
+      </text>
+    </g>
+  )
+}
+
 export default function Neckline({ detection, tToX, priceToY, onClick }) {
   const anchors = detection?.geometry?.anchors || []
-  if (anchors.length < 3) return null
+  if (anchors.length < 2) return null
+  if (anchors.length === 2) return <DivergenceLine detection={detection} tToX={tToX} priceToY={priceToY} onClick={onClick} />
 
   // Project all anchors to pixel coordinates; bail if any are off-screen.
   const pts = anchors.map((a) => ({ x: tToX(a.t), y: priceToY(a.price), price: a.price }))

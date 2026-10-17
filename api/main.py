@@ -467,8 +467,15 @@ def _scan_patterns_daily(symbols, leader_set, _plog) -> tuple[int, int]:
     from api.services.pattern_engine import detect_all
     from api.services.pattern_engine import memory
     from api.services.pattern_engine.primitives.context import build_context
+    from api.services.pattern_engine.detectors import registry as _pe_reg
     # Importing patterns router triggers detector registration:
     from api.routers import patterns as _patterns  # noqa: F401
+    # History depth: every detector and the context see exactly the trailing
+    # SCAN_BASE_DEPTH (200) bars, as before; a detector that declared a larger
+    # `min_bars` (uct_pullback_ma_v5: 222) gets its own deeper slice, so the
+    # fetch is the deepest declaration. One indexed LIMIT query either way.
+    _base_depth = _pe_reg.SCAN_BASE_DEPTH
+    _fetch_depth = _pe_reg.scan_depth(_base_depth)
 
     # Phase 8 Package 8F: the live write-path integration for eligibility_json
     # — OFF by default. This is a WRITE-side flag only; nothing in this
@@ -494,19 +501,19 @@ def _scan_patterns_daily(symbols, leader_set, _plog) -> tuple[int, int]:
     stored = 0
     for sym in symbols:
         try:
-            bars = bars_sqlite.get_bars(sym, "D", 200)
+            bars = bars_sqlite.get_bars(sym, "D", _fetch_depth)
         except Exception as bars_err:
             _plog.debug("[patterns] get_bars failed for %s D: %s", sym, bars_err)
             continue
-        if not bars or len(bars) < 30:
+        if not bars or len(bars[-_base_depth:]) < 30:
             continue
         bars_list = [
             {"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}
             for r in bars
         ]
         try:
-            ctx = build_context(bars_list, sym=sym)
-            detections = detect_all(bars_list, ctx)
+            ctx = build_context(bars_list[-_base_depth:], sym=sym)
+            detections = detect_all(bars_list, ctx, base_depth=_base_depth, sym=sym)
             for d in detections:
                 d["sym"] = sym
                 d["tf"] = "D"
@@ -2005,6 +2012,16 @@ def register_screener_jobs(scheduler):
                           f"samples={vc.get('samples')} reason={vc.get('reason')}")
                 except Exception as e:  # noqa: BLE001
                     print(f"[scheduler] screener volume curve error: {e}")
+                # "New today" (dark): record each screen's tickers, but only after a
+                # COMPLETE build -- a short build's membership would mark real names
+                # as dropped tomorrow.
+                try:
+                    from api.services.screener import membership
+                    if membership.job_enabled() and _nightly_shortfall(stats) is None:
+                        mr = membership.record_all()
+                        print(f"[scheduler] screener membership: {mr}")
+                except Exception as e:  # noqa: BLE001
+                    print(f"[scheduler] screener membership error: {e}")
             _alert_if_nightly_short(stats)
         except Exception as e:
             print(f"[scheduler] screener snapshot build error: {e}")
@@ -10067,6 +10084,8 @@ from api.routers import alert_outbound as alert_outbound_router  # noqa: E402  (
 app.include_router(alert_outbound_router.router)
 from api.routers import screen_promote as screen_promote_router  # noqa: E402  (FT-027, dark)
 app.include_router(screen_promote_router.router)
+from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
+app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)
 app.include_router(screener_nl_router.router)
 from api.routers import uct_agent as uct_agent_router  # noqa: E402  (UCT Agent, admin-dark)

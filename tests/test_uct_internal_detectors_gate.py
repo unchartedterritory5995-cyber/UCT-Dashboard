@@ -38,6 +38,15 @@ from tests.authclients import ADMIN, PAID_MEMBER, signed_in_as
 _UCT = ("uct_kicker", "uct_oops_reversal", "uct_slingshot", "uct_hve")
 #: The second trader-setup set, shipped INTERNAL on 2026-10-16.
 _UCT2 = ("uct_launch_pad", "uct_gap_support", "uct_capitulation", "uct_go_signal")
+#: Detector recall v2 (2026-10-16): NEW ids beside u_and_r / episodic_pivot,
+#: shipped INTERNAL through the same gate (tests/pattern_engine/detectors/
+#: test_uct_recall_v2.py carries their own fixtures).
+_RECALL_V2 = ("uct_undercut_reclaim", "uct_episodic_pivot_v2")
+#: Detector recall v2, pullback v5 (2026-10-17): NEW id beside the four
+#: pullback_to_* detectors, same gate (fixtures in tests/pattern_engine/
+#: detectors/test_uct_pullback_ma_v5.py).
+_PULLBACK_V5 = ("uct_pullback_ma_v5",)
+_INTERNAL = (*_UCT2, *_RECALL_V2, *_PULLBACK_V5)
 _CONTROL = "bull_flag"
 _PROBE = "zz_internal_gate_probe"
 _SYM = "GATEX"
@@ -104,13 +113,13 @@ _ADMIN_VIEW = {*_UCT, _CONTROL, _PROBE}    # what an admin's raw read sees
 
 def test_the_shipped_internal_set_is_the_second_four_and_the_first_four_are_public():
     import api.routers.patterns  # noqa: F401
-    assert registry.INTERNAL_PATTERN_IDS == frozenset(_UCT2), (
-        "owner ruling 2026-10-15: the first four are public; the second four ship internal")
+    assert registry.INTERNAL_PATTERN_IDS == frozenset(_INTERNAL), (
+        "owner ruling 2026-10-15: the first four are public; the second four and the recall-v2 pair ship internal")
     assert set(_UCT) <= set(registry.list_public_pattern_ids())
     assert not any(registry.is_internal(p) for p in _UCT)
     # the internal four are registered (computed and stored) and not public
-    assert set(_UCT2) <= set(registry.list_pattern_ids())
-    assert not set(_UCT2) & set(registry.list_public_pattern_ids())
+    assert set(_INTERNAL) <= set(registry.list_pattern_ids())
+    assert not set(_INTERNAL) & set(registry.list_public_pattern_ids())
 
 
 def test_the_gate_helpers_drop_a_synthetic_internal_id(gate_on):
@@ -188,7 +197,7 @@ def seeded_shipped(monkeypatch, tmp_path):
     pattern_db.init_db()
     # the internal four carry the highest confidences, so the canonical shadow
     # (one winner per symbol) would pick one of them if the gate did not hold
-    for k, pid in enumerate(_UCT2):
+    for k, pid in enumerate(_INTERNAL):
         memory.store_detection(_det(f"uct2-{k}", pid, confidence=99.0 - k))
     for k, pid in enumerate(_UCT):
         memory.store_detection(_det(f"uct-{k}", pid, confidence=90.0 - k))
@@ -199,8 +208,8 @@ def seeded_shipped(monkeypatch, tmp_path):
 
 def test_shipped_set_memory_drops_the_second_four_for_members(seeded_shipped):
     assert _pids(memory.get_active_detections(_SYM, "D")) == {*_UCT, _CONTROL}
-    assert _pids(memory.get_active_detections(_SYM, "D", include_internal=True)) == {*_UCT, *_UCT2, _CONTROL}
-    for pid in _UCT2:  # naming one does not open the door
+    assert _pids(memory.get_active_detections(_SYM, "D", include_internal=True)) == {*_UCT, *_INTERNAL, _CONTROL}
+    for pid in _INTERNAL:  # naming one does not open the door
         assert memory.get_active_detections(_SYM, "D", pattern_ids=[pid]) == []
 
 
@@ -208,14 +217,14 @@ def test_shipped_set_screener_carries_none_of_the_second_four(seeded_shipped):
     from api.services.screener import pattern_join as pj
     ids = {k for k in (pj.read_pattern_fields([_SYM])[_SYM]["pattern_engine_ids"] or "").split(",") if k}
     assert _CONTROL in ids and set(_UCT) <= ids, "non-vacuous: the public ids must be read"
-    assert not ids & set(_UCT2)
+    assert not ids & set(_INTERNAL)
     picked = pj.read_pattern_fields_canonical_shadow([_SYM])[_SYM]["pattern_id"]
-    assert picked not in _UCT2
+    assert picked not in _INTERNAL
 
 
 def test_shipped_set_raw_route_member_vs_admin(seeded_shipped):
     assert _raw(PAID_MEMBER) == {*_UCT, _CONTROL}
-    assert _raw(ADMIN) == {*_UCT, *_UCT2, _CONTROL}
+    assert _raw(ADMIN) == {*_UCT, *_INTERNAL, _CONTROL}
 
 
 def test_shipped_set_compass_and_voice_never_list_the_second_four(seeded_shipped):
@@ -226,11 +235,11 @@ def test_shipped_set_compass_and_voice_never_list_the_second_four(seeded_shipped
     assert _pids(found["detections"]) == {*_UCT, _CONTROL}
     assert _pids(_find_patterns_on_ticker(symbol=_SYM, tf="D", min_conf=0)["detections"]) == {*_UCT, _CONTROL}
     listed = {p["id"] for p in _list_pattern_types()["patterns"]}
-    assert set(_UCT) <= listed and not listed & set(_UCT2)
+    assert set(_UCT) <= listed and not listed & set(_INTERNAL)
 
 
 def test_the_second_four_are_not_in_the_member_catalog():
-    for pid in _UCT2:
+    for pid in _INTERNAL:
         assert pid not in patterns_router._PATTERN_METADATA
 
 

@@ -140,6 +140,10 @@ from api.services.pattern_engine.detectors.uct import uct_launch_pad as _uct_lau
 from api.services.pattern_engine.detectors.uct import uct_gap_support as _uct_gap_support  # noqa: F401
 from api.services.pattern_engine.detectors.uct import uct_capitulation as _uct_capitulation  # noqa: F401
 from api.services.pattern_engine.detectors.uct import uct_go_signal as _uct_go_signal  # noqa: F401
+# Detector recall v2 (2026-10-16): INTERNAL, same gate, kept out of _PATTERN_METADATA.
+from api.services.pattern_engine.detectors.uct import uct_undercut_reclaim as _uct_undercut_reclaim  # noqa: F401
+from api.services.pattern_engine.detectors.uct import uct_ep_v2 as _uct_ep_v2  # noqa: F401
+from api.services.pattern_engine.detectors.uct import uct_pullback_ma_v5 as _uct_pullback_ma_v5  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors import registry as _pe_registry
 
@@ -798,6 +802,12 @@ def get_detections(
         from api.services import auto_structures
         if auto_structures.enabled():
             out["structures"] = auto_structures.structures_for(sym)
+            # The learned auto-drawer (display-only; same gate as the base boxes):
+            # trendlines + levels on the DAILY series, so D/W/M only.
+            if (tf or "D").upper() in ("D", "W", "M"):
+                drawn = auto_structures.drawn_for(sym)
+                if drawn is not None:
+                    out["drawn"] = drawn
     return out
 
 

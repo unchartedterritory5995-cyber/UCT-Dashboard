@@ -6102,7 +6102,7 @@ export default function StockChart({
   // The ubiquitous level emitters (support/resistance, volume nodes) are a separate,
   // default-off layer; per-tab, not persisted.
   const [showPatternLevels, setShowPatternLevels] = useState(false)
-  const { detections: patternDetections } = usePatternDetections(
+  const { detections: patternDetections, drawn: patternDrawn } = usePatternDetections(
     sym, resolvedTf, patternsActive, 50,
     { includeStructures: autoStructuresOn && ['D', 'W', 'M'].includes(resolvedTf) },
   )
@@ -20224,6 +20224,7 @@ export default function StockChart({
           series={candleSeriesRef.current}
           containerRef={containerRef}
           detections={patternDetections}
+          drawn={patternDrawn}
           enabled={patternsActive}
           onDetectionClick={setActiveDetection}
           tf={resolvedTf}
