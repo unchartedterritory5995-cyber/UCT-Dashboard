@@ -5,10 +5,15 @@ import { GROUPS, groupOf } from './screenGroups'
 import { emptyReason, presenceKeys, usePresence, REASON_SHORT } from './emptyReason'
 import Input from '../../../components/ui/Input'
 import UIcon from '../../../components/ui/UIcon'
+import Sheet from '../../../components/mobile/Sheet'
+import { MQ } from '../../../styles/breakpoints'
 import styles from './FocusScreener.module.css'
 import menuStyles from './FocusMenus.module.css'
 
 const norm = s => String(s || '').toLowerCase()
+// Phones (spec 2026-10-16 s3): the picker opens as a bottom sheet. Decided when it OPENS, from
+// matchMedia read then, never from a hook seeded at mount (stale at first paint on a phone).
+const isPhoneNow = () => typeof window !== 'undefined' && window.matchMedia?.(MQ.phone)?.matches === true
 
 // A count of exactly 0 is a real answer ("nothing matches today"), so the row is dimmed and
 // says so; an unknown count (undefined: not asked yet, null: the count failed) never reads as 0.
@@ -37,25 +42,28 @@ function Item({ item, pinned, count, current, onApply, onTogglePin, reason = nul
 // placeholder instead of naming a "Custom screen" that is about to be replaced (B12).
 export default function ScreenMenu({ currentName, currentId, isEdited, count, countPending = false, landing = false, pool = null, starters = [], saved = [], pinned = [], onTogglePin, onApply, onSaveChanges, onSaveAsNew, onRename, onNewScreen, myScans = [], onUseScan, apiRef, meta = null }) {
   const [open, setOpen] = useState(false)
+  const [asSheet, setAsSheet] = useState(false)
   const [q, setQ] = useState('')
+  const openMenu = () => { setAsSheet(isPhoneNow()); setOpen(true) }
   const btn = useRef(null), box = useRef(null)
   const uid = useId()
   useEffect(() => {
-    if (!open) return undefined
+    // The bottom sheet is portalled outside `box` and closes on its own backdrop: no outside-tap here.
+    if (!open || asSheet) return undefined
     // pointerdown, not mousedown: touch and pen fire pointer events first; no focus is stolen
     const onDown = e => { if (!box.current?.contains(e.target)) { setOpen(false); setQ('') } }
     document.addEventListener('pointerdown', onDown)
     return () => document.removeEventListener('pointerdown', onDown)
-  }, [open])
+  }, [open, asSheet])
   const close = () => { setOpen(false); setQ(''); btn.current?.focus() }
   // Tabbing (or any focus move) out of the menu and its trigger closes it, as the Menu primitive
   // does; focus stays where the member sent it. A null relatedTarget (window blur) keeps it open.
   const onBlur = e => {
     const to = e.relatedTarget
-    if (open && to && !box.current?.contains(to)) { setOpen(false); setQ('') }
+    if (open && !asSheet && to && !box.current?.contains(to)) { setOpen(false); setQ('') }
   }
   // `apiRef.current.open()` opens the menu (never toggles): the joystick hub's screens door.
-  useImperativeHandle(apiRef, () => ({ open: () => setOpen(true) }), [])
+  useImperativeHandle(apiRef, () => ({ open: () => { setAsSheet(isPhoneNow()); setOpen(true) } }), [])
 
   const all = useMemo(() => [
     ...starters.map(s => ({ ...s, kind: 'starter' })),
@@ -83,18 +91,34 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, co
   const pinnedSet = pinnedIds
   const row = it => <Item key={`${it.kind}-${it.id}`} item={it} pinned={pinnedSet.includes(String(it.id))}
     count={capToTopN(counts[String(it.id)], specs[String(it.id)])} current={String(it.id) === String(currentId)} onApply={pick} onTogglePin={onTogglePin} reason={reasonOf(String(it.id))} />
+  const content = <MenuContent q={q} setQ={setQ} uid={uid} pinnedItems={pinnedItems} groups={groups} mine={mine} myScans={myScans} row={row}
+    onUseScan={onUseScan} close={close} onSaveChanges={onSaveChanges} currentName={currentName} onSaveAsNew={onSaveAsNew} onRename={onRename} onNewScreen={onNewScreen} />
 
   return (
     <span className={styles.menuWrap} ref={box} onBlur={onBlur}>
       <button ref={btn} type="button" className={styles.screenBtn} aria-haspopup="dialog" aria-expanded={open}
-        aria-label={landing ? `${label} Change screen` : countPending ? `${label}, updating. Change screen` : Number.isFinite(count) ? `${label}, ${count} matches. Change screen` : `${label}. Change screen`} onClick={() => setOpen(o => !o)}>
+        aria-label={landing ? `${label} Change screen` : countPending ? `${label}, updating. Change screen` : Number.isFinite(count) ? `${label}, ${count} matches. Change screen` : `${label}. Change screen`} onClick={() => { if (open) setOpen(false); else openMenu() }}>
         <UIcon name="screener" size={18} className={styles.screenIcon} />
         <span className={landing ? menuStyles.landing : undefined}>{label}</span>
         <span className={styles.screenCount} data-testid="screen-count">{landing ? '' : countPending ? '…' : Number.isFinite(count) ? count.toLocaleString('en-US') : ''}</span>
         <svg className={styles.screenChevron} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
       </button>
-      {open && (
+      {open && !asSheet && (
         <div role="dialog" aria-label="Screens" className={`${styles.menu} ${styles.screenMenu}`} onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close() } }}>
+          {content}
+        </div>
+      )}
+      {/* On a phone the same content, in the app's bottom sheet: its own Escape, backdrop and drag close it. */}
+      <Sheet open={open && asSheet} onClose={close} variant="bottom-sheet" ariaLabel="Screens" bodyClassName={styles.screenSheetBody}>
+        {open && asSheet && content}
+      </Sheet>
+    </span>
+  )
+}
+
+function MenuContent({ q, setQ, uid, pinnedItems, groups, mine, myScans, row, onUseScan, close, onSaveChanges, currentName, onSaveAsNew, onRename, onNewScreen }) {
+  return (
+    <>
           <div className={styles.smSearch}>
             <Input type="search" aria-label="Search screens" placeholder="Search screens…" value={q} autoFocus onChange={e => setQ(e.target.value)} className={styles.smInput} />
           </div>
@@ -119,8 +143,6 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, co
             <span className={styles.spacer} />
             <button type="button" className={styles.goldLink} onClick={() => { onNewScreen(); close() }}>+ New screen</button>
           </div>
-        </div>
-      )}
-    </span>
+    </>
   )
 }
