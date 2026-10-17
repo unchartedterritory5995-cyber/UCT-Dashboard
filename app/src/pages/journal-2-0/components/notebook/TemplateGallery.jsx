@@ -371,11 +371,12 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
       item={item}
       busy={busy || using}
       onPreview={openStylePreview}
-      onAdopted={refresh}
       onOpenAuthor={openAuthor}
       onMessage={setMessage}
     />
   ) : outlineCard(item))
+  // No `onAdopted` refresh here: adoptStyle already revalidates every library view once
+  // (refreshLibrary), and a second one doubled the list GETs on every adopt (review M-7).
   const renderCards = (items) => <ul className={styles.grid}>{items.map(card)}</ul>
 
   return (
@@ -428,7 +429,6 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
           onBack={closeAuthor}
           onMessage={setMessage}
           onPreview={openStylePreview}
-          onAdopted={refresh}
           renderOutline={outlineCard}
           busy={busy || using}
         />

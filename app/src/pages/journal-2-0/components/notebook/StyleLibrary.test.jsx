@@ -11,12 +11,13 @@
 // The fake keeps state (whom the member follows, which answer adopt gives) and routes; it types no
 // shape of its own.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, within, waitFor } from '@testing-library/react'
+import { render, screen, within, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { SWRConfig } from 'swr'
+import { SWRConfig, mutate as swrMutate } from 'swr'
 import { MemoryRouter } from 'react-router-dom'
 import TemplatePicker from './TemplatePicker'
 import TemplateGallery from './TemplateGallery'
+import StyleLibraryCard from './StyleLibraryCard'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { GALLERY_SORTS } from '../../lib/templateGallery'
 import { ITEM_TYPES, LIBRARY_SORTS, TRADING_STYLES } from '../../lib/styleLibrary'
@@ -376,5 +377,93 @@ describe('accessible names', () => {
     await user.click(within(styleCard()).getByRole('button', { name: `See styles by ${STYLE.author}` }))
     await screen.findByRole('heading', { name: AUTHOR_PAGE.author.label })
     for (const el of within(gallery).getAllByRole('button')) expect(el).toHaveAccessibleName()
+  })
+})
+
+// ── fix round 1 (task-9-review.md) ─────────────────────────────────────────────────────────────
+// I-1 and M-7 are about what the library's own revalidation does. lib/styleLibrary.js revalidates with
+// SWR's GLOBAL mutate, which reaches the DEFAULT cache only -- the per-test `provider` Map above is
+// invisible to it, so a test there can never see the refetch. These run on the default cache, emptied
+// before and after each test.
+const settle = (ms = 40) => act(async () => { await new Promise((r) => setTimeout(r, ms)) })
+const clearDefaultCache = () => act(async () => { await swrMutate(() => true, undefined, { revalidate: false }) })
+
+async function openStylesOnTheDefaultCache() {
+  const user = userEvent.setup()
+  render(
+    <MemoryRouter>
+      <SWRConfig value={{ dedupingInterval: 0 }}>
+        <TemplatePicker onPick={vi.fn()} onPickMember={vi.fn()} />
+      </SWRConfig>
+    </MemoryRouter>,
+  )
+  await user.click(await screen.findByRole('button', { name: /Browse the community gallery/ }))
+  const types = await screen.findByRole('group', { name: 'Filter by type' })
+  await user.click(within(types).getByRole('button', { name: 'Styles' }))
+  await screen.findByRole('heading', { name: STYLE.title })
+  return user
+}
+
+describe('fix round 1: focus and refresh', () => {
+  beforeEach(clearDefaultCache)
+  afterEach(clearDefaultCache)
+
+  it('I-1: Follow and Unfollow keep focus on the toggle, through the page’s refetch', async () => {
+    flags()
+    const user = await openStylesOnTheDefaultCache()
+    await user.click(within(styleCard()).getByRole('button', { name: `See styles by ${STYLE.author}` }))
+    const heading = await screen.findByRole('heading', { name: AUTHOR_PAGE.author.label })
+    await waitFor(() => expect(heading).toHaveFocus())             // the page itself still takes focus on open
+    const pageUrl = `/api/j2/template-gallery/authors/${AUTHOR_PAGE.author.handle}`
+    for (const [from, to] of [['Follow', 'Following'], ['Following', 'Follow']]) {
+      const before = sentTo(pageUrl, 'GET').length
+      await user.click(screen.getByRole('button', { name: `${from} ${AUTHOR_PAGE.author.label}` }))
+      // the page really is fetched again (non-vacuity: without the refetch this proves nothing)
+      await waitFor(() => expect(sentTo(pageUrl, 'GET').length).toBeGreaterThan(before))
+      await settle()
+      const toggle = screen.getByRole('button', { name: `${to} ${AUTHOR_PAGE.author.label}` })
+      expect(toggle).toHaveAttribute('aria-pressed', String(to === 'Following'))
+      expect(toggle).toHaveFocus()
+    }
+  })
+
+  it('M-7: an adopt refreshes each open library list once', async () => {
+    flags()
+    const user = await openStylesOnTheDefaultCache()
+    const lists = ['?type=style', '?type=style&section=picks']
+    const count = (q) => listCalls().filter((c) => c.search === q).length
+    const before = lists.map(count)
+    expect(before.every((n) => n >= 1)).toBe(true)                     // both lists are mounted
+    await user.click(within(styleCard()).getByRole('button', { name: `Adopt ${STYLE.title}` }))
+    await user.click(within(screen.getByRole('group', { name: `Adopt ${STYLE.title}?` })).getByRole('button', { name: 'Adopt' }))
+    await screen.findByText(/to your styles\./)
+    await settle(80)
+    expect(lists.map(count).map((n, i) => n - before[i])).toEqual([1, 1])
+  })
+})
+
+describe('fix round 1: the card', () => {
+  it('M-1: after a successful adopt, focus returns to the card’s Adopt button, never the page', async () => {
+    flags()
+    const user = await openStyles()
+    await user.click(within(styleCard()).getByRole('button', { name: `Adopt ${STYLE.title}` }))
+    await user.click(within(screen.getByRole('group', { name: `Adopt ${STYLE.title}?` })).getByRole('button', { name: 'Adopt' }))
+    await screen.findByText(/to your styles\./)
+    expect(screen.queryByRole('group', { name: `Adopt ${STYLE.title}?` })).not.toBeInTheDocument()
+    expect(within(styleCard()).getByRole('button', { name: `Adopt ${STYLE.title}` })).toHaveFocus()
+    expect(document.body).not.toHaveFocus()
+  })
+
+  it('M-6: Helpful re-seeds from the server when the item it is handed changes', () => {
+    const card = (item) => <ul><StyleLibraryCard item={item} onMessage={vi.fn()} /></ul>
+    const { rerender } = render(card(STYLE))
+    const btn = () => screen.getByRole('button', { name: `Helpful: ${STYLE.title}` })
+    expect(btn()).toHaveAttribute('aria-pressed', String(Boolean(STYLE.helpedByMe)))
+    expect(screen.getByText(`${STYLE.helpfulCount} found this helpful`)).toBeInTheDocument()
+    // a refresh brings other members' votes and this member's own (the server's values, not ours)
+    const newer = { ...STYLE, helpfulCount: STYLE.helpfulCount + 3, helpedByMe: !STYLE.helpedByMe }
+    rerender(card(newer))
+    expect(btn()).toHaveAttribute('aria-pressed', String(newer.helpedByMe))
+    expect(screen.getByText(`${newer.helpfulCount} found this helpful`)).toBeInTheDocument()
   })
 })

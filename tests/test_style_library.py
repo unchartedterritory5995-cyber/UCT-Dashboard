@@ -589,6 +589,29 @@ def test_get_item_carries_the_listed_payload_for_a_style_only(conn, lib_on):
     assert "payload" not in gallery.get_item("viewer", oid, conn=conn)
 
 
+def test_get_item_payload_is_the_listed_version_never_a_held_revision(conn, lib_on):
+    # Review M-2: with a held revision whose outline DIFFERS, get_item still answers with the listed
+    # payload, for a browsing member, for the author and for an admin (R-P3-3: the revision is unreviewed).
+    from api.services.journal_two import journal_styles as js
+    from tests._style_library_helpers import listed_style
+    item = listed_style(conn)
+    listed_outline = gallery.get_item("viewer", item["id"], conn=conn)["payload"]["outlineBodyJson"]
+    held_outline = {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "A held revision nobody approved"}]}]}
+    js.update_style("author", item["sourceStyleId"], {"outlineBodyJson": held_outline}, conn)
+    gallery.publish_style("author", item["sourceStyleId"], title=item["title"], description="",
+                          category="journal", trading_style=None, conn=conn)
+    pending = json.loads(conn.execute("SELECT pending_json FROM j2_template_gallery WHERE id = ?",
+                                      (item["id"],)).fetchone()[0])
+    # non-vacuity: the revision really is held and really differs from what is listed
+    assert "A held revision nobody approved" in json.dumps(pending["payload"]["outlineBodyJson"])
+    assert pending["payload"]["outlineBodyJson"] != listed_outline
+    for viewer, admin in (("viewer", False), ("author", False), ("admin", True)):
+        got = gallery.get_item(viewer, item["id"], is_admin=admin, conn=conn)["payload"]["outlineBodyJson"]
+        assert got == listed_outline, viewer
+        assert "A held revision nobody approved" not in json.dumps(got), viewer
+
+
 def test_get_item_reads_a_malformed_style_payload_as_an_empty_one(conn, lib_on):
     gid = _row(conn, item_type="style", title="S")
     conn.execute("UPDATE j2_template_gallery SET payload_json = '{not json' WHERE id = ?", (gid,))

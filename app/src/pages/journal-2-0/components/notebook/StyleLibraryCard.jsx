@@ -35,6 +35,15 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
   const [reporting, setReporting] = useState(false)
   const [helped, setHelped] = useState(Boolean(item.helpedByMe))
   const [helpfulCount, setHelpfulCount] = useState(Number(item.helpfulCount) || 0)
+  // Re-seed from the server when the item changes (a different item, or a refresh that brings another
+  // member's vote): the local values hold only until the next answer (review M-6).
+  const seed = `${item.id}|${Boolean(item.helpedByMe)}|${Number(item.helpfulCount) || 0}`
+  const [seenSeed, setSeenSeed] = useState(seed)
+  if (seed !== seenSeed) {
+    setSeenSeed(seed)
+    setHelped(Boolean(item.helpedByMe))
+    setHelpfulCount(Number(item.helpfulCount) || 0)
+  }
   const [voting, setVoting] = useState(false)
   const adoptBtnRef = useRef(null)
   const reportBtnRef = useRef(null)
@@ -51,8 +60,9 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
       const name = out?.style?.name || item.title
       const credit = typeof out?.credit === 'string' && out.credit.trim() ? ` ${withStop(out.credit.trim())}` : ''
       onMessage?.({ tone: 'ok', text: `Added "${name}" to your styles.${credit}` })
-      setConfirming(false)
-      setNotify(false)
+      // The confirm (and the Adopt button that had focus) goes away: focus returns to the card's own
+      // Adopt button, as Cancel does, never to the page (review M-1).
+      closeConfirm()
       onAdopted?.(out?.style)
     } catch (err) {
       onMessage?.({ tone: 'error', text: refusalSentence(err, `Couldn't add "${item.title}" to your styles. Nothing was changed.`) })

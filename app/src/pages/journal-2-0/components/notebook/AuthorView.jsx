@@ -20,7 +20,16 @@ export default function AuthorView({ handle, onBack, onMessage, onPreview, onAdo
   const [working, setWorking] = useState(false)
   const isFollowing = following ?? Boolean(author?.following)
 
-  useEffect(() => { if (author) headingRef.current?.focus() }, [author])
+  // The heading takes focus ONCE per author (on open, or when the handle changes), never on a
+  // revalidation: Follow / Unfollow refetch this page and hand back a new `author` object, and keying
+  // on it moved focus off the toggle the member just pressed (review I-1).
+  const focusedFor = useRef(null)
+  const loaded = Boolean(author)
+  useEffect(() => {
+    if (!loaded || focusedFor.current === handle) return
+    focusedFor.current = handle
+    headingRef.current?.focus()
+  }, [handle, loaded])
 
   const toggleFollow = async () => {
     if (working || !author) return
