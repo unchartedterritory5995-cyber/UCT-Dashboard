@@ -74,7 +74,10 @@ def test_flag_off_by_default_writes_no_eligibility(monkeypatch, htf_bars):
     rows = _run_and_get(monkeypatch, "SCANHTF1", htf_bars, "high_tight_flag")
     assert len(rows) == 1
     assert "eligibility" not in rows[0]
-    assert "anchor_roles" not in rows[0]["geometry"]
+    # The roles are the DETECTOR'S OWN since auto-structures (2026-10-16): they
+    # no longer tell adapted from unadapted, so `eligibility` (adapter-only) is
+    # the witness above, and the roles are present either way.
+    assert rows[0]["geometry"]["anchor_roles"] == ["pole_base", "pole_top", "flag_low", "flag_high"]
 
 
 def test_flag_on_writes_real_eligibility_and_semantic_geometry_for_htf(monkeypatch, htf_bars):

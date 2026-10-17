@@ -780,6 +780,10 @@ def _build_detection(
         "geometry": {
             "shape": "trendline_pair",
             "anchors": anchors,
+            # Display-only (lab/geometry_eval REPORT.md fix 2): ONE line — two
+            # pivots plus the line's value at the last bar — not a pair.
+            "anchor_roles": ["line_p1", "line_p2", "line_at_last_bar"],
+            "semantic_subtype": "single_trendline",
             "extras": extras,
         },
         "levels": {

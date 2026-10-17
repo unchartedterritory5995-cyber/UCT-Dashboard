@@ -56,3 +56,26 @@ describe('barsMemCache', () => {
     expect(memPeek('NOPE', 'D')).toBeNull()
   })
 })
+
+describe('barsMemCache savedAt — the SOURCE write time, never the promotion time', () => {
+  beforeEach(() => memClear())
+  it('a fresh put is stamped now; a promotion keeps the stamp it is handed', async () => {
+    const { memPeekSavedAt } = await import('./barsMemCache')
+    const before = Date.now()
+    memPut('NEW', 'D', bars(2))
+    expect(memPeekSavedAt('NEW', 'D')).toBeGreaterThanOrEqual(before)
+    memPut('OLD', 'D', bars(2), { savedAt: 1_700_000_000_000 })
+    expect(memPeekSavedAt('OLD', 'D')).toBe(1_700_000_000_000)
+  })
+  it('a promotion whose source has no stamp is UNKNOWN (null), not now', async () => {
+    const { memPeekSavedAt } = await import('./barsMemCache')
+    memPut('NOSTAMP', 'D', bars(2), { savedAt: undefined })
+    // `{ savedAt: undefined }` is indistinguishable from omitting it, so it reads as fresh;
+    // a missing source stamp must be passed as null/0 to be stored as unknown.
+    memPut('NULLSTAMP', 'D', bars(2), { savedAt: null })
+    memPut('ZEROSTAMP', 'D', bars(2), { savedAt: 0 })
+    expect(memPeekSavedAt('NULLSTAMP', 'D')).toBeNull()
+    expect(memPeekSavedAt('ZEROSTAMP', 'D')).toBeNull()
+    expect(memPeekSavedAt('NOSTAMP', 'D')).not.toBeNull()
+  })
+})

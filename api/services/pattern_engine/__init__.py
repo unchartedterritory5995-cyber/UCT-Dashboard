@@ -50,10 +50,15 @@ def detect_all(
         key=lambda d: (d.get("detected_at", 0), d.get("confidence", 0)),
         reverse=True,
     )
+    # Display-only: the structure's own last bar + its age (display.annotate
+    # never raises and never touches a field a firing decision reads).
+    from api.services.pattern_engine import display as _display
+    _display.annotate(results, bars)
     return results
 
 
 def detect_one(bars: list, context: dict, pattern_id: str) -> list[dict]:
     """Run a single detector by id. Raises KeyError if not registered."""
     fn = get_detector(pattern_id)
-    return fn(bars, context)
+    from api.services.pattern_engine import display as _display
+    return _display.annotate(fn(bars, context), bars)
