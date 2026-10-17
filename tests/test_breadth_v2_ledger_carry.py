@@ -62,3 +62,38 @@ def test_a_mutated_accepted_row_still_stops(tmp_path):
     exp["2026-08-28"] = _row("2026-08-28 20:20:38", ["A", "B", "EDITED"])
     rc, _, rep = _run(tmp_path, exp, prev_dates=led["dates"])
     assert rc == 2 and rep["gate"] == "STOP" and rep["source_row_mutations"] == ["2026-08-28"]
+
+
+def _run_reviewed(tmp_path, exp, prev_dates, reviewed_mutations):
+    paths = {k: str(tmp_path / f"r_{k}.json") for k in ("exp", "frz", "rev", "led", "rep")}
+    json.dump(exp, open(paths["exp"], "w"))
+    json.dump({"dates": prev_dates, "live_from": "2026-08-27", "source": "x; y",
+               "why_live_from": "", "excluded_backfilled_dates": []}, open(paths["frz"], "w"))
+    json.dump({"reviewed": [], "reviewed_mutations": reviewed_mutations}, open(paths["rev"], "w"))
+    rc = plr.main(["x", paths["exp"], paths["frz"], paths["rev"], paths["led"], paths["rep"]])
+    led = json.load(open(paths["led"])) if os.path.exists(paths["led"]) else None
+    return rc, led, json.load(open(paths["rep"]))
+
+
+def test_a_reviewed_mutation_is_accepted_only_at_its_exact_identity(tmp_path):
+    """(owner, 2026-10-16) a review excuses ONE rewrite: the export must carry exactly the
+    reviewed sha256 + created_at. The new row becomes the accepted entry."""
+    exp = {"2026-08-28": _row("2026-08-28 20:20:38", ["A", "B"]),
+           "2026-09-01": _row("2026-09-01 20:25:00", ["A", "B"])}
+    _, led, _ = _run(tmp_path, exp)
+    rewritten = _row("2026-08-29 01:33:10", ["A", "B", "SERVER"])
+    exp["2026-08-28"] = rewritten
+    ok = {"2026-08-28": {"sha256": rewritten["sha256"], "created_at": rewritten["created_at"]}}
+    rc, new_led, rep = _run_reviewed(tmp_path, exp, led["dates"], ok)
+    assert rc == 0 and rep["gate"] == "PASS"
+    assert rep["source_row_mutations"] == [] and rep["reviewed_mutations_accepted"] == ["2026-08-28"]
+    assert new_led["dates"]["2026-08-28"]["tickers"] == ["A", "B", "SERVER"]
+
+    # control: the same review against ANY other value still stops
+    exp["2026-08-28"] = _row("2026-08-29 01:33:10", ["A", "B", "SERVER", "AGAIN"])
+    rc, _, rep = _run_reviewed(tmp_path, exp, led["dates"], ok)
+    assert rc == 2 and rep["source_row_mutations"] == ["2026-08-28"]
+    stale_time = {"2026-08-28": {"sha256": rewritten["sha256"], "created_at": "2026-08-30 00:00:00"}}
+    exp["2026-08-28"] = rewritten
+    rc, _, rep = _run_reviewed(tmp_path, exp, led["dates"], stale_time)
+    assert rc == 2 and rep["reviewed_mutations_accepted"] == []

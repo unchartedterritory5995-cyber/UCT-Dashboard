@@ -12,6 +12,7 @@ import logging
 import os
 import time
 
+from api.services.pattern_engine import display as _display
 from api.services.pattern_engine.detectors.registry import (
     DISPLAY_LEARNED_HIDES, DISPLAY_LEARNED_REPLACES, display_policy,
 )
@@ -34,8 +35,15 @@ def enabled() -> bool:
     return os.environ.get("AUTO_STRUCTURES_ENABLED", "0").strip().lower() in _TRUTHY
 
 
-def box_to_detection(sym: str, box: dict) -> dict:
-    """One base_catalog box -> a detection-shaped row the overlay already reads."""
+def box_to_detection(sym: str, box: dict, bars: list | None = None) -> dict:
+    """One base_catalog box -> a detection-shaped row the overlay already reads.
+
+    With the daily `bars` the box was read from, a flat-base / square-box also
+    carries `extras.draw_anchors`: its DRAWN extent capped to the consolidation
+    (pattern_engine.display.consolidation_extent; lab REPORT_TIERS_V2.md,
+    2026-10-17: the judges saw these boxes take in the run-up and the
+    breakdown bars). top / floor / pivot / levels stay base_catalog's numbers.
+    """
     key = str(box.get("structure_key") or "")
     pid = f"bc:{key}"
     top = float(box["top"])
@@ -53,6 +61,27 @@ def box_to_detection(sym: str, box: dict) -> dict:
         "source": box.get("source"),
         "pattern_end_t": end_t,
     }
+    if bars and pid in _display.EXTENT_CAPPED:
+        try:
+            ext = _display.consolidation_extent(bars, start_t, end_t, top, floor)
+            if ext:
+                extras["draw_anchors"] = _display.extent_anchors(ext)
+        except Exception:  # noqa: BLE001 -- a drawing cap never drops the box
+            pass
+    if bars and pid == "bc:cup-with-handle" and len(extras["sub_boxes"]) >= 2:
+        # The handle is the LAST sub-box; end it at the first close above the
+        # lip (display only -- base_catalog's numbers are untouched).
+        try:
+            subs = [dict(sb) for sb in extras["sub_boxes"]]
+            h = subs[-1]
+            ext = _display.handle_extent(bars, h.get("start_t"), h.get("end_t"), top)
+            if ext:
+                subs[-1] = ext
+            else:
+                subs = subs[:-1]
+            extras["draw_sub_boxes"] = subs
+        except Exception:  # noqa: BLE001
+            pass
     return {
         "id": f"{pid}:{sym}:{start_t}:{end_t}",
         "sym": sym,
@@ -96,7 +125,7 @@ def structures_for(sym: str) -> list:
         if len(bars) >= 10:
             for box in base_catalog.current_base_structures(bars) or []:
                 try:
-                    out.append(box_to_detection(sym, box))
+                    out.append(box_to_detection(sym, box, bars))
                 except Exception:  # noqa: BLE001 -- one bad box drops that box only
                     continue
     except Exception as e:  # noqa: BLE001 -- a drawing layer must never 500 a read

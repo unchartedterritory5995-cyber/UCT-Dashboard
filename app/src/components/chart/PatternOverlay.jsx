@@ -41,6 +41,8 @@ import HorizontalLine from './patternShapes/HorizontalLine'
 import BaseBox from './patternShapes/BaseBox'
 import LevelSegment from './patternShapes/LevelSegment'
 import LearnedDrawn from './patternShapes/LearnedDrawn'
+import EmaSegment from './patternShapes/EmaSegment'
+import PoleSegment from './patternShapes/PoleSegment'
 import { anchorToBarTime, isDateTf } from './patternTime'
 
 const SHAPE_RENDERERS = {
@@ -60,6 +62,32 @@ function levelPrice(d) {
   const a = d?.geometry?.anchors || []
   if (!a.length) return null
   return a.length >= 2 ? (a[0].price + a[1].price) / 2 : a[0].price
+}
+
+/**
+ * The geometry the chart DRAWS for one detection (pure — exported for tests).
+ *
+ * The blind tier round v2 (lab/geometry_eval REPORT_TIERS_V2.md, 2026-10-17) found drawing
+ * defects that the server now corrects as DISPLAY-ONLY extras
+ * (api/services/pattern_engine/display.py): `extras.draw_anchors` replaces `anchors` when
+ * present — double_bottom / double_top / head_shoulders snapped to each leg's true extreme,
+ * flat_base / bc:flat-base / bc:square-box capped to the consolidation. For a base_box the
+ * drawn top/floor follow the capped extent. Rows stored before the fix carry no extras and
+ * draw exactly as before.
+ */
+export function drawGeometry(d) {
+  const g = d?.geometry
+  const da = g?.extras?.draw_anchors
+  if (!g || !Array.isArray(da) || !da.length) return d
+  let extras = g.extras
+  if (g.shape === 'base_box' && da.length >= 2) {
+    extras = {
+      ...extras,
+      top: Math.max(da[0].price, da[1].price),
+      floor: Math.min(da[0].price, da[1].price),
+    }
+  }
+  return { ...d, geometry: { ...g, anchors: da, extras } }
 }
 
 /**
@@ -205,9 +233,15 @@ export default function PatternOverlay({
         </filter>
       </defs>
       {hasDrawn && <LearnedDrawn drawn={drawn} tToX={tToX} priceToY={priceToY} />}
-      {drawable.map((d) => {
+      {drawable.map((row) => {
+        const d = drawGeometry(row)
         const shape = d?.geometry?.shape
-        const Renderer = SHAPE_RENDERERS[shape]
+        const ex = d?.geometry?.extras || {}
+        // A pullback names an EMA: draw that EMA over the pullback window, not a flat line.
+        const hasEma = Array.isArray(ex.draw_ema?.points) && ex.draw_ema.points.length >= 2
+        // A flag whose lanes cross, diverge or overlap a better flag draws pole + entry only.
+        const lanesOff = ex.draw_lanes === false
+        const Renderer = hasEma ? EmaSegment : (lanesOff ? null : SHAPE_RENDERERS[shape])
         const secondary = Array.isArray(d?.geometry?.secondary) ? d.geometry.secondary : []
         const entry = d?.draw_entry ? Number(d?.levels?.entry) : NaN
         const anchors = d?.geometry?.anchors || []
@@ -221,6 +255,9 @@ export default function PatternOverlay({
                 barHalfWidthPx={barHalfWidthPx}
                 onClick={onDetectionClick}
               />
+            )}
+            {Array.isArray(ex.draw_pole) && (
+              <PoleSegment detection={d} tToX={tToX} priceToY={priceToY} onClick={onDetectionClick} />
             )}
             {secondary.map((sec, i) => {
               if (!sec || !Array.isArray(sec.anchors) || !sec.anchors.length) return null

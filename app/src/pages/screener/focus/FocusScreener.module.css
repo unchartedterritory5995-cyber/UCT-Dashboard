@@ -212,3 +212,12 @@ button.pill:hover { border-color: var(--ut-gold); }
 .dialogLabel { font-size: var(--text-base); color: var(--text-muted); }
 .dialogInput { background: var(--bg); color: var(--text); border: 1px solid var(--border-accent); border-radius: var(--control-radius); padding: var(--control-pad-y) var(--control-pad-x); font: inherit; font-size: var(--control-font); min-height: 36px; }
 .dialogInput:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+/* New today (spec 2026-10-16 s1): the row pill, the head line and the dropped popover. Tokens only. */
+.newPill { display: inline-block; vertical-align: middle; margin-left: 6px; padding: 0 6px; border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 700; letter-spacing: 0; color: var(--success-ink); border: 1px solid var(--success-ink); line-height: 16px; }
+.ntLine { position: relative; display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: var(--text-sm); color: var(--text-muted); }
+.ntBtn { background: none; border: 0; padding: 0; color: var(--text-muted); cursor: pointer; font: inherit; }
+.ntBtn:hover { color: var(--text); }
+.ntBtn:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+.ntBtn[aria-pressed="true"] { color: var(--success-ink); font-weight: 700; }
+.ntPop { position: absolute; top: 100%; right: 0; z-index: var(--z-dropdown); display: flex; flex-wrap: wrap; gap: 6px; max-width: 260px; margin-top: 4px; padding: 8px; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: var(--radius-lg); color: var(--text); box-shadow: var(--shadow-popover); }
+.ntNote { margin-right: 10px; font-size: var(--text-sm); color: var(--text-muted); }

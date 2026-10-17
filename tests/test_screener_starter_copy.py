@@ -56,7 +56,7 @@ def test_server_groups_match_the_clients_fallback_map():
     # A flag-GATED starter (pattern presets, the team-archive starter) always
     # carries its own `group` and is absent from a default run, so it never
     # needed the Phase-1 fallback; it is held to the label map instead.
-    gated = ("starter_pattern_", "starter_team_")
+    gated = ("starter_pattern_", "starter_team_", "starter_premarket_")
     for s in starters():
         if s["id"].startswith(gated):
             assert s["group"] == "Chart Patterns" or s["group"] in label_to_key, s["id"]

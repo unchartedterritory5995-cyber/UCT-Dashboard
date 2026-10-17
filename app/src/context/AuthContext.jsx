@@ -98,6 +98,7 @@ export function AuthProvider({ children }) {
   const [breadthDcV22Enabled, setBreadthDcV22Enabled] = useState(false)
   const [breadthDcV23Enabled, setBreadthDcV23Enabled] = useState(false)
   const [screenerFocusLayoutEnabled, setScreenerFocusLayoutEnabled] = useState(false)
+  const [screenerNewTodayEnabled, setScreenerNewTodayEnabled] = useState(false)
   // TERM-039 — member-facing feature status (the Support strip + the Beta mark).
   // ⛔ DEFAULTS NULL, which every surface renders as "not available" — never as an
   // empty list, because "we could not say" and "nothing is here" are different facts.
@@ -165,6 +166,7 @@ export function AuthProvider({ children }) {
     ['breadth_dc_v2_2_enabled', (d) => d.breadth_dc_v2_2_enabled === true, setBreadthDcV22Enabled],
     ['breadth_dc_v2_3_enabled', (d) => d.breadth_dc_v2_3_enabled === true, setBreadthDcV23Enabled],
     ['screener_focus_layout_enabled', (d) => d.screener_focus_layout_enabled === true, setScreenerFocusLayoutEnabled],
+    ['screener_new_today_enabled', (d) => d.screener_new_today_enabled === true, setScreenerNewTodayEnabled],
     ['watchlist_copy_or_link_enabled', (d) => d.watchlist_copy_or_link_enabled === true, setWatchlistCopyOrLinkEnabled],
     ['charts_list_subscribe_enabled', (d) => d.charts_list_subscribe_enabled === true, setChartsListSubscribeEnabled],
     ['charts_extra_groups_enabled', (d) => d.charts_extra_groups_enabled === true, setChartsExtraGroupsEnabled],
@@ -379,7 +381,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, memberInterestSurfaces, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, ivHistoryEnabled, optionsStrategyScreensEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, screenerFocusLayoutEnabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, autoStructuresEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, memberInterestSurfaces, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, ivHistoryEnabled, optionsStrategyScreensEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, screenerFocusLayoutEnabled, screenerNewTodayEnabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, autoStructuresEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

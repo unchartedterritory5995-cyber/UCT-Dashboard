@@ -4,6 +4,8 @@ export const GROUPS = [
   { key: 'bases', label: 'Bases & chart patterns' },
   { key: 'earnings', label: 'Earnings' },
   { key: 'quality', label: 'Quality & value' },
+  // Shown only while pre-market mode is on for this user (the server gates the starters).
+  { key: 'premarket', label: 'Morning prep' },
   // Shown only while the trader archive is on (the server gates the starter).
   { key: 'team', label: 'Team archive' },
 ]

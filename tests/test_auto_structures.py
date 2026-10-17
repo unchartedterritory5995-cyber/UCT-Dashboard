@@ -168,17 +168,34 @@ def test_detect_all_stamps_pattern_end_without_touching_end_t():
 
 # ── fix 4-6: one display policy ─────────────────────────────────────────────
 
-def test_display_policy_matches_the_geometry_eval_report():
-    for pid in ("bull_flag", "pullback_to_10ema", "holy_grail", "double_bottom"):
+def test_display_policy_matches_the_tiers_v2_report():
+    """lab/geometry_eval REPORT_TIERS_V2.md (2026-10-17), blind tier round v2."""
+    assert registry.DISPLAY_TRUSTED == {"donchian_breakout", "rectangle"}
+    for pid in ("donchian_breakout", "rectangle"):
         assert display_policy(pid)["display_tier"] == "trusted"
-    for pid in ("inverse_head_shoulders", "triple_top", "triple_bottom", "u_and_r",
-                "symmetrical_triangle", "descending_triangle", "bear_flag",
-                "bc:ugly-double-bottom", "bc:green-line-breakout", "bc:darvas-box"):
+    # second blind judge 1.8 -> averaged ~2.05, under the 2.3 trusted bar
+    assert display_policy("bc:cup-with-handle")["display_tier"] == "experimental"
+    # round-1 trusted that failed AS DRAWN in v2 -> experimental
+    for pid in ("bull_flag", "pullback_to_10ema", "holy_grail"):
+        assert display_policy(pid)["display_tier"] == "experimental"
+    v2_hidden = ("double_bottom", "double_top", "head_shoulders", "flat_base", "vcp",
+                 "higher_low_continuation", "inverse_cup_handle", "qullamaggie_setup",
+                 "range_detection", "bc:vcp", "bc:base-on-base")
+    round1_hidden = ("inverse_head_shoulders", "triple_top", "triple_bottom", "u_and_r",
+                     "symmetrical_triangle", "descending_triangle", "bear_flag",
+                     "bc:ugly-double-bottom", "bc:green-line-breakout", "bc:darvas-box")
+    assert registry.DISPLAY_HIDDEN == set(v2_hidden) | set(round1_hidden)
+    for pid in v2_hidden + round1_hidden:
         assert display_policy(pid)["display_tier"] == "hidden"
+    # rated but never rendered (no verdicts) -> stay experimental
+    for pid in ("rsi_bearish_divergence", "rsi_bullish_divergence"):
+        assert display_policy(pid)["display_tier"] == "experimental"
     for pid in ("support_resistance", "volume_profile_nodes"):
         assert display_policy(pid)["display_layer"] == "levels"
     assert display_policy("opening_range_breakout")["intraday_only"] is True
+    assert registry.DISPLAY_DRAW_ENTRY == {"bull_flag"}
     assert display_policy("bull_flag")["draw_entry"] is True
+    assert display_policy("double_bottom")["draw_entry"] is False
     assert display_policy("rising_wedge") == {
         "display_tier": "experimental", "display_layer": "structures",
         "intraday_only": False, "draw_entry": False,
@@ -214,7 +231,7 @@ def test_rows_carry_the_display_policy(monkeypatch):
     c = _client(PAID_MEMBER, monkeypatch, rows=[{"id": "x", "pattern_id": "bear_flag"},
                                                 {"id": "y", "pattern_id": "bull_flag"}])
     rows = c.get("/api/patterns/ZZZ?tf=D&confirmed_only=false").json()["detections"]
-    assert [r["display_tier"] for r in rows] == ["hidden", "trusted"]
+    assert [r["display_tier"] for r in rows] == ["hidden", "experimental"]
 
 
 def test_structures_ride_the_route_only_for_an_admin_with_the_flag(monkeypatch):
@@ -242,6 +259,8 @@ def test_box_to_detection_keeps_every_number_and_uses_real_times():
     assert d["levels"]["entry"] == 142.1
     assert d["display_tier"] == "experimental"
     assert auto_structures.box_to_detection("ZZZ", {**BOX, "structure_key": "darvas-box"})["display_tier"] == "hidden"
+    assert auto_structures.box_to_detection(
+        "ZZZ", {**BOX, "structure_key": "cup-with-handle"})["display_tier"] == "experimental"
 
 
 def test_structures_for_reads_daily_bars_and_never_raises(monkeypatch):
