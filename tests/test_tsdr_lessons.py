@@ -318,13 +318,18 @@ def test_the_recap_prompt_names_the_speaker(monkeypatch):
     assert "Patrick" not in sent["system"]
 
 
-def test_clip_that_is_not_a_lesson_is_skipped(monkeypatch):
-    m = msg(sf(2026, 10, 15), attachments=[video("nl")])
+def test_a_clip_that_is_not_a_lesson_is_still_posted_as_a_clip(monkeypatch):
+    m = msg(sf(2026, 10, 15), attachments=[video("nl")], content="look at NVDA here")
     tl.record_message(m, TSDR)
-    fake = _pipeline(monkeypatch, m, recap={"is_lesson": False})
-    assert tl.run_lessons(limit=3, deadline=9e12)["skipped"] == 1
-    assert fake.posts("/channels/lessons/messages") == []
-    assert tl.get_lesson("nl")["last_error"] == "not a lesson"
+    fake = _pipeline(monkeypatch, m, recap={"is_lesson": False, "title": "NVDA tape check",
+                                            "recap": "A quick look at the NVDA tape.",
+                                            "tags": ["market"]})
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    embed = fake.posts("/channels/lessons/messages")[0]["embeds"][0]
+    assert embed["title"] == "NVDA tape check"
+    row = tl.get_lesson("nl")
+    assert json.loads(row["tags"])[0] == tl.CLIP_TAG
+    assert tl.section_for(row) == "clips"
 
 
 def test_reply_question_passed_in_memory_and_only_paraphrase_stored(monkeypatch):
@@ -340,12 +345,28 @@ def test_reply_question_passed_in_memory_and_only_paraphrase_stored(monkeypatch)
     assert "how do you size" not in repr(tl.get_lesson("a2"))
 
 
-def test_silent_clip_is_skipped(monkeypatch):
+def test_a_silent_clip_is_posted_without_asking_the_model(monkeypatch):
     m = msg(sf(2026, 10, 15), attachments=[video("a3")])
     tl.record_message(m, TSDR)
-    fake = _pipeline(monkeypatch, m, transcript="")
-    assert tl.run_lessons(limit=3, deadline=9e12)["skipped"] == 1
-    assert fake.posts("/channels/lessons/messages") == []
+    seen = {}
+    fake = _pipeline(monkeypatch, m, transcript="", seen=seen)
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    assert seen == {}                                   # no recap call for no words
+    embed = fake.posts("/channels/lessons/messages")[0]["embeds"][0]
+    assert "no spoken commentary" in embed["description"]
+    assert tl.section_for(tl.get_lesson("a3")) == "clips"
+
+
+def test_clips_skipped_before_are_reopened_once(monkeypatch):
+    for aid, why in (("s1", "not a lesson"), ("s2", "no spoken lesson to recap"),
+                     ("s3", "message or video was deleted")):
+        tl.record_message(msg(sf(2026, 10, 15), attachments=[video(aid)]), TSDR)
+        tl._update(aid, status="skipped", last_error=why, attempts=3)
+    assert tl.reopen_skipped_clips() == 2
+    assert tl.get_lesson("s1")["status"] == "new" and tl.get_lesson("s1")["attempts"] == 0
+    assert tl.get_lesson("s3")["status"] == "skipped"
+    tl._update("s1", status="skipped", last_error="not a lesson")
+    assert tl.reopen_skipped_clips() == 0               # only ever once
 
 
 def test_deleted_message_is_skipped(monkeypatch):
@@ -526,7 +547,8 @@ def test_section_follows_the_first_known_tag():
     assert tl.section_for({"tags": ["psychology"]}) == "mindset"
     assert tl.section_for({"tags": None}) == tl._DEFAULT_SECTION
     # every tag the model may choose lands in a real section
-    assert set(tl._TAG_SECTION) == set(tl.TAGS)
+    assert set(tl._TAG_SECTION) == set(tl.TAGS) | {tl.CLIP_TAG}
+    assert tl.section_for({"tags": [tl.CLIP_TAG, "market"]}) == "clips"
     assert set(tl._TAG_SECTION.values()) <= set(tl._SECTION_KEYS)
 
 
@@ -569,7 +591,7 @@ def _thread_routes(lock_ok=True):
         return {}
 
     routes = {("POST", "/channels/lessons/messages"): header}
-    for i in range(1, 9):
+    for i in range(1, 2 * len(tl.SECTIONS) + 1):
         routes[("POST", f"/channels/lessons/messages/h{i}/threads")] = thread_from(i)
     for _, name, _ in tl.SECTIONS:
         routes[("PATCH", f"/channels/t-{name}")] = lock
@@ -587,7 +609,7 @@ def test_the_four_section_threads_are_made_once_in_order(monkeypatch):
     assert [n for kind, n in made if kind == "thread"] == names
     assert threads == {k: f"t-{n}" for k, n, _ in tl.SECTIONS}
     locks = [c for c in fake.calls if c[0] == "PATCH"]
-    assert len(locks) == 4 and all(c[3] == {"locked": True} for c in locks)
+    assert len(locks) == len(tl.SECTIONS) and all(c[3] == {"locked": True} for c in locks)
     n = len(fake.calls)
     assert tl.ensure_section_threads() == threads and len(fake.calls) == n   # remembered
 
@@ -596,7 +618,7 @@ def test_a_bot_that_cannot_lock_still_gets_its_threads(monkeypatch):
     monkeypatch.setenv("TSDR_LESSONS_CHANNEL_ID", "lessons")
     routes, _ = _thread_routes(lock_ok=False)
     monkeypatch.setattr(tl, "_discord", FakeDiscord(routes))
-    assert len(tl.ensure_section_threads()) == 4
+    assert len(tl.ensure_section_threads()) == len(tl.SECTIONS)
 
 
 def _seed_threads():
