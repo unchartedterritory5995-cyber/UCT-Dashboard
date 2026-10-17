@@ -10,6 +10,10 @@ the machine; the script validates every item exactly as the server would and pri
 
 Layout read under --src:
   records/records/t*.json   {author, date, type, tickers, quote, note[, source]}
+  records/zoom/z*.json      spoken Live Trading Session segments; only those a call in
+                            scored/calls.jsonl cites are sent. The quote is the spoken segment
+                            and the tickers are the reviewed calls' tickers (the file's own
+                            tickers field is a machine candidate list).
   records/retired.json      {record_id: reason}  -- these records are skipped
   images/by_record.json     {record_id: [image, ...]}  -- optional, only the COUNT is sent
   scored/calls.jsonl        one call per line (call_id, record, author, ticker, ...)
@@ -63,14 +67,47 @@ def _load_json(path: pathlib.Path, default):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _spoken_record_tickers(src: pathlib.Path) -> dict:
+    """{z record id: sorted tickers of the calls that cite it}, from scored/calls.jsonl.
+
+    A spoken record is sent only when a call cites it, and its tickers are the reviewed
+    calls' tickers, never the record file's own machine candidate list."""
+    path = src / "scored" / "calls.jsonl"
+    out: dict = {}
+    if not path.exists():
+        return out
+    with path.open(encoding="utf-8") as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            raw = json.loads(line)
+            rid = str(raw.get("record") or "")
+            if rid.startswith("z"):
+                out.setdefault(rid, set()).add(str(raw.get("ticker") or "").upper())
+    return {rid: sorted(t for t in ts if t) for rid, ts in out.items()}
+
+
+def _record_files(src: pathlib.Path, spoken: dict) -> list:
+    """[(record id, path, ticker override or None)]: every written record, then every cited
+    spoken record whose file exists."""
+    files = [(f.stem, f, None) for f in sorted((src / "records" / "records").glob("t*.json"))]
+    zdir = src / "records" / "zoom"
+    for rid in sorted(spoken):
+        f = zdir / f"{rid}.json"
+        if f.is_file():
+            files.append((rid, f, spoken[rid]))
+    return files
+
+
 def build_records(src: pathlib.Path, counts: dict) -> list:
     retired = set(_load_json(src / "records" / "retired.json", {}) or {})
     images = _load_json(src / "images" / "by_record.json", {}) or {}
     authors = service.team_authors()
     out = []
-    for f in sorted((src / "records" / "records").glob("t*.json")):
+    for rid, f, tickers in _record_files(src, _spoken_record_tickers(src)):
         counts["records_read"] += 1
-        rid = f.stem
+        if rid.startswith("z"):
+            counts["records_spoken_read"] += 1
         if rid in retired:
             counts["records_retired"] += 1
             continue
@@ -84,7 +121,8 @@ def build_records(src: pathlib.Path, counts: dict) -> list:
         imgs = images.get(rid) or []
         item = {
             "record_id": rid, "author_id": raw.get("author"), "stated_date": raw.get("date"),
-            "record_type": raw.get("type"), "tickers": raw.get("tickers") or [],
+            "record_type": raw.get("type"),
+            "tickers": tickers if tickers is not None else (raw.get("tickers") or []),
             "note": raw.get("note") or "", "quote": raw.get("quote") or "",
             "image_count": len(imgs) if isinstance(imgs, list) else 0,
         }
@@ -349,7 +387,7 @@ def main(argv=None) -> int:
     if not (src / "records" / "records").is_dir():
         print(f"--src has no records/records directory: {src}", file=sys.stderr)
         return 2
-    counts = {k: 0 for k in ("records_read", "records_retired", "records_unknown_author", "records_bad_type",
+    counts = {k: 0 for k in ("records_read", "records_spoken_read", "records_retired", "records_unknown_author", "records_bad_type",
                              "records_invalid", "calls_read", "calls_unknown_author", "calls_orphan_record",
                              "calls_invalid", "setups_read", "setups_invalid", "setup_teachings_dropped",
                              "setup_examples_dropped", "images_read", "images_record_not_sent",
