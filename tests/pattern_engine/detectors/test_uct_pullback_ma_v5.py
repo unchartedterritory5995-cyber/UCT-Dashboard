@@ -58,10 +58,28 @@ def test_fires_on_a_pullback_that_tags_a_rising_21_ema_and_holds_it():
     assert last["l"] < S["e21"][-1] <= last["c"]
 
 
-def test_a_50_sma_tag_fires_as_tag_s50():
+def test_a_50_sma_tag_is_found_by_the_rule_but_not_surfaced():
+    """The rule (lab parity) still classifies a 50-SMA tag as tag_s50, but the
+    detector surfaces only tag_e21 (REPORT_RECALL_V2: 50/200-SMA tags 46%
+    blind precision vs 97.7% for 21-EMA tags)."""
     bars = SY.pullback_to_ma(U.series, ma="s50")
     c = _eval_last(bars)
     assert c is not None and c["variant"] == "tag_s50" and c["ma"] == "s50"
+    assert _detect(bars) == []
+    assert PB.detect_uct_pullback_ma_v5(bars, {}) == []
+
+
+def test_only_tag_e21_is_surfaced():
+    assert PB.SURFACED_VARIANTS == frozenset({"tag_e21"})
+    (d,) = _detect(SY.fire_e21(U.series))                 # contrast: the 21-EMA fixture still fires
+    assert d["geometry"]["extras"]["variant"] == "tag_e21"
+
+
+def test_the_variant_filter_is_the_only_thing_silencing_the_50_sma_tag(monkeypatch):
+    bars = SY.pullback_to_ma(U.series, ma="s50")
+    monkeypatch.setattr(PB, "SURFACED_VARIANTS", frozenset({"tag_e21", "tag_s50"}))
+    (d,) = _detect(bars)
+    assert d["geometry"]["extras"]["variant"] == "tag_s50"
 
 
 # ── near-misses ──────────────────────────────────────────────────────────────

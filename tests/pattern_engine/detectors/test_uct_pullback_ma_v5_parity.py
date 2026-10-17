@@ -204,7 +204,9 @@ def test_detector_parity_on_synthetic_last_session(lab):
         i = len(db) - 1
         got = [d for d in PB.detect_uct_pullback_ma_v5(db, {})
                if d["geometry"]["extras"]["trigger_bars_ago"] == 0]
-        assert bool(got) == (lab.v5(tb, i) is not None)
+        x = lab.v5(tb, i)
+        # the detector surfaces only PB.SURFACED_VARIANTS of the lab's fires
+        assert bool(got) == (x is not None and x["variant"] in PB.SURFACED_VARIANTS)
 
 
 # ── mutation: the comparison must be able to fail ────────────────────────────
@@ -338,8 +340,9 @@ def test_detector_parity_on_200_real_ticker_days(lab, real):
         tb = list(b[:i + 1])
         db = lab.mod.to_dict_bars(tb)
         lab.reset()
-        lab_fired = lab.v5(tb, i, t) is not None
-        lab_fires += lab_fired
+        x = lab.v5(tb, i, t)
+        lab_fires += x is not None
+        lab_fired = x is not None and x["variant"] in PB.SURFACED_VARIANTS   # the detector's filter
         e = _cmp(lab, tb, db, U.series(db), i, t)
         dets = PB.detect_uct_pullback_ma_v5(db, {"sym": t})
         if not liquidity_floor(db).passes:
