@@ -36,3 +36,17 @@ export function reportError(e, fallback) {
   logIfUnexpected(e)
   return friendlyError(e, fallback)
 }
+
+// P3a Task 10: the community library's calls (lib/styleLibrary.js) word a body-less failure as
+// "request failed (502)", which friendlyError would show as written. So a library failure speaks only in
+// the server's own sentence for a refusal it explains (400 / 402 / 409 / 429), the offline sentence for the
+// network, and `fallback` for everything else: a 404's "Not found" and a 5xx say nothing a member can act on.
+const SPOKEN = new Set([400, 402, 409, 429])
+
+/** The words for a failed community-library call, logging it if it is a bug of ours. */
+export function libraryError(e, fallback = SERVER_SIDE_SENTENCE) {
+  logIfUnexpected(e)
+  if (offlineNow() || (!e?.status && isNetworkFailure(e))) return OFFLINE_SENTENCE
+  const message = String(e?.message || '').trim()
+  return SPOKEN.has(e?.status) && message && !/^request failed \(\d+\)$/.test(message) ? message : fallback
+}

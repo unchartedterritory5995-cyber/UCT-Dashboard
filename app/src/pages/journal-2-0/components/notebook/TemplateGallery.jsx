@@ -22,8 +22,9 @@
 // first one from `initialType`), trading-style chips (when the type is All or Styles), the library's
 // sorts, a "Following" view (what the authors you follow listed), style cards (StyleLibraryCard) with
 // a Preview composed by the journal styles preview door, and an author's page (AuthorView).
-// ⛔ styleLibrary.js, StyleLibraryCard and AuthorView are imported HERE only: this file is a lazy chunk
-// (TemplatePicker.jsx), so none of the library is in the Notebook's first open (R-P3-5).
+// ⛔ StyleLibraryCard and AuthorView are imported HERE only: this file is a lazy chunk (TemplatePicker.jsx,
+// and since Task 10 styles/LibraryDoor.jsx, which opens it at Styles with its own `backLabel`), so none of the
+// library is in the Notebook's first open (R-P3-5). styleLibrary.js is also read by the lazy Styles manager.
 import { useEffect, useId, useRef, useState } from 'react'
 import {
   GALLERY_CATEGORIES, GALLERY_SORTS, REPORT_REASONS, STATUS_LABELS, categoryLabel,
@@ -253,7 +254,7 @@ function MySubmissions({ onMessage }) {
   )
 }
 
-export default function TemplateGallery({ onBack, onUseNow, busy = false, initialType = '' }) {
+export default function TemplateGallery({ onBack, onUseNow, busy = false, initialType = '', backLabel = 'Back to templates' }) {
   const uid = useId()
   const headingRef = useRef(null)
   const wrapRef = useRef(null)
@@ -383,7 +384,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
     <div className={styles.wrap} ref={wrapRef} data-template-community-gallery="">
       <div className={styles.header}>
         <button type="button" className={styles.btn} onClick={onBack}>
-          Back to templates
+          {backLabel}
         </button>
         <h3 className={styles.heading} ref={headingRef} tabIndex={-1} id={`${uid}-heading`}>Community gallery</h3>
       </div>

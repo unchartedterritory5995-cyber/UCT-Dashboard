@@ -104,9 +104,11 @@ export function useAuthorPage(handle) {
 }
 
 /** The member's adopted styles whose community item is listed at a higher version. Fails closed on the
- *  switch: with the library off every one of these routes is a 404, so nothing is asked. */
-export function useStyleUpdates() {
-  const { data, error, isLoading, mutate } = useSWR(styleLibraryEnabled() ? LIBRARY_UPDATES_KEY : null, fetcher, SWR_OPTS)
+ *  switch: with the library off every one of these routes is a 404, so nothing is asked. A falsy `enabled`
+ *  only NARROWS it (the Styles manager while it is closed); it can never widen the switch. */
+export function useStyleUpdates({ enabled = true } = {}) {
+  const on = Boolean(enabled) && styleLibraryEnabled()
+  const { data, error, isLoading, mutate } = useSWR(on ? LIBRARY_UPDATES_KEY : null, fetcher, SWR_OPTS)
   return { updates: data?.updates || [], error, isLoading, refresh: mutate }
 }
 
