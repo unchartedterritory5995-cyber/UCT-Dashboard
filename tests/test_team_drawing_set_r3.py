@@ -80,7 +80,9 @@ CUP = [100, 100, 99, 96, 93, 90, 88, 87, 86, 86, 87, 88, 90, 92, 94, 96, 97, 98,
 
 def _cup_bars(handle, tail=()):
     closes = CUP + list(handle) + list(tail)
-    return _bars(closes)
+    # round 4: the cup's bars overlap (deeper lows), so the cup is not a gap island
+    lows = [c - 3.5 for c in CUP] + [c - 0.5 for c in list(handle) + list(tail)]
+    return _bars(closes, lows=lows)
 
 
 def test_handle_verdict_short_long_after_breakout_and_ok():
@@ -134,7 +136,8 @@ def test_a_stair_step_climb_is_not_a_flat_base():
     # control: a flat base of the same length draws its pivot
     flat = [99 + (i % 2) for i in range(31)]
     ok = auto_structures.box_to_detection("ZZZ", _flat_box(31, 100.5, 97.5, 100.6), _bars(flat))
-    assert ok["geometry"]["extras"]["draw_pivot"]["price"] == 100.6
+    # (round 4: the line is the base's top cluster of highs, 100.5, not base_catalog's 100.6)
+    assert ok["geometry"]["extras"]["draw_pivot"]["price"] == 100.5
 
 
 def test_a_deep_v_under_the_band_is_not_a_flat_base():
@@ -155,44 +158,8 @@ def test_flat_shape_verdict_thresholds():
     assert display.flat_shape_verdict(flat, s, 99999999, 100.6) == (True, None)
 
 
-# -- 4. flat_base box: the contiguous in-band run nearest the last bar ----------------------------
-
-def _flat_base_det(n, high):
-    return {"pattern_id": "flat_base", "start_t": ymd_t(0), "end_t": ymd_t(n - 1), "confidence": 70,
-            "levels": {"entry": high + 0.1},
-            "geometry": {"shape": "rectangle", "extras": {},
-                         "anchors": [{"t": ymd_t(0), "price": 80.0}, {"t": ymd_t(0), "price": high},
-                                     {"t": ymd_t(n - 1), "price": high},
-                                     {"t": ymd_t(n - 1), "price": 89.5}]}}
-
-
-def test_the_flat_base_box_is_the_last_contiguous_run_in_the_band():
-    # a range, a deep drop out of the band, then the recovery range that is the live base
-    closes = [99 + (i % 2) for i in range(10)] + [90] * 5 + [99 + (i % 2) for i in range(15)]
-    d = _flat_base_det(len(closes), 100.5)
-    before = copy.deepcopy({k: d.get(k) for k in ("confidence", "levels", "start_t", "end_t")})
-    display.draw_geometry([d], _bars(closes))
-    ex = d["geometry"]["extras"]
-    assert not ex.get("stale"), ex
-    assert ex["draw_anchors"][0]["t"] == ymd_t(15), ex["draw_anchors"]      # not bar 0
-    assert ex["draw_anchors"][1]["t"] == ymd_t(29)
-    assert ex["draw_pivot"]["start_t"] == ymd_t(15)
-    assert ex["draw_anchors"][1]["price"] == 98.5                          # floor of the run only
-    assert {k: d.get(k) for k in before} == before
-    # control: with no drop the run is the whole base
-    d2 = _flat_base_det(30, 100.5)
-    display.draw_geometry([d2], _bars([99 + (i % 2) for i in range(30)]))
-    assert d2["geometry"]["extras"]["draw_anchors"][0]["t"] == ymd_t(0)
-
-
-def test_band_run_extent_ends_at_a_breakout_bar():
-    closes = [99 + (i % 2) for i in range(20)] + [102]
-    bars = _bars(closes)
-    ext = display.consolidation_extent(bars, ymd_t(0), ymd_t(20), 100.5, 98.5)
-    assert ext["break"] == "breakout"
-    run = display.band_run_extent(bars, ext, ymd_t(0), ymd_t(20), 100.5)
-    assert run["end_t"] == ymd_t(20) and run["break"] == "breakout"
-    assert run["top"] == 100.5                                    # the breakout bar is not the base
+# -- 4. flat_base box: (round 3's contiguous in-band run is superseded by round 4's full-base box,
+#    tests/test_team_drawing_set_r4.py)
 
 
 # -- 5. learned levels -----------------------------------------------------------------------------
@@ -222,16 +189,8 @@ def test_swing_high_resistance_keeps_unbroken_pivots_above_price():
     assert all(p > closes[-1] for p in prices)
 
 
-def test_the_four_nearest_keep_one_above_price_when_any_exists():
-    close = 100.0
-    below = [{"price": p} for p in (99.5, 99.0, 98.5, 98.0, 97.5)]
-    above = {"price": 108.0}
-    out = auto_draw._cap_nearest(below + [above], close, 4)
-    assert len(out) == 4 and above in out
-    dists = [abs(h["price"] - close) for h in out]
-    assert dists == sorted(dists)
-    # control: nothing above -> plain four nearest
-    assert auto_draw._cap_nearest(below, close, 4) == below[:4]
+# (round 3's "four nearest, one above" cap is superseded by round 4's ranked set,
+#  tests/test_team_drawing_set_r4.py; one level above price whenever any candidate is still holds)
 
 
 def test_swing_high_resistance_reaches_the_drawn_set_and_one_level_sits_above_price():

@@ -114,12 +114,15 @@ def test_bc_flat_base_pivot_far_above_price_is_not_drawn():
     assert ex["stale"] is True and ex["stale_reason"] == "far_from_price"
     # control: the same base with price still at the line draws its pivot
     ok = auto_structures.box_to_detection("ZZZ", BOX, _bars(base))["geometry"]["extras"]
-    assert not ok.get("stale") and ok["draw_pivot"]["price"] == 100.6
+    # (round 4: the line is the base's top cluster of highs, 100.5, not base_catalog's 100.6)
+    assert not ok.get("stale") and ok["draw_pivot"]["price"] == 100.5
 
 
 def test_flat_base_detector_pivot_needs_the_base_too():
-    # the detector's base high (100.5) floats above a base that never got near it
-    closes = [80, 84, 88, 91, 90, 89, 90, 91, 90, 89, 90, 91, 90, 89, 90]
+    # the base never got near the level the line stands for: price left the band under it
+    # (round 4: the line is the base's own top, so the old "base high floating above the bars"
+    # cannot be drawn at all; a line price has fallen away from is still not drawn)
+    closes = [80, 84, 88, 91, 90, 89, 90, 91, 90, 89, 90, 91, 90, 84, 80]
     n = len(closes) - 1
     d = {"pattern_id": "flat_base", "start_t": ymd_t(0), "end_t": ymd_t(n), "confidence": 70,
          "levels": {"entry": 100.6},
@@ -128,7 +131,7 @@ def test_flat_base_detector_pivot_needs_the_base_too():
                                   {"t": ymd_t(n), "price": 100.5}, {"t": ymd_t(n), "price": 89.5}]}}
     display.draw_geometry([d], _bars(closes))
     ex = d["geometry"]["extras"]
-    assert ex["stale"] is True and ex["stale_reason"] in {"no_base", "far_from_price"}
+    assert ex["stale"] is True and ex["stale_reason"] in {"no_base", "far_from_price", "left_band"}
     assert "draw_pivot" not in ex
     assert d["levels"]["entry"] == 100.6       # display-only
 

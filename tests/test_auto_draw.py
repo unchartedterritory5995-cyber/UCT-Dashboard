@@ -169,7 +169,10 @@ def test_drawn_set_carries_ten_day_levels_nearest_first_and_no_prior_day_at_the_
     assert not {"prior_day_high", "prior_day_low"} & set(got)
     dists = [abs(h["price"] - d["last_close"]) for h in hs]
     assert dists == sorted(dists)
-    assert any(h["source"] == "learned" for h in hs), "control: the learned fill never entered"
+    # round 4: major swings rank ahead of the learned fill, so it enters on some charts, not all
+    assert any(h["source"] == "learned" for s in range(1, 21)
+               for h in auto_draw.drawn_set(_synthetic(s))["horizontals"]), \
+        "control: the learned fill never entered"
     assert 1 <= len(d["trendlines"]) <= auto_draw.DRAWN_TRENDLINES
     assert d["asof_t"] == bars[-1][0] and d["model"].endswith(auto_draw.MODEL_DATE)
     for tl in d["trendlines"]:

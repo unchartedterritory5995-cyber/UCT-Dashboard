@@ -192,7 +192,9 @@ def test_flat_base_draws_the_base_not_the_prior_advance():
         a = d["geometry"]["anchors"]
         draw = d["geometry"]["extras"]["draw_anchors"]
         assert len(draw) == 2
-        assert draw[0]["t"] >= a[1]["t"] and draw[1]["t"] <= a[3]["t"]
+        # round 4: the box may reach left of the detector's window over the SAME base (closes in
+        # its upper half), never back to the prior advance
+        assert draw[0]["t"] > a[0]["t"] and draw[1]["t"] <= a[3]["t"]
         assert min(p["price"] for p in draw) >= a[3]["price"] - 1e-9 > a[0]["price"]
 
 
@@ -385,10 +387,12 @@ def test_a_cup_that_broke_out_and_closed_back_below_the_rim_is_stale_and_not_ser
     d = auto_structures.box_to_detection("ZZZ", _cup_box(9, 14, 14), bars)
     ex = d["geometry"]["extras"]
     assert ex["stale"] is True and ex["stale_reason"] == "failed_breakout"
-    # a cup still above the rim is live: not stale, and the drawn box ends at the breakout
-    live = _bars(closes[:12] + [101, 103, 104])
+    # a cup still above the rim: the drawn box ends at the breakout -- and since round 4 a rim
+    # broken by a close BEFORE the last bar is stale (rim_broken) and not served either
+    live_c = closes[:12] + [101, 103, 104]
+    live = _bars(live_c, lows=[c - 4.5 for c in live_c])      # overlapping bars: not a gap island
     d2 = auto_structures.box_to_detection("ZZZ", _cup_box(9, 14, 14), live)
-    assert "stale" not in d2["geometry"]["extras"]
+    assert d2["geometry"]["extras"]["stale_reason"] == "rim_broken"
     assert d2["geometry"]["extras"]["draw_anchors"] == [
         {"t": ymd_t(0), "price": 100.0}, {"t": ymd_t(12), "price": 85.0}]
     assert d2["geometry"]["anchors"][1]["t"] == ymd_t(14)          # served numbers unchanged

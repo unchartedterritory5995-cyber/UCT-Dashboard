@@ -50,7 +50,11 @@ def test_flat_base_draws_its_pivot_line_at_the_level_it_fires_above():
             continue
         drawn += 1
         pv = ex["draw_pivot"]
-        assert pv["price"] == float(a[1]["price"])            # the base high, never invented
+        # round 4: the base's top cluster under the detector's base high -- one real bar's high,
+        # never invented, never above the level it fires above
+        pos = {b["t"]: k for k, b in enumerate(bars)}
+        base_highs = {float(b["h"]) for b in bars[pos[a[1]["t"]]:pos[a[2]["t"]] + 1]}
+        assert pv["price"] in base_highs and pv["price"] <= float(a[1]["price"])
         assert ex["draw_anchors"][0]["t"] <= pv["start_t"] <= pv["end_t"] <= ex["draw_anchors"][1]["t"] \
             or (pv["start_t"], pv["end_t"]) == (ex["draw_anchors"][0]["t"], ex["draw_anchors"][1]["t"])
         assert ex.get("draw_box", True) is True               # flat_base keeps its capped box
@@ -91,7 +95,8 @@ def test_bc_flat_base_draws_the_pivot_line_only():
     d = auto_structures.box_to_detection("ZZZ", BOX, bars)
     ex = d["geometry"]["extras"]
     assert ex["draw_box"] is False
-    assert ex["draw_pivot"] == {"start_t": ymd_t(3), "end_t": ymd_t(14), "price": 100.6}
+    # round 4: the line sits on the base's top cluster of highs (100.5), not base_catalog's pivot
+    assert ex["draw_pivot"] == {"start_t": ymd_t(3), "end_t": ymd_t(14), "price": 100.5}
     assert d["geometry"]["anchors"] == [{"t": ymd_t(0), "price": 100.5}, {"t": ymd_t(14), "price": 79.5}]
     # no pivot from base_catalog: the box top is the line
     nop = auto_structures.box_to_detection("ZZZ", {**BOX, "pivot": None}, bars)
@@ -125,7 +130,9 @@ def test_bc_cup_with_handle_draws_the_rim_line_to_the_breakout_and_the_capped_ha
     closes = [95, 98, 100, 96, 92, 88, 86, 89, 93, 98, 97, 96, 97, 98, 102]
     highs = [c + 0.5 for c in closes]
     highs[9] = 104.0                                   # the right-side spike
-    bars = _bars(closes, highs=highs)
+    # round 4: the cup's bars overlap (deep lows), so it is not a gap island
+    lows = [c - 5.0 for c in closes[:10]] + [c - 0.5 for c in closes[10:]]
+    bars = _bars(closes, highs=highs, lows=lows)
     cup = {"structure_key": "cup-with-handle", "start_t": ymd_t(0), "end_t": ymd_t(14),
            "top": 104.0, "floor": 85.5, "pivot": 104.1,
            "sub_boxes": [{"start_t": ymd_t(0), "end_t": ymd_t(9), "top": 104.0, "floor": 85.5},
@@ -139,7 +146,7 @@ def test_bc_cup_with_handle_draws_the_rim_line_to_the_breakout_and_the_capped_ha
     # handle broke out on its first bar: no handle to draw, and the cup's own sub-box is NOT it
     gone = auto_structures.box_to_detection("ZZZ", {**cup, "sub_boxes": [
         cup["sub_boxes"][0], {**cup["sub_boxes"][1], "start_t": ymd_t(14)}]},
-        _bars(closes[:-1] + [105], highs=highs[:-1] + [105.5]))
+        _bars(closes[:-1] + [105], highs=highs[:-1] + [105.5], lows=lows))
     assert "draw_handle" not in gone["geometry"]["extras"]
 
 
