@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { optionText } from './optionText'
+import { optionText, orderOptions } from './optionText'
 import ColumnDesc from './ColumnDesc'
 import styles from './ScannerShell.module.css'
 import Input from '../../../components/ui/Input'
@@ -95,7 +95,7 @@ export default function FilterControl({ filter, value, onChange, presentation = 
     )
   }
 
-  const options = (filter.presets || []).map(p => p.label)
+  const options = orderOptions(filter.key, (filter.presets || []).map(p => p.label))
   if (filter.allow_custom && !options.includes('Custom…')) options.push('Custom…')
 
   return (
