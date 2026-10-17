@@ -1038,6 +1038,9 @@ function ChartToolbar({
   onTogglePatterns = null,
   showLevels = false,
   onToggleLevels = null,
+  // Admins: false = the team drawing set (default), true = every tier ("All"). null handler = no control.
+  showAllDrawings = false,
+  onToggleAllDrawings = null,
   hideReplay = false,
   hidePatterns = false,
   hideCompare = false,
@@ -1645,7 +1648,20 @@ function ChartToolbar({
         {autoStructuresOn && !hidePatterns && onTogglePatterns && (
           <PatternToolbarButton active={!!showPatterns} onToggle={onTogglePatterns} />
         )}
-        {autoStructuresScope === 'all' && !hidePatterns && onToggleLevels && (
+        {autoStructuresScope === 'all' && !hidePatterns && onToggleAllDrawings && (
+          <button
+            type="button"
+            className={`${styles.btn} ${showAllDrawings ? styles.active : ''}`}
+            onClick={() => onToggleAllDrawings(!showAllDrawings)}
+            title={showAllDrawings ? 'Drawings: ALL tiers (click for the team set)' : 'Drawings: team set (click for all tiers)'}
+            aria-label="Toggle all drawing tiers"
+            aria-pressed={!!showAllDrawings}
+            style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, padding: '2px 6px' }}
+          >
+            {showAllDrawings ? 'All' : 'Team'}
+          </button>
+        )}
+        {autoStructuresScope === 'all' && !hidePatterns && onToggleLevels && (!onToggleAllDrawings || showAllDrawings) && (
           <button
             type="button"
             className={`${styles.btn} ${showLevels ? styles.active : ''}`}

@@ -744,7 +744,7 @@ def get_detections(
     types: Optional[str] = Query(default=None, description="comma-separated pattern_ids to filter"),
     min_conf: float = Query(default=50.0, ge=0.0, le=100.0),
     confirmed_only: bool = Query(default=True, description="only Opus-vision-confirmed verdicts"),
-    include_structures: bool = Query(default=False, description="admin + AUTO_STRUCTURES_ENABLED: add the current base boxes; a member with AUTO_STRUCTURES_MEMBERS_ENABLED gets trusted-tier rows only"),
+    include_structures: bool = Query(default=False, description="admin + AUTO_STRUCTURES_ENABLED: add the current base boxes; a member with AUTO_STRUCTURES_MEMBERS_ENABLED gets the team drawing set only"),
 ):
     """Return detections for a symbol.
 
@@ -798,14 +798,24 @@ def get_detections(
     out = {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
     # Auto Structures for MEMBERS (AUTO_STRUCTURES_MEMBERS_ENABLED + AUTO_STRUCTURES_ENABLED,
     # both read per request): a non-admin's chart toggle asks with include_structures=true,
-    # and gets ONLY trusted-tier rows (registry.DISPLAY_TRUSTED), filtered HERE, never by
-    # the client. No `structures` / `drawn` key: base boxes, the levels layer and the
-    # learned drawer stay admin-only. With the member flag off the payload is as before.
+    # and gets ONLY the team drawing set (registry.DISPLAY_TRUSTED = DISPLAY_TEAM_SET,
+    # owner direction 2026-10-17), filtered HERE, never by the client: trusted-tier rows,
+    # and on D/W/M the trusted-tier base boxes (`structures`) and the learned drawer's
+    # levels + trendlines (`drawn`). The levels layer and every other tier stay admin-only.
+    # With the member flag off (it is, pending a blind check) the payload is as before.
     if include_structures and not is_admin:
         from api.services import auto_structures
         if auto_structures.members_enabled():
             rows = auto_structures.member_rows(rows)
-            return {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
+            mout = {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
+            if (tf or "D").upper() in ("D", "W", "M"):
+                boxes = auto_structures.member_rows(auto_structures.structures_for(sym))
+                if boxes:
+                    mout["structures"] = boxes
+                drawn = auto_structures.drawn_for(sym)
+                if drawn is not None:
+                    mout["drawn"] = drawn
+            return mout
     # Base boxes (AUTO_STRUCTURES_ENABLED, ADMINS ONLY). A member asking for them gets
     # no `structures` / `drawn` key at all.
     if include_structures and is_admin:

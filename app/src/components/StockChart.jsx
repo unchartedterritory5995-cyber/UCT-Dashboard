@@ -6102,14 +6102,18 @@ export default function StockChart({
   // overlay draws trusted only (no experimental, levels, base boxes or learned drawer).
   const autoStructuresScope = useAutoStructuresScope()
   const autoStructuresOn = autoStructuresScope === 'all'
-  const autoStructuresTrustedOnly = autoStructuresScope === 'trusted'
+  // TEAM DRAWING SET (owner direction 2026-10-17): an admin's chart draws the team set by default
+  // (the trusted tier + the learned levels/trendlines); "All" shows every tier and the Levels layer.
+  // Per-tab, not persisted.
+  const [showAllDrawings, setShowAllDrawings] = useState(false)
+  const autoStructuresTrustedOnly = autoStructuresScope === 'trusted' || (autoStructuresOn && !showAllDrawings)
   const patternsActive = showPatterns && autoStructuresScope != null && !disablePatterns
   // The ubiquitous level emitters (support/resistance, volume nodes) are a separate,
   // default-off layer; per-tab, not persisted.
   const [showPatternLevels, setShowPatternLevels] = useState(false)
   const { detections: patternDetections, drawn: patternDrawn } = usePatternDetections(
     sym, resolvedTf, patternsActive, 50,
-    { includeStructures: autoStructuresTrustedOnly || (autoStructuresOn && ['D', 'W', 'M'].includes(resolvedTf)) },
+    { includeStructures: autoStructuresScope === 'trusted' || (autoStructuresOn && ['D', 'W', 'M'].includes(resolvedTf)) },
   )
 
   // ── Screenshot + Share state ──
@@ -20229,13 +20233,13 @@ export default function StockChart({
           series={candleSeriesRef.current}
           containerRef={containerRef}
           detections={patternDetections}
-          drawn={autoStructuresOn ? patternDrawn : null}
+          drawn={autoStructuresScope != null ? patternDrawn : null}
           enabled={patternsActive}
           onDetectionClick={setActiveDetection}
           tf={resolvedTf}
           barTimes={patternBarTimes}
-          showExperimental={autoStructuresOn}
-          showLevels={autoStructuresOn && showPatternLevels}
+          showExperimental={autoStructuresOn && showAllDrawings}
+          showLevels={autoStructuresOn && showAllDrawings && showPatternLevels}
           trustedOnly={autoStructuresTrustedOnly}
           lastPrice={patternLastPrice}
         />
@@ -20440,6 +20444,8 @@ export default function StockChart({
             onTogglePatterns={handleTogglePatterns}
             showLevels={showPatternLevels}
             onToggleLevels={setShowPatternLevels}
+            showAllDrawings={showAllDrawings}
+            onToggleAllDrawings={setShowAllDrawings}
             hideReplay={hideReplay}
             hidePatterns={hidePatterns || disablePatterns}
             hideCompare={hideCompare}

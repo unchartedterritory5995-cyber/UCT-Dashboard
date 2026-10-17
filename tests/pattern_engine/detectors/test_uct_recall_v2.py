@@ -224,6 +224,7 @@ def test_both_draw_as_experimental():
     a detection is drawn; neither id is in a trusted or hidden list."""
     for pid in _IDS:
         pol = registry.display_policy(pid)
+        # uct_pullback_ma_v5 joined the team drawing set (2026-10-17): its own test pins that.
         assert pol["display_tier"] == "experimental" and pol["display_layer"] == "structures"
         assert pid not in registry.DISPLAY_TRUSTED and pid not in registry.DISPLAY_HIDDEN
 

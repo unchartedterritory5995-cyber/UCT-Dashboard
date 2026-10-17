@@ -1,4 +1,4 @@
-// app/src/components/chart/patternShapes/EmaSegment.jsx — the EMA a pullback setup names,
+// app/src/components/chart/patternShapes/EmaSegment.jsx — the EMA (or SMA: `draw_ema.kind`) a pullback setup names,
 // drawn over the pullback window (lab/geometry_eval REPORT_TIERS_V2.md, 2026-10-17: the
 // judges saw "a flat line on the pivot high, not the 10 EMA").
 //
@@ -21,6 +21,10 @@ export default function EmaSegment({ detection, tToX, priceToY, onClick }) {
   const color = getColor(detection)
   const opacity = getOpacity(detection)
   const [lx, ly] = pts[pts.length - 1]
+  // Team set (uct_pullback_ma_v5): the MA it tagged may be an SMA, and the tag bar is marked.
+  const maName = ema.kind === 'sma' ? 'SMA' : 'EMA'
+  const tagX = ema.tag ? tToX(ema.tag.t) : null
+  const tagY = ema.tag ? priceToY(ema.tag.price) : null
   return (
     <g
       data-shape="ema-segment"
@@ -38,8 +42,16 @@ export default function EmaSegment({ detection, tToX, priceToY, onClick }) {
       />
       <text x={lx + 6} y={ly + 4} fontSize="10" fill={color} opacity={opacity}
         style={{ pointerEvents: 'none' }}>
-        {`${ema.period} EMA · ${formatLabel(detection)}`}
+        {`${ema.period} ${maName} · ${formatLabel(detection)}`}
       </text>
+      {tagX != null && tagY != null && (
+        <path
+          data-role="tag-bar"
+          d={`M ${tagX} ${tagY + 4} l -5 9 l 10 0 z`}
+          fill={color}
+          opacity={opacity}
+        />
+      )}
     </g>
   )
 }

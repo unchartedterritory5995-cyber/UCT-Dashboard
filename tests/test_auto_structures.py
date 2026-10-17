@@ -168,28 +168,29 @@ def test_detect_all_stamps_pattern_end_without_touching_end_t():
 
 # ── fix 4-6: one display policy ─────────────────────────────────────────────
 
-def test_display_policy_matches_the_tiers_v3_report():
-    """lab/geometry_eval REPORT_TIERS_V2.md + REPORT_TIERS_V3.md (2026-10-17), blind tier rounds."""
-    assert registry.DISPLAY_TRUSTED == {"donchian_breakout", "rectangle"}
-    for pid in ("donchian_breakout", "rectangle"):
+def test_display_policy_matches_the_tiers_v3_report_and_the_team_set():
+    """lab/geometry_eval REPORT_TIERS_V2.md + REPORT_TIERS_V3.md (2026-10-17), blind tier rounds,
+    then the owner's TEAM DRAWING SET (2026-10-17): the trusted tier IS what the team draws."""
+    team = {"bull_flag", "flat_base", "bc:flat-base", "bc:cup-with-handle", "uct_pullback_ma_v5"}
+    assert registry.DISPLAY_TEAM_SET == team and registry.DISPLAY_TRUSTED == team
+    for pid in team:
         assert display_policy(pid)["display_tier"] == "trusted"
-    # second blind judge 1.8 -> averaged ~2.05, under the 2.3 trusted bar
-    assert display_policy("bc:cup-with-handle")["display_tier"] == "experimental"
-    # round-1 trusted that failed AS DRAWN in v2 -> experimental
-    for pid in ("bull_flag", "pullback_to_10ema", "holy_grail"):
+    # Donchian / rectangle are not what the team uses: experimental (admins' "All")
+    for pid in ("donchian_breakout", "rectangle"):
+        assert display_policy(pid)["display_tier"] == "experimental"
+    # round-1 trusted that failed AS DRAWN in v2 and are not in the team set -> experimental
+    for pid in ("pullback_to_10ema", "holy_grail"):
         assert display_policy(pid)["display_tier"] == "experimental"
     v2_hidden = ("double_bottom", "double_top", "head_shoulders", "vcp",
                  "higher_low_continuation", "inverse_cup_handle", "qullamaggie_setup",
                  "range_detection", "bc:vcp", "bc:base-on-base")
-    v3_hidden = ("bc:flat-base",)
+    v3_hidden = ()      # bc:flat-base left hidden for the team set (pivot line only)
     round1_hidden = ("inverse_head_shoulders", "triple_top", "triple_bottom", "u_and_r",
                      "symmetrical_triangle", "descending_triangle", "bear_flag",
                      "bc:ugly-double-bottom", "bc:green-line-breakout", "bc:darvas-box")
     assert registry.DISPLAY_HIDDEN == set(v2_hidden) | set(round1_hidden) | set(v3_hidden)
     for pid in v2_hidden + round1_hidden + v3_hidden:
         assert display_policy(pid)["display_tier"] == "hidden"
-    # v3: flat_base's capped box lifted it 0.30 -> 1.60 -> experimental
-    assert display_policy("flat_base")["display_tier"] == "experimental"
     # v3: rsi_bearish_divergence met the trusted rule (2.30) but was judged without an RSI
     # panel -> held experimental until an RSI-panel re-test; rsi_bullish 2.10 -> experimental
     for pid in ("rsi_bearish_divergence", "rsi_bullish_divergence"):
@@ -235,7 +236,7 @@ def test_rows_carry_the_display_policy(monkeypatch):
     c = _client(PAID_MEMBER, monkeypatch, rows=[{"id": "x", "pattern_id": "bear_flag"},
                                                 {"id": "y", "pattern_id": "bull_flag"}])
     rows = c.get("/api/patterns/ZZZ?tf=D&confirmed_only=false").json()["detections"]
-    assert [r["display_tier"] for r in rows] == ["hidden", "experimental"]
+    assert [r["display_tier"] for r in rows] == ["hidden", "trusted"]   # bull_flag: the team set
 
 
 def test_structures_ride_the_route_only_for_an_admin_with_the_flag(monkeypatch):
@@ -261,12 +262,12 @@ def test_box_to_detection_keeps_every_number_and_uses_real_times():
     ex = d["geometry"]["extras"]
     assert (ex["top"], ex["floor"], ex["pivot"]) == (142.1, 131.4, 142.1)
     assert d["levels"]["entry"] == 142.1
-    assert d["display_tier"] == "hidden"          # bc:flat-base, REPORT_TIERS_V3.md
+    assert d["display_tier"] == "trusted"         # bc:flat-base, the team set (2026-10-17)
     assert auto_structures.box_to_detection(
         "ZZZ", {**BOX, "structure_key": "square-box"})["display_tier"] == "experimental"
     assert auto_structures.box_to_detection("ZZZ", {**BOX, "structure_key": "darvas-box"})["display_tier"] == "hidden"
     assert auto_structures.box_to_detection(
-        "ZZZ", {**BOX, "structure_key": "cup-with-handle"})["display_tier"] == "experimental"
+        "ZZZ", {**BOX, "structure_key": "cup-with-handle"})["display_tier"] == "trusted"   # team set
 
 
 def test_structures_for_reads_daily_bars_and_never_raises(monkeypatch):
@@ -302,11 +303,11 @@ def test_auth_payload_carries_the_flag_only_for_an_admin_while_on(monkeypatch):
 
 # ── the MEMBER flip (AUTO_STRUCTURES_MEMBERS_ENABLED, trusted tier only) ─────
 
-#: One row per display bucket: trusted (x2), experimental, hidden, the levels layer.
+#: One row per display bucket: trusted (x2, the team set), experimental, hidden, the levels layer.
 MIXED_ROWS = [
-    {"id": "a", "pattern_id": "donchian_breakout"},
-    {"id": "b", "pattern_id": "rectangle"},
-    {"id": "c", "pattern_id": "bull_flag"},
+    {"id": "a", "pattern_id": "bull_flag"},
+    {"id": "b", "pattern_id": "flat_base"},
+    {"id": "c", "pattern_id": "donchian_breakout"},
     {"id": "d", "pattern_id": "double_bottom"},
     {"id": "e", "pattern_id": "support_resistance"},
 ]
@@ -347,13 +348,19 @@ def test_member_flag_off_is_byte_identical_to_before(monkeypatch, _box_and_drawn
         assert set(body) == {"sym", "tf", "detections", "count"}
 
 
-def test_member_flag_on_serves_only_trusted_rows_and_no_structures(monkeypatch, _box_and_drawn):
+def test_member_flag_on_serves_only_the_team_set(monkeypatch, _box_and_drawn):
+    """The member set IS the team set: trusted rows, trusted base boxes and the learned drawer."""
     _flags(monkeypatch, True, True)
     body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
-    assert [r["pattern_id"] for r in body["detections"]] == ["donchian_breakout", "rectangle"]
+    assert [r["pattern_id"] for r in body["detections"]] == ["bull_flag", "flat_base"]
     assert {r["display_tier"] for r in body["detections"]} == {"trusted"}
     assert body["count"] == 2
-    assert "structures" not in body and "drawn" not in body
+    assert [r["pattern_id"] for r in body["structures"]] == ["bc:flat-base"]
+    assert "drawn" in body
+    # intraday: rows only (the boxes and the learned drawer are daily geometry)
+    intra = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(
+        STRUCT_URL.replace("tf=D", "tf=5")).json()
+    assert "structures" not in intra and "drawn" not in intra
     # The member flag is not a door by itself: admin flag off closes it.
     _flags(monkeypatch, False, True)
     body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
