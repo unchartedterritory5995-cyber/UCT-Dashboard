@@ -910,3 +910,95 @@ def test_refill_leaves_a_deleted_lesson_deleted(monkeypatch):
     tl.run_video_refill(deadline=9e12)
     assert tl.get_lesson("nv4")["section"] == tl.REMOVED
     assert not [c for c in fake.calls if c[0] == "POST"]
+
+
+# ── YouTube links ────────────────────────────────────────────────────────────
+
+YT = "oZxqCRSpX6s"
+
+
+def test_youtube_ids_are_found_in_every_link_shape():
+    text = (f"Must watch https://youtu.be/{YT}?is=abc and again "
+            f"https://www.youtube.com/watch?v={YT}&t=3 plus "
+            "https://youtube.com/live/S2kDC6I2FE4?feature=share "
+            "https://m.youtube.com/shorts/AbCdEfGhIjK not https://youtu.be/short")
+    assert tl.youtube_ids_in(text) == [YT, "S2kDC6I2FE4", "AbCdEfGhIjK"]
+    assert tl.youtube_ids_in("no links here") == []
+
+
+def test_a_youtube_link_is_recorded_once_and_only_for_an_author():
+    m1 = msg(sf(2026, 7, 9), content=f"Must watch https://youtu.be/{YT}",
+             attachments=[video("f1")])
+    m2 = msg(sf(2026, 7, 10), content=f"again https://youtu.be/{YT}")
+    member = msg(sf(2026, 7, 11), author="999", content="https://youtu.be/AbCdEfGhIjK")
+    assert tl.record_message(m1, TSDR) == 2            # the file and the link
+    assert tl.record_message(m2, TSDR) == 0            # the same video, already kept
+    assert tl.record_message(member, TSDR) == 0
+    row = tl.get_lesson(tl.LINK_PREFIX + YT)
+    assert row["message_id"] == m1["id"] and tl.link_video_id(row) == YT
+    assert tl.link_video_id(tl.get_lesson("f1")) == ""
+
+
+def test_a_youtube_link_lesson_is_recapped_from_its_captions_and_shows_the_link(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    m = msg(sf(2026, 7, 9), content=f"Must watch https://youtu.be/{YT}")
+    tl.record_message(m, TSDR)
+    seen = {}
+    fake = _pipeline(monkeypatch, m, seen=seen)
+    monkeypatch.setattr(tl, "download", lambda *a: pytest.fail("a link is never downloaded"))
+    monkeypatch.setattr(tl, "youtube_transcript", lambda vid: "word " * 60)
+    monkeypatch.setattr(tl, "youtube_title", lambda vid: "Chat w/ PBA")
+    _seed_threads()
+    sent = []
+    fake.routes[("POST", "/channels/t-setups/messages")] = \
+        lambda p, b: sent.append(b) or {"id": f"m{len(sent)}"}
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    assert seen["transcript"].startswith("word")
+    assert "Chat w/ PBA" in seen["caption"]
+    recap, video_post = sent
+    assert video_post == {"content": f"https://youtu.be/{YT}"}
+
+
+def test_a_link_without_captions_is_still_posted_under_its_title(monkeypatch):
+    m = msg(sf(2026, 7, 9), content=f"https://youtu.be/{YT}")
+    tl.record_message(m, TSDR)
+    seen = {}
+    fake = _pipeline(monkeypatch, m, seen=seen)
+    monkeypatch.setattr(tl, "youtube_transcript", lambda vid: "")
+    monkeypatch.setattr(tl, "youtube_title", lambda vid: "Chat w/ PBA")
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    assert seen == {}                                   # too few words for a recap call
+    embed = fake.posts("/channels/lessons/messages")[0]["embeds"][0]
+    assert embed["title"] == "Chat w/ PBA"
+
+
+def test_a_deleted_link_message_is_skipped(monkeypatch):
+    m = msg(sf(2026, 7, 9), content=f"https://youtu.be/{YT}")
+    tl.record_message(m, TSDR)
+    gone = dict(m, content="edited away")
+    _pipeline(monkeypatch, gone)
+    assert tl.run_lessons(limit=3, deadline=9e12)["skipped"] == 1
+
+
+def test_linked_videos_are_never_uploaded_to_youtube_again(monkeypatch):
+    tl.record_message(msg(sf(2026, 7, 9), content=f"https://youtu.be/{YT}"), TSDR)
+    tl._update(tl.LINK_PREFIX + YT, status="posted", title="T", recap="A. B.",
+               section="setups", post_channel_id="t-setups", discord_post_id="p",
+               forward_post_id="f")
+    order = []
+    monkeypatch.setattr(tl, "upload_lesson", lambda row: order.append(row) or "uploaded")
+    tl.run_youtube(deadline=9e12)
+    assert order == []
+
+
+def test_the_link_rescan_reopens_each_scanned_channel_once():
+    tl.set_state(f"cursor:{TSDR}", "5000")
+    tl.set_state(f"backfill:{TSDR}", "10")
+    tl._mark_backfill_done(f"backfill_done:{TSDR}")
+    assert tl._backfill_done(f"backfill_done:{TSDR}")
+    assert tl.rescan_for_links() is True
+    assert not tl._backfill_done(f"backfill_done:{TSDR}")
+    assert tl.get_state(f"backfill:{TSDR}") == "5001"
+    tl._mark_backfill_done(f"backfill_done:{TSDR}")
+    assert tl.rescan_for_links() is False               # only ever once
+    assert tl._backfill_done(f"backfill_done:{TSDR}")
