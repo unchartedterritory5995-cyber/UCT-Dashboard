@@ -2482,6 +2482,24 @@
      "vocab_id": "go_signal",
      "mismatch": 1,
      "note": "the detector reads the DAILY footprint (weak open, support sweep, strong close); the vocabulary's Go Signal is an intraday entry the daily bar cannot see"
+    },
+    {
+     "external_name": "uct_undercut_reclaim",
+     "vocab_id": "undercut_and_rally",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "uct_episodic_pivot_v2",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (same as episodic_pivot); recall-v2 lab rule, internal detector"
+    },
+    {
+     "external_name": "uct_pullback_ma_v5",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 for a pullback to the 21 EMA / 50 SMA / 200 SMA as one setup; recall-v2 lab rule, internal detector"
     }
    ]
   },
