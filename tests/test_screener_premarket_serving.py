@@ -36,11 +36,14 @@ def _nightly():
 
 
 def _pm_rows(conn, rows):
+    """Rows of `(ticker, ymd, price, chg, asof[, ext_session])`; the window defaults
+    to 'pre'."""
     conn.execute(premarket._SCHEMA)
     conn.executemany(
         f"INSERT OR REPLACE INTO {premarket.TABLE} (ticker, session_ymd, "
-        "premarket_price, premarket_chg_pct, premarket_asof) VALUES (?, ?, ?, ?, ?)",
-        rows)
+        "premarket_price, premarket_chg_pct, premarket_asof, ext_session) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        [tuple(r) if len(r) == 6 else (*r, "pre") for r in rows])
     conn.commit()
 
 
@@ -148,6 +151,7 @@ def test_the_count_cache_moves_with_the_session(pm):
     first = query.preview_count_batch([dict(PM_UP_3)], user_id="m1", user=MEMBER)
     assert first[0]["count"] == 1
     pm["session"] = "regular"
+    pm["now"] = datetime(2026, 10, 16, 9, 31, tzinfo=ET)   # the calendar decides
     again = query.preview_count_batch([dict(PM_UP_3)], user_id="m1", user=MEMBER)
     assert again[0]["count"] == 0
 
@@ -202,7 +206,7 @@ def test_params_bind_in_from_clause_order_when_both_joins_carry_one(both, monkey
     with snapshot_db.connect() as conn:
         ov = query._overlay(conn, user=ADMIN)
     assert ov.on and ov.pm_on
-    assert len(ov.live_params) == 1 and len(ov.pm_params) == 2
+    assert len(ov.live_params) == 1 and len(ov.pm_params) == 3
     assert ov.join_params == [*ov.live_params, *ov.pm_params]
     rows, _ = _scan(ALL, ADMIN)
     assert rows["GAP"]["price"] == 104.0

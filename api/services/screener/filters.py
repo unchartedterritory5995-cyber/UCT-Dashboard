@@ -36,8 +36,10 @@ def _range(key, label, category, column, presets, unit=None, description=None):
 
 #: What the two pre-market filters say to a member (spec 2026-10-16 §2, "Disclosure").
 PREMARKET_DESCRIPTION = (
-    "From the last pre-market trade, 4:00–9:30 ET; blank outside that window. "
-    "No pre-market volume is available, so these screens cannot filter on it.")
+    "Before the open (4:00–9:30 ET) the change is against the prior close; after the "
+    "close (to 8:00 PM ET) it is against today's close. Overnight and on weekends it "
+    "shows the last after-hours trade; blank during the session. No extended-hours "
+    "volume is available, so these screens cannot filter on it.")
 
 
 def _enum(key, label, category, column, presets, options_column=None,
@@ -392,10 +394,10 @@ FILTERS = dict([
            [{"label": "Any"}, {"label": "Over 1.5×", "op": "gte", "min": 1.5},
             {"label": "Over 2×", "op": "gte", "min": 2},
             {"label": "Over 3×", "op": "gte", "min": 3}], unit="×"),
-    # ⭐ PRE-MARKET-ONLY (spec 2026-10-16 §2): served from the `pm` join 04:00-09:30 ET
-    # to users the flag reaches, NULL otherwise, so a screen on them returns nothing
-    # outside that window rather than yesterday's names. No pre-market volume exists.
-    _range("premarket_chg_pct", "Pre-mkt %", "technical", "premarket_chg_pct",
+    # ⭐ EXTENDED HOURS (spec 2026-10-16 §2, widened 2026-10-17): served from the `pm` join
+    # before the open, after the close and (held) overnight, to users the flag reaches; NULL
+    # in the session. The keys say "premarket" for history (premarket.py). No volume exists.
+    _range("premarket_chg_pct", "Ext-hrs %", "technical", "premarket_chg_pct",
            [{"label": "Any"}, {"label": "Up >3%", "op": "gte", "min": 3},
             {"label": "Up >5%", "op": "gte", "min": 5},
             {"label": "Down >3%", "op": "lte", "max": -3}], unit="%",
@@ -403,7 +405,7 @@ FILTERS = dict([
     # A bare control (no editorial thresholds) over the leading base's pivot. The
     # "Setups gapping pre-market" starter screens on its PRESENCE (`>= 0`).
     _open_range("base_pivot_px", "Base Pivot", "pattern", "base_pivot_px", unit="$"),
-    _range("premarket_price", "Pre-mkt price", "technical", "premarket_price",
+    _range("premarket_price", "Ext-hrs price", "technical", "premarket_price",
            [{"label": "Any"}, {"label": "Over $5", "op": "gte", "min": 5},
             {"label": "Over $10", "op": "gte", "min": 10}], unit="$",
            description=PREMARKET_DESCRIPTION),
