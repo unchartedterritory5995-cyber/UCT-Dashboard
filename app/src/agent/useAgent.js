@@ -26,7 +26,7 @@ import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSa
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps } from './deixis'
-import { planOps, prepareOps, collectTargets, undoNotesFor } from './executor'
+import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry, undoEntryFor } from './runtime'
 import { pendingLines as pendingWording } from './proposalWording'
@@ -112,6 +112,31 @@ const boardEpoch = (host, ops) => (kindsOf(ops).some(k => getTargetKind(k)?.boar
 const sealsOf = (plan) => (plan?.plans || []).map(p => { try { return getTargetKind(p.kind)?.seal?.(p) || null } catch { return null } }).filter(Boolean)
 const sameLines = (a, b) => JSON.stringify(a || []) === JSON.stringify(b || [])
 const STALE_PROPOSAL = 'so nothing was changed — ask again and I’ll show you the current version.'
+// ⛔ APPROVAL BINDING (Gate C safety fix, 2026-10-16) — see executor.approvalBinding. Every proposal
+// carries the binding of the plan it showed and expires after PROPOSAL_TTL_MS; "do it" re-reads what
+// can be re-read from its authority, re-plans, and runs only on an identical binding.
+const boundRefusal = (why) => `That proposal can’t run as you approved it — ${why} — ${STALE_PROPOSAL}`
+/** Before an approved plan is re-planned, every target whose kind can re-read it from its authority
+ *  (the server) does — a change made in another tab or on another device is then seen. A kind that
+ *  cannot re-read right now FAILS CLOSED: the approval is refused and nothing is written.
+ *  → null, or the sentence to refuse with. */
+async function refreshForApproval(host, ops) {
+  const seen = new Set()
+  for (const o of ops || []) {
+    const cap = getCapability(o?.action)
+    if (!cap || cap.query || o.target == null) continue
+    const kind = getTargetKind(cap.target)
+    if (!kind?.refreshForApproval) continue
+    const key = `${cap.target}|${o.target}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    let r
+    try { r = await kind.refreshForApproval(host, o.target) } catch { r = { ok: false } }
+    if (!r?.ok && r?.why) return `That proposal can’t run as you approved it — ${r.why} — ${STALE_PROPOSAL}`
+    if (!r?.ok) return `I couldn’t re-check ${r?.what || 'what it changes'} against your account just now, so nothing was changed — try “do it” again in a moment, or ask again.`
+  }
+  return null
+}
 // ⭐ F5 — the SAME change on several charts ("add this indicator to both charts"): a capability that
 // declares `fanOut` is run once per target, each as its own ordinary execution (own plan,
 // permission check, persistence, receipt and Undo) — never a second engine, never one write.
@@ -296,6 +321,16 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     setItems(xs => [...xs, { id: nid(), at: Date.now(), ...item }])
   }, [])
   const patchItem = useCallback((id, patch) => setItems(xs => xs.map(x => (x.id === id ? { ...x, ...patch } : x))), [])
+  // ⛔ APPROVAL BINDING: a change that RAN (any write, or an Undo) withdraws a proposal still waiting —
+  // it was shown for the state before that change, so "do it" must never apply it on top. Answers and
+  // questions leave a waiting proposal alone (they change nothing).
+  const withdrawPending = useCallback(() => {
+    const p = pendingRef.current
+    if (p?.kind !== 'proposal') return
+    pendingRef.current = null
+    patchItem(p.id, { status: 'replaced' })
+    push({ role: 'outcome', text: 'I withdrew the proposal above because something changed after I made it — ask again if you still want it.' })
+  }, [patchItem, push])
   // What the Agent is doing while the member waits, beyond "typing" ('research' = a web search runs).
   const [activity, setActivity] = useState(null)
   // ⭐ STREAMING (server flag UCT_AGENT_STREAM): an ANSWER's reply appears while it is being written, as
@@ -385,7 +420,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [setConversationId])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null }) => {
+  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null, binding = null, subset = false }) => {
     // A follow-up step's refusal says what the earlier steps already did (`note`). `lead` (OWNER
     // 2026-10-12): the held receipt of the step before it (a Save) — said in THIS step's message,
     // first, so "save + apply" reads as ONE confirmation; `lead.used` tells the caller it was said.
@@ -447,6 +482,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       refusalPush(text)
       record({ member, outcome: text, outcomeData: { kind: 'refused', actions: opsIn.map(o => o?.action) }, telemetry: { path, refused: true, voice } })
     }
+    // ⛔ APPROVAL: re-read every target that has an authority before anything is planned (fail closed).
+    if (suggested === 'approved' && binding) {
+      const why = await refreshForApproval(host, allOps)
+      if (why) {
+        refusalPush(why)
+        record({ member, outcome: why, outcomeData: { kind: 'refused-stale-proposal', actions: allOps.map(o => o?.action) }, telemetry: { path, refused: true, voice } })
+        return
+      }
+    }
     // ── EXPANSION: a macro op with CONCRETE inputs (widget.addCharts with tickers)
     // becomes the ordinary ops it stands for, before anything is planned. One whose
     // input is still a reference expands at apply, once its symbols exist.
@@ -479,6 +523,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
               const text = refusalText(gate.refusals)
               refusalPush(text)
               record({ member, outcome: text, outcomeData: { kind: 'refused', actions: rest.map(o => o.action) }, telemetry: { path, refused: true, voice } })
+              return
+            }
+            // ⛔ the member approved the RULE (the query + selection) on the consumers' state as it was:
+            // that state and the rule's plan must be unchanged (the producers' results are new by design)
+            const drift = binding ? bindingDrift(binding, approvalBinding(gate, host), { subset }) : null
+            if (drift) {
+              const text = boundRefusal(drift)
+              refusalPush(text)
+              record({ member, outcome: text, outcomeData: { kind: 'refused-stale-proposal', actions: rest.map(o => o.action) }, telemetry: { path, refused: true, voice } })
               return
             }
           }
@@ -550,8 +603,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (fan) {
       const actions = fan.map(o => o.action)
       const lines = []
+      const binds = []
       for (const o of fan) {
         const one = planOps(collectTargets(host, kindsOf([o])), [o], await prepareOps([o]), capCtx)
+        if (one.ok) binds.push(approvalBinding(one, host))
         const guard = one.ok ? protectionRefusal(host, one, [o]) : null
         const why = !one.ok ? refusalText(one.refusals) : (guard ? `I didn't change anything: ${guard}` : null)
         if (why) {
@@ -564,7 +619,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const plines = pendingWording([...lines, 'Each chart is changed separately, with its own receipt and Undo.'])
       if (suggested === 'approved') {
         // only the charts and the change the member approved — else nothing runs
-        if (!card || !sameLines(card, plines)) {
+        const fanDrift = !Array.isArray(binding) || binding.length !== binds.length ? 'it can no longer be checked against what you approved'
+          : binds.map((b, i) => bindingDrift(binding[i], b)).find(Boolean) || null
+        if (!card || !sameLines(card, plines) || fanDrift) {
           const text = `Something on those charts changed since you approved it, ${STALE_PROPOSAL}`
           refusalPush(text)
           record({ member, outcome: text, outcomeData: { kind: 'refused-stale-proposal', actions }, telemetry: { path, refused: true, actions, voice } })
@@ -573,7 +630,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         return { followUps: fan }
       }
       const pid = nid()
-      pendingRef.current = { kind: 'proposal', id: pid, ops: fan, epoch: boardEpoch(host, fan), card: plines, expiresAt: Date.now() + PROPOSAL_TTL_MS }
+      pendingRef.current = { kind: 'proposal', id: pid, ops: fan, epoch: boardEpoch(host, fan), card: plines, expiresAt: Date.now() + PROPOSAL_TTL_MS, binding: binds }
       push({ id: pid, role: 'proposal', lines: plines, status: 'pending' })
       record({ member, outcome: `Proposed: ${plines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
       return
@@ -616,9 +673,21 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       record({ member, outcome: text, outcomeData: { kind: 'refused-stale-proposal', actions }, telemetry: { path, refused: true, actions, voice } })
       return
     }
+    // ⛔ APPROVAL BINDING: every approval runs only on an IDENTICAL structured binding — the same change
+    // to the same targets in the same material state (a composed approval was checked at its gate).
+    if (suggested === 'approved' && binding && !composed) {
+      const drift = bindingDrift(binding, approvalBinding(plan, host), { subset })
+      if (drift) {
+        const text = boundRefusal(drift)
+        refusalPush(text)
+        record({ member, outcome: text, outcomeData: { kind: 'refused-stale-proposal', actions }, telemetry: { path, refused: true, actions, voice } })
+        return
+      }
+    }
     if (composing && !composed) {
       const pid = nid()
-      pendingRef.current = { kind: 'proposal', id: pid, ops: [...allOps, ...deferred], epoch: boardEpoch(host, [...allOps, ...deferred]) }
+      pendingRef.current = { kind: 'proposal', id: pid, ops: [...allOps, ...deferred], epoch: boardEpoch(host, [...allOps, ...deferred]),
+        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS }
       // a proposal says what WILL happen (proposalWording.js), never a success not yet written
       const lines = pendingWording([...pendingLines(allOps, host), ...plan.lines, ...deferredLines])
       push({ id: pid, role: 'proposal', lines, status: 'pending' })
@@ -646,7 +715,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const plines = pendingWording([...(wholly ? expansion.proposal : (plan.lines.length ? plan.lines : plan.noops)), ...deferredLines])
       const seals = sealsOf(plan)
       pendingRef.current = { kind: 'proposal', id: pid, ops: keep, epoch: boardEpoch(host, keep),
-        ...(seals.length ? { seals, card: plines, expiresAt: Math.min(...seals.map(x => x.expiresAt)) } : {}) }
+        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS,
+        ...(seals.length ? { seals, card: plines, expiresAt: Math.min(Date.now() + PROPOSAL_TTL_MS, ...seals.map(x => x.expiresAt)) } : {}) }
       push({ id: pid, role: 'proposal', lines: plines, status: 'pending' })
       record({ member, outcome: `Proposed: ${plines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
       return
@@ -682,6 +752,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       undoRef.current = [...undoRef.current, res.undo].slice(-UNDO_MAX)
     }
     if (res.ok) {
+      withdrawPending()
       // A composed request says first what its producers actually returned.
       // (the held Save's line FOLLOWS the add's — "Added “X” to QQQ · Saved to your indicators…")
       const lines = [...(composed ? [...composed.lines, ...res.lines] : res.lines), ...leadLines]
@@ -712,10 +783,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const gates = res.failed.map(f => f.gate).filter(Boolean)            // diagnostics only, never shown
       record({ member, outcome: [res.lines.join(' · '), text].filter(Boolean).join(' · '), outcomeData: { kind: 'failed', actions, ...(gates.length ? { gates } : {}) }, telemetry: { path, refused: true, actions, voice } })
     }
-  }, [host, push, record, capCtx])
+  }, [host, push, record, capCtx, withdrawPending])
 
   // Every execution is traced (agent/trace.js): phase timestamps, memory only.
-  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null }) => {
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false }) => {
     // ⛔ M3: with several indicator drafts open, a request on one the member has not selected is
     // never planned — they are shown the drafts and pick one (chooseTarget), nothing changes.
     // ARGUMENT RESOLUTION: a capability may turn the member's WORDS in an argument into a real
@@ -778,7 +849,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     traceStart(`${path}:${suggested || 'apply'}`)
     let out
     try {
-      out = await executeInner(opsIn, { path, mode: suggested, member, voice, approval, card, onTarget })
+      out = await executeInner(opsIn, { path, mode: suggested, member, voice, approval, card, onTarget, binding, subset })
     } finally { traceEnd('done') }
     // ⭐ M3: the confirmed Save's chart adds — ONE execution per op, each planned, permission-checked,
     // persisted, confirmed and receipted on its own (a failure never undoes another chart or the Save)
@@ -830,6 +901,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     }
     const res = await undoEntry(host, entry)
     if (res.ok) {
+      withdrawPending()
       undoRef.current = stack.filter(e => e.id !== entry.id)
       setItems(xs => xs.map(x => (x.undoId === entry.id ? { ...x, undone: true } : x)))
       let saved = entry.epoch != null && host?.persist && !selfSaved(entry.items)
@@ -849,7 +921,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       record({ member, outcome: res.reason, outcomeData: { kind: 'undo-refused' }, telemetry: { path: 'fast', undo: true, refused: true, voice } })
     }
     rerender()
-  }, [host, push, record])
+  }, [host, push, record, withdrawPending])
 
   const approve = useCallback(async (count = null, { member, voice } = {}) => {
     const p = pendingRef.current
@@ -882,9 +954,17 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       push({ role: 'refusal', text: 'That proposal can only be applied as a whole — say “do it”, or dismiss it.' })
       return
     }
+    // ⛔ an approval with nothing to bind it to is never run (fail closed)
+    if (!p.binding) {
+      patchItem(p.id, { status: 'expired' })
+      const text = `That proposal can no longer be checked against what you approved, ${STALE_PROPOSAL}`
+      push({ role: 'refusal', text })
+      record({ member, outcome: text, outcomeData: { kind: 'refused-stale-proposal', actions: p.ops.map(o => o?.action) }, telemetry: { path: 'approved', refused: true, voice } })
+      return
+    }
     patchItem(p.id, { status: 'approved' })
     const ops = count ? p.ops.slice(0, count) : p.ops
-    await execute(ops, { path: 'approved', mode: 'approved', member, voice, approval: p.seals || null, card: p.card || null })
+    await execute(ops, { path: 'approved', mode: 'approved', member, voice, approval: p.seals || null, card: p.card || null, binding: p.binding, subset: !!count && count < p.ops.length })
   }, [execute, patchItem, push, record, host])
 
   const dismiss = useCallback(({ member } = {}) => {

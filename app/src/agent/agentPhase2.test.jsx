@@ -98,6 +98,8 @@ function chartHost({ manage = true, charts = [{ ref: 'c1', label: 'Chart (AAPL)'
     },
     persist: async () => ({ ok: true }),
     otherWidgets: () => [],
+    // the server's copy of every chart equals this tab's (the approval re-check; see host.buildWidgetSync)
+    widgetInSync: async () => ({ ok: true }),
   }
 }
 const defIds = (h, ref = 'c1') => (mergeChartSettings(JSON.stringify(h.store[ref].cs)).indicatorInstances || []).filter(i => !i.deleted).map(i => i.defId)

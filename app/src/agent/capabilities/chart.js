@@ -231,6 +231,14 @@ export const chartKind = {
     return p
   },
   fingerprint: (snap) => JSON.stringify([snap.stored ?? null, snap.tf, snap.symbol]),
+  // ⛔ APPROVAL BINDING: before an approved chart change re-plans, the server's copy of this chart must
+  // equal this tab's (another tab may have changed its settings — boardInSync does not see settings).
+  // Unreadable, or no way to check → the approval fails closed.
+  async refreshForApproval(host, ref) {
+    if (typeof host?.widgetInSync !== 'function') return { ok: false, what: 'that chart' }
+    const r = await host.widgetInSync(String(ref).split('~')[0])
+    return r.ok ? { ok: true } : { ok: false, what: 'that chart', why: r.reason || null }
+  },
   // A chart that does not exist yet (created earlier in the same request): the
   // product's defaults for a new chart, used ONLY to validate the plan before the
   // first write. The runtime re-plans against the real chart once it exists.

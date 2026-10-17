@@ -279,6 +279,18 @@ export const indicatorEditsKind = {
   // Staleness is the interface's (pins re-checked at apply / undo), not a whole-settings hash:
   // an unrelated chart change must not refuse an exact indicator Undo.
   fingerprint: (s) => s.chartRef,
+  // ⛔ APPROVAL BINDING: an indicator change is approved for the chart's indicators AS THEY WERE — the
+  // instances (identity, inputs, links between them) and the pane order. Any change to them since the
+  // card (another indicator added that reads this one, the instance replaced…) refuses the approval;
+  // an unrelated colour change does not. The plan itself is the one the member saw (planFor's cache).
+  approvalState: (s) => [s.chartRef, s.cs?.indicatorInstances ?? null, s.cs?.paneOrder ?? null],
+  // …and the server's copy of the chart must equal this tab's (another tab's indicator edit), else closed.
+  async refreshForApproval(host, ref) {
+    const chartRef = chartRefOf(ref)
+    if (!chartRef || typeof host?.widgetInSync !== 'function') return { ok: false, what: 'that chart’s indicators' }
+    const r = await host.widgetInSync(String(chartRef).split('~')[0])
+    return r.ok ? { ok: true } : { ok: false, what: 'that chart’s indicators', why: r.reason || null }
+  },
 }
 
 // `sequential`: in a request that asks for more, each indicator change still runs ALONE (exclusive) —
