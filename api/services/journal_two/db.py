@@ -878,7 +878,7 @@ CREATE TABLE IF NOT EXISTS j2_note_checkins (
     day         TEXT NOT NULL,            -- 'YYYY-MM-DD', the block's day param
     mood        INTEGER,                  -- 1..5 or NULL
     focus       INTEGER,                  -- 1..5 or NULL
-    created_at  TEXT NOT NULL,
+    created_at  TEXT NOT NULL,                -- when this row was last PROJECTED (every body save), not the check-in time: never sort or label by it
     PRIMARY KEY (note_id, embed_id)
 );
 CREATE INDEX IF NOT EXISTS idx_j2_note_checkins_user_day

@@ -192,15 +192,103 @@ def test_a_bad_block_writes_no_row_and_the_save_returns_200(client, node):
     _checkin(mood=" 4", day="2026-10-17"),
     _checkin(mood="04", day="2026-10-17"),
     _checkin(mood="4", day="2026-10-17", embed_id=""),
+    _checkin(mood="4", day="2026-10-17", embed_id="ab\ud800cd"),   # a lone surrogate: SQLite cannot bind it
     {"type": "widgetEmbed", "attrs": {"widgetId": "moodCheckIn",
                                       "params": {"mood": "4", "day": "2026-10-17"}}},   # no embedId
     {"type": "widgetEmbed", "attrs": {"widgetId": "moodCheckIn", "embedId": "x", "params": "junk"}},
     {"type": "widgetEmbed", "attrs": "junk"},
 ], ids=["newline-day", "unpadded-day", "dmy-day", "int-day", "mood-6", "mood-0", "int-mood",
-        "space-mood", "padded-mood", "empty-embed", "no-embed", "params-not-dict", "attrs-not-dict"])
+        "space-mood", "padded-mood", "empty-embed", "surrogate-embed", "no-embed", "params-not-dict",
+        "attrs-not-dict"])
 def test_every_other_bad_shape_is_skipped_and_the_note_saves(conn, node):
     n = _note(conn, node, _checkin(focus="5", day="2026-10-17", embed_id="ci-ok"))
     assert [r["embed_id"] for r in _rows(conn, n["id"])] == ["ci-ok"]
+
+
+def test_an_unencodable_embed_id_through_the_router_skips_the_block_and_the_note_still_saves(client):
+    """Review I1. A lone UTF-16 surrogate in a check-in's embedId cannot be bound into the
+    sidecar INSERT; before the fix that raised inside the note's transaction and rolled the whole
+    write back. The JSON is sent RAW (the escape `\\ud800` is valid JSON), as a crafted request
+    or an import would send it. The note row must exist afterwards, the good block beside it must
+    be recorded, and the bad one must not.
+
+    The response status is not asserted: serialising a note whose body holds a lone surrogate
+    fails for ANY widget carrying one (the review measured a chart widget: saved, then 500), which
+    is outside this sidecar. What this rail owns is that the WRITE survives."""
+    from api.services.auth_db import get_connection
+    body = ('{"title": "Surrogate day", "bodyJson": {"type": "doc", "content": ['
+            '{"type": "widgetEmbed", "attrs": {"v": 1, "widgetId": "moodCheckIn",'
+            ' "embedId": "ab\\ud800cd", "mode": "snapshot",'
+            ' "params": {"mood": "4", "focus": "", "day": "2026-10-17"}}},'
+            '{"type": "widgetEmbed", "attrs": {"v": 1, "widgetId": "moodCheckIn",'
+            ' "embedId": "ci-ok", "mode": "snapshot",'
+            ' "params": {"mood": "", "focus": "5", "day": "2026-10-17"}}}]}}')
+    try:
+        client.post("/api/j2/notes", content=body.encode("ascii"),
+                    headers={"content-type": "application/json"})
+    except Exception:          # a response-serialisation failure re-raised by TestClient
+        pass
+    c = get_connection()
+    try:
+        notes = c.execute("SELECT id FROM j2_notes WHERE user_id = 'u1' AND title = 'Surrogate day'"
+                          ).fetchall()
+        assert len(notes) == 1, "the note write rolled back"
+        note_id = notes[0][0]
+        rows = c.execute("SELECT embed_id, mood, focus FROM j2_note_checkins WHERE note_id = ?",
+                         (note_id,)).fetchall()
+        assert [tuple(r) for r in rows] == [("ci-ok", None, 5)]
+    finally:
+        c.close()
+
+
+# ── the sidecar follows the compare-and-set: a refused write changes no row ────
+
+def _checkin_rows_for(note_id):
+    from api.services.auth_db import get_connection
+    c = get_connection()
+    try:
+        return [tuple(r) for r in c.execute(
+            "SELECT embed_id, day, mood, focus FROM j2_note_checkins WHERE note_id = ?"
+            " ORDER BY embed_id", (note_id,)).fetchall()]
+    finally:
+        c.close()
+
+
+def test_a_stale_base_409_and_a_refused_body_leave_the_check_in_rows_unchanged(client):
+    """Review M3. The sync runs inside update_note's transaction, after the compare-and-set and the
+    body checks, so a write that is refused rolls the sidecar back with it. Nothing else would
+    notice a refactor that moved the sync ahead of the conflict check or into its own commit."""
+    r = client.post("/api/j2/notes", json={"title": "Day",
+                                           "bodyJson": _doc(_checkin(mood="4", day="2026-10-17"))})
+    assert r.status_code == 200, r.text
+    note = r.json()["note"]
+    stale = note["updatedAt"]
+    before = _checkin_rows_for(note["id"])
+    assert before == [("ci-1", "2026-10-17", 4, None)]                  # non-vacuity
+
+    # Another write moves the revision, so `stale` no longer matches.
+    r = client.put(f"/api/j2/notes/{note['id']}", json={"title": "Renamed", "baseUpdatedAt": stale})
+    assert r.status_code == 200, r.text
+    current = r.json()["note"]["updatedAt"]
+    assert current != stale
+
+    changed = _doc(_checkin(mood="1", focus="2", day="2026-10-16"))
+    r = client.put(f"/api/j2/notes/{note['id']}", json={"bodyJson": changed, "baseUpdatedAt": stale})
+    assert r.status_code == 409, r.text
+    assert _checkin_rows_for(note["id"]) == before
+
+    # A body the save path refuses (an empty text node: the editor cannot build it), on the
+    # CURRENT revision, so the refusal is the body's and not the conflict's.
+    refused = _doc(_checkin(mood="1", focus="2", day="2026-10-16"),
+                   {"type": "paragraph", "content": [{"type": "text", "text": ""}]})
+    r = client.put(f"/api/j2/notes/{note['id']}", json={"bodyJson": refused, "baseUpdatedAt": current})
+    assert 400 <= r.status_code < 500 and r.status_code != 409, (r.status_code, r.text)
+    assert _checkin_rows_for(note["id"]) == before
+
+    # Control: the same change through the same door, accepted, DOES move the rows.
+    r = client.put(f"/api/j2/notes/{note['id']}", json={"bodyJson": changed, "baseUpdatedAt": current})
+    assert r.status_code == 200, r.text
+    assert _checkin_rows_for(note["id"]) == [("ci-1", "2026-10-16", 1, 2)]
 
 
 def test_a_duplicated_embed_id_keeps_the_first_block_and_does_not_fail_the_save(conn):

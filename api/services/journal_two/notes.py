@@ -390,6 +390,12 @@ def _checkin_row(attrs: dict[str, Any], params: dict[str, Any]) -> dict[str, Any
     embed_id = attrs.get("embedId")
     if not isinstance(embed_id, str) or not embed_id:
         return None
+    # Bound into the INSERT below: a value SQLite cannot encode (a lone UTF-16
+    # surrogate) would raise there and roll back the whole note write.
+    try:
+        embed_id.encode("utf-8")
+    except UnicodeEncodeError:
+        return None
     day = _checkin_day(params.get("day"))
     if day is None:
         return None
