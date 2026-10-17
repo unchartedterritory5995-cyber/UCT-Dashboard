@@ -5,6 +5,9 @@ import { captureChartPng } from '../../utils/chartCapture'
 import styles from './PatternReview.module.css'
 import Textarea from '../../components/ui/Textarea'
 import GoldReview from './GoldReview'
+import StudyReview from './StudyReview'
+
+const MODES = ['verdicts', 'gold', 'study']
 
 const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => r.json())
 
@@ -209,7 +212,8 @@ function VerdictReview() {
 
 function initialMode() {
   try {
-    return new URLSearchParams(window.location.search).get('mode') === 'gold' ? 'gold' : 'verdicts'
+    const m = new URLSearchParams(window.location.search).get('mode')
+    return MODES.includes(m) ? m : 'verdicts'
   } catch {
     return 'verdicts'
   }
@@ -228,14 +232,19 @@ export default function PatternReview() {
           <button role="tab" aria-selected={mode === 'gold'}
             className={`${styles.mode} ${mode === 'gold' ? styles.modeActive : ''}`}
             onClick={() => setMode('gold')}>Gold set</button>
+          <button role="tab" aria-selected={mode === 'study'}
+            className={`${styles.mode} ${mode === 'study' ? styles.modeActive : ''}`}
+            onClick={() => setMode('study')}>Study items</button>
         </div>
         <p className={styles.sub}>
           {mode === 'gold'
             ? "Confirm or correct the auto-drawn geometry on each chart. Gold-set saves are kept separately and never change the judge's examples."
-            : "Review the AI judge's verdicts, give feedback, and draw the ideal — saved drawings become gold-standard examples the judge learns from."}
+            : mode === 'study'
+              ? 'Approve, fix or reject each Study draft with the ticker, the key and the source on one screen. Every fix and reject is kept as a correction and feeds the next batch.'
+              : "Review the AI judge's verdicts, give feedback, and draw the ideal — saved drawings become gold-standard examples the judge learns from."}
         </p>
       </div>
-      {mode === 'gold' ? <GoldReview /> : <VerdictReview />}
+      {mode === 'gold' ? <GoldReview /> : mode === 'study' ? <StudyReview /> : <VerdictReview />}
     </div>
   )
 }
