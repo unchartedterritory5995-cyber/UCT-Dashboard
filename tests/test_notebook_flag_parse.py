@@ -166,6 +166,10 @@ def _server_gates() -> dict:
         "NOTEBOOK_SMART_CHIPS_ENABLED": notebook_smart_chips.enabled,
         # Tier 2 part B: the earnings follow-up service's own gate function.
         "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": earnings_followup.enabled,
+        # P3a: the style library's gate. `template_gallery.library_enabled` does not exist until
+        # Task 3, so this is the one-parse call a route's gate must make (flag_on, default OFF);
+        # Task 3 swaps this lambda for the service's own function.
+        "NOTEBOOK_STYLE_LIBRARY_ENABLED": lambda: notebook_flags.flag_on("NOTEBOOK_STYLE_LIBRARY_ENABLED", False),
     }
 
 

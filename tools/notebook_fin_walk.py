@@ -90,6 +90,8 @@ WAVE_FLAGS = [
     "NOTEBOOK_SMART_CHIPS_ENABLED",
     # Notebook P2 Tier 2 part B (earnings follow-up), dark in production.
     "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+    # Notebook P3a (community style library), dark in production.
+    "NOTEBOOK_STYLE_LIBRARY_ENABLED",
 ]
 # Armed in c2 for the meaning-search TOUR only (the tour lists only while its flag is on). The
 # search itself needs an embedding key and is recorded NOT_RUN.

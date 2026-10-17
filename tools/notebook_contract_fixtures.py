@@ -83,6 +83,8 @@ FLAGS = (
     "NOTEBOOK_SMART_CHIPS_ENABLED",
     # Notebook P2 Tier 2 part B: the earnings follow-up notice and card.
     "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+    # Notebook P3a: the community style library (share, adopt, helpful, follow, feed).
+    "NOTEBOOK_STYLE_LIBRARY_ENABLED",
 )
 
 

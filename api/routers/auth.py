@@ -265,6 +265,7 @@ NOTEBOOK_FLAGS = {
     "NOTEBOOK_JOURNAL_STYLES_ENABLED": False,  # enablement — unset means OFF (journal styles, P1)
     "NOTEBOOK_SMART_CHIPS_ENABLED": False,  # enablement (Tier 2 part A: alert + screenshot chips)
     "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": False,  # enablement (Tier 2 part B: earnings follow-up notice + card)
+    "NOTEBOOK_STYLE_LIBRARY_ENABLED": False,  # enablement, unset means OFF (P3a: community style library)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

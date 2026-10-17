@@ -86,6 +86,8 @@ NOTEBOOK_KEYS = [
     "notebook_smart_chips_enabled",
     # Tier 2 part B: the earnings follow-up notice and card — an enablement gate.
     "notebook_earnings_followup_enabled",
+    # P3a: the community style library (share, adopt, helpful, follow) — an enablement gate.
+    "notebook_style_library_enabled",
 ]
 
 #: Keys whose capability ships ON: unset means ON. Every other key is an enablement gate.
