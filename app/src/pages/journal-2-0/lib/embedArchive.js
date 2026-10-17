@@ -2,7 +2,8 @@
 // every snapshot, and the capture-time bars warm. Both are best-effort and
 // fire-and-forget; an embed is never blocked (or broken) by either.
 
-import { domToBlob } from 'modern-screenshot'
+// modern-screenshot is imported on use (see captureElementPng), not here: ~24 KB the Notebook's
+// first open never needs. Pinned by screenshotLazy.test.js.
 
 // Chart canvases are transiently EMPTY (all-transparent bitmaps) for a frame
 // during LWC resize/relayout, and domToBlob copies whatever bitmap it finds —
@@ -53,11 +54,18 @@ function summarizeCanvases(el) {
  *  canvas on a non-retina display and baked in blur (the frozen-chart bug). */
 export async function captureElementPng(el) {
   if (!el) return null
+  // Start the chunk fetch now so it loads WHILE the paint probe waits, instead of after it.
+  // The `.catch` is deliberate: if the probe loop throws before the `await shot` below, nothing
+  // would ever observe a rejected import, and that is an unhandled rejection. The real failure
+  // still surfaces at `await shot` (awaiting the original promise, not the swallowed branch).
+  const shot = import('modern-screenshot')
+  shot.catch(() => {})
   for (let attempt = 0; attempt < PAINT_PROBE.retries; attempt += 1) {
     if (canvasesLookPainted(summarizeCanvases(el))) break
     await new Promise((r) => setTimeout(r, PAINT_PROBE.delayMs))
   }
   const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1
+  const { domToBlob } = await shot
   return domToBlob(el, { type: 'image/png', scale: Math.max(1, dpr) })
 }
 
