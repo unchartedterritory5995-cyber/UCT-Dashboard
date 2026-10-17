@@ -76,6 +76,17 @@ vi.mock('./PlanGradeCard', () => ({ default: () => <div data-testid="p-planGrade
 vi.mock('./TradeBeforeAfter', () => ({ default: () => <div data-testid="p-beforeAfter" /> }))
 vi.mock('../../../../components/chart/pane/ChartPane', () => ({ default: () => <div data-testid="p-chart" /> }))
 
+// The Customize editor opens through an eager slot with a lazy import; its own tests are in
+// components/layout. Here it is a stub that shows what the page handed it and can report a save.
+vi.mock('../layout/PageLayoutEditorSlot', () => ({
+  default: ({ page, onClose, onSaved }) => (
+    <div data-testid="editor-stub" data-page={page}>
+      <button type="button" onClick={() => { onSaved?.(); onClose() }}>stub save</button>
+      <button type="button" onClick={onClose}>stub cancel</button>
+    </div>
+  ),
+}))
+
 const T1 = {
   id: 't1', symbol: 'NVDA', side: 'Long', shares: 100,
   entryPrice: 50, exitPrice: 56, originalStop: 50, rMultiple: null,
@@ -265,5 +276,94 @@ describe('TradeDetailPage renders from the page layout', () => {
     const after = FINDERS.executions(container)
     expect(after).toBe(before)
     expect(after.open).toBe(true)
+  })
+})
+
+describe('the Customize button (P4a Task 7)', () => {
+  const customizeButton = () => screen.queryByRole('button', { name: 'Customize' })
+
+  it('with the switch off there is no Customize button', async () => {
+    setFlags({ layouts: false })
+    renderPage()
+    await lazyArrived(['p-chart'])
+    expect(customizeButton()).toBeNull()
+  })
+
+  it('with the switch on it sits in the top bar, beside the back link, and opens nothing until pressed', async () => {
+    setFlags({ layouts: true })
+    renderPage()
+    await lazyArrived(['p-chart'])
+    const button = customizeButton()
+    expect(button).not.toBeNull()
+    const topBar = screen.getByRole('link', { name: /Trade Journal/ }).parentElement
+    expect(topBar.contains(button)).toBe(true)
+    expect(screen.queryByTestId('editor-stub')).toBeNull()
+  })
+
+  it('opens the editor for the trade page; Cancel closes it with no toast', async () => {
+    setFlags({ layouts: true })
+    renderPage()
+    await lazyArrived(['p-chart'])
+    fireEvent.click(customizeButton())
+    expect(screen.getByTestId('editor-stub').getAttribute('data-page')).toBe('trade')
+    fireEvent.click(screen.getByRole('button', { name: 'stub cancel' }))
+    expect(screen.queryByTestId('editor-stub')).toBeNull()
+    expect(screen.queryByText('Layout saved.')).toBeNull()
+  })
+
+  it('a save closes the editor and "Layout saved." is shown by the page, after the sheet is gone', async () => {
+    setFlags({ layouts: true })
+    renderPage()
+    await lazyArrived(['p-chart'])
+    fireEvent.click(customizeButton())
+    fireEvent.click(screen.getByRole('button', { name: 'stub save' }))
+    expect(screen.queryByTestId('editor-stub')).toBeNull()
+    expect(screen.getByText('Layout saved.')).toBeInTheDocument()
+    expect(screen.getByText('Layout saved.').closest('[role="status"]')).not.toBeNull()
+  })
+})
+
+// R-T6-R1: the chart card's "Add context in notes" button scrolls to and focuses the notes field, which lives
+// INSIDE the story section. With the story hidden there is no field to go to, so there is no button; the
+// sentence it sat in still says why the chart is a daily one.
+describe('the chart card "Add context in notes" button follows the story section', () => {
+  const addContext = () => screen.queryByRole('button', { name: /Add context in notes/ })
+  const CAPTION = /Daily chart — no execution times logged\./
+
+  it('is there when the story is shown (the default layout)', async () => {
+    setFlags({ layouts: false })
+    renderPage()
+    await lazyArrived(['p-chart'])
+    expect(addContext()).not.toBeNull()
+    expect(screen.getByText(CAPTION)).toBeInTheDocument()
+  })
+
+  it('is there when a saved layout shows both the chart and the story', async () => {
+    setFlags({ layouts: true })
+    prefsRef.current = saved([['chart', true], ['story', true]])
+    renderPage()
+    await lazyArrived(['p-chart'])
+    expect(addContext()).not.toBeNull()
+  })
+
+  it('is NOT there when the story is hidden, and the caption sentence still is', async () => {
+    setFlags({ layouts: true })
+    prefsRef.current = saved([['chart', true], ['story', false]])
+    const { container } = renderPage()
+    await lazyArrived(['p-chart'])
+    expect(container.querySelector('#trade-setup')).toBeNull() // the story really is not rendered
+    expect(addContext()).toBeNull()
+    expect(screen.getByText(CAPTION)).toBeInTheDocument()
+  })
+
+  it('a button that is there reaches the notes field (the story renders it)', async () => {
+    setFlags({ layouts: true })
+    prefsRef.current = saved([['chart', true], ['story', true]])
+    const scrolled = vi.fn()
+    Element.prototype.scrollIntoView = scrolled
+    renderPage()
+    await lazyArrived(['p-chart'])
+    fireEvent.click(addContext())
+    expect(scrolled).toHaveBeenCalled()
   })
 })

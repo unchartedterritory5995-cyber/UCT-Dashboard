@@ -48,6 +48,8 @@ import { LAYOUT_PREF, DEFAULT_LAYOUT, normalizeLayout, resolvePanels } from '../
 import { pageLayoutsEnabled } from '../../lib/pageLayoutsFlag'
 import SymbolSearch from '../../../../components/chart/SymbolSearch'
 import { useJournalToast, JournalToast } from '../../lib/useJournalToast'
+// The Customize editor loads only when the button is pressed (its slot holds the lazy import).
+import PageLayoutEditorSlot from '../layout/PageLayoutEditorSlot'
 import styles from './TradeDetailPage.module.css'
 import { sectionFetcher } from '../../../../components/research/sections/sectionFetch'
 
@@ -55,6 +57,9 @@ import { sectionFetcher } from '../../../../components/research/sections/section
 // around the holding period itself (±5 sessions) so "save this trade" shows
 // the setup, not whatever the market is doing today (Wave 1, P1-1: tradeRef).
 const DAY_SECONDS = 86400
+
+// The toast chip is absolutely positioned for a widget header; here it floats at the corner of the viewport.
+const LAYOUT_TOAST_STYLE = { position: 'fixed', top: 72, right: 16 }
 function tradeChartWindow(trade) {
   const entry = trade?.entryDate ? Date.parse(trade.entryDate) : NaN
   const exit = trade?.exitDate ? Date.parse(trade.exitDate) : NaN
@@ -347,6 +352,10 @@ export default function TradeDetailPage() {
   const [stopInput, setStopInput] = useState('')
   const [patchError, setPatchError] = useState(null)
   const notesRef = useRef(null)
+  // The Customize editor (P4a). The toast host is HERE, on the page, because the sheet that raises "Layout
+  // saved." is unmounted by the very save that raises it: a toast owned by the sheet would render for no frames.
+  const [customizing, setCustomizing] = useState(false)
+  const [layoutMsg, setLayoutMsg] = useJournalToast()
 
   const { data, error: loadError, isLoading, mutate } = useSWR(
     id ? `/api/j2/trades/${encodeURIComponent(id)}` : null,
@@ -574,6 +583,9 @@ export default function TradeDetailPage() {
   // return, moved unchanged with its own condition, and closes over the page's state, so no state moves.
   const layout = pageLayoutsEnabled() ? normalizeLayout(prefs?.[LAYOUT_PREF]) : DEFAULT_LAYOUT
   const panels = resolvePanels(layout, 'trade').filter((p) => p.shown)
+  // The chart card's "Add context in notes" button scrolls to and focuses the notes field, which lives INSIDE
+  // the story section. With the story hidden there is nothing to go to, so the button is not rendered.
+  const storyShown = panels.some((p) => p.id === 'story')
   const render = {
     linkedNotes: () => trade.id != null && (
       <LinkedNotesPanel tradeRef={String(trade.id)} tradeRefType="equity_trade" />
@@ -743,17 +755,22 @@ export default function TradeDetailPage() {
           <span className={styles.legendHint} title={legendHint.title}>{legendHint.text}</span>
           {isDateOnly && (
             <span className={styles.caption}>
-              Daily chart — no execution times logged.{' '}
-              <button
-                type="button"
-                className={styles.captionLink}
-                onClick={() => {
-                  notesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                  notesRef.current?.focus()
-                }}
-              >
-                Add context in notes ↓
-              </button>
+              Daily chart — no execution times logged.
+              {storyShown && (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    className={styles.captionLink}
+                    onClick={() => {
+                      notesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                      notesRef.current?.focus()
+                    }}
+                  >
+                    Add context in notes ↓
+                  </button>
+                </>
+              )}
             </span>
           )}
         </div>
@@ -936,6 +953,12 @@ export default function TradeDetailPage() {
       <div className={styles.topBar}>
         <Link to={backTo} className={styles.back}>← Trade Journal</Link>
         <div className={styles.navBtns}>
+          {pageLayoutsEnabled() && (
+            <button type="button" className={styles.customizeBtn} onClick={() => setCustomizing(true)}>
+              <UIcon name="gear" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />
+              Customize
+            </button>
+          )}
           <button
             type="button"
             className={styles.navBtn}
@@ -984,6 +1007,15 @@ export default function TradeDetailPage() {
       {patchError && <div className={styles.errorLine} role="alert">Couldn’t save: {patchError}</div>}
 
       {panels.map((p) => <Fragment key={p.id}>{render[p.id]?.()}</Fragment>)}
+
+      {customizing && (
+        <PageLayoutEditorSlot
+          page="trade"
+          onClose={() => setCustomizing(false)}
+          onSaved={() => setLayoutMsg('Layout saved.')}
+        />
+      )}
+      <JournalToast msg={layoutMsg} style={LAYOUT_TOAST_STYLE} />
     </div>
   )
 }

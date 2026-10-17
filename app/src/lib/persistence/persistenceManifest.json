@@ -383,7 +383,9 @@
       "kind": "setting",
       "label": "Page layout",
       "serverAllowlisted": true,
-      "files": []
+      "files": [
+        "app/src/pages/journal-2-0/components/layout/PageLayoutEditor.jsx"
+      ]
     },
     {
       "key": "joystick_hub",

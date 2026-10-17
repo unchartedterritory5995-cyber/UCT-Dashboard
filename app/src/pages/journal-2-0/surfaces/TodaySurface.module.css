@@ -21,6 +21,32 @@
   font-size: 12px;
 }
 
+/* The header area: the scope note (when the filter is on) and, with page layouts on, Customize. */
+.headRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.headRow > .scopeNote { flex: 1 1 240px; }
+.customizeBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.customizeBtn:hover { border-color: var(--accent); color: var(--text-bright); }
+@media (max-width: 1024px) {
+  .customizeBtn { min-height: var(--tap-min); }
+}
+
 /* ── shared card ───────────────────────────────────────────────────────────── */
 
 .card {

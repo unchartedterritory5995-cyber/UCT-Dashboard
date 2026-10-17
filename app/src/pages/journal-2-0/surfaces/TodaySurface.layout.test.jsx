@@ -12,10 +12,11 @@
  * actions row real.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, fireEvent } from '@testing-library/react'
+import { render, fireEvent, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
-const { prefsRef, setPrefSpy, flagRef, checklistProbe } = vi.hoisted(() => ({
+const { prefsRef, setPrefSpy, flagRef, checklistProbe, scopeRef } = vi.hoisted(() => ({
+  scopeRef: { active: false },
   prefsRef: { current: {} },
   setPrefSpy: vi.fn(),
   flagRef: { current: false },
@@ -52,7 +53,7 @@ vi.mock('../hooks/useJ2AccountComparison', () => ({
 vi.mock('../hooks/useCompassOverview', () => ({
   default: () => ({ overview: { today: {}, regime: 'Uptrend', week_to_date: {} }, isLoading: false, error: null, refresh: vi.fn() }),
 }))
-vi.mock('../hooks/useScope', () => ({ default: () => ({ isActive: false, scope: {}, activeCount: 0 }) }))
+vi.mock('../hooks/useScope', () => ({ default: () => ({ isActive: scopeRef.active, scope: {}, activeCount: 0 }) }))
 vi.mock('../hooks/useJ2EODRecaps', () => ({
   default: () => ({ recaps: [], isLoading: false, error: null, generate: vi.fn(), refresh: vi.fn() }),
 }))
@@ -105,6 +106,17 @@ vi.mock('./today/panels/MyRulesPanel', async () => {
 vi.mock('./today/panels/RegimePanel', () => ({ default: () => <div data-testid="panel-regime" /> }))
 vi.mock('./today/panels/TodayNotePanel', () => ({ default: () => <div data-testid="panel-todayNote" /> }))
 vi.mock('./today/panels/NoticesPanel', () => ({ default: () => <div data-testid="panel-notices" /> }))
+
+// The Customize editor opens through an eager slot with a lazy import; its own tests are in
+// components/layout. Here it is a stub that shows what the page handed it and can report a save.
+vi.mock('../components/layout/PageLayoutEditorSlot', () => ({
+  default: ({ page, initialPhase, onClose, onSaved }) => (
+    <div data-testid="editor-stub" data-page={page} data-phase={initialPhase}>
+      <button type="button" onClick={() => { onSaved?.(); onClose() }}>stub save</button>
+      <button type="button" onClick={onClose}>stub cancel</button>
+    </div>
+  ),
+}))
 
 import TodaySurface from './TodaySurface'
 import { LAYOUT_PREF, PANELS } from '../lib/pageLayouts'
@@ -350,5 +362,65 @@ describe('TodaySurface renders from the page layout', () => {
       }
       unmount()
     }
+  })
+})
+
+describe('the Customize button (P4a Task 7)', () => {
+  const customizeButton = () => screen.queryByRole('button', { name: 'Customize' })
+
+  it('with the switch off there is no Customize button', () => {
+    flagRef.current = false
+    renderToday()
+    expect(customizeButton()).toBeNull()
+  })
+
+  it('with the switch on the button is there, and nothing else is opened until it is pressed', () => {
+    flagRef.current = true
+    renderToday()
+    expect(customizeButton()).not.toBeNull()
+    expect(screen.queryByTestId('editor-stub')).toBeNull()
+  })
+
+  it.each([
+    ['premarket', PREMARKET],
+    ['market', MARKET],
+    ['postclose', POSTCLOSE],
+  ])('opens the editor on Today at the current session (%s)', (phase, m) => {
+    flagRef.current = true
+    market = m
+    renderToday()
+    fireEvent.click(customizeButton())
+    const stub = screen.getByTestId('editor-stub')
+    expect(stub.getAttribute('data-page')).toBe('today')
+    expect(stub.getAttribute('data-phase')).toBe(phase)
+  })
+
+  it('Cancel closes the editor and shows no toast', () => {
+    flagRef.current = true
+    renderToday()
+    fireEvent.click(customizeButton())
+    fireEvent.click(screen.getByRole('button', { name: 'stub cancel' }))
+    expect(screen.queryByTestId('editor-stub')).toBeNull()
+    expect(screen.queryByText('Layout saved.')).toBeNull()
+  })
+
+  it('a save closes the editor and "Layout saved." is shown by the page, after the sheet is gone', () => {
+    flagRef.current = true
+    renderToday()
+    fireEvent.click(customizeButton())
+    fireEvent.click(screen.getByRole('button', { name: 'stub save' }))
+    expect(screen.queryByTestId('editor-stub')).toBeNull()
+    expect(screen.getByText('Layout saved.')).toBeInTheDocument()
+    expect(screen.getByText('Layout saved.').closest('[role="status"]')).not.toBeNull()
+  })
+
+  it('sits beside the scope note in the header area when the scope filter is on', () => {
+    scopeRef.active = true
+    flagRef.current = true
+    const { container } = renderToday()
+    const note = container.querySelector('[role="note"]')
+    expect(note).not.toBeNull()
+    expect(note.parentElement).toBe(customizeButton().parentElement)
+    scopeRef.active = false
   })
 })

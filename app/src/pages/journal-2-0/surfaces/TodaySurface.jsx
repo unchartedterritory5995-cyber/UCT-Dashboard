@@ -50,8 +50,14 @@ import TodayNotePanel from './today/panels/TodayNotePanel'
 import NoticesPanel from './today/panels/NoticesPanel'
 import { LAYOUT_PREF, DEFAULT_LAYOUT, normalizeLayout, resolvePanels } from '../lib/pageLayouts'
 import { pageLayoutsEnabled } from '../lib/pageLayoutsFlag'
+import { useJournalToast, JournalToast } from '../lib/useJournalToast'
+// The Customize editor loads only when the button is pressed (its slot holds the lazy import).
+import PageLayoutEditorSlot from '../components/layout/PageLayoutEditorSlot'
 import { SkeletonLine, SkeletonBlock } from '../../../components/Skeleton'
 import styles from './TodaySurface.module.css'
+
+// The toast chip is absolutely positioned for a widget header; here it floats at the corner of the viewport.
+const TOAST_STYLE = { position: 'fixed', top: 72, right: 16 }
 
 async function jsonFetch(url, method, body) {
   const res = await fetch(url, {
@@ -101,6 +107,11 @@ export default function TodaySurface() {
   const openPosition = () => setModal('position')
   const openImport = () => setModal('import')
   const closeModal = () => setModal(null)
+
+  // The Customize editor (P4a). The toast host is HERE, on the page, because the sheet that raises "Layout
+  // saved." is unmounted by the very save that raises it: a toast owned by the sheet would render for no frames.
+  const [customizing, setCustomizing] = useState(false)
+  const [toastMsg, setToastMsg] = useJournalToast()
 
   const targetAccountId = accountId || accounts?.[0]?.id || null
 
@@ -217,13 +228,35 @@ export default function TodaySurface() {
     notices: () => !zeroData && <NoticesPanel key="notices" />,
   }
 
+  // Customize sits in the header area beside the scope note, and only while the layouts switch is on. With
+  // it off the header is the scope note alone, exactly as it was.
+  const header = pageLayoutsEnabled() ? (
+    <div className={styles.headRow}>
+      {scopeNote}
+      <button type="button" className={styles.customizeBtn} onClick={() => setCustomizing(true)}>
+        <UIcon name="gear" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />
+        Customize
+      </button>
+    </div>
+  ) : scopeNote
+
   return (
     <div className={styles.today} data-testid="today-surface">
-      {scopeNote}
+      {header}
 
       {lead}
 
       {panels.map((p) => render[p.id]?.())}
+
+      {customizing && (
+        <PageLayoutEditorSlot
+          page="today"
+          initialPhase={session}
+          onClose={() => setCustomizing(false)}
+          onSaved={() => setToastMsg('Layout saved.')}
+        />
+      )}
+      <JournalToast msg={toastMsg} style={TOAST_STYLE} />
 
       {modal === 'import' && (
         <ImportCsvModal
