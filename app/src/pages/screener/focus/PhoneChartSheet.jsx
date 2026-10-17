@@ -11,16 +11,29 @@ import styles from './FocusScreener.module.css'
 
 // A deliberate swipe: at least this far, and mostly vertical (|dy| > 2·|dx|). Up = next stock.
 export const SWIPE_MIN_PX = 60
+// Movement before the strip takes the pointer. ⛔ Capturing on PRESS retargets the click that
+// follows to the strip (Chromium sends a captured pointer's click to the capturing element), so
+// "Back to list" and the step buttons did nothing for a mouse click (measured on production
+// 2026-10-17 at 390 px: a touch tap stepped, a click did not). Capture only once it is a drag.
+export const DRAG_SLOP_PX = 10
 
 export default function PhoneChartSheet({ open, onClose, row, onPrev, onNext, canPrev, canNext, children }) {
   const start = useRef(null)
   const last = useRef(null)
+  const captured = useRef(false)
   const down = e => {
     start.current = { x: e.clientX, y: e.clientY }
     last.current = start.current
-    e.currentTarget.setPointerCapture?.(e.pointerId)
+    captured.current = false
   }
-  const move = e => { if (start.current) last.current = { x: e.clientX, y: e.clientY } }
+  const move = e => {
+    if (!start.current) return
+    last.current = { x: e.clientX, y: e.clientY }
+    if (!captured.current && Math.abs(e.clientY - start.current.y) > DRAG_SLOP_PX) {
+      captured.current = true
+      e.currentTarget.setPointerCapture?.(e.pointerId)
+    }
+  }
   const up = e => {
     const s = start.current
     start.current = null
