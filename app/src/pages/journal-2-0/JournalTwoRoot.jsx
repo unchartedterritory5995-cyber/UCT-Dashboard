@@ -30,7 +30,10 @@ import CommunityTab from './tabs/CommunityTab'
 import AccountSelector from './components/accounts/AccountSelector'
 import NewAccountModal from './components/accounts/NewAccountModal'
 import GenerateReportModal from './components/GenerateReportModal'
-import ShortcutCheatSheet from './components/ShortcutCheatSheet'
+// ⭐ I-A bytes: the cheat sheet loads on its first open (`?` or the header button), through its
+// chunk door, never with the page. ⛔ Never a static import of ShortcutCheatSheet
+// (rail: components/notebook/RefusedCopyOffer.lazy.test.js).
+import ShortcutCheatSheet from './components/ShortcutCheatSheetDoor'
 import { money } from '../../lib/journal-2-0'
 import styles from './JournalTwoRoot.module.css'
 

@@ -905,6 +905,53 @@ describe('I-A · fix round 3 — a copy the server refused is its own offer: sav
     expect(screen.queryByTestId('refused-copy-offer'), 'the discarded copy is offered again').toBeNull()
   })
 
+  // ⭐⭐ I-A BYTES: the offer is its own chunk, loaded only when a note has an offer
+  // (`refusedCopyDoorLoaders` in NoteEditorPage). A chunk that cannot load (offline, or a
+  // deploy replaced it) may change WHEN the offer appears, never whether the copy is kept.
+  it('⛔ I-A bytes: the offer’s chunk fails to load — the member is told a copy is kept, the copy stays in the outbox, and Try again shows the offer', async () => {
+    const { refusedCopyDoorLoaders, REFUSED_COPY_UNAVAILABLE } = await import('../../components/notebook/NoteEditorPage')
+    const real = refusedCopyDoorLoaders.offer
+    // Safari's wording (it names no chunk URL): a real chunk-load error, so the door's
+    // importWithOneRetry asks again in place once before it gives up.
+    const failing = vi.fn(() => Promise.reject(new TypeError('Importing a module script failed.')))
+    refusedCopyDoorLoaders.offer = failing
+    try {
+      const copy = await openOnRefusedCopy()
+      await sit(2)
+      const said = await screen.findByText(REFUSED_COPY_UNAVAILABLE, {}, { timeout: 5000 })
+      expect(said.getAttribute('role'), 'the fixed sentence is not in a live region').toBe('status')
+      expect(failing.mock.calls.length, 'the chunk was not asked for again in place').toBeGreaterThanOrEqual(2)
+      expect(screen.queryByTestId('refused-copy-offer')).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Discard' }), 'a Discard is offered without the copy’s words').toBeNull()
+      await sit(4)
+      expect(copyKept(copy), 'a chunk that failed to load lost the copy').toBe(true)
+      expectDurable(COPY_WORDS, 'while the offer could not load')
+      sourceNeverGotTheCopy('while the offer could not load')
+
+      // The member's way back: Try again, and this time the chunk loads.
+      refusedCopyDoorLoaders.offer = real
+      const tryAgain = screen.getByRole('button', { name: 'Try again' })
+      tryAgain.focus()
+      await act(async () => { fireEvent.click(tryAgain); await settleIdb(6) })
+      const offer = await screen.findByTestId('refused-copy-offer', {}, { timeout: 5000 })
+      expect(offer.textContent).toMatch(/kept on this device/i)
+      expect((await screen.findByTestId('refused-copy-preview')).textContent).toContain(COPY_WORDS)
+      expect(screen.queryByText(REFUSED_COPY_UNAVAILABLE)).toBeNull()
+      expect(document.activeElement, 'Try again left focus on nothing').toBe(screen.getByTestId('refused-copy-reason'))
+      expect(copyKept(copy)).toBe(true)
+
+      // …and the offer it brought in works: the copy becomes its own note.
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save as a separate note' })); await settleIdb(6) })
+      await sit(3)
+      expect(server.forks, 'exactly one separate note was created').toHaveLength(1)
+      expect(JSON.stringify(server.forks[0].bodyJson)).toContain(COPY_WORDS)
+      expect(copyKept(copy), 'the copy entry was kept after its note was created').toBe(false)
+      sourceNeverGotTheCopy('after Try again and Save as a separate note')
+    } finally {
+      refusedCopyDoorLoaders.offer = real
+    }
+  })
+
   describe('fix round 4 — the offer shows the words and speaks for itself (I-6, I-7)', () => {
     // A body with structure and a mark, so a flattened re-POST is visible as such.
     const RICH = doc(

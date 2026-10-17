@@ -12,7 +12,11 @@ the archive is for PAID MEMBERS and every in-app tool, never the anonymous inter
                          teaching record ids, best and worst calls
   GET /pattern/{id}?ticker=  the playbook of the setup a chart detector belongs to (through
                          the vocabulary's trader_archive map), today's market cut and the
-                         ticker's team record; no price levels (the pattern side panel)
+                         ticker's team record; no call's price levels (the pattern side panel).
+                         With WISDOM_ARCHIVE_LINES_ENABLED also `lines`: the team's generic
+                         reference lines for that setup on the ticker, as of today (levels.py)
+  (GET /playbook/{setup} likewise gains `lines` {call_id: [...]} per best/worst call, as of
+   its posted date; a call's own stated entry/stop only when older than 20 sessions)
   GET /check?ticker=&setup=  the Terminal's CHK: a setup's measured team record (engine name,
                          detector id or alias), today's tape cut, and the team's calls in the
                          ticker (of that setup when one resolves); no price levels
@@ -44,6 +48,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import logging
 import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -51,8 +56,10 @@ from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user, require_admin
 from api.routers.wisdom_sources import require_push_secret
-from api.services.wisdom.archive import images, rhymes, service, setup_map, team_record
+from api.services.wisdom.archive import images, levels, rhymes, service, setup_map, team_record
 from api.services.wisdom.core import flags, store
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin/wisdom/archive", tags=["wisdom"])
 internal_router = APIRouter(prefix="/api/internal/wisdom/archive", tags=["wisdom"])
@@ -281,7 +288,19 @@ def member_pattern(pattern_id: str, ticker: str = Query("", max_length=16),
                         "trader": _trader_name(last.get("author_id")), "direction": last.get("direction"),
                         "r20": (last.get("outcome") or {}).get("r20")}
             out["ticker"] = {**summary, "last_call": last}
+        if levels.enabled():
+            out["lines"] = _lines_or_empty([], levels.for_ticker, sym, setup)
+            out["lines_note"] = levels.NOTE
     return _named(out)
+
+
+def _lines_or_empty(empty, fn, *args):
+    """Reference lines are display-only decoration: any failure answers `empty`, never an error."""
+    try:
+        return fn(*args)
+    except Exception:  # noqa: BLE001
+        log.exception("[wisdom] archive lines failed")
+        return empty
 
 
 @member_router.get("/check")
@@ -322,6 +341,15 @@ def member_playbook(setup: str, _user: dict = Depends(require_paid)) -> dict:
     if out is None:
         raise HTTPException(status_code=404, detail="No playbook for that setup")
     out["used_by"] = [{"author": a, "trader": _trader_name(a)} for a in out.get("used_by") or []]
+    if levels.enabled():
+        shown = [c for c in (out.get("winners") or []) + (out.get("failures") or []) if isinstance(c, dict)]
+
+        def _for_calls():
+            with store.read(for_request=True) as conn:
+                return levels.for_calls(conn, shown, out.get("setup_id"))
+
+        out["lines"] = _lines_or_empty({}, _for_calls)
+        out["lines_note"] = levels.NOTE
     return _named(out)
 
 

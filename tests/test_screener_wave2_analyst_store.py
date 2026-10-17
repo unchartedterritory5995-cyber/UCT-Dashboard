@@ -98,6 +98,10 @@ def _routes(monkeypatch, mapping, raising=None):
                 return payload
         return None
     monkeypatch.setattr(ap.ee, "_fmp_get", fake)
+    # ⛔ The legs moved to the typed `fmp_client` on 2026-09-12 (553f6b68bf) while
+    # this seam stayed on `ee._fmp_get`, so the fake intercepted nothing and every
+    # fetch_one test read None. Fake the typed client's one transport too.
+    monkeypatch.setattr(ap._fmp, "_get_raw", fake)
 
 
 _FROZEN_TODAY = datetime.datetime(2026, 8, 22, tzinfo=ap._ET)

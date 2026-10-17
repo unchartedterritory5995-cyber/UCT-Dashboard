@@ -160,6 +160,55 @@ def test_the_team_call_door_reads_nothing_with_either_gate_off(monkeypatch):
         assert watchlist_intelligence.team_call_facts(["NVDA"]) == {}
 
 
+#: 2026-10-16: Ask AI's SETUP CONTEXT block is a second archive door INSIDE api/routers/ai_search.py
+#: (the file is already declared above, so the per-file table cannot hold it twice). Declared here:
+#: (door module, the wisdom module it reaches, its own member-visible gate). It is double-gated with
+#: WISDOM_ARCHIVE_ENABLED, and either gate off must mean no wisdom.db read at all.
+DECLARED_SUB_DOORS = (
+    ("api/routers/ai_search.py", "api.services.wisdom.archive.ask_setup", "WISDOM_ARCHIVE_ASK_ENABLED"),
+)
+
+
+def test_every_declared_sub_door_is_real_and_names_a_member_visible_gate():
+    from api.services.wisdom.core import flags
+
+    found = _doors()
+    member_visible = {row[0] for row in flags.GATES if row[2]}
+    assert DECLARED_SUB_DOORS, "no sub-door declared — the loop below is vacuous"
+    for module, reaches, env in DECLARED_SUB_DOORS:
+        assert module in DECLARED_DOORS, f"{module} is a sub-door of an undeclared door"
+        assert any(m.startswith(reaches) for m in found.get(module, ())), (
+            f"{module} no longer imports {reaches}; the sub-door table is stale")
+        assert env in member_visible, f"{env} is not marked member_visible in flags.GATES"
+
+
+def test_the_ask_ai_setup_door_reads_nothing_with_either_gate_off(monkeypatch):
+    """The setup-context door: archive gate off, OR ask gate off, means no store read at all.
+
+    ⭐ setup_block never raises (it answers without the block on any error), so a raising stub
+    alone would pass for the wrong reason. The stub RECORDS, and the both-on control proves the
+    recorder can see a read."""
+    from api.services.wisdom.archive import ask_setup
+
+    opened: list = []
+
+    def recorder(*_a, **_k):
+        opened.append(1)
+        raise AssertionError("a member door opened the wisdom store")
+
+    monkeypatch.setattr("api.services.wisdom.core.store.read", recorder)
+    for archive_on, ask_on in (("0", "1"), ("1", "0"), ("0", "0")):
+        monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", archive_on)
+        monkeypatch.setenv("WISDOM_ARCHIVE_ASK_ENABLED", ask_on)
+        assert ask_setup.setup_block("how does the team trade launch pads?") == ("", [])
+        assert ask_setup.setup_block("what is a go signal?", question_type="concept-education") == ("", [])
+    assert opened == [], "the store was opened with a gate off"
+    monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "1")
+    monkeypatch.setenv("WISDOM_ARCHIVE_ASK_ENABLED", "1")
+    ask_setup.setup_block("how does the team trade launch pads?")
+    assert opened, "control: with both gates on the door must reach the store"
+
+
 def _never_called(*_a, **_k):  # pragma: no cover - the point is that it is not
     raise AssertionError("a member door opened the wisdom store with its gate off")
 

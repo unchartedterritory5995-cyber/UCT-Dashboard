@@ -160,6 +160,7 @@ import { plotRepaintNotice, repaintNotices } from './chart/engine/repaintVerdict
 import ContextPopover from './mobile/ContextPopover'
 import IndicatorSettingsDialog from './chart/IndicatorSettingsDialog'
 import { usePatternDetections } from '../hooks/usePatternDetections'
+import { useAutoStructuresGate } from './chart/autoStructuresGate'
 import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
 import { useInstalledUserDefinitions } from '../hooks/useUserDefinitions'
 import { useIsPaid } from '../context/AuthContext'
@@ -3483,9 +3484,14 @@ export default function StockChart({
     },
     [markers, j2.markers, chartEventMarkers, newsMarkers, deskMarkers, flowMarkers],
   )
+  // The team's reference lines for the archive setup a clicked pattern detection belongs to
+  // (PatternArchiveStats -> GET /api/wisdom/archive/pattern/{id}?ticker=, `lines`, flag-gated
+  // server-side). Display only; a symbol change or closing the panel clears them.
+  const [archiveRefLines, setArchiveRefLines] = useState(null)
+  useEffect(() => { setArchiveRefLines(null) }, [sym])
   const mergedPriceLines = useMemo(
-    () => [...(priceLines || []), ...(j2.priceLines || []), ...dpLines, ...gexLines],
-    [priceLines, j2.priceLines, dpLines, gexLines],
+    () => [...(priceLines || []), ...(j2.priceLines || []), ...dpLines, ...gexLines, ...(archiveRefLines || [])],
+    [priceLines, j2.priceLines, dpLines, gexLines, archiveRefLines],
   )
 
   // Prop overrides — memoized to prevent unstable references
@@ -6088,7 +6094,18 @@ export default function StockChart({
     handleUpdateChartSettings({ ...cs, showPatterns: next, preset: 'custom' })
   }, [cs, handleUpdateChartSettings])
   const [activeDetection, setActiveDetection] = useState(null)
-  const { detections: patternDetections } = usePatternDetections(sym, resolvedTf, showPatterns && !disablePatterns, 50)
+  // Auto Structures (AUTO_STRUCTURES_ENABLED): the overlay, its fetch and its toolbar toggle are
+  // ADMIN-ONLY while the flag is on, and off for everyone else — a member whose persisted
+  // `showPatterns` is true still sees (and fetches) nothing, exactly as before.
+  const autoStructuresOn = useAutoStructuresGate()
+  const patternsActive = showPatterns && autoStructuresOn && !disablePatterns
+  // The ubiquitous level emitters (support/resistance, volume nodes) are a separate,
+  // default-off layer; per-tab, not persisted.
+  const [showPatternLevels, setShowPatternLevels] = useState(false)
+  const { detections: patternDetections, drawn: patternDrawn } = usePatternDetections(
+    sym, resolvedTf, patternsActive, 50,
+    { includeStructures: autoStructuresOn && ['D', 'W', 'M'].includes(resolvedTf) },
+  )
 
   // ── Screenshot + Share state ──
   const [screenshotPopoverOpen, setScreenshotPopoverOpen] = useState(false)
@@ -7113,7 +7130,8 @@ export default function StockChart({
       const g = dailyMissingSessionsForPaint(tailISO, DAILY_PAINT_MAX_GAP + 1).length
       return g > Math.max(1, DAILY_PAINT_MAX_GAP) ? 'too-far-behind' : 'ok'
     }
-    if (isDailyTodayCloseProvisionalForPaint(tailISO)) return 'provisional-close'
+    // savedAtMs: a set written after the close holds the sealed close (marketSession).
+    if (isDailyTodayCloseProvisionalForPaint(tailISO, savedAtMs)) return 'provisional-close'
     const gap = dailyMissingSessionsForPaint(tailISO, DAILY_PAINT_MAX_GAP + 1).length
     // Missing MORE than the current session: the older missing sessions exist only on
     // the server, so painting this guarantees a right-edge insertion afterwards. No
@@ -9431,6 +9449,14 @@ export default function StockChart({
     // exists to prevent. It is read, never captured.
     [displayBars, adjustTime, sym, _inExtWindow, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, userCandleColors, cs.candles.upColor, cs.candles.downColor, cs.candles.upBorder, cs.candles.downBorder, cs.candles.upWick, cs.candles.downWick, resolvedTf, exactDateRange, entryDate, replayCutoff, _econId]
   )
+  // Auto Structures: the candle series' own times (anchors snap onto these — timeToCoordinate
+  // answers only for a time the series holds) and the latest close (nearest key levels).
+  // Computed only while the overlay is active, so a member's chart pays nothing.
+  const patternBarTimes = useMemo(
+    () => (patternsActive ? ohlcData.map((d) => d.time) : null),
+    [patternsActive, ohlcData],
+  )
+  const patternLastPrice = patternsActive && ohlcData.length ? ohlcData[ohlcData.length - 1].close : null
   // Publish the DRAWN candle count (see the `onDrawnBarCount` prop). Reported on
   // every change rather than latched once, so a chart that recovers on a later
   // SWR refresh stops reporting empty — a latch taken at first settle would pin
@@ -20198,8 +20224,14 @@ export default function StockChart({
           series={candleSeriesRef.current}
           containerRef={containerRef}
           detections={patternDetections}
-          enabled={showPatterns}
+          drawn={patternDrawn}
+          enabled={patternsActive}
           onDetectionClick={setActiveDetection}
+          tf={resolvedTf}
+          barTimes={patternBarTimes}
+          showExperimental={autoStructuresOn}
+          showLevels={showPatternLevels}
+          lastPrice={patternLastPrice}
         />
       )}
       {/* Read-only saved-drawings layer (multi-chart grid cells): the member's
@@ -20400,6 +20432,8 @@ export default function StockChart({
             onReplaySpeedChange={setReplaySpeed}
             showPatterns={showPatterns}
             onTogglePatterns={handleTogglePatterns}
+            showLevels={showPatternLevels}
+            onToggleLevels={setShowPatternLevels}
             hideReplay={hideReplay}
             hidePatterns={hidePatterns || disablePatterns}
             hideCompare={hideCompare}
@@ -20694,6 +20728,7 @@ export default function StockChart({
       <PatternSidePanel
         detection={activeDetection}
         onClose={() => setActiveDetection(null)}
+        onArchiveLines={setArchiveRefLines}
       />
     </div>
   )

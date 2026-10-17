@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   isDailyTailStaleForPaint, isDailyTailStale, isDailyTodayCloseProvisionalForPaint,
-  expectedLatestDailySessionET,
+  expectedLatestDailySessionET, DAILY_CLOSE_SETTLE_MS,
 } from './marketSession'
 import { hasCoverage } from '../lib/marketClock/nyseCalendar'
 
@@ -163,5 +163,46 @@ describe('expectedLatestDailySessionET — S11 holiday/early-close awareness (Te
   it('a real 2027 holiday (MLK Day, Mon 2027-01-18) is now correctly recognized -- Seam 7 extended coverage through 2027', () => {
     vi.setSystemTime(new Date('2027-01-18T22:00:00Z')) // 17:00 EST, after the ordinary 16:00 close
     expect(expectedLatestDailySessionET()).toBe('2027-01-15') // walks back to the prior Friday
+  })
+})
+
+// 2026-10-16: the guard is about WHEN the set was written, not what it is dated. A set
+// fetched after the close already holds the sealed close; refusing it made every warmed
+// Focus-screener neighbour wait 530-850 ms on the network per ArrowDown.
+describe('isDailyTodayCloseProvisionalForPaint — the write time decides (savedAtMs)', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+  const at = (iso) => new Date(iso).getTime()
+
+  it('a set written mid-session (11:00 ET) is still provisional at 18:12 ET', () => {
+    vi.setSystemTime(new Date('2026-09-02T22:12:00Z'))
+    expect(isDailyTodayCloseProvisionalForPaint('2026-09-02', at('2026-09-02T15:00:00Z'))).toBe(true)
+  })
+  it('a set written at the bell, before the settle (16:03 ET), is still provisional', () => {
+    vi.setSystemTime(new Date('2026-09-02T22:12:00Z'))
+    expect(isDailyTodayCloseProvisionalForPaint('2026-09-02', at('2026-09-02T20:03:00Z'))).toBe(true)
+  })
+  it('a set written after close + settle (16:05 ET) holds the sealed close: NOT provisional', () => {
+    vi.setSystemTime(new Date('2026-09-02T22:12:00Z'))
+    expect(DAILY_CLOSE_SETTLE_MS).toBe(5 * 60_000)
+    expect(isDailyTodayCloseProvisionalForPaint('2026-09-02', at('2026-09-02T20:05:00Z'))).toBe(false)
+    expect(isDailyTodayCloseProvisionalForPaint('2026-09-02', at('2026-09-02T22:00:00Z'))).toBe(false)
+  })
+  it('unknown write time (null / 0 / NaN) stays provisional — the safe answer', () => {
+    vi.setSystemTime(new Date('2026-09-02T22:12:00Z'))
+    for (const s of [null, undefined, 0, NaN]) expect(isDailyTodayCloseProvisionalForPaint('2026-09-02', s)).toBe(true)
+  })
+  it('a set written YESTERDAY evening does not count as sealed for today', () => {
+    vi.setSystemTime(new Date('2026-09-02T22:12:00Z'))
+    expect(isDailyTodayCloseProvisionalForPaint('2026-09-02', at('2026-09-01T23:00:00Z'))).toBe(true)
+  })
+  it('early-close day (Fri 2026-11-27, 13:00 ET): written 13:10 ET is sealed, 12:30 ET is not', () => {
+    vi.setSystemTime(new Date('2026-11-27T22:00:00Z')) // 17:00 EST
+    expect(isDailyTodayCloseProvisionalForPaint('2026-11-27', at('2026-11-27T18:10:00Z'))).toBe(false)
+    expect(isDailyTodayCloseProvisionalForPaint('2026-11-27', at('2026-11-27T17:30:00Z'))).toBe(true)
+  })
+  it('during RTH the stamp changes nothing (still not provisional)', () => {
+    vi.setSystemTime(new Date('2026-09-02T15:00:00Z'))
+    expect(isDailyTodayCloseProvisionalForPaint('2026-09-02', at('2026-09-02T14:00:00Z'))).toBe(false)
   })
 })

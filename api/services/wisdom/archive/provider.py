@@ -210,6 +210,33 @@ def public_call(call: dict, call_levels: Optional[list] = None) -> dict:
     return out
 
 
+def has_setups(conn) -> bool:
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'wisdom_archive_setups'").fetchone() is not None
+
+
+_SETUP_JSON = (("stats", {}), ("context", {}), ("teachings", []), ("winners", []), ("failures", []))
+
+
+def setups(conn, setup_ids: Sequence[str]) -> dict:
+    """{setup_id: playbook} for the named archive setups: name plus the parsed stats, context,
+    teachings, winners and failures. It reads no call level column; a caller that needs a call's
+    prices asks `levels()`, where the price gate lives. {} when the setups table is absent."""
+    ids = list(dict.fromkeys(s for s in setup_ids if s))
+    if not ids or not has_setups(conn):
+        return {}
+    from api.services.wisdom.publish.adapters import common
+
+    out: dict = {}
+    for r in conn.execute(
+            "SELECT setup_id, name, stats_json, context_json, teachings_json, winners_json, failures_json "
+            f"FROM wisdom_archive_setups WHERE setup_id IN ({','.join('?' * len(ids))})", ids):
+        d = {"setup_id": r["setup_id"], "name": r["name"]}
+        for k, default in _SETUP_JSON:
+            d[k] = common.parse_json(r[f"{k}_json"], default)
+        out[r["setup_id"]] = d
+    return out
+
+
 def records(conn, *, types: Sequence[str], since: Optional[str] = None, limit: Optional[int] = None,
             order: str = "stated_date ASC, record_id ASC") -> list[dict]:
     """Team records of the given types: record_id, author_id, stated_date, record_type, tickers, note, quote."""

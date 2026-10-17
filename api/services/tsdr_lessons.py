@@ -15,6 +15,12 @@ Owner design, 2026-10-15:
     at recap time and never stored — only the model's paraphrase, when used.
   * The bot creates the Education category + channel itself (needs Manage
     Channels), read-only for members, visible to the same audience as #tsdr.
+  * Owner design, 2026-10-16 (behind TSDR_LESSONS_THREADS_ENABLED): the channel
+    holds four section header posts, each with a thread (SECTIONS). A lesson goes
+    to its section's thread as two messages: the recap embed (jump link kept),
+    then a FORWARD of the original #tsdr message so the video plays in place.
+    Lessons posted before this are moved into the threads oldest first and
+    their old channel posts deleted (`run_regroup`).
 
 Stages, each run by `tick()` every 15 minutes on the web pod:
   1. scan     — REST-poll the source channels (forward + resumable backfill),
@@ -25,8 +31,10 @@ Stages, each run by `tick()` every 15 minutes on the web pod:
   3. youtube  — at most TSDR_LESSONS_YT_PER_DAY uploads per ET day (the Data API
                 quota is shared with the daily session uploads), then the
                 edu_videos row.                    TSDR_LESSONS_YOUTUBE_ENABLED
+  regroup     — move lessons posted to the channel itself into their section
+                threads.                           TSDR_LESSONS_THREADS_ENABLED
 
-Both gates default OFF and are read per call, so a flag flip is the only lever.
+All gates default OFF and are read per call, so a flag flip is the only lever.
 Never raises out of `tick()`.
 """
 from __future__ import annotations
@@ -61,7 +69,7 @@ VIDEO_EXTENSIONS = (".mp4", ".mov", ".webm", ".m4v", ".mkv")
 KEEP_TYPES = frozenset({0, 19})              # DEFAULT, REPLY
 MAX_ATTEMPTS = 3
 MAX_PAGES_PER_TICK = 5
-MAX_DOWNLOAD_BYTES = 600 * 1024 * 1024       # Discord's own ceiling is 500 MB
+MAX_DOWNLOAD_BYTES = 2 * 1024 * 1024 * 1024  # long recordings run past 600 MB; streamed to disk
 MAX_VIDEO_SECONDS = 2 * 60 * 60
 MIN_WORDS = 20
 TICK_BUDGET_S = 10 * 60
@@ -79,6 +87,8 @@ _SEND_IN_THREADS = 1 << 38
 _POSTING_BITS = _SEND_MESSAGES | _SEND_IN_THREADS | _CREATE_PUBLIC_THREADS | _CREATE_PRIVATE_THREADS
 
 _EMBED_COLOR = 0xC9A227
+_THREAD_ARCHIVE_MINUTES = 10080              # Discord's longest: 7 days
+_FORWARD = 1                                 # message_reference type FORWARD
 _DESCRIPTION_MAX = 4000
 
 _WRITE_LOCK = threading.Lock()
@@ -94,6 +104,10 @@ def is_enabled() -> bool:
 
 def youtube_enabled() -> bool:
     return os.environ.get("TSDR_LESSONS_YOUTUBE_ENABLED", "") == "1"
+
+
+def threads_enabled() -> bool:
+    return os.environ.get("TSDR_LESSONS_THREADS_ENABLED", "") == "1"
 
 
 def _env(name: str, default: str) -> str:
@@ -149,7 +163,9 @@ def _model() -> str:
 
 
 def _db_path() -> str:
-    return _env("TSDR_LESSONS_DB_PATH", "/data/tsdr_lessons.db")
+    # A direct env read (not `_env`), so the test suite's AST census of /data
+    # paths sees this one and pins it away from the live volume.
+    return os.environ.get("TSDR_LESSONS_DB_PATH", "/data/tsdr_lessons.db")
 
 
 def _token() -> str:
@@ -196,7 +212,10 @@ CREATE TABLE IF NOT EXISTS tsdr_lessons (
   takeaway        TEXT,
   tickers         TEXT,                  -- JSON list
   tags            TEXT,                  -- JSON list, from TAGS
-  discord_post_id TEXT,
+  discord_post_id TEXT,                  -- the recap embed
+  post_channel_id TEXT,                  -- where it is (a section thread, or the channel)
+  forward_post_id TEXT,                  -- the forwarded video beside it
+  section         TEXT,                  -- SECTIONS key; NULL = never put in a thread
   lesson_posted_at INTEGER,
   yt_attempts     INTEGER NOT NULL DEFAULT 0,
   yt_error        TEXT,
@@ -213,6 +232,12 @@ CREATE TABLE IF NOT EXISTS tsdr_lessons_state (
 """
 
 
+# Columns added after the table first shipped; CREATE TABLE IF NOT EXISTS never
+# adds a column to a table that already exists.
+_ADDED_COLUMNS = (("post_channel_id", "TEXT"), ("forward_post_id", "TEXT"),
+                  ("section", "TEXT"))
+
+
 def _connect() -> sqlite3.Connection:
     path = _db_path()
     Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -220,6 +245,14 @@ def _connect() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.executescript(_SCHEMA)
+    have = {r[1] for r in conn.execute("PRAGMA table_info(tsdr_lessons)")}
+    for col, kind in _ADDED_COLUMNS:
+        if col not in have:
+            try:
+                conn.execute(f"ALTER TABLE tsdr_lessons ADD COLUMN {col} {kind}")
+            except sqlite3.OperationalError as e:   # another connection added it first
+                if "duplicate column" not in str(e).lower():
+                    raise
     return conn
 
 
@@ -400,24 +433,40 @@ def scan_channel(channel_id: str, *, max_pages: int = MAX_PAGES_PER_TICK) -> dic
 
 # ── the lesson channel ───────────────────────────────────────────────────────
 
-def _read_only_overwrites(source: list[dict], bot_id: str, guild: str) -> list[dict]:
-    """The source channel's audience, with posting removed for everyone but the
-    bot. Admins bypass overwrites, so Patrick can still post or pin."""
+def _read_only_overwrites(source: list[dict], bot_id: str, guild: str, *,
+                          deny_bits: int = _POSTING_BITS,
+                          bot_bits: int = _VIEW_CHANNEL | _SEND_MESSAGES | _EMBED_LINKS
+                          | _READ_HISTORY,
+                          copy_audience: bool = True) -> list[dict]:
+    """The source channel's AUDIENCE (only its View Channel bit — Discord refuses
+    an overwrite naming any permission the bot does not hold itself, so the
+    source's other bits are never copied), with posting denied for everyone but
+    the bot. Admins bypass overwrites, so Patrick can still post or pin."""
     out, seen_everyone = [], False
-    for ow in source or []:
+    for ow in (source or []) if copy_audience else []:
         oid = str(ow.get("id") or "")
         if not oid or oid == bot_id:
             continue
-        allow = int(ow.get("allow") or 0) & ~_POSTING_BITS
-        deny = int(ow.get("deny") or 0) | _POSTING_BITS
+        allow = int(ow.get("allow") or 0) & _VIEW_CHANNEL
+        deny = (int(ow.get("deny") or 0) & _VIEW_CHANNEL) | deny_bits
         seen_everyone |= oid == guild
         out.append({"id": oid, "type": int(ow.get("type") or 0),
                     "allow": str(allow), "deny": str(deny)})
     if not seen_everyone:
-        out.append({"id": guild, "type": 0, "allow": "0", "deny": str(_POSTING_BITS)})
-    out.append({"id": bot_id, "type": 1, "deny": "0",
-                "allow": str(_VIEW_CHANNEL | _SEND_MESSAGES | _EMBED_LINKS | _READ_HISTORY)})
+        out.append({"id": guild, "type": 0, "allow": "0", "deny": str(deny_bits)})
+    out.append({"id": bot_id, "type": 1, "deny": "0", "allow": str(bot_bits)})
     return out
+
+
+# Tried in order until Discord accepts one: each later step names fewer
+# permissions, for a bot role that lacks the thread or embed bits. The last
+# drops the audience copy (the channel then inherits the category's).
+_OVERWRITE_LADDER = (
+    {},
+    {"deny_bits": _SEND_MESSAGES, "bot_bits": _VIEW_CHANNEL | _SEND_MESSAGES | _EMBED_LINKS},
+    {"deny_bits": _SEND_MESSAGES, "bot_bits": _VIEW_CHANNEL | _SEND_MESSAGES},
+    {"deny_bits": _SEND_MESSAGES, "bot_bits": _SEND_MESSAGES, "copy_audience": False},
+)
 
 
 def ensure_lesson_channel() -> str:
@@ -447,28 +496,148 @@ def ensure_lesson_channel() -> str:
                             body={"name": category_name(), "type": 4})
     me = _discord("GET", "/users/@me") or {}
     source = _discord("GET", f"/channels/{source_channels()[0]}") or {}
-    overwrites = _read_only_overwrites(source.get("permission_overwrites") or [],
-                                       str(me.get("id") or ""), guild)
-    body = {"name": channel_name(), "type": 0, "parent_id": str(category["id"]),
-            "topic": ("Every video lesson from #tsdr, recapped in a few sentences. "
-                      "Click a title to watch the original video."),
-            "permission_overwrites": overwrites}
-    try:
-        created = _discord("POST", f"/guilds/{guild}/channels", body=body)
-    except DiscordError as e:
-        if e.status != 403:
-            raise
-        # The bot can only deny permissions it holds itself; fall back to the
-        # one that matters (no posting) if it lacks the thread ones.
-        for ow in overwrites:
-            if ow["id"] != str(me.get("id") or ""):
-                ow["allow"] = str(int(ow["allow"]) & ~_SEND_MESSAGES)
-                ow["deny"] = str(_SEND_MESSAGES | (int(ow["deny"]) & ~_POSTING_BITS))
-        created = _discord("POST", f"/guilds/{guild}/channels", body=body)
+    created, last_error = None, None
+    for step in _OVERWRITE_LADDER:
+        body = {"name": channel_name(), "type": 0, "parent_id": str(category["id"]),
+                "topic": ("Every video lesson from #tsdr, recapped in a few sentences. "
+                          "Click a title to watch the original video."),
+                "permission_overwrites": _read_only_overwrites(
+                    source.get("permission_overwrites") or [], str(me.get("id") or ""),
+                    guild, **step)}
+        try:
+            created = _discord("POST", f"/guilds/{guild}/channels", body=body)
+            break
+        except DiscordError as e:
+            if e.status != 403:
+                raise
+            last_error = e
+    if created is None:
+        raise last_error
     set_state("lesson_channel_id", str(created["id"]))
     log.info("[tsdr-lessons] created #%s (%s) under %s", channel_name(), created["id"],
              category_name())
     return str(created["id"])
+
+
+# ── the four section threads ─────────────────────────────────────────────────
+
+# (key, thread name, one line for the header post). Order is the order the
+# header posts appear in the channel.
+SECTIONS = (
+    ("setups", "Setups & Entries",
+     "Bases, breakouts, pullbacks and exactly where to get in."),
+    ("management", "Trade Management",
+     "Stops, sizing, adds, trims and exits once you are in a trade."),
+    ("market", "Market Read",
+     "Reading the indexes, sectors and conditions, and what they mean for exposure."),
+    ("mindset", "Mindset & Process",
+     "Psychology, routine and reviewing your own trades."),
+)
+_SECTION_KEYS = tuple(k for k, _, _ in SECTIONS)
+# A lesson's section is the one its FIRST tag belongs to (the model lists the
+# main topic first). Every tag in TAGS maps to exactly one section.
+_TAG_SECTION = {"setups": "setups", "entries": "setups", "exits": "management",
+                "risk": "management", "market": "market", "psychology": "mindset",
+                "process": "mindset", "review": "mindset"}
+_DEFAULT_SECTION = "mindset"
+
+
+def section_for(lesson: dict) -> str:
+    for tag in _json_list(lesson.get("tags")):
+        key = _TAG_SECTION.get(str(tag).lower())
+        if key:
+            return key
+    return _DEFAULT_SECTION
+
+
+def _thread_state_key(key: str) -> str:
+    return f"section_thread:{key}"
+
+
+def _header_body(name: str, blurb: str) -> dict:
+    return {"embeds": [{"title": name, "color": _EMBED_COLOR,
+                        "description": (f"{blurb}\n\nOpen the thread below for every "
+                                        "lesson in this section, oldest first. Each one "
+                                        "has the recap and the video.")}],
+            "allowed_mentions": {"parse": []}}
+
+
+def ensure_section_threads() -> dict:
+    """{section key: thread id}. A missing section gets a header post in the
+    lesson channel and a thread started from it, in SECTIONS order. The thread
+    is locked when the bot may (members read, only the bot posts); a bot
+    without Manage Threads leaves it unlocked, which the channel's own
+    permissions then govern."""
+    out = {k: get_state(_thread_state_key(k)) for k in _SECTION_KEYS}
+    if all(out.values()):
+        return out
+    channel = ensure_lesson_channel()
+    for key, name, blurb in SECTIONS:
+        if out[key]:
+            continue
+        header = _discord("POST", f"/channels/{channel}/messages",
+                          body=_header_body(name, blurb)) or {}
+        thread = _discord("POST", f"/channels/{channel}/messages/{header['id']}/threads",
+                          body={"name": name,
+                                "auto_archive_duration": _THREAD_ARCHIVE_MINUTES}) or {}
+        tid = str(thread["id"])
+        try:
+            _discord("PATCH", f"/channels/{tid}", body={"locked": True})
+        except DiscordError as e:
+            log.info("[tsdr-lessons] could not lock the %s thread: %s", name, e)
+        set_state(_thread_state_key(key), tid)
+        out[key] = tid
+        log.info("[tsdr-lessons] created the %s thread (%s)", name, tid)
+    return out
+
+
+def _in_thread(method: str, thread: str, path: str, body: dict):
+    """A call into a thread. An idle thread archives itself after a week, and
+    Discord may refuse a post or an edit there until it is reopened, so a 400
+    or 403 reopens it once and retries."""
+    try:
+        return _discord(method, path, body=body)
+    except DiscordError as e:
+        if e.status not in (400, 403):
+            raise
+        _discord("PATCH", f"/channels/{thread}", body={"archived": False})
+        return _discord(method, path, body=body)
+
+
+def forward_body(lesson: dict) -> dict:
+    """A forward of the original #tsdr message: Discord shows its video (and
+    caption) in place, with a link back to where it was posted."""
+    return {"message_reference": {"type": _FORWARD, "message_id": str(lesson["message_id"]),
+                                  "channel_id": str(lesson["channel_id"]),
+                                  "guild_id": guild_id()}}
+
+
+def post_to_section(lesson: dict, link: str) -> dict:
+    """Post a lesson into its section thread: the recap, then the forwarded
+    video. Returns {section, thread, post_id, forward_id}. A thread that was
+    deleted is made again once. A failed forward leaves the recap (its link
+    still opens the video) and an empty forward_id."""
+    key = section_for(lesson)
+    for attempt in range(2):
+        thread = ensure_section_threads()[key]
+        try:
+            post = _in_thread("POST", thread, f"/channels/{thread}/messages",
+                              _lesson_body(lesson, link)) or {}
+            break
+        except DiscordError as e:
+            if e.status != 404 or attempt:
+                raise
+            set_state(_thread_state_key(key), "")
+    forward_id = ""
+    try:
+        fwd = _in_thread("POST", thread, f"/channels/{thread}/messages",
+                         forward_body(lesson)) or {}
+        forward_id = str(fwd.get("id") or "")
+    except DiscordError as e:
+        log.warning("[tsdr-lessons] could not forward the video for %s: %s",
+                    lesson.get("attachment_id"), e)
+    return {"section": key, "thread": thread, "post_id": str(post.get("id") or ""),
+            "forward_id": forward_id}
 
 
 # ── media: download, transcribe ──────────────────────────────────────────────
@@ -492,7 +661,7 @@ def download(url: str, dest: Path) -> int:
         with open(dest, "wb") as fh:
             for chunk in r.iter_bytes(1024 * 1024):
                 written += len(chunk)
-                if written > MAX_DOWNLOAD_BYTES:
+                if written > _int_env("TSDR_LESSONS_MAX_DOWNLOAD_MB", MAX_DOWNLOAD_BYTES >> 20) << 20:
                     raise ValueError("video is larger than the download cap")
                 fh.write(chunk)
     return written
@@ -718,8 +887,15 @@ def process_lesson(row: dict, lesson_channel: str) -> str:
             tickers=json.dumps(recap["tickers"]), tags=json.dumps(recap["tags"]))
     lesson = {**row, **recap, "duration_s": seconds}
     link = jump_link(guild_id(), row["channel_id"], row["message_id"])
+    if threads_enabled():
+        placed = post_to_section(lesson, link)
+        _update(aid, status="posted", discord_post_id=placed["post_id"],
+                post_channel_id=placed["thread"], forward_post_id=placed["forward_id"],
+                section=placed["section"], lesson_posted_at=int(time.time()),
+                last_error=None)
+        return "posted"
     post_id = post_lesson(lesson_channel, lesson, link)
-    _update(aid, status="posted", discord_post_id=post_id,
+    _update(aid, status="posted", discord_post_id=post_id, post_channel_id=lesson_channel,
             lesson_posted_at=int(time.time()), last_error=None)
     return "posted"
 
@@ -746,6 +922,53 @@ def run_lessons(*, limit: int, deadline: float) -> dict:
             log.warning("[tsdr-lessons] video %s failed (attempt %d): %s",
                         row["attachment_id"], attempts, e)
             out["errors"] += 1
+    return out
+
+
+# ── regroup: lessons posted before the threads ───────────────────────────────
+
+REMOVED = "removed"   # section value: Patrick deleted the old post, so not moved
+
+
+def run_regroup(*, deadline: float, limit: int = 60) -> dict:
+    """Move lessons posted to the channel itself into their section threads,
+    oldest first so each thread reads in order. The new posts go up before the
+    old one is deleted, so a failure part way never loses a lesson. A lesson
+    whose old post Patrick deleted stays deleted."""
+    out = {"moved": 0, "removed": 0, "errors": 0}
+    with contextlib.closing(_connect()) as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT * FROM tsdr_lessons WHERE status = 'posted' AND section IS NULL "
+            "AND discord_post_id IS NOT NULL ORDER BY posted_at LIMIT ?",
+            (int(limit),)).fetchall()]
+    if not rows:
+        return out
+    channel = ensure_lesson_channel()
+    for row in rows:
+        if time.time() > deadline:
+            break
+        aid = row["attachment_id"]
+        old_channel = row.get("post_channel_id") or channel
+        try:
+            if not lesson_post_exists(old_channel, row["discord_post_id"]):
+                _update(aid, section=REMOVED)
+                out["removed"] += 1
+                continue
+            link = jump_link(guild_id(), row["channel_id"], row["message_id"])
+            placed = post_to_section(row, link)
+            _update(aid, discord_post_id=placed["post_id"], post_channel_id=placed["thread"],
+                    forward_post_id=placed["forward_id"], section=placed["section"])
+            out["moved"] += 1
+        except Exception as e:  # noqa: BLE001 — retried on the next tick
+            log.warning("[tsdr-lessons] could not move %s into its thread: %s", aid, e)
+            out["errors"] += 1
+            continue
+        try:
+            _discord("DELETE", f"/channels/{old_channel}/messages/{row['discord_post_id']}")
+        except DiscordError as e:
+            log.warning("[tsdr-lessons] moved %s but could not delete the old post: %s",
+                        aid, e)
+        _sleep(1.0)
     return out
 
 
@@ -786,7 +1009,7 @@ def upload_lesson(row: dict, yt_client=None) -> str:
     from api.services.youtube_client import YouTubeClient
 
     aid = row["attachment_id"]
-    lesson_channel = ensure_lesson_channel()
+    lesson_channel = row.get("post_channel_id") or ensure_lesson_channel()
     if row.get("discord_post_id") and not lesson_post_exists(lesson_channel,
                                                              row["discord_post_id"]):
         _update(aid, yt_error="lesson post was deleted in Discord", yt_attempts=MAX_ATTEMPTS)
@@ -830,8 +1053,9 @@ def upload_lesson(row: dict, yt_client=None) -> str:
         # upload already succeeded and must not be retried over a failed edit.
         try:
             link = jump_link(guild_id(), row["channel_id"], row["message_id"])
-            _discord("PATCH", f"/channels/{lesson_channel}/messages/{row['discord_post_id']}",
-                     body=_lesson_body({**row, "youtube_id": vid}, link))
+            _in_thread("PATCH", lesson_channel,
+                       f"/channels/{lesson_channel}/messages/{row['discord_post_id']}",
+                       _lesson_body({**row, "youtube_id": vid}, link))
         except Exception as e:  # noqa: BLE001
             log.warning("[tsdr-lessons] could not add the website link to %s: %s",
                         row["discord_post_id"], e)
@@ -869,7 +1093,7 @@ def run_youtube(*, deadline: float) -> dict:
 # ── the scheduled entry point ────────────────────────────────────────────────
 
 def tick() -> dict:
-    """Scan, then lessons, then YouTube. Never raises; never overlaps itself."""
+    """Scan, lessons, regroup, then YouTube. Never raises; never overlaps itself."""
     if not is_enabled():
         return {"ran": False, "reason": "TSDR_LESSONS_ENABLED is not 1"}
     if not _TICK_LOCK.acquire(blocking=False):
@@ -889,6 +1113,12 @@ def tick() -> dict:
         except Exception as e:  # noqa: BLE001 — e.g. the channel could not be created
             log.warning("[tsdr-lessons] lesson stage failed: %s", e)
             out["lessons"] = {"error": str(e)[:200]}
+        if threads_enabled():
+            try:
+                out["regroup"] = run_regroup(deadline=deadline)
+            except Exception as e:  # noqa: BLE001
+                log.warning("[tsdr-lessons] regroup stage failed: %s", e)
+                out["regroup"] = {"error": str(e)[:200]}
         if youtube_enabled():
             try:
                 out["youtube"] = run_youtube(deadline=deadline)

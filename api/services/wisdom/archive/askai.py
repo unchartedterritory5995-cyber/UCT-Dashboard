@@ -167,8 +167,13 @@ def rhymes_line() -> tuple[str, list]:
     return line, cites
 
 
-def archive_block(query: Optional[str], *, query_tickers: Iterable[str] = ()) -> tuple[str, list]:
-    """(block text, citations) or ("", []). Never raises."""
+def archive_block(query: Optional[str], *, query_tickers: Iterable[str] = (),
+                  playbook: bool = True) -> tuple[str, list]:
+    """(block text, citations) or ("", []). Never raises.
+
+    `playbook=False` drops the PLAYBOOK line: Ask AI passes it when the SETUP CONTEXT block
+    (archive/ask_setup.py) already carries that setup's record, so the prompt does not say it
+    twice. The default keeps this block exactly as it was."""
     try:
         if not flags.archive_enabled():  # the gate first: off touches no store
             return "", []
@@ -179,7 +184,7 @@ def archive_block(query: Optional[str], *, query_tickers: Iterable[str] = ()) ->
             hits = service.retrieval_hits(conn, query or "", tickers=list(query_tickers or ()),
                                           limit=MAX_HITS, excerpt_chars=EXCERPT_CHARS)
             pb = None
-            for sid in service.match_setups(conn, query or "", limit=1):
+            for sid in (service.match_setups(conn, query or "", limit=1) if playbook else ()):
                 pb = service.playbook(conn, sid)
         parts, cites, used = [], [], len(HEADER)
         if asks_for_rhymes(query):

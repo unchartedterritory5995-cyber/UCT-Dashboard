@@ -794,6 +794,11 @@ def _blank_receipt(**over) -> dict:
         "feed_blackout": False,
         "lock_wait_ms": 0.0,
         "held_lock_ms": 0.0,
+        # Where this cycle's anchors came from: "read" (screener_rows, under the lock),
+        # "memory"/"disk" (the cached last full read, under the lock), or
+        # "held_through_build" (the cached last full read, WITHOUT the lock, because a
+        # build holds it). None when the cycle never reached the anchors.
+        "anchors_from": None,
         # ⭐ R62 (D-17): the market fetch is now OUTSIDE the lock, so its cost has to stay
         # visible somewhere or the fix would look like the work vanished. `held_lock_ms` should
         # fall to the documented order of magnitude and `snapshot_ms` should carry what moved.
@@ -935,8 +940,21 @@ def run_sweep() -> dict:
 
     t_lock = time.time()
     if not snapshot_builder._BUILD_LOCK.acquire(blocking=False):
-        receipt["skipped_reason"] = "build_in_flight"
         receipt["lock_wait_ms"] = round((time.time() - t_lock) * 1000, 2)
+        # ⭐ LIVE THROUGH A BUILD. Measured 2026-10-16: a daytime full rebuild held the
+        # lock 65 minutes and every cycle answered `build_in_flight`, so members had no
+        # live price, gap or volume for an hour. The lock exists so `screener_rows` is
+        # never READ while the builder rewrites it -- and this path reads none of it: it
+        # derives from the anchors of the last full read, taken before the build began,
+        # and writes only `screener_live` (whose one writer is this module). Every
+        # overlay row still carries `anchor_bars_asof`, so the disclosure names the
+        # anchor it used. Nothing cached for this database -> refuse exactly as before.
+        held = held_anchors_for_build()
+        if held is None:
+            receipt["skipped_reason"] = "build_in_flight"
+            return _finish(receipt, t0)
+        receipt["anchors_from"] = "held_through_build"
+        _sweep_locked(receipt, ymd, scan_volume, snap, ticker_shares, rows=held)
         return _finish(receipt, t0)
     receipt["lock_wait_ms"] = round((time.time() - t_lock) * 1000, 2)
 
@@ -1001,7 +1019,7 @@ def _forget_schema() -> None:
 
 
 def _sweep_locked(receipt: dict, ymd: int, scan_volume, snap: dict,
-                  ticker_shares: dict | None = None) -> None:
+                  ticker_shares: dict | None = None, rows: list | None = None) -> None:
     """The derivation and the write, both UNDER the build lock — the anchors
     must be read from a snapshot that is not being rewritten underneath us.
 
@@ -1009,8 +1027,12 @@ def _sweep_locked(receipt: dict, ymd: int, scan_volume, snap: dict,
     ~13,000-symbol network read and has nothing to do with the anchors this lock protects.
     Holding the lock across it is what made `held_lock_ms` ~56 s (n=16, 28,155-96,658 ms)
     against the 122 ms this module's own comment documents."""
-    rows, receipt["sqlite_anchor_read_ms"], receipt["sqlite_anchor_read_busy_wait_ms"] = (
-        _timed_touch(_read_anchor_rows))
+    # `rows` is handed in only by the through-a-build path (`held_anchors_for_build`),
+    # which must not read `screener_rows` at all; every other cycle reads under the lock.
+    if rows is None:
+        rows, receipt["sqlite_anchor_read_ms"], receipt["sqlite_anchor_read_busy_wait_ms"] = (
+            _timed_touch(_read_anchor_rows))
+        receipt["anchors_from"] = _LAST_ANCHOR_SOURCE[0] if _LAST_ANCHOR_SOURCE else "read"
     receipt["active_jobs_at_sweep"] = contention_trace_temp._active_jobs_snapshot()
     receipt["wal_state_at_sweep"] = contention_trace_temp._wal_state()
     receipt["rows_considered"] = len(rows)
@@ -1109,6 +1131,80 @@ def _finish(receipt: dict, t0: float) -> dict:
 
 #: [fingerprint, rows] of the last full anchor read. See `_read_anchor_rows`.
 _ANCHOR_CACHE: list = []
+#: Where the last `_read_anchor_rows` answer came from ("memory" / "disk" / "read").
+_LAST_ANCHOR_SOURCE: list = []
+
+
+# ⭐ THE DISK TIER: A RESTART DOES NOT RE-READ EVERY ROW. Measured 2026-10-16 12:43 ET:
+# after a deploy, the first sweep's cold read of ~11,230 rows took ~6 minutes (the
+# boot warmers were competing for the GIL; each fetched row is a hand-off), so for
+# ~7 minutes in the session every live column was blank. The last full read is
+# written beside screener.db with its fingerprint, and a fresh process whose
+# fingerprint matches loads it in one call instead. A mismatch (any rebuild) means
+# the full read, exactly as before. Written only by this module, from rows it read
+# itself, on the pod's own volume. Kill switch `SCREENER_LIVE_ANCHOR_DISK=0`.
+def anchor_disk_enabled() -> bool:
+    return anchor_cache_enabled() and os.environ.get(
+        "SCREENER_LIVE_ANCHOR_DISK", "1").strip().lower() not in ("0", "false", "no", "off")
+
+
+def _anchor_disk_path() -> str:
+    return str(snapshot_db.get_db_path()) + ".live-anchors.pkl"
+
+
+def _load_disk_anchors():
+    """``[fingerprint, rows]`` from disk, or None. Never raises."""
+    if not anchor_disk_enabled():
+        return None
+    try:
+        import pickle
+        with open(_anchor_disk_path(), "rb") as f:
+            got = pickle.load(f)
+        if (isinstance(got, list) and len(got) == 2 and isinstance(got[0], tuple)
+                and isinstance(got[1], list)):
+            return got
+    except FileNotFoundError:
+        return None
+    except Exception as e:                                  # noqa: BLE001
+        log.warning("[screener-live] anchor disk cache unreadable: %s: %s",
+                    type(e).__name__, e)
+    return None
+
+
+def _save_disk_anchors(fp, rows) -> None:
+    """Write-then-rename, so a reader never sees half a file. Never raises."""
+    if not anchor_disk_enabled():
+        return
+    path = _anchor_disk_path()
+    try:
+        import pickle
+        with open(path + ".tmp", "wb") as f:
+            pickle.dump([fp, rows], f, protocol=pickle.HIGHEST_PROTOCOL)
+        os.replace(path + ".tmp", path)
+    except Exception as e:                                  # noqa: BLE001
+        log.warning("[screener-live] anchor disk cache not written: %s: %s",
+                    type(e).__name__, e)
+
+
+def live_through_build_enabled() -> bool:
+    """Kill switch for sweeping on held anchors while a build runs. Default ON."""
+    return os.environ.get("SCREENER_LIVE_THROUGH_BUILD", "1").strip().lower() not in (
+        "0", "false", "no", "off")
+
+
+def held_anchors_for_build():
+    """The last full anchor read for THIS database, for a cycle that cannot take
+    the build lock -- from memory, else from disk -- or None. Reads nothing from
+    `screener_rows`: a build is rewriting it."""
+    if not (live_through_build_enabled() and anchor_cache_enabled()):
+        return None
+    path = snapshot_db.get_db_path()
+    if _ANCHOR_CACHE and _ANCHOR_CACHE[0][0] == path:
+        return _ANCHOR_CACHE[1]
+    disk = _load_disk_anchors()
+    if disk is not None and disk[0][0] == path:
+        return disk[1]
+    return None
 
 
 def anchor_cache_enabled() -> bool:
@@ -1153,11 +1249,19 @@ def _read_anchor_rows(*, busy_timeout_ms: int = 5000) -> list[dict]:
                     conn.execute(f"SELECT {cols} FROM screener_rows")]
         fp = _anchor_fingerprint(conn)
         if _ANCHOR_CACHE and _ANCHOR_CACHE[0] == fp:
+            _LAST_ANCHOR_SOURCE[:] = ["memory"]
             return _ANCHOR_CACHE[1]
+        disk = _load_disk_anchors()
+        if disk is not None and disk[0] == fp:
+            _ANCHOR_CACHE[:] = disk
+            _LAST_ANCHOR_SOURCE[:] = ["disk"]
+            return disk[1]
         rows = [dict(r) for r in
                 conn.execute(f"SELECT {cols} FROM screener_rows")]
         _ANCHOR_CACHE[:] = [fp, rows]
-        return rows
+        _LAST_ANCHOR_SOURCE[:] = ["read"]
+    _save_disk_anchors(fp, rows)
+    return rows
 
 
 # --------------------------------------------------------------------------- #

@@ -17,7 +17,8 @@ def _env(tmp_path, monkeypatch):
     monkeypatch.setenv("TSDR_LESSONS_DB_PATH", str(tmp_path / "lessons.db"))
     for k in ("TSDR_LESSONS_ENABLED", "TSDR_LESSONS_YOUTUBE_ENABLED", "TSDR_LESSONS_CHANNEL_ID",
               "TSDR_LESSONS_SOURCE_CHANNELS", "TSDR_LESSONS_AUTHOR_IDS", "TSDR_LESSONS_SINCE",
-              "TSDR_LESSONS_YT_PER_DAY", "DISCORD_GUILD_ID", "TSDR_LESSONS_GUILD_ID"):
+              "TSDR_LESSONS_YT_PER_DAY", "DISCORD_GUILD_ID", "TSDR_LESSONS_GUILD_ID",
+              "TSDR_LESSONS_THREADS_ENABLED"):
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setattr(tl, "_sleep", lambda s: None)
 
@@ -120,6 +121,54 @@ def test_overwrites_copy_audience_and_remove_posting():
     assert int(member["deny"]) & tl._SEND_MESSAGES
     assert int(out[GUILD]["deny"]) & tl._VIEW_CHANNEL    # gating kept
     assert int(out["bot"]["allow"]) & tl._SEND_MESSAGES
+
+
+def test_overwrites_never_copy_bits_beyond_view():
+    attach, mention_all = 1 << 15, 1 << 17
+    src = [{"id": "role-vip", "type": 0, "allow": str(tl._VIEW_CHANNEL | attach),
+            "deny": str(mention_all)}]
+    vip = {o["id"]: o for o in tl._read_only_overwrites(src, "bot", GUILD)}["role-vip"]
+    assert int(vip["allow"]) == tl._VIEW_CHANNEL
+    assert int(vip["deny"]) == tl._POSTING_BITS
+
+
+def test_channel_creation_steps_down_when_discord_refuses(monkeypatch):
+    attempts = []
+
+    def create(p, b):
+        if b["type"] == 4:
+            return {"id": "cat9"}
+        attempts.append(b["permission_overwrites"])
+        if len(attempts) < 3:
+            raise tl.DiscordError(403, '{"message": "Missing Permissions", "code": 50013}')
+        return {"id": "ch9"}
+
+    fake = FakeDiscord({
+        ("GET", f"/guilds/{GUILD}/channels"): [{"id": "cat9", "type": 4, "name": "EDUCATION"}],
+        ("POST", f"/guilds/{GUILD}/channels"): create,
+        ("GET", "/users/@me"): {"id": "bot"},
+        ("GET", f"/channels/{TSDR}"): {"permission_overwrites": []},
+    })
+    monkeypatch.setattr(tl, "_discord", fake)
+    assert tl.ensure_lesson_channel() == "ch9"
+    assert len(attempts) == 3
+    everyone = next(o for o in attempts[-1] if o["id"] == GUILD)
+    assert int(everyone["deny"]) == tl._SEND_MESSAGES
+
+
+def test_channel_creation_gives_up_after_the_last_step(monkeypatch):
+    def create(p, b):
+        raise tl.DiscordError(403, "Missing Permissions")
+
+    monkeypatch.setattr(tl, "_discord", FakeDiscord({
+        ("GET", f"/guilds/{GUILD}/channels"): [{"id": "cat9", "type": 4, "name": "EDUCATION"}],
+        ("POST", f"/guilds/{GUILD}/channels"): create,
+        ("GET", "/users/@me"): {"id": "bot"},
+        ("GET", f"/channels/{TSDR}"): {"permission_overwrites": []},
+    }))
+    with pytest.raises(tl.DiscordError):
+        tl.ensure_lesson_channel()
+    assert tl.get_state("lesson_channel_id") is None
 
 
 def test_creates_category_and_channel_once(monkeypatch):
@@ -399,3 +448,265 @@ def test_tick_never_raises(monkeypatch):
     monkeypatch.setattr(tl, "_discord", boom)
     out = tl.tick()
     assert out["ran"] is True and "error" in out[f"scan:{TSDR}"]
+
+
+# ── section threads ──────────────────────────────────────────────────────────
+
+def test_section_follows_the_first_known_tag():
+    assert tl.section_for({"tags": json.dumps(["entries", "risk"])}) == "setups"
+    assert tl.section_for({"tags": ["exits"]}) == "management"
+    assert tl.section_for({"tags": ["made-up", "market"]}) == "market"
+    assert tl.section_for({"tags": ["psychology"]}) == "mindset"
+    assert tl.section_for({"tags": None}) == tl._DEFAULT_SECTION
+    # every tag the model may choose lands in a real section
+    assert set(tl._TAG_SECTION) == set(tl.TAGS)
+    assert set(tl._TAG_SECTION.values()) <= set(tl._SECTION_KEYS)
+
+
+def test_an_old_database_gains_the_new_columns(tmp_path, monkeypatch):
+    import sqlite3
+    path = tmp_path / "old.db"
+    monkeypatch.setenv("TSDR_LESSONS_DB_PATH", str(path))
+    conn = sqlite3.connect(path)
+    conn.execute("CREATE TABLE tsdr_lessons (attachment_id TEXT PRIMARY KEY, message_id TEXT "
+                 "NOT NULL, channel_id TEXT NOT NULL, author_id TEXT NOT NULL, posted_at "
+                 "INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'new', attempts INTEGER NOT "
+                 "NULL DEFAULT 0, yt_attempts INTEGER NOT NULL DEFAULT 0, discord_post_id TEXT, "
+                 "created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)")
+    conn.commit()
+    conn.close()
+    import contextlib
+    with contextlib.closing(tl._connect()) as c:
+        cols = {r[1] for r in c.execute("PRAGMA table_info(tsdr_lessons)")}
+    assert {"section", "post_channel_id", "forward_post_id"} <= cols
+    tl._connect().close()          # a second open must not try to add them again
+
+
+def _thread_routes(lock_ok=True):
+    """The lesson channel and a counter-backed header + thread per section."""
+    made = []
+
+    def header(p, b):
+        made.append(("header", b["embeds"][0]["title"]))
+        return {"id": f"h{len(made)}"}
+
+    def thread_from(n):
+        def make(p, b):
+            made.append(("thread", b["name"]))
+            return {"id": f"t-{b['name']}"}
+        return make
+
+    def lock(p, b):
+        if not lock_ok:
+            raise tl.DiscordError(403, "Missing Permissions")
+        return {}
+
+    routes = {("POST", "/channels/lessons/messages"): header}
+    for i in range(1, 9):
+        routes[("POST", f"/channels/lessons/messages/h{i}/threads")] = thread_from(i)
+    for _, name, _ in tl.SECTIONS:
+        routes[("PATCH", f"/channels/t-{name}")] = lock
+    return routes, made
+
+
+def test_the_four_section_threads_are_made_once_in_order(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_CHANNEL_ID", "lessons")
+    routes, made = _thread_routes()
+    fake = FakeDiscord(routes)
+    monkeypatch.setattr(tl, "_discord", fake)
+    threads = tl.ensure_section_threads()
+    names = [n for _, n, _ in tl.SECTIONS]
+    assert [n for kind, n in made if kind == "header"] == names
+    assert [n for kind, n in made if kind == "thread"] == names
+    assert threads == {k: f"t-{n}" for k, n, _ in tl.SECTIONS}
+    locks = [c for c in fake.calls if c[0] == "PATCH"]
+    assert len(locks) == 4 and all(c[3] == {"locked": True} for c in locks)
+    n = len(fake.calls)
+    assert tl.ensure_section_threads() == threads and len(fake.calls) == n   # remembered
+
+
+def test_a_bot_that_cannot_lock_still_gets_its_threads(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_CHANNEL_ID", "lessons")
+    routes, _ = _thread_routes(lock_ok=False)
+    monkeypatch.setattr(tl, "_discord", FakeDiscord(routes))
+    assert len(tl.ensure_section_threads()) == 4
+
+
+def _seed_threads():
+    for key, name, _ in tl.SECTIONS:
+        tl.set_state(tl._thread_state_key(key), f"t-{key}")
+
+
+def test_with_threads_on_a_lesson_is_the_recap_then_the_forwarded_video(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    m = msg(sf(2026, 10, 15), attachments=[video("th1")], content="EMA lesson")
+    tl.record_message(m, TSDR)
+    fake = _pipeline(monkeypatch, m)                      # RECAP tags: entries, setups
+    _seed_threads()
+    sent = []
+    fake.routes[("POST", "/channels/t-setups/messages")] = \
+        lambda p, b: sent.append(b) or {"id": f"m{len(sent)}"}
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    recap, forward = sent
+    assert recap["embeds"][0]["title"] == RECAP["title"]
+    assert forward == {"message_reference": {"type": 1, "message_id": m["id"],
+                                             "channel_id": TSDR, "guild_id": GUILD}}
+    assert fake.posts("/channels/lessons/messages") == []    # nothing in the channel itself
+    row = tl.get_lesson("th1")
+    assert (row["section"], row["post_channel_id"], row["discord_post_id"],
+            row["forward_post_id"]) == ("setups", "t-setups", "m1", "m2")
+
+
+def test_a_failed_forward_keeps_the_recap(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    m = msg(sf(2026, 10, 15), attachments=[video("th2")])
+    tl.record_message(m, TSDR)
+    fake = _pipeline(monkeypatch, m)
+    _seed_threads()
+
+    def post(p, b):
+        if "message_reference" in b:
+            raise tl.DiscordError(500, "boom")
+        return {"id": "r1"}
+
+    fake.routes[("POST", "/channels/t-setups/messages")] = post
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    row = tl.get_lesson("th2")
+    assert row["status"] == "posted" and row["discord_post_id"] == "r1"
+    assert row["forward_post_id"] == ""
+
+
+def test_an_archived_thread_is_reopened_and_the_post_retried(monkeypatch):
+    _seed_threads()
+    tries = []
+
+    def post(p, b):
+        tries.append(b)
+        if len(tries) == 1:
+            raise tl.DiscordError(400, '{"code": 50083, "message": "Thread is archived"}')
+        return {"id": f"p{len(tries)}"}
+
+    fake = FakeDiscord({("POST", "/channels/t-market/messages"): post,
+                        ("PATCH", "/channels/t-market"): {}})
+    monkeypatch.setattr(tl, "_discord", fake)
+    lesson = {"attachment_id": "a", "message_id": "9", "channel_id": TSDR,
+              "tags": ["market"], "title": "T", "recap": "A. B. C.",
+              "posted_at": int(datetime(2026, 5, 1, tzinfo=timezone.utc).timestamp())}
+    placed = tl.post_to_section(lesson, "https://x")
+    assert placed["post_id"] == "p2" and placed["section"] == "market"
+    assert [c[3] for c in fake.calls if c[0] == "PATCH"] == [{"archived": False}]
+
+
+def test_a_deleted_thread_is_made_again(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_CHANNEL_ID", "lessons")
+    _seed_threads()
+    routes, made = _thread_routes()
+
+    def gone(p, b):
+        raise tl.DiscordError(404, "Unknown Channel")
+
+    routes[("POST", "/channels/t-mindset/messages")] = gone
+    routes[("POST", "/channels/t-Mindset & Process/messages")] = {"id": "new1"}
+    monkeypatch.setattr(tl, "_discord", FakeDiscord(routes))
+    lesson = {"attachment_id": "a", "message_id": "9", "channel_id": TSDR,
+              "tags": ["review"], "title": "T", "recap": "A. B. C.",
+              "posted_at": int(datetime(2026, 5, 1, tzinfo=timezone.utc).timestamp())}
+    placed = tl.post_to_section(lesson, "https://x")
+    assert placed["thread"] == "t-Mindset & Process" and placed["post_id"] == "new1"
+    assert made == [("header", "Mindset & Process"), ("thread", "Mindset & Process")]
+
+
+def _old_post(aid, day, tags, post_id):
+    m = msg(sf(2026, 3, day), attachments=[video(aid)])
+    tl.record_message(m, TSDR)
+    tl._update(aid, status="posted", title=f"Lesson {aid}", recap="A. B. C. D.",
+               tags=json.dumps(tags), discord_post_id=post_id)
+    return m
+
+
+def test_regroup_moves_old_posts_oldest_first_and_deletes_the_originals(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_CHANNEL_ID", "lessons")
+    _seed_threads()
+    _old_post("late", 20, ["risk"], "op2")
+    _old_post("early", 5, ["risk"], "op1")
+    _old_post("gone", 10, ["market"], "op3")              # Patrick deleted this one
+    sent = []
+
+    def old(post_id):
+        def get(p, b):
+            if post_id == "op3":
+                raise tl.DiscordError(404, "Unknown Message")
+            return {"id": post_id}
+        return get
+
+    routes = {("POST", "/channels/t-management/messages"):
+              lambda p, b: sent.append(b) or {"id": f"n{len(sent)}"}}
+    for pid in ("op1", "op2", "op3"):
+        routes[("GET", f"/channels/lessons/messages/{pid}")] = old(pid)
+        routes[("DELETE", f"/channels/lessons/messages/{pid}")] = None
+    fake = FakeDiscord(routes)
+    monkeypatch.setattr(tl, "_discord", fake)
+    out = tl.run_regroup(deadline=9e12)
+    assert out == {"moved": 2, "removed": 1, "errors": 0}
+    titles = [b["embeds"][0]["title"] for b in sent if "embeds" in b]
+    assert titles == ["Lesson early", "Lesson late"]       # oldest first
+    deleted = [c[1] for c in fake.calls if c[0] == "DELETE"]
+    assert deleted == ["/channels/lessons/messages/op1", "/channels/lessons/messages/op2"]
+    assert tl.get_lesson("early")["post_channel_id"] == "t-management"
+    assert tl.get_lesson("gone")["section"] == tl.REMOVED
+    assert tl.run_regroup(deadline=9e12) == {"moved": 0, "removed": 0, "errors": 0}
+
+
+def test_regroup_never_deletes_a_post_it_could_not_replace(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_CHANNEL_ID", "lessons")
+    _seed_threads()
+    _old_post("keep", 5, ["market"], "op1")
+
+    def refuse(p, b):
+        raise tl.DiscordError(500, "boom")
+
+    fake = FakeDiscord({("GET", "/channels/lessons/messages/op1"): {"id": "op1"},
+                        ("POST", "/channels/t-market/messages"): refuse})
+    monkeypatch.setattr(tl, "_discord", fake)
+    assert tl.run_regroup(deadline=9e12)["errors"] == 1
+    assert not [c for c in fake.calls if c[0] == "DELETE"]
+    assert tl.get_lesson("keep")["section"] is None         # tried again next tick
+
+
+def test_youtube_edits_the_post_where_it_now_lives(monkeypatch):
+    m = msg(sf(2026, 10, 15), attachments=[video("yt9")])
+    tl.record_message(m, TSDR)
+    tl._update("yt9", status="posted", title="Lesson", recap="A. B. C. D.",
+               discord_post_id="lp9", post_channel_id="t-risk", section="management")
+    fake = FakeDiscord({
+        ("GET", f"/channels/{TSDR}/messages/{m['id']}"): m,
+        ("GET", "/channels/t-risk/messages/lp9"): {"id": "lp9"},
+        ("PATCH", "/channels/t-risk/messages/lp9"): {"id": "lp9"},
+    })
+    monkeypatch.setattr(tl, "_discord", fake)
+    monkeypatch.setattr(tl, "download", lambda url, dest: dest.write_bytes(b"x") or 1)
+
+    class YT:
+        def upload(self, path, title, description, privacy):
+            return "YTID9"
+
+    from api.services import education_service as es
+    monkeypatch.setattr(es, "register_category_if_missing", lambda *a, **k: None)
+    monkeypatch.setattr(es, "create_video", lambda p: {"id": 5})
+    monkeypatch.setattr(es, "set_video_insights", lambda vid, **kw: None)
+    monkeypatch.setattr(es, "set_video_tags", lambda vid, tags: None)
+    import api.services.youtube_client as ytc
+    monkeypatch.setattr(ytc, "YouTubeClient", YT)
+    assert tl.run_youtube(deadline=9e12)["uploaded"] == 1
+    assert [c[1] for c in fake.calls if c[0] == "PATCH"] == ["/channels/t-risk/messages/lp9"]
+
+
+def test_regroup_only_runs_with_the_threads_flag(monkeypatch):
+    monkeypatch.setenv("TSDR_LESSONS_ENABLED", "1")
+    monkeypatch.setattr(tl, "scan_channel", lambda ch: {})
+    monkeypatch.setattr(tl, "run_lessons", lambda **k: {})
+    calls = []
+    monkeypatch.setattr(tl, "run_regroup", lambda **k: calls.append(1) or {})
+    assert "regroup" not in tl.tick() and calls == []
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    assert "regroup" in tl.tick() and calls == [1]

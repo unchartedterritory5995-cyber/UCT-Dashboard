@@ -1,6 +1,8 @@
-import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef } from 'react'
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react'
 import { setupLine } from './setupLine'
 import { livePriceOf } from './livePrice'
+import Sparkline from '../../../components/Sparkline'
+import useSparks from './useSparks'
 import styles from './FocusScreener.module.css'
 
 const fmtPrice = v => (Number.isFinite(v) ? v.toFixed(2) : '—')
@@ -15,7 +17,7 @@ const fmtChg = v => {
 // so the list hands each row PRIMITIVES (its live price and change) plus stable references (the
 // row object, `onSelect`, the hub cursor's constant prop objects). A tick for one ticker then
 // re-renders that ticker's row only, not every loaded row.
-const ResultRow = memo(function ResultRow({ r, i, sel, price, chg, onRadar, onSelect, hubProps, showCompany, structures }) {
+const ResultRow = memo(function ResultRow({ r, i, sel, price, chg, onRadar, onSelect, hubProps, showCompany, structures, spark }) {
   const s = setupLine({ ...r, price }, structures)
   return (
     <div id={`focus-opt-${r.ticker}`} role="option" aria-selected={sel}
@@ -28,6 +30,10 @@ const ResultRow = memo(function ResultRow({ r, i, sel, price, chg, onRadar, onSe
         <span className={styles.ticker}>{r.ticker}</span>
         {showCompany && r.company && <span className={styles.rowCompany}>{r.company}</span>}
         <span className={styles.setup} title={s.title || undefined}>{s.text}{s.detail ? ` · ${s.detail}` : ''}</span>
+      </span>
+      {/* ~3 months of daily closes; the cache hands the same array each render, so the memo holds. */}
+      <span className={styles.rowSpark} title="Last 3 months, daily closes">
+        {spark && spark.length > 1 && <Sparkline values={spark} width={56} height={20} fill={false} />}
       </span>
       <span className={styles.rowNums}>
         <span>{fmtPrice(price)}</span>
@@ -47,6 +53,8 @@ const ResultList = forwardRef(function ResultList(
   ref,
 ) {
   const listRef = useRef(null)
+  const sparkTickers = useMemo(() => rows.map(r => r.ticker), [rows])
+  const sparks = useSparks(sparkTickers)
   // Scroll only the list's own container, never an ancestor or the window. The selection
   // keeps LOOKAHEAD_ROWS rows in view on either side (fewer at the ends of the list); when
   // the list is too short for that, the selected row itself always stays in view.
@@ -139,11 +147,12 @@ const ResultList = forwardRef(function ResultList(
         onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.removeAttribute('data-kbd') }}>
         {rows.map((r, i) => {
           const { price, chg } = livePriceOf(r, livePrices[r.ticker])
+          const spark = sparks.get(r.ticker)
           // itemProps(i) returns one of two constant objects, so the row's prop stays stable.
           return (
             <ResultRow key={r.ticker} r={r} i={i} sel={i === index} price={price} chg={chg}
               onRadar={radar.has(r.ticker)} onSelect={onSelect} hubProps={itemProps ? itemProps(i) : undefined}
-              showCompany={showCompany} structures={structures} />
+              showCompany={showCompany} structures={structures} spark={spark} />
           )
         })}
         {hasMore && <div ref={endRef} className={styles.moreSentinel} aria-hidden="true" />}

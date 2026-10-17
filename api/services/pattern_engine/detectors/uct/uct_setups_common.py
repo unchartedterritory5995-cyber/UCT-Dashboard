@@ -227,13 +227,47 @@ def make_levels(entry: float, stop: float, direction: str, entry_condition: str,
     }
 
 
+def hline(bars, i0: int, i1: int, price: float, role: str, label: str) -> dict:
+    """A bounded horizontal level for `geometry.secondary` (display only).
+
+    Drawn from bar i0 to bar i1; both anchor times are real bar `t` values,
+    never indices. The price is the detector's own computed number."""
+    p = float(price)
+    return {"shape": "horizontal_line",
+            "anchors": [{"t": int(bars[i0]["t"]), "price": p},
+                        {"t": int(bars[i1]["t"]), "price": p}],
+            "role": role, "label": label}
+
+
+def rect(bars, i0: int, i1: int, top: float, floor: float, role: str, label: str) -> dict:
+    """A box for `geometry.secondary`: [{t: start, price: top}, {t: end, price: floor}]."""
+    return {"shape": "rectangle",
+            "anchors": [{"t": int(bars[i0]["t"]), "price": float(top)},
+                        {"t": int(bars[i1]["t"]), "price": float(floor)}],
+            "role": role, "label": label}
+
+
 def build_detection(*, pattern_id: str, pattern_name: str, direction: str,
                     bars: list, trig_idx: int, start_idx: int, anchors: list,
                     anchor_roles: list, extras: dict, levels: dict, context: dict,
-                    narrative: dict, geom: float, vol: float, ctx: float) -> dict:
+                    narrative: dict, geom: float, vol: float, ctx: float,
+                    secondary: Optional[list] = None) -> dict:
+    """`secondary` (optional) is DISPLAY-ONLY drawable structure the detector
+    already computed (pad box, gap edge, prior low ...). It is attached as
+    `geometry.secondary` and read by nothing that decides firing or confidence;
+    the primary `candle_mark` geometry is unchanged."""
     now = int(time.time())
     conf = confidence(geom, vol, ctx)
     last = bars[-1]
+    geometry = {
+        "shape": "candle_mark",
+        "anchors": anchors,
+        "anchor_roles": anchor_roles,
+        "semantic_subtype": pattern_id,
+        "extras": {**extras, "trigger_bars_ago": len(bars) - 1 - trig_idx},
+    }
+    if secondary:
+        geometry["secondary"] = secondary
     return {
         "id": str(uuid.uuid4()),
         "sym": "",
@@ -245,13 +279,7 @@ def build_detection(*, pattern_id: str, pattern_name: str, direction: str,
         "start_t": int(bars[start_idx]["t"]),
         "end_t": int(last["t"]),
         "pivot_ts": sorted({int(a["t"]) for a in anchors} | {int(last["t"])}),
-        "geometry": {
-            "shape": "candle_mark",
-            "anchors": anchors,
-            "anchor_roles": anchor_roles,
-            "semantic_subtype": pattern_id,
-            "extras": {**extras, "trigger_bars_ago": len(bars) - 1 - trig_idx},
-        },
+        "geometry": geometry,
         "levels": levels,
         "context": context,
         "confidence": conf,

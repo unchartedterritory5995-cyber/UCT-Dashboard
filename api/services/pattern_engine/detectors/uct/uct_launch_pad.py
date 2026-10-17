@@ -105,6 +105,11 @@ def evaluate(bars: list, S: dict, i: int) -> Optional[dict]:
         "ema8": e8, "ema21": e21, "sma50": s50,
         "rvol50": round(S["v"][i] / v50, 2) if v50 else None,
         "trigger": c, "stop": min(e21, s50) - 0.25 * a, "close": c,
+        # display-only geometry: the tight-range window the label is computed on
+        # and the converged cluster's top. Read by nothing that decides firing.
+        "pad_start_idx": i - LP_TIGHT_BARS + 1,
+        "pad_high": max(b["h"] for b in seg), "pad_low": min(b["l"] for b in seg),
+        "cluster_top": max(trio),
     }
 
 
@@ -150,11 +155,19 @@ def _build(bars, c, context, geom, vol, ctx) -> dict:
         "rvol50": c["rvol50"], "ema8": round(c["ema8"], 2), "ema21": round(c["ema21"], 2),
         "sma50": round(c["sma50"], 2),
     }
+    p0 = c["pad_start_idx"]
+    secondary = [
+        U.rect(bars, p0, i, c["pad_high"], c["pad_low"], "pad",
+               f"Pad {i - p0 + 1} bars"),
+        U.hline(bars, p0, i, c["pad_high"], "pivot", f"Pad pivot {c['pad_high']:.2f}"),
+        U.hline(bars, p0, i, c["cluster_top"], "ma", f"MA cluster {c['cluster_top']:.2f}"),
+    ]
     return U.build_detection(
         pattern_id=_PATTERN_ID, pattern_name=_PATTERN_NAME, direction="bullish",
         bars=bars, trig_idx=i, start_idx=max(0, i - LP_TIGHT_BARS + 1), anchors=anchors,
         anchor_roles=["launch_pad_session"], extras=extras, levels=levels, context=context,
-        narrative=_narrative(c, levels, context), geom=geom, vol=vol, ctx=ctx)
+        narrative=_narrative(c, levels, context), geom=geom, vol=vol, ctx=ctx,
+        secondary=secondary)
 
 
 def _narrative(c, levels, context) -> dict:
