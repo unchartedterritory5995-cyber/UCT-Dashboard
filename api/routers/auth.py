@@ -265,6 +265,10 @@ NOTEBOOK_FLAGS = {
     "NOTEBOOK_JOURNAL_STYLES_ENABLED": False,  # enablement — unset means OFF (journal styles, P1)
     "NOTEBOOK_SMART_CHIPS_ENABLED": False,  # enablement (Tier 2 part A: alert + screenshot chips)
     "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": False,  # enablement (Tier 2 part B: earnings follow-up notice + card)
+    # P2 Tier 3: the mood check-in block, the By check-in view, Checklist from my winners and the
+    # Your trading year door. Gates CREATING, never rendering. No NOTEBOOK_ prefix on purpose
+    # (J2_SHARE_LINKS_ENABLED above is the precedent); the payload key is `journal_tier3_enabled`.
+    "JOURNAL_TIER3_ENABLED": False,  # enablement — unset means OFF (Tier 3: check-in, winners checklist, year)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

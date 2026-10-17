@@ -83,6 +83,8 @@ FLAGS = (
     "NOTEBOOK_SMART_CHIPS_ENABLED",
     # Notebook P2 Tier 2 part B: the earnings follow-up notice and card.
     "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+    # Notebook P2 Tier 3: the mood check-in block and its kin (no NOTEBOOK_ prefix; payload key journal_tier3_enabled).
+    "JOURNAL_TIER3_ENABLED",
 )
 
 

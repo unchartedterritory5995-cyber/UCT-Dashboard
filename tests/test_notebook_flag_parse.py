@@ -166,6 +166,9 @@ def _server_gates() -> dict:
         "NOTEBOOK_SMART_CHIPS_ENABLED": notebook_smart_chips.enabled,
         # Tier 2 part B: the earnings follow-up service's own gate function.
         "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": earnings_followup.enabled,
+        # P2 Tier 3: no service module exists yet, so the row is the neighbours' own flag_on parse.
+        # Task 6 or 7 swaps it for the service's enabled() once one is built.
+        "JOURNAL_TIER3_ENABLED": lambda: notebook_flags.flag_on("JOURNAL_TIER3_ENABLED", False),
     }
 
 
