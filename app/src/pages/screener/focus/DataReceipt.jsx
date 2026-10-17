@@ -23,10 +23,13 @@ export function liveClock(live) {
 }
 const columnName = c => plainColumnLabel(c) || COLUMN_DEFS[c]?.label || c
 
-// Pre-market mode (spec 2026-10-16 §2). `premarket` is the scan's `snapshot.premarket`
-// ({state, as_of}), present only while the server serves the pre-market columns to this user.
-// It labels the screen only while it is CURRENT: under the serving age (180 s) and inside the
-// pre-market window on the ET clock, so a page left open past 9:30 never keeps saying it.
+// Extended hours (spec 2026-10-16 §2, widened 2026-10-17). `premarket` is the scan's
+// `snapshot.premarket` ({state, session, as_of}), present only while the server serves the
+// extended-hours columns to this user; `session` is 'pre' or 'post' (absent from an older
+// server, which only ever meant pre-market). It labels the screen only while it is CURRENT:
+// under the serving age (180 s) and inside its window on the ET clock, so a page left open past
+// 9:30 or 8:00 PM never keeps saying it. Held after-hours values (overnight, weekends) do not
+// relabel the screen; the popover says what they are.
 export const PREMARKET_MAX_AGE_S = 180
 const PREMARKET_COLUMNS = ['premarket_chg_pct', 'premarket_price']
 function etMinutes(ms) {
@@ -38,12 +41,28 @@ function etMinutes(ms) {
 // eslint-disable-next-line react-refresh/only-export-components -- a pure helper the tests read
 export function premarketCurrent(pm, now = Date.now()) {
   const v = pm?.as_of
-  if (pm?.state !== 'premarket' || typeof v !== 'number' || !Number.isFinite(v)) return false
+  if (pm?.state !== 'premarket' || pm?.session === 'post') return false
+  if (typeof v !== 'number' || !Number.isFinite(v)) return false
   const age = now / 1000 - v
   if (age < 0 || age > PREMARKET_MAX_AGE_S) return false
   const { weekday, minutes } = etMinutes(now)
   return weekday !== 'Sat' && weekday !== 'Sun' && minutes >= 4 * 60 && minutes < 9 * 60 + 30
 }
+
+// 'current' while after-hours trades are still arriving (under 180 s old, a weekday, from the
+// earliest close at 1:00 PM to 8:00 PM ET); 'held' for the last after-hours print served while
+// the market is closed; null when the server is not serving after-hours values.
+// eslint-disable-next-line react-refresh/only-export-components -- a pure helper the tests read
+export function afterHoursState(pm, now = Date.now()) {
+  const v = pm?.as_of
+  if (pm?.session !== 'post' || typeof v !== 'number' || !Number.isFinite(v)) return null
+  const age = now / 1000 - v
+  const { weekday, minutes } = etMinutes(now)
+  const open = weekday !== 'Sat' && weekday !== 'Sun' && minutes >= 13 * 60 && minutes < 20 * 60
+  return open && age >= 0 && age <= PREMARKET_MAX_AGE_S ? 'current' : 'held'
+}
+const heldClock = v => new Date(v * 1000).toLocaleString('en-US', {
+  timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })
 
 // What the button and the popover say. `live` is the scan's `snapshot.live` (query.py
 // live_screen_state): `state === 'live'` only when rows on this page carry values the minute
@@ -74,7 +93,9 @@ export default function DataReceipt({ snapshotDate, live, premarket, coverage, n
   // Staleness is computed at RENDER: there is no timer, so a page left open across a missed
   // nightly turns stale on its next render (a scan answer, a live tick, any interaction).
   const stale = !!when && isStaleSnapshot(snapshotDate, now)
-  const isPre = premarketCurrent(premarket, now)
+  const ah = afterHoursState(premarket, now)
+  const isPre = premarketCurrent(premarket, now) || ah === 'current'
+  const extLabel = ah === 'current' ? 'After hours' : 'Pre-market'
   const preClock = isPre ? liveClock(premarket) : null
   const isLive = !isPre && live?.state === 'live'
   const clock = isLive ? liveClock(live) : null
@@ -86,7 +107,7 @@ export default function DataReceipt({ snapshotDate, live, premarket, coverage, n
         onClick={() => setOpen(o => !o)}>
         <span className={isLive || isPre ? styles.liveDot : styles.idleDot} aria-hidden="true" />
         {isPre
-          ? <>Pre-market{preClock ? ` · ${preClock}` : ''}</>
+          ? <>{extLabel}{preClock ? ` · ${preClock}` : ''}</>
           : isLive
           ? <>Live{clock ? ` · ${clock}` : ''}{stale && nightlyShort ? <> · <span className={styles.staleTag}>nightly {nightlyShort}</span></> : null}</>
           : <span className={stale ? styles.staleTag : undefined}>{day(snapshotDate)}{stale ? ' · stale' : ''}</span>}
@@ -96,7 +117,9 @@ export default function DataReceipt({ snapshotDate, live, premarket, coverage, n
         <div id={id} role="region" aria-label="About this data" className={`${styles.menu} ${styles.menuRight} ${styles.receipt}`}>
           {isPre ? (
             <>
-              <p className={styles.receiptHead}>Pre-market{preClock ? `, updated ${preClock} ET` : ''}: {PREMARKET_COLUMNS.map(columnName).join(', ')}. From the last pre-market trade, 4:00 to 9:30 ET. No pre-market volume is available.</p>
+              <p className={styles.receiptHead}>{extLabel}{preClock ? `, updated ${preClock} ET` : ''}: {PREMARKET_COLUMNS.map(columnName).join(', ')}. {ah === 'current'
+                ? "From the last trade since the close, against today's close, until 8:00 PM ET. No extended-hours volume is available."
+                : 'From the last pre-market trade, 4:00 to 9:30 ET. No pre-market volume is available.'}</p>
               <p className={styles.receiptHead}>Everything else on this screen is from the {when || 'latest close'}.</p>
             </>
           ) : isLive ? (
@@ -107,6 +130,7 @@ export default function DataReceipt({ snapshotDate, live, premarket, coverage, n
           ) : (
             <p className={styles.receiptHead}>Nightly data from {when ? `the ${when}` : 'the latest close'}.</p>
           )}
+          {ah === 'held' && <p className={styles.receiptHead}>{PREMARKET_COLUMNS.map(columnName).join(', ')}: the last after-hours trade, {heldClock(premarket.as_of)} ET, against that day's close.</p>}
           {stale && <p className={`${styles.receiptHead} ${styles.staleTag}`}>The nightly data is more than one session old: the nightly update has not landed since.</p>}
           {/* TERM-047: the scan's own four-count receipt, with its reasons and its
               "nothing could be answered" refusal, through the shared CoverageLine. */}

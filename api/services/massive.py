@@ -883,6 +883,14 @@ class _MassiveRestClient:
                 "day_high":   _px(day.get("h")),
                 "day_low":    _px(day.get("l")),
                 "last_trade_ns": _ns(last.get("t")),
+                # (2026-10-17) the screener's extended-hours sweep. `day_close` is the
+                # regular-session close (`day.c`, what the watchlist shows as the price
+                # after 16:00); `min_close`/`min_t_ms` are the current minute bar, which
+                # carries a live after-hours price where `lastTrade` stays pinned to the
+                # 16:00 print (SPY; see `_ext_price_for`).
+                "day_close":  _px(day.get("c")),
+                "min_close":  _px((t.get("min") or {}).get("c")),
+                "min_t_ms":   _ns((t.get("min") or {}).get("t")),
             }
         # (2026-10-12) WHEN THE DATA IS FROM, beside the rows (their shape is unchanged for
         # every other consumer). `data_at` = the vendor's own per-ticker `updated` stamp at the

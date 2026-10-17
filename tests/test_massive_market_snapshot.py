@@ -98,4 +98,6 @@ def test_every_consumer_of_this_parse_gets_the_same_key_set(monkeypatch):
     a key silently dropped here breaks a caller that never mentions this file."""
     out = _snap(monkeypatch, _payload())["AAA"]
     assert set(out) == {"last_price", "prev_close", "today_vol", "prev_vol",
-                        "day_open", "day_high", "day_low", "last_trade_ns"}
+                        "day_open", "day_high", "day_low", "last_trade_ns",
+                        # 2026-10-17: the screener's closing pass + extended-hours sweep
+                        "day_close", "min_close", "min_t_ms"}
