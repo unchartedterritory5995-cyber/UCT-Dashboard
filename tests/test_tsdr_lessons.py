@@ -947,7 +947,7 @@ def test_a_youtube_link_lesson_is_recapped_from_its_captions_and_shows_the_link(
     fake = _pipeline(monkeypatch, m, seen=seen)
     monkeypatch.setattr(tl, "download", lambda *a: pytest.fail("a link is never downloaded"))
     monkeypatch.setattr(tl, "youtube_transcript", lambda vid: "word " * 60)
-    monkeypatch.setattr(tl, "youtube_title", lambda vid: "Chat w/ PBA")
+    monkeypatch.setattr(tl, "youtube_video_title", lambda vid: "Chat w/ PBA")
     _seed_threads()
     sent = []
     fake.routes[("POST", "/channels/t-setups/messages")] = \
@@ -965,7 +965,7 @@ def test_a_link_without_captions_is_still_posted_under_its_title(monkeypatch):
     seen = {}
     fake = _pipeline(monkeypatch, m, seen=seen)
     monkeypatch.setattr(tl, "youtube_transcript", lambda vid: "")
-    monkeypatch.setattr(tl, "youtube_title", lambda vid: "Chat w/ PBA")
+    monkeypatch.setattr(tl, "youtube_video_title", lambda vid: "Chat w/ PBA")
     assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
     assert seen == {}                                   # too few words for a recap call
     embed = fake.posts("/channels/lessons/messages")[0]["embeds"][0]

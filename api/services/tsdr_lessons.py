@@ -793,7 +793,7 @@ def youtube_transcript(video_id: str) -> str:
         return ""
 
 
-def youtube_title(video_id: str) -> str:
+def youtube_video_title(video_id: str) -> str:
     """The video's own title from YouTube's public oEmbed, or ""."""
     import httpx
     try:
@@ -1011,7 +1011,7 @@ def process_lesson(row: dict, lesson_channel: str) -> str:
             _update(aid, status="skipped", last_error="message or video was deleted")
             return "skipped"
         transcript, seconds = youtube_transcript(vid), None
-        yt_title = youtube_title(vid)
+        yt_title = youtube_video_title(vid)
     else:
         att = next((a for a in (msg or {}).get("attachments") or []
                     if str(a.get("id")) == aid), None)
