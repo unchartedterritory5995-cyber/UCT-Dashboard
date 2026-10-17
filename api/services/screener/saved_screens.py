@@ -665,10 +665,10 @@ def _starter_defs():
           "logic": _live_volume_or_nightly(1.5),
           "view": "technical", "sort": {"key": "vol_ratio", "dir": "desc"}}},
         # ── live-volume starters (rvol_live: volume vs usual BY NOW) ──
-        # ⚠️ rvol_live is blank before 09:45 ET and outside the session, so these
-        # return NOTHING then, and the Focus screen says "live during the session"
-        # for that zero (emptyReason.js) rather than "none today". Their counts can
-        # only be measured in the session; the non-live clauses were measured on
+        # ⭐ 2026-10-17: they use `_live_volume_or_nightly`, like Gap Movers: volume
+        # vs usual BY NOW in the session, the LAST SESSION'S full-day ratio otherwise.
+        # Members scan mostly after hours and on weekends, when rvol_live is blank and
+        # these screens used to return nothing. The non-live clauses were measured on
         # production 2026-10-15 with last session's vol_ratio standing in for
         # rvol_live (a full-day ratio, the closest thing to "by now" at the close):
         #   Volume surge right now        529 without volume, 13 at vol_ratio >= 2
@@ -676,33 +676,33 @@ def _starter_defs():
         #   Near the 20-day high on vol   537 without volume, 41 at vol_ratio >= 1.5
         {"id": "starter_volume_surge_now", "name": "Volume surge right now",
          "group": "Momentum leaders",
-         "description": "Stocks on 2x usual volume and up from the open, live during the session, above 50 day, $20M+ traded, price $5+",
+         "description": "Stocks on 2x usual volume and up from the open (live in the session, last session's full day after hours), above 50 day, $20M+ traded, price $5+",
          "spec": {"filters": [
-             {"key": "rvol_live", "op": "gte", "min": 2},
              {"key": "chg_from_open_pct", "op": "gt", "min": 0},
              {"key": "above_50sma", "op": "eq", "value": 1},
              {"key": "dollar_vol_30d", "op": "gte", "min": 20_000_000},
              {"key": "price", "op": "gte", "min": 5}],
+          "logic": _live_volume_or_nightly(2),
           "view": "technical", "sort": {"key": "rvol_live", "dir": "desc"}}},
         {"id": "starter_gap_up_volume", "name": "Gapping up on volume",
          "group": "Momentum leaders",
          # Recalibrated 2026-10-16 from 3% after two in-session readings on production:
          # 6 at 09:52 and 6 at 10:09 ET (target 10-60); at 2% it was 14 at 09:52.
-         "description": "Stocks gapped up 2%+ on 1.5x usual volume, live during the session, $10M+ traded, price $5+",
+         "description": "Stocks gapped up 2%+ on 1.5x usual volume (live in the session, last session's full day after hours), $10M+ traded, price $5+",
          "spec": {"filters": [
              {"key": "gap_pct", "op": "gte", "min": 2},
-             {"key": "rvol_live", "op": "gte", "min": 1.5},
              {"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000},
              {"key": "price", "op": "gte", "min": 5}],
+          "logic": _live_volume_or_nightly(1.5),
           "view": "technical", "sort": {"key": "gap_pct", "dir": "desc"}}},
         {"id": "starter_near_20d_high_volume", "name": "Near the 20-day high on volume",
          "group": "Breakouts & entries",
-         "description": "Stocks within 3% of the 20 day high on 1.5x usual volume, live during the session, above 50 day, $20M+ traded",
+         "description": "Stocks within 3% of the 20 day high on 1.5x usual volume (live in the session, last session's full day after hours), above 50 day, $20M+ traded",
          "spec": {"filters": [
              {"key": "dist_20d_high_pct", "op": "gte", "min": -3},
-             {"key": "rvol_live", "op": "gte", "min": 1.5},
              {"key": "above_50sma", "op": "eq", "value": 1},
              {"key": "dollar_vol_30d", "op": "gte", "min": 20_000_000}],
+          "logic": _live_volume_or_nightly(1.5),
           "view": "technical", "sort": {"key": "rvol_live", "dir": "desc"}}},
         # Minervini's trend template, tightened to fit a working list: the textbook
         # cut (RS 70+, within 25% of the high, $20M+) returned 113 on production
