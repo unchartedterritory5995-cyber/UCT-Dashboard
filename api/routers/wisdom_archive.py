@@ -59,7 +59,7 @@ from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user, require_admin
 from api.routers.wisdom_sources import require_push_secret
-from api.services.wisdom.archive import images, levels, rhymes, service, setup_map, team_record
+from api.services.wisdom.archive import images, levels, provider, rhymes, service, setup_map, team_record
 from api.services.wisdom.core import flags, store
 
 log = logging.getLogger(__name__)
@@ -208,10 +208,15 @@ def _named(payload: dict) -> dict:
 @member_router.get("/ticker/{sym}")
 def member_ticker(sym: str, limit: int = Query(500, ge=1, le=2000),
                   _user: dict = Depends(require_paid)) -> dict:
+    """A ticker's records and calls for a member. A call not yet older than
+    provider.PRICE_AGE_SESSIONS sessions carries no entry/stop/target and no outcome
+    (`prices_status: "pending_age"`); the summary scores aged calls only."""
     _require_enabled()
     out = _read(service.by_ticker, sym, limit=limit)
-    summary = _read(service.ticker_summary, sym)
-    return _named({**out, **{k: summary[k] for k in ("n_calls", "n_scored", "mean_r20")}})
+    out["calls"] = service.age_gate_calls(out.get("calls") or [])
+    summary = _read(service.member_ticker_summary, sym)
+    return _named({**out, **{k: summary[k] for k in ("n_calls", "n_scored", "mean_r20")},
+                   "age_sessions": provider.PRICE_AGE_SESSIONS})
 
 
 @member_router.get("/setup/{setup}")

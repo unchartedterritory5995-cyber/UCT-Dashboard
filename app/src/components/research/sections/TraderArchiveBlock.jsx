@@ -30,6 +30,9 @@ export default function TraderArchiveBlock({ sym }) {
   const posts = [...records].sort((a, b) => String(b.stated_date).localeCompare(String(a.stated_date))).slice(0, MAX_POSTS)
   const recentCalls = newestCalls(data).slice(0, MAX_CALLS)
   const nScored = data.n_scored ?? null
+  // A call younger than the archive's aging rule arrives with no prices and no outcome
+  // (`prices_status: "pending_age"`); the server names the session count it applied.
+  const ageSessions = data.age_sessions ?? 20
 
   return (
     <section className={styles.wrap} data-testid="trader-archive-block" aria-labelledby="trader-archive-h">
@@ -61,7 +64,8 @@ export default function TraderArchiveBlock({ sym }) {
           </thead>
           <tbody>
             {recentCalls.map((c) => {
-              const r20 = c.outcome?.r20
+              const pending = c.prices_status === 'pending_age'
+              const r20 = pending ? null : c.outcome?.r20
               const tone = rTone(r20)
               return (
                 <tr key={c.call_id}>
@@ -69,7 +73,9 @@ export default function TraderArchiveBlock({ sym }) {
                   <td>{traderOf(c)}</td>
                   <td>{c.direction || '—'}</td>
                   <td>{c.setup || '—'}</td>
-                  <td className={tone === 'up' ? styles.up : tone === 'down' ? styles.down : undefined}>{fmtR(r20)}</td>
+                  {pending
+                    ? <td className={styles.pending} data-testid="trader-archive-pending">Prices shown after {ageSessions} sessions</td>
+                    : <td className={tone === 'up' ? styles.up : tone === 'down' ? styles.down : undefined}>{fmtR(r20)}</td>}
                 </tr>
               )
             })}
