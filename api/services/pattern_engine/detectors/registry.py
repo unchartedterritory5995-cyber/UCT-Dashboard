@@ -82,23 +82,39 @@ def list_public_pattern_ids() -> list[str]:
 #: detector FIRES on, its confidence, HIST_SCORE or `confirmed_only` — it only
 #: decides whether and how the geometry is drawn.
 #:
-#: Source: lab/geometry_eval/REPORT.md (2026-10-16, "Trustworthy vs noise"):
-#: 1,092 trader-stated trigger/entry levels across 785 calls, each detector's
-#: levels scored against a random-price control (U), a shifted-level control (S)
-#: and the posted-day open (O), both halves required.
-#:   trusted      — beat U and S in BOTH halves, specific (~2x fire rate on call
-#:                  days), not ubiquitous: bull_flag, pullback_to_10ema,
-#:                  holy_grail; plus double_bottom, whose levels.entry (not its
-#:                  neckline points) beat U, S and O in both halves.
-#:   hidden       — noise: matched no better than chance, or fired LESS before
-#:                  calls (bear_flag), and the three named base relations.
-#:   experimental — everything else (borderline, underpowered, or too rare to
-#:                  judge); drawn for admins with a visual distinction only.
+#: Source: lab/geometry_eval/REPORT_TIERS_V2.md (2026-10-17, "Geometry tiers v2"):
+#: a blind round over 41 drawable detectors, n=10 fresh charts each, judged on
+#: whether the DRAWN SHAPE is right (0-3 placement rubric), under a rule
+#: pre-registered before scoring: n<8 experimental; mean>=2.3 and >=70% scoring
+#: >=2 trusted; mean<1.5 hidden; else experimental. It supersedes the first
+#: round (lab/geometry_eval/REPORT.md, 2026-10-16), which measured something
+#: different: whether a detector's LEVELS sat on trader-stated entries.
+#:   trusted      — donchian_breakout 2.70, rectangle 2.70. support_resistance
+#:                  (2.70) stays in the separate levels layer below.
+#:                  bc:cup-with-handle stays EXPERIMENTAL: the primary judge's
+#:                  2.30 averaged with a second blind judge's 1.80 (70% >=2) is
+#:                  ~2.05, under the 2.3 bar; its defect is the handle (drawn
+#:                  past the breakout, too long or too short), see
+#:                  pattern_engine.display.handle_extent.
+#:   hidden       — mean < 1.5 in v2 (double_bottom 0.55: its anchors skipped
+#:                  the true low; double_top / head_shoulders 0.80; flat_base
+#:                  0.30: its box wrapped the whole prior advance), plus the
+#:                  round-1 noise set (matched no better than chance, or fired
+#:                  LESS before calls: bear_flag) and its named base relations.
+#:   experimental — everything else, including the round-1 trusted set that
+#:                  failed AS DRAWN in v2 (bull_flag 1.50, pullback_to_10ema
+#:                  1.90, holy_grail 1.80) and the RSI divergences, which never
+#:                  rendered (no verdicts). Drawn for admins, visually distinct.
 #: Members (later flip) see `trusted` only.
 DISPLAY_TRUSTED: frozenset = frozenset({
-    "bull_flag", "pullback_to_10ema", "holy_grail", "double_bottom",
+    "donchian_breakout", "rectangle",
 })
 DISPLAY_HIDDEN: frozenset = frozenset({
+    # v2 blind round (2026-10-17): mean < 1.5
+    "double_bottom", "double_top", "head_shoulders", "flat_base", "vcp",
+    "higher_low_continuation", "inverse_cup_handle", "qullamaggie_setup",
+    "range_detection", "bc:vcp", "bc:base-on-base",
+    # round 1 (2026-10-16): noise
     "inverse_head_shoulders", "triple_top", "triple_bottom", "u_and_r",
     "symmetrical_triangle", "descending_triangle", "bear_flag",
     # base_catalog relations (the chart's base-box layer keys them "bc:<key>")
@@ -119,8 +135,10 @@ DISPLAY_INTRADAY_ONLY: frozenset = frozenset({
     "opening_range_breakout", "opening_range_breakdown", "lance_opening_drive",
 })
 #: Detectors whose `levels.entry` (the breakout pivot) is the drawn level that
-#: measured best (REPORT.md: bull_flag and double_bottom entry beat O).
-DISPLAY_DRAW_ENTRY: frozenset = frozenset({"bull_flag", "double_bottom"})
+#: measured best (REPORT.md: bull_flag entry beat O). double_bottom left this
+#: set in v2 (REPORT_TIERS_V2.md, 2026-10-17): it is hidden until it is
+#: re-judged as an entry line only.
+DISPLAY_DRAW_ENTRY: frozenset = frozenset({"bull_flag"})
 
 #: The learned auto-drawer (api/services/auto_draw.py; lab auto-draw study, model of
 #: 2026-10-16, graded against trader-drawn lines). While its `drawn` block rides the
