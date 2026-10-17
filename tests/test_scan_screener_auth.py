@@ -371,7 +371,7 @@ def stub_services(monkeypatch):
                         lambda spec, user_id=None, user=None: dict(sentinel, _user_id=user_id))
     # The count batch passes its shared connection + overlay (one per batch).
     monkeypatch.setattr(scr_query, "preview_count",
-                        lambda spec, user_id=None, conn=None, overlay=None:
+                        lambda spec, user_id=None, conn=None, overlay=None, user=None:
                         dict(sentinel, _user_id=user_id))
     monkeypatch.setattr(scr_db, "status", lambda: dict(sentinel))
     monkeypatch.setattr(snapshot_builder, "run_build", lambda max_tickers=800: None)
