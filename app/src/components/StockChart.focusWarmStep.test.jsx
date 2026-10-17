@@ -45,6 +45,20 @@ vi.mock('lightweight-charts', async (importOriginal) => {
   }
   return { ...real, createChart: () => chart, createSeriesMarkers: () => ({ setMarkers: () => {} }) }
 })
+// A stateful in-memory stand-in for IndexedDB, used only by the walk below (`on`):
+// the other cases keep the real module, which jsdom answers with "no cache".
+const idbh = vi.hoisted(() => ({ on: false, delay: 20, store: new Map() }))
+vi.mock('../utils/barsIDB', async (orig) => {
+  const real = await orig()
+  return { ...real,
+    idbGet: async (sym, tf) => {
+      if (!idbh.on) return real.idbGet(sym, tf)
+      await new Promise(r => setTimeout(r, idbh.delay))
+      return idbh.store.get(`${sym}_${tf}`) ?? null
+    },
+    idbPut: async (sym, tf, bars) => { if (idbh.on) idbh.store.set(`${sym}_${tf}`, { bars, lastT: bars[bars.length - 1].t, savedAt: Date.now() }) },
+  }
+})
 vi.mock('../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {}, status: 'idle' }) }))
 vi.mock('../hooks/useRealtimeBars', () => ({ default: () => ({}) }))
 vi.mock('../hooks/useRealtimeBarPrices', () => ({ default: () => ({}), pickFreshPrice: () => null }))
@@ -123,4 +137,56 @@ describe('a warmed daily neighbour draws from the cache on the first frame', () 
     expect(await drawnWithin('MIDS', 400)).toBe(0)
     expect(netCalls.some(u => u.startsWith('/api/bars/MIDS'))).toBe(true)   // it waits on the server instead
   })
+})
+
+// ── THE WALK: every step of a Focus-screener walk draws from the cache ─────────
+// The real useFocusSelection (its neighbour warm), the real prefetchBars queue, the
+// real ChartPane and StockChart. /api/bars answers after NET_MS; a step counts as a
+// cache draw only if the pane is ready, naming the new ticker, well inside NET_MS.
+// Production (2026-10-16, after the close) measured odd steps fast and even steps
+// slow; this rail asserts EVERY step of an 8-step walk is fast.
+describe('a Focus walk draws every step from the cache', () => {
+  it('8 consecutive ArrowDowns after the bell: each pane is ready before any network answer could land', async () => {
+    const NET_MS = 400, PAUSE_MS = 700, CACHE_MS = 150
+    idbh.on = true; idbh.store.clear()
+    try { localStorage.setItem('barspack.version', 'v1') } catch { /* ignore */ }
+    const { default: useFocusSelection } = await import('../pages/screener/focus/useFocusSelection')
+    const { default: ChartPane } = await import('../pages/screener/focus/ChartPane')
+    const { act } = await import('@testing-library/react')
+    const syms = Array.from({ length: 14 }, (_, i) => `Q${i}`)
+    const rows = syms.map(t => ({ ticker: t }))
+    vi.stubGlobal('fetch', vi.fn((url) => {
+      netCalls.push(String(url))
+      const m = String(url).match(/\/api\/bars\/(Q\d+)\?/)
+      if (m) return new Promise(r => setTimeout(() => r({ ok: true, status: 200, json: () => Promise.resolve({ ticker: m[1], bars: dailyEndingAt('2026-09-22') }) }), NET_MS))
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    }))
+    let api
+    function Focus() {
+      const sel = useFocusSelection({ rows })
+      api = sel
+      return <ChartPane row={sel.selected} why={{ items: [], more: 0 }} onFlag={() => {}} onWatch={() => {}} />
+    }
+    try {
+      render(<Focus />)
+      await new Promise(r => setTimeout(r, 1500))           // first row loads; the warm runs
+      const ready = (s) => document.querySelector('[data-testid="focus-chart-pane"]')?.getAttribute('aria-label') === `${s} chart`
+        && document.querySelector('[data-chart-state]')?.getAttribute('data-chart-state') === 'ready'
+      const steps = []
+      for (let k = 0; k < 8; k++) {
+        const t0 = Date.now()
+        act(() => api.onKeyDown({ key: 'ArrowDown', preventDefault() {}, target: document.body }))
+        const s = api.selected.ticker
+        let at = null
+        while (Date.now() - t0 < PAUSE_MS) {
+          if (at == null && ready(s)) at = Date.now() - t0
+          await new Promise(r => setTimeout(r, 5))
+        }
+        steps.push({ s, at })
+      }
+      expect(steps.map(x => x.s)).toEqual(syms.slice(1, 9))
+      for (const x of steps) expect(x.at, `${x.s} ready after ${x.at} ms`).not.toBeNull()
+      for (const x of steps) expect(x.at, `${x.s} ready after ${x.at} ms`).toBeLessThan(CACHE_MS)
+    } finally { idbh.on = false }
+  }, 60000)
 })
