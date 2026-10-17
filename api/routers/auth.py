@@ -670,6 +670,7 @@ def _breadth_dc_scope(env_name: str, default_on: bool) -> str:
 #: (unset/0 = off, 1 = everyone, admin = owner preview). Read PER REQUEST.
 SCREENER_FLAGS = {
     "SCREENER_FOCUS_LAYOUT_ENABLED": False,   # enablement: Focus list + chart layout
+    "SCREENER_PREMARKET_ENABLED": False,      # enablement: pre-market sweep + columns + starters
 }
 
 
