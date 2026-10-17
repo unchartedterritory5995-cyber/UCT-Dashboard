@@ -1,0 +1,124 @@
+/* CheckInOutcomes — the "By check-in" view (P2 Tier 3, Task 5). Lazy only.
+   Matches the psychology panels (bg-surface, --border, mono numbers). The tabs carry the
+   44 px finger floor at every width (styles/tapFloor.test.js). */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+}
+
+.title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.sub,
+.empty,
+.note {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.empty {
+  font-size: 12.5px;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.tab {
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+  padding: 0 16px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+
+.tabActive {
+  color: var(--text-bright);
+  border-color: var(--ut-gold);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.table th,
+.table td {
+  padding: 8px 6px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.table thead th {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.level {
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.word {
+  margin-right: 8px;
+}
+
+.tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.table th.num,
+.table td.num {
+  text-align: right;
+}
+
+.pos {
+  color: var(--gain, #3cb868);
+}
+
+.neg {
+  color: var(--loss, #e74c3c);
+}
+
+.rowThin {
+  opacity: 0.55;
+}
