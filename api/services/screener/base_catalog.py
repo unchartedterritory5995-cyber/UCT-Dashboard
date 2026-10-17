@@ -1561,7 +1561,13 @@ def base_on_base_state(bars) -> Optional[dict]:
             continue                      # a full stage: two bases, not one
         return {"gain": gain, "pivot1": pivot1, "peak": peak,
                 "base1_bars": b1["bars"], "base2_bars": b2["bars"],
-                "pivot2": b2["pivot"], "stages": 1}
+                "pivot2": b2["pivot"], "stages": 1,
+                # Display-only (chart base boxes, `base_geometry`): where each
+                # base sits. `base1_end` is the EXCLUSIVE end index of the
+                # older base in `bars`; the newer base ends at the last bar.
+                # Additive; nothing gates on these.
+                "base1_end": e1, "base1_high": b1["high"], "base1_low": b1["low"],
+                "base2_high": b2["high"], "base2_low": b2["low"]}
     return None
 
 
@@ -2900,7 +2906,13 @@ def vcp_state(ctx, max_depth: float = VCP_MAX_DEPTH) -> Optional[dict]:
     return {"contractions": len(run), "depths": [x["depth"] for x in run],
             "depth": depth, "top": top, "floor": floor,
             "prior_advance": adv, "bars": (n - 1) - run[0]["start"],
-            "pivot": top}
+            "pivot": top,
+            # Display-only (chart base boxes, `base_geometry`): WHERE each
+            # contraction in `run` sat, as bar indices into `bars`. Additive;
+            # nothing above reads it and no gate depends on it.
+            "contraction_spans": [{"start": x["start"], "end": x["end"],
+                                   "high": x["high"], "low": x["low"]}
+                                  for x in run]}
 
 
 def _detect_vcp(ctx) -> bool:
@@ -5740,3 +5752,21 @@ def enum_options() -> list:
         out.append({"label": s.label, "op": "contains", "value": match_value(s.key),
                     "desc": s.desc})
     return out
+
+
+# -- Chart base boxes (display-only) ----------------------------------------
+# Implemented in `base_geometry` (it imports `bases`, which imports this module,
+# so the import is deferred). Each box is read off the existing state functions'
+# numbers and returned only when the structure's own `detect` fires.
+
+def base_geometry(bars, structure_key: str):
+    """{structure_key, name, label, start_t, end_t, top, floor, pivot, bars,
+    sub_boxes, source} for one structure's CURRENT box, or None."""
+    from api.services.screener import base_geometry as _bg
+    return _bg.base_geometry(bars, structure_key)
+
+
+def current_base_structures(bars) -> list:
+    """Every supported structure's current box; the 10-day range box if none fire."""
+    from api.services.screener import base_geometry as _bg
+    return _bg.current_base_structures(bars)

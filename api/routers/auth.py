@@ -698,6 +698,19 @@ def _preview_payload_keys() -> frozenset:
                      if _breadth_dc_scope(env_name, default_on) == _ADMIN_ONLY)
 
 
+def _auto_structures_flag(is_admin: bool) -> dict:
+    """`auto_structures_enabled: True` for an admin while AUTO_STRUCTURES_ENABLED
+    is on; `{}` otherwise. Read PER CALL through the ONE predicate the patterns
+    route also asks (`auto_structures.enabled`). Never raises."""
+    if not is_admin:
+        return {}
+    try:
+        from api.services import auto_structures
+        return {"auto_structures_enabled": True} if auto_structures.enabled() else {}
+    except Exception:  # noqa: BLE001 -- a feature flag must never become a login outage
+        return {}
+
+
 def _feature_status(payload: dict) -> dict:
     """TERM-039's `feature_status` field, derived from the payload just built.
 
@@ -882,6 +895,11 @@ def _access_payload(user: dict, plan: str) -> dict:
         # build flag (`runtimePaneGate.runtimePaneEnabled`), and latches it per tab.
         **_pine_runtime_pane_flag(user.get("role")),
         **_lane_r_client_flags(),
+        # ── Auto Structures (AUTO_STRUCTURES_ENABLED, dark) ─────────────────
+        # Present ONLY when the flag is on AND the member is an admin: the
+        # toolbar's structures toggle is admin-only until a later member flip,
+        # so a member's payload stays byte-identical whatever the flag says.
+        **_auto_structures_flag(is_admin),
     }
     # ── TERM-039 — member-facing feature status at the point of use ─────────
     # ⭐ DERIVED FROM THE FLAGS ABOVE, AFTER THEY ARE READ. Which capabilities are

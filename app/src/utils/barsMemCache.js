@@ -44,15 +44,20 @@ export function memHas(sym, tf) {
   return _map.has(_key(sym, tf))
 }
 
-export function memPut(sym, tf, bars) {
+export function memPut(sym, tf, bars, { savedAt } = {}) {
   if (!sym || !tf || !bars?.length) return
   const k = _key(sym, tf)
   if (_map.has(k)) _map.delete(k)
-  // `savedAt`: when THIS browser put the set here. The bars carry no source
-  // timestamp, so a daily paint gate that needs to know "is today's bar current, or
-  // merely today-dated?" has nothing else to ask. Additive — no reader is required
-  // to care, and the one that does errs safe (real age is always >= this).
-  _map.set(k, { bars, lastTs: bars[bars.length - 1]?.t ?? null, savedAt: Date.now() })
+  // `savedAt`: when the set was WRITTEN from the server. The bars carry no source
+  // timestamp, so the daily paint gate ("is today's bar current, or merely
+  // today-dated?" and "was it written after the close?") has nothing else to ask.
+  // ⛔ A caller PROMOTING an existing set (IDB → mem) must pass that set's own
+  // `savedAt`: stamping the promotion time would make an 11:00 set read as written
+  // at 18:00, i.e. as holding the sealed close. Fresh-from-server callers omit it.
+  // A promoted set whose own stamp is missing is stored as UNKNOWN (null), never now.
+  const stamp = savedAt === undefined ? Date.now()
+    : (Number.isFinite(savedAt) && savedAt > 0 ? savedAt : null)
+  _map.set(k, { bars, lastTs: bars[bars.length - 1]?.t ?? null, savedAt: stamp })
   while (_map.size > MEM_CACHE_MAX) {
     _map.delete(_map.keys().next().value) // evict least-recently-used (oldest)
   }

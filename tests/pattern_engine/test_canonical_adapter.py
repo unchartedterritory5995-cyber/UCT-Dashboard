@@ -336,13 +336,22 @@ def test_peg_anchor_roles_match_the_detectors_real_anchor_order(name, detection)
 
 def test_anchor_role_labeling_never_mutates_the_original_geometry_dict():
     assert HTF_DETECTIONS
-    _, detection = HTF_DETECTIONS[0]
+    _, emitted = HTF_DETECTIONS[0]
     import copy
+    # Since auto-structures (2026-10-16) the detector emits these same roles at
+    # the SOURCE (lab/geometry_eval REPORT.md fix 2), so strip them here to keep
+    # proving the adapter labels a COPY and never mutates what it was handed.
+    detection = copy.deepcopy(emitted)
+    detection["geometry"] = {k: v for k, v in detection["geometry"].items()
+                             if k not in ("anchor_roles", "semantic_subtype")}
     snapshot = copy.deepcopy(detection)
     adapted = adapt_high_tight_flag(detection)
     assert detection == snapshot  # original untouched
     assert "anchor_roles" not in detection["geometry"]  # only the ADAPTED copy gained it
     assert "anchor_roles" in adapted["geometry"]
+    # ...and the adapter's labels and the detector's own are ONE answer.
+    assert adapted["geometry"]["anchor_roles"] == emitted["geometry"]["anchor_roles"]
+    assert adapted["geometry"]["semantic_subtype"] == emitted["geometry"]["semantic_subtype"]
 
 
 def test_labeled_geometry_falls_back_cleanly_on_a_cardinality_mismatch():

@@ -710,3 +710,72 @@ def test_regroup_only_runs_with_the_threads_flag(monkeypatch):
     assert "regroup" not in tl.tick() and calls == []
     monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
     assert "regroup" in tl.tick() and calls == [1]
+
+
+# ── video refill ─────────────────────────────────────────────────────────────
+
+def _threaded_without_video(aid, day):
+    m = msg(sf(2026, 3, day), attachments=[video(aid)])
+    tl.record_message(m, TSDR)
+    tl._update(aid, status="posted", title=f"Lesson {aid}", recap="A. B. C. D.",
+               tags=json.dumps(["market"]), discord_post_id=f"old-{aid}",
+               post_channel_id="t-market", section="market", forward_post_id="")
+    return m
+
+
+def test_a_missing_video_is_posted_again_and_the_old_recap_removed(monkeypatch):
+    _seed_threads()
+    _threaded_without_video("nv1", 5)
+    sent = []
+    fake = FakeDiscord({
+        ("GET", "/channels/t-market/messages/old-nv1"): {"id": "old-nv1"},
+        ("POST", "/channels/t-market/messages"):
+            lambda p, b: sent.append(b) or {"id": f"n{len(sent)}"},
+        ("DELETE", "/channels/t-market/messages/old-nv1"): None,
+    })
+    monkeypatch.setattr(tl, "_discord", fake)
+    assert tl.run_video_refill(deadline=9e12) == {"refilled": 1, "waiting": 0, "errors": 0}
+    assert "embeds" in sent[0] and "message_reference" in sent[1]   # recap, then video
+    row = tl.get_lesson("nv1")
+    assert (row["discord_post_id"], row["forward_post_id"]) == ("n1", "n2")
+    assert [c[1] for c in fake.calls if c[0] == "DELETE"] == ["/channels/t-market/messages/old-nv1"]
+    assert tl.run_video_refill(deadline=9e12)["refilled"] == 0       # done, not repeated
+
+
+def test_a_still_capped_forward_changes_nothing_and_waits(monkeypatch):
+    _seed_threads()
+    _threaded_without_video("nv2", 5)
+    _threaded_without_video("nv3", 6)
+
+    def post(p, b):
+        if "message_reference" in b:
+            raise tl.DiscordError(429, '{"message": "Maximum amount of forwarded '
+                                       'attachment bytes reached", "retry_after": 300.0}')
+        return {"id": "retry-recap"}
+
+    fake = FakeDiscord({
+        ("GET", "/channels/t-market/messages/old-nv2"): {"id": "old-nv2"},
+        ("POST", "/channels/t-market/messages"): post,
+        ("DELETE", "/channels/t-market/messages/retry-recap"): None,
+    })
+    monkeypatch.setattr(tl, "_discord", fake)
+    assert tl.run_video_refill(deadline=9e12) == {"refilled": 0, "waiting": 1, "errors": 0}
+    # only the retry recap came down; the old one stays; the second lesson was not tried
+    assert [c[1] for c in fake.calls if c[0] == "DELETE"] == \
+        ["/channels/t-market/messages/retry-recap"]
+    assert tl.get_lesson("nv2")["discord_post_id"] == "old-nv2"
+    assert not [c for c in fake.calls if "old-nv3" in c[1]]
+
+
+def test_refill_leaves_a_deleted_lesson_deleted(monkeypatch):
+    _seed_threads()
+    _threaded_without_video("nv4", 5)
+
+    def gone(p, b):
+        raise tl.DiscordError(404, "Unknown Message")
+
+    fake = FakeDiscord({("GET", "/channels/t-market/messages/old-nv4"): gone})
+    monkeypatch.setattr(tl, "_discord", fake)
+    tl.run_video_refill(deadline=9e12)
+    assert tl.get_lesson("nv4")["section"] == tl.REMOVED
+    assert not [c for c in fake.calls if c[0] == "POST"]

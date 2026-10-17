@@ -56,6 +56,7 @@ import { useUserDefinitions } from '../../hooks/useUserDefinitions'
 import { createCustomCopy } from './builder/definitionActions'
 import { useCreateIndicatorAccess } from './builder/studio/createIndicatorFlag'
 import PatternToolbarButton from './PatternToolbarButton'
+import { useAutoStructuresGate } from './autoStructuresGate'
 import BoardsToolButton from './BoardsToolButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
 import { ENGINE_OWNED } from './engine/flipState'
@@ -1035,6 +1036,8 @@ function ChartToolbar({
   onShowHelp = null,
   showPatterns = false,
   onTogglePatterns = null,
+  showLevels = false,
+  onToggleLevels = null,
   hideReplay = false,
   hidePatterns = false,
   hideCompare = false,
@@ -1160,6 +1163,7 @@ function ChartToolbar({
   // ⭐ "Modify with UCT Intelligence" uses the EXISTING Create Indicator access —
   // the same answer the studio itself and the server's `/converse` gate give.
   const canModifyWithIntelligence = useCreateIndicatorAccess(useContext(AuthContext))
+  const autoStructuresOn = useAutoStructuresGate()
   // ⭐ SLICE 2 — THIS chart's new-indicator context. One opaque scope per toolbar
   // (per chart), so closing the dock keeps that chart's draft conversation and a
   // different chart never sees it. Never derived from a symbol, name or formula.
@@ -1631,9 +1635,24 @@ function ChartToolbar({
           {ICONS.repeat}
         </button>
 
-        {/* Patterns overlay toggle — temporarily removed (was overlapping the toolbar) */}
-        {false && !hidePatterns && onTogglePatterns && (
+        {/* Patterns / Auto Structures toggle. Hidden for members (it was removed for
+            overlapping the toolbar); back for ADMINS ONLY while AUTO_STRUCTURES_ENABLED is
+            on (useAutoStructuresGate — the same predicate StockChart's fetch asks). */}
+        {autoStructuresOn && !hidePatterns && onTogglePatterns && (
           <PatternToolbarButton active={!!showPatterns} onToggle={onTogglePatterns} />
+        )}
+        {autoStructuresOn && !hidePatterns && onToggleLevels && (
+          <button
+            type="button"
+            className={`${styles.btn} ${showLevels ? styles.active : ''}`}
+            onClick={() => onToggleLevels(!showLevels)}
+            title={showLevels ? 'Key levels: ON (nearest support/resistance)' : 'Key levels: OFF'}
+            aria-label="Toggle key levels layer"
+            aria-pressed={!!showLevels}
+            style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, padding: '2px 6px' }}
+          >
+            Levels
+          </button>
         )}
 
         {/* Extended hours toggle (intraday only) */}

@@ -159,11 +159,16 @@ def _build(bars, c, context, geom, vol, ctx) -> dict:
         "gap_day_low": round(c["gap_day_low"], 2), "first_test": c["first_test"],
         "confluence": c["confluence"], "bars_since_gap": c["bars_since_gap"], "rvol50": c["rvol50"],
     }
+    secondary = [
+        U.hline(bars, g - 1, i, c["gap_top"], "gap_edge", f"Gap edge {c['gap_top']:.2f}"),
+        U.hline(bars, g, i, c["gap_day_low"], "gap_low", f"Gap-day low {c['gap_day_low']:.2f}"),
+    ]
     return U.build_detection(
         pattern_id=_PATTERN_ID, pattern_name=_PATTERN_NAME, direction="bullish",
         bars=bars, trig_idx=i, start_idx=g - 1, anchors=anchors,
         anchor_roles=["gap_day", "gap_test_session"], extras=extras, levels=levels,
-        context=context, narrative=_narrative(c, levels, context), geom=geom, vol=vol, ctx=ctx)
+        context=context, narrative=_narrative(c, levels, context), geom=geom, vol=vol, ctx=ctx,
+        secondary=secondary)
 
 
 _LEVEL_WORDS = {"top": "the gap top (the prior day's high)", "glow": "the gap day's low",
