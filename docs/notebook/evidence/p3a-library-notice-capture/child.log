@@ -1,0 +1,20 @@
+tip: de0ff40daf160e458a1be4a45a0c914cbe8c3f83
+rc: 0
+--- stdout ---
+  Model keys   : BLANKED ANTHROPIC_API_KEY, WISDOM_ANTHROPIC_API_KEY, OPENAI_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_AUTH_TOKEN; keyring -> null backend (opt in: --allow-model-keys or HUB_SANDBOX_ALLOW_MODEL_KEYS=1)
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\p3a-capture-yhxn5ctw\auth.db
+RESULT {"copy": "693eef1a28f64fffae79a683633c3e17", "item": "0e8f44e525fe4f3f8171d956845146fe"}
+CAPTURED [{"data": {"galleryId": "0e8f44e525fe4f3f8171d956845146fe", "source": "notebook_style_library"}, "id": "notebook_style_library_1792256784399", "message": "Weekend Prep was taken down by its author. Your copy is yours and has not changed.", "read": false, "severity": "info", "timestamp": "2026-10-17T13:06:24.399961-04:00", "title": "Weekend Prep", "type": "notebook_style_library", "user_id": "774a5823-ba76-49c1-a587-e7f07352a14f"}, {"data": {"galleryId": "0e8f44e525fe4f3f8171d956845146fe", "research_url": "/journal/notebook?styles=1&libraryUpdate=693eef1a28f64fffae79a683633c3e17", "source": "notebook_style_library", "styleId": "693eef1a28f64fffae79a683633c3e17", "version": 2}, "id": "notebook_style_library_1792256784384", "message": "Weekend Prep has a new version from its author. Open it to see what changed.", "read": false, "severity": "info", "timestamp": "2026-10-17T13:06:24.384441-04:00", "title": "Weekend Prep", "type": "notebook_style_library", "user_id": "774a5823-ba76-49c1-a587-e7f07352a14f"}]
+
+--- stderr (tail) ---
+[email] RESEND_API_KEY not set � emails disabled
+
