@@ -165,6 +165,11 @@ _DIRECT_USER_TABLES = (
     # Created by template_gallery.ensure_gallery_schema. The watches OTHER members hold on a
     # leaving author's styles go in the join pass below.
     "j2_gallery_watches",
+    # P3a Task 6 -- the member's own "Helpful" votes and their opaque author handle (R-P3-2). Created by
+    # template_gallery.ensure_gallery_schema. The votes OTHER members cast on a leaving author's items go in the
+    # join pass below; their follows (a table keyed by two member ids, so not `user_id`) in the keyed pass.
+    "j2_gallery_helpful",
+    "j2_gallery_authors",
     # Wave 13 (lane 13I-1, the technical fingerprint) -- the member's chart-block index (a
     # projection of their notes) and the freeze ledger of each block's fingerprint.
     # Self-ensured by chart_blocks.py (never db.py), so on a pod where the routes never ran
@@ -351,12 +356,26 @@ def purge_user_rows(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
             "(SELECT id FROM j2_template_gallery WHERE user_id = ?)",
             (user_id,),
         ),
+        # P3a Task 6 -- the votes other members cast on the leaving author's items.
+        "j2_gallery_helpful": _run(
+            "j2_gallery_helpful",
+            "DELETE FROM j2_gallery_helpful WHERE item_id IN "
+            "(SELECT id FROM j2_template_gallery WHERE user_id = ?)",
+            (user_id,),
+        ),
     }
 
     for table in _DIRECT_USER_TABLES:
         deleted[table] = _run(table, f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
     for table, count in about_their_templates.items():
         deleted[table] = deleted.get(table, 0) + count      # one count per table (the manifest's keys)
+
+    # P3a Task 6 -- `j2_gallery_follows` is keyed by TWO member ids and has no `user_id`: the member's own
+    # follows (`follower_id`) and the follows OTHER members hold on them as an author (`author_id`). Both are
+    # the member's id, so both are keyed deletes (the manifest lists the table once per key); one count.
+    deleted["j2_gallery_follows"] = (
+        _run("j2_gallery_follows", "DELETE FROM j2_gallery_follows WHERE follower_id = ?", (user_id,))
+        + _run("j2_gallery_follows", "DELETE FROM j2_gallery_follows WHERE author_id = ?", (user_id,)))
 
     # Wave 7 whole-branch fix, ruling D-H10 -- the durable daily counters
     # (`api/services/daily_counters.py`, ruling D-H5b): one row per (scope,
