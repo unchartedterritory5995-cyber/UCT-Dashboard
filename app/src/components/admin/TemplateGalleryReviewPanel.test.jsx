@@ -15,7 +15,7 @@ import { blockLabel } from '../../pages/journal-2-0/lib/journalBlocks'
 import { BUILTIN_NOTE_KINDS } from '../../pages/journal-2-0/lib/noteKinds'
 import { tradingStyleLabel } from '../../pages/journal-2-0/lib/styleLibrary'
 import { categoryLabel } from '../../pages/journal-2-0/lib/templateGallery'
-import TemplateGalleryReviewPanel, { revisionLine, REVISION_UNREADABLE_LINE } from './TemplateGalleryReviewPanel'
+import TemplateGalleryReviewPanel, { revisionLine, REVISION_UNREADABLE_LINE, CARD_REFRESHED_LINE } from './TemplateGalleryReviewPanel'
 
 const QUEUE = contractBody('template-gallery.admin.queue')
 const SHARED = contractBody('template-gallery.styles.publish').template        // a style as its author submitted it
@@ -35,10 +35,15 @@ const REVISION = { ...SHARED, id: REV_ITEM.id, status: 'approved', listedAt: REV
   hasRevision: true, revisionTitle: REV_ITEM.pendingRevision.title, openReports: 0, updatedAt: QUEUE_STAMP }
 const UNREADABLE = { ...REVISION, id: 'style_unreadable' }
 const kindName = (id) => BUILTIN_NOTE_KINDS.find((k) => k.id === id).name
+// R7: the author resubmits while the reviewer is looking: a newer read of the first submission, with no blocks.
+const RESUBMITTED_STAMP = '2026-10-08T16:45:00+00:00'
+const RESUBMITTED = { ...ITEM, id: PENDING_STYLE.id, updatedAt: RESUBMITTED_STAMP, payload: { ...ITEM.payload, blocks: [] } }
 
 let calls
+let pendingRead
 beforeEach(() => {
   calls = []
+  pendingRead = { ...ITEM, id: PENDING_STYLE.id }
   globalThis.fetch = vi.fn((input, init = {}) => {
     const method = (init.method || 'GET').toUpperCase()
     const path = String(input).split('?')[0]
@@ -50,7 +55,7 @@ beforeEach(() => {
     }
     const m = path.match(/^\/api\/j2\/template-gallery\/admin\/items\/([\w-]+)$/)
     if (m && method === 'PATCH') return ok(contractBody('template-gallery.admin.approve'))
-    if (path === `/api/j2/template-gallery/${PENDING_STYLE.id}`) return ok({ template: { ...ITEM, id: PENDING_STYLE.id } })
+    if (path === `/api/j2/template-gallery/${PENDING_STYLE.id}`) return ok({ template: pendingRead })
     if (path === `/api/j2/template-gallery/${REVISION.id}`) return ok({ template: REVISION_READ })
     // a revision row whose revision the server could not read: the item answers without `pendingRevision`
     if (path === `/api/j2/template-gallery/${UNREADABLE.id}`) return ok({ template: { ...ITEM, id: UNREADABLE.id } })
@@ -155,6 +160,37 @@ describe('the review queue for a style item', () => {
     await waitFor(() => expect(patches()).toHaveLength(1))
     expect(patches()[0].body).toEqual({ action: 'approve', note: '', reviewedUpdatedAt: ITEM.updatedAt })
     expect(patches()[0].body.reviewedUpdatedAt).not.toBe(QUEUE_STAMP)
+  })
+
+  it('R7: a Preview of the SAME version as the card leaves the token and the card alone', async () => {
+    renderPanel()
+    const row = await rowOf(PENDING_STYLE.id)
+    await within(row).findByText(/^Blocks: /)
+    fireEvent.click(within(row).getByRole('button', { name: `Preview ${PENDING_STYLE.title}` }))
+    const preview = await screen.findByRole('dialog', { name: PENDING_STYLE.title })
+    await within(preview).findByText(textOf(ITEM.bodyJson))
+    expect(screen.queryByText(CARD_REFRESHED_LINE)).toBeNull()
+    fireEvent.click(within(preview).getAllByRole('button', { name: 'Close' })[0])
+    fireEvent.click(within(row).getByRole('button', { name: `Approve ${PENDING_STYLE.title}` }))
+    await waitFor(() => expect(patches()).toHaveLength(1))
+    expect(patches()[0].body.reviewedUpdatedAt).toBe(ITEM.updatedAt)
+  })
+
+  it('R7: a resubmission between the card read and Preview refreshes the card, and Approve sends the version the card shows', async () => {
+    renderPanel()
+    const row = await rowOf(PENDING_STYLE.id)
+    const before = `Blocks: ${ITEM.payload.blocks.map((b) => blockLabel(b.block)).join(', ')}`
+    expect(await within(row).findByText(before)).toBeInTheDocument()            // the card shows version A
+    pendingRead = RESUBMITTED                                                     // the author shares again
+    fireEvent.click(within(row).getByRole('button', { name: `Preview ${PENDING_STYLE.title}` }))
+    const preview = await screen.findByRole('dialog', { name: PENDING_STYLE.title })
+    expect(await screen.findByText(CARD_REFRESHED_LINE)).toBeInTheDocument()
+    fireEvent.click(within(preview).getAllByRole('button', { name: 'Close' })[0])
+    expect(await within(row).findByText('Blocks: none')).toBeInTheDocument()     // the card now shows version B
+    expect(within(row).queryByText(before)).toBeNull()
+    fireEvent.click(within(row).getByRole('button', { name: `Approve ${PENDING_STYLE.title}` }))
+    await waitFor(() => expect(patches()).toHaveLength(1))
+    expect(patches()[0].body.reviewedUpdatedAt).toBe(RESUBMITTED_STAMP)          // the version the card renders
   })
 
   it('an outline row still approves with its queue token (unchanged)', async () => {

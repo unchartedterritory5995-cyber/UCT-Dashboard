@@ -215,6 +215,21 @@ describe('which rows and buttons the library adds (M-3, ruling P3a-T10-R3)', () 
   })
 })
 
+describe('Duplicate carries provenance (ruling P3a-T10-R6)', () => {
+  it('Duplicate of an adopted copy sends duplicateOf, and the duplicate (which carries the source) offers no Share', async () => {
+    const created = { ...COPY, id: 'dup_of_copy', name: `${COPY.name} copy` }          // the server's answer: provenance kept
+    routes.unshift(['GET', re(`/api/j2/journal-styles/${COPY.id}`), { style: COPY }])
+    routes.unshift(['POST', /^\/api\/j2\/journal-styles$/, () => { listAnswer = listWith(COPY); listAnswer.styles.push(created); return { style: created } }])
+    flags()
+    openManager()
+    fireEvent.click(await screen.findByRole('button', { name: `Duplicate ${COPY.name}` }))
+    await waitFor(() => expect(called('POST', /^\/api\/j2\/journal-styles$/)).toHaveLength(1))
+    expect(called('POST', /^\/api\/j2\/journal-styles$/)[0].body.duplicateOf).toBe(COPY.id)
+    const dupRow = within((await screen.findByRole('button', { name: `Edit ${created.name}` })).closest('li'))
+    expect(dupRow.queryByRole('button', { name: /to community/ })).toBeNull()
+  })
+})
+
 describe('libraryError: what a failed library call says', () => {
   const err = (message, status) => Object.assign(new Error(message), status ? { status } : {})
   it('a 404, a 5xx and a body-less "request failed (N)" all say the fallback, never their own words', () => {

@@ -20,7 +20,8 @@
 //    so a copy that fell behind after the member last opened this manager is not in the cached answer.
 // ⛔ After "Update my copy" focus goes to the updated copy's row (I-2): the Review update button that opened the
 //    sheet is removed with its Updates row, and restoring focus to it would drop the member on <body>.
-// ⛔ Share is not offered on a copy adopted from the library (ruling P3a-T10-R3; the server refuses it too).
+// ⛔ Share is not offered on any style that carries library provenance (`sourceGalleryId`): an adopted copy, its
+//    duplicate, or a style saved from a note made with one (rulings P3a-T10-R3/R5/R6; the server refuses them too).
 import { useContext, useEffect, useRef, useState } from 'react'
 import { useInRouterContext, useSearchParams } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
@@ -218,6 +219,8 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     const body = { name: copyName(full.name), kindId: full.kindId, blocks: full.blocks || [], properties: full.properties || {} }
     if (full.outlineTemplateId) body.outlineTemplateId = full.outlineTemplateId
     if (full.outlineBodyJson) body.outlineBodyJson = full.outlineBodyJson
+    // P3a-T10-R6: the server carries the original's community-library provenance to the copy.
+    if (!full.builtin) body.duplicateOf = full.id
     const out = await createJournalStyle(body)
     await mutate()
     if (thenEdit) openEditor(out.style, opener); else setStatus('Style duplicated.')

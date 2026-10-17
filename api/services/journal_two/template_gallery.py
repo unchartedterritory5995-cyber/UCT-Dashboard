@@ -848,9 +848,12 @@ def style_payload(user_id: str, style_id: Any, conn: sqlite3.Connection) -> dict
         return None
     if style.get("sourceGalleryId"):
         # Ruling P3a-T10-R3: a copy adopted from another author's listing is not the adopter's to share.
+        # Ruling P3a-T10-R5: FAIL CLOSED. Only a source row that still exists AND is this member's own lets it
+        # through; a withdrawn listing (unpublish deletes the row) or a purged author's leaves the provenance
+        # pointing at nothing, and that is refused with the same sentence, never read as "no source".
         src = conn.execute("SELECT user_id FROM j2_template_gallery WHERE id = ?",
                            (style["sourceGalleryId"],)).fetchone()
-        if src is not None and src["user_id"] != user_id:
+        if src is None or src["user_id"] != user_id:
             raise GalleryError(ADOPTED_SHARE_SENTENCE)
     if style["kindId"] not in nk.BUILTIN_KIND_IDS:
         raise GalleryError(CUSTOM_KIND_SENTENCE)

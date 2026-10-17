@@ -16,12 +16,13 @@
 //    admin-only `pendingRevision` on the same single-item read (title, description, category, trading style,
 //    kind, blocks, and the outline Preview shows). The queue row's own fields are the LISTED version's, so they
 //    are never shown as the update. A revision the server could not read says so; it is never shown as listed.
-// ⛔ The approve token is the `updatedAt` of the read that RENDERED these details (or of a later Preview), so the
-//    version approved is the version the reviewer saw; an author resubmitting since is the server's 409.
+// ⛔ Ruling P3a-T10-R7: a style row's approve token is PINNED to the read its details card renders; Preview never
+//    moves it. When a Preview read finds a newer version than the card shows, the panel says so and puts that
+//    read into the card, and the token follows the card. (An outline row has no card: its Preview sets it.)
 // Rendered inside the Notebook's community gallery for admins (TemplateGallery.jsx);
 // the server refuses every one of these calls to a non-admin regardless.
 import { useCallback, useEffect, useId, useState } from 'react'
-import useSWR from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 import {
   getGalleryTemplate, resolveGalleryReport, reviewGalleryTemplate, useGalleryQueue,
   REPORT_REASONS, categoryLabel,
@@ -37,6 +38,8 @@ const reasonLabel = (key) => REPORT_REASONS.find((r) => r.key === key)?.label ||
 export const revisionLine = (version) =>
   `Update to a listed style (version ${version}). Approving lists it; the current version stays until then.`
 export const REVISION_UNREADABLE_LINE = 'This update could not be read, so there is nothing to show. Ask the author to share it again.'
+export const CARD_REFRESHED_LINE = 'The author changed this since its details were shown. The details now show the latest version.'
+const reviewCardKey = (item) => ['gallery-review-style', item.id, item.updatedAt]
 const kindName = (id) => BUILTIN_NOTE_KINDS.find((k) => k.id === id)?.name || 'A kind of note this version does not know'
 
 /** What a reviewer is approving: for a held revision the admin-only `pendingRevision`, else the item itself.
@@ -56,7 +59,7 @@ export function underReview(item, full) {
  *  all from ONE read. Keyed on the row's `updatedAt`, so an author's resubmission is read afresh. `onRead` hands
  *  the read's `updatedAt` up as the approve token. */
 function StyleReviewDetails({ item, onRead }) {
-  const { data, error } = useSWR(['gallery-review-style', item.id, item.updatedAt], () => getGalleryTemplate(item.id),
+  const { data, error } = useSWR(reviewCardKey(item), () => getGalleryTemplate(item.id),
     { revalidateOnFocus: false, shouldRetryOnError: false })
   useEffect(() => { if (data?.updatedAt) onRead(item.id, data.updatedAt) }, [data, item.id, onRead])
   const shown = underReview(item, data)
@@ -140,6 +143,8 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
   }
 
   const markSeen = useCallback((id, updatedAt) => setSeen((prev) => (prev[id] === updatedAt ? prev : { ...prev, [id]: updatedAt })), [])
+  const [refreshed, setRefreshed] = useState({})        // style rows whose card a Preview brought up to date
+  const { mutate: mutateCache } = useSWRConfig()
 
   const openPreview = async (item) => {
     const style = item.itemType === 'style'
@@ -148,7 +153,12 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
     setPreview({ ...base, loading: true })
     try {
       const full = await getGalleryTemplate(item.id)
-      markSeen(item.id, full.updatedAt)
+      if (!style) markSeen(item.id, full.updatedAt)
+      else if (seen[item.id] && full.updatedAt !== seen[item.id]) {
+        // A newer version than the card shows: the card takes this read (and the token follows it, via onRead).
+        mutateCache(reviewCardKey(item), full, { revalidate: false })
+        setRefreshed((prev) => ({ ...prev, [item.id]: true }))
+      }
       if (style && item.hasRevision) {
         const shown = underReview(item, full)
         if (!shown) { setPreview({ ...base, loadError: REVISION_UNREADABLE_LINE }); return }
@@ -176,6 +186,7 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
             <span className={styles.meta}>by {item.author} · {categoryLabel(item.category)}</span>
             {item.description && <p className={styles.cardDesc}>{item.description}</p>}
             {item.itemType === 'style' && <StyleReviewDetails item={item} onRead={markSeen} />}
+            {refreshed[item.id] && <p className={styles.note} role="status">{CARD_REFRESHED_LINE}</p>}
             <div className={styles.actions}>
               <button type="button" className={styles.btn} onClick={() => openPreview(item)}
                 aria-label={`Preview ${item.title}`}>Preview</button>

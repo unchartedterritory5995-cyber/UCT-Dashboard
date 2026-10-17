@@ -206,3 +206,92 @@ def test_post_apply_without_to_version_is_400_and_writes_nothing(api, conn, lib_
     ok = api.post(f"{URL}/updates/{mine['id']}", json={"takeOutline": False, "baseUpdatedAt": mine["updatedAt"],
                                                         "toVersion": 2})
     assert ok.status_code == 200
+
+
+# ── P3a-T10-R5: fail closed when the source listing is gone ─────────────────────────────
+
+
+def _refused(conn, user_id, style_id):
+    n = conn.execute("SELECT COUNT(*) FROM j2_template_gallery").fetchone()[0]
+    with pytest.raises(gallery.GalleryError) as e:
+        gallery.publish_style(user_id, style_id, title="Mine now", description="", category="journal",
+                              trading_style=None, conn=conn)
+    assert str(e.value) == gallery.ADOPTED_SHARE_SENTENCE
+    assert conn.execute("SELECT COUNT(*) FROM j2_template_gallery").fetchone()[0] == n
+
+
+def test_a_copy_of_a_withdrawn_listing_is_still_refused(conn, lib_on):
+    item = listed_style(conn)
+    copy = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    assert gallery.unpublish("author", item["id"], conn=conn) is True
+    assert conn.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE id = ?", (item["id"],)).fetchone()[0] == 0
+    assert js.get_style("member", copy["id"], conn)["sourceGalleryId"] == item["id"]   # the copy keeps its source
+    _refused(conn, "member", copy["id"])
+
+
+def test_a_copy_of_a_purged_authors_listing_is_still_refused(conn, lib_on):
+    from api.services.journal_two import account_purge as ap
+    item = listed_style(conn)
+    copy = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    ap.purge_user_rows("author", conn)
+    assert conn.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE id = ?", (item["id"],)).fetchone()[0] == 0
+    _refused(conn, "member", copy["id"])
+
+
+# ── P3a-T10-R6: provenance survives Duplicate and "Save as style" ───────────────────────
+
+
+def test_a_duplicate_of_an_adopted_copy_keeps_its_provenance_and_cannot_be_shared(conn, lib_on):
+    item = listed_style(conn)
+    copy = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    dup = js.create_style("member", {"name": "Weekend Prep copy", "kindId": copy["kindId"], "blocks": copy["blocks"],
+                                     "properties": copy["properties"], "duplicateOf": copy["id"]}, conn)
+    assert (dup["sourceGalleryId"], dup["sourceVersion"]) == (item["id"], copy["sourceVersion"])
+    _refused(conn, "member", dup["id"])
+
+
+def test_a_duplicate_of_an_adopted_copy_is_refused_over_http_too(api, conn, lib_on):
+    item = listed_style(conn)
+    copy = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    dup = js.create_style("member", {"name": "D", "kindId": copy["kindId"], "duplicateOf": copy["id"]}, conn)
+    _as(api, "member")
+    r = api.post(f"{URL}/styles", json={"styleId": dup["id"], "title": "Mine now", "category": "journal"})
+    assert r.status_code == 400 and r.json()["detail"] == gallery.ADOPTED_SHARE_SENTENCE
+
+
+def test_a_duplicate_of_the_members_own_style_carries_nothing_and_still_shares(conn, lib_on):
+    own = _style(conn, "member")
+    dup = js.create_style("member", {"name": "Own copy", "kindId": own["kindId"], "duplicateOf": own["id"]}, conn)
+    assert dup["sourceGalleryId"] is None
+    assert gallery.publish_style("member", dup["id"], title="Own copy", description="", category="journal",
+                                 trading_style=None, conn=conn)["status"] == "pending"
+
+
+def test_duplicate_of_must_be_one_of_the_members_own_styles(conn, lib_on):
+    item = listed_style(conn)
+    theirs = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    for bad in (theirs["id"], "nope", 7, ""):
+        with pytest.raises(js.StyleValidationError):
+            js.create_style("stranger", {"name": "X", "kindId": "weekend_prep", "duplicateOf": bad}, conn)
+    # a built-in is the member's to duplicate, and has no provenance
+    b = js.create_style("stranger", {"name": "X", "kindId": "weekend_prep", "duplicateOf": "builtin:weekend_prep"}, conn)
+    assert b["sourceGalleryId"] is None
+
+
+def test_a_style_saved_from_a_note_made_with_an_adopted_copy_keeps_its_provenance(conn, lib_on):
+    item = listed_style(conn)
+    copy = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
+    note, _ = js.create_styled_note("member", {"styleId": copy["id"], "title": "Monday prep"}, conn)
+    assert note["styleId"] == copy["id"]                                    # how a note records its style
+    saved = js.create_style_from_note("member", note["id"], "From my note", conn=conn)
+    assert saved["sourceGalleryId"] == item["id"]
+    _refused(conn, "member", saved["id"])
+
+
+def test_a_style_saved_from_a_note_made_with_the_members_own_style_still_shares(conn, lib_on):
+    own = _style(conn, "member")
+    note, _ = js.create_styled_note("member", {"styleId": own["id"], "title": "Own note"}, conn)
+    saved = js.create_style_from_note("member", note["id"], "From my note", conn=conn)
+    assert saved["sourceGalleryId"] is None
+    assert gallery.publish_style("member", saved["id"], title="From my note", description="", category="journal",
+                                 trading_style=None, conn=conn) is not None

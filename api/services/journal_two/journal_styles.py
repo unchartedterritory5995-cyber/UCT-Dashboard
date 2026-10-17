@@ -409,12 +409,40 @@ def list_styles(user_id: str, conn: sqlite3.Connection | None = None) -> list[di
             conn.close()
 
 
-def create_style(user_id: str, payload: Any, conn: sqlite3.Connection | None = None) -> dict:
+_PROVENANCE_COLS = ("source_gallery_id", "source_version", "source_block_ids", "source_outline_hash")
+
+
+def _provenance_of(user_id: str, style_id: Any, conn: sqlite3.Connection) -> tuple | None:
+    """The library provenance of one of the member's own styles (a deleted one too: the note it shaped still came
+    from the library), or None when it has none. Ruling P3a-T10-R6: a style made FROM a style that came from the
+    community library keeps where it came from, so it cannot be shared as the member's own (template_gallery's
+    R3/R5 refusal reads `source_gallery_id`)."""
+    if not isinstance(style_id, str) or not style_id or style_id.startswith(BUILTIN_PREFIX):
+        return None
+    r = conn.execute("SELECT " + ", ".join(_PROVENANCE_COLS) + " FROM j2_journal_styles WHERE id = ? AND user_id = ?",
+                     (style_id, user_id)).fetchone()
+    if r is None or not r["source_gallery_id"]:
+        return None
+    return tuple(r[c] for c in _PROVENANCE_COLS)
+
+
+def create_style(user_id: str, payload: Any, conn: sqlite3.Connection | None = None, *,
+                 provenance: tuple | None = None) -> dict:
+    """A new style. `payload.duplicateOf` (P3a-T10-R6) names the member's own style this one duplicates: its
+    library provenance, if it has any, is carried to the copy. `provenance` is the internal form of the same (the
+    note path, create_style_from_note)."""
     if not isinstance(payload, dict):
         raise StyleValidationError("Send a style object.")
     owned = conn is None
     conn = conn or get_connection()
     try:
+        dup = payload.get("duplicateOf")
+        if dup is not None:
+            if not isinstance(dup, str) or not dup.strip():
+                raise StyleValidationError("duplicateOf must be text")
+            if not dup.startswith(BUILTIN_PREFIX) and _load_row(user_id, dup, conn, include_deleted=True) is None:
+                raise StyleValidationError("You can only duplicate one of your own styles.")
+            provenance = provenance or _provenance_of(user_id, dup, conn)
         name = _clean_name(payload.get("name"))
         kind = _clean_kind(user_id, payload.get("kindId"), conn)
         tpl = _clean_template(user_id, payload.get("outlineTemplateId"), conn)
@@ -432,6 +460,9 @@ def create_style(user_id: str, payload: Any, conn: sqlite3.Connection | None = N
             " created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, 1, ?, ?)",
             (sid, user_id, name, kind, tpl, json.dumps(outline) if outline else None,
              json.dumps(blocks), json.dumps(props), now, now))
+        if provenance:
+            conn.execute("UPDATE j2_journal_styles SET " + ", ".join(f"{c} = ?" for c in _PROVENANCE_COLS)
+                         + " WHERE id = ? AND user_id = ?", (*provenance, sid, user_id))
         conn.commit()
         return get_style(user_id, sid, conn)
     finally:
@@ -662,9 +693,12 @@ def create_style_from_note(user_id: str, note_id: str, name: Any, kind_id: Any =
         outline = {"type": "doc", "content": strip((note.get("bodyJson") or {}).get("content") or [], True)}
         props = _valid_defaults(user_id, note.get("propertiesJson") or {}, conn)
         kind = kind_id or (note.get("propertiesJson") or {}).get(kind_prop) or note.get("kindId")
+        # P3a-T10-R6: a note records the style it was made from (`j2_notes.style_id`, the style stamp). When that
+        # style came from the community library, the style saved from the note keeps its provenance.
         return create_style(user_id, {"name": name if name else (note.get("title") or "My style"),
                                       "kindId": kind, "outlineBodyJson": outline, "blocks": blocks,
-                                      "properties": props}, conn)
+                                      "properties": props}, conn,
+                            provenance=_provenance_of(user_id, note.get("styleId"), conn))
     finally:
         if owned:
             conn.close()
