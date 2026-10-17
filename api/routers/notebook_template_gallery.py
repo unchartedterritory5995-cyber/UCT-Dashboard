@@ -240,16 +240,20 @@ def plan_update_endpoint(style_id: str, user: dict = Depends(require_paid)) -> d
 @router.post("/updates/{style_id}", dependencies=[Depends(_require_library)])
 def apply_update_endpoint(style_id: str, body: dict[str, Any] = Depends(paid_body),
                           user: dict = Depends(require_paid)) -> dict[str, Any]:
-    """`{takeOutline?: bool, baseUpdatedAt}` -> `{style}`. 409 when the copy changed since the preview
-    (`baseUpdatedAt` is the `updatedAt` the member previewed against); 404 when there is nothing to apply."""
+    """`{takeOutline?: bool, baseUpdatedAt, toVersion?: int}` -> `{style}`. 409 when the copy changed since the
+    preview (`baseUpdatedAt` is the `updatedAt` the member previewed against) or a newer version is listed than
+    the `toVersion` they previewed; 404 when there is nothing to apply."""
     take_outline = body.get("takeOutline", False)
     if take_outline is None:
         take_outline = False
     if not isinstance(take_outline, bool):
         raise HTTPException(status_code=400, detail="takeOutline must be true or false")
+    to_version = body.get("toVersion")
+    if to_version is not None and (isinstance(to_version, bool) or not isinstance(to_version, int)):
+        raise HTTPException(status_code=400, detail="toVersion must be a whole number")
     try:
         style = gallery.apply_update(user["id"], style_id, take_outline=take_outline,
-                                     base_updated_at=body.get("baseUpdatedAt"))
+                                     base_updated_at=body.get("baseUpdatedAt"), to_version=to_version)
     except gallery.GalleryError as e:
         raise _bad(e)
     if style is None:

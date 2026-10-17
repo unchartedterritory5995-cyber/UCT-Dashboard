@@ -4,21 +4,26 @@
 //
 // CONTRACT: every server answer is a recorded fixture (`__fixtures__/contract`, written by
 // tools/notebook_contract_fixtures.py and held current by tests/test_notebook_contract_fixtures.py): the journal
-// styles list, a style read, the share (and its 400), the Updates list, the plan, the apply (and its 409), and the
-// library list the door opens. A variation (the adopted copy as a list row, a plan whose outline the author changed,
-// a share that left two defaults behind) is a spread + override of a fixture object, never a retyped shape.
+// styles list, a style read, the share (and its 400), the Updates list (and its empty answer), the plan (and its
+// 404), the apply (and its two 409s), and the library list the door opens. A variation (the adopted copy as a list
+// row, a plan whose outline the author changed, a share that left two defaults behind) is a spread + override of
+// a fixture object, never a retyped shape.
+// ⛔ Fix round 1, M-2: the copy carries its OWN `updatedAt`, distinct from every other fixture timestamp, so a
+//    sheet that sent the wrong base (the plan's, the gallery item's, a re-read one) cannot pass.
 import { useEffect } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, within, waitFor, fireEvent } from '@testing-library/react'
-import { SWRConfig } from 'swr'
+import { render, screen, within, waitFor, fireEvent, act } from '@testing-library/react'
+import { SWRConfig, useSWRConfig } from 'swr'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
 import { AuthContext } from '../../../../../context/AuthContext'
 import { contract, contractBody } from '../../../__fixtures__/contract'
 import { blockLabel } from '../../../lib/journalBlocks'
 import { GALLERY_CATEGORIES } from '../../../lib/templateGallery'
-import { TRADING_STYLES } from '../../../lib/styleLibrary'
+import { LIBRARY_UPDATES_KEY, TRADING_STYLES } from '../../../lib/styleLibrary'
+import { STYLES_URL } from '../../../lib/journalStyles'
 import { __resetOfferApplied } from './offerApplied'
+import { libraryError, OFFLINE_SENTENCE } from './styleErrors'
 
 vi.mock('../../../../../hooks/usePreferences', () => ({
   default: () => ({ prefs: {}, setPref: vi.fn(), setPrefMerged: vi.fn(), loading: false }),
@@ -30,26 +35,37 @@ vi.mock('../../../lib/offline/settleNoteWrite', () => ({
 
 import StylesManager from './StylesManager'
 import KindSection from './KindSection'
-import { SENT_SENTENCE, SHARE_NOTE, OUTLINE_GONE_SENTENCE, sharedSentence } from './ShareStyleForm'
-import { STALE_SENTENCE, TAKE_OUTLINE_LABEL, OUTLINE_STAYS, NOTHING_REMOVED, addsBlocksLine } from './LibraryUpdateSheet'
+import { SENT_SENTENCE, REVISION_SENT_SENTENCE, SHARE_NOTE, OUTLINE_GONE_SENTENCE, sharedSentence } from './ShareStyleForm'
+import {
+  STALE_SENTENCE, TAKE_OUTLINE_LABEL, OUTLINE_STAYS, NOTHING_REMOVED, UP_TO_DATE_SENTENCE, NO_COPY_SENTENCE,
+  addsBlocksLine,
+} from './LibraryUpdateSheet'
 
 // ── the server's answers ──
 const FIXTURE_LIST = contractBody('journal-styles.list')
 const MEMBER = FIXTURE_LIST.styles.find((s) => !s.builtin)
+const BUILTIN = FIXTURE_LIST.styles.find((s) => s.builtin)
 const UPDATES = contractBody('template-gallery.updates')
+const NONE = contractBody('template-gallery.updates.none')
 const UPDATE = UPDATES.updates[0]
 const APPLIED = contractBody('template-gallery.updates.apply').style
 // The adopted copy as the journal styles list shows it BEFORE the update: the applied style at the version the
-// Updates row says it is behind at, without the block the update adds.
-const COPY = { ...APPLIED, version: UPDATE.fromVersion, sourceVersion: UPDATE.fromVersion, blocks: [] }
-const LIST = { ...FIXTURE_LIST, styles: [...FIXTURE_LIST.styles, COPY] }
+// Updates row says it is behind at, without the block the update adds, and with its own revision stamp.
+const COPY_STAMP = '2026-10-06T09:00:00+00:00'
+const NEWER_STAMP = '2026-10-07T11:15:00+00:00'
+const COPY = { ...APPLIED, version: UPDATE.fromVersion, sourceVersion: UPDATE.fromVersion, blocks: [], updatedAt: COPY_STAMP }
+const listWith = (copy) => ({ ...FIXTURE_LIST, styles: [...FIXTURE_LIST.styles, ...(copy ? [copy] : [])] })
+const LIST = listWith(COPY)
 const PLAN = contractBody('template-gallery.updates.plan').plan
+const PLAN_404 = contract('template-gallery.updates.plan.not-found')
 // A plan whose outline the author changed: the recorded plan, with the applied style's outline as the new one.
 const PLAN_OUTLINE = { ...PLAN, outlineChanged: true, newOutline: APPLIED.outlineBodyJson }
 const outlineText = (doc) => doc.content[0].content[0].text
 const PUBLISHED = contractBody('template-gallery.styles.publish')
 const STALE = contract('template-gallery.updates.apply.stale')
+const MOVED = contract('template-gallery.updates.apply.version-moved')
 const BAD_TS = contract('template-gallery.styles.publish.bad-trading-style')
+const sentBody = (body) => ({ takeOutline: false, baseUpdatedAt: COPY_STAMP, toVersion: PLAN.toVersion, ...body })
 
 const re = (p) => new RegExp(`^${p}$`)
 const PLAN_URL = re(`/api/j2/template-gallery/updates/${COPY.id}`)
@@ -67,12 +83,16 @@ function installFetch() {
     const hit = routes.find(([m, r]) => m === method && r.test(path))
     let out = hit ? hit[2] : [404, { detail: 'Not found' }]
     if (typeof out === 'function') out = out(body, search)
-    const [status, payload] = Array.isArray(out) && typeof out[0] === 'number' ? out : [200, out]
-    return Promise.resolve({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(payload) })
+    return Promise.resolve(out).then((answer) => {              // a route may answer later (a held promise)
+      const [status, payload] = Array.isArray(answer) && typeof answer[0] === 'number' ? answer : [200, answer]
+      return { ok: status >= 200 && status < 300, status, json: () => Promise.resolve(payload) }
+    })
   })
 }
 const called = (method, r) => calls.filter((c) => c.method === method && r.test(c.path))
 
+let listAnswer
+let updatesAnswer
 let planAnswer
 let applyAnswer
 let publishAnswer
@@ -81,18 +101,22 @@ beforeEach(() => {
   __resetOfferApplied()
   Element.prototype.scrollIntoView = vi.fn()
   lastLocation = null
+  swrCfg = null
+  listAnswer = LIST
+  updatesAnswer = UPDATES
   planAnswer = { plan: PLAN }
   applyAnswer = contractBody('template-gallery.updates.apply')
   publishAnswer = PUBLISHED
   routes = [
-    ['GET', /^\/api\/j2\/journal-styles$/, () => LIST],
+    ['GET', /^\/api\/j2\/journal-styles$/, () => listAnswer],
     ['GET', re(`/api/j2/journal-styles/${MEMBER.id}`), { style: { ...MEMBER, outlineBodyJson: null } }],
     ['GET', /^\/api\/j2\/note-kinds\/mapping-offer$/, { offer: null }],
     ['GET', /^\/api\/j2\/property-defs$/, { propertyDefs: [] }],
     ['GET', /^\/api\/j2\/note-templates$/, { templates: [] }],
-    ['GET', /^\/api\/j2\/template-gallery\/updates$/, UPDATES],
+    ['GET', /^\/api\/j2\/template-gallery\/updates$/, () => updatesAnswer],
     ['GET', PLAN_URL, () => planAnswer],
-    ['POST', PLAN_URL, () => applyAnswer],
+    // like the server: once the copy is updated it is no longer behind, so the Updates list empties
+    ['POST', PLAN_URL, () => { if (!Array.isArray(applyAnswer)) updatesAnswer = NONE; return applyAnswer }],
     ['POST', /^\/api\/j2\/template-gallery\/styles$/, () => publishAnswer],
     ['GET', /^\/api\/j2\/template-gallery$/, (b, search) => (search.includes('type=style')
       ? contractBody('template-gallery.list.styles') : contractBody('template-gallery.list'))],
@@ -113,26 +137,38 @@ function LocationProbe() {
   useEffect(() => { lastLocation = location }, [location])
   return null
 }
-const tree = (node, entry = '/journal/notebook') => (
+let swrCfg = null
+function SwrProbe() {
+  const cfg = useSWRConfig()
+  useEffect(() => { swrCfg = cfg }, [cfg])
+  return null
+}
+const tree = (node, entry = '/journal/notebook', cache = null) => (
   <AuthContext.Provider value={{ user: { id: 'u1' } }}>
     <MemoryRouter initialEntries={[entry]}>
-      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+      <SWRConfig value={{ provider: () => cache || new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
         {node}
         <LocationProbe />
+        <SwrProbe />
       </SWRConfig>
     </MemoryRouter>
   </AuthContext.Provider>
 )
-const openManager = (entry) => render(tree(<StylesManager open onClose={vi.fn()} />, entry))
+const openManager = (entry, cache) => render(tree(<StylesManager open onClose={vi.fn()} />, entry, cache))
 const memberRow = async () => (await screen.findByText(MEMBER.name, { selector: 'span' })).closest('li')
 
 describe('the recorded answers hold what these rails read (non-vacuity)', () => {
-  it('the Updates row is this list\'s copy, the plan adds a block, and the 409 carries the server sentence', () => {
+  it('the Updates row is this list\'s copy, the plan adds a block, and both 409s carry the server sentence', () => {
     expect(UPDATE.styleId).toBe(COPY.id)
     expect(PLAN.addBlocks.length).toBeGreaterThan(0)
     expect(STALE._contract.status).toBe(409)
-    expect(typeof STALE.body.detail).toBe('string')
+    expect(MOVED._contract.status).toBe(409)
+    expect(typeof MOVED.body.detail).toBe('string')
+    expect(NONE.updates).toEqual([])
     expect(MEMBER.builtin).toBe(false)
+    expect(COPY.sourceGalleryId).toBeTruthy()
+    // M-2: the copy's stamp is its own, so the base a test expects can only come from the copy
+    expect(new Set([COPY_STAMP, NEWER_STAMP, APPLIED.updatedAt]).size).toBe(3)
   })
   it('the stale fallback sentence is the server\'s recorded one, word for word', () => {
     expect(STALE_SENTENCE).toBe(STALE.body.detail)
@@ -153,6 +189,44 @@ describe('with the library switch off, none of the doors render', () => {
     expect(screen.queryByRole('button', { name: /^Community$/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /^Updates/ })).toBeNull()
     expect(called('GET', /\/template-gallery\/updates$/)).toEqual([])                                // nothing is asked
+  })
+})
+
+describe('which rows and buttons the library adds (M-3, ruling P3a-T10-R3)', () => {
+  it('Updates (N) is not shown when the recorded Updates list is empty', async () => {
+    flags()
+    updatesAnswer = NONE
+    openManager()
+    expect(await screen.findByRole('button', { name: 'Community' })).toBeInTheDocument()          // control: library on
+    await waitFor(() => expect(called('GET', /\/template-gallery\/updates$/).length).toBeGreaterThan(0))
+    await act(async () => {})
+    expect(screen.queryByRole('button', { name: /^Updates/ })).toBeNull()
+  })
+
+  it('Share is offered on the member\'s own style, never on a built-in one or on a copy adopted from the library', async () => {
+    flags()
+    openManager()
+    expect(within(await memberRow()).getByRole('button', { name: `Share ${MEMBER.name} to community` })).toBeInTheDocument()
+    const builtin = within(screen.getAllByText(BUILTIN.name, { selector: 'span' })[0].closest('li'))
+    expect(builtin.getByRole('button', { name: `Duplicate ${BUILTIN.name} to edit` })).toBeInTheDocument()   // the row is there
+    expect(builtin.queryByRole('button', { name: /to community/ })).toBeNull()
+    const copyRow = within(screen.getByRole('button', { name: `Edit ${COPY.name}` }).closest('li'))
+    expect(copyRow.queryByRole('button', { name: /to community/ })).toBeNull()
+  })
+})
+
+describe('libraryError: what a failed library call says', () => {
+  const err = (message, status) => Object.assign(new Error(message), status ? { status } : {})
+  it('a 404, a 5xx and a body-less "request failed (N)" all say the fallback, never their own words', () => {
+    expect(libraryError(err('Not found', 404), 'FALLBACK')).toBe('FALLBACK')
+    expect(libraryError(err('Internal Server Error', 500), 'FALLBACK')).toBe('FALLBACK')
+    expect(libraryError(err('request failed (400)', 400), 'FALLBACK')).toBe('FALLBACK')
+    expect(libraryError(err('request failed (409)', 409), 'FALLBACK')).toBe('FALLBACK')
+  })
+  it('a refusal the server explains is shown as written, and the network is "offline"', () => {
+    expect(libraryError(err(STALE.body.detail, 409), 'FALLBACK')).toBe(STALE.body.detail)
+    expect(libraryError(err(BAD_TS.body.detail, 400), 'FALLBACK')).toBe(BAD_TS.body.detail)
+    expect(libraryError(new TypeError('Failed to fetch'), 'FALLBACK')).toBe(OFFLINE_SENTENCE)
   })
 })
 
@@ -223,6 +297,16 @@ describe('Share to community', () => {
     expect(sharedSentence(1)).toBe(`${SENT_SENTENCE} 1 of your own property defaults was left out.`)
   })
 
+  it('M-7: sharing an already-listed style again says the listed version stays until the update is approved', async () => {
+    publishAnswer = { ...PUBLISHED, template: { ...PUBLISHED.template, status: 'approved', hasRevision: true } }
+    const dialog = await share()
+    fill(dialog)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Submit' }))
+    expect(await screen.findByText(REVISION_SENT_SENTENCE)).toBeInTheDocument()
+    expect(REVISION_SENT_SENTENCE).toMatch(/stays listed until an admin approves this update/)
+    expect(screen.queryByText(SENT_SENTENCE)).toBeNull()
+  })
+
   it('a refusal shows the server\'s own sentence and keeps the form', async () => {
     publishAnswer = [BAD_TS._contract.status, BAD_TS.body]
     const dialog = await share()
@@ -234,7 +318,7 @@ describe('Share to community', () => {
 
   it('P3a-T4-m6: says before sharing that an outline from a deleted template will not travel (and only then)', async () => {
     const gone = { ...MEMBER, outlineTemplateId: 'tpl_deleted' }
-    routes.unshift(['GET', /^\/api\/j2\/journal-styles$/, () => ({ ...LIST, styles: LIST.styles.map((s) => (s.id === MEMBER.id ? gone : s)) })])
+    listAnswer = { ...LIST, styles: LIST.styles.map((s) => (s.id === MEMBER.id ? gone : s)) }
     routes.unshift(['GET', re(`/api/j2/journal-styles/${MEMBER.id}`), { style: { ...gone, outlineBodyJson: null } }])
     const dialog = await share()
     expect(await within(dialog).findByText(OUTLINE_GONE_SENTENCE)).toBeInTheDocument()
@@ -243,7 +327,7 @@ describe('Share to community', () => {
   it('...and says nothing of the kind when that template still exists', async () => {
     const kept = { ...MEMBER, outlineTemplateId: 'tpl_kept' }
     routes.unshift(['GET', /^\/api\/j2\/note-templates$/, { templates: [{ id: 'tpl_kept', name: 'Plan', title: 'Plan', createdAt: '1' }] }])
-    routes.unshift(['GET', /^\/api\/j2\/journal-styles$/, () => ({ ...LIST, styles: LIST.styles.map((s) => (s.id === MEMBER.id ? kept : s)) })])
+    listAnswer = { ...LIST, styles: LIST.styles.map((s) => (s.id === MEMBER.id ? kept : s)) }
     routes.unshift(['GET', re(`/api/j2/journal-styles/${MEMBER.id}`), { style: { ...kept, outlineBodyJson: null } }])
     const dialog = await share()
     await waitFor(() => expect(called('GET', /\/note-templates$/).length).toBeGreaterThan(0))
@@ -271,8 +355,28 @@ describe('reviewing an author\'s update', () => {
     expect(within(dialog).queryByRole('checkbox', { name: TAKE_OUTLINE_LABEL })).toBeNull()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Update my copy' }))
     await waitFor(() => expect(called('POST', PLAN_URL)).toHaveLength(1))
-    expect(called('POST', PLAN_URL)[0].body).toEqual({ takeOutline: false, baseUpdatedAt: COPY.updatedAt })
+    expect(called('POST', PLAN_URL)[0].body).toEqual(sentBody())
     expect(await screen.findByText(`Updated ${APPLIED.name} to the author's version ${APPLIED.sourceVersion}.`)).toBeInTheDocument()
+  })
+
+  it('I-2: after a successful update focus lands on the updated copy\'s row, never on <body>', async () => {
+    // As in the app: the apply revalidates the Updates list BEFORE it returns (refreshLibrary), so the row and its
+    // Review update button (the sheet's opener) are gone by the time the sheet closes. The POST is held until the
+    // test has done exactly that.
+    let land
+    applyAnswer = new Promise((resolve) => { land = resolve })
+    const dialog = await openSheet()
+    await within(dialog).findByText(addsBlocksLine(PLAN.addBlocks))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Update my copy' }))
+    await waitFor(() => expect(called('POST', PLAN_URL)).toHaveLength(1))
+    updatesAnswer = NONE
+    await act(async () => { await swrCfg.mutate(LIBRARY_UPDATES_KEY) })
+    expect(screen.queryByRole('button', { name: `Review the update to ${UPDATE.styleName}` })).toBeNull()   // opener gone
+    await act(async () => { land(contractBody('template-gallery.updates.apply')) })
+    await screen.findByText(`Updated ${APPLIED.name} to the author's version ${APPLIED.sourceVersion}.`)
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: `Edit ${COPY.name}` })))
+    expect(document.activeElement).not.toBe(document.body)
+    expect(document.activeElement.isConnected).toBe(true)
   })
 
   it('"Use the author\'s new outline" starts UNticked beside a read-only preview, and Update sends takeOutline: false', async () => {
@@ -285,7 +389,7 @@ describe('reviewing an author\'s update', () => {
     expect(within(preview).getByText(outlineText(PLAN_OUTLINE.newOutline))).toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Update my copy' }))
     await waitFor(() => expect(called('POST', PLAN_URL)).toHaveLength(1))
-    expect(called('POST', PLAN_URL)[0].body).toEqual({ takeOutline: false, baseUpdatedAt: COPY.updatedAt })
+    expect(called('POST', PLAN_URL)[0].body).toEqual(sentBody({ takeOutline: false }))
   })
 
   it('ticking it sends takeOutline: true', async () => {
@@ -294,24 +398,77 @@ describe('reviewing an author\'s update', () => {
     fireEvent.click(await within(dialog).findByRole('checkbox', { name: TAKE_OUTLINE_LABEL }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Update my copy' }))
     await waitFor(() => expect(called('POST', PLAN_URL)).toHaveLength(1))
-    expect(called('POST', PLAN_URL)[0].body).toEqual({ takeOutline: true, baseUpdatedAt: COPY.updatedAt })
+    expect(called('POST', PLAN_URL)[0].body).toEqual(sentBody({ takeOutline: true }))
   })
 
-  it('a 409 shows the server\'s stale sentence, and Look again reads the copy and the plan afresh', async () => {
+  it('M-1: the base is the one captured with the plan, even when the list revalidates before Update', async () => {
+    const dialog = await openSheet()
+    await within(dialog).findByText(addsBlocksLine(PLAN.addBlocks))
+    listAnswer = listWith({ ...COPY, updatedAt: NEWER_STAMP })            // the copy moved in another tab
+    const before = called('GET', /^\/api\/j2\/journal-styles$/).length
+    await act(async () => { await swrCfg.mutate(STYLES_URL) })
+    expect(called('GET', /^\/api\/j2\/journal-styles$/).length).toBeGreaterThan(before)     // it did revalidate
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Update my copy' }))
+    await waitFor(() => expect(called('POST', PLAN_URL)).toHaveLength(1))
+    expect(called('POST', PLAN_URL)[0].body.baseUpdatedAt).toBe(COPY_STAMP)               // previewed, not live
+  })
+
+  it('a 409 shows the server\'s stale sentence, and Look again re-reads the copy and sends the NEW base', async () => {
     applyAnswer = [STALE._contract.status, STALE.body]
     const dialog = await openSheet()
     await within(dialog).findByText(addsBlocksLine(PLAN.addBlocks))
     const plansBefore = called('GET', PLAN_URL).length
-    const listsBefore = called('GET', /^\/api\/j2\/journal-styles$/).length
     fireEvent.click(within(dialog).getByRole('button', { name: 'Update my copy' }))
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(STALE.body.detail)
     expect(within(dialog).queryByRole('button', { name: 'Update my copy' })).toBeNull()       // no second blind try
+    expect(called('POST', PLAN_URL)[0].body.baseUpdatedAt).toBe(COPY_STAMP)
+    listAnswer = listWith({ ...COPY, updatedAt: NEWER_STAMP })                              // what the 409 was about
     applyAnswer = contractBody('template-gallery.updates.apply')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Look again' }))
     await waitFor(() => expect(called('GET', PLAN_URL).length).toBe(plansBefore + 1))
-    expect(called('GET', /^\/api\/j2\/journal-styles$/).length).toBeGreaterThan(listsBefore)
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Update my copy' }))
+    await waitFor(() => expect(called('POST', PLAN_URL)).toHaveLength(2))
+    expect(called('POST', PLAN_URL)[1].body).toEqual(sentBody({ baseUpdatedAt: NEWER_STAMP }))
+  })
+
+  it('M-8: a newer listed version than the one previewed is the server\'s 409, and Look again re-reads the plan', async () => {
+    applyAnswer = [MOVED._contract.status, MOVED.body]
+    const dialog = await openSheet()
+    await within(dialog).findByText(addsBlocksLine(PLAN.addBlocks))
+    const plansBefore = called('GET', PLAN_URL).length
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Update my copy' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(MOVED.body.detail)
+    expect(called('POST', PLAN_URL)[0].body.toVersion).toBe(PLAN.toVersion)
+    applyAnswer = contractBody('template-gallery.updates.apply')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Look again' }))
+    await waitFor(() => expect(called('GET', PLAN_URL).length).toBe(plansBefore + 1))
     expect(await within(dialog).findByRole('button', { name: 'Update my copy' })).toBeInTheDocument()
+  })
+
+  it('M-6: a plan that answers 404 after Look again says the copy is already up to date', async () => {
+    applyAnswer = [STALE._contract.status, STALE.body]
+    const dialog = await openSheet()
+    await within(dialog).findByText(addsBlocksLine(PLAN.addBlocks))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Update my copy' }))
+    await within(dialog).findByRole('alert')
+    planAnswer = [PLAN_404._contract.status, PLAN_404.body]
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Look again' }))
+    expect(await within(dialog).findByText(UP_TO_DATE_SENTENCE)).toBeInTheDocument()
     expect(within(dialog).queryByRole('alert')).toBeNull()
+    expect(within(dialog).queryByText(/Couldn't check/)).toBeNull()
+    expect(within(dialog).getByText('Close', { selector: 'button' })).toBeInTheDocument()
+  })
+
+  it('M-6: when the copy is not in the styles list, it says why Update is unavailable', async () => {
+    listAnswer = listWith(null)
+    flags()
+    openManager()
+    fireEvent.click(await screen.findByRole('button', { name: `Updates (${UPDATES.updates.length})` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Review the update to ${UPDATE.styleName}` }))
+    const dialog = await screen.findByRole('dialog', { name: /^Update / })
+    await within(dialog).findByText(addsBlocksLine(PLAN.addBlocks))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(NO_COPY_SENTENCE)
+    expect(within(dialog).getByRole('button', { name: 'Update my copy' })).toBeDisabled()
   })
 
   it('Not now closes the sheet and writes nothing', async () => {
@@ -333,12 +490,41 @@ describe('the bell notice\'s deep link', () => {
     expect(new URLSearchParams(lastLocation.search).get('styles')).toBe('1')     // only its own param is taken
   })
 
+  it('I-1: it opens the sheet even when the Updates list was cached EMPTY before the bell rang', async () => {
+    flags()
+    const cache = new Map()                                                    // the app's one SWR cache
+    updatesAnswer = NONE
+    const first = openManager('/journal/notebook', cache)
+    await memberRow()
+    await waitFor(() => expect(called('GET', /\/template-gallery\/updates$/).length).toBeGreaterThan(0))
+    await act(async () => {})
+    first.unmount()
+    updatesAnswer = UPDATES                                                    // an admin approved; the bell rang
+    openManager(`/journal/notebook?styles=1&libraryUpdate=${COPY.id}`, cache)
+    const dialog = await screen.findByRole('dialog', { name: `Update ${COPY.name}` })
+    expect(await within(dialog).findByText(addsBlocksLine(PLAN.addBlocks))).toBeInTheDocument()
+  })
+
+  it('a dismissed deep-linked sheet does not open again', async () => {
+    flags()
+    openManager(`/journal/notebook?styles=1&libraryUpdate=${COPY.id}`)
+    const dialog = await screen.findByRole('dialog', { name: `Update ${COPY.name}` })
+    await within(dialog).findByText(addsBlocksLine(PLAN.addBlocks))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Not now' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: `Update ${COPY.name}` })).toBeNull())
+    await act(async () => { await swrCfg.mutate((k) => typeof k === 'string') })     // everything revalidates
+    fireEvent.click(screen.getByRole('button', { name: `Updates (${UPDATES.updates.length})` }))  // and re-renders
+    await act(async () => {})
+    expect(screen.queryByRole('dialog', { name: `Update ${COPY.name}` })).toBeNull()
+  })
+
   it('a style id that is not this member\'s opens nothing and shows nothing broken', async () => {
     flags()
     openManager('/journal/notebook?styles=1&libraryUpdate=s_not_mine')
     await memberRow()
     await waitFor(() => expect(called('GET', /\/template-gallery\/updates$/).length).toBeGreaterThan(0))
     await waitFor(() => expect(new URLSearchParams(lastLocation.search).get('libraryUpdate')).toBeNull())
+    await act(async () => {})
     expect(screen.queryByRole('dialog', { name: /^Update / })).toBeNull()
     expect(screen.queryByRole('alert')).toBeNull()
     expect(called('GET', /\/template-gallery\/updates\/s_not_mine$/)).toEqual([])

@@ -1522,6 +1522,14 @@ def _style_library(w: World) -> None:
     resubmitted = w.client.post(f"{base}/styles", json=share)
     assert resubmitted.status_code == 200, f"setup: resubmitting the style answered {resubmitted.status_code}"
     w.as_user(ADMIN)
+    # P3a Task 10 fix round 1 (P3a-T10-R1): the held revision as its reviewer reads it, and as a member reads the
+    # same item. Two READS, so no fixture around them moves.
+    w.record("template-gallery.styles.item.revision.admin", "GET", f"{base}/{sid}", case="success", expect=200,
+             note="An admin's read of a listed style with a held revision: `pendingRevision` is what approving lists.")
+    w.as_user(viewer)
+    w.record("template-gallery.styles.item.revision.member", "GET", f"{base}/{sid}", case="success", expect=200,
+             note="The same item to a member while the revision waits: the listed version, no `pendingRevision`.")
+    w.as_user(ADMIN)
     approve(sid)
     w.as_user(viewer)
     w.record("template-gallery.updates", "GET", f"{base}/updates", case="success", expect=200,
@@ -1533,8 +1541,12 @@ def _style_library(w: World) -> None:
     w.record("template-gallery.updates.apply.stale", "POST", f"{base}/updates/{copy_id}", case="error",
              expect=409, json_body={"baseUpdatedAt": "2000-01-01T00:00:00+00:00"},
              note="The copy changed since the preview: nothing is written.")
+    w.record("template-gallery.updates.apply.version-moved", "POST", f"{base}/updates/{copy_id}", case="error",
+             expect=409, json_body={"takeOutline": False, "baseUpdatedAt": adopted["style"]["updatedAt"],
+                                    "toVersion": 1},
+             note="The member previewed an older listed version than the one listed now: nothing is written.")
     w.record("template-gallery.updates.apply", "POST", f"{base}/updates/{copy_id}", case="success", expect=200,
-             json_body={"takeOutline": False, "baseUpdatedAt": adopted["style"]["updatedAt"]},
+             json_body={"takeOutline": False, "baseUpdatedAt": adopted["style"]["updatedAt"], "toVersion": 2},
              note="The new block is added; the member's own outline is kept.")
     # P3a Task 9: what the library UI reads. Recorded LAST (reads, and one refused write that writes
     # nothing), so no fixture above moves.
@@ -1555,6 +1567,10 @@ def _style_library(w: World) -> None:
                  json_body={"notify": False}, note="The member's Journal styles switch is off: nothing is adopted.")
     finally:
         w.p.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
+    # P3a Task 10 fix round 1 (P3a-T10-R3): an adopted copy of another author's listing is refused before any
+    # write. Recorded LAST, so no fixture above moves.
+    w.record("template-gallery.styles.publish.adopted", "POST", f"{base}/styles", case="error", expect=400,
+             json_body={**share, "styleId": copy_id}, note="A style adopted from the library cannot be shared again.")
 
 
 @builder

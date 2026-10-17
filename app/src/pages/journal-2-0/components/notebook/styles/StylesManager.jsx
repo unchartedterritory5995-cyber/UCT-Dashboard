@@ -16,6 +16,11 @@
 //    only `styles`) is read HERE, by LibraryUpdateParam, never in NotebookTab: it opens the update sheet for that
 //    copy only when the copy is in this member's own Updates list, so a server-written link to someone else's
 //    style, or to a copy already up to date, opens nothing and shows nothing broken. The param is then cleared.
+//    ⛔ It matches against a FRESH read of that list (fix round 1, I-1): the list lives in the app-wide SWR cache,
+//    so a copy that fell behind after the member last opened this manager is not in the cached answer.
+// ⛔ After "Update my copy" focus goes to the updated copy's row (I-2): the Review update button that opened the
+//    sheet is removed with its Updates row, and restoring focus to it would drop the member on <body>.
+// ⛔ Share is not offered on a copy adopted from the library (ruling P3a-T10-R3; the server refuses it too).
 import { useContext, useEffect, useRef, useState } from 'react'
 import { useInRouterContext, useSearchParams } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
@@ -36,7 +41,7 @@ import {
 } from '../../../lib/journalStyles'
 import StyleEditor from './StyleEditor'
 import LibraryDoor from './LibraryDoor'
-import ShareStyleForm, { sharedSentence } from './ShareStyleForm'
+import ShareStyleForm from './ShareStyleForm'
 import LibraryUpdateSheet from './LibraryUpdateSheet'
 import { friendlyError, logIfUnexpected, reportError } from './styleErrors'
 import { markOfferApplied, offerApplied } from './offerApplied'
@@ -70,17 +75,28 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const libraryOn = styleLibraryEnabled()
   const inRouter = useInRouterContext()
   const { data, error, isLoading, mutate } = useJournalStyles({ enabled: open })
-  const { updates, isLoading: updatesLoading } = useStyleUpdates({ enabled: open && on })
+  const { updates, refresh: refreshUpdates } = useStyleUpdates({ enabled: open && on })
   const [sharing, setSharing] = useState(null)          // the style row a Share form is open for
   const [updating, setUpdating] = useState(null)        // the adopted copy whose update sheet is open
   const [showUpdates, setShowUpdates] = useState(false)
   const [linkedUpdate, setLinkedUpdate] = useState(null) // ?libraryUpdate=, waiting for the Updates list
-  // The deep link opens the sheet only for a copy in this member's own Updates list (never another's style).
+  // The deep link opens the sheet only for a copy in this member's own Updates list (never another's style), read
+  // afresh: a cached answer can predate the update the bell is about. Cleared after one look, so a dismissed
+  // sheet never reopens on a later render.
   useEffect(() => {
-    if (!linkedUpdate || updatesLoading) return
-    if (updates.some((u) => u.styleId === linkedUpdate)) setUpdating(linkedUpdate)
-    setLinkedUpdate(null)
-  }, [linkedUpdate, updatesLoading, updates])
+    if (!linkedUpdate) return undefined
+    let live = true
+    const want = linkedUpdate
+    Promise.resolve(refreshUpdates()).then(
+      (fresh) => {
+        if (!live) return
+        if ((fresh?.updates || []).some((u) => u.styleId === want)) setUpdating(want)
+        setLinkedUpdate(null)
+      },
+      () => { if (live) setLinkedUpdate(null) },
+    )
+    return () => { live = false }
+  }, [linkedUpdate, refreshUpdates])
   const { data: offerData } = useSWR(
     open && on ? 'journal-styles:mapping-offer' : null, () => getMappingOffer(), { shouldRetryOnError: false })
   const { prefs, setPref } = usePreferences()
@@ -401,7 +417,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                                 <button type="button" className={styles.btn} disabled={locked} onClick={(e) => duplicate(s, e.currentTarget, { thenEdit: false })}
                                   aria-label={`Duplicate ${s.name}`}>Duplicate</button>
                               )}
-                              {libraryOn && !s.builtin && (
+                              {libraryOn && !s.builtin && !s.sourceGalleryId && (
                                 <button type="button" className={styles.btn} disabled={locked} onClick={() => setSharing(s)}
                                   aria-label={`Share ${s.name} to community`}>Share to community</button>
                               )}
@@ -497,12 +513,13 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
         )}
         {sharing && (
           <ShareStyleForm style={sharing} onClose={() => setSharing(null)}
-            onShared={(dropped) => { setSharing(null); setUndo(null); setProblem(''); setStatus(sharedSentence(dropped)) }} />
+            onShared={(sentence) => { setSharing(null); setUndo(null); setProblem(''); setStatus(sentence) }} />
         )}
         {updating && (
           <LibraryUpdateSheet styleId={updating} onClose={() => setUpdating(null)}
             onApplied={(st) => {
               setUpdating(null); setUndo(null); setProblem('')
+              pendingFocus.current = { type: 'row', id: st?.id || updating }
               const name = st?.name || 'your copy'
               setStatus(st?.sourceVersion ? `Updated ${name} to the author's version ${st.sourceVersion}.` : `Updated ${name}.`)
             }} />

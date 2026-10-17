@@ -18,16 +18,20 @@ import styles from './StylesManager.module.css'
 
 export const SHARE_NOTE = 'An admin reviews it before it is listed. Your own property defaults are not shared.'
 export const SENT_SENTENCE = 'Sent for review. It is listed once an admin approves it.'
+// M-7: sharing an ALREADY-LISTED style again holds the new version for review; the listed one stays (R-P3-3).
+export const REVISION_SENT_SENTENCE = 'Sent for review. The version listed now stays listed until an admin approves this update.'
 export const OUTLINE_GONE_SENTENCE = 'This style’s outline came from a template you deleted, so it will be shared without an outline.'
 const FAILED_SENTENCE = "Couldn't share that style. Nothing was sent."
 const MAX_TITLE = 80          // template_gallery.MAX_TITLE_CHARS
 const MAX_DESCRIPTION = 280   // template_gallery.MAX_DESCRIPTION_CHARS
 
-/** The words after a share: the sent sentence, and how many of the member's own defaults stayed home. */
-export function sharedSentence(droppedProperties) {
+/** The words after a share: the sent sentence (a first listing, or an update to a listed style), and how many
+ *  of the member's own defaults stayed home. */
+export function sharedSentence(droppedProperties, { revision = false } = {}) {
+  const sent = revision ? REVISION_SENT_SENTENCE : SENT_SENTENCE
   const n = Number(droppedProperties) || 0
-  if (n <= 0) return SENT_SENTENCE
-  return `${SENT_SENTENCE} ${n} of your own property defaults ${n === 1 ? 'was' : 'were'} left out.`
+  if (n <= 0) return sent
+  return `${sent} ${n} of your own property defaults ${n === 1 ? 'was' : 'were'} left out.`
 }
 
 /** True when the outline the server would share comes from a template that no longer exists. Unknown (the
@@ -40,7 +44,7 @@ function outlineGone(full, templates) {
 
 /**
  * @param style    the member's style row (from the journal styles list)
- * @param onShared `(droppedProperties) => void` after the server took it
+ * @param onShared `(sentence) => void` after the server took it: the words to show (sharedSentence)
  * @param onClose  Cancel, Escape, or the Sheet's own close
  */
 export default function ShareStyleForm({ style, onShared, onClose }) {
@@ -73,7 +77,7 @@ export default function ShareStyleForm({ style, onShared, onClose }) {
     setError(null)
     try {
       const out = await shareStyle({ styleId: style.id, title, description, category, tradingStyle })
-      onShared?.(out?.droppedProperties)
+      onShared?.(sharedSentence(out?.droppedProperties, { revision: out?.template?.hasRevision === true }))
     } catch (err) {
       setError(libraryError(err, FAILED_SENTENCE))
       setWorking(false)

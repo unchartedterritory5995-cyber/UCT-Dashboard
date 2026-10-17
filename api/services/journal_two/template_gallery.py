@@ -720,10 +720,39 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
             # `payload_json` (the LISTED version), read through the same safe readers adopt uses, so a
             # malformed row reads as an empty style instead of a 500.
             out["payload"] = _safe_listed(_listed_payload(row))
+            # P3a Task 10 fix round 1 (ruling P3a-T10-R1): a reviewer must see a held REVISION before approving
+            # it. ADMINS ONLY, and only on this single-row read (the list and the queue never name pending_json,
+            # the M-6 / R-T4-1 rails); a member, the author included, never receives the field.
+            if is_admin:
+                rev = _pending_revision(row)
+                if rev is not None:
+                    out["pendingRevision"] = rev
         return out
     finally:
         if owned:
             conn.close()
+
+
+def _pending_revision(row: sqlite3.Row) -> dict | None:
+    """A held revision as a reviewer sees it, or None when there is none (or it cannot be read).
+
+    `version` is the one members will see once it is approved (`admin_act` bumps the listed version by one).
+    The payload goes through the same safe reader as the listed one, so a malformed revision reads as an
+    empty style instead of a 500."""
+    keys = row.keys()
+    raw = row["pending_json"] if "pending_json" in keys else None
+    if not raw:
+        return None
+    try:
+        rev = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(rev, dict):
+        return None
+    text = lambda k: rev.get(k) if isinstance(rev.get(k), str) else None  # noqa: E731
+    return {"version": int(row["version"] or 1) + 1, "title": text("title") or "",
+            "description": text("description") or "", "category": text("category"),
+            "tradingStyle": text("tradingStyle"), "payload": _safe_listed(rev.get("payload"))}
 
 
 # ── the author ──────────────────────────────────────────────────────────────────────────
@@ -792,6 +821,7 @@ def publish(user_id: str, template_id: Any, *, title: Any, description: Any, cat
 
 
 CUSTOM_KIND_SENTENCE = "Only styles for a built-in kind of note can be shared yet."
+ADOPTED_SHARE_SENTENCE = "This style came from the library, so it can't be shared again."
 
 
 def style_payload(user_id: str, style_id: Any, conn: sqlite3.Connection) -> dict | None:
@@ -816,6 +846,12 @@ def style_payload(user_id: str, style_id: Any, conn: sqlite3.Connection) -> dict
     style = js.get_style(user_id, style_id, conn, full=True)
     if style is None:
         return None
+    if style.get("sourceGalleryId"):
+        # Ruling P3a-T10-R3: a copy adopted from another author's listing is not the adopter's to share.
+        src = conn.execute("SELECT user_id FROM j2_template_gallery WHERE id = ?",
+                           (style["sourceGalleryId"],)).fetchone()
+        if src is not None and src["user_id"] != user_id:
+            raise GalleryError(ADOPTED_SHARE_SENTENCE)
     if style["kindId"] not in nk.BUILTIN_KIND_IDS:
         raise GalleryError(CUSTOM_KIND_SENTENCE)
     outline = style.get("outlineBodyJson")
@@ -1080,6 +1116,8 @@ def use_template(user_id: str, gallery_id: str, conn: sqlite3.Connection | None 
 
 ADOPT_NEEDS_STYLES_SENTENCE = "Journal styles are not on for you yet, so a style can't be adopted."
 UPDATE_STALE_SENTENCE = "This style changed since you opened the update. Nothing was changed. Look again."
+UPDATE_MOVED_SENTENCE = ("The author listed a newer version since you opened the update. Nothing was changed. "
+                         "Look again.")
 
 
 def _listed_style_row(conn: sqlite3.Connection, gallery_id: Any) -> sqlite3.Row | None:
@@ -1292,7 +1330,7 @@ def plan_update(user_id: str, style_id: Any, conn: sqlite3.Connection | None = N
 
 
 def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_updated_at: Any,
-                 conn: sqlite3.Connection | None = None) -> dict | None:
+                 to_version: Any = None, conn: sqlite3.Connection | None = None) -> dict | None:
     """Apply the additive update (R-P3-8) and return the updated style, or None when there is no plan.
 
     ADDS the blocks and built-in property defaults the member does not have, and records the version they
@@ -1301,7 +1339,11 @@ def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_update
 
     `GalleryConflict` when the copy changed since `base_updated_at` (the version the member previewed). The
     comparison is made under the write lock (`BEGIN IMMEDIATE`), so a save that lands between the check
-    and the write cannot be overwritten by an update planned against the older copy."""
+    and the write cannot be overwritten by an update planned against the older copy.
+
+    `to_version` (P3a Task 10 fix round 1, M-8) is the listed version the member PREVIEWED. When it is given
+    and another revision has been approved since, the merge would add blocks they never saw, so it is a
+    `GalleryConflict` (UPDATE_MOVED_SENTENCE) and nothing is written."""
     from api.services.journal_two import journal_styles as js
     owned = conn is None
     conn = conn or get_connection()
@@ -1312,6 +1354,9 @@ def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_update
         if plan is None:
             conn.rollback()
             return None
+        if to_version is not None and plan["toVersion"] != to_version:
+            conn.rollback()
+            raise GalleryConflict(UPDATE_MOVED_SENTENCE)
         if not isinstance(base_updated_at, str) or not base_updated_at or mine["updatedAt"] != base_updated_at:
             conn.rollback()
             raise GalleryConflict(UPDATE_STALE_SENTENCE)

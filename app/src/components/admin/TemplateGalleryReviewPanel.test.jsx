@@ -1,8 +1,12 @@
 // P3a Task 10 — the admin review queue for a community STYLE item: its kind, its blocks and its trading style
 // (read from the item's payload), the outline through Preview, and, for a held revision of a listed style, the
-// revision line and the revision's own title. Approve still sends the version the reviewer looked at.
+// revision line and the REVISION's own content (ruling P3a-T10-R1: the admin-only `pendingRevision`). Approve
+// sends the version of the read the reviewer was shown.
 // ⛔ Asserted by RENDERED TEXT. Every server answer is a recorded fixture (`__fixtures__/contract`); the queue's
-// style rows are spreads of the recorded style item (no recorded queue holds a style), never a retyped shape.
+// style rows are spreads of the recorded style items (no recorded queue holds a style), never a retyped shape.
+// ⛔ Fix round 1, M-2: each queue row carries a stamp of its own, distinct from the read's, so an approve that sent
+// the queue row's token instead of the rendered read's cannot pass; and the revision differs from the listed
+// version in its trading style and outline, so a panel showing the listed one cannot pass either.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, within, waitFor, fireEvent } from '@testing-library/react'
 import { SWRConfig } from 'swr'
@@ -10,15 +14,26 @@ import { contract, contractBody } from '../../pages/journal-2-0/__fixtures__/con
 import { blockLabel } from '../../pages/journal-2-0/lib/journalBlocks'
 import { BUILTIN_NOTE_KINDS } from '../../pages/journal-2-0/lib/noteKinds'
 import { tradingStyleLabel } from '../../pages/journal-2-0/lib/styleLibrary'
-import TemplateGalleryReviewPanel, { revisionLine, LISTED_ONLY_LINE } from './TemplateGalleryReviewPanel'
+import { categoryLabel } from '../../pages/journal-2-0/lib/templateGallery'
+import TemplateGalleryReviewPanel, { revisionLine, REVISION_UNREADABLE_LINE } from './TemplateGalleryReviewPanel'
 
 const QUEUE = contractBody('template-gallery.admin.queue')
 const SHARED = contractBody('template-gallery.styles.publish').template        // a style as its author submitted it
 const ITEM = contractBody('template-gallery.styles.item').template              // a style in full: its `payload`
+const REV_ITEM = contractBody('template-gallery.styles.item.revision.admin').template   // an admin's read of a held revision
+const QUEUE_STAMP = '2026-10-04T08:00:00+00:00'
+const textOf = (doc) => doc.content[0].content[0].text
+// The recorded revision, made to differ from the listed version where the panel could confuse the two.
+const REVISED_OUTLINE = { ...REV_ITEM.payload.outlineBodyJson, content: [{ ...REV_ITEM.payload.outlineBodyJson.content[0],
+  content: [{ ...REV_ITEM.payload.outlineBodyJson.content[0].content[0], text: `Revised: ${textOf(REV_ITEM.payload.outlineBodyJson)}` }] }] }
+const REVISION_READ = { ...REV_ITEM, pendingRevision: { ...REV_ITEM.pendingRevision, tradingStyle: 'day',
+  description: 'Now with a rules block.', category: 'review',
+  payload: { ...REV_ITEM.pendingRevision.payload, outlineBodyJson: REVISED_OUTLINE } } }
 // A first submission waiting for review, and a held revision of a LISTED style (approved, with pending_at set).
-const PENDING_STYLE = { ...SHARED, id: 'style_pending', openReports: 0 }
-const REVISION = { ...SHARED, id: ITEM.id, status: 'approved', listedAt: ITEM.listedAt, version: ITEM.version,
-  hasRevision: true, revisionTitle: `${SHARED.title}, revised`, openReports: 0 }
+const PENDING_STYLE = { ...SHARED, id: 'style_pending', openReports: 0, updatedAt: QUEUE_STAMP }
+const REVISION = { ...SHARED, id: REV_ITEM.id, status: 'approved', listedAt: REV_ITEM.listedAt, version: REV_ITEM.version,
+  hasRevision: true, revisionTitle: REV_ITEM.pendingRevision.title, openReports: 0, updatedAt: QUEUE_STAMP }
+const UNREADABLE = { ...REVISION, id: 'style_unreadable' }
 const kindName = (id) => BUILTIN_NOTE_KINDS.find((k) => k.id === id).name
 
 let calls
@@ -30,12 +45,15 @@ beforeEach(() => {
     const body = init.body ? JSON.parse(init.body) : undefined
     calls.push({ method, path, body })
     const ok = (payload, status = 200) => Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(payload) })
-    if (path === '/api/j2/template-gallery/admin/queue') return ok({ ...QUEUE, pending: [...QUEUE.pending, PENDING_STYLE, REVISION] })
+    if (path === '/api/j2/template-gallery/admin/queue') {
+      return ok({ ...QUEUE, pending: [...QUEUE.pending, PENDING_STYLE, REVISION, UNREADABLE] })
+    }
     const m = path.match(/^\/api\/j2\/template-gallery\/admin\/items\/([\w-]+)$/)
     if (m && method === 'PATCH') return ok(contractBody('template-gallery.admin.approve'))
-    if (path === `/api/j2/template-gallery/${PENDING_STYLE.id}` || path === `/api/j2/template-gallery/${ITEM.id}`) {
-      return ok({ template: { ...ITEM, id: path.split('/').pop() } })
-    }
+    if (path === `/api/j2/template-gallery/${PENDING_STYLE.id}`) return ok({ template: { ...ITEM, id: PENDING_STYLE.id } })
+    if (path === `/api/j2/template-gallery/${REVISION.id}`) return ok({ template: REVISION_READ })
+    // a revision row whose revision the server could not read: the item answers without `pendingRevision`
+    if (path === `/api/j2/template-gallery/${UNREADABLE.id}`) return ok({ template: { ...ITEM, id: UNREADABLE.id } })
     const nf = contract('template-gallery.item.not-found')
     return ok(nf.body, nf._contract.status)
   })
@@ -50,13 +68,18 @@ const rowOf = async (id) => {
   await screen.findByRole('heading', { name: QUEUE.pending[0].title })
   return document.querySelector(`[data-gallery-pending="${id}"]`)
 }
+const patches = () => calls.filter((c) => c.method === 'PATCH')
 
 describe('the recorded answers hold what these rails read (non-vacuity)', () => {
-  it('the style item carries blocks, a built-in kind and a trading style; the queue carries no style', () => {
+  it('the style items carry blocks and a built-in kind; the revision differs from the listed version; no queue has a style', () => {
     expect(ITEM.itemType).toBe('style')
     expect(ITEM.payload.blocks.length).toBeGreaterThan(0)
     expect(BUILTIN_NOTE_KINDS.some((k) => k.id === ITEM.payload.kindId)).toBe(true)
-    expect(tradingStyleLabel(SHARED.tradingStyle)).toBeTruthy()
+    expect(REV_ITEM.pendingRevision.version).toBe(REV_ITEM.version + 1)
+    expect(REV_ITEM.payload.blocks).toEqual([])                                   // listed: no blocks yet
+    expect(REV_ITEM.pendingRevision.payload.blocks.length).toBeGreaterThan(0)    // the update adds one
+    expect(REVISION_READ.pendingRevision.tradingStyle).not.toBe(REVISION.tradingStyle)
+    expect(new Set([QUEUE_STAMP, ITEM.updatedAt]).size).toBe(2)
     expect(QUEUE.pending.every((p) => p.itemType === 'outline')).toBe(true)
   })
 })
@@ -67,7 +90,7 @@ describe('the review queue for a style item', () => {
     const row = await rowOf(PENDING_STYLE.id)
     expect(await within(row).findByText(`Blocks: ${ITEM.payload.blocks.map((b) => blockLabel(b.block)).join(', ')}`)).toBeInTheDocument()
     expect(within(row).getByText(`Kind of note: ${kindName(ITEM.payload.kindId)}`)).toBeInTheDocument()
-    expect(within(row).getByText(`Trading style: ${tradingStyleLabel(SHARED.tradingStyle)}`)).toBeInTheDocument()
+    expect(within(row).getByText(`Trading style: ${tradingStyleLabel(ITEM.tradingStyle)}`)).toBeInTheDocument()
     expect(within(row).queryByText(revisionLine(PENDING_STYLE.version))).toBeNull()          // a first submission is not a revision
   })
 
@@ -79,28 +102,66 @@ describe('the review queue for a style item', () => {
     expect(within(row).queryByText(/^Trading style: /)).toBeNull()
   })
 
-  it('a held revision says it is an update to a listed style, with the revision\'s title, and that the details are the listed version', async () => {
+  it('a held revision shows the REVISION\'s own title, description, category, kind, blocks and trading style', async () => {
     renderPanel()
     const row = await rowOf(REVISION.id)
+    const rev = REVISION_READ.pendingRevision
     expect(within(row).getByText(revisionLine(REVISION.version))).toBeInTheDocument()
     expect(revisionLine(REVISION.version)).toBe(
       `Update to a listed style (version ${REVISION.version}). Approving lists it; the current version stays until then.`)
-    expect(within(row).getByText(`Title in this update: ${REVISION.revisionTitle}`)).toBeInTheDocument()
-    expect(within(row).getByText(LISTED_ONLY_LINE)).toBeInTheDocument()
-    expect(await within(row).findByText(/^Blocks: /)).toBeInTheDocument()
+    expect(await within(row).findByText(`Title in this update: ${rev.title}`)).toBeInTheDocument()
+    expect(within(row).getByText(`Description in this update: ${rev.description}`)).toBeInTheDocument()
+    expect(within(row).getByText(`Category in this update: ${categoryLabel(rev.category)}`)).toBeInTheDocument()
+    expect(within(row).getByText(`Kind of note: ${kindName(rev.payload.kindId)}`)).toBeInTheDocument()
+    expect(within(row).getByText(`Blocks: ${rev.payload.blocks.map((b) => blockLabel(b.block)).join(', ')}`)).toBeInTheDocument()
+    // from the read, not the queue row (whose trading style is the listed version's)
+    expect(within(row).getByText(`Trading style: ${tradingStyleLabel(rev.tradingStyle)}`)).toBeInTheDocument()
+    expect(within(row).queryByText(`Trading style: ${tradingStyleLabel(REVISION.tradingStyle)}`)).toBeNull()
+    expect(within(row).queryByText('Blocks: none')).toBeNull()                       // not the listed payload
   })
 
-  it('Preview shows the style\'s outline, and Approve sends the version the reviewer looked at', async () => {
+  it('a revision the server could not read says so, and shows nothing from the listed version as the update', async () => {
+    renderPanel()
+    const row = await rowOf(UNREADABLE.id)
+    expect(await within(row).findByText(REVISION_UNREADABLE_LINE)).toBeInTheDocument()
+    expect(within(row).queryByText(/^Blocks: /)).toBeNull()
+    expect(within(row).queryByText(/^Title in this update/)).toBeNull()
+  })
+
+  it('Preview of a revision shows the update\'s outline, not the listed one', async () => {
+    renderPanel()
+    const row = await rowOf(REVISION.id)
+    fireEvent.click(within(row).getByRole('button', { name: `Preview ${REVISION.title}` }))
+    const preview = await screen.findByRole('dialog', { name: REVISION.title })
+    expect(await within(preview).findByText(textOf(REVISED_OUTLINE))).toBeInTheDocument()
+    expect(within(preview).queryByText(textOf(REV_ITEM.bodyJson))).toBeNull()
+    expect(within(preview).getByText(new RegExp(`the update’s outline \\(version ${REVISION.version + 1}\\)`))).toBeInTheDocument()
+  })
+
+  it('Preview shows a first submission\'s outline', async () => {
     renderPanel()
     const row = await rowOf(PENDING_STYLE.id)
     fireEvent.click(within(row).getByRole('button', { name: `Preview ${PENDING_STYLE.title}` }))
-    const outline = ITEM.bodyJson.content[0].content[0].text
     const preview = await screen.findByRole('dialog', { name: PENDING_STYLE.title })
-    expect(await within(preview).findByText(outline)).toBeInTheDocument()
+    expect(await within(preview).findByText(textOf(ITEM.bodyJson))).toBeInTheDocument()
     expect(within(preview).getByText(/the style’s outline/)).toBeInTheDocument()
-    fireEvent.click(within(preview).getAllByRole('button', { name: 'Close' })[0])
+  })
+
+  it('Approve sends the version of the read that rendered the details, without opening Preview', async () => {
+    renderPanel()
+    const row = await rowOf(PENDING_STYLE.id)
+    await within(row).findByText(/^Blocks: /)
     fireEvent.click(within(row).getByRole('button', { name: `Approve ${PENDING_STYLE.title}` }))
-    await waitFor(() => expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(1))
-    expect(calls.find((c) => c.method === 'PATCH').body).toEqual({ action: 'approve', note: '', reviewedUpdatedAt: ITEM.updatedAt })
+    await waitFor(() => expect(patches()).toHaveLength(1))
+    expect(patches()[0].body).toEqual({ action: 'approve', note: '', reviewedUpdatedAt: ITEM.updatedAt })
+    expect(patches()[0].body.reviewedUpdatedAt).not.toBe(QUEUE_STAMP)
+  })
+
+  it('an outline row still approves with its queue token (unchanged)', async () => {
+    renderPanel()
+    const row = await rowOf(QUEUE.pending[0].id)
+    fireEvent.click(within(row).getByRole('button', { name: `Approve ${QUEUE.pending[0].title}` }))
+    await waitFor(() => expect(patches()).toHaveLength(1))
+    expect(patches()[0].body.reviewedUpdatedAt).toBe(QUEUE.pending[0].updatedAt)
   })
 })

@@ -160,11 +160,11 @@ export async function getUpdatePlan(styleId) {
 }
 
 /** Apply the author's update to the member's copy: the updated style. A 409 means the copy changed since
- *  the plan was read, and nothing was written. */
-export async function applyStyleUpdate(styleId, { takeOutline = false, baseUpdatedAt } = {}) {
+ *  the plan was read, or a newer version than the previewed `toVersion` is listed now; nothing was written. */
+export async function applyStyleUpdate(styleId, { takeOutline = false, baseUpdatedAt, toVersion } = {}) {
   const { style } = await call(`${LIBRARY_UPDATES_KEY}/${enc(styleId)}`, {
     method: 'POST',
-    body: JSON.stringify({ takeOutline: takeOutline === true, baseUpdatedAt }),
+    body: JSON.stringify({ takeOutline: takeOutline === true, baseUpdatedAt, toVersion }),
   })
   await refreshLibrary()
   return style
