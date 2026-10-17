@@ -1,0 +1,16 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-p4a/app[39m
+
+ [32m✓[39m src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx [2m([22m[2m32 tests[22m[2m)[22m[33m 11129[2mms[22m[39m
+     [33m[2m✓[22m[39m renders the outcome header from the fixture trade [33m 7138[2mms[22m[39m
+     [33m[2m✓[22m[39m opens without disturbing the other 4 CTA elements [33m 487[2mms[22m[39m
+     [33m[2m✓[22m[39m Full Research navigates to the canonical /research/:sym route, tagged with a return-context marker (Seam 12), and closes the menu [33m 514[2mms[22m[39m
+     [33m[2m✓[22m[39m Compare reveals the "+ Compare" picker, and a comparator navigates to the exact canonical compare route (uppercased), tagged with a return-context marker (Seam 12) [33m 470[2mms[22m[39m
+     [33m[2m✓[22m[39m the Compare picker receives the real current sym, not null (Identity Normalization Hardening V1) [33m 352[2mms[22m[39m
+     [33m[2m✓[22m[39m sits right after the entry-context card, above the outcome grid [33m 334[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m32 passed[39m[22m[90m (32)[39m
+[2m   Start at [22m 08:30:54
+[2m   Duration [22m 15.96s[2m (transform 9.74s, setup 2.17s, import 1.94s, tests 11.13s, environment 546ms)[22m
+

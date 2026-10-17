@@ -1,0 +1,82 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [ 25%]
+........................................................................ [ 51%]
+........................................................................ [ 76%]
+.............................................................F.F.        [100%]
+================================== FAILURES ===================================
+_____________ test_NO_notebook_flag_is_read_outside_the_one_parse _____________
+
+    def test_NO_notebook_flag_is_read_outside_the_one_parse():
+        names = set(auth_router.NOTEBOOK_FLAGS)
+        reads = _scan(ffi.repo_roots(REPO))
+        # \u2b50 NON-VACUITY: the scan saw real reads, including one this file KNOWS is
+        # there (auth.py reads the hub kill switch by literal). An empty walk passes
+        # the assertion below over nothing.
+        assert len(reads) > 50, f"the env-read scan collapsed to {len(reads)} files"
+        assert any(n == "HUB_PREVIEW_ENABLED" for _, n in reads.get("api/routers/auth.py", [])), (
+            "the scan no longer sees auth.py's literal HUB_PREVIEW_ENABLED read -- the reader is broken")
+        offenders = sorted(
+            f"{path}:{line}  {name}"
+            for path, rs in reads.items() if path != ONE_PARSE
+            for line, name in rs if name in names)
+>       assert offenders == [], (
+            "these read a Notebook capability flag with their OWN parse. Call "
+            "api.services.notebook_flags.flag_on(<name>, <default>) instead -- a second "
+            "parse is how the payload and the route came to disagree:\n  " + "\n  ".join(offenders))
+E       AssertionError: these read a Notebook capability flag with their OWN parse. Call api.services.notebook_flags.flag_on(<name>, <default>) instead -- a second parse is how the payload and the route came to disagree:
+E           tools/notebook_daily_prep_probe.py:282  NOTEBOOK_SETUPS_BOARD_ENABLED
+E           tools/notebook_daily_prep_probe.py:283  NOTEBOOK_CHART_PLAN_ENABLED
+E       assert ['tools/noteb...PLAN_ENABLED'] == []
+E         
+E         Left contains 2 more items, first extra item: 'tools/notebook_daily_prep_probe.py:282  NOTEBOOK_SETUPS_BOARD_ENABLED'
+E         Use -v to get more diff
+
+tests\test_notebook_flag_parse.py:245: AssertionError
+________________ test_every_flag_on_call_names_a_payload_flag _________________
+
+    def test_every_flag_on_call_names_a_payload_flag():
+        names = set(auth_router.NOTEBOOK_FLAGS)
+        calls = {}
+        for root in ffi.repo_roots(REPO):
+            for p in sorted(Path(root).rglob("*.py")):
+                if "__pycache__" in p.parts:
+                    continue
+                try:
+                    tree = ast.parse(p.read_text(encoding="utf-8", errors="ignore"))
+                except SyntaxError:
+                    continue
+                for line, name in _flag_on_literals(tree):
+                    calls.setdefault(p.relative_to(REPO).as_posix(), []).append((line, name))
+        # \u2b50 NON-VACUITY: the share gate reads through flag_on, and this scan must see it.
+        assert ("J2_SHARE_LINKS_ENABLED" in {n for _, n in calls.get(
+            "api/services/journal_two/note_shares.py", [])}), (
+            f"the flag_on scan did not see note_shares' gate; it saw {sorted(calls)}")
+        strays = sorted(f"{path}:{line}  {name}" for path, cs in calls.items()
+                        for line, name in cs if name not in names)
+>       assert strays == [], (
+            "flag_on() reads a name that is not in auth.NOTEBOOK_FLAGS -- a gate the "
+            "feature-flag index cannot see and the payload does not carry. Add the row "
+            "to NOTEBOOK_FLAGS (and the ledger), or read it another way:\n  " + "\n  ".join(strays))
+E       AssertionError: flag_on() reads a name that is not in auth.NOTEBOOK_FLAGS -- a gate the feature-flag index cannot see and the payload does not carry. Add the row to NOTEBOOK_FLAGS (and the ledger), or read it another way:
+E           tools/runtime_pane_smoke.py:234  x={VITE_PINE_RUNTIME_PANE_ENABLED:"1",B:2}
+E           tools/runtime_pane_smoke.py:236  nothing
+E           tools/runtime_pane_smoke.py:236  x={VITE_PINE_RUNTIME_PANE_ENABLED:"",B:2}
+E       assert ['tools/runti...BLED:"",B:2}'] == []
+E         
+E         Left contains 3 more items, first extra item: 'tools/runtime_pane_smoke.py:234  x={VITE_PINE_RUNTIME_PANE_ENABLED:"1",B:2}'
+E         Use -v to get more diff
+
+tests\test_notebook_flag_parse.py:307: AssertionError
+============================== warnings summary ===============================
+tests/test_notebook_flag_parse.py::test_NO_notebook_flag_is_read_outside_the_one_parse
+tests/test_notebook_flag_parse.py::test_every_flag_on_call_names_a_payload_flag
+  <unknown>:7: SyntaxWarning: "\d" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\d"? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_flag_parse.py::test_NO_notebook_flag_is_read_outside_the_one_parse
+FAILED tests/test_notebook_flag_parse.py::test_every_flag_on_call_names_a_payload_flag
+2 failed, 279 passed, 2 warnings in 57.55s
