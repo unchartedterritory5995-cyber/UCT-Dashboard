@@ -55,6 +55,11 @@ INTERNAL_PATTERN_IDS: frozenset = frozenset({
     # capitulation, go signal. Lab-measured and independently blind-adjudicated
     # (86-92% precision); internal until the owner rules them public.
     "uct_launch_pad", "uct_gap_support", "uct_capitulation", "uct_go_signal",
+    # Detector recall v2 (2026-10-16): undercut & reclaim and episodic pivot v2,
+    # NEW ids beside u_and_r / episodic_pivot (which are unchanged). Lab-measured
+    # recall gains and a blind random-day review; experimental, internal until
+    # the owner rules them public.
+    "uct_undercut_reclaim", "uct_episodic_pivot_v2",
 })
 
 
