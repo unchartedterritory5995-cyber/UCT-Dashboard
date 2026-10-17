@@ -50,3 +50,7 @@
 .thumbImg { display: block; height: 72px; width: auto; max-width: 160px; object-fit: contain; }
 .lightbox { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: var(--space-md); background: rgba(0, 0, 0, 0.85); cursor: zoom-out; }
 .lightboxImg { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+/* "Watch at m:ss" beside a call's ticker: the Desk session moment (WatchLink.jsx, gated server-side). */
+.watch { margin-left: var(--space-xs); color: var(--accent); font-size: var(--text-sm); white-space: nowrap; text-decoration: none; }
+.watch:hover { text-decoration: underline; }

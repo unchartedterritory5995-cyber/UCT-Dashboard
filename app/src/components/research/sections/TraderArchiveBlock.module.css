@@ -13,6 +13,7 @@
 .calls td { padding: 4px var(--space-xs); color: var(--text); border-bottom: 1px solid var(--glass-border-neutral); }
 .up { color: var(--success-ink); }
 .down { color: var(--danger-ink); }
+.pending { color: var(--text-muted); font-style: italic; }
 .footer { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
 .link { color: var(--text-bright); }
 .link:focus-visible { outline: var(--focus-ring); }

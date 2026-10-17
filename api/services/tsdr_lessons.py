@@ -568,14 +568,19 @@ SECTIONS = (
      "Reading the indexes, sectors and conditions, and what they mean for exposure."),
     ("mindset", "Mindset & Process",
      "Psychology, routine and reviewing your own trades."),
+    ("clips", "Clips & Quick Takes",
+     "Quick looks, short clips and anything that is not a full lesson."),
 )
 _SECTION_KEYS = tuple(k for k, _, _ in SECTIONS)
 # A lesson's section is the one its FIRST tag belongs to (the model lists the
 # main topic first). Every tag in TAGS maps to exactly one section.
 _TAG_SECTION = {"setups": "setups", "entries": "setups", "exits": "management",
                 "risk": "management", "market": "market", "psychology": "mindset",
-                "process": "mindset", "review": "mindset"}
+                "process": "mindset", "review": "mindset", "clip": "clips"}
 _DEFAULT_SECTION = "mindset"
+# Every video is posted, lesson or not: a clip that teaches nothing (or says
+# nothing) carries this tag, which puts it in the Clips & Quick Takes thread.
+CLIP_TAG = "clip"
 
 
 def section_for(lesson: dict) -> str:
@@ -765,7 +770,9 @@ _SYS = (
     '  "tickers": the stock/ETF symbols actually discussed, uppercase, no "$", at most 8.\n'
     f'  "tags": 1 to 3 topics, chosen ONLY from: {", ".join(TAGS)}.\n'
     '  "is_lesson": false when the clip teaches nothing (a joke, a quick "look at this" '
-    "with no explanation, a tech test, an announcement); true otherwise.\n"
+    "with no explanation, a tech test, an announcement); true otherwise. Every clip is "
+    "still posted, so when is_lesson is false still give a title and a recap of 1 to 3 "
+    "sentences saying what the clip shows.\n"
     "Rules: ground every claim in the transcript or caption; never invent tickers, prices "
     "or results; no position sizes or share counts; no hype; plain text, no markdown."
 )
@@ -813,11 +820,12 @@ def generate_recap(*, transcript: str, caption: str, posted: datetime,
         raise ValueError("the model declined to write this recap")
     text = "".join(getattr(b, "text", "") for b in msg.content if getattr(b, "type", "") == "text")
     data = _parse_json_object(text)
-    if data.get("is_lesson") is False:
-        return {"is_lesson": False}
+    is_lesson = data.get("is_lesson") is not False
     title = re.sub(r"\s+", " ", str(data.get("title") or "")).strip().strip('"')[:120]
     sentences = split_sentences(str(data.get("recap") or ""))
-    if not title or len(sentences) < 3:
+    if not title or len(sentences) < (3 if is_lesson else 1):
+        if not is_lesson:
+            return {"is_lesson": False}     # the caller writes a plain clip entry
         raise ValueError("model reply was missing a title or a recap")
     q = str(data.get("question") or "").strip() if data.get("question_needed") else ""
     tickers = []
@@ -830,7 +838,7 @@ def generate_recap(*, transcript: str, caption: str, posted: datetime,
         tag = str(t).strip().lower()
         if tag in TAGS and tag not in tags:
             tags.append(tag)
-    return {"is_lesson": True, "title": title, "recap": " ".join(sentences[:6]),
+    return {"is_lesson": is_lesson, "title": title, "recap": " ".join(sentences[:6]),
             "question": q[:400], "takeaway": str(data.get("takeaway") or "").strip()[:300],
             "tickers": tickers[:8], "tags": tags[:3]}
 
@@ -911,6 +919,24 @@ def _question_for(msg: dict) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def as_clip(recap: dict, row: dict, caption: str) -> dict:
+    """A recap for a video that is not a full lesson: whatever the model wrote,
+    with a plain title and description filled in where it wrote nothing, and
+    the clip tag first so it goes to the Clips thread."""
+    posted = datetime.fromtimestamp(int(row["posted_at"]), tz=timezone.utc).astimezone(_ET)
+    day = f"{posted:%b} {posted.day}, {posted.year}"
+    text = re.sub(r"\s+", " ", caption).strip()
+    title = recap.get("title") or (text[:80].rstrip() if text else f"Quick clip, {day}")
+    body = recap.get("recap") or (
+        text[:600] if text else
+        f"A short clip {speaker_name(row)} shared in #{source_name(row)} on {day}, "
+        "with no spoken commentary. Watch the video below.")
+    tags = [CLIP_TAG] + [t for t in recap.get("tags") or [] if t != CLIP_TAG]
+    return {"title": title, "recap": body, "question": recap.get("question") or "",
+            "takeaway": recap.get("takeaway") or "", "tickers": recap.get("tickers") or [],
+            "tags": tags[:3]}
+
+
 def process_lesson(row: dict, lesson_channel: str) -> str:
     """One video, start to finish. Returns the row's new status."""
     aid = row["attachment_id"]
@@ -928,18 +954,15 @@ def process_lesson(row: dict, lesson_channel: str) -> str:
     finally:
         shutil.rmtree(work, ignore_errors=True)
     caption = row.get("caption") or ""
-    if len(transcript.split()) < MIN_WORDS and len(caption.split()) < MIN_WORDS:
-        _update(aid, status="skipped", duration_s=seconds, transcript=transcript,
-                last_error="no spoken lesson to recap")
-        return "skipped"
     posted = datetime.fromtimestamp(int(row["posted_at"]), tz=timezone.utc)
-    recap = generate_recap(transcript=transcript, caption=caption, posted=posted,
-                           question=_question_for(msg) if row.get("is_reply") else "",
-                           speaker=speaker_name(row))
-    if not recap.pop("is_lesson", True):
-        _update(aid, status="skipped", duration_s=seconds, transcript=transcript,
-                last_error="not a lesson")
-        return "skipped"
+    if len(transcript.split()) < MIN_WORDS and len(caption.split()) < MIN_WORDS:
+        recap = as_clip({}, row, caption)            # nothing said: a plain clip
+    else:
+        recap = generate_recap(transcript=transcript, caption=caption, posted=posted,
+                               question=_question_for(msg) if row.get("is_reply") else "",
+                               speaker=speaker_name(row))
+        if not recap.pop("is_lesson", True):
+            recap = as_clip(recap, row, caption)
     _update(aid, duration_s=seconds, transcript=transcript, title=recap["title"],
             recap=recap["recap"], question=recap["question"], takeaway=recap["takeaway"],
             tickers=json.dumps(recap["tickers"]), tags=json.dumps(recap["tags"]))
@@ -1212,6 +1235,25 @@ def run_youtube(*, deadline: float) -> dict:
     return out
 
 
+# Skip reasons from before every clip was posted. Rows skipped for them are
+# put back in the queue once; a deleted message stays skipped.
+_REOPEN_REASONS = ("not a lesson", "no spoken lesson to recap")
+_REOPEN_DONE_KEY = "reopened_skipped_clips"
+
+
+def reopen_skipped_clips() -> int:
+    if get_state(_REOPEN_DONE_KEY):
+        return 0
+    marks = ",".join("?" * len(_REOPEN_REASONS))
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        n = c.execute(f"UPDATE tsdr_lessons SET status = 'new', attempts = 0, last_error = NULL "
+                      f"WHERE status = 'skipped' AND last_error IN ({marks})",
+                      _REOPEN_REASONS).rowcount
+        c.commit()
+    set_state(_REOPEN_DONE_KEY, "1")
+    return n
+
+
 # ── the scheduled entry point ────────────────────────────────────────────────
 
 def tick() -> dict:
@@ -1229,6 +1271,12 @@ def tick() -> dict:
             except Exception as e:  # noqa: BLE001
                 log.warning("[tsdr-lessons] scan of %s failed: %s", ch, e)
                 out[f"scan:{ch}"] = {"error": str(e)[:200]}
+        try:
+            reopened = reopen_skipped_clips()
+            if reopened:
+                out["reopened"] = reopened
+        except Exception as e:  # noqa: BLE001
+            log.warning("[tsdr-lessons] could not reopen skipped clips: %s", e)
         try:
             out["lessons"] = run_lessons(limit=_int_env("TSDR_LESSONS_PER_TICK", 3),
                                          deadline=deadline)
