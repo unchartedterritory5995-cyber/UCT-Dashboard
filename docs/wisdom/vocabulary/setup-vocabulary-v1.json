@@ -2512,6 +2512,18 @@
      "vocab_id": "range_breakout",
      "mismatch": 1,
      "note": "flat-top breakouts are the flat-base case of a range breakout; team-setup lab rule, internal detector"
+    },
+    {
+     "external_name": "uct_flag_htf",
+     "vocab_id": "flag",
+     "mismatch": 0,
+     "note": "team-setup lab rule (flag or high tight flag, with the falling-200 / pinned-tape guard), internal detector"
+    },
+    {
+     "external_name": "uct_ma_reclaim",
+     "vocab_id": "remount",
+     "mismatch": 0,
+     "note": "team-setup lab rule (close back above the 50 or 200 SMA after closes under it), internal detector"
     }
    ]
   },

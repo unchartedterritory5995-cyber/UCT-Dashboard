@@ -147,6 +147,9 @@ from api.services.pattern_engine.detectors.uct import uct_pullback_ma_v5 as _uct
 # Team setup recognition rules (inside day, flat-top breakout): INTERNAL, same gate.
 from api.services.pattern_engine.detectors.uct import uct_inside_day as _uct_inside_day  # noqa: F401
 from api.services.pattern_engine.detectors.uct import uct_flat_top_breakout as _uct_flat_top_breakout  # noqa: F401
+# Team setup recognition rules, second pair (flag + guard, MA reclaim): INTERNAL, same gate.
+from api.services.pattern_engine.detectors.uct import uct_flag_htf as _uct_flag_htf  # noqa: F401
+from api.services.pattern_engine.detectors.uct import uct_ma_reclaim as _uct_ma_reclaim  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors import registry as _pe_registry
 

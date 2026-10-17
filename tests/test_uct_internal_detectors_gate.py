@@ -50,7 +50,11 @@ _PULLBACK_V5 = ("uct_pullback_ma_v5",)
 #: flat_base, same gate (fixtures in tests/pattern_engine/detectors/
 #: test_uct_team_setups.py).
 _TEAM_SETUPS = ("uct_inside_day", "uct_flat_top_breakout")
-_INTERNAL = (*_UCT2, *_RECALL_V2, *_PULLBACK_V5, *_TEAM_SETUPS)
+#: Team setup recognition rules, second pair (flag + guard, MA reclaim): NEW
+#: ids beside bull_flag / high_tight_flag / pennant / remount, same gate
+#: (fixtures in tests/pattern_engine/detectors/test_uct_team_setups2.py).
+_TEAM_SETUPS2 = ("uct_flag_htf", "uct_ma_reclaim")
+_INTERNAL = (*_UCT2, *_RECALL_V2, *_PULLBACK_V5, *_TEAM_SETUPS, *_TEAM_SETUPS2)
 _CONTROL = "bull_flag"
 _PROBE = "zz_internal_gate_probe"
 _SYM = "GATEX"

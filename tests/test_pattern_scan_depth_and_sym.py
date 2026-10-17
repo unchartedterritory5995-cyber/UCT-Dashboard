@@ -29,7 +29,9 @@ from api.main import _scan_patterns_daily
 from api.services import bars_sqlite
 from api.services.pattern_engine import detect_all, memory
 from api.services.pattern_engine.detectors import registry
+from api.services.pattern_engine.detectors.uct import uct_flag_htf as FL
 from api.services.pattern_engine.detectors.uct import uct_flat_top_breakout as FT
+from api.services.pattern_engine.detectors.uct import uct_ma_reclaim as MR
 from api.services.pattern_engine.detectors.uct import uct_pullback_ma_v5 as PB
 from api.services.pattern_engine.detectors.uct import uct_setups_common as U
 from api.services.pattern_engine.primitives.context import build_context
@@ -38,6 +40,8 @@ from tests.pattern_engine.detectors import _pullback_v5_synth as SY
 
 _ID = "uct_pullback_ma_v5"
 _FT_ID = "uct_flat_top_breakout"
+_FL_ID = "uct_flag_htf"
+_MR_ID = "uct_ma_reclaim"
 _DAY = 86_400
 
 
@@ -92,10 +96,15 @@ def test_the_pullback_detector_declares_its_history_and_nothing_else_does():
     assert registry.min_bars_for(_ID) == PB.MIN_BARS == 222
     declared = {pid for pid in registry.list_pattern_ids() if registry.min_bars_for(pid)}
     # uct_flat_top_breakout declares 202 (its rule needs the 200 SMA on the
-    # marked session, plus the two prior trigger sessions); the deepest stays 222.
-    assert declared == {_ID, _FT_ID}, declared
+    # marked session, plus the two prior trigger sessions). uct_flag_htf
+    # declares 222 (its guard reads the 200 SMA 20 sessions back) and
+    # uct_ma_reclaim 225 (its 200 SMA branch reads it 23 sessions back), so the
+    # deepest declaration, and the scan's fetch, is now 225.
+    assert declared == {_ID, _FT_ID, _FL_ID, _MR_ID}, declared
     assert registry.min_bars_for(_FT_ID) == FT.MIN_BARS == 202
-    assert registry.scan_depth(registry.SCAN_BASE_DEPTH) == 222
+    assert registry.min_bars_for(_FL_ID) == FL.MIN_BARS == 222
+    assert registry.min_bars_for(_MR_ID) == MR.MIN_BARS == 225
+    assert registry.scan_depth(registry.SCAN_BASE_DEPTH) == 225
     assert registry.scan_depth(500) == 500
 
 
@@ -133,7 +142,7 @@ def test_undeclared_detectors_receive_byte_identical_bars_and_context(monkeypatc
         monkeypatch.setitem(registry._REGISTRY, pid, rec)
     _scan_patterns_daily(["DEPTHX"], set(), _Log())
 
-    assert calls == [("DEPTHX", "D", 222)], calls
+    assert calls == [("DEPTHX", "D", MR.MIN_BARS)], calls
     old_bars = [{"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}
                 for r in rows[-200:]]
     old_key = tuple(tuple(sorted(b.items())) for b in old_bars)
@@ -164,7 +173,7 @@ def test_undeclared_detectors_produce_identical_detections(monkeypatch):
     old_bars = full[-200:]
     ctx = build_context(old_bars, sym="IDENT")
     others = [p for p in registry.list_pattern_ids() if not registry.min_bars_for(p)]
-    assert _ID not in others and _FT_ID not in others
+    assert not {_ID, _FT_ID, _FL_ID, _MR_ID} & set(others)
     monkeypatch.setattr(time, "time", lambda: 1_800_000_000.0)
 
     def strip(ds):
