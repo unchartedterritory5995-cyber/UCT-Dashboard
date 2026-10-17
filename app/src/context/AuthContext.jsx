@@ -27,6 +27,8 @@ export function AuthProvider({ children }) {
   // to parse, must not silently hide a shipped feature — only an explicit `false`
   // from the server kills it. `=== false` below, never a truthiness test.
   const [hubPreviewEnabled, setHubPreviewEnabled] = useState(true)
+  // Study (Courses tab): STUDY_ENABLED is a kill switch — unset/absent reads ON, only an explicit false hides it.
+  const [studyEnabled, setStudyEnabled] = useState(true)
   // Default FALSE, mirroring the server's off-by-default enablement gate:
   // an unset flag, a failed fetch, or the pre-settle first render must all
   // read as "not enabled" so the tab can never flash into view unreleased.
@@ -137,6 +139,8 @@ export function AuthProvider({ children }) {
    */
   const SERVER_FLAGS = [
     ['hub_preview_enabled', (d) => d.hub_preview_enabled !== false, setHubPreviewEnabled],
+    // Study: same kill-switch polarity as the hub (spec 2026-10-17 §13.2 T10).
+    ['study_enabled', (d) => d.study_enabled !== false, setStudyEnabled],
     ['research_technical_tab_enabled', (d) => d.research_technical_tab_enabled === true, setResearchTechnicalTabEnabled],
     ['research_flow_tab_enabled', (d) => d.research_flow_tab_enabled === true, setResearchFlowTabEnabled],
     ['decision_record_enabled', (d) => d.decision_record_enabled === true, setDecisionRecordEnabled],
@@ -387,7 +391,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, memberInterestSurfaces, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, ivHistoryEnabled, optionsStrategyScreensEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, screenerFocusLayoutEnabled, screenerNewTodayEnabled, screenerFocusPhoneEnabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, autoStructuresEnabled, autoStructuresMembersEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, studyEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, memberInterestSurfaces, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, ivHistoryEnabled, optionsStrategyScreensEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, screenerFocusLayoutEnabled, screenerNewTodayEnabled, screenerFocusPhoneEnabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, autoStructuresEnabled, autoStructuresMembersEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

@@ -114,3 +114,23 @@
   .head { margin-top: var(--space-sm); }
   .title { font-size: 20px; }
 }
+
+/* Study (D3) — the panel sits above the course cards on a phone; on desktop it
+   is a 340px sticky column with the cards (and the trail) to its right. */
+.studyLayout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  min-width: 0;
+}
+.studyAside { min-width: 0; }
+.studyMain { min-width: 0; }
+@media (min-width: 1025px) {
+  .studyLayout {
+    display: grid;
+    grid-template-columns: 340px minmax(0, 1fr);
+    gap: var(--space-xl);
+    align-items: start;
+  }
+  .studyAside { position: sticky; top: var(--space-md); }
+}
