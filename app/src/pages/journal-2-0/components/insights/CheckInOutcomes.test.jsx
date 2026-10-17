@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, act } from '@testing-library/react'
 
 import CheckInOutcomes, { EMPTY_TEXT, TOO_FEW_TEXT } from './CheckInOutcomes'
 import PsychologySection from './PsychologySection'
@@ -37,6 +37,12 @@ beforeEach(() => {
 })
 afterEach(() => { __resetNotebookFlags() })
 
+// Let the lazy leaf resolve and Suspense retry, inside act. The module is already imported above,
+// so its dynamic import resolves from the module cache.
+const settleLazy = () => act(async () => {
+  for (let i = 0; i < 10; i += 1) await new Promise((r) => setTimeout(r, 0))
+})
+
 describe('CheckInOutcomes — the Tier 3 switch', () => {
   const psychology = { taggedTradeCount: 0, checkIns }
 
@@ -44,7 +50,8 @@ describe('CheckInOutcomes — the Tier 3 switch', () => {
     render(<PsychologySection analytics={{ psychology }} />)
     // Something else in the section rendered, so an absent view is the gate and not a blank page.
     expect(screen.getByText(/tag your last 20 trades/i)).toBeInTheDocument()
-    await new Promise((r) => setTimeout(r, 30))
+    // The same settle the switch-on test proves is enough for the lazy view to mount.
+    await settleLazy()
     expect(screen.queryByText('By check-in')).not.toBeInTheDocument()
     expect(screen.queryByText(EMPTY_TEXT)).not.toBeInTheDocument()
     expect(globalThis.fetch).not.toHaveBeenCalled()
@@ -53,7 +60,9 @@ describe('CheckInOutcomes — the Tier 3 switch', () => {
   it('with the switch on, the view mounts in the section, even on an untagged book', async () => {
     latchNotebookFlags({ [TIER3_FLAG]: true })
     render(<PsychologySection analytics={{ psychology }} />)
-    expect(await screen.findByText('By check-in')).toBeInTheDocument()
+    await settleLazy()
+    // getBy, not findBy: this is the control that the off test's settle is long enough.
+    expect(screen.getByText('By check-in')).toBeInTheDocument()
     expect(screen.getByText(/tag your last 20 trades/i)).toBeInTheDocument()
     expect(globalThis.fetch).not.toHaveBeenCalled()
   })
