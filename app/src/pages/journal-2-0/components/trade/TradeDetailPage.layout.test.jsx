@@ -4,8 +4,8 @@
  * What follows the identity header is a list: the panels `resolvePanels(layout, 'trade')` names, in the
  * member's order, shown ones only. With the page-layouts switch off the list is DEFAULT_LAYOUT's, which is
  * the order the page always had; a saved layout is then ignored (and stays stored). The save-error line is
- * not a panel: it renders straight after the identity header whatever the layout says, so an error is
- * always seen.
+ * not a panel: it sits just above the story (where it sat before P4a, ruling P4a-T9-R1), and straight after
+ * the identity header only when the story is hidden, so an error is always seen.
  *
  * Panels are found by `data-testid` or heading, and read in DOM order. The sections that own a graph of
  * their own (linked notes, entry context, plan grade, the chart pane, before and after) are stubs here;
@@ -15,14 +15,16 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 
-const { prefsRef, paidRef } = vi.hoisted(() => ({
+const { prefsRef, paidRef, navigateSpy, tradesRef } = vi.hoisted(() => ({
   prefsRef: { current: {} },
   paidRef: { current: true },
+  navigateSpy: { fn: () => {} },
+  tradesRef: { current: null },
 }))
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal()
-  return { ...actual, useNavigate: () => vi.fn() }
+  return { ...actual, useNavigate: () => navigateSpy.fn }
 })
 vi.mock('../../../../hooks/usePreferences', async (importOriginal) => {
   const actual = await importOriginal()
@@ -62,7 +64,7 @@ vi.mock('../../hooks/useJ2Settings', () => ({
 }))
 vi.mock('../../hooks/useJ2Trades', () => ({
   default: () => ({
-    trades: [{ id: 't1', symbol: 'NVDA', side: 'Long', setup: 'VCP', entryDate: '2026-05-01' }],
+    trades: tradesRef.current || [{ id: 't1', symbol: 'NVDA', side: 'Long', setup: 'VCP', entryDate: '2026-05-01' }],
     isLoading: false,
     error: null,
   }),
@@ -176,6 +178,8 @@ async function lazyArrived(names) {
 beforeEach(() => {
   prefsRef.current = {}
   paidRef.current = true
+  tradesRef.current = null
+  navigateSpy.fn = vi.fn()
   setFlags({ layouts: false })
   global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }))
 })
@@ -224,19 +228,54 @@ describe('TradeDetailPage renders from the page layout', () => {
     expect(panelOrder(container)).toEqual(BASE_ORDER)
   })
 
-  it('a save error renders straight after the header, and still renders when every panel is hidden', async () => {
-    setFlags({ layouts: true })
-    prefsRef.current = {}
-    const { container, rerender } = renderPage()
-    await lazyArrived(['p-chart'])
-
+  // Ruling P4a-T9-R1. Before P4a the save-error line sat between the chart card and the before-and-after card,
+  // straight above the story, where most failing saves are made (setup, tags, notes). It goes back there.
+  const raiseSaveError = async () => {
     // The stop form is the outcome grid's: an empty stop is refused with a save error.
     fireEvent.click(screen.getByRole('button', { name: '+ Add stop' }))
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    const err = await screen.findByText(/Couldn’t save/)
-    const header = container.querySelector('header')
-    expect(header).not.toBeNull()
-    expect(err.previousElementSibling).toBe(header)
+    return screen.findByText(/Couldn’t save/)
+  }
+
+  it.each([
+    ['off', false], ['on with the default layout', true],
+  ])('with the switch %s the save error sits where it did before P4a: after the chart card, before the before-and-after card', async (_, layouts) => {
+    setFlags({ layouts })
+    prefsRef.current = {}
+    const { container } = renderPage()
+    await lazyArrived(['p-planGrade', 'p-chart', 'p-beforeAfter'])
+    const err = await raiseSaveError()
+    expect(err.previousElementSibling.contains(FINDERS.chart(container))).toBe(true)
+    expect(err.nextElementSibling).toBe(FINDERS.beforeAfter(container))
+    expect(err.nextElementSibling.nextElementSibling).toBe(FINDERS.story(container))
+  })
+
+  it('with the before-and-after card off, the save error is the story\'s previous sibling (the pre-P4a DOM)', async () => {
+    setFlags({ layouts: false, beforeAfter: false })
+    const { container } = renderPage()
+    await lazyArrived(['p-chart'])
+    const err = await raiseSaveError()
+    expect(err.nextElementSibling).toBe(FINDERS.story(container))
+    expect(err.previousElementSibling.contains(FINDERS.chart(container))).toBe(true)
+  })
+
+  it('a saved layout that moves the story first puts the save error straight before it', async () => {
+    setFlags({ layouts: true })
+    prefsRef.current = saved([['story', true], ['outcome', true], ['chart', true], ['beforeAfter', true]])
+    const { container } = renderPage()
+    await lazyArrived(['p-beforeAfter'])
+    const err = await raiseSaveError()
+    expect(err.nextElementSibling).toBe(FINDERS.story(container))
+    expect(err.previousElementSibling).toBe(container.querySelector('header'))
+  })
+
+  it('with the story hidden the save error renders straight after the header, and still renders when every panel is hidden', async () => {
+    setFlags({ layouts: true })
+    prefsRef.current = saved([['outcome', true], ['chart', true]])
+    const { container, rerender } = renderPage()
+    await lazyArrived(['p-chart'])
+    const err = await raiseSaveError()
+    expect(err.previousElementSibling).toBe(container.querySelector('header'))
 
     // The member now hides every panel: the error is not a panel, so it stays.
     prefsRef.current = saved([])
@@ -309,6 +348,37 @@ describe('the Customize button (P4a Task 7)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'stub cancel' }))
     expect(screen.queryByTestId('editor-stub')).toBeNull()
     expect(screen.queryByText('Layout saved.')).toBeNull()
+  })
+
+  // P4a final review m6: the page's j / k / arrow keys move between trades. While the Customize sheet is open
+  // they do nothing, whatever button inside the sheet has focus.
+  it('while the Customize sheet is open the arrow and j / k keys do not change the trade', async () => {
+    tradesRef.current = [
+      { id: 't0', symbol: 'AMD', side: 'Long', setup: 'VCP', entryDate: '2026-04-28' },
+      { id: 't1', symbol: 'NVDA', side: 'Long', setup: 'VCP', entryDate: '2026-05-01' },
+      { id: 't2', symbol: 'TSLA', side: 'Long', setup: 'VCP', entryDate: '2026-05-06' },
+    ]
+    setFlags({ layouts: true })
+    renderPage()
+    await lazyArrived(['p-chart'])
+
+    // CONTROL: with the sheet closed the keys navigate, so a silent handler cannot pass this test.
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(navigateSpy.fn).toHaveBeenCalledTimes(1)
+    navigateSpy.fn.mockClear()
+
+    fireEvent.click(customizeButton())
+    const inSheet = screen.getByRole('button', { name: 'stub save' })
+    for (const key of ['ArrowRight', 'ArrowLeft', 'j', 'k']) {
+      fireEvent.keyDown(inSheet, { key })
+      fireEvent.keyDown(window, { key })
+    }
+    expect(navigateSpy.fn).not.toHaveBeenCalled()
+
+    // Closed again, the keys work again.
+    fireEvent.click(screen.getByRole('button', { name: 'stub cancel' }))
+    fireEvent.keyDown(window, { key: 'k' })
+    expect(navigateSpy.fn).toHaveBeenCalledTimes(1)
   })
 
   it('a save closes the editor and "Layout saved." is shown by the page, after the sheet is gone', async () => {

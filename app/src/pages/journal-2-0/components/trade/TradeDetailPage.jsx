@@ -428,8 +428,12 @@ export default function TradeDetailPage() {
 
   // Keyboard: j/ArrowRight → next, k/ArrowLeft → prev, Esc → back. Skips while
   // typing (input/textarea/select/contentEditable) — MiniMonthNav.jsx pattern.
+  // P4a m6: and does nothing at all while the Customize sheet is open. An arrow key on the sheet's Move up /
+  // Move down buttons is what a keyboard user reaches for in that list; it must not change the trade under the
+  // sheet (the sheet handles its own Escape).
   useEffect(() => {
     const onKey = (e) => {
+      if (customizing) return
       const tag = (e.target?.tagName || '').toLowerCase()
       if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable) return
       if (e.key === 'Escape') { navigate(-1); return }
@@ -438,7 +442,7 @@ export default function TradeDetailPage() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [prevId, nextId, go, navigate])
+  }, [prevId, nextId, go, navigate, customizing])
 
   // Optimistic PATCH: write local override immediately, reconcile from the
   // server's recomputed trade, roll back to server truth on error (mirrors
@@ -586,6 +590,15 @@ export default function TradeDetailPage() {
   // The chart card's "Add context in notes" button scrolls to and focuses the notes field, which lives INSIDE
   // the story section. With the story hidden there is nothing to go to, so the button is not rendered.
   const storyShown = panels.some((p) => p.id === 'story')
+  // Ruling P4a-T9-R1: the save-error line goes back where it was. Most saves that can fail are made inside the
+  // story (the setup select, the tags, the notes blur-save), so the line sits just above the story: before it
+  // was a P4a change, it sat between the chart card and the before-and-after card, which comes straight before
+  // the story. So it renders ahead of the story, or ahead of the before-and-after card when that card is the
+  // panel straight before the story (the default layout, where this is exactly its old slot, switch off or on).
+  // With the story hidden it renders straight after the identity header, so an error is still seen.
+  const storyAt = panels.findIndex((p) => p.id === 'story')
+  const errorAt = storyAt > 0 && panels[storyAt - 1].id === 'beforeAfter' ? storyAt - 1 : storyAt
+  const errorLine = patchError && <div className={styles.errorLine} role="alert">Couldn’t save: {patchError}</div>
   const render = {
     linkedNotes: () => trade.id != null && (
       <LinkedNotesPanel tradeRef={String(trade.id)} tradeRefType="equity_trade" />
@@ -1003,10 +1016,12 @@ export default function TradeDetailPage() {
         </span>
       </header>
 
-      {/* The save error is not a panel: it sits straight after the header so it is seen whatever the layout shows. */}
-      {patchError && <div className={styles.errorLine} role="alert">Couldn’t save: {patchError}</div>}
+      {/* The save error is not a panel. With the story hidden it sits straight after the header; otherwise it
+          rides in front of the panel `errorAt` names (see above). Inside that panel's Fragment it holds a slot of
+          its own, so its arriving or going never remounts the panel. */}
+      {storyAt < 0 && errorLine}
 
-      {panels.map((p) => <Fragment key={p.id}>{render[p.id]?.()}</Fragment>)}
+      {panels.map((p, i) => <Fragment key={p.id}>{i === errorAt && errorLine}{render[p.id]?.()}</Fragment>)}
 
       {customizing && (
         <PageLayoutEditorSlot
