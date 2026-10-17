@@ -2,8 +2,13 @@
 
 AUTO_STRUCTURES_ENABLED (default OFF, read PER CALL): when on, an ADMIN's chart
 toolbar shows the structures toggle again and GET /api/patterns/{sym} can carry
-the current base boxes (`include_structures=true`). Members are unchanged until
-a later, separate flip. Display-only end to end: nothing here changes what any
+the current base boxes (`include_structures=true`).
+
+AUTO_STRUCTURES_MEMBERS_ENABLED (default OFF, read PER CALL, and only meaningful
+while AUTO_STRUCTURES_ENABLED is also on): PAID members get the toggle too, but
+see ONLY trusted-tier detections (registry.DISPLAY_TRUSTED). Experimental,
+hidden, the levels layer, base boxes and the learned `drawn` block stay
+admin-only; the route filters server-side (`member_rows`), never the client. Display-only end to end: nothing here changes what any
 detector fires on, its confidence, HIST_SCORE or `confirmed_only`.
 """
 from __future__ import annotations
@@ -33,6 +38,21 @@ _CACHE_TTL_S = 600
 def enabled() -> bool:
     """Read PER CALL. Unset means OFF (an enablement gate on a dark surface)."""
     return os.environ.get("AUTO_STRUCTURES_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+def members_enabled() -> bool:
+    """Read PER CALL. True only while BOTH AUTO_STRUCTURES_ENABLED and
+    AUTO_STRUCTURES_MEMBERS_ENABLED are on: the member flip rides the admin
+    gate, so unsetting AUTO_STRUCTURES_ENABLED alone still closes every door."""
+    return enabled() and (
+        os.environ.get("AUTO_STRUCTURES_MEMBERS_ENABLED", "0").strip().lower() in _TRUTHY)
+
+
+def member_rows(rows) -> list:
+    """What a member may be drawn: rows whose display tier is `trusted` (the
+    registry's DISPLAY_TRUSTED, stamped per row by display_policy), nothing else.
+    A row without a tier is not trusted."""
+    return [r for r in rows or [] if (r or {}).get("display_tier") == "trusted"]
 
 
 def box_to_detection(sym: str, box: dict, bars: list | None = None) -> dict:

@@ -160,7 +160,7 @@ import { plotRepaintNotice, repaintNotices } from './chart/engine/repaintVerdict
 import ContextPopover from './mobile/ContextPopover'
 import IndicatorSettingsDialog from './chart/IndicatorSettingsDialog'
 import { usePatternDetections } from '../hooks/usePatternDetections'
-import { useAutoStructuresGate } from './chart/autoStructuresGate'
+import { useAutoStructuresScope } from './chart/autoStructuresGate'
 import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
 import { useInstalledUserDefinitions } from '../hooks/useUserDefinitions'
 import { useIsPaid } from '../context/AuthContext'
@@ -6097,14 +6097,19 @@ export default function StockChart({
   // Auto Structures (AUTO_STRUCTURES_ENABLED): the overlay, its fetch and its toolbar toggle are
   // ADMIN-ONLY while the flag is on, and off for everyone else — a member whose persisted
   // `showPatterns` is true still sees (and fetches) nothing, exactly as before.
-  const autoStructuresOn = useAutoStructuresGate()
-  const patternsActive = showPatterns && autoStructuresOn && !disablePatterns
+  // Members (AUTO_STRUCTURES_MEMBERS_ENABLED): scope 'trusted' — the same toggle, but their request
+  // always carries include_structures=true so the SERVER filters to trusted-tier rows, and the
+  // overlay draws trusted only (no experimental, levels, base boxes or learned drawer).
+  const autoStructuresScope = useAutoStructuresScope()
+  const autoStructuresOn = autoStructuresScope === 'all'
+  const autoStructuresTrustedOnly = autoStructuresScope === 'trusted'
+  const patternsActive = showPatterns && autoStructuresScope != null && !disablePatterns
   // The ubiquitous level emitters (support/resistance, volume nodes) are a separate,
   // default-off layer; per-tab, not persisted.
   const [showPatternLevels, setShowPatternLevels] = useState(false)
   const { detections: patternDetections, drawn: patternDrawn } = usePatternDetections(
     sym, resolvedTf, patternsActive, 50,
-    { includeStructures: autoStructuresOn && ['D', 'W', 'M'].includes(resolvedTf) },
+    { includeStructures: autoStructuresTrustedOnly || (autoStructuresOn && ['D', 'W', 'M'].includes(resolvedTf)) },
   )
 
   // ── Screenshot + Share state ──
@@ -20224,13 +20229,14 @@ export default function StockChart({
           series={candleSeriesRef.current}
           containerRef={containerRef}
           detections={patternDetections}
-          drawn={patternDrawn}
+          drawn={autoStructuresOn ? patternDrawn : null}
           enabled={patternsActive}
           onDetectionClick={setActiveDetection}
           tf={resolvedTf}
           barTimes={patternBarTimes}
           showExperimental={autoStructuresOn}
-          showLevels={showPatternLevels}
+          showLevels={autoStructuresOn && showPatternLevels}
+          trustedOnly={autoStructuresTrustedOnly}
           lastPrice={patternLastPrice}
         />
       )}

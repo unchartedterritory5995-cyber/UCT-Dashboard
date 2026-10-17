@@ -744,7 +744,7 @@ def get_detections(
     types: Optional[str] = Query(default=None, description="comma-separated pattern_ids to filter"),
     min_conf: float = Query(default=50.0, ge=0.0, le=100.0),
     confirmed_only: bool = Query(default=True, description="only Opus-vision-confirmed verdicts"),
-    include_structures: bool = Query(default=False, description="admin + AUTO_STRUCTURES_ENABLED: add the current base boxes"),
+    include_structures: bool = Query(default=False, description="admin + AUTO_STRUCTURES_ENABLED: add the current base boxes; a member with AUTO_STRUCTURES_MEMBERS_ENABLED gets trusted-tier rows only"),
 ):
     """Return detections for a symbol.
 
@@ -796,8 +796,18 @@ def get_detections(
     # (registry.display_policy). Additive keys: no existing field changes.
     rows = [{**r, **_pe_registry.display_policy(r.get("pattern_id"))} for r in rows]
     out = {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
-    # Base boxes (AUTO_STRUCTURES_ENABLED, ADMINS ONLY until a later flip). A
-    # member asking for them gets the payload exactly as before — no key at all.
+    # Auto Structures for MEMBERS (AUTO_STRUCTURES_MEMBERS_ENABLED + AUTO_STRUCTURES_ENABLED,
+    # both read per request): a non-admin's chart toggle asks with include_structures=true,
+    # and gets ONLY trusted-tier rows (registry.DISPLAY_TRUSTED), filtered HERE, never by
+    # the client. No `structures` / `drawn` key: base boxes, the levels layer and the
+    # learned drawer stay admin-only. With the member flag off the payload is as before.
+    if include_structures and not is_admin:
+        from api.services import auto_structures
+        if auto_structures.members_enabled():
+            rows = auto_structures.member_rows(rows)
+            return {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
+    # Base boxes (AUTO_STRUCTURES_ENABLED, ADMINS ONLY). A member asking for them gets
+    # no `structures` / `drawn` key at all.
     if include_structures and is_admin:
         from api.services import auto_structures
         if auto_structures.enabled():

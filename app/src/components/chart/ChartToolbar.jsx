@@ -56,7 +56,7 @@ import { useUserDefinitions } from '../../hooks/useUserDefinitions'
 import { createCustomCopy } from './builder/definitionActions'
 import { useCreateIndicatorAccess } from './builder/studio/createIndicatorFlag'
 import PatternToolbarButton from './PatternToolbarButton'
-import { useAutoStructuresGate } from './autoStructuresGate'
+import { useAutoStructuresScope } from './autoStructuresGate'
 import BoardsToolButton from './BoardsToolButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
 import { ENGINE_OWNED } from './engine/flipState'
@@ -1163,7 +1163,9 @@ function ChartToolbar({
   // ⭐ "Modify with UCT Intelligence" uses the EXISTING Create Indicator access —
   // the same answer the studio itself and the server's `/converse` gate give.
   const canModifyWithIntelligence = useCreateIndicatorAccess(useContext(AuthContext))
-  const autoStructuresOn = useAutoStructuresGate()
+  // 'all' (admin) | 'trusted' (paid member, AUTO_STRUCTURES_MEMBERS_ENABLED) | null.
+  const autoStructuresScope = useAutoStructuresScope()
+  const autoStructuresOn = autoStructuresScope != null
   // ⭐ SLICE 2 — THIS chart's new-indicator context. One opaque scope per toolbar
   // (per chart), so closing the dock keeps that chart's draft conversation and a
   // different chart never sees it. Never derived from a symbol, name or formula.
@@ -1637,11 +1639,13 @@ function ChartToolbar({
 
         {/* Patterns / Auto Structures toggle. Hidden for members (it was removed for
             overlapping the toolbar); back for ADMINS ONLY while AUTO_STRUCTURES_ENABLED is
-            on (useAutoStructuresGate — the same predicate StockChart's fetch asks). */}
+            on (useAutoStructuresScope — the same predicate StockChart's fetch asks), and for PAID
+            members while AUTO_STRUCTURES_MEMBERS_ENABLED is on too (trusted tier only). The Levels
+            layer stays admin-only. */}
         {autoStructuresOn && !hidePatterns && onTogglePatterns && (
           <PatternToolbarButton active={!!showPatterns} onToggle={onTogglePatterns} />
         )}
-        {autoStructuresOn && !hidePatterns && onToggleLevels && (
+        {autoStructuresScope === 'all' && !hidePatterns && onToggleLevels && (
           <button
             type="button"
             className={`${styles.btn} ${showLevels ? styles.active : ''}`}
