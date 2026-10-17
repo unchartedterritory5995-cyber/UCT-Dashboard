@@ -57,6 +57,15 @@ that qualifies, and a prior-session trigger is reported only while no later
 session has traded through its stop. The parity test pins the rule itself
 against the lab code, bar for bar.
 
+SURFACED VARIANTS (wrapper only; `evaluate` is unchanged and still returns
+tag_s50 / tag_s200): the detector fires ONLY for `SURFACED_VARIANTS`
+(`tag_e21`). Lab REPORT_RECALL_V2 (v5 second blind packet / pullback_ma v6 /
+v5 edge, 2026-10-17): blind precision 97.7% for 21-EMA tags (43 yes / 1 no)
+but 46% for 50/200-SMA tags (200 SMA: 0 yes of 7). The same report found no
+measured forward-return edge, and the tag-bar-low stop is hit at the same rate
+as a random stop at that ATR distance, so it is a drawn level, not a tested
+risk anchor.
+
 REACHABILITY (read before relying on this detector):
   * The rule needs the 200 SMA on the marked session AND 20 sessions earlier,
     i.e. at least `_MIN_BARS` (220) daily bars. It declares `MIN_BARS` (222,
@@ -110,6 +119,10 @@ PB4_EXCLUDE = frozenset((
     'JNUG JDST NVDL NVDU NVDD NVDX TSLL TSLQ TSLR TSLS TSLT CONL MSTU MSTX MSTZ ERX ERY GUSH DRIP FNGU FNGD BITX BITU '
     'SBIT ETHU ETHT YINN YANG DPST NAIL CURE UDOW SDOW TMF TMV TBT UBT BULZ WEBL WEBS HIBL AMDL PLTU METU AMZU GGLL '
     'AAPU MSFU SMCX DFEN UTSL PILL DUSL MIDU BRZU EDC EDZ RETL WANT URAA').split())
+
+#: The variants the detector reports (wrapper filter, not part of the lab rule):
+#: 50/200-SMA tags were 46% precise blind, 21-EMA tags 97.7%.
+SURFACED_VARIANTS = frozenset({"tag_e21"})
 
 _MIN_IDX = 199 + PB3_S200_SLOPE_BARS   # s200 exists at i - 20 (the lab returns None before)
 _MIN_BARS = _MIN_IDX + 1
@@ -227,7 +240,9 @@ def detect_uct_pullback_ma_v5(bars: List[dict], context: dict) -> List[dict]:
     n = len(bars)
     for off in range(U.MAX_TRIGGER_AGE):
         cand = evaluate(bars, S, n - 1 - off, sym)
-        if cand is None or U.stopped_out_since(bars, cand["idx"], cand["stop"]):
+        if cand is None or cand["variant"] not in SURFACED_VARIANTS:
+            continue
+        if U.stopped_out_since(bars, cand["idx"], cand["stop"]):
             continue
         geom = _geometry_score(cand)
         vol = U.volume_score(cand["rvol50"])
