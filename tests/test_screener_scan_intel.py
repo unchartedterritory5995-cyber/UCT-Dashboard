@@ -208,3 +208,26 @@ def test_a_starter_citation_reads_the_logic_group_too():
     from api.services import concept_vocabulary as cv
     got = cv._resolve_starter_screen({"screen": "starter_52w_breakout"})
     assert "vol_ratio" in got["keys"] and 1.5 in got["values"]
+
+
+# ── 4. the coverage note does not count a blank the screen itself decides ───
+
+def test_coverage_does_not_count_a_blank_live_volume_the_fallback_decides(snap):
+    """Off-hours every rvol_live is blank and the group reads vol_ratio instead, so
+    those rows were decided, not lost. Member walk 2026-10-17: '11,179 stocks have
+    no value for one of these filters' over a screen that answered 12."""
+    db.upsert_rows([_row("AAA", rvol_live=None, vol_ratio=3.0), _row("BBB", rvol_live=None, vol_ratio=0.5),
+                    _row("NONE", rvol_live=None, vol_ratio=None)])
+    cov = Q.coverage_for({"filters": [], "logic": SS._live_volume_or_nightly(2)})
+    # only NONE has no volume at all: nothing in the group can decide it
+    assert cov["not_computable"] == 1
+    assert [d["ticker"] for d in cov["dropped_symbols"]] == ["NONE"]
+
+
+def test_CONTROL_a_blank_the_screen_does_not_handle_is_still_counted(snap):
+    db.upsert_rows([_row("AAA", rvol_live=None, vol_ratio=3.0), _row("BBB", rvol_live=2.5, vol_ratio=3.0)])
+    cov = Q.coverage_for({"filters": [], "logic": {"all": [{"key": "rvol_live", "op": "gte", "min": 2}]}})
+    assert cov["not_computable"] == 1
+    # and a flat filter on the column is counted even when the tree guards it
+    spec = {"filters": [{"key": "rvol_live", "op": "gte", "min": 2}], "logic": SS._live_volume_or_nightly(2)}
+    assert Q.coverage_for(spec)["not_computable"] == 1
