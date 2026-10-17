@@ -131,21 +131,46 @@ describe('ChecklistTodayPanel', () => {
     expect(calls.some((c) => c.url.startsWith('/api/j2/notes'))).toBe(false)
   })
 
-  it('a tick sends the day\'s existing narrative unchanged, so it cannot blank prep, mid-day, recap or the notes', async () => {
+  // P4a final review I1. Today is the page a member keeps open all session and its copy of the day is read
+  // once, so a tick must send ONLY the rules: the server keeps every key a PUT leaves out, and a narrative or an
+  // attachment list this tab sent would be its (possibly hours-old) copy, written over what the member wrote
+  // elsewhere since.
+  it.each([
+    ['a tick', async () => fireEvent.click(await screen.findByLabelText('Waited for confirmation'))],
+    ['an add', async () => {
+      fireEvent.change(await screen.findByLabelText('New rule'), { target: { value: 'No trades before 9:45' } })
+      fireEvent.click(screen.getByRole('button', { name: '+ Add' }))
+    }],
+    ['a remove', async () => fireEvent.click(await screen.findByRole('button', { name: 'Remove Sized at 1R' }))],
+  ])('%s sends a PUT whose body is exactly { rules }, so it cannot overwrite the narrative or attachments', async (_, change) => {
     stubFetch([
       [(u, m) => m === 'GET' && u.startsWith(DAY_URL), () => json(DAY)],
-      [(u, m) => m === 'PUT', () => json({})],
+      [(u, m) => m === 'PUT', () => json({ ...DAY.notes })],
+    ])
+    mount(<ChecklistTodayPanel account={account} accountId="a1" />)
+    await change()
+    await waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true))
+
+    const puts = calls.filter((c) => c.method === 'PUT')
+    expect(puts).toHaveLength(1)
+    expect(Object.keys(puts[0].body)).toEqual(['rules'])
+    expect(Array.isArray(puts[0].body.rules)).toBe(true)
+  })
+
+  it('a tick on a tab whose copy of the day is old sends nothing but the rules (the recap written elsewhere stands)', async () => {
+    // The 08:00 tab: the recap was empty when it read the day.
+    const stale = { ...DAY, notes: { ...DAY.notes, recapNotes: '', attachments: [] } }
+    stubFetch([
+      [(u, m) => m === 'GET' && u.startsWith(DAY_URL), () => json(stale)],
+      [(u, m) => m === 'PUT', () => json({ ...DAY.notes })],
     ])
     mount(<ChecklistTodayPanel account={account} accountId="a1" />)
     fireEvent.click(await screen.findByLabelText('Waited for confirmation'))
     await waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true))
-
     const { body } = calls.find((c) => c.method === 'PUT')
-    expect(body.prepNotes).toBe(DAY.notes.prepNotes)
-    expect(body.notes).toBe(DAY.notes.notes)
-    expect(body.midDayNotes).toBe(DAY.notes.midDayNotes)
-    expect(body.recapNotes).toBe(DAY.notes.recapNotes)
-    expect(body.attachments).toEqual(DAY.notes.attachments)
+    expect('recapNotes' in body).toBe(false)
+    expect('attachments' in body).toBe(false)
+    expect('notes' in body || 'prepNotes' in body || 'midDayNotes' in body).toBe(false)
   })
 
   it('reads the day with the same account and basis the day page does: a broker account follows the member\'s basis preference', async () => {
@@ -170,7 +195,7 @@ describe('ChecklistTodayPanel', () => {
     expect(screen.queryByLabelText('New rule')).not.toBeInTheDocument()
   })
 
-  it('does not offer to write when the day could not be read (a write would send a blank narrative)', async () => {
+  it('does not offer to write when the day could not be read (a write would put an empty rules list over the real one)', async () => {
     stubFetch([[(u, m) => m === 'GET', () => json({}, 500)]])
     mount(<ChecklistTodayPanel account={account} accountId="a1" />)
     expect(await screen.findByText("Today's checklist isn't available right now.")).toBeInTheDocument()
@@ -199,11 +224,20 @@ describe('ChecklistTodayPanel', () => {
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
   })
 
-  it('with no account selected says exactly the pick-an-account line and reads nothing', () => {
-    stubFetch([])
+  // P4a final review m4 (changed from "says the pick-an-account line and reads nothing"): day notes are keyed on
+  // the member and the date, not on an account, and the day page shows the same checklist on All Accounts. So
+  // does Today: it reads the day with no account id, on the closed basis, and a tick writes the day's rules.
+  it('on All Accounts it shows today\'s checklist, read with no account id, and a tick writes the rules', async () => {
+    stubFetch([
+      [(u, m) => m === 'GET' && u.startsWith(DAY_URL), () => json(DAY)],
+      [(u, m) => m === 'PUT', () => json({ ...DAY.notes })],
+    ])
     mount(<ChecklistTodayPanel account={null} accountId={null} />)
-    expect(screen.getByText(NO_ACCOUNT_LINE)).toBeInTheDocument()
-    expect(calls).toHaveLength(0)
+    fireEvent.click(await screen.findByLabelText('Waited for confirmation'))
+    expect(screen.queryByText(NO_ACCOUNT_LINE)).not.toBeInTheDocument()
+    expect(calls[0].url).toBe(`${DAY_URL}?basis=closed`)
+    await waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true))
+    expect(calls.find((c) => c.method === 'PUT').url).toBe(`${DAY_URL}/notes`)
   })
 })
 

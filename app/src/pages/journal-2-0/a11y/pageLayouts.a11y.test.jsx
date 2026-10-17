@@ -12,7 +12,7 @@
 //   * today-page-layout-panels                              -- TodaySurface with the page-layouts switch ON and
 //     a saved market layout that shows all five new panels (Regime first), with the Customize button;
 //   * today-page-layout-panels-states                       -- the same five panels in the states the first
-//     recipe does not reach: no rules, no notices, All Accounts selected (the "Pick an account" line).
+//     recipe does not reach: no rules, no notices, All Accounts selected (My rules' "Pick an account" line).
 //
 // The leads and the four panels that existed before P4a (coach strip, week strip, goal progress) are stubs
 // here; Quick actions, the Customize button, and the five new panels are the real components, over the real
@@ -202,8 +202,9 @@ describe('Today with the five new panels shown', () => {
     routes([[/^\/api\/j2\/regime$/, [503, {}]], [/^\/api\/alerts$/, []], [/^\/api\/voice\/insights$/, { insights: [] }]])
     const { container } = render(<Providers route="/journal"><TodaySurface /></Providers>)
     await screen.findByRole('button', { name: /Customize/ })
-    // All Accounts: the two account panels say so; the regime read failed and says that; no notices, no box.
-    await screen.findAllByText('Pick an account to see its rules.')
+    // All Accounts: My rules says so (the checklist still shows: day notes belong to the member, P4a m4); the
+    // regime read failed and says that; no notices, no box.
+    await screen.findByText('Pick an account to see its rules.')
     await screen.findByText('Market regime is not available right now.')
     await settle()
     expect(screen.queryByText(/^Notices · /)).toBeNull()

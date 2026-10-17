@@ -17,7 +17,8 @@ import TileCard from '../../../../../components/TileCard'
 import { lazyLeaf } from '../../../lib/lazyChunk'
 import styles from './panels.module.css'
 
-// R-P4-9: shown while All Accounts is selected. ChecklistTodayPanel says the same sentence; panels.test.jsx pins both to it.
+// R-P4-9: shown while All Accounts is selected (the rules belong to an account). panels.test.jsx pins it.
+// The checklist panel no longer says it: day notes belong to the member, so it shows on All Accounts.
 const PICK_AN_ACCOUNT = 'Pick an account to see its rules.'
 
 // The block's own boundary, declared here: NotebookTab.lazyViews.test.js (D-I2) requires a lazyLeaf's file to

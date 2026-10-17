@@ -8,10 +8,19 @@
  * derivation). The basis is part of the day detail's cache key, so a different basis here would read a second
  * copy of the day that a tick on the day page never updates.
  *
- * ⛔ The checklist is handed the day's notes, prep, mid-day, recap, attachments and rules exactly as
- * DayDetailPage hands them. The save hook sends every field it is given, so a field left out here would be
- * sent as '' and blank the member's narrative. For that reason the checklist is NOT shown when the day could
- * not be read: with nothing read, every one of those fields would go out empty.
+ * ⛔ A tick, an add or a remove sends ONLY `rules`. Today is the page a member keeps open all session, and its
+ * copy of the day is read once and never refreshed, so the prep, mid-day and recap it holds can be hours old.
+ * DayRulesChecklist builds its save from every field it is handed, and fills a field it was not handed with
+ * its own '' / [] defaults; forwarding that whole body would send this tab's old narrative (or blanks) and the
+ * server would write it, because a key that is present is the member's word. The save hook sends only the keys
+ * it is given, and the server keeps every key a PUT leaves out (calendar.upsert_day_notes), so the narrative
+ * and the attachments written anywhere else stand.
+ *
+ * ⛔ The checklist is NOT shown when the day could not be read: its rules would read as an empty list, and the
+ * next tick or add would write that list over the day's real rules.
+ *
+ * Day notes belong to the member, not to an account (j2_day_notes is keyed on user and date), so the checklist
+ * is shown on All Accounts too, as the day page shows it. The account only picks the basis the day is read on.
  *
  * Lazy-only: this file is reached through the Today route's lazy chunk and must not be imported by an eager file.
  */
@@ -24,20 +33,16 @@ import { todayET } from '../../../lib/calendar'
 import { effectiveDayBasis } from '../../../lib/dayBasis'
 import styles from './panels.module.css'
 
-// R-P4-9: shown while All Accounts is selected. MyRulesPanel says the same sentence; panels.test.jsx pins both to it.
-const PICK_AN_ACCOUNT = 'Pick an account to see its rules.'
-
 export default function ChecklistTodayPanel({ account, accountId }) {
   const { prefs } = usePreferences()
-  // With no account there is no day to read or write: both hooks get a null date and stay idle.
-  const date = accountId ? todayET() : null
+  const date = todayET()
   const { notes, isLoading, error, refresh } = useJ2DayDetail(date, accountId, effectiveDayBasis(account, prefs))
   const { save, saving } = useJ2DayNotesMutation(date)
+  // Only the field a checklist change is about. See the header: the rest of the body is this tab's old copy.
+  const saveRules = (body) => save({ rules: body.rules })
 
   let body
-  if (!accountId) {
-    body = <p className={styles.muted}>{PICK_AN_ACCOUNT}</p>
-  } else if (isLoading) {
+  if (isLoading) {
     body = <p className={styles.muted}>Loading today&apos;s checklist…</p>
   } else if (error && !notes) {
     // useJ2DayDetail does not retry a failed read on its own (and does not re-read on focus), so the way
@@ -49,18 +54,7 @@ export default function ChecklistTodayPanel({ account, accountId }) {
       </div>
     )
   } else {
-    body = (
-      <DayRulesChecklist
-        notes={notes?.notes ?? ''}
-        prepNotes={notes?.prepNotes ?? ''}
-        midDayNotes={notes?.midDayNotes ?? ''}
-        recapNotes={notes?.recapNotes ?? ''}
-        attachments={notes?.attachments ?? []}
-        rules={notes?.rules ?? []}
-        onSave={save}
-        saving={saving}
-      />
-    )
+    body = <DayRulesChecklist rules={notes?.rules ?? []} onSave={saveRules} saving={saving} />
   }
 
   return (
