@@ -2843,6 +2843,9 @@ _PREFERENCE_KEYS = {
     "indicator_templates": "indicator_templates",
     "j2_calendar_pnl_basis": _PREF_OPAQUE,
     "j2_custom_dashboard": _PREF_OPAQUE,
+    # P4a (2026-10-17): a member's Today / trade page panel layout, written by Customize layout.
+    # Named schema: the SHAPE is checked (`_validate_page_layout`), never the panel ids (R-P4-7).
+    "journal_page_layout": "journal_page_layout",
     "joystick_hub": "joystick_hub",
     "multichart_state": _PREF_OPAQUE,
     "news_widget_settings": _PREF_OPAQUE,
@@ -3117,6 +3120,65 @@ def _validate_indicator_templates(raw) -> None:
                 refuse("indicators need a defId")
 
 
+# ── journal_page_layout (P4a, R-P4-7) ─────────────────────────────────────────────
+# The client's ceilings, pinned equal to `journal-2-0/lib/pageLayouts.js` by
+# `tests/test_page_layout_preference.py` (which READS the JS constants), so a layout the client
+# writes is never a 400. The server checks the blob's SHAPE only: panel ids are a client fact, a
+# server copy of that registry would be a second authority, and an id a newer build writes must
+# survive an older server. Unknown fields and unknown ids are CARRIED.
+_PAGE_LAYOUT_VERSION = 1
+_PAGE_LAYOUT_MAX_BYTES = 16384
+_PAGE_LAYOUT_MAX_ENTRIES = 40
+_PAGE_LAYOUT_ID_MAX = 40
+_PAGE_LAYOUT_REFUSAL = "That page layout could not be saved. Reset it and try again."
+
+
+def _validate_page_layout(raw) -> None:
+    """Raise HTTPException(400) unless `raw` is a layout blob the client could have saved:
+    a JSON object with `version == 1`, at most 16 KB (UTF-8 bytes), whose `today.<phase>` lists and
+    `trade` list hold at most 40 `{id: str of 1..40 characters, shown: bool}` entries each.
+    "" and None are the client's "cleared" write."""
+    if raw == "" or raw is None:
+        return
+
+    def refuse():
+        raise HTTPException(status_code=400, detail=_PAGE_LAYOUT_REFUSAL)
+
+    def check_list(entries):
+        if not isinstance(entries, list) or len(entries) > _PAGE_LAYOUT_MAX_ENTRIES:
+            refuse()
+        for e in entries:
+            if not isinstance(e, dict):
+                refuse()
+            eid, shown = e.get("id"), e.get("shown")
+            if not isinstance(eid, str) or not eid or len(eid) > _PAGE_LAYOUT_ID_MAX:
+                refuse()
+            if not isinstance(shown, bool):
+                refuse()
+
+    if not isinstance(raw, str):
+        refuse()
+    if len(raw.encode("utf-8")) > _PAGE_LAYOUT_MAX_BYTES:
+        refuse()
+    try:
+        blob = json.loads(raw)
+    except (ValueError, TypeError):
+        refuse()
+    if not isinstance(blob, dict):
+        refuse()
+    version = blob.get("version")
+    if isinstance(version, bool) or version != _PAGE_LAYOUT_VERSION:
+        refuse()
+    if "today" in blob:
+        today = blob["today"]
+        if not isinstance(today, dict):
+            refuse()
+        for entries in today.values():
+            check_list(entries)
+    if "trade" in blob:
+        check_list(blob["trade"])
+
+
 def _validate_preference(key: str, value: str) -> None:
     """Allow-list the key, then run that key's schema. Raises 400, or returns."""
     schema = _PREFERENCE_KEYS.get(key)
@@ -3129,6 +3191,8 @@ def _validate_preference(key: str, value: str) -> None:
         _validate_joystick_hub(value)
     elif schema == "indicator_templates":
         _validate_indicator_templates(value)
+    elif schema == "journal_page_layout":
+        _validate_page_layout(value)
     elif schema in _CLOSED_VALUES:
         _validate_closed_value(key, value)
 

@@ -376,6 +376,16 @@
       ]
     },
     {
+      "key": "journal_page_layout",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Journal",
+      "kind": "setting",
+      "label": "Page layout",
+      "serverAllowlisted": true,
+      "files": []
+    },
+    {
       "key": "joystick_hub",
       "store": "server-preference",
       "scope": "cross-device",
