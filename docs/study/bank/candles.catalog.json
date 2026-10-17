@@ -6,7 +6,7 @@
   "difficulty": 2,
   "id": "si_7fd8ad1cfada",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A long lower wick after a decline: sellers pushed it down hard and buyers took the whole move back before the close. The same shape after an ADVANCE is a hanging man, not a hammer, the prior trend is what separates them.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -16,7 +16,7 @@
     "Bearish Belt Hold"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "A long lower wick after a decline: sellers pushed it down hard and buyers took the whole move back before the close. The same shape after an ADVANCE is a hanging man, not a hammer — the prior trend is what separates them.",
+   "quote": "A long lower wick after a decline: sellers pushed it down hard and buyers took the whole move back before the close. The same shape after an ADVANCE is a hanging man, not a hammer, the prior trend is what separates them.",
    "subject": "Hammer"
   },
   "reveal_json": {
@@ -43,7 +43,7 @@
   "difficulty": 1,
   "id": "si_17e6d70d28db",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A long lower wick after a decline: sellers pushed it down hard and buyers took the whole move back before the close. The same shape after an ADVANCE is a hanging man, not a hammer, the prior trend is what separates them.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -80,7 +80,7 @@
   "difficulty": 2,
   "id": "si_ed20f71e9e5c",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A long lower wick after a decline: sellers pushed it down hard and buyers took the whole move back before the close. The same shape after an ADVANCE is a hanging man, not a hammer, the prior trend is what separates them.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -153,7 +153,7 @@
   "difficulty": 1,
   "id": "si_f9a815c22f0b",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A hammer's shape, printed after an advance instead of a decline. Sellers were able to press it well below the open mid-session, which is unwelcome news inside an uptrend.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -263,7 +263,7 @@
   "difficulty": 1,
   "id": "si_18eb11d37889",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A long upper wick after an advance: buyers pushed to a new high and gave the entire gain back by the close. The identical shape after a DECLINE is an inverted hammer.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -373,7 +373,7 @@
   "difficulty": 1,
   "id": "si_50ec6a0969d1",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A shooting star's shape printed after a decline. Buyers finally managed a real push off the lows, even though they could not hold it into the close.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -446,7 +446,7 @@
   "difficulty": 2,
   "id": "si_e14771ef515f",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Long lower wick, small body near the high, the hammer/hanging-man geometry with no clear prior trend to name it. We print the shape rather than guess a direction the chart does not support.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -456,7 +456,7 @@
     "Short Black"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Long lower wick, small body near the high — the hammer/hanging-man geometry with no clear prior trend to name it. We print the shape rather than guess a direction the chart does not support.",
+   "quote": "Long lower wick, small body near the high, the hammer/hanging-man geometry with no clear prior trend to name it. We print the shape rather than guess a direction the chart does not support.",
    "subject": "Umbrella"
   },
   "reveal_json": {
@@ -483,7 +483,7 @@
   "difficulty": 1,
   "id": "si_8cc9fddfa1ab",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Long lower wick, small body near the high, the hammer/hanging-man geometry with no clear prior trend to name it. We print the shape rather than guess a direction the chart does not support.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -557,7 +557,7 @@
   "difficulty": 1,
   "id": "si_251ea62ecad1",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Long upper wick, small body near the low, with no clear prior trend. The shooting-star/inverted-hammer geometry, left unnamed because the trend that would name it is not there.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -594,7 +594,7 @@
   "difficulty": 2,
   "id": "si_7b81a9ec6e5c",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Opened at its low and ran all session. A long body with no lower wick after a decline, sellers never got a single tick.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -604,7 +604,7 @@
     "Bullish Belt Hold"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Opened at its low and ran all session. A long body with no lower wick after a decline — sellers never got a single tick.",
+   "quote": "Opened at its low and ran all session. A long body with no lower wick after a decline, sellers never got a single tick.",
    "subject": "Bullish Belt Hold"
   },
   "reveal_json": {
@@ -631,7 +631,7 @@
   "difficulty": 1,
   "id": "si_fda60c6ddcf0",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Opened at its low and ran all session. A long body with no lower wick after a decline, sellers never got a single tick.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -668,7 +668,7 @@
   "difficulty": 2,
   "id": "si_7cceef6119cb",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Opened at its low and ran all session. A long body with no lower wick after a decline, sellers never got a single tick.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -741,7 +741,7 @@
   "difficulty": 1,
   "id": "si_6e5268cd5446",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Opened at its high and fell all session. A long body with no upper wick after an advance.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -814,7 +814,7 @@
   "difficulty": 2,
   "id": "si_dd2f2dc1796c",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Body is at least 90% of the whole range, it opened near the low, closed near the high, and barely looked back. The cleanest one-bar statement of buying conviction.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -824,7 +824,7 @@
     "Hanging Man"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Body is at least 90% of the whole range — it opened near the low, closed near the high, and barely looked back. The cleanest one-bar statement of buying conviction.",
+   "quote": "Body is at least 90% of the whole range, it opened near the low, closed near the high, and barely looked back. The cleanest one-bar statement of buying conviction.",
    "subject": "White Marubozu"
   },
   "reveal_json": {
@@ -851,7 +851,7 @@
   "difficulty": 1,
   "id": "si_e83c61c3de10",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Body is at least 90% of the whole range, it opened near the low, closed near the high, and barely looked back. The cleanest one-bar statement of buying conviction.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -925,7 +925,7 @@
   "difficulty": 1,
   "id": "si_229feaf8487b",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Body is at least 90% of the whole range, opening near the high and closing near the low. Selling with no meaningful pushback.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -999,7 +999,7 @@
   "difficulty": 1,
   "id": "si_4ce1b7696e74",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Open and close together at the top, with a long tail below. The session sold off and every bit of it was bought back.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1073,7 +1073,7 @@
   "difficulty": 1,
   "id": "si_05d4ab3b378a",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Open and close together at the bottom, with a long spike above. The rally happened and then went entirely unpaid.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1147,7 +1147,7 @@
   "difficulty": 1,
   "id": "si_856163b462c0",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Open and close nearly level, with meaningful wicks BOTH ways. A wide, genuinely two-sided argument that settled where it began.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1184,7 +1184,7 @@
   "difficulty": 2,
   "id": "si_8cc941a4b3ff",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Open and close within 10% of the range of each other, the session travelled and finished where it started. Indecision, not direction.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1194,7 +1194,7 @@
     "Gravestone Doji"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Open and close within 10% of the range of each other — the session travelled and finished where it started. Indecision, not direction.",
+   "quote": "Open and close within 10% of the range of each other, the session travelled and finished where it started. Indecision, not direction.",
    "subject": "Doji"
   },
   "reveal_json": {
@@ -1221,7 +1221,7 @@
   "difficulty": 1,
   "id": "si_5c503031b1b7",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Open and close within 10% of the range of each other, the session travelled and finished where it started. Indecision, not direction.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1258,7 +1258,7 @@
   "difficulty": 2,
   "id": "si_d5e4a00d2b9f",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A small body with wicks at least 3x its size on a range well above normal. Not a quiet day, a violent argument that resolved nothing.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1268,7 +1268,7 @@
     "Dragonfly Doji"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "A small body with wicks at least 3x its size on a range well above normal. Not a quiet day — a violent argument that resolved nothing.",
+   "quote": "A small body with wicks at least 3x its size on a range well above normal. Not a quiet day, a violent argument that resolved nothing.",
    "subject": "High Wave"
   },
   "reveal_json": {
@@ -1295,7 +1295,7 @@
   "difficulty": 1,
   "id": "si_c2dbc6ba1768",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A small body with wicks at least 3x its size on a range well above normal. Not a quiet day, a violent argument that resolved nothing.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1369,7 +1369,7 @@
   "difficulty": 1,
   "id": "si_b83c21a2837d",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A small body with wicks on both sides. Neither side finished the session in control, on an unremarkable range.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1406,7 +1406,7 @@
   "difficulty": 2,
   "id": "si_583a242ec89b",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "An ordinary up bar, but with a body more than 1.5x the recent average, a decisive session with no special shape to it. Size is measured against this stock's own last 15 bodies, so it means the same thing on a $3 stock and a $900 one.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1416,7 +1416,7 @@
     "Umbrella"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "An ordinary up bar, but with a body more than 1.5x the recent average — a decisive session with no special shape to it. Size is measured against this stock's own last 15 bodies, so it means the same thing on a $3 stock and a $900 one.",
+   "quote": "An ordinary up bar, but with a body more than 1.5x the recent average, a decisive session with no special shape to it. Size is measured against this stock's own last 15 bodies, so it means the same thing on a $3 stock and a $900 one.",
    "subject": "Long White"
   },
   "reveal_json": {
@@ -1443,7 +1443,7 @@
   "difficulty": 1,
   "id": "si_782c0d65ee89",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "An ordinary up bar, but with a body more than 1.5x the recent average, a decisive session with no special shape to it. Size is measured against this stock's own last 15 bodies, so it means the same thing on a $3 stock and a $900 one.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1480,7 +1480,7 @@
   "difficulty": 2,
   "id": "si_631f8aa214c6",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "An ordinary down bar with a body more than 1.5x the recent average, decisive selling, no distinctive shape.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1490,7 +1490,7 @@
     "Dragonfly Doji"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "An ordinary down bar with a body more than 1.5x the recent average — decisive selling, no distinctive shape.",
+   "quote": "An ordinary down bar with a body more than 1.5x the recent average, decisive selling, no distinctive shape.",
    "subject": "Long Black"
   },
   "reveal_json": {
@@ -1517,7 +1517,7 @@
   "difficulty": 1,
   "id": "si_2ba4ab47d5a9",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "An ordinary down bar with a body more than 1.5x the recent average, decisive selling, no distinctive shape.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1591,7 +1591,7 @@
   "difficulty": 1,
   "id": "si_2b79c06ed772",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A normal up bar: closed above its open, body in line with this stock's recent average, nothing structurally notable.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1665,7 +1665,7 @@
   "difficulty": 1,
   "id": "si_80edc806be7b",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A normal down bar: closed below its open, body in line with the recent average, nothing structurally notable.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1702,7 +1702,7 @@
   "difficulty": 2,
   "id": "si_17b71e3f9853",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "An up bar with a body under half the recent average, a quiet session that happened to close green.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1712,7 +1712,7 @@
     "Short White"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "An up bar with a body under half the recent average — a quiet session that happened to close green.",
+   "quote": "An up bar with a body under half the recent average, a quiet session that happened to close green.",
    "subject": "Short White"
   },
   "reveal_json": {
@@ -1739,7 +1739,7 @@
   "difficulty": 1,
   "id": "si_ab61642fbfad",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "An up bar with a body under half the recent average, a quiet session that happened to close green.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1776,7 +1776,7 @@
   "difficulty": 2,
   "id": "si_7df9ea8a4180",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A down bar with a body under half the recent average, a quiet session that happened to close red.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1786,7 +1786,7 @@
     "Gravestone Doji"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "A down bar with a body under half the recent average — a quiet session that happened to close red.",
+   "quote": "A down bar with a body under half the recent average, a quiet session that happened to close red.",
    "subject": "Short Black"
   },
   "reveal_json": {
@@ -1813,7 +1813,7 @@
   "difficulty": 1,
   "id": "si_f5f24f751fc6",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A down bar with a body under half the recent average, a quiet session that happened to close red.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1887,7 +1887,7 @@
   "difficulty": 1,
   "id": "si_57ae9a2160f4",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A long up bar, then three small bars that rest entirely INSIDE its range, then another up bar closing above the first. A tight pause inside an uptrend that resolved the way it was leaning.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -1997,7 +1997,7 @@
   "difficulty": 1,
   "id": "si_054c702f9ad3",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A long down bar, three small bars fully inside its range, then a down bar closing below the first. A pause in a downtrend that resolved lower.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -2070,7 +2070,7 @@
   "difficulty": 2,
   "id": "si_efe8875522d8",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A doji stranded below everything around it, its entire range, wicks included, gaps clear of both neighbours. Genuinely rare: expect zero or one across the whole market on a given day.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -2080,7 +2080,7 @@
     "Tweezer Bottom"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "A doji stranded below everything around it — its entire range, wicks included, gaps clear of both neighbours. Genuinely rare: expect zero or one across the whole market on a given day.",
+   "quote": "A doji stranded below everything around it, its entire range, wicks included, gaps clear of both neighbours. Genuinely rare: expect zero or one across the whole market on a given day.",
    "subject": "Abandoned Baby (Bull)"
   },
   "reveal_json": {
@@ -2107,7 +2107,7 @@
   "difficulty": 1,
   "id": "si_22ad728bd01c",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A doji stranded below everything around it, its entire range, wicks included, gaps clear of both neighbours. Genuinely rare: expect zero or one across the whole market on a given day.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -2144,7 +2144,7 @@
   "difficulty": 2,
   "id": "si_b49bb193a25b",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A doji stranded below everything around it, its entire range, wicks included, gaps clear of both neighbours. Genuinely rare: expect zero or one across the whole market on a given day.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -2217,7 +2217,7 @@
   "difficulty": 1,
   "id": "si_d75c2c29fcf1",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A doji stranded above its neighbours with clear air on both sides, wicks included. The bearish mirror, and just as rare.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -2290,7 +2290,7 @@
   "difficulty": 2,
   "id": "si_02458aa40445",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A morning star whose middle bar is a true doji, the pause was total indecision rather than a small push.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -2300,7 +2300,7 @@
     "Falling Three Methods"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "A morning star whose middle bar is a true doji — the pause was total indecision rather than a small push.",
+   "quote": "A morning star whose middle bar is a true doji, the pause was total indecision rather than a small push.",
    "subject": "Morning Doji Star"
   },
   "reveal_json": {
@@ -2327,7 +2327,7 @@
   "difficulty": 1,
   "id": "si_9205d3963db3",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A morning star whose middle bar is a true doji, the pause was total indecision rather than a small push.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -2364,7 +2364,7 @@
   "difficulty": 2,
   "id": "si_28d822eebbcd",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A morning star whose middle bar is a true doji, the pause was total indecision rather than a small push.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -2437,7 +2437,7 @@
   "difficulty": 1,
   "id": "si_04b21b36fa4f",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "An evening star whose middle bar is a true doji.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -2547,7 +2547,7 @@
   "difficulty": 1,
   "id": "si_88f115a59b04",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A long down bar, a small body gapping below it, then an up bar closing back above the midpoint of that first body. Selling, a stall, then buyers taking back more than half the damage.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -2657,7 +2657,7 @@
   "difficulty": 1,
   "id": "si_94173860ce42",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A long up bar, a small body gapping above it, then a down bar closing back below the midpoint of that first body.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -2730,7 +2730,7 @@
   "difficulty": 2,
   "id": "si_a46845afb1b8",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Three straight down bars, each opening inside the last body and each closing near its low. Steady, orderly distribution, the one pattern that measures strong on reliability, performance and sample size at once.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -2740,7 +2740,7 @@
     "Kicking (Bear)"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Three straight down bars, each opening inside the last body and each closing near its low. Steady, orderly distribution — the one pattern that measures strong on reliability, performance and sample size at once.",
+   "quote": "Three straight down bars, each opening inside the last body and each closing near its low. Steady, orderly distribution, the one pattern that measures strong on reliability, performance and sample size at once.",
    "subject": "Three Black Crows"
   },
   "reveal_json": {
@@ -2767,7 +2767,7 @@
   "difficulty": 1,
   "id": "si_e79ea93b0e47",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Three straight down bars, each opening inside the last body and each closing near its low. Steady, orderly distribution, the one pattern that measures strong on reliability, performance and sample size at once.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -2804,7 +2804,7 @@
   "difficulty": 2,
   "id": "si_9882173795cd",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Three straight down bars, each opening inside the last body and each closing near its low. Steady, orderly distribution, the one pattern that measures strong on reliability, performance and sample size at once.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -2877,7 +2877,7 @@
   "difficulty": 1,
   "id": "si_3bfe95f27f85",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Three straight up bars, each opening inside the last body and closing near its high, with no body shrinking away. Orderly accumulation rather than one panicked gap.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -2950,7 +2950,7 @@
   "difficulty": 2,
   "id": "si_7639f14628fb",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Three black crows where each bar opens right at the prior close, no overnight relief at all between them.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -2960,7 +2960,7 @@
     "Upside Tasuki Gap"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Three black crows where each bar opens right at the prior close — no overnight relief at all between them.",
+   "quote": "Three black crows where each bar opens right at the prior close, no overnight relief at all between them.",
    "subject": "Identical Three Crows"
   },
   "reveal_json": {
@@ -2987,7 +2987,7 @@
   "difficulty": 1,
   "id": "si_b097f088496f",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Three black crows where each bar opens right at the prior close, no overnight relief at all between them.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -3024,7 +3024,7 @@
   "difficulty": 2,
   "id": "si_c3e99f99c357",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Three black crows where each bar opens right at the prior close, no overnight relief at all between them.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -3097,7 +3097,7 @@
   "difficulty": 1,
   "id": "si_87fbdf276a7d",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "An engulfing two bars back, now confirmed by a higher close. The confirmation is what separates this from a bare engulfing.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -3207,7 +3207,7 @@
   "difficulty": 1,
   "id": "si_1050a21e5cbb",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A bearish engulfing two bars back, confirmed by a lower close.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -3317,7 +3317,7 @@
   "difficulty": 1,
   "id": "si_d4528c2a2e83",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A bullish harami two bars back, now confirmed by a close above the mother bar's body.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -3427,7 +3427,7 @@
   "difficulty": 1,
   "id": "si_ab59684eb8a4",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A bearish harami two bars back, confirmed by a close below the mother bar's body.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -3500,7 +3500,7 @@
   "difficulty": 2,
   "id": "si_32c3ae60b560",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Three dojis in a row. Three consecutive sessions that could not settle on a direction, unusual enough to be worth a look.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -3510,7 +3510,7 @@
     "Separating Lines"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Three dojis in a row. Three consecutive sessions that could not settle on a direction — unusual enough to be worth a look.",
+   "quote": "Three dojis in a row. Three consecutive sessions that could not settle on a direction, unusual enough to be worth a look.",
    "subject": "Tri-Star"
   },
   "reveal_json": {
@@ -3537,7 +3537,7 @@
   "difficulty": 1,
   "id": "si_bcd5110e66ea",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Three dojis in a row. Three consecutive sessions that could not settle on a direction, unusual enough to be worth a look.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -3611,7 +3611,7 @@
   "difficulty": 1,
   "id": "si_79e54eb5fa4e",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A long up bar, a down bar gapping above it, then a second down bar eating back into the first. The gap was given away.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -3721,7 +3721,7 @@
   "difficulty": 1,
   "id": "si_4a000f20aa4b",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Two up bars with a gap between their bodies, then a down bar that opens inside the second and fails to close the gap. The gap held.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -3831,7 +3831,7 @@
   "difficulty": 1,
   "id": "si_b3dab23eda84",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Two down bars gapped apart, then an up bar that opens inside the second and cannot close the gap.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -3904,7 +3904,7 @@
   "difficulty": 2,
   "id": "si_38a80d3a80b6",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Two down closes at effectively the same price with an up bar between them, the same level got defended twice.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -3914,7 +3914,7 @@
     "Three Inside Up"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Two down closes at effectively the same price with an up bar between them — the same level got defended twice.",
+   "quote": "Two down closes at effectively the same price with an up bar between them, the same level got defended twice.",
    "subject": "Stick Sandwich"
   },
   "reveal_json": {
@@ -3941,7 +3941,7 @@
   "difficulty": 1,
   "id": "si_417948a1fa11",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Two down closes at effectively the same price with an up bar between them, the same level got defended twice.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -3978,7 +3978,7 @@
   "difficulty": 2,
   "id": "si_df43d4504458",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Two down closes at effectively the same price with an up bar between them, the same level got defended twice.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4014,7 +4014,7 @@
   "difficulty": 2,
   "id": "si_fe7ce1cf9692",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Three up bars whose progress is visibly tiring, bodies shrinking or upper wicks lengthening. The advance is still up, but working noticeably harder for it.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4024,7 +4024,7 @@
     "Tri-Star"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Three up bars whose progress is visibly tiring — bodies shrinking or upper wicks lengthening. The advance is still up, but working noticeably harder for it.",
+   "quote": "Three up bars whose progress is visibly tiring, bodies shrinking or upper wicks lengthening. The advance is still up, but working noticeably harder for it.",
    "subject": "Advance Block"
   },
   "reveal_json": {
@@ -4051,7 +4051,7 @@
   "difficulty": 1,
   "id": "si_51e8210b1caf",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Three up bars whose progress is visibly tiring, bodies shrinking or upper wicks lengthening. The advance is still up, but working noticeably harder for it.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4088,7 +4088,7 @@
   "difficulty": 2,
   "id": "si_58b8bb67e5cc",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Three up bars whose progress is visibly tiring, bodies shrinking or upper wicks lengthening. The advance is still up, but working noticeably harder for it.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4124,7 +4124,7 @@
   "difficulty": 2,
   "id": "si_a66c1b6405c6",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Three up bars where the third body goes short against the recent average, the push ran out on the last one.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4134,7 +4134,7 @@
     "Kicking (Bear)"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Three up bars where the third body goes short against the recent average — the push ran out on the last one.",
+   "quote": "Three up bars where the third body goes short against the recent average, the push ran out on the last one.",
    "subject": "Deliberation"
   },
   "reveal_json": {
@@ -4161,7 +4161,7 @@
   "difficulty": 1,
   "id": "si_da3b31726070",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Three up bars where the third body goes short against the recent average, the push ran out on the last one.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4198,7 +4198,7 @@
   "difficulty": 2,
   "id": "si_29be32e2f83e",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Three up bars where the third body goes short against the recent average, the push ran out on the last one.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4234,7 +4234,7 @@
   "difficulty": 2,
   "id": "si_3737cdd8ad77",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A downside break out of an inside bar that trapped sellers, and the close has now taken back the inside bar's HIGH. The trap has sprung, this is the state a hikkake trader acts on.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4244,7 +4244,7 @@
     "Deliberation"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "A downside break out of an inside bar that trapped sellers, and the close has now taken back the inside bar's HIGH. The trap has sprung — this is the state a hikkake trader acts on.",
+   "quote": "A downside break out of an inside bar that trapped sellers, and the close has now taken back the inside bar's HIGH. The trap has sprung, this is the state a hikkake trader acts on.",
    "subject": "Hikkake Confirmed (Bull)"
   },
   "reveal_json": {
@@ -4271,7 +4271,7 @@
   "difficulty": 1,
   "id": "si_f579b55f3a57",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A downside break out of an inside bar that trapped sellers, and the close has now taken back the inside bar's HIGH. The trap has sprung, this is the state a hikkake trader acts on.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4345,7 +4345,7 @@
   "difficulty": 1,
   "id": "si_1b4b00f55d74",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "An upside break out of an inside bar that trapped buyers, and the close has now taken out the inside bar's LOW.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4382,7 +4382,7 @@
   "difficulty": 2,
   "id": "si_995d28b350ae",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "An inside bar, then a session breaking DOWN out of it, a lower high and a lower low. Counter-intuitively that is the BULLISH form: the downside break is the trap, and it is confirmed if the close retakes the inside bar's high within three sessions. Needs no prior trend, which is rare here.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4392,7 +4392,7 @@
     "Homing Pigeon"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "An inside bar, then a session breaking DOWN out of it — a lower high and a lower low. Counter-intuitively that is the BULLISH form: the downside break is the trap, and it is confirmed if the close retakes the inside bar's high within three sessions. Needs no prior trend, which is rare here.",
+   "quote": "An inside bar, then a session breaking DOWN out of it, a lower high and a lower low. Counter-intuitively that is the BULLISH form: the downside break is the trap, and it is confirmed if the close retakes the inside bar's high within three sessions. Needs no prior trend, which is rare here.",
    "subject": "Hikkake (Bull)"
   },
   "reveal_json": {
@@ -4419,7 +4419,7 @@
   "difficulty": 1,
   "id": "si_94e0b960f305",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "An inside bar, then a session breaking DOWN out of it, a lower high and a lower low. Counter-intuitively that is the BULLISH form: the downside break is the trap, and it is confirmed if the close retakes the inside bar's high within three sessions. Needs no prior trend, which is rare here.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4456,7 +4456,7 @@
   "difficulty": 2,
   "id": "si_5af553faab50",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "An inside bar, then a session breaking UP out of it, a higher high and a higher low. The upside break is the trap; it is confirmed if the close loses the inside bar's low within three sessions.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4466,7 +4466,7 @@
     "Hikkake (Bear)"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "An inside bar, then a session breaking UP out of it — a higher high and a higher low. The upside break is the trap; it is confirmed if the close loses the inside bar's low within three sessions.",
+   "quote": "An inside bar, then a session breaking UP out of it, a higher high and a higher low. The upside break is the trap; it is confirmed if the close loses the inside bar's low within three sessions.",
    "subject": "Hikkake (Bear)"
   },
   "reveal_json": {
@@ -4493,7 +4493,7 @@
   "difficulty": 1,
   "id": "si_b7e9e62d1461",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "An inside bar, then a session breaking UP out of it, a higher high and a higher low. The upside break is the trap; it is confirmed if the close loses the inside bar's low within three sessions.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4530,7 +4530,7 @@
   "difficulty": 2,
   "id": "si_8099783a1ff2",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A black marubozu, then a white marubozu gapping clear above it, no overlap at all, wicks included. A complete overnight reversal of opinion.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4540,7 +4540,7 @@
     "Kicking (Bear)"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "A black marubozu, then a white marubozu gapping clear above it — no overlap at all, wicks included. A complete overnight reversal of opinion.",
+   "quote": "A black marubozu, then a white marubozu gapping clear above it, no overlap at all, wicks included. A complete overnight reversal of opinion.",
    "subject": "Kicking (Bull)"
   },
   "reveal_json": {
@@ -4567,7 +4567,7 @@
   "difficulty": 1,
   "id": "si_b5079ae83b4a",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A black marubozu, then a white marubozu gapping clear above it, no overlap at all, wicks included. A complete overnight reversal of opinion.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4641,7 +4641,7 @@
   "difficulty": 1,
   "id": "si_8e87fb6d7da1",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A white marubozu, then a black marubozu gapping clear below it with no overlap.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4715,7 +4715,7 @@
   "difficulty": 1,
   "id": "si_864b1bdff59a",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "An up bar whose body completely covers the prior down body, printed in a downtrend. The same geometry in an UPTREND is a last engulfing top, which behaves very differently.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4825,7 +4825,7 @@
   "difficulty": 1,
   "id": "si_ace90e87be9a",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A down bar whose body completely covers the prior up body, printed in an uptrend.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4898,7 +4898,7 @@
   "difficulty": 2,
   "id": "si_f8e879cc468c",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A bullish engulfing's exact geometry, but printed after an ADVANCE rather than a decline. Same shape, different situation entirely, which is why the trend is part of the definition here.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4908,7 +4908,7 @@
     "Last Engulfing Bottom"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "A bullish engulfing's exact geometry, but printed after an ADVANCE rather than a decline. Same shape, different situation entirely — which is why the trend is part of the definition here.",
+   "quote": "A bullish engulfing's exact geometry, but printed after an ADVANCE rather than a decline. Same shape, different situation entirely, which is why the trend is part of the definition here.",
    "subject": "Last Engulfing Top"
   },
   "reveal_json": {
@@ -4935,7 +4935,7 @@
   "difficulty": 1,
   "id": "si_c6afca570527",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A bullish engulfing's exact geometry, but printed after an ADVANCE rather than a decline. Same shape, different situation entirely, which is why the trend is part of the definition here.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -4972,7 +4972,7 @@
   "difficulty": 2,
   "id": "si_a30f03e862ff",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A bullish engulfing's exact geometry, but printed after an ADVANCE rather than a decline. Same shape, different situation entirely, which is why the trend is part of the definition here.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -5045,7 +5045,7 @@
   "difficulty": 1,
   "id": "si_a32d416d5a95",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A bearish engulfing's geometry printed after a DECLINE instead of an advance.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -5155,7 +5155,7 @@
   "difficulty": 1,
   "id": "si_3712b152eff7",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Opens above the prior HIGH, then closes back below the midpoint of that up body. A gap up that was sold all day.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -5265,7 +5265,7 @@
   "difficulty": 1,
   "id": "si_d54ea2ccf49a",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Opens below the prior LOW, then closes back above the midpoint of that down body. A gap down that was bought all day. Closing at or under the midpoint instead makes it a thrusting line.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -5338,7 +5338,7 @@
   "difficulty": 2,
   "id": "si_575949d31b73",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A harami whose inside bar is a doji, the pause after a long bar was complete indecision.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -5348,7 +5348,7 @@
     "Three Inside Up"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "A harami whose inside bar is a doji — the pause after a long bar was complete indecision.",
+   "quote": "A harami whose inside bar is a doji, the pause after a long bar was complete indecision.",
    "subject": "Harami Cross"
   },
   "reveal_json": {
@@ -5375,7 +5375,7 @@
   "difficulty": 1,
   "id": "si_a63a0f0a24c3",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A harami whose inside bar is a doji, the pause after a long bar was complete indecision.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -5449,7 +5449,7 @@
   "difficulty": 1,
   "id": "si_ad9e694cce31",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A long down bar, then a small body sitting entirely inside it. The selling did not follow through.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -5559,7 +5559,7 @@
   "difficulty": 1,
   "id": "si_9e6b07a8821d",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "A long up bar, then a small body entirely inside it. The buying did not follow through.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -5669,7 +5669,7 @@
   "difficulty": 1,
   "id": "si_1c4113c5febb",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Two sessions rejected at effectively the same high. Equality is measured with a band floored at one tick, never exact ticks.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -5779,7 +5779,7 @@
   "difficulty": 1,
   "id": "si_12a075c07c66",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Two sessions that found support at effectively the same low.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -5852,7 +5852,7 @@
   "difficulty": 2,
   "id": "si_24c805eeca68",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Opens below the prior low and closes back INTO that body, but only to its midpoint or less. A piercing line that fell short, the exact-halfway case belongs here, not to piercing.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -5862,7 +5862,7 @@
     "Abandoned Baby (Bear)"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Opens below the prior low and closes back INTO that body, but only to its midpoint or less. A piercing line that fell short — the exact-halfway case belongs here, not to piercing.",
+   "quote": "Opens below the prior low and closes back INTO that body, but only to its midpoint or less. A piercing line that fell short, the exact-halfway case belongs here, not to piercing.",
    "subject": "Thrusting Line"
   },
   "reveal_json": {
@@ -5889,7 +5889,7 @@
   "difficulty": 1,
   "id": "si_2a56037fbb32",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Opens below the prior low and closes back INTO that body, but only to its midpoint or less. A piercing line that fell short, the exact-halfway case belongs here, not to piercing.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -5926,7 +5926,7 @@
   "difficulty": 2,
   "id": "si_5797a53157de",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Opens below the prior low and closes back INTO that body, but only to its midpoint or less. A piercing line that fell short, the exact-halfway case belongs here, not to piercing.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -5962,7 +5962,7 @@
   "difficulty": 2,
   "id": "si_ec3a4f304546",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Opens below the prior low and closes right back at that low, the bounce reached exactly the old floor and stopped.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -5972,7 +5972,7 @@
     "Hikkake Confirmed (Bear)"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Opens below the prior low and closes right back at that low — the bounce reached exactly the old floor and stopped.",
+   "quote": "Opens below the prior low and closes right back at that low, the bounce reached exactly the old floor and stopped.",
    "subject": "On-Neck Line"
   },
   "reveal_json": {
@@ -5999,7 +5999,7 @@
   "difficulty": 1,
   "id": "si_7e62dbb9023d",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Opens below the prior low and closes right back at that low, the bounce reached exactly the old floor and stopped.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -6036,7 +6036,7 @@
   "difficulty": 2,
   "id": "si_a583e79f78ad",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Opens below the prior low and closes right back at that low, the bounce reached exactly the old floor and stopped.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -6109,7 +6109,7 @@
   "difficulty": 1,
   "id": "si_c15d6364d8de",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Two down bars closing at effectively the same price. A floor that has now been tested twice on a closing basis.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -6146,7 +6146,7 @@
   "difficulty": 2,
   "id": "si_3792951f4d82",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Two down bars where the second sits entirely inside the first, a bullish harami built from two red bars.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -6156,7 +6156,7 @@
     "Morning Star"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Two down bars where the second sits entirely inside the first — a bullish harami built from two red bars.",
+   "quote": "Two down bars where the second sits entirely inside the first, a bullish harami built from two red bars.",
    "subject": "Homing Pigeon"
   },
   "reveal_json": {
@@ -6183,7 +6183,7 @@
   "difficulty": 1,
   "id": "si_9158d745fd50",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Two down bars where the second sits entirely inside the first, a bullish harami built from two red bars.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -6220,7 +6220,7 @@
   "difficulty": 2,
   "id": "si_94985b7f1d0d",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Two down bars where the second sits entirely inside the first, a bullish harami built from two red bars.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -6256,7 +6256,7 @@
   "difficulty": 2,
   "id": "si_1b5c94cfd4f6",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Two opposite-coloured bars opening at the same price, the second session restarted from where the first began.",
   "module": "F3",
   "prompt_json": {
    "choices": [
@@ -6266,7 +6266,7 @@
     "Morning Star"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Two opposite-coloured bars opening at the same price — the second session restarted from where the first began.",
+   "quote": "Two opposite-coloured bars opening at the same price, the second session restarted from where the first began.",
    "subject": "Separating Lines"
   },
   "reveal_json": {
@@ -6293,7 +6293,7 @@
   "difficulty": 1,
   "id": "si_39a4172c16fe",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Two opposite-coloured bars opening at the same price, the second session restarted from where the first began.",
   "module": "F3",
   "prompt_json": {
    "choices": [

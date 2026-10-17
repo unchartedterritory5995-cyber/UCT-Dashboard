@@ -18,6 +18,7 @@ import pytest
 from api.services import study_import as si
 from api.services.study_scoring import RISK_CEILING_PCT, size_from_stop
 from scripts.study import _common, gen_candles, gen_fixtures, gen_recall, gen_regime, gen_size, run_all
+from scripts.study._common import EM_DASH, dedash
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 ID_RE = re.compile(r"^si_[0-9a-f]{12}$")
@@ -94,19 +95,22 @@ def test_the_ticker_never_rides_a_prompt(segments):
 # ── recall ────────────────────────────────────────────────────────────────────
 
 def test_recall_keys_are_verbatim_substrings_of_their_source(segments):
-    glossary = {g["term"]: g["definition"] for g in gen_recall.read_glossary()}
+    # member-facing keys are dedashed (the owner's own normalisation); the
+    # verbatim source stays in reveal_json.quote
+    glossary = {dedash(g["term"]): dedash(g["definition"]) for g in gen_recall.read_glossary()}
     for it in segments["recall.glossary"]:
         a = it["answer_json"]["answer"]
         assert a in glossary or a in glossary.values(), it["id"]
+        assert EM_DASH not in a
     rules = dict(gen_recall.read_bible_rules())
     for it in segments["recall.bible"]:
         a = it["answer_json"]["answer"]
-        assert any(a.lower() in r.lower() for r in rules.values()), it["id"]
+        assert any(a.lower() in dedash(r).lower() for r in rules.values()), it["id"]
         assert it["reveal_json"]["system"] == "O'Neil"                       # C20
-    formulas = {c["source"] for c in gen_recall.read_concepts()}
+    formulas = {dedash(c["source"]) for c in gen_recall.read_concepts()}
     for it in segments["recall.concepts"]:
         assert it["answer_json"]["answer"] in formulas and it["reveal_json"]["system"] == "the firm's screener"
-    titles = {p["title"] for p in gen_recall.read_principles()}
+    titles = {dedash(p["title"]) for p in gen_recall.read_principles()}
     for it in segments["recall.principles"]:
         assert it["answer_json"]["answer"] in titles
         assert not re.search(r"\d", it["answer_json"]["answer"]) or True     # C19: title keys, never numbers
@@ -129,7 +133,7 @@ def test_playbook_parse_finds_nine_playbooks_with_mistakes_and_stops():
 def test_every_glossary_term_gets_two_items_with_distractors_from_siblings(segments):
     g = segments["recall.glossary"]
     assert len(g) == 2 * len(gen_recall.read_glossary())
-    defs = {x["definition"] for x in gen_recall.read_glossary()}
+    defs = {dedash(x["definition"]) for x in gen_recall.read_glossary()}
     for it in g:
         assert len(it["prompt_json"]["choices"]) == 4
         if it["prompt_json"]["q"].startswith("At the desk"):

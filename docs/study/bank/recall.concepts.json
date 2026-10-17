@@ -6,7 +6,7 @@
   "difficulty": 3,
   "id": "si_790d37b796b7",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(close, 50) > sma(close, 200)",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -41,7 +41,7 @@
   "difficulty": 3,
   "id": "si_45d74da3957b",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "close < sma(close, 20) && sma(close, 20) < sma(close, 50) && sma(close, 50) < sma(close, 200)",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -76,7 +76,7 @@
   "difficulty": 3,
   "id": "si_406f04e07a4d",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "rs_rank >= 80",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -111,7 +111,7 @@
   "difficulty": 3,
   "id": "si_3f2849ec29f1",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -147,7 +147,7 @@
   "difficulty": 3,
   "id": "si_0a9551afc08a",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "tight_consolidation",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -183,7 +183,7 @@
   "difficulty": 3,
   "id": "si_e771873b960c",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "rs_rank >= 80 && tight_consolidation",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -218,7 +218,7 @@
   "difficulty": 3,
   "id": "si_54e994105e3e",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "rsi14 <= 30",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -253,7 +253,7 @@
   "difficulty": 3,
   "id": "si_5f05ea22d103",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "rsi14 >= 70",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -288,7 +288,7 @@
   "difficulty": 3,
   "id": "si_993642c2d239",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "vol_ratio >= 2",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -323,7 +323,7 @@
   "difficulty": 3,
   "id": "si_71c2840d8ab8",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "avg_volume_30d >= 1000000",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -358,7 +358,7 @@
   "difficulty": 3,
   "id": "si_993a08a340ac",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "gap_pct >= 3",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -393,7 +393,7 @@
   "difficulty": 3,
   "id": "si_f30f505f9cbb",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "gap_pct <= -3",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -428,7 +428,7 @@
   "difficulty": 3,
   "id": "si_2276b09ff0e9",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "dist_52w_high_pct >= -5",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -463,7 +463,7 @@
   "difficulty": 3,
   "id": "si_584ea1b60595",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -498,7 +498,7 @@
   "difficulty": 3,
   "id": "si_2e93f007073d",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "pullback_depth_pct <= 5",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -533,7 +533,7 @@
   "difficulty": 3,
   "id": "si_361d6cdc7f81",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "pullback_depth_pct >= 20",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -568,7 +568,7 @@
   "difficulty": 3,
   "id": "si_04efe3773588",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "higher_lows_run >= 3",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -603,7 +603,7 @@
   "difficulty": 3,
   "id": "si_f5970991120f",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "close_position >= 0.66",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -638,7 +638,7 @@
   "difficulty": 3,
   "id": "si_262a27ae6e9e",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "new_52w_high",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -673,7 +673,7 @@
   "difficulty": 3,
   "id": "si_cf68df4e9586",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "market_cap >= 10000000000",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -708,7 +708,7 @@
   "difficulty": 3,
   "id": "si_45769dcc81b8",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "market_cap >= 200000000000",
   "module": "M6",
   "prompt_json": {
    "choices": [
@@ -743,7 +743,7 @@
   "difficulty": 3,
   "id": "si_c465516c0726",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "rs_rank >= 80 && pct_vs_ema20 >= -3 && pct_vs_ema20 <= 1 && ema20_rising && above_50sma && dollar_vol_30d >= 20000000",
   "module": "M6",
   "prompt_json": {
    "choices": [

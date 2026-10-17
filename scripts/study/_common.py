@@ -79,15 +79,17 @@ def make_item(*, type: str, skill_id: str, q: str, answer: Any, source_kind: str
               lesson_text: Optional[str] = None, lesson_origin: str = "source", module: Optional[str] = None,
               difficulty: int = 1, accept: Optional[list] = None, answer_json: Optional[dict] = None,
               **extra: Any) -> dict:
+    q = dedash(q)
     prompt = {"q": q}
     if choices:
-        prompt["choices"] = list(choices)
+        prompt["choices"] = [dedash(c) for c in choices]
     if prompt_extra:
-        prompt.update(prompt_extra)
+        prompt.update({k: dedash(v) for k, v in prompt_extra.items()})
     if answer_json is None:
-        answer_json = {"answer": answer}
+        answer_json = {"answer": dedash(answer)}
         if accept:
-            answer_json["accept"] = list(accept)
+            answer_json["accept"] = [dedash(x) for x in accept]
+    lesson_text = dedash(lesson_text)
     it = {
         "id": item_id(source_ref, q + "\n" + json.dumps(prompt_extra or {}, sort_keys=True)),
         "version": 1,
@@ -105,16 +107,86 @@ def make_item(*, type: str, skill_id: str, q: str, answer: Any, source_kind: str
         "review_status": "draft",
     }
     it.update(extra)
+    if not it.get("lesson_text"):
+        it["lesson_text"], it["lesson_origin"] = fallback_lesson(it)
     return it
 
 
+def dedash(text: Any) -> Any:
+    """The owner's own normalisation (morning-wire/owner_voice.py::dedash):
+    an em-dash construction becomes a comma, repeated commas collapse. Applied
+    to every MEMBER-FACING string (question, choices, key, lesson, the quote a
+    prompt shows) because VOICE.md §6 bans em-dashes in member copy. The
+    verbatim source text stays untouched in reveal_json.quote, so provenance
+    is never rewritten. Non-strings pass through."""
+    if not isinstance(text, str) or (EM_DASH not in text and " -- " not in text):
+        return text
+    s = text.replace(" " + EM_DASH + " ", ", ").replace(EM_DASH, ", ").replace(" -- ", ", ")
+    s = re.sub(r",\s*,+", ",", s)
+    s = re.sub(r"^\s*,\s*", "", s)           # a leading dash leaves no leading comma
+    s = re.sub(r",\s*([.;:!?])", r"\1", s)    # "word, ." -> "word."
+    return s
+
+
 def quote_lesson(text: Optional[str]) -> Optional[str]:
-    """A verbatim source sentence as the lesson, ONLY when it passes the voice
-    rules as written. A source sentence is never rewritten; a failing one
-    stays in reveal_json.quote and the lesson is left empty."""
+    """A source sentence as the lesson, ONLY when it passes the voice rules.
+    The one normalisation applied is `dedash` (the owner's own tool on his own
+    prose); a sentence that still fails (a banned phrase, a question mark)
+    stays in reveal_json.quote and the lesson falls back to a template."""
     if not text:
         return None
-    return text if not study_import.voice_check(text, lesson=True) else None
+    t = dedash(text)
+    return t if not study_import.voice_check(t, lesson=True) else None
+
+
+def _pass(text: str) -> bool:
+    return bool(text) and not study_import.voice_check(text, lesson=True)
+
+
+def fallback_lesson(it: dict) -> tuple[str, str]:
+    """(lesson_text, lesson_origin) for an item that has none: the source
+    quote when it passes the voice rules (origin 'source'), else a short
+    template built ONLY from the item's own facts (answer_json / reveal_json),
+    so the grounding check holds by construction (origin 'template')."""
+    r = it.get("reveal_json") or {}
+    a = (it.get("answer_json") or {}).get("answer")
+    kind = it.get("source_kind")
+    q = quote_lesson(r.get("quote") if isinstance(r.get("quote"), str) else None)
+    if q and kind not in ("fixture", "bottoms"):
+        return q, "source"
+    if kind == "glossary":
+        t = f"{r.get('term')} is the desk's word for this. Say the definition back in your own words."
+    elif kind == "principle":
+        t = f"{r.get('title')}. That is the principle. The firm's own wording is in the reveal."
+    elif kind == "bible":
+        t = f"That is rule {r.get('rule')} as the firm's bible quotes O'Neil. Read it again, slowly."
+    elif kind == "concept":
+        t = f"The screener calls it \"{r.get('word')}\". The exact test is in the reveal."
+    elif kind == "playbook":
+        t = f"{r.get('setup')}: the playbook's own line is in the reveal."
+    elif kind == "candles":
+        t = (f"A {r.get('label')} is {r.get('bars')} bar(s) on the chart. "
+             "The catalog names a shape. It does not forecast.")
+    elif kind == "fixture" and it.get("type") == "family":
+        t = f"{r.get('setup')} belongs to the {r.get('family')} family."
+    elif kind == "fixture":
+        verb = "fires" if r.get("fires") else "does not fire"
+        t = f"{r.get('setup')}: the firm's detector {verb} on the last bar of this chart."
+        if q:
+            t = t + " " + q
+    elif kind == "bottoms" and r.get("signpost"):
+        t = f"{r.get('bottom')}: {r.get('signpost')} fired here. Count the signposts, not the days."
+        if q:
+            t = t + " " + q
+    elif kind == "bottoms":
+        t = f"{r.get('bottom')}: the {r.get('index')} fell {a} from the peak to the low."
+    elif kind == "wire":
+        t = f"The Wire's word that day was {a}."
+    else:
+        t = f"The key is {a}." if isinstance(a, str) and not re.search(r"\d", a) else "The key is in the reveal."
+    if not _pass(t):
+        t = "The key is in the reveal."
+    return t, "template"
 
 
 def validate(items: list[dict], *, allow_embed_kinds: tuple = ("fixture",)) -> list[str]:
@@ -138,6 +210,13 @@ def validate(items: list[dict], *, allow_embed_kinds: tuple = ("fixture",)) -> l
             problems.append(f"{iid}: review_status must be draft")
         if it.get("lesson_origin") not in ("template", "source"):
             problems.append(f"{iid}: lesson_origin must be template|source")
+        if not (isinstance(it.get("lesson_text"), str) and it["lesson_text"].strip()):
+            problems.append(f"{iid}: no lesson_text (every item teaches, spec §4.9)")
+        for field in ("q", "choices", "quote"):
+            if EM_DASH in json.dumps(it.get("prompt_json", {}).get(field, ""), ensure_ascii=False):
+                problems.append(f"{iid}: em-dash in prompt_json.{field}")
+        if EM_DASH in json.dumps(it.get("answer_json", {}), ensure_ascii=False):
+            problems.append(f"{iid}: em-dash in answer_json")
         if "bars" in it:
             spec = it["bars"]
             if not isinstance(spec, dict) or isinstance(spec.get("bars"), list):

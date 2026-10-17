@@ -1694,8 +1694,8 @@
   },
   "difficulty": 3,
   "id": "si_40b319475d64",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Capitulation: the firm's detector does not fire on the last bar of this chart. a wide flush under the band on heavy volume, but out of nowhere (no prior cascade)",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -3422,8 +3422,8 @@
   },
   "difficulty": 3,
   "id": "si_b9c46a94e62e",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Capitulation: the firm's detector does not fire on the last bar of this chart. a wide flush under the band on heavy volume, but out of nowhere (no prior cascade)",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -5150,8 +5150,8 @@
   },
   "difficulty": 3,
   "id": "si_80c116cb3eb9",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Capitulation: the firm's detector does not fire on the last bar of this chart. a cascade and a wide range, but the close is within 1 ATR of the lower band",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -6878,8 +6878,8 @@
   },
   "difficulty": 3,
   "id": "si_175b0fe86ed7",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Capitulation: the firm's detector does not fire on the last bar of this chart. a cascade and a wide range, but the close is within 1 ATR of the lower band",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -8606,8 +8606,8 @@
   },
   "difficulty": 3,
   "id": "si_d45d41bca0f5",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Capitulation: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -10334,8 +10334,8 @@
   },
   "difficulty": 3,
   "id": "si_5cdf9d115776",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Capitulation: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -12062,8 +12062,8 @@
   },
   "difficulty": 3,
   "id": "si_a4c7c802a4e5",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Capitulation: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -13790,8 +13790,8 @@
   },
   "difficulty": 3,
   "id": "si_a217b7335d49",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Capitulation: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -15518,8 +15518,8 @@
   },
   "difficulty": 3,
   "id": "si_23601fa31ae5",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Capitulation: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -17246,8 +17246,8 @@
   },
   "difficulty": 3,
   "id": "si_d14911fe217d",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Capitulation: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -18974,8 +18974,8 @@
   },
   "difficulty": 3,
   "id": "si_d4ff24a14da9",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Capitulation: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -20702,8 +20702,8 @@
   },
   "difficulty": 3,
   "id": "si_aa0c2a18255b",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Capitulation: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -22430,8 +22430,8 @@
   },
   "difficulty": 3,
   "id": "si_a30443a9da82",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Capitulation: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -24158,8 +24158,8 @@
   },
   "difficulty": 3,
   "id": "si_f3aa74e1d958",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Capitulation: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -25246,8 +25246,8 @@
   },
   "difficulty": 3,
   "id": "si_818f9f249654",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector does not fire on the last bar of this chart. a volume gap tested and closed above, but the gap was already closed into earlier",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -26334,8 +26334,8 @@
   },
   "difficulty": 3,
   "id": "si_b06bdccd6e03",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector does not fire on the last bar of this chart. a volume gap tested and closed above, but the gap was already closed into earlier",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -27422,8 +27422,8 @@
   },
   "difficulty": 3,
   "id": "si_e48bf04b826a",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector does not fire on the last bar of this chart. an unfilled volume gap and a pullback, but the low never reached the gap",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -28510,8 +28510,8 @@
   },
   "difficulty": 3,
   "id": "si_6d33b318ac8a",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector does not fire on the last bar of this chart. an unfilled volume gap and a pullback, but the low never reached the gap",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -29598,8 +29598,8 @@
   },
   "difficulty": 3,
   "id": "si_798a0d87289d",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector does not fire on the last bar of this chart. the low reached only the gap day's open, judged not a gap test in the blind review",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -30686,8 +30686,8 @@
   },
   "difficulty": 3,
   "id": "si_6763b7b65c3f",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector does not fire on the last bar of this chart. the low reached only the gap day's open, judged not a gap test in the blind review",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -31774,8 +31774,8 @@
   },
   "difficulty": 3,
   "id": "si_41fa95d1a578",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -32862,8 +32862,8 @@
   },
   "difficulty": 3,
   "id": "si_85f43bf3158b",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -33950,8 +33950,8 @@
   },
   "difficulty": 3,
   "id": "si_00d2708ed41e",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -35038,8 +35038,8 @@
   },
   "difficulty": 3,
   "id": "si_7030f30bc406",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -36126,8 +36126,8 @@
   },
   "difficulty": 3,
   "id": "si_87412fc61735",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector does not fire on the last bar of this chart. a held gap test, but the gap was under 4% or not a true gap on 2x volume",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -37214,8 +37214,8 @@
   },
   "difficulty": 3,
   "id": "si_f0d9dbbe8ed3",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector does not fire on the last bar of this chart. a held gap test, but the gap was under 4% or not a true gap on 2x volume",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -38302,8 +38302,8 @@
   },
   "difficulty": 3,
   "id": "si_7022d360ef74",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -39390,8 +39390,8 @@
   },
   "difficulty": 3,
   "id": "si_8bcf3c1978cb",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -40478,8 +40478,8 @@
   },
   "difficulty": 3,
   "id": "si_598fdc83e1c7",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -41566,8 +41566,8 @@
   },
   "difficulty": 3,
   "id": "si_2c0c3a856967",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -42654,8 +42654,8 @@
   },
   "difficulty": 3,
   "id": "si_163d2f589d6c",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -43742,8 +43742,8 @@
   },
   "difficulty": 3,
   "id": "si_542730055b09",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Gap Support: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -44830,8 +44830,8 @@
   },
   "difficulty": 3,
   "id": "si_b7a35bd1e521",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Go Signal: the firm's detector does not fire on the last bar of this chart. weak open, sweep and a strong close, but the 20-day is falling (a downtrend bounce)",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -45918,8 +45918,8 @@
   },
   "difficulty": 3,
   "id": "si_f4ec090cd28a",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Go Signal: the firm's detector does not fire on the last bar of this chart. weak open, sweep and a strong close, but the 20-day is falling (a downtrend bounce)",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -47006,8 +47006,8 @@
   },
   "difficulty": 3,
   "id": "si_3fdaa6382016",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Go Signal: the firm's detector does not fire on the last bar of this chart. a sweep and a strong close, but the session opened above the prior close",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -48094,8 +48094,8 @@
   },
   "difficulty": 3,
   "id": "si_f4ed665a9856",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Go Signal: the firm's detector does not fire on the last bar of this chart. a sweep and a strong close, but the session opened above the prior close",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -49182,8 +49182,8 @@
   },
   "difficulty": 3,
   "id": "si_7aa1895c67b2",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Go Signal: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -50270,8 +50270,8 @@
   },
   "difficulty": 3,
   "id": "si_76d0facae7b5",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Go Signal: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -51358,8 +51358,8 @@
   },
   "difficulty": 3,
   "id": "si_6cd2d17f7f63",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Go Signal: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -52446,8 +52446,8 @@
   },
   "difficulty": 3,
   "id": "si_f89b039108fc",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Go Signal: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -53534,8 +53534,8 @@
   },
   "difficulty": 3,
   "id": "si_bda8e87b6276",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Go Signal: the firm's detector does not fire on the last bar of this chart. weak open, sweep and rejection, but the close finished outside the upper 40% of the range",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -54622,8 +54622,8 @@
   },
   "difficulty": 3,
   "id": "si_217a7b3d60d9",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Go Signal: the firm's detector does not fire on the last bar of this chart. weak open, sweep and rejection, but the close finished outside the upper 40% of the range",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -55710,8 +55710,8 @@
   },
   "difficulty": 3,
   "id": "si_0c6b6b064b25",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Go Signal: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -56798,8 +56798,8 @@
   },
   "difficulty": 3,
   "id": "si_f3ffdb16522d",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Go Signal: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -57886,8 +57886,8 @@
   },
   "difficulty": 3,
   "id": "si_4abce8a99e89",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Go Signal: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -58974,8 +58974,8 @@
   },
   "difficulty": 3,
   "id": "si_231e7ab26145",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Go Signal: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -60062,8 +60062,8 @@
   },
   "difficulty": 3,
   "id": "si_591e29e20208",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Go Signal: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -61150,8 +61150,8 @@
   },
   "difficulty": 3,
   "id": "si_a7166080e283",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Go Signal: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -63598,8 +63598,8 @@
   },
   "difficulty": 3,
   "id": "si_e9198258053b",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "High Volume Edge: the firm's detector does not fire on the last bar of this chart. highest volume in 26 weeks but not in 252 sessions (label variant only)",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -66046,8 +66046,8 @@
   },
   "difficulty": 3,
   "id": "si_cb985edff621",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "High Volume Edge: the firm's detector does not fire on the last bar of this chart. highest volume in 26 weeks but not in 252 sessions (label variant only)",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -68494,8 +68494,8 @@
   },
   "difficulty": 3,
   "id": "si_b86a7ec9e62e",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "High Volume Edge: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -70942,8 +70942,8 @@
   },
   "difficulty": 3,
   "id": "si_47956941effb",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "High Volume Edge: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -73390,8 +73390,8 @@
   },
   "difficulty": 3,
   "id": "si_e4e91161e61c",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "High Volume Edge: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -75838,8 +75838,8 @@
   },
   "difficulty": 3,
   "id": "si_9f73dcd51287",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "High Volume Edge: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -78286,8 +78286,8 @@
   },
   "difficulty": 3,
   "id": "si_c18f5afbc614",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "High Volume Edge: the firm's detector does not fire on the last bar of this chart. second-highest volume of the year, not the highest",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -80734,8 +80734,8 @@
   },
   "difficulty": 3,
   "id": "si_9ea54b6e4311",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "High Volume Edge: the firm's detector does not fire on the last bar of this chart. second-highest volume of the year, not the highest",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -83182,8 +83182,8 @@
   },
   "difficulty": 3,
   "id": "si_3460d68c906f",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "High Volume Edge: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -85630,8 +85630,8 @@
   },
   "difficulty": 3,
   "id": "si_a2d7657a338b",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "High Volume Edge: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -88078,8 +88078,8 @@
   },
   "difficulty": 3,
   "id": "si_c5abe3eeb73d",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "High Volume Edge: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -90526,8 +90526,8 @@
   },
   "difficulty": 3,
   "id": "si_8471926a7932",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "High Volume Edge: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -92974,8 +92974,8 @@
   },
   "difficulty": 3,
   "id": "si_40114fdc6ae3",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "High Volume Edge: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -95422,8 +95422,8 @@
   },
   "difficulty": 3,
   "id": "si_fa3bad6f99e7",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "High Volume Edge: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -96430,8 +96430,8 @@
   },
   "difficulty": 3,
   "id": "si_12e2ee82afcf",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector does not fire on the last bar of this chart. weak prior close, gap up and break, but the gap is under a tenth of the prior range",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -97438,8 +97438,8 @@
   },
   "difficulty": 3,
   "id": "si_46daf2fdd98e",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector does not fire on the last bar of this chart. weak prior close, gap up and break, but the gap is under a tenth of the prior range",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -98446,8 +98446,8 @@
   },
   "difficulty": 3,
   "id": "si_3b12e66b6ea1",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector does not fire on the last bar of this chart. weak prior close and gap up, but no break of the prior high",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -99454,8 +99454,8 @@
   },
   "difficulty": 3,
   "id": "si_2a0da7b3f2ea",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector does not fire on the last bar of this chart. weak prior close and gap up, but no break of the prior high",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -100462,8 +100462,8 @@
   },
   "difficulty": 3,
   "id": "si_2e21bf6d16da",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector does not fire on the last bar of this chart. weak prior close and break of the prior high, but it opened below the prior close",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -101470,8 +101470,8 @@
   },
   "difficulty": 3,
   "id": "si_0135a2c41ecc",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector does not fire on the last bar of this chart. weak prior close and break of the prior high, but it opened below the prior close",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -102478,8 +102478,8 @@
   },
   "difficulty": 3,
   "id": "si_a9855e349fe5",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -103486,8 +103486,8 @@
   },
   "difficulty": 3,
   "id": "si_7334649917b4",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -104494,8 +104494,8 @@
   },
   "difficulty": 3,
   "id": "si_cbd235e0ff3c",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -105502,8 +105502,8 @@
   },
   "difficulty": 3,
   "id": "si_022f49e23c4a",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -106510,8 +106510,8 @@
   },
   "difficulty": 3,
   "id": "si_5efefd03c2c0",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector does not fire on the last bar of this chart. red prior day that closed in the top 40% of its range is not a weak close",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -107518,8 +107518,8 @@
   },
   "difficulty": 3,
   "id": "si_0dd174a580aa",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector does not fire on the last bar of this chart. red prior day that closed in the top 40% of its range is not a weak close",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -108526,8 +108526,8 @@
   },
   "difficulty": 3,
   "id": "si_25628131b71e",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector does not fire on the last bar of this chart. gap up and break of the prior high, but the prior day closed strong",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -109534,8 +109534,8 @@
   },
   "difficulty": 3,
   "id": "si_c781bc1ff1b9",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector does not fire on the last bar of this chart. gap up and break of the prior high, but the prior day closed strong",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -110542,8 +110542,8 @@
   },
   "difficulty": 3,
   "id": "si_3a28b8115c7e",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -111550,8 +111550,8 @@
   },
   "difficulty": 3,
   "id": "si_32b4fe9bc468",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -112558,8 +112558,8 @@
   },
   "difficulty": 3,
   "id": "si_1bf82b960e3c",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -113566,8 +113566,8 @@
   },
   "difficulty": 3,
   "id": "si_7db396258ed7",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -114574,8 +114574,8 @@
   },
   "difficulty": 3,
   "id": "si_890fd151e83f",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -115582,8 +115582,8 @@
   },
   "difficulty": 3,
   "id": "si_5613f589e2cb",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Kicker Candle: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -117310,8 +117310,8 @@
   },
   "difficulty": 3,
   "id": "si_30fbe1c079db",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Launchpad: the firm's detector does not fire on the last bar of this chart. tight cluster and a curling 50, but the close is stretched more than 1 ATR above it",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -119038,8 +119038,8 @@
   },
   "difficulty": 3,
   "id": "si_ca93e3948891",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Launchpad: the firm's detector does not fire on the last bar of this chart. tight cluster and a curling 50, but the close is stretched more than 1 ATR above it",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -120766,8 +120766,8 @@
   },
   "difficulty": 3,
   "id": "si_ba0cce410cf5",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Launchpad: the firm's detector does not fire on the last bar of this chart. averages 3.5-6% apart: close above them and the 50 curling, but not a tight cluster",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -122494,8 +122494,8 @@
   },
   "difficulty": 3,
   "id": "si_98157bd71a91",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Launchpad: the firm's detector does not fire on the last bar of this chart. averages 3.5-6% apart: close above them and the 50 curling, but not a tight cluster",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -124222,8 +124222,8 @@
   },
   "difficulty": 3,
   "id": "si_61785ac54ba1",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Launchpad: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -125950,8 +125950,8 @@
   },
   "difficulty": 3,
   "id": "si_7ae41cfe1a1c",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Launchpad: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -127678,8 +127678,8 @@
   },
   "difficulty": 3,
   "id": "si_e954e33e3844",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Launchpad: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -129406,8 +129406,8 @@
   },
   "difficulty": 3,
   "id": "si_aa307f0874be",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Launchpad: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -131134,8 +131134,8 @@
   },
   "difficulty": 3,
   "id": "si_c42734afa636",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Launchpad: the firm's detector does not fire on the last bar of this chart. tight cluster with the close just above it, but the 50-day is still falling",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -132862,8 +132862,8 @@
   },
   "difficulty": 3,
   "id": "si_64347bef1e8e",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Launchpad: the firm's detector does not fire on the last bar of this chart. tight cluster with the close just above it, but the 50-day is still falling",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -134590,8 +134590,8 @@
   },
   "difficulty": 3,
   "id": "si_afd744c0f163",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Launchpad: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -136318,8 +136318,8 @@
   },
   "difficulty": 3,
   "id": "si_448f251e7cbf",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Launchpad: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -138046,8 +138046,8 @@
   },
   "difficulty": 3,
   "id": "si_a66677add6a8",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Launchpad: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -139774,8 +139774,8 @@
   },
   "difficulty": 3,
   "id": "si_e6da6afd8f07",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Launchpad: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -141502,8 +141502,8 @@
   },
   "difficulty": 3,
   "id": "si_bd0677e3b64d",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Launchpad: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -143230,8 +143230,8 @@
   },
   "difficulty": 3,
   "id": "si_d3926a21ca46",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Launchpad: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -144238,8 +144238,8 @@
   },
   "difficulty": 3,
   "id": "si_38dec06c4c4a",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector does not fire on the last bar of this chart. undercut and traded over the prior close but closed back under it",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -145246,8 +145246,8 @@
   },
   "difficulty": 3,
   "id": "si_0d71477e79be",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector does not fire on the last bar of this chart. undercut and traded over the prior close but closed back under it",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -146254,8 +146254,8 @@
   },
   "difficulty": 3,
   "id": "si_c90d70e11cec",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector does not fire on the last bar of this chart. open below prior close and close above it, but no undercut of the prior low (dropped by the blind review)",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -147262,8 +147262,8 @@
   },
   "difficulty": 3,
   "id": "si_1a683ad3e571",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector does not fire on the last bar of this chart. open below prior close and close above it, but no undercut of the prior low (dropped by the blind review)",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -148270,8 +148270,8 @@
   },
   "difficulty": 3,
   "id": "si_21c33ef613f5",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector does not fire on the last bar of this chart. undercut and reclaim but the open was above the prior close",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -149278,8 +149278,8 @@
   },
   "difficulty": 3,
   "id": "si_4d735660dc76",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector does not fire on the last bar of this chart. undercut and reclaim but the open was above the prior close",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -150286,8 +150286,8 @@
   },
   "difficulty": 3,
   "id": "si_ae411355002f",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -151294,8 +151294,8 @@
   },
   "difficulty": 3,
   "id": "si_f3932d8a44c4",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -152302,8 +152302,8 @@
   },
   "difficulty": 3,
   "id": "si_607aa9208a6a",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -153310,8 +153310,8 @@
   },
   "difficulty": 3,
   "id": "si_02f7502308d1",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -154318,8 +154318,8 @@
   },
   "difficulty": 3,
   "id": "si_760d7e259b17",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector does not fire on the last bar of this chart. reclaimed the prior low but not the prior close",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -155326,8 +155326,8 @@
   },
   "difficulty": 3,
   "id": "si_895b0b705c9d",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector does not fire on the last bar of this chart. reclaimed the prior low but not the prior close",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -156334,8 +156334,8 @@
   },
   "difficulty": 3,
   "id": "si_094d084b92a2",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -157342,8 +157342,8 @@
   },
   "difficulty": 3,
   "id": "si_944aefc0e9c0",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -158350,8 +158350,8 @@
   },
   "difficulty": 3,
   "id": "si_46d18ae2b7f4",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -159358,8 +159358,8 @@
   },
   "difficulty": 3,
   "id": "si_91438efb5537",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -160366,8 +160366,8 @@
   },
   "difficulty": 3,
   "id": "si_4bc705c58162",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -161374,8 +161374,8 @@
   },
   "difficulty": 3,
   "id": "si_74458acd0081",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Oops Reversal: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -162382,8 +162382,8 @@
   },
   "difficulty": 3,
   "id": "si_f6f16c47b866",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Slingshot: the firm's detector does not fire on the last bar of this chart. a slingshot close but under the 50-day average (the S5 uptrend gate)",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -163390,8 +163390,8 @@
   },
   "difficulty": 3,
   "id": "si_b8fc9bcb2136",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Slingshot: the firm's detector does not fire on the last bar of this chart. a slingshot close but under the 50-day average (the S5 uptrend gate)",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -164398,8 +164398,8 @@
   },
   "difficulty": 3,
   "id": "si_6c4bf5c42552",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Slingshot: the firm's detector does not fire on the last bar of this chart. pullback and reclaim in an uptrend but no qualifying strength day",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -165406,8 +165406,8 @@
   },
   "difficulty": 3,
   "id": "si_704fe3e1115a",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Slingshot: the firm's detector does not fire on the last bar of this chart. pullback and reclaim in an uptrend but no qualifying strength day",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -166414,8 +166414,8 @@
   },
   "difficulty": 3,
   "id": "si_ee6679ca4484",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Slingshot: the firm's detector does not fire on the last bar of this chart. first close over the average of highs after only one close below",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -167422,8 +167422,8 @@
   },
   "difficulty": 3,
   "id": "si_5ce4c535527d",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Slingshot: the firm's detector does not fire on the last bar of this chart. first close over the average of highs after only one close below",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -168430,8 +168430,8 @@
   },
   "difficulty": 3,
   "id": "si_212c0947f2e3",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Slingshot: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -169438,8 +169438,8 @@
   },
   "difficulty": 3,
   "id": "si_6eb37d7cdf33",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Slingshot: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -170446,8 +170446,8 @@
   },
   "difficulty": 3,
   "id": "si_411ae17572a6",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Slingshot: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -171454,8 +171454,8 @@
   },
   "difficulty": 3,
   "id": "si_681016dfb964",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Slingshot: the firm's detector does not fire on the last bar of this chart. an ordinary session with no trigger in the last three sessions",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -172462,8 +172462,8 @@
   },
   "difficulty": 3,
   "id": "si_3676408aff39",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Slingshot: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -173470,8 +173470,8 @@
   },
   "difficulty": 3,
   "id": "si_f8e741ccfb7c",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Slingshot: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -174478,8 +174478,8 @@
   },
   "difficulty": 3,
   "id": "si_889105c38ed5",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Slingshot: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -175486,8 +175486,8 @@
   },
   "difficulty": 3,
   "id": "si_351226b6fe38",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Slingshot: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -176494,8 +176494,8 @@
   },
   "difficulty": 3,
   "id": "si_3384b42db5a6",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Slingshot: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -177502,8 +177502,8 @@
   },
   "difficulty": 3,
   "id": "si_07b6bd12c0d3",
-  "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_origin": "template",
+  "lesson_text": "Slingshot: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session",
   "module": null,
   "prompt_json": {
    "chart": {

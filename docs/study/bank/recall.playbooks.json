@@ -13,7 +13,7 @@
     "Taking the breakout when it is not also a high-of-day break.",
     "Buying the flagpole instead of waiting for the flag and breakout.",
     "Selling the entire position into the first day or two and missing the multi-week trend.",
-    "Impatience — entering before the moving averages have tightened to the breakout level."
+    "Impatience, entering before the moving averages have tightened to the breakout level."
    ],
    "q": "Which is a named mistake in the firm's Bull Flag playbook?",
    "subject": "Bull Flag mistake: Buying the flagpole instead of waiting f"
@@ -44,7 +44,7 @@
     "Selling the entire position into the first day or two and missing the multi-week trend.",
     "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break.",
     "Ignoring whether volume actually dried up through the coil.",
-    "Chasing when the opening-range high does not break (no edge — move on)."
+    "Chasing when the opening-range high does not break (no edge, move on)."
    ],
    "q": "Which is a named mistake in the firm's Bull Flag playbook?",
    "subject": "Bull Flag mistake: Tolerating a loose or deep “flag” that i"
@@ -94,18 +94,18 @@
  },
  {
   "answer_json": {
-   "answer": "Below the low of the flag. Keep the stop tight — a clean flag should not give much back; a break below the flag low invalidates the continuation thesis."
+   "answer": "Below the low of the flag. Keep the stop tight, a clean flag should not give much back; a break below the flag low invalidates the continuation thesis."
   },
   "difficulty": 3,
   "id": "si_2c23be448f3c",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Below the low of the flag. Keep the stop tight, a clean flag should not give much back; a break below the flag low invalidates the continuation thesis.",
   "module": null,
   "prompt_json": {
    "choices": [
     "Below the candle that held the moving averages (intraday version), or below the consolidation low / the MA stack (daily version).",
     "Below the lower wick / low of the candle that held the 20-EMA.",
-    "Below the low of the flag. Keep the stop tight — a clean flag should not give much back; a break below the flag low invalidates the continuation thesis.",
+    "Below the low of the flag. Keep the stop tight, a clean flag should not give much back; a break below the flag low invalidates the continuation thesis.",
     "Below the breakout day’s low or the most recent tight area; on the faster variant, below the 10/20-day SMA. Because the full base can be wide, anchor the stop to the last tight contraction rather than the deep base low so risk stays within a few percent of entry."
    ],
    "q": "In the firm's Bull Flag playbook, where does the stop go?",
@@ -125,22 +125,22 @@
  },
  {
   "answer_json": {
-   "answer": "Impatience — entering before the moving averages have tightened to the breakout level."
+   "answer": "Impatience, entering before the moving averages have tightened to the breakout level."
   },
   "difficulty": 2,
   "id": "si_1576ae30bd28",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Impatience, entering before the moving averages have tightened to the breakout level.",
   "module": null,
   "prompt_json": {
    "choices": [
     "Entering inside the wedge before the pop confirms.",
-    "Impatience — entering before the moving averages have tightened to the breakout level.",
+    "Impatience, entering before the moving averages have tightened to the breakout level.",
     "Long: anticipating the reclaim before price actually crosses back above the averages.",
     "Short: shorting into the averages before a rejection candle confirms."
    ],
    "q": "Which is a named mistake in the firm's Flat Base Breakout playbook?",
-   "subject": "Flat Base Breakout mistake: Impatience — entering before the moving "
+   "subject": "Flat Base Breakout mistake: Impatience, entering before the moving "
   },
   "reveal_json": {
    "quote": "Impatience — entering before the moving averages have tightened to the breakout level.",
@@ -187,16 +187,16 @@
  },
  {
   "answer_json": {
-   "answer": "Below the breakout candle low and the 9-EMA — on a strong breakout candle these coincide and give a tight stop."
+   "answer": "Below the breakout candle low and the 9-EMA, on a strong breakout candle these coincide and give a tight stop."
   },
   "difficulty": 3,
   "id": "si_76e1dd752b9e",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Below the breakout candle low and the 9-EMA, on a strong breakout candle these coincide and give a tight stop.",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Below the breakout candle low and the 9-EMA — on a strong breakout candle these coincide and give a tight stop.",
+    "Below the breakout candle low and the 9-EMA, on a strong breakout candle these coincide and give a tight stop.",
     "Below the candle that held the moving averages (intraday version), or below the consolidation low / the MA stack (daily version).",
     "Below the lower wick / low of the candle that held the 20-EMA.",
     "Long: below the candle that held the averages. Short: above the rejection candle’s high / above the moving average."
@@ -230,7 +230,7 @@
     "Buying the first wild swings before any real base has formed.",
     "Taking the breakout when it is not also a high-of-day break.",
     "Forcing the trade before the moving averages have actually converged.",
-    "Ignoring direction — the setup is symmetrical and can break long or short; the environment dictates which side to trade."
+    "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade."
    ],
    "q": "Which is a named mistake in the firm's IPO Base playbook?",
    "subject": "IPO Base mistake: Buying the first wild swings before any "
@@ -260,7 +260,7 @@
    "choices": [
     "Widening the stop to survive the base’s depth and blowing the risk budget.",
     "Chasing well past the breakout instead of entering near the pivot.",
-    "Impatience — entering before the moving averages have tightened to the breakout level.",
+    "Impatience, entering before the moving averages have tightened to the breakout level.",
     "Taking the breakout when it is not also a high-of-day break."
    ],
    "q": "Which is a named mistake in the firm's IPO Base playbook?",
@@ -292,7 +292,7 @@
     "Selling the entire position into the first day or two and missing the multi-week trend.",
     "Buying the flagpole instead of waiting for the flag and breakout.",
     "Forcing IPO breakouts in a weak market where new issues fail.",
-    "Chasing when the opening-range high does not break (no edge — move on)."
+    "Chasing when the opening-range high does not break (no edge, move on)."
    ],
    "q": "Which is a named mistake in the firm's IPO Base playbook?",
    "subject": "IPO Base mistake: Forcing IPO breakouts in a weak market w"
@@ -322,7 +322,7 @@
    "choices": [
     "Below the lower wick / low of the candle that held the 20-EMA.",
     "Below the breakout day’s low or the most recent tight area; on the faster variant, below the 10/20-day SMA. Because the full base can be wide, anchor the stop to the last tight contraction rather than the deep base low so risk stays within a few percent of entry.",
-    "Below the breakout candle low and the 9-EMA — on a strong breakout candle these coincide and give a tight stop.",
+    "Below the breakout candle low and the 9-EMA, on a strong breakout candle these coincide and give a tight stop.",
     "Below the candle that held the moving averages (intraday version), or below the consolidation low / the MA stack (daily version)."
    ],
    "q": "In the firm's IPO Base playbook, where does the stop go?",
@@ -352,7 +352,7 @@
   "prompt_json": {
    "choices": [
     "Chasing well past the breakout instead of entering near the pivot.",
-    "Impatience — entering before the moving averages have tightened to the breakout level.",
+    "Impatience, entering before the moving averages have tightened to the breakout level.",
     "Taking the breakout when it is not also a high-of-day break.",
     "Forcing the trade before the moving averages have actually converged."
    ],
@@ -373,22 +373,22 @@
  },
  {
   "answer_json": {
-   "answer": "Ignoring direction — the setup is symmetrical and can break long or short; the environment dictates which side to trade."
+   "answer": "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade."
   },
   "difficulty": 2,
   "id": "si_b990776242e4",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
   "module": null,
   "prompt_json": {
    "choices": [
     "Buying the flagpole instead of waiting for the flag and breakout.",
-    "Ignoring direction — the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
-    "Chasing when the opening-range high does not break (no edge — move on).",
+    "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
+    "Chasing when the opening-range high does not break (no edge, move on).",
     "Selling the entire position into the first day or two and missing the multi-week trend."
    ],
    "q": "Which is a named mistake in the firm's Launchpad playbook?",
-   "subject": "Launchpad mistake: Ignoring direction — the setup is symmet"
+   "subject": "Launchpad mistake: Ignoring direction, the setup is symmet"
   },
   "reveal_json": {
    "quote": "Ignoring direction — the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
@@ -447,7 +447,7 @@
     "Selling the entire position into the first day or two and missing the multi-week trend.",
     "Buying the pullback before a candle actually holds the 20-EMA.",
     "Ignoring whether volume actually dried up through the coil.",
-    "Chasing when the opening-range high does not break (no edge — move on)."
+    "Chasing when the opening-range high does not break (no edge, move on)."
    ],
    "q": "Which is a named mistake in the firm's 20 EMA Pullback playbook?",
    "subject": "20 EMA Pullback mistake: Buying the pullback before a candle actu"
@@ -476,7 +476,7 @@
   "prompt_json": {
    "choices": [
     "Chasing well past the breakout instead of entering near the pivot.",
-    "Impatience — entering before the moving averages have tightened to the breakout level.",
+    "Impatience, entering before the moving averages have tightened to the breakout level.",
     "Using the setup on a stock whose daily chart is not bullish.",
     "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break."
    ],
@@ -601,7 +601,7 @@
    "choices": [
     "Above the wedge / consolidation high.",
     "Below the 30-minute opening-range low (Day 1), or below the Day 2 volume-support level.",
-    "Below the low of the flag. Keep the stop tight — a clean flag should not give much back; a break below the flag low invalidates the continuation thesis.",
+    "Below the low of the flag. Keep the stop tight, a clean flag should not give much back; a break below the flag low invalidates the continuation thesis.",
     "Long: below the candle that held the averages. Short: above the rejection candle’s high / above the moving average."
    ],
    "q": "In the firm's EMA Crossback playbook, where does the stop go?",
@@ -785,8 +785,8 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Below the low of the flag. Keep the stop tight — a clean flag should not give much back; a break below the flag low invalidates the continuation thesis.",
-    "Below the breakout candle low and the 9-EMA — on a strong breakout candle these coincide and give a tight stop.",
+    "Below the low of the flag. Keep the stop tight, a clean flag should not give much back; a break below the flag low invalidates the continuation thesis.",
+    "Below the breakout candle low and the 9-EMA, on a strong breakout candle these coincide and give a tight stop.",
     "Above the wedge / consolidation high.",
     "Below the 30-minute opening-range low (Day 1), or below the Day 2 volume-support level."
    ],
@@ -807,17 +807,17 @@
  },
  {
   "answer_json": {
-   "answer": "Chasing when the opening-range high does not break (no edge — move on)."
+   "answer": "Chasing when the opening-range high does not break (no edge, move on)."
   },
   "difficulty": 2,
   "id": "si_9fb2fe63d47f",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Chasing when the opening-range high does not break (no edge, move on).",
   "module": null,
   "prompt_json": {
    "choices": [
     "Chasing well past the breakout instead of entering near the pivot.",
-    "Chasing when the opening-range high does not break (no edge — move on).",
+    "Chasing when the opening-range high does not break (no edge, move on).",
     "Buying the flagpole instead of waiting for the flag and breakout.",
     "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break."
    ],
@@ -849,7 +849,7 @@
    "choices": [
     "Forcing IPO breakouts in a weak market where new issues fail.",
     "Forcing the trade before the moving averages have actually converged.",
-    "Ignoring direction — the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
+    "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
     "Selling the entire position into the first day or two and missing the multi-week trend."
    ],
    "q": "Which is a named mistake in the firm's Episodic Pivot playbook?",
@@ -879,8 +879,8 @@
   "prompt_json": {
    "choices": [
     "Above the wedge / consolidation high.",
-    "Below the low of the flag. Keep the stop tight — a clean flag should not give much back; a break below the flag low invalidates the continuation thesis.",
-    "Below the breakout candle low and the 9-EMA — on a strong breakout candle these coincide and give a tight stop.",
+    "Below the low of the flag. Keep the stop tight, a clean flag should not give much back; a break below the flag low invalidates the continuation thesis.",
+    "Below the breakout candle low and the 9-EMA, on a strong breakout candle these coincide and give a tight stop.",
     "Below the 30-minute opening-range low (Day 1), or below the Day 2 volume-support level."
    ],
    "q": "In the firm's Episodic Pivot playbook, where does the stop go?",

@@ -1,19 +1,19 @@
 [
  {
   "answer_json": {
-   "answer": "Cut losses at exactly 7-8% below your buy point — no exceptions, no hope"
+   "answer": "Cut losses at exactly 7-8% below your buy point, no exceptions, no hope"
   },
   "difficulty": 2,
   "id": "si_58f8e2b08225",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Cut losses at exactly 7-8% below your buy point, no exceptions, no hope",
   "module": null,
   "prompt_json": {
    "choices": [
     "Chasing well past the breakout instead of entering near the pivot.",
-    "Impatience — entering before the moving averages have tightened to the breakout level.",
+    "Impatience, entering before the moving averages have tightened to the breakout level.",
     "Taking the breakout when it is not also a high-of-day break.",
-    "Cut losses at exactly 7-8% below your buy point — no exceptions, no hope"
+    "Cut losses at exactly 7-8% below your buy point, no exceptions, no hope"
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 1"
@@ -43,7 +43,7 @@
   "difficulty": 3,
   "id": "si_a68a6946b73e",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Cut losses at exactly 7-8% below your buy point, no exceptions, no hope",
   "module": null,
   "prompt_json": {
    "format": "fill",
@@ -66,17 +66,17 @@
  },
  {
   "answer_json": {
-   "answer": "Let winners run — use the 20-25% profit rule or climax top signals, not a fixed target"
+   "answer": "Let winners run, use the 20-25% profit rule or climax top signals, not a fixed target"
   },
   "difficulty": 2,
   "id": "si_5f30f1505a7b",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Let winners run, use the 20-25% profit rule or climax top signals, not a fixed target",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Let winners run — use the 20-25% profit rule or climax top signals, not a fixed target",
-    "Ignoring direction — the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
+    "Let winners run, use the 20-25% profit rule or climax top signals, not a fixed target",
+    "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
     "Buying the pullback before a candle actually holds the 20-EMA.",
     "Using the setup on a stock whose daily chart is not bullish."
    ],
@@ -108,7 +108,7 @@
   "difficulty": 3,
   "id": "si_8046d9989601",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Let winners run, use the 20-25% profit rule or climax top signals, not a fixed target",
   "module": null,
   "prompt_json": {
    "format": "fill",
@@ -140,7 +140,7 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Impatience — entering before the moving averages have tightened to the breakout level.",
+    "Impatience, entering before the moving averages have tightened to the breakout level.",
     "Taking the breakout when it is not also a high-of-day break.",
     "Buying the first wild swings before any real base has formed.",
     "Buy stocks at or near new 52-week or all-time highs, not cheap stocks near lows"
@@ -206,7 +206,7 @@
    "choices": [
     "Buying the first wild swings before any real base has formed.",
     "Volume must confirm every breakout (40-50%+ above average)",
-    "Impatience — entering before the moving averages have tightened to the breakout level.",
+    "Impatience, entering before the moving averages have tightened to the breakout level.",
     "Taking the breakout when it is not also a high-of-day break."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
@@ -260,18 +260,18 @@
  },
  {
   "answer_json": {
-   "answer": "Never average down — add only to winners"
+   "answer": "Never average down, add only to winners"
   },
   "difficulty": 2,
   "id": "si_7405d1667c3b",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Never average down, add only to winners",
   "module": null,
   "prompt_json": {
    "choices": [
     "Buying the flagpole instead of waiting for the flag and breakout.",
-    "Never average down — add only to winners",
-    "Chasing when the opening-range high does not break (no edge — move on).",
+    "Never average down, add only to winners",
+    "Chasing when the opening-range high does not break (no edge, move on).",
     "Selling the entire position into the first day or two and missing the multi-week trend."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
@@ -292,16 +292,16 @@
  },
  {
   "answer_json": {
-   "answer": "Never buy on tips or opinions — let the chart and fundamentals confirm"
+   "answer": "Never buy on tips or opinions, let the chart and fundamentals confirm"
   },
   "difficulty": 2,
   "id": "si_311292c8c0b3",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Never buy on tips or opinions, let the chart and fundamentals confirm",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Never buy on tips or opinions — let the chart and fundamentals confirm",
+    "Never buy on tips or opinions, let the chart and fundamentals confirm",
     "Buying the flagpole instead of waiting for the flag and breakout.",
     "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break.",
     "Chasing well past the breakout instead of entering near the pivot."
@@ -324,17 +324,17 @@
  },
  {
   "answer_json": {
-   "answer": "Don't buy more than 5-7 stocks at once — concentration beats diversification"
+   "answer": "Don't buy more than 5-7 stocks at once, concentration beats diversification"
   },
   "difficulty": 2,
   "id": "si_4ebbabe20694",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Don't buy more than 5-7 stocks at once, concentration beats diversification",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Chasing when the opening-range high does not break (no edge — move on).",
-    "Don't buy more than 5-7 stocks at once — concentration beats diversification",
+    "Chasing when the opening-range high does not break (no edge, move on).",
+    "Don't buy more than 5-7 stocks at once, concentration beats diversification",
     "Ignoring whether volume actually dried up through the coil.",
     "Entering inside the wedge before the drop confirms."
    ],
@@ -366,7 +366,7 @@
   "difficulty": 3,
   "id": "si_b63fbef825dd",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Don't buy more than 5-7 stocks at once, concentration beats diversification",
   "module": null,
   "prompt_json": {
    "format": "fill",
@@ -401,7 +401,7 @@
     "RS line should be making new highs before or at the same time as price",
     "Ignoring whether volume actually dried up through the coil.",
     "Entering inside the wedge before the drop confirms.",
-    "Chasing when the opening-range high does not break (no edge — move on)."
+    "Chasing when the opening-range high does not break (no edge, move on)."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 8"
@@ -431,7 +431,7 @@
   "prompt_json": {
    "choices": [
     "The best stocks form sound base patterns before major moves",
-    "Impatience — entering before the moving averages have tightened to the breakout level.",
+    "Impatience, entering before the moving averages have tightened to the breakout level.",
     "Taking the breakout when it is not also a high-of-day break.",
     "Buying the first wild swings before any real base has formed."
    ],
@@ -453,18 +453,18 @@
  },
  {
   "answer_json": {
-   "answer": "Earnings growth is the engine — without it, there is no sustainable move"
+   "answer": "Earnings growth is the engine, without it, there is no sustainable move"
   },
   "difficulty": 2,
   "id": "si_1f47bc1075f4",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Earnings growth is the engine, without it, there is no sustainable move",
   "module": null,
   "prompt_json": {
    "choices": [
     "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break.",
     "Chasing well past the breakout instead of entering near the pivot.",
-    "Earnings growth is the engine — without it, there is no sustainable move",
+    "Earnings growth is the engine, without it, there is no sustainable move",
     "Buying the flagpole instead of waiting for the flag and breakout."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
@@ -517,18 +517,18 @@
  },
  {
   "answer_json": {
-   "answer": "Institutions must be buying — accumulation days > distribution days"
+   "answer": "Institutions must be buying, accumulation days > distribution days"
   },
   "difficulty": 2,
   "id": "si_f0077d5c0fbc",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Institutions must be buying, accumulation days > distribution days",
   "module": null,
   "prompt_json": {
    "choices": [
     "Short: shorting into the averages before a rejection candle confirms.",
     "Entering inside the wedge before the pop confirms.",
-    "Institutions must be buying — accumulation days > distribution days",
+    "Institutions must be buying, accumulation days > distribution days",
     "Long: anticipating the reclaim before price actually crosses back above the averages."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
@@ -560,7 +560,7 @@
    "choices": [
     "The general market direction determines 75% of a stock's outcome",
     "Ignoring whether volume actually dried up through the coil.",
-    "Chasing when the opening-range high does not break (no edge — move on).",
+    "Chasing when the opening-range high does not break (no edge, move on).",
     "Selling the entire position into the first day or two and missing the multi-week trend."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
@@ -678,19 +678,19 @@
  },
  {
   "answer_json": {
-   "answer": "5-6 distribution days in 25 sessions signals market top — reduce exposure"
+   "answer": "5-6 distribution days in 25 sessions signals market top, reduce exposure"
   },
   "difficulty": 2,
   "id": "si_419d4fd31c15",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "5-6 distribution days in 25 sessions signals market top, reduce exposure",
   "module": null,
   "prompt_json": {
    "choices": [
     "Ignoring whether volume actually dried up through the coil.",
-    "Chasing when the opening-range high does not break (no edge — move on).",
+    "Chasing when the opening-range high does not break (no edge, move on).",
     "Selling the entire position into the first day or two and missing the multi-week trend.",
-    "5-6 distribution days in 25 sessions signals market top — reduce exposure"
+    "5-6 distribution days in 25 sessions signals market top, reduce exposure"
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 15"
@@ -720,7 +720,7 @@
   "difficulty": 3,
   "id": "si_6b59ca344ffe",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "5-6 distribution days in 25 sessions signals market top, reduce exposure",
   "module": null,
   "prompt_json": {
    "format": "fill",
@@ -753,7 +753,7 @@
   "prompt_json": {
    "choices": [
     "Ignoring whether volume actually dried up through the coil.",
-    "Chasing when the opening-range high does not break (no edge — move on).",
+    "Chasing when the opening-range high does not break (no edge, move on).",
     "The best time to buy is within 5-10% of a proper base breakout pivot",
     "Entering inside the wedge before the drop confirms."
    ],
@@ -819,7 +819,7 @@
    "choices": [
     "Using the setup on a stock whose daily chart is not bullish.",
     "Buy the leading stock in the leading industry group",
-    "Ignoring direction — the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
+    "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
     "Buying the pullback before a candle actually holds the 20-EMA."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
@@ -840,17 +840,17 @@
  },
  {
   "answer_json": {
-   "answer": "Round numbers are not sell targets — sell on climax tops and technical signals"
+   "answer": "Round numbers are not sell targets, sell on climax tops and technical signals"
   },
   "difficulty": 2,
   "id": "si_076166e38f66",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Round numbers are not sell targets, sell on climax tops and technical signals",
   "module": null,
   "prompt_json": {
    "choices": [
     "Long: anticipating the reclaim before price actually crosses back above the averages.",
-    "Round numbers are not sell targets — sell on climax tops and technical signals",
+    "Round numbers are not sell targets, sell on climax tops and technical signals",
     "Buying the pullback before a candle actually holds the 20-EMA.",
     "Using the setup on a stock whose daily chart is not bullish."
    ],
@@ -872,18 +872,18 @@
  },
  {
   "answer_json": {
-   "answer": "Never marry a stock — be willing to sell if the story changes"
+   "answer": "Never marry a stock, be willing to sell if the story changes"
   },
   "difficulty": 2,
   "id": "si_f8fc780b1013",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Never marry a stock, be willing to sell if the story changes",
   "module": null,
   "prompt_json": {
    "choices": [
     "Forcing the trade before the moving averages have actually converged.",
-    "Ignoring direction — the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
-    "Never marry a stock — be willing to sell if the story changes",
+    "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
+    "Never marry a stock, be willing to sell if the story changes",
     "Forcing IPO breakouts in a weak market where new issues fail."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
@@ -904,17 +904,17 @@
  },
  {
   "answer_json": {
-   "answer": "Price/volume analysis beats news — the tape never lies"
+   "answer": "Price/volume analysis beats news, the tape never lies"
   },
   "difficulty": 2,
   "id": "si_c46ac7861f80",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Price/volume analysis beats news, the tape never lies",
   "module": null,
   "prompt_json": {
    "choices": [
-    "Impatience — entering before the moving averages have tightened to the breakout level.",
-    "Price/volume analysis beats news — the tape never lies",
+    "Impatience, entering before the moving averages have tightened to the breakout level.",
+    "Price/volume analysis beats news, the tape never lies",
     "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break.",
     "Chasing well past the breakout instead of entering near the pivot."
    ],
@@ -948,7 +948,7 @@
     "Buying the pullback before a candle actually holds the 20-EMA.",
     "Using the setup on a stock whose daily chart is not bullish.",
     "Sell when a stock fails to follow through after a breakout on heavy volume",
-    "Ignoring direction — the setup is symmetrical and can break long or short; the environment dictates which side to trade."
+    "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 21"
@@ -1000,18 +1000,18 @@
  },
  {
   "answer_json": {
-   "answer": "Study your mistakes more than your successes — losers teach more"
+   "answer": "Study your mistakes more than your successes, losers teach more"
   },
   "difficulty": 2,
   "id": "si_d0c92ced3c07",
   "lesson_origin": "source",
-  "lesson_text": null,
+  "lesson_text": "Study your mistakes more than your successes, losers teach more",
   "module": null,
   "prompt_json": {
    "choices": [
     "Forcing IPO breakouts in a weak market where new issues fail.",
     "Forcing the trade before the moving averages have actually converged.",
-    "Study your mistakes more than your successes — losers teach more",
+    "Study your mistakes more than your successes, losers teach more",
     "Widening the stop to survive the base’s depth and blowing the risk budget."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
