@@ -101,6 +101,9 @@ GUARD_NAMES = {
     "require_bars_access",
     "require_push_secret",
     "require_article_reader",
+    # Gold-set ops routes (api/routers/patterns.py): admin cookie OR Bearer
+    # PUSH_SECRET, 401/403 otherwise; rail in tests/test_pattern_gold_set.py.
+    "require_admin_or_push_secret",
 }
 
 MUTATING = {"POST", "PUT", "PATCH", "DELETE"}

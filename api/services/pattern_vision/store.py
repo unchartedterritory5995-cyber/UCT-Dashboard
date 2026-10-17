@@ -113,6 +113,26 @@ def init_db() -> None:
             slot_start TEXT, source TEXT, ticker TEXT, tf TEXT, setup TEXT,
             asof_date TEXT, path TEXT, message TEXT, logged_at INTEGER)""")
         c.execute("CREATE INDEX IF NOT EXISTS idx_vst_slot ON vision_slot_ticker(slot_start)")
+        # -- Gold-set drawing review (2026-10-17) -------------------------
+        # Trader corrections of auto-drawn geometry, loaded in batches by an ops
+        # script. ⛔ DELIBERATELY SEPARATE from pattern_verdicts (whose
+        # confirmed rows are served to members) and pattern_exemplars (whose
+        # newest PNGs feed the live judge prompt): a gold-set save must never
+        # change what members see or what the judge is shown. Promotion of a
+        # correction to an exemplar, if ever, is a separate deliberate act.
+        c.execute("""CREATE TABLE IF NOT EXISTS gold_review_items (
+            item_id TEXT PRIMARY KEY,
+            batch TEXT, ticker TEXT, tf TEXT DEFAULT 'D',
+            label TEXT,
+            asof_date TEXT, start_date TEXT,
+            seed_drawings_json TEXT,
+            created_at INTEGER)""")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_gri_batch ON gold_review_items(batch)")
+        c.execute("""CREATE TABLE IF NOT EXISTS gold_review_corrections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, item_id TEXT, by_user TEXT,
+            verdict TEXT,
+            drawings_json TEXT, note TEXT, created_at INTEGER)""")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_grc_item ON gold_review_corrections(item_id)")
         c.commit()
 
 
@@ -397,3 +417,81 @@ def delete_exemplar(exemplar_id: int) -> None:
     with _WRITE_LOCK, connect() as c:
         c.execute("DELETE FROM pattern_exemplars WHERE id=?", (int(exemplar_id),))
         c.commit()
+
+
+# ---- Gold-set drawing review --------------------------------------------------
+# Writes ONLY gold_review_items / gold_review_corrections. Nothing below touches
+# pattern_verdicts or pattern_exemplars (rail: tests/test_pattern_gold_set.py).
+
+GOLD_VERDICTS = ("ok", "fixed", "not_a_pattern", "skip")
+
+
+def upsert_gold_items(batch: str, items: list[dict]) -> int:
+    """Idempotent bulk load keyed on item_id. A reload replaces the item's
+    metadata and seed but keeps its first created_at, and never deletes the
+    corrections already saved against it."""
+    now = int(time.time())
+    with _WRITE_LOCK, connect() as c:
+        for it in items:
+            c.execute(
+                "INSERT INTO gold_review_items (item_id,batch,ticker,tf,label,asof_date,"
+                "start_date,seed_drawings_json,created_at) VALUES (?,?,?,?,?,?,?,?,?) "
+                "ON CONFLICT(item_id) DO UPDATE SET batch=excluded.batch, ticker=excluded.ticker, "
+                "tf=excluded.tf, label=excluded.label, asof_date=excluded.asof_date, "
+                "start_date=excluded.start_date, seed_drawings_json=excluded.seed_drawings_json",
+                (it["item_id"], batch, it["ticker"], it.get("tf") or "D", it.get("label"),
+                 it.get("asof_date"), it.get("start_date"), it.get("seed_drawings_json"), now))
+        c.commit()
+    return len(items)
+
+
+def gold_item_exists(item_id: str) -> bool:
+    with connect() as c:
+        return c.execute("SELECT 1 FROM gold_review_items WHERE item_id=?",
+                         (item_id,)).fetchone() is not None
+
+
+def list_gold_items(batch=None) -> list[dict]:
+    """Items (ordered by item_id) each with its latest correction, if any."""
+    q = "SELECT * FROM gold_review_items"
+    args: tuple = ()
+    if batch:
+        q += " WHERE batch=?"
+        args = (batch,)
+    q += " ORDER BY item_id"
+    with connect() as c:
+        items = [dict(r) for r in c.execute(q, args).fetchall()]
+        latest = {}
+        for r in c.execute(
+                "SELECT * FROM gold_review_corrections ORDER BY created_at, id").fetchall():
+            latest[r["item_id"]] = dict(r)
+    for it in items:
+        it["correction"] = latest.get(it["item_id"])
+    return items
+
+
+def add_gold_correction(item_id, verdict, *, drawings_json=None, note=None,
+                        by_user=None) -> int:
+    with _WRITE_LOCK, connect() as c:
+        cur = c.execute(
+            "INSERT INTO gold_review_corrections (item_id,by_user,verdict,drawings_json,note,created_at) "
+            "VALUES (?,?,?,?,?,?)",
+            (item_id, by_user, verdict, drawings_json, note, int(time.time())))
+        c.commit()
+        return cur.lastrowid
+
+
+def list_gold_corrections(batch=None, limit=5000) -> list[dict]:
+    """The export: every correction row, with its exact drawings_json and the
+    item's frame + seed, oldest first."""
+    q = ("SELECT g.id, g.item_id, i.batch, i.ticker, i.tf, i.label, i.asof_date, i.start_date, "
+         "i.seed_drawings_json, g.by_user, g.verdict, g.drawings_json, g.note, g.created_at "
+         "FROM gold_review_corrections g LEFT JOIN gold_review_items i ON i.item_id = g.item_id")
+    args: list = []
+    if batch:
+        q += " WHERE i.batch=?"
+        args.append(batch)
+    q += " ORDER BY g.created_at, g.id LIMIT ?"
+    args.append(int(limit))
+    with connect() as c:
+        return [dict(r) for r in c.execute(q, args).fetchall()]
