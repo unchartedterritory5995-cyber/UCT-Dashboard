@@ -63,6 +63,10 @@ def box_to_detection(sym: str, box: dict, bars: list | None = None) -> dict:
     (pattern_engine.display.consolidation_extent; lab REPORT_TIERS_V2.md,
     2026-10-17: the judges saw these boxes take in the run-up and the
     breakdown bars). top / floor / pivot / levels stay base_catalog's numbers.
+    Since REPORT_TIERS_V3.md (2026-10-17) that drawn extent ends AT the
+    breakout / breakdown bar and is at most display.MAX_BOX_BARS wide, and a
+    cup-with-handle that broke out and closed back below its rim carries
+    `extras.stale` (structures_for does not serve it).
     """
     key = str(box.get("structure_key") or "")
     pid = f"bc:{key}"
@@ -87,6 +91,26 @@ def box_to_detection(sym: str, box: dict, bars: list | None = None) -> dict:
             if ext:
                 extras["draw_anchors"] = _display.extent_anchors(ext)
         except Exception:  # noqa: BLE001 -- a drawing cap never drops the box
+            pass
+    if bars and pid == "bc:cup-with-handle":
+        # v3 (REPORT_TIERS_V3.md, 2026-10-17): a cup whose price already broke
+        # out above the rim (the top line) and closed back below it is STALE --
+        # the judges saw these drawn as if still forming. Judged over the
+        # handle (the last sub-box) when there is one, else the whole box.
+        # A live breakout (still above the rim) ends the drawn box AT the
+        # breakout bar instead of running on through the advance.
+        try:
+            subs0 = extras["sub_boxes"]
+            h0 = subs0[-1] if len(subs0) >= 2 else {"start_t": start_t, "end_t": end_t}
+            if _display.failed_breakout(bars, h0.get("start_t"), h0.get("end_t"), top):
+                extras["stale"] = True
+                extras["stale_reason"] = "failed_breakout"
+            else:
+                ext = _display.consolidation_extent(bars, start_t, end_t, top, floor)
+                if ext and ext.get("break") == "breakout":
+                    extras["draw_anchors"] = [{"t": start_t, "price": top},
+                                              {"t": ext["end_t"], "price": floor}]
+        except Exception:  # noqa: BLE001 -- a staleness check never drops the box here
             pass
     if bars and pid == "bc:cup-with-handle" and len(extras["sub_boxes"]) >= 2:
         # The handle is the LAST sub-box; end it at the first close above the
@@ -145,9 +169,14 @@ def structures_for(sym: str) -> list:
         if len(bars) >= 10:
             for box in base_catalog.current_base_structures(bars) or []:
                 try:
-                    out.append(box_to_detection(sym, box, bars))
+                    det = box_to_detection(sym, box, bars)
                 except Exception:  # noqa: BLE001 -- one bad box drops that box only
                     continue
+                # A stale box (extras.stale, e.g. a failed cup breakout) is not
+                # served: dropping it here keeps the overlay unchanged.
+                if (det.get("geometry") or {}).get("extras", {}).get("stale"):
+                    continue
+                out.append(det)
     except Exception as e:  # noqa: BLE001 -- a drawing layer must never 500 a read
         _log.debug("[auto-structures] %s failed: %s", sym, e)
         out = []

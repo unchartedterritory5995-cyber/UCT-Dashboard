@@ -37,6 +37,17 @@ defects. `annotate` also stamps the display-only fixes for them, again under
   draw_lanes    bull_flag: False when the flag's two lanes cross or diverge,
                 or when a higher-confidence bull_flag of the same run already
                 draws lanes over the same bars (`lanes_reason` says which).
+
+v3 follow-ups (REPORT_TIERS_V3.md, 2026-10-17), still display-only:
+  * draw_ema always spans at least PULLBACK_EMA_MIN_BARS bars ending on the
+    last bar (a pullback bar that is itself the 10-bar swing high used to give
+    < 2 points, so the overlay fell back to a flat line).
+  * a capped base box ends AT its breakout / breakdown bar and is at most
+    MAX_BOX_BARS wide (`consolidation_extent`).
+  * the first anchor of a snapped chain never reaches back past the pattern's
+    own start (`snap_to_extremes`), so it cannot land on an older deeper low.
+  * `failed_breakout` names a box whose price closed above its top line and
+    then back below it (a stale cup-with-handle; auto_structures drops it).
 """
 from __future__ import annotations
 
@@ -110,6 +121,13 @@ EXTREME_CHAINS: dict = {
 PULLBACK_EMA: dict = {"pullback_to_10ema": 10, "pullback_to_21ema": 21, "holy_grail": 20}
 #: Bars before the pullback (touch) bar searched for the swing high it fell from.
 PULLBACK_WINDOW_LOOKBACK = 10
+#: The drawn EMA segment covers at least this many bars ending on the last bar
+#: (v3: the swing-high window alone was often a 2-5 bar stub, or < 2 points).
+PULLBACK_EMA_MIN_BARS = 15
+#: The widest base box drawn, in bars, breakout / breakdown bar included (v3:
+#: flat-base boxes still spanned the whole chart). base_catalog's own numbers
+#: are untouched; only the drawn extent is capped.
+MAX_BOX_BARS = 60
 #: Box detections whose drawn extent is capped to the consolidation. The
 #: bc:* boxes are capped in api/services/auto_structures.box_to_detection.
 EXTENT_CAPPED = frozenset({"flat_base", "bc:flat-base", "bc:square-box"})
@@ -122,25 +140,31 @@ def _index(bars) -> dict:
     return {b["t"]: i for i, b in enumerate(bars)}
 
 
-def snap_to_extremes(bars: list, idxs: list, kinds) -> list:
+def snap_to_extremes(bars: list, idxs: list, kinds, start_idx=None) -> list:
     """Snap each anchor bar index to the true extreme bar of its leg.
 
     Anchors alternate (low, high, low, ...). Walking left to right, anchor i is
     re-placed on the lowest low (a "low" anchor) or highest high (a "high"
     anchor) of its leg: the bars after the previous SNAPPED anchor and before
-    the next ORIGINAL anchor. The first anchor's leg also reaches back half
-    the distance to its neighbour and the last anchor's leg reaches forward
-    half the distance to its neighbour (clipped to the window). The original
+    the next ORIGINAL anchor. The first anchor's leg reaches back half the
+    distance to its neighbour but NEVER before the pattern's own start
+    (`start_idx`; default the first anchor itself, which is where every
+    EXTREME_CHAINS detector puts start_t) -- v3: the reach-back pulled the
+    first anchor onto an older, deeper extreme outside the pattern. The last
+    anchor's leg reaches forward half the distance to its neighbour (clipped
+    to the window). The original
     bar is always inside its leg, so a snapped anchor is never less extreme
     than the one the detector drew, and the anchors keep their order. Ties
     keep the earliest bar. Returns the snapped indices.
     """
     n = len(bars)
     m = len(idxs)
+    first = idxs[0] if idxs else 0
+    floor_i = first if start_idx is None else min(int(start_idx), first)
     out: list = []
     for i, (idx, kind) in enumerate(zip(idxs, kinds)):
         if i == 0:
-            lo = idx - ((idxs[1] - idx) // 2 if m > 1 else 0)
+            lo = max(floor_i, idx - ((idxs[1] - idx) // 2 if m > 1 else 0))
         else:
             lo = out[-1] + 1
         if i == m - 1:
@@ -169,10 +193,22 @@ def consolidation_extent(bars: list, start_t, end_t, top, floor):
     take in the run-up bars"); bars after it broke out of the band downward
     (a rollover or breakdown the box should not swallow). A shakeout that
     closes below the band and recovers stays inside. The drawn top / floor
-    are the highest high / lowest low over the drawn bars.
+    are the highest high / lowest low over the CONSOLIDATION bars (the break
+    bar's own range is not part of the base).
 
-    Returns {start_t, end_t, top, floor}, or None when the span is unknown or
-    no close is in the band.
+    v3 (REPORT_TIERS_V3.md): the drawn box ENDS AT its break bar -- the first
+    close outside the band after the consolidation:
+      breakout   the first close ABOVE `top` after the band starts;
+      breakdown  otherwise, the bar after the last close in the band when the
+                 span runs on below it (never recovered, so not a shakeout).
+    It is also at most MAX_BOX_BARS wide, break bar included (the oldest bars
+    are the ones dropped). `break` says which ("breakout" / "breakdown" /
+    None). For base_catalog boxes `top` is the window's own highest high, so
+    only a breakdown can occur there; the breakout branch serves callers whose
+    top line is a level (a rim, a pivot).
+
+    Returns {start_t, end_t, top, floor, break}, or None when the span is
+    unknown or no close is in the band.
     """
     pos = _index(bars)
     s, e = pos.get(start_t), pos.get(end_t)
@@ -180,18 +216,45 @@ def consolidation_extent(bars: list, start_t, end_t, top, floor):
         return None
     if s > e:
         s, e = e, s
-    mid = (float(top) + float(floor)) / 2.0
+    top = float(top)
+    mid = (top + float(floor)) / 2.0
     inside = [i for i in range(s, e + 1) if bars[i]["c"] >= mid]
     if not inside:
         return None
-    i0, i1 = inside[0], inside[-1]
-    span = bars[i0:i1 + 1]
+    i0 = inside[0]
+    brk, kind = None, None
+    for j in range(i0 + 1, e + 1):
+        if bars[j]["c"] > top:
+            brk, kind = j, "breakout"
+            break
+    if brk is None and inside[-1] < e:
+        brk, kind = inside[-1] + 1, "breakdown"
+    cons_end = e if brk is None else brk - 1
+    end = e if brk is None else brk
+    start = min(cons_end, max(i0, end - MAX_BOX_BARS + 1))
+    span = bars[start:cons_end + 1]
     return {
-        "start_t": bars[i0]["t"],
-        "end_t": bars[i1]["t"],
+        "start_t": bars[start]["t"],
+        "end_t": bars[end]["t"],
         "top": float(max(b["h"] for b in span)),
         "floor": float(min(b["l"] for b in span)),
+        "break": kind,
     }
+
+
+def failed_breakout(bars: list, start_t, end_t, line) -> bool:
+    """True when a close in [start_t, end_t] went ABOVE `line` and the span's
+    last close is back at or below it: the breakout already happened and
+    failed, so a box drawn under `line` is stale (v3: cup-with-handle boxes
+    "stale after a failed breakout"). False when the span is unknown, never
+    broke out, or is still above the line."""
+    pos = _index(bars)
+    s, e = pos.get(start_t), pos.get(end_t)
+    if s is None or e is None or line is None or s > e:
+        return False
+    line = float(line)
+    broke = any(bars[i]["c"] > line for i in range(s, e + 1))
+    return bool(broke and bars[e]["c"] <= line)
 
 
 def handle_extent(bars: list, start_t, end_t, lip):
@@ -309,7 +372,8 @@ def draw_geometry(detections: list, bars: list) -> list:
                 kinds = EXTREME_CHAINS[pid]
                 idxs = [pos.get(a.get("t")) for a in anchors]
                 if len(idxs) == len(kinds) and None not in idxs and idxs == sorted(idxs):
-                    snapped = snap_to_extremes(bars, idxs, kinds)
+                    snapped = snap_to_extremes(bars, idxs, kinds,
+                                               start_idx=pos.get(d.get("start_t")))
                     geom.setdefault("extras", {})["draw_anchors"] = [
                         {"t": bars[j]["t"],
                          "price": float(bars[j]["l"] if k == "low" else bars[j]["h"])}
@@ -337,6 +401,8 @@ def draw_geometry(detections: list, bars: list) -> list:
                 for j in range(lo, pb + 1):
                     if bars[j]["h"] > bars[start]["h"]:
                         start = j
+                # v3: never a stub -- at least the last PULLBACK_EMA_MIN_BARS bars.
+                start = max(0, min(start, len(bars) - PULLBACK_EMA_MIN_BARS))
                 points = [{"t": bars[j]["t"], "price": round(series[j], 4)}
                           for j in range(start, len(bars)) if series[j] is not None]
                 if len(points) >= 2:

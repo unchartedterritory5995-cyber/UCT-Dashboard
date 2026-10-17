@@ -168,8 +168,8 @@ def test_detect_all_stamps_pattern_end_without_touching_end_t():
 
 # ── fix 4-6: one display policy ─────────────────────────────────────────────
 
-def test_display_policy_matches_the_tiers_v2_report():
-    """lab/geometry_eval REPORT_TIERS_V2.md (2026-10-17), blind tier round v2."""
+def test_display_policy_matches_the_tiers_v3_report():
+    """lab/geometry_eval REPORT_TIERS_V2.md + REPORT_TIERS_V3.md (2026-10-17), blind tier rounds."""
     assert registry.DISPLAY_TRUSTED == {"donchian_breakout", "rectangle"}
     for pid in ("donchian_breakout", "rectangle"):
         assert display_policy(pid)["display_tier"] == "trusted"
@@ -178,16 +178,20 @@ def test_display_policy_matches_the_tiers_v2_report():
     # round-1 trusted that failed AS DRAWN in v2 -> experimental
     for pid in ("bull_flag", "pullback_to_10ema", "holy_grail"):
         assert display_policy(pid)["display_tier"] == "experimental"
-    v2_hidden = ("double_bottom", "double_top", "head_shoulders", "flat_base", "vcp",
+    v2_hidden = ("double_bottom", "double_top", "head_shoulders", "vcp",
                  "higher_low_continuation", "inverse_cup_handle", "qullamaggie_setup",
                  "range_detection", "bc:vcp", "bc:base-on-base")
+    v3_hidden = ("bc:flat-base",)
     round1_hidden = ("inverse_head_shoulders", "triple_top", "triple_bottom", "u_and_r",
                      "symmetrical_triangle", "descending_triangle", "bear_flag",
                      "bc:ugly-double-bottom", "bc:green-line-breakout", "bc:darvas-box")
-    assert registry.DISPLAY_HIDDEN == set(v2_hidden) | set(round1_hidden)
-    for pid in v2_hidden + round1_hidden:
+    assert registry.DISPLAY_HIDDEN == set(v2_hidden) | set(round1_hidden) | set(v3_hidden)
+    for pid in v2_hidden + round1_hidden + v3_hidden:
         assert display_policy(pid)["display_tier"] == "hidden"
-    # rated but never rendered (no verdicts) -> stay experimental
+    # v3: flat_base's capped box lifted it 0.30 -> 1.60 -> experimental
+    assert display_policy("flat_base")["display_tier"] == "experimental"
+    # v3: rsi_bearish_divergence met the trusted rule (2.30) but was judged without an RSI
+    # panel -> held experimental until an RSI-panel re-test; rsi_bullish 2.10 -> experimental
     for pid in ("rsi_bearish_divergence", "rsi_bullish_divergence"):
         assert display_policy(pid)["display_tier"] == "experimental"
     for pid in ("support_resistance", "volume_profile_nodes"):
@@ -257,7 +261,9 @@ def test_box_to_detection_keeps_every_number_and_uses_real_times():
     ex = d["geometry"]["extras"]
     assert (ex["top"], ex["floor"], ex["pivot"]) == (142.1, 131.4, 142.1)
     assert d["levels"]["entry"] == 142.1
-    assert d["display_tier"] == "experimental"
+    assert d["display_tier"] == "hidden"          # bc:flat-base, REPORT_TIERS_V3.md
+    assert auto_structures.box_to_detection(
+        "ZZZ", {**BOX, "structure_key": "square-box"})["display_tier"] == "experimental"
     assert auto_structures.box_to_detection("ZZZ", {**BOX, "structure_key": "darvas-box"})["display_tier"] == "hidden"
     assert auto_structures.box_to_detection(
         "ZZZ", {**BOX, "structure_key": "cup-with-handle"})["display_tier"] == "experimental"
