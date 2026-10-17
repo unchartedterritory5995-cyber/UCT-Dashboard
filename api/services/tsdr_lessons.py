@@ -634,6 +634,7 @@ def post_to_section(lesson: dict, link: str) -> dict:
                          forward_body(lesson)) or {}
         forward_id = str(fwd.get("id") or "")
     except DiscordError as e:
+        # run_video_refill retries it on a later tick.
         log.warning("[tsdr-lessons] could not forward the video for %s: %s",
                     lesson.get("attachment_id"), e)
     return {"section": key, "thread": thread, "post_id": str(post.get("id") or ""),
@@ -972,6 +973,56 @@ def run_regroup(*, deadline: float, limit: int = 60) -> dict:
     return out
 
 
+def run_video_refill(*, deadline: float, limit: int = 3) -> dict:
+    """Lessons in a thread whose video forward failed: post the lesson again
+    (recap, then the video) and delete the old recap, but ONLY once the forward
+    has gone through, so a thread never gains a second recap without its video.
+    The lesson moves to the end of its thread. Stops at the first forward cap."""
+    out = {"refilled": 0, "waiting": 0, "errors": 0}
+    with contextlib.closing(_connect()) as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT * FROM tsdr_lessons WHERE status = 'posted' AND section IN "
+            f"({','.join('?' * len(_SECTION_KEYS))}) AND (forward_post_id IS NULL "
+            "OR forward_post_id = '') ORDER BY posted_at LIMIT ?",
+            (*_SECTION_KEYS, int(limit))).fetchall()]
+    for row in rows:
+        if time.time() > deadline:
+            break
+        aid, thread, old_post = row["attachment_id"], row["post_channel_id"], row["discord_post_id"]
+        try:
+            if old_post and not lesson_post_exists(thread, old_post):
+                _update(aid, section=REMOVED)      # Patrick deleted it: leave it gone
+                continue
+            link = jump_link(guild_id(), row["channel_id"], row["message_id"])
+            placed = post_to_section(row, link)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[tsdr-lessons] video refill for %s failed: %s", aid, e)
+            out["errors"] += 1
+            continue
+        if not placed["forward_id"]:
+            # The forward was refused again: take the new recap back down and
+            # keep the old one, so nothing changes in the thread.
+            try:
+                _in_thread("DELETE", placed["thread"],
+                           f"/channels/{placed['thread']}/messages/{placed['post_id']}", None)
+            except DiscordError as e:
+                log.warning("[tsdr-lessons] could not remove the retry recap %s: %s",
+                            placed["post_id"], e)
+            out["waiting"] += 1
+            break                                   # the cap holds for minutes
+        _update(aid, discord_post_id=placed["post_id"], post_channel_id=placed["thread"],
+                forward_post_id=placed["forward_id"], section=placed["section"])
+        if old_post:
+            try:
+                _in_thread("DELETE", thread, f"/channels/{thread}/messages/{old_post}", None)
+            except DiscordError as e:
+                log.warning("[tsdr-lessons] refilled %s but could not delete the old recap: %s",
+                            aid, e)
+        out["refilled"] += 1
+        _sleep(1.0)
+    return out
+
+
 # ── YouTube + Desk Videos ────────────────────────────────────────────────────
 
 def _yt_quota_left(now: Optional[datetime] = None) -> int:
@@ -1119,6 +1170,11 @@ def tick() -> dict:
             except Exception as e:  # noqa: BLE001
                 log.warning("[tsdr-lessons] regroup stage failed: %s", e)
                 out["regroup"] = {"error": str(e)[:200]}
+            try:
+                out["refill"] = run_video_refill(deadline=deadline)
+            except Exception as e:  # noqa: BLE001
+                log.warning("[tsdr-lessons] video refill stage failed: %s", e)
+                out["refill"] = {"error": str(e)[:200]}
         if youtube_enabled():
             try:
                 out["youtube"] = run_youtube(deadline=deadline)

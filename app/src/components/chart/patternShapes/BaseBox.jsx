@@ -32,7 +32,10 @@ export default function BaseBox({ detection, tToX, priceToY, onClick }) {
   const pivotY = ex.pivot != null ? priceToY(ex.pivot) : null
   const label = ex.label || detection?.pattern_name || ''
 
-  const subs = (ex.sub_boxes || []).map((sb, i) => {
+  // `draw_sub_boxes` (server, display only): a cup's handle capped at the breakout
+  // (REPORT_TIERS_V2.md 2026-10-17). Falls back to base_catalog's own sub-boxes.
+  const subBoxes = Array.isArray(ex.draw_sub_boxes) ? ex.draw_sub_boxes : (ex.sub_boxes || [])
+  const subs = subBoxes.map((sb, i) => {
     const sx1 = tToX(sb.start_t)
     const sx2 = tToX(sb.end_t)
     const sy1 = priceToY(sb.top)
