@@ -52,7 +52,7 @@ import json
 import os
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from api.services import request_body_cap as body_cap
 from api.middleware.auth_middleware import (
@@ -175,12 +175,16 @@ def _bad(e: gallery.GalleryError) -> HTTPException:
 
 @router.get("")
 def list_gallery_endpoint(q: str = "", category: str = "", sort: str = "newest", section: str = "all",
+                          item_type: str = Query("", alias="type"), trading_style: str = "",
                           user: dict = Depends(require_paid)) -> dict[str, Any]:
     """The gallery as this member sees it; `viewer.admin` lets the client show the review
-    queue's door (the queue itself is admin-gated on the server)."""
+    queue's door (the queue itself is admin-gated on the server). P3a: `?type=outline|style` and
+    `?trading_style=` are the library's chips; the service refuses both style filters while the
+    library is off (R-P3-10), so a library-off pod answers what it answered before."""
     try:
         items = gallery.list_gallery(user["id"], q=q, category=category or None, sort=sort,
-                                     section=section, is_admin=_is_admin(user))
+                                     section=section, item_type=item_type or None,
+                                     trading_style=trading_style or None, is_admin=_is_admin(user))
     except gallery.GalleryError as e:
         raise _bad(e)
     return {"templates": items, "viewer": {"admin": _is_admin(user)}}

@@ -16,20 +16,34 @@
 // copy to `onUseNow` — the SAME `onPickMember` door every member template already uses,
 // so a gallery template is never a second way to create a note.
 // ⛔ Every failure is a sentence on screen (role="alert"); nothing fails silently.
+//
+// P3a (the community STYLE library, dark behind notebook_style_library_enabled). With the switch OFF
+// this file behaves exactly as above. With it ON it adds: type chips (All · Outlines · Styles, the
+// first one from `initialType`), trading-style chips (when the type is All or Styles), the library's
+// sorts, a "Following" view (what the authors you follow listed), style cards (StyleLibraryCard) with
+// a Preview composed by the journal styles preview door, and an author's page (AuthorView).
+// ⛔ styleLibrary.js, StyleLibraryCard and AuthorView are imported HERE only: this file is a lazy chunk
+// (TemplatePicker.jsx), so none of the library is in the Notebook's first open (R-P3-5).
 import { useEffect, useId, useRef, useState } from 'react'
 import {
   GALLERY_CATEGORIES, GALLERY_SORTS, REPORT_REASONS, STATUS_LABELS, categoryLabel,
   copyGalleryTemplate, getGalleryTemplate, reportGalleryTemplate, reviewGalleryTemplate,
   unpublishFromGallery, useTemplateGallery,
 } from '../../lib/templateGallery'
+import {
+  ITEM_TYPES, LIBRARY_SORTS, TRADING_STYLES, previewLibraryStyle, tradingStyleLabel, useLibraryFeed, useLibraryList,
+} from '../../lib/styleLibrary'
+import { styleLibraryEnabled } from '../../lib/styleLibraryFlag'
 import TemplatePreview from './TemplatePreview'
+import StyleLibraryCard, { refusalSentence } from './StyleLibraryCard'
+import AuthorView from './AuthorView'
 import TemplateGalleryReviewPanel from '../../../../components/admin/TemplateGalleryReviewPanel'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './TemplateGallery.module.css'
 
 const ALL = ''
 
-function PreviewLines({ lines }) {
+export function PreviewLines({ lines }) {
   if (!lines?.length) return null
   return (
     <span className={styles.preview} aria-hidden="true">
@@ -43,7 +57,7 @@ function PreviewLines({ lines }) {
   )
 }
 
-function ReportForm({ item, onDone, onCancel }) {
+export function ReportForm({ item, onDone, onCancel }) {
   const uid = useId()
   const [reason, setReason] = useState('')
   const [note, setNote] = useState('')
@@ -86,7 +100,7 @@ function ReportForm({ item, onDone, onCancel }) {
   )
 }
 
-function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, onMessage }) {
+export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, onMessage }) {
   const uid = useId()
   const [reporting, setReporting] = useState(false)
   const [working, setWorking] = useState(false)
@@ -239,25 +253,49 @@ function MySubmissions({ onMessage }) {
   )
 }
 
-export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
+export default function TemplateGallery({ onBack, onUseNow, busy = false, initialType = '' }) {
   const uid = useId()
   const headingRef = useRef(null)
+  const wrapRef = useRef(null)
+  // The latched switch: it cannot change for the life of the tab, so the list hook below is chosen once.
+  const libraryOn = styleLibraryEnabled()
   const [view, setView] = useState('browse')
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState(ALL)
   const [sort, setSort] = useState('newest')
+  const [itemType, setItemType] = useState(() => (libraryOn && ITEM_TYPES.some((t) => t.key === initialType) ? initialType : ALL))
+  const [tradingStyle, setTradingStyle] = useState(ALL)
+  const [author, setAuthor] = useState(null) // an authorHandle, while their page is open
   const [preview, setPreview] = useState(null)
   const [message, setMessage] = useState(null) // { tone, text, made? }
   const [using, setUsing] = useState(false)
+  const returnTo = useRef(null)
 
   useEffect(() => { headingRef.current?.focus() }, [])
+  // Back from an author's page: focus goes back to the name that opened it (or the heading).
+  useEffect(() => {
+    if (author || !returnTo.current) return
+    const handle = returnTo.current
+    returnTo.current = null
+    const door = [...(wrapRef.current?.querySelectorAll('[data-author-door]') || [])]
+      .find((el) => el.getAttribute('data-author-door') === handle)
+    ;(door || headingRef.current)?.focus()
+  }, [author])
 
-  const filters = { q: query, category, sort }
-  const picks = useTemplateGallery({ ...filters, section: 'picks' }, { enabled: view === 'browse' })
-  const all = useTemplateGallery(filters, { enabled: view === 'browse' })
+  const filters = libraryOn ? { q: query, category, sort, type: itemType, tradingStyle } : { q: query, category, sort }
+  // Both hooks are one useSWR call over the gallery's list URL; with the switch off it is today's hook.
+  const useList = libraryOn ? useLibraryList : useTemplateGallery
+  const browsing = view === 'browse' && !author
+  const picks = useList({ ...filters, section: 'picks' }, { enabled: browsing })
+  const all = useList(filters, { enabled: browsing })
+  const feed = useLibraryFeed({ enabled: libraryOn && view === 'following' && !author })
   const isAdmin = picks.isAdmin || all.isAdmin
   const community = all.templates.filter((t) => !t.featured)
   const refresh = () => { picks.refresh(); all.refresh() }
+  const chooseView = (key) => { setAuthor(null); setView(key) }
+  const chooseType = (key) => { setItemType(key); if (key === 'outline') setTradingStyle(ALL) }
+  const openAuthor = (handle) => { if (handle) { returnTo.current = handle; setAuthor(handle) } }
+  const closeAuthor = () => setAuthor(null)
 
   const use = async (item) => {
     if (using) return
@@ -290,29 +328,58 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
     }
   }
 
+  // A style item's Preview: its listed payload composed with the member's OWN data (writes nothing).
+  const openStylePreview = async (item) => {
+    const by = item.firm ? 'UCT' : `by ${item.author}`
+    const subtitle = (
+      <>
+        {by} · {tradingStyleLabel(item.tradingStyle) || categoryLabel(item.category)}
+        <br />Rendered with your own data.
+        <br />Your own property defaults are not shared.
+      </>
+    )
+    const base = { label: item.title, subtitle, style: true }
+    setPreview({ ...base, body: null, loading: true })
+    try {
+      const out = await previewLibraryStyle(item)
+      setPreview({ ...base, body: out?.bodyJson || null })
+    } catch (err) {
+      setPreview({ ...base, body: null, loadError: refusalSentence(err, "Couldn't load this preview.") })
+    }
+  }
+
   const listError = picks.error || all.error
   const loading = (picks.isLoading || all.isLoading) && !picks.templates.length && !all.templates.length
   const nothing = !loading && !listError && !picks.templates.length && !community.length
+  const filtered = Boolean(query.trim() || category || itemType || tradingStyle)
 
-  const renderCards = (items) => (
-    <ul className={styles.grid}>
-      {items.map((item) => (
-        <GalleryCard
-          key={item.id}
-          item={item}
-          isAdmin={isAdmin}
-          busy={busy || using}
-          onPreview={openPreview}
-          onUse={use}
-          onChanged={refresh}
-          onMessage={setMessage}
-        />
-      ))}
-    </ul>
+  const outlineCard = (item) => (
+    <GalleryCard
+      key={item.id}
+      item={item}
+      isAdmin={isAdmin}
+      busy={busy || using}
+      onPreview={openPreview}
+      onUse={use}
+      onChanged={refresh}
+      onMessage={setMessage}
+    />
   )
+  const card = (item) => (libraryOn && item.itemType === 'style' ? (
+    <StyleLibraryCard
+      key={item.id}
+      item={item}
+      busy={busy || using}
+      onPreview={openStylePreview}
+      onAdopted={refresh}
+      onOpenAuthor={openAuthor}
+      onMessage={setMessage}
+    />
+  ) : outlineCard(item))
+  const renderCards = (items) => <ul className={styles.grid}>{items.map(card)}</ul>
 
   return (
-    <div className={styles.wrap} data-template-community-gallery="">
+    <div className={styles.wrap} ref={wrapRef} data-template-community-gallery="">
       <div className={styles.header}>
         <button type="button" className={styles.btn} onClick={onBack}>
           Back to templates
@@ -325,10 +392,11 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
       </p>
 
       <div className={styles.viewRow} role="group" aria-label="Community gallery view">
-        {[['browse', 'Browse'], ['mine', 'Your submissions'], ...(isAdmin ? [['review', 'Review queue']] : [])]
+        {[['browse', 'Browse'], ['mine', 'Your submissions'], ...(isAdmin ? [['review', 'Review queue']] : []),
+          ...(libraryOn ? [['following', 'Following']] : [])]
           .map(([key, label]) => (
             <button key={key} type="button" aria-pressed={view === key}
-              className={`${styles.chip} ${view === key ? styles.chipActive : ''}`} onClick={() => setView(key)}>
+              className={`${styles.chip} ${view === key ? styles.chipActive : ''}`} onClick={() => chooseView(key)}>
               {label}
             </button>
           ))}
@@ -354,7 +422,19 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
         )}
       </div>
 
-      {view === 'browse' && (
+      {author && (view === 'browse' || view === 'following') && (
+        <AuthorView
+          handle={author}
+          onBack={closeAuthor}
+          onMessage={setMessage}
+          onPreview={openStylePreview}
+          onAdopted={refresh}
+          renderOutline={outlineCard}
+          busy={busy || using}
+        />
+      )}
+
+      {browsing && (
         <>
           <div className={styles.toolbar}>
             <input
@@ -365,6 +445,28 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
               placeholder="Search the community gallery…"
               aria-label="Search the community gallery"
             />
+            {libraryOn && (
+              <div className={styles.chipRow} role="group" aria-label="Filter by type">
+                {[{ key: ALL, label: 'All' }, ...ITEM_TYPES].map((t) => (
+                  <button key={t.key || 'all'} type="button" aria-pressed={itemType === t.key}
+                    className={`${styles.chip} ${itemType === t.key ? styles.chipActive : ''}`}
+                    onClick={() => chooseType(t.key)}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {libraryOn && itemType !== 'outline' && (
+              <div className={styles.chipRow} role="group" aria-label="Filter by trading style">
+                {[{ key: ALL, label: 'All' }, ...TRADING_STYLES].map((t) => (
+                  <button key={t.key || 'all'} type="button" aria-pressed={tradingStyle === t.key}
+                    className={`${styles.chip} ${tradingStyle === t.key ? styles.chipActive : ''}`}
+                    onClick={() => setTradingStyle(t.key)}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className={styles.chipRow} role="group" aria-label="Filter by category">
               {[{ key: ALL, label: 'All' }, ...GALLERY_CATEGORIES].map((c) => (
                 <button key={c.key || 'all'} type="button" aria-pressed={category === c.key}
@@ -377,7 +479,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
             <label className={styles.sortField} htmlFor={`${uid}-sort`}>
               <span>Sort</span>
               <select id={`${uid}-sort`} value={sort} onChange={(e) => setSort(e.target.value)}>
-                {GALLERY_SORTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                {(libraryOn ? LIBRARY_SORTS : GALLERY_SORTS).map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
               </select>
             </label>
           </div>
@@ -386,7 +488,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
           {loading && <p className={styles.note}>Loading the community gallery…</p>}
           {nothing && (
             <p className={styles.note} role="status">
-              {query.trim() || category ? 'No templates match.' : 'Nothing has been shared yet.'}
+              {filtered ? 'No templates match.' : 'Nothing has been shared yet.'}
             </p>
           )}
 
@@ -405,6 +507,21 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
         </>
       )}
 
+      {libraryOn && view === 'following' && !author && (
+        feed.error ? (
+          <p className={styles.error} role="alert">Couldn't load what the authors you follow listed.</p>
+        ) : feed.isLoading && !feed.templates.length ? (
+          <p className={styles.note}>Loading what the authors you follow listed…</p>
+        ) : !feed.templates.length ? (
+          <p className={styles.note} role="status">Follow an author to see their new styles here.</p>
+        ) : (
+          <section className={styles.section} aria-labelledby={`${uid}-following`}>
+            <h4 className={styles.sectionLabel} id={`${uid}-following`}>From authors you follow</h4>
+            {renderCards(feed.templates)}
+          </section>
+        )
+      )}
+
       {view === 'mine' && <MySubmissions onMessage={setMessage} />}
       {view === 'review' && isAdmin && <TemplateGalleryReviewPanel onMessage={setMessage} />}
 
@@ -415,6 +532,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
         subtitle={preview?.subtitle}
         body={preview?.body}
         onUse={preview?.onUse}
+        showUse={!preview?.style}
         busy={busy || using}
         loading={Boolean(preview?.loading)}
         loadError={preview?.loadError || null}

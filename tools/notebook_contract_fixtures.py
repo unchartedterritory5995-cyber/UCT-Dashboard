@@ -1536,6 +1536,25 @@ def _style_library(w: World) -> None:
     w.record("template-gallery.updates.apply", "POST", f"{base}/updates/{copy_id}", case="success", expect=200,
              json_body={"takeOutline": False, "baseUpdatedAt": adopted["style"]["updatedAt"]},
              note="The new block is added; the member's own outline is kept.")
+    # P3a Task 9: what the library UI reads. Recorded LAST (reads, and one refused write that writes
+    # nothing), so no fixture above moves.
+    w.record("template-gallery.list.styles", "GET", f"{base}?type=style&trading_style=swing", case="success",
+             expect=200, note="The Styles chip with the Swing trading-style chip.")
+    item = w.record("template-gallery.styles.item", "GET", f"{base}/{sid}", case="success", expect=200,
+                    note="A listed style in full: `payload` is what Preview composes and adopt copies.")["template"]
+    payload = item["payload"]
+    w.record("template-gallery.styles.preview", "POST", "/api/j2/journal-styles/preview", case="success",
+             expect=200, json_body={"style": {"kindId": payload["kindId"], "outlineBodyJson": payload["outlineBodyJson"],
+                                              "blocks": payload["blocks"], "properties": payload["properties"]}},
+             note="The library's Preview: the listed payload composed with the viewer's own data.")
+    w.record("template-gallery.feed.empty", "GET", f"{base}/feed", case="empty", expect=200,
+             note="The viewer follows nobody now (they unfollowed above).")
+    w.p.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "0")
+    try:
+        w.record("template-gallery.adopt.styles-off", "POST", f"{base}/{sid}/adopt", case="error", expect=409,
+                 json_body={"notify": False}, note="The member's Journal styles switch is off: nothing is adopted.")
+    finally:
+        w.p.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
 
 
 @builder

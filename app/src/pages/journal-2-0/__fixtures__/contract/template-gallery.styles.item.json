@@ -1,0 +1,78 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery/6fe563fa41b14de497fce4a0f0b4fea3",
+    "note": "A listed style in full: `payload` is what Preview composes and adopt copies.",
+    "path": "/api/j2/template-gallery/6fe563fa41b14de497fce4a0f0b4fea3",
+    "status": 200
+  },
+  "body": {
+    "template": {
+      "author": "Sam Styler",
+      "authorHandle": "PG0pAaSjoUwn",
+      "bodyJson": {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "What moved this week, and why?",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          }
+        ],
+        "type": "doc"
+      },
+      "category": "journal",
+      "description": "How I get ready for Monday.",
+      "featured": false,
+      "firm": false,
+      "helpedByMe": false,
+      "helpfulCount": 0,
+      "id": "6fe563fa41b14de497fce4a0f0b4fea3",
+      "itemType": "style",
+      "listedAt": "2026-10-05T14:30:00+00:00",
+      "mine": false,
+      "payload": {
+        "blocks": [
+          {
+            "block": "myRules",
+            "enabled": true,
+            "settings": {}
+          }
+        ],
+        "kindId": "weekend_prep",
+        "outlineBodyJson": {
+          "content": [
+            {
+              "content": [
+                {
+                  "text": "What moved this week, and why?",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "type": "doc"
+        },
+        "properties": {}
+      },
+      "preview": [
+        {
+          "kind": "text",
+          "text": "What moved this week, and why?"
+        }
+      ],
+      "propertyCount": 0,
+      "propertyDefs": [],
+      "title": "Weekend prep",
+      "tradingStyle": "swing",
+      "trendingCount": 0,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "usedBy": 1,
+      "version": 2
+    }
+  }
+}

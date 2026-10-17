@@ -263,6 +263,23 @@ describe('publishing and your submissions', () => {
   })
 })
 
+describe('the style library switch (P3a), off', () => {
+  it('keeps the gallery exactly as it is: no Styles chip, no trading-style row, no Following view', async () => {
+    latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_style_library_enabled: false })
+    await openGallery()
+    await screen.findByRole('region', { name: 'UCT picks' })
+    expect(screen.queryByRole('button', { name: 'Styles' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Filter by type' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Filter by trading style' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Following' })).not.toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Community gallery view' })).getAllByRole('button')
+      .map((b) => b.textContent)).toEqual(['Browse', 'Your submissions'])
+    // the list asks exactly what it asked before the library existed
+    const lists = calls.filter((c) => c.path === '/api/j2/template-gallery' && c.method === 'GET')
+    expect(new Set(lists.map((c) => c.search))).toEqual(new Set(['', '?section=picks']))
+  })
+})
+
 describe('the review queue', () => {
   it('is not offered to a member', async () => {
     gateOn()

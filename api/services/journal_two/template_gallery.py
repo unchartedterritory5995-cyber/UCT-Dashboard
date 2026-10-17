@@ -715,6 +715,11 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
         out = _summary(row, viewer_id=viewer_id, is_admin=is_admin)
         out["bodyJson"] = _stored_body(row)
         out["propertyDefs"] = json.loads(row["property_defs_json"]) if row["property_defs_json"] else []
+        if row["item_type"] == "style":
+            # P3a Task 9: the library's Preview composes this through the journal styles preview door.
+            # `payload_json` (the LISTED version), read through the same safe readers adopt uses, so a
+            # malformed row reads as an empty style instead of a 500.
+            out["payload"] = _safe_listed(_listed_payload(row))
         return out
     finally:
         if owned:

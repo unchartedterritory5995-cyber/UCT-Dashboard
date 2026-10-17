@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/6fe563fa41b14de497fce4a0f0b4fea3/adopt",
+    "note": "The member's Journal styles switch is off: nothing is adopted.",
+    "path": "/api/j2/template-gallery/6fe563fa41b14de497fce4a0f0b4fea3/adopt",
+    "requestBody": {
+      "notify": false
+    },
+    "status": 409
+  },
+  "body": {
+    "detail": "Journal styles are not on for you yet, so a style can't be adopted."
+  }
+}

@@ -539,3 +539,59 @@ def test_a_report_on_a_style_row_cannot_be_acted_on_while_the_library_is_off(con
     monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")                 # control
     assert gallery.admin_report_act("admin", rid, "hide", conn=conn) is True
     assert conn.execute("SELECT hidden FROM j2_template_gallery WHERE id = ?", (gid,)).fetchone()[0] == 1
+
+
+# ── P3a Task 9: what the library UI reads ───────────────────────────────────────────────────
+
+def test_the_list_route_filters_by_type_and_trading_style(api, conn, lib_on):
+    # The Styles chip and a trading-style chip reach the list as `?type=style&trading_style=swing`.
+    # The service filtered by both since Task 3; the ROUTE has to pass them on, or every chip is a no-op.
+    _row(conn, item_type="outline", title="O")
+    _row(conn, item_type="style", title="S", trading_style="swing")
+    _row(conn, item_type="style", title="D", trading_style="day")
+    url = "/api/j2/template-gallery"
+    everything = api.get(url)
+    assert everything.status_code == 200, everything.text
+    assert {t["title"] for t in everything.json()["templates"]} == {"O", "S", "D"}      # non-vacuity
+    styles = api.get(url, params={"type": "style"})
+    assert {t["title"] for t in styles.json()["templates"]} == {"S", "D"}
+    swing = api.get(url, params={"type": "style", "trading_style": "swing"})
+    assert [t["title"] for t in swing.json()["templates"]] == ["S"]
+    assert api.get(url, params={"type": "outline"}).json()["templates"][0]["title"] == "O"
+    bad = api.get(url, params={"trading_style": "scalping"})
+    assert bad.status_code == 400 and bad.json()["detail"] == "Unknown trading style."
+
+
+def test_the_list_route_refuses_a_style_filter_while_the_library_is_off(api, conn, monkeypatch):
+    # R-P3-10: a library-off pod lists outlines only, and a style filter is the service's refusal.
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    _row(conn, item_type="outline", title="O")
+    _row(conn, item_type="style", title="S", trading_style="swing")
+    url = "/api/j2/template-gallery"
+    assert [t["title"] for t in api.get(url).json()["templates"]] == ["O"]
+    assert api.get(url, params={"type": "style"}).status_code == 400
+
+
+def test_get_item_carries_the_listed_payload_for_a_style_only(conn, lib_on):
+    # The library's Preview composes `payload` through the journal styles preview door, so a style
+    # item's full read carries it; an outline item's never does.
+    from tests._style_library_helpers import listed_style
+    item = listed_style(conn)
+    viewer = gallery.get_item("viewer", item["id"], conn=conn)
+    assert viewer is not None
+    payload = viewer["payload"]
+    assert set(payload) == {"kindId", "outlineBodyJson", "blocks", "properties"}
+    assert payload["kindId"] == "weekend_prep"
+    stored = json.loads(conn.execute("SELECT payload_json FROM j2_template_gallery WHERE id = ?",
+                                     (item["id"],)).fetchone()[0])
+    assert payload["outlineBodyJson"] == stored["outlineBodyJson"]          # the LISTED payload, as stored
+    oid = _row(conn, item_type="outline", title="O")
+    assert "payload" not in gallery.get_item("viewer", oid, conn=conn)
+
+
+def test_get_item_reads_a_malformed_style_payload_as_an_empty_one(conn, lib_on):
+    gid = _row(conn, item_type="style", title="S")
+    conn.execute("UPDATE j2_template_gallery SET payload_json = '{not json' WHERE id = ?", (gid,))
+    conn.commit()
+    got = gallery.get_item("viewer", gid, conn=conn)
+    assert got["payload"] == {"kindId": None, "outlineBodyJson": None, "blocks": [], "properties": {}}

@@ -1,0 +1,80 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/journal-styles/preview",
+    "note": "The library's Preview: the listed payload composed with the viewer's own data.",
+    "path": "/api/j2/journal-styles/preview",
+    "requestBody": {
+      "style": {
+        "blocks": [
+          {
+            "block": "myRules",
+            "enabled": true,
+            "settings": {}
+          }
+        ],
+        "kindId": "weekend_prep",
+        "outlineBodyJson": {
+          "content": [
+            {
+              "content": [
+                {
+                  "text": "What moved this week, and why?",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "type": "doc"
+        },
+        "properties": {}
+      }
+    },
+    "status": 200
+  },
+  "body": {
+    "bodyJson": {
+      "content": [
+        {
+          "attrs": {
+            "annotations": [],
+            "caption": null,
+            "capturedAt": "2026-10-05T14:30:00Z",
+            "embedId": "0bf868addb364ef0bbe80c17989b7c1c",
+            "fallback": null,
+            "layout": {
+              "height": null,
+              "width": "full"
+            },
+            "mode": "snapshot",
+            "params": {
+              "which": "active"
+            },
+            "searchText": "[my rules]",
+            "v": 1,
+            "widgetId": "myRules"
+          },
+          "type": "widgetEmbed"
+        },
+        {
+          "content": [
+            {
+              "text": "What moved this week, and why?",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ],
+      "type": "doc"
+    },
+    "mode": "create",
+    "properties": {
+      "builtin:note_kind": "weekend_prep"
+    },
+    "skipped": [],
+    "ticker": null,
+    "tickerSource": null
+  }
+}

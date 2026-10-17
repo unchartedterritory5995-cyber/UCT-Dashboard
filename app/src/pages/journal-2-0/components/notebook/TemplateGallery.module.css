@@ -288,14 +288,64 @@
   font-size: 12px;
   color: var(--text);
 }
+/* P3a: the style library's own pieces (StyleLibraryCard.jsx, AuthorView.jsx). */
+.authorBtn {
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.authorBtn:hover {
+  color: var(--text-bright);
+}
+.authorBtn:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+.authorHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+.check input:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
 @media (max-width: 1024px) {
   .btn,
   .chip,
   .search,
   .sortField select,
   .field select,
-  .field input {
+  .field input,
+  .authorBtn,
+  .check {
     min-height: var(--tap-min);
+  }
+  .authorBtn {
+    display: inline-flex;
+    align-items: center;
   }
   .chip {
     display: inline-flex;

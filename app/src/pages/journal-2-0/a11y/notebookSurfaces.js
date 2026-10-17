@@ -52,6 +52,11 @@ export const SURFACES = Object.freeze({
   // read by the community-gallery-review recipe.
   'components/notebook/TemplateGallery.jsx': { recipe: 'community-gallery-browse' },
   'components/notebook/GalleryPublishForm.jsx': { recipe: 'gallery-publish-form' },
+  // P3a Task 9: the community STYLE library inside that gallery (dark behind
+  // notebook_style_library_enabled, so community-gallery-browse never renders them); rail
+  // a11y/styleLibrary.a11y.test.jsx.
+  'components/notebook/StyleLibraryCard.jsx': { recipe: 'style-library-card' },
+  'components/notebook/AuthorView.jsx': { recipe: 'style-library-author' },
 
   // ── the editor's popups, each opened through its own door ──────────────────
   'components/notebook/SlashMenu.jsx': { coveredBy: 'editor-slash' },
