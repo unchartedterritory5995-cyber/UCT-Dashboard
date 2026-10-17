@@ -1869,7 +1869,7 @@
     },
     "NOTEBOOK_SMART_CHIPS_ENABLED": {
       "member_facing": {
-        "label": "Notebook: alert chip from a typed sentence; tag offer on a pasted chart screenshot",
+        "label": "Notebook: alert chip and screenshot ticker tag",
         "where": "Notebook"
       },
       "status": "armed",
@@ -1879,7 +1879,7 @@
     },
     "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": {
       "member_facing": {
-        "label": "Notebook: earnings follow-up notice and card (Write follow-up)",
+        "label": "Notebook: earnings follow-up notice and card",
         "where": "Notebook"
       },
       "status": "armed",

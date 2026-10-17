@@ -1,0 +1,145 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-lazy-screenshot/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.marketContext.test.jsx[2m > [22m[2mMarket context: a failed read is said, in the note's own toast[2m > [22m[2ma 503 shows the sentence and inserts nothing
+[22m[39mAn update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.marketContext.test.jsx[2m > [22m[2mMarket context: a failed read is said, in the note's own toast[2m > [22m[2ma read that throws (offline) shows the sentence and inserts nothing
+[22m[39mAn update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.marketContext.test.jsx[2m > [22m[2mMarket context: a failed read is said, in the note's own toast[2m > [22m[2mCONTROL: a good read stamps the note and shows no sentence
+[22m[39mAn update to TableToolbar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to LinkPasteMenu inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NoteEditorPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstdout[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.marketContext.test.jsx[2m > [22m[2mMarket context: the budget stamp's Capture now writes into the note[2m > [22m[2mthe archive after a capture[2m > [22m[2mfix round 3 (N-1): with NO archive and its retries already spent, a later Capture now still re-arms it and lands the CAPTURED stamp
+[22m[39m[widget-embed] archive skipped (body is a fallback, not the live widget)
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.marketContext.test.jsx [2m([22m[2m9 tests[22m[2m)[22m[33m 6031[2mms[22m[39m
+     [33m[2m✓[22m[39m a 503 shows the sentence and inserts nothing [33m 2462[2mms[22m[39m
+     [33m[2m✓[22m[39m the click lands the readings in the node, the stamp keeps its preset, and the sentence goes [33m 692[2mms[22m[39m
+       [33m[2m✓[22m[39m fix round 2 (I-1): Capture now clears a stale archived image in the SAME write, and the archive re-freezes the CAPTURED stamp [33m 441[2mms[22m[39m
+       [33m[2m✓[22m[39m fix round 3 (N-1): with NO archive and its retries already spent, a later Capture now still re-arms it and lands the CAPTURED stamp [33m 530[2mms[22m[39m
+     [33m[2m✓[22m[39m fix round 1: the capture is DATED — capturedAt lands in the same node, and the caption says "· captured <day>" [33m 469[2mms[22m[39m
+     [33m[2m✓[22m[39m CONTROL (fix round 1): a prep block's Capture now lands its snapshot and leaves capturedAt exactly as it was [33m 886[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m9 passed[39m[22m[90m (9)[39m
+[2m   Start at [22m 08:54:17
+[2m   Duration [22m 7.66s[2m (transform 2.51s, setup 240ms, import 606ms, tests 6.03s, environment 497ms)[22m
+
