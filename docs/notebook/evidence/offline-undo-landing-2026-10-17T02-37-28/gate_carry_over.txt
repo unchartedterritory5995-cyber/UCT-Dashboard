@@ -1,0 +1,13 @@
+  RE-GATE — could not evaluate: C2
+    ok   C1
+    ???? C2
+    ok   C3
+  ⛔ C4 is still owed by the caller — run exactly:
+      cd app && npx vitest run src/components/StockChart.focusWarmStep.test.jsx src/components/chart/PatternOverlay.tiersV2.test.jsx src/pages/journal-2-0/lib/offline/ordinaryUndoNoPin.test.jsx src/pages/journal-2-0/lib/offline/restoreUndoKeepsWords.test.jsx src/pages/journal-2-0/lib/offline/swapLineageRotation.test.jsx src/pages/screener/focus/__tests__/ChartPane.readyOnFirstPaint.test.jsx src/pages/screener/focus/__tests__/newToday.test.jsx src/pages/screener/focus/__tests__/premarket.test.jsx
+      python -m pytest tests/pattern_engine/detectors/test_uct_pullback_ma_v5.py tests/pattern_engine/detectors/test_uct_pullback_ma_v5_parity.py tests/test_auto_structures.py tests/test_breadth_eod_source.py tests/test_breadth_pipeline_current.py tests/test_breadth_v2_ledger_carry.py tests/test_breadth_v2_producer.py tests/test_drawing_geometry_v2.py tests/test_massive_market_snapshot.py tests/test_massive_snapshot_last_trade_time.py tests/test_pattern_scan_depth_and_sym.py tests/test_scan_screener_auth.py tests/test_screener_count_batch.py tests/test_screener_focus_flag.py tests/test_screener_live_read_path.py tests/test_screener_new_today.py tests/test_screener_new_today_route.py tests/test_screener_premarket_serving.py tests/test_screener_premarket_starters.py tests/test_screener_premarket_sweep.py tests/test_screener_starter_copy.py tests/test_tsdr_lessons.py tests/test_uct_internal_detectors_gate.py -q
+  ⛔ C5 is the master deploy-gate workflow on the LANDED sha. It gates the
+     PROMOTION of `production`, which is what `web` deploys from -- so a red
+     workflow means no member-facing deploy and an immediate report.
+     ⚠️ It runs FIVE FAST CHECKS, not the full suite (measured 2026-09-20), and
+     the five non-web services deploy from master regardless. The local gate is
+     the only full-suite verification a landing gets -- when in doubt, re-gate.
