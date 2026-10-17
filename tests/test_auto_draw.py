@@ -154,24 +154,27 @@ def test_clean_bars_clips_bad_prints_and_drops_unusable_rows():
 
 # ── the chart's default drawn set ───────────────────────────────────────────
 
-def test_drawn_set_always_carries_prior_day_and_ten_day_levels_nearest_first():
+def test_drawn_set_carries_ten_day_levels_nearest_first_and_no_prior_day_at_the_last_bar():
+    # team set round 2: the prior-day pair IS the last bar's range (as of the next session), so it
+    # is never drawn right at the last candle; the 10-day pair stays unless it duplicates a level
     bars = _synthetic(7)
     d = auto_draw.drawn_set(bars)
     hs = d["horizontals"]
     assert 1 <= len(hs) <= auto_draw.DRAWN_HORIZONTALS
-    last = bars[-1]
     w10 = bars[-10:]
-    defaults = {"prior_day_high": last[2], "prior_day_low": last[3],
-                "ten_day_high": max(b[2] for b in w10), "ten_day_low": min(b[3] for b in w10)}
+    defaults = {"ten_day_high": max(b[2] for b in w10), "ten_day_low": min(b[3] for b in w10)}
     got = {h["source"]: h["price"] for h in hs}
-    # each default is present unless it sits within 0.5 ATR of an earlier default (PDH can BE the 10D high)
     for src, price in defaults.items():
-        assert src in got or any(abs(price - got[s]) <= 0.5 * d["atr"] for s in got if s in defaults), src
+        assert src in got or any(abs(price - p) <= auto_draw.H_DUP_ATR * d["atr"] for p in got.values())             or len(hs) == auto_draw.DRAWN_HORIZONTALS, src
+    assert not {"prior_day_high", "prior_day_low"} & set(got)
     dists = [abs(h["price"] - d["last_close"]) for h in hs]
     assert dists == sorted(dists)
-    assert any(h["source"] == "learned" for h in hs), "control: the learned fill never entered"
+    # round 4: major swings rank ahead of the learned fill, so it enters on some charts, not all
+    assert any(h["source"] == "learned" for s in range(1, 21)
+               for h in auto_draw.drawn_set(_synthetic(s))["horizontals"]), \
+        "control: the learned fill never entered"
     assert 1 <= len(d["trendlines"]) <= auto_draw.DRAWN_TRENDLINES
-    assert d["asof_t"] == last[0] and d["model"].endswith(auto_draw.MODEL_DATE)
+    assert d["asof_t"] == bars[-1][0] and d["model"].endswith(auto_draw.MODEL_DATE)
     for tl in d["trendlines"]:
         assert {"t1", "p1", "t2", "p2", "p_now", "score"} <= set(tl)
 
