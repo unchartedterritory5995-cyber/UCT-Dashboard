@@ -24,6 +24,10 @@ WHAT THE BLOCK SAYS, bounded by MAX_BLOCK_CHARS (the archive block's own cap), e
   [RECORD · setup <id>]           n scored calls, 20d win rate, edge vs the same stock and the
                                   verdict: "measured edge" ONLY at |z| >= EDGE_Z on at least
                                   MIN_CONTEXT_N scored calls (team_record.verdict), else "not proven"
+  [TRADERS · setup <id>]          who has an edge on this setup: from the imported playbook's
+                                  per-trader cut (context.trader), each of the six traders is
+                                  "measured edge" / "measured negative" under the SAME rule, else
+                                  "not enough data"; display names and numbers only, never a quote
   [REGIME · QQQ <state> · ...]    only when the question names a market condition
   [LEVELS · ...]                  the level KINDS the team draws for that family (LEVEL_KINDS)
   [<trader> · <date> · <record>]  up to MAX_TEACHINGS teachings, scrubbed of prices/dates/levels
@@ -62,6 +66,8 @@ HEADER = ("\n\nTRADER ARCHIVE — SETUP CONTEXT (the UCT team's dated posts in t
           "setup this question names; cite the trader, the date and the record id in brackets, e.g. "
           "'TSDR, 2025-01-02, t123'; a RECORD line covers every archived call of the setup, win rate and "
           "edge are outcomes 20 sessions after each call, edge = versus the same stock on a random day; "
+          "a TRADERS line splits the team's traders by their own record on the setup (edge, negative, or "
+          "not enough data to say); "
           "LEVELS are the kinds of lines the team draws, never prices to act on; historical posts, never "
           "current market data or a recommendation): ")
 
@@ -315,6 +321,64 @@ def record_line(pb: dict) -> str:
     return f"[RECORD · setup {sid}] all archived calls: " + _stat_bits(st)
 
 
+def _team_display() -> dict:
+    """normalised key -> author id, for the six team authors (their id and their display name)."""
+    from api.services.wisdom.publish.adapters import common
+
+    out = {}
+    for aid in common.team_author_ids():
+        for k in (aid, common.speaker(aid)):
+            norm = re.sub(r"[^a-z0-9]", "", str(k or "").lower())
+            if norm and norm != "unknown":
+                out[norm] = aid
+    return out
+
+
+def trader_cuts(pb: dict) -> dict:
+    """{'edge': [(author_id, stats)], 'negative': [...], 'not_enough_data': [author_id]} from the
+    playbook's per-trader cut. Keys that are not one of the team's authors are dropped."""
+    from api.services.wisdom.archive import team_record
+
+    edge_z, min_n = team_record._thresholds()
+    team = _team_display()
+    out: dict = {"edge": [], "negative": [], "not_enough_data": []}
+    cuts = ((pb.get("context") or {}).get("trader")) or {}
+    for key in sorted(cuts):
+        aid = team.get(re.sub(r"[^a-z0-9]", "", str(key).lower()))
+        st = cuts.get(key) or {}
+        if not aid or not int(st.get("n_scored") or 0):
+            continue
+        z, n = _num(st.get("edgeR_z")), int(st.get("n_scored") or 0)
+        if z is not None and abs(z) >= edge_z and n >= min_n:
+            out["edge" if z > 0 else "negative"].append((aid, st))
+        else:
+            out["not_enough_data"].append(aid)
+    return out
+
+
+def traders_line(pb: dict) -> str:
+    """Who has an edge on this setup, or "" when the playbook carries no per-trader cut."""
+    cuts = trader_cuts(pb)
+    if not any(cuts.values()):
+        return ""
+
+    def item(aid, st):
+        bits = [f"n {int(st.get('n_scored') or 0)}"]
+        edge = _num(st.get("mean_edgeR"))
+        if edge is not None:
+            bits.append(f"edge R {edge:+.2f}")
+        z = _num(st.get("edgeR_z"))
+        if z is not None:
+            bits.append(f"z {z:.1f}")
+        return f"{_speaker(aid)} ({', '.join(bits)})"
+
+    parts = [f"measured edge: {'; '.join(item(a, s) for a, s in cuts['edge']) or 'none'}",
+             f"measured negative: {'; '.join(item(a, s) for a, s in cuts['negative']) or 'none'}"]
+    if cuts["not_enough_data"]:
+        parts.append("not enough data: " + ", ".join(_speaker(a) for a in cuts["not_enough_data"]))
+    return f"[TRADERS · setup {pb.get('setup_id')}] who has an edge on this setup: " + "; ".join(parts)
+
+
 def regime_line(pb: dict, state: str) -> str:
     cut = ((pb.get("context") or {}).get("market") or {}).get(state)
     head = f"[REGIME · QQQ {state} · setup {pb.get('setup_id')}] "
@@ -494,6 +558,12 @@ def setup_block(query: Optional[str], *, question_type: Optional[str] = None,
                 items.append((definition_line(pb), cite))
                 items.append((record_line(pb), {**cite, "kind": f"{KIND}_record",
                                                 "stats": ((pb.get("stats") or {}).get("all")) or {}}))
+                tl = traders_line(pb)
+                if tl:
+                    cuts = trader_cuts(pb)
+                    items.append((tl, {**cite, "kind": f"{KIND}_traders",
+                                       "traders": {k: [a if isinstance(a, str) else a[0] for a in v]
+                                                   for k, v in cuts.items()}}))
                 state = regime_named(q)
                 if state:
                     items.append((regime_line(pb, state), {**cite, "kind": f"{KIND}_regime", "regime": state}))
