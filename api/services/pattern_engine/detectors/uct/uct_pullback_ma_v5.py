@@ -59,13 +59,15 @@ against the lab code, bar for bar.
 
 REACHABILITY (read before relying on this detector):
   * The rule needs the 200 SMA on the marked session AND 20 sessions earlier,
-    i.e. at least `_MIN_BARS` (220) daily bars. The universe scan in
-    api/main.py passes 200, so there it can never fire until that depth is
-    raised; it fires wherever a caller passes >= 220 bars.
-  * The universe exclusion needs the ticker. Detectors receive (bars, context)
-    and `build_context` does not put the symbol in the context, so the
-    exclusion applies only when a caller sets `context["sym"]`; without it the
-    rule runs as the lab does with sym=None (no exclusion).
+    i.e. at least `_MIN_BARS` (220) daily bars. It declares `MIN_BARS` (222,
+    so the two prior trigger sessions are evaluable too) at registration; the
+    daily scan in api/main.py fetches the deepest declaration and hands this
+    detector its own 222-bar slice, while every other detector, and the
+    context, still receive exactly the 200 bars they always did.
+  * The universe exclusion needs the ticker. This detector registers with
+    `wants_sym=True`, so `detect_all(..., sym=X)` (the daily scan passes it;
+    pattern vision runs only FOCUSED_SETUPS) hands it, and only it, a context carrying `sym`. A
+    context without it gets the lab's sym=None behaviour (no exclusion).
 """
 from __future__ import annotations
 
@@ -111,6 +113,9 @@ PB4_EXCLUDE = frozenset((
 
 _MIN_IDX = 199 + PB3_S200_SLOPE_BARS   # s200 exists at i - 20 (the lab returns None before)
 _MIN_BARS = _MIN_IDX + 1
+#: History declared to the scan (registry `min_bars`): enough for the newest
+#: session AND the two prior sessions the wrapper may report (MAX_TRIGGER_AGE).
+MIN_BARS = _MIN_BARS + U.MAX_TRIGGER_AGE - 1
 
 _MA_LABEL = {"e8": "the 8-day EMA", "e21": "the 21-day EMA", "s50": "the 50-day SMA",
              "s200": "the 200-day SMA"}
@@ -295,4 +300,4 @@ def _narrative(c, levels, context, ma_txt) -> dict:
             "what_to_watch_for": what_to_watch_for, "failure_signal": failure_signal}
 
 
-register(_PATTERN_ID, detect_uct_pullback_ma_v5)
+register(_PATTERN_ID, detect_uct_pullback_ma_v5, min_bars=MIN_BARS, wants_sym=True)
