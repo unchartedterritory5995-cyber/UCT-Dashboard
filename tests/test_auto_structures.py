@@ -30,7 +30,7 @@ from api.services.pattern_engine.detectors.registry import (
 )
 from api.services.pattern_engine.primitives.context import build_context
 from api.services.pattern_engine.primitives.geometry import bar_time
-from tests.authclients import ADMIN, PAID_MEMBER, authorize
+from tests.authclients import ADMIN, FREE_MEMBER, PAID_MEMBER, authorize
 from tests.detector_fixtures import walk, ymd_t
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -168,8 +168,8 @@ def test_detect_all_stamps_pattern_end_without_touching_end_t():
 
 # ── fix 4-6: one display policy ─────────────────────────────────────────────
 
-def test_display_policy_matches_the_tiers_v2_report():
-    """lab/geometry_eval REPORT_TIERS_V2.md (2026-10-17), blind tier round v2."""
+def test_display_policy_matches_the_tiers_v3_report():
+    """lab/geometry_eval REPORT_TIERS_V2.md + REPORT_TIERS_V3.md (2026-10-17), blind tier rounds."""
     assert registry.DISPLAY_TRUSTED == {"donchian_breakout", "rectangle"}
     for pid in ("donchian_breakout", "rectangle"):
         assert display_policy(pid)["display_tier"] == "trusted"
@@ -178,16 +178,20 @@ def test_display_policy_matches_the_tiers_v2_report():
     # round-1 trusted that failed AS DRAWN in v2 -> experimental
     for pid in ("bull_flag", "pullback_to_10ema", "holy_grail"):
         assert display_policy(pid)["display_tier"] == "experimental"
-    v2_hidden = ("double_bottom", "double_top", "head_shoulders", "flat_base", "vcp",
+    v2_hidden = ("double_bottom", "double_top", "head_shoulders", "vcp",
                  "higher_low_continuation", "inverse_cup_handle", "qullamaggie_setup",
                  "range_detection", "bc:vcp", "bc:base-on-base")
+    v3_hidden = ("bc:flat-base",)
     round1_hidden = ("inverse_head_shoulders", "triple_top", "triple_bottom", "u_and_r",
                      "symmetrical_triangle", "descending_triangle", "bear_flag",
                      "bc:ugly-double-bottom", "bc:green-line-breakout", "bc:darvas-box")
-    assert registry.DISPLAY_HIDDEN == set(v2_hidden) | set(round1_hidden)
-    for pid in v2_hidden + round1_hidden:
+    assert registry.DISPLAY_HIDDEN == set(v2_hidden) | set(round1_hidden) | set(v3_hidden)
+    for pid in v2_hidden + round1_hidden + v3_hidden:
         assert display_policy(pid)["display_tier"] == "hidden"
-    # rated but never rendered (no verdicts) -> stay experimental
+    # v3: flat_base's capped box lifted it 0.30 -> 1.60 -> experimental
+    assert display_policy("flat_base")["display_tier"] == "experimental"
+    # v3: rsi_bearish_divergence met the trusted rule (2.30) but was judged without an RSI
+    # panel -> held experimental until an RSI-panel re-test; rsi_bullish 2.10 -> experimental
     for pid in ("rsi_bearish_divergence", "rsi_bullish_divergence"):
         assert display_policy(pid)["display_tier"] == "experimental"
     for pid in ("support_resistance", "volume_profile_nodes"):
@@ -257,7 +261,9 @@ def test_box_to_detection_keeps_every_number_and_uses_real_times():
     ex = d["geometry"]["extras"]
     assert (ex["top"], ex["floor"], ex["pivot"]) == (142.1, 131.4, 142.1)
     assert d["levels"]["entry"] == 142.1
-    assert d["display_tier"] == "experimental"
+    assert d["display_tier"] == "hidden"          # bc:flat-base, REPORT_TIERS_V3.md
+    assert auto_structures.box_to_detection(
+        "ZZZ", {**BOX, "structure_key": "square-box"})["display_tier"] == "experimental"
     assert auto_structures.box_to_detection("ZZZ", {**BOX, "structure_key": "darvas-box"})["display_tier"] == "hidden"
     assert auto_structures.box_to_detection(
         "ZZZ", {**BOX, "structure_key": "cup-with-handle"})["display_tier"] == "experimental"
@@ -292,3 +298,120 @@ def test_auth_payload_carries_the_flag_only_for_an_admin_while_on(monkeypatch):
     assert auth._auto_structures_flag(True) == {}
     monkeypatch.delenv("AUTO_STRUCTURES_ENABLED")
     assert auth._auto_structures_flag(True) == {}
+
+
+# ── the MEMBER flip (AUTO_STRUCTURES_MEMBERS_ENABLED, trusted tier only) ─────
+
+#: One row per display bucket: trusted (x2), experimental, hidden, the levels layer.
+MIXED_ROWS = [
+    {"id": "a", "pattern_id": "donchian_breakout"},
+    {"id": "b", "pattern_id": "rectangle"},
+    {"id": "c", "pattern_id": "bull_flag"},
+    {"id": "d", "pattern_id": "double_bottom"},
+    {"id": "e", "pattern_id": "support_resistance"},
+]
+STRUCT_URL = "/api/patterns/ZZZ?tf=D&confirmed_only=false&include_structures=true"
+
+
+@pytest.fixture
+def _box_and_drawn(monkeypatch):
+    monkeypatch.setattr(auto_structures, "structures_for",
+                        lambda sym: [auto_structures.box_to_detection(sym, BOX)])
+    monkeypatch.setattr(auto_structures, "drawn_for",
+                        lambda sym: {"trendlines": [], "horizontals": [], "suppress": {}})
+
+
+def _flags(monkeypatch, admin, members):
+    for name, on in (("AUTO_STRUCTURES_ENABLED", admin), ("AUTO_STRUCTURES_MEMBERS_ENABLED", members)):
+        if on is None:
+            monkeypatch.delenv(name, raising=False)
+        else:
+            monkeypatch.setenv(name, "1" if on else "0")
+
+
+def test_members_enabled_needs_both_flags(monkeypatch):
+    for admin, members, want in ((None, None, False), (True, None, False), (True, False, False),
+                                 (False, True, False), (None, True, False), (True, True, True)):
+        _flags(monkeypatch, admin, members)
+        assert auto_structures.members_enabled() is want, (admin, members)
+
+
+def test_member_flag_off_is_byte_identical_to_before(monkeypatch, _box_and_drawn):
+    """Member flag OFF (admin flag on or off): the member's include_structures response is the
+    old raw payload — every row, no structures/drawn — exactly what it was before this flag."""
+    for admin in (True, False, None):
+        _flags(monkeypatch, admin, False)
+        body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
+        assert [r["id"] for r in body["detections"]] == ["a", "b", "c", "d", "e"]
+        assert "structures" not in body and "drawn" not in body
+        assert set(body) == {"sym", "tf", "detections", "count"}
+
+
+def test_member_flag_on_serves_only_trusted_rows_and_no_structures(monkeypatch, _box_and_drawn):
+    _flags(monkeypatch, True, True)
+    body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
+    assert [r["pattern_id"] for r in body["detections"]] == ["donchian_breakout", "rectangle"]
+    assert {r["display_tier"] for r in body["detections"]} == {"trusted"}
+    assert body["count"] == 2
+    assert "structures" not in body and "drawn" not in body
+    # The member flag is not a door by itself: admin flag off closes it.
+    _flags(monkeypatch, False, True)
+    body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
+    assert len(body["detections"]) == 5 and "structures" not in body
+
+
+def test_member_filter_follows_the_registry_constant(monkeypatch, _box_and_drawn):
+    """Derived, not restated: moving DISPLAY_TRUSTED moves what a member gets."""
+    _flags(monkeypatch, True, True)
+    monkeypatch.setattr(registry, "DISPLAY_TRUSTED", frozenset({"bull_flag"}))
+    body = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json()
+    assert [r["pattern_id"] for r in body["detections"]] == ["bull_flag"]
+
+
+def test_admin_is_unchanged_by_the_member_flag(monkeypatch, _box_and_drawn):
+    bodies = []
+    for members in (False, True):
+        _flags(monkeypatch, True, members)
+        bodies.append(_client(ADMIN, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).json())
+    assert bodies[0] == bodies[1]
+    assert [r["id"] for r in bodies[1]["detections"]] == ["a", "b", "c", "d", "e"]
+    assert bodies[1]["structures"][0]["geometry"]["shape"] == "base_box"
+    assert "drawn" in bodies[1]
+
+
+def test_member_without_include_structures_and_confirmed_only_are_unchanged(monkeypatch, _box_and_drawn):
+    from api.services.pattern_vision import store as pv_store
+    _flags(monkeypatch, True, True)
+    c = _client(PAID_MEMBER, monkeypatch, rows=MIXED_ROWS)
+    raw = c.get("/api/patterns/ZZZ?tf=D&confirmed_only=false").json()
+    assert len(raw["detections"]) == 5
+    monkeypatch.setattr(pv_store, "init_db", lambda: None)
+    monkeypatch.setattr(pv_store, "get_confirmed", lambda sym, tf: [])
+    monkeypatch.setattr(pv_store, "count_evaluated", lambda sym, tf: 0)
+    monkeypatch.setattr(pv_store, "last_judged_at", lambda sym, tf: None)
+    for url in ("/api/patterns/ZZZ?tf=D", "/api/patterns/ZZZ?tf=D&include_structures=true"):
+        body = c.get(url).json()
+        assert set(body) == {"sym", "tf", "verdicts", "count", "evaluated", "as_of"}, url
+
+
+def test_free_and_unauthenticated_still_refused(monkeypatch, _box_and_drawn):
+    _flags(monkeypatch, True, True)
+    assert _client(FREE_MEMBER, monkeypatch, rows=MIXED_ROWS).get(STRUCT_URL).status_code in (401, 402, 403)
+    app = FastAPI()
+    app.include_router(patterns_router.router)
+    assert TestClient(app).get(STRUCT_URL).status_code in (401, 403)
+
+
+def test_auth_payload_member_key(monkeypatch):
+    from api.routers import auth
+    _flags(monkeypatch, True, True)
+    assert auth._auto_structures_flag(False, True) == {"auto_structures_members_enabled": True}
+    assert auth._auto_structures_flag(False, False) == {}  # free: nothing
+    assert auth._auto_structures_flag(False) == {}
+    assert auth._auto_structures_flag(True, True) == {"auto_structures_enabled": True}  # admin unchanged
+    _flags(monkeypatch, True, False)
+    assert auth._auto_structures_flag(False, True) == {}
+    assert auth._auto_structures_flag(True, True) == {"auto_structures_enabled": True}
+    _flags(monkeypatch, False, True)
+    assert auth._auto_structures_flag(False, True) == {}
+    assert auth._auto_structures_flag(True, True) == {}

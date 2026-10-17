@@ -33,8 +33,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Query
+from pydantic import BaseModel, Field, field_validator
 
 from api.middleware.auth_middleware import (
     get_current_user_with_plan,
@@ -744,7 +744,7 @@ def get_detections(
     types: Optional[str] = Query(default=None, description="comma-separated pattern_ids to filter"),
     min_conf: float = Query(default=50.0, ge=0.0, le=100.0),
     confirmed_only: bool = Query(default=True, description="only Opus-vision-confirmed verdicts"),
-    include_structures: bool = Query(default=False, description="admin + AUTO_STRUCTURES_ENABLED: add the current base boxes"),
+    include_structures: bool = Query(default=False, description="admin + AUTO_STRUCTURES_ENABLED: add the current base boxes; a member with AUTO_STRUCTURES_MEMBERS_ENABLED gets trusted-tier rows only"),
 ):
     """Return detections for a symbol.
 
@@ -796,8 +796,18 @@ def get_detections(
     # (registry.display_policy). Additive keys: no existing field changes.
     rows = [{**r, **_pe_registry.display_policy(r.get("pattern_id"))} for r in rows]
     out = {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
-    # Base boxes (AUTO_STRUCTURES_ENABLED, ADMINS ONLY until a later flip). A
-    # member asking for them gets the payload exactly as before — no key at all.
+    # Auto Structures for MEMBERS (AUTO_STRUCTURES_MEMBERS_ENABLED + AUTO_STRUCTURES_ENABLED,
+    # both read per request): a non-admin's chart toggle asks with include_structures=true,
+    # and gets ONLY trusted-tier rows (registry.DISPLAY_TRUSTED), filtered HERE, never by
+    # the client. No `structures` / `drawn` key: base boxes, the levels layer and the
+    # learned drawer stay admin-only. With the member flag off the payload is as before.
+    if include_structures and not is_admin:
+        from api.services import auto_structures
+        if auto_structures.members_enabled():
+            rows = auto_structures.member_rows(rows)
+            return {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
+    # Base boxes (AUTO_STRUCTURES_ENABLED, ADMINS ONLY). A member asking for them gets
+    # no `structures` / `drawn` key at all.
     if include_structures and is_admin:
         from api.services import auto_structures
         if auto_structures.enabled():
@@ -1049,3 +1059,198 @@ def patterns_delete_exemplar(exemplar_id: int, user=Depends(require_admin)):
     pv_store.init_db()
     pv_store.delete_exemplar(exemplar_id)
     return {"ok": True}
+
+
+# ---- Gold-set drawing review (2026-10-17) -----------------------------------
+# A batch of auto-drawn charts that traders confirm or correct. Separate tables
+# (gold_review_items / gold_review_corrections) on purpose: nothing here writes
+# pattern_verdicts (served to members) or pattern_exemplars (fed to the live
+# judge prompt). Bulk load + export also take Bearer PUSH_SECRET so the lab
+# script can drive them without an admin cookie.
+
+import hmac as _hmac
+import json as _json
+import os as _os
+import re as _re
+
+GOLD_MAX_ITEMS = 250
+GOLD_MAX_DRAWINGS = 60
+GOLD_MAX_DRAWINGS_BYTES = 64 * 1024
+GOLD_MAX_NOTE = 2000
+GOLD_EXPORT_MAX = 5000
+_GOLD_ID_RE = _re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+_GOLD_BATCH_RE = _re.compile(r"^[A-Za-z0-9_-]{1,32}$")
+_GOLD_TICKER_RE = _re.compile(r"^[A-Z0-9.\-]{1,12}$")
+_GOLD_DATE_RE = _re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def require_admin_or_push_secret(
+    authorization: Optional[str] = Header(None),
+    uct_session: Optional[str] = Cookie(None),
+) -> dict:
+    """Admin session cookie OR `Authorization: Bearer <PUSH_SECRET>`.
+
+    A presented Authorization header is decided on its own: a wrong one is 401
+    even if a valid admin cookie rides along, and an unset PUSH_SECRET never
+    matches (fail closed). Without the header this is exactly require_admin.
+    """
+    if authorization is not None:
+        secret = _os.environ.get("PUSH_SECRET", "")
+        token = authorization[7:] if authorization.startswith("Bearer ") else ""
+        if secret and token and _hmac.compare_digest(token.encode(), secret.encode()):
+            return {"id": "push_secret", "role": "admin"}
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    from api.services.auth_service import validate_session
+    user = validate_session(uct_session)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+
+def _check_drawings(d) -> list:
+    if not isinstance(d, list):
+        raise ValueError("drawings must be a JSON array")
+    if len(d) > GOLD_MAX_DRAWINGS:
+        raise ValueError(f"at most {GOLD_MAX_DRAWINGS} drawings")
+    if not all(isinstance(x, dict) for x in d):
+        raise ValueError("each drawing must be an object")
+    if len(_json.dumps(d, separators=(",", ":"))) > GOLD_MAX_DRAWINGS_BYTES:
+        raise ValueError(f"drawings exceed {GOLD_MAX_DRAWINGS_BYTES} bytes")
+    return d
+
+
+class GoldItemIn(BaseModel):
+    item_id: str
+    ticker: str
+    tf: str = "D"
+    label: Optional[str] = Field(default=None, max_length=80)
+    asof_date: str
+    start_date: Optional[str] = None
+    seed_drawings: list = Field(default_factory=list)
+
+    @field_validator("item_id")
+    @classmethod
+    def _item_id(cls, v):
+        if not _GOLD_ID_RE.match(v):
+            raise ValueError("item_id must match [A-Za-z0-9_-]{1,64}")
+        return v
+
+    @field_validator("ticker")
+    @classmethod
+    def _ticker(cls, v):
+        v = v.strip().upper()
+        if not _GOLD_TICKER_RE.match(v):
+            raise ValueError("bad ticker")
+        return v
+
+    @field_validator("tf")
+    @classmethod
+    def _tf(cls, v):
+        if v not in ("D", "W"):
+            raise ValueError("tf must be D or W")
+        return v
+
+    @field_validator("asof_date", "start_date")
+    @classmethod
+    def _date(cls, v):
+        if v is not None and not _GOLD_DATE_RE.match(v):
+            raise ValueError("dates must be YYYY-MM-DD")
+        return v
+
+    @field_validator("seed_drawings")
+    @classmethod
+    def _seed(cls, v):
+        return _check_drawings(v)
+
+
+class GoldLoadBody(BaseModel):
+    batch: str
+    items: list[GoldItemIn] = Field(min_length=1, max_length=GOLD_MAX_ITEMS)
+
+    @field_validator("batch")
+    @classmethod
+    def _batch(cls, v):
+        if not _GOLD_BATCH_RE.match(v):
+            raise ValueError("batch must match [A-Za-z0-9_-]{1,32}")
+        return v
+
+
+class GoldCorrectionBody(BaseModel):
+    verdict: str
+    drawings_json: Optional[str] = Field(default=None, max_length=GOLD_MAX_DRAWINGS_BYTES)
+    note: Optional[str] = Field(default=None, max_length=GOLD_MAX_NOTE)
+
+    @field_validator("verdict")
+    @classmethod
+    def _verdict(cls, v):
+        from api.services.pattern_vision.store import GOLD_VERDICTS
+        if v not in GOLD_VERDICTS:
+            raise ValueError(f"verdict must be one of {GOLD_VERDICTS}")
+        return v
+
+    @field_validator("drawings_json")
+    @classmethod
+    def _dj(cls, v):
+        if v is None:
+            return v
+        try:
+            parsed = _json.loads(v)
+        except ValueError:
+            raise ValueError("drawings_json must be valid JSON")
+        _check_drawings(parsed)
+        return v
+
+
+@router.post("/admin/gold-items")
+def patterns_gold_load(body: GoldLoadBody, user=Depends(require_admin_or_push_secret)):
+    """Bulk load (<=250) gold-set review items. Idempotent on item_id."""
+    from api.services.pattern_vision import store as pv_store
+    ids = [it.item_id for it in body.items]
+    if len(set(ids)) != len(ids):
+        raise HTTPException(status_code=422, detail="duplicate item_id in batch")
+    pv_store.init_db()
+    rows = [{
+        "item_id": it.item_id, "ticker": it.ticker, "tf": it.tf, "label": it.label,
+        "asof_date": it.asof_date, "start_date": it.start_date,
+        "seed_drawings_json": _json.dumps(it.seed_drawings, separators=(",", ":")),
+    } for it in body.items]
+    n = pv_store.upsert_gold_items(body.batch, rows)
+    return {"ok": True, "batch": body.batch, "loaded": n}
+
+
+@router.get("/admin/gold-items")
+def patterns_gold_list(batch: Optional[str] = None, user=Depends(require_admin)):
+    """Admin: gold-set items + each item's latest correction, and progress."""
+    from api.services.pattern_vision import store as pv_store
+    pv_store.init_db()
+    items = pv_store.list_gold_items(batch=batch)
+    done = sum(1 for i in items if i["correction"] and i["correction"]["verdict"] != "skip")
+    skipped = sum(1 for i in items if i["correction"] and i["correction"]["verdict"] == "skip")
+    return {"items": items, "total": len(items), "done": done, "skipped": skipped}
+
+
+@router.post("/admin/gold-items/{item_id}/correction")
+def patterns_gold_correction(item_id: str, body: GoldCorrectionBody,
+                             user=Depends(require_admin)):
+    """Admin: record a trader's verdict/correction. Never writes exemplars."""
+    from api.services.pattern_vision import store as pv_store
+    if not _GOLD_ID_RE.match(item_id):
+        raise HTTPException(status_code=422, detail="bad item_id")
+    pv_store.init_db()
+    if not pv_store.gold_item_exists(item_id):
+        raise HTTPException(status_code=404, detail="unknown gold item")
+    cid = pv_store.add_gold_correction(item_id, body.verdict, drawings_json=body.drawings_json,
+                                       note=body.note, by_user=str(user.get("id")))
+    return {"ok": True, "correction_id": cid}
+
+
+@router.get("/admin/gold-corrections")
+def patterns_gold_export(batch: Optional[str] = None,
+                         limit: int = Query(GOLD_EXPORT_MAX, ge=1, le=GOLD_EXPORT_MAX),
+                         user=Depends(require_admin_or_push_secret)):
+    """Export every correction row with its exact drawings_json."""
+    from api.services.pattern_vision import store as pv_store
+    pv_store.init_db()
+    return {"corrections": pv_store.list_gold_corrections(batch=batch, limit=limit)}

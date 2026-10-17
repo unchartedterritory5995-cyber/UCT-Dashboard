@@ -21,7 +21,8 @@ export function usePatternDetections(sym, tf, enabled = true, minConf = 50, { in
   // geometry to draw shapes. The confirmed-vision surface lives on /confirmed/{sym}.
   // includeStructures (AUTO_STRUCTURES_ENABLED, admins): the server adds the current
   // base boxes as `structures` and the learned auto-drawer's lines as `drawn`;
-  // a member's request never carries the parameter.
+  // a paid member with AUTO_STRUCTURES_MEMBERS_ENABLED also sends it, and the server answers with
+  // trusted-tier rows only (no `structures` / `drawn`).
   const key =
     enabled && sym && tf
       ? `/api/patterns/${encodeURIComponent(sym)}?tf=${encodeURIComponent(tf)}&min_conf=${minConf}&confirmed_only=false${includeStructures ? '&include_structures=true' : ''}`

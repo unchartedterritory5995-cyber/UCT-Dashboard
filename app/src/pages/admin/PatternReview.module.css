@@ -80,3 +80,10 @@
 .exDel {
   background: transparent; border: none; color: var(--loss, #e74c3c); cursor: pointer; font-size: 12px;
 }
+
+.modes { display: flex; gap: 6px; margin: 6px 0 8px; }
+.mode {
+  min-height: 44px; padding: 0 14px; border-radius: var(--radius-md); font-size: 13px; cursor: pointer;
+  border: 1px solid var(--border, #2e3127); background: transparent; color: var(--text, #a8a290);
+}
+.modeActive { border-color: var(--ut-gold, #dcbb5e); color: var(--ut-gold, #dcbb5e); background: var(--bg-elevated, #22251e); }

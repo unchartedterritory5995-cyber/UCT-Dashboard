@@ -94,7 +94,7 @@ export function drawGeometry(d) {
  * Which detections draw, given the server's per-row policy and the viewer's toggles.
  * Pure — exported for tests.
  */
-export function selectDrawable(detections, { tf, showExperimental = true, showLevels = false, lastPrice = null, suppress = null } = {}) {
+export function selectDrawable(detections, { tf, showExperimental = true, showLevels = false, lastPrice = null, suppress = null, trustedOnly = false } = {}) {
   const dateTf = tf == null ? false : isDateTf(tf)
   const structures = []
   const levels = []
@@ -102,12 +102,15 @@ export function selectDrawable(detections, { tf, showExperimental = true, showLe
     if (!d) continue
     if (suppress && Object.prototype.hasOwnProperty.call(suppress, d.pattern_id)) continue
     if (d.display_tier === 'hidden') continue
+    // A member (AUTO_STRUCTURES_MEMBERS_ENABLED) draws the trusted tier ONLY; a row with no
+    // tier is not trusted. The server already filtered; this never widens what it sent.
+    if (trustedOnly && d.display_tier !== 'trusted') continue
     if (d.display_tier === 'experimental' && !showExperimental) continue
     if (dateTf && d.intraday_only) continue
     if (d.display_layer === 'levels') levels.push(d)
     else structures.push(d)
   }
-  if (!showLevels || !levels.length) return structures
+  if (trustedOnly || !showLevels || !levels.length) return structures
   let chosen = levels
   if (Number.isFinite(lastPrice)) {
     chosen = [...levels]
@@ -131,6 +134,7 @@ export function selectDrawable(detections, { tf, showExperimental = true, showLe
  *   showLevels:        draw the levels layer (nearest LEVELS_NEAREST to lastPrice); default false
  *   lastPrice:         the latest close, for choosing the nearest levels
  *   drawn:             the learned auto-drawer block (`drawn` on the response) or null
+ *   trustedOnly:       draw ONLY display_tier 'trusted' rows, no levels, no drawn (members); default false
  */
 export default function PatternOverlay({
   chart,
@@ -145,6 +149,7 @@ export default function PatternOverlay({
   showLevels = false,
   lastPrice = null,
   drawn = null,
+  trustedOnly = false,
 }) {
   const svgRef = useRef(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -179,11 +184,11 @@ export default function PatternOverlay({
     }
   }, [chart, containerRef, forceRedraw])
 
-  const hasDrawn = !!drawn && ((drawn.trendlines?.length || 0) + (drawn.horizontals?.length || 0)) > 0
+  const hasDrawn = !trustedOnly && !!drawn && ((drawn.trendlines?.length || 0) + (drawn.horizontals?.length || 0)) > 0
   if (!enabled || !chart || !series || (!detections?.length && !hasDrawn)) return null
 
   const drawable = selectDrawable(detections, {
-    tf, showExperimental, showLevels, lastPrice, suppress: hasDrawn ? drawn.suppress : null,
+    tf, showExperimental, showLevels, lastPrice, suppress: hasDrawn ? drawn.suppress : null, trustedOnly,
   })
   if (!drawable.length && !hasDrawn) return null
 

@@ -4,6 +4,7 @@ import StockChart from '../../components/StockChart'
 import { captureChartPng } from '../../utils/chartCapture'
 import styles from './PatternReview.module.css'
 import Textarea from '../../components/ui/Textarea'
+import GoldReview from './GoldReview'
 
 const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => r.json())
 
@@ -17,7 +18,7 @@ function parseDrawings(json) {
   }
 }
 
-export default function PatternReview() {
+function VerdictReview() {
   const { data, mutate } = useSWR('/api/patterns/admin/review?limit=120', fetcher, {
     revalidateOnFocus: false,
   })
@@ -94,15 +95,7 @@ export default function PatternReview() {
   }
 
   return (
-    <div className={styles.page}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Pattern Review</h1>
-        <p className={styles.sub}>
-          Review the AI judge's verdicts, give feedback, and draw the ideal — saved drawings become
-          gold-standard examples the judge learns from.
-        </p>
-      </div>
-
+    <>
       <div className={styles.body}>
         {/* LEFT: verdict list */}
         <div className={styles.list}>
@@ -210,6 +203,39 @@ export default function PatternReview() {
           )}
         </div>
       </div>
+    </>
+  )
+}
+
+function initialMode() {
+  try {
+    return new URLSearchParams(window.location.search).get('mode') === 'gold' ? 'gold' : 'verdicts'
+  } catch {
+    return 'verdicts'
+  }
+}
+
+export default function PatternReview() {
+  const [mode, setMode] = useState(initialMode)
+  return (
+    <div className={styles.page}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>Pattern Review</h1>
+        <div className={styles.modes} role="tablist" aria-label="Review mode">
+          <button role="tab" aria-selected={mode === 'verdicts'}
+            className={`${styles.mode} ${mode === 'verdicts' ? styles.modeActive : ''}`}
+            onClick={() => setMode('verdicts')}>Judge verdicts</button>
+          <button role="tab" aria-selected={mode === 'gold'}
+            className={`${styles.mode} ${mode === 'gold' ? styles.modeActive : ''}`}
+            onClick={() => setMode('gold')}>Gold set</button>
+        </div>
+        <p className={styles.sub}>
+          {mode === 'gold'
+            ? "Confirm or correct the auto-drawn geometry on each chart. Gold-set saves are kept separately and never change the judge's examples."
+            : "Review the AI judge's verdicts, give feedback, and draw the ideal — saved drawings become gold-standard examples the judge learns from."}
+        </p>
+      </div>
+      {mode === 'gold' ? <GoldReview /> : <VerdictReview />}
     </div>
   )
 }

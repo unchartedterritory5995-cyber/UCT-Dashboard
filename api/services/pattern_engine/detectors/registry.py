@@ -172,14 +172,28 @@ def list_public_pattern_ids() -> list[str]:
 #:                  1.90, holy_grail 1.80) and the RSI divergences, which never
 #:                  rendered (no verdicts). Drawn for admins, visually distinct.
 #: Members (later flip) see `trusted` only.
+#:
+#: v3 re-judge (lab/geometry_eval REPORT_TIERS_V3.md, 2026-10-17): the same
+#: blind rule over 13 detectors whose DRAWING changed, n=10 fresh charts each.
+#:   flat_base    0.30 -> 1.60: hidden -> EXPERIMENTAL (its capped base box).
+#:   bc:flat-base 1.60 -> 1.20: experimental -> HIDDEN (boxes still spanning
+#:                the chart, or stale after a breakdown).
+#:   rsi_bearish_divergence 2.30 (80% >=2) met the trusted rule but stays
+#:                EXPERIMENTAL: its charts were judged WITHOUT an RSI panel, so
+#:                only the price-extreme line was judged, never the divergence
+#:                itself (CI low 1.80). Re-test with the RSI panel first.
+#:   Unchanged: DISPLAY_TRUSTED; double_bottom / double_top / head_shoulders
+#:   stay hidden (their misses are now DETECTION: mismatched extremes).
 DISPLAY_TRUSTED: frozenset = frozenset({
     "donchian_breakout", "rectangle",
 })
 DISPLAY_HIDDEN: frozenset = frozenset({
     # v2 blind round (2026-10-17): mean < 1.5
-    "double_bottom", "double_top", "head_shoulders", "flat_base", "vcp",
+    "double_bottom", "double_top", "head_shoulders", "vcp",
     "higher_low_continuation", "inverse_cup_handle", "qullamaggie_setup",
     "range_detection", "bc:vcp", "bc:base-on-base",
+    # v3 re-judge (REPORT_TIERS_V3.md, 2026-10-17): mean < 1.5 (flat_base left)
+    "bc:flat-base",
     # round 1 (2026-10-16): noise
     "inverse_head_shoulders", "triple_top", "triple_bottom", "u_and_r",
     "symmetrical_triangle", "descending_triangle", "bear_flag",
