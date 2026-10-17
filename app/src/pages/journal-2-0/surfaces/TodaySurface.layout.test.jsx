@@ -12,7 +12,7 @@
  * actions row real.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 const { prefsRef, setPrefSpy, flagRef, checklistProbe } = vi.hoisted(() => ({
@@ -87,7 +87,21 @@ vi.mock('./today/panels/ChecklistTodayPanel', () => ({
     return <div data-testid="panel-checklistToday" />
   },
 }))
-vi.mock('./today/panels/MyRulesPanel', () => ({ default: () => <div data-testid="panel-myRules" /> }))
+// My rules is the one stub that HOLDS STATE: a counter a click increments. A panel that only moved keeps
+// its count; one that was remounted starts again at 0 (the reorder test below reads which happened).
+vi.mock('./today/panels/MyRulesPanel', async () => {
+  const { useState } = await import('react')
+  return {
+    default: function MyRulesStub() {
+      const [n, setN] = useState(0)
+      return (
+        <button type="button" data-testid="panel-myRules" onClick={() => setN((c) => c + 1)}>
+          {n}
+        </button>
+      )
+    },
+  }
+})
 vi.mock('./today/panels/RegimePanel', () => ({ default: () => <div data-testid="panel-regime" /> }))
 vi.mock('./today/panels/TodayNotePanel', () => ({ default: () => <div data-testid="panel-todayNote" /> }))
 vi.mock('./today/panels/NoticesPanel', () => ({ default: () => <div data-testid="panel-notices" /> }))
@@ -138,6 +152,7 @@ const savedLayout = (perPhase) => ({
 
 const PREMARKET = { isOpen: false, isPremarket: true, isExtended: false }
 const MARKET = { isOpen: true, isPremarket: false, isExtended: false }
+const POSTCLOSE = { isOpen: false, isPremarket: false, isExtended: false }
 
 // What TodaySurface.jsx showed after the lead before this task: CoachStrip, then the secondary block
 // (TodayWeekStrip, GoalProgress, TodayQuickActions). Captured by rendering the UNMODIFIED component at BASE
@@ -275,5 +290,65 @@ describe('TodaySurface renders from the page layout', () => {
     const { container } = renderToday()
     expect(panelOrder(container)).toEqual(['checklistToday'])
     expect(checklistProbe.mock.calls.at(-1)[0].accountId).toBeNull()
+  })
+
+  // A reorder must MOVE a panel, not remount it. React matches array children by key, so a panel that lost its
+  // key would be matched by position, unmount at its old slot and mount fresh at the new one, and its state would
+  // go. My rules is the stateful stub here: it holds a click counter.
+  it('a reorder moves a panel and does not remount it: the panel keeps its state', () => {
+    flagRef.current = true
+    prefsRef.current = {
+      [LAYOUT_PREF]: JSON.stringify(savedLayout({ market: [['myRules', true], ['regime', true]] })),
+    }
+    const { container, rerender } = renderToday()
+    expect(panelOrder(container)).toEqual(['myRules', 'regime'])
+
+    const before = container.querySelector(FINDERS.myRules)
+    fireEvent.click(before)
+    fireEvent.click(before)
+    expect(before.textContent).toBe('2')
+
+    // The member saves a reordered layout: Regime first, then My rules.
+    prefsRef.current = {
+      [LAYOUT_PREF]: JSON.stringify(savedLayout({ market: [['regime', true], ['myRules', true]] })),
+    }
+    rerender(
+      <MemoryRouter>
+        <TodaySurface />
+      </MemoryRouter>,
+    )
+    expect(panelOrder(container)).toEqual(['regime', 'myRules'])
+
+    // The same DOM node, with its count intact: it was moved, not rebuilt.
+    const after = container.querySelector(FINDERS.myRules)
+    expect(after).toBe(before)
+    expect(after.textContent).toBe('2')
+  })
+
+  // The lead is not part of the layout, so it comes first whatever the layout lists.
+  it('the lead precedes the first panel in DOM order, in every session', () => {
+    const allShown = PANELS.today.map((p) => [p.id, true])
+    flagRef.current = true
+    prefsRef.current = {
+      [LAYOUT_PREF]: JSON.stringify(savedLayout({ premarket: allShown, market: allShown, postclose: allShown })),
+    }
+    const LEADS = [
+      [PREMARKET, '[data-testid="today-premarket"]'],
+      [MARKET, '[data-testid="broker-hero"]'],
+      [POSTCLOSE, '[data-testid="today-postclose"]'],
+    ]
+    for (const [m, leadSelector] of LEADS) {
+      market = m
+      const { container, unmount } = renderToday()
+      const lead = container.querySelector(leadSelector)
+      const panelEls = [...container.querySelectorAll(Object.values(FINDERS).join(','))]
+      // Controls: the lead was found, and there are panels to compare it against.
+      expect(lead).not.toBeNull()
+      expect(panelEls.length).toBe(PANELS.today.length)
+      for (const el of panelEls) {
+        expect(lead.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      }
+      unmount()
+    }
   })
 })
