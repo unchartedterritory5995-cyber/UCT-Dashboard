@@ -7,8 +7,12 @@ The service is `api/services/journal_two/template_gallery.py`; the client is
   member  GET    /api/j2/template-gallery/{gallery_id}        paid     one template in full (preview)
   member  POST   /api/j2/template-gallery                     paid     publish / resubmit one of Your templates
   member  POST   /api/j2/template-gallery/styles              paid     publish / resubmit one of Your journal styles (P3a; 404 while the library is off)
+  member  GET    /api/j2/template-gallery/updates             paid     the adopted styles with a newer listed version (P3a; 404 while the library is off)
+  member  GET    /api/j2/template-gallery/updates/{style_id}  paid     the preview of "Update my copy" (P3a; 404 while off)
+  member  POST   /api/j2/template-gallery/updates/{style_id}  paid     apply that update (P3a; 404 while off)
   member  DELETE /api/j2/template-gallery/{gallery_id}        session  unpublish (always possible)
   member  POST   /api/j2/template-gallery/{gallery_id}/use    paid     copy into Your templates
+  member  POST   /api/j2/template-gallery/{gallery_id}/adopt  paid     adopt a listed style as the member's own copy (P3a; 404 while off)
   member  POST   /api/j2/template-gallery/{gallery_id}/report paid     report a listed template
   admin   GET    /api/j2/template-gallery/admin/queue                  pending, reported, hidden
   admin   PATCH  /api/j2/template-gallery/admin/items/{gallery_id}     approve|reject|hide|unhide|feature|unfeature
@@ -27,7 +31,10 @@ The rules, the share and publish routers' (`notebook_shares.py`, `notebook_publi
   * RATE LIMITS, per member: publish 10/hour and report 30/hour in the in-process limiter
     (`public.enforce_rate`; ⚠️ PER-PROCESS STATE, scopes `notebook-gallery-publish` and
     `notebook-gallery-report` -- a second web process doubles both), plus a DURABLE daily cap
-    each in `daily_usage_counters` (survives deploys; fails open on a database error).
+    each in `daily_usage_counters` (survives deploys; fails open on a database error). Adopting
+    a style (P3a) is 30/hour in `notebook-gallery-adopt` and a durable 50/day.
+  * THE LITERAL `/updates` ROUTES COME BEFORE `/{gallery_id}`: a `GET /{gallery_id}` exists and would
+    take "updates" as an item id and answer its 404. Keep them above it.
   * Its paths are outside `/api/j2/notes/...`, so journal_two's `/api/j2/notes/{note_id}`
     cannot shadow them, and outside `/api/j2/note-templates/...`, whose `/{template_id}` would.
 """
@@ -53,9 +60,13 @@ SCOPE_PUBLISH = "notebook-gallery-publish"
 SCOPE_REPORT = "notebook-gallery-report"
 DAILY_PUBLISH_SCOPE = "notebook_gallery_publish"
 DAILY_REPORT_SCOPE = "notebook_gallery_report"
+ADOPT_RATE = "30/hour"
+SCOPE_ADOPT = "notebook-gallery-adopt"
+DAILY_ADOPT_SCOPE = "notebook_gallery_adopt"
 
 PUBLISH_RATE_SENTENCE = "You've published a lot to the community gallery today. Try again later."
 REPORT_RATE_SENTENCE = "You've sent a lot of reports today. Try again later."
+ADOPT_RATE_SENTENCE = "You've adopted a lot of styles today. Try again later."
 MAX_BODY_BYTES = 256_000
 TOO_LARGE_SENTENCE = "Request too large"
 
@@ -185,6 +196,47 @@ def publish_style_endpoint(body: dict[str, Any] = Depends(paid_body), user: dict
     return {"template": item, "droppedProperties": dropped}
 
 
+# ⛔ The literal `/updates` routes are declared BEFORE `GET /{gallery_id}`: that route would take "updates"
+# as an item id and answer its 404. Each is gated by `_require_library` (R-P3-10), a route dependency, so a
+# library-off pod answers every caller with the one 404 before the plan check and the body.
+
+@router.get("/updates", dependencies=[Depends(_require_library)])
+def list_updates_endpoint(user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{updates: [{galleryId, title, styleId, styleName, fromVersion, toVersion}]}` -- the member's adopted
+    styles whose community item is now listed at a higher version."""
+    return {"updates": gallery.list_updates(user["id"])}
+
+
+@router.get("/updates/{style_id}", dependencies=[Depends(_require_library)])
+def plan_update_endpoint(style_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{plan}` -- what "Update my copy" would add. 404 when the style is not an adopted copy of theirs or
+    nothing newer is listed."""
+    plan = gallery.plan_update(user["id"], style_id)
+    if plan is None:
+        raise public.not_found()
+    return {"plan": plan}
+
+
+@router.post("/updates/{style_id}", dependencies=[Depends(_require_library)])
+def apply_update_endpoint(style_id: str, body: dict[str, Any] = Depends(paid_body),
+                          user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{takeOutline?: bool, baseUpdatedAt}` -> `{style}`. 409 when the copy changed since the preview
+    (`baseUpdatedAt` is the `updatedAt` the member previewed against); 404 when there is nothing to apply."""
+    take_outline = body.get("takeOutline", False)
+    if take_outline is None:
+        take_outline = False
+    if not isinstance(take_outline, bool):
+        raise HTTPException(status_code=400, detail="takeOutline must be true or false")
+    try:
+        style = gallery.apply_update(user["id"], style_id, take_outline=take_outline,
+                                     base_updated_at=body.get("baseUpdatedAt"))
+    except gallery.GalleryError as e:
+        raise _bad(e)
+    if style is None:
+        raise public.not_found()
+    return {"style": style}
+
+
 @router.get("/{gallery_id}")
 def get_item_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     item = gallery.get_item(user["id"], gallery_id, is_admin=_is_admin(user))
@@ -227,6 +279,33 @@ def use_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[st
     except gallery.GalleryError as e:
         raise _bad(e)
     if out is None:
+        raise public.not_found()
+    return out
+
+
+@router.post("/{gallery_id}/adopt", dependencies=[Depends(_require_library)])
+def adopt_endpoint(gallery_id: str, body: dict[str, Any] = Depends(paid_body),
+                   user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """`{notify?: bool}` -> `{style, notify, credit}`: the member's own copy of a listed style (R-P3-10:
+    404 while the library is off, by `_require_library`, before the plan and the body). Rate-limited per
+    R-P3-11: 30/hour in-process plus a durable 50/day; a refused or failed adopt gives the day's charge back."""
+    notify = body.get("notify", False)
+    if notify is None:
+        notify = False
+    if not isinstance(notify, bool):
+        raise HTTPException(status_code=400, detail="notify must be true or false")
+    public.enforce_rate(ADOPT_RATE, SCOPE_ADOPT, f"member:{user['id']}", ADOPT_RATE_SENTENCE, public=False)
+    day = _daily_take(DAILY_ADOPT_SCOPE, user, "NOTEBOOK_GALLERY_ADOPT_DAILY_CAP", 50, ADOPT_RATE_SENTENCE)
+    try:
+        out = gallery.adopt_style(user["id"], gallery_id, notify=notify)
+    except gallery.GalleryError as e:
+        _give_back(day, DAILY_ADOPT_SCOPE, user)
+        raise _bad(e)
+    except Exception:
+        _give_back(day, DAILY_ADOPT_SCOPE, user)
+        raise
+    if out is None:
+        _give_back(day, DAILY_ADOPT_SCOPE, user)
         raise public.not_found()
     return out
 

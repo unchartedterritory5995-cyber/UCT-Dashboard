@@ -161,6 +161,10 @@ _DIRECT_USER_TABLES = (
     "j2_template_gallery",
     "j2_template_gallery_reports",
     "j2_template_gallery_uses",
+    # P3a Task 5 -- the member's "tell me when the author updates this" watches on community styles.
+    # Created by template_gallery.ensure_gallery_schema. The watches OTHER members hold on a
+    # leaving author's styles go in the join pass below.
+    "j2_gallery_watches",
     # Wave 13 (lane 13I-1, the technical fingerprint) -- the member's chart-block index (a
     # projection of their notes) and the freeze ledger of each block's fingerprint.
     # Self-ensured by chart_blocks.py (never db.py), so on a pod where the routes never ran
@@ -338,6 +342,12 @@ def purge_user_rows(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
         "j2_template_gallery_uses": _run(
             "j2_template_gallery_uses",
             "DELETE FROM j2_template_gallery_uses WHERE gallery_id IN "
+            "(SELECT id FROM j2_template_gallery WHERE user_id = ?)",
+            (user_id,),
+        ),
+        "j2_gallery_watches": _run(
+            "j2_gallery_watches",
+            "DELETE FROM j2_gallery_watches WHERE gallery_id IN "
             "(SELECT id FROM j2_template_gallery WHERE user_id = ?)",
             (user_id,),
         ),

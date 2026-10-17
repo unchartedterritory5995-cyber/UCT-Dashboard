@@ -188,6 +188,17 @@ _DDL = (
         used_at     TEXT NOT NULL,
         PRIMARY KEY (gallery_id, user_id)
     )""",
+    # P3a Task 5: "tell me when the author updates this" -- one row per (item, member), the copy it watches
+    # and the version they were last told about. A member who adopts WITHOUT notify has no row; their
+    # copy still shows in `list_updates`, because that reads the copy's own `source_version`.
+    """CREATE TABLE IF NOT EXISTS j2_gallery_watches (
+        gallery_id        TEXT NOT NULL,
+        user_id           TEXT NOT NULL,
+        style_id          TEXT NOT NULL,
+        notified_version  INTEGER NOT NULL DEFAULT 0,
+        created_at        TEXT NOT NULL,
+        PRIMARY KEY (gallery_id, user_id)
+    )""",
 )
 
 
@@ -448,6 +459,7 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
         out["hidden"] = bool(row["hidden"])
         out["reviewNote"] = row["review_note"] or ""
         out["createdAt"] = row["created_at"]
+        out["sourceStyleId"] = row["source_style_id"] if "source_style_id" in keys else None
         out["hasRevision"] = bool(row["pending_at"]) if "pending_at" in keys else False
         # The held revision's title, for the reviewer. The queue's pending rows carry it as the narrow
         # `revision_title` column (`_SELECT_QUEUE`); a single-template read (`_SELECT`) has `pending_json`.
@@ -793,7 +805,7 @@ def publish_style(user_id: str, style_id: Any, *, title: Any, description: Any, 
 
 def unpublish(user_id: str, gallery_id: str, conn: sqlite3.Connection | None = None) -> bool:
     """The author takes their copy down. Always possible, in every state. Deletes the
-    gallery copy and the reports and use counts about it -- the author's own request
+    gallery copy and the reports, use counts and watches about it -- the author's own request
     about their own content; copies others already made are theirs and stay."""
     owned = conn is None
     conn = conn or get_connection()
@@ -805,6 +817,7 @@ def unpublish(user_id: str, gallery_id: str, conn: sqlite3.Connection | None = N
         if cur.rowcount:
             conn.execute("DELETE FROM j2_template_gallery_reports WHERE gallery_id = ?", (gallery_id,))
             conn.execute("DELETE FROM j2_template_gallery_uses WHERE gallery_id = ?", (gallery_id,))
+            conn.execute("DELETE FROM j2_gallery_watches WHERE gallery_id = ?", (gallery_id,))
         conn.commit()
         return bool(cur.rowcount)
     finally:
@@ -878,6 +891,227 @@ def use_template(user_id: str, gallery_id: str, conn: sqlite3.Connection | None 
             result[_ensure_property(user_id, d, conn)].append(d.get("name") or "")
         template = conn.execute("SELECT * FROM j2_note_templates WHERE id = ?", (new_id,)).fetchone()
         return {"template": nt._summary(template), "properties": result}
+    finally:
+        if owned:
+            conn.close()
+
+
+# ── adopting a community style, and the previewed update (P3a Task 5) ──────────────────────
+
+ADOPT_NEEDS_STYLES_SENTENCE = "Journal styles are not on for you yet, so a style can't be adopted."
+UPDATE_STALE_SENTENCE = "This style changed since you opened the update. Nothing was changed. Look again."
+
+
+def _listed_style_row(conn: sqlite3.Connection, gallery_id: Any) -> sqlite3.Row | None:
+    """The row of a style a member may adopt: a style item that is approved and not hidden."""
+    if not isinstance(gallery_id, str) or not gallery_id:
+        return None
+    row = _row(conn, gallery_id)
+    if row is None or row["item_type"] != "style" or row["status"] != "approved" or row["hidden"]:
+        return None
+    return row
+
+
+def _listed_payload(row: sqlite3.Row) -> dict | None:
+    """The LISTED version's payload, or None when it cannot be read.
+
+    ⛔ `payload_json`, NEVER `pending_json` (the Task 4 review's warning): an approved item's held
+    revision is a version no reviewer has approved yet, and adopting or updating from it would hand a
+    member unreviewed content. `version` and `payload_json` move together, in the one conditional UPDATE
+    that approves a revision (`admin_act`)."""
+    try:
+        payload = json.loads(row["payload_json"] or "{}")
+    except (TypeError, ValueError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _block_ids(payload: dict) -> list[str]:
+    return [b["block"] for b in payload.get("blocks") or [] if isinstance(b, dict) and isinstance(b.get("block"), str)]
+
+
+def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False,
+                conn: sqlite3.Connection | None = None) -> dict | None:
+    """The member's own copy of a listed style (R-P3-10).
+
+    A new `j2_journal_styles` row through `journal_styles.create_style` (so every rule a style obeys on
+    save is applied to it), then `source_gallery_id`, `source_version` and `source_block_ids` written beside
+    it. None when the library is off or the item is not a listed style; `GalleryConflict` when the member's
+    Journal styles switch is off. A repeat adopt makes another copy (the member's choice) and never counts
+    as a second use. `notify` records a watch row so a later task can tell them about an update."""
+    from api.services.journal_two import journal_styles as js
+    if not library_enabled():
+        return None
+    if not js.enabled():
+        raise GalleryConflict(ADOPT_NEEDS_STYLES_SENTENCE)
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = _listed_style_row(conn, gallery_id)
+        if row is None:
+            return None
+        payload = _listed_payload(row)
+        if payload is None:
+            raise GalleryError("That style could not be read, so it cannot be adopted.")
+        try:
+            style = js.create_style(user_id, {
+                "name": (row["title"] or "Community style")[: js.MAX_STYLE_NAME_CHARS],
+                "kindId": payload.get("kindId"), "blocks": payload.get("blocks") or [],
+                "outlineBodyJson": payload.get("outlineBodyJson"),
+                "properties": payload.get("properties") or {}}, conn)
+        except js.StyleValidationError as e:
+            raise GalleryError(str(e)) from e
+        version = int(row["version"] or 1)
+        now = _now()
+        conn.execute(
+            "UPDATE j2_journal_styles SET source_gallery_id = ?, source_version = ?, source_block_ids = ?"
+            " WHERE id = ? AND user_id = ?",
+            (row["id"], version, json.dumps(_block_ids(payload)), style["id"], user_id))
+        if row["user_id"] != user_id:
+            conn.execute("INSERT OR IGNORE INTO j2_template_gallery_uses (gallery_id, user_id, used_at)"
+                         " VALUES (?, ?, ?)", (row["id"], user_id, now))
+        if notify:
+            conn.execute(
+                "INSERT INTO j2_gallery_watches (gallery_id, user_id, style_id, notified_version, created_at)"
+                " VALUES (?, ?, ?, ?, ?) ON CONFLICT(gallery_id, user_id) DO UPDATE SET"
+                " style_id = excluded.style_id, notified_version = excluded.notified_version",
+                (row["id"], user_id, style["id"], version, now))
+        conn.commit()
+        return {"style": js.get_style(user_id, style["id"], conn),
+                "notify": bool(notify),
+                "credit": f"Based on {_author_label(row)}'s {row['title']}"}
+    finally:
+        if owned:
+            conn.close()
+
+
+def list_updates(user_id: str, conn: sqlite3.Connection | None = None) -> list[dict]:
+    """The member's adopted styles whose item is now listed at a higher version, newest first.
+
+    Read from the COPY's own `source_version`, so a style adopted without "notify me" is here too: that
+    choice is about being told, not about being offered."""
+    if not library_enabled():
+        return []
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT s.id AS style_id, s.name AS style_name, s.source_version, g.id AS gallery_id,"
+            " g.title, g.version FROM j2_journal_styles s JOIN j2_template_gallery g"
+            " ON g.id = s.source_gallery_id WHERE s.user_id = ? AND s.deleted_at IS NULL"
+            " AND g.item_type = 'style' AND g.status = 'approved' AND g.hidden = 0"
+            " AND g.version > COALESCE(s.source_version, 0) ORDER BY g.updated_at DESC",
+            (user_id,)).fetchall()
+        return [{"galleryId": r["gallery_id"], "title": r["title"], "styleId": r["style_id"],
+                 "styleName": r["style_name"], "fromVersion": int(r["source_version"] or 0),
+                 "toVersion": int(r["version"])} for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
+def _plan(conn: sqlite3.Connection, user_id: str, style_id: Any):
+    """(mine, row, plan); `plan` is None when there is nothing newer to offer, `mine` None when the style is
+    not the member's own adopted copy.
+
+    ⛔ "A removed block is never re-added" needs the block ids of the version the member ADOPTED: without
+    them, a block they removed looks exactly like one they never had. They live on the copy
+    (`source_block_ids`), not on `j2_gallery_watches`, because a member can adopt without notify."""
+    from api.services.journal_two import journal_styles as js
+    if not library_enabled():
+        return None, None, None
+    mine = js.get_style(user_id, style_id, conn, full=True)
+    if mine is None or mine.get("builtin") or not mine.get("sourceGalleryId"):
+        return None, None, None
+    row = _listed_style_row(conn, mine["sourceGalleryId"])
+    if row is None or int(row["version"] or 1) <= int(mine.get("sourceVersion") or 0):
+        return mine, row, None
+    theirs = _listed_payload(row)
+    if theirs is None:
+        return mine, row, None
+    have = {b["block"] for b in mine.get("blocks") or [] if isinstance(b, dict) and "block" in b}
+    src = conn.execute("SELECT source_block_ids FROM j2_journal_styles WHERE id = ? AND user_id = ?",
+                       (style_id, user_id)).fetchone()
+    try:
+        adopted = set(json.loads((src and src["source_block_ids"]) or "[]"))
+    except (TypeError, ValueError):
+        adopted = set()
+    add_blocks = [b for b in _block_ids(theirs) if b not in have and b not in adopted]
+    mine_props = mine.get("properties") or {}
+    add_props = [p for p in (theirs.get("properties") or {}) if p not in mine_props]
+    outline_changed = (json.dumps(theirs.get("outlineBodyJson"), sort_keys=True)
+                       != json.dumps(mine.get("outlineBodyJson"), sort_keys=True))
+    plan = {"galleryId": row["id"], "fromVersion": int(mine.get("sourceVersion") or 0),
+            "toVersion": int(row["version"] or 1), "addBlocks": add_blocks, "addProperties": add_props,
+            "outlineChanged": outline_changed,
+            "newOutline": theirs.get("outlineBodyJson") if outline_changed else None}
+    return mine, row, plan
+
+
+def plan_update(user_id: str, style_id: Any, conn: sqlite3.Connection | None = None) -> dict | None:
+    """What "Update my copy" would do, as a preview that changes nothing. None when the style is not an
+    adopted copy of the member's, or nothing newer is listed (the route answers 404)."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        return _plan(conn, user_id, style_id)[2]
+    finally:
+        if owned:
+            conn.close()
+
+
+def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_updated_at: Any,
+                 conn: sqlite3.Connection | None = None) -> dict | None:
+    """Apply the additive update (R-P3-8) and return the updated style, or None when there is no plan.
+
+    ADDS the blocks and built-in property defaults the member does not have, and records the version they
+    are now on. It never changes a block they already have, never changes a value they set, and never
+    removes anything. The outline is replaced only when `take_outline` is true.
+
+    `GalleryConflict` when the copy changed since `base_updated_at` (the version the member previewed). The
+    comparison is made under the write lock (`BEGIN IMMEDIATE`), so a save that lands between the check
+    and the write cannot be overwritten by an update planned against the older copy."""
+    from api.services.journal_two import journal_styles as js
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        if not conn.in_transaction:
+            conn.execute("BEGIN IMMEDIATE")
+        mine, row, plan = _plan(conn, user_id, style_id)
+        if plan is None:
+            conn.rollback()
+            return None
+        if not isinstance(base_updated_at, str) or not base_updated_at or mine["updatedAt"] != base_updated_at:
+            conn.rollback()
+            raise GalleryConflict(UPDATE_STALE_SENTENCE)
+        theirs = _listed_payload(row) or {}
+        by_id = {b["block"]: b for b in theirs.get("blocks") or [] if isinstance(b, dict) and "block" in b}
+        patch: dict[str, Any] = {}
+        if plan["addBlocks"]:
+            patch["blocks"] = list(mine.get("blocks") or []) + [by_id[i] for i in plan["addBlocks"]]
+        if plan["addProperties"]:
+            patch["properties"] = {**(mine.get("properties") or {}),
+                                   **{p: theirs["properties"][p] for p in plan["addProperties"]}}
+        if take_outline and plan["outlineChanged"] and theirs.get("outlineBodyJson"):
+            # The author's outline replaces the member's, and a template link (which compose reads FIRST)
+            # is let go so the outline they chose to take is the one that is used.
+            patch["outlineBodyJson"] = theirs["outlineBodyJson"]
+            patch["outlineTemplateId"] = None
+        try:
+            if patch:
+                js.update_style(user_id, style_id, patch, conn)
+        except js.StyleValidationError as e:
+            conn.rollback()
+            raise GalleryError(str(e)) from e
+        conn.execute(
+            "UPDATE j2_journal_styles SET source_version = ?, source_block_ids = ? WHERE id = ? AND user_id = ?",
+            (plan["toVersion"], json.dumps(_block_ids(theirs)), style_id, user_id))
+        conn.commit()
+        return js.get_style(user_id, style_id, conn)
+    except Exception:
+        if conn.in_transaction:
+            conn.rollback()
+        raise
     finally:
         if owned:
             conn.close()

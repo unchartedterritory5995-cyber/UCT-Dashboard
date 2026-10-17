@@ -1,56 +1,18 @@
 """P3a: item types, trading style, sorts and the library switch on the gallery list."""
 from __future__ import annotations
 
-import importlib
 import json
-import os
 import re
 import sqlite3
-import tempfile
-import uuid
 from pathlib import Path
 
 import pytest
 
 from api.services.journal_two import template_gallery as gallery
+from tests._style_library_helpers import _publish, _row, _style, api, conn, lib_on  # noqa: F401  (fixtures + helpers)
 
 ROOT = Path(__file__).resolve().parents[1]
 STYLE_LIB = ROOT / "app" / "src" / "pages" / "journal-2-0" / "lib" / "styleLibrary.js"
-
-
-@pytest.fixture
-def conn(monkeypatch):
-    # The gallery tests' own `db_path` fixture is the model (a private fixture there, so its
-    # body is copied here rather than imported): a throwaway auth.db with the schema applied.
-    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-    tmp.close()
-    monkeypatch.setenv("AUTH_DB_PATH", tmp.name)
-    from api.services import auth_db
-    importlib.reload(auth_db)
-    auth_db.init_db()
-    c = auth_db.get_connection()
-    # init_db seeds the six firm outlines; these tests count rows, so start from an empty table.
-    c.execute("DELETE FROM j2_template_gallery")
-    c.commit()
-    yield c
-    c.close()
-    for suffix in ("", "-wal", "-shm"):
-        try:
-            os.unlink(tmp.name + suffix)
-        except OSError:
-            pass
-
-
-def _row(conn, *, item_type="outline", status="approved", trading_style=None, user_id="u1",
-         listed_at="2026-10-10T00:00:00+00:00", title="T"):
-    gid = uuid.uuid4().hex
-    conn.execute(
-        "INSERT INTO j2_template_gallery (id, user_id, kind, title, description, category, body_json,"
-        " status, listed_at, created_at, updated_at, preview_json, item_type, trading_style)"
-        " VALUES (?, ?, 'member', ?, '', 'trade_plan', '{}', ?, ?, ?, ?, '[]', ?, ?)",
-        (gid, user_id, title, status, listed_at, listed_at, listed_at, item_type, trading_style))
-    conn.commit()
-    return gid
 
 
 _LEGACY_DDL = """CREATE TABLE j2_template_gallery (
@@ -203,30 +165,6 @@ def test_the_client_lists_are_the_server_lists():
 # ── Task 4: publishing a style, and held revisions ───────────────────────────────────────
 
 from api.services.journal_two import journal_styles as js
-
-
-def _style(conn, user_id="author", **over):
-    payload = {"name": "Weekend Prep", "kindId": "weekend_prep", "blocks": [],
-               "outlineBodyJson": {"type": "doc", "content": [
-                   {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Plan"}]},
-                   {"type": "paragraph", "content": [{"type": "text", "text": "mail me at a@b.com"}]},
-                   {"type": "image", "attrs": {"src": "/api/j2/notes/n1/att/x.png"}},
-                   {"type": "taskList", "content": [{"type": "taskItem", "attrs": {"checked": True},
-                       "content": [{"type": "paragraph", "content": [{"type": "text", "text": "done"}]}]}]},
-               ]}}
-    payload.update(over)
-    return js.create_style(user_id, payload, conn)
-
-
-def _publish(conn, style_id, user_id="author", title="T", trading_style=None):
-    return gallery.publish_style(user_id, style_id, title=title, description="", category="journal",
-                                 trading_style=trading_style, conn=conn)
-
-
-@pytest.fixture
-def lib_on(monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
 
 
 def test_a_published_style_payload_goes_through_the_gallery_reducer(conn, lib_on):
@@ -432,25 +370,6 @@ def test_a_style_row_is_the_one_not_found_while_the_library_is_off(conn, monkeyp
 
 
 # ── the route ────────────────────────────────────────────────────────────────────────────
-
-@pytest.fixture
-def api(conn, monkeypatch):
-    from fastapi import FastAPI
-    from fastapi.testclient import TestClient
-    from api.limiter import limiter
-    from api.middleware import auth_middleware as authmw
-    from api.routers import notebook_template_gallery
-    monkeypatch.setenv("NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "1")
-    limiter.reset()
-    app = FastAPI()
-    app.include_router(notebook_template_gallery.router)
-    user = {"id": "author", "role": "member", "plan": "pro"}
-    app.dependency_overrides[authmw.get_current_user] = lambda: dict(user)
-    app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: dict(user)
-    yield TestClient(app)
-    app.dependency_overrides.clear()
-    limiter.reset()
-
 
 def test_post_styles_is_404_while_the_library_is_off(api, conn, monkeypatch):
     monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
