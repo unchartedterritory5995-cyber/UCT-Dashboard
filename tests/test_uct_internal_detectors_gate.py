@@ -42,7 +42,11 @@ _UCT2 = ("uct_launch_pad", "uct_gap_support", "uct_capitulation", "uct_go_signal
 #: shipped INTERNAL through the same gate (tests/pattern_engine/detectors/
 #: test_uct_recall_v2.py carries their own fixtures).
 _RECALL_V2 = ("uct_undercut_reclaim", "uct_episodic_pivot_v2")
-_INTERNAL = (*_UCT2, *_RECALL_V2)
+#: Detector recall v2, pullback v5 (2026-10-17): NEW id beside the four
+#: pullback_to_* detectors, same gate (fixtures in tests/pattern_engine/
+#: detectors/test_uct_pullback_ma_v5.py).
+_PULLBACK_V5 = ("uct_pullback_ma_v5",)
+_INTERNAL = (*_UCT2, *_RECALL_V2, *_PULLBACK_V5)
 _CONTROL = "bull_flag"
 _PROBE = "zz_internal_gate_probe"
 _SYM = "GATEX"

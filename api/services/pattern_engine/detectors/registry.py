@@ -6,7 +6,7 @@ detector via `detect_one`.
 """
 from __future__ import annotations
 
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 
 
 DetectorFn = Callable[[list, dict], list[dict]]
@@ -14,10 +14,71 @@ DetectorFn = Callable[[list, dict], list[dict]]
 
 _REGISTRY: Dict[str, DetectorFn] = {}
 
+#: The daily scan's history depth: every detector that declares no minimum
+#: receives exactly this many trailing bars, as it did before minimums existed.
+SCAN_BASE_DEPTH = 200
 
-def register(pattern_id: str, fn: DetectorFn) -> None:
-    """Add a detector to the registry. Overwrites if already present."""
+#: Detectors that need MORE history than the scan's base depth declare it at
+#: registration (`register(pid, fn, min_bars=N)`). The scan fetches enough for
+#: the deepest declaration and hands each declaring detector its own N trailing
+#: bars; nothing else sees the extra history.
+_MIN_BARS: Dict[str, int] = {}
+
+#: Detectors with a per-symbol rule (uct_pullback_ma_v5's fund exclusion)
+#: declare `wants_sym=True`; `detect_all(..., sym=X)` then hands ONLY them a
+#: context copy carrying `sym`. Every other detector's context, and therefore
+#: every detection it embeds that context in, is unchanged.
+_WANTS_SYM: set = set()
+
+
+def register(pattern_id: str, fn: DetectorFn, min_bars: Optional[int] = None,
+             wants_sym: bool = False) -> None:
+    """Add a detector to the registry. Overwrites if already present.
+
+    `min_bars`: optional minimum daily history this detector needs, used only
+    when it exceeds the caller's base depth (see `bars_for`).
+    `wants_sym`: the detector reads `context["sym"]` (see `context_for`)."""
     _REGISTRY[pattern_id] = fn
+    if min_bars is None:
+        _MIN_BARS.pop(pattern_id, None)
+    else:
+        _MIN_BARS[pattern_id] = int(min_bars)
+    if wants_sym:
+        _WANTS_SYM.add(pattern_id)
+    else:
+        _WANTS_SYM.discard(pattern_id)
+
+
+def wants_sym(pattern_id: str) -> bool:
+    return pattern_id in _WANTS_SYM
+
+
+def context_for(pattern_id: str, context: dict, sym) -> dict:
+    """The context a detector receives: `context` itself, or for a detector
+    that declared `wants_sym`, a copy with `sym` (upper-cased) added."""
+    if pattern_id in _WANTS_SYM and sym:
+        return {**(context or {}), "sym": str(sym).strip().upper()}
+    return context
+
+
+def min_bars_for(pattern_id: str) -> Optional[int]:
+    """The declared minimum history for `pattern_id`, or None."""
+    return _MIN_BARS.get(pattern_id)
+
+
+def scan_depth(base_depth: int = SCAN_BASE_DEPTH) -> int:
+    """How many bars a scan must fetch so every registered detector gets the
+    history it declared: max(base_depth, every registered declaration)."""
+    declared = [n for pid, n in _MIN_BARS.items() if pid in _REGISTRY]
+    return max([int(base_depth)] + declared)
+
+
+def bars_for(pattern_id: str, bars: list, base_depth: int) -> list:
+    """The trailing slice a detector receives under a scan of `base_depth`:
+    its declared minimum when larger than the base, else exactly `base_depth`
+    trailing bars (the pre-minimum behaviour, byte for byte)."""
+    n = max(int(base_depth), _MIN_BARS.get(pattern_id) or 0)
+    return bars[-n:] if n > 0 else bars
 
 
 def get_detector(pattern_id: str) -> DetectorFn:
@@ -60,6 +121,11 @@ INTERNAL_PATTERN_IDS: frozenset = frozenset({
     # recall gains and a blind random-day review; experimental, internal until
     # the owner rules them public.
     "uct_undercut_reclaim", "uct_episodic_pivot_v2",
+    # Detector recall v2, pullback v5 (2026-10-17): a NEW id beside the four
+    # pullback_to_* detectors (unchanged). Lab test half recall 20.1% at lift
+    # 3.74 vs production 1.94; blind fresh-packet review 19 yes / 1 no / 5
+    # ambiguous. Experimental, internal until the owner rules it public.
+    "uct_pullback_ma_v5",
 })
 
 
